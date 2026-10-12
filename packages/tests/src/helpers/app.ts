@@ -198,11 +198,13 @@ const settingsRow = (page: Page, label: string) =>
     .getByText(label, { exact: true })
     .locator("xpath=ancestor::div[.//button][1]");
 
-export const openSecurity = async (
+type SecurityTab = "Connections" | "API keys";
+
+// Opens Security on the Settings page already loaded, without navigating.
+export const openSecurityDialog = async (
   page: Page,
-  tab: "Connections" | "API keys" = "Connections"
+  tab: SecurityTab = "Connections"
 ) => {
-  await gotoApp(page, "/settings");
   const manageButton = settingsRow(page, "Security").getByRole("button", {
     name: "Manage",
   });
@@ -216,6 +218,13 @@ export const openSecurity = async (
       await clickVisibleControl(manageButton, { timeout: 2500 });
     }
     await expect(dialog).toBeVisible({ timeout: 2500 });
+    // Settings reads the device list with an action on every load, and the
+    // Convex client raises a beforeunload prompt while a request is in flight.
+    // Let the list settle on the Connections tab before switching away, so the
+    // caller's next navigation never races it.
+    await expect(dialog.getByText("Loading devices…")).toHaveCount(0, {
+      timeout: 2500,
+    });
     if (
       (await tabTrigger.getAttribute("aria-selected", { timeout: 2500 })) !==
       "true"
@@ -228,6 +237,14 @@ export const openSecurity = async (
     await expect(tabPanel).toBeVisible({ timeout: 2500 });
   }).toPass({ intervals: [250, 500, 1000], timeout: 20_000 });
   return dialog;
+};
+
+export const openSecurity = async (
+  page: Page,
+  tab: SecurityTab = "Connections"
+) => {
+  await gotoApp(page, "/settings");
+  return openSecurityDialog(page, tab);
 };
 
 export const generateApiKey = async (page: Page) => {
