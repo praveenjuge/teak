@@ -24,6 +24,7 @@ import {
   type FilesWorkerImageMetadataResult,
   type FilesWorkerOutcome,
 } from "../../storage/filesWorkerClient";
+import { normalizeAiTags } from "./tags";
 
 /**
  * All metadata generation runs in the Files Worker on its Workers AI binding
@@ -117,7 +118,10 @@ const generateWorkerMetadata = async (
       return { output: metadata, usage: facts.usage };
     }
   );
-  return { aiTags: result.output.tags, aiSummary: result.output.summary };
+  return {
+    aiTags: normalizeAiTags(result.output.tags),
+    aiSummary: result.output.summary,
+  };
 };
 export const generateTextMetadata = (content: string, title?: string) =>
   generateWorkerMetadata(
@@ -151,7 +155,7 @@ export const generateImageMetadataForStoredKey = async (
     );
   }
   return {
-    aiTags: outcome.data.tags,
+    aiTags: normalizeAiTags(outcome.data.tags),
     aiSummary: outcome.data.summary,
   };
 };

@@ -68,7 +68,9 @@ Teak's MCP server supports two authentication methods.
   <Tab title="Browser sign-in">
     Spec-compliant MCP clients discover Teak's authorization server from `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, open your browser to sign in, and store the resulting access token automatically. Teak's sign-in supports clients that identify themselves with a Client ID Metadata Document or register through dynamic client registration, and requires PKCE (S256). External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
-    Request `{{mcp-url}}` as the OAuth resource. The access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`.
+    Request `{{mcp-url}}` as the OAuth resource. The access token must have that exact audience. MCP rejects tokens issued for the API resource, `https://teakvault.com/api`.
+
+    Development and self-hosted deployments can use their own resources. Request the `resource` that the deployment's `/.well-known/oauth-protected-resource/mcp` document lists. On the development deployment it is the deployment's own MCP URL, `https://<deployment>.convex.site/mcp`. To satisfy clients that require the resource to match the server URL, connect them to that URL directly, not through the docs proxy at `http://localhost:3001/mcp`.
 
     For example, with Claude:
 
@@ -125,7 +127,7 @@ type CardFilters = {
   createdAfter?: number;        // Unix ms
   createdBefore?: number;
   cursor?: string;              // pageInfo.nextCursor
-  limit?: number;               // up to 100
+  limit?: number;               // 1 to 100
   include?: ("content" | "metadata" | "processing")[]; // default content + metadata
 };
 ```
@@ -159,7 +161,8 @@ type CardFilters = {
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
   - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true, idempotencyKey?: string }`
-  - Output: bulk operation results; delete batches move cards to Trash and require `confirm: true`
+  - Output: `{ operation, results: [{ index, status: "success", cardId } | { index, status: "error", code, error }], summary: { total, succeeded, failed } }`. Delete batches move cards to Trash and require `confirm: true`.
+  - If any item fails, the result is marked as a tool error (`isError: true`) and its text lists the failed items. The other items still succeed.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
@@ -197,5 +200,13 @@ Tool failures are returned as MCP tool errors with this structured shape:
   "error": "Too many requests"
 }
 ```
+
+Invalid arguments, such as a `limit` outside 1 to 100, come back the same way with `"status": 400` and `"code": "INVALID_INPUT"`.
+
+Protocol problems are JSON-RPC errors instead:
+
+- An unknown tool name returns error `-32602` (`Unknown tool: <name>`).
+- A request body that isn't valid JSON returns HTTP `400` with error `-32700` (`Parse error`).
+- A message that isn't a JSON-RPC request returns error `-32600` (`Invalid Request`).
 
 

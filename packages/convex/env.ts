@@ -1,5 +1,10 @@
 import { env } from "./_generated/server";
 import { validateOAuthUrl } from "./client/authDiscovery";
+import {
+  PRODUCTION_WORKOS_RESOURCES,
+  type WorkosResources,
+  workosResourcesFor,
+} from "./shared/workosResources";
 
 /**
  * Typed backend environment resolvers. Variables are declared in
@@ -58,6 +63,37 @@ export const readWorkosConnectIssuer = (): string => {
 export const findWorkosConnectIssuer = (): string | undefined => {
   try {
     return readWorkosConnectIssuer();
+  } catch {
+    return undefined;
+  }
+};
+
+// This deployment's WorkOS token audiences. Unset keeps the production
+// resources; the dev deployment sets its own convex.site origin so the MCP
+// resource matches the URL clients connect to (RFC 9728).
+export const readWorkosResources = (): WorkosResources => {
+  const value = env.WORKOS_RESOURCE_ORIGIN;
+  if (value === undefined) {
+    return PRODUCTION_WORKOS_RESOURCES;
+  }
+  let origin: string | undefined;
+  try {
+    origin = validateOAuthUrl(value, true).origin;
+  } catch {
+    // Reported below with the variable's name.
+  }
+  if (origin !== value) {
+    throw new Error(
+      "WORKOS_RESOURCE_ORIGIN must be an HTTPS (or loopback) origin without a path or trailing slash."
+    );
+  }
+  return workosResourcesFor(value);
+};
+
+// For callers that answer "unavailable" rather than throw.
+export const findWorkosResources = (): WorkosResources | undefined => {
+  try {
+    return readWorkosResources();
   } catch {
     return undefined;
   }

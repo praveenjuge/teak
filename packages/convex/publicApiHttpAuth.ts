@@ -11,23 +11,25 @@ import {
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
-import { findWorkosConnectIssuer } from "./env";
+import { findWorkosConnectIssuer, findWorkosResources } from "./env";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
   type AuthResult,
   errorResponse,
+  isOptimisticConcurrencyError,
   isRateLimitContentionError,
   json,
   parseBearerToken,
   parseOptionalString,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
+  SERVICE_BUSY_ERROR,
   sha256,
 } from "./publicApiHttpShared";
 import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
-import { WORKOS_RESOURCES } from "./shared/workosResources";
+import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
@@ -134,6 +136,12 @@ const maybeHandleIdempotency = async (
   }
 };
 
+const IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS = [50, 250];
+const IDEMPOTENCY_COMPLETE_FALLBACK_DELAY_MS = 1000;
+
+// Stores the response for an operation that already committed. It never
+// throws: a lost completion would leave the key "in progress" for a day and
+// hide the result from retries, so it retries, then schedules the write.
 const completeIdempotencyResponse = async (
   ctx: ActionCtx,
   args: {
@@ -148,16 +156,44 @@ const completeIdempotencyResponse = async (
     return;
   }
 
-  await ctx.runMutation(
-    (internal as any).idempotency.completeIdempotencyRequestForUser,
-    {
-      keyHash: args.keyHash,
-      requestHash: args.requestHash,
-      responseBody: args.responseBody,
-      responseStatus: args.responseStatus,
-      userId: args.userId,
+  const completion = {
+    keyHash: args.keyHash,
+    requestHash: args.requestHash,
+    responseBody: args.responseBody,
+    responseStatus: args.responseStatus,
+    userId: args.userId,
+  };
+  const reference = (internal as any).idempotency
+    .completeIdempotencyRequestForUser;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await ctx.runMutation(reference, completion);
+      return;
+    } catch (error) {
+      const delay = IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) {
+        console.error("[idempotency] Completion failed; scheduling retry", {
+          error,
+          keyHash: args.keyHash,
+        });
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-  );
+  }
+
+  try {
+    await ctx.scheduler.runAfter(
+      IDEMPOTENCY_COMPLETE_FALLBACK_DELAY_MS,
+      reference,
+      completion
+    );
+  } catch (error) {
+    console.error("[idempotency] Could not schedule completion", {
+      error,
+      keyHash: args.keyHash,
+    });
+  }
 };
 
 const releaseIdempotencyResponse = async (
@@ -217,7 +253,12 @@ const enforceInvalidAuthLimit = async (
 
   if (!limit?.ok) {
     return decide(
-      { error: RATE_LIMITED_ERROR(limit?.retryAt) },
+      {
+        error: RATE_LIMITED_ERROR(
+          limit?.retryAt,
+          RATE_LIMIT_CONFIG.invalidApiAuth.capacity
+        ),
+      },
       "invalid_auth_rate_limited"
     );
   }
@@ -347,10 +388,17 @@ const authorizeBearer = async (
       if (!issuer) {
         return decide({ error: AUTH_INTERNAL_ERROR() }, "issuer_unconfigured");
       }
+      const resources = findWorkosResources();
+      if (!resources) {
+        return decide(
+          { error: AUTH_INTERNAL_ERROR() },
+          "resource_unconfigured"
+        );
+      }
       let jwksUnavailable = false;
       const principal = await verifyWorkosConnectToken(token, {
         issuer,
-        audience: WORKOS_RESOURCES[options.resource ?? "api"],
+        audience: resources[options.resource ?? "api"],
         onUnavailable: () => {
           jwksUnavailable = true;
         },
@@ -396,6 +444,10 @@ const authorizeBearer = async (
         "rate_limit_contention"
       );
     }
+    // Any other write race is retryable, not a server fault.
+    if (isOptimisticConcurrencyError(error)) {
+      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
+    }
     return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
@@ -426,7 +478,12 @@ const authorizeBearer = async (
   // follows the real key / OAuth app+user rather than the raw token string.
   if (!rateLimit?.ok) {
     return decide(
-      { error: RATE_LIMITED_ERROR(rateLimit?.retryAt) },
+      {
+        error: RATE_LIMITED_ERROR(
+          rateLimit?.retryAt,
+          RATE_LIMIT_CONFIG.publicApiRequests.capacity
+        ),
+      },
       "rate_limited"
     );
   }

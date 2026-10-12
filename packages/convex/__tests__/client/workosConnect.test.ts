@@ -80,6 +80,21 @@ test("authorize URL requests a refresh-capable API grant with S256 PKCE", () => 
   });
 });
 
+test("authorize URL requests the API sibling of a deployment's own resource", () => {
+  const url = createConnectAuthorizeUrl(
+    { ...auth, resource: "https://reminiscent-kangaroo-59.convex.site/mcp" },
+    {
+      clientId: "client_CLI",
+      codeChallenge: "challenge",
+      redirectUri: "http://127.0.0.1:4000/callback",
+      state: "state",
+    }
+  );
+  expect(url.searchParams.get("resource")).toBe(
+    "https://reminiscent-kangaroo-59.convex.site/api"
+  );
+});
+
 describe("token requests", () => {
   test("posts the grant for the API resource without cookies or redirects", async () => {
     const calls = transport(() =>

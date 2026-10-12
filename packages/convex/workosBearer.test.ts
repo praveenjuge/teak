@@ -21,6 +21,7 @@ import {
   updateComponentUser,
 } from "./__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components } from "./_generated/api";
+import { syncCardSearchTagsBatchHandler } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { API_KEY_TOKEN_PREFIX } from "./shared/apiKeyFormat";
 
@@ -179,6 +180,26 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect(rows[0].userId).toBe(ownerId);
   });
 
+  test("a deployment's resource origin replaces the production audiences", async () => {
+    vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "https://dev.convex.site");
+    const f = await setup();
+    expect(
+      (await f.read(await token("https://dev.convex.site/api"))).status
+    ).toBe(200);
+    expect(
+      (await f.mcp(await token("https://dev.convex.site/mcp"))).status
+    ).toBe(200);
+    expect((await f.read(await token(apiAudience))).status).toBe(401);
+    expect((await f.mcp(await token(mcpAudience))).status).toBe(401);
+  });
+
+  test("a malformed resource origin fails closed", async () => {
+    vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "https://dev.convex.site/mcp");
+    const f = await setup();
+    expect((await f.read(await token())).status).toBe(500);
+    expect((await f.mcp(await token(mcpAudience))).status).toBe(500);
+  });
+
   test("MCP CRUD and listing retain the permanent owner through shared REST handlers", async () => {
     const f = await setup();
     const access = await token(mcpAudience);
@@ -215,6 +236,8 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect(
       JSON.stringify(await call("teak_v1_get_card", { cardId: id }))
     ).toContain("Updated WorkOS card");
+    // Tags are listed from the tag index, which syncs right after a save.
+    await f.t.run((ctx) => syncCardSearchTagsBatchHandler(ctx, id));
     expect(JSON.stringify(await call("teak_v1_list_tags", {}))).toContain(
       "migrated"
     );

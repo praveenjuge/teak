@@ -162,18 +162,13 @@ export async function generateHandler(
   }
 
   const completeWithoutAi = async () => {
-    const now = Date.now();
-    const processingStatus = card.processingStatus || {};
-    const completedProcessingStatus = {
-      ...processingStatus,
-      metadata: stageCompleted(now, 0),
-    };
+    // Write only this stage; the mutation merges it into the fresh status.
     await ctx.runMutation(
       internal.workflows.aiMetadata.mutations.updateCardAI,
       {
         cardId,
         aiTags: [],
-        processingStatus: completedProcessingStatus,
+        processingStatus: { metadata: stageCompleted(Date.now(), 0) },
       }
     );
     return {
@@ -231,10 +226,13 @@ export async function generateHandler(
       }
       case "audio": {
         if (card.fileKey) {
-          await recordMediaFacts(ctx, card, "audio");
+          const durationSeconds = await recordMediaFacts(ctx, card, "audio");
+          // Silence, tones and beeps yield no transcript, so they also get no
+          // made-up summary or tags.
           const transcriptResult = await generateTranscript(
             card.fileKey,
-            card.fileMetadata?.mimeType
+            card.fileMetadata?.mimeType,
+            { durationSeconds }
           );
           if (transcriptResult) {
             aiTranscript = transcriptResult;
@@ -350,12 +348,11 @@ export async function generateHandler(
     return await completeWithoutAi();
   }
 
-  // Update card with AI metadata
-  const now = Date.now();
-  const processingStatus = card.processingStatus || {};
+  // Update card with AI metadata. Only the metadata stage is sent; the
+  // mutation merges it into the status it reads, so a parallel renderables
+  // write is never reset.
   const updatedProcessing = {
-    ...processingStatus,
-    metadata: stageCompleted(now, confidence),
+    metadata: stageCompleted(Date.now(), confidence),
   };
 
   const saved = await ctx.runMutation(

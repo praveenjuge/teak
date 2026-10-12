@@ -457,6 +457,9 @@ export const cardValidator = v.object({
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
   visualStyles: v.optional(v.array(v.string())),
+  // Times the periodic AI backfill has retried this card. After the limit the
+  // backfill stops picking it, so cards that always fail can't starve others.
+  aiBackfillAttempts: v.optional(v.number()),
   // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
   colorHexes: v.optional(v.array(v.string())),
@@ -808,6 +811,26 @@ export default defineSchema({
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
+  // Ids of hard-deleted cards, so /v1/cards/changes can report them. Rows
+  // expire after CARD_TOMBSTONE_RETENTION_MS (publicApiTombstones.ts).
+  cardTombstones: defineTable({
+    userId: v.string(),
+    cardId: v.id("cards"),
+    deletedAt: v.number(),
+  })
+    .index("by_userId_and_deletedAt", ["userId", "deletedAt"])
+    .index("by_deletedAt", ["deletedAt"]),
+  // Short-lived record that an API key validated, so concurrent requests skip
+  // the key component's hot usage-counter write. Revoking a key deletes it.
+  apiKeyAuthCache: defineTable({
+    tokenHash: v.string(),
+    keyId: v.string(),
+    userId: v.string(),
+    rateLimitKey: v.string(),
+    verifiedAt: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_keyId", ["keyId"]),
   apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
     .index("by_date_endpoint", ["date", "endpoint"])
     .index("by_date_endpoint_shard", ["date", "endpoint", "shard"]),

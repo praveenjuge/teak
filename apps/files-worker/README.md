@@ -56,6 +56,11 @@ Operation request bodies are limited to 1 MiB before signature verification.
   object transiting Convex (`src/inspect.ts`): zip archives are walked via R2
   ranged reads (EOCD → central directory → selected entries) so memory stays
   flat regardless of archive size; CSS and text modes are byte-bounded.
+  The `pdf` mode (unpdf/pdf.js) reads PDFs up to the caller's `maxBytes`,
+  parses at most the first 50 pages, and returns at most 512 KiB characters
+  of text; oversized, corrupt, and password-protected PDFs return empty text.
+  It is additive: deploy the Worker first. Convex treats an older Worker's
+  INVALID_INPUT for `pdf` as "no text" rather than failing card processing.
 - `create-multipart`, `complete-multipart`, and `abort-multipart` coordinate
   resumable browser uploads. Signed `PUT /__uploads/v1/...` URLs accept only
   an exact upload id, object key, and part number.
@@ -106,8 +111,6 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
 - `probe-media` reads duration, display size (rotation-aware) and video codec
   from MP4/MOV/M4A boxes or WebM headers with bounded ranged reads. Convex
   stores duration and size for audio and video cards when they are missing.
-- `inspect` mode `pdf` extracts the text layer of a PDF's first 30 pages
-  (unpdf) for AI metadata; scanned PDFs yield no text.
 - `analyze-image` also returns EXIF camera facts (make, model, exposure,
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.

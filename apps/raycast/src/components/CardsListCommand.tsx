@@ -7,8 +7,8 @@ import {
   type RaycastCard,
   setCardFavorite,
 } from "../lib/api";
-import { getCardTypeIcon } from "../lib/cardIcons";
 import { getCardDomain, getCardTitle } from "../lib/cardDetailModel";
+import { getCardTypeIcon } from "../lib/cardIcons";
 import { removeCardById, upsertCard } from "../lib/cardListState";
 import {
   applyTagFilter,

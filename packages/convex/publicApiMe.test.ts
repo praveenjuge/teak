@@ -4,6 +4,7 @@ import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
+import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, expect, test, vi } from "vitest";
@@ -11,7 +12,7 @@ import {
   seedWorkosOwner,
   updateComponentUser,
 } from "./__tests__/helpers/workosOwner.test-utils";
-import { api } from "./_generated/api";
+import { api, components } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -159,4 +160,56 @@ test("on the shared dev deployment, API links open the dev web app", async () =>
   expect(created.status).toBe(200);
   const body = await created.json();
   expect(body.appUrl).toBe(`http://localhost:3000/?card=${body.card.id}`);
+});
+
+test("requests in quick succession reuse one key validation", async () => {
+  vi.useFakeTimers();
+  try {
+    const { t, request } = await setup();
+    for (let index = 0; index < 3; index += 1) {
+      expect((await request()).status).toBe(200);
+    }
+    const [keyRow] = await t.run((ctx) =>
+      ctx.db.query("apiKeyAuthCache").collect()
+    );
+    const apiKeys = new ApiKeys(components.apiKeys);
+    const usage = await t.run((ctx) =>
+      apiKeys.getUsage(ctx, { keyId: keyRow.keyId, ownerId: OWNER })
+    );
+    // Only the first request wrote the key component's shared usage counter.
+    expect(usage.total).toBe(1);
+    vi.advanceTimersByTime(61_000);
+    expect((await request()).status).toBe(200);
+    const refreshed = await t.run((ctx) =>
+      apiKeys.getUsage(ctx, { keyId: keyRow.keyId, ownerId: OWNER })
+    );
+    expect(refreshed.total).toBe(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a key revoked outside Teak's revoke paths stops working at once", async () => {
+  const { t, request } = await setup();
+  expect((await request()).status).toBe(200);
+  const [keyRow] = await t.run((ctx) =>
+    ctx.db.query("apiKeyAuthCache").collect()
+  );
+  await t.run((ctx) =>
+    new ApiKeys(components.apiKeys).revoke(ctx, {
+      keyId: keyRow.keyId,
+      ownerId: OWNER,
+    })
+  );
+  expect((await request()).status).toBe(401);
+});
+
+test("revoking a key clears its cached validation", async () => {
+  const { t, request, revoke } = await setup();
+  expect((await request()).status).toBe(200);
+  await revoke();
+  expect(
+    await t.run((ctx) => ctx.db.query("apiKeyAuthCache").collect())
+  ).toEqual([]);
+  expect((await request()).status).toBe(401);
 });

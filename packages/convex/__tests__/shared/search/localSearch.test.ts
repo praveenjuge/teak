@@ -7,6 +7,7 @@ import {
   filterLocalCards,
   mergeCardsIntoLocalSearchCache,
   mergeLocalAndRemoteSearchResults,
+  pruneCardsMissingFromRemote,
   resolveQuickSearchCommand,
   tokenizeSearchQuery,
 } from "../../../shared/search";
@@ -341,5 +342,35 @@ describe("shared search helpers", () => {
     const next = mergeCardsIntoLocalSearchCache(current, incoming, 2);
     expect(next.map((card) => card._id)).toEqual(["1", "2"]);
     expect(next.find((card) => card._id === "2")?.updatedAt).toBe(4);
+  });
+
+  it("drops cached cards that the same remote query stopped returning", () => {
+    const cache = [
+      makeCard({ _id: "kept", content: "design" }),
+      makeCard({ _id: "deleted", content: "design" }),
+      makeCard({ _id: "other-query", content: "design" }),
+    ];
+    const previousRemoteIds = new Set(["kept", "deleted"]);
+    const nextRemote = [makeCard({ _id: "kept", content: "design" })];
+
+    const next = pruneCardsMissingFromRemote(
+      cache,
+      previousRemoteIds,
+      nextRemote
+    );
+
+    expect(next.map((card) => card._id)).toEqual(["kept", "other-query"]);
+    expect(
+      filterLocalCards(next, { searchTerms: "design" }).map((card) => card._id)
+    ).not.toContain("deleted");
+  });
+
+  it("keeps the cache untouched when no remote card went missing", () => {
+    const cache = [makeCard({ _id: "a" }), makeCard({ _id: "b" })];
+    const next = pruneCardsMissingFromRemote(cache, new Set(["a"]), [
+      makeCard({ _id: "a" }),
+      makeCard({ _id: "c" }),
+    ]);
+    expect(next).toBe(cache);
   });
 });

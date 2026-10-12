@@ -74,7 +74,11 @@ interface CreateCardArgs {
 interface ImportedVisibleFields {
   createdAt?: number;
   isFavorited?: boolean;
+  /** A title the user chose (e.g. a bookmark's name), kept over fetched page titles. */
+  metadataTitle?: string;
 }
+
+const MAX_IMPORTED_TITLE_LENGTH = 512;
 
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
@@ -198,6 +202,10 @@ export const createCardForUserHandler = async (
   }
   const { colorHexes, colorHues } = buildColorFacets(resolvedColors);
 
+  const importedTitle = options.importedVisibleFields?.metadataTitle
+    ?.trim()
+    .slice(0, MAX_IMPORTED_TITLE_LENGTH);
+
   // Set initial metadataStatus for link cards
   const cardData = {
     userId,
@@ -222,12 +230,26 @@ export const createCardForUserHandler = async (
     createdAt: options.importedVisibleFields?.createdAt ?? now,
     updatedAt: now,
     isFavorited: options.importedVisibleFields?.isFavorited,
+    // An edited title survives link-preview refreshes (linkMetadata.ts).
+    ...(importedTitle
+      ? { metadataTitle: importedTitle, metadataTitleEdited: true }
+      : {}),
     // Set pending status for link cards that need metadata extraction
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };
 
   const cardId = await ctx.db.insert("cards", cardData);
-  await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
+  try {
+    // The usage shards enforce the free-tier limit, and the shard slot is
+    // keyed by the new card id, so the count is taken right after the insert.
+    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
+  } catch (error) {
+    // Convex has no savepoints: bulk create and import catch a per-item
+    // CARD_LIMIT_REACHED and keep going, which would otherwise commit this
+    // uncounted card. Remove it so a failed create leaves nothing behind.
+    await ctx.db.delete("cards", cardId);
+    throw error;
+  }
   await scheduleCardSearchSync(ctx, cardId, userId);
 
   // Start the card processing workflow

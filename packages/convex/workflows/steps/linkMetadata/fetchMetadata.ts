@@ -519,7 +519,7 @@ const scrapeWithFetch = async (
     if (!response.ok) {
       return {
         success: false,
-        errors: [{ message: `HTTP ${response.status}` }],
+        errors: [{ code: response.status, message: `HTTP ${response.status}` }],
       };
     }
 
@@ -548,6 +548,20 @@ const scrapeWithFetch = async (
   }
 };
 
+// HTTP statuses that will not change on retry: the page is gone, forbidden,
+// or the request is malformed. Timeouts (408), too-early (425) and rate limits
+// (429) stay retryable alongside 5xx and network errors.
+const RETRYABLE_CLIENT_STATUSES = new Set([408, 425, 429]);
+
+export const isDefinitiveHttpClientError = (status: number | undefined) =>
+  typeof status === "number" &&
+  status >= 400 &&
+  status < 500 &&
+  !RETRYABLE_CLIENT_STATUSES.has(status);
+
+const scrapeHttpStatus = (payload: ScrapeResponse): number | undefined =>
+  payload.errors?.find((error) => typeof error?.code === "number")?.code;
+
 const hasSelectorResults = (payload: ScrapeResponse) =>
   payload.success &&
   payload.result?.selectors?.some((selector) => selector.results.length);
@@ -565,7 +579,7 @@ const scrapeWithKernel = async (
   if (!response.ok) {
     return {
       success: false,
-      errors: [{ message: `HTTP ${response.status}` }],
+      errors: [{ code: response.status, message: `HTTP ${response.status}` }],
     };
   }
   const contentType = response.headers.get("content-type") ?? "";
@@ -787,6 +801,30 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     const staticPayload = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
     let payload = staticPayload;
 
+    // A dead or forbidden link (404, 410, 401, 403, ...) will not recover on
+    // retry, so store a failed preview instead of rerunning the browser scrape.
+    const staticStatus = staticPayload.success
+      ? undefined
+      : scrapeHttpStatus(staticPayload);
+    if (isDefinitiveHttpClientError(staticStatus)) {
+      const errorMessage = `HTTP ${staticStatus}`;
+      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+        cardId,
+        linkPreview: buildErrorPreview(normalizedUrl, {
+          type: "http_error",
+          message: errorMessage,
+          details: { status: staticStatus },
+        }),
+        status: "failed",
+      });
+      return {
+        status: "failed" as const,
+        normalizedUrl,
+        errorType: "http_error",
+        errorMessage,
+      };
+    }
+
     // Most pages expose their preview metadata in static HTML. Prefer that
     // bounded, DNS-pinned path so ordinary links do not depend on browser
     // capacity. Instagram still needs the offline browser parser for embedded
@@ -806,8 +844,8 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
             .filter(Boolean)
             .join("; ") || "Unknown scrape error";
         const isRateLimit =
-          errorMessage.toLowerCase().includes("rate") ||
-          errorMessage.toLowerCase().includes("limit");
+          scrapeHttpStatus(staticPayload) === 429 ||
+          scrapeHttpStatus(browserPayload) === 429;
         throwRetryable({
           type: isRateLimit ? "rate_limit" : "scrape_error",
           normalizedUrl,

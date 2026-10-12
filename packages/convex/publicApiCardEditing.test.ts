@@ -13,7 +13,8 @@ import {
   vi,
 } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
@@ -170,24 +171,17 @@ describe("Public API card title editing", () => {
     expect(updated?.metadataTitle).toBe("Supersededtitle title");
   });
 
-  test("accepts the title length boundary and rejects oversized titles atomically", async () => {
+  test("cuts an oversized title to 512 characters and keeps the other edits", async () => {
     const { t, cardId } = await setup();
     await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
       userId: "owner",
-      metadataTitle: "x".repeat(512),
+      metadataTitle: "x".repeat(600),
+      notes: "Saved with the title",
     });
-    await expect(
-      t.mutation(internal.raycast.patchCardForUser, {
-        cardId,
-        userId: "owner",
-        metadataTitle: "x".repeat(513),
-        notes: "Must not persist",
-      })
-    ).rejects.toThrow("Title must be a string of at most 512 characters");
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
-    expect(card?.metadataTitle).toHaveLength(512);
-    expect(card?.notes).toBe("Original notes");
+    expect(card?.metadataTitle).toBe("x".repeat(512));
+    expect(card?.notes).toBe("Saved with the title");
   });
 
   test("another user cannot edit a card title", async () => {
@@ -198,7 +192,7 @@ describe("Public API card title editing", () => {
         userId: "stranger",
         metadataTitle: "Unwanted edit",
       })
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toThrow("Card not found");
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.metadataTitle).toBe("Supersededtitle title");
   });
@@ -353,6 +347,16 @@ describe("Public API Trash and visual filters", () => {
         cardId,
       })
     ).rejects.toThrow("Not authorized");
+    await expect(
+      t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+        userId: "owner",
+        cardId,
+      })
+    ).rejects.toThrow("NOT_IN_TRASH");
+    await t.mutation(internal.raycast.softDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
     await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
       userId: "owner",
       cardId,
@@ -428,15 +432,37 @@ describe("Search scan budget", () => {
     });
     expect(page.items).toHaveLength(100);
     expect(page.pageInfo.hasMore).toBe(true);
-    await expect(
-      t.query(internal.publicApi.searchCardsPageForUser, {
+    // Past the 400 best matches, an old offset cursor gets the end of the
+    // search, not an error.
+    const past = await t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      searchQuery: "deepsearch",
+      limit: 100,
+      cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
+    });
+    expect(past.items).toEqual([]);
+    expect(past.pageInfo.hasMore).toBe(false);
+
+    // Following nextCursor from the first page ends cleanly after the 400
+    // best matches, with no card twice.
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let pageNumber = 0; pageNumber < 10; pageNumber += 1) {
+      const next = await t.query(internal.publicApi.searchCardsPageForUser, {
         userId: "owner",
         searchQuery: "deepsearch",
         limit: 100,
-        cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
-      })
-    ).rejects.toThrow("Search is too broad");
-  }, 30_000);
+        ...(cursor ? { cursor } : {}),
+      });
+      seen.push(...next.items.map((item: { _id: string }) => item._id));
+      if (!next.pageInfo.hasMore) {
+        break;
+      }
+      cursor = next.pageInfo.nextCursor ?? undefined;
+    }
+    expect(seen).toHaveLength(400);
+    expect(new Set(seen).size).toBe(400);
+  }, 60_000);
 
   test.each(["tag", "text"])(
     "%s search allows an exhausted budget and rejects another index row",
@@ -514,5 +540,416 @@ describe("Public API AI tag removal", () => {
     ).rejects.toThrow();
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.aiTags).toEqual(["design"]);
+  });
+});
+
+describe("Multi-field edits", () => {
+  test("a content and url edit is charged one reprocess", async () => {
+    const { t, cardId } = await setup();
+    const updated = await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Fresh content",
+      url: "https://example.org/fresh",
+    });
+    expect(updated).toMatchObject({
+      content: "Fresh content",
+      url: "https://example.org/fresh",
+    });
+    // The one per-card token per minute is now spent.
+    await expect(
+      t.mutation(internal.raycast.patchCardForUser, {
+        cardId,
+        userId: "owner",
+        content: "Second edit",
+      })
+    ).rejects.toThrow("RATE_LIMITED");
+  });
+
+  test("bulk update applies content and url together", async () => {
+    const { t, cardId } = await setup();
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "update",
+        items: [
+          { cardId, content: "Bulk content", url: "https://example.org/bulk" },
+        ],
+      }
+    );
+    expect(result.summary).toEqual({ total: 1, succeeded: 1, failed: 0 });
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card).toMatchObject({
+      content: "Bulk content",
+      url: "https://example.org/bulk",
+    });
+  });
+
+  test("a rejected bulk item writes nothing and keeps the reprocess token", async () => {
+    const { t, cardId } = await setup();
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "update",
+        items: [{ cardId, content: "Must not persist", url: "javascript:x" }],
+      }
+    );
+    expect(result.summary.failed).toBe(1);
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.content).toBe("Original content");
+    expect(card?.url).toBe("https://example.com");
+    const updated = await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Allowed edit",
+    });
+    expect(updated?.content).toBe("Allowed edit");
+  });
+});
+
+describe("Card changes feed", () => {
+  const trashAndPurge = async (
+    t: Awaited<ReturnType<typeof setup>>["t"],
+    cardId: Awaited<ReturnType<typeof setup>>["cardId"]
+  ) => {
+    await t.mutation(internal.raycast.softDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+  };
+
+  test("reports a permanently deleted card", async () => {
+    const { t, cardId } = await setup();
+    await trashAndPurge(t, cardId);
+    const changes = await t.query(internal.publicApi.listCardChangesForUser, {
+      userId: "owner",
+      since: 0,
+    });
+    expect(changes.deletedIds).toEqual([cardId]);
+    expect(changes.items).toEqual([]);
+    expect(changes.pageInfo).toEqual({ hasMore: false, nextCursor: null });
+    const stranger = await t.query(internal.publicApi.listCardChangesForUser, {
+      userId: "stranger",
+      since: 0,
+    });
+    expect(stranger.deletedIds).toEqual([]);
+  });
+
+  test("pages through cards and then permanent deletions without repeats", async () => {
+    const { t, cardId } = await setup();
+    const purged = await t.run(async (ctx) => {
+      const ids: Id<"cards">[] = [];
+      for (const content of ["first", "second"]) {
+        ids.push(
+          await ctx.db.insert("cards", {
+            userId: "owner",
+            type: "text",
+            content,
+            isDeleted: true,
+            deletedAt: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          })
+        );
+      }
+      return ids;
+    });
+    for (const id of purged) {
+      await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+        userId: "owner",
+        cardId: id,
+      });
+    }
+    const seenItems: string[] = [];
+    const seenDeleted: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 5; page += 1) {
+      const changes = await t.query(internal.publicApi.listCardChangesForUser, {
+        userId: "owner",
+        since: 0,
+        limit: 1,
+        cursor,
+      });
+      seenItems.push(...changes.items.map((card: { _id: string }) => card._id));
+      seenDeleted.push(...changes.deletedIds);
+      if (!changes.pageInfo.hasMore) {
+        break;
+      }
+      cursor = changes.pageInfo.nextCursor ?? undefined;
+    }
+    expect(seenItems).toEqual([cardId]);
+    expect(seenDeleted).toEqual(purged);
+  });
+
+  test("rejects a garbage cursor", async () => {
+    const { t } = await setup();
+    await expect(
+      t.query(internal.publicApi.listCardChangesForUser, {
+        userId: "owner",
+        since: 0,
+        cursor: btoa(JSON.stringify({ v: 2, phase: "nope" })),
+      })
+    ).rejects.toThrow("Query parameter `cursor` is invalid");
+  });
+});
+
+describe("Stable pagination", () => {
+  const insertCards = (
+    t: Awaited<ReturnType<typeof setup>>["t"],
+    contents: string[],
+    firstCreatedAt: number
+  ) =>
+    t.run(async (ctx) => {
+      const ids: Id<"cards">[] = [];
+      for (const [index, content] of contents.entries()) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content,
+          tags: ["paging"],
+          createdAt: firstCreatedAt + index,
+          updatedAt: firstCreatedAt + index,
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+        await syncCardSearchTagsBatchHandler(ctx, id);
+        ids.push(id);
+      }
+      return ids;
+    });
+
+  test.each([
+    ["the plain list", {}],
+    ["a date-filtered list", { createdAfter: 0 }],
+  ])(
+    "%s does not repeat a card when one is added between pages",
+    async (_label, filter) => {
+      const { t, cardId } = await setup();
+      const [second, third] = await insertCards(t, ["two", "three"], 10);
+      const first = await t.query(internal.publicApi.scanCardsPageForUser, {
+        userId: "owner",
+        scanLimit: 50,
+        ...filter,
+      });
+      expect(first.items.map((card: { _id: string }) => card._id)).toEqual([
+        third,
+        second,
+        cardId,
+      ]);
+      await insertCards(t, ["newest"], 100);
+      // Resume after the second card, as the HTTP layer does for limit=2.
+      const next = await t.query(internal.publicApi.scanCardsPageForUser, {
+        userId: "owner",
+        scanLimit: 50,
+        cursor: first.itemCursors[1],
+        ...filter,
+      });
+      expect(next.items.map((card: { _id: string }) => card._id)).toEqual([
+        cardId,
+      ]);
+    }
+  );
+
+  test.each(["searchQuery", "tag"] as const)(
+    "%s pages cover every match once, in date order, while cards are added",
+    async (source) => {
+      const { t } = await setup();
+      const ids = await insertCards(
+        t,
+        ["paging a", "paging b", "paging c", "paging d", "paging e"],
+        10
+      );
+      const query =
+        source === "tag" ? { tag: "paging" } : { searchQuery: "paging" };
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 5; page += 1) {
+        const result = await t.query(
+          internal.publicApi.searchCardsPageForUser,
+          {
+            userId: "owner",
+            limit: 2,
+            cursor,
+            ...query,
+          }
+        );
+        seen.push(...result.items.map((card: { _id: string }) => card._id));
+        if (page === 0) {
+          await insertCards(t, ["paging newest"], 100);
+        }
+        if (!result.pageInfo.hasMore) {
+          break;
+        }
+        cursor = result.pageInfo.nextCursor ?? undefined;
+      }
+      expect(seen).toEqual([...ids].reverse());
+    }
+  );
+
+  test("cards created in the same millisecond page by id across a tag page boundary", async () => {
+    const { t } = await setup();
+    const ids = await t.run(async (ctx) => {
+      const created: Id<"cards">[] = [];
+      for (let index = 0; index < 40; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `tie ${index}`,
+          tags: ["tie"],
+          createdAt: index < 30 ? 50 : 40,
+          updatedAt: 1,
+        });
+        await syncCardSearchTagsBatchHandler(ctx, id);
+        created.push(id);
+      }
+      return created;
+    });
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const result = await t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        tag: "tie",
+        limit: 7,
+        cursor,
+      });
+      seen.push(...result.items.map((card: { _id: string }) => card._id));
+      if (!result.pageInfo.hasMore) {
+        break;
+      }
+      cursor = result.pageInfo.nextCursor ?? undefined;
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect([...seen].sort()).toEqual([...ids].map(String).sort());
+  });
+
+  test.each([
+    ["scan", "not-base64!"],
+    [
+      "scan",
+      btoa(
+        JSON.stringify({ mode: "match", anchor: { createdAt: 1, id: "x" } })
+      ),
+    ],
+    ["search", btoa(JSON.stringify({ mode: "list" }))],
+    ["search", btoa("[1,2]")],
+  ])("%s rejects the garbage cursor %s", async (kind, cursor) => {
+    const { t } = await setup();
+    const run =
+      kind === "scan"
+        ? t.query(internal.publicApi.scanCardsPageForUser, {
+            userId: "owner",
+            scanLimit: 10,
+            cursor,
+          })
+        : t.query(internal.publicApi.searchCardsPageForUser, {
+            userId: "owner",
+            searchQuery: "Original",
+            cursor,
+          });
+    await expect(run).rejects.toThrow("Query parameter `cursor` is invalid");
+  });
+});
+
+describe("Web search pagination", () => {
+  test("pages through search results once each, newest first", async () => {
+    const { t } = await setup();
+    // Insertion order (and so relevance order for equal matches) differs
+    // from creation-date order.
+    const createdAts = [30, 10, 50, 20, 40];
+    const ids = await t.run(async (ctx) => {
+      const byCreatedAt: Record<number, string> = {};
+      for (const createdAt of createdAts) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: "webpaging note",
+          createdAt,
+          updatedAt: createdAt,
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+        byCreatedAt[createdAt] = id;
+      }
+      return [50, 40, 30, 20, 10].map((createdAt) => byCreatedAt[createdAt]);
+    });
+    const owner = t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: `user_${Buffer.from("owner").toString("hex")}`,
+      sid: "session_web",
+      email_verified: true,
+      external_id: "owner",
+    });
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 5; page += 1) {
+      const result: {
+        page: { _id: string }[];
+        isDone: boolean;
+        continueCursor: string | null;
+      } = await owner.query(api.cards.searchCardsPaginated, {
+        searchQuery: "webpaging",
+        paginationOpts: { numItems: 2, cursor },
+      });
+      seen.push(...result.page.map((card: { _id: string }) => card._id));
+      if (result.isDone) {
+        break;
+      }
+      cursor = result.continueCursor;
+    }
+    expect(seen).toEqual(ids);
+  });
+});
+
+describe("Tag listing", () => {
+  test("counts active cards per tag from the tag index, including Teak's tags", async () => {
+    const { t, cardId } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, {
+        tags: ["Design", "original"],
+        aiTags: ["color"],
+      });
+      await syncCardSearchTagsBatchHandler(ctx, cardId);
+      await syncCardSearchTagsBatchHandler(ctx, cardId);
+      for (const [content, isDeleted] of [
+        ["second", undefined],
+        ["trashed", true],
+      ] as const) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content,
+          tags: ["design"],
+          isDeleted,
+          createdAt: 2,
+          updatedAt: 2,
+        });
+        await syncCardSearchTagsBatchHandler(ctx, id);
+      }
+      const foreign = await ctx.db.insert("cards", {
+        userId: "stranger",
+        type: "text",
+        content: "foreign",
+        tags: ["design", "secret"],
+        createdAt: 2,
+        updatedAt: 2,
+      });
+      await syncCardSearchTagsBatchHandler(ctx, foreign);
+    });
+    const tags = await t.query(internal.publicApi.listTagsForUser, {
+      userId: "owner",
+    });
+    expect(tags).toEqual({
+      items: [
+        { name: "design", count: 2 },
+        { name: "color", count: 1 },
+        { name: "original", count: 1 },
+      ],
+      isComplete: true,
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
+import { workosResourcesFor } from "../shared/workosResources";
 import { type AuthDiscovery, validateOAuthUrl } from "./authDiscovery";
 
 // WorkOS Connect (OAuth 2.0 authorization code + PKCE) protocol steps shared by
@@ -35,7 +36,7 @@ export const createPkceChallenge = async (verifier: string): Promise<string> =>
   );
 
 const apiResource = (auth: AuthDiscovery) =>
-  new URL("/api", auth.resource).href;
+  workosResourcesFor(auth.resource).api;
 
 export const createConnectAuthorizeUrl = (
   auth: AuthDiscovery,

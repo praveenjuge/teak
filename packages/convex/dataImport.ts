@@ -514,6 +514,21 @@ function errorData(error: unknown) {
   return { message: error instanceof Error ? error.message : "Import failed" };
 }
 
+/**
+ * The name a user gave a bookmark (bookmarks HTML or Raindrop). The parsers
+ * fall back to the URL when a bookmark has no name, which is not a title.
+ */
+export function importedBookmarkTitle(
+  mode: Doc<"importJobs">["mode"],
+  item: Pick<Doc<"importJobItems">, "content" | "type" | "url">
+): string | undefined {
+  if (mode === "archive" || item.type !== "link" || !item.url) {
+    return;
+  }
+  const title = item.content.trim();
+  return title && title !== item.url ? title : undefined;
+}
+
 function existingUrl(ctx: MutationCtx, userId: string, url: string) {
   return ctx.db
     .query("cards")
@@ -592,6 +607,7 @@ export const createPendingBatch = internalMutation({
             importedVisibleFields: {
               createdAt: item.importedCreatedAt,
               isFavorited: item.isFavorited,
+              metadataTitle: importedBookmarkTitle(job.mode, item),
             },
             source: "import",
           }

@@ -208,6 +208,25 @@ test("missing issuer reports unavailable without writes", async () => {
   expect((await f.rows()).every((r) => r.revokedAt === undefined)).toBe(true);
 });
 
+test("revokes with the deployment's own API audience", async () => {
+  const f = await setup();
+  vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "https://dev.convex.site");
+  expect((await f.disconnect(await token())).status).toBe(401);
+  expect(
+    (await f.disconnect(await token({ aud: "https://dev.convex.site/api" })))
+      .status
+  ).toBe(204);
+  expect((await f.rows()).find((r) => r.consentId === consent)).toMatchObject({
+    revokedAt: expect.any(Number),
+  });
+});
+test("malformed resource origin reports unavailable without writes", async () => {
+  const f = await setup();
+  vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "dev.convex.site");
+  expect((await f.disconnect(await token())).status).toBe(503);
+  expect((await f.rows()).every((r) => r.revokedAt === undefined)).toBe(true);
+});
+
 test("expired signed access token replays only a completed receipt", async () => {
   const f = await setup();
   const expired = await token({

@@ -69,12 +69,23 @@ export const getR2ReadBase = (key: string): string => {
 };
 
 interface DownloadResponsePolicy {
-  contentDisposition?:
-    | "attachment"
-    | "inline"
-    | `attachment; filename="${string}"`;
+  contentDisposition?: "attachment" | "inline" | `attachment; ${string}`;
   contentType?: string;
 }
+
+/**
+ * `attachment` with the file's name (RFC 6266 / RFC 8187), so a browser saves
+ * a cross-origin file under its original name instead of opening it.
+ */
+export const attachmentContentDisposition = (
+  fileName: string
+): `attachment; ${string}` => {
+  const encoded = encodeURIComponent(fileName).replace(
+    /['()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return `attachment; filename*=UTF-8''${encoded}`;
+};
 
 export const fileDownloadResponsePolicy = (
   fileName: string | null
@@ -213,6 +224,13 @@ export const resolveObjectUrl = async (
     fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
   );
 };
+
+/** A signed URL that downloads the object as `fileName` instead of showing it. */
+export const resolveDownloadUrl = async (key: string, fileName: string) =>
+  await getR2Url(key, {
+    contentType: fileDownloadResponsePolicy(fileName).contentType,
+    contentDisposition: attachmentContentDisposition(fileName),
+  });
 
 export const resolveImageUrl = async (
   key: string | undefined,

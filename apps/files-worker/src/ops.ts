@@ -9,6 +9,7 @@ import {
   type FilesErrorCode,
   type FilesFinalizeImageParams,
   type FilesOpRequest,
+  isFilesInspectMode,
   isFilesOp,
 } from "@teak/files-protocol";
 import {
@@ -31,12 +32,7 @@ import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
 import { generateImageMetadataForOp } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
-import {
-  extractZipEntries,
-  type InspectMode,
-  InspectSourceMissing,
-  runInspect,
-} from "./inspect";
+import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import { MediaProbeUnsupported, probeMedia } from "./mediaProbe";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
@@ -291,7 +287,7 @@ const dispatch = async (
       const maxBytes = params.maxBytes;
       const mode = requiredString(params, "mode");
       if (
-        !["css", "pdf", "text", "zip"].includes(mode) ||
+        !isFilesInspectMode(mode) ||
         typeof maxBytes !== "number" ||
         !Number.isSafeInteger(maxBytes) ||
         maxBytes <= 0 ||
@@ -304,7 +300,7 @@ const dispatch = async (
         await runInspect(
           env.BUCKET,
           requiredString(params, "sourceKey"),
-          mode as InspectMode,
+          mode,
           optionalString(params, "formatId") ?? "",
           maxBytes,
           params.rtf === true

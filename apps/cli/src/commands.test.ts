@@ -1,5 +1,11 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, serve, spawn } from "bun";
@@ -70,7 +76,10 @@ beforeEach(() => {
   requests.length = 0;
 });
 
-const teak = async (...args: string[]) => {
+const teakWithEnv = async (
+  extraEnv: Record<string, string>,
+  ...args: string[]
+) => {
   const child = spawn(
     [process.execPath, "run", join(import.meta.dir, "index.ts"), ...args],
     {
@@ -80,6 +89,7 @@ const teak = async (...args: string[]) => {
         TEAK_API_KEY: API_KEY,
         TEAK_API_URL: server.url.toString(),
         XDG_CONFIG_HOME: configHome,
+        ...extraEnv,
       },
       stderr: "pipe",
       stdout: "pipe",
@@ -94,6 +104,7 @@ const teak = async (...args: string[]) => {
   ]);
   return { code, stderr, stdout };
 };
+const teak = (...args: string[]) => teakWithEnv({}, ...args);
 
 describe("teak cards", () => {
   test("lists cards one per line and reports the next cursor", async () => {
@@ -297,6 +308,30 @@ describe("teak parity commands", () => {
     expect(requests[0]?.path).toBe("/v1/cards/card_a?permanent=true");
   });
 
+  test("permanent delete of a card outside Trash moves it there first", async () => {
+    const inTrash = new Set<string>();
+    routes.set("DELETE /v1/cards/card_a", (_request, url) => {
+      if (url.searchParams.get("permanent") !== "true") {
+        inTrash.add("card_a");
+        return noContent();
+      }
+      return inTrash.has("card_a")
+        ? noContent()
+        : json(
+            { code: "NOT_IN_TRASH", error: "Move the card to Trash first" },
+            409
+          );
+    });
+    const deleted = await teak("rm", "card_a", "--permanent", "--yes");
+    expect(deleted.code).toBe(0);
+    expect(deleted.stdout).toContain("Deleted card_a forever");
+    expect(requests.map((request) => request.path)).toEqual([
+      "/v1/cards/card_a?permanent=true",
+      "/v1/cards/card_a",
+      "/v1/cards/card_a?permanent=true",
+    ]);
+  });
+
   test("whoami shows the plan and how many cards are used", async () => {
     routes.set("GET /v1/me", () =>
       json({
@@ -460,6 +495,174 @@ describe("teak exit codes", () => {
 
   test("an unknown bulk operation is a usage error and sends no request", async () => {
     const result = await teak("cards", "bulk", "explode");
+
+    expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+});
+
+describe("teak batch and fallback behavior", () => {
+  test("add keeps the text as content when --url is also given", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_l", status: "created" })
+    );
+    const result = await teak(
+      "add",
+      "Read this later",
+      "--url",
+      "https://example.com/article"
+    );
+    expect(result.code).toBe(0);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toMatchObject({
+      content: "Read this later",
+      url: "https://example.com/article",
+    });
+  });
+
+  test("add with only a URL argument sends no duplicate content", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_l", status: "created" })
+    );
+    await teak("add", "https://example.com/article");
+    const body = JSON.parse(requests[0]?.body ?? "{}");
+    expect(body.url).toBe("https://example.com/article");
+    expect(body).not.toHaveProperty("content");
+  });
+
+  const missing = () =>
+    json({ code: "NOT_FOUND", error: "Card not found" }, 404);
+
+  test("rm tries every id and reports which ones failed", async () => {
+    routes.set("DELETE /v1/cards/card_a", noContent);
+    routes.set("DELETE /v1/cards/bogus", missing);
+    routes.set("DELETE /v1/cards/card_b", noContent);
+
+    const result = await teak("rm", "card_a", "bogus", "card_b");
+
+    expect(result.code).toBe(EXIT.notFound);
+    expect(requests.map((request) => request.path)).toEqual([
+      "/v1/cards/card_a",
+      "/v1/cards/bogus",
+      "/v1/cards/card_b",
+    ]);
+    expect(result.stdout).toContain("Moved card_a to Trash");
+    expect(result.stdout).toContain("Moved card_b to Trash");
+    expect(result.stdout).not.toContain("Moved bogus");
+    expect(result.stderr).toContain("bogus: Card not found");
+  });
+
+  test("rm --json lists deleted and failed ids", async () => {
+    routes.set("DELETE /v1/cards/card_a", noContent);
+    routes.set("DELETE /v1/cards/bogus", missing);
+
+    const result = await teak("--json", "rm", "card_a", "bogus");
+
+    expect(result.code).toBe(EXIT.notFound);
+    expect(JSON.parse(result.stdout)).toEqual({
+      deletedIds: ["card_a"],
+      failed: [{ code: "NOT_FOUND", id: "bogus", message: "Card not found" }],
+      permanent: false,
+    });
+  });
+
+  test("restore tries every id and reports which ones failed", async () => {
+    routes.set("POST /v1/cards/bogus/restore", missing);
+    routes.set("POST /v1/cards/card_b/restore", noContent);
+
+    const text = await teak("restore", "bogus", "card_b");
+    expect(text.code).toBe(EXIT.notFound);
+    expect(text.stdout).toContain("Restored card_b");
+    expect(text.stderr).toContain("bogus: Card not found");
+
+    const result = await teak("--json", "restore", "bogus", "card_b");
+    expect(JSON.parse(result.stdout)).toEqual({
+      failed: [{ code: "NOT_FOUND", id: "bogus", message: "Card not found" }],
+      restoredIds: ["card_b"],
+    });
+  });
+
+  test("export download saves to the -o path", async () => {
+    routes.set("GET /v1/exports/latest", () =>
+      json({
+        job: {
+          id: "exp_1",
+          status: "ready",
+          cardCount: 3,
+          createdAt: Date.UTC(2026, 9, 10),
+          downloadUrl: `${server.url}files/export.zip`,
+        },
+        canStartNew: false,
+        nextAvailableAt: null,
+      })
+    );
+    routes.set("GET /files/export.zip", () => new Response("zip-bytes"));
+
+    const result = await teak("export", "download", "-o", "chosen.zip");
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Saved chosen.zip");
+    expect(readFileSync(join(workDirectory, "chosen.zip"), "utf8")).toBe(
+      "zip-bytes"
+    );
+    expect(existsSync(join(workDirectory, "teak-export-2026-10-10.zip"))).toBe(
+      false
+    );
+  });
+
+  test("open prints the link and exits cleanly when no browser can start", async () => {
+    routes.set("GET /v1/cards/card_a", () => json(card("card_a")));
+
+    // A PATH holding only an empty directory means xdg-open (or open) can't
+    // be found. An empty PATH isn't enough: Bun then searches the default
+    // system path, where CI runners have xdg-open.
+    const emptyPath = mkdtempSync(join(tmpdir(), "teak-cli-no-browser-"));
+    const result = await teakWithEnv({ PATH: emptyPath }, "open", "card_a");
+    rmSync(emptyPath, { force: true, recursive: true });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("https://app.teakvault.com/?card=card_a");
+    expect(result.stderr).toContain("Couldn't open a browser");
+    expect(result.stderr).not.toContain("ENOENT");
+  });
+
+  test("bulk create accepts an {items} file and lists each result", async () => {
+    routes.set("POST /v1/cards/bulk", () =>
+      json({
+        operation: "create",
+        results: [
+          { cardId: "card_new", index: 0, status: "success" },
+          {
+            code: "INVALID_INPUT",
+            error: "Each create item must include `content` or `url`",
+            index: 1,
+            status: "error",
+          },
+        ],
+        summary: { failed: 1, succeeded: 1, total: 2 },
+      })
+    );
+    const input = join(workDirectory, "bulk-items.json");
+    writeFileSync(input, JSON.stringify({ items: [{ content: "a" }, {}] }));
+
+    const result = await teak("cards", "bulk", "create", "--input", input);
+
+    expect(result.code).toBe(EXIT.api);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      items: [{ content: "a" }, {}],
+      operation: "create",
+    });
+    expect(result.stdout).toContain("1/2 succeeded");
+    expect(result.stdout).toContain("[0] card_new");
+    expect(result.stdout).toContain(
+      "[1] INVALID_INPUT: Each create item must include `content` or `url`"
+    );
+  });
+
+  test("bulk input that is neither an array nor {items} is a usage error", async () => {
+    const input = join(workDirectory, "bulk-bad.json");
+    writeFileSync(input, JSON.stringify({ cards: [] }));
+
+    const result = await teak("cards", "bulk", "create", "--input", input);
 
     expect(result.code).toBe(EXIT.usage);
     expect(requests).toHaveLength(0);

@@ -5,10 +5,12 @@ import {
   extractZipEntries,
   findEocd,
   inspectZipRanged,
+  MAX_AI_TEXT_CHARACTERS,
+  MAX_PDF_TEXT_PAGES,
   parseCentralDirectory,
   runInspect,
 } from "./inspect";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket, makeEncryptedPdf, makePdf } from "./testsupport";
 
 describe("zip inspection over ranged reads", () => {
   const buildWordArchive = (): Uint8Array =>
@@ -222,101 +224,72 @@ describe("runInspect dispatch", () => {
   });
 });
 
+describe("pdf text extraction", () => {
+  const PDF_MAX_BYTES = 25 * 1024 * 1024;
+
+  const inspectPdf = async (bytes: Uint8Array, maxBytes = PDF_MAX_BYTES) => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("doc.pdf", { bytes });
+    return await runInspect(bucket, "doc.pdf", "pdf", "pdf", maxBytes, false);
+  };
+
+  test("returns the text of every page in order", async () => {
+    const result = await inspectPdf(
+      makePdf(["Quarterly report (draft)", "Revenue grew 12%"])
+    );
+    expect(result.text).toBe("Quarterly report (draft)\nRevenue grew 12%");
+    expect(result.facts?.pageCount).toBe(2);
+    expect(result.facts?.wordCount).toBe(6);
+  });
+
+  test("stops reading after the page cap", async () => {
+    const pages = Array.from(
+      { length: MAX_PDF_TEXT_PAGES + 5 },
+      (_, index) => `Page ${index + 1}`
+    );
+    const result = await inspectPdf(makePdf(pages));
+    expect(result.text).toContain(`Page ${MAX_PDF_TEXT_PAGES}`);
+    expect(result.text).not.toContain(`Page ${MAX_PDF_TEXT_PAGES + 1}`);
+    expect(result.facts?.pageCount).toBe(MAX_PDF_TEXT_PAGES + 5);
+  });
+
+  test("caps returned text at the shared AI text limit", async () => {
+    // Two dense pages of ~420K characters each (short lines at a 1pt font).
+    const densePage = (char: string): string =>
+      Array.from({ length: 700 }, () => char.repeat(600)).join("\n");
+    const result = await inspectPdf(
+      makePdf([densePage("a"), densePage("b")], { fontSize: 1 })
+    );
+    expect(result.text?.length).toBe(MAX_AI_TEXT_CHARACTERS);
+    expect(result.text?.startsWith("a")).toBe(true);
+  });
+
+  test.each([
+    ["corrupt", new TextEncoder().encode("%PDF-1.4 this is not a pdf")],
+    ["password-protected", makeEncryptedPdf()],
+  ])("returns empty text for a %s PDF instead of failing", async (_, bytes) => {
+    const result = await inspectPdf(bytes);
+    expect(result.text).toBe("");
+  });
+
+  test("skips PDFs larger than the byte limit without parsing them", async () => {
+    const bytes = makePdf(["Too big to read"]);
+    const result = await inspectPdf(bytes, bytes.length - 1);
+    expect(result.text).toBe("");
+  });
+
+  test("missing PDF sources surface a distinct error", async () => {
+    await expect(
+      runInspect(new FakeBucket(), "gone.pdf", "pdf", "pdf", 1024, false)
+    ).rejects.toThrow("source_not_found");
+  });
+});
+
 describe("rtf stripping", () => {
   test("removes control words and groups while keeping readable text", () => {
     expect(extractRtfText("{\\rtf1\\ansi Hello \\'48ello}")).not.toContain(
       "\\"
     );
     expect(extractRtfText("{\\b bold} plain")).toContain("bold");
-  });
-});
-
-/** A text-only PDF with one line per page, built with a valid xref table. */
-const buildPdf = (pageTexts: string[]): Uint8Array => {
-  const objects: string[] = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    `<< /Type /Pages /Kids [${pageTexts.map((_, index) => `${4 + index * 2} 0 R`).join(" ")}] /Count ${pageTexts.length} >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-  ];
-  for (const [index, text] of pageTexts.entries()) {
-    const content = `BT /F1 12 Tf 20 40 Td (${text}) Tj ET`;
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents ${5 + index * 2} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`,
-      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`
-    );
-  }
-  let out = "%PDF-1.4\n";
-  const offsets = objects.map((object, index) => {
-    const offset = out.length;
-    out += `${index + 1} 0 obj\n${object}\nendobj\n`;
-    return offset;
-  });
-  const xref = out.length;
-  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets) {
-    out += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  return new TextEncoder().encode(out);
-};
-
-describe("pdf inspection", () => {
-  test("extracts the text layer for AI metadata with page and word counts", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("doc.pdf", {
-      bytes: buildPdf(["Quarterly plan", "Hiring and budget"]),
-    });
-
-    const result = await runInspect(
-      bucket as never,
-      "doc.pdf",
-      "pdf",
-      "pdf",
-      1024 * 1024,
-      false
-    );
-
-    expect(result.text).toBe("Quarterly plan\n\nHiring and budget");
-    expect(result.facts).toMatchObject({ pageCount: 2, wordCount: 5 });
-  });
-
-  test("reads at most the first 30 pages", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("long.pdf", {
-      bytes: buildPdf(
-        Array.from({ length: 35 }, (_, index) => `Page${index + 1}`)
-      ),
-    });
-
-    const result = await runInspect(
-      bucket as never,
-      "long.pdf",
-      "pdf",
-      "pdf",
-      1024 * 1024,
-      false
-    );
-
-    expect(result.facts?.pageCount).toBe(35);
-    expect(result.text).toContain("Page30");
-    expect(result.text).not.toContain("Page31");
-  });
-
-  test("refuses a PDF over the byte limit instead of parsing a truncated prefix", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("big.pdf", { bytes: buildPdf(["Too big"]) });
-    await expect(
-      runInspect(bucket as never, "big.pdf", "pdf", "pdf", 100, false)
-    ).rejects.toThrow("source_too_large");
-  });
-
-  test("reports bytes that are not a PDF", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("fake.pdf", {
-      bytes: new TextEncoder().encode("<html>not a pdf</html>"),
-    });
-    await expect(
-      runInspect(bucket as never, "fake.pdf", "pdf", "pdf", 1024, false)
-    ).rejects.toThrow("not_a_pdf");
   });
 });

@@ -653,9 +653,28 @@ describe("fetchMetadata", () => {
       url: "https://example.com",
       metadata: { linkCategory: { status: "completed" } },
     });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: { get: () => "text/html" },
+    });
+
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /"type":"rate_limit"/
+    );
+    expect(mockRunMutation).not.toHaveBeenCalled();
+  });
+
+  test("treats a browser error that mentions a limit as a scrape error", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } },
+    });
     mockKernelExecute.mockResolvedValue({
       success: false,
-      error: "Rate limit exceeded",
+      error: "Memory limit exceeded",
     });
     mockFetch
       .mockResolvedValueOnce({
@@ -671,8 +690,62 @@ describe("fetchMetadata", () => {
       );
 
     await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
-      /rate_limit/
+      /"type":"scrape_error"/
     );
+  });
+
+  test.each([400, 401, 403, 404, 410])(
+    "stores a failed preview without retrying or opening a browser for HTTP %d",
+    async (status) => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        url: "https://example.com/gone",
+        metadata: { linkCategory: { status: "completed" } },
+      });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status,
+        headers: { get: () => "text/html" },
+      });
+
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result).toMatchObject({
+        status: "failed",
+        errorType: "http_error",
+        errorMessage: `HTTP ${status}`,
+      });
+      expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
+      expect(mockRunMutation).toHaveBeenCalledWith(
+        internal.linkMetadata.updateCardMetadata,
+        expect.objectContaining({
+          status: "failed",
+          linkPreview: expect.objectContaining({
+            error: expect.objectContaining({ type: "http_error" }),
+          }),
+        })
+      );
+    }
+  );
+
+  test.each([408, 500, 503])("keeps HTTP %d retryable", async (status) => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status,
+      headers: { get: () => "text/html" },
+    });
+
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      /retryable/
+    );
+    expect(mockRunMutation).not.toHaveBeenCalled();
   });
 
   test("falls back to html fetch when kernel fails", async () => {

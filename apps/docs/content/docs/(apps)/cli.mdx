@@ -52,7 +52,7 @@ teak logout
 
 ![Settings → Security showing signed-in devices and the connected Teak CLI](../images/connected-apps.webp)
 
-Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in.
+Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in. With `--api-url` or `TEAK_API_URL`, `teak login` asks for the resources that deployment advertises: `https://teakvault.com/api` in production, or the deployment's own `/api` resource, such as `https://<deployment>.convex.site/api` for development.
 
 ## SDK token providers
 
@@ -96,19 +96,23 @@ teak tags
 `teak add` also accepts a bare URL or file path as the positional argument (for
 example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
-scripting.
+scripting. Text given with `--url` (for example
+`teak add "Read before Friday" --url https://example.com`) is saved with the
+link as the card's content.
 
 File uploads support the same formats as the web app (source files, Markdown and MDX, ZIP archives, documents, images, audio, and video — see [Features](/docs/features)), up to 100 MB. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document.
 
 Like the web composer, Teak works out the card type from what you add: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Pass `--type text` (or `quote`, `palette`, …) to choose. Structured Markdown always stays a text card and is stored exactly as submitted, including from standard input. Text cards have a 512 KiB UTF-8 limit.
 
-`teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser, and `teak download` saves a file card's original file (`--force` replaces an existing file).
+`teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 
 `teak tags add` and `teak tags rm` change one card's tags without retyping the rest. `teak tags rm` also removes tags Teak added. `teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input.
 
 ### Trash
 
 `teak rm` moves cards to Trash, and `teak restore` brings them back. `teak trash` lists what's there; Teak empties it after 30 days. `teak rm --permanent` deletes for good: it asks first in a terminal, and needs `--yes` in scripts.
+
+Both commands accept several card IDs and try every one, even if some fail. They list the IDs that failed and why (in a `failed` array with `--json`) and exit with a non-zero code if any did.
 
 ### Filter and page through cards
 
@@ -148,7 +152,7 @@ teak cards changes --since 1767225600000 --json
 teak cards bulk update --input updates.json
 ```
 
-`teak cards changes` returns cards changed since a millisecond timestamp, plus the IDs of deleted cards with `--json`. `teak cards bulk` runs `create`, `update`, `favorite`, or `delete` on a JSON array of up to 100 items, read from `--input` or standard input. Items use the same shape as the [API's bulk endpoint](/docs/api#reliable-requests).
+`teak cards changes` returns cards changed since a millisecond timestamp, plus the IDs of deleted cards with `--json`. `teak cards bulk` runs `create`, `update`, `favorite`, or `delete` on up to 100 items, read from `--input` or standard input as a JSON array or an `{"items": [...]}` object. Items use the same shape as the [API's bulk endpoint](/docs/api#reliable-requests). The output lists each item's card ID or error, and the command exits with a non-zero code if any item failed.
 
 ### Global options
 

@@ -6,6 +6,7 @@ import { getFunctionName } from "convex/server";
 import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
+  cleanupOldDeletedCards,
 } from "../../telemetry/crons";
 
 describe("Sentry cron monitoring", () => {
@@ -41,6 +42,22 @@ describe("Sentry cron monitoring", () => {
       }
     }
   );
+
+  test("the daily deleted-card cleanup also prunes expired card tombstones", async () => {
+    const runMutation = mock(async () => null);
+    expect(
+      await cleanupOldDeletedCards._handler({ runMutation }, {})
+    ).toBeNull();
+    expect(
+      runMutation.mock.calls.map(([reference, args]) => [
+        getFunctionName(reference),
+        args,
+      ])
+    ).toEqual([
+      ["workflows/cardCleanup:startCardCleanupWorkflow", {}],
+      ["publicApiTombstones:pruneExpiredCardTombstones", {}],
+    ]);
+  });
 
   test("defines one bounded monitor for each scheduled job", () => {
     expect(Object.values(CRON_MONITORS)).toEqual([

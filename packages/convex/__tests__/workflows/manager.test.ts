@@ -6,6 +6,7 @@ import {
   initializeCardProcessingStateHandler,
   MAX_WORKFLOW_CLEANUP_BATCH_SIZE,
   reapStuckWorkflowsHandler,
+  scheduleCompletedWorkflowCleanup,
   scheduleCompletedWorkflowCleanupHandler,
   scheduleWorkflowHistoryCleanupBatchHandler,
   startCardProcessingWorkflowHandler,
@@ -117,13 +118,122 @@ describe("workflow manager", () => {
         expect.anything(),
         { cardId: "c1" },
         {
-          context: null,
+          context: {
+            cardId: "c1",
+            stages: ["classify", "categorize", "metadata", "renderables"],
+          },
           onComplete: expect.anything(),
           startAsync: true,
         }
       );
       expect(mockRunMutation).toHaveBeenCalled();
       expect(result).toEqual({ workflowId: "wf_123" });
+    });
+  });
+
+  describe("failed card workflows", () => {
+    const onComplete = (scheduleCompletedWorkflowCleanup as any)._handler;
+    const cardCtx = (card: any) => {
+      const patch = mock().mockResolvedValue(undefined);
+      return {
+        patch,
+        ctx: {
+          db: {
+            ...inlineSearchSyncDb(),
+            get: mock().mockResolvedValue(card),
+            patch,
+          },
+          runQuery: mock().mockResolvedValue({
+            workflow: { generationNumber: 1, runResult: { kind: "failed" } },
+          }),
+          scheduler: { runAfter: mock().mockResolvedValue(null) },
+        } as any,
+      };
+    };
+    const cardWrite = (patch: any) =>
+      patch.mock.calls.find(([table]: any[]) => table === "cards")?.[2];
+    const context = {
+      cardId: "c1",
+      stages: ["classify", "categorize", "metadata", "renderables"],
+    };
+
+    test("marks stages left pending or in progress as failed", async () => {
+      const { ctx, patch } = cardCtx({
+        _id: "c1",
+        processingStatus: {
+          classify: { status: "completed", confidence: 1 },
+          categorize: { status: "completed" },
+          metadata: { status: "in_progress", startedAt: 10 },
+          renderables: { status: "pending" },
+        },
+      });
+
+      await onComplete(ctx, {
+        context,
+        result: { kind: "failed", error: "boom" },
+        workflowId: "wf_1",
+      });
+
+      const written = cardWrite(patch).processingStatus;
+      expect(written.classify).toEqual({ status: "completed", confidence: 1 });
+      expect(written.categorize).toEqual({ status: "completed" });
+      expect(written.metadata).toMatchObject({
+        status: "failed",
+        startedAt: 10,
+        error: "workflow_failed",
+      });
+      expect(written.renderables).toMatchObject({
+        status: "failed",
+        error: "workflow_failed",
+      });
+      expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+    });
+
+    test("marks unfinished stages of a canceled workflow", async () => {
+      const { ctx, patch } = cardCtx({
+        _id: "c1",
+        processingStatus: { metadata: { status: "pending" } },
+      });
+
+      await onComplete(ctx, {
+        context: { cardId: "c1", stages: ["metadata"] },
+        result: { kind: "canceled" },
+        workflowId: "wf_1",
+      });
+
+      expect(cardWrite(patch).processingStatus.metadata).toMatchObject({
+        status: "failed",
+        error: "workflow_canceled",
+      });
+    });
+
+    test("leaves stages alone when the workflow succeeds", async () => {
+      const { ctx, patch } = cardCtx({
+        _id: "c1",
+        processingStatus: { metadata: { status: "pending" } },
+      });
+
+      await onComplete(ctx, {
+        context,
+        result: { kind: "success", returnValue: null },
+        workflowId: "wf_1",
+      });
+
+      expect(cardWrite(patch)).toBeUndefined();
+      expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+    });
+
+    test("still schedules cleanup for workflows with no card context", async () => {
+      const { ctx, patch } = cardCtx(null);
+
+      await onComplete(ctx, {
+        context: null,
+        result: { kind: "failed", error: "boom" },
+        workflowId: "wf_1",
+      });
+
+      expect(cardWrite(patch)).toBeUndefined();
+      expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
     });
   });
 

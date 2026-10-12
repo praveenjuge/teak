@@ -544,7 +544,7 @@ export const exitCodeFor = (error: unknown) => {
   return EXIT.api;
 };
 
-export const openBrowser = (url: string) => {
+export const openBrowser = (url: string): Promise<boolean> => {
   let command = "xdg-open";
   if (platform() === "darwin") {
     command = "open";
@@ -552,7 +552,20 @@ export const openBrowser = (url: string) => {
     command = "cmd";
   }
   const args = platform() === "win32" ? ["/c", "start", "", url] : [url];
-  spawn(command, args, { detached: true, stdio: "ignore" }).unref();
+  // Resolves false when no opener exists, such as on a headless server, so
+  // callers can point to the printed URL instead of crashing.
+  return new Promise<boolean>((resolve) => {
+    try {
+      const child = spawn(command, args, { detached: true, stdio: "ignore" });
+      child.once("error", () => resolve(false));
+      child.once("spawn", () => {
+        child.unref();
+        resolve(true);
+      });
+    } catch {
+      resolve(false);
+    }
+  });
 };
 
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
@@ -659,7 +672,13 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             });
             process.stdout.write(`${authUrl.toString()}\n`);
             if (options.browser !== false) {
-              openBrowser(authUrl.toString());
+              void openBrowser(authUrl.toString()).then((opened) => {
+                if (!opened) {
+                  process.stderr.write(
+                    "Couldn't open a browser. Open the link above to sign in.\n"
+                  );
+                }
+              });
             }
           });
           server.on("error", (error) => {
