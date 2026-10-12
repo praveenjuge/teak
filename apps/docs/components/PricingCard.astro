@@ -19,7 +19,6 @@ interface Props {
   price: string | { monthly: Price; yearly: Price };
   /** Small print under a fixed price. */
   priceNote?: string;
-  tagline: string;
 }
 
 const {
@@ -29,7 +28,6 @@ const {
   features,
   price,
   priceNote,
-  tagline,
   ctaText,
   ctaHref,
   ctaPrimary = false,
@@ -73,7 +71,6 @@ const isFixedPrice = typeof price === "string";
         );
       })
     )}
-    <p class="mt-5 text-balance font-medium">{tagline}</p>
   </div>
 
   <ul class="mb-8 flex-1 space-y-3 border-border border-t pt-6 text-sm">

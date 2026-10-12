@@ -30,7 +30,6 @@ const pricingPlans = [
     emojiSrc: "/emojis/pricing-free-gift-box.webp",
     price: "$0",
     priceNote: "Free forever",
-    tagline: "Your best ideas, finally in one place.",
     features: [
       `${FREE_CARD_LIMIT} cards, yours to keep`,
       "Links, images, notes, video, audio, docs, palettes, quotes",
@@ -51,7 +50,6 @@ const pricingPlans = [
       monthly: { amount: monthly, period: "month", note: "Billed monthly" },
       yearly: { amount: perMonth, period: "month", note: "Billed yearly" },
     },
-    tagline: "Save everything. Find anything.",
     features: [
       "Everything in Free",
       "Unlimited cards, forever",
@@ -131,7 +129,7 @@ const pageSchemas = buildPageSchemas({
   faqs: [...pricingFaqs],
 });
 
-const metaTitle = `Every Idea Worth Keeping. ${FREE_CARD_LIMIT} Cards Free.`;
+const metaTitle = `Simple Pricing for Designers. ${FREE_CARD_LIMIT} Cards Free.`;
 const metaDescription = `Try Teak free with ${FREE_CARD_LIMIT} cards and every feature. Pro is ${perMonth}/month billed yearly, or ${monthly} monthly. Or self-host the open-source code.`;
 
 ---
@@ -149,8 +147,8 @@ const metaDescription = `Try Teak free with ${FREE_CARD_LIMIT} cards and every f
     <!-- Hero -->
     <section class="px-4 pt-20 pb-10">
       <div class="mx-auto max-w-2xl text-center">
-        <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
-          Every idea worth keeping. One home for all of it.
+        <h1 class="mb-3 text-balance font-bold text-3xl tracking-tight md:text-4xl">
+          Simple pricing for designers who save everything.
         </h1>
         <p class="mx-auto max-w-lg text-balance text-lg text-muted-foreground">
           Start free with every feature. Go unlimited the day your library
@@ -171,7 +169,6 @@ const metaDescription = `Try Teak free with ${FREE_CARD_LIMIT} cards and every f
             features={plan.features}
             price={plan.price}
             priceNote={"priceNote" in plan ? plan.priceNote : undefined}
-            tagline={plan.tagline}
             ctaText={plan.cta.text}
             ctaHref={plan.cta.href}
             ctaPrimary={"primary" in plan.cta && plan.cta.primary}
