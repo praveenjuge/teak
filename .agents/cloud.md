@@ -2,7 +2,9 @@
 
 What runs in a Claude Code on the web session (and similar Linux cloud VMs),
 what doesn't, and the fixes for each. `.agents/development.md` covers the
-stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
+stack itself; this is the cloud-specific checklist. Last verified 2026-10-12
+on a 4-vCPU, 16 GB VM, by driving every web feature in headless Chromium and
+running the API, CLI, MCP, repository checks and E2E suite.
 
 ## Environment settings
 
@@ -40,21 +42,32 @@ Other cloud agents (Codex, Amp) still use `dev+<hostname>-main@example.org`.
 
 ## Works
 
-`bun run dev` against the shared dev deployment, with sign-in, seeded vault,
-composer, search and filters, card modal, trash and restore, bulk actions,
-uploads and previews, audio recording, AI summaries and tags, link metadata,
-import and export, API keys, the REST API, MCP, and the CLI with `--api-key`.
-Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the docs site,
-and the extension build.
+`bun run dev` is ready in about 30 seconds. It works against the shared dev
+deployment for all of these:
 
-Only the agent can see the app: it runs on the VM's `localhost`, so drive it
-with headless Chromium (Playwright), not your own browser.
+- sign-in and sign-out through the WorkOS hosted page
+- the seeded vault, the composer (text, links, quotes, palettes), uploads and
+  previews (image, PDF, text, audio, WebM video)
+- audio recording (launch Chromium with `--use-fake-ui-for-media-stream
+  --use-fake-device-for-media-stream`)
+- AI summaries, tags and transcripts, and link metadata
+- search and filters, the card modal, favorites, notes and tags, trash and
+  restore, the context menu and bulk actions
+- theme and devices in Settings, API keys, and import and export
+- the REST API, MCP and the CLI with `--api-key`
+
+Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
+CLI and Raycast builds, and the docs site.
+
+Only the agent can see the app. It runs on the VM's `localhost`, and cloud
+sessions have no port forwarding, so drive it with headless Chromium
+(Playwright) and send screenshots.
 
 ## Needs care
 
 - **E2E suite:** run the Chromium projects with one worker. Four workers
   starve the local backend on a 4-vCPU VM, and queries hit Convex's 1 s limit.
-  Firefox and WebKit aren't installed.
+  Firefox and WebKit aren't installed. The run below takes about 14 minutes.
 
   ```bash
   bun run dev --stop
@@ -62,13 +75,25 @@ with headless Chromium (Playwright), not your own browser.
   bun run dev   # selects the dev deployment again
   ```
 
+  The exported `CONVEX_DEPLOY_KEY` can stay: the suite drops it, and every
+  Convex CLI it runs uses the local backend. In full runs on this VM,
+  `journey-web-core`'s first test has failed every time on a `beforeunload`
+  dialog: it navigates while a save is still in flight. It passes when the
+  project runs alone (`--project=journey-web-core`), so rerun it that way
+  before treating it as a regression.
+
 - **`playwright` MCP server:** it looks for Google Chrome, which the image
   doesn't have. Use Playwright from `node_modules` with the browsers the
   SessionStart hook points `PLAYWRIGHT_BROWSERS_PATH` at, or launch
   `/opt/pw-browsers/chromium` directly.
+- **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
+  don't play in it. Use a WebM (VP9) file to check video playback.
 
 ## Doesn't work
 
+- Polar sandbox checkout for the seeded accounts: Polar rejects the
+  `@example.org` address because that domain doesn't accept email. The UI shows
+  "Failed to start checkout".
 - Browser sign-in for the CLI, extension and Raycast (`teak login`, WorkOS
   Connect): the loopback callback can't reach the VM. Use an API key.
 - Apple, iPhone, iPad and Mac builds (no macOS or Xcode), and Android (no SDK
