@@ -2,15 +2,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "../../helpers/r2Mock.test-utils";
 
-const aiMocks = (global as any).__AI_MOCKS__ ?? {};
-aiMocks.generateText ??= mock();
-aiMocks.generateObject ??= mock();
-aiMocks.experimental_transcribe ??= mock();
-aiMocks.Output ??= { object: mock() };
-(global as any).__AI_MOCKS__ = aiMocks;
-
-mock.module("ai", () => aiMocks);
-
 mock.module("../../../../convex/storage/r2", r2MockModuleFactory);
 
 // Mock internal API
@@ -43,35 +34,90 @@ afterAll(() => {
 const originalFilesBase = process.env.FILES_BASE;
 const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
 
+const TEXT_AI_OPS = new Set([
+  "generate-text-metadata",
+  "generate-link-metadata",
+]);
+
+// Fake Files Worker: text/link metadata ops answer with `aiResult` (or the
+// `aiError` code); every other op answers with the `enableWorkerOp` envelope.
+let aiResult: { tags: string[]; summary: string } = {
+  tags: ["tag1"],
+  summary: "summary",
+};
+let aiError: "AI_CAPACITY" | "AI_INVALID_OUTPUT" | null = null;
+let workerOp: { data: unknown; status: number } = { data: null, status: 404 };
+
+const envelope = (body: unknown, status: number) =>
+  Promise.resolve(new Response(JSON.stringify(body), { status }));
+
+const fakeWorker = (_url: unknown, init?: { body?: string }) => {
+  const { op } = JSON.parse(init?.body ?? "{}");
+  if (TEXT_AI_OPS.has(op)) {
+    if (aiError) {
+      return envelope(
+        {
+          error: {
+            code: aiError,
+            message: "Worker AI failed",
+            requestId: "r1",
+            retryable: true,
+            aiFacts: { validationRetryCount: 2 },
+          },
+          ok: false,
+          version: 1,
+        },
+        aiError === "AI_CAPACITY" ? 429 : 502
+      );
+    }
+    return envelope(
+      {
+        data: { ...aiResult, validationRetryCount: 0 },
+        ok: true,
+        requestId: "r1",
+        version: 1,
+      },
+      200
+    );
+  }
+  return workerOp.status === 200
+    ? envelope(
+        { data: workerOp.data, ok: true, requestId: "r1", version: 1 },
+        200
+      )
+    : envelope(
+        {
+          error: {
+            code: "NOT_FOUND",
+            message: "missing",
+            requestId: "r1",
+            retryable: false,
+          },
+          ok: false,
+          version: 1,
+        },
+        workerOp.status
+      );
+};
+
 /**
  * Return the signed Files Worker operation envelope for media processing.
  */
 const enableWorkerOp = (data: unknown, { status = 200 } = {}) => {
-  process.env.FILES_BASE = "https://files.teakvault.com";
-  process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-  mockFetch.mockImplementation(
-    async () =>
-      new Response(
-        status === 200
-          ? JSON.stringify({
-              data,
-              ok: true,
-              requestId: "r1",
-              version: 1,
-            })
-          : JSON.stringify({
-              error: {
-                code: "NOT_FOUND",
-                message: "missing",
-                requestId: "r1",
-                retryable: false,
-              },
-              ok: false,
-              version: 1,
-            }),
-        { status }
-      )
+  workerOp = { data, status };
+};
+
+const workerOps = (): string[] =>
+  mockFetch.mock.calls.map(
+    (call) => JSON.parse((call[1] as { body?: string })?.body ?? "{}").op
   );
+
+const firstWorkerOpRequest = (): {
+  op: string;
+  params: Record<string, unknown>;
+} => {
+  const init = mockFetch.mock.calls.at(0)?.[1] as { body?: string };
+  return JSON.parse(init?.body ?? "{}");
 };
 
 const lastWorkerOpRequest = (): {
@@ -203,24 +249,16 @@ describe("metadata handler", () => {
     );
     r2Mocks.resolveObjectUrl.mockReset();
     mockScheduler.runAfter.mockReset();
-    aiMocks.generateText.mockReset();
-    aiMocks.generateObject.mockReset();
-    aiMocks.experimental_transcribe.mockReset();
-    aiMocks.Output.object.mockReset();
     mockFetch.mockReset();
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    aiResult = { tags: ["tag1"], summary: "summary" };
+    aiError = null;
+    workerOp = { data: null, status: 404 };
+    mockFetch.mockImplementation(fakeWorker);
 
     // Set up default mock returns
     mockRunMutation.mockResolvedValue(true);
-    aiMocks.Output.object.mockReturnValue({ schema: {} });
-    aiMocks.generateText.mockResolvedValue({
-      output: { tags: ["tag1"], summary: "summary" },
-    });
-    // Image metadata downloads bytes inline before analysis.
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "image/jpeg" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
   });
 
   describe("error handling", () => {
@@ -235,9 +273,7 @@ describe("metadata handler", () => {
 
     test("completes without retry when there is no AI input", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "" });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: [], summary: "" },
-      });
+      aiResult = { tags: [], summary: "" };
       const result = await generateHandler(ctx, {
         cardId: "c1",
         cardType: "text",
@@ -262,10 +298,7 @@ describe("metadata handler", () => {
 
     test("defers metadata when provider capacity is exhausted", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
-      const capacityError = new Error(
-        "Rate limit reached on tokens per day (TPD): status 429"
-      );
-      aiMocks.generateText.mockRejectedValue(capacityError);
+      aiError = "AI_CAPACITY";
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -278,7 +311,7 @@ describe("metadata handler", () => {
 
     test("defers metadata after bounded empty-output retries", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
-      aiMocks.generateText.mockRejectedValue(new Error("No output generated."));
+      aiError = "AI_INVALID_OUTPUT";
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -286,7 +319,8 @@ describe("metadata handler", () => {
       });
 
       expect(result.mode).toBe("skipped");
-      expect(aiMocks.generateText).toHaveBeenCalledTimes(3);
+      // The Worker spends the bounded validation retries; Convex calls once.
+      expect(workerOps()).toEqual(["generate-text-metadata"]);
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
 
@@ -313,9 +347,7 @@ describe("metadata handler", () => {
   describe("text card metadata", () => {
     test("generates metadata for text card", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "hello world" });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["greeting"], summary: "A greeting" },
-      });
+      aiResult = { tags: ["greeting"], summary: "A greeting" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -330,9 +362,7 @@ describe("metadata handler", () => {
 
     test("handles empty text content", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "" });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: [], summary: "" },
-      });
+      aiResult = { tags: [], summary: "" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -459,7 +489,7 @@ describe("metadata handler", () => {
 
       expect(result.mode).toBe("skipped");
       expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
-      expect(aiMocks.generateText).not.toHaveBeenCalled();
+      expect(workerOps()).toEqual([]);
     });
   });
 
@@ -505,9 +535,7 @@ describe("metadata handler", () => {
         processingStatus: { classify: { status: "completed" } },
       });
       enableWorkerOp({ text: transcript, byteLength: 8 });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["speech"], summary: "Audio content" },
-      });
+      aiResult = { tags: ["speech"], summary: "Audio content" };
       const result = await generateHandler(ctx, {
         cardId: "c1",
         cardType: "audio",
@@ -538,9 +566,7 @@ describe("metadata handler", () => {
         fileMetadata: { mimeType: "audio/mp3" },
       });
       enableWorkerOp({ text: "spoken text in audio", byteLength: 8 });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["speech"], summary: "Audio content" },
-      });
+      aiResult = { tags: ["speech"], summary: "Audio content" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -551,7 +577,11 @@ describe("metadata handler", () => {
       expect(result.aiTagsCount).toBe(1);
       expectSaved(["speech"], "Audio content");
       expect(result.confidence).toBe(0.85);
-      expect(lastWorkerOpRequest()).toMatchObject({
+      expect(workerOps()).toEqual([
+        "transcribe-audio",
+        "generate-text-metadata",
+      ]);
+      expect(firstWorkerOpRequest()).toMatchObject({
         op: "transcribe-audio",
         params: { sourceKey: "users/u/audio.mp3" },
       });
@@ -586,9 +616,7 @@ describe("metadata handler", () => {
           },
         },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["website"], summary: "Web content" },
-      });
+      aiResult = { tags: ["website"], summary: "Web content" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -606,9 +634,7 @@ describe("metadata handler", () => {
         url: "https://example.com",
         metadata: { linkPreview: { status: "success", title: "Site" } },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["link"], summary: "link sum" },
-      });
+      aiResult = { tags: ["link"], summary: "link sum" };
 
       await generateHandler(ctx, { cardId: "c1", cardType: "link" });
 
@@ -625,9 +651,7 @@ describe("metadata handler", () => {
         url: "https://example.com",
         metadata: { linkPreview: { status: "success" } },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["link"], summary: "Link summary" },
-      });
+      aiResult = { tags: ["link"], summary: "Link summary" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -645,9 +669,7 @@ describe("metadata handler", () => {
         content: "Document content here",
         fileMetadata: { fileName: "report.pdf" },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["report"], summary: "A report" },
-      });
+      aiResult = { tags: ["report"], summary: "A report" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -663,9 +685,7 @@ describe("metadata handler", () => {
         _id: "c1",
         content: "Just content",
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["doc"], summary: "Document summary" },
-      });
+      aiResult = { tags: ["doc"], summary: "Document summary" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -682,9 +702,7 @@ describe("metadata handler", () => {
         _id: "c1",
         content: "To be or not to be",
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["shakespeare"], summary: "Famous quote" },
-      });
+      aiResult = { tags: ["shakespeare"], summary: "Famous quote" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -700,9 +718,7 @@ describe("metadata handler", () => {
         _id: "c1",
         content: "  quoted text  ",
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["quote"], summary: "Quote summary" },
-      });
+      aiResult = { tags: ["quote"], summary: "Quote summary" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -723,9 +739,7 @@ describe("metadata handler", () => {
           { hex: "#00ff00", name: "Green" },
         ],
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["colors"], summary: "Color palette" },
-      });
+      aiResult = { tags: ["colors"], summary: "Color palette" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -741,9 +755,7 @@ describe("metadata handler", () => {
         _id: "c1",
         colors: [{ hex: "#ff0000" }, { hex: "#0000ff" }],
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["palette"], summary: "Palette" },
-      });
+      aiResult = { tags: ["palette"], summary: "Palette" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -758,9 +770,7 @@ describe("metadata handler", () => {
         _id: "c1",
         content: "Palette description",
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["palette"], summary: "Summary" },
-      });
+      aiResult = { tags: ["palette"], summary: "Summary" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -775,9 +785,7 @@ describe("metadata handler", () => {
     test("does not report saved metadata or schedule a screenshot after a concurrent card deletion", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", url: "https://example.com" });
       mockRunMutation.mockResolvedValue(false);
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["link"], summary: "Summary" },
-      });
+      aiResult = { tags: ["link"], summary: "Summary" };
       const result = await generateHandler(ctx, {
         cardId: "c1",
         cardType: "link",
@@ -798,9 +806,7 @@ describe("metadata handler", () => {
         content: "test",
         processingStatus: { classify: { status: "completed" } },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["test"], summary: "Test summary" },
-      });
+      aiResult = { tags: ["test"], summary: "Test summary" };
 
       await generateHandler(ctx, { cardId: "c1", cardType: "text" });
 
@@ -826,9 +832,7 @@ describe("metadata handler", () => {
           renderables: { status: "pending" },
         },
       });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["test"], summary: "Summary" },
-      });
+      aiResult = { tags: ["test"], summary: "Summary" };
 
       await generateHandler(ctx, { cardId: "c1", cardType: "text" });
 
@@ -847,9 +851,7 @@ describe("metadata handler", () => {
   describe("edge cases", () => {
     test("handles undefined aiSummary", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "test" });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["tag1"], summary: "" },
-      });
+      aiResult = { tags: ["tag1"], summary: "" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -867,9 +869,7 @@ describe("metadata handler", () => {
 
     test("handles undefined aiTags", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "test" });
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: [], summary: "Summary only" },
-      });
+      aiResult = { tags: [], summary: "Summary only" };
 
       const result = await generateHandler(ctx, {
         cardId: "c1",

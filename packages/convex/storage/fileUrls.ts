@@ -69,7 +69,10 @@ export const getR2ReadBase = (key: string): string => {
 };
 
 interface DownloadResponsePolicy {
-  contentDisposition?: "attachment" | "inline";
+  contentDisposition?:
+    | "attachment"
+    | "inline"
+    | `attachment; filename="${string}"`;
   contentType?: string;
 }
 

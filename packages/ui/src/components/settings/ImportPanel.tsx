@@ -11,7 +11,7 @@ import {
   runClientSpan,
 } from "@teak/convex/shared/client-telemetry";
 import { trackLifecycle, trackUpload } from "@teak/convex/shared/metrics";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import {
   Archive,
   Bookmark,
@@ -235,6 +235,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const createUpload = useAction(api.importUpload.createImportUpload);
   const resumeUpload = useAction(api.importUpload.resumeImportUpload);
   const completeUpload = useAction(api.importUpload.completeImportUpload);
+  const recordPart = useMutation(api.dataImport.recordImportPart);
   const cancelImport = useAction(api.importUpload.cancelImport);
   const getReportUrl = useAction(api.importUpload.getImportReportUrl);
   const latest = useQuery(api.dataImport.getLatestImport) as
@@ -346,7 +347,9 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
           }
           observedImportIdRef.current = plan.jobId;
           observedImportStartedAtRef.current = startedAt;
-          await putParts(file, plan, setUploadPercent, controllers);
+          await putParts(file, plan, setUploadPercent, controllers, (part) =>
+            recordPart({ jobId: plan.jobId as never, ...part })
+          );
           await completeUpload({ jobId: plan.jobId as never });
         }
       );

@@ -137,10 +137,10 @@ describe("env-audit extractors", () => {
     expect(platform[0].name).toBe("GITHUB_TOKEN");
     const typed = findSecretDiagnostics(
       "scripts/doctor.ts",
-      "console.log(env.R2_SECRET_ACCESS_KEY);"
+      "console.log(env.FILES_SIGNING_SECRET);"
     );
     expect(typed).toHaveLength(1);
-    expect(typed[0].name).toBe("R2_SECRET_ACCESS_KEY");
+    expect(typed[0].name).toBe("FILES_SIGNING_SECRET");
   });
 });
 

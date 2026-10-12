@@ -6,6 +6,7 @@ import {
   internalMutation,
   internalQuery,
   type MutationCtx,
+  mutation,
   type QueryCtx,
   query,
 } from "./_generated/server";
@@ -14,6 +15,7 @@ import { createCardForUserHandler } from "./card/createCard";
 import {
   ACTIVE_IMPORT_STATUSES,
   IMPORT_FAILURE_SAMPLE_LIMIT,
+  IMPORT_PART_BYTES,
 } from "./import/constants";
 import {
   cardTypeValidator,
@@ -253,6 +255,59 @@ export const attachMultipart = internalMutation({
   },
 });
 
+// Same ETag shape the card multipart session accepts.
+const PART_ETAG_PATTERN = /^"?[A-Za-z0-9+/=_-]{1,128}"?$/u;
+
+export const recordImportPart = mutation({
+  args: {
+    jobId: v.id("importJobs"),
+    partNumber: v.number(),
+    etag: v.string(),
+    size: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (
+      !job ||
+      job.userId !== userId ||
+      job.status !== "uploading" ||
+      !job.uploadId ||
+      (job.uploadExpiresAt ?? 0) <= Date.now()
+    ) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Import upload not found",
+      });
+    }
+    const totalParts = Math.ceil(job.fileSize / IMPORT_PART_BYTES);
+    const expectedSize =
+      args.partNumber === totalParts
+        ? job.fileSize - IMPORT_PART_BYTES * (totalParts - 1)
+        : IMPORT_PART_BYTES;
+    if (
+      !Number.isSafeInteger(args.partNumber) ||
+      args.partNumber < 1 ||
+      args.partNumber > totalParts ||
+      args.size !== expectedSize ||
+      !PART_ETAG_PATTERN.test(args.etag)
+    ) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Uploaded part metadata is invalid",
+      });
+    }
+    const etag = args.etag.replace(/^"(.*)"$/u, "$1");
+    const uploadedParts = (job.uploadedParts ?? [])
+      .filter((part) => part.partNumber !== args.partNumber)
+      .concat({ partNumber: args.partNumber, etag, size: args.size })
+      .sort((left, right) => left.partNumber - right.partNumber);
+    await ctx.db.patch(args.jobId, { uploadedParts, updatedAt: Date.now() });
+    return null;
+  },
+});
+
 export const getJob = internalQuery({
   args: { jobId: v.id("importJobs") },
   returns: v.any(),
@@ -286,6 +341,7 @@ export const markQueued = internalMutation({
       phase: "Waiting to parse",
       uploadId: undefined,
       uploadExpiresAt: undefined,
+      uploadedParts: undefined,
       updatedAt: Date.now(),
     });
     await ctx.scheduler.runAfter(
@@ -710,6 +766,7 @@ export const finishJob = internalMutation({
       failureClass,
       uploadId: undefined,
       uploadExpiresAt: undefined,
+      uploadedParts: undefined,
       completedAt: Date.now(),
       updatedAt: Date.now(),
     });

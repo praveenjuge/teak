@@ -95,9 +95,9 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any 
     bunx convex env set WORKOS_WEBHOOK_SECRET
     bunx convex env set WORKOS_ACTION_SECRET
 
-    # Optional: AI (if you want card processing)
-    bunx convex env set CLOUDFLARE_ACCOUNT_ID your-account-id
-    bunx convex env set CLOUDFLARE_API_TOKEN your-api-token
+    # Optional: files and AI card processing, through your Files Worker
+    bunx convex env set FILES_BASE https://files.yourdomain.com
+    bunx convex env set FILES_SIGNING_SECRET
     ```
 
     Leaving the value off makes `convex env set` prompt for it, which keeps secrets out of your shell history. See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
@@ -175,13 +175,7 @@ WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, 
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, FIREFOX, and SAFARI client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
-R2_ACCESS_KEY_ID=access-key
-R2_SECRET_ACCESS_KEY=secret-key
-R2_ENDPOINT=https://account.r2.cloudflarestorage.com
-R2_BUCKET=teak-files
 KERNEL_API_KEY=token
-CLOUDFLARE_ACCOUNT_ID=your-account-id
-CLOUDFLARE_API_TOKEN=your-api-token
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -246,8 +240,6 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
   - `WORKOS_COOKIE_PASSWORD`: Generate at least 32 random characters (e.g., via `openssl rand -base64 32`). Setup generates one locally.
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
 - **Optional Features**:
-  - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
-  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above); card uploads, downloads, thumbnails, and AI analysis all flow through it.
-  - `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`: Get from the [Cloudflare dashboard](https://dash.cloudflare.com/) — create an API token with Workers AI run permission for AI-powered card processing.
+  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
   - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.

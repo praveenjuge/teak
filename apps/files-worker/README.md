@@ -272,10 +272,10 @@ There is no rollback path to the legacy bucket; never reuse `teak-files-dev`.
 ## Development storage isolation
 
 `bun run check:cloudflare` accepts two dev states: the current shared routing
-(`teak-files-prod`, `https://files.teakvault.com`, production signing key and
-S3 credentials) and the isolated target (`teak-files-development-20261006`,
-`https://teak-files-development.praveenjuge.workers.dev`, its own key and
-bucket-scoped credentials). Both keep `R2_KEY_PREFIX=dev/` and exact object
+(`teak-files-prod`, `https://files.teakvault.com`, production signing key)
+and the isolated target (`teak-files-development-20261006`,
+`https://teak-files-development.praveenjuge.workers.dev`, its own key).
+Convex holds no S3 credentials. Both keep `R2_KEY_PREFIX=dev/` and exact object
 keys. Any mix of the two blocks, and isolated dev must never reuse a production
 credential.
 

@@ -9,11 +9,6 @@ import {
   test,
 } from "bun:test";
 
-mock.module("ai", () => ({
-  generateObject: mock(),
-  experimental_transcribe: mock(),
-}));
-
 const toUrlString = (input: string | URL | Request) => {
   if (input instanceof Request) {
     return input.url;
