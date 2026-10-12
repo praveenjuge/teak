@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { inflateSync } from "node:zlib";
 import { RENDERER_URL, renderFixture } from "./helpers";
 
 function pngSize(bytes: Uint8Array): { width: number; height: number } {
@@ -6,7 +7,73 @@ function pngSize(bytes: Uint8Array): { width: number; height: number } {
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
+const paeth = (left: number, up: number, upLeft: number): number => {
+  const estimate = left + up - upLeft;
+  const toLeft = Math.abs(estimate - left);
+  const toUp = Math.abs(estimate - up);
+  const toUpLeft = Math.abs(estimate - upLeft);
+  if (toLeft <= toUp && toLeft <= toUpLeft) {
+    return left;
+  }
+  return toUp <= toUpLeft ? up : upLeft;
+};
+
+/** How many pixels of an 8-bit RGB or RGBA PNG are dark, like text. */
+function darkPixels(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const width = view.getUint32(16);
+  const channels = bytes[25] === 6 ? 4 : 3;
+  const chunks: Uint8Array[] = [];
+  for (let offset = 8; offset < bytes.length; ) {
+    const length = view.getUint32(offset);
+    const type = new TextDecoder().decode(
+      bytes.subarray(offset + 4, offset + 8)
+    );
+    if (type === "IDAT") {
+      chunks.push(bytes.subarray(offset + 8, offset + 8 + length));
+    }
+    offset += 12 + length;
+  }
+  const raw = inflateSync(Buffer.concat(chunks));
+  const rowBytes = width * channels;
+  let previous = new Uint8Array(rowBytes);
+  let dark = 0;
+  for (let start = 0; start + 1 + rowBytes <= raw.length; ) {
+    const filter = raw[start] as number;
+    const row = new Uint8Array(raw.subarray(start + 1, start + 1 + rowBytes));
+    for (let index = 0; index < rowBytes; index++) {
+      const left = index >= channels ? (row[index - channels] as number) : 0;
+      const up = previous[index] as number;
+      const upLeft =
+        index >= channels ? (previous[index - channels] as number) : 0;
+      const predictor = [
+        0,
+        left,
+        up,
+        Math.floor((left + up) / 2),
+        paeth(left, up, upLeft),
+      ][filter] as number;
+      row[index] = ((row[index] as number) + predictor) % 256;
+    }
+    for (let pixel = 0; pixel < rowBytes; pixel += channels) {
+      if ((row[pixel] as number) < 96 && (row[pixel + 1] as number) < 96) {
+        dark += 1;
+      }
+    }
+    previous = row;
+    start += 1 + rowBytes;
+  }
+  return dark;
+}
+
 describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
+  test("draws text set in a standard font the PDF does not embed", async () => {
+    // Each page of the fixture is one line of Helvetica, not embedded.
+    const result = await renderFixture("/pdf/page?max=800", "sixty-pages.pdf");
+    expect(result.status).toBe(200);
+    expect(darkPixels(result.parts.page)).toBeGreaterThan(200);
+  });
+
   test("renders page one with its long side at max", async () => {
     const result = await renderFixture("/pdf/page?max=400", "sixty-pages.pdf");
     expect(result.status).toBe(200);

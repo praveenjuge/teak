@@ -11,7 +11,9 @@ RUN bun build --compile --minify --target=bun-linux-x64-musl src/server.ts --out
 FROM --platform=linux/amd64 alpine:3.24.2
 # ffmpeg/ffprobe for media, poppler for PDFs, prlimit (util-linux-misc) for
 # per-process limits, and the C++ runtime the Bun executable links against.
-RUN apk add --no-cache ffmpeg poppler-utils util-linux-misc libstdc++ libgcc \
+# PDFs often use the standard fonts (Helvetica, Times) without embedding
+# them; the URW base 35 fonts are what poppler draws them with.
+RUN apk add --no-cache ffmpeg poppler-utils font-urw-base35 util-linux-misc libstdc++ libgcc \
   && addgroup -S -g 10001 renderer \
   && adduser -S -D -H -u 10001 -G renderer -h /work renderer \
   && mkdir -p /work \
