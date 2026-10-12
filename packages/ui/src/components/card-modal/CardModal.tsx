@@ -76,10 +76,12 @@ interface CardModalProps {
   handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
   isDownloading?: boolean;
+  isReprocessing?: boolean;
   MoreInformationModal: React.ReactNode;
   NotesEditModal: React.ReactNode;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  onReprocess?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
@@ -118,6 +120,8 @@ export function CardModal({
   MoreInformationModal,
   NotesEditModal,
   isDownloading,
+  isReprocessing,
+  onReprocess,
 }: CardModalProps) {
   const card = cardData;
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
@@ -206,10 +210,12 @@ export function CardModal({
                     restoreCard: () => handleRestore(handleClose),
                     permanentlyDeleteCard: () =>
                       setIsPermanentDeleteConfirmOpen(true),
+                    reprocessCard: onReprocess,
                   }}
                   card={card}
                   getCurrentValue={getCurrentValue}
                   isDownloading={isDownloading}
+                  isReprocessing={isReprocessing}
                   onCardTypeClick={handleCardTypeClick}
                   onTagClick={onTagClick}
                 />

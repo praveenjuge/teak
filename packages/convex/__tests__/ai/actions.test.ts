@@ -20,42 +20,32 @@ describe("ai/actions.ts", () => {
     );
   });
 
-  test("schedules workflow when verified", async () => {
+  test("delegates to the reprocess mutation for the signed-in owner", async () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      runQuery: mock().mockResolvedValue({ exists: true }),
-      runMutation: mock().mockResolvedValue(true),
-      scheduler: { runAfter: mock().mockResolvedValue(null) },
+      runQuery: mock().mockResolvedValue(null),
+      runMutation: mock().mockResolvedValue({ cardId: "c1", requestedAt: 1 }),
     } as any);
     const handler = (manuallyGenerateAI as any).handler ?? manuallyGenerateAI;
     const result = await handler(ctx, { cardId: "c1" });
     expect(result).toEqual({ success: true });
-    expect(ctx.scheduler.runAfter).toHaveBeenCalled();
+    expect(ctx.runMutation).toHaveBeenLastCalledWith(expect.anything(), {
+      cardId: "c1",
+      userId: "u1",
+    });
   });
 
-  test("rejects when the reprocessing limit is exhausted", async () => {
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      runQuery: mock().mockResolvedValue({ exists: true }),
-      runMutation: mock().mockResolvedValue(false),
-      scheduler: { runAfter: mock() },
-    } as any);
-    const handler = (manuallyGenerateAI as any).handler ?? manuallyGenerateAI;
-
-    await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
-      "Too many cards created"
-    );
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
-  });
-
-  test("throws when verification fails", async () => {
+  test("passes the reprocess limit error through", async () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       runQuery: mock().mockResolvedValue(null),
+      runMutation: mock().mockRejectedValue(
+        new Error("This card is already refreshing")
+      ),
     } as any);
     const handler = (manuallyGenerateAI as any).handler ?? manuallyGenerateAI;
     await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
-      "Card not found or access denied"
+      "This card is already refreshing"
     );
   });
 });

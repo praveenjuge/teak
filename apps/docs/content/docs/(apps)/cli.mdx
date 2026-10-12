@@ -61,7 +61,7 @@ used by the request that returned 401. Return a refreshed or newer stored token
 to retry that request once, or `null` to stop. Compare the rejected token with
 the current session before refreshing; a late response may refer to an older token.
 
-The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `duplicate`, `bulk`, and `changes`, plus `tags.list`, `uploads`, `me`, and `exports.start` / `exports.latest`. Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`.
+The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `refresh`, `duplicate`, `bulk`, and `changes`, plus `tags.list`, `uploads`, `me`, and `exports.start` / `exports.latest`. Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`.
 
 The SDK also includes the WorkOS Connect sign-in steps that the CLI, Raycast, and
 browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
@@ -90,6 +90,7 @@ teak fav <card-id>
 teak rm <card-id>
 teak trash
 teak restore <card-id>
+teak refresh <card-id>
 teak tags
 ```
 
@@ -105,6 +106,8 @@ File uploads support the same formats as the web app (source files, Markdown and
 Like the web composer, Teak works out the card type from what you add: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Pass `--type text` (or `quote`, `palette`, …) to choose. Structured Markdown always stays a text card and is stored exactly as submitted, including from standard input. Text cards have a 512 KiB UTF-8 limit.
 
 `teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
+
+`teak refresh` refreshes one or more cards: it clears their summaries, tags Teak added, and transcripts and processes them again, including link previews. It returns right away; check the result later with `teak cards get`. You can refresh a card once a minute, and up to six cards a minute.
 
 `teak tags add` and `teak tags rm` change one card's tags without retyping the rest. `teak tags rm` also removes tags Teak added. `teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input.
 

@@ -218,6 +218,11 @@ export interface CreateCardResponse {
   cardId: string;
   status: "created";
 }
+export interface RefreshCardResponse {
+  cardId: string;
+  requestedAt: number;
+  status: "queued";
+}
 export interface BulkCardsResponse {
   operation: "create" | "update" | "favorite" | "delete";
   results: unknown[];
@@ -424,6 +429,16 @@ const asCreate = (value: unknown): CreateCardResponse => {
   }
   return value as unknown as CreateCardResponse;
 };
+const asRefresh = (value: unknown): RefreshCardResponse => {
+  if (
+    !isObject(value) ||
+    typeof value.cardId !== "string" ||
+    value.status !== "queued"
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return value as unknown as RefreshCardResponse;
+};
 const asMe = (value: unknown): Me => {
   if (
     !(isObject(value) && isObject(value.data)) ||
@@ -602,6 +617,9 @@ export const createTeakClient = (options: {
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
+      /** Refreshes summary, tags and link preview; it finishes in the background. */
+      refresh: (id: string) =>
+        request(`${cardPath(id)}/refresh`, { method: "POST" }, asRefresh),
       restore: (id: string) =>
         request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
       search: (input: Parameters<typeof qs>[0] = {}) =>

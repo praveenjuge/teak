@@ -705,6 +705,124 @@ describe("publicApiHttp card endpoints", () => {
     }
   );
 
+  const refreshRequest = (cardId = "card_1") =>
+    new Request(`https://example.com/v1/cards/${cardId}/refresh`, {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    });
+
+  test("refresh answers 202 with the queued card", async () => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+          cardId: "card_1",
+          requestedAt: 1_700_000_000_000,
+        }),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+      },
+      refreshRequest()
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({
+      cardId: "card_1",
+      requestedAt: 1_700_000_000_000,
+      status: "queued",
+    });
+  });
+
+  test("refresh maps the rate limit to 429 with retryAt and Retry-After", async () => {
+    const retryAt = Date.now() + 30_000;
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
+          new ConvexError({
+            code: "RATE_LIMITED",
+            message: "This card is already refreshing. Try again in a minute.",
+            limit: 1,
+            retryAt,
+          })
+        ),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+      },
+      refreshRequest()
+    );
+    expect(response.status).toBe(429);
+    expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(await response.json()).toMatchObject({
+      code: "RATE_LIMITED",
+      error: "This card is already refreshing. Try again in a minute.",
+      retryAt,
+    });
+  });
+
+  test("refresh of a card in Trash answers 409", async () => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
+          new ConvexError({
+            code: "CONFLICT",
+            message: "Restore this card from Trash before refreshing it",
+          })
+        ),
+        runQuery: mock().mockResolvedValueOnce("card_1").mockResolvedValueOnce({
+          _id: "card_1",
+          userId: "user_1",
+          isDeleted: true,
+        }),
+      },
+      refreshRequest()
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "CONFLICT",
+      error: "Restore this card from Trash before refreshing it",
+    });
+  });
+
+  test("refresh of an unknown card answers 404 without queueing", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery: mock().mockResolvedValueOnce(null) },
+      refreshRequest("missing")
+    );
+    expect(response.status).toBe(404);
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
+  test("refresh is reachable through executePublicApiOperation", async () => {
+    const response = await executePublicApiOperation(
+      withMappedOwner({
+        runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+          cardId: "card_1",
+          requestedAt: 1,
+        }),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+      }),
+      {
+        method: "POST",
+        path: "/v1/cards/card_1/refresh",
+        headers: {
+          Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+        },
+      }
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ status: "queued" });
+  });
+
   test("a permanent delete of an active card asks to trash it first", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(

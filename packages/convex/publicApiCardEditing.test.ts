@@ -609,6 +609,174 @@ describe("Multi-field edits", () => {
   });
 });
 
+describe("Refresh details", () => {
+  const scheduledWorkflowStarts = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
+    t.run(async (ctx) =>
+      (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+        (job) => job.name.includes("startCardProcessingWorkflow")
+      )
+    );
+
+  test("queues the processing workflow for the owner's card", async () => {
+    const { t, cardId } = await setup();
+    const result = await t.mutation(
+      internal["card/updateCard"].reprocessCardForUser,
+      { cardId, userId: "owner" }
+    );
+    expect(result.cardId).toBe(cardId);
+    const jobs = await scheduledWorkflowStarts(t);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.args).toEqual([{ cardId }]);
+  });
+
+  test("a second run on the same card within a minute is refused with retryAt", async () => {
+    const { t, cardId } = await setup();
+    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      cardId,
+      userId: "owner",
+    });
+    const error = await t
+      .mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId,
+        userId: "owner",
+      })
+      .catch((caught: unknown) => caught);
+    expect(String(error)).toContain("RATE_LIMITED");
+    expect(String(error)).toContain("already refreshing");
+    expect(String(error)).toContain("retryAt");
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(1);
+  });
+
+  test("refuses after six cards in a minute", async () => {
+    const { t } = await setup();
+    const cardIds: Id<"cards">[] = [];
+    for (let index = 0; index < 7; index += 1) {
+      cardIds.push(
+        await t.run((ctx) =>
+          ctx.db.insert("cards", {
+            userId: "owner",
+            type: "text",
+            content: `Card ${index}`,
+            createdAt: index,
+            updatedAt: index,
+          })
+        )
+      );
+    }
+    for (const cardId of cardIds.slice(0, 6)) {
+      await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId,
+        userId: "owner",
+      });
+    }
+    await expect(
+      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId: cardIds[6] as Id<"cards">,
+        userId: "owner",
+      })
+    ).rejects.toThrow("refreshed a lot of cards");
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(6);
+  });
+
+  test("refuses another user's card without spending the owner's limit", async () => {
+    const { t, cardId } = await setup();
+    await expect(
+      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId,
+        userId: "stranger",
+      })
+    ).rejects.toThrow("Card not found");
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(0);
+    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      cardId,
+      userId: "owner",
+    });
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(1);
+  });
+
+  test("the app's mutation returns a refusal instead of throwing", async () => {
+    const { t, cardId } = await setup();
+    const owner = t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: `user_${Buffer.from("owner").toString("hex")}`,
+      sid: "session_rerun",
+      email_verified: true,
+      external_id: "owner",
+    });
+    expect(
+      await owner.mutation(api.cards.reprocessCard, { cardId })
+    ).toMatchObject({ status: "queued", cardId });
+    const refused = await owner.mutation(api.cards.reprocessCard, { cardId });
+    expect(refused).toMatchObject({
+      status: "refused",
+      code: "RATE_LIMITED",
+      message: "This card is already refreshing. Try again in a minute.",
+    });
+    expect(
+      refused.status === "refused" ? refused.retryAt : undefined
+    ).toBeGreaterThan(Date.now());
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(1);
+  });
+
+  test("an account-wide refusal leaves the card's own minute unspent", async () => {
+    const { t } = await setup();
+    const cardIds: Id<"cards">[] = [];
+    for (let index = 0; index < 7; index += 1) {
+      cardIds.push(
+        await t.run((ctx) =>
+          ctx.db.insert("cards", {
+            userId: "owner",
+            type: "text",
+            content: `Card ${index}`,
+            createdAt: index,
+            updatedAt: index,
+          })
+        )
+      );
+    }
+    for (const cardId of cardIds.slice(0, 6)) {
+      await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId,
+        userId: "owner",
+      });
+    }
+    const last = cardIds[6] as Id<"cards">;
+    const owner = t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: `user_${Buffer.from("owner").toString("hex")}`,
+      sid: "session_rerun",
+      email_verified: true,
+      external_id: "owner",
+    });
+    // The app's mutation commits its refusal, so it must not have spent the
+    // card's one-a-minute token on the way.
+    expect(
+      await owner.mutation(api.cards.reprocessCard, { cardId: last })
+    ).toMatchObject({ status: "refused", code: "RATE_LIMITED" });
+    // Ten seconds refill one account token; the card's own token is intact.
+    vi.advanceTimersByTime(11_000);
+    expect(
+      await owner.mutation(api.cards.reprocessCard, { cardId: last })
+    ).toMatchObject({ status: "queued" });
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(7);
+  });
+
+  test("asks to restore a card in Trash first", async () => {
+    const { t, cardId } = await setup();
+    await t.mutation(internal.raycast.softDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    await expect(
+      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+        cardId,
+        userId: "owner",
+      })
+    ).rejects.toThrow("Restore this card from Trash");
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(0);
+  });
+});
+
 describe("Card changes feed", () => {
   const trashAndPurge = async (
     t: Awaited<ReturnType<typeof setup>>["t"],

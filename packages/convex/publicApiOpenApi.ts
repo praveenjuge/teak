@@ -943,6 +943,53 @@ export const openApiSpec = {
         summary: "Restore a card from Trash",
       },
     },
+    "/v1/cards/{cardId}/refresh": {
+      post: {
+        parameters: [
+          {
+            in: "path",
+            name: "cardId",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: {
+          202: {
+            content: {
+              "application/json": {
+                schema: {
+                  properties: {
+                    cardId: { type: "string" },
+                    requestedAt: { type: "number" },
+                    status: { const: "queued", type: "string" },
+                  },
+                  required: ["cardId", "requestedAt", "status"],
+                  type: "object",
+                },
+              },
+            },
+            description:
+              "Processing queued. Poll GET /v1/cards/{cardId} until processingStatus settles",
+          },
+          404: { description: "Card not found" },
+          409: { description: "The card is in Trash" },
+          429: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiError" },
+              },
+            },
+            description:
+              "Re-run too soon: once per card per minute and six cards per minute; `retryAt` and Retry-After say when to try again",
+          },
+        },
+        security: apiKeySecurity,
+        operationId: "refreshCard",
+        summary: "Refresh a card's details",
+        description:
+          "Clears the card's AI summary, tags and transcript, then runs the whole processing pipeline again: link metadata, previews, summary, tags and transcript.",
+      },
+    },
     "/v1/cards/{cardId}/favorite": {
       patch: {
         parameters: [

@@ -11,6 +11,7 @@ const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,
   useAction: () => mock(),
+  useMutation: () => mock(),
 }));
 
 const { act } = await import("react");

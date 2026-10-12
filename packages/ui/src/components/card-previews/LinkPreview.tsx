@@ -5,6 +5,7 @@ import {
 } from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatLinkByline } from "../../lib/linkByline";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 
@@ -126,6 +127,12 @@ export function LinkPreview({
   const safeUrl = useMemo(() => sanitizeExternalUrl(card.url), [card.url]);
 
   const hostname = getSafeUrlHostname(card.url)?.replace(/^www\./, "");
+  const byline = formatLinkByline({
+    author: linkPreview?.author,
+    hostname,
+    publishedAt: linkPreview?.publishedAt,
+    publisher: linkPreview?.publisher,
+  });
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
   // Fall back to the screenshot, then to no image, when a stored preview
   // fails to load, so the modal never shows a broken image.
@@ -173,9 +180,9 @@ export function LinkPreview({
             <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground" />
           </div>
 
-          {hostname && (
+          {(hostname || byline) && (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
-              {faviconUrl && (
+              {hostname && faviconUrl && (
                 <span className="size-4 shrink-0">
                   <FaviconImage
                     fallbackUrl={googleFaviconUrl}
@@ -183,7 +190,21 @@ export function LinkPreview({
                   />
                 </span>
               )}
-              <span className="truncate">{hostname}</span>
+              {hostname && (
+                <span className="max-w-[60%] shrink-0 truncate">
+                  {hostname}
+                </span>
+              )}
+              {hostname && byline && (
+                <span aria-hidden="true" className="shrink-0">
+                  ·
+                </span>
+              )}
+              {byline && (
+                <span className="min-w-0 truncate" title={byline}>
+                  {byline}
+                </span>
+              )}
             </div>
           )}
 

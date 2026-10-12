@@ -172,6 +172,25 @@ export const restoreCards = async (ids: string[], options: GlobalOptions) => {
   );
 };
 
+export const refreshCards = async (ids: string[], options: GlobalOptions) => {
+  const api = client(options);
+  const { failed, succeeded } = await eachCard(ids, (id) =>
+    api.cards.refresh(id)
+  );
+  writeBatch(
+    options.json
+      ? {
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          queuedIds: succeeded,
+        }
+      : succeeded
+          .map((id) => `Refreshing ${id}. Check it with: teak cards get ${id}`)
+          .join("\n"),
+    failed,
+    options
+  );
+};
+
 export const openCard = async (id: string, options: GlobalOptions) => {
   const card = await client(options).cards.get(id);
   const opened = await openBrowser(card.appUrl);

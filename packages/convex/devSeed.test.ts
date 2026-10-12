@@ -4,7 +4,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { components, internal } from "./_generated/api";
-import { DEV_SEED_CARDS } from "./devSeed";
+import { CARD_DETAILS_SCENARIO_CARDS, DEV_SEED_CARDS } from "./devSeed";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -244,5 +244,46 @@ describe("pruning cloud dev accounts", () => {
         workosUserId: "user_WT",
       },
     ]);
+  });
+});
+
+describe("devSeed.seedScenario", () => {
+  test("refuses a deployment that trusts hosted WorkOS", async () => {
+    const t = await setup();
+    await expect(
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "card-details",
+      })
+    ).rejects.toThrow("WorkOS emulator");
+    expect(await cardsOf(t)).toHaveLength(0);
+  });
+
+  test("adds the card-details pack once, beside existing cards", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
+    const before = (await cardsOf(t)).length;
+    const args = {
+      workosUserId: WORKOS_USER_ID,
+      scenario: "card-details" as const,
+    };
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "seeded",
+      cards: CARD_DETAILS_SCENARIO_CARDS.length,
+    });
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const cards = await cardsOf(t);
+    expect(cards).toHaveLength(before + CARD_DETAILS_SCENARIO_CARDS.length);
+    const scenario = cards.filter((card) =>
+      card.tags?.includes("scenario-card-details")
+    );
+    expect(scenario.every((card) => card.metadataStatus === "completed")).toBe(
+      true
+    );
+    expect(scenario.filter((card) => card.isDeleted)).toHaveLength(1);
   });
 });

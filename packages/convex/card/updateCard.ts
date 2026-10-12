@@ -82,14 +82,15 @@ const REPROCESS_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
 
 const assertReprocessAllowed = (
   name: ReprocessLimitName,
-  result: { ok: boolean; retryAfter?: number }
+  result: { ok: boolean; retryAfter?: number },
+  messages: Record<ReprocessLimitName, string> = REPROCESS_LIMIT_MESSAGES
 ): void => {
   if (result.ok) {
     return;
   }
   throw new ConvexError({
     code: CARD_ERROR_CODES.RATE_LIMITED,
-    message: REPROCESS_LIMIT_MESSAGES[name],
+    message: messages[name],
     limit: RATE_LIMIT_CONFIG[name].capacity,
     retryAt:
       typeof result.retryAfter === "number"
@@ -98,26 +99,38 @@ const assertReprocessAllowed = (
   });
 };
 
+// "Refresh details" is asked for directly, so its limits say so instead of the
+// card-creation wording the edit path shares.
+const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
+  cardReprocessPerCard:
+    "This card is already refreshing. Try again in a minute.",
+  cardReprocess:
+    "You've refreshed a lot of cards. Wait a minute and try again.",
+};
+
 // Charges one reprocess for a card update: callers run it once per update,
 // however many fields change.
 const consumeCardReprocessLimit = async (
   ctx: MutationCtx,
   userId: string,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  messages: Record<ReprocessLimitName, string> = REPROCESS_LIMIT_MESSAGES
 ): Promise<void> => {
   assertReprocessAllowed(
     "cardReprocessPerCard",
     await rateLimiter.limit(ctx, "cardReprocessPerCard", {
       key: String(cardId),
       throws: false,
-    })
+    }),
+    messages
   );
   assertReprocessAllowed(
     "cardReprocess",
     await rateLimiter.limit(ctx, "cardReprocess", {
       key: userId,
       throws: false,
-    })
+    }),
+    messages
   );
 };
 
@@ -566,21 +579,124 @@ export const updateCardFieldForUser = internalMutation({
   },
 });
 
-export const consumeCardReprocessLimitForUser = internalMutation({
-  args: { cardId: v.id("cards"), userId: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, { cardId, userId }) => {
-    const perCardResult = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
+/**
+ * Runs the whole processing pipeline again for one card ("Refresh details"): the
+ * AI summary, tags and transcript are cleared and regenerated, along with
+ * link metadata and previews. Checks ownership, Trash and both reprocess
+ * limits before writing anything, so a refused request changes nothing.
+ */
+export const reprocessCardForUserHandler = async (
+  ctx: MutationCtx,
+  { userId, cardId }: { cardId: Id<"cards">; userId: TeakUserId }
+): Promise<{ cardId: Id<"cards">; requestedAt: number }> => {
+  const card = await loadOwnedCard(ctx, userId, cardId);
+  if (card.isDeleted) {
+    throw new ConvexError({
+      code: "CONFLICT",
+      message: "Restore this card from Trash before refreshing it",
+    });
+  }
+
+  // Check both limits before spending either token, so a refusal by the
+  // account-wide limit doesn't use up this card's minute.
+  assertReprocessAllowed(
+    "cardReprocessPerCard",
+    await rateLimiter.check(ctx, "cardReprocessPerCard", {
       key: String(cardId),
-      throws: false,
-    });
-    if (!perCardResult.ok) {
-      return false;
+    }),
+    RERUN_AI_LIMIT_MESSAGES
+  );
+  assertReprocessAllowed(
+    "cardReprocess",
+    await rateLimiter.check(ctx, "cardReprocess", { key: userId }),
+    RERUN_AI_LIMIT_MESSAGES
+  );
+  await consumeCardReprocessLimit(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
+
+  await ctx.scheduler.runAfter(
+    0,
+    (internal as any)["workflows/manager"].startCardProcessingWorkflow,
+    { cardId }
+  );
+
+  return { cardId, requestedAt: Date.now() };
+};
+
+const reprocessCardResultValidator = v.object({
+  cardId: v.id("cards"),
+  requestedAt: v.number(),
+});
+
+// Refusals the person can act on. Each happens before anything is written,
+// so returning one instead of throwing commits nothing.
+const REPROCESS_REFUSAL_CODES = new Set([
+  "CONFLICT",
+  "NOT_FOUND",
+  "RATE_LIMITED",
+]);
+
+/**
+ * "Refresh details" from the app. Refusals (rate limited, in Trash, not found) are
+ * returned rather than thrown, so the app shows them as a message instead of
+ * a failed request.
+ */
+export const reprocessCard = mutation({
+  args: { cardId: v.id("cards") },
+  returns: v.union(
+    v.object({
+      status: v.literal("queued"),
+      cardId: v.id("cards"),
+      requestedAt: v.number(),
+    }),
+    v.object({
+      status: v.literal("refused"),
+      code: v.string(),
+      message: v.string(),
+      retryAt: v.optional(v.number()),
+    })
+  ),
+  handler: async (ctx, { cardId }) => {
+    const user = await getSessionUser(ctx);
+    if (!user) {
+      throw new Error("User must be authenticated");
     }
-    const result = await rateLimiter.limit(ctx, "cardReprocess", {
-      key: userId,
-      throws: false,
-    });
-    return result.ok;
+    try {
+      const result = await reprocessCardForUserHandler(ctx, {
+        userId: user.teakUserId,
+        cardId,
+      });
+      return { status: "queued" as const, ...result };
+    } catch (error) {
+      const data = (error instanceof ConvexError ? error.data : null) as {
+        code?: unknown;
+        message?: unknown;
+        retryAt?: unknown;
+      } | null;
+      if (
+        !(
+          data &&
+          REPROCESS_REFUSAL_CODES.has(String(data.code)) &&
+          typeof data.message === "string"
+        )
+      ) {
+        throw error;
+      }
+      return {
+        status: "refused" as const,
+        code: String(data.code),
+        message: data.message,
+        ...(typeof data.retryAt === "number" ? { retryAt: data.retryAt } : {}),
+      };
+    }
   },
+});
+
+export const reprocessCardForUser = internalMutation({
+  args: { cardId: v.id("cards"), userId: v.string() },
+  returns: reprocessCardResultValidator,
+  handler: async (ctx, { cardId, userId }) =>
+    await reprocessCardForUserHandler(ctx, {
+      userId: await requireTeakUserId(ctx, userId),
+      cardId,
+    }),
 });

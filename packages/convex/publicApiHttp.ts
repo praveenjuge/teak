@@ -114,7 +114,7 @@ export const executePublicApiOperation = (
       request.method === "GET" ||
       request.method === "PATCH" ||
       (request.method === "POST" &&
-        /^\/v1\/cards\/[^/]+\/restore$/.test(pathname)))
+        /^\/v1\/cards\/[^/]+\/(?:restore|refresh)$/.test(pathname)))
   ) {
     return handleCardsByIdV1Request(ctx, request, resource);
   }

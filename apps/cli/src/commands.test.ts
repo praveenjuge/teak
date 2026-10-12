@@ -581,6 +581,31 @@ describe("teak batch and fallback behavior", () => {
     });
   });
 
+  test("refresh queues each card and reports rate limits", async () => {
+    routes.set("POST /v1/cards/card_a/refresh", () =>
+      json({ cardId: "card_a", requestedAt: 1, status: "queued" }, 202)
+    );
+    routes.set("POST /v1/cards/card_b/refresh", () =>
+      json(
+        {
+          code: "RATE_LIMITED",
+          error: "This card is already refreshing. Try again in a minute.",
+          retryAt: Date.now() + 30_000,
+        },
+        429
+      )
+    );
+
+    const text = await teak("refresh", "card_a", "card_b");
+    expect(text.code).toBe(EXIT.rateLimited);
+    expect(text.stdout).toContain("Refreshing card_a");
+    expect(text.stderr).toContain("card_b: This card is already refreshing");
+
+    const result = await teak("--json", "cards", "refresh", "card_a");
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ queuedIds: ["card_a"] });
+  });
+
   test("export download saves to the -o path", async () => {
     routes.set("GET /v1/exports/latest", () =>
       json({

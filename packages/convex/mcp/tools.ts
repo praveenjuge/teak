@@ -312,6 +312,15 @@ export const TEAK_V1_TOOLS = [
     ]),
   },
   {
+    name: "teak_v1_refresh_card",
+    description:
+      "Refresh a card's details: clears its summary, tags and transcript and generates them again, along with its link preview. Runs in the background; poll teak_v1_get_card for processingStatus. Limited to once per card per minute.",
+    annotations: { title: "Refresh details", ...WRITES },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
+  },
+  {
     name: "teak_v1_create_card",
     description:
       "Create a card from text, a URL, or a completed file upload. cardType is optional and inferred when omitted; Teak detects links, quotes and palettes. Pass idempotencyKey to make retries safe.",
@@ -721,6 +730,14 @@ const toolConfigs: Record<string, ToolConfig> = {
       cardId: input.cardId,
     }),
     summary: (_payload, input) => `Restored card ${input.cardId}`,
+  },
+  teak_v1_refresh_card: {
+    schema: cardIdInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: `${cardPath(input.cardId)}/refresh`,
+    }),
+    summary: (_payload, input) => `Refreshing card ${input.cardId}`,
   },
   teak_v1_create_card: {
     schema: createCardInputSchema,

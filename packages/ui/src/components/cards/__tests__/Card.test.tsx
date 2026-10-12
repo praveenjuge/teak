@@ -9,7 +9,10 @@ const realTeakConvex = await import("@teak/convex");
 const realConvexReact = await import("convex/react");
 const realCardUi = await import("@teak/ui/components/ui/card");
 
-const cardApi = { card: { getFileUrl: { refreshCardMediaUrl: {} } } };
+const cardApi = {
+  card: { getFileUrl: { refreshCardMediaUrl: {} } },
+  cards: { reprocessCard: {} },
+};
 mock.module("@teak/convex", () => ({
   ...realTeakConvex,
   // `api` is a path-dynamic proxy that cannot be spread; fall back to the real
@@ -25,6 +28,7 @@ mock.module("@teak/convex", () => ({
 mock.module("convex/react", () => ({
   ...realConvexReact,
   useAction: () => mock(),
+  useMutation: () => mock(),
 }));
 
 mock.module("antd", () => ({
@@ -128,6 +132,19 @@ describe("Cards/Card", () => {
         refresh: mock().mockRejectedValue(new Error("refresh failed")),
       })
     ).rejects.toThrow("refresh failed");
+  });
+
+  test("offers Refresh details for an active card but not for one in Trash", () => {
+    const active = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} />
+    );
+    expect(active).toContain("Refresh details");
+
+    const trashed = renderToStaticMarkup(
+      <Card card={createLinkCard({ isDeleted: true }) as any} />
+    );
+    expect(trashed).not.toContain("Refresh details");
+    expect(trashed).toContain("Restore");
   });
 
   test("prefers attached X image media over screenshot in masonry preview", () => {

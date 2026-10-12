@@ -526,7 +526,7 @@ const parseCardRoute = (
   request: Request
 ): {
   cardId: string;
-  operation: "delete" | "favorite" | "get" | "patch" | "restore";
+  operation: "delete" | "favorite" | "get" | "patch" | "refresh" | "restore";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -554,6 +554,14 @@ const parseCardRoute = (
     segments[3] === "restore"
   ) {
     return { cardId, operation: "restore" };
+  }
+
+  if (
+    request.method === "POST" &&
+    segments.length === 4 &&
+    segments[3] === "refresh"
+  ) {
+    return { cardId, operation: "refresh" };
   }
 
   if (request.method !== "PATCH") {

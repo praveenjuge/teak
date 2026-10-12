@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Heart,
   Loader2,
+  RefreshCw,
   RotateCcw,
   Tag,
   Trash,
@@ -27,6 +28,7 @@ import {
 import type { KeyboardEvent, SyntheticEvent } from "react";
 import { memo, useState } from "react";
 import { toast } from "sonner";
+import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -120,6 +122,7 @@ export const Card = memo(function Card({
   const refreshCardMediaUrl = useAction(
     api.card.getFileUrl.refreshCardMediaUrl
   );
+  const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
@@ -198,6 +201,13 @@ export const Card = memo(function Card({
       return;
     }
     onToggleFavorite?.(card._id);
+  };
+
+  const handleReprocess = () => {
+    if (isOptimistic) {
+      return;
+    }
+    void reprocess(card._id);
   };
 
   const handleAddTags = () => {
@@ -654,6 +664,13 @@ export const Card = memo(function Card({
                 }`}
               />
               {card.isFavorited ? "Unfavorite" : "Favorite"}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={reprocessingCardId === card._id}
+              onClick={handleReprocess}
+            >
+              <RefreshCw />
+              Refresh details
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={handleDelete}>
