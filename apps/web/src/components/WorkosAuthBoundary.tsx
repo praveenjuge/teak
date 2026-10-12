@@ -121,12 +121,14 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     return (
       <AuthUnavailable
         retry={() => {
+          // A refresh that fails again shows up as tokenError, which clears
+          // once a later refresh succeeds; it isn't a bootstrap failure.
           void refresh()
             .then(() => {
               setFailed(false);
               setAttempt((n) => n + 1);
             })
-            .catch(() => setFailed(true));
+            .catch(() => undefined);
         }}
       />
     );
