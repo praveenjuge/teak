@@ -1,11 +1,17 @@
 ---
 title: "October 2026"
-description: A native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-12"
 changelog:
   category: Product updates
 ---
+
+## Refresh a card, and richer card details
+
+- **Refresh details:** open a card and choose **Refresh details**, or right-click it in the grid, to get a fresh summary, tags, transcript, and link preview. Your own tags and notes stay. It's also available as `POST /v1/cards/:id/refresh` in the [API](/docs/api#refresh-a-cards-details), `teak refresh` in the [CLI](/docs/cli), and `teak_v1_refresh_card` in [MCP](/docs/mcp).
+- **Who wrote it, and when:** link cards on the web show the author and publish date next to the site name when the page includes them.
+- **Photo details:** **Info** on a photo lists its camera, exposure, aperture, focal length, ISO, and when it was taken. Teak never shows where a photo was taken.
 
 ## Sign in again after the sign-in update
 

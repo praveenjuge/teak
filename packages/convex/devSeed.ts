@@ -214,6 +214,154 @@ export const seed = internalMutation({
   },
 });
 
+// Opt-in scenario packs for checking a feature against awkward data. Unlike
+// `seed`, they add to a vault that already holds cards, and run only when
+// asked: `bunx convex run devSeed:seedScenario '{"workosUserId": "...",
+// "scenario": "card-details"}'`. Each pack's cards carry a marker URL, so
+// running a pack twice adds nothing the second time.
+
+const SCENARIO_MARKER = "teak-scenario";
+
+const bylineLink = (
+  slug: string,
+  url: string,
+  linkPreview: Record<string, unknown>,
+  extra: Partial<DefaultCardDef> = {}
+): DefaultCardDef => {
+  const markedUrl = `${url}#${SCENARIO_MARKER}-card-details-${slug}`;
+  return {
+    type: "link",
+    content: markedUrl,
+    url: markedUrl,
+    tags: ["scenario-card-details"],
+    metadataTitle:
+      typeof linkPreview.title === "string" ? linkPreview.title : undefined,
+    metadata: {
+      linkPreview: {
+        source: "scenario",
+        status: "success",
+        fetchedAt: Date.UTC(2026, 9, 1),
+        url: markedUrl,
+        finalUrl: markedUrl,
+        ...linkPreview,
+      } as never,
+    },
+    ...extra,
+  };
+};
+
+// Phase 1 ("card details"): link bylines in every shape pages send them.
+// Images with and without EXIF need stored files, so they are uploaded
+// through the API instead (see the Phase 1 plan's proof steps).
+export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
+  bylineLink("full", "https://www.theverge.com/2024/3/5/teak-byline", {
+    title: "A full byline whose publisher repeats the site",
+    description: "Author, publisher and date; the publisher names the host.",
+    author: "Nilay Patel",
+    publisher: "The Verge",
+    publishedAt: "2024-03-05T10:00:00Z",
+  }),
+  bylineLink("publisher", "https://www.nytimes.com/2023/11/20/teak.html", {
+    title: "Author, a distinct publisher and a date",
+    author: "Jane Doe",
+    publisher: "The New York Times",
+    publishedAt: "2023-11-20",
+  }),
+  bylineLink("author-only", "https://paulgraham.com/teak.html", {
+    title: "Only an author, who is also the publisher",
+    author: "Paul Graham",
+    publisher: "paul graham",
+  }),
+  bylineLink("date-only", "https://blog.example.com/teak-date-only", {
+    title: "Only a publish date with a time zone offset",
+    publishedAt: "2025-12-31T23:30:00-05:00",
+  }),
+  bylineLink("garbage", "https://medium.com/@someone/teak-garbage", {
+    title: "An author that is a profile URL and a garbage date",
+    author: "https://www.facebook.com/someauthor",
+    publishedAt: "sometime last week",
+  }),
+  bylineLink("long", "https://longreads.example.org/teak-long", {
+    title:
+      "A very long byline that must truncate in the preview without breaking the layout of the card modal at any width",
+    author: `Dr. ${"Bartholomew Montgomery-Fitzgerald ".repeat(8).trim()}`,
+    publisher: `The ${"Extraordinarily Verbose ".repeat(6).trim()} Quarterly`,
+    publishedAt: "2022-06-01",
+  }),
+  bylineLink("rtl-cjk", "https://www.aljazeera.net/teak-rtl", {
+    title: "مقال عن الأفكار — 東京のアイデア",
+    author: "山田太郎",
+    publisher: "مجلة العربي",
+    publishedAt: "2021-02-14",
+  }),
+  bylineLink("unicode-host", "https://bücher.example/teak-unicode", {
+    title: "A unicode host with an umlaut author",
+    author: "Jürgen Müller",
+    publishedAt: "2020-07-04",
+  }),
+  bylineLink(
+    "no-metadata",
+    "https://unreachable.example.net/teak-none",
+    { status: "error" },
+    { metadataTitle: "A link whose preview failed" }
+  ),
+  bylineLink(
+    "trashed",
+    "https://www.theguardian.com/teak-trashed",
+    {
+      title: "A trashed link with a byline",
+      author: "Ada Lovelace",
+      publisher: "The Guardian",
+      publishedAt: "2019-10-10",
+    },
+    { isDeleted: true }
+  ),
+];
+
+const SCENARIO_PACKS = {
+  "card-details": CARD_DETAILS_SCENARIO_CARDS,
+} satisfies Record<string, DefaultCardDef[]>;
+
+export const seedScenario = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    scenario: v.literal("card-details"),
+  },
+  returns: v.object({
+    status: v.union(v.literal("seeded"), v.literal("already_seeded")),
+    cards: v.number(),
+  }),
+  handler: async (ctx, { workosUserId, scenario }) => {
+    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
+      throw new Error(
+        "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
+      );
+    }
+    const owner = await ctx.db
+      .query("users")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!owner) {
+      throw new Error("No Teak owner is linked to that WorkOS user.");
+    }
+    const cards = SCENARIO_PACKS[scenario];
+    const marker = cards[0]?.url;
+    const existing = marker
+      ? await ctx.db
+          .query("cards")
+          .withIndex("by_user_url_deleted", (q) =>
+            q.eq("userId", owner.teakUserId).eq("url", marker)
+          )
+          .first()
+      : null;
+    if (existing) {
+      return { status: "already_seeded" as const, cards: 0 };
+    }
+    await insertCompletedCards(ctx, owner.teakUserId, cards);
+    return { status: "seeded" as const, cards: cards.length };
+  },
+});
+
 // Every Claude Code cloud session gets its own dev account, and nothing else
 // removes them once the session ends. `bun run dev` in a cloud session prunes
 // the stale ones through the full account deletion workflow, which also

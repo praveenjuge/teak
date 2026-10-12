@@ -212,6 +212,7 @@ and replace your local copy.
 | `/v1/tags` | List tags |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
+| `/v1/cards/:cardId/refresh` | Refresh one card's summary, tags, and link preview with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
 | `/v1/exports` | Start a ZIP export of your cards with POST |
@@ -357,6 +358,12 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 ## Check for a saved URL
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+
+## Refresh a card's details
+
+`POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
+
+You can refresh a card once a minute and up to six cards a minute. Past that, the API answers `429 RATE_LIMITED` with `retryAt` and a `Retry-After` header. A card in Trash returns `409 CONFLICT`; restore it first.
 
 ## Delete and restore cards
 

@@ -17,6 +17,7 @@ export const V1_ENDPOINTS = [
   "PATCH /v1/cards/:cardId",
   "DELETE /v1/cards/:cardId",
   "POST /v1/cards/:cardId/restore",
+  "POST /v1/cards/:cardId/refresh",
   "PATCH /v1/cards/:cardId/favorite",
   "GET /v1/tags",
   "POST /v1/exports",

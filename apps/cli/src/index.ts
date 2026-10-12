@@ -24,6 +24,7 @@ import {
   editTags,
   exportStatus,
   openCard,
+  refreshCards,
   restoreCards,
   startExport,
   whoami,
@@ -418,6 +419,11 @@ cards
   .description("Restore cards from Trash")
   .action(async (ids) => restoreCards(ids, program.opts()));
 cards
+  .command("refresh")
+  .argument("<ids...>")
+  .description("Refresh summaries, tags and link previews for cards")
+  .action(async (ids) => refreshCards(ids, program.opts()));
+cards
   .command("open")
   .argument("<id>")
   .description("Open a card in Teak on the web")
@@ -572,6 +578,11 @@ program
   .argument("<ids...>")
   .description("Restore cards from Trash")
   .action(async (ids) => restoreCards(ids, program.opts()));
+program
+  .command("refresh")
+  .argument("<ids...>")
+  .description("Refresh summaries, tags and link previews for cards")
+  .action(async (ids) => refreshCards(ids, program.opts()));
 program
   .command("open")
   .argument("<id>")

@@ -58,5 +58,6 @@ export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
 export { useNetworkStatus } from "./useNetworkStatus";
 export { useObjectState } from "./useObjectState";
+export { useReprocessCard } from "./useReprocessCard";
 export type { UseSettingsControllerOptions } from "./useSettingsController";
 export { useSettingsController } from "./useSettingsController";

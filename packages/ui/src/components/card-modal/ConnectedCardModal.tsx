@@ -3,6 +3,7 @@ import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useCardModal } from "../../hooks/useCardModal";
+import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
 import { NotesEditModal } from "../modals/NotesEditModal";
 import { TagManagementModal } from "../modals/TagManagementModal";
@@ -49,6 +50,7 @@ export function ConnectedCardModal({
   );
 
   const resolvedCard = hydratedCard ?? cardData ?? null;
+  const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
 
   const setTagManagementModalOpen = useCallback(
     (nextOpen: boolean) => {
@@ -122,6 +124,7 @@ export function ConnectedCardModal({
       handleRestore={handleRestore}
       hasUnsavedChanges={hasUnsavedChanges}
       isDownloading={isDownloading}
+      isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
       MoreInformationModal={
         <MoreInformationModal
           card={card ?? null}
@@ -142,6 +145,13 @@ export function ConnectedCardModal({
       }
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
+      onReprocess={
+        cardId
+          ? () => {
+              void reprocess(cardId);
+            }
+          : undefined
+      }
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}

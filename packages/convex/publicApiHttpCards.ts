@@ -4,6 +4,7 @@
  */
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import {
   completeIdempotencyResponse,
@@ -385,6 +386,7 @@ const handleCardsByIdV1Request = async (
     auth.validated.userId,
     normalizedCardId,
     route.operation === "restore" ||
+      route.operation === "refresh" ||
       (route.operation === "delete" && permanent === "true")
   );
   if (!currentCard) {
@@ -405,6 +407,25 @@ const handleCardsByIdV1Request = async (
       "NOT_IN_TRASH",
       "Move the card to Trash before deleting it permanently"
     );
+  }
+
+  if (route.operation === "refresh") {
+    try {
+      const result = await ctx.runMutation(
+        internal["card/updateCard"].reprocessCardForUser,
+        {
+          cardId: normalizedCardId as Id<"cards">,
+          userId: auth.validated.userId,
+        }
+      );
+      return json(202, {
+        cardId: result.cardId,
+        requestedAt: result.requestedAt,
+        status: "queued",
+      });
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to refresh card");
+    }
   }
 
   if (route.operation === "delete" || route.operation === "restore") {

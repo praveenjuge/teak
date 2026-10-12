@@ -54,6 +54,53 @@ describe("LinkPreview", () => {
     );
   });
 
+  test("shows who wrote the page and when beside the site", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({
+            url: "https://www.theverge.com/2024/3/5/story",
+            metadata: {
+              linkPreview: {
+                status: "success",
+                title: "A story",
+                author: "Jane Doe",
+                publisher: "The Verge",
+                publishedAt: "2024-03-05T10:00:00Z",
+              },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain(">theverge.com<");
+    expect(markup).toContain(">By Jane Doe · Mar 5, 2024<");
+  });
+
+  test("leaves the byline out when the page has no author or date", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview card={createLinkCard() as any} />
+    );
+    expect(markup).not.toContain("By ");
+    expect(markup).not.toContain("·");
+  });
+
+  test("ignores author data from a failed preview fetch", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({
+            metadata: {
+              linkPreview: { status: "error", author: "Stale Author" },
+            },
+          }) as any
+        }
+      />
+    );
+    expect(markup).not.toContain("Stale Author");
+  });
+
   test("renders attached post images one below another", () => {
     const markup = renderToStaticMarkup(
       <LinkPreview

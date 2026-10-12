@@ -43,6 +43,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_list_cards",
   "teak_v1_list_favorite_cards",
   "teak_v1_list_tags",
+  "teak_v1_refresh_card",
   "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_favorite",

@@ -181,6 +181,10 @@ type CardFilters = {
 - `teak_v1_restore_card`
   - Input: `{ cardId: string }`
   - Output: `{ status: "restored", cardId: string }`
+- `teak_v1_refresh_card`
+  - Input: `{ cardId: string }`
+  - Clears the card's summary, tags Teak added, and transcript and processes it again, including the link preview. Once a card per minute, six cards a minute.
+  - Output: `{ status: "queued", cardId: string, requestedAt: number }`
 
 ### ChatGPT connector tools
 

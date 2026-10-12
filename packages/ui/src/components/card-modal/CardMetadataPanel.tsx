@@ -9,6 +9,7 @@ import {
   Edit,
   Heart,
   Info,
+  RefreshCw,
   RotateCcw,
   Sparkles,
   Tag,
@@ -31,10 +32,12 @@ interface CardMetadataPanelProps {
     deleteCard: () => void;
     restoreCard: () => void;
     permanentlyDeleteCard: () => void;
+    reprocessCard?: () => void;
   };
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
   isDownloading?: boolean;
+  isReprocessing?: boolean;
   onCardTypeClick: () => void;
   onTagClick?: (tag: string) => void;
 }
@@ -51,6 +54,7 @@ export function CardMetadataPanel({
   onTagClick,
   actions,
   isDownloading,
+  isReprocessing,
 }: CardMetadataPanelProps) {
   const IconComponent = getCardTypeIconComponent(card.type as CardType);
   const uniqueHexes = new Set<string>();
@@ -201,6 +205,22 @@ export function CardMetadataPanel({
           >
             Manage Tags
           </PanelButton>
+
+          {!card.isDeleted && actions.reprocessCard && (
+            <PanelButton
+              disabled={isReprocessing}
+              icon={
+                isReprocessing ? (
+                  <Spinner className={iconClass} />
+                ) : (
+                  <RefreshCw className={iconClass} />
+                )
+              }
+              onClick={actions.reprocessCard}
+            >
+              Refresh details
+            </PanelButton>
+          )}
 
           {!card.isDeleted && (
             <PanelButton
