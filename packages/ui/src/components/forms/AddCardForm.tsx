@@ -9,10 +9,7 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
-import {
-  MarkdownTextEditor,
-  shouldSaveAsMarkdownNote,
-} from "@teak/ui/text-editor";
+import { MarkdownTextEditor, prepareNoteCapture } from "@teak/ui/text-editor";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
@@ -228,12 +225,7 @@ export function AddCardForm({
     try {
       // Structured notes stay Markdown text; plain URL/color/quote captures
       // retain the server's existing automatic classification.
-      await createCard({
-        content: submittedContent,
-        ...(shouldSaveAsMarkdownNote(submittedContent)
-          ? { type: "text" as const }
-          : {}),
-      });
+      await createCard(prepareNoteCapture(submittedContent));
 
       onSuccess?.();
       toast.success("Note saved", { id: toastId });

@@ -4,7 +4,7 @@ import {
   isWithinMarkdownLimit,
   markdownManager,
   prepareMarkdownDocument,
-  shouldSaveAsMarkdownNote,
+  prepareNoteCapture,
 } from "../markdownDocument";
 
 // Failure modes: dropped text/formatting, reordered blocks, broken nesting,
@@ -105,16 +105,33 @@ describe("Markdown compatibility", () => {
   test.each(["https://example.com", "#ff0000", "> A quote", "Plain text"])(
     "keeps automatic capture classification for %s",
     (source) => {
-      expect(shouldSaveAsMarkdownNote(source)).toBe(false);
+      expect(prepareNoteCapture(source)).toEqual({ content: source });
     }
   );
   test.each([
+    "https://cendyne.dev/posts/2026-10-11-fable-took-my-jorb.html",
+    "https://example.com/search?q=teak&page=2",
+    "https://en.wikipedia.org/wiki/Teak_(disambiguation)",
+  ])("captures a pasted URL as that bare URL: %s", (url) => {
+    // A paste goes through the same parse and serialize as the editor.
+    const pasted = markdownManager.serialize(
+      prepareMarkdownDocument(url).document
+    );
+    expect(prepareNoteCapture(pasted)).toEqual({ content: url });
+  });
+  test.each([
     "# Note\n\n[Link](https://example.com)",
     "[Link](https://example.com)",
+    '[https://example.com](https://example.com "Title")',
+    "[**https://example.com**](https://example.com)",
+    "[https://example.com](https://example.com) and more",
     "- First\n- Second",
     "**Bold**",
     "![Image](https://example.com/private.png)",
   ])("saves an authored Markdown note as text: %s", (source) => {
-    expect(shouldSaveAsMarkdownNote(source)).toBe(true);
+    expect(prepareNoteCapture(source)).toEqual({
+      content: source,
+      type: "text",
+    });
   });
 });

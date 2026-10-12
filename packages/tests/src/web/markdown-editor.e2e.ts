@@ -86,6 +86,30 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     expect(created).toMatchObject({ type: "link", url, content: url });
   });
 
+  test("a URL pasted in the composer saves as a link", async ({
+    browser,
+    screen,
+    library,
+  }) => {
+    // A pasted URL becomes a link showing its own address, which serializes
+    // as `[url](url)`; the note must still save as a link card.
+    const run = `run=${Date.now()}`;
+    const url = `https://example.com/posts/teak-notes.html?${run}`;
+    await pasteMarkdown(browser, COMPOSER_EDITOR, url);
+    await screen.getByRole("button", "Save").click();
+    const findCreated = async () =>
+      (await library.client.query(api.cards.getCards, {})).find(
+        (card: { content?: string }) => card.content?.includes(run)
+      );
+    await expect.poll(async () => Boolean(await findCreated())).toBe(true);
+    const created = await findCreated();
+    if (!created) {
+      throw new Error("Created link was not persisted");
+    }
+    library.ids.push(created._id);
+    expect(created).toMatchObject({ type: "link", url, content: url });
+  });
+
   test("opening and selecting never rewrites an unchanged note", async ({
     browser,
     library,
