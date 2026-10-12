@@ -1,4 +1,6 @@
 ---
+import Icon from "blume/components/Icon.astro";
+
 const WEB_APP_URL = "https://app.teakvault.com";
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
@@ -14,169 +16,462 @@ const RAYCAST_STORE_URL = "https://www.raycast.com/praveenjuge/teak-raycast";
 const RAYCAST_INSTALL_BUTTON_URL =
   "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
-interface PlatformCard {
-  actionType: "button" | "badge";
-  badgeAlt?: string;
-  badgeHeight?: number;
-  badgeSrc?: string;
-  badgeWidth?: number;
+// The platform keys the detection script below matches against.
+type Platform = "ios" | "mac" | "android" | "web" | "chrome";
+
+interface Badge {
+  alt: string;
+  height: number;
+  src: string;
+  width: number;
+}
+
+interface AppCard {
+  badge?: Badge;
+  comingSoon?: boolean;
   copy: string;
-  href: string;
+  extra?: { iconSrc: string; text: string };
+  href?: string;
   iconAlt: string;
   iconClass?: string;
   iconSrc: string;
   label?: string;
   name: string;
+  platform?: Platform;
 }
 
-const platformCards: PlatformCard[] = [
+interface DeveloperCard {
+  copy: string;
+  docsLabel: string;
+  href: string;
+  icon: string;
+  name: string;
+  snippet: string;
+}
+
+const APP_STORE_BADGE = {
+  src: "/badges/app-store.svg",
+  width: 140,
+  height: 47,
+};
+
+const deviceCards: AppCard[] = [
   {
-    name: "Web App",
-    copy: "Search your whole library instantly, write notes in Markdown, and drop in files from any desktop browser.",
-    iconAlt: "Teak icon",
-    iconSrc: "/icon.png",
-    href: WEB_APP_URL,
-    actionType: "button",
-    label: "Open Web App",
-  },
-  {
-    name: "iOS App",
-    copy: "Drop photos, voice notes, or links straight from the share sheet and they appear everywhere else instantly.",
+    platform: "ios",
+    name: "iPhone & iPad",
+    copy: "Save photos, voice notes, and links from the share sheet. They show up on every other device in seconds.",
     iconAlt: "Apple icon",
     iconClass: "dark:invert",
     iconSrc: "/platform-icons/apple.svg",
     href: APP_STORE_URL,
-    actionType: "badge",
-    badgeSrc: "/badges/app-store.svg",
-    badgeAlt: "Download on the App Store",
-    badgeWidth: 140,
-    badgeHeight: 47,
+    badge: { ...APP_STORE_BADGE, alt: "Download on the App Store" },
   },
   {
-    name: "Mac App",
-    copy: "Capture notes, quotes, files, and audio, and organize your ideas in a native Mac library.",
+    platform: "mac",
+    name: "Mac",
+    copy: "A native Mac library with Quick Capture for notes, quotes, files, and audio.",
+    extra: {
+      iconSrc: "/platform-icons/safari.svg",
+      text: "Includes the Safari extension",
+    },
     iconAlt: "Apple icon",
     iconClass: "dark:invert",
     iconSrc: "/platform-icons/apple.svg",
     href: MAC_APP_STORE_URL,
-    actionType: "badge",
-    badgeSrc: "/badges/app-store.svg",
-    badgeAlt: "Download Teak for Mac on the Mac App Store",
-    badgeWidth: 140,
-    badgeHeight: 47,
+    badge: {
+      ...APP_STORE_BADGE,
+      alt: "Download Teak for Mac on the Mac App Store",
+    },
   },
   {
-    name: "Safari Extension",
-    copy: "Save pages from Safari in a click. Included with Teak for Mac.",
-    iconAlt: "Safari icon",
-    iconSrc: "/platform-icons/safari.svg",
-    href: MAC_APP_STORE_URL,
-    actionType: "badge",
-    badgeSrc: "/badges/app-store.svg",
-    badgeAlt: "Download Teak for Mac with the Safari extension",
-    badgeWidth: 140,
-    badgeHeight: 47,
+    platform: "android",
+    comingSoon: true,
+    name: "Android",
+    copy: "Share into Teak from any app, or select text and choose Save to Teak. Coming soon to Google Play.",
+    iconAlt: "Android icon",
+    iconSrc: "/platform-icons/android.svg",
+  },
+];
+
+const browserCards: AppCard[] = [
+  {
+    platform: "web",
+    name: "Web App",
+    copy: "Search your whole library, write notes in Markdown, and drop in files from any desktop browser.",
+    iconAlt: "Teak icon",
+    iconSrc: "/icon.png",
+    href: WEB_APP_URL,
+    label: "Open Web App",
   },
   {
+    platform: "chrome",
     name: "Chrome Extension",
-    copy: "Save tabs, screenshots, or selected text in a click and Teak auto-grabs the metadata for you.",
+    copy: "Save tabs, screenshots, or selected text in a click. Teak grabs the metadata for you.",
     iconAlt: "Google Chrome icon",
     iconSrc: "/platform-icons/chrome.svg",
     href: CHROME_STORE_URL,
-    actionType: "badge",
-    badgeSrc: "/badges/chrome-web-store-badge.svg",
-    badgeAlt: "Available in the Chrome Web Store",
-    badgeWidth: 160,
-    badgeHeight: 45,
+    badge: {
+      src: "/badges/chrome-web-store-badge.svg",
+      alt: "Available in the Chrome Web Store",
+      width: 160,
+      height: 45,
+    },
   },
   {
-    name: "Raycast Extension",
-    copy: "Save your clipboard, search your cards, and jump to favorites directly from Raycast.",
+    name: "Raycast",
+    copy: "Save your clipboard, search your cards, and jump to favorites without leaving the keyboard.",
     iconAlt: "Raycast icon",
     iconSrc: "/platform-icons/raycast.svg",
     href: RAYCAST_STORE_URL,
-    actionType: "badge",
-    badgeSrc: RAYCAST_INSTALL_BUTTON_URL,
-    badgeAlt: "Install teak-raycast Raycast Extension",
-    badgeWidth: 256,
-    badgeHeight: 64,
+    badge: {
+      src: RAYCAST_INSTALL_BUTTON_URL,
+      alt: "Install the Teak Raycast extension",
+      width: 256,
+      height: 64,
+    },
   },
-  {
-    name: "API",
-    copy: "Build on Teak with documented API routes, auth details, and practical request/response examples.",
-    iconAlt: "OpenAPI Initiative icon",
-    iconSrc: "/platform-icons/openapi.svg",
-    href: API_DOCS_URL,
-    actionType: "button",
-    label: "View API Docs",
-  },
+];
+
+const developerCards: DeveloperCard[] = [
   {
     name: "MCP",
-    copy: "Connect AI assistants to your Teak vault over the remote MCP server to search, save, and manage cards.",
-    iconAlt: "Model Context Protocol icon",
-    iconClass: "dark:invert",
-    iconSrc: "/platform-icons/mcp.svg",
+    icon: "plug",
+    copy: "Let AI assistants search, save, and manage your cards over the remote MCP server.",
+    snippet: "https://teakvault.com/mcp",
     href: MCP_DOCS_URL,
-    actionType: "button",
-    label: "View MCP Docs",
+    docsLabel: "MCP docs",
+  },
+  {
+    name: "REST API",
+    icon: "braces",
+    copy: "Create, search, and update cards from your own tools with an API key.",
+    snippet:
+      'curl -H "Authorization: Bearer $TEAK_API_KEY" https://teakvault.com/api/v1/cards',
+    href: API_DOCS_URL,
+    docsLabel: "API docs",
   },
   {
     name: "Command Line",
-    copy: "Save, search, favorite, and manage cards from any terminal with the npm Teak CLI.",
-    iconAlt: "Terminal icon",
-    iconSrc: "/emojis/apps-api-terminal.png",
+    icon: "terminal",
+    copy: "Save, search, favorite, and manage cards from any terminal.",
+    snippet: "npm i -g teak-cli",
     href: CLI_DOCS_URL,
-    actionType: "button",
-    label: "View CLI Docs",
+    docsLabel: "CLI docs",
   },
   {
     name: "Agent Skill",
-    copy: "Install the Teak skill from skills.sh so agents know how to use Teak through CLI, API, MCP, and SDK workflows.",
-    iconAlt: "Model Context Protocol icon",
-    iconClass: "dark:invert",
-    iconSrc: "/platform-icons/mcp.svg",
+    icon: "sparkles",
+    copy: "Teach coding agents to use Teak through the CLI, API, MCP, and SDK.",
+    snippet: "npx skills add praveenjuge/teak --skill teak",
     href: SKILLS_URL,
-    actionType: "button",
-    label: "Install Skill",
+    docsLabel: "View on skills.sh",
   },
 ];
+
+const groups = [
+  {
+    id: "devices",
+    title: "On your devices",
+    description:
+      "Native apps that capture from the share sheet, the menu bar, and everywhere in between.",
+    cards: deviceCards,
+  },
+  {
+    id: "browser",
+    title: "In your browser",
+    description:
+      "Open your library anywhere, and save the page you're on without switching tabs.",
+    cards: browserCards,
+  },
+];
+
+const isExternal = (href?: string) => href?.startsWith("http") ?? false;
 ---
 
-<section class="mx-auto mt-12 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
-  {platformCards.map((card) => (
-    <a
-      aria-label={`Open ${card.name}`}
-      class="group flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-white p-6 text-center shadow-xs transition-colors hover:border-border dark:bg-gray-900"
-      href={card.href}
-      rel="noopener noreferrer"
-      target="_blank"
-    >
-      <img
-        alt={card.iconAlt}
-        class:list={["size-14 object-contain", card.iconClass]}
-        height="56"
-        src={card.iconSrc}
-        width="56"
-      />
-      <div class="font-semibold">{card.name}</div>
-      <p class="text-balance text-muted-foreground">{card.copy}</p>
-      <div class="flex flex-col items-center gap-2 pt-4">
-        {card.actionType === "button" ? (
-          <span class="inline-flex h-11 w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 text-primary-foreground text-sm shadow-xs transition-opacity group-hover:opacity-90">
-            {card.label}
-          </span>
-        ) : (
-          <span class="inline-flex justify-center transition-opacity group-hover:opacity-90">
-            <img
-              alt={card.badgeAlt}
-              class="h-auto max-w-52.5 object-contain"
-              height={card.badgeHeight}
-              src={card.badgeSrc}
-              width={card.badgeWidth}
-            />
-          </span>
-        )}
+<div class="mx-auto mt-16 flex w-full max-w-5xl flex-col gap-14" data-apps-grid>
+  {groups.map((group) => (
+    <section aria-labelledby={`apps-${group.id}`}>
+      <div class="mb-5 max-w-xl">
+        <h2 class="text-2xl leading-tight font-bold tracking-[-0.025em]" id={`apps-${group.id}`}>{group.title}</h2>
+        <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">{group.description}</p>
       </div>
-    </a>
+      <ul class="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {group.cards.map((card) => (
+          <li class:list={["app-card group", { "app-card-static": !card.href }]} data-platform={card.platform}>
+            <div class="flex items-start justify-between gap-3">
+              <span class="app-icon">
+                <img alt={card.iconAlt} class:list={["size-7 object-contain", card.iconClass]} height="28" src={card.iconSrc} width="28" />
+              </span>
+              <span class="flex flex-wrap justify-end gap-1.5">
+                <span class="current-pill" data-current-pill hidden>For your device</span>
+                {card.comingSoon && <span class="soon-pill">Coming soon</span>}
+              </span>
+            </div>
+            <h3 class="mt-4 text-lg leading-tight font-semibold tracking-[-0.01em]">
+              {card.href ? (
+                <a
+                  class="app-card-link"
+                  href={card.href}
+                  rel={isExternal(card.href) ? "noopener noreferrer" : undefined}
+                  target={isExternal(card.href) ? "_blank" : undefined}
+                >
+                  {card.name}
+                </a>
+              ) : (
+                card.name
+              )}
+            </h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-pretty text-muted-foreground">{card.copy}</p>
+            {card.extra && (
+              <p class="mt-3 flex items-center gap-2 text-[0.8125rem] font-medium">
+                <img alt="" class="size-4" height="16" src={card.extra.iconSrc} width="16" />
+                {card.extra.text}
+              </p>
+            )}
+            <div class="mt-auto flex items-center gap-3 pt-5">
+              {card.badge && (
+                <img alt={card.badge.alt} class="h-10 w-auto object-contain" height={card.badge.height} src={card.badge.src} width={card.badge.width} />
+              )}
+              {card.label && (
+                <span class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-opacity group-hover:opacity-90">
+                  {card.label}
+                </span>
+              )}
+              {card.comingSoon && (
+                <img alt="Google Play, coming soon" class="h-10 w-auto opacity-35 grayscale" height="40" src="/badges/google-play.svg" width="135" />
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   ))}
-</section>
+
+  <section aria-labelledby="apps-builders">
+    <div class="mb-5 max-w-xl">
+      <h2 class="text-2xl leading-tight font-bold tracking-[-0.025em]" id="apps-builders">For builders and agents</h2>
+      <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">Wire your library into your own tools. Copy the first line, and the docs cover the rest.</p>
+    </div>
+    <ul class="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
+      {developerCards.map((card) => (
+        <li class="app-card group">
+          <span class="app-icon">
+            <Icon name={card.icon} size={22} />
+          </span>
+          <h3 class="mt-4 text-lg leading-tight font-semibold tracking-[-0.01em]">
+            <a
+              class="app-card-link"
+              href={card.href}
+              rel={isExternal(card.href) ? "noopener noreferrer" : undefined}
+              target={isExternal(card.href) ? "_blank" : undefined}
+            >
+              {card.name}
+            </a>
+          </h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-pretty text-muted-foreground">{card.copy}</p>
+          <div class="snippet mt-4">
+            <code class="snippet-code">{card.snippet}</code>
+            <button aria-label={`Copy ${card.name} snippet`} class="copy-button" data-copy={card.snippet} type="button">
+              <span class="copy-idle"><Icon name="copy" size={15} /></span>
+              <span class="copy-done" hidden><Icon name="check" size={15} /></span>
+            </button>
+          </div>
+          <span class="mt-auto pt-4 text-sm font-medium text-primary">{card.docsLabel} →</span>
+        </li>
+      ))}
+    </ul>
+    <p class="sr-only" aria-live="polite" data-copy-status></p>
+  </section>
+</div>
+
+<script>
+  type Platform = "ios" | "mac" | "android" | "web" | "chrome";
+
+  const detectPlatform = (): Platform => {
+    const override = new URLSearchParams(location.search).get("platform");
+    if (override && ["ios", "mac", "android", "web", "chrome"].includes(override)) {
+      return override as Platform;
+    }
+    const nav = navigator as Navigator & {
+      userAgentData?: { brands?: { brand: string }[]; platform?: string };
+    };
+    const ua = navigator.userAgent;
+    const platform = nav.userAgentData?.platform ?? navigator.platform;
+    // iPadOS reports itself as a Mac, so touch support tells them apart.
+    const isIOS =
+      /iPhone|iPad|iPod/.test(ua) ||
+      (/Mac/.test(platform) && navigator.maxTouchPoints > 1);
+    if (isIOS) return "ios";
+    if (/Android/i.test(ua)) return "android";
+    if (/Mac/.test(platform)) return "mac";
+    const isChromium = nav.userAgentData?.brands?.some(({ brand }) =>
+      /Chromium|Google Chrome/.test(brand)
+    );
+    return isChromium ? "chrome" : "web";
+  };
+
+  for (const grid of document.querySelectorAll<HTMLElement>("[data-apps-grid]")) {
+    const card = grid.querySelector<HTMLElement>(
+      `[data-platform="${detectPlatform()}"]`
+    );
+    if (card) {
+      card.dataset.current = "";
+      card.querySelector<HTMLElement>("[data-current-pill]")?.removeAttribute("hidden");
+    }
+
+    const status = grid.querySelector<HTMLElement>("[data-copy-status]");
+    for (const button of grid.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy ?? "");
+        } catch {
+          return;
+        }
+        const idle = button.querySelector<HTMLElement>(".copy-idle");
+        const done = button.querySelector<HTMLElement>(".copy-done");
+        idle?.setAttribute("hidden", "");
+        done?.removeAttribute("hidden");
+        if (status) status.textContent = "Copied to clipboard";
+        setTimeout(() => {
+          idle?.removeAttribute("hidden");
+          done?.setAttribute("hidden", "");
+          if (status) status.textContent = "";
+        }, 1600);
+      });
+    }
+  }
+</script>
+
+<style>
+  .app-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    border-radius: 1.25rem;
+    background: var(--card);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    transition:
+      translate 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 250ms ease,
+      border-color 250ms ease;
+  }
+
+  /* The title link covers the whole card, so the card is one big target. */
+  .app-card-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  .app-card-link:focus-visible {
+    outline: none;
+  }
+
+  .app-card:has(.app-card-link:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .app-card:not(.app-card-static):hover {
+    border-color: var(--border);
+    box-shadow: 0 18px 36px -18px rgb(25 40 28 / 0.35);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .app-card:not(.app-card-static):hover { translate: 0 -3px; }
+  }
+
+  /* The visitor's own platform moves to the front of its group. */
+  .app-card[data-current] {
+    order: -1;
+    border-color: color-mix(in oklab, var(--primary) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 14%, transparent);
+  }
+
+  .current-pill,
+  .soon-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
+    padding: 0 0.625rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .current-pill {
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+    color: var(--primary);
+  }
+
+  .soon-pill {
+    background: color-mix(in oklab, #34a853 16%, transparent);
+    color: #1e7a3a;
+  }
+
+  :is(.dark, [data-theme="dark"]) .soon-pill {
+    color: #6fd08c;
+  }
+
+  .app-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    border-radius: 0.75rem;
+    background: var(--background);
+  }
+
+  /* Sits above the card's full-size link so the copy button stays clickable. */
+  .snippet {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0.375rem 0.375rem 0.375rem 0.875rem;
+    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    border-radius: 0.75rem;
+    background: var(--muted);
+  }
+
+  .snippet-code {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .copy-button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .copy-button:hover {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .copy-done {
+    color: #16a34a;
+  }
+</style>
