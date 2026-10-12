@@ -15,7 +15,11 @@ mock.module("@teak/ui/screens", () => ({
 
 let currentSearch = "";
 const router = { push: mock(), replace: mock() };
+// Bun module mocks outlive this file, so keep the real exports (`redirect`
+// and friends) that the auth tests import after it.
+const realNavigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
+  ...realNavigation,
   usePathname: () => "/",
   useRouter: () => router,
   useSearchParams: () => new URLSearchParams(currentSearch),
