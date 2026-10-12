@@ -26,7 +26,7 @@ To iterate, keep the stack up in one terminal and run e2e in another:
 
 ```bash
 bun run --cwd packages/tests e2e:stack
-cd packages/tests && bunx e2e run src/web/markdown-editor.e2e.ts:42
+cd packages/tests && E2E_TELEMETRY_DISABLED=1 bunx e2e run src/web/markdown-editor.e2e.ts:42
 ```
 
 A running stack records its URLs in `.agents/.state/stack.json`, which the configs and helpers read, and logs to `.agents/.state/stack.log`. A failed test prints the path of its trace page (`.e2e/<suite>/results/<test>/trace.md`): every step with what it hit, the app's console errors and failed requests, and the screen at the failure. Add `--headed` to watch a run.

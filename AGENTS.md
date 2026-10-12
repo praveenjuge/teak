@@ -32,7 +32,7 @@ Read `packages/convex/AGENTS.md` before editing backend code.
 - End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator; read `packages/tests/README.md` before changing or running them.
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
 - Verify user-facing work in the real interface when practical. A passing build alone is not proof of the experience.
-- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both).
+- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `.agents/testing.md`).
 
 ## Documentation contract
 

@@ -113,4 +113,4 @@ Each workspace script runs only the files it matches. A test file outside these 
 **e2e MCP (`e2e` in `.mcp.json`)**
 - Opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build.
 - Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec.
-- It doesn't run specs; use `bunx e2e run <file>` in `packages/tests` with the E2E stack up (`bun run --cwd packages/tests e2e:stack`).
+- It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the E2E stack up (`bun run --cwd packages/tests e2e:stack`).
