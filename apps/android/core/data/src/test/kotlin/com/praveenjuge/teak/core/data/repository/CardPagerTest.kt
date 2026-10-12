@@ -63,6 +63,33 @@ class CardPagerTest {
         }
 
     @Test
+    fun `a cursor that keeps failing shows its error instead of restarting again`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val alwaysInvalid = object : CardsRepository by DeployedRepository() {
+                val cursors = mutableListOf<String?>()
+
+                override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
+                    cursors += cursor
+                    return flowOf(
+                        if (cursor == null) {
+                            Result.success(CardSummaryPage(listOf(DeployedRepository.Card1), isDone = false, continueCursor = "c1"))
+                        } else {
+                            Result.failure(IllegalStateException("InvalidCursor"))
+                        },
+                    )
+                }
+            }
+            val pager = CardPager(alwaysInvalid, backgroundScope)
+
+            pager.load(CardQuery())
+            pager.loadMore()
+            pager.loadMore()
+
+            assertEquals("InvalidCursor", pager.state.value.error?.message)
+            assertEquals(listOf(null, "c1", null, "c1"), alwaysInvalid.cursors)
+        }
+
+    @Test
     fun `other page errors are still shown`() = runTest(UnconfinedTestDispatcher()) {
         val failing = object : CardsRepository by DeployedRepository() {
             override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> =

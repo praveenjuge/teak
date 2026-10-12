@@ -34,18 +34,21 @@ class CardPager(
     private val slots = mutableListOf<Slot>()
     private var query = CardQuery()
     private var refreshing = false
+    private var restartedForCursor = false
     private val _state = MutableStateFlow(PagedCards())
     val state: StateFlow<PagedCards> = _state.asStateFlow()
 
     /** Starts over for a new query. */
     fun load(newQuery: CardQuery) {
         query = newQuery
+        restartedForCursor = false
         restart()
     }
 
     /** Pull to refresh: drop every page and subscribe again from the top. */
     fun refresh() {
         refreshing = true
+        restartedForCursor = false
         restart()
     }
 
@@ -68,8 +71,10 @@ class CardPager(
         slot.job = scope.launch {
             repository.page(query, slot.cursor, pageSize).collect { result ->
                 val error = result.exceptionOrNull()
-                if (slot.cursor != null && error.isInvalidCursor()) {
-                    // The paginated query changed underneath us (a backend deploy): start over.
+                if (slot.cursor != null && error.isInvalidCursor() && !restartedForCursor) {
+                    // The paginated query changed underneath us (a backend deploy): start over,
+                    // once per load, so a cursor that keeps failing shows its error instead.
+                    restartedForCursor = true
                     restart()
                     return@collect
                 }
