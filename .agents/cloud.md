@@ -2,7 +2,9 @@
 
 What runs in a Claude Code on the web session (and similar Linux cloud VMs),
 what doesn't, and the fixes for each. `.agents/development.md` covers the
-stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
+stack itself; this is the cloud-specific checklist. Last verified 2026-10-12
+on a 4-vCPU, 16 GB VM, by driving every web feature in headless Chromium and
+running the API, CLI, MCP, repository checks and E2E suite.
 
 ## Environment settings
 
@@ -19,29 +21,55 @@ stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
 - **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN
   for setup), which aren't on the default "Trusted" list. Use "Full", or add
   them under "Custom".
-- **`NODE_OPTIONS=--use-openssl-ca`:** makes Node trust the session's HTTPS
-  proxy for tools that ignore `NODE_EXTRA_CA_CERTS`. Without it Raycast's
-  `ray lint` fails on raycast.com ("self-signed certificate in certificate
-  chain"), which also fails the pre-commit hook when Raycast is affected.
+- **`NODE_OPTIONS`:** nothing to set. The SessionStart hook adds
+  `--use-openssl-ca` to the session's `NODE_OPTIONS`, so Node trusts the HTTPS
+  proxy through the system store. Turbo's strict env mode drops
+  `NODE_EXTRA_CA_CERTS`, so without the flag Node tasks under Turbo fail with
+  "self-signed certificate in certificate chain": Raycast's `ray lint` on
+  raycast.com (which also fails the pre-commit hook when Raycast is affected)
+  and the docs dev server's Google Fonts fetch. If you set it by hand earlier,
+  you can remove it.
+
+## One account per session
+
+Every cloud VM is named `vm` and checks out `main`, so `bun run dev` names a
+Claude Code session's account after a hash of `CLAUDE_CODE_REMOTE_SESSION_ID`
+instead: `dev+cloud-<hash>-main@example.org`. Each session starts with a fresh
+seeded vault, its own export allowance and its own device list. Resuming a
+session on a new VM signs in to the same account with a new password. Accounts
+from finished sessions stay on the dev deployment; nothing removes them yet.
+Other cloud agents (Codex, Amp) still use `dev+<hostname>-main@example.org`.
 
 ## Works
 
-`bun run dev` against the shared dev deployment, with sign-in, seeded vault,
-composer, search and filters, card modal, trash and restore, bulk actions,
-uploads and previews, audio recording, AI summaries and tags, link metadata,
-import and export, API keys, the REST API, MCP, the CLI with `--api-key`, and
-the Polar sandbox checkout "Upgrade to Pro" opens in a new tab.
-Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the docs site,
-and the extension build.
+`bun run dev` is ready in about 30 seconds. It works against the shared dev
+deployment for all of these:
 
-Only the agent can see the app: it runs on the VM's `localhost`, so drive it
-with headless Chromium (Playwright), not your own browser.
+- sign-in and sign-out through the WorkOS hosted page
+- the seeded vault, the composer (text, links, quotes, palettes), uploads and
+  previews (image, PDF, text, audio, WebM video)
+- audio recording (launch Chromium with `--use-fake-ui-for-media-stream
+  --use-fake-device-for-media-stream`)
+- AI summaries, tags and transcripts, and link metadata
+- search and filters, the card modal, favorites, notes and tags, trash and
+  restore, the context menu and bulk actions
+- theme and devices in Settings, API keys, and import and export
+- the REST API, MCP and the CLI with `--api-key`
+- "Upgrade to Pro": Polar's sandbox checkout opens in a new tab, for the
+  seeded accounts too (`.agents/development.md`)
+
+Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
+CLI and Raycast builds, and the docs site.
+
+Only the agent can see the app. It runs on the VM's `localhost`, and cloud
+sessions have no port forwarding, so drive it with headless Chromium
+(Playwright) and send screenshots.
 
 ## Needs care
 
 - **E2E suite:** run the Chromium projects with one worker. Four workers
   starve the local backend on a 4-vCPU VM, and queries hit Convex's 1 s limit.
-  Firefox and WebKit aren't installed.
+  Firefox and WebKit aren't installed. The run below takes about 14 minutes.
 
   ```bash
   bun run dev --stop
@@ -49,10 +77,19 @@ with headless Chromium (Playwright), not your own browser.
   bun run dev   # selects the dev deployment again
   ```
 
+  The exported `CONVEX_DEPLOY_KEY` can stay: the suite drops it, and every
+  Convex CLI it runs uses the local backend. In full runs on this VM,
+  `journey-web-core`'s first test has failed every time on a `beforeunload`
+  dialog: it navigates while a save is still in flight. It passes when the
+  project runs alone (`--project=journey-web-core`), so rerun it that way
+  before treating it as a regression.
+
 - **`playwright` MCP server:** it looks for Google Chrome, which the image
   doesn't have. Use Playwright from `node_modules` with the browsers the
   SessionStart hook points `PLAYWRIGHT_BROWSERS_PATH` at, or launch
   `/opt/pw-browsers/chromium` directly.
+- **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
+  don't play in it. Use a WebM (VP9) file to check video playback.
 
 ## Doesn't work
 

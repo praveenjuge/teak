@@ -9,9 +9,10 @@ bun run dev
 It runs setup (packages, env files), then starts this checkout's web app
 against the **shared cloud dev deployment** (`dev:reminiscent-kangaroo-59`),
 signed in through WorkOS staging. Files, previews, AI metadata, screenshots,
-imports and exports, WorkOS Connect, and Polar sandbox billing all work, the
-same as on the dev deployment itself. Agents should run it in the background;
-it stays up until stopped.
+imports and exports, and WorkOS Connect all work, the same as on the dev
+deployment itself, and so does Polar sandbox checkout, for the seeded accounts
+too (see [Signing in](#signing-in)). Agents should run it in the background; it
+stays up until stopped.
 
 | Command | What it does |
 | --- | --- |
@@ -57,7 +58,9 @@ holds the lease, so push a branch's backend only while you work on it.
 
 Each checkout gets its own WorkOS staging account,
 `dev+<machine>-<checkout>@example.org`, with a random password kept in the
-ignored `.agents/.state/dev-account.json`. Its vault is seeded once with about
+ignored `.agents/.state/dev-account.json`. A Claude Code cloud session uses
+`dev+cloud-<hash>-main@example.org` instead, named after its session ID
+(`.agents/cloud.md`). Its vault is seeded once with about
 30 sample cards (`packages/convex/devSeed.ts`). `bun run dev --status` prints
 the email and password. For a session without a browser, use
 `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
@@ -82,8 +85,9 @@ sign-in callback on the dev deployment's WorkOS environment.
 A running stack writes `.agents/.state/stack.json` (URLs, ports, sign-in) and
 logs to `.agents/.state/stack.log`.
 
-The dev deployment's `appUrl` links point at port 3000, so links from a
-worktree's API responses open the main checkout's web app.
+The dev deployment's API and MCP links (`appUrl`, `settingsUrl`) point at
+`TEAK_DEV_APP_URL` (port 3000) because `TEAK_DEV_DEPLOYMENT=true`, so links
+from a worktree's API responses open the main checkout's web app.
 
 ## The E2E suite
 

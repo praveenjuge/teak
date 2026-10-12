@@ -21,6 +21,13 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   if [[ -d "$browsers" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
     printf 'export PLAYWRIGHT_BROWSERS_PATH="%s"\n' "$browsers" >>"$CLAUDE_ENV_FILE"
   fi
+  # Turbo's strict env mode drops NODE_EXTRA_CA_CERTS, so Node tasks under it
+  # (ray lint, Google Fonts) reject the HTTPS proxy's certificate. Turbo passes
+  # NODE_OPTIONS through, and the system store already trusts the proxy CA.
+  # The line re-checks when sourced, so a resumed session doesn't add it twice.
+  if [[ -n "${CLAUDE_ENV_FILE:-}" && " ${NODE_OPTIONS:-} " != *" --use-openssl-ca "* ]]; then
+    printf '%s\n' 'case " $NODE_OPTIONS " in *" --use-openssl-ca "*) ;; *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--use-openssl-ca" ;; esac' >>"$CLAUDE_ENV_FILE"
+  fi
   # Exports win over the dotenv files bun run dev and the E2E suite manage.
   stray=()
   for name in CONVEX_DEPLOYMENT WORKOS_CLIENT_ID WORKOS_API_KEY \

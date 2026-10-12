@@ -209,6 +209,9 @@ const stopStack = async (): Promise<number> => {
     console.error(`The stack (pid ${state.pid}) did not stop within 30s.`);
     return 1;
   }
+  // A stack that died before stopping its servers leaves its state file
+  // behind; stop what it left so one --stop always finishes the job.
+  await stopOrphanedStack(ROOT);
   console.log("Stopped this checkout's stack.");
   return 0;
 };

@@ -125,6 +125,8 @@ export const PLATFORM_EXACT = [
 
 /** Prefix families owned by platforms and tools, matched case-sensitively. */
 export const PLATFORM_PATTERNS = [
+  // Claude Code sets these in its sessions (CLAUDE_CODE_REMOTE in cloud VMs).
+  /^CLAUDE_CODE_/,
   /^EAS_/,
   /^EXPO_(?!PUBLIC_)/,
   /^GITHUB_/,

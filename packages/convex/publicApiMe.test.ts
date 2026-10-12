@@ -6,7 +6,7 @@ import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import {
   seedWorkosOwner,
   updateComponentUser,
@@ -16,6 +16,10 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const OWNER = "permanent-owner";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 async function setup() {
   const t = convexTest(schema, modules);
@@ -40,7 +44,7 @@ async function setup() {
     t.fetch(path, { headers: { Authorization: `Bearer ${key.key}` } });
   const revoke = () =>
     client.mutation(api.apiKeys.revokeUserApiKey, { keyId: key.id });
-  return { t, workosUserId, request, revoke };
+  return { t, workosUserId, key: key.key, request, revoke };
 }
 
 // Failure modes: unauthenticated access, wrong owner selected from input,
@@ -134,4 +138,25 @@ test("me denies an API key once its account is deleted", async () => {
     await ctx.db.patch("users", owner._id, { deletedAt: Date.now() });
   });
   expect((await request()).status).toBe(401);
+});
+
+// The shared dev deployment answers on its convex.site host, so the request
+// hostname alone sent these links to production.
+test("on the shared dev deployment, API links open the dev web app", async () => {
+  vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+  const { key, request, t } = await setup();
+  const me = await (await request()).json();
+  expect(me.data.settingsUrl).toBe("http://localhost:3000/settings");
+
+  const created = await t.fetch("/v1/cards", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ content: "dev link note" }),
+  });
+  expect(created.status).toBe(200);
+  const body = await created.json();
+  expect(body.appUrl).toBe(`http://localhost:3000/?card=${body.card.id}`);
 });
