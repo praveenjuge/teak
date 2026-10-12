@@ -42,6 +42,13 @@
     "binding": "MEDIA",
     "remote": true
   },
+  // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
+  // single request: CPU for the ZIP's checksums, and one R2 read per file plus
+  // the upload parts. Other operations use a small fraction of either limit.
+  "limits": {
+    "cpu_ms": 300000,
+    "subrequests": 20000
+  },
   "vars": {
     "SENTRY_ENVIRONMENT": "development"
   },

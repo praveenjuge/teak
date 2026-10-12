@@ -15,13 +15,13 @@ import {
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
-  type LaunchBrowser,
   loadPinnedPdfJs,
   readPdfSource,
   renderPdfFirstPage,
   scrapeHtml,
   validScrapeSelectors,
 } from "./browserRender";
+import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
 import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
@@ -225,15 +225,15 @@ const validDestinationKey = (params: Record<string, unknown>): string => {
   return destinationKey;
 };
 
-const browserLauncher = (env: FilesOpsEnv): LaunchBrowser => {
+const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
   const binding = env.BROWSER;
   if (!binding) {
     throw new Error("browser_binding_unavailable");
   }
-  // Loaded on first use so other operations never pay its startup cost.
   return async () => {
+    // Loaded on first use so other operations never pay its startup cost.
     const { default: puppeteer } = await import("@cloudflare/puppeteer");
-    return await puppeteer.launch(binding);
+    return await createBrowserAcquirer(puppeteer, binding)();
   };
 };
 
@@ -546,10 +546,10 @@ const dispatch = async (
     }
     case "render-pdf-thumbnail": {
       const { destinationKey, sourceKey } = derivedImageKeys(params);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const pdf = await readPdfSource(env.BUCKET, sourceKey);
       const rendered = await renderPdfFirstPage(
-        launch,
+        acquire,
         pdf,
         await loadPinnedPdfJs()
       );
@@ -572,9 +572,9 @@ const dispatch = async (
     }
     case "capture-screenshot": {
       const destinationKey = validDestinationKey(params);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const html = await decodeHtmlParam(params.htmlGzipBase64);
-      const jpeg = await captureHtmlScreenshot(launch, html);
+      const jpeg = await captureHtmlScreenshot(acquire, html);
       await env.BUCKET.put(destinationKey, jpeg, {
         httpMetadata: { contentType: "image/jpeg" },
       });
@@ -586,9 +586,9 @@ const dispatch = async (
     }
     case "scrape-html": {
       const selectors = validScrapeSelectors(params.selectors);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const html = await decodeHtmlParam(params.htmlGzipBase64);
-      return success(requestId, await scrapeHtml(launch, html, selectors));
+      return success(requestId, await scrapeHtml(acquire, html, selectors));
     }
     case "probe-media": {
       const sourceKey = requiredString(params, "sourceKey");
@@ -724,6 +724,7 @@ export const handleInternalOp = async (
           "image_dimensions_too_large",
           "audio_decode_failed",
           "browser_binding_unavailable",
+          "browser_unavailable",
           "media_binding_unavailable",
           "not_a_pdf",
           "video_format_unsupported",
@@ -742,7 +743,13 @@ export const handleInternalOp = async (
     if (message === "source_changed") {
       return fail(requestId, "CONFLICT", message, 409);
     }
-    console.error("[files-worker] operation failed", { error, requestId });
+    // Error objects serialize to {} in Workers logs, so log their fields.
+    console.error("[files-worker] operation failed", {
+      message,
+      op: body.op,
+      requestId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     const objectKey = getFilesOpObjectKey(body.params);
     reportFilesOpFailure(body.op, error, {
       httpMethod: request.method,

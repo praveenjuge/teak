@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import puppeteer, { type Browser } from "@cloudflare/puppeteer";
+import type { AcquireBrowser } from "./browserSessions";
 
 /**
  * A real local Chrome driven through @cloudflare/puppeteer, standing in for the
@@ -76,4 +77,10 @@ export const launchLocalChrome = async (): Promise<Browser> => {
   });
   browser.on("disconnected", () => chrome.kill());
   return browser;
+};
+
+/** Lease a fresh local Chrome for one operation; releasing it ends Chrome. */
+export const localChromeLease: AcquireBrowser = async () => {
+  const browser = await launchLocalChrome();
+  return { browser, release: () => browser.close() };
 };
