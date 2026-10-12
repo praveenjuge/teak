@@ -97,7 +97,7 @@ export function AddCardActions({
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardAction(args);
+    finalizeUploadedCardAction({ ...args, source: "web" });
 
   const { uploadFile } = useFileUploadCore({
     completeMultipartUpload,

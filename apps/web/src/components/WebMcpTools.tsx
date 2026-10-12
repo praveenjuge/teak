@@ -68,7 +68,10 @@ export function WebMcpTools() {
         getCard: (cardId) =>
           convex.query(api.cards.getCardByUrlId, { id: cardId }),
         createCard: async (args) => {
-          const id = await convex.mutation(api.cards.createCard, args);
+          const id = await convex.mutation(api.cards.createCard, {
+            ...args,
+            source: "web",
+          });
           return String(id);
         },
         updateCardField: ({ cardId, field, value }) =>
