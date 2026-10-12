@@ -35,14 +35,12 @@ public struct FileCredentialLock: CredentialLock {
         guard descriptor >= 0 else { throw TeakError(message: "Unable to access Teak's shared storage.") }
         defer { close(descriptor) }
         let deadline = Date().addingTimeInterval(timeout)
-        while flock(descriptor, LOCK_EX | LOCK_NB) != 0 {
-            guard errno == EWOULDBLOCK, Date() < deadline, !hold.isExpired else { throw Self.busy }
+        var attempt = hold.lock(descriptor)
+        while attempt == .busy, Date() < deadline {
             try await Task.sleep(for: .milliseconds(50))
+            attempt = hold.lock(descriptor)
         }
-        guard hold.acquired(descriptor) else {
-            flock(descriptor, LOCK_UN)
-            throw Self.busy
-        }
+        guard attempt == .locked else { throw Self.busy }
         defer { hold.release() }
         let task = Task { try await operation() }
         hold.onExpiry { task.cancel() }
@@ -68,20 +66,22 @@ private final class LockHold: @unchecked Sendable {
     /// expiry handler has about a second before the watchdog steps in.
     static let grace: TimeInterval = 0.5
 
+    enum Attempt { case locked, busy, failed }
+
     private let mutex = NSLock()
     private let released = DispatchSemaphore(value: 0)
     private var descriptor: Int32?
     private var cancel: (@Sendable () -> Void)?
     private var expired = false
 
-    var isExpired: Bool { mutex.withLock { expired } }
-
-    /// Records the locked descriptor. False when the time already ran out.
-    func acquired(_ descriptor: Int32) -> Bool {
+    /// Tries the `flock` once. Taking and recording it is one step, so expiry
+    /// either sees the lock it must give back or stops it from being taken.
+    func lock(_ descriptor: Int32) -> Attempt {
         mutex.withLock {
-            guard !expired else { return false }
+            guard !expired else { return .failed }
+            guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return errno == EWOULDBLOCK ? .busy : .failed }
             self.descriptor = descriptor
-            return true
+            return .locked
         }
     }
 
