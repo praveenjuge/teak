@@ -5,6 +5,7 @@ import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 import { withTestSession } from "../helpers/session.test-utils";
 
 const mockReprocessLimit = mock().mockResolvedValue({ ok: true });
+const mockReprocessCheck = mock().mockResolvedValue({ ok: true });
 
 describe("card/updateCard.ts", () => {
   let updateCard: any;
@@ -63,6 +64,8 @@ describe("card/updateCard.ts", () => {
   beforeEach(async () => {
     mockReprocessLimit.mockReset();
     mockReprocessLimit.mockResolvedValue({ ok: true });
+    mockReprocessCheck.mockReset();
+    mockReprocessCheck.mockResolvedValue({ ok: true });
     const module = await import("../../card/updateCard");
     updateCard = module.updateCard;
     const registeredUpdateCardField = module.updateCardField;
@@ -98,6 +101,7 @@ describe("card/updateCard.ts", () => {
   test("updateCard normalizes quote content and schedules pipeline", async () => {
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -130,10 +134,11 @@ describe("card/updateCard.ts", () => {
     );
   });
 
-  test("updateCard rejects rapid reprocessing before changing the card", async () => {
-    mockReprocessLimit.mockResolvedValueOnce({ ok: false });
+  test("updateCard saves a rapid edit and schedules its run when the limit allows", async () => {
+    mockReprocessLimit.mockResolvedValueOnce({ ok: true, retryAfter: 45_000 });
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -142,17 +147,58 @@ describe("card/updateCard.ts", () => {
           type: "text",
           content: "Old",
         }),
-        patch: mock(),
+        patch: mock().mockResolvedValue(null),
       },
-      scheduler: { runAfter: mock() },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any);
 
     const handler = (updateCard as any).handler ?? updateCard;
-    await expect(handler(ctx, { id: "c1", content: "New" })).rejects.toThrow(
-      "already queued for reprocessing"
+    await handler(ctx, { id: "c1", content: "New" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ content: "New" })
     );
-    expect(ctx.db.patch).not.toHaveBeenCalled();
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      45_000,
+      expect.anything(),
+      { cardId: "c1" }
+    );
+  });
+
+  test("updateCard saves an edit made while the card's run is waiting without queueing another", async () => {
+    mockReprocessCheck.mockResolvedValueOnce({ ok: false, retryAfter: 30_000 });
+    const ctx = withTestSession({
+      runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Old",
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+
+    const handler = (updateCard as any).handler ?? updateCard;
+    await handler(ctx, { id: "c1", content: "New" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ content: "New" })
+    );
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { cardId: "c1" }
+    );
+    expect(mockReprocessLimit).not.toHaveBeenCalled();
   });
 
   test("updateCard throws when card not found", async () => {
@@ -195,6 +241,7 @@ describe("card/updateCard.ts", () => {
   test("updateCard does not normalize content for non-quote types", async () => {
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -228,6 +275,7 @@ describe("card/updateCard.ts", () => {
     };
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue(card),
@@ -250,6 +298,7 @@ describe("card/updateCard.ts", () => {
   test("updateCard updates link type with categorize stage", async () => {
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -312,6 +361,7 @@ describe("card/updateCard.ts", () => {
   test("updateCardField updates url and clears link preview", async () => {
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
+      runQuery: mockReprocessCheck,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({

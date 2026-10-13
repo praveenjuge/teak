@@ -543,27 +543,93 @@ describe("Public API AI tag removal", () => {
   });
 });
 
+const scheduledWorkflowStarts = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
+  t.run(async (ctx) =>
+    (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+      (job) => job.name.includes("startCardProcessingWorkflow")
+    )
+  );
+
 describe("Multi-field edits", () => {
-  test("a content and url edit is charged one reprocess", async () => {
+  test("rapid edits always save and share one waiting pipeline run", async () => {
     const { t, cardId } = await setup();
-    const updated = await t.mutation(internal.raycast.patchCardForUser, {
+    const now = Date.now();
+    // A content and url edit is charged one reprocess, so it runs now.
+    await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "Fresh content",
       url: "https://example.org/fresh",
     });
-    expect(updated).toMatchObject({
-      content: "Fresh content",
-      url: "https://example.org/fresh",
+    // The card's one run a minute is spent: the next edit still saves, and
+    // its run waits until the limit allows it.
+    const second = await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Second edit",
     });
-    // The one per-card token per minute is now spent.
-    await expect(
-      t.mutation(internal.raycast.patchCardForUser, {
-        cardId,
+    expect(second?.content).toBe("Second edit");
+    // An edit made while that run waits joins it rather than queueing more.
+    const third = await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Third edit",
+    });
+    expect(third?.content).toBe("Third edit");
+
+    const jobs = await scheduledWorkflowStarts(t);
+    expect(jobs.map((job) => job.scheduledTime - now)).toEqual([0, 60_000]);
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.content).toBe("Third edit");
+  });
+
+  test("a bulk edit refused by the account cap leaves the card's next edit a run", async () => {
+    const { t, cardId } = await setup();
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "First edit",
+    });
+    // Eleven more cards spend the rest of the account's six tokens and six
+    // reservations.
+    for (let index = 0; index < 11; index += 1) {
+      const otherId = await t.run((ctx) =>
+        ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `Card ${index}`,
+          createdAt: index,
+          updatedAt: index,
+        })
+      );
+      await t.mutation(internal.raycast.patchCardForUser, {
+        cardId: otherId,
         userId: "owner",
-        content: "Second edit",
-      })
-    ).rejects.toThrow("RATE_LIMITED");
+        content: `Edited ${index}`,
+      });
+    }
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "update",
+        items: [{ cardId, content: "Bulk edit" }],
+      }
+    );
+    expect(result.summary.failed).toBe(1);
+
+    // Once the account has a token again, the card's next edit gets its own
+    // run: the refused bulk item must not have left a reservation behind.
+    vi.advanceTimersByTime(11_000);
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Later edit",
+    });
+    const cardJobs = (await scheduledWorkflowStarts(t)).filter(
+      (job) => (job.args[0] as { cardId: string }).cardId === cardId
+    );
+    expect(cardJobs).toHaveLength(2);
   });
 
   test("bulk update applies content and url together", async () => {
@@ -610,13 +676,6 @@ describe("Multi-field edits", () => {
 });
 
 describe("Refresh details", () => {
-  const scheduledWorkflowStarts = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
-    t.run(async (ctx) =>
-      (await ctx.db.system.query("_scheduled_functions").collect()).filter(
-        (job) => job.name.includes("startCardProcessingWorkflow")
-      )
-    );
-
   test("queues the processing workflow for the owner's card", async () => {
     const { t, cardId } = await setup();
     const result = await t.mutation(
