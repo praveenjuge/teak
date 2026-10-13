@@ -102,6 +102,9 @@ describe("buildSearchSuggestions", () => {
       buildSearchSuggestions("#fff", hexy).suggestions.map((s) => s.insert)
     ).toEqual(["tag:fff", "tag:fffour"]);
     expect(buildSearchSuggestions("#fffo", hexy).completingValue).toBe(true);
+    // A bare # picks the top tag on Enter, like `tag:`.
+    expect(buildSearchSuggestions("#", hexy).completingValue).toBe(true);
+    expect(buildSearchSuggestions("tag:", hexy).completingValue).toBe(true);
   });
 
   test("#tag completes tags", () => {

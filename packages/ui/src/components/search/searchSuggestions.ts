@@ -240,10 +240,11 @@ export function buildSearchSuggestions(
   if (token.startsWith("#")) {
     const value = unquote(token.slice(1));
     // A hex color (`#fff`) stays a color, as the parser reads it: tags still
-    // show, but none is picked on Enter, which keeps the color filter.
-    const isTag = parseSearchQuery(token).tags.length > 0;
+    // show, but none is picked on Enter, which keeps the color filter. A
+    // bare `#` picks the top tag, like `tag:`.
+    const isColor = parseSearchQuery(token).terms.length > 0;
     return {
-      completingValue: isTag,
+      completingValue: !isColor,
       suggestions: valueSuggestions(
         "tag",
         value,
