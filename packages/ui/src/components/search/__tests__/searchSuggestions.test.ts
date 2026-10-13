@@ -66,6 +66,26 @@ describe("buildSearchSuggestions", () => {
     );
   });
 
+  test("an exact name comes first, then the most used", () => {
+    const ranked = {
+      tags: [
+        { name: "design-systems", count: 2 },
+        { name: "designer", count: 1 },
+        { name: "design", count: 40 },
+      ],
+    };
+    const names = (token: string) =>
+      buildSearchSuggestions(token, ranked).suggestions.map((s) => s.label);
+    expect(names("tag:des")).toEqual(["design", "design-systems", "designer"]);
+    // Typed exactly with nothing longer to offer: the list closes.
+    expect(names("tag:designer")).toEqual([]);
+    expect(names("tag:design")).toEqual([
+      "design",
+      "design-systems",
+      "designer",
+    ]);
+  });
+
   test("#tag completes tags", () => {
     expect(inserts("#dev")).toEqual(["tag:devops"]);
   });

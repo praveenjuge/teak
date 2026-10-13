@@ -156,6 +156,13 @@ teak ls --type image --type link --hue blue --date "last month"
 teak search "homepage" --tag design --all --json > cards.json
 ```
 
+The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, and `"quoted phrases"`. Quote the whole search for your shell:
+
+```bash
+teak search 'site:github.com tag:design "design system"'
+teak search 'folder:"Reading list" is:fav'
+```
+
 ### Export
 
 ```bash

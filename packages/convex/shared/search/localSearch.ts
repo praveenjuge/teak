@@ -29,8 +29,8 @@ export interface LocalSearchFilters {
 export const tokenizeSearchQuery = (query: string) =>
   tokenizeSearchInput(query).map((term) => term.toLowerCase());
 
-export const buildSearchableText = (card: Doc<"cards">) => {
-  const parts: Array<string | undefined> = [
+const searchableParts = (card: Doc<"cards">) =>
+  [
     card.content,
     card.notes,
     card.aiSummary,
@@ -39,10 +39,10 @@ export const buildSearchableText = (card: Doc<"cards">) => {
     card.metadataDescription,
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
-  ];
+  ].filter(Boolean);
 
-  return parts.filter(Boolean).join(" ").toLowerCase();
-};
+export const buildSearchableText = (card: Doc<"cards">) =>
+  searchableParts(card).join(" ").toLowerCase();
 
 const matchesVisualFilters = (
   card: Doc<"cards">,
@@ -184,9 +184,11 @@ export const filterLocalCards = (
       }
 
       const searchableText = buildSearchableText(card);
+      // A phrase stays inside one field, as on the server: two tags in a
+      // row ("design", "systems") are not the phrase "design system".
       return (
         terms.every((term) => searchableText.includes(term)) &&
-        matchesSearchPhrases(searchableText, parsed.phrases)
+        matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
       );
     })
     .sort((a, b) => compareCardsByCreatedAt(a, b, sort));

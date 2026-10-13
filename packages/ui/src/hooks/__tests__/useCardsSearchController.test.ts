@@ -254,9 +254,9 @@ describe("search qualifiers in the controller", () => {
       'notes folder:"Reading list" "a phrase" site:example.com'
     );
     expect(fromUrl).toEqual({
-      keywordTags: [],
+      keywordTags: ['"a phrase"'],
       qualifierChips: ['folder:"Reading list"', "site:example.com"],
-      searchQuery: '"a phrase" notes',
+      searchQuery: "notes",
     });
     const terms = buildCardsSearchTerms({ ...baseState(), ...fromUrl });
     expect(

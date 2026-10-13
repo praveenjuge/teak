@@ -1,11 +1,18 @@
 ---
 title: "October 2026"
-description: Manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-13"
 changelog:
   category: Product updates
 ---
+
+## Search with qualifiers
+
+- On the web, narrow a search with `tag:design` (or `#design`), `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`, and mix them with words, colors, and dates.
+- As you type, the search box suggests filters, your tags and folders, and the sites you save most. Each one you pick becomes a removable pill, and the address bar keeps the whole search for reloads and shared links.
+- `site:` treats `www.github.com` and `GitHub.com` as the same site, and international addresses work in either form.
+- **API, CLI, and MCP:** `GET /v1/cards?q=`, `teak search`, and the MCP search tool read the same qualifiers, together with their other filters. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
 
 ## Manage tags across your library
 

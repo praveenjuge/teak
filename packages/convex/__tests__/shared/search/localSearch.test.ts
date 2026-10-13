@@ -472,6 +472,8 @@ describe("filterLocalCards qualifiers", () => {
     ["is:fav", ["fav"]],
     ["type:links design", ["repo", "fav"]],
     ["foo:bar", []],
+    // Two tags in a row are not a phrase.
+    ['"design writing"', []],
   ])("%s", (searchTerms: string, expected: string[]) => {
     expect(ids(searchTerms)).toEqual(expected);
   });

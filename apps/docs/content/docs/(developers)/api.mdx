@@ -235,7 +235,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Full-text search query.
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
 <ParamField query="type" type="string">
@@ -299,6 +299,7 @@ these query parameters:
 </ParamField>
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
+- Qualifiers: `GET /v1/cards?q=site:github.com%20tag:design%20%22design%20system%22`
 - Tags: `GET /v1/tags` lists the lowercase tags on cards outside Trash,
   including tags Teak added, with how many cards have each. A new tag appears
   a moment after the card is saved. Any listed name
@@ -317,6 +318,28 @@ deleted while you page don't cause repeats or gaps. A cursor that wasn't
 returned by the same listing returns `400 INVALID_INPUT`. Search (`q`) pages
 through its 400 best matches, sorted by date, and then ends; for a search that
 matches more, add a type or date filter to see the rest.
+
+### Search qualifiers
+
+`q` reads the same qualifiers as the search box in the app. Keys ignore case,
+and a value with spaces goes in quotes (`folder:"Reading list"`).
+
+| Qualifier | Matches |
+| --- | --- |
+| `tag:design`, `#design` | Cards with that tag (user or AI), ignoring case |
+| `type:link` | Cards of that type; plurals such as `type:links` work too |
+| `is:fav` | Favorites only, like `favorited=true` |
+| `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
+| `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
+| `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name matches no cards |
+| `"design system"` | Cards whose text contains that phrase |
+
+Qualifiers combine with each other and with the other parameters: tags and
+folders must all match, and several types or sites match any of them. `type:`
+narrows `type`, so `?type=link&q=type:image` returns no cards, and so does
+`?archived=exclude&q=is:archived`. `#` followed by a hex color (`#fff`) is a
+color, not a tag; use `tag:fff` for that tag. Text a qualifier can't use, such
+as `type:banana` or `foo:bar`, is searched as words.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish

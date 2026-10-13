@@ -115,7 +115,7 @@ The list and search tools share these filters, matching `GET /v1/cards` in the [
 
 ```ts
 type CardFilters = {
-  q?: string;
+  q?: string;                   // words plus qualifiers, e.g. 'site:github.com tag:design'
   type?: CardType | CardType[]; // several types match any of them
   tag?: string;                 // exact tag
   favorited?: boolean;
@@ -138,7 +138,7 @@ type CardFilters = {
   - Input: `CardFilters`
   - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`. Items are full cards unless you narrow `include`.
 - `teak_v1_search_cards`
-  - Input: `CardFilters`
+  - Input: `CardFilters`. `q` accepts the [search qualifiers](/docs/api#search-qualifiers): `tag:design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`.
   - Output: `{ items: Card[], total: number, pageInfo }`, where `total` is the number of items on this page
 - `teak_v1_list_favorite_cards`
   - Input: `CardFilters` (always limited to favorites)

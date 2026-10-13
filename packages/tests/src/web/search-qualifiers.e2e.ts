@@ -58,9 +58,13 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
     folderIds: [folder._id],
   });
 
+  // A card button is named for its type and title ("Link: …").
+  const card = (title: string) =>
+    screen.getByRole("button", `: ${title}`, { exact: false });
+
   await gotoApp(browser, "/");
   const search = screen.getByRole("combobox");
-  await expect(screen.getByText(REPO)).toBeVisible({ timeout: 30_000 });
+  await expect(card(REPO)).toBeVisible({ timeout: 30_000 });
 
   // A key, then a site from the list: www. and capitals are the same site.
   await search.fill("si");
@@ -78,9 +82,9 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
     screen.getByRole("button", "Remove site qualifiers.example")
   ).toBeVisible();
   await expect(search).toHaveValue("");
-  await expect(screen.getByText(REPO)).toBeVisible();
-  await expect(screen.getByText(NOTES)).toBeVisible();
-  await expect(screen.getByText(ELSEWHERE)).not.toBeVisible();
+  await expect(card(REPO)).toBeVisible();
+  await expect(card(NOTES)).toBeVisible();
+  await expect(card(ELSEWHERE)).not.toBeVisible();
   await expect(browser).toHaveURL(/q=site%3Aqualifiers\.example/);
 
   // A typed tag qualifier becomes a chip on Enter; tags ignore case.
@@ -89,8 +93,8 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(
     screen.getByRole("button", "Remove tag qualified")
   ).toBeVisible();
-  await expect(screen.getByText(REPO)).toBeVisible();
-  await expect(screen.getByText(NOTES)).not.toBeVisible();
+  await expect(card(REPO)).toBeVisible();
+  await expect(card(NOTES)).not.toBeVisible();
 
   // Escape closes the suggestions and keeps what was typed.
   await search.fill("tag:qual");
@@ -108,12 +112,12 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(
     screen.getByRole("button", "Remove tag qualified")
   ).toBeVisible();
-  await expect(screen.getByText(REPO)).toBeVisible();
+  await expect(card(REPO)).toBeVisible();
 
   // Removing a chip widens the search again.
   await screen.getByRole("button", "Remove site qualifiers.example").click();
-  await expect(screen.getByText(ELSEWHERE)).toBeVisible();
-  await expect(screen.getByText(REPO)).toBeVisible();
+  await expect(card(ELSEWHERE)).toBeVisible();
+  await expect(card(REPO)).toBeVisible();
   await screen.getByRole("button", "Remove tag qualified").click();
 
   // folder: picks a folder by name; an unknown name matches nothing.
@@ -122,12 +126,12 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(
     screen.getByRole("button", "Remove folder Qualifier shelf")
   ).toBeVisible();
-  await expect(screen.getByText(FILED)).toBeVisible();
-  await expect(screen.getByText(REPO)).not.toBeVisible();
+  await expect(card(FILED)).toBeVisible();
+  await expect(card(REPO)).not.toBeVisible();
   await search.fill("folder:nowhere");
   await search.press("Enter");
   await expect(
     screen.getByText("No folder named nowhere", { exact: false })
   ).toBeVisible();
-  await expect(screen.getByText(FILED)).not.toBeVisible();
+  await expect(card(FILED)).not.toBeVisible();
 });

@@ -231,6 +231,14 @@ export function buildCardsSearchResetKey(state: CardsSearchState): string {
   return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.tagFilter}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
 }
 
+/** Quoted phrases as keyword chips, lowercased and still quoted. */
+const phraseChips = (phrases: readonly string[]) =>
+  Array.from(
+    new Set(
+      phrases.map((phrase) => `"${phrase.replace(/"/g, "").toLowerCase()}"`)
+    )
+  );
+
 /** Each qualifier in `text` as a chip, written the canonical way. */
 export function qualifierChipsFromText(text: string): string[] {
   return parseSearchQuery(text).qualifiers.map(formatSearchQualifier);
@@ -247,26 +255,27 @@ const addChips = (current: string[], additions: string[]) => {
 };
 
 /**
- * A search from the URL: its qualifiers become chips and the rest stays
- * typed text, so a reload shows the same chips it left with.
+ * A search from the URL: its qualifiers and quoted phrases become chips and
+ * the plain words stay typed text, so a reload shows the chips it left with.
  */
 export function cardsSearchStateFromQuery(
   query: string
 ): Pick<CardsSearchState, "keywordTags" | "qualifierChips" | "searchQuery"> {
   const parsed = parseSearchQuery(query);
   return {
-    keywordTags: [],
+    keywordTags: phraseChips(parsed.phrases),
     qualifierChips: parsed.qualifiers.map(formatSearchQualifier),
-    searchQuery: [
-      ...parsed.phrases.map((phrase) => `"${phrase.replace(/"/g, "")}"`),
-      ...parsed.terms,
-    ].join(" "),
+    searchQuery: parsed.terms.join(" "),
   };
 }
 
 /** Whether two searches mean the same thing, however they are written. */
 export function isSameSearch(left: string, right: string): boolean {
-  return parseSearchQuery(left).canonical === parseSearchQuery(right).canonical;
+  // Search ignores case, and chips are lowercased where it doesn't matter.
+  return (
+    parseSearchQuery(left).canonical.toLowerCase() ===
+    parseSearchQuery(right).canonical.toLowerCase()
+  );
 }
 
 export function applyEnterToCardsSearchState(
@@ -327,9 +336,9 @@ export function applyEnterToCardsSearchState(
   // over are classified one by one.
   const parsed = parseSearchQuery(state.searchQuery);
   const qualifierAdditions = parsed.qualifiers.map(formatSearchQualifier);
-  const keywordAdditions: string[] = parsed.phrases
-    .map((phrase) => `"${phrase.replace(/"/g, "").toLowerCase()}"`)
-    .filter((phrase) => !state.keywordTags.includes(phrase));
+  const keywordAdditions: string[] = phraseChips(parsed.phrases).filter(
+    (phrase) => !state.keywordTags.includes(phrase)
+  );
 
   for (const token of parsed.terms) {
     const classified = classifySearchToken(token);

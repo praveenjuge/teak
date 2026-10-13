@@ -99,32 +99,39 @@ const unquote = (value: string) =>
   value.replace(/^["“”]/, "").replace(/["“”]$/, "");
 
 /**
- * Names starting with the text first, then names with a word starting with
- * it ("web design" for "des"); a match inside a word is noise.
+ * An exact name first, then names starting with the text, then names with
+ * a word starting with it ("web design" for "des"); a match inside a word
+ * is noise. Within each tier the most used come first when counts are known.
  */
 const rank = <T>(
   items: readonly T[],
   text: string,
   nameOf: (item: T) => string,
-  limit: number
+  limit: number,
+  countOf: (item: T) => number = () => 0
 ): T[] => {
   const needle = text.trim().toLowerCase();
+  const byCount = (list: T[]) =>
+    list.sort((left, right) => countOf(right) - countOf(left));
   if (!needle) {
-    return items.slice(0, limit);
+    return byCount([...items]).slice(0, limit);
   }
+  const exact: T[] = [];
   const starts: T[] = [];
-  const contains: T[] = [];
+  const words: T[] = [];
   for (const item of items) {
     const name = nameOf(item).toLowerCase();
-    if (name.startsWith(needle)) {
+    if (name === needle) {
+      exact.push(item);
+    } else if (name.startsWith(needle)) {
       starts.push(item);
     } else if (
       name.split(/[\s\-_./]+/).some((word) => word.startsWith(needle))
     ) {
-      contains.push(item);
+      words.push(item);
     }
   }
-  return [...starts, ...contains].slice(0, limit);
+  return [...exact, ...byCount(starts), ...byCount(words)].slice(0, limit);
 };
 
 const complete = (
@@ -156,14 +163,19 @@ const valueSuggestions = (
 ): SearchSuggestion[] => {
   switch (key) {
     case "tag":
-      return rank(sources.tags ?? [], value, (tag) => tag.name, limit).map(
-        (tag) =>
-          complete(
-            { key: "tag", value: tag.name },
-            "Tags",
-            tag.name,
-            countLabel(tag.count)
-          )
+      return rank(
+        sources.tags ?? [],
+        value,
+        (tag) => tag.name,
+        limit,
+        (tag) => tag.count
+      ).map((tag) =>
+        complete(
+          { key: "tag", value: tag.name },
+          "Tags",
+          tag.name,
+          countLabel(tag.count)
+        )
       );
     case "type":
       return rank(
@@ -188,7 +200,8 @@ const valueSuggestions = (
         sources.sites ?? [],
         value.replace(/^www\./i, ""),
         (site) => `${site.host} ${site.label}`,
-        limit
+        limit,
+        (site) => site.count
       ).map((site) =>
         complete(
           { key: "site", value: site.host },
