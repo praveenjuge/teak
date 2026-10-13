@@ -77,15 +77,37 @@ describe("parseSearchQuery", () => {
     );
   });
 
-  test.each(["A\\B", 'Say "hi"', "<b>Not bold</b> & “quoted”", "trailing\\"])(
-    "folder name %p round-trips through its chip",
-    (name: string) => {
-      const chip = formatSearchQualifier({ key: "folder", value: name });
-      expect(parseSearchQuery(chip).qualifiers).toEqual([
-        { key: "folder", value: name },
-      ]);
+  test.each([
+    "A\\B",
+    'Say "hi"',
+    "<b>Not bold</b> & “quoted”",
+    "trailing\\",
+    "Ideas!",
+    "[Inbox]",
+    "(notes)",
+  ])("folder name %p round-trips through its chip", (name: string) => {
+    const chip = formatSearchQualifier({ key: "folder", value: name });
+    expect(parseSearchQuery(chip).qualifiers).toEqual([
+      { key: "folder", value: name },
+    ]);
+  });
+
+  test.each([".net", "c++,", "ok?"])(
+    "tag %p round-trips through its chip",
+    (tag: string) => {
+      const chip = formatSearchQualifier({ key: "tag", value: tag });
+      expect(parseSearchQuery(chip).tags).toEqual([tag]);
     }
   );
+
+  test("plain values stay unquoted", () => {
+    expect(formatSearchQualifier({ key: "tag", value: "design" })).toBe(
+      "tag:design"
+    );
+    expect(formatSearchQualifier({ key: "folder", value: "c++" })).toBe(
+      "folder:c++"
+    );
+  });
 
   test("a phrase with quotes round-trips through the canonical form", () => {
     const parsed = parseSearchQuery('"say \\"hi\\" there"');

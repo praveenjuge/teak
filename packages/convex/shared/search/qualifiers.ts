@@ -204,7 +204,12 @@ const qualifierIdentity = (qualifier: SearchQualifier): string =>
     qualifier.key === "folder" ? qualifier.value.toLowerCase() : qualifier.value
   }`;
 
-const needsQuotes = (value: string) => /[\s"“”\\]/.test(value);
+// Quotes keep spaces, quote characters, backslashes, and the edge
+// punctuation an unquoted value loses (`Ideas!`, `.net`).
+const needsQuotes = (value: string) =>
+  /[\s"“”\\]/.test(value) ||
+  SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[0] ?? "") ||
+  SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[value.length - 1] ?? "");
 
 /**
  * A value in quotes, escaped so the tokenizer reads it back exactly:
