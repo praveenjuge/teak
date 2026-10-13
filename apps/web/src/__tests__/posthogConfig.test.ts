@@ -96,6 +96,38 @@ describe("web PostHog configuration", () => {
     expect(entry?.value).toContain("Save failed");
   });
 
+  test("asks the SDK to mask the search in page URLs and replays", () => {
+    expect(buildPostHogOptions()).toMatchObject({
+      custom_personal_data_properties: ["q"],
+      mask_personal_data_properties: true,
+    });
+  });
+
+  test("masks search text in page and referrer URLs", () => {
+    const search: CaptureResult = {
+      event: "search_performed",
+      properties: {
+        $current_url: "https://app.teakvault.com/?q=tax+returns&sort=newest",
+        $referrer: "https://app.teakvault.com/?q=private+notes",
+        zero_result: false,
+      },
+      $set_once: { $initial_current_url: "https://app.teakvault.com/?q=x" },
+      uuid: "event-3",
+    };
+    const sent = filterPostHogEvent(search);
+    const urls = [
+      sent?.properties.$current_url,
+      sent?.properties.$referrer,
+      sent?.$set_once?.$initial_current_url,
+    ].map(String);
+    for (const url of urls) {
+      expect(new URL(url).searchParams.get("q")).toBe("<MASKED>");
+    }
+    expect(urls.join(" ")).not.toMatch(/tax|private/u);
+    expect(new URL(urls[0] ?? "").searchParams.get("sort")).toBe("newest");
+    expect(sent?.properties.zero_result).toBe(false);
+  });
+
   test("passes non-exception events through untouched", () => {
     const pageview: CaptureResult = {
       event: "$pageview",
