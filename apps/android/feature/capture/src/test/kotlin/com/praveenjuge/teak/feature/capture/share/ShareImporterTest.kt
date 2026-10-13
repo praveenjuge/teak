@@ -6,6 +6,7 @@ import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.upload.SkippedFile
 import com.praveenjuge.teak.core.data.upload.StageResult
 import com.praveenjuge.teak.core.data.upload.StagedFile
+import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeUploadRepository
@@ -27,13 +28,21 @@ class ShareImporterTest {
     private fun staged(name: String) = StagedFile("/cache/uploads/$name", name, "image/png", 10)
 
     @Test
-    fun `only the first five items are saved and the rest are reported`() = runTest {
-        val items = (1..7).map { ShareItem.Text("note $it") }
+    fun `only the first items up to the limit are saved and the rest are reported`() = runTest {
+        val total = MAX_FILES_PER_UPLOAD + 2
+        val items = (1..total).map { ShareItem.Text("note $it") }
 
         val result = importer().import(items)
 
-        assertEquals((1..5).map { "note $it" }, cards.created)
-        assertEquals(ShareResult.Partial(saved = 5, total = 7, detail = "Only the first 5 shared items are processed."), result)
+        assertEquals((1..MAX_FILES_PER_UPLOAD).map { "note $it" }, cards.created)
+        assertEquals(
+            ShareResult.Partial(
+                saved = MAX_FILES_PER_UPLOAD,
+                total = total,
+                detail = "Only the first $MAX_FILES_PER_UPLOAD shared items are processed.",
+            ),
+            result,
+        )
     }
 
     @Test

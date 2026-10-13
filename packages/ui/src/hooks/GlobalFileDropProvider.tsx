@@ -21,6 +21,7 @@ import {
   TOAST_IDS,
   UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
   UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
+  UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
   UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
 } from "../constants/toast";
 import {
@@ -249,7 +250,7 @@ export function GlobalFileDropProvider({
         toast.error(
           `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time.`,
           {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+            ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
             id: "upload-queue-too-many",
           }
         );

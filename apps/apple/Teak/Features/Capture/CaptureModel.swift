@@ -62,7 +62,7 @@ final class CaptureModel {
 
     // MARK: Files
 
-    /// Uploads up to five files one at a time. The card limit stops the rest.
+    /// Uploads up to `TeakLimits.maxFilesPerUpload` files one at a time. The card limit stops the rest.
     func upload(_ items: [UploadItem]) async {
         guard !items.isEmpty, upload == nil else { return }
         let files = Array(items.prefix(TeakLimits.maxFilesPerUpload))

@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.praveenjuge.teak.core.data.upload.SkippedFile
 import com.praveenjuge.teak.core.data.upload.StageResult
 import com.praveenjuge.teak.core.data.upload.StagedFile
+import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.testing.FakeUploadRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.collect
@@ -28,12 +29,12 @@ class AddViewModelTest {
     private fun uris(count: Int) = (1..count).map { Uri.parse("content://files/$it") }
 
     @Test
-    fun `more than five files are refused with an alert`() = runTest {
+    fun `more files than the limit are refused with an alert`() = runTest {
         val viewModel = AddViewModel(uploads)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         uploads.nextStage = StageResult(listOf(StagedFile("/a", "a.png", "image/png", 1)), emptyList())
 
-        viewModel.upload(uris(6))
+        viewModel.upload(uris(MAX_FILES_PER_UPLOAD + 1))
 
         assertEquals(AddAlert.TooManyFiles, viewModel.uiState.value.alert)
         assertTrue(uploads.enqueued.isEmpty())
