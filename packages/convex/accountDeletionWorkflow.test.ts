@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
+import polarTest from "@convex-dev/polar/test";
 import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
@@ -7,6 +8,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -20,6 +22,7 @@ const claims = {
 const fixture = async (legacy = false) => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
+  polarTest.register(t);
   workflowTest.register(t);
   apiKeysTest.register(t);
   workosTest.register(t);
@@ -788,6 +791,84 @@ describe("durable deletion admission and tombstones", () => {
       teakUserId: "permanent-owner",
       deletedAt: expect.any(Number),
     });
+  });
+});
+
+describe("billing closure", () => {
+  const runFirstStage = async (
+    t: Awaited<ReturnType<typeof fixture>>["t"],
+    binding: { stateId: Id<"accountDeletionStates">; generation: number }
+  ) => {
+    let done = false;
+    while (!done) {
+      done = await t.action(internal.accountDeletionActions.runStage, {
+        ...binding,
+        stage: 0,
+      });
+    }
+  };
+  const polarDeletes: string[] = [];
+  const stubPolar = (status: number) => {
+    polarDeletes.length = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, options?: RequestInit) => {
+        const request = input instanceof Request ? input : undefined;
+        const url = new URL(request?.url ?? String(input));
+        const method = options?.method ?? request?.method ?? "GET";
+        if (url.hostname !== "sandbox-api.polar.sh") {
+          throw new Error(`unexpected_request:${method}:${url.pathname}`);
+        }
+        polarDeletes.push(`${method} ${url.pathname}${url.search}`);
+        return status === 204
+          ? new Response(null, { status })
+          : Response.json(
+              { error: "ResourceNotFound", detail: "Not found" },
+              { status }
+            );
+      })
+    );
+  };
+  const startDeletion = async (withCustomer: boolean) => {
+    const { t, signed, ownerId } = await fixture();
+    vi.stubEnv("POLAR_ACCESS_TOKEN", "test-polar-token");
+    vi.stubEnv("POLAR_SERVER", "sandbox");
+    if (withCustomer) {
+      await t.mutation(components.polar.lib.insertCustomer, {
+        id: "cust_DELETE",
+        userId: ownerId,
+      });
+    }
+    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    const state = await t.run((ctx) =>
+      ctx.db.query("accountDeletionStates").unique()
+    );
+    return { t, binding: { stateId: state!._id, generation: 1 } };
+  };
+
+  test.each([204, 404])(
+    "cancels and anonymizes the owner's Polar customer (Polar answers %i)",
+    async (status) => {
+      stubPolar(status);
+      const { t, binding } = await startDeletion(true);
+      await runFirstStage(t, binding);
+      expect(polarDeletes).toEqual([
+        "DELETE /v1/customers/cust_DELETE?anonymize=true",
+      ]);
+    }
+  );
+
+  test("an owner who never checked out makes no billing call", async () => {
+    stubPolar(204);
+    const { t, binding } = await startDeletion(false);
+    await runFirstStage(t, binding);
+    expect(polarDeletes).toEqual([]);
+  });
+
+  test("a Polar failure keeps the stage open for a retry", async () => {
+    stubPolar(500);
+    const { t, binding } = await startDeletion(true);
+    await expect(runFirstStage(t, binding)).rejects.toThrow();
   });
 });
 

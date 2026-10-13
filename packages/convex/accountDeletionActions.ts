@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
+import { closeBillingCustomer } from "./billing";
 import {
   deleteLegacyBetterAuthRows,
   deleteLegacyBetterAuthSessions,
@@ -91,10 +92,17 @@ export const runStage = internalAction({
       if (moreKeys) {
         return false;
       }
-      return await ctx.runMutation(
+      const consentsDone: boolean = await ctx.runMutation(
         internal.accountDeletionJobs.revokeConsentPage,
         binding
       );
+      if (!consentsDone) {
+        return false;
+      }
+      // Stop billing before slower cleanup so a stalled stage never charges
+      // a deleted owner.
+      await closeBillingCustomer(ctx, state.userId);
+      return true;
     }
     if (stage === 1) {
       if (state.workosUserId) {

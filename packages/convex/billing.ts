@@ -2,7 +2,7 @@ import { Polar, type WebhookEventHandlers } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
-import { action, env, query } from "./_generated/server";
+import { type ActionCtx, action, env, query } from "./_generated/server";
 import { readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
@@ -165,6 +165,42 @@ export const createCustomerPortal = action({
   returns: v.string(),
   handler: createCustomerPortalHandler,
 });
+
+const isPolarNotFound = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "statusCode" in error &&
+  error.statusCode === 404;
+
+/**
+ * Ends a deleted owner's billing: Polar cancels any active subscription at
+ * once, revokes benefits and anonymizes the customer, keeping past orders for
+ * tax records. Owners who never started checkout have no customer. Safe to
+ * repeat; a customer Polar already deleted is done.
+ */
+export const closeBillingCustomer = async (
+  ctx: ActionCtx,
+  teakUserId: string
+): Promise<void> => {
+  const customer = await ctx.runQuery(
+    components.polar.lib.getCustomerByUserId,
+    { userId: teakUserId }
+  );
+  if (!customer) {
+    return;
+  }
+  const polarSdk = new PolarBilling({
+    accessToken: env.POLAR_ACCESS_TOKEN ?? "",
+    server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
+  });
+  try {
+    await polarSdk.customers.delete({ id: customer.id, anonymize: true });
+  } catch (error) {
+    if (!isPolarNotFound(error)) {
+      throw error;
+    }
+  }
+};
 
 interface PolarSubscriptionEvent {
   data: {
