@@ -3,85 +3,153 @@ title: Privacy Policy
 description: Privacy policy for Teak apps, API, and integrations
 ---
 
+**Effective date:** October 13, 2026
+
 ## Overview
 
-Teak protects your privacy across all Teak apps and integrations. We store and process the content you save securely.
+This policy explains what Teak collects, why, who helps us process it, and the choices you have. It covers the Teak web app, the iPhone, iPad, Mac and Android apps, the browser extension, Raycast, the CLI, the API, and MCP (together, the "Service").
+
+Teak is built and run by Praveen Juge ("Teak", "we", "us"). For privacy laws that use the term, we are the controller of your personal data. You can reach us at hello@praveenjuge.com.
+
+The short version: your cards are private to you, we don't sell your data or use it for advertising, and analytics never see what your cards contain.
 
 ## Data We Collect
 
-- **Account data:** Authentication details, profile info (name, email, optional photo), and account preferences.
-- **Your content:** Cards (notes, links, images, videos, audio, documents, palettes, quotes), metadata (timestamps, tags, favorites), and securely stored file uploads.
-- **Usage data:** Which features you use (for example, that you saved a card or ran a search, never what the card or search contained), device and browser info, and error reports, linked to your account ID and email.
-- **Extension and client data:** Page URL or text you explicitly choose to save, and similar capture data from share sheets, Raycast, CLI, API, or MCP when you use those surfaces.
+- **Account data:** your name, email address, optional profile photo, sign-in details, and account preferences.
+- **Your content:** cards (notes, links, images, videos, audio, documents, palettes, quotes), the files you upload, tags, folders, favorites, notes, and timestamps.
+- **Generated data:** tags, summaries, audio transcripts, colors, thumbnails, link previews and screenshots that Teak creates from your content (see [AI Processing](#ai-processing)).
+- **Usage and diagnostic data:** which features you use (for example, that you saved a card or ran a search), page views, performance timings, error and crash reports, and device, browser and app version details. These are linked to your Teak account ID and email.
+- **Billing data:** your plan, subscription status, and the email used for checkout. Payment card details go directly to our payment provider, Polar; we never see or store them.
+- **Capture data:** the page URL, title, or text you choose to save from the browser extension, share sheets, Raycast, the CLI, the API, or MCP.
+- **Support messages:** anything you send us by email.
 
 ## How We Use Your Data
 
-- **Primary uses:** Store, organize, and sync your content; enable cross-platform access; process metadata and thumbnails; power search.
-- **Secondary uses:** Improve service quality, provide technical support, maintain security, and meet legal requirements.
+- **To run the Service:** store, organize, sync and search your content across devices; create thumbnails, previews, tags, summaries and transcripts; and process imports and exports.
+- **To keep it working:** find and fix bugs, measure performance, and understand which features are used so we can improve them.
+- **To keep it safe:** prevent abuse, enforce rate and plan limits, and secure accounts.
+- **For billing and support:** manage subscriptions and refunds, and answer your questions.
+- **For legal reasons:** meet tax, accounting and other legal obligations.
 
-## Data Security
+We don't sell your personal data, we don't use it for advertising, and we don't train AI models on your content.
 
-- Hosted storage in the United States with industry-standard encryption in transit and at rest
-- Secure login sessions
-- Isolation so your data stays private from other users
-- Automated backups for durability
+## AI Processing
+
+Teak uses AI to tag, summarize and transcribe your cards so you can find them later. These models run on Cloudflare Workers AI, operated by Cloudflare on our behalf. No card content is sent to OpenAI, Anthropic, Google or other AI companies by Teak.
+
+- **What is processed:** the text of text, quote and document cards; image and video thumbnails; audio files (for transcripts); palette colors; and link titles, descriptions and URLs.
+- **What is created:** tags, a short summary, visual style labels, and audio transcripts. These are stored with the card and deleted with it.
+- AI output can be wrong. You can edit or ignore generated tags and summaries.
+
+## Links You Save
+
+When you save a link, Teak's servers visit that page to fetch its title, description, preview image and a screenshot. The website sees a request from Teak's servers, not from your device. For posts on X, Teak also asks X's public embed service for the post's details.
+
+In the web app, a link's site icon is loaded from Google's favicon service, which receives the website's domain name and your browser's IP address.
+
+## Service Providers
+
+We use these providers to run Teak. Each handles only the data it needs for its job, under its own terms and data processing agreement.
+
+| Provider | Purpose | Data involved |
+| --- | --- | --- |
+| [Convex](https://www.convex.dev) | Database and backend | Account data, your content, generated data |
+| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, image, video and document processing, page rendering | Uploaded files, card content sent for AI processing, saved page content |
+| [Vercel](https://vercel.com) | Hosts the web app and website, and routes API and MCP requests | Requests to the web app, API and MCP, including the content they carry |
+| [WorkOS](https://workos.com) | Sign-in and sign-in emails | Name, email, sign-in details, session and device information |
+| [Polar](https://polar.sh) | Payments, as merchant of record | Email, Teak account ID, payment details, billing address, subscription history |
+| [PostHog](https://posthog.com) | Product analytics and error reports | Usage and diagnostic data, account ID and email |
+
+## Integrations You Connect
+
+If you connect Teak to another tool, such as Raycast AI, an MCP client like Claude or ChatGPT, or your own scripts through the API or CLI, the cards and data that tool requests are sent to it. What happens next is governed by that tool's own privacy policy. You can revoke API keys and connected apps at any time in Settings.
 
 ## Product Analytics and Error Reports
 
-Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) as a service provider for product analytics and error reports across the web app, the iPhone, iPad, Mac and Android apps, the browser extension, and Teak's servers.
+Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) for product analytics and error reports across the web app, the iPhone, iPad, Mac and Android apps, the browser extension, and Teak's servers.
 
-- **What it receives:** page views, product events such as "card saved" or "signed in", performance timings, and error reports. Events are linked to your Teak account ID and email so we can fix problems you hit.
-- **Session replays (web only):** a sample of web sessions, and sessions where an error occurs, are recorded so we can see what went wrong. Replays mask all text, typed input, images and media, so your cards and notes are never visible in them.
-- **What it never receives:** the content of your cards, files, notes, searches, or AI prompts and results.
-- **Where it doesn't run:** the Share and Safari extensions on Apple devices, and the content scripts the browser extension injects into pages, send nothing.
+- **What it receives:** page views, product events such as "card saved" or "signed in", performance timings, AI usage counts (model, token counts and timing, never prompts or results), and error reports. Events are linked to your Teak account ID and email so we can fix problems you hit.
+- **Page addresses:** web events include the page address, which can contain filters or a search term you typed in the web app.
+- **Session replays (web only):** a sample of web sessions, and sessions where an error occurs, are recorded so we can see what went wrong. Replays mask all text and typed input and block images and media, so your cards and notes are never visible in them.
+- **Feedback surveys (web only):** if you answer an in-app survey, your answer is stored in PostHog.
+- **What it never receives:** the content of your cards, files or notes, or AI prompts and results.
+- **Where it doesn't run:** the Share and Safari extensions on Apple devices, the content scripts the browser extension adds to web pages, Raycast, and the CLI send nothing.
 
 ## Sharing & Disclosure
 
-- We **never** share your personal content for advertising, and your cards and files are never sent to analytics; they remain private.
-- Limited disclosure only for legal requirements (court orders), safety concerns, essential service providers, or business transfers (mergers/acquisitions).
+- Your cards are private. Teak has no public sharing, and no other Teak user can see your content.
+- We share data only with the service providers above, with integrations you connect, when the law requires it (such as a valid court order), to protect the safety or rights of people or the Service, or as part of a merger, acquisition or sale of Teak, in which case this policy continues to apply to your data.
+- We don't sell or "share" personal data for cross-context behavioral advertising, as those terms are defined in California law.
+
+## Data Retention
+
+| Data | How long we keep it |
+| --- | --- |
+| Cards, files and generated data | Until you delete them |
+| Cards in Trash | 30 days, then deleted for good |
+| Data exports | 7 days after they're ready |
+| Your account and content after you delete your account | Deletion starts immediately and finishes within 30 days |
+| Deletion record | After deletion we keep a minimal record (account ID, email and deletion date) to prove the deletion and prevent abuse |
+| Billing records | As long as tax and accounting law requires, held by Polar |
+| Analytics and error reports | Up to PostHog's retention period, or until you ask us to delete them |
+| Backups | Overwritten on our providers' backup schedule, after which deleted data is gone from backups too |
+
+## Data Security
+
+- Encryption in transit (HTTPS) and at rest
+- Secure, revocable sign-in sessions and API keys
+- Each account's data is isolated from every other account
+- Automated backups for durability
+
+No system is perfectly secure. If a breach affects your personal data, we'll tell you as the law requires.
 
 ## Your Rights & Controls
 
-- Access: view all your content through our apps.
-- Export: download your data from Settings in the web app.
-- Delete: remove individual cards or your entire account. See [Delete Your Account](/docs/delete-account) for the steps.
-- Control: manage privacy preferences and API keys.
+Wherever you live, you can:
 
-**Deletion timeline:** soft delete provides a 30-day recovery period; permanent deletion happens after 30 days; full account deletion completes within 30 days of request.
+- **Access** your content in any Teak app.
+- **Export** your cards and original files as a ZIP from Settings in the web app, or with the API or CLI.
+- **Correct** your name or email by emailing us.
+- **Delete** individual cards or your entire account. See [Delete Your Account](/docs/delete-account).
+- **Ask** us for a copy of the data we hold about you, or to delete analytics and error reports, by emailing hello@praveenjuge.com.
 
-## Platform Practices
+Depending on where you live (for example, the EEA, UK, California or India), you may also have the right to object to or restrict processing, to withdraw consent, to appoint someone to act for you, and to complain to your local data protection authority. We won't treat you differently for using these rights. We answer requests within 30 days and may need to confirm your identity first.
 
-- **Web:** essential cookies or local storage for authentication and performance; secure session management; a first-party cookie and local storage entry that hold your PostHog analytics ID.
-- **iPhone, iPad and Mac app:** credentials stored securely in the Keychain; microphone access only when recording audio; crash reports and app open and close events through PostHog.
-- **Android app:** device permissions only when used (camera, mic, photos); crash reports and app open and close events through PostHog.
-- **Browser extension:** active tab access only when saving content; no background monitoring; activates on user interaction; error reports and a "card saved" event through PostHog, sent directly from the extension without any remote code.
-- **CLI, Raycast, API, MCP:** authenticate with browser sign-in or an API key you control; revoke keys anytime in Settings.
+## Legal Basis (EEA and UK)
+
+- **Contract:** to provide the Service you signed up for, including AI processing and link previews.
+- **Legitimate interests:** analytics, error reports, security, and abuse prevention. You can object by emailing us.
+- **Consent:** where we ask for it, such as device permissions. You can withdraw it at any time.
+- **Legal obligations:** tax, accounting and responding to lawful requests.
 
 ## International Data
 
-Data may be processed outside your country, but primary storage remains in the US with strong privacy protections.
+Teak's providers are based in, and mainly process data in, the United States. Some providers, such as Cloudflare, also process data in other countries where they operate. Where the law requires it, these transfers are covered by safeguards such as the Standard Contractual Clauses in our providers' data processing terms.
 
-## Children's Privacy
+## Platform Practices
 
-Teak is not for users under 13; we don't knowingly collect data from children under 13.
-
-## Changes to This Policy
-
-Material updates are communicated via email or in-app notifications and reflected in the effective date.
-
-## Contact
-
-- Privacy questions: hi@praveenjuge.com (7-day response)
-- Data requests: through account settings or direct contact (30-day processing)
-
-## Legal Basis
-
-- Contract performance (providing services)
-- Legitimate interests (service improvement, security)
-- Consent (optional features)
-- Legal obligations
+- **Web:** essential cookies for your sign-in session and sidebar layout; local storage for your theme; a first-party cookie and local storage entries that hold your PostHog analytics ID, account ID and email.
+- **iPhone, iPad and Mac apps:** sign-in credentials stored in the Keychain; camera (iPhone and iPad) and microphone only when you capture a photo or record audio; photos only through the system picker, which shares just the items you choose; crash reports and app open and close events through PostHog.
+- **Android app:** camera and microphone only when you use them; photos through the system picker; a notification while uploads finish in the background; crash reports and app open and close events through PostHog.
+- **Browser extension:** reads the current tab's address, title, or selected content when you save. To add save buttons on supported sites (such as X, Hacker News, Instagram and Pinterest), it has access to the pages you visit, but it only acts on supported sites and sends nothing until you click save. It doesn't track your browsing. Error reports and a "card saved" event go to PostHog directly from the extension, without any remote code.
+- **CLI, Raycast, API, MCP:** authenticate with browser sign-in or an API key you control; revoke keys and connected apps anytime in Settings.
 
 ## Cookies
 
-- **Essential:** authentication sessions, user preferences, security protection.
+- **Essential:** sign-in sessions, sidebar layout, and security. These are needed for the web app to work.
 - **Analytics:** a first-party PostHog cookie for product analytics and error reports, served through Teak's own domain. No advertising or cross-site tracking.
+
+The Teak website and documentation set no cookies and run no analytics.
+
+## Children's Privacy
+
+Teak is not for anyone under 13, or under the minimum age to consent to data processing where you live (16 in some countries). We don't knowingly collect data from children. If you believe a child has created an account, email us and we'll delete it.
+
+## Changes to This Policy
+
+We'll update the effective date above whenever this policy changes. For material changes, we'll notify you by email or in the app before they take effect.
+
+## Contact
+
+- Privacy questions and data requests: hello@praveenjuge.com
+- We reply within 7 days and complete data requests within 30 days.
