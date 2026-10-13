@@ -16,7 +16,7 @@ export const LIBRARY_VIEW_PATHS: Record<LibraryView, string> = {
 };
 
 export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
-  all: "All cards",
+  all: "Everything",
   favorites: "Favorites",
   archive: "Archive",
   trash: "Trash",
@@ -53,7 +53,7 @@ export const libraryViewFlags = (view: LibraryView) => ({
 
 /**
  * Where a quick command typed in search (`fav`, `trash`, `archive`) goes:
- * that view, or back to All when it is already open.
+ * that view, or back to Everything when it is already open.
  */
 export const quickCommandTarget = (
   command: Exclude<LibraryView, "all">,

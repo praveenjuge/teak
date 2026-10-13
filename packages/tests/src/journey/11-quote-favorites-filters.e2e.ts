@@ -116,7 +116,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).not.toBeVisible({
       timeout: 15_000,
     });
-    await clickVisibleControl(screen.getByRole("link", "All cards"));
+    await clickVisibleControl(screen.getByRole("link", "Everything"));
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
   });
 

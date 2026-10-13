@@ -18,7 +18,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@teak/ui/components/ui/sidebar";
-import { Wordmark } from "@teak/ui/logo";
+import { LogoMark } from "@teak/ui/logo";
 import {
   Archive,
   File,
@@ -124,7 +124,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="h-10 hover:bg-transparent active:bg-transparent"
+              className="h-11 hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-11! group-data-[collapsible=icon]:p-0.5!"
               tooltip="Teak"
             >
               <LinkComponent
@@ -132,10 +132,9 @@ export function AppSidebar({
                 href={LIBRARY_VIEW_PATHS.all}
                 onClick={handleNavigate}
               >
-                <Wordmark
-                  className="h-5! w-auto! shrink-0 text-sidebar-foreground"
-                  variant="current"
-                />
+                {/* The app icon's mark: left-aligned with the menu icons,
+                    centered in the rail when collapsed. */}
+                <LogoMark className="size-7! shrink-0" />
               </LinkComponent>
             </SidebarMenuButton>
           </SidebarMenuItem>

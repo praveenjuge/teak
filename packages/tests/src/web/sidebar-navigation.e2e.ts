@@ -37,7 +37,7 @@ test("the sidebar opens each view, with back and forward", async ({
 }) => {
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
-  await expect(screen.getByRole("link", "All cards")).toHaveAttribute(
+  await expect(screen.getByRole("link", "Everything")).toHaveAttribute(
     "aria-current",
     "page"
   );
@@ -87,14 +87,14 @@ test("quick commands in search open their view", async ({
   await search.press("Enter");
   await expect(screen.getByPlaceholder("Search favorites...")).toBeVisible();
   expect(await pathOf(browser.url())).toBe("/favorites");
-  // Back returns to All without the command left in the search.
+  // Back returns to Everything without the command left in the search.
   await browser.back();
   await expect(screen.getByRole("searchbox")).toHaveValue("");
   expect(await pathOf(browser.url())).toBe("/");
   await browser.forward();
   await expect(screen.getByPlaceholder("Search favorites...")).toBeVisible();
 
-  // The open view's own command goes back to All.
+  // The open view's own command goes back to Everything.
   await screen.getByRole("searchbox").fill("favorites");
   await screen.getByRole("searchbox").press("Enter");
   await expect(screen.getByPlaceholder("Search for anything...")).toBeVisible();

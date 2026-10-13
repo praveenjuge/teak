@@ -76,7 +76,7 @@ test("a quick command asks to open its view instead of toggling", async () => {
   expect(controller.queryArgs.showTrashOnly).toBeUndefined();
 });
 
-test("the open view's own command goes back to All", async () => {
+test("the open view's own command goes back to Everything", async () => {
   const onNavigateView = mock();
   await render({ onNavigateView, view: "favorites" });
   await typeAndPress("fav");

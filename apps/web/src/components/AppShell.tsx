@@ -37,7 +37,7 @@ export function AppShell({
   const view = libraryViewForPath(pathname);
   const activeTypes = view ? parseCardTypesParam(searchParams.get("type")) : [];
 
-  // A type narrows the open view (Settings goes back to All) and keeps the
+  // A type narrows the open view (Settings goes back to Everything) and keeps the
   // search; the open card closes because it may not match any more.
   const handleToggleType = (type: CardType) => {
     const params = new URLSearchParams(view ? window.location.search : "");

@@ -83,7 +83,7 @@ describe("AppSidebar", () => {
     await renderSidebar({ activeView: "archive" });
     expect(link("Archive")?.getAttribute("aria-current")).toBe("page");
     expect(link("Archive")?.getAttribute("href")).toBe("/archive");
-    for (const name of ["All cards", "Favorites", "Trash", "Settings"]) {
+    for (const name of ["Everything", "Favorites", "Trash", "Settings"]) {
       expect(link(name)?.hasAttribute("aria-current")).toBe(false);
     }
   });
@@ -115,7 +115,7 @@ describe("AppSidebar", () => {
         .querySelector('[data-slot="sidebar"]')
         ?.getAttribute("data-collapsible")
     ).toBe("icon");
-    for (const name of ["All cards", "Favorites", "Archive", "Trash"]) {
+    for (const name of ["Everything", "Favorites", "Archive", "Trash"]) {
       expect(link(name)).toBeDefined();
     }
     expect(link("Settings")).toBeDefined();

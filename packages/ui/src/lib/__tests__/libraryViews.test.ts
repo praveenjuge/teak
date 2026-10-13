@@ -34,7 +34,7 @@ describe("quickCommandTarget", () => {
     expect(quickCommandTarget("archive", "favorites")).toBe("archive");
   });
 
-  test("goes back to All when that view is already open", () => {
+  test("goes back to Everything when that view is already open", () => {
     expect(quickCommandTarget("favorites", "favorites")).toBe("all");
   });
 });
