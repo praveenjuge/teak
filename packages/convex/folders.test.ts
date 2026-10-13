@@ -476,6 +476,29 @@ describe("folder view", () => {
     expect(await firstPage({ favoritesOnly: true })).toEqual(["Old red"]);
   });
 
+  test("quick command words search inside a folder instead of the library", async () => {
+    const { owner, create, insert, grid } = await setup();
+    const box = await create("Box");
+    const kept = await insert({
+      content: "My favorites list",
+      type: "text",
+      isFavorited: true,
+    });
+    await insert({
+      content: "Favorite elsewhere",
+      type: "text",
+      isFavorited: true,
+    });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: box._id,
+      cardIds: [kept],
+    });
+    expect(await grid({ folderId: box._id, searchQuery: "favorites" })).toEqual(
+      ["My favorites list"]
+    );
+    expect(await grid({ folderId: box._id, searchQuery: "trash" })).toEqual([]);
+  });
+
   test("Trash in a folder is in date order across archived and active cards", async () => {
     const { owner, create, insert, grid } = await setup();
     const box = await create("Box");

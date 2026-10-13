@@ -463,14 +463,30 @@ const components = {
       ],
       type: "object",
     },
-    FolderWriteRequest: {
+    FolderCreateRequest: {
       properties: {
         name: {
-          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case. Required to create.`,
+          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case.`,
           type: "string",
         },
         color: {
-          description: "A palette color. On update, null clears it.",
+          description: "A palette color.",
+          enum: [...FOLDER_COLORS],
+          type: "string",
+        },
+      },
+      required: ["name"],
+      type: "object",
+    },
+    FolderUpdateRequest: {
+      minProperties: 1,
+      properties: {
+        name: {
+          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case.`,
+          type: "string",
+        },
+        color: {
+          description: "A palette color, or null to clear it.",
           enum: [...FOLDER_COLORS, null],
           type: ["string", "null"],
         },
@@ -1232,7 +1248,7 @@ export const openApiSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/FolderWriteRequest" },
+              schema: { $ref: "#/components/schemas/FolderCreateRequest" },
             },
           },
         },
@@ -1280,7 +1296,7 @@ export const openApiSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/FolderWriteRequest" },
+              schema: { $ref: "#/components/schemas/FolderUpdateRequest" },
             },
           },
         },

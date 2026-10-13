@@ -358,7 +358,10 @@ export const searchCardsPaginatedHandler = async (
   if (searchQuery?.trim()) {
     const query = searchQuery.toLowerCase().trim();
 
+    // The quick commands list the whole library, so inside a folder the
+    // words are searched like any other.
     if (
+      !folderId &&
       ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
     ) {
       const favorites = await buildCardListQuery(ctx, {
@@ -380,7 +383,10 @@ export const searchCardsPaginatedHandler = async (
       };
     }
 
-    if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
+    if (
+      !folderId &&
+      ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
+    ) {
       const trashed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
         trash: true,
