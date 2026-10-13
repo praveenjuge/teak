@@ -103,7 +103,7 @@ No. Cards are stored until the person deletes them.
 - **`RECORD_AUDIO`:** asked for only when recording a voice memo.
 - **`CAMERA`:** asked for only when taking a photo from the Add screen.
 - **`POST_NOTIFICATIONS`:** asked for once before the first upload, to show upload progress.
-- **`FOREGROUND_SERVICE_DATA_SYNC`:** uploads a file the person chose, with a visible notification. Play's foreground service form asks for a description and a video. Use "Uploads files the user selected to their Teak library" and a short screen recording of an upload.
+- **`FOREGROUND_SERVICE_DATA_SYNC`:** uploads a file the person chose, with a visible notification. In the Foreground service permissions form, the task is Network processing, "Other" (uploading or downloading), and the video is https://drive.google.com/file/d/1MYtPMeRMwYtlkYT1I_jqqHndZHfCRxPA/view. The video picks a file, allows notifications, and shows the "Saving to Teak" progress while Teak is in the background. It's shared as "anyone with the link can view" from hello@praveenjuge.com's Drive. Record a new one if the upload flow changes.
 
 ## Store listing assets
 

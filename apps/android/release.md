@@ -15,8 +15,8 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
    - Keep a backup of both in a password manager. Losing the key means asking Google for an upload-key reset.
    - Upload certificate SHA-256: `5C:3E:DD:C4:BE:80:5D:6F:F6:CC:7E:38:A2:92:6A:AD:9E:55:86:10:A3:5E:18:ED:F6:A3:B8:47:93:1D:1C:11`.
 3. **Play App Signing**
-   - Turn it on when you create the first release, and let Google generate the app signing key.
-   - Google re-signs every install. The upload key only proves the upload came from us.
+   - It's on, and Google manages the app signing key. Google re-signs every install. The upload key only proves the upload came from us.
+   - App signing certificate SHA-256: `1D:91:49:74:38:43:74:CB:6D:AA:EF:53:FA:84:77:78:6F:F1:95:06:42:80:6F:2B:0E:25:A8:DF:81:A3:8C:BE`.
 4. **`apps/android/keystore.properties`**
    - It's gitignored and points at the key:
 
@@ -52,13 +52,13 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
    - Check a 16 KB-page emulator (`system-images;android-37.0;google_apis_playstore_ps16k;arm64-v8a`) as well.
 
 4. **Internal testing**
-   - Play Console, Test and release, Internal testing, Create new release.
+   - Play Console, Test and release, Internal testing, Create new release. The testers are the "Teak team" email list, and they install from https://play.google.com/apps/internaltest/4701620222568108073.
    - Upload the AAB and use the release note below.
    - Roll out to internal testers.
 
 5. **Closed testing**
-   - The first time only: promote the internal release to Closed testing and invite at least 12 testers by email list or Google Group.
-   - Each tester opts in from the link.
+   - The first time only: promote the internal release to Closed testing, with the Google Group [teak-android-testers@googlegroups.com](https://groups.google.com/g/teak-android-testers) as its testers. Anyone can join the group.
+   - Testers join the group, then opt in at https://play.google.com/apps/testing/com.praveenjuge.teak and install Teak from Google Play.
    - Google requires 12 or more testers opted in for 14 days in a row before you can apply for production. Updates during the test don't reset the clock.
 
 6. **Production access**
