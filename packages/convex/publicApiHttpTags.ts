@@ -90,9 +90,7 @@ export const handleTagOperationRequest = async (
   let operationId: string | undefined;
   if (!start) {
     try {
-      operationId = decodeURIComponent(
-        pathname.slice(OPERATION_PREFIX.length)
-      );
+      operationId = decodeURIComponent(pathname.slice(OPERATION_PREFIX.length));
     } catch {
       return errorResponse(404, "NOT_FOUND", "Tag route not found");
     }

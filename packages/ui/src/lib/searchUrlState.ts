@@ -14,8 +14,12 @@ export interface SearchUrlState {
   types: CardType[];
 }
 
-/** Longest tag the URL keeps, like the longest tag a card can have. */
-const MAX_URL_TAG_LENGTH = 64;
+/**
+ * Longest tag the URL keeps. A tag has at most 64 characters, but some
+ * letters grow when lowercased (a capital İ becomes two), so the lowercased
+ * name the tag list uses can be longer.
+ */
+const MAX_URL_TAG_LENGTH = 256;
 
 /** A tag from the URL as the tag list names it: trimmed and lowercased. */
 export function parseTagParam(value: string | null): string {

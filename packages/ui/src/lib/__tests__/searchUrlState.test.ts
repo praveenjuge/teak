@@ -136,9 +136,14 @@ describe("card types in the URL", () => {
 });
 
 describe("tag in the URL", () => {
-  test("reads a tag trimmed and lowercased, clipped to 64 characters", () => {
+  test("reads a tag trimmed and lowercased, without cutting a long tag", () => {
     expect(parse("tag=%20Design%20").tag).toBe("design");
-    expect(parse(`tag=${"x".repeat(100)}`).tag).toHaveLength(64);
+    expect(parse(`tag=${"x".repeat(300)}`).tag).toHaveLength(256);
+    // 64 capital İ lowercase to 128 code units; the key stays whole.
+    const dotted = "İ".repeat(64);
+    expect(parse(new URLSearchParams({ tag: dotted }).toString()).tag).toBe(
+      dotted.toLowerCase()
+    );
     expect(parse("tag=%D8%AA%D8%B5%D9%85%D9%8A%D9%85").tag).toBe("تصميم");
   });
 
