@@ -152,7 +152,9 @@ export function GlobalFileDropProvider({
       );
       if (limitFailure) {
         toast.error(
-          "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
+          withSkippedNote(
+            "You've reached your free tier limit. Upgrade to Pro for unlimited cards."
+          ),
           {
             ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
@@ -171,10 +173,13 @@ export function GlobalFileDropProvider({
           failure.errorCode === CARD_ERROR_CODES.RATE_LIMITED
       );
       if (rateLimited) {
-        toast.error("Too many cards created. Please wait a moment.", {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-          id: TOAST_IDS.uploadQueue,
-        });
+        toast.error(
+          withSkippedNote("Too many cards created. Please wait a moment."),
+          {
+            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+            id: TOAST_IDS.uploadQueue,
+          }
+        );
         return;
       }
 

@@ -9,10 +9,11 @@ const realConvexReact = await import("convex/react");
 const realSonner = await import("sonner");
 
 // Convex is the network boundary: preparing an upload hands back a URL and
-// finalizing it creates the card.
+// finalizing it creates the card, or reports why it couldn't.
+let finalizeResult: Record<string, unknown>;
 mock.module("convex/react", () => ({
   ...realConvexReact,
-  useAction: () => async () => ({ success: true, cardId: "card-1" }),
+  useAction: () => async () => finalizeResult,
   useMutation: () => async () => ({
     success: true,
     uploadKey: "upload-key",
@@ -73,6 +74,7 @@ async function enqueueAndWaitForResult(count: number) {
 }
 
 beforeEach(async () => {
+  finalizeResult = { success: true, cardId: "card-1" };
   for (const toastMock of [toastError, toastSuccess, toastWarning]) {
     toastMock.mockClear();
   }
@@ -122,5 +124,19 @@ test("picking files within the limit ends in a plain success toast", async () =>
   expect(toastSuccess).toHaveBeenCalledTimes(1);
   expect(toastSuccess.mock.calls[0][0]).toBe(
     `Uploaded ${MAX_FILES_PER_UPLOAD} files`
+  );
+});
+
+test("a rate-limited upload still says which files were skipped", async () => {
+  finalizeResult = {
+    success: false,
+    error: "Too many cards created.",
+    errorCode: "RATE_LIMITED",
+  };
+  await enqueueAndWaitForResult(MAX_FILES_PER_UPLOAD + 3);
+
+  expect(toastError).toHaveBeenCalledTimes(1);
+  expect(toastError.mock.calls[0][0]).toBe(
+    `Too many cards created. Please wait a moment. 3 files were skipped. You can upload up to ${MAX_FILES_PER_UPLOAD} at a time.`
   );
 });
