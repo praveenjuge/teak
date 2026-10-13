@@ -229,16 +229,27 @@ export function CardsScreen({
   }, [cards, searchKey, setRemoteCards]);
 
   // Some filtered views (colors or favorites inside a folder) can return a
-  // page with no match while more remain; keep loading until a card shows up
-  // or the list ends, instead of showing an empty state.
+  // page with no match while more remain. Whenever a requested page adds no
+  // cards, ask for the next one, so the grid neither shows an empty state
+  // nor stalls with matches still further down.
   const isSeekingFirstMatch =
     cards.length === 0 &&
     (cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore");
+  const countAtLoadMoreRef = useRef<number | null>(null);
+  const requestMoreCards = useCallback(() => {
+    countAtLoadMoreRef.current = cards.length;
+    loadMore(SEARCH_DEFAULT_CARD_LIMIT);
+  }, [cards.length, loadMore]);
   useEffect(() => {
-    if (cards.length === 0 && cardsStatus === "CanLoadMore") {
-      loadMore(SEARCH_DEFAULT_CARD_LIMIT);
+    if (cardsStatus !== "CanLoadMore") {
+      return;
     }
-  }, [cards.length, cardsStatus, loadMore]);
+    if (cards.length === 0 || countAtLoadMoreRef.current === cards.length) {
+      requestMoreCards();
+    } else {
+      countAtLoadMoreRef.current = null;
+    }
+  }, [cards.length, cardsStatus, requestMoreCards]);
 
   useEffect(() => {
     if (
@@ -530,7 +541,7 @@ export function CardsScreen({
           onDeleteCard={async (cardId) =>
             cardActions.handleDeleteCard(cardId as Id<"cards">)
           }
-          onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
+          onLoadMore={requestMoreCards}
           onPermanentDeleteCard={(cardId) =>
             cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
           }

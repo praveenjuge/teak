@@ -752,7 +752,7 @@ export default defineSchema({
     cardCreatedAt: v.number(),
     addedAt: v.number(),
   })
-    .index("by_folder_deleted_archived_created", [
+    .index("by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt", [
       "folderId",
       "isDeleted",
       "isArchived",
@@ -760,7 +760,7 @@ export default defineSchema({
     ])
     // Trash and "archived: include" list archived and active rows together,
     // so they need the date right after the Trash flag to stay in order.
-    .index("by_folder_deleted_created", [
+    .index("by_folderId_and_isDeleted_and_cardCreatedAt", [
       "folderId",
       "isDeleted",
       "cardCreatedAt",

@@ -36,12 +36,12 @@ Add manual folders: flat, colored, many-to-many (a card can live in up to 50 fol
 - `schema.ts`:
   - `folders { userId, name, nameKey (trimmed lowercase), color?, kind: "manual" | "smart", query?, activeCardCount, createdAt, updatedAt }` with `by_userId_and_nameKey`, `by_userId_and_createdAt`.
   - `cards.folderIds: v.optional(v.array(v.id("folders")))`.
-  - `folderCards { folderId, cardId, userId, isDeleted?, isArchived?, type, cardCreatedAt, addedAt }` with `by_folder_deleted_archived_created`, `by_cardId_and_folderId`, `by_userId`.
+  - `folderCards { folderId, cardId, userId, isDeleted?, isArchived?, type, cardCreatedAt, addedAt }` with `by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt`, `by_cardId_and_folderId`, `by_userId`.
 - `folders/folders.ts`: `createFolder`, `renameFolder`, `setFolderColor`, `deleteFolder`, `listFolders` (with `activeCardCount`), unique `nameKey` per user, cap 500.
 - `folders/membership.ts`: `addCardsToFolder`, `removeCardsFromFolder`, `moveCardsToFolder`; ownership checks on both card and folder; cap 50 per card; bumps `card.updatedAt`.
 - `syncCardFolderRows(ctx, card | null)` called from `syncCardSearchDocumentHandler`: diff `folderIds` against `folderCards`, copy `isDeleted`, `isArchived`, `type`, `createdAt`; adjust `activeCardCount`.
 - `workflows/folderDeletion.ts`: page through `folderCards` for the folder, strip the id from each card, delete rows, then the folder.
-- `searchCardsPaginated` gains optional `folderId`; the list path reads `folderCards.by_folder_deleted_archived_created`.
+- `searchCardsPaginated` gains optional `folderId`; the list path reads `folderCards.by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt`.
 - Bulk core (`card/bulkUpdate.ts`): `addToFolder`, `removeFromFolder`, `moveToFolder` ops.
 
 ## Web
@@ -121,4 +121,4 @@ Add manual folders: flat, colored, many-to-many (a card can live in up to 50 fol
 - **Seed packs:** `folders-one`, `folders-500`, `card-in-50-folders` and `folders-ugly` in `devSeed.seedScenario` (folders matched by name ignoring case, so "Ideas", "IDEAS" and "ideas" land in one folder; folders stop at the cap). `folders-none` is a fresh account, so it needs no pack.
 - **Tests:** membership is covered in `folders.test.ts` (convex-test) instead of a separate `__tests__/folders/membership.test.ts`; row decisions in `__tests__/folder/folderRows.test.ts`; UI helpers in `packages/ui/src/lib/__tests__/folders.test.ts`.
 - **Break-it fixes:** a fast double submit sent two creates, and the second failed as a duplicate; the dialogs now block re-entry with a ref. The 500-folder message only showed with an empty name. A 300-character name widened the page (the content column needed `min-w-0`). A mangled `/f/%E0` address threw while reading the folder id.
-- **Review fixes:** a delete batch carries its delete's `deletingAt`, so one left over from an undone delete can't end a later delete's Undo window early. Trash and `archived: include` folder listings use `by_folder_deleted_created`, so archived and active rows stay in date order. Colors, styles and favorites inside a folder page through the folder's own rows (200 per page, the grid loading on past pages with no match) instead of library-wide search results. A saturated text search in a folder filters all 1,024 index results before capping. Bulk Undo puts back each card's folders from what they were before, so it never removes a membership the card already had.
+- **Review fixes:** a delete batch carries its delete's `deletingAt`, so one left over from an undone delete can't end a later delete's Undo window early. Trash and `archived: include` folder listings use `by_folderId_and_isDeleted_and_cardCreatedAt`, so archived and active rows stay in date order. Colors, styles and favorites inside a folder page through the folder's own rows (200 per page, the grid loading on past pages with no match) instead of library-wide search results. A saturated text search in a folder filters all 1,024 index results before capping. Bulk Undo puts back each card's folders from what they were before, so it never removes a membership the card already had.

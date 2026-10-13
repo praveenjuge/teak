@@ -247,8 +247,11 @@ export function MasonryGrid({
   }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
 
   useEffect(() => {
+    // The sentinel only renders while the grid can grow, so this re-runs when
+    // hasMore turns true (a filter's first page can arrive before that).
+    const canGrow = visibleCount < filteredCards.length || hasMore !== false;
     const sentinel = loadMoreRef.current;
-    if (!sentinel) {
+    if (!(sentinel && canGrow)) {
       return;
     }
 
@@ -283,7 +286,7 @@ export function MasonryGrid({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [visibleCount, filteredCards.length]);
+  }, [visibleCount, filteredCards.length, hasMore]);
 
   const enterSelectionMode = useCallback((cardId?: string) => {
     setIsSelectionMode(true);

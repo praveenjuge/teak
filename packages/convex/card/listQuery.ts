@@ -208,20 +208,22 @@ export const buildFolderCardListQuery = (
     archived === "any"
       ? ctx.db
           .query("folderCards")
-          .withIndex("by_folder_deleted_created", (q) =>
+          .withIndex("by_folderId_and_isDeleted_and_cardCreatedAt", (q) =>
             withDates(
               q.eq("folderId", options.folderId).eq("isDeleted", isDeleted)
             )
           )
       : ctx.db
           .query("folderCards")
-          .withIndex("by_folder_deleted_archived_created", (q) =>
-            withDates(
-              q
-                .eq("folderId", options.folderId)
-                .eq("isDeleted", isDeleted)
-                .eq("isArchived", archived)
-            )
+          .withIndex(
+            "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+            (q) =>
+              withDates(
+                q
+                  .eq("folderId", options.folderId)
+                  .eq("isDeleted", isDeleted)
+                  .eq("isArchived", archived)
+              )
           );
   return types
     ? dated.filter((q) =>

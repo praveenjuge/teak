@@ -67,8 +67,9 @@ const setup = async () => {
     t.run((ctx) =>
       ctx.db
         .query("folderCards")
-        .withIndex("by_folder_deleted_archived_created", (q) =>
-          q.eq("folderId", folderId)
+        .withIndex(
+          "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+          (q) => q.eq("folderId", folderId)
         )
         .collect()
     );

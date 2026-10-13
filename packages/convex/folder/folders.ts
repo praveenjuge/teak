@@ -324,8 +324,9 @@ export const deleteFolderBatchHandler = async (
   }
   const rows = await ctx.db
     .query("folderCards")
-    .withIndex("by_folder_deleted_archived_created", (q) =>
-      q.eq("folderId", folderId)
+    .withIndex(
+      "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+      (q) => q.eq("folderId", folderId)
     )
     .take(FOLDER_DELETE_BATCH_SIZE);
   const now = Date.now();
