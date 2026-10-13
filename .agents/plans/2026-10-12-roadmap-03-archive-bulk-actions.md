@@ -103,3 +103,16 @@ Add Archive (hide a card from the library without deleting it) and real bulk act
 
 - Changing four search indexes' `filterFields` rebuilds them; search may be briefly incomplete during the rebuild. Deploy in a quiet hour.
 - Until the tag sync re-runs for a card, old tag rows lack `isArchived`; readers treat a missing value as active, which is correct because no card is archived before this deploy.
+
+## As built
+
+Where the shipped change differs from the plan above:
+
+- Readers take an archive scope (`archived: "exclude" | "only" | "include"`, `card/listQuery.ts`) instead of an `isArchived` boolean. Library reads default to `exclude`, the Archive view asks for `only`, and the public API exposes all three as `?archived=`. Trash ignores the scope and lists every trashed card. `include` reads `by_user_deleted_created`, and tag reads that ignore the archive state keep the old `cardSearchTags` indexes; the four `_v2` indexes serve `exclude` and `only`.
+- The session mutation is `api.cards.bulkUpdateCards({ cardIds, action, tags? })` in `card/bulkActions.ts`, returning `{ updatedIds, failedIds }`. Its per-card core `applyCardAction` also backs `POST /v1/cards/bulk`, where the new operations take one item per card (`{ cardId }`, or `{ cardId, tags }` for `addTags`/`removeTags`) and every response carries `failedIds`. `favorite` and `delete` moved onto the same core, so repeating them on a card already in that state is a no-op.
+- Restoring a card now counts it toward the card limit before writing it, so a refused restore inside a bulk run leaves nothing half-written.
+- `removeTags` also clears matching AI tags, and tags match ignoring case. One call names at most 20 tags.
+- Web: the bulk bar is a full-width strip across the top of the page (toasts own the bottom edge), with one primary action per view (Archive, Unarchive in Archive, Restore in Trash) and a More menu. Move to Trash no longer asks for confirmation; it offers Undo like Archive and Unarchive. Single-card Archive and Unarchive in the card menu and the card modal use the same toast.
+- The Archive view is an **Archived** filter chip beside Trash (or `archived` + Enter in the search bar), exclusive with Trash, until Phase 4's sidebar.
+- The `archive-mix` pack labels every card with its state ("Mix #0420 archived, favorite"), so a wrong view is visible at a glance.
+- convex-test can't evaluate search indexes over array fields, so the color and style search scope is covered by a fake-index unit test (`__tests__/card/visualFilters.test.ts`) rather than `archive.test.ts`.

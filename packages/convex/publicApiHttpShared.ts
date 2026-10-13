@@ -27,6 +27,7 @@ const CARD_TYPES = new Set([
   "quote",
 ]);
 const CARD_SORTS = new Set(["newest", "oldest"]);
+const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
 // Same per-tag cap as data import.
 const MAX_TAG_LENGTH = 64;
 const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
@@ -58,6 +59,8 @@ interface AuthorizedUser {
 
 type AuthResult = { validated: AuthorizedUser } | { error: Response };
 interface CardsQueryOptions {
+  /** Archived cards outside Trash; omitted means `"exclude"`. */
+  archived?: "exclude" | "only" | "include";
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
@@ -433,6 +436,7 @@ const parseTimestampQuery = (value: string | null): number | undefined => {
 };
 
 export {
+  ARCHIVED_FILTERS,
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
   type AuthResult,

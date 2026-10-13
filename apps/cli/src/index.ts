@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  type BulkCardsOperation,
   CARD_TYPES,
   type CardSort,
   isCardType,
@@ -26,6 +27,7 @@ import {
   openCard,
   refreshCards,
   restoreCards,
+  setCardsArchived,
   startExport,
   whoami,
 } from "./library";
@@ -143,6 +145,7 @@ export const queryOptions = (options: Record<string, unknown>) => {
     style: strings(options.style),
     tag: typeof options.tag === "string" ? options.tag : undefined,
     trashed: options.trashed === true,
+    archived: options.archived === true ? ("only" as const) : undefined,
     type: strings(options.type),
   };
 };
@@ -158,6 +161,7 @@ const withListOptions = (command: Command) =>
     .option("--tag <tag>", "exact tag")
     .option("--favorited", "favorites only")
     .option("--trashed", "cards in Trash only")
+    .option("--archived", "archived cards only")
     .option(
       "--style <style>",
       `visual style, repeatable: ${VISUAL_STYLE_TAXONOMY.join(", ")}`,
@@ -234,6 +238,18 @@ const createCard = async (
   const result = await addCard(content, options);
   write(options.json ? result : `${result.cardId}  ${result.appUrl}`, options);
 };
+
+const BULK_OPERATIONS: readonly string[] = [
+  "create",
+  "update",
+  "favorite",
+  "delete",
+  "restore",
+  "archive",
+  "unarchive",
+  "addTags",
+  "removeTags",
+] satisfies BulkCardsOperation[];
 
 // Accept the API's own request shape as well as a bare array of items.
 export const bulkItems = (input: unknown): unknown[] | null => {
@@ -424,6 +440,16 @@ cards
   .description("Refresh summaries, tags and link previews for cards")
   .action(async (ids) => refreshCards(ids, program.opts()));
 cards
+  .command("archive")
+  .argument("<ids...>")
+  .description("Archive cards: hide them from the library without deleting")
+  .action(async (ids) => setCardsArchived(ids, true, program.opts()));
+cards
+  .command("unarchive")
+  .argument("<ids...>")
+  .description("Return archived cards to the library")
+  .action(async (ids) => setCardsArchived(ids, false, program.opts()));
+cards
   .command("open")
   .argument("<id>")
   .description("Open a card in Teak on the web")
@@ -448,13 +474,16 @@ cards
   });
 cards
   .command("bulk")
-  .argument("<operation>", "create, update, favorite, or delete")
+  .argument(
+    "<operation>",
+    "create, update, favorite, delete, restore, archive, unarchive, addTags, or removeTags"
+  )
   .description("Run one operation on up to 100 cards from a JSON file")
   .option("--input <file>", "JSON items; reads stdin when omitted")
   .action(async (operation, options) => {
-    if (!["create", "update", "favorite", "delete"].includes(operation)) {
+    if (!BULK_OPERATIONS.includes(operation)) {
       throw new InvalidArgumentError(
-        "operation must be create, update, favorite, or delete"
+        `operation must be one of: ${BULK_OPERATIONS.join(", ")}`
       );
     }
     const opts = { ...program.opts(), ...options };
@@ -467,7 +496,10 @@ cards
         'bulk input must be a JSON array or {"items": [...]}'
       );
     }
-    const result = await client(opts).cards.bulk(operation, items);
+    const result = await client(opts).cards.bulk(
+      operation as BulkCardsOperation,
+      items
+    );
     write(
       opts.json
         ? result
@@ -583,6 +615,16 @@ program
   .argument("<ids...>")
   .description("Refresh summaries, tags and link previews for cards")
   .action(async (ids) => refreshCards(ids, program.opts()));
+program
+  .command("archive")
+  .argument("<ids...>")
+  .description("Archive cards: hide them from the library without deleting")
+  .action(async (ids) => setCardsArchived(ids, true, program.opts()));
+program
+  .command("unarchive")
+  .argument("<ids...>")
+  .description("Return archived cards to the library")
+  .action(async (ids) => setCardsArchived(ids, false, program.opts()));
 program
   .command("open")
   .argument("<id>")

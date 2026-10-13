@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "../../convexQueryHooks";
+import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
@@ -84,6 +85,18 @@ export function ConnectedCardModal({
     onCardTypeClick,
     onCardUpdate,
   });
+
+  // Archive leaves the current view, so it runs like a one-card bulk action:
+  // the same toast, with Undo.
+  const runBulkAction = useBulkCardActions("card-modal");
+  const toggleArchive = useCallback(() => {
+    if (!card) {
+      return;
+    }
+    runBulkAction(card.isArchived ? "unarchive" : "archive", [card._id]).catch(
+      () => undefined
+    );
+  }, [card, runBulkAction]);
 
   useEffect(() => {
     if (
@@ -175,6 +188,7 @@ export function ConnectedCardModal({
           userTags={card?.tags || []}
         />
       }
+      toggleArchive={toggleArchive}
       toggleFavorite={toggleFavorite}
       updateContent={updateContent}
     />

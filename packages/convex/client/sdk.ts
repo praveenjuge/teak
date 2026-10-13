@@ -59,6 +59,8 @@ export interface Card {
   aiTags: string[];
   aiTranscript: string | null;
   appUrl: string;
+  /** When the card was archived, or null. */
+  archivedAt: number | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
   audioWaveform: { detail: number[]; grid: number[] } | null;
   colors: Array<{ hex: string; name?: string }>;
@@ -74,6 +76,8 @@ export interface Card {
   fileSize: number | null;
   fileUrl: string | null;
   id: string;
+  /** Archived cards are hidden from the library but still count. */
+  isArchived: boolean;
   isDeleted: boolean;
   isFavorited: boolean;
   linkAuthor: string | null;
@@ -158,6 +162,7 @@ export interface CreateCardInput {
 }
 export interface UpdateCardInput {
   content?: string;
+  isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
   /** AI tags to drop. `tags` replaces only the card's own tags. */
@@ -223,11 +228,25 @@ export interface RefreshCardResponse {
   requestedAt: number;
   status: "queued";
 }
+export type BulkCardsOperation =
+  | "create"
+  | "update"
+  | "favorite"
+  | "delete"
+  | "archive"
+  | "unarchive"
+  | "addTags"
+  | "removeTags"
+  | "restore";
 export interface BulkCardsResponse {
-  operation: "create" | "update" | "favorite" | "delete";
+  /** The `cardId` of every item that failed, to retry just those. */
+  failedIds: string[];
+  operation: BulkCardsOperation;
   results: unknown[];
   summary: { failed: number; succeeded: number; total: number };
 }
+/** Archived cards outside Trash: left out by default. */
+export type ArchivedFilter = "exclude" | "only" | "include";
 
 export class TeakApiError extends Error {
   code: TeakApiErrorCode;
@@ -316,6 +335,7 @@ const asList = (value?: string | readonly string[]): readonly string[] => {
 };
 
 export const buildCardsSearchParams = (input: {
+  archived?: ArchivedFilter;
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
@@ -356,6 +376,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.trashed) {
     search.set("trashed", "true");
+  }
+  if (input.archived === "only" || input.archived === "include") {
+    search.set("archived", input.archived);
   }
   if (input.sort === "oldest") {
     search.set("sort", "oldest");
@@ -562,7 +585,7 @@ export const createTeakClient = (options: {
   return {
     cards: {
       bulk: (
-        operation: BulkCardsResponse["operation"],
+        operation: BulkCardsOperation,
         items: unknown[],
         requestOptions?: RequestOptions
       ) =>
@@ -627,6 +650,13 @@ export const createTeakClient = (options: {
           `/v1/cards?${qs({ include: "content,metadata", ...input })}`,
           { method: "GET" },
           asPage
+        ),
+      /** Archives the card (hidden from the library, not deleted) or returns it. */
+      setArchived: (id: string, isArchived: boolean) =>
+        request(
+          cardPath(id),
+          { body: JSON.stringify({ isArchived }), method: "PATCH" },
+          asCard
         ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(

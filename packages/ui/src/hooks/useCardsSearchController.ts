@@ -27,6 +27,8 @@ export interface CardsSearchState {
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
   searchQuery: string;
+  /** The Archive view; never on together with Trash. */
+  showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   styleFilters: VisualStyle[];
@@ -39,6 +41,7 @@ export interface CardsSearchQueryArgs {
   hexFilters?: string[];
   hueFilters?: ColorHueBucket[];
   searchQuery?: string;
+  showArchivedOnly?: boolean;
   showTrashOnly?: boolean;
   /** Only set for oldest first, so the default query keeps its key. */
   sort?: "oldest";
@@ -93,6 +96,7 @@ export interface UseCardsSearchControllerResult {
   ) => void;
   setSort: (sort: CardListSort) => void;
   setTimeFilter: (timeFilter: TimeFilter | null) => void;
+  showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   sort: CardListSort;
@@ -114,6 +118,7 @@ export function createInitialCardsSearchState(): CardsSearchState {
     styleFilters: [],
     hueFilters: [],
     hexFilters: [],
+    showArchivedOnly: false,
     showFavoritesOnly: false,
     showTrashOnly: false,
     timeFilter: null,
@@ -136,6 +141,7 @@ export function buildCardsSearchQueryArgs(
     types: state.filterTags.length > 0 ? state.filterTags : undefined,
     favoritesOnly: state.showFavoritesOnly || undefined,
     showTrashOnly: state.showTrashOnly || undefined,
+    showArchivedOnly: state.showArchivedOnly || undefined,
     styleFilters:
       state.styleFilters.length > 0 ? state.styleFilters : undefined,
     hueFilters: state.hueFilters.length > 0 ? state.hueFilters : undefined,
@@ -153,6 +159,7 @@ function getHasActiveSearch(state: CardsSearchState): boolean {
       state.hexFilters.length > 0 ||
       state.showFavoritesOnly ||
       state.showTrashOnly ||
+      state.showArchivedOnly ||
       state.timeFilter
   );
 }
@@ -166,6 +173,7 @@ function getHasNoFilters(state: CardsSearchState): boolean {
     state.hexFilters.length === 0 &&
     !state.showFavoritesOnly &&
     !state.showTrashOnly &&
+    !state.showArchivedOnly &&
     !state.searchQuery &&
     !state.timeFilter
   );
@@ -173,7 +181,7 @@ function getHasNoFilters(state: CardsSearchState): boolean {
 
 export function buildCardsSearchResetKey(state: CardsSearchState): string {
   const searchTerms = buildCardsSearchTerms(state);
-  return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
+  return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
 }
 
 export function applyEnterToCardsSearchState(
@@ -213,6 +221,16 @@ export function applyEnterToCardsSearchState(
     return {
       ...state,
       showTrashOnly: !state.showTrashOnly,
+      showArchivedOnly: false,
+      searchQuery: "",
+    };
+  }
+
+  if (quickCommand === "archive") {
+    return {
+      ...state,
+      showArchivedOnly: !state.showArchivedOnly,
+      showTrashOnly: false,
       searchQuery: "",
     };
   }
@@ -328,6 +346,13 @@ export function applyBackspaceToCardsSearchState(
     return {
       ...state,
       showTrashOnly: false,
+    };
+  }
+
+  if (state.showArchivedOnly) {
+    return {
+      ...state,
+      showArchivedOnly: false,
     };
   }
 
@@ -482,6 +507,7 @@ export function useCardsSearchController(
         hexFilters: searchState.hexFilters,
         favoritesOnly: searchState.showFavoritesOnly,
         showTrashOnly: searchState.showTrashOnly,
+        showArchivedOnly: searchState.showArchivedOnly,
         createdAtRange: searchState.timeFilter?.range,
         sort,
       }),
@@ -500,6 +526,7 @@ export function useCardsSearchController(
       hexFilters: searchState.hexFilters,
       favoritesOnly: searchState.showFavoritesOnly,
       showTrashOnly: searchState.showTrashOnly,
+      showArchivedOnly: searchState.showArchivedOnly,
       createdAtRange: searchState.timeFilter?.range,
       sort,
     });
@@ -620,6 +647,7 @@ export function useCardsSearchController(
       hexFilters: searchState.hexFilters,
       showFavoritesOnly: searchState.showFavoritesOnly,
       showTrashOnly: searchState.showTrashOnly,
+      showArchivedOnly: searchState.showArchivedOnly,
       onAddFilter: addFilter,
       onRemoveFilter: (filter) =>
         setSearchState((prev) => ({
@@ -662,6 +690,13 @@ export function useCardsSearchController(
         setSearchState((prev) => ({
           ...prev,
           showTrashOnly: !prev.showTrashOnly,
+          showArchivedOnly: false,
+        })),
+      onToggleArchived: () =>
+        setSearchState((prev) => ({
+          ...prev,
+          showArchivedOnly: !prev.showArchivedOnly,
+          showTrashOnly: false,
         })),
       onClearAll: clearAllFilters,
       sort,
@@ -677,6 +712,7 @@ export function useCardsSearchController(
     styleFilters: searchState.styleFilters,
     hueFilters: searchState.hueFilters,
     hexFilters: searchState.hexFilters,
+    showArchivedOnly: searchState.showArchivedOnly,
     showFavoritesOnly: searchState.showFavoritesOnly,
     showTrashOnly: searchState.showTrashOnly,
     timeFilter: searchState.timeFilter,

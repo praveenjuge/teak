@@ -8,9 +8,19 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import {
+  applyCardAction,
+  type BulkCardAction,
+  normalizeBulkTags,
+} from "./card/bulkActions";
 import { createCardForUserHandler } from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
-import { buildCardListQuery } from "./card/listQuery";
+import {
+  type ArchivedFilter,
+  archivedFilterMatch,
+  archivedFilterValidator,
+  buildCardListQuery,
+} from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
@@ -19,7 +29,6 @@ import {
 } from "./card/searchDocumentHelpers";
 import {
   type CardFieldEdit,
-  updateCardFieldForUserHandler,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
 import {
@@ -81,9 +90,15 @@ const bulkResultValidator = v.object({
     v.literal("create"),
     v.literal("update"),
     v.literal("favorite"),
-    v.literal("delete")
+    v.literal("delete"),
+    v.literal("archive"),
+    v.literal("unarchive"),
+    v.literal("addTags"),
+    v.literal("removeTags"),
+    v.literal("restore")
   ),
   results: v.array(v.any()),
+  failedIds: v.array(v.string()),
   summary: v.object({
     total: v.number(),
     succeeded: v.number(),
@@ -92,6 +107,8 @@ const bulkResultValidator = v.object({
 });
 
 interface SearchOptions {
+  /** Archived cards outside Trash; defaults to `"exclude"`. */
+  archived?: ArchivedFilter;
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
@@ -227,6 +244,14 @@ const matchesStructuredFilters = (
     if (!tagSet.has(options.tag)) {
       return false;
     }
+  }
+
+  const archived = archivedFilterMatch(options.archived, options.showTrashOnly);
+  if (
+    archived !== "any" &&
+    (card.isArchived === true) !== (archived === true)
+  ) {
+    return false;
   }
 
   return (
@@ -372,6 +397,7 @@ const searchCardsByQuery = async (
         userId,
         searchQuery,
         isDeleted: options.showTrashOnly ? true : undefined,
+        archived: options.archived,
         isFavorited: options.favorited,
         type,
         limit: SEARCH_CANDIDATE_LIMIT,
@@ -430,6 +456,7 @@ const searchCardsByTag = async (
         userId,
         tag,
         isDeleted: options.showTrashOnly ? true : undefined,
+        archived: options.archived,
         isFavorited: options.favorited,
         type,
         createdAfter,
@@ -476,6 +503,7 @@ const createBaseQuery = (
   return buildCardListQuery(ctx, {
     userId,
     trash: options.showTrashOnly,
+    archived: options.archived,
     favoritesOnly: options.favorited === true,
     types: options.type ? [options.type] : options.types,
     createdAt: { gte: lower, lte: upper },
@@ -575,6 +603,7 @@ const scanCardsWithBaseQuery = async (
 };
 
 const normalizeCardsQueryOptions = (args: {
+  archived?: ArchivedFilter;
   showTrashOnly?: boolean;
   styleFilters?: string[];
   hueFilters?: string[];
@@ -590,6 +619,7 @@ const normalizeCardsQueryOptions = (args: {
   types?: Doc<"cards">["type"][];
 }): SearchOptions => {
   const normalized: SearchOptions = {
+    archived: args.archived,
     showTrashOnly: args.showTrashOnly,
     ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -621,6 +651,7 @@ export const searchCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
     showTrashOnly: v.optional(v.boolean()),
+    archived: v.optional(archivedFilterValidator),
     styleFilters: v.optional(v.array(v.string())),
     hueFilters: v.optional(v.array(v.string())),
     hexFilters: v.optional(v.array(v.string())),
@@ -714,6 +745,7 @@ export const scanCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
     showTrashOnly: v.optional(v.boolean()),
+    archived: v.optional(archivedFilterValidator),
     styleFilters: v.optional(v.array(v.string())),
     hueFilters: v.optional(v.array(v.string())),
     hexFilters: v.optional(v.array(v.string())),
@@ -753,7 +785,8 @@ export const scanCardsPageForUser = internalQuery({
 const MAX_TAG_ROWS_READ = 8000;
 
 /**
- * Lists the tags on cards outside Trash, with how many cards carry each,
+ * Lists the tags on cards outside Trash and Archive, with how many cards
+ * carry each,
  * from the per-tag search index rather than the cards. Tags are the
  * lowercase names `GET /v1/cards?tag=` matches, including tags Teak added.
  * Reads at most MAX_TAG_ROWS_READ index rows; `isComplete` is false when a
@@ -794,11 +827,12 @@ export const listTagsForUser = internalQuery({
       let count = 0;
       const activeRows = ctx.db
         .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_created", (query) =>
+        .withIndex("by_user_tag_deleted_archived_created_v2", (query) =>
           query
             .eq("userId", userId)
             .eq("tag", next.tag)
             .eq("isDeleted", undefined)
+            .eq("isArchived", undefined)
         );
       for await (const _row of activeRows) {
         if (budget <= 0) {
@@ -970,7 +1004,16 @@ export const listCardChangesForUser = internalQuery({
   },
 });
 
-type BulkOperation = "create" | "update" | "favorite" | "delete";
+type BulkOperation =
+  | "create"
+  | "update"
+  | "favorite"
+  | "delete"
+  | "archive"
+  | "unarchive"
+  | "addTags"
+  | "removeTags"
+  | "restore";
 
 // Validates every field before writing and charges the reprocess limit once,
 // so a rejected item leaves its card untouched.
@@ -1075,7 +1118,12 @@ export const executeBulkCardsForUser = internalMutation({
       v.literal("create"),
       v.literal("update"),
       v.literal("favorite"),
-      v.literal("delete")
+      v.literal("delete"),
+      v.literal("archive"),
+      v.literal("unarchive"),
+      v.literal("addTags"),
+      v.literal("removeTags"),
+      v.literal("restore")
     ),
     items: v.array(v.any()),
   },
@@ -1090,6 +1138,7 @@ export const executeBulkCardsForUser = internalMutation({
     }
 
     const results: Record<string, unknown>[] = [];
+    const failedIds: string[] = [];
     let succeeded = 0;
 
     for (const [index, item] of args.items.entries()) {
@@ -1200,7 +1249,12 @@ export const executeBulkCardsForUser = internalMutation({
             break;
           }
           case "favorite":
-          case "delete": {
+          case "delete":
+          case "archive":
+          case "unarchive":
+          case "addTags":
+          case "removeTags":
+          case "restore": {
             const cardId = ctx.db.normalizeId(
               "cards",
               String(payload.cardId ?? "")
@@ -1212,21 +1266,22 @@ export const executeBulkCardsForUser = internalMutation({
               });
             }
 
+            let action = args.operation as BulkCardAction;
             if (args.operation === "favorite") {
               assertBulkFavoritePayload(payload);
-              await updateCardFieldForUserHandler(ctx, {
-                userId,
-                cardId,
-                field: "isFavorited",
-                value: payload.isFavorited,
-              });
-            } else {
-              await updateCardFieldForUserHandler(ctx, {
-                userId,
-                cardId,
-                field: "delete",
-              });
+              action = payload.isFavorited ? "favorite" : "unfavorite";
             }
+            const tags =
+              action === "addTags" || action === "removeTags"
+                ? normalizeBulkTags(
+                    Array.isArray(payload.tags)
+                      ? payload.tags.filter(
+                          (value): value is string => typeof value === "string"
+                        )
+                      : undefined
+                  )
+                : undefined;
+            await applyCardAction(ctx, { userId, cardId, action, tags });
 
             results.push({
               index,
@@ -1268,12 +1323,20 @@ export const executeBulkCardsForUser = internalMutation({
           status: "error",
           error: message,
         });
+        const failedId =
+          item && typeof item === "object" && !Array.isArray(item)
+            ? (item as Record<string, unknown>).cardId
+            : undefined;
+        if (typeof failedId === "string" && failedId) {
+          failedIds.push(failedId);
+        }
       }
     }
 
     return {
       operation: args.operation,
       results,
+      failedIds,
       summary: {
         total: args.items.length,
         succeeded,

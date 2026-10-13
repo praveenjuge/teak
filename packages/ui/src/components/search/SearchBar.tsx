@@ -12,6 +12,7 @@ import {
 import { Button } from "@teak/ui/components/ui/button";
 import { Input } from "@teak/ui/components/ui/input";
 import {
+  Archive,
   Clock,
   Droplets,
   File,
@@ -50,10 +51,13 @@ export interface SearchBarProps {
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
   onSortChange?: (sort: CardListSort) => void;
+  /** Shows the Archived filter when set. */
+  onToggleArchived?: () => void;
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
   SettingsButton?: ReactNode;
   searchQuery: string;
+  showArchivedOnly?: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   sort?: CardListSort;
@@ -110,6 +114,7 @@ export function SearchBar({
   hexFilters,
   showFavoritesOnly,
   showTrashOnly,
+  showArchivedOnly = false,
   onAddFilter,
   onRemoveFilter,
   onRemoveStyleFilter,
@@ -119,6 +124,7 @@ export function SearchBar({
   onRemoveTimeFilter,
   onToggleFavorites,
   onToggleTrash,
+  onToggleArchived,
   onClearAll,
   SettingsButton,
   HeaderActions,
@@ -136,7 +142,8 @@ export function SearchBar({
     hueFilters.length > 0 ||
     hexFilters.length > 0 ||
     showFavoritesOnly ||
-    showTrashOnly;
+    showTrashOnly ||
+    showArchivedOnly;
   const shouldShowFilters =
     isFocused || hasAnyFilters || searchQuery.length > 0;
 
@@ -304,6 +311,19 @@ export function SearchBar({
               </Button>
             )}
 
+            {showArchivedOnly && onToggleArchived && (
+              <Button
+                aria-pressed={showArchivedOnly}
+                onClick={onToggleArchived}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="default"
+              >
+                <Archive className="size-3.5 stroke-2" />
+                <span>Archived</span>
+              </Button>
+            )}
+
             {availableFilters.map((filter) => {
               const IconComponent = getFilterIcon(filter);
               return (
@@ -344,6 +364,19 @@ export function SearchBar({
               >
                 <Trash2 className="size-3.5 stroke-2" />
                 <span>Trash</span>
+              </Button>
+            )}
+
+            {!showArchivedOnly && onToggleArchived && (
+              <Button
+                aria-pressed={showArchivedOnly}
+                onClick={onToggleArchived}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="outline"
+              >
+                <Archive className="size-3.5 stroke-2" />
+                <span>Archived</span>
               </Button>
             )}
 

@@ -93,6 +93,8 @@ interface CardModalProps {
   showNotesEditModal: boolean;
   showTagManagementModal: boolean;
   TagManagementModal: React.ReactNode;
+  /** Archives or unarchives the card; the modal then closes. */
+  toggleArchive?: () => void;
   toggleFavorite: () => void;
   updateContent: (value: string) => void;
 }
@@ -106,6 +108,7 @@ export function CardModal({
   hasUnsavedChanges,
   getCurrentValue,
   updateContent,
+  toggleArchive,
   toggleFavorite,
   handleDelete,
   handleRestore,
@@ -211,6 +214,12 @@ export function CardModal({
                     permanentlyDeleteCard: () =>
                       setIsPermanentDeleteConfirmOpen(true),
                     reprocessCard: onReprocess,
+                    toggleArchive: toggleArchive
+                      ? () => {
+                          toggleArchive();
+                          void handleClose();
+                        }
+                      : undefined,
                   }}
                   card={card}
                   getCurrentValue={getCurrentValue}

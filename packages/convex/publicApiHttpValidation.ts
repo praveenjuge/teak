@@ -9,6 +9,7 @@ import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { readIsDevDeployment } from "./env";
 import {
+  ARCHIVED_FILTERS,
   CARD_SORTS,
   CARD_TYPES,
   type CardListInclude,
@@ -105,6 +106,8 @@ const serializeCard = (card: any, requestUrl: string) => ({
   filePreview: card.fileMetadata?.preview ?? null,
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
+  archivedAt: card.archivedAt ?? null,
+  isArchived: Boolean(card.isArchived),
   isFavorited: Boolean(card.isFavorited),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
   metadataDescription: card.metadataDescription ?? null,
@@ -132,6 +135,7 @@ const serializeListCard = (
     appUrl: getCardAppUrl(requestUrl, card._id),
     createdAt: card.createdAt,
     id: card._id,
+    isArchived: Boolean(card.isArchived),
     isFavorited: Boolean(card.isFavorited),
     metadataDescription: card.metadataDescription ?? null,
     metadataTitle: card.metadataTitle ?? null,
@@ -400,6 +404,17 @@ const parseCardsQueryOptions = (
       "Query parameter `trashed` must be `true` or `false`"
     );
   }
+  const archived = parseOptionalString(searchParams.get("archived"));
+  if (
+    searchParams.has("archived") &&
+    !(archived && ARCHIVED_FILTERS.has(archived))
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `archived` must be `exclude`, `only` or `include`"
+    );
+  }
   for (const dimension of ["style", "hue", "hex"]) {
     if (
       searchParams.getAll(dimension).length >
@@ -495,6 +510,7 @@ const parseCardsQueryOptions = (
     createdAfter,
     createdBefore,
     cursor: parseOptionalString(searchParams.get("cursor")),
+    archived: archived as CardsQueryOptions["archived"],
     favoritesOnly: favorited === true,
     showTrashOnly: trashed === true,
     styleFilters: visualFilters.styleFilters,
@@ -581,6 +597,7 @@ const parseCardRoute = (
 
 interface PatchCardPayload {
   content?: string;
+  isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
   removeAiTags?: string[];
@@ -596,6 +613,7 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   const source = payload as Record<string, unknown>;
   const allowedKeys = new Set([
     "content",
+    "isArchived",
     "metadataTitle",
     "notes",
     "removeAiTags",
@@ -659,6 +677,13 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
       return null;
     }
     next.removeAiTags = removeAiTags;
+  }
+
+  if ("isArchived" in source) {
+    if (typeof source.isArchived !== "boolean") {
+      return null;
+    }
+    next.isArchived = source.isArchived;
   }
 
   if (Object.keys(next).length === 0) {

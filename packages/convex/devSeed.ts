@@ -388,18 +388,86 @@ const orderingScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
+// Archive mix: 1,000 cards in every library state. Every fifth card is
+// archived (200), 20 of those are also in Trash, 100 more are only in Trash,
+// and every seventh card is a favorite whatever its state. Tags differ only
+// by case ("Moodboard", "moodboard") across archived and active cards. Each
+// label names its state, so a wrong view shows at a glance. Seeded 200 at a
+// time.
+export const ARCHIVE_MIX_SCENARIO_SIZE = 1000;
+export const ARCHIVE_MIX_SCENARIO_PAGE_SIZE = 200;
+const ARCHIVE_MIX_START = Date.UTC(2025, 0, 1);
+
+export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
+  const isArchived = index % 5 === 0;
+  const isDeleted = index % 10 === 3 || index % 50 === 0;
+  const isFavorited = index % 7 === 0;
+  let state = "active";
+  if (isArchived && isDeleted) {
+    state = "archived, in Trash";
+  } else if (isArchived) {
+    state = "archived";
+  } else if (isDeleted) {
+    state = "in Trash";
+  }
+  const label = `Mix #${String(index).padStart(4, "0")} ${state}${isFavorited ? ", favorite" : ""}`;
+  const base = {
+    createdAt: ARCHIVE_MIX_START + index * 3_600_000,
+    tags: ["scenario-archive", index % 2 === 0 ? "Moodboard" : "moodboard"],
+    isArchived: isArchived || undefined,
+    isDeleted: isDeleted || undefined,
+    isFavorited: isFavorited || undefined,
+  };
+  const type = ORDERING_TYPES[index % ORDERING_TYPES.length];
+  if (type === "link") {
+    const url = `https://example.com/archive-mix/${index}#${SCENARIO_MARKER}-archive`;
+    return { ...base, type, content: url, url, metadataTitle: label };
+  }
+  if (type === "palette") {
+    return {
+      ...base,
+      ...palette(label, [orderingHex(index), orderingHex(index + 500)]),
+    };
+  }
+  return {
+    ...base,
+    type,
+    content: type === "quote" ? `"${label}"` : label,
+  };
+};
+
+const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
+  const start = page * ARCHIVE_MIX_SCENARIO_PAGE_SIZE;
+  const end = Math.min(
+    start + ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
+    ARCHIVE_MIX_SCENARIO_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    archiveMixScenarioCard(start + offset)
+  );
+};
+
 const scenarioPackPage = (
-  scenario: "card-details" | "ordering",
+  scenario: "card-details" | "ordering" | "archive-mix",
   page: number
-): DefaultCardDef[] =>
-  scenario === "ordering"
-    ? orderingScenarioPage(page)
-    : CARD_DETAILS_SCENARIO_CARDS;
+): DefaultCardDef[] => {
+  if (scenario === "ordering") {
+    return orderingScenarioPage(page);
+  }
+  if (scenario === "archive-mix") {
+    return archiveMixScenarioPage(page);
+  }
+  return CARD_DETAILS_SCENARIO_CARDS;
+};
 
 export const seedScenario = internalMutation({
   args: {
     workosUserId: v.string(),
-    scenario: v.union(v.literal("card-details"), v.literal("ordering")),
+    scenario: v.union(
+      v.literal("card-details"),
+      v.literal("ordering"),
+      v.literal("archive-mix")
+    ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),
   },

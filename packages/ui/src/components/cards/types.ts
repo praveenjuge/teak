@@ -52,6 +52,7 @@ export interface CardWithUrls {
     waveform?: WaveformMetadata;
   };
   fileUrl?: string;
+  isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
   linkPreviewImageUrl?: string;
@@ -89,6 +90,8 @@ export interface CardProps {
   onEnterSelectionMode?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;
+  /** Archives the card, or returns an archived one to the library. */
+  onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
   onToggleSelection?: () => void;
 }

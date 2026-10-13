@@ -10,6 +10,7 @@ import {
   clampSearchOffset,
 } from "../shared/search/constants";
 import {
+  type ArchivedFilter,
   buildCardListQuery,
   type CardListSort,
   cardListSortValidator,
@@ -122,6 +123,7 @@ export const searchCards = query({
     types: v.optional(v.array(cardTypeValidator)),
     favoritesOnly: v.optional(v.boolean()),
     showTrashOnly: v.optional(v.boolean()),
+    showArchivedOnly: v.optional(v.boolean()),
     styleFilters: v.optional(v.array(v.string())),
     hueFilters: v.optional(v.array(v.string())),
     hexFilters: v.optional(v.array(v.string())),
@@ -146,6 +148,7 @@ export const searchCards = query({
       hexFilters,
       createdAtRange,
     } = args;
+    const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
     const limit = clampSearchLimit(args.limit);
     const sort = normalizeCardListSort(args.sort);
     const order = sort === "oldest" ? "asc" : "desc";
@@ -201,6 +204,7 @@ export const searchCards = query({
         userId: user.teakUserId,
         searchQuery,
         isDeleted: showTrashOnly ? true : undefined,
+        archived,
         isFavorited: favoritesOnly ? true : undefined,
         type: types?.length === 1 ? types[0] : undefined,
         limit: getSearchResultLimit(limit),
@@ -234,6 +238,7 @@ export const searchCards = query({
       const visualResults = await runVisualFacetQueries(ctx, {
         userId: user.teakUserId,
         showTrashOnly,
+        archived,
         types,
         favoritesOnly,
         createdAtRange,
@@ -252,6 +257,7 @@ export const searchCards = query({
     const cards = await buildCardListQuery(ctx, {
       userId: user.teakUserId,
       trash: showTrashOnly,
+      archived,
       favoritesOnly,
       types,
       createdAt: createdAtRange
@@ -271,6 +277,8 @@ export const searchCardsPaginatedArgsValidator = v.object({
   types: v.optional(v.array(cardTypeValidator)),
   favoritesOnly: v.optional(v.boolean()),
   showTrashOnly: v.optional(v.boolean()),
+  /** The Archive view: archived cards that are not in Trash. */
+  showArchivedOnly: v.optional(v.boolean()),
   styleFilters: v.optional(v.array(v.string())),
   hueFilters: v.optional(v.array(v.string())),
   hexFilters: v.optional(v.array(v.string())),
@@ -307,6 +315,7 @@ export const searchCardsPaginatedHandler = async (
     hexFilters,
     createdAtRange,
   } = args;
+  const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
   const sort: CardListSort = normalizeCardListSort(args.sort);
   const order = sort === "oldest" ? "asc" : "desc";
   // Clamp the caller-provided page size so a single request cannot force an
@@ -385,6 +394,7 @@ export const searchCardsPaginatedHandler = async (
       userId: user.teakUserId,
       searchQuery,
       isDeleted: showTrashOnly ? true : undefined,
+      archived,
       isFavorited: favoritesOnly ? true : undefined,
       type: types?.length === 1 ? types[0] : undefined,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
@@ -437,6 +447,7 @@ export const searchCardsPaginatedHandler = async (
     const visualResults = await runVisualFacetQueries(ctx, {
       userId: user.teakUserId,
       showTrashOnly,
+      archived,
       types,
       favoritesOnly,
       createdAtRange,
@@ -460,6 +471,7 @@ export const searchCardsPaginatedHandler = async (
   const cards = await buildCardListQuery(ctx, {
     userId: user.teakUserId,
     trash: showTrashOnly,
+    archived,
     favoritesOnly,
     types,
     createdAt: createdAtRange

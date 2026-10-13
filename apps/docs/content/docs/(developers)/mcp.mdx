@@ -160,8 +160,8 @@ type CardFilters = {
   - Input: `{ since: number, cursor?: string, limit?: number }`
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
-  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true, idempotencyKey?: string }`
-  - Output: `{ operation, results: [{ index, status: "success", cardId } | { index, status: "error", code, error }], summary: { total, succeeded, failed } }`. Delete batches move cards to Trash and require `confirm: true`.
+  - Input: `{ operation: "create" | "update" | "favorite" | "delete" | "archive" | "unarchive" | "addTags" | "removeTags" | "restore", items: object[], confirm?: true, idempotencyKey?: string }`. Archive, unarchive, restore, and delete items are `{ cardId }`; addTags and removeTags items are `{ cardId, tags }`.
+  - Output: `{ operation, results: [{ index, status: "success", cardId } | { index, status: "error", code, error }], failedIds: string[], summary: { total, succeeded, failed } }`. Delete batches move cards to Trash and require `confirm: true`.
   - If any item fails, the result is marked as a tool error (`isError: true`) and its text lists the failed items. The other items still succeed.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
@@ -173,6 +173,10 @@ type CardFilters = {
   - Output: updated card object
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`
+  - Output: updated card object
+- `teak_v1_set_card_archived`
+  - Input: `{ cardId: string, isArchived: boolean }`
+  - Archives the card (hidden from listings and search, not deleted) or returns it to the library. List archived cards with `archived: "only"` in `CardFilters`.
   - Output: updated card object
 - `teak_v1_delete_card` <Badge variant="danger">Needs confirm</Badge>
   - Input: `{ cardId: string, confirm: true }`

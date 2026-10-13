@@ -43,7 +43,9 @@ const updateCardFieldValidator = v.union(
   v.literal("isFavorited"),
   v.literal("removeAiTag"),
   v.literal("delete"),
-  v.literal("restore")
+  v.literal("restore"),
+  v.literal("archive"),
+  v.literal("unarchive")
 );
 
 interface UpdateCardFieldForUserArgs {
@@ -58,7 +60,9 @@ interface UpdateCardFieldForUserArgs {
     | "isFavorited"
     | "removeAiTag"
     | "delete"
-    | "restore";
+    | "restore"
+    | "archive"
+    | "unarchive";
   tagToRemove?: string;
   userId: TeakUserId;
   value?: unknown;
@@ -506,6 +510,25 @@ export const updateCardFieldForUserHandler = async (
       updateData.deletedAt = undefined;
       break;
 
+    // Archive hides a card from the library without deleting it, so it
+    // still counts toward the card limit. A card in Trash keeps its archived
+    // state, and restoring it returns it to Archive.
+    case "archive":
+      if (card.isArchived) {
+        return { shouldSchedulePipeline: false };
+      }
+      updateData.isArchived = true;
+      updateData.archivedAt = now;
+      break;
+
+    case "unarchive":
+      if (!card.isArchived) {
+        return { shouldSchedulePipeline: false };
+      }
+      updateData.isArchived = undefined;
+      updateData.archivedAt = undefined;
+      break;
+
     default:
       throw new Error(`Unsupported field: ${field}`);
   }
@@ -521,11 +544,15 @@ export const updateCardFieldForUserHandler = async (
     await ensureCardUsageShards(ctx, userId, hasPremium ?? false);
   }
 
+  // Count a restored card before writing it: at the card limit this throws
+  // with nothing written, so a bulk restore that carries on past the refusal
+  // never leaves a restored card uncounted.
+  if (field === "restore" && card.isDeleted) {
+    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
+  }
   await ctx.db.patch("cards", cardId, updateData);
   if (field === "delete" && !card.isDeleted) {
     await recordActiveCardRemoved(ctx, userId, cardId);
-  } else if (field === "restore" && card.isDeleted) {
-    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
   }
   if (!options.deferSearchSync) {
     await scheduleCardSearchSync(ctx, cardId, userId, card);
