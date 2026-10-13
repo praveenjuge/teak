@@ -1,7 +1,7 @@
 import Foundation
 
 /// Owns the WorkOS session: sign-in, shared storage and access tokens.
-/// Port of `apps/mobile/lib/workos-session.ts`, plus the Mac app's
+/// Ported from the Expo iPhone app's WorkOS session, plus Teak for Mac's
 /// cross-process lock so the app and its extensions never replay a rotated
 /// refresh token.
 public actor TeakSession {

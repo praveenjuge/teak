@@ -1,6 +1,6 @@
 # Android app
 
-Native Kotlin and Jetpack Compose. The app matches the iPhone app (`apps/mobile`): when you change behavior on one, check the other.
+Native Kotlin and Jetpack Compose. The app matches the Apple app (`apps/apple`): when you change behavior on one, check the other.
 
 ## Build and run
 

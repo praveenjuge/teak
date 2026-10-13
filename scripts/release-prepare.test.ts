@@ -13,29 +13,14 @@ import {
   resolveBump,
   setAppleMarketingVersion,
   setManifestVersion,
-  setSafariXcodeVersion,
   updateManifestVersions,
   writeFileAtomically,
 } from "./release-prepare.ts";
-import { appleVersionSources, safariXcodeProject } from "./release-version.mjs";
+import { appleVersionSources } from "./release-version.mjs";
 
 const writeManifest = (path: string, version: string): void => {
   mkdirSync(join(path, ".."), { recursive: true });
   writeFileSync(path, `${JSON.stringify({ name: "x", version })}\n`);
-};
-
-const writeSafariProject = (
-  root: string,
-  marketing: string,
-  build: number
-): string => {
-  const projectPath = resolve(root, safariXcodeProject);
-  mkdirSync(dirname(projectPath), { recursive: true });
-  writeFileSync(
-    projectPath,
-    `MARKETING_VERSION = ${marketing};\nCURRENT_PROJECT_VERSION = ${build};\n`
-  );
-  return projectPath;
 };
 
 const appleSafariManifest =
@@ -76,18 +61,6 @@ describe("writeFileAtomically", () => {
 
     expect(() => writeFileAtomically(destination, "replacement")).toThrow();
     expect(existsSync(`${destination}.${process.pid}.tmp`)).toBe(false);
-  });
-});
-
-describe("setSafariXcodeVersion", () => {
-  test("updates native marketing and build versions", () => {
-    const root = mkdtempSync(join(tmpdir(), "teak-release-"));
-    const projectPath = writeSafariProject(root, "1.0.39", 1);
-    expect(setSafariXcodeVersion(projectPath, "1.0.66")).toBe(true);
-    expect(readFileSync(projectPath, "utf-8")).toBe(
-      "MARKETING_VERSION = 1.0.66;\nCURRENT_PROJECT_VERSION = 66;\n"
-    );
-    expect(setSafariXcodeVersion(projectPath, "1.0.66")).toBe(false);
   });
 });
 
@@ -137,20 +110,11 @@ describe("updateManifestVersions", () => {
     writeManifest(join(root, "package.json"), "1.0.65");
     writeManifest(join(root, "apps/web/package.json"), "1.0.65");
     writeManifest(join(root, "packages/ui/package.json"), "1.0.64");
-    writeManifest(
-      join(root, "apps/mac/Shared (Extension)/Resources/manifest.json"),
-      "1.0.39"
-    );
-    const projectPath = writeSafariProject(root, "1.0.39", 1);
     writeAppleSources(root, "1.0.65");
     const updated = updateManifestVersions(root, "1.0.66");
     expect(updated).toContain("package.json");
     expect(updated).toContain("apps/web/package.json");
     expect(updated).toContain("packages/ui/package.json");
-    expect(updated).toContain(
-      "apps/mac/Shared (Extension)/Resources/manifest.json"
-    );
-    expect(updated).toContain(safariXcodeProject);
     expect(updated).toContain(appleSafariManifest);
     for (const relative of appleVersionSources) {
       expect(updated).toContain(relative);
@@ -160,17 +124,6 @@ describe("updateManifestVersions", () => {
     }
     expect(readVersion(join(root, appleSafariManifest))).toBe("1.0.66");
     expect(readVersion(join(root, "packages/ui/package.json"))).toBe("1.0.66");
-    expect(
-      readVersion(
-        join(root, "apps/mac/Shared (Extension)/Resources/manifest.json")
-      )
-    ).toBe("1.0.66");
-    expect(readFileSync(projectPath, "utf-8")).toContain(
-      "CURRENT_PROJECT_VERSION = 66;"
-    );
-    expect(readFileSync(projectPath, "utf-8")).toContain(
-      "MARKETING_VERSION = 1.0.66;"
-    );
   });
 
   test("skips manifests already at the target version", () => {
@@ -178,11 +131,6 @@ describe("updateManifestVersions", () => {
     writeManifest(join(root, "package.json"), "1.0.66");
     mkdirSync(join(root, "apps"), { recursive: true });
     mkdirSync(join(root, "packages"), { recursive: true });
-    writeManifest(
-      join(root, "apps/mac/Shared (Extension)/Resources/manifest.json"),
-      "1.0.66"
-    );
-    writeSafariProject(root, "1.0.66", 66);
     writeAppleSources(root, "1.0.66");
     expect(updateManifestVersions(root, "1.0.66")).toEqual([]);
   });

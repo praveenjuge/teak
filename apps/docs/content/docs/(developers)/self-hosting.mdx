@@ -219,9 +219,9 @@ The web Content-Security-Policy always allows the canonical file origins
 from custom origins, mirror the backend `FILES_BASE` into
 `NEXT_PUBLIC_FILES_BASE` at web build time.
 
-### Client Apps (`apps/mobile`, `apps/extension`)
+### Browser Extension (`apps/extension`)
 
-Mobile and Extension share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension):
+The extension reads the deployment URLs with the `VITE_PUBLIC_` prefix:
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud

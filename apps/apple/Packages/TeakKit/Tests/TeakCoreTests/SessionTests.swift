@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Ported from apps/mobile/__tests__/lib/workos-session.test.ts, plus the
+// Ported from the Expo iPhone app's workos-session tests, plus the
 // cross-process cases the app and its extensions add.
 
 private func makeSession(_ storage: MemoryStorage, _ transport: ScriptedTransport, directory: URL = Fixture.tempDirectory(),

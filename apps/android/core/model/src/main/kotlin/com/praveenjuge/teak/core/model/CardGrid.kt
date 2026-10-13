@@ -3,7 +3,7 @@ package com.praveenjuge.teak.core.model
 import kotlin.math.abs
 import kotlin.math.sin
 
-/** Masonry layout rules shared with the iPhone grid (apps/mobile/lib/card-grid.ts). */
+/** Masonry layout rules, ported from the Expo iPhone app's card grid. */
 object CardGrid {
     const val GAP_DP = 12
     const val EDGE_DP = 16

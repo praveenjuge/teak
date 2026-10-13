@@ -42,7 +42,6 @@
       "includes": [
         "apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json",
         "apps/apple/SafariExtension/Resources/manifest.json",
-        "apps/mac/Shared (Extension)/Resources/manifest.json",
         "**/*.xcassets/**/Contents.json",
         ".agents/skills/workos/**"
       ],
@@ -192,8 +191,7 @@
         // Sequential awaits in loops are often intentional (ordered port
         // binding, bounded retries); parallelizing is a per-site decision.
         "noAwaitInLoops": "off",
-        // Namespace imports are the documented idiom for Expo modules and
-        // Radix primitives.
+        // Namespace imports are the documented idiom for Radix primitives.
         "noNamespaceImport": "off",
         // Workspace packages re-export through index barrels by design.
         "noBarrelFile": "off",
@@ -204,7 +202,7 @@
         // False-positives on workspace aliases and virtual modules (wxt,
         // astro, raycast).
         "noUnresolvedImports": "off",
-        // Bundler-resolved monorepo (Next/Expo/WXT); extensions would break
+        // Bundler-resolved monorepo (Next/WXT); extensions would break
         // resolution.
         "useImportExtensions": "off"
       },

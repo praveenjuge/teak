@@ -92,9 +92,6 @@ export const PLATFORM_EXACT = [
   "CONVEX_CLOUD_URL",
   "CONVEX_DEPLOYMENT",
   "DEV",
-  "EAS_BUILD",
-  "EAS_BUILD_PROFILE",
-  "EXPO_OS",
   "GH_TOKEN",
   "GITHUB_ACTIONS",
   "GITHUB_ENV",
@@ -143,8 +140,6 @@ export const PLATFORM_EXACT = [
 export const PLATFORM_PATTERNS = [
   // Claude Code sets these in its sessions (CLAUDE_CODE_REMOTE in cloud VMs).
   /^CLAUDE_CODE_/,
-  /^EAS_/,
-  /^EXPO_(?!PUBLIC_)/,
   /^GITHUB_/,
   /^MAIN_WINDOW_VITE_/,
   /^npm_/,

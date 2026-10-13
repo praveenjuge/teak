@@ -13,12 +13,12 @@ import path from "node:path";
 const script = path.resolve(import.meta.dir, "./publish-apple.sh");
 
 const platforms = {
-  mac: {
-    directory: "apps/mac/assets/screenshots/en-US",
+  "apple-mac": {
+    directory: "apps/apple/store/screenshots/mac/en-US",
     displayType: "APP_DESKTOP",
   },
-  iphone: {
-    directory: "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
+  "apple-iphone": {
+    directory: "apps/apple/store/screenshots/iphone/en-US",
     displayType: "APP_IPHONE_67",
   },
   "apple-ipad": {
@@ -32,40 +32,23 @@ function run(
   invalidLocal = false,
   uploadFails = false,
   assetFails = false,
-  platform: keyof typeof platforms = "mac",
+  platform: keyof typeof platforms = "apple-mac",
   configured = ["01-library.png"]
 ) {
   const root = mkdtempSync(path.join(tmpdir(), "teak-store-screenshots-"));
   const assets = path.join(root, platforms[platform].directory);
   mkdirSync(assets, { recursive: true });
-  mkdirSync(path.join(root, "apps/mac"), { recursive: true });
-  mkdirSync(path.join(root, "apps/mobile"), { recursive: true });
   mkdirSync(path.join(root, "apps/apple/store"), { recursive: true });
   mkdirSync(path.join(root, "bin"));
   writeFileSync(
     path.join(root, "apps/apple/store/store.config.json"),
     JSON.stringify({
       locale: "en-US",
-      screenshots: { iphone: [], ipad: configured, mac: [] },
-    })
-  );
-  writeFileSync(
-    path.join(root, "apps/mac/store.config.json"),
-    JSON.stringify({ locale: "en-US", screenshots: configured })
-  );
-  writeFileSync(
-    path.join(root, "apps/mobile/store.config.json"),
-    JSON.stringify({
-      apple: {
-        info: {
-          "en-US": {
-            screenshots: {
-              APP_IPHONE_67: configured.map(
-                (name) => `store/apple/screenshot/en-US/APP_IPHONE_67/${name}`
-              ),
-            },
-          },
-        },
+      screenshots: {
+        iphone: [],
+        ipad: [],
+        mac: [],
+        [platform.replace("apple-", "")]: configured,
       },
     })
   );
@@ -144,7 +127,7 @@ test("replaces stale screenshots and verifies the uploaded bytes before completi
     "--version-localization",
     "locale-id",
     "--path",
-    "apps/mac/assets/screenshots/en-US",
+    "apps/apple/store/screenshots/mac/en-US",
     "--device-type",
     "APP_DESKTOP",
     "--replace",
@@ -158,13 +141,13 @@ test("replaces stale screenshots and verifies the uploaded bytes before completi
 });
 
 test("publishes the iPhone set to its own display type", () => {
-  const { result, calls } = run(false, false, false, false, "iphone");
+  const { result, calls } = run(false, false, false, false, "apple-iphone");
   expect(result.exitCode).toBe(0);
   expect(calls[0]).toEqual([
     "screenshots",
     "validate",
     "--path",
-    "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
+    "apps/apple/store/screenshots/iphone/en-US",
     "--device-type",
     "APP_IPHONE_67",
     "--output",
@@ -173,7 +156,7 @@ test("publishes the iPhone set to its own display type", () => {
   const upload = calls.find((args) => args[1] === "upload");
   expect(upload?.slice(4, 8)).toEqual([
     "--path",
-    "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
+    "apps/apple/store/screenshots/iphone/en-US",
     "--device-type",
     "APP_IPHONE_67",
   ]);
@@ -192,7 +175,7 @@ test("publishes the Apple app's iPad set from its own folder", () => {
 });
 
 test("a screenshot missing from the configured set never replaces the existing set", () => {
-  const { result, calls } = run(false, false, false, false, "iphone", [
+  const { result, calls } = run(false, false, false, false, "apple-iphone", [
     "01-library.png",
     "02-detail.png",
   ]);

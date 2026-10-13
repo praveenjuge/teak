@@ -25,7 +25,6 @@ import { join } from "node:path";
 import {
   type Capabilities,
   checkRuntimeVersion,
-  inferLanHost,
   isInstallStale,
   markInstallFresh,
   planCapabilities,
@@ -49,7 +48,6 @@ import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 const ROOT = join(import.meta.dir, "..");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
 const EXTENSION_ENV_PATH = join(ROOT, "apps/extension/.env.local");
-const MOBILE_ENV_PATH = join(ROOT, "apps/mobile/.env.local");
 
 export const requiredBunVersion = (packageManager: string): string => {
   const match = /^bun@(\d+\.\d+\.\d+)$/.exec(packageManager.trim());
@@ -98,7 +96,7 @@ export interface SetupReport {
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker] [--convex cloud|skip] [--check] [--json]";
+  "Usage: bun run setup [--target web|docs|cli|extension|files-worker] [--convex cloud|skip] [--check] [--json]";
 
 const CONVEX_MODES: readonly string[] = ["cloud", "skip"];
 
@@ -166,18 +164,6 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     {
       path: EXTENSION_ENV_PATH,
       keys: ["VITE_PUBLIC_CONVEX_URL", "VITE_PUBLIC_CONVEX_SITE_URL"],
-    },
-  ],
-  "mobile-simulator": [
-    {
-      path: MOBILE_ENV_PATH,
-      keys: ["EXPO_PUBLIC_CONVEX_URL", "EXPO_PUBLIC_CONVEX_SITE_URL"],
-    },
-  ],
-  "mobile-device": [
-    {
-      path: MOBILE_ENV_PATH,
-      keys: ["EXPO_PUBLIC_CONVEX_URL", "EXPO_PUBLIC_CONVEX_SITE_URL"],
     },
   ],
   "files-worker": [],
@@ -399,24 +385,6 @@ export const runSetup = async (
     });
   }
 
-  if (target === "mobile-device") {
-    const lan = inferLanHost();
-    checks.push({
-      id: "setup-mobile-lan",
-      ok: true,
-      severity: "warn",
-      detail: lan
-        ? `simulator uses loopback; physical devices reach this host at ${lan}`
-        : "no LAN address inferred; simulators work, physical devices need this host on a reachable network",
-      ...(lan
-        ? {}
-        : {
-            remediation: [
-              "Join a LAN and re-run, or use --target mobile-simulator",
-            ],
-          }),
-    });
-  }
   if (target === "files-worker") {
     checks.push({
       id: "setup-files-pointer",

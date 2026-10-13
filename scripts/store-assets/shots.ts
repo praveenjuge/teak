@@ -4,13 +4,7 @@
  * edit it here and re-render; to change what a screen shows, recapture it.
  */
 
-export type StoreId =
-  | "mac"
-  | "iphone"
-  | "android"
-  | "apple-iphone"
-  | "apple-ipad"
-  | "apple-mac";
+export type StoreId = "android" | "apple-iphone" | "apple-ipad" | "apple-mac";
 
 export interface Shot {
   /** Short and catchy. One line on Mac, at most two on phones. */
@@ -71,26 +65,6 @@ const MAC_SHOTS: Shot[] = [
 ];
 
 export const STORES: Record<StoreId, Store> = {
-  // "Teak for Mac" and the Expo iPhone app, until the native app replaces them.
-  mac: {
-    layout: "mac",
-    window: { app: "Teak for Mac", title: "Teak Library" },
-    sourceDir: "apps/mac/assets/screenshots/source",
-    outputDir: "apps/mac/assets/screenshots/en-US",
-    viewport: { width: 1440, height: 900 },
-    scale: 2,
-    shots: MAC_SHOTS,
-  },
-  iphone: {
-    layout: "phone",
-    frame: IPHONE_FRAME,
-    simulator: "iPhone 17 Pro Max",
-    sourceDir: "apps/mobile/store/apple/source",
-    outputDir: "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
-    viewport: { width: 440, height: 956 },
-    scale: 3,
-    shots: PHONE_SHOTS,
-  },
   // The native Apple app (apps/apple): one listing for iPhone, iPad and Mac.
   "apple-iphone": {
     layout: "phone",

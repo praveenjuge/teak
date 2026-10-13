@@ -17,7 +17,7 @@ sealed interface ShareTarget {
     data class File(val url: String, val fileName: String, val mimeType: String?) : ShareTarget
 }
 
-/** The detail screen's formatting rules. Port of apps/mobile/lib/card-sheet.ts. */
+/** The detail screen's formatting rules, ported from the Expo iPhone app. */
 object CardSheet {
     private val sizeUnits = listOf("B", "KB", "MB", "GB")
 

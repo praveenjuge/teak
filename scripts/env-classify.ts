@@ -36,7 +36,7 @@ export const classify = (entry: EnvVarSpec): EnvClassification => {
   return "public-config";
 };
 
-const PUBLIC_PREFIXES = ["NEXT_PUBLIC_", "VITE_", "EXPO_PUBLIC_"];
+const PUBLIC_PREFIXES = ["NEXT_PUBLIC_", "VITE_"];
 
 /** Framework mechanics decide exposure: these prefixes ship to clients. */
 export const exposureOf = (entry: EnvVarSpec): EnvExposure =>

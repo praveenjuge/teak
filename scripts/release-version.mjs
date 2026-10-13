@@ -4,8 +4,6 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const safariManifest = "apps/mac/Shared (Extension)/Resources/manifest.json";
-export const safariXcodeProject = "apps/mac/teak-mac.xcodeproj/project.pbxproj";
 const appleSafariManifest =
   "apps/apple/SafariExtension/Resources/manifest.json";
 // project.yml is the source of truth; Teak.xcodeproj is generated from it, so
@@ -67,7 +65,7 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  files.push(safariManifest, appleSafariManifest);
+  files.push(appleSafariManifest);
   return files.sort();
 }
 
@@ -84,41 +82,8 @@ export function replaceAppleMarketingVersions(contents, version) {
   );
 }
 
-export function safariXcodeVersions(contents) {
-  return {
-    build: [...contents.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(
-      (match) => match[1]
-    ),
-    marketing: [...contents.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(
-      (match) => match[1]
-    ),
-  };
-}
-
-function defaultSafariXcodeSource(repoRoot) {
-  const originalDirectory = process.cwd();
-  try {
-    process.chdir(repoRoot);
-    return fs.readFileSync(
-      "apps/mac/teak-mac.xcodeproj/project.pbxproj",
-      "utf8"
-    );
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  } finally {
-    process.chdir(originalDirectory);
-  }
-}
-
-export function assertLockstep(
-  repoRoot,
-  expectedVersion,
-  safariXcodeSource = defaultSafariXcodeSource(repoRoot)
-) {
-  const [, , patchVersion] = parseVersion(expectedVersion);
+export function assertLockstep(repoRoot, expectedVersion) {
+  parseVersion(expectedVersion);
   const mismatches = [];
   for (const relative of releaseManifestFiles(repoRoot)) {
     let manifest;
@@ -152,24 +117,6 @@ export function assertLockstep(
     for (const [field, version] of versions) {
       if (version !== expectedVersion) {
         mismatches.push(`${relative} ${field}: ${version ?? "missing"}`);
-      }
-    }
-  }
-  if (safariXcodeSource === null) {
-    mismatches.push(`${safariXcodeProject}: missing`);
-  } else {
-    const xcodeVersions = safariXcodeVersions(safariXcodeSource);
-    for (const [field, versions, expected] of [
-      ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
-      ["CURRENT_PROJECT_VERSION", xcodeVersions.build, String(patchVersion)],
-    ]) {
-      if (versions.length === 0) {
-        mismatches.push(`${safariXcodeProject} ${field}: missing`);
-      }
-      for (const version of new Set(versions)) {
-        if (version !== expected) {
-          mismatches.push(`${safariXcodeProject} ${field}: ${version}`);
-        }
       }
     }
   }

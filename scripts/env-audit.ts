@@ -45,7 +45,6 @@ export interface AuditFinding {
 const ALIAS_ACCESSOR_FILES = new Set([
   "apps/web/src/lib/public-env.ts",
   "apps/extension/lib/env.ts",
-  "apps/mobile/lib/public-env.ts",
 ]);
 
 export const isAliasAccessorPath = (path: string): boolean => {
@@ -85,7 +84,6 @@ const SKIP_DIRS = new Set([
   ".turbo",
   ".next",
   ".vercel",
-  ".expo",
   "node_modules",
   "dist",
   "build",

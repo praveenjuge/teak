@@ -44,11 +44,9 @@ For user documentation or changelog changes, follow `apps/docs/AGENTS.md`.
 Before any release, complete the shared preparation in `.agents/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
 
 - Apple (iPhone, iPad, Mac): `apps/apple/release.md`
-- Mobile (Expo, frozen, retiring): `apps/mobile/release.md`
 - Android: `apps/android/release.md`
 - Browser extension: `apps/extension/release.md`
-- Mac (Teak for Mac, off sale since 2026-10-11; no longer released): `apps/mac/release.md`
 - CLI: `apps/cli/AGENTS.md`
-- Store screenshots (Mac, iPhone, Play): `scripts/store-assets/README.md`
+- Store screenshots (iPhone, iPad, Mac, Play): `scripts/store-assets/README.md`
 
 All package versions move in lockstep. Release tasks use the next patch version unless the canonical runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues, and workflow inspection.
