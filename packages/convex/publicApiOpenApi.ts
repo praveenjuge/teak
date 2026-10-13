@@ -10,6 +10,7 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
 } from "./shared/folders";
+import { MAX_TAG_NAME_LENGTH, TAG_OPERATION_COUNT_LIMIT } from "./shared/tags";
 
 const CARD_TYPES = [
   "text",
@@ -435,6 +436,63 @@ const components = {
       },
       required: ["deletedIds", "items", "pageInfo"],
       type: "object",
+    },
+    TagOperation: {
+      description:
+        "A library-wide tag change. It rewrites user and AI tags on every card, including cards in Trash and Archive, matching the tag ignoring case.",
+      properties: {
+        id: { type: "string" },
+        kind: { enum: ["rename", "merge", "delete"], type: "string" },
+        from: {
+          description: "The tag being changed, lowercased.",
+          type: "string",
+        },
+        to: {
+          description: "The new name (rename) or the tag merged into (merge).",
+          type: ["string", "null"],
+        },
+        status: { enum: ["running", "completed", "failed"], type: "string" },
+        total: {
+          description: `Cards carrying the tag when the change started (counted up to ${TAG_OPERATION_COUNT_LIMIT}).`,
+          type: "number",
+        },
+        processed: { description: "Cards looked at so far.", type: "number" },
+        changed: { description: "Cards rewritten so far.", type: "number" },
+        error: { type: ["string", "null"] },
+        createdAt: { type: "number" },
+        updatedAt: { type: "number" },
+        completedAt: { type: ["number", "null"] },
+      },
+      required: [
+        "id",
+        "kind",
+        "from",
+        "to",
+        "status",
+        "total",
+        "processed",
+        "changed",
+        "error",
+        "createdAt",
+        "updatedAt",
+        "completedAt",
+      ],
+      type: "object",
+    },
+    TagOperationStarted: {
+      allOf: [
+        { $ref: "#/components/schemas/TagOperation" },
+        {
+          properties: {
+            operationId: {
+              description: "Poll GET /v1/tags/operations/{operationId}.",
+              type: "string",
+            },
+          },
+          required: ["operationId"],
+          type: "object",
+        },
+      ],
     },
     Folder: {
       properties: {
@@ -1211,6 +1269,172 @@ export const openApiSpec = {
         security: apiKeySecurity,
         operationId: "listTags",
         summary: "List tags",
+      },
+    },
+    "/v1/tags/rename": {
+      post: {
+        operationId: "renameTag",
+        summary: "Rename a tag",
+        description:
+          "Renames a tag on every card. Renaming to a different casing of the same tag recases it. Returns at once; poll the operation for progress. One tag change runs at a time per account.",
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                properties: {
+                  from: {
+                    description: "The tag to rename, matched ignoring case.",
+                    maxLength: MAX_TAG_NAME_LENGTH,
+                    type: "string",
+                  },
+                  to: {
+                    description: "The new name, written exactly as given.",
+                    maxLength: MAX_TAG_NAME_LENGTH,
+                    type: "string",
+                  },
+                },
+                required: ["from", "to"],
+                type: "object",
+              },
+            },
+          },
+        },
+        responses: {
+          202: {
+            description: "Tag change started",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TagOperationStarted" },
+              },
+            },
+          },
+          400: { description: "Invalid tag name" },
+          404: { description: "No card has the tag" },
+          409: {
+            description:
+              "Another tag change is still running (`TAG_OPERATION_RUNNING`) or a tag with the new name exists (`TAG_EXISTS`; merge into it instead)",
+          },
+        },
+      },
+    },
+    "/v1/tags/merge": {
+      post: {
+        operationId: "mergeTags",
+        summary: "Merge a tag into another",
+        description:
+          "Replaces a tag with another on every card; a card that has both keeps one. Returns at once; poll the operation for progress. One tag change runs at a time per account.",
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                properties: {
+                  from: {
+                    description:
+                      "The tag to merge away, matched ignoring case.",
+                    maxLength: MAX_TAG_NAME_LENGTH,
+                    type: "string",
+                  },
+                  into: {
+                    description: "The tag to keep.",
+                    maxLength: MAX_TAG_NAME_LENGTH,
+                    type: "string",
+                  },
+                },
+                required: ["from", "into"],
+                type: "object",
+              },
+            },
+          },
+        },
+        responses: {
+          202: {
+            description: "Tag change started",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TagOperationStarted" },
+              },
+            },
+          },
+          400: { description: "Invalid tag name" },
+          404: { description: "No card has the tag" },
+          409: {
+            description:
+              "Another tag change is still running (`TAG_OPERATION_RUNNING`)",
+          },
+        },
+      },
+    },
+    "/v1/tags/delete": {
+      post: {
+        operationId: "deleteTag",
+        summary: "Delete a tag",
+        description:
+          "Removes a tag from every card. The cards are kept. Returns at once; poll the operation for progress. One tag change runs at a time per account.",
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                properties: {
+                  tag: {
+                    description: "The tag to delete, matched ignoring case.",
+                    maxLength: MAX_TAG_NAME_LENGTH,
+                    type: "string",
+                  },
+                },
+                required: ["tag"],
+                type: "object",
+              },
+            },
+          },
+        },
+        responses: {
+          202: {
+            description: "Tag change started",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TagOperationStarted" },
+              },
+            },
+          },
+          400: { description: "Invalid tag name" },
+          404: { description: "No card has the tag" },
+          409: {
+            description:
+              "Another tag change is still running (`TAG_OPERATION_RUNNING`)",
+          },
+        },
+      },
+    },
+    "/v1/tags/operations/{operationId}": {
+      get: {
+        operationId: "getTagOperation",
+        parameters: [
+          {
+            in: "path",
+            name: "operationId",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        summary: "Get a tag change's progress",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Tag operation",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TagOperation" },
+              },
+            },
+          },
+          404: { description: "Tag operation not found" },
+        },
       },
     },
     "/v1/folders": {

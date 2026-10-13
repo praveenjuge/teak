@@ -11,6 +11,7 @@
     "./lib/libraryViews": "./src/lib/libraryViews.ts",
     "./lib/sidebarState": "./src/lib/sidebarState.ts",
     "./lib/folders": "./src/lib/folders.ts",
+    "./lib/tags": "./src/lib/tags.ts",
     "./convex-query-cache": "./src/convexQueryCache.ts",
     "./convex-query-hooks": "./src/convexQueryHooks.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",

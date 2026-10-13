@@ -1,11 +1,18 @@
 ---
 title: "October 2026"
-description: Organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-13"
 changelog:
   category: Product updates
 ---
+
+## Manage tags across your library
+
+- On the web, **Tags** in the sidebar opens a page with every tag and how many cards carry each. Find one, sort by name, and click a tag to see only its cards; it shows as a pill under the search bar.
+- Rename, merge, or delete a tag from its menu on the Tags page, and Teak changes it on every card at once: your tags and AI tags, in your library, Archive, and Trash. A message at the bottom of the page shows the progress.
+- **API, CLI, and MCP:** `POST /v1/tags/rename`, `/v1/tags/merge`, and `/v1/tags/delete` start a change and `GET /v1/tags/operations/:id` reports its progress. The CLI adds `teak tags rename`, `merge`, and `delete` (with `--wait`), and MCP adds four tag tools. See [Tags and filters](/docs/features#tags-and-filters) and the [API guide](/docs/api#rename-merge-and-delete-tags).
+- `GET /v1/tags` no longer fails for a library with thousands of distinct tags: past 500, it lists the 3,000 most-used from a summary that catches up within seconds.
 
 ## Organize cards into folders
 

@@ -366,6 +366,125 @@ describe("teak parity commands", () => {
     expect(result.stdout).toContain("ai tags: Web");
   });
 
+  test("tags rename --wait polls until every card has changed", async () => {
+    const operation = (status: string, changed: number) => ({
+      id: "op_1",
+      kind: "rename",
+      from: "design",
+      to: "Design Systems",
+      status,
+      total: 3,
+      processed: changed,
+      changed,
+      error: null,
+      createdAt: 1,
+      updatedAt: Date.now(),
+      completedAt: status === "completed" ? 2 : null,
+    });
+    let polls = 0;
+    routes.set("POST /v1/tags/rename", () =>
+      json({ operationId: "op_1", ...operation("running", 0) }, 202)
+    );
+    routes.set("GET /v1/tags/operations/op_1", () => {
+      polls += 1;
+      return json(operation(polls > 1 ? "completed" : "running", polls));
+    });
+    const result = await teak(
+      "tags",
+      "rename",
+      "Design",
+      "Design Systems",
+      "--wait"
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe(
+      'Renamed "design" to "Design Systems" on 2 cards.'
+    );
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      from: "Design",
+      to: "Design Systems",
+    });
+
+    const started = await teak("tags", "rename", "Design", "Design Systems");
+    expect(started.stdout).toContain("Check with: teak tags status op_1");
+  });
+
+  test("tags status --wait stops on a change that stopped making progress", async () => {
+    const stalled = {
+      id: "op_3",
+      kind: "delete",
+      from: "old",
+      to: null,
+      status: "running",
+      total: 10,
+      processed: 4,
+      changed: 4,
+      error: null,
+      createdAt: 1,
+      updatedAt: Date.now() - 10 * 60_000,
+      completedAt: null,
+    };
+    routes.set("GET /v1/tags/operations/op_3", () => json(stalled));
+    const result = await teak("tags", "status", "op_3", "--wait");
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stdout.trim()).toBe(
+      'Couldn\'t finish deleting "old". 4 of 10 cards changed.'
+    );
+  });
+
+  test("tags merge and status report a failed change with the API exit code", async () => {
+    routes.set("POST /v1/tags/merge", () =>
+      json(
+        {
+          operationId: "op_2",
+          id: "op_2",
+          kind: "merge",
+          from: "ux",
+          to: "research",
+          status: "failed",
+          total: 300,
+          processed: 120,
+          changed: 120,
+          error: "Stopped before it finished",
+          createdAt: 1,
+          updatedAt: 1,
+          completedAt: 2,
+        },
+        202
+      )
+    );
+    const result = await teak("tags", "merge", "ux", "research");
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stdout.trim()).toBe(
+      'Couldn\'t finish merging "ux". 120 of 300 cards changed.'
+    );
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      from: "ux",
+      into: "research",
+    });
+  });
+
+  test("tags delete needs --yes without a terminal, and a running change is refused", async () => {
+    const unconfirmed = await teak("tags", "delete", "old");
+    expect(unconfirmed.code).toBe(EXIT.usage);
+    expect(unconfirmed.stderr).toContain("add --yes to confirm");
+    expect(requests).toHaveLength(0);
+
+    routes.set("POST /v1/tags/delete", () =>
+      json(
+        {
+          code: "TAG_OPERATION_RUNNING",
+          error: "Another tag change is still running",
+        },
+        409
+      )
+    );
+    const refused = await teak("tags", "delete", "old", "--yes");
+    expect(refused.code).toBe(EXIT.api);
+    expect(refused.stderr).toContain("Another tag change is still running");
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({ tag: "old" });
+  });
+
   test("download saves the original file and refuses to overwrite it", async () => {
     routes.set("GET /v1/cards/card_f", () =>
       json(

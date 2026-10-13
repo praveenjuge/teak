@@ -7,13 +7,16 @@ import {
   type Folder,
   type FolderColor,
   type LatestExport,
+  type TagOperation,
   TeakApiError,
   type TeakClient,
 } from "@teak/convex/sdk";
+import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
 import { InvalidArgumentError } from "commander";
 import {
   type ClientOptions,
   client,
+  EXIT,
   exitCodeFor,
   type GlobalOptions,
   openBrowser,
@@ -590,4 +593,123 @@ export const changeFolderCards = async (
       )
     );
   }
+};
+
+const cardsLabel = (count: number) => `${count} card${count === 1 ? "" : "s"}`;
+
+/** One line for a tag change: what it does and how far it got. */
+export const describeTagOperation = (operation: TagOperation) => {
+  const to = operation.to ?? "";
+  if (operation.status === "completed") {
+    const done = {
+      rename: `Renamed "${operation.from}" to "${to}"`,
+      merge: `Merged "${operation.from}" into "${to}"`,
+      delete: `Deleted "${operation.from}"`,
+    }[operation.kind];
+    return `${done} on ${cardsLabel(operation.changed)}.`;
+  }
+  if (operation.status === "failed") {
+    const verb = { rename: "renaming", merge: "merging", delete: "deleting" }[
+      operation.kind
+    ];
+    return `Couldn't finish ${verb} "${operation.from}". ${operation.changed} of ${cardsLabel(operation.total)} changed.`;
+  }
+  const doing = {
+    rename: `Renaming "${operation.from}" to "${to}"`,
+    merge: `Merging "${operation.from}" into "${to}"`,
+    delete: `Deleting "${operation.from}"`,
+  }[operation.kind];
+  return `${doing}: ${operation.changed} of ${cardsLabel(operation.total)} changed so far. Check with: teak tags status ${operation.id}`;
+};
+
+const waitForTagOperation = async (
+  api: TeakClient,
+  started: TagOperation,
+  intervalMs?: number
+) => {
+  let operation = started;
+  let delay = intervalMs ?? FIRST_POLL_MS;
+  while (operation.status === "running") {
+    // A change that stopped making progress (a lost batch) won't finish:
+    // report it like a failure instead of waiting forever.
+    if (Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS) {
+      operation = { ...operation, status: "failed" };
+      break;
+    }
+    if (process.stderr.isTTY) {
+      process.stderr.write(
+        `\r${operation.changed} of ${cardsLabel(operation.total)} changed…`
+      );
+    }
+    await sleep(delay);
+    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
+    operation = await api.tags.operation(operation.id);
+  }
+  if (process.stderr.isTTY) {
+    process.stderr.write("\r\x1b[K");
+  }
+  return operation;
+};
+
+const reportTagOperation = (
+  operation: TagOperation,
+  options: GlobalOptions
+) => {
+  write(options.json ? operation : describeTagOperation(operation), options);
+  if (operation.status === "failed") {
+    process.exitCode = EXIT.api;
+  }
+};
+
+/** Renames, merges or deletes a tag on every card, optionally waiting. */
+export const startTagOperation = async (
+  kind: TagOperation["kind"],
+  from: string,
+  to: string | undefined,
+  options: ClientOptions & {
+    intervalMs?: number;
+    wait?: boolean;
+    yes?: boolean;
+  }
+) => {
+  if (kind === "delete" && !options.yes) {
+    if (!process.stdin.isTTY) {
+      throw new InvalidArgumentError(
+        "Deleting a tag changes every card that has it; add --yes to confirm"
+      );
+    }
+    if (
+      !(await confirm(
+        `Remove "${from}" from every card? This can't be undone.`
+      ))
+    ) {
+      write(options.json ? { deleted: false } : "Nothing changed.", options);
+      return;
+    }
+  }
+  const api = client(options);
+  let operation: TagOperation;
+  if (kind === "rename") {
+    operation = await api.tags.rename(from, to ?? "");
+  } else if (kind === "merge") {
+    operation = await api.tags.merge(from, to ?? "");
+  } else {
+    operation = await api.tags.delete(from);
+  }
+  if (options.wait) {
+    operation = await waitForTagOperation(api, operation, options.intervalMs);
+  }
+  reportTagOperation(operation, options);
+};
+
+export const tagOperationStatus = async (
+  id: string,
+  options: ClientOptions & { intervalMs?: number; wait?: boolean }
+) => {
+  const api = client(options);
+  let operation = await api.tags.operation(id);
+  if (options.wait) {
+    operation = await waitForTagOperation(api, operation, options.intervalMs);
+  }
+  reportTagOperation(operation, options);
 };

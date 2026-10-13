@@ -46,6 +46,8 @@ type ErrorCode =
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
   | "NOT_IN_TRASH"
+  | "TAG_EXISTS"
+  | "TAG_OPERATION_RUNNING"
   | "RATE_LIMITED"
   | "SERVICE_UNAVAILABLE"
   | "TYPE_MISMATCH"
@@ -269,6 +271,8 @@ const CONVEX_ERROR_STATUS: Partial<Record<string, number>> = {
   LIMIT_REACHED: 409,
   NOT_FOUND: 404,
   NOT_IN_TRASH: 409,
+  TAG_EXISTS: 409,
+  TAG_OPERATION_RUNNING: 409,
 };
 
 const mapConvexErrorToResponse = (

@@ -11,6 +11,7 @@ import {
 import {
   parseCardTypesParam,
   parseSearchUrlState,
+  type SearchUrlState,
   serializeSearchUrlState,
   toggleSearchUrlType,
 } from "@teak/ui/lib/searchUrlState";
@@ -43,22 +44,24 @@ export function AppShell({
     ? parseCardTypesParam(searchParams.get("type"))
     : [];
 
-  // A type narrows the open view or folder (Settings goes back to
+  // A type narrows the open view or folder (Settings and Tags go back to
   // Everything) and keeps the search; the open card closes because it may
   // not match any more.
-  const handleToggleType = (type: CardType) => {
+  const pushSearch = (change: (state: SearchUrlState) => SearchUrlState) => {
     const params = new URLSearchParams(
       isCardsPage ? window.location.search : ""
     );
     params.delete("card");
     params.delete("addTo");
-    const next = toggleSearchUrlType(parseSearchUrlState(params), type);
+    const next = change(parseSearchUrlState(params));
     const query = serializeSearchUrlState(next, params);
     const path = folderId
       ? folderPath(folderId)
       : LIBRARY_VIEW_PATHS[view ?? "all"];
     router.push(query ? `${path}?${query}` : path);
   };
+  const handleToggleType = (type: CardType) =>
+    pushSearch((state) => toggleSearchUrlType(state, type));
 
   const handleUpgrade = () => {
     rememberHomeScroll();
@@ -86,6 +89,7 @@ export function AppShell({
           />
         }
         isSettingsActive={pathname?.startsWith("/settings") ?? false}
+        isTagsActive={pathname === "/tags"}
         LinkComponent={Link}
         onNavigate={isCardsPage ? rememberHomeScroll : undefined}
         onToggleType={handleToggleType}

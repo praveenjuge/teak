@@ -42,6 +42,7 @@ async function renderSidebar(
     activeView?: "all" | "favorites" | "archive" | "trash" | null;
     defaultOpen?: boolean;
     isSettingsActive?: boolean;
+    isTagsActive?: boolean;
   } = {},
   onToggleType = mock()
 ) {
@@ -58,9 +59,9 @@ async function renderSidebar(
           }
           foldersSlot={<div data-testid="folders">Folders</div>}
           isSettingsActive={options.isSettingsActive}
+          isTagsActive={options.isTagsActive}
           LinkComponent={Link}
           onToggleType={onToggleType}
-          tagsSlot={<div data-testid="tags">Tags</div>}
         />
       </SidebarProvider>
     )
@@ -83,9 +84,27 @@ describe("AppSidebar", () => {
     await renderSidebar({ activeView: "archive" });
     expect(link("Archive")?.getAttribute("aria-current")).toBe("page");
     expect(link("Archive")?.getAttribute("href")).toBe("/archive");
-    for (const name of ["Everything", "Favorites", "Trash", "Settings"]) {
+    for (const name of [
+      "Everything",
+      "Favorites",
+      "Tags",
+      "Trash",
+      "Settings",
+    ]) {
       expect(link(name)?.hasAttribute("aria-current")).toBe(false);
     }
+  });
+
+  test("lists Tags right after Favorites and marks it on the Tags page", async () => {
+    await renderSidebar({ activeView: null, isTagsActive: true });
+    const names = [...document.querySelectorAll("a")].map(
+      (anchor) =>
+        anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()
+    );
+    expect(names.indexOf("Tags")).toBe(names.indexOf("Favorites") + 1);
+    expect(link("Tags")?.getAttribute("href")).toBe("/tags");
+    expect(link("Tags")?.getAttribute("aria-current")).toBe("page");
+    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
   test("marks Settings as current outside the library", async () => {
@@ -102,10 +121,9 @@ describe("AppSidebar", () => {
     expect(onToggleType).toHaveBeenCalledWith("link");
   });
 
-  test("renders the folders and tags slots", async () => {
+  test("renders the folders slot", async () => {
     await renderSidebar();
     expect(document.querySelector('[data-testid="folders"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="tags"]')).not.toBeNull();
   });
 
   test("keeps every item's accessible name when collapsed to icons", async () => {
@@ -115,7 +133,13 @@ describe("AppSidebar", () => {
         .querySelector('[data-slot="sidebar"]')
         ?.getAttribute("data-collapsible")
     ).toBe("icon");
-    for (const name of ["Everything", "Favorites", "Archive", "Trash"]) {
+    for (const name of [
+      "Everything",
+      "Favorites",
+      "Tags",
+      "Archive",
+      "Trash",
+    ]) {
       expect(link(name)).toBeDefined();
     }
     expect(link("Settings")).toBeDefined();

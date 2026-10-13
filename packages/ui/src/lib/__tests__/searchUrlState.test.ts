@@ -16,6 +16,7 @@ describe("parseSearchUrlState", () => {
     expect(parse("q=blue%20buttons&sort=oldest")).toEqual({
       q: "blue buttons",
       sort: "oldest",
+      tag: "",
       types: [],
     });
   });
@@ -67,6 +68,7 @@ describe("serializeSearchUrlState", () => {
     const state = {
       q: "a & b = c?",
       sort: "oldest" as const,
+      tag: "design & dev",
       types: ["link" as const, "quote" as const],
     };
     expect(parse(serializeSearchUrlState(state))).toEqual(state);
@@ -128,6 +130,52 @@ describe("card types in the URL", () => {
         { ...base, types: ["link"] },
         { ...base, types: ["link", "image"] }
       )
+    ).toBe(false);
+  });
+});
+
+describe("tag in the URL", () => {
+  test("reads a tag trimmed and lowercased, without cutting a long tag", () => {
+    expect(parse("tag=%20Design%20").tag).toBe("design");
+    expect(parse(`tag=${"x".repeat(300)}`).tag).toHaveLength(256);
+    // 64 capital İ lowercase to 128 code units; the key stays whole.
+    const dotted = "İ".repeat(64);
+    expect(parse(new URLSearchParams({ tag: dotted }).toString()).tag).toBe(
+      dotted.toLowerCase()
+    );
+    expect(parse("tag=%D8%AA%D8%B5%D9%85%D9%8A%D9%85").tag).toBe("تصميم");
+  });
+
+  test("writes the tag and drops an empty one, keeping other params", () => {
+    expect(
+      serializeSearchUrlState(
+        { ...EMPTY_SEARCH_URL_STATE, tag: "UI Kits" },
+        "card=c1"
+      )
+    ).toBe("card=c1&tag=ui+kits");
+    expect(
+      serializeSearchUrlState(EMPTY_SEARCH_URL_STATE, "tag=design&card=c1")
+    ).toBe("card=c1");
+  });
+
+  test("compares tags ignoring case, and a missing tag as none", () => {
+    expect(
+      isSameSearchUrlState(
+        { q: "", sort: "newest", types: [] },
+        { ...EMPTY_SEARCH_URL_STATE, tag: "" }
+      )
+    ).toBe(true);
+    expect(
+      isSameSearchUrlState(
+        { ...EMPTY_SEARCH_URL_STATE, tag: "Design" },
+        { ...EMPTY_SEARCH_URL_STATE, tag: "design" }
+      )
+    ).toBe(true);
+    expect(
+      isSameSearchUrlState(EMPTY_SEARCH_URL_STATE, {
+        ...EMPTY_SEARCH_URL_STATE,
+        tag: "design",
+      })
     ).toBe(false);
   });
 });

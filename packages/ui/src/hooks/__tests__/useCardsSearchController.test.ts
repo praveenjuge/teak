@@ -167,12 +167,27 @@ describe("useCardsSearchController helpers", () => {
       showArchivedOnly: false,
       showFavoritesOnly: false,
       showTrashOnly: false,
+      tagFilter: "",
       timeFilter: null,
     });
     expect(buildCardsSearchQueryArgs(cleared).searchQuery).toBeUndefined();
+    expect(buildCardsSearchQueryArgs(cleared).tag).toBeUndefined();
     expect(buildCardsSearchResetKey(cleared)).toBe(
-      "::::::::::false::false::false::-"
+      "::::::::::false::false::false::::-"
     );
+  });
+
+  it("sends a sidebar tag with the query and clears it with Backspace", () => {
+    const tagged = { ...baseState(), tagFilter: "design" };
+    expect(buildCardsSearchQueryArgs(tagged).tag).toBe("design");
+    expect(buildCardsSearchResetKey(tagged)).toContain("::design::");
+
+    // Types go first, then the tag, then the time filter and keywords.
+    const withType = { ...tagged, filterTags: ["link" as const] };
+    const afterType = applyBackspaceToCardsSearchState(withType);
+    expect(afterType.filterTags).toEqual([]);
+    expect(afterType.tagFilter).toBe("design");
+    expect(applyBackspaceToCardsSearchState(afterType).tagFilter).toBe("");
   });
 
   it("keeps type filter chips in query args for image link palette and quote", () => {

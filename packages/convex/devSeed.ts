@@ -460,6 +460,89 @@ const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
+// Tag packs (Phase 6). "tags-2000": 1,000 cards carrying 2,000 distinct tags
+// (two each), plus a few shared ones so the sidebar has clear leaders: every
+// other card is "design", every third "reference", every fifth
+// "inspiration". Seeded 200 cards at a time.
+export const TAGS_2000_SCENARIO_SIZE = 1000;
+export const TAGS_2000_SCENARIO_PAGE_SIZE = 200;
+const TAGS_2000_START = Date.UTC(2025, 6, 1);
+
+export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
+  const topic = (n: number) => `topic-${String(n).padStart(4, "0")}`;
+  const tags = [topic(index * 2), topic(index * 2 + 1)];
+  if (index % 2 === 0) {
+    tags.push("design");
+  }
+  if (index % 3 === 0) {
+    tags.push("reference");
+  }
+  if (index % 5 === 0) {
+    tags.push("inspiration");
+  }
+  const label = `Tagged #${String(index).padStart(4, "0")}`;
+  const base = { createdAt: TAGS_2000_START + index * 3_600_000, tags };
+  if (index % 4 === 0) {
+    const url = `https://example.com/tags-2000/${index}#${SCENARIO_MARKER}-tags-2000`;
+    return { ...base, type: "link", content: url, url, metadataTitle: label };
+  }
+  return { ...base, type: "text", content: label };
+};
+
+const tags2000ScenarioPage = (page: number): DefaultCardDef[] => {
+  const start = page * TAGS_2000_SCENARIO_PAGE_SIZE;
+  const end = Math.min(
+    start + TAGS_2000_SCENARIO_PAGE_SIZE,
+    TAGS_2000_SCENARIO_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    tags2000ScenarioCard(start + offset)
+  );
+};
+
+// "tags-case": one tag in three casings across user and AI tags, on active,
+// archived and trashed cards, next to emoji, right-to-left, CJK and
+// 64-character tags.
+export const LONG_SCENARIO_TAG = `long-${"x".repeat(59)}`;
+
+const tagsCaseCard = (
+  slug: string,
+  label: string,
+  extra: Partial<DefaultCardDef>
+): DefaultCardDef => {
+  const url = `https://example.com/tags-case/${slug}#${SCENARIO_MARKER}-tags-case`;
+  return {
+    type: "link",
+    content: url,
+    url,
+    metadataTitle: label,
+    ...extra,
+  };
+};
+
+export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
+  tagsCaseCard("upper-first", "Design (user tag)", { tags: ["Design", "web"] }),
+  tagsCaseCard("lower", "design (user tag)", { tags: ["design", "ui"] }),
+  tagsCaseCard("caps", "DESIGN (user tag)", { tags: ["DESIGN"] }),
+  tagsCaseCard("ai", "design (AI tag)", { aiTags: ["design", "Moodboard"] }),
+  tagsCaseCard("both", "Design user + design AI", {
+    tags: ["Design"],
+    aiTags: ["design"],
+  }),
+  tagsCaseCard("archived", "Design, archived", {
+    tags: ["Design"],
+    isArchived: true,
+  }),
+  tagsCaseCard("trashed", "DESIGN, in Trash", {
+    tags: ["DESIGN"],
+    isDeleted: true,
+  }),
+  tagsCaseCard("emoji", "Emoji tags", { tags: ["🎨 art", "✨"] }),
+  tagsCaseCard("rtl", "Right-to-left tag", { tags: ["تصميم", "עיצוב"] }),
+  tagsCaseCard("cjk", "CJK tags", { tags: ["设计", "デザイン", "디자인"] }),
+  tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
+];
+
 // Folder packs. Each lists its folders and its cards, and each card names
 // the folders it starts in by their place in that list. Folders are matched
 // by name ignoring case, as the app matches them: running a pack twice adds
@@ -741,11 +824,22 @@ const seedFolderScenario = async (
 };
 
 const scenarioPackPage = (
-  scenario: "card-details" | "ordering" | "archive-mix",
+  scenario:
+    | "card-details"
+    | "ordering"
+    | "archive-mix"
+    | "tags-2000"
+    | "tags-case",
   page: number
 ): DefaultCardDef[] => {
   if (scenario === "ordering") {
     return orderingScenarioPage(page);
+  }
+  if (scenario === "tags-2000") {
+    return tags2000ScenarioPage(page);
+  }
+  if (scenario === "tags-case") {
+    return page === 0 ? TAGS_CASE_SCENARIO_CARDS : [];
   }
   if (scenario === "archive-mix") {
     return archiveMixScenarioPage(page);
@@ -760,6 +854,8 @@ export const seedScenario = internalMutation({
       v.literal("card-details"),
       v.literal("ordering"),
       v.literal("archive-mix"),
+      v.literal("tags-2000"),
+      v.literal("tags-case"),
       v.literal("folders-one"),
       v.literal("folders-500"),
       v.literal("card-in-50-folders"),

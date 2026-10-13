@@ -37,20 +37,22 @@ export function HomePageClient({
   const searchQueryParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
   const typeParam = searchParams.get("type");
+  const tagParam = searchParams.get("tag");
   const searchUrlState = useMemo(() => {
     const params: Record<string, string | null> = {
       q: searchQueryParam,
       sort: sortParam,
+      tag: tagParam,
       type: typeParam,
     };
     return parseSearchUrlState({ get: (name) => params[name] ?? null });
-  }, [searchQueryParam, sortParam, typeParam]);
+  }, [searchQueryParam, sortParam, tagParam, typeParam]);
 
-  // The search lives in `?q=`, `?sort=` and `?type=`. Native history calls
-  // update the URL (and useSearchParams) synchronously, so a fast typist's
-  // older search can never land after a newer one. Typing replaces the
-  // entry; changing the sort or the card types adds one, so Back returns to
-  // the previous order or types.
+  // The search lives in `?q=`, `?sort=`, `?type=` and `?tag=`. Native
+  // history calls update the URL (and useSearchParams) synchronously, so a
+  // fast typist's older search can never land after a newer one. Typing
+  // replaces the entry; changing the sort, the card types or the tag adds
+  // one, so Back returns to the previous order or filters.
   const handleSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
       const query = serializeSearchUrlState(state, window.location.search);
@@ -58,7 +60,7 @@ export function HomePageClient({
       if (nextUrl === `${window.location.pathname}${window.location.search}`) {
         return;
       }
-      if (change.sortChanged || change.typesChanged) {
+      if (change.sortChanged || change.typesChanged || change.tagChanged) {
         window.history.pushState(null, "", nextUrl);
       } else {
         window.history.replaceState(null, "", nextUrl);

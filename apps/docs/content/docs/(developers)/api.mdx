@@ -211,6 +211,10 @@ and replace your local copy.
 | `/v1/cards/bulk` | Create, update, favorite, archive, tag, delete, or restore up to 100 cards |
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
+| `/v1/tags/rename` | Rename a tag on every card with POST |
+| `/v1/tags/merge` | Merge one tag into another on every card with POST |
+| `/v1/tags/delete` | Remove a tag from every card with POST |
+| `/v1/tags/operations/:operationId` | Read a tag change's progress |
 | `/v1/folders` | List folders or create one |
 | `/v1/folders/:folderId` | Read, rename, recolor, or delete one folder |
 | `/v1/folders/:folderId/cards` | Add cards to a folder with POST, or remove them with DELETE |
@@ -298,8 +302,9 @@ these query parameters:
 - Tags: `GET /v1/tags` lists the lowercase tags on cards outside Trash,
   including tags Teak added, with how many cards have each. A new tag appears
   a moment after the card is saved. Any listed name
-  works as `tag`. `isComplete` is `false` if a very large library reached the
-  listing's read limit.
+  works as `tag`. A library with more than 500 tags is listed from a summary
+  that catches up within about 15 seconds of a change and holds the 3,000
+  most-used tags; `isComplete` is `false` when some tags were left out.
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
 - Multiple card types: `GET /v1/cards?type=image&type=link&include=content,metadata`
 
@@ -391,6 +396,33 @@ Folders group cards by hand, and a card can be in up to 50 folders. `GET /v1/fol
 - `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). Adding a card that is already in the folder succeeds without change.
 
 Cards include `folderIds`. `PATCH /v1/cards/:cardId` with `{ "folderIds": [...] }` replaces a card's folders, and an empty list takes it out of every folder. List a folder's cards with `GET /v1/cards?folder=<folderId>`; like the library, the listing leaves out archived cards and cards in Trash unless you ask for them.
+
+## Rename, merge, and delete tags
+
+These change a tag on every card at once, in your own tags and in tags Teak
+added, including cards in Trash and Archive. Tags match ignoring case. Each
+returns `202` right away with an `operationId`; the change finishes in the
+background.
+
+- `POST /v1/tags/rename` with `{ "from": "Design", "to": "design-systems" }`
+  renames a tag, written exactly as you send it. A rename to a different
+  casing of the same tag recases it. Renaming onto a tag that already exists
+  returns `409 TAG_EXISTS`: merge into it instead.
+- `POST /v1/tags/merge` with `{ "from": "ux", "into": "research" }` replaces
+  one tag with another. A card that has both keeps one, in the casing it
+  already uses.
+- `POST /v1/tags/delete` with `{ "tag": "old" }` removes a tag. The cards are
+  kept.
+
+Tags are 1 to 64 characters. A tag no card has returns `404 NOT_FOUND`, and one
+change runs at a time per account: starting another while one runs returns
+`409 TAG_OPERATION_RUNNING`.
+
+Poll `GET /v1/tags/operations/:operationId` for `status` (`running`,
+`completed`, or `failed`), `total` (cards that had the tag when the change
+started), `processed`, and `changed`. Edits made to a card while the change
+runs are kept; only the tag changes. `GET /v1/tags` shows the new names once
+the change finishes.
 
 ## Bulk actions
 

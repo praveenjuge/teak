@@ -158,6 +158,16 @@ type CardFilters = {
 - `teak_v1_list_tags`
   - Input: `{}`
   - Output: `{ items: { name: string, count: number }[] }`
+- `teak_v1_rename_tag` / `teak_v1_merge_tags`
+  - Input: `{ from: string, to: string }` to rename, or `{ from: string, into: string }` to merge
+  - Changes the tag on every card, in the card's own tags and tags Teak added, including Trash and Archive. Tags match ignoring case. Renaming onto a tag that already exists fails with `TAG_EXISTS`; merge instead.
+  - Output: the started operation, `{ operationId, status: "running", total, ... }`. It finishes in the background.
+- `teak_v1_delete_tag` <Badge variant="danger">Needs confirm</Badge>
+  - Input: `{ tag: string, confirm: true }`
+  - Removes the tag from every card. The cards are kept.
+- `teak_v1_get_tag_operation`
+  - Input: `{ operationId: string }`
+  - Output: `{ id, kind, from, to, status: "running" | "completed" | "failed", total, processed, changed, ... }`. One tag change runs at a time; starting another while one runs fails with `TAG_OPERATION_RUNNING`.
 - `teak_v1_get_card_changes`
   - Input: `{ since: number, cursor?: string, limit?: number }`
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`

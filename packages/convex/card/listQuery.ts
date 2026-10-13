@@ -233,3 +233,94 @@ export const buildFolderCardListQuery = (
       )
     : dated;
 };
+
+/**
+ * Cards with one tag, from the tag index in date order: Trash, Archive or
+ * the library. `tag` is the lowercase name the index stores. Types and
+ * favorites narrow the index range; other filters apply to the cards.
+ */
+export const buildTagCardListQuery = (
+  ctx: QueryCtx,
+  options: {
+    archived?: ArchivedFilter;
+    createdAt?: CreatedAtBounds;
+    favoritesOnly?: boolean;
+    tag: string;
+    trash?: boolean;
+    types?: readonly CardType[];
+    userId: string;
+  }
+) => {
+  const types = options.types?.length ? options.types : undefined;
+  const archived = archivedFilterMatch(options.archived, options.trash);
+  const bounds = options.createdAt;
+  const withDates = (range: RangeBuilder): RangeBuilder => {
+    let next = range;
+    if (bounds?.gte !== undefined) {
+      next = next.gte("cardCreatedAt", bounds.gte);
+    }
+    if (bounds?.lte !== undefined) {
+      next = next.lte("cardCreatedAt", bounds.lte);
+    } else if (bounds?.lt !== undefined) {
+      next = next.lt("cardCreatedAt", bounds.lt);
+    }
+    return next;
+  };
+  const isDeleted = options.trash ? (true as const) : undefined;
+  const singleType = types?.length === 1 ? types[0] : undefined;
+  const favorited = options.favoritesOnly === true;
+  // Every index below orders by date after its equality fields, so one type
+  // and favorites narrow the range instead of filtering it.
+  const range = (q: RangeBuilder): RangeBuilder => {
+    let next = q
+      .eq("userId", options.userId)
+      .eq("tag", options.tag)
+      .eq("isDeleted", isDeleted);
+    if (archived !== "any") {
+      next = next.eq("isArchived", archived);
+    }
+    if (singleType) {
+      next = next.eq("type", singleType);
+    }
+    if (favorited) {
+      next = next.eq("isFavorited", true);
+    }
+    return withDates(next);
+  };
+  const dated = ctx.db
+    .query("cardSearchTags")
+    .withIndex(tagListIndex(archived === "any", singleType, favorited), range);
+  return types && !singleType
+    ? dated.filter((q) =>
+        types
+          .map((type) => q.eq(q.field("type"), type))
+          .reduce((acc, condition) => q.or(acc, condition))
+      )
+    : dated;
+};
+
+/** The tag index matching a read's equality fields. */
+const tagListIndex = (
+  anyArchived: boolean,
+  singleType: CardType | undefined,
+  favorited: boolean
+) => {
+  if (anyArchived) {
+    if (singleType) {
+      return favorited
+        ? "by_user_tag_deleted_type_favorited"
+        : "by_user_tag_deleted_type";
+    }
+    return favorited
+      ? "by_user_tag_deleted_favorited"
+      : "by_user_tag_deleted_created";
+  }
+  if (singleType) {
+    return favorited
+      ? "by_user_tag_deleted_archived_type_favorited_v2"
+      : "by_user_tag_deleted_archived_type_v2";
+  }
+  return favorited
+    ? "by_user_tag_deleted_archived_favorited_v2"
+    : "by_user_tag_deleted_archived_created_v2";
+};

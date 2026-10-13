@@ -14,6 +14,10 @@ import {
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
+  TAGS_2000_SCENARIO_PAGE_SIZE,
+  TAGS_2000_SCENARIO_SIZE,
+  TAGS_CASE_SCENARIO_CARDS,
+  tags2000ScenarioCard,
   UGLY_FOLDER_NAMES,
 } from "./devSeed";
 import schema from "./schema";
@@ -383,6 +387,69 @@ describe("devSeed archive-mix pack", () => {
     expect(archived.every((card) => typeof card.archivedAt === "number")).toBe(
       true
     );
+  });
+});
+
+describe("devSeed tag packs", () => {
+  test("tags-2000 spreads 2,000 distinct tags over 1,000 cards", () => {
+    const cards = Array.from({ length: TAGS_2000_SCENARIO_SIZE }, (_, index) =>
+      tags2000ScenarioCard(index)
+    );
+    const tags = new Set(cards.flatMap((card) => card.tags ?? []));
+    const topics = [...tags].filter((tag) => tag.startsWith("topic-"));
+    expect(topics).toHaveLength(2000);
+    expect(tags.has("design")).toBe(true);
+    expect(cards.filter((card) => card.tags?.includes("design"))).toHaveLength(
+      500
+    );
+  });
+
+  test("tags-case seeds case variants once, in Trash and Archive too", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "tags-case",
+      });
+    expect(await seed()).toEqual({
+      status: "seeded",
+      cards: TAGS_CASE_SCENARIO_CARDS.length,
+    });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    const seeded = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    const variants = new Set(
+      seeded
+        .flatMap((card) => [...(card.tags ?? []), ...(card.aiTags ?? [])])
+        .filter((tag) => tag.toLowerCase() === "design")
+    );
+    expect(variants).toEqual(new Set(["Design", "design", "DESIGN"]));
+    expect(seeded.some((card) => card.isDeleted)).toBe(true);
+    expect(seeded.some((card) => card.isArchived)).toBe(true);
+  });
+
+  test("tags-2000 seeds in pages", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "tags-2000",
+        page: 4,
+      })
+    ).toEqual({ status: "seeded", cards: TAGS_2000_SCENARIO_PAGE_SIZE });
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "tags-2000",
+        page: 5,
+      })
+    ).toEqual({ status: "already_seeded", cards: 0 });
   });
 });
 

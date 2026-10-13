@@ -8,6 +8,7 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 
 const internalAny = internal as any;
@@ -104,6 +105,32 @@ const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   cardCreatedAt: card.createdAt,
 });
 
+// Whether a restart can change the sidebar's tag counts: they count active
+// cards per tag, so only the tag set and the Trash and Archive state matter.
+// A still-pending chain that could change them keeps that, since this
+// restart supersedes it before it finishes.
+const mayChangeTagCounts = (
+  previous: Doc<"cardSearchTagSyncStates">,
+  card: Doc<"cards"> | null | undefined
+): boolean => {
+  if (card === undefined) {
+    return true;
+  }
+  if (previous.pending && previous.tagCountsChanged !== false) {
+    return true;
+  }
+  if (card === null || previous.userId === undefined) {
+    return true;
+  }
+  return (
+    previous.userId !== card.userId ||
+    (previous.isDeleted === true) !== (card.isDeleted === true) ||
+    (previous.isArchived === true) !== (card.isArchived === true) ||
+    JSON.stringify(buildCardSearchTags(previous)) !==
+      JSON.stringify(buildCardSearchTags(card))
+  );
+};
+
 // card is the card document at restart time: provided to record a snapshot,
 // null when the card is gone (clears the snapshot so the batch takes the
 // deleted-card path), or omitted to leave any existing snapshot untouched.
@@ -142,6 +169,7 @@ export const restartCardSearchTagSync = async (
       phase: "tags",
       sourceUpdatedAt,
       ...snapshot,
+      tagCountsChanged: mayChangeTagCounts(existingState, card),
     });
     await scheduleCardSearchTagSync(ctx, cardId, userId, generation);
   } else {
@@ -474,6 +502,11 @@ export const syncCardSearchTagsBatchHandler = async (
       });
     } else {
       await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    // The card's tag rows are final: the sidebar's tag counts follow, when
+    // this chain could have changed them.
+    if (ownerId && state.tagCountsChanged !== false) {
+      await markTagSummaryDirty(ctx, ownerId);
     }
     return { complete: true, processed: oldTags.length, writes };
   }

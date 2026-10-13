@@ -15,11 +15,13 @@ test("signed-in routes and backend modules are warm", {
   await expect(
     screen.getByRole("dialog").getByRole("textbox", "Markdown content")
   ).toBeVisible();
-  // Each library view in the sidebar is its own route.
+  // Each library view in the sidebar is its own route, and so is Tags.
   for (const path of ["/favorites", "/archive", "/trash"]) {
     await gotoApp(browser, path);
     await expect(screen.getByRole("searchbox")).toBeVisible();
   }
+  await gotoApp(browser, "/tags");
+  await expect(screen.getByRole("heading", "Tags", { level: 1 })).toBeVisible();
   await gotoApp(browser, "/settings");
   await expect(
     screen.getByRole("heading", "Settings", { level: 1 })

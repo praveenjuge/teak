@@ -767,6 +767,57 @@ export default defineSchema({
     ])
     .index("by_cardId_and_folderId", ["cardId", "folderId"])
     .index("by_userId", ["userId"]),
+  // The sidebar's tag list: a snapshot of tag counts on cards outside Trash
+  // and Archive, recomputed in the background shortly after tags change so
+  // the sidebar never scans the tag index reactively.
+  userTagSummaries: defineTable({
+    userId: v.string(),
+    // Bounded by MAX_TAG_SUMMARY_ITEMS, most-used first.
+    items: v.array(v.object({ name: v.string(), count: v.number() })),
+    // False when the snapshot stopped at its row or item bound.
+    isComplete: v.boolean(),
+    // When the recompute that wrote it started: the counts are as of then.
+    computedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+  // Exists only while a snapshot recompute is scheduled, so a burst of tag
+  // changes schedules one recompute. Kept apart from the snapshot so tag
+  // syncs never read the large snapshot row.
+  tagSummaryRefreshes: defineTable({
+    userId: v.string(),
+    dueAt: v.number(),
+  }).index("by_userId", ["userId"]),
+  // Library-wide tag renames, merges and deletes, processed in batches.
+  tagOperations: defineTable({
+    userId: v.string(),
+    kind: v.union(v.literal("rename"), v.literal("merge"), v.literal("delete")),
+    // The tag being changed, lowercased like the tag index.
+    from: v.string(),
+    // The new name (rename) or the tag merged into (merge), as given.
+    to: v.optional(v.string()),
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    // Cards carrying the tag when the operation started (at most
+    // TAG_OPERATION_COUNT_LIMIT), cards looked at, and cards rewritten.
+    total: v.number(),
+    processed: v.number(),
+    changed: v.number(),
+    // Where the next batch resumes in the tag index.
+    cursor: v.optional(v.string()),
+    // The pass over the tag index (from 1) and cards it has changed so far.
+    pass: v.optional(v.number()),
+    passChanged: v.optional(v.number()),
+    // Sweeps made while the user's tag syncs were still running.
+    syncWaits: v.optional(v.number()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_status", ["userId", "status"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
   userCardUsage: defineTable({
     userId: v.string(),
     activeCardCount: v.number(),
@@ -966,9 +1017,14 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
+    // False when this chain cannot change the sidebar's tag counts (the
+    // card's tags and Trash and Archive state are as before), so finishing
+    // it skips the tag summary recompute. Missing on older rows: recompute.
+    tagCountsChanged: v.optional(v.boolean()),
   })
     .index("by_cardId", ["cardId"])
-    .index("by_pending", ["pending"]),
+    .index("by_pending", ["pending"])
+    .index("by_userId_and_pending", ["userId", "pending"]),
   operationalRetentionStates: defineTable({
     kind: v.literal("idempotency"),
     cutoff: v.number(),

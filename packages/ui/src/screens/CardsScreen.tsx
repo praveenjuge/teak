@@ -74,6 +74,8 @@ const clipName = (name: string) =>
 /** A change worth its own history entry: a new sort or new card types. */
 export interface SearchUrlChange {
   sortChanged: boolean;
+  /** The sidebar tag was picked or cleared. */
+  tagChanged: boolean;
   typesChanged: boolean;
 }
 
@@ -190,10 +192,16 @@ export function CardsScreen({
       previous !== null &&
       (previous.types.length !== urlState.types.length ||
         previous.types.some((type) => !urlState.types.includes(type)));
-    if (sortChanged || typesChanged) {
+    const tagChanged =
+      previous !== null && (previous.tag ?? "") !== (urlState.tag ?? "");
+    if (sortChanged || typesChanged || tagChanged) {
       window.scrollTo({ top: 0 });
     }
-    onSearchUrlStateChange?.(urlState, { sortChanged, typesChanged });
+    onSearchUrlStateChange?.(urlState, {
+      sortChanged,
+      tagChanged,
+      typesChanged,
+    });
   }, [onSearchUrlStateChange, urlState]);
 
   const queryArgs = searchController.queryArgs;

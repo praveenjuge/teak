@@ -1,7 +1,7 @@
 import { createApiAccount } from "../helpers/app";
 import { env } from "../helpers/env";
 import { connectMcp } from "../helpers/mcp";
-import { expect, test } from "../helpers/test";
+import { expect, retry, test } from "../helpers/test";
 
 // The account this file's tests call MCP as; no other file uses it.
 let apiKey = "";
@@ -27,15 +27,19 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_create_upload",
       "teak_v1_delete_card",
       "teak_v1_delete_folder",
+      "teak_v1_delete_tag",
       "teak_v1_get_card",
       "teak_v1_get_card_changes",
       "teak_v1_get_me",
+      "teak_v1_get_tag_operation",
       "teak_v1_list_cards",
       "teak_v1_list_favorite_cards",
       "teak_v1_list_folders",
       "teak_v1_list_tags",
+      "teak_v1_merge_tags",
       "teak_v1_refresh_card",
       "teak_v1_remove_cards_from_folder",
+      "teak_v1_rename_tag",
       "teak_v1_restore_card",
       "teak_v1_search_cards",
       "teak_v1_set_card_archived",
@@ -44,9 +48,10 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_update_folder",
     ].sort()
   );
+  const tag = `mcp-tag-${Date.now()}`;
   const created: any = await client.callTool({
     name: "teak_v1_create_card",
-    arguments: { content: `mcp-${Date.now()}` },
+    arguments: { content: `mcp-${Date.now()}`, tags: [tag, "mcp-other"] },
   });
   const cardId = created.structuredContent.cardId;
   const folder: any = await client.callTool({
@@ -96,6 +101,58 @@ test("MCP lists and calls every public tool", async () => {
       expect(result.structuredContent ?? result.content).toBeTruthy();
     }
   }
+
+  // Library-wide tag changes run in the background, one at a time: wait for
+  // the card's tags to be listed, then for each change to finish.
+  await retry(
+    async () => {
+      const listed: any = await client.callTool({
+        name: "teak_v1_list_tags",
+        arguments: {},
+      });
+      expect(
+        listed.structuredContent.items.map(
+          (item: { name: string }) => item.name
+        )
+      ).toContain(tag);
+    },
+    { timeout: 30_000 }
+  );
+  const finish = async (started: any) => {
+    expect(
+      started.isError,
+      JSON.stringify(started.content ?? started.structuredContent)
+    ).not.toBe(true);
+    const operationId = started.structuredContent.operationId;
+    await retry(
+      async () => {
+        const polled: any = await client.callTool({
+          name: "teak_v1_get_tag_operation",
+          arguments: { operationId },
+        });
+        expect(polled.structuredContent.status).toBe("completed");
+      },
+      { timeout: 30_000 }
+    );
+  };
+  await finish(
+    await client.callTool({
+      name: "teak_v1_rename_tag",
+      arguments: { from: tag, to: `${tag}-renamed` },
+    })
+  );
+  await finish(
+    await client.callTool({
+      name: "teak_v1_merge_tags",
+      arguments: { from: "mcp-other", into: `${tag}-renamed` },
+    })
+  );
+  await finish(
+    await client.callTool({
+      name: "teak_v1_delete_tag",
+      arguments: { tag: `${tag}-renamed`, confirm: true },
+    })
+  );
   await client.close();
 });
 

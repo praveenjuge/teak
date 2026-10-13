@@ -37,6 +37,8 @@ export interface CardsSearchState {
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   styleFilters: VisualStyle[];
+  /** A tag picked in the sidebar, lowercased; empty for none. */
+  tagFilter: string;
   timeFilter: TimeFilter | null;
 }
 
@@ -51,6 +53,7 @@ export interface CardsSearchQueryArgs {
   /** Only set for oldest first, so the default query keeps its key. */
   sort?: "oldest";
   styleFilters?: VisualStyle[];
+  tag?: string;
   types?: CardType[];
 }
 
@@ -125,6 +128,7 @@ export interface UseCardsSearchControllerResult {
   showTrashOnly: boolean;
   sort: CardListSort;
   styleFilters: VisualStyle[];
+  tagFilter: string;
   timeFilter: TimeFilter | null;
   updateCachedCard: (card: Doc<"cards">) => void;
   /**
@@ -146,6 +150,7 @@ export function createInitialCardsSearchState(): CardsSearchState {
     showArchivedOnly: false,
     showFavoritesOnly: false,
     showTrashOnly: false,
+    tagFilter: "",
     timeFilter: null,
   };
 }
@@ -172,6 +177,7 @@ export function buildCardsSearchQueryArgs(
     hueFilters: state.hueFilters.length > 0 ? state.hueFilters : undefined,
     hexFilters: state.hexFilters.length > 0 ? state.hexFilters : undefined,
     createdAtRange: state.timeFilter?.range,
+    tag: state.tagFilter || undefined,
   };
 }
 
@@ -185,6 +191,7 @@ function getHasActiveSearch(state: CardsSearchState): boolean {
       state.showFavoritesOnly ||
       state.showTrashOnly ||
       state.showArchivedOnly ||
+      state.tagFilter ||
       state.timeFilter
   );
 }
@@ -199,6 +206,7 @@ function getHasNoFilters(state: CardsSearchState): boolean {
     !state.showFavoritesOnly &&
     !state.showTrashOnly &&
     !state.showArchivedOnly &&
+    !state.tagFilter &&
     !state.searchQuery &&
     !state.timeFilter
   );
@@ -206,7 +214,7 @@ function getHasNoFilters(state: CardsSearchState): boolean {
 
 export function buildCardsSearchResetKey(state: CardsSearchState): string {
   const searchTerms = buildCardsSearchTerms(state);
-  return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
+  return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.tagFilter}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
 }
 
 export function applyEnterToCardsSearchState(
@@ -395,6 +403,13 @@ export function applyBackspaceToCardsSearchState(
     };
   }
 
+  if (state.tagFilter) {
+    return {
+      ...state,
+      tagFilter: "",
+    };
+  }
+
   if (state.timeFilter) {
     return {
       ...state,
@@ -428,6 +443,7 @@ export function useCardsSearchController(
       ...createInitialCardsSearchState(),
       filterTags: initialUrlState?.types ?? [],
       searchQuery: initialUrlState?.q ?? "",
+      tagFilter: initialUrlState?.tag ?? "",
     })
   );
   // In a routed view the route owns the favorites, archive and trash flags;
@@ -529,8 +545,13 @@ export function useCardsSearchController(
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
   const urlState = useMemo<SearchUrlState>(
-    () => ({ q: remoteSearchTerms, sort, types: searchState.filterTags }),
-    [remoteSearchTerms, searchState.filterTags, sort]
+    () => ({
+      q: remoteSearchTerms,
+      sort,
+      tag: searchState.tagFilter,
+      types: searchState.filterTags,
+    }),
+    [remoteSearchTerms, searchState.filterTags, searchState.tagFilter, sort]
   );
 
   const hasActiveSearch = useMemo(
@@ -559,6 +580,7 @@ export function useCardsSearchController(
           showArchivedOnly: searchState.showArchivedOnly,
           createdAtRange: searchState.timeFilter?.range,
           sort,
+          tag: searchState.tagFilter,
         }
       ),
     [folderId, localCards, searchState, searchTerms, sort]
@@ -579,6 +601,7 @@ export function useCardsSearchController(
       showArchivedOnly: searchState.showArchivedOnly,
       createdAtRange: searchState.timeFilter?.range,
       sort,
+      tag: searchState.tagFilter,
     });
   }, [hasActiveSearch, remoteCards, searchState, searchTerms, sort]);
 
@@ -694,13 +717,15 @@ export function useCardsSearchController(
         const sameTypes =
           prev.filterTags.length === state.types.length &&
           prev.filterTags.every((type) => state.types.includes(type));
-        if (sameTerms && sameTypes) {
+        const tag = state.tag ?? "";
+        if (sameTerms && sameTypes && prev.tagFilter === tag) {
           return prev;
         }
         return {
           ...prev,
           ...(sameTerms ? {} : { keywordTags: [], searchQuery: state.q }),
           filterTags: sameTypes ? prev.filterTags : state.types,
+          tagFilter: tag,
         };
       });
       setSort(state.sort);
@@ -758,6 +783,12 @@ export function useCardsSearchController(
           ...prev,
           timeFilter: null,
         })),
+      tagFilter: searchState.tagFilter,
+      onRemoveTagFilter: () =>
+        setSearchState((prev) => ({
+          ...prev,
+          tagFilter: "",
+        })),
       onClearAll: clearAllFilters,
       sort,
       onSortChange: setSort,
@@ -772,6 +803,7 @@ export function useCardsSearchController(
     styleFilters: searchState.styleFilters,
     hueFilters: searchState.hueFilters,
     hexFilters: searchState.hexFilters,
+    tagFilter: searchState.tagFilter,
     showArchivedOnly: searchState.showArchivedOnly,
     showFavoritesOnly: searchState.showFavoritesOnly,
     showTrashOnly: searchState.showTrashOnly,

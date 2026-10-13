@@ -19,6 +19,8 @@ export interface LocalSearchFilters {
   /** Order by saved date; newest first when omitted. */
   sort?: CardListSort;
   styleFilters?: string[];
+  /** Only cards with this tag (user or AI), matched ignoring case. */
+  tag?: string;
   types?: CardType[];
 }
 
@@ -97,9 +99,11 @@ export const filterLocalCards = (
     showArchivedOnly = false,
     createdAtRange,
     sort = "newest",
+    tag,
   }: LocalSearchFilters
 ) => {
   const terms = tokenizeSearchQuery(searchTerms);
+  const tagKey = tag?.trim().toLowerCase() ?? "";
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
@@ -118,6 +122,15 @@ export const filterLocalCards = (
       }
 
       if (types && types.length > 0 && !types.includes(card.type)) {
+        return false;
+      }
+
+      if (
+        tagKey &&
+        ![...(card.tags ?? []), ...(card.aiTags ?? [])].some(
+          (cardTag) => cardTag.trim().toLowerCase() === tagKey
+        )
+      ) {
         return false;
       }
 

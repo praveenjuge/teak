@@ -886,14 +886,18 @@ export const scanCardsPageForUser = internalQuery({
 
 // Most tag-index rows one tag listing reads.
 const MAX_TAG_ROWS_READ = 8000;
+// Most distinct tags one listing counts. Each is two index lookups, and a
+// function may only make so many, so a vault of many small tags stops here
+// (GET /v1/tags then answers from the background tag summary).
+const MAX_TAGS_READ = 500;
 
 /**
  * Lists the tags on cards outside Trash and Archive, with how many cards
  * carry each,
  * from the per-tag search index rather than the cards. Tags are the
  * lowercase names `GET /v1/cards?tag=` matches, including tags Teak added.
- * Reads at most MAX_TAG_ROWS_READ index rows; `isComplete` is false when a
- * very large vault hits that bound.
+ * Reads at most MAX_TAG_ROWS_READ index rows and MAX_TAGS_READ tags;
+ * `isComplete` is false when a very large vault hits either bound.
  */
 export const listTagsForUser = internalQuery({
   args: {
@@ -907,10 +911,25 @@ export const listTagsForUser = internalQuery({
     const userId = await requireTeakUserId(ctx, args.userId);
     const counts: { name: string; count: number }[] = [];
     let budget = MAX_TAG_ROWS_READ;
+    let tagsLeft = MAX_TAGS_READ;
     let isComplete = true;
     let previousTag: string | undefined;
 
     while (isComplete) {
+      if (tagsLeft <= 0) {
+        // Stop before another lookup; more tags may follow.
+        const more = await ctx.db
+          .query("cardSearchTags")
+          .withIndex("by_user_tag_deleted_created", (query) =>
+            previousTag === undefined
+              ? query.eq("userId", userId)
+              : query.eq("userId", userId).gt("tag", previousTag)
+          )
+          .first();
+        isComplete = more === null;
+        break;
+      }
+      tagsLeft -= 1;
       // Seek to the next distinct tag name.
       const afterTag = previousTag;
       const next = await ctx.db
