@@ -323,6 +323,72 @@ describe("@teak/convex/sdk", () => {
     expect(buildCardsSearchParams({ archived: "exclude" })).toBe("limit=50");
   });
 
+  test("manages folders and their cards", async () => {
+    const sent: Array<{ body: unknown; method: string; url: string }> = [];
+    const folder = {
+      id: "f1",
+      name: "Reading",
+      color: "blue",
+      kind: "manual",
+      cardCount: 2,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        const method = String(init?.method);
+        sent.push({
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          method,
+          url: String(url),
+        });
+        if (String(url).endsWith("/cards")) {
+          return Promise.resolve(
+            Response.json({ updatedIds: ["c1"], failedIds: [] })
+          );
+        }
+        if (method === "DELETE") {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          Response.json(
+            method === "GET" && String(url).endsWith("/v1/folders")
+              ? { items: [folder] }
+              : folder
+          )
+        );
+      }) as typeof fetch,
+    });
+
+    expect((await client.folders.list()).items).toEqual([folder]);
+    expect((await client.folders.create({ name: "Reading" })).id).toBe("f1");
+    await client.folders.update("f1", { color: null });
+    expect(await client.folders.addCards("f1", ["c1"])).toEqual({
+      updatedIds: ["c1"],
+      failedIds: [],
+      folderLimitIds: [],
+    });
+    await client.folders.removeCards("f1", ["c1"]);
+    expect(await client.folders.delete("f1")).toBeNull();
+    expect(sent.map(({ method, url, body }) => [method, url, body])).toEqual([
+      ["GET", "https://api.example/v1/folders", undefined],
+      ["POST", "https://api.example/v1/folders", { name: "Reading" }],
+      ["PATCH", "https://api.example/v1/folders/f1", { color: null }],
+      ["POST", "https://api.example/v1/folders/f1/cards", { cardIds: ["c1"] }],
+      [
+        "DELETE",
+        "https://api.example/v1/folders/f1/cards",
+        { cardIds: ["c1"] },
+      ],
+      ["DELETE", "https://api.example/v1/folders/f1", undefined],
+    ]);
+    expect(buildCardsSearchParams({ folder: " f1 " })).toBe(
+      "folder=f1&limit=50"
+    );
+  });
+
   test("sends an idempotency key only when one is given", async () => {
     const { client, seen } = recordingClient(() =>
       Response.json({ appUrl: "https://app/", cardId: "c1", status: "created" })

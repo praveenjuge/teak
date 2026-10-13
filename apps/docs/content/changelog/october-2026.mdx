@@ -1,17 +1,24 @@
 ---
 title: "October 2026"
-description: A sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-13"
 changelog:
   category: Product updates
 ---
 
+## Organize cards into folders
+
+- On the web, create folders from the sidebar, give them a color, and add cards from a card's **Folders…** menu or by selecting many at once. A card can be in several folders, and removing it from one never deletes it.
+- Open a folder to search, filter, and sort just its cards. Rename, recolor, or delete folders from the sidebar; deleting keeps the cards, and **Undo** brings the folder back.
+- Up to 500 folders, with a card in up to 50 of them. Archived cards and cards in Trash stay out of a folder until you bring them back.
+- **API, CLI, and MCP:** `/v1/folders` creates, renames, and deletes folders, `POST` and `DELETE /v1/folders/:id/cards` add and remove cards, `GET /v1/cards?folder=` lists a folder's cards, and cards include `folderIds`. The CLI adds `teak folders` and `teak ls --folder`, and MCP adds six folder tools. See [Folders](/docs/features#folders) and the [API guide](/docs/api#folders).
+
 ## A sidebar for your library
 
 - On the web, a sidebar now holds **Everything**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark, share, and reach with Back and Forward.
 - Card types moved there too: pick one or more to narrow the open page, and the address bar keeps them for reloads and shared links.
-- **Upload files**, **Record audio**, and **Settings** sit at the bottom. Collapse the sidebar to icons and Teak remembers it; on a phone it opens as a drawer.
+- **Upload files** and **Record audio** sit beside the Teak logo, and **Settings** sits right below **Trash**. Collapse the sidebar to icons and Teak remembers it; on a phone it opens as a drawer.
 - Typing `fav`, `archive`, or `trash` in search now opens that page. See [Sidebar](/docs/features#sidebar).
 
 ## Archive cards and act on many at once

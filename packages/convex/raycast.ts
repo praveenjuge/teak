@@ -20,6 +20,7 @@ import {
   updateCardFieldForUserHandler,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
+import { setCardFoldersForUser } from "./folder/membership";
 import {
   explainCardTypeMismatch,
   explainInvalidTags,
@@ -73,6 +74,8 @@ const patchCardForUserArgs = {
   tags: v.optional(v.array(v.string())),
   removeAiTags: v.optional(v.array(v.string())),
   isArchived: v.optional(v.boolean()),
+  /** Replaces the card's folders; every id must be one of the user's folders. */
+  folderIds: v.optional(v.array(v.string())),
 } as const;
 
 const setCardFavoriteForUserArgs = {
@@ -509,6 +512,9 @@ export const patchCardForUser = internalMutation({
         cardId: args.cardId,
         field: args.isArchived ? "archive" : "unarchive",
       });
+    }
+    if (args.folderIds !== undefined) {
+      await setCardFoldersForUser(ctx, userId, args.cardId, args.folderIds);
     }
 
     return getCardForUserHandler(ctx, userId, args.cardId);

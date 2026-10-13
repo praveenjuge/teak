@@ -49,6 +49,7 @@ export default defineConfig({
       "./devPushLease.test.ts",
       "./billingCheckout.test.ts",
       "./cardListOrdering.test.ts",
+      "./folders.test.ts",
     ],
   },
 });

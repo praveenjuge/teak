@@ -32,6 +32,14 @@ import {
   normalizeColorHueBucket,
   normalizeVisualStyle,
 } from "./shared/constants";
+import {
+  explainInvalidFolderName,
+  FOLDER_COLORS,
+  type FolderColor,
+  isFolderColor,
+  MAX_FOLDER_CARD_IDS,
+  MAX_FOLDERS_PER_CARD,
+} from "./shared/folders";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -107,6 +115,7 @@ const serializeCard = (card: any, requestUrl: string) => ({
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   archivedAt: card.archivedAt ?? null,
+  folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
   isFavorited: Boolean(card.isFavorited),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
@@ -134,6 +143,7 @@ const serializeListCard = (
     aiTags: card.aiTags ?? [],
     appUrl: getCardAppUrl(requestUrl, card._id),
     createdAt: card.createdAt,
+    folderIds: card.folderIds ?? [],
     id: card._id,
     isArchived: Boolean(card.isArchived),
     isFavorited: Boolean(card.isFavorited),
@@ -506,11 +516,21 @@ const parseCardsQueryOptions = (
     );
   }
 
+  const folder = parseOptionalString(searchParams.get("folder"));
+  if (searchParams.has("folder") && !(folder && folder.length <= 64)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `folder` must be a folder id"
+    );
+  }
+
   return {
     createdAfter,
     createdBefore,
     cursor: parseOptionalString(searchParams.get("cursor")),
     archived: archived as CardsQueryOptions["archived"],
+    folder,
     favoritesOnly: favorited === true,
     showTrashOnly: trashed === true,
     styleFilters: visualFilters.styleFilters,
@@ -597,6 +617,7 @@ const parseCardRoute = (
 
 interface PatchCardPayload {
   content?: string;
+  folderIds?: string[];
   isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
@@ -613,6 +634,7 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   const source = payload as Record<string, unknown>;
   const allowedKeys = new Set([
     "content",
+    "folderIds",
     "isArchived",
     "metadataTitle",
     "notes",
@@ -686,6 +708,19 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
     next.isArchived = source.isArchived;
   }
 
+  if ("folderIds" in source) {
+    // An empty list takes the card out of every folder.
+    const folderIds = parseStringArray(source.folderIds);
+    if (
+      folderIds === undefined ||
+      folderIds.length > MAX_FOLDERS_PER_CARD ||
+      folderIds.some((id) => id.length > 64)
+    ) {
+      return null;
+    }
+    next.folderIds = folderIds;
+  }
+
   if (Object.keys(next).length === 0) {
     return null;
   }
@@ -712,14 +747,134 @@ const validateFavoritePayload = (
   return { isFavorited: source.isFavorited };
 };
 
+/** A folder as the API returns it. */
+const serializeFolder = (folder: {
+  _id: string;
+  activeCardCount: number;
+  color?: string;
+  createdAt: number;
+  kind: string;
+  name: string;
+  updatedAt: number;
+}) => ({
+  id: folder._id,
+  name: folder.name,
+  color: folder.color ?? null,
+  kind: folder.kind,
+  cardCount: folder.activeCardCount,
+  createdAt: folder.createdAt,
+  updatedAt: folder.updatedAt,
+});
+
+/**
+ * The folder route: `/v1/folders/:id` or `/v1/folders/:id/cards`, or null for
+ * any other path under /v1/folders/.
+ */
+const parseFolderRoute = (
+  request: Request
+): { folderId: string; cards: boolean } | null => {
+  const segments = new URL(request.url).pathname.split("/").filter(Boolean);
+  if (segments[0] !== "v1" || segments[1] !== "folders" || !segments[2]) {
+    return null;
+  }
+  if (segments.length === 3) {
+    return { folderId: segments[2], cards: false };
+  }
+  if (segments.length === 4 && segments[3] === "cards") {
+    return { folderId: segments[2], cards: true };
+  }
+  return null;
+};
+
+type FolderPayload =
+  | { payload: { color?: FolderColor | null; name?: string } }
+  | { error: string };
+
+/**
+ * A folder create (name required) or update (name and/or color) body.
+ * `color: null` clears the color on update.
+ */
+const parseFolderPayload = (
+  payload: unknown,
+  mode: "create" | "update"
+): FolderPayload => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { error: "Body must be a JSON object" };
+  }
+  const source = payload as Record<string, unknown>;
+  for (const key of Object.keys(source)) {
+    if (key !== "name" && key !== "color") {
+      return { error: "Body may include only `name` and `color`" };
+    }
+  }
+  const next: { color?: FolderColor | null; name?: string } = {};
+  if ("name" in source) {
+    if (typeof source.name !== "string") {
+      return { error: "`name` must be a string" };
+    }
+    const reason = explainInvalidFolderName(source.name);
+    if (reason) {
+      return { error: reason };
+    }
+    next.name = source.name;
+  } else if (mode === "create") {
+    return { error: "Body must include `name`" };
+  }
+  if ("color" in source) {
+    if (source.color === null && mode === "update") {
+      next.color = null;
+    } else if (isFolderColor(source.color)) {
+      next.color = source.color;
+    } else {
+      return {
+        error: `\`color\` must be one of: ${FOLDER_COLORS.join(", ")}${mode === "update" ? ", or null" : ""}`,
+      };
+    }
+  }
+  if (mode === "update" && Object.keys(next).length === 0) {
+    return { error: "Body must include `name` or `color`" };
+  }
+  return { payload: next };
+};
+
+/** A `{ cardIds }` body for adding cards to a folder or removing them. */
+const parseFolderCardsPayload = (
+  payload: unknown
+): { cardIds: string[] } | { error: string } => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { error: "Body must be a JSON object with `cardIds`" };
+  }
+  const source = payload as Record<string, unknown>;
+  if (Object.keys(source).some((key) => key !== "cardIds")) {
+    return { error: "Body may include only `cardIds`" };
+  }
+  const cardIds = parseStringArray(source.cardIds);
+  if (!cardIds?.length) {
+    return { error: "`cardIds` must be a non-empty array of card ids" };
+  }
+  if (cardIds.length > MAX_FOLDER_CARD_IDS) {
+    return {
+      error: `\`cardIds\` may name at most ${MAX_FOLDER_CARD_IDS} cards`,
+    };
+  }
+  if (cardIds.some((id) => id.length > 64)) {
+    return { error: "`cardIds` must contain card ids" };
+  }
+  return { cardIds };
+};
+
 export {
   buildCreateCardResponse,
   getAppBaseUrl,
   parseCardRoute,
   parseCardsQueryOptions,
   parseCreatePayload,
+  parseFolderCardsPayload,
+  parseFolderPayload,
+  parseFolderRoute,
   parseIncludeSet,
   serializeCard,
+  serializeFolder,
   serializeListCard,
   validateCreatePayload,
   validateFavoritePayload,

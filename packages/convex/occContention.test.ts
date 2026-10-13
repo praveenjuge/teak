@@ -38,11 +38,13 @@ import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
+import { applyFolderMembership } from "./folder/membership";
 import {
   analyticsShardForRequest,
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "./idempotencyAnalytics";
 import schema from "./schema";
+import type { TeakUserId } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "./shared/rateLimits";
 
@@ -712,6 +714,90 @@ describe("OCC contention behavior", () => {
           .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
           .unique()
       ).toBeNull();
+    });
+  });
+
+  test("concurrent folder edits on one card converge on consistent rows", async () => {
+    const t = convexTest(schema, modules);
+    const { cardId, a, b } = await t.run(async (ctx) => {
+      const id = await insertCard(ctx, "user-folders");
+      await scheduleCardSearchSync(ctx, id);
+      const folder = (name: string) =>
+        ctx.db.insert("folders", {
+          userId: "user-folders",
+          name,
+          nameKey: name.toLowerCase(),
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      return { cardId: id, a: await folder("A"), b: await folder("B") };
+    });
+    const userId = "user-folders" as TeakUserId;
+    // Two writers race on the same card: each adds a different folder, and a
+    // third removes one again. Every interleaving must leave rows and counts
+    // that match the card's final folder list.
+    await Promise.all([
+      t.run((ctx) =>
+        applyFolderMembership(ctx, {
+          action: "add",
+          cardId,
+          folderId: a,
+          userId,
+        })
+      ),
+      t.run((ctx) =>
+        applyFolderMembership(ctx, {
+          action: "add",
+          cardId,
+          folderId: b,
+          userId,
+        })
+      ),
+    ]);
+    await t.run((ctx) =>
+      applyFolderMembership(ctx, {
+        action: "remove",
+        cardId,
+        folderId: a,
+        userId,
+      })
+    );
+    await t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", cardId);
+      expect(card?.folderIds).toEqual([b]);
+      const rows = await ctx.db
+        .query("folderCards")
+        .withIndex("by_cardId_and_folderId", (q) => q.eq("cardId", cardId))
+        .collect();
+      expect(rows.map((row) => row.folderId)).toEqual([b]);
+      expect((await ctx.db.get("folders", a))?.activeCardCount).toBe(0);
+      expect((await ctx.db.get("folders", b))?.activeCardCount).toBe(1);
+    });
+  });
+
+  test("a text edit never reads or writes folder rows", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const folderId = await ctx.db.insert("folders", {
+        userId: "user-folder-text",
+        name: "F",
+        nameKey: "f",
+        kind: "manual",
+        activeCardCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const cardId = await insertCard(ctx, "user-folder-text", {
+        folderIds: [folderId],
+      });
+      await scheduleCardSearchSync(ctx, cardId);
+      const [row] = await ctx.db.query("folderCards").collect();
+      await patchCardWithSearchSync(ctx, cardId, { content: "edited" });
+      const [after] = await ctx.db.query("folderCards").collect();
+      expect(after).toEqual(row);
+      expect((await ctx.db.get("folders", folderId))?.activeCardCount).toBe(1);
     });
   });
 

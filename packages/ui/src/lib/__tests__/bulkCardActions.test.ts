@@ -4,6 +4,7 @@ import {
   applyBulkActionToCard,
   bulkActionCopy,
   collectCardLinks,
+  folderUndoSteps,
   runBulkInChunks,
 } from "../bulkCardActions";
 
@@ -126,5 +127,110 @@ describe("collectCardLinks", () => {
         card({ url: "https://b.example" }),
       ])
     ).toEqual(["https://a.example", "https://b.example"]);
+  });
+});
+
+describe("folder bulk actions", () => {
+  test("add keeps the card's other folders and does not repeat one", () => {
+    const inA = card({ folderIds: ["a"] as never });
+    expect(
+      applyBulkActionToCard(inA, "addToFolder", [], 5, { folderId: "b" })
+        .folderIds
+    ).toEqual(["a", "b"] as never);
+    expect(
+      applyBulkActionToCard(inA, "addToFolder", [], 5, { folderId: "a" })
+    ).toBe(inA);
+  });
+
+  test("remove clears the field when the last folder goes", () => {
+    const inA = card({ folderIds: ["a"] as never });
+    const removed = applyBulkActionToCard(inA, "removeFromFolder", [], 5, {
+      folderId: "a",
+    });
+    expect(removed.folderIds).toBeUndefined();
+    expect(removed.updatedAt).toBe(5);
+  });
+
+  test("move leaves only the source folder", () => {
+    const inAB = card({ folderIds: ["a", "b"] as never });
+    expect(
+      applyBulkActionToCard(inAB, "moveToFolder", [], 5, {
+        folderId: "c",
+        fromFolderId: "a",
+      }).folderIds
+    ).toEqual(["b", "c"] as never);
+  });
+
+  test("Undo of an add leaves cards that were already in the folder", () => {
+    const before = new Map([
+      ["c1", []],
+      ["c2", ["r"]],
+    ]);
+    expect(
+      folderUndoSteps(
+        "addToFolder",
+        { folderId: "r", folderName: "Reading" },
+        ["c1", "c2"],
+        before
+      )
+    ).toEqual([
+      {
+        action: "removeFromFolder",
+        cardIds: ["c1"],
+        folder: { folderId: "r", folderName: "Reading" },
+      },
+    ]);
+  });
+
+  test("Undo of a move puts back the source and keeps an earlier destination", () => {
+    // c1 was only in A; c2 was in A and already in C.
+    const before = new Map([
+      ["c1", ["a"]],
+      ["c2", ["a", "c"]],
+    ]);
+    expect(
+      folderUndoSteps(
+        "moveToFolder",
+        {
+          folderId: "c",
+          folderName: "C",
+          fromFolderId: "a",
+          fromFolderName: "A",
+        },
+        ["c1", "c2"],
+        before
+      )
+    ).toEqual([
+      {
+        action: "removeFromFolder",
+        cardIds: ["c1"],
+        folder: { folderId: "c", folderName: "C" },
+      },
+      {
+        action: "addToFolder",
+        cardIds: ["c1", "c2"],
+        folder: { folderId: "a", folderName: "A" },
+      },
+    ]);
+  });
+
+  test("a move out of every folder offers no Undo", () => {
+    expect(
+      folderUndoSteps(
+        "moveToFolder",
+        { folderId: "c", folderName: "C" },
+        ["c1"],
+        new Map()
+      )
+    ).toBeUndefined();
+  });
+
+  test("toasts name the folder", () => {
+    expect(bulkActionCopy.done("addToFolder", 3, "Reading")).toBe(
+      "Added 3 cards to Reading"
+    );
+    expect(bulkActionCopy.partial("moveToFolder", 2, 1, "Later")).toBe(
+      "Moved 2 cards to Later. 1 couldn't be changed."
+    );
   });
 });

@@ -83,7 +83,7 @@ export const cleanupDeletedCard = internalMutation({
       await ctx.db.delete("cards", cardId);
       // Sync clients learn about purged cards from /v1/cards/changes.
       await recordCardTombstone(ctx, { cardId, userId: card.userId });
-      await scheduleCardSearchSync(ctx, cardId, card.userId);
+      await scheduleCardSearchSync(ctx, cardId, card.userId, card);
       deleted = true;
     } catch (error) {
       console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete card record`, {

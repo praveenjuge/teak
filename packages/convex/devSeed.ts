@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "./_generated/server";
 import {
   getAccountDeletionState,
   initiateAccountDeletion,
@@ -10,10 +15,18 @@ import {
   ONBOARDING_CARD_CONTENTS,
 } from "./card/defaultCards";
 import { readIsDevDeployment } from "./env";
+import { insertFolder } from "./folder/folders";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
   CLOUD_DEV_ACCOUNT_EMAIL_RANGE,
 } from "./shared/devAccounts";
+import {
+  type FolderColor,
+  folderNameKey,
+  MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_CARD,
+  MAX_FOLDERS_PER_USER,
+} from "./shared/folders";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
 // Seed data for development accounts (`bun run dev`). It runs only on the
@@ -447,6 +460,286 @@ const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
+// Folder packs. Each lists its folders and its cards, and each card names
+// the folders it starts in by their place in that list. Folders are matched
+// by name ignoring case, as the app matches them: running a pack twice adds
+// nothing, and a name that differs from another only by case lands in the
+// same folder rather than breaking the one-name-per-folder rule. Folders stop
+// at the account's cap. The cards' marker URL makes them seed once.
+export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
+  /** Places in the pack's folder list. */
+  folders: number[];
+}
+
+export interface FolderScenarioPack {
+  cards: FolderScenarioCard[];
+  folders: { color?: FolderColor; name: string }[];
+}
+
+export const FOLDER_SCENARIOS = [
+  "folders-one",
+  "folders-500",
+  "card-in-50-folders",
+  "folders-ugly",
+] as const;
+export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
+
+const FOLDER_SCENARIO_START = Date.UTC(2026, 8, 1);
+
+const folderScenarioCard = (
+  scenario: FolderScenario,
+  index: number,
+  label: string,
+  folders: number[],
+  extra: Partial<DefaultCardDef> = {}
+): FolderScenarioCard => {
+  const base = {
+    createdAt: FOLDER_SCENARIO_START + index * 3_600_000,
+    tags: [`scenario-${scenario}`],
+    folders,
+    ...extra,
+  };
+  // The first card of every pack is a link, so its marker URL is found.
+  if (index === 0) {
+    const url = `https://example.com/${scenario}#${SCENARIO_MARKER}-${scenario}`;
+    return { ...base, type: "link", content: url, url, metadataTitle: label };
+  }
+  return { ...base, type: "text", content: label };
+};
+
+const FOLDER_COLOR_CYCLE: (FolderColor | undefined)[] = [
+  "gray",
+  "red",
+  "orange",
+  "amber",
+  "green",
+  "teal",
+  "blue",
+  "violet",
+  "pink",
+  undefined,
+];
+
+// One folder holding active, archived and trashed cards, beside cards that
+// are in no folder, so the folder view and its count show what they leave
+// out.
+const foldersOnePack = (): FolderScenarioPack => {
+  const states: [string, Partial<DefaultCardDef>][] = [
+    ...Array.from({ length: 8 }, (): [string, Partial<DefaultCardDef>] => [
+      "active",
+      {},
+    ]),
+    ["archived", { isArchived: true }],
+    ["archived", { isArchived: true }],
+    ["in Trash", { isDeleted: true }],
+    ["archived, in Trash", { isArchived: true, isDeleted: true }],
+  ];
+  const inFolder = states.map(([state, extra], index) =>
+    folderScenarioCard(
+      "folders-one",
+      index,
+      `In the folder #${String(index + 1).padStart(2, "0")}, ${state}`,
+      [0],
+      extra
+    )
+  );
+  const outside = [0, 1, 2].map((offset) =>
+    folderScenarioCard(
+      "folders-one",
+      states.length + offset,
+      `In no folder #${offset + 1}`,
+      []
+    )
+  );
+  return {
+    folders: [{ name: "Scenario folder", color: "teal" }],
+    cards: [...inFolder, ...outside],
+  };
+};
+
+// The account's cap: 500 folders, the first holding a few cards, the rest
+// empty, every tenth one uncolored.
+const folders500Pack = (): FolderScenarioPack => ({
+  folders: Array.from({ length: MAX_FOLDERS_PER_USER }, (_, index) => ({
+    name: `Folder ${String(index + 1).padStart(3, "0")}`,
+    color: FOLDER_COLOR_CYCLE[index % FOLDER_COLOR_CYCLE.length],
+  })),
+  cards: [0, 1, 2].map((index) =>
+    folderScenarioCard(
+      "folders-500",
+      index,
+      `In Folder 001 and Folder ${String(500 - index).padStart(3, "0")}`,
+      [0, 499 - index]
+    )
+  ),
+});
+
+// A card at the per-card cap: one card in 50 folders, one in 49, and a 51st
+// folder neither is in, so adding the full card to it is refused.
+const cardIn50FoldersPack = (): FolderScenarioPack => {
+  const all = Array.from({ length: MAX_FOLDERS_PER_CARD }, (_, index) => index);
+  return {
+    folders: Array.from({ length: MAX_FOLDERS_PER_CARD + 1 }, (_, index) => ({
+      name: `Stack ${String(index + 1).padStart(2, "0")}`,
+      color: FOLDER_COLOR_CYCLE[index % FOLDER_COLOR_CYCLE.length],
+    })),
+    cards: [
+      folderScenarioCard(
+        "card-in-50-folders",
+        0,
+        `In ${MAX_FOLDERS_PER_CARD} folders, the most a card can be in`,
+        all
+      ),
+      folderScenarioCard(
+        "card-in-50-folders",
+        1,
+        `In ${MAX_FOLDERS_PER_CARD - 1} folders, one short of the cap`,
+        all.slice(0, -1)
+      ),
+    ],
+  };
+};
+
+const longName = (word: string) =>
+  `${word} `.repeat(MAX_FOLDER_NAME_LENGTH).slice(0, MAX_FOLDER_NAME_LENGTH);
+
+/** Names that are awkward to show, sort, truncate or compare. */
+export const UGLY_FOLDER_NAMES = [
+  "🎨 Moodboard ✨",
+  "👩‍👩‍👧‍👦",
+  "مجلد الأفكار",
+  "רשימת קריאה",
+  "東京のアイデア",
+  "읽을 거리",
+  "Ideas",
+  "IDEAS",
+  "ideas",
+  longName("Longest"),
+  "📚".repeat(MAX_FOLDER_NAME_LENGTH),
+  "Two  spaces   inside",
+  "<b>Not bold</b> & “quoted”",
+  "Zürich",
+];
+
+// The Arabic folder's card is archived and the Hebrew one's is in Trash.
+const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
+  2: { isArchived: true },
+  3: { isDeleted: true },
+};
+
+// Awkward names, each folder holding one card; the case-only variants of
+// "Ideas" land in the same folder, and two cards are archived or in Trash.
+const foldersUglyPack = (): FolderScenarioPack => ({
+  folders: UGLY_FOLDER_NAMES.map((name, index) => ({
+    name,
+    color: FOLDER_COLOR_CYCLE[index % FOLDER_COLOR_CYCLE.length],
+  })),
+  cards: UGLY_FOLDER_NAMES.map((name, index) =>
+    folderScenarioCard(
+      "folders-ugly",
+      index,
+      `In “${Array.from(name).slice(0, 40).join("")}”`,
+      [index],
+      UGLY_CARD_STATES[index]
+    )
+  ),
+});
+
+export const folderScenarioPack = (
+  scenario: FolderScenario
+): FolderScenarioPack => {
+  switch (scenario) {
+    case "folders-one":
+      return foldersOnePack();
+    case "folders-500":
+      return folders500Pack();
+    case "card-in-50-folders":
+      return cardIn50FoldersPack();
+    default:
+      return foldersUglyPack();
+  }
+};
+
+const isFolderScenario = (scenario: string): scenario is FolderScenario =>
+  (FOLDER_SCENARIOS as readonly string[]).includes(scenario);
+
+/**
+ * Seeds a folder pack: the folders it names that are not there yet (up to
+ * the cap), then its cards in those folders unless they are there already.
+ */
+const seedFolderScenario = async (
+  ctx: MutationCtx,
+  userId: string,
+  scenario: FolderScenario
+) => {
+  const pack = folderScenarioPack(scenario);
+  const existing = await ctx.db
+    .query("folders")
+    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
+    .take(MAX_FOLDERS_PER_USER);
+  const byKey = new Map<string, Id<"folders">>();
+  for (const folder of existing) {
+    if (folder.deletingAt === undefined) {
+      byKey.set(folder.nameKey, folder._id);
+    }
+  }
+  let total = existing.length;
+  let created = 0;
+  const now = Date.now();
+  const folderIds: (Id<"folders"> | undefined)[] = [];
+  for (const [index, folder] of pack.folders.entries()) {
+    const key = folderNameKey(folder.name);
+    let folderId = byKey.get(key);
+    if (!folderId && total < MAX_FOLDERS_PER_USER) {
+      // Spaced a millisecond apart so creation order is stable.
+      folderId = await insertFolder(
+        ctx,
+        userId,
+        folder.name.trim(),
+        folder.color,
+        now + index
+      );
+      byKey.set(key, folderId);
+      total += 1;
+      created += 1;
+    }
+    folderIds.push(folderId);
+  }
+
+  const marker = pack.cards[0]?.url;
+  const seeded = marker
+    ? await ctx.db
+        .query("cards")
+        .withIndex("by_user_url_deleted", (q) =>
+          q.eq("userId", userId).eq("url", marker)
+        )
+        .first()
+    : null;
+  const cards: DefaultCardDef[] = seeded
+    ? []
+    : pack.cards.map(({ folders, ...card }) => ({
+        ...card,
+        folderIds: Array.from(
+          new Set(
+            folders
+              .map((place) => folderIds[place])
+              .filter((id): id is Id<"folders"> => id !== undefined)
+          )
+        ),
+      }));
+  if (cards.length > 0) {
+    await insertCompletedCards(ctx, userId, cards, { ignoreCardLimit: true });
+  }
+  return {
+    status:
+      cards.length > 0 || created > 0
+        ? ("seeded" as const)
+        : ("already_seeded" as const),
+    cards: cards.length,
+    folders: created,
+  };
+};
+
 const scenarioPackPage = (
   scenario: "card-details" | "ordering" | "archive-mix",
   page: number
@@ -466,7 +759,11 @@ export const seedScenario = internalMutation({
     scenario: v.union(
       v.literal("card-details"),
       v.literal("ordering"),
-      v.literal("archive-mix")
+      v.literal("archive-mix"),
+      v.literal("folders-one"),
+      v.literal("folders-500"),
+      v.literal("card-in-50-folders"),
+      v.literal("folders-ugly")
     ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),
@@ -474,6 +771,8 @@ export const seedScenario = internalMutation({
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
+    /** Folder packs only: the folders added. */
+    folders: v.optional(v.number()),
   }),
   handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
     if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
@@ -487,6 +786,9 @@ export const seedScenario = internalMutation({
       .unique();
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
+    }
+    if (isFolderScenario(scenario)) {
+      return await seedFolderScenario(ctx, owner.teakUserId, scenario);
     }
     const cards = scenarioPackPage(scenario, page);
     if (cards.length === 0) {

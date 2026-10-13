@@ -9,6 +9,9 @@ import {
 import {
   Archive,
   ArchiveRestore,
+  FolderInput,
+  FolderMinus,
+  FolderPlus,
   Heart,
   HeartOff,
   Link as LinkIcon,
@@ -27,7 +30,20 @@ export type BulkBarView = "library" | "archive" | "trash";
 /** A bar action: a bulk card action, or copying the selection's links. */
 export type BulkBarAction = BulkCardAction | "copyLinks";
 
+/** A folder the bar acts on: the one being viewed, or the one being filled. */
+export interface BulkBarFolder {
+  id: string;
+  name: string;
+}
+
 interface BulkActionBarProps {
+  /**
+   * Choosing cards for this folder ("Add cards" from an empty folder): the
+   * bar's one action adds the selection to it.
+   */
+  addToFolder?: BulkBarFolder;
+  /** The folder being viewed, which Remove from folder takes cards out of. */
+  folder?: BulkBarFolder;
   /** True while a bulk action runs; the actions wait for it. */
   isBusy?: boolean;
   onAction: (action: BulkBarAction) => void;
@@ -46,13 +62,21 @@ const PRIMARY: Record<
 };
 
 export function BulkActionBar({
+  addToFolder,
+  folder,
   selectedCount,
   onAction,
   onCancel,
   view = "library",
   isBusy = false,
 }: BulkActionBarProps) {
-  const primary = PRIMARY[view];
+  const primary = addToFolder
+    ? {
+        action: "addToFolder" as const,
+        icon: FolderPlus,
+        label: `Add to ${addToFolder.name}`,
+      }
+    : PRIMARY[view];
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
 
@@ -65,17 +89,21 @@ export function BulkActionBar({
           aria-live="polite"
           className="mr-auto truncate font-medium text-sm tabular-nums"
         >
-          {cardCountLabel(selectedCount)} selected
+          {addToFolder && selectedCount === 0
+            ? "Choose cards to add"
+            : `${cardCountLabel(selectedCount)} selected`}
         </span>
         <Button
+          className="max-w-[55%]"
           disabled={disabled}
           onClick={() => onAction(primary.action)}
           size="sm"
+          title={primary.label}
         >
           <PrimaryIcon />
-          {primary.label}
+          <span className="truncate">{primary.label}</span>
         </Button>
-        {view !== "trash" && (
+        {view !== "trash" && !addToFolder && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -110,6 +138,21 @@ export function BulkActionBar({
                 <LinkIcon />
                 Copy links
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onAction("addToFolder")}>
+                <FolderPlus />
+                Add to folder…
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("moveToFolder")}>
+                <FolderInput />
+                Move to folder…
+              </DropdownMenuItem>
+              {folder && (
+                <DropdownMenuItem onSelect={() => onAction("removeFromFolder")}>
+                  <FolderMinus />
+                  <span className="truncate">Remove from {folder.name}</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => onAction("delete")}

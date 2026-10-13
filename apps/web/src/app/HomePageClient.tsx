@@ -1,5 +1,6 @@
 "use client";
 
+import { folderPath } from "@teak/ui/lib/folders";
 import {
   LIBRARY_VIEW_PATHS,
   type LibraryView,
@@ -17,11 +18,22 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { rememberHomeScroll } from "@/lib/homeScroll";
 
-export function HomePageClient({ view = "all" }: { view?: LibraryView }) {
+export function HomePageClient({
+  folderId,
+  view = "all",
+}: {
+  /** A folder view (`/f/:folderId`). */
+  folderId?: string;
+  view?: LibraryView;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
+  // `?addTo=<folderId>` on the library: choosing cards for an empty folder.
+  const addToFolderId = folderId
+    ? undefined
+    : (searchParams.get("addTo") ?? undefined);
   const searchQueryParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
   const typeParam = searchParams.get("type");
@@ -98,6 +110,31 @@ export function HomePageClient({ view = "all" }: { view?: LibraryView }) {
     router.push(nextUrl, { scroll: false });
   };
 
+  // "Add cards" in an empty folder picks cards from the whole library.
+  const handleAddCardsToFolder = useCallback(
+    (targetFolderId: string) => {
+      router.push(`/?addTo=${encodeURIComponent(targetFolderId)}`);
+    },
+    [router]
+  );
+
+  // Back to the folder once the cards are in; Cancel just leaves the mode.
+  const handleAddToFolderDone = useCallback(
+    (targetFolderId: string, added: boolean) => {
+      if (added) {
+        router.push(folderPath(targetFolderId));
+        return;
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.delete("addTo");
+      const query = params.toString();
+      router.replace(`${window.location.pathname}${query ? `?${query}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [router]
+  );
+
   const handleUpgrade = () => {
     rememberHomeScroll();
     router.push("/settings");
@@ -105,8 +142,12 @@ export function HomePageClient({ view = "all" }: { view?: LibraryView }) {
 
   return (
     <CardsScreenAdapter
+      addToFolderId={addToFolderId}
       cardIdFromUrl={cardIdFromUrl}
+      folderId={folderId}
       headerLeading={<SidebarToggle className="mr-2 -ml-2" />}
+      onAddCardsToFolder={handleAddCardsToFolder}
+      onAddToFolderDone={handleAddToFolderDone}
       onNavigateView={handleNavigateView}
       onSearchUrlStateChange={handleSearchUrlStateChange}
       onUpgrade={handleUpgrade}

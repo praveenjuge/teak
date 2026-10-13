@@ -3,6 +3,11 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import {
+  cardFolderRowsMayChange,
+  deletedCardMayHaveFolderRows,
+  syncCardFolderRows,
+} from "../folder/folderRows";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 
 const internalAny = internal as any;
@@ -184,6 +189,7 @@ export const patchCardWithSearchSync = async (
     "isFavorited",
     "isArchived",
     "createdAt",
+    "folderIds",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
@@ -217,8 +223,17 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
+    if (deletedCardMayHaveFolderRows(previousCard)) {
+      await syncCardFolderRows(ctx, cardId, null);
+    }
     await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, null);
     return null;
+  }
+
+  // Folder rows follow the card in the same transaction. A pre-patch card
+  // that proves nothing folder-related changed skips the read entirely.
+  if (cardFolderRowsMayChange(previousCard, card)) {
+    await syncCardFolderRows(ctx, cardId, card);
   }
 
   const value = {

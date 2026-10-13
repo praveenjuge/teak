@@ -12,6 +12,7 @@ import {
 import {
   type ArchivedFilter,
   buildCardListQuery,
+  buildFolderCardListQuery,
   type CardListSort,
   cardListSortValidator,
   compareCardsByCreatedAt,
@@ -81,6 +82,8 @@ const createdAtRangeValidator = v.object({
 const VISUAL_SEARCH_BUFFER = 12;
 // Paginated search pages are cut from this many best matches, sorted by date.
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
+/** The most results one search index query returns. */
+const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
 const isSearchTooBroadError = (error: unknown): boolean =>
   error instanceof ConvexError &&
@@ -89,6 +92,8 @@ export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
 const getVisualSearchBatchLimit = (desiredLimit: number) =>
   Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
+/** Folder rows a color, style or favorites view of one folder reads per page. */
+const FOLDER_FILTER_SCAN_BATCH = 200;
 
 export const getCards = query({
   args: {
@@ -284,6 +289,8 @@ export const searchCardsPaginatedArgsValidator = v.object({
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
   sort: v.optional(cardListSortValidator),
+  /** Only cards in this folder (the folder view). */
+  folderId: v.optional(v.id("folders")),
 });
 
 type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
@@ -318,6 +325,21 @@ export const searchCardsPaginatedHandler = async (
   const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
   const sort: CardListSort = normalizeCardListSort(args.sort);
   const order = sort === "oldest" ? "asc" : "desc";
+  // A folder view lists only that folder's cards. A folder that is missing,
+  // being deleted or another user's lists nothing.
+  const folderId = args.folderId;
+  if (folderId) {
+    const folder = await ctx.db.get("folders", folderId);
+    if (
+      !folder ||
+      folder.userId !== user.teakUserId ||
+      folder.deletingAt !== undefined
+    ) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+  }
+  const inFolder = (card: Doc<"cards">) =>
+    !folderId || (card.folderIds ?? []).includes(folderId);
   // Clamp the caller-provided page size so a single request cannot force an
   // arbitrarily large index read / in-memory sort. The cursor is validated
   // separately where it is parsed into an offset.
@@ -335,7 +357,10 @@ export const searchCardsPaginatedHandler = async (
   if (searchQuery?.trim()) {
     const query = searchQuery.toLowerCase().trim();
 
+    // The quick commands list the whole library, so inside a folder the
+    // words are searched like any other.
     if (
+      !folderId &&
       ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
     ) {
       const favorites = await buildCardListQuery(ctx, {
@@ -357,7 +382,10 @@ export const searchCardsPaginatedHandler = async (
       };
     }
 
-    if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
+    if (
+      !folderId &&
+      ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
+    ) {
       const trashed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
         trash: true,
@@ -387,6 +415,7 @@ export const searchCardsPaginatedHandler = async (
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
     const matchesFilters = (card: Doc<"cards">) =>
+      inFolder(card) &&
       isCreatedAtInRange(card.createdAt, createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
       doesCardMatchVisualFilters(card, visualFilters);
@@ -411,11 +440,18 @@ export const searchCardsPaginatedHandler = async (
       if (!isSearchTooBroadError(error)) {
         throw error;
       }
-      // A saturated search with selective filters: filter the best matches
-      // instead of failing the grid.
-      searchResults = await searchCardsByDocument(ctx, searchArgs);
+      // A saturated search with selective filters: filter every match the
+      // index returned (not just the first page of candidates) instead of
+      // failing the grid, so a folder keeps the matches the filtered pass
+      // already found.
+      searchResults = await searchCardsByDocument(ctx, {
+        ...searchArgs,
+        limit: SEARCH_INDEX_RESULT_LIMIT,
+      });
     }
-    const uniqueResults = searchResults.filter(matchesFilters);
+    const uniqueResults = searchResults
+      .filter(matchesFilters)
+      .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
 
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     const filteredResults = uniqueResults;
@@ -432,6 +468,45 @@ export const searchCardsPaginatedHandler = async (
       page: applyQuoteFormattingToList(pageWithUrls),
       isDone,
       continueCursor,
+    };
+  }
+
+  // Colors, styles and favorites inside a folder: the library-wide search
+  // indexes can't narrow to one folder, so page through the folder's own
+  // rows (in date order) and filter each batch here. A batch can hold no
+  // match while more remain; the grid then loads the next one.
+  if (folderId && (visualFilters.hasVisualFilters || favoritesOnly)) {
+    const rows = await buildFolderCardListQuery(ctx, {
+      folderId,
+      trash: showTrashOnly,
+      archived,
+      types,
+      createdAt: createdAtRange
+        ? { gte: createdAtRange.start, lt: createdAtRange.end }
+        : undefined,
+    })
+      .order(order)
+      .paginate({
+        cursor: paginationOpts.cursor,
+        numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
+      });
+    const cards: Doc<"cards">[] = [];
+    for (const row of rows.page) {
+      const card = await ctx.db.get("cards", row.cardId);
+      if (card) {
+        cards.push(card);
+      }
+    }
+    const matches = applyCardLevelFilters(cards, {
+      types,
+      favoritesOnly,
+      createdAtRange,
+      visualFilters,
+    });
+    const pageWithUrls = await attachListUrls(ctx, matches);
+    return {
+      ...rows,
+      page: applyQuoteFormattingToList(pageWithUrls),
     };
   }
 
@@ -465,6 +540,32 @@ export const searchCardsPaginatedHandler = async (
       page: applyQuoteFormattingToList(pageWithUrls),
       isDone,
       continueCursor,
+    };
+  }
+
+  if (folderId) {
+    const rows = await buildFolderCardListQuery(ctx, {
+      folderId,
+      trash: showTrashOnly,
+      archived,
+      types,
+      createdAt: createdAtRange
+        ? { gte: createdAtRange.start, lt: createdAtRange.end }
+        : undefined,
+    })
+      .order(order)
+      .paginate(paginationOpts);
+    const folderCards: Doc<"cards">[] = [];
+    for (const row of rows.page) {
+      const card = await ctx.db.get("cards", row.cardId);
+      if (card) {
+        folderCards.push(card);
+      }
+    }
+    const folderCardsWithUrls = await attachListUrls(ctx, folderCards);
+    return {
+      ...rows,
+      page: applyQuoteFormattingToList(folderCardsWithUrls),
     };
   }
 

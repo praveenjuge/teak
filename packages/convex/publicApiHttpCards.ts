@@ -215,8 +215,20 @@ const handleCardsListRequest = async (
   }
 
   try {
+    let folderId: string | undefined;
+    if (options.folder) {
+      const folder = await ctx.runQuery(
+        internal.publicApiFolders.getFolderForApi,
+        { userId: auth.validated.userId, folderId: options.folder }
+      );
+      if (!folder) {
+        return errorResponse(404, "NOT_FOUND", "Folder not found");
+      }
+      folderId = folder._id;
+    }
     const queryArgs = {
       archived: options.archived,
+      folderId,
       showTrashOnly: options.showTrashOnly,
       styleFilters: options.styleFilters,
       hueFilters: options.hueFilters,
@@ -470,7 +482,7 @@ const handleCardsByIdV1Request = async (
       return errorResponse(
         400,
         "INVALID_INPUT",
-        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags, isArchived"
+        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags, isArchived, folderIds (at most 50)"
       );
     }
     if (

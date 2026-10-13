@@ -28,9 +28,10 @@ Ordinary file uploads (images, video, audio, documents, source files, Markdown, 
 
 On the web, the sidebar holds everything around your cards:
 
-- **Everything**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark or share.
+- **Everything**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark or share, with **Settings** right below them.
 - **Types** narrows the open page to text, links, images, video, audio, documents, palettes, or quotes. Pick more than one to combine them.
-- **Upload files**, **Record audio**, and **Settings** at the bottom.
+- **Folders** lists your folders with how many cards each holds. See [Folders](#folders).
+- **Upload files** and **Record audio** as buttons beside the Teak logo.
 
 Collapse it to icons with the button beside the search bar (or ⌘B, Ctrl+B on Windows and Linux); Teak remembers your choice on each device. On a phone, the same button opens it as a drawer.
 
@@ -60,6 +61,18 @@ minimal dark
 feedback this week
 ```
 
+### Folders
+
+Folders group cards by project, trip, or anything else. A card can be in several folders at once, and removing it from a folder never deletes it.
+
+- **Create a folder:** click **+** next to **Folders** in the sidebar, name it, and pick a color if you like. Names are unique ignoring case, so "Ideas" and "ideas" are the same folder.
+- **Add cards:** select cards and choose **More › Add to folder…**, or right-click a card (or open it) and choose **Folders…** to tick the folders it belongs in. Typing a name that doesn't exist yet creates the folder.
+- **Open a folder:** click it in the sidebar. Search, card types, and sort work inside it, and **Add cards** picks more cards for it. Archived cards and cards in Trash stay out of the folder and its count until you bring them back.
+- **Move or remove:** inside a folder, select cards and use **More › Move to folder…** or **Remove from** the folder.
+- **Rename, recolor, or delete:** right-click a folder in the sidebar or use its **…** menu. Deleting a folder keeps its cards in your library, and **Undo** brings it back for a few seconds.
+
+You can have up to 500 folders, and a card can be in up to 50. Folders are also available in the [API](/docs/api#folders), [CLI](/docs/cli), and [MCP](/docs/mcp).
+
 ### Tags and filters
 
 AI applies tags automatically; you can add your own. Filter by type in the sidebar, or by style, color, or date in the search bar. Active filters show as removable pills under the search bar, with **Clear all** to reset them.
@@ -76,7 +89,7 @@ Archive a card to keep it out of your library without deleting it. Right-click i
 
 Cards show in a masonry grid that adapts to different sizes and aspect ratios.
 
-To act on many cards at once, right-click a card and choose **Select**, then click more cards. The bar across the top of the page archives them in one click, and **More** adds them to favorites, adds or removes tags, copies their links, or moves them to Trash. In Archive the main action is **Unarchive**, and in Trash it's **Restore**. Archive, Unarchive, and Move to Trash show **Undo** when they finish; if some cards couldn't be changed, they stay selected and **Retry** tries them again.
+To act on many cards at once, right-click a card and choose **Select**, then click more cards. The bar across the top of the page archives them in one click, and **More** adds them to favorites or a folder, adds or removes tags, copies their links, or moves them to Trash. In Archive the main action is **Unarchive**, and in Trash it's **Restore**. Archive, Unarchive, and Move to Trash show **Undo** when they finish; if some cards couldn't be changed, they stay selected and **Retry** tries them again.
 
 ### Sort and share a search
 

@@ -20,6 +20,7 @@ import {
   archivedFilterMatch,
   archivedFilterValidator,
   buildCardListQuery,
+  buildFolderCardListQuery,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -112,6 +113,8 @@ interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
+  /** Only cards in this folder; the caller checked it is the user's. */
+  folderId?: Id<"folders">;
   hexFilters?: string[];
   hueFilters?: string[];
   limit?: number;
@@ -220,6 +223,9 @@ const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions
 ): boolean => {
+  if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
+    return false;
+  }
   if (options.type && card.type !== options.type) {
     return false;
   }
@@ -528,6 +534,86 @@ const isAtOrBeforeListAnchor = (
     : card._creationTime <= anchor.creationTime;
 };
 
+/**
+ * A folder listing: the folder's rows in `createdAt` order, resuming after
+ * the anchor row like createBaseQuery does for the library. Anchors carry
+ * the row's own creation time, which orders rows that share a date.
+ */
+const scanFolderCards = async (
+  ctx: QueryCtx,
+  options: SearchOptions & { folderId: Id<"folders"> },
+  anchor: ListAnchor | undefined,
+  pageCursor: string | null,
+  scanLimit: number
+) => {
+  const descending = normalizeSort(options.sort) === "newest";
+  let lower = options.createdAfter;
+  let upper = options.createdBefore;
+  if (anchor && descending) {
+    upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
+  } else if (anchor) {
+    lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
+  }
+  let page: PaginationResult<Doc<"folderCards">>;
+  try {
+    page = await buildFolderCardListQuery(ctx, {
+      folderId: options.folderId,
+      trash: options.showTrashOnly,
+      archived: options.archived,
+      types: options.type ? [options.type] : options.types,
+      createdAt: { gte: lower, lte: upper },
+    })
+      .order(descending ? "desc" : "asc")
+      .paginate({
+        cursor: pageCursor,
+        maximumRowsRead: scanLimit,
+        numItems: scanLimit,
+      });
+  } catch {
+    throw invalidCursorError();
+  }
+  const matches: Doc<"cards">[] = [];
+  const itemCursors: string[] = [];
+  for (const row of page.page) {
+    if (
+      anchor &&
+      row.cardCreatedAt === anchor.createdAt &&
+      (descending
+        ? row._creationTime >= anchor.creationTime
+        : row._creationTime <= anchor.creationTime)
+    ) {
+      continue;
+    }
+    const card = await ctx.db.get("cards", row.cardId);
+    if (!(card && matchesStructuredFilters(card, options))) {
+      continue;
+    }
+    matches.push(card);
+    itemCursors.push(
+      encodeCursor({
+        mode: "list",
+        anchor: {
+          createdAt: row.cardCreatedAt,
+          creationTime: row._creationTime,
+        },
+      })
+    );
+  }
+  return {
+    itemCursors,
+    matches,
+    nextCursor:
+      page.isDone || !page.continueCursor
+        ? null
+        : encodeCursor({
+            mode: "list",
+            ...(anchor ? { anchor } : {}),
+            page: page.continueCursor,
+          }),
+    scannedRows: page.page.length,
+  };
+};
+
 const scanCardsWithBaseQuery = async (
   ctx: QueryCtx,
   userId: TeakUserId,
@@ -537,6 +623,19 @@ const scanCardsWithBaseQuery = async (
 ) => {
   if (decodedCursor.mode === "offset" || decodedCursor.mode === "match") {
     throw invalidCursorError();
+  }
+  if (options.folderId) {
+    // Folder cursors are always keyset cursors this listing issued.
+    if (decodedCursor.mode === "index") {
+      throw invalidCursorError();
+    }
+    return scanFolderCards(
+      ctx,
+      { ...options, folderId: options.folderId },
+      decodedCursor.mode === "list" ? decodedCursor.anchor : undefined,
+      decodedCursor.mode === "list" ? (decodedCursor.page ?? null) : null,
+      scanLimit
+    );
   }
   const sort = normalizeSort(options.sort);
   const anchor =
@@ -604,6 +703,7 @@ const scanCardsWithBaseQuery = async (
 
 const normalizeCardsQueryOptions = (args: {
   archived?: ArchivedFilter;
+  folderId?: Id<"folders">;
   showTrashOnly?: boolean;
   styleFilters?: string[];
   hueFilters?: string[];
@@ -620,6 +720,7 @@ const normalizeCardsQueryOptions = (args: {
 }): SearchOptions => {
   const normalized: SearchOptions = {
     archived: args.archived,
+    folderId: args.folderId,
     showTrashOnly: args.showTrashOnly,
     ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -652,6 +753,7 @@ export const searchCardsPageForUser = internalQuery({
     userId: v.string(),
     showTrashOnly: v.optional(v.boolean()),
     archived: v.optional(archivedFilterValidator),
+    folderId: v.optional(v.id("folders")),
     styleFilters: v.optional(v.array(v.string())),
     hueFilters: v.optional(v.array(v.string())),
     hexFilters: v.optional(v.array(v.string())),
@@ -746,6 +848,7 @@ export const scanCardsPageForUser = internalQuery({
     userId: v.string(),
     showTrashOnly: v.optional(v.boolean()),
     archived: v.optional(archivedFilterValidator),
+    folderId: v.optional(v.id("folders")),
     styleFilters: v.optional(v.array(v.string())),
     hueFilters: v.optional(v.array(v.string())),
     hexFilters: v.optional(v.array(v.string())),

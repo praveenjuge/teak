@@ -36,12 +36,12 @@ Add manual folders: flat, colored, many-to-many (a card can live in up to 50 fol
 - `schema.ts`:
   - `folders { userId, name, nameKey (trimmed lowercase), color?, kind: "manual" | "smart", query?, activeCardCount, createdAt, updatedAt }` with `by_userId_and_nameKey`, `by_userId_and_createdAt`.
   - `cards.folderIds: v.optional(v.array(v.id("folders")))`.
-  - `folderCards { folderId, cardId, userId, isDeleted?, isArchived?, type, cardCreatedAt, addedAt }` with `by_folder_deleted_archived_created`, `by_cardId_and_folderId`, `by_userId`.
+  - `folderCards { folderId, cardId, userId, isDeleted?, isArchived?, type, cardCreatedAt, addedAt }` with `by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt`, `by_cardId_and_folderId`, `by_userId`.
 - `folders/folders.ts`: `createFolder`, `renameFolder`, `setFolderColor`, `deleteFolder`, `listFolders` (with `activeCardCount`), unique `nameKey` per user, cap 500.
 - `folders/membership.ts`: `addCardsToFolder`, `removeCardsFromFolder`, `moveCardsToFolder`; ownership checks on both card and folder; cap 50 per card; bumps `card.updatedAt`.
 - `syncCardFolderRows(ctx, card | null)` called from `syncCardSearchDocumentHandler`: diff `folderIds` against `folderCards`, copy `isDeleted`, `isArchived`, `type`, `createdAt`; adjust `activeCardCount`.
 - `workflows/folderDeletion.ts`: page through `folderCards` for the folder, strip the id from each card, delete rows, then the folder.
-- `searchCardsPaginated` gains optional `folderId`; the list path reads `folderCards.by_folder_deleted_archived_created`.
+- `searchCardsPaginated` gains optional `folderId`; the list path reads `folderCards.by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt`.
 - Bulk core (`card/bulkUpdate.ts`): `addToFolder`, `removeFromFolder`, `moveToFolder` ops.
 
 ## Web
@@ -109,3 +109,16 @@ Add manual folders: flat, colored, many-to-many (a card can live in up to 50 fol
 
 - `activeCardCount` drift under concurrent writes: recompute it in the folder deletion workflow and in Phase 19's audit if needed.
 - Six MCP tools grow the tool list; keep descriptions short.
+
+## As built
+
+- **Modules:** the functions live in `packages/convex/folder/` (`folders.ts`, `membership.ts`, `folderRows.ts`), re-exported by the top-level `folders.ts` as `api.folders.*`, the way `cards.ts` fronts `card/`. Limits, colors and error copy live in `shared/folders.ts` so the server, API and apps agree.
+- **Rows follow the card:** `cards.folderIds` is the source of truth. `folderCards` rows (with the card's Trash and Archive flags, type and saved date) and each folder's `activeCardCount` are kept in step inside the card search sync, so every write path (edits, Trash, Archive, restore, hard delete, cleanup) moves them without its own code. Cards in no folder, and text-only edits, read no folder rows.
+- **Deleting a folder** is not a workflow: `deletingAt` hides it at once, and `deleteFolderBatch` detaches 50 cards per run after a 10-second Undo window (`restoreFolder`). A deleting folder still counts toward the 500 cap but frees its name. Account deletion removes rows per card, then sweeps folders and leftovers.
+- **Checklist and picker** are dialogs with a searchable list (combobox, arrow keys, "Create folder “X”"), not Popover + Command; no new primitives were needed. A card at 50 folders shows "A card can be in up to 50 folders" inline; in a bulk add, cards at the cap come back failed, stay selected and can be retried.
+- **Routes:** a folder is `/f/:folderId`; **Add cards** in an empty folder opens Everything in selection mode with `?addTo=:folderId`, and the bulk bar's main action becomes **Add to {folder}**. Folders sort by name, ignoring case.
+- **API:** errors are `409 CONFLICT` (duplicate name), `409 LIMIT_REACHED` (500 folders) and `409 FOLDER_LIMIT` (50 on a card); `POST`/`DELETE /v1/folders/:id/cards` return `updatedIds`, `failedIds` and `folderLimitIds`.
+- **Seed packs:** `folders-one`, `folders-500`, `card-in-50-folders` and `folders-ugly` in `devSeed.seedScenario` (folders matched by name ignoring case, so "Ideas", "IDEAS" and "ideas" land in one folder; folders stop at the cap). `folders-none` is a fresh account, so it needs no pack.
+- **Tests:** membership is covered in `folders.test.ts` (convex-test) instead of a separate `__tests__/folders/membership.test.ts`; row decisions in `__tests__/folder/folderRows.test.ts`; UI helpers in `packages/ui/src/lib/__tests__/folders.test.ts`.
+- **Break-it fixes:** a fast double submit sent two creates, and the second failed as a duplicate; the dialogs now block re-entry with a ref. The 500-folder message only showed with an empty name. A 300-character name widened the page (the content column needed `min-w-0`). A mangled `/f/%E0` address threw while reading the folder id.
+- **Review fixes:** a delete batch carries its delete's `deletingAt`, so one left over from an undone delete can't end a later delete's Undo window early. Trash and `archived: include` folder listings use `by_folderId_and_isDeleted_and_cardCreatedAt`, so archived and active rows stay in date order. Colors, styles and favorites inside a folder page through the folder's own rows (200 per page, the grid loading on past pages with no match) instead of library-wide search results. A saturated text search in a folder filters all 1,024 index results before capping. Bulk Undo puts back each card's folders from what they were before, so it never removes a membership the card already had.

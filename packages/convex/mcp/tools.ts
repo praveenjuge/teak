@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
+import {
+  FOLDER_COLORS,
+  MAX_FOLDER_CARD_IDS,
+  MAX_FOLDER_NAME_LENGTH,
+} from "../shared/folders";
 import { captureBackendEvent } from "../telemetry/posthog";
 
 type JsonObject = Record<string, unknown>;
@@ -57,6 +62,7 @@ const cardFiltersShape = {
   favorited: z.boolean().optional(),
   trashed: z.boolean().optional(),
   archived: z.enum(["exclude", "only", "include"]).optional(),
+  folder: nonEmptyString.optional(),
   tag: nonEmptyString.optional(),
   sort: cardSortSchema.optional(),
   createdAfter: z.number().optional(),
@@ -178,6 +184,30 @@ const archivedInputSchema = z.object({
   cardId: nonEmptyString,
   isArchived: z.boolean(),
 });
+const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
+const folderColorSchema = z.enum(FOLDER_COLORS);
+const createFolderInputSchema = z.object({
+  name: folderNameSchema,
+  color: folderColorSchema.optional(),
+});
+const updateFolderInputSchema = z
+  .object({
+    folderId: nonEmptyString,
+    name: folderNameSchema.optional(),
+    color: folderColorSchema.or(z.null()).optional(),
+  })
+  .refine((value) => value.name !== undefined || value.color !== undefined, {
+    message: "Provide name or color",
+    path: ["name"],
+  });
+const deleteFolderInputSchema = z.object({
+  folderId: nonEmptyString,
+  confirm: z.literal(true),
+});
+const folderCardsInputSchema = z.object({
+  folderId: nonEmptyString,
+  cardIds: z.array(nonEmptyString).min(1).max(MAX_FOLDER_CARD_IDS),
+});
 
 const updateCardInputSchema = z
   .object({
@@ -254,6 +284,11 @@ const cardFilterProperties = {
     enum: ["exclude", "only", "include"],
     description:
       "Archived cards: exclude (default) leaves them out, only lists just them, include lists them too",
+  },
+  folder: {
+    type: "string",
+    minLength: 1,
+    description: "Only cards in this folder id (see teak_v1_list_folders)",
   },
   tag: { type: "string", minLength: 1, description: "Exact tag" },
   sort: { enum: cardSortSchema.options },
@@ -505,6 +540,93 @@ export const TEAK_V1_TOOLS = [
     ),
   },
   {
+    name: "teak_v1_list_folders",
+    description:
+      "List folders by name with their ids and card counts. List a folder's cards with teak_v1_list_cards and `folder`.",
+    annotations: { title: "List folders", ...READ_ONLY },
+    inputSchema: inputSchema({}),
+  },
+  {
+    name: "teak_v1_create_folder",
+    description:
+      "Create a folder. Names are unique per account, ignoring case.",
+    annotations: { title: "Create folder", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_FOLDER_NAME_LENGTH,
+        },
+        color: { enum: FOLDER_COLORS },
+      },
+      ["name"]
+    ),
+  },
+  {
+    name: "teak_v1_update_folder",
+    description: "Rename a folder or change its color (null clears it).",
+    annotations: { title: "Update folder", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_FOLDER_NAME_LENGTH,
+        },
+        color: { enum: [...FOLDER_COLORS, null] },
+      },
+      ["folderId"]
+    ),
+  },
+  {
+    name: "teak_v1_delete_folder",
+    description: "Delete a folder. Its cards are kept. `confirm` must be true.",
+    annotations: { title: "Delete folder", ...DESTRUCTIVE },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        confirm: { const: true },
+      },
+      ["folderId", "confirm"]
+    ),
+  },
+  {
+    name: "teak_v1_add_cards_to_folder",
+    description: `Add up to ${MAX_FOLDER_CARD_IDS} cards to a folder. Cards already in it are left as they are.`,
+    annotations: { title: "Add cards to folder", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        cardIds: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: MAX_FOLDER_CARD_IDS,
+        },
+      },
+      ["folderId", "cardIds"]
+    ),
+  },
+  {
+    name: "teak_v1_remove_cards_from_folder",
+    description: `Remove up to ${MAX_FOLDER_CARD_IDS} cards from a folder. The cards are kept.`,
+    annotations: { title: "Remove cards from folder", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        cardIds: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: MAX_FOLDER_CARD_IDS,
+        },
+      },
+      ["folderId", "cardIds"]
+    ),
+  },
+  {
     name: "teak_v1_delete_card",
     description:
       "Move a card to Trash, where teak_v1_restore_card can bring it back. `confirm` must be true.",
@@ -693,6 +815,10 @@ interface ToolConfig {
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
 
+/** "1 card", "3 cards". */
+const countLabel = (value: number, noun: string) =>
+  `${value} ${noun}${value === 1 ? "" : "s"}`;
+
 const bulkSummary = (payload: JsonObject) => {
   const summary = toObjectPayload(payload.summary);
   return {
@@ -703,6 +829,8 @@ const bulkSummary = (payload: JsonObject) => {
 };
 
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
+const folderPath = (id: string): string =>
+  `/v1/folders/${encodeURIComponent(id)}`;
 // Search-style tools query the card list endpoint. The list returns full cards
 // only with content+metadata included, and the transform keeps the stable
 // {items,total} tool payload unchanged.
@@ -840,6 +968,63 @@ const toolConfigs: Record<string, ToolConfig> = {
       cardId: input.cardId,
     }),
     summary: (_payload, input) => `Moved card ${input.cardId} to Trash`,
+  },
+  teak_v1_list_folders: {
+    schema: z.object({}),
+    operation: () => ({ method: "GET", path: "/v1/folders" }),
+    summary: (payload) => `Fetched ${countLabel(count(payload), "folder")}`,
+  },
+  teak_v1_create_folder: {
+    schema: createFolderInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/folders",
+      body: input,
+    }),
+    summary: (payload) => `Created folder ${String(payload.name ?? "")}`,
+  },
+  teak_v1_update_folder: {
+    schema: updateFolderInputSchema,
+    operation: ({ folderId, ...body }) => ({
+      method: "PATCH",
+      path: folderPath(folderId),
+      body,
+    }),
+    summary: (payload) => `Updated folder ${String(payload.name ?? "")}`,
+  },
+  teak_v1_delete_folder: {
+    schema: deleteFolderInputSchema,
+    operation: (input) => ({
+      method: "DELETE",
+      path: folderPath(input.folderId),
+    }),
+    transform: (_payload, input) => ({
+      status: "deleted",
+      folderId: input.folderId,
+    }),
+    summary: (_payload, input) => `Deleted folder ${input.folderId}`,
+  },
+  teak_v1_add_cards_to_folder: {
+    schema: folderCardsInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: `${folderPath(input.folderId)}/cards`,
+      body: { cardIds: input.cardIds },
+    }),
+    isError: (payload) => count(payload, "failedIds") > 0,
+    summary: (payload) =>
+      `Added ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
+  },
+  teak_v1_remove_cards_from_folder: {
+    schema: folderCardsInputSchema,
+    operation: (input) => ({
+      method: "DELETE",
+      path: `${folderPath(input.folderId)}/cards`,
+      body: { cardIds: input.cardIds },
+    }),
+    isError: (payload) => count(payload, "failedIds") > 0,
+    summary: (payload) =>
+      `Removed ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
   },
   teak_v1_list_tags: {
     schema: z.object({}),

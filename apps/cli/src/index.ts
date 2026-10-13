@@ -12,23 +12,30 @@ import {
   COLOR_HUE_BUCKETS,
   VISUAL_STYLE_TAXONOMY,
 } from "@teak/convex/shared/constants";
+import { FOLDER_COLORS } from "@teak/convex/shared/folders";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { Command, CommanderError, InvalidArgumentError } from "commander";
 import { addCard, readStdin } from "./files";
 import { formatCardLine, formatDetail } from "./format";
 import {
   authStatus,
+  changeFolderCards,
   collectPages,
+  createFolder,
   deleteCards,
+  deleteFolders,
   downloadCard,
   downloadExport,
   editTags,
   exportStatus,
+  listFolders,
   openCard,
   refreshCards,
+  resolveFolder,
   restoreCards,
   setCardsArchived,
   startExport,
+  updateFolder,
   whoami,
 } from "./library";
 import {
@@ -162,6 +169,7 @@ const withListOptions = (command: Command) =>
     .option("--favorited", "favorites only")
     .option("--trashed", "cards in Trash only")
     .option("--archived", "archived cards only")
+    .option("--folder <folder>", "cards in this folder, by name or id")
     .option(
       "--style <style>",
       `visual style, repeatable: ${VISUAL_STYLE_TAXONOMY.join(", ")}`,
@@ -193,7 +201,12 @@ const writeCards = async (
   mode: ListMode = "list"
 ) => {
   const api = client(options);
-  const query = queryOptions(options);
+  const query = {
+    ...queryOptions(options),
+    ...(typeof options.folder === "string"
+      ? { folder: (await resolveFolder(api, options.folder)).id }
+      : {}),
+  };
   const fetchPage = (cursor?: string) => {
     const input = cursor ? { ...query, cursor } : query;
     if (mode === "favorites") {
@@ -551,6 +564,60 @@ tags
   .argument("<id>")
   .argument("<tags...>")
   .action(async (id, names) => editTags(id, names, "remove", program.opts()));
+
+const parseFolderColor = oneOf("color", FOLDER_COLORS);
+const folders = program
+  .command("folders")
+  .description("List, create, and change folders")
+  .action(async () => listFolders(program.opts()));
+folders
+  .command("list")
+  .alias("ls")
+  .description("List folders with how many cards each holds")
+  .action(async () => listFolders(program.opts()));
+folders
+  .command("create")
+  .argument("<name>")
+  .description("Create a folder")
+  .option("--color <color>", `${FOLDER_COLORS.join(", ")}`, parseFolderColor)
+  .action(async (name, options) =>
+    createFolder(name, { ...program.opts(), ...options })
+  );
+folders
+  .command("rename")
+  .argument("<folder>", "folder name or id")
+  .argument("[name]", "new name")
+  .description("Rename a folder or change its color")
+  .option(
+    "--color <color>",
+    `${FOLDER_COLORS.join(", ")}, or none`,
+    oneOf("color", [...FOLDER_COLORS, "none"])
+  )
+  .action(async (folder, name, options) =>
+    updateFolder(folder, name, { ...program.opts(), ...options })
+  );
+folders
+  .command("rm")
+  .alias("delete")
+  .argument("<folders...>", "folder names or ids")
+  .description("Delete folders; their cards are kept")
+  .action(async (refs) => deleteFolders(refs, program.opts()));
+folders
+  .command("add")
+  .argument("<folder>", "folder name or id")
+  .argument("<ids...>", "card ids")
+  .description("Add cards to a folder")
+  .action(async (folder, ids) =>
+    changeFolderCards(folder, ids, "add", program.opts())
+  );
+folders
+  .command("remove")
+  .argument("<folder>", "folder name or id")
+  .argument("<ids...>", "card ids")
+  .description("Remove cards from a folder; the cards are kept")
+  .action(async (folder, ids) =>
+    changeFolderCards(folder, ids, "remove", program.opts())
+  );
 
 const exportCommand = program
   .command("export")

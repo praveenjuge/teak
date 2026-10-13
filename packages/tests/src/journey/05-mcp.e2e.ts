@@ -19,21 +19,29 @@ test("MCP lists and calls every public tool", async () => {
     [
       "fetch",
       "search",
+      "teak_v1_add_cards_to_folder",
       "teak_v1_bulk_cards",
       "teak_v1_check_duplicate_url",
       "teak_v1_create_card",
+      "teak_v1_create_folder",
       "teak_v1_create_upload",
       "teak_v1_delete_card",
+      "teak_v1_delete_folder",
       "teak_v1_get_card",
       "teak_v1_get_card_changes",
       "teak_v1_get_me",
       "teak_v1_list_cards",
       "teak_v1_list_favorite_cards",
+      "teak_v1_list_folders",
       "teak_v1_list_tags",
+      "teak_v1_refresh_card",
+      "teak_v1_remove_cards_from_folder",
       "teak_v1_restore_card",
       "teak_v1_search_cards",
+      "teak_v1_set_card_archived",
       "teak_v1_set_card_favorite",
       "teak_v1_update_card",
+      "teak_v1_update_folder",
     ].sort()
   );
   const created: any = await client.callTool({
@@ -41,6 +49,12 @@ test("MCP lists and calls every public tool", async () => {
     arguments: { content: `mcp-${Date.now()}` },
   });
   const cardId = created.structuredContent.cardId;
+  const folder: any = await client.callTool({
+    name: "teak_v1_create_folder",
+    arguments: { name: `MCP ${Date.now()}`, color: "teal" },
+  });
+  expect(folder.isError).not.toBe(true);
+  const folderId = folder.structuredContent.id;
   // teak_v1_create_upload needs Files storage, which the local stack lacks.
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
@@ -49,6 +63,15 @@ test("MCP lists and calls every public tool", async () => {
     ["teak_v1_list_favorite_cards", {}],
     ["teak_v1_update_card", { cardId, notes: "updated" }],
     ["teak_v1_set_card_favorite", { cardId, isFavorited: true }],
+    ["teak_v1_set_card_archived", { cardId, isArchived: true }],
+    ["teak_v1_set_card_archived", { cardId, isArchived: false }],
+    ["teak_v1_refresh_card", { cardId }],
+    ["teak_v1_list_folders", {}],
+    ["teak_v1_update_folder", { folderId, name: "MCP renamed" }],
+    ["teak_v1_add_cards_to_folder", { folderId, cardIds: [cardId] }],
+    ["teak_v1_list_cards", { folder: folderId }],
+    ["teak_v1_remove_cards_from_folder", { folderId, cardIds: [cardId] }],
+    ["teak_v1_delete_folder", { folderId, confirm: true }],
     ["teak_v1_list_tags", {}],
     ["teak_v1_get_card_changes", { since: Date.now() - 86_400_000 }],
     [

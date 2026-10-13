@@ -172,6 +172,9 @@ describe("Convex public API metadata", () => {
       "/v1/tags",
       "/v1/cards/:cardId",
       "/v1/cards/:cardId/favorite",
+      "/v1/folders",
+      "/v1/folders/:folderId",
+      "/v1/folders/:folderId/cards",
     ];
 
     for (const route of requiredPaths) {
@@ -187,6 +190,9 @@ describe("Convex public API metadata", () => {
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}/favorite");
     expect(openApiSpec.paths).toHaveProperty("/v1/exports");
     expect(openApiSpec.paths).toHaveProperty("/v1/exports/latest");
+    expect(openApiSpec.paths).toHaveProperty("/v1/folders");
+    expect(openApiSpec.paths).toHaveProperty("/v1/folders/{folderId}");
+    expect(openApiSpec.paths).toHaveProperty("/v1/folders/{folderId}/cards");
   });
 
   test("documents revocation-only Connect authentication without a request body", () => {
@@ -203,7 +209,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(19);
+    expect(operationIds).toHaveLength(26);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

@@ -56,6 +56,7 @@ export {
   useCardsSearchController,
 } from "./useCardsSearchController";
 export { useFileUpload } from "./useFileUpload";
+export { useFolders } from "./useFolders";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
 export { useNetworkStatus } from "./useNetworkStatus";

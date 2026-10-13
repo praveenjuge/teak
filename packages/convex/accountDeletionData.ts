@@ -176,7 +176,28 @@ export const ancillaryPage = internalMutation({
       userId,
       100
     );
-    return idempotency.length > 0 || moreTombstones;
+    // Card batches already removed each card's folder rows; this sweeps any
+    // left over, then the folders themselves.
+    const folderRows = await ctx.db
+      .query("folderCards")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of folderRows) {
+      await ctx.db.delete(row._id);
+    }
+    const folders = await ctx.db
+      .query("folders")
+      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const folder of folders) {
+      await ctx.db.delete(folder._id);
+    }
+    return (
+      idempotency.length > 0 ||
+      moreTombstones ||
+      folderRows.length > 0 ||
+      folders.length > 0
+    );
   },
 });
 export const deleteRemainingData = internalAction({

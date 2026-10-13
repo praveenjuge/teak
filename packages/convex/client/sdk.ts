@@ -19,6 +19,8 @@ export {
 import { type CardType, cardTypes } from "../shared/constants";
 import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 
+import type { FOLDER_COLORS } from "../shared/folders";
+
 export type { CardType } from "../shared/constants";
 
 export const CARD_TYPES = cardTypes;
@@ -29,10 +31,12 @@ export const ERROR_CODES = [
   "CONFIG_ERROR",
   "CONFLICT",
   "CONTENT_TOO_LARGE",
+  "FOLDER_LIMIT",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
   "INVALID_UTF8",
+  "LIMIT_REACHED",
   "METHOD_NOT_ALLOWED",
   "NETWORK_ERROR",
   "NOT_FOUND",
@@ -75,6 +79,8 @@ export interface Card {
   filePreview: FilePreviewFacts | null;
   fileSize: number | null;
   fileUrl: string | null;
+  /** Ids of the folders the card is in. */
+  folderIds: string[];
   id: string;
   /** Archived cards are hidden from the library but still count. */
   isArchived: boolean;
@@ -147,6 +153,23 @@ export interface TagSummary {
   count: number;
   name: string;
 }
+export type FolderColor = (typeof FOLDER_COLORS)[number];
+export interface Folder {
+  /** Cards in the folder that are not archived or in Trash. */
+  cardCount: number;
+  color: FolderColor | null;
+  createdAt: number;
+  id: string;
+  kind: "manual" | "smart";
+  name: string;
+  updatedAt: number;
+}
+export interface FolderCardsResult {
+  failedIds: string[];
+  /** Failed cards that are already in the most folders a card can be in. */
+  folderLimitIds: string[];
+  updatedIds: string[];
+}
 export interface CreateCardInput {
   cardType?: CardType;
   content?: string;
@@ -162,6 +185,8 @@ export interface CreateCardInput {
 }
 export interface UpdateCardInput {
   content?: string;
+  /** Replaces the card's folders; an empty list takes it out of every folder. */
+  folderIds?: string[];
   isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
@@ -336,6 +361,8 @@ const asList = (value?: string | readonly string[]): readonly string[] => {
 
 export const buildCardsSearchParams = (input: {
   archived?: ArchivedFilter;
+  /** Only cards in this folder id. */
+  folder?: string;
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
@@ -364,6 +391,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.tag?.trim()) {
     search.set("tag", input.tag.trim());
+  }
+  if (input.folder?.trim()) {
+    search.set("folder", input.folder.trim());
   }
   if (input.cursor?.trim()) {
     search.set("cursor", input.cursor.trim());
@@ -430,6 +460,43 @@ const asPage = (value: unknown): CardsPage => {
     throw new TeakApiError("PARSE_ERROR");
   }
   return value as unknown as CardsPage;
+};
+const asFolder = (value: unknown): Folder => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== "string" ||
+    typeof value.name !== "string"
+  ) {
+    throw new TeakApiError(
+      "PARSE_ERROR",
+      "Teak returned an unexpected folder payload."
+    );
+  }
+  return value as unknown as Folder;
+};
+const asFolders = (value: unknown): { items: Folder[] } => {
+  if (!(isObject(value) && Array.isArray(value.items))) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return { items: value.items.map(asFolder) };
+};
+const asFolderCards = (value: unknown): FolderCardsResult => {
+  if (
+    !(
+      isObject(value) &&
+      isStringArray(value.updatedIds) &&
+      isStringArray(value.failedIds)
+    )
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return {
+    updatedIds: value.updatedIds,
+    failedIds: value.failedIds,
+    folderLimitIds: isStringArray(value.folderLimitIds)
+      ? value.folderLimitIds
+      : [],
+  };
 };
 const asTags = (value: unknown): { items: TagSummary[] } => {
   if (!(isObject(value) && Array.isArray(value.items))) {
@@ -582,6 +649,7 @@ export const createTeakClient = (options: {
       ? { "Idempotency-Key": requestOptions.idempotencyKey }
       : {};
   const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
+  const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
   return {
     cards: {
       bulk: (
@@ -679,6 +747,43 @@ export const createTeakClient = (options: {
           "/v1/exports",
           { method: "POST" },
           (v) => (v as { job: ExportJob }).job
+        ),
+    },
+    folders: {
+      /** Adds up to 100 cards; cards already in the folder are left as they are. */
+      addCards: (id: string, cardIds: string[]) =>
+        request(
+          `${folderPath(id)}/cards`,
+          { body: JSON.stringify({ cardIds }), method: "POST" },
+          asFolderCards
+        ),
+      create: (input: { color?: FolderColor; name: string }) =>
+        request(
+          "/v1/folders",
+          { body: JSON.stringify(input), method: "POST" },
+          asFolder
+        ),
+      /** Deletes the folder; its cards are kept. */
+      delete: (id: string) =>
+        request(folderPath(id), { method: "DELETE" }, () => null),
+      get: (id: string) => request(folderPath(id), { method: "GET" }, asFolder),
+      /** Every folder, sorted by name. */
+      list: () => request("/v1/folders", { method: "GET" }, asFolders),
+      removeCards: (id: string, cardIds: string[]) =>
+        request(
+          `${folderPath(id)}/cards`,
+          { body: JSON.stringify({ cardIds }), method: "DELETE" },
+          asFolderCards
+        ),
+      /** Renames or recolors; `color: null` clears the color. */
+      update: (
+        id: string,
+        input: { color?: FolderColor | null; name?: string }
+      ) =>
+        request(
+          folderPath(id),
+          { body: JSON.stringify(input), method: "PATCH" },
+          asFolder
         ),
     },
     me: () => request("/v1/me", { method: "GET" }, asMe),

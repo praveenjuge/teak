@@ -21,11 +21,21 @@ import {
 import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading } from "convex/react";
-import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
-import { Archive, Heart, type LucideIcon, Trash2 } from "lucide-react";
+import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
+import {
+  Archive,
+  Folder,
+  FolderX,
+  Heart,
+  type LucideIcon,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FolderDot } from "../components/folders/FolderDot";
+import type { FolderSummary } from "../lib/folders";
 import type { LibraryView } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
@@ -55,6 +65,12 @@ const SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
   trash: "Search Trash...",
 };
 
+/** A folder name short enough for the search placeholder. */
+const clipName = (name: string) =>
+  Array.from(name).length > 40
+    ? `${Array.from(name).slice(0, 39).join("")}…`
+    : name;
+
 /** A change worth its own history entry: a new sort or new card types. */
 export interface SearchUrlChange {
   sortChanged: boolean;
@@ -62,9 +78,20 @@ export interface SearchUrlChange {
 }
 
 interface CardsScreenProps {
+  /**
+   * Choosing cards for this folder (`?addTo=` on the library): the grid
+   * opens in selection mode with "Add to <folder>" as its action.
+   */
+  addToFolderId?: string;
   contentContainerClassName?: string;
+  /** A folder view: the folder id from the route, valid or not. */
+  folderId?: string;
   /** Shown before the search box, such as the sidebar toggle. */
   headerLeading?: ReactNode;
+  /** Starts choosing cards to add to an (empty) folder. */
+  onAddCardsToFolder?: (folderId: string) => void;
+  /** Leaves "choose cards for a folder", after adding or on Cancel. */
+  onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onCloseCard: () => void;
   /**
    * Called when the settled search changes, to mirror it into the URL.
@@ -88,6 +115,10 @@ interface CardsScreenProps {
 }
 
 export function CardsScreen({
+  addToFolderId,
+  folderId,
+  onAddCardsToFolder,
+  onAddToFolderDone,
   selectedCardId,
   onOpenCard,
   onCloseCard,
@@ -107,7 +138,19 @@ export function CardsScreen({
   );
   const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef("");
+  // A folder view waits for its folder: undefined while loading, null when
+  // it doesn't exist (deleted, or another account's).
+  const folder: FolderSummary | null | undefined = useQuery(
+    api.folders.getFolder,
+    folderId ? { folderId } : "skip"
+  );
+  const addToFolder: FolderSummary | null | undefined = useQuery(
+    api.folders.getFolder,
+    addToFolderId ? { folderId: addToFolderId } : "skip"
+  );
+  const isFolderView = Boolean(folderId);
   const searchController = useCardsSearchController({
+    folderId: folder?._id,
     initialUrlState: searchUrlState,
     onNavigateView,
     view,
@@ -160,9 +203,11 @@ export function CardsScreen({
     results: cards,
     status: cardsStatus,
     loadMore,
-  } = usePaginatedQuery(api.cards.searchCardsPaginated, queryArgs, {
-    initialNumItems: SEARCH_DEFAULT_CARD_LIMIT,
-  });
+  } = usePaginatedQuery(
+    api.cards.searchCardsPaginated,
+    isFolderView && !folder ? "skip" : queryArgs,
+    { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
+  );
 
   const {
     addFilter,
@@ -183,17 +228,47 @@ export function CardsScreen({
     setRemoteCards(cards, searchKey);
   }, [cards, searchKey, setRemoteCards]);
 
+  // Some filtered views (colors or favorites inside a folder) can return a
+  // page with no match while more remain. Whenever a requested page adds no
+  // cards, ask for the next one, so the grid neither shows an empty state
+  // nor stalls with matches still further down.
+  const isSeekingFirstMatch =
+    cards.length === 0 &&
+    (cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore");
+  const countAtLoadMoreRef = useRef<number | null>(null);
+  const requestMoreCards = useCallback(() => {
+    countAtLoadMoreRef.current = cards.length;
+    loadMore(SEARCH_DEFAULT_CARD_LIMIT);
+  }, [cards.length, loadMore]);
+  useEffect(() => {
+    if (cardsStatus !== "CanLoadMore") {
+      return;
+    }
+    if (cards.length === 0 || countAtLoadMoreRef.current === cards.length) {
+      requestMoreCards();
+    } else {
+      countAtLoadMoreRef.current = null;
+    }
+  }, [cards.length, cardsStatus, requestMoreCards]);
+
   useEffect(() => {
     if (
       !searchController.hasActiveSearch ||
       cardsStatus === "LoadingFirstPage" ||
+      isSeekingFirstMatch ||
       reportedSearchKeyRef.current === searchKey
     ) {
       return;
     }
     reportedSearchKeyRef.current = searchKey;
     captureEvent("search_performed", { zero_result: cards.length === 0 });
-  }, [cards.length, cardsStatus, searchController.hasActiveSearch, searchKey]);
+  }, [
+    cards.length,
+    cardsStatus,
+    isSeekingFirstMatch,
+    searchController.hasActiveSearch,
+    searchKey,
+  ]);
 
   const selectedCard = useMemo(
     () =>
@@ -314,12 +389,55 @@ export function CardsScreen({
   );
 
   const renderEmptyState = () => {
+    if (isFolderView && folder === null) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-24 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <FolderX aria-hidden="true" className="size-4" />
+          </span>
+          <div className="space-y-1">
+            <p className="font-medium">Folder not found</p>
+            <p className="text-muted-foreground text-sm">
+              It may have been deleted.
+            </p>
+          </div>
+          {onNavigateView && (
+            <Button onClick={() => onNavigateView("all")} variant="outline">
+              Go to Everything
+            </Button>
+          )}
+        </div>
+      );
+    }
+
     // A debounced search that hasn't been sent yet is still loading, not empty.
     if (
+      (isFolderView && folder === undefined) ||
       cardsStatus === "LoadingFirstPage" ||
+      isSeekingFirstMatch ||
       searchController.isSearchPending
     ) {
       return <CardsGridSkeleton />;
+    }
+
+    if (folder && displayCards.length === 0 && hasNoSearchFilters) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-24 text-center text-muted-foreground">
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <Folder aria-hidden="true" className="size-4" />
+          </span>
+          <p>No cards in this folder yet.</p>
+          {onAddCardsToFolder && (
+            <Button
+              onClick={() => onAddCardsToFolder(folder._id)}
+              variant="outline"
+            >
+              <Plus />
+              Add cards
+            </Button>
+          )}
+        </div>
+      );
     }
 
     // A routed view (or the Archive filter) with nothing else narrowing it.
@@ -371,27 +489,59 @@ export function CardsScreen({
       <CardsSearchHeader
         {...searchBarProps}
         leading={headerLeading}
-        placeholder={SEARCH_PLACEHOLDERS[view ?? "all"]}
+        placeholder={
+          folder
+            ? `Search ${clipName(folder.name)}...`
+            : SEARCH_PLACEHOLDERS[view ?? "all"]
+        }
       />
+
+      {folder && (
+        <div className="mb-4 flex min-w-0 items-center gap-2">
+          <FolderDot className="size-3" color={folder.color} />
+          <h1
+            className="min-w-0 truncate font-semibold text-lg"
+            dir="auto"
+            title={folder.name}
+          >
+            {folder.name}
+          </h1>
+          <span className="shrink-0 text-muted-foreground text-sm tabular-nums">
+            {folder.activeCardCount}{" "}
+            {folder.activeCardCount === 1 ? "card" : "cards"}
+          </span>
+        </div>
+      )}
 
       {displayCards.length > 0 ? (
         <MasonryGrid
           AddCardFormComponent={AddCardFormWrapper}
+          addToFolder={
+            addToFolder
+              ? { id: addToFolder._id, name: addToFolder.name }
+              : undefined
+          }
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
+          folder={folder ? { id: folder._id, name: folder.name } : undefined}
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
           initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
           onAddTags={handleAddTags}
+          onAddToFolderDone={(added) => {
+            if (addToFolder) {
+              onAddToFolderDone?.(addToFolder._id, added);
+            }
+          }}
           onBulkAction={runBulkAction}
           onCardClick={handleCardClick}
           onCopyImage={handleCopyImage}
           onDeleteCard={async (cardId) =>
             cardActions.handleDeleteCard(cardId as Id<"cards">)
           }
-          onLoadMore={() => loadMore(SEARCH_DEFAULT_CARD_LIMIT)}
+          onLoadMore={requestMoreCards}
           onPermanentDeleteCard={(cardId) =>
             cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
           }
@@ -404,7 +554,12 @@ export function CardsScreen({
           }
           resetKey={resetKey}
           showAddForm={
-            !(showTrashOnly || showArchivedOnly || view === "favorites")
+            !(
+              showTrashOnly ||
+              showArchivedOnly ||
+              view === "favorites" ||
+              isFolderView
+            )
           }
           showArchivedOnly={showArchivedOnly}
           showBulkActions={true}

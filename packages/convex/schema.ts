@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { FILE_KINDS } from "./shared/fileFormats";
+import { FOLDER_COLORS } from "./shared/folders";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
 import {
   workosDeletionCompletionValidator,
@@ -32,6 +33,10 @@ export const linkCategoryValidator = v.union(
 // Reusable validators
 export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
+);
+
+export const folderColorValidator = v.union(
+  ...FOLDER_COLORS.map((color) => v.literal(color))
 );
 
 const stageStatusValidator = v.object({
@@ -464,6 +469,9 @@ export const cardValidator = v.object({
   // (never false) on active cards, so index equality on `undefined` works.
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
+  // Folders the card belongs to (at most MAX_FOLDERS_PER_CARD). The source of
+  // truth; folderCards is an index of it kept in step by the card search sync.
+  folderIds: v.optional(v.array(v.id("folders"))),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
   metadataStatus: v.optional(
@@ -712,6 +720,53 @@ export default defineSchema({
         "isFavorited",
       ],
     }),
+  // Folders group cards by hand ("manual"); "smart" folders save a search.
+  folders: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    // The trimmed, lowercased name: unique per user.
+    nameKey: v.string(),
+    color: v.optional(folderColorValidator),
+    kind: v.union(v.literal("manual"), v.literal("smart")),
+    query: v.optional(v.string()),
+    // Cards in the folder that are neither in Trash nor archived.
+    activeCardCount: v.number(),
+    // Set when deletion starts: the folder is hidden while its cards are
+    // detached in batches, then the row is removed.
+    deletingAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_nameKey", ["userId", "nameKey"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
+  // One row per card in a folder, derived from cards.folderIds by
+  // syncCardFolderRows so a folder lists its cards from an index.
+  folderCards: defineTable({
+    folderId: v.id("folders"),
+    cardId: v.id("cards"),
+    userId: v.string(),
+    // Absent (never false) on active cards, like the card fields they copy.
+    isDeleted: v.optional(v.literal(true)),
+    isArchived: v.optional(v.literal(true)),
+    type: cardTypeValidator,
+    cardCreatedAt: v.number(),
+    addedAt: v.number(),
+  })
+    .index("by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt", [
+      "folderId",
+      "isDeleted",
+      "isArchived",
+      "cardCreatedAt",
+    ])
+    // Trash and "archived: include" list archived and active rows together,
+    // so they need the date right after the Trash flag to stay in order.
+    .index("by_folderId_and_isDeleted_and_cardCreatedAt", [
+      "folderId",
+      "isDeleted",
+      "cardCreatedAt",
+    ])
+    .index("by_cardId_and_folderId", ["cardId", "folderId"])
+    .index("by_userId", ["userId"]),
   userCardUsage: defineTable({
     userId: v.string(),
     activeCardCount: v.number(),

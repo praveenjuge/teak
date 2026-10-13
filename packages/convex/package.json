@@ -12,6 +12,7 @@
     "./shared/constants": "./shared/constants.ts",
     "./shared/client-telemetry": "./shared/client_telemetry.ts",
     "./shared/file-formats": "./shared/fileFormats.ts",
+    "./shared/folders": "./shared/folders.ts",
     "./shared/analytics": "./shared/analytics.ts",
     "./shared/markdown": "./shared/markdown.ts",
     "./shared/posthog": "./shared/posthog.ts",

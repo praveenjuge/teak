@@ -4,6 +4,8 @@ import { createInterface } from "node:readline/promises";
 import {
   type CardsPage,
   type ExportJob,
+  type Folder,
+  type FolderColor,
   type LatestExport,
   TeakApiError,
   type TeakClient,
@@ -456,4 +458,136 @@ export const startExport = async (
     return;
   }
   write(options.json ? latest : describeExport(latest), options);
+};
+
+/** A folder by id, or by name ignoring case, among the account's folders. */
+export const resolveFolder = async (
+  api: TeakClient,
+  ref: string
+): Promise<Folder> => {
+  const wanted = ref.trim();
+  const { items } = await api.folders.list();
+  const match =
+    items.find((folder) => folder.id === wanted) ??
+    items.find((folder) => folder.name.toLowerCase() === wanted.toLowerCase());
+  if (!match) {
+    throw new TeakApiError("NOT_FOUND", `Folder not found: ${ref}`);
+  }
+  return match;
+};
+
+export const formatFolderLine = (folder: Folder) =>
+  [
+    folder.id,
+    String(folder.cardCount).padStart(4),
+    folder.color ? `${folder.name} (${folder.color})` : folder.name,
+  ].join("  ");
+
+export const listFolders = async (options: GlobalOptions) => {
+  const result = await client(options).folders.list();
+  write(
+    options.json ? result : result.items.map(formatFolderLine).join("\n"),
+    options
+  );
+};
+
+export const createFolder = async (
+  name: string,
+  options: GlobalOptions & { color?: FolderColor }
+) => {
+  const folder = await client(options).folders.create({
+    name,
+    ...(options.color ? { color: options.color } : {}),
+  });
+  write(options.json ? folder : formatFolderLine(folder), options);
+};
+
+/** Renames a folder, recolors it ("none" clears the color), or both. */
+export const updateFolder = async (
+  ref: string,
+  name: string | undefined,
+  options: GlobalOptions & { color?: FolderColor | "none" }
+) => {
+  if (name === undefined && options.color === undefined) {
+    throw new InvalidArgumentError("give a new name or --color");
+  }
+  const api = client(options);
+  const folder = await resolveFolder(api, ref);
+  const updated = await api.folders.update(folder.id, {
+    ...(name === undefined ? {} : { name }),
+    ...(options.color === undefined
+      ? {}
+      : { color: options.color === "none" ? null : options.color }),
+  });
+  write(options.json ? updated : formatFolderLine(updated), options);
+};
+
+export const deleteFolders = async (refs: string[], options: GlobalOptions) => {
+  const api = client(options);
+  const { failed, succeeded } = await eachCard(refs, async (ref) =>
+    api.folders.delete((await resolveFolder(api, ref)).id)
+  );
+  writeBatch(
+    options.json
+      ? {
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          deleted: succeeded,
+        }
+      : succeeded
+          .map((ref) => `Deleted folder ${ref}; its cards are kept`)
+          .join("\n"),
+    failed,
+    options
+  );
+};
+
+/** Adds cards to a folder or removes them, 100 at a time. */
+export const changeFolderCards = async (
+  ref: string,
+  cardIds: string[],
+  action: "add" | "remove",
+  options: GlobalOptions
+) => {
+  const api = client(options);
+  const folder = await resolveFolder(api, ref);
+  const updatedIds: string[] = [];
+  const failedIds: string[] = [];
+  const folderLimitIds: string[] = [];
+  for (let start = 0; start < cardIds.length; start += 100) {
+    const chunk = cardIds.slice(start, start + 100);
+    const result =
+      action === "add"
+        ? await api.folders.addCards(folder.id, chunk)
+        : await api.folders.removeCards(folder.id, chunk);
+    updatedIds.push(...result.updatedIds);
+    failedIds.push(...result.failedIds);
+    folderLimitIds.push(...result.folderLimitIds);
+  }
+  const verb = action === "add" ? "Added" : "Removed";
+  write(
+    options.json
+      ? { folderId: folder.id, updatedIds, failedIds, folderLimitIds }
+      : `${verb} ${updatedIds.length} ${updatedIds.length === 1 ? "card" : "cards"} ${action === "add" ? "to" : "from"} ${folder.name}`,
+    options
+  );
+  if (failedIds.length > 0) {
+    const limited = new Set(folderLimitIds);
+    if (!options.json) {
+      process.stderr.write(
+        `${failedIds
+          .map(
+            (id) =>
+              `${id}: ${limited.has(id) ? "already in the most folders a card can be in" : "not found"}`
+          )
+          .join("\n")}\n`
+      );
+    }
+    // Not found wins when any card is missing; a run where every failure is
+    // the per-card folder limit exits like the API's FOLDER_LIMIT error.
+    process.exitCode = exitCodeFor(
+      new TeakApiError(
+        failedIds.some((id) => !limited.has(id)) ? "NOT_FOUND" : "FOLDER_LIMIT"
+      )
+    );
+  }
 };

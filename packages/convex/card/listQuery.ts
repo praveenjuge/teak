@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 
@@ -168,4 +169,67 @@ export const buildCardListQuery = (
           .reduce((acc, condition) => q.or(acc, condition))
       )
     : query;
+};
+
+/**
+ * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
+ * Archive like the library: active cards by default, archived ones with
+ * `archived: "only"`, trashed ones with `trash`. Callers load each row's card.
+ */
+export const buildFolderCardListQuery = (
+  ctx: QueryCtx,
+  options: {
+    archived?: ArchivedFilter;
+    createdAt?: CreatedAtBounds;
+    folderId: Id<"folders">;
+    trash?: boolean;
+    types?: readonly CardType[];
+  }
+) => {
+  const types = options.types?.length ? options.types : undefined;
+  const archived = archivedFilterMatch(options.archived, options.trash);
+  const bounds = options.createdAt;
+  const withDates = (range: RangeBuilder): RangeBuilder => {
+    let next = range;
+    if (bounds?.gte !== undefined) {
+      next = next.gte("cardCreatedAt", bounds.gte);
+    }
+    if (bounds?.lte !== undefined) {
+      next = next.lte("cardCreatedAt", bounds.lte);
+    } else if (bounds?.lt !== undefined) {
+      next = next.lt("cardCreatedAt", bounds.lt);
+    }
+    return next;
+  };
+  const isDeleted = options.trash ? (true as const) : undefined;
+  // Trash, or archived and not: rows of both archive states, ordered by date
+  // across them.
+  const dated =
+    archived === "any"
+      ? ctx.db
+          .query("folderCards")
+          .withIndex("by_folderId_and_isDeleted_and_cardCreatedAt", (q) =>
+            withDates(
+              q.eq("folderId", options.folderId).eq("isDeleted", isDeleted)
+            )
+          )
+      : ctx.db
+          .query("folderCards")
+          .withIndex(
+            "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+            (q) =>
+              withDates(
+                q
+                  .eq("folderId", options.folderId)
+                  .eq("isDeleted", isDeleted)
+                  .eq("isArchived", archived)
+              )
+          );
+  return types
+    ? dated.filter((q) =>
+        types
+          .map((type) => q.eq(q.field("type"), type))
+          .reduce((acc, condition) => q.or(acc, condition))
+      )
+    : dated;
 };
