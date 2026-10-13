@@ -2,9 +2,9 @@
 
 What runs in a Claude Code on the web session (and similar Linux cloud VMs),
 what doesn't, and the fixes for each. `.agents/development.md` covers the
-stack itself; this is the cloud-specific checklist. Last verified 2026-10-12
+stack itself; this is the cloud-specific checklist. Last verified 2026-10-13
 on a 4-vCPU, 16 GB VM, by driving every web feature in headless Chromium and
-running the API, CLI, MCP, repository checks and E2E suite.
+running the API, CLI, MCP and repository checks.
 
 ## Environment settings
 
@@ -145,6 +145,34 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   browser stays up for the MCP server's life and serves its later sessions.
 - **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
   don't play in it. Use a WebM (VP9) file to check video playback.
+- **The backend you test against is whatever was pushed last.** Every
+  checkout shares the dev deployment's code. If another branch's push left
+  documents that this checkout's schema rejects, `convex dev` logs "Schema
+  validation failed" in `.agents/.state/stack.log` and never pushes: the web
+  app then runs this branch's frontend against the other branch's backend.
+  Check with `bunx convex run devPushLease:status` in `packages/convex`
+  (`lastPush.label` names the branch and commit that is live) and read the
+  log before trusting a backend result. Seen on 2026-10-13: PR 644 had
+  written `isArchived` into `cardSearchDocuments`, so `main` could not push,
+  the live code still demanded the retired Safari Connect client, and
+  "Connected apps" in Settings, `/.well-known/teak-oauth-clients.json` and
+  `teak login` all failed with "Missing or invalid WorkOS Connect client for
+  safari". Fix by merging that PR, by deleting the offending documents in the
+  Convex dashboard, or by carrying the same optional field on your branch.
+- **File uploads from the `e2e` MCP server:** the "Upload files" button
+  creates its file input on the fly, so e2e's `upload` tool finds no input
+  node, and it refuses files outside `packages/tests` or under a dotted
+  directory. Drive the chooser over CDP instead: read the port from
+  `/tmp/teak-cloud-chromium-*/DevToolsActivePort`, `chromium.connectOverCDP`
+  with the repo's `playwright-core`, wait for `page.on("filechooser")` and
+  `setFiles`. Import's inputs in Settings are real and work with `upload`.
+- **Repository checks while the stack is up:** `turbo run typecheck lint
+  test` beside the dev stack's Next.js compile pushed four `@teak/convex`
+  HTTP tests past vitest's 5 s timeout on 4 vCPUs; they pass alone. Rerun a
+  failing file in isolation before treating a timeout as a regression.
+- **After `bun install` changes `next`:** the running dev server keeps the
+  old build in memory and answers "Internal Server Error". Restart with
+  `bun run dev --stop && bun run dev --detach`.
 
 ## Doesn't work
 
