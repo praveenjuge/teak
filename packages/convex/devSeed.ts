@@ -564,6 +564,7 @@ export const FOLDER_SCENARIOS = [
   "folders-500",
   "card-in-50-folders",
   "folders-ugly",
+  "search-qualifiers",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -728,10 +729,117 @@ const foldersUglyPack = (): FolderScenarioPack => ({
   ),
 });
 
+// "search-qualifiers": links on 30 hosts written every way `site:` must
+// match (www., capitals, a port, Unicode and punycode, an IP), tags in
+// several casings and hex-shaped names (`#fff` is a color, `tag:fff` the
+// tag), folders with spaces and quotes, and favorite, archived and trashed
+// cards among them.
+export const SEARCH_QUALIFIER_HOSTS = [
+  "https://github.com/teak/design-system",
+  "https://www.github.com/teak/notes",
+  "https://GitHub.com/teak/upper",
+  "https://gist.github.com/teak/snippet",
+  "https://www.example.com/page",
+  "https://blog.example.com/post",
+  "https://news.ycombinator.com/item",
+  "https://dribbble.com/shots/1",
+  "https://www.figma.com/file/a",
+  "https://figma.com/community/b",
+  "https://medium.com/@teak/design",
+  "https://dev.to/teak/post",
+  "https://stackoverflow.com/q/1",
+  "https://www.youtube.com/watch?v=1",
+  "https://m.youtube.com/watch?v=2",
+  "https://vimeo.com/1",
+  "https://arxiv.org/abs/1",
+  "https://en.wikipedia.org/wiki/Design",
+  "https://例え.jp/ページ",
+  "https://xn--r8jz45g.jp/punycode",
+  "https://bücher.example/buch",
+  "http://192.168.1.20:8080/router",
+  "http://localhost:3000/dev",
+  "https://www.notion.so/page",
+  "https://linear.app/teak/issue",
+  "https://vercel.com/docs",
+  "https://tailwindcss.com/docs",
+  "https://www.reddit.com/r/design",
+  "https://old.reddit.com/r/web",
+  "https://example.com./trailing-dot",
+] as const;
+
+const SEARCH_QUALIFIER_TAGS = [
+  ["Design"],
+  ["design", "Systems"],
+  ["DESIGN", "web design"],
+  ["fff"],
+  ["bad", "design"],
+  ["Design Systems"],
+  [],
+] as const;
+
+const SEARCH_QUALIFIER_TEXTS = [
+  "A design system primer",
+  "System design interview notes",
+  "“Design system” with smart quotes",
+  "Colour #fff swatches and the tag fff",
+  'Notes that say "hi" in quotes',
+  "Reading about design, systems and more",
+] as const;
+
+const searchQualifiersPack = (): FolderScenarioPack => {
+  const scenario = "search-qualifiers" as const;
+  const extraFor = (index: number): Partial<DefaultCardDef> => ({
+    tags: [
+      `scenario-${scenario}`,
+      ...SEARCH_QUALIFIER_TAGS[index % SEARCH_QUALIFIER_TAGS.length],
+    ],
+    ...(index % 5 === 2 ? { isFavorited: true } : {}),
+    ...(index % 7 === 3 ? { isArchived: true } : {}),
+    ...(index % 11 === 9 ? { isDeleted: true } : {}),
+  });
+  const links = SEARCH_QUALIFIER_HOSTS.map((url, offset) => {
+    const index = offset + 1;
+    const card = folderScenarioCard(scenario, index, "", [], extraFor(index));
+    const markedUrl = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...card,
+      type: "link" as const,
+      content: markedUrl,
+      url: markedUrl,
+      metadataTitle: `${index % 2 === 0 ? "Design system" : "Notes"} on ${new URL(url).host}`,
+      folders: [index % 4, (index + 1) % 5].filter((place) => place < 4),
+    };
+  });
+  const texts = SEARCH_QUALIFIER_TEXTS.map((text, offset) => {
+    const index = SEARCH_QUALIFIER_HOSTS.length + 1 + offset;
+    return folderScenarioCard(scenario, index, text, [offset % 4], {
+      tags: [
+        `scenario-${scenario}`,
+        ...SEARCH_QUALIFIER_TAGS[offset % SEARCH_QUALIFIER_TAGS.length],
+      ],
+    });
+  });
+  return {
+    folders: [
+      { name: "Reading list", color: "blue" },
+      { name: 'Say "hi"', color: "amber" },
+      { name: "Design refs", color: "violet" },
+      { name: "Ideas & things", color: "green" },
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Search qualifiers pack", [0]),
+      ...links,
+      ...texts,
+    ],
+  };
+};
+
 export const folderScenarioPack = (
   scenario: FolderScenario
 ): FolderScenarioPack => {
   switch (scenario) {
+    case "search-qualifiers":
+      return searchQualifiersPack();
     case "folders-one":
       return foldersOnePack();
     case "folders-500":
@@ -823,15 +931,64 @@ const seedFolderScenario = async (
   };
 };
 
+// "search-qualifiers-1000": 1,000 links, nine in ten on one host, so `site:`
+// and the other qualifiers page through more than one scan budget. Seeded
+// 200 at a time.
+export const SEARCH_QUALIFIERS_VOLUME_SIZE = 1000;
+export const SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE = 200;
+const SEARCH_QUALIFIERS_VOLUME_START = Date.UTC(2024, 0, 1);
+const VOLUME_RARE_HOSTS = [
+  "github.com",
+  "www.figma.com",
+  "例え.jp",
+  "blog.example.com",
+] as const;
+
+export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
+  const host =
+    index % 10 === 0
+      ? VOLUME_RARE_HOSTS[(index / 10) % VOLUME_RARE_HOSTS.length]
+      : "noise.example";
+  const url = `https://${host}/volume/${index}#${SCENARIO_MARKER}-search-qualifiers-1000`;
+  return {
+    type: "link",
+    content: url,
+    url,
+    metadataTitle: `Volume #${String(index).padStart(4, "0")} on ${host}`,
+    createdAt: SEARCH_QUALIFIERS_VOLUME_START + index * 3_600_000,
+    tags: [
+      "scenario-search-qualifiers-1000",
+      ...(index % 3 === 0 ? ["design"] : []),
+    ],
+    ...(index % 9 === 0 ? { isFavorited: true } : {}),
+    ...(index % 13 === 0 ? { isArchived: true } : {}),
+  };
+};
+
+const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
+  const start = page * SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE;
+  const end = Math.min(
+    start + SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
+    SEARCH_QUALIFIERS_VOLUME_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    searchQualifiersVolumeCard(start + offset)
+  );
+};
+
 const scenarioPackPage = (
   scenario:
     | "card-details"
     | "ordering"
     | "archive-mix"
     | "tags-2000"
-    | "tags-case",
+    | "tags-case"
+    | "search-qualifiers-1000",
   page: number
 ): DefaultCardDef[] => {
+  if (scenario === "search-qualifiers-1000") {
+    return searchQualifiersVolumePage(page);
+  }
   if (scenario === "ordering") {
     return orderingScenarioPage(page);
   }
@@ -859,7 +1016,9 @@ export const seedScenario = internalMutation({
       v.literal("folders-one"),
       v.literal("folders-500"),
       v.literal("card-in-50-folders"),
-      v.literal("folders-ugly")
+      v.literal("folders-ugly"),
+      v.literal("search-qualifiers"),
+      v.literal("search-qualifiers-1000")
     ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),

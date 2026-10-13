@@ -41,7 +41,7 @@ test("preserves home through ten warm settings round trips", async ({
     expect(toHome.loading).toEqual([]);
   }
 
-  const search = screen.getByRole("searchbox", "Search for anything...", {
+  const search = screen.getByRole("combobox", "Search for anything...", {
     exact: false,
   });
   await search.fill("navigation search");

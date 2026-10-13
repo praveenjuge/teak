@@ -11,7 +11,7 @@ import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
 // The placeholder names the open view, so find the box by its role.
 const enterSearch = async (screen: Screen, query: string) => {
-  const search = screen.getByRole("searchbox");
+  const search = screen.getByRole("combobox");
   await search.fill(query);
 };
 
@@ -61,7 +61,7 @@ const clearFilters = async (screen: Screen) => {
 // Typing `trash` in search opens the Trash page.
 const showTrash = async ({ browser, screen }: Surface) => {
   await gotoApp(browser, "/");
-  const search = screen.getByRole("searchbox");
+  const search = screen.getByRole("combobox");
   await search.fill("trash");
   await search.press("Enter");
   await expect(screen.getByPlaceholder("Search Trash...")).toBeVisible();

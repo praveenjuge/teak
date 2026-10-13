@@ -525,7 +525,11 @@ export function SearchBar({
                 size="sm"
                 variant="secondary"
               >
-                <Hash className="size-3.5 stroke-2" />
+                {keyword.startsWith('"') ? (
+                  <Quote className="size-3.5 stroke-2" />
+                ) : (
+                  <Hash className="size-3.5 stroke-2" />
+                )}
                 <span>{keyword}</span>
                 <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
