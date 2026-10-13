@@ -22,6 +22,7 @@ import {
   Archive,
   File,
   FileText,
+  Hash,
   Heart,
   Image,
   LayoutGrid,
@@ -34,7 +35,12 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
-import type { ComponentType, MouseEvent, ReactNode } from "react";
+import {
+  type ComponentType,
+  Fragment,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import {
   LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
@@ -80,19 +86,20 @@ export interface AppSidebarProps {
   /** The Folders group. */
   foldersSlot?: ReactNode;
   isSettingsActive?: boolean;
+  /** Whether the Tags page is open. */
+  isTagsActive?: boolean;
   LinkComponent: SidebarLinkComponent;
   /** Called before any sidebar link navigates (e.g. to remember scroll). */
   onNavigate?: () => void;
   onToggleType: (type: CardType) => void;
   settingsHref?: string;
-  /** The Tags group. */
-  tagsSlot?: ReactNode;
+  tagsHref?: string;
 }
 
 /**
  * The app's navigation: the logo with the add actions beside it, library
- * views and Settings, card types, and folders and tags. Collapses to icons on
- * desktop and opens as a drawer on phones.
+ * views with Tags and Settings, card types, and folders. Collapses to icons
+ * on desktop and opens as a drawer on phones.
  */
 export function AppSidebar({
   activeTypes,
@@ -100,11 +107,12 @@ export function AppSidebar({
   addActions,
   foldersSlot,
   isSettingsActive = false,
+  isTagsActive = false,
   LinkComponent,
   onNavigate,
   onToggleType,
   settingsHref = "/settings",
-  tagsSlot,
+  tagsHref = "/tags",
 }: AppSidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -152,22 +160,43 @@ export function AppSidebar({
               const Icon = LIBRARY_VIEW_ICONS[view];
               const isActive = activeView === view;
               return (
-                <SidebarMenuItem key={view}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={LIBRARY_VIEW_LABELS[view]}
-                  >
-                    <LinkComponent
-                      aria-current={isActive ? "page" : undefined}
-                      href={LIBRARY_VIEW_PATHS[view]}
-                      onClick={handleNavigate}
+                <Fragment key={view}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={LIBRARY_VIEW_LABELS[view]}
                     >
-                      <Icon />
-                      <span>{LIBRARY_VIEW_LABELS[view]}</span>
-                    </LinkComponent>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                      <LinkComponent
+                        aria-current={isActive ? "page" : undefined}
+                        href={LIBRARY_VIEW_PATHS[view]}
+                        onClick={handleNavigate}
+                      >
+                        <Icon />
+                        <span>{LIBRARY_VIEW_LABELS[view]}</span>
+                      </LinkComponent>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {/* Tags sit with the library, right after Favorites. */}
+                  {view === "favorites" && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isTagsActive}
+                        tooltip="Tags"
+                      >
+                        <LinkComponent
+                          aria-current={isTagsActive ? "page" : undefined}
+                          href={tagsHref}
+                          onClick={handleNavigate}
+                        >
+                          <Hash />
+                          <span>Tags</span>
+                        </LinkComponent>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                </Fragment>
               );
             })}
             <SidebarMenuItem>
@@ -217,7 +246,6 @@ export function AppSidebar({
         </SidebarGroup>
 
         {foldersSlot}
-        {tagsSlot}
       </SidebarContent>
 
       <SidebarRail />

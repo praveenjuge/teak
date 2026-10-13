@@ -58,13 +58,17 @@ const pendingRefresh = (ctx: QueryCtx, userId: string) =>
 
 /**
  * Schedules a snapshot recompute unless one is already pending, so a burst
- * of tag changes (an import, a library-wide rename) recomputes once.
+ * of tag changes (an import, a library-wide rename) recomputes once. An
+ * account being deleted gets none, so no marker outlives the sweep.
  */
 export const markTagSummaryDirty = async (
   ctx: MutationCtx,
   userId: string,
   delayMs = TAG_SUMMARY_DEBOUNCE_MS
 ) => {
+  if (await getAccountDeletionState(ctx, userId)) {
+    return;
+  }
   const now = Date.now();
   const pending = await pendingRefresh(ctx, userId);
   if (pending && pending.dueAt + TAG_SUMMARY_STALE_MS > now) {

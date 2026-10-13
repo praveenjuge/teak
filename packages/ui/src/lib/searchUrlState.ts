@@ -121,18 +121,3 @@ export const toggleSearchUrlType = (
     ? state.types.filter((active) => active !== type)
     : [...state.types, type],
 });
-
-/**
- * The same search narrowed to `tag`, or with the tag removed when it is the
- * one already applied, for a sidebar tag link.
- */
-export const toggleSearchUrlTag = (
-  state: SearchUrlState,
-  tag: string
-): SearchUrlState => {
-  const next = parseTagParam(tag);
-  return {
-    ...state,
-    tag: parseTagParam(state.tag ?? null) === next ? "" : next,
-  };
-};

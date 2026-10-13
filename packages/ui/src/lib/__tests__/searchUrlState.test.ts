@@ -5,7 +5,6 @@ import {
   MAX_URL_SEARCH_LENGTH,
   parseSearchUrlState,
   serializeSearchUrlState,
-  toggleSearchUrlTag,
   toggleSearchUrlType,
 } from "../searchUrlState";
 
@@ -157,13 +156,6 @@ describe("tag in the URL", () => {
     expect(
       serializeSearchUrlState(EMPTY_SEARCH_URL_STATE, "tag=design&card=c1")
     ).toBe("card=c1");
-  });
-
-  test("toggles a tag on, swaps it for another, and off again", () => {
-    const on = toggleSearchUrlTag(EMPTY_SEARCH_URL_STATE, "Design");
-    expect(on.tag).toBe("design");
-    expect(toggleSearchUrlTag(on, "web").tag).toBe("web");
-    expect(toggleSearchUrlTag(on, "DESIGN").tag).toBe("");
   });
 
   test("compares tags ignoring case, and a missing tag as none", () => {

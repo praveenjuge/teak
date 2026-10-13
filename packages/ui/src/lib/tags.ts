@@ -9,7 +9,7 @@ import { ConvexError } from "convex/values";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
-/** A tag in the sidebar list: its lowercase name and active card count. */
+/** A tag in the tag list: its lowercase name and active card count. */
 export interface TagSummaryItem {
   count: number;
   name: string;
@@ -41,11 +41,8 @@ export const isTagOperationStalled = (
   operation.updatedAt !== undefined &&
   now - operation.updatedAt > TAG_OPERATION_STALL_MS;
 
-/** Tags the sidebar shows before "Show all". */
-export const TAG_SIDEBAR_PREVIEW_COUNT = 8;
-
 /**
- * How long a finished change keeps adjusting the sidebar list while the
+ * How long a finished change keeps adjusting the tag list while the
  * background tag counts catch up.
  */
 export const TAG_OPERATION_OVERLAY_MS = 2 * 60_000;
@@ -113,7 +110,7 @@ export const tagOperationDescription = (operation: TagOperationView) => {
 };
 
 /**
- * The sidebar list as it will look once a tag change lands: the background
+ * The tag list as it will look once a tag change lands: the background
  * counts take a few seconds to follow, so a running or just-finished change
  * is applied on top. Rename and merge move the count to the target (a card
  * with both is counted twice until the counts refresh); delete drops the tag.

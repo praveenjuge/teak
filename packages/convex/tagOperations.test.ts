@@ -14,7 +14,7 @@ import {
 import schema from "./schema";
 import { TAG_OPERATION_STALL_MS } from "./shared/tags";
 import { TAG_OPERATION_BATCH_SIZE } from "./tag/tagOperations";
-import { TAG_SUMMARY_PAGE_ROWS } from "./tag/tagSummary";
+import { markTagSummaryDirty, TAG_SUMMARY_PAGE_ROWS } from "./tag/tagSummary";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -260,6 +260,16 @@ describe("library-wide tag operations", () => {
       });
     });
     await expect(start("delete", "keep-me")).rejects.toThrow();
+    // A tag-count refresh leaves no marker that would outlive the sweep.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("tagSummaryRefreshes").collect()) {
+        await ctx.db.delete("tagSummaryRefreshes", row._id);
+      }
+      await markTagSummaryDirty(ctx, "owner");
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query("tagSummaryRefreshes").collect())
+    ).toEqual([]);
   });
 
   test("another user's operation reads as missing", async () => {

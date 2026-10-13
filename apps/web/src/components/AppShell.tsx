@@ -11,13 +11,11 @@ import {
 import {
   parseCardTypesParam,
   parseSearchUrlState,
-  parseTagParam,
   type SearchUrlState,
   serializeSearchUrlState,
-  toggleSearchUrlTag,
   toggleSearchUrlType,
 } from "@teak/ui/lib/searchUrlState";
-import { AppSidebar, SidebarFolders, SidebarTags } from "@teak/ui/sidebar";
+import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -45,9 +43,8 @@ export function AppShell({
   const activeTypes = isCardsPage
     ? parseCardTypesParam(searchParams.get("type"))
     : [];
-  const activeTag = isCardsPage ? parseTagParam(searchParams.get("tag")) : "";
 
-  // A type or tag narrows the open view or folder (Settings goes back to
+  // A type narrows the open view or folder (Settings and Tags go back to
   // Everything) and keeps the search; the open card closes because it may
   // not match any more.
   const pushSearch = (change: (state: SearchUrlState) => SearchUrlState) => {
@@ -65,8 +62,6 @@ export function AppShell({
   };
   const handleToggleType = (type: CardType) =>
     pushSearch((state) => toggleSearchUrlType(state, type));
-  const handleSelectTag = (tag: string) =>
-    pushSearch((state) => toggleSearchUrlTag(state, tag));
 
   const handleUpgrade = () => {
     rememberHomeScroll();
@@ -94,12 +89,10 @@ export function AppShell({
           />
         }
         isSettingsActive={pathname?.startsWith("/settings") ?? false}
+        isTagsActive={pathname === "/tags"}
         LinkComponent={Link}
         onNavigate={isCardsPage ? rememberHomeScroll : undefined}
         onToggleType={handleToggleType}
-        tagsSlot={
-          <SidebarTags activeTag={activeTag} onSelectTag={handleSelectTag} />
-        }
       />
       <SidebarInset className="min-w-0">
         <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>

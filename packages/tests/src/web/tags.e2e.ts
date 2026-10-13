@@ -3,13 +3,13 @@ import type { Id } from "@teak/convex/_generated/dataModel";
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// Tags from the sidebar: the list with counts, filtering by one, then
+// The Tags page: every tag with its count, opening a tag's cards, then
 // renaming, merging and deleting it across every card.
 const ALPHA = "Tagged alpha card";
 const BETA = "Tagged beta card";
 const GAMMA = "Tagged gamma card";
 
-test("filter by a tag, then rename, merge and delete it everywhere", async ({
+test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   browser,
   screen,
   library,
@@ -29,15 +29,32 @@ test("filter by a tag, then rename, merge and delete it everywhere", async ({
   const tagsOf = async (id: Id<"cards">) =>
     (await library.client.query(api.cards.getCard, { id }))?.tags;
 
+  // Tags sits under Favorites in the sidebar and opens its own page.
   await gotoApp(browser, "/");
+  await screen.getByRole("link", "Tags").click();
+  await expect(browser).toHaveURL(/\/tags$/);
+  await expect(screen.getByRole("link", "Tags")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
   // Case variants are one tag. The list follows tag changes after a short
-  // delay.
-  const design = screen.getByRole("button", "design", { exact: true });
+  // delay. A row is named for its tag and count, so match the name; the
+  // welcome cards may carry these tags too.
+  const tagRow = (name: string) =>
+    screen.getByRole("link", `${name}, `, { exact: false });
+  const design = tagRow("design");
   await expect(design).toBeVisible({ timeout: 60_000 });
+  await expect(tagRow("web")).toBeVisible();
 
-  // Picking a tag narrows the library and shows it as a removable chip.
+  // Finding narrows the list.
+  await screen.getByRole("searchbox", "Find a tag").fill("WE");
+  await expect(tagRow("web")).toBeVisible();
+  await expect(design).not.toBeVisible();
+  await screen.getByRole("searchbox", "Find a tag").fill("");
+
+  // A tag opens the library narrowed to it, shown as a removable chip.
   await design.click();
-  await expect(browser).toHaveURL(/tag=design/);
+  await expect(browser).toHaveURL(/\/\?tag=design$/);
   await expect(
     screen.getByRole("button", "Remove tag filter design")
   ).toBeVisible();
@@ -45,7 +62,8 @@ test("filter by a tag, then rename, merge and delete it everywhere", async ({
   await expect(screen.getByText(BETA)).toBeVisible();
   await expect(screen.getByText(GAMMA)).not.toBeVisible();
 
-  // Rename from the tag's menu; the filter follows the new name.
+  // Rename from the tag's menu on the Tags page.
+  await screen.getByRole("link", "Tags").click();
   await screen.getByRole("button", "More for design").click();
   await screen.getByRole("menuitem", "Rename…").click();
   const rename = screen.getByRole("dialog", "Rename tag");
@@ -54,7 +72,7 @@ test("filter by a tag, then rename, merge and delete it everywhere", async ({
   await expect(
     screen.getByText("Renamed “design” to “Design Systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
-  await expect(browser).toHaveURL(/tag=design\+systems/);
+  await expect(tagRow("design systems")).toBeVisible();
   expect(await tagsOf(alpha)).toEqual(["Design Systems", "web"]);
 
   // Merge "web" into the renamed tag: a card with both keeps one.
@@ -69,7 +87,7 @@ test("filter by a tag, then rename, merge and delete it everywhere", async ({
   expect(await tagsOf(alpha)).toEqual(["Design Systems"]);
   expect(await tagsOf(gamma)).toEqual(["design systems"]);
 
-  // Delete it: the cards are kept and the filter clears.
+  // Delete it: the cards are kept and the tag leaves the list.
   await screen.getByRole("button", "More for design systems").click();
   await screen.getByRole("menuitem", "Delete…").click();
   await screen
@@ -79,7 +97,8 @@ test("filter by a tag, then rename, merge and delete it everywhere", async ({
   await expect(
     screen.getByText("Deleted “design systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
-  await expect(browser).not.toHaveURL(/tag=/);
+  await expect(
+    screen.getByRole("button", "More for design systems")
+  ).not.toBeVisible();
   expect(await tagsOf(alpha)).toBeUndefined();
-  await expect(screen.getByText(GAMMA)).toBeVisible();
 });
