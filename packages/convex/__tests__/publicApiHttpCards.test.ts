@@ -256,6 +256,19 @@ describe("publicApiHttp card endpoints", () => {
     expect(runQuery).not.toHaveBeenCalled();
   });
 
+  test("listCardsV1 answers an unknown folder with 404 even when q contradicts the other filters", async () => {
+    const runQuery = mock().mockResolvedValue(null);
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        "https://example.com/v1/cards?folder=missing&type=link&q=type:text"
+      )
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+  });
+
   test("listCardsV1 keeps is:archived in Trash to the archived cards", async () => {
     const runQuery = mock().mockResolvedValue({
       itemCursors: [],

@@ -214,13 +214,6 @@ const handleCardsListRequest = async (
     );
   }
 
-  if (options.matchesNothing) {
-    return json(200, {
-      items: [],
-      pageInfo: { hasMore: false, nextCursor: null },
-    });
-  }
-
   try {
     let folderId: string | undefined;
     if (options.folder) {
@@ -232,6 +225,14 @@ const handleCardsListRequest = async (
         return errorResponse(404, "NOT_FOUND", "Folder not found");
       }
       folderId = folder._id;
+    }
+    // After the folder check, so an unknown folder is a 404 whatever else
+    // the request asks for.
+    if (options.matchesNothing) {
+      return json(200, {
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+      });
     }
     const queryArgs = {
       archived: options.archived,
