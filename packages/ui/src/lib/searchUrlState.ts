@@ -2,13 +2,24 @@ import { type CardListSort, normalizeCardListSort } from "@teak/convex/shared";
 import { type CardType, isCardType } from "@teak/convex/shared/constants";
 
 /**
- * The search a library URL carries: `?q=`, `?sort=oldest` and the card types
- * picked in the sidebar as `?type=link,image`.
+ * The search a library URL carries: `?q=`, `?sort=oldest`, the card types
+ * picked in the sidebar as `?type=link,image`, and a sidebar tag as
+ * `?tag=design`.
  */
 export interface SearchUrlState {
   q: string;
   sort: CardListSort;
+  /** A tag, lowercased like the tag list; empty or missing for none. */
+  tag?: string;
   types: CardType[];
+}
+
+/** Longest tag the URL keeps, like the longest tag a card can have. */
+const MAX_URL_TAG_LENGTH = 64;
+
+/** A tag from the URL as the tag list names it: trimmed and lowercased. */
+export function parseTagParam(value: string | null): string {
+  return (value ?? "").trim().toLowerCase().slice(0, MAX_URL_TAG_LENGTH);
 }
 
 // Long enough for any real search; keeps a pasted URL from filling the input
@@ -22,6 +33,7 @@ interface ReadableParams {
 export const EMPTY_SEARCH_URL_STATE: SearchUrlState = {
   q: "",
   sort: "newest",
+  tag: "",
   types: [],
 };
 
@@ -42,6 +54,7 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
   return {
     q: (params.get("q") ?? "").trim().slice(0, MAX_URL_SEARCH_LENGTH),
     sort: normalizeCardListSort(params.get("sort")),
+    tag: parseTagParam(params.get("tag")),
     types: parseCardTypesParam(params.get("type")),
   };
 }
@@ -72,6 +85,12 @@ export function serializeSearchUrlState(
   } else {
     next.delete("type");
   }
+  const tag = parseTagParam(state.tag ?? null);
+  if (tag) {
+    next.set("tag", tag);
+  } else {
+    next.delete("tag");
+  }
   // Commas are valid in a query; keep `?type=link,image` readable.
   return next.toString().replace(/%2C/g, ",");
 }
@@ -85,6 +104,7 @@ export const isSameSearchUrlState = (
 ): boolean =>
   left.q.trim() === right.q.trim() &&
   normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort) &&
+  parseTagParam(left.tag ?? null) === parseTagParam(right.tag ?? null) &&
   sameTypes(left.types, right.types);
 
 /** The same search with `type` switched on or off, for a sidebar type link. */
@@ -97,3 +117,18 @@ export const toggleSearchUrlType = (
     ? state.types.filter((active) => active !== type)
     : [...state.types, type],
 });
+
+/**
+ * The same search narrowed to `tag`, or with the tag removed when it is the
+ * one already applied, for a sidebar tag link.
+ */
+export const toggleSearchUrlTag = (
+  state: SearchUrlState,
+  tag: string
+): SearchUrlState => {
+  const next = parseTagParam(tag);
+  return {
+    ...state,
+    tag: parseTagParam(state.tag ?? null) === next ? "" : next,
+  };
+};

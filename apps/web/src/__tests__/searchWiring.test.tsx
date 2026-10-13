@@ -58,10 +58,11 @@ const render = (
 
 describe("library URL", () => {
   test("hands the search and open card in the URL to the library", () => {
-    render("q=blue%20buttons&sort=oldest&type=link,image&card=card_1");
+    render("q=blue%20buttons&sort=oldest&type=link,image&tag=UI&card=card_1");
     expect(screenProps.searchUrlState).toEqual({
       q: "blue buttons",
       sort: "oldest",
+      tag: "ui",
       types: ["link", "image"],
     });
     expect(screenProps.cardIdFromUrl).toBe("card_1");
@@ -72,6 +73,7 @@ describe("library URL", () => {
     expect(screenProps.searchUrlState).toEqual({
       q: "",
       sort: "newest",
+      tag: "",
       types: [],
     });
   });
@@ -81,7 +83,7 @@ describe("library URL", () => {
     const history = installWindow("?card=card_1");
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "newest", types: [] },
-      { sortChanged: false, typesChanged: false }
+      { sortChanged: false, tagChanged: false, typesChanged: false }
     );
     expect(history.pushState).not.toHaveBeenCalled();
     expect(history.replaceState).toHaveBeenCalledWith(
@@ -96,7 +98,7 @@ describe("library URL", () => {
     const history = installWindow("?q=design");
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "oldest", types: [] },
-      { sortChanged: true, typesChanged: false }
+      { sortChanged: true, tagChanged: false, typesChanged: false }
     );
     expect(history.pushState).toHaveBeenCalledWith(
       null,
@@ -110,7 +112,7 @@ describe("library URL", () => {
     const history = installWindow("?q=design");
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "newest", types: [] },
-      { sortChanged: false, typesChanged: false }
+      { sortChanged: false, tagChanged: false, typesChanged: false }
     );
     expect(history.pushState).not.toHaveBeenCalled();
     expect(history.replaceState).not.toHaveBeenCalled();
@@ -121,9 +123,23 @@ describe("library URL", () => {
     const history = installWindow("?type=link,image");
     screenProps.onSearchUrlStateChange(
       { q: "", sort: "newest", types: ["link"] },
-      { sortChanged: false, typesChanged: true }
+      { sortChanged: false, tagChanged: false, typesChanged: true }
     );
     expect(history.pushState).toHaveBeenCalledWith(null, "", "/?type=link");
+  });
+
+  test("picking a sidebar tag adds a history entry so Back restores it", () => {
+    render("q=blue");
+    const history = installWindow("?q=blue");
+    screenProps.onSearchUrlStateChange(
+      { q: "blue", sort: "newest", tag: "design", types: [] },
+      { sortChanged: false, tagChanged: true, typesChanged: false }
+    );
+    expect(history.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/?q=blue&tag=design"
+    );
   });
 
   test("hands the routed view to the library", () => {

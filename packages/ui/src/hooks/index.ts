@@ -64,3 +64,8 @@ export { useObjectState } from "./useObjectState";
 export { useReprocessCard } from "./useReprocessCard";
 export type { UseSettingsControllerOptions } from "./useSettingsController";
 export { useSettingsController } from "./useSettingsController";
+export type {
+  StartTagOperationInput,
+  UseTagOperationsResult,
+} from "./useTagOperations";
+export { useTagOperations } from "./useTagOperations";

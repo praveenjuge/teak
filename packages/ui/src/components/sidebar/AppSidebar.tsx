@@ -77,7 +77,7 @@ export interface AppSidebarProps {
   activeView: LibraryView | null;
   /** Add actions (upload, record), shown as icon buttons beside the logo. */
   addActions?: ReactNode;
-  /** Phase 5 renders folders here. */
+  /** The Folders group. */
   foldersSlot?: ReactNode;
   isSettingsActive?: boolean;
   LinkComponent: SidebarLinkComponent;
@@ -85,7 +85,7 @@ export interface AppSidebarProps {
   onNavigate?: () => void;
   onToggleType: (type: CardType) => void;
   settingsHref?: string;
-  /** Phase 6 renders tags here. */
+  /** The Tags group. */
   tagsSlot?: ReactNode;
 }
 

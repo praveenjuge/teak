@@ -22,6 +22,7 @@ import {
   Quote,
   Search,
   Sparkles,
+  Tag,
   Video,
   Volume2,
   X,
@@ -45,6 +46,8 @@ export interface SearchBarProps {
   onRemoveHueFilter: (hue: ColorHueBucket) => void;
   onRemoveKeyword: (keyword: string) => void;
   onRemoveStyleFilter: (style: VisualStyle) => void;
+  /** Clears the sidebar tag; shown when `tagFilter` is set. */
+  onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
@@ -53,6 +56,8 @@ export interface SearchBarProps {
   searchQuery: string;
   sort?: CardListSort;
   styleFilters: VisualStyle[];
+  /** A tag picked in the sidebar, shown as a removable chip. */
+  tagFilter?: string;
   timeFilter?: TimeFilter | null;
 }
 
@@ -109,6 +114,8 @@ export function SearchBar({
   onRemoveHexFilter,
   onRemoveKeyword,
   onRemoveTimeFilter,
+  onRemoveTagFilter,
+  tagFilter,
   onClearAll,
   HeaderActions,
   leading,
@@ -120,6 +127,7 @@ export function SearchBar({
   // shows only what is narrowing the results, each chip removable.
   const hasAnyFilters =
     keywordTags.length > 0 ||
+    Boolean(tagFilter) ||
     Boolean(timeFilter) ||
     filterTags.length > 0 ||
     styleFilters.length > 0 ||
@@ -172,6 +180,24 @@ export function SearchBar({
       {hasAnyFilters && (
         <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
           <div className="flex flex-wrap gap-2">
+            {tagFilter && (
+              <Button
+                aria-label={`Remove tag filter ${tagFilter}`}
+                className="max-w-full"
+                key="tag-filter"
+                onClick={onRemoveTagFilter}
+                onMouseDown={preventBlur}
+                size="sm"
+                variant="secondary"
+              >
+                <Tag className="size-3.5 stroke-2" />
+                <span className="truncate" dir="auto">
+                  {tagFilter}
+                </span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
+              </Button>
+            )}
+
             {keywordTags.map((keyword) => (
               <Button
                 key={`keyword-${keyword}`}
