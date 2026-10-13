@@ -59,6 +59,38 @@ export const cardUrlHost = (card: Pick<Doc<"cards">, "url" | "urlHost">) =>
   normalizeUrlHost(card.url) ?? card.urlHost ?? null;
 
 /**
+ * The user's folders for `folder:` name keys (trimmed, lowercased names),
+ * or null when any name is not one of their folders. A folder being deleted
+ * no longer answers to its name.
+ */
+export const resolveFolderNames = async (
+  ctx: QueryCtx,
+  userId: string,
+  nameKeys: readonly string[]
+): Promise<Id<"folders">[] | null> => {
+  const folderIds: Id<"folders">[] = [];
+  for (const nameKey of nameKeys) {
+    let found: Id<"folders"> | undefined;
+    // A deleted folder can share its name with a newer one.
+    for await (const folder of ctx.db
+      .query("folders")
+      .withIndex("by_userId_and_nameKey", (query) =>
+        query.eq("userId", userId).eq("nameKey", nameKey)
+      )) {
+      if (folder.deletingAt === undefined) {
+        found = folder._id;
+        break;
+      }
+    }
+    if (!found) {
+      return null;
+    }
+    folderIds.push(found);
+  }
+  return folderIds;
+};
+
+/**
  * Merges a parsed search into a view's filters: `type:` narrows the view's
  * types, `is:fav` turns on favorites, `is:archived` reads Archive (or the
  * archived cards in Trash), and `folder:` names resolve to the user's
@@ -100,18 +132,13 @@ export const resolveSearch = async (
     }
     folderIds.push(folder._id);
   }
-  for (const nameKey of parsed.folders) {
-    const folder = await ctx.db
-      .query("folders")
-      .withIndex("by_userId_and_nameKey", (query) =>
-        query.eq("userId", userId).eq("nameKey", nameKey)
-      )
-      .unique();
-    if (!folder || folder.deletingAt !== undefined) {
-      return null;
-    }
-    if (!folderIds.includes(folder._id)) {
-      folderIds.push(folder._id);
+  const named = await resolveFolderNames(ctx, userId, parsed.folders);
+  if (!named) {
+    return null;
+  }
+  for (const folderId of named) {
+    if (!folderIds.includes(folderId)) {
+      folderIds.push(folderId);
     }
   }
 

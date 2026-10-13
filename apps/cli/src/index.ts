@@ -161,7 +161,10 @@ export const queryOptions = (options: Record<string, unknown>) => {
 
 const withListOptions = (command: Command) =>
   command
-    .option("-q, --query <text>", "full-text search")
+    .option(
+      "-q, --query <text>",
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder: and "phrases"'
+    )
     .option(
       "--type <type>",
       "card type; repeat to match any of several",
@@ -383,7 +386,10 @@ withListOptions(
   cards.command("list").alias("ls").description("List cards")
 ).action(async (options) => writeCards({ ...program.opts(), ...options }));
 withListOptions(
-  cards.command("search").argument("[query]").description("Search cards")
+  cards
+    .command("search")
+    .argument("[query]")
+    .description("Search cards, e.g. 'site:github.com tag:design'")
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },
@@ -689,7 +695,10 @@ withListOptions(program.command("ls").description("List cards")).action(
   async (options) => writeCards({ ...program.opts(), ...options })
 );
 withListOptions(
-  program.command("search").argument("[query]").description("Search cards")
+  program
+    .command("search")
+    .argument("[query]")
+    .description("Search cards, e.g. 'site:github.com tag:design'")
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },

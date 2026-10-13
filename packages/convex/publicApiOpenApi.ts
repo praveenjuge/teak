@@ -861,7 +861,13 @@ export const openApiSpec = {
     "/v1/cards": {
       get: {
         parameters: [
-          { in: "query", name: "q", schema: { type: "string" } },
+          {
+            in: "query",
+            name: "q",
+            description:
+              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and `"quoted phrases"`. Qualifiers combine with the other parameters.',
+            schema: { type: "string" },
+          },
           { in: "query", name: "limit", schema: { type: "integer" } },
           { in: "query", name: "cursor", schema: { type: "string" } },
           {

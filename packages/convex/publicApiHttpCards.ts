@@ -214,6 +214,13 @@ const handleCardsListRequest = async (
     );
   }
 
+  if (options.matchesNothing) {
+    return json(200, {
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+  }
+
   try {
     let folderId: string | undefined;
     if (options.folder) {
@@ -241,6 +248,7 @@ const handleCardsListRequest = async (
       type: options.type,
       types: options.types,
       userId: auth.validated.userId,
+      ...options.qualifiers,
     };
     let cardsPage: {
       items: any[];

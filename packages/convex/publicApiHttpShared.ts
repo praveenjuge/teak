@@ -74,6 +74,16 @@ interface CardsQueryOptions {
   hexFilters?: string[];
   hueFilters?: string[];
   limit: number;
+  /** Qualifiers in `q` that contradict the other parameters. */
+  matchesNothing?: boolean;
+  /** Qualifiers from `q` beyond what the plain parameters carry. */
+  qualifiers?: {
+    archivedInTrash?: boolean;
+    folderNames?: string[];
+    phrases?: string[];
+    sites?: string[];
+    tags?: string[];
+  };
   searchQuery?: string;
   showTrashOnly?: boolean;
   sort?: "newest" | "oldest";

@@ -41,6 +41,10 @@ import {
   MAX_FOLDERS_PER_CARD,
 } from "./shared/folders";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
+import {
+  hasSearchQualifiers,
+  parseSearchQuery,
+} from "./shared/search/qualifiers";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -525,23 +529,60 @@ const parseCardsQueryOptions = (
     );
   }
 
+  // Qualifiers in `q` merge with the plain parameters: `type:` narrows
+  // `type`, `tag:` adds to `tag`, `is:fav` sets `favorited`, `is:archived`
+  // reads Archive (or the archived cards in Trash).
+  const parsed = parseSearchQuery(query ?? "");
+  let resolvedTypes = uniqueTypes;
+  let matchesNothing = false;
+  if (parsed.types.length > 0) {
+    resolvedTypes = uniqueTypes.length
+      ? uniqueTypes.filter((type) => (parsed.types as string[]).includes(type))
+      : parsed.types;
+    matchesNothing = resolvedTypes.length === 0;
+  }
+  let resolvedArchived = archived as CardsQueryOptions["archived"];
+  if (parsed.archived && trashed !== true) {
+    matchesNothing ||= archived === "exclude";
+    resolvedArchived = "only";
+  }
+  const tags = [
+    ...new Set(
+      [tag, ...parsed.tags]
+        .map((value) => value?.trim().toLowerCase())
+        .filter((value): value is string => Boolean(value))
+    ),
+  ];
+
   return {
     createdAfter,
     createdBefore,
     cursor: parseOptionalString(searchParams.get("cursor")),
-    archived: archived as CardsQueryOptions["archived"],
+    archived: resolvedArchived,
     folder,
-    favoritesOnly: favorited === true,
+    favoritesOnly: favorited === true || parsed.favorite,
+    ...(matchesNothing ? { matchesNothing } : {}),
+    ...(hasSearchQualifiers(parsed) || parsed.phrases.length > 0
+      ? {
+          qualifiers: {
+            archivedInTrash: trashed === true && parsed.archived,
+            folderNames: parsed.folders,
+            phrases: parsed.phrases,
+            sites: parsed.sites,
+            tags: tags.slice(1),
+          },
+        }
+      : {}),
     showTrashOnly: trashed === true,
     styleFilters: visualFilters.styleFilters,
     hueFilters: visualFilters.hueFilters,
     hexFilters: visualFilters.hexFilters,
     limit: parseLimit(searchParams.get("limit")),
-    searchQuery: query,
+    searchQuery: parsed.text || undefined,
     sort: sort as CardsQueryOptions["sort"] | undefined,
-    tag,
-    type: uniqueTypes.length === 1 ? uniqueTypes[0] : undefined,
-    types: uniqueTypes.length > 1 ? uniqueTypes : undefined,
+    tag: tags[0],
+    type: resolvedTypes.length === 1 ? resolvedTypes[0] : undefined,
+    types: resolvedTypes.length > 1 ? resolvedTypes : undefined,
   };
 };
 

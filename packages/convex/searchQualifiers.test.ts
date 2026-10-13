@@ -147,55 +147,55 @@ describe("urlHost", () => {
   });
 });
 
-describe("search qualifiers", () => {
-  const seedLibrary = async (
-    insert: Awaited<ReturnType<typeof setup>>["insert"]
-  ) => {
-    await insert({
-      content: "Design system on GitHub",
-      url: "https://github.com/acme/ds",
-      tags: ["Design"],
-    });
-    await insert({
-      content: "GitHub notes",
-      url: "https://www.github.com/acme/notes",
-      tags: ["notes"],
-    });
-    await insert({
-      content: "Blog post about design",
-      url: "https://blog.example.com/post",
-      tags: ["design", "writing"],
-      isFavorited: true,
-    });
-    await insert({
-      content: "Example home",
-      url: "https://example.com",
-      tags: ["design"],
-    });
-    await insert({
-      content: "Archived GitHub design",
-      url: "https://github.com/old",
-      tags: ["design"],
-      isArchived: true,
-    });
-    await insert({
-      content: "Trashed GitHub design",
-      url: "https://github.com/gone",
-      tags: ["design"],
-      isDeleted: true,
-      deletedAt: 1,
-    });
-    await insert({
-      content: "Trashed archived design",
-      url: "https://github.com/gone-archived",
-      tags: ["design"],
-      isDeleted: true,
-      deletedAt: 1,
-      isArchived: true,
-    });
-    await insert({ content: "Plain design system note", tags: ["design"] });
-  };
+const seedLibrary = async (
+  insert: Awaited<ReturnType<typeof setup>>["insert"]
+) => {
+  await insert({
+    content: "Design system on GitHub",
+    url: "https://github.com/acme/ds",
+    tags: ["Design"],
+  });
+  await insert({
+    content: "GitHub notes",
+    url: "https://www.github.com/acme/notes",
+    tags: ["notes"],
+  });
+  await insert({
+    content: "Blog post about design",
+    url: "https://blog.example.com/post",
+    tags: ["design", "writing"],
+    isFavorited: true,
+  });
+  await insert({
+    content: "Example home",
+    url: "https://example.com",
+    tags: ["design"],
+  });
+  await insert({
+    content: "Archived GitHub design",
+    url: "https://github.com/old",
+    tags: ["design"],
+    isArchived: true,
+  });
+  await insert({
+    content: "Trashed GitHub design",
+    url: "https://github.com/gone",
+    tags: ["design"],
+    isDeleted: true,
+    deletedAt: 1,
+  });
+  await insert({
+    content: "Trashed archived design",
+    url: "https://github.com/gone-archived",
+    tags: ["design"],
+    isDeleted: true,
+    deletedAt: 1,
+    isArchived: true,
+  });
+  await insert({ content: "Plain design system note", tags: ["design"] });
+};
 
+describe("search qualifiers", () => {
   test("site: matches the exact host however it is written", async () => {
     const { insert, search } = await setup();
     await seedLibrary(insert);
@@ -319,6 +319,16 @@ describe("search qualifiers", () => {
     expect(await search("folder:work", { folderId: reading._id })).toEqual([
       "In both folders",
     ]);
+    // A deleted folder's name answers to the newer folder that took it.
+    await owner.mutation(api.folders.deleteFolder, { folderId: work._id });
+    const newWork = await owner.mutation(api.folders.createFolder, {
+      name: "WORK",
+    });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: inReading,
+      folderIds: [reading._id, newWork._id],
+    });
+    expect(await search("folder:work")).toEqual(["Only reading"]);
     expect(await search("folder:nope")).toEqual([]);
     expect(await search("folder:secret")).toEqual([]);
     // Another user's name in my search does not reach their folder.
@@ -487,5 +497,73 @@ describe("backfillUrlHost", () => {
       cardsToUpdate: 0,
       searchDocumentsToUpdate: 0,
     });
+  });
+});
+
+describe("public API qualifiers", () => {
+  test("search and scan pages take the parsed qualifiers", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    await seedLibrary(insert);
+    const reading = await owner.mutation(api.folders.createFolder, {
+      name: "Reading",
+    });
+    const filed = await insert({
+      content: "Filed GitHub page",
+      url: "https://github.com/filed",
+    });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: filed,
+      folderIds: [reading._id],
+    });
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "design system",
+          tag: "design",
+          type: "link",
+          sites: ["github.com"],
+          phrases: ["design system"],
+        })
+      )
+    ).toEqual(["Design system on GitHub"]);
+
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          tag: "design",
+          tags: ["writing"],
+        })
+      )
+    ).toEqual(["Blog post about design"]);
+
+    const scan = (args: Record<string, unknown>) =>
+      t
+        .query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          ...args,
+        })
+        .then(contents);
+    expect(await scan({ sites: ["github.com"] })).toEqual([
+      "Filed GitHub page",
+      "GitHub notes",
+      "Design system on GitHub",
+    ]);
+    expect(await scan({ sites: ["github.com"], archived: "only" })).toEqual([
+      "Archived GitHub design",
+    ]);
+    expect(await scan({ folderNames: ["reading"] })).toEqual([
+      "Filed GitHub page",
+    ]);
+    expect(await scan({ folderNames: ["nope"] })).toEqual([]);
+    expect(await scan({ showTrashOnly: true, archivedInTrash: true })).toEqual([
+      "Trashed archived design",
+    ]);
   });
 });
