@@ -87,6 +87,8 @@ export interface CardProps {
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
   onDelete?: (cardId: string) => void;
+  /** Opens the card's Folders checklist. */
+  onEditFolders?: (cardId: string) => void;
   onEnterSelectionMode?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;

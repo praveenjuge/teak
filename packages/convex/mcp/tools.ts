@@ -815,6 +815,10 @@ interface ToolConfig {
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
 
+/** "1 card", "3 cards". */
+const countLabel = (value: number, noun: string) =>
+  `${value} ${noun}${value === 1 ? "" : "s"}`;
+
 const bulkSummary = (payload: JsonObject) => {
   const summary = toObjectPayload(payload.summary);
   return {
@@ -968,7 +972,7 @@ const toolConfigs: Record<string, ToolConfig> = {
   teak_v1_list_folders: {
     schema: z.object({}),
     operation: () => ({ method: "GET", path: "/v1/folders" }),
-    summary: (payload) => `Fetched ${count(payload)} folders`,
+    summary: (payload) => `Fetched ${countLabel(count(payload), "folder")}`,
   },
   teak_v1_create_folder: {
     schema: createFolderInputSchema,
@@ -1009,7 +1013,7 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
-      `Added ${count(payload, "updatedIds")} cards; ${count(payload, "failedIds")} failed`,
+      `Added ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
   },
   teak_v1_remove_cards_from_folder: {
     schema: folderCardsInputSchema,
@@ -1020,7 +1024,7 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
-      `Removed ${count(payload, "updatedIds")} cards; ${count(payload, "failedIds")} failed`,
+      `Removed ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
   },
   teak_v1_list_tags: {
     schema: z.object({}),

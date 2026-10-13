@@ -9,7 +9,19 @@ export type BulkCardAction =
   | "addTags"
   | "removeTags"
   | "delete"
-  | "restore";
+  | "restore"
+  | "addToFolder"
+  | "removeFromFolder"
+  | "moveToFolder";
+
+/** The folder a folder action targets, and for a move the one it leaves. */
+export interface BulkFolderTarget {
+  folderId: string;
+  /** Shown in the toasts: "Added 3 cards to Reading". */
+  folderName: string;
+  fromFolderId?: string;
+  fromFolderName?: string;
+}
 
 /** Cards per server call; larger selections run in sequential chunks. */
 export const BULK_CHUNK_SIZE = 100;
@@ -23,11 +35,43 @@ export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
     archive: "unarchive",
     unarchive: "archive",
     delete: "restore",
+    addToFolder: "removeFromFolder",
+    removeFromFolder: "addToFolder",
+    moveToFolder: "moveToFolder",
   };
+
+/**
+ * The folder target that undoes a folder action: the same folder for add and
+ * remove, and the way back for a move. A move out of every folder has no way
+ * back, so it offers no Undo.
+ */
+export const undoFolderTarget = (
+  action: BulkCardAction,
+  target: BulkFolderTarget | undefined
+): BulkFolderTarget | undefined => {
+  if (!target) {
+    return;
+  }
+  if (action !== "moveToFolder") {
+    return target;
+  }
+  return target.fromFolderId
+    ? {
+        folderId: target.fromFolderId,
+        folderName: target.fromFolderName ?? "the folder",
+        fromFolderId: target.folderId,
+        fromFolderName: target.folderName,
+      }
+    : undefined;
+};
 
 const COPY: Record<
   BulkCardAction,
-  { running: string; done: (cards: string) => string; failed: string }
+  {
+    running: string;
+    done: (cards: string, folder: string) => string;
+    failed: string;
+  }
 > = {
   favorite: {
     running: "Adding to favorites",
@@ -69,16 +113,36 @@ const COPY: Record<
     done: (cards) => `Restored ${cards}`,
     failed: "restore these cards",
   },
+  addToFolder: {
+    running: "Adding to the folder",
+    done: (cards, folder) => `Added ${cards} to ${folder}`,
+    failed: "add these cards to the folder",
+  },
+  removeFromFolder: {
+    running: "Removing from the folder",
+    done: (cards, folder) => `Removed ${cards} from ${folder}`,
+    failed: "remove these cards from the folder",
+  },
+  moveToFolder: {
+    running: "Moving",
+    done: (cards, folder) => `Moved ${cards} to ${folder}`,
+    failed: "move these cards",
+  },
 };
 
 /** What the toasts say: "Archiving 120 of 300…", "Archived 300 cards". */
 export const bulkActionCopy = {
   progress: (action: BulkCardAction, done: number, total: number) =>
     `${COPY[action].running} ${done} of ${total}…`,
-  done: (action: BulkCardAction, count: number) =>
-    COPY[action].done(cardCountLabel(count)),
-  partial: (action: BulkCardAction, updated: number, failed: number) =>
-    `${COPY[action].done(cardCountLabel(updated))}. ${failed} couldn't be changed.`,
+  done: (action: BulkCardAction, count: number, folder = "the folder") =>
+    COPY[action].done(cardCountLabel(count), folder),
+  partial: (
+    action: BulkCardAction,
+    updated: number,
+    failed: number,
+    folder = "the folder"
+  ) =>
+    `${COPY[action].done(cardCountLabel(updated), folder)}. ${failed} couldn't be changed.`,
   failed: (action: BulkCardAction) => `Couldn't ${COPY[action].failed}`,
 };
 
@@ -94,9 +158,43 @@ export const applyBulkActionToCard = (
   card: Doc<"cards">,
   action: BulkCardAction,
   tags: readonly string[] = [],
-  now = Date.now()
+  now = Date.now(),
+  folder?: { folderId: string; fromFolderId?: string }
 ): Doc<"cards"> => {
   switch (action) {
+    case "addToFolder":
+    case "removeFromFolder":
+    case "moveToFolder": {
+      if (!folder) {
+        return card;
+      }
+      const current = (card.folderIds ?? []) as string[];
+      let next: string[];
+      if (action === "addToFolder") {
+        next = current.includes(folder.folderId)
+          ? current
+          : [...current, folder.folderId];
+      } else if (action === "removeFromFolder") {
+        next = current.filter((id) => id !== folder.folderId);
+      } else {
+        const kept = folder.fromFolderId
+          ? current.filter((id) => id !== folder.fromFolderId)
+          : [];
+        next = kept.includes(folder.folderId)
+          ? kept
+          : [...kept, folder.folderId];
+      }
+      return next.length === current.length &&
+        next.every((id, index) => id === current[index])
+        ? card
+        : {
+            ...card,
+            folderIds: (next.length > 0
+              ? next
+              : undefined) as Doc<"cards">["folderIds"],
+            updatedAt: now,
+          };
+    }
     case "favorite":
     case "unfavorite":
       return {

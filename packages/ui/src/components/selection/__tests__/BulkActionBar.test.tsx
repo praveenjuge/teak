@@ -19,6 +19,8 @@ afterEach(async () => {
 async function renderBar(
   selectedCount: number,
   options: {
+    addToFolder?: { id: string; name: string };
+    folder?: { id: string; name: string };
     isBusy?: boolean;
     view?: "library" | "archive" | "trash";
   } = {},
@@ -31,6 +33,8 @@ async function renderBar(
   await act(() =>
     root?.render(
       <BulkActionBar
+        addToFolder={options.addToFolder}
+        folder={options.folder}
         isBusy={options.isBusy}
         onAction={onAction}
         onCancel={onCancel}
@@ -94,10 +98,29 @@ describe("BulkActionBar", () => {
       "Add tags…",
       "Remove tags…",
       "Copy links",
+      "Add to folder…",
+      "Move to folder…",
       "Move to Trash",
     ]);
     await act(() => menuItem("Move to Trash").click());
     expect(onAction).toHaveBeenLastCalledWith("delete");
+  });
+
+  test("inside a folder, More can take cards out of it", async () => {
+    const { onAction } = await renderBar(2, {
+      folder: { id: "f1", name: "Reading" },
+    });
+    await openMoreMenu();
+    await act(() => menuItem("Remove from Reading").click());
+    expect(onAction).toHaveBeenLastCalledWith("removeFromFolder");
+  });
+
+  test("picking cards for a folder makes adding them the main action", async () => {
+    const { onAction } = await renderBar(3, {
+      addToFolder: { id: "f1", name: "Reading" },
+    });
+    await act(() => button("Add to Reading").click());
+    expect(onAction).toHaveBeenCalledWith("addToFolder");
   });
 
   test("offers Unarchive in Archive and only Restore in Trash", async () => {

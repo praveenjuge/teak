@@ -8,9 +8,13 @@ import type { SearchUrlState } from "../lib/searchUrlState";
 import { CardsScreen, type SearchUrlChange } from "./CardsScreen";
 
 interface CardsScreenAdapterProps {
+  addToFolderId?: string;
   cardIdFromUrl: string | null;
   contentContainerClassName?: string;
+  folderId?: string;
   headerLeading?: ReactNode;
+  onAddCardsToFolder?: (folderId: string) => void;
+  onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onNavigateView?: (view: LibraryView) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
@@ -27,7 +31,11 @@ interface CardsScreenAdapterProps {
 }
 
 export function CardsScreenAdapter({
+  addToFolderId,
   cardIdFromUrl,
+  folderId,
+  onAddCardsToFolder,
+  onAddToFolderDone,
   contentContainerClassName,
   onUpgrade,
   pushCardId,
@@ -49,8 +57,12 @@ export function CardsScreenAdapter({
 
   return (
     <CardsScreen
+      addToFolderId={addToFolderId}
       contentContainerClassName={contentContainerClassName}
+      folderId={folderId}
       headerLeading={headerLeading}
+      onAddCardsToFolder={onAddCardsToFolder}
+      onAddToFolderDone={onAddToFolderDone}
       onCloseCard={closeCard}
       onNavigateView={onNavigateView}
       onOpenCard={openCard}

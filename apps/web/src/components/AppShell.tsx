@@ -3,6 +3,7 @@
 import type { CardType } from "@teak/convex/shared/constants";
 import { SidebarInset, SidebarProvider } from "@teak/ui/components/ui/sidebar";
 import { AddCardActions } from "@teak/ui/forms";
+import { folderIdForPath, folderPath } from "@teak/ui/lib/folders";
 import {
   LIBRARY_VIEW_PATHS,
   libraryViewForPath,
@@ -13,7 +14,7 @@ import {
   serializeSearchUrlState,
   toggleSearchUrlType,
 } from "@teak/ui/lib/searchUrlState";
-import { AppSidebar } from "@teak/ui/sidebar";
+import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -35,16 +36,27 @@ export function AppShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = libraryViewForPath(pathname);
-  const activeTypes = view ? parseCardTypesParam(searchParams.get("type")) : [];
+  const folderId = folderIdForPath(pathname);
+  // Library views and folders list cards; Settings does not.
+  const isCardsPage = view !== null || folderId !== null;
+  const activeTypes = isCardsPage
+    ? parseCardTypesParam(searchParams.get("type"))
+    : [];
 
-  // A type narrows the open view (Settings goes back to Everything) and keeps the
-  // search; the open card closes because it may not match any more.
+  // A type narrows the open view or folder (Settings goes back to
+  // Everything) and keeps the search; the open card closes because it may
+  // not match any more.
   const handleToggleType = (type: CardType) => {
-    const params = new URLSearchParams(view ? window.location.search : "");
+    const params = new URLSearchParams(
+      isCardsPage ? window.location.search : ""
+    );
     params.delete("card");
+    params.delete("addTo");
     const next = toggleSearchUrlType(parseSearchUrlState(params), type);
     const query = serializeSearchUrlState(next, params);
-    const path = LIBRARY_VIEW_PATHS[view ?? "all"];
+    const path = folderId
+      ? folderPath(folderId)
+      : LIBRARY_VIEW_PATHS[view ?? "all"];
     router.push(query ? `${path}?${query}` : path);
   };
 
@@ -65,12 +77,20 @@ export function AppShell({
             variant="sidebar"
           />
         }
+        foldersSlot={
+          <SidebarFolders
+            activeFolderId={folderId}
+            LinkComponent={Link}
+            onActiveFolderDeleted={() => router.push("/")}
+            onNavigate={isCardsPage ? rememberHomeScroll : undefined}
+          />
+        }
         isSettingsActive={pathname?.startsWith("/settings") ?? false}
         LinkComponent={Link}
-        onNavigate={view ? rememberHomeScroll : undefined}
+        onNavigate={isCardsPage ? rememberHomeScroll : undefined}
         onToggleType={handleToggleType}
       />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>
       </SidebarInset>
     </SidebarProvider>

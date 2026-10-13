@@ -646,7 +646,7 @@ describe("Convex MCP endpoint", () => {
 
     const listed = await call("teak_v1_list_folders", {});
     expect(captured[0]).toMatchObject({ method: "GET", path: "/v1/folders" });
-    expect(listed.content?.[0]?.text).toBe("Fetched 1 folders");
+    expect(listed.content?.[0]?.text).toBe("Fetched 1 folder");
 
     await call("teak_v1_create_folder", { name: "Reading", color: "blue" });
     expect(captured[1]).toMatchObject({
@@ -704,7 +704,7 @@ describe("Convex MCP endpoint", () => {
       path: "/v1/folders/folder_1/cards",
     });
     expect(removed.isError).toBe(true);
-    expect(removed.content?.[0]?.text).toBe("Removed 1 cards; 1 failed");
+    expect(removed.content?.[0]?.text).toBe("Removed 1 card; 1 failed");
 
     await call("teak_v1_list_cards", { folder: "folder_1" });
     expect(captured[6]?.query).toMatchObject({ folder: "folder_1" });

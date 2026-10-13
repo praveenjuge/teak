@@ -9,6 +9,7 @@ import {
   ArchiveRestore,
   Download,
   Edit,
+  Folder,
   Heart,
   Info,
   RefreshCw,
@@ -18,8 +19,12 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useFolders } from "../../hooks/useFolders";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { cn } from "../../lib/utils";
+import { CardFoldersDialog } from "../folders/CardFoldersDialog";
+import { FolderDot } from "../folders/FolderDot";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
@@ -72,6 +77,18 @@ export function CardMetadataPanel({
 
   const paletteHexes = [...uniqueHexes];
   const iconClass = "size-3 md:size-4";
+  const [isFoldersOpen, setIsFoldersOpen] = useState(false);
+  const folders = useFolders();
+  const cardFolderIds = useMemo(
+    () => (card.folderIds ?? []) as string[],
+    [card.folderIds]
+  );
+  // The card's folders by name, in the sidebar's order.
+  const cardFolders = useMemo(
+    () =>
+      (folders ?? []).filter((folder) => cardFolderIds.includes(folder._id)),
+    [cardFolderIds, folders]
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/50 p-4 md:flex-1">
@@ -105,6 +122,22 @@ export function CardMetadataPanel({
               {CARD_TYPE_LABELS[card.type as CardType]}
             </button>
           )}
+
+          {cardFolders.map((folder) => (
+            <button
+              aria-label={`In folder ${folder.name}. Change folders`}
+              className={cn(metadataBadgeClassName, "max-w-56")}
+              key={folder._id}
+              onClick={() => setIsFoldersOpen(true)}
+              title={folder.name}
+              type="button"
+            >
+              <FolderDot color={folder.color} />
+              <span className="truncate" dir="auto">
+                {folder.name}
+              </span>
+            </button>
+          ))}
 
           {card.tags?.map((tag: string) => (
             <button
@@ -209,6 +242,15 @@ export function CardMetadataPanel({
             Manage Tags
           </PanelButton>
 
+          {!card.isDeleted && (
+            <PanelButton
+              icon={<Folder className={iconClass} />}
+              onClick={() => setIsFoldersOpen(true)}
+            >
+              Folders
+            </PanelButton>
+          )}
+
           {!card.isDeleted && actions.reprocessCard && (
             <PanelButton
               disabled={isReprocessing}
@@ -268,6 +310,12 @@ export function CardMetadataPanel({
           )}
         </div>
       </div>
+      <CardFoldersDialog
+        cardId={card._id}
+        folderIds={cardFolderIds}
+        onOpenChange={setIsFoldersOpen}
+        open={isFoldersOpen}
+      />
     </div>
   );
 }

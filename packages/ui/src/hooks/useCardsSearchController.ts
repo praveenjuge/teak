@@ -1,4 +1,4 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   type CardListSort,
   classifySearchToken,
@@ -55,6 +55,8 @@ export interface CardsSearchQueryArgs {
 }
 
 export interface UseCardsSearchControllerOptions {
+  /** A folder view: every read is limited to this folder's cards. */
+  folderId?: Id<"folders">;
   /** The search to start with, usually read from the page URL. */
   initialUrlState?: SearchUrlState;
   localSearchCacheLimit?: number;
@@ -419,6 +421,7 @@ export function useCardsSearchController(
     initialUrlState,
     onNavigateView,
     view,
+    folderId,
   } = options;
   const [storedSearchState, setSearchState] = useState<CardsSearchState>(
     () => ({
@@ -519,8 +522,9 @@ export function useCardsSearchController(
         searchQuery: remoteSearchQuery,
       }),
       ...(sort === "oldest" ? { sort: "oldest" as const } : {}),
+      ...(folderId ? { folderId } : {}),
     }),
-    [remoteSearchQuery, searchState, sort]
+    [folderId, remoteSearchQuery, searchState, sort]
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
@@ -534,21 +538,30 @@ export function useCardsSearchController(
     [searchState]
   );
 
+  // Instant local hits come from every card this screen has seen, so a
+  // folder view keeps only the folder's own.
   const localSearchResults = useMemo(
     () =>
-      filterLocalCards(localCards, {
-        searchTerms,
-        types: searchState.filterTags,
-        styleFilters: searchState.styleFilters,
-        hueFilters: searchState.hueFilters,
-        hexFilters: searchState.hexFilters,
-        favoritesOnly: searchState.showFavoritesOnly,
-        showTrashOnly: searchState.showTrashOnly,
-        showArchivedOnly: searchState.showArchivedOnly,
-        createdAtRange: searchState.timeFilter?.range,
-        sort,
-      }),
-    [localCards, searchState, searchTerms, sort]
+      filterLocalCards(
+        folderId
+          ? localCards.filter((card) =>
+              (card.folderIds ?? []).includes(folderId)
+            )
+          : localCards,
+        {
+          searchTerms,
+          types: searchState.filterTags,
+          styleFilters: searchState.styleFilters,
+          hueFilters: searchState.hueFilters,
+          hexFilters: searchState.hexFilters,
+          favoritesOnly: searchState.showFavoritesOnly,
+          showTrashOnly: searchState.showTrashOnly,
+          showArchivedOnly: searchState.showArchivedOnly,
+          createdAtRange: searchState.timeFilter?.range,
+          sort,
+        }
+      ),
+    [folderId, localCards, searchState, searchTerms, sort]
   );
 
   const remoteSearchResults = useMemo(() => {

@@ -160,6 +160,25 @@ const assertNameAvailable = async (
   }
 };
 
+/** Inserts an empty manual folder; callers check the name and the cap. */
+export const insertFolder = (
+  ctx: MutationCtx,
+  userId: string,
+  name: string,
+  color?: FolderColor,
+  now = Date.now()
+): Promise<Id<"folders">> =>
+  ctx.db.insert("folders", {
+    userId,
+    name,
+    nameKey: folderNameKey(name),
+    ...(color ? { color } : {}),
+    kind: "manual",
+    activeCardCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+
 export const createFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -179,17 +198,7 @@ export const createFolderForUser = async (
       message: FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS,
     });
   }
-  const now = Date.now();
-  const folderId = await ctx.db.insert("folders", {
-    userId,
-    name,
-    nameKey: folderNameKey(name),
-    ...(args.color ? { color: args.color } : {}),
-    kind: "manual",
-    activeCardCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const folderId = await insertFolder(ctx, userId, name, args.color);
   const folder = await ctx.db.get("folders", folderId);
   if (!folder) {
     throw new Error("Failed to create folder");

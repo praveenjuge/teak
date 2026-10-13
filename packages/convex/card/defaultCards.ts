@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
@@ -49,6 +49,8 @@ export interface DefaultCardDef {
   content: string;
   /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
+  /** Dev scenario packs only: the folders the card starts in. */
+  folderIds?: Id<"folders">[];
   /** Inserted archived (hidden from the library, still counted). */
   isArchived?: boolean;
   /** Inserted, then moved to the trash. */
@@ -152,6 +154,7 @@ export const insertCompletedCards = async (
       aiTags: cardDef.aiTags,
       aiSummary: cardDef.aiSummary,
       isFavorited: cardDef.isFavorited,
+      ...(cardDef.folderIds?.length ? { folderIds: cardDef.folderIds } : {}),
       metadata: cardDef.metadata,
       metadataTitle: cardDef.metadataTitle,
       metadataDescription: cardDef.metadataDescription,

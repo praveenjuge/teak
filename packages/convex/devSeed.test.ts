@@ -10,9 +10,11 @@ import {
   archiveMixScenarioCard,
   CARD_DETAILS_SCENARIO_CARDS,
   DEV_SEED_CARDS,
+  type FolderScenario,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
+  UGLY_FOLDER_NAMES,
 } from "./devSeed";
 import schema from "./schema";
 
@@ -381,5 +383,98 @@ describe("devSeed archive-mix pack", () => {
     expect(archived.every((card) => typeof card.archivedAt === "number")).toBe(
       true
     );
+  });
+});
+
+describe("devSeed folder packs", () => {
+  const seedFolders = (
+    t: Awaited<ReturnType<typeof setup>>,
+    scenario: FolderScenario
+  ) =>
+    t.mutation(internal.devSeed.seedScenario, {
+      workosUserId: WORKOS_USER_ID,
+      scenario,
+    });
+  const foldersOf = (t: Awaited<ReturnType<typeof setup>>) =>
+    t.run((ctx) =>
+      ctx.db
+        .query("folders")
+        .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+
+  test("folders-one counts only the folder's active cards, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "folders-one")).toEqual({
+      status: "seeded",
+      cards: 15,
+      folders: 1,
+    });
+    expect(await seedFolders(t, "folders-one")).toEqual({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const [folder] = await foldersOf(t);
+    expect(folder.name).toBe("Scenario folder");
+    expect(folder.activeCardCount).toBe(8);
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("folderCards")
+        .withIndex("by_userId", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(rows).toHaveLength(12);
+    expect(rows.filter((row) => row.isArchived)).toHaveLength(3);
+    expect(rows.filter((row) => row.isDeleted)).toHaveLength(2);
+  });
+
+  test("folders-500 fills the cap and stops there", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await seedFolders(t, "folders-one");
+    expect(await seedFolders(t, "folders-500")).toEqual({
+      status: "seeded",
+      cards: 3,
+      folders: 499,
+    });
+    expect(await foldersOf(t)).toHaveLength(500);
+    const first = (await foldersOf(t)).find(
+      (folder) => folder.name === "Folder 001"
+    );
+    expect(first?.activeCardCount).toBe(3);
+  });
+
+  test("card-in-50-folders puts one card at the per-card cap", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await seedFolders(t, "card-in-50-folders");
+    const cards = await cardsOf(t);
+    expect(cards.map((card) => card.folderIds?.length).sort()).toEqual([
+      49, 50,
+    ]);
+    const folders = await foldersOf(t);
+    expect(folders).toHaveLength(51);
+    expect(
+      folders.find((folder) => folder.name === "Stack 51")?.activeCardCount
+    ).toBe(0);
+  });
+
+  test("folders-ugly keeps one folder per name ignoring case", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "folders-ugly")).toMatchObject({
+      status: "seeded",
+      cards: UGLY_FOLDER_NAMES.length,
+      folders: UGLY_FOLDER_NAMES.length - 2,
+    });
+    const folders = await foldersOf(t);
+    const ideas = folders.find((folder) => folder.nameKey === "ideas");
+    expect(ideas?.name).toBe("Ideas");
+    expect(ideas?.activeCardCount).toBe(3);
+    expect(
+      folders.some((folder) => Array.from(folder.name).length === 300)
+    ).toBe(true);
   });
 });

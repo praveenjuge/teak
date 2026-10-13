@@ -19,6 +19,7 @@ import {
   CheckSquare,
   Copy,
   ExternalLink,
+  Folder as FolderIcon,
   Heart,
   Loader2,
   RefreshCw,
@@ -115,6 +116,7 @@ export const Card = memo(function Card({
   onToggleFavorite,
   onToggleArchive,
   onAddTags,
+  onEditFolders,
   onCopyImage,
   isSelectionMode,
   isSelected,
@@ -667,6 +669,18 @@ export const Card = memo(function Card({
               <Tag />
               Add Tags
             </ContextMenuItem>
+            {onEditFolders && (
+              <ContextMenuItem
+                onClick={() => {
+                  if (!isOptimistic) {
+                    onEditFolders(card._id);
+                  }
+                }}
+              >
+                <FolderIcon />
+                Folders…
+              </ContextMenuItem>
+            )}
             <ContextMenuItem onClick={handleToggleFavorite}>
               <Heart
                 className={`${

@@ -5,6 +5,7 @@ import {
   bulkActionCopy,
   collectCardLinks,
   runBulkInChunks,
+  undoFolderTarget,
 } from "../bulkCardActions";
 
 const card = (overrides: Partial<Doc<"cards">> = {}) =>
@@ -126,5 +127,65 @@ describe("collectCardLinks", () => {
         card({ url: "https://b.example" }),
       ])
     ).toEqual(["https://a.example", "https://b.example"]);
+  });
+});
+
+describe("folder bulk actions", () => {
+  test("add keeps the card's other folders and does not repeat one", () => {
+    const inA = card({ folderIds: ["a"] as never });
+    expect(
+      applyBulkActionToCard(inA, "addToFolder", [], 5, { folderId: "b" })
+        .folderIds
+    ).toEqual(["a", "b"] as never);
+    expect(
+      applyBulkActionToCard(inA, "addToFolder", [], 5, { folderId: "a" })
+    ).toBe(inA);
+  });
+
+  test("remove clears the field when the last folder goes", () => {
+    const inA = card({ folderIds: ["a"] as never });
+    const removed = applyBulkActionToCard(inA, "removeFromFolder", [], 5, {
+      folderId: "a",
+    });
+    expect(removed.folderIds).toBeUndefined();
+    expect(removed.updatedAt).toBe(5);
+  });
+
+  test("move leaves only the source folder", () => {
+    const inAB = card({ folderIds: ["a", "b"] as never });
+    expect(
+      applyBulkActionToCard(inAB, "moveToFolder", [], 5, {
+        folderId: "c",
+        fromFolderId: "a",
+      }).folderIds
+    ).toEqual(["b", "c"] as never);
+  });
+
+  test("Undo of a move goes back the way it came", () => {
+    expect(
+      undoFolderTarget("moveToFolder", {
+        folderId: "c",
+        folderName: "C",
+        fromFolderId: "a",
+        fromFolderName: "A",
+      })
+    ).toEqual({
+      folderId: "a",
+      folderName: "A",
+      fromFolderId: "c",
+      fromFolderName: "C",
+    });
+    expect(
+      undoFolderTarget("moveToFolder", { folderId: "c", folderName: "C" })
+    ).toBeUndefined();
+  });
+
+  test("toasts name the folder", () => {
+    expect(bulkActionCopy.done("addToFolder", 3, "Reading")).toBe(
+      "Added 3 cards to Reading"
+    );
+    expect(bulkActionCopy.partial("moveToFolder", 2, 1, "Later")).toBe(
+      "Moved 2 cards to Later. 1 couldn't be changed."
+    );
   });
 });

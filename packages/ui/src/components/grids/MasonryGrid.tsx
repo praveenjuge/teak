@@ -8,11 +8,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   type BulkCardAction,
+  type BulkFolderTarget,
   collectCardLinks,
 } from "../../lib/bulkCardActions";
+import type { FolderSummary } from "../../lib/folders";
+import { CardFoldersDialog } from "../folders/CardFoldersDialog";
+import { FolderPickerDialog } from "../folders/FolderPickerDialog";
 import {
   BulkActionBar,
   type BulkBarAction,
+  type BulkBarFolder,
   type BulkBarView,
 } from "../selection/BulkActionBar";
 import { BulkTagsDialog } from "../selection/BulkTagsDialog";
@@ -60,15 +65,24 @@ const PRIORITY_CARD_COUNT = 10;
 
 export interface MasonryGridProps {
   AddCardFormComponent?: React.ComponentType;
+  /**
+   * Choosing cards for this folder: the grid opens in selection mode and
+   * the bar's one action adds the selection to it.
+   */
+  addToFolder?: BulkBarFolder;
   batchSize?: number;
   columns?: MasonryColumns;
   filteredCards: Doc<"cards">[];
+  /** The folder being viewed, offered as Remove from folder. */
+  folder?: BulkBarFolder;
   gutter?: number;
   hasMore?: boolean;
   initialBatchSize?: number;
   isLoadingMore?: boolean;
   loadMoreRootMargin?: string;
   onAddTags?: (cardId: string) => void;
+  /** Leaves "choose cards for a folder", after adding or on Cancel. */
+  onAddToFolderDone?: (added: boolean) => void;
   /**
    * Runs a bulk bar action on the selected cards and resolves with the ones
    * that failed; those stay selected so the user can try again.
@@ -76,7 +90,7 @@ export interface MasonryGridProps {
   onBulkAction?: (
     action: BulkCardAction,
     cardIds: string[],
-    options?: { tags?: string[] }
+    options?: { folder?: BulkFolderTarget; tags?: string[] }
   ) => Promise<{ failedIds: string[] }>;
   onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
@@ -96,6 +110,9 @@ export interface MasonryGridProps {
 }
 
 export function MasonryGrid({
+  addToFolder,
+  folder,
+  onAddToFolderDone,
   filteredCards,
   showTrashOnly = false,
   showArchivedOnly = false,
@@ -137,6 +154,19 @@ export function MasonryGrid({
     null
   );
   const [isBulkBusy, setIsBulkBusy] = useState(false);
+  const [folderPickerMode, setFolderPickerMode] = useState<
+    "add" | "move" | null
+  >(null);
+  const [foldersCardId, setFoldersCardId] = useState<string | null>(null);
+  // Choosing cards for a folder keeps selection mode on even with nothing
+  // picked, until the user adds them or cancels.
+  const keepSelectionMode = Boolean(addToFolder);
+  useEffect(() => {
+    if (addToFolder) {
+      setIsSelectionMode(true);
+      setSelectedCardIds(new Set());
+    }
+  }, [addToFolder]);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(normalizedInitialBatchSize, filteredCards.length)
   );
@@ -260,22 +290,25 @@ export function MasonryGrid({
     setSelectedCardIds(new Set());
   }, []);
 
-  const toggleCardSelection = useCallback((cardId: string) => {
-    setSelectedCardIds((prev) => {
-      const newSelected = new Set(prev);
-      if (newSelected.has(cardId)) {
-        newSelected.delete(cardId);
-      } else {
-        newSelected.add(cardId);
-      }
+  const toggleCardSelection = useCallback(
+    (cardId: string) => {
+      setSelectedCardIds((prev) => {
+        const newSelected = new Set(prev);
+        if (newSelected.has(cardId)) {
+          newSelected.delete(cardId);
+        } else {
+          newSelected.add(cardId);
+        }
 
-      if (newSelected.size === 0) {
-        setIsSelectionMode(false);
-      }
+        if (newSelected.size === 0 && !keepSelectionMode) {
+          setIsSelectionMode(false);
+        }
 
-      return newSelected;
-    });
-  }, []);
+        return newSelected;
+      });
+    },
+    [keepSelectionMode]
+  );
 
   const handleCardClick = useCallback(
     (card: CardWithUrls & Record<string, unknown>) => {
@@ -294,6 +327,13 @@ export function MasonryGrid({
   } else if (showArchivedOnly) {
     bulkView = "archive";
   }
+
+  const foldersCardFolderIds = useMemo(
+    () =>
+      (filteredCards.find((card) => card._id === foldersCardId)?.folderIds ??
+        []) as string[],
+    [filteredCards, foldersCardId]
+  );
 
   const selectedCards = useMemo(
     () => filteredCards.filter((card) => selectedCardIds.has(card._id)),
@@ -316,16 +356,22 @@ export function MasonryGrid({
   }, [selectedCards]);
 
   const runBulk = useCallback(
-    async (action: BulkCardAction, tags?: string[]) => {
+    async (
+      action: BulkCardAction,
+      options: { folder?: BulkFolderTarget; tags?: string[] } = {}
+    ) => {
       const cardIds = Array.from(selectedCardIds);
       if (!onBulkAction || cardIds.length === 0 || isBulkBusy) {
         return;
       }
       setIsBulkBusy(true);
       try {
-        const { failedIds } = await onBulkAction(action, cardIds, { tags });
+        const { failedIds } = await onBulkAction(action, cardIds, options);
         if (failedIds.length === 0) {
           exitSelectionMode();
+          if (addToFolder) {
+            onAddToFolderDone?.(true);
+          }
         } else {
           setSelectedCardIds(new Set(failedIds));
           setIsSelectionMode(true);
@@ -334,13 +380,59 @@ export function MasonryGrid({
         setIsBulkBusy(false);
       }
     },
-    [exitSelectionMode, isBulkBusy, onBulkAction, selectedCardIds]
+    [
+      addToFolder,
+      exitSelectionMode,
+      isBulkBusy,
+      onAddToFolderDone,
+      onBulkAction,
+      selectedCardIds,
+    ]
+  );
+
+  const pickFolder = useCallback(
+    (picked: FolderSummary) => {
+      if (folderPickerMode === "move") {
+        runBulk("moveToFolder", {
+          folder: {
+            folderId: picked._id,
+            folderName: picked.name,
+            ...(folder
+              ? { fromFolderId: folder.id, fromFolderName: folder.name }
+              : {}),
+          },
+        }).catch(() => undefined);
+        return;
+      }
+      runBulk("addToFolder", {
+        folder: { folderId: picked._id, folderName: picked.name },
+      }).catch(() => undefined);
+    },
+    [folder, folderPickerMode, runBulk]
   );
 
   const handleBulkAction = useCallback(
     (action: BulkBarAction) => {
       if (action === "addTags" || action === "removeTags") {
         setTagsDialogMode(action === "addTags" ? "add" : "remove");
+        return;
+      }
+      if (action === "addToFolder" && addToFolder) {
+        runBulk("addToFolder", {
+          folder: { folderId: addToFolder.id, folderName: addToFolder.name },
+        }).catch(() => undefined);
+        return;
+      }
+      if (action === "addToFolder" || action === "moveToFolder") {
+        setFolderPickerMode(action === "addToFolder" ? "add" : "move");
+        return;
+      }
+      if (action === "removeFromFolder") {
+        if (folder) {
+          runBulk("removeFromFolder", {
+            folder: { folderId: folder.id, folderName: folder.name },
+          }).catch(() => undefined);
+        }
         return;
       }
       if (action === "copyLinks") {
@@ -368,7 +460,7 @@ export function MasonryGrid({
       }
       runBulk(action).catch(() => undefined);
     },
-    [runBulk, selectedCards, toastIdPrefix]
+    [addToFolder, folder, runBulk, selectedCards, toastIdPrefix]
   );
 
   // "Delete Forever" can't be undone, so it always asks first.
@@ -435,6 +527,7 @@ export function MasonryGrid({
           onClick={handleCardClick}
           onCopyImage={onCopyImage}
           onDelete={onDeleteCard}
+          onEditFolders={setFoldersCardId}
           onEnterSelectionMode={enterSelectionMode}
           onPermanentDelete={requestPermanentDelete}
           onRestore={onRestoreCard}
@@ -465,9 +558,16 @@ export function MasonryGrid({
   const bulkActionBar: ReactNode =
     showBulkActions && onBulkAction && isSelectionMode ? (
       <BulkActionBar
+        addToFolder={addToFolder}
+        folder={folder}
         isBusy={isBulkBusy}
         onAction={handleBulkAction}
-        onCancel={exitSelectionMode}
+        onCancel={() => {
+          exitSelectionMode();
+          if (addToFolder) {
+            onAddToFolderDone?.(false);
+          }
+        }}
         selectedCount={selectedCardIds.size}
         view={bulkView}
       />
@@ -505,11 +605,33 @@ export function MasonryGrid({
         }}
         onSubmit={(tags) => {
           const action = tagsDialogMode === "remove" ? "removeTags" : "addTags";
-          runBulk(action, tags).catch(() => undefined);
+          runBulk(action, { tags }).catch(() => undefined);
         }}
         open={tagsDialogMode !== null}
         selectedCount={selectedCardIds.size}
         suggestions={selectionTags}
+      />
+      <FolderPickerDialog
+        excludeFolderId={folderPickerMode === "move" ? folder?.id : undefined}
+        mode={folderPickerMode ?? "add"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFolderPickerMode(null);
+          }
+        }}
+        onPick={pickFolder}
+        open={folderPickerMode !== null}
+        selectedCount={selectedCardIds.size}
+      />
+      <CardFoldersDialog
+        cardId={foldersCardId}
+        folderIds={foldersCardFolderIds}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFoldersCardId(null);
+          }
+        }}
+        open={foldersCardId !== null}
       />
       <ConfirmDialog
         confirmLabel="Delete Forever"

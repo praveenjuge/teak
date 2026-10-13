@@ -6,14 +6,18 @@ import { toast } from "sonner";
 import {
   applyBulkActionToCard,
   type BulkCardAction,
+  type BulkFolderTarget,
   type BulkRunResult,
   bulkActionCopy,
   runBulkInChunks,
   UNDO_BULK_ACTION,
+  undoFolderTarget,
 } from "../lib/bulkCardActions";
 import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 export interface BulkActionOptions {
+  /** The folder a folder action targets. */
+  folder?: BulkFolderTarget;
   /** The tags Add tags or Remove tags applies. */
   tags?: string[];
 }
@@ -27,12 +31,20 @@ export interface BulkActionOptions {
 export function useBulkCardActions(toastIdPrefix = "cards") {
   const bulkUpdate = useMutation(
     api.cards.bulkUpdateCards
-  ).withOptimisticUpdate((localStore, { cardIds, action, tags }) => {
-    const now = Date.now();
-    updateCardsInSearchQueries(localStore, new Set(cardIds), (card) =>
-      applyBulkActionToCard(card, action, tags, now)
-    );
-  });
+  ).withOptimisticUpdate(
+    (localStore, { cardIds, action, tags, folderId, fromFolderId }) => {
+      const now = Date.now();
+      updateCardsInSearchQueries(localStore, new Set(cardIds), (card) =>
+        applyBulkActionToCard(
+          card,
+          action,
+          tags,
+          now,
+          folderId ? { folderId, fromFolderId } : undefined
+        )
+      );
+    }
+  );
 
   // Each run gets its own toast, so an Undo started from one result never
   // overwrites another run's progress.
@@ -60,6 +72,17 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
             cardIds: chunk as Id<"cards">[],
             action,
             tags: options.tags,
+            ...(options.folder
+              ? {
+                  folderId: options.folder.folderId as Id<"folders">,
+                  ...(options.folder.fromFolderId
+                    ? {
+                        fromFolderId: options.folder
+                          .fromFolderId as Id<"folders">,
+                      }
+                    : {}),
+                }
+              : {}),
           }),
         (done, count) => {
           if (count > 1 && done < count) {
@@ -71,26 +94,35 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
       );
 
       const { updatedIds, failedIds } = result;
-      const undo = UNDO_BULK_ACTION[action];
+      const folderName = options.folder?.folderName;
+      const undoFolder = undoFolderTarget(action, options.folder);
+      const undo =
+        options.folder && !undoFolder ? undefined : UNDO_BULK_ACTION[action];
       if (failedIds.length === 0) {
-        toast.success(bulkActionCopy.done(action, updatedIds.length), {
-          id: toastId,
-          action: undo
-            ? {
-                label: "Undo",
-                onClick: () => {
-                  run(undo, updatedIds).catch(() => undefined);
-                },
-              }
-            : undefined,
-        });
+        toast.success(
+          bulkActionCopy.done(action, updatedIds.length, folderName),
+          {
+            id: toastId,
+            action: undo
+              ? {
+                  label: "Undo",
+                  onClick: () => {
+                    run(undo, updatedIds, { folder: undoFolder }).catch(
+                      () => undefined
+                    );
+                  },
+                }
+              : undefined,
+          }
+        );
       } else {
         toast.error(
           updatedIds.length > 0
             ? bulkActionCopy.partial(
                 action,
                 updatedIds.length,
-                failedIds.length
+                failedIds.length,
+                folderName
               )
             : bulkActionCopy.failed(action),
           {
