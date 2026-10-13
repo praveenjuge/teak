@@ -14,8 +14,8 @@ and release workflows are gone.
    generated `Teak.xcodeproj` with every other version source.
 2. Merge that scoped version change to `main`.
 3. `Version Tag` creates `v<version>` and dispatches this workflow with
-   `platforms=ios`. Until the Mac launch it doesn't dispatch Mac builds of
-   this app; ship those by hand (see below).
+   `platforms=ios`. Release the Mac after App Review approves iOS (see
+   **Releasing the Mac** below).
 4. A `plan` job turns `platforms` (`ios`, `macos`, or `both`) into one build and
    one submit leg per platform: `IOS` covers iPhone and iPad, `MAC_OS` covers
    the Mac.
@@ -75,10 +75,24 @@ pointer here when one is missing.
   replaced automatically.
 - **iPad screenshots.** The first iPad-capable build needs a 13" iPad set in
   `store/screenshots/ipad/en-US/`.
-- **Mac launch.** In App Store Connect, add the macOS platform to app
-  `6756574989` before the first Mac upload, commit the Mac screenshot set, then
-  run with `platforms=macos`. After approval, switch `version-tag.yml` to
-  `platforms: both`.
+- **Mac launch.** Done on 2026-10-13: the Mac app is live on this listing, and
+  Teak for Mac (`6770003409`) is off sale and no longer released.
+
+## Releasing the Mac
+
+iPhone, iPad and Mac share one app info. While one platform's version is in
+review there are two (live and in review), and `asc validate` stops with
+"app infos match". So each version ships iOS first, and the Mac once iOS is
+approved:
+
+```bash
+gh workflow run apple-release.yml --ref main -f version=<version> -f platforms=macos -f dry_run=false
+```
+
+If iOS is still in review and the Mac can't wait, the Mac version can be
+submitted directly once the run has attached its build:
+`asc review submissions-create --app 6756574989 --platform MAC_OS`, then
+`asc review items-add` with the version ID and `asc review submissions-submit`.
 
 ## Dry run
 
