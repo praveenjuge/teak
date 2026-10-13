@@ -32,23 +32,29 @@ const originalResourceOrigin = process.env.WORKOS_RESOURCE_ORIGIN;
 const EXPECTED_TOOL_NAMES = [
   "fetch",
   "search",
+  "teak_v1_add_cards_to_folder",
   "teak_v1_bulk_cards",
   "teak_v1_check_duplicate_url",
   "teak_v1_create_card",
+  "teak_v1_create_folder",
   "teak_v1_create_upload",
   "teak_v1_delete_card",
+  "teak_v1_delete_folder",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_me",
   "teak_v1_list_cards",
   "teak_v1_list_favorite_cards",
+  "teak_v1_list_folders",
   "teak_v1_list_tags",
   "teak_v1_refresh_card",
+  "teak_v1_remove_cards_from_folder",
   "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
   "teak_v1_set_card_favorite",
   "teak_v1_update_card",
+  "teak_v1_update_folder",
 ];
 
 beforeEach(() => {
@@ -607,6 +613,101 @@ describe("Convex MCP endpoint", () => {
 
     await call("teak_v1_list_cards", { archived: "only" });
     expect(captured[7]?.query).toMatchObject({ archived: "only" });
+  });
+
+  test("folder tools map onto the folder endpoints", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      if (operation.method === "DELETE" && !operation.path.endsWith("/cards")) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        Response.json({
+          id: "folder_1",
+          name: "Reading",
+          items: [{ id: "folder_1" }],
+          updatedIds: ["card_1"],
+          failedIds:
+            operation.path.endsWith("/cards") && operation.method === "DELETE"
+              ? ["card_2"]
+              : [],
+          folderLimitIds: [],
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 51, method: "tools/call" }),
+        executor
+      );
+
+    const listed = await call("teak_v1_list_folders", {});
+    expect(captured[0]).toMatchObject({ method: "GET", path: "/v1/folders" });
+    expect(listed.content?.[0]?.text).toBe("Fetched 1 folders");
+
+    await call("teak_v1_create_folder", { name: "Reading", color: "blue" });
+    expect(captured[1]).toMatchObject({
+      method: "POST",
+      path: "/v1/folders",
+      body: { name: "Reading", color: "blue" },
+    });
+
+    await call("teak_v1_update_folder", { folderId: "folder_1", color: null });
+    expect(captured[2]).toMatchObject({
+      method: "PATCH",
+      path: "/v1/folders/folder_1",
+      body: { color: null },
+    });
+    const noChange = await call("teak_v1_update_folder", {
+      folderId: "folder_1",
+    });
+    expect(noChange.isError).toBe(true);
+    expect(captured).toHaveLength(3);
+
+    const unconfirmed = await call("teak_v1_delete_folder", {
+      folderId: "folder_1",
+    });
+    expect(unconfirmed.isError).toBe(true);
+    const deleted = await call("teak_v1_delete_folder", {
+      folderId: "folder_1",
+      confirm: true,
+    });
+    expect(captured[3]).toMatchObject({
+      method: "DELETE",
+      path: "/v1/folders/folder_1",
+    });
+    expect(deleted.structuredContent).toEqual({
+      status: "deleted",
+      folderId: "folder_1",
+    });
+
+    const added = await call("teak_v1_add_cards_to_folder", {
+      folderId: "folder_1",
+      cardIds: ["card_1"],
+    });
+    expect(captured[4]).toMatchObject({
+      method: "POST",
+      path: "/v1/folders/folder_1/cards",
+      body: { cardIds: ["card_1"] },
+    });
+    expect(added.isError).toBeFalsy();
+
+    const removed = await call("teak_v1_remove_cards_from_folder", {
+      folderId: "folder_1",
+      cardIds: ["card_1", "card_2"],
+    });
+    expect(captured[5]).toMatchObject({
+      method: "DELETE",
+      path: "/v1/folders/folder_1/cards",
+    });
+    expect(removed.isError).toBe(true);
+    expect(removed.content?.[0]?.text).toBe("Removed 1 cards; 1 failed");
+
+    await call("teak_v1_list_cards", { folder: "folder_1" });
+    expect(captured[6]?.query).toMatchObject({ folder: "folder_1" });
   });
 
   test("labels every tool as read-only or as a write for MCP clients", () => {

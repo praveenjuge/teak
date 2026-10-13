@@ -15,6 +15,7 @@ import { readAccountChangesPaused } from "./env";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
+import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
@@ -343,6 +344,17 @@ export const deleteAccountDataHandler = async (
       .unique();
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
+    }
+    // A card is in at most MAX_FOLDERS_PER_CARD folders; any rows past the
+    // bound are swept with the user's folders in the ancillary pass.
+    const folderRows = await ctx.db
+      .query("folderCards")
+      .withIndex("by_cardId_and_folderId", (query) =>
+        query.eq("cardId", cardId)
+      )
+      .take(MAX_FOLDERS_PER_CARD);
+    for (const folderRow of folderRows) {
+      await ctx.db.delete("folderCards", folderRow._id);
     }
     try {
       await ctx.db.delete("cards", cardId);

@@ -634,6 +634,88 @@ describe("teak batch and fallback behavior", () => {
     expect(requests[0]?.path).toContain("archived=only");
   });
 
+  test("folders: list, create, rename, add and remove cards, and ls --folder", async () => {
+    const reading = {
+      id: "folder_1",
+      name: "Reading",
+      color: "blue",
+      kind: "manual",
+      cardCount: 2,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    routes.set("GET /v1/folders", () => json({ items: [reading] }));
+    routes.set("POST /v1/folders", () =>
+      json({ ...reading, id: "folder_2", name: "Later", color: null }, 201)
+    );
+    routes.set("PATCH /v1/folders/folder_1", () =>
+      json({ ...reading, name: "Read later", color: null })
+    );
+    routes.set("POST /v1/folders/folder_1/cards", () =>
+      json({
+        updatedIds: ["card_a"],
+        failedIds: ["card_b"],
+        folderLimitIds: ["card_b"],
+      })
+    );
+    routes.set(
+      "DELETE /v1/folders/folder_1",
+      () => new Response(null, { status: 204 })
+    );
+
+    const listed = await teak("folders");
+    expect(listed.stdout).toContain("folder_1");
+    expect(listed.stdout).toContain("Reading (blue)");
+
+    const created = await teak(
+      "folders",
+      "create",
+      "Later",
+      "--color",
+      "green"
+    );
+    expect(created.code).toBe(0);
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({
+      name: "Later",
+      color: "green",
+    });
+
+    // A folder is found by name, ignoring case, as well as by id.
+    requests.length = 0;
+    const renamed = await teak(
+      "folders",
+      "rename",
+      "reading",
+      "Read later",
+      "--color",
+      "none"
+    );
+    expect(renamed.stdout).toContain("Read later");
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({
+      name: "Read later",
+      color: null,
+    });
+
+    const added = await teak("folders", "add", "Reading", "card_a", "card_b");
+    expect(added.stdout).toContain("Added 1 card to Reading");
+    expect(added.stderr).toContain(
+      "card_b: already in the most folders a card can be in"
+    );
+    expect(added.code).not.toBe(0);
+
+    const missing = await teak("folders", "add", "Nope", "card_a");
+    expect(missing.stderr).toContain("Folder not found: Nope");
+    expect(missing.code).not.toBe(0);
+
+    routes.set("GET /v1/cards", emptyPage);
+    requests.length = 0;
+    await teak("ls", "--folder", "Reading");
+    expect(requests.at(-1)?.path).toContain("folder=folder_1");
+
+    const removed = await teak("--json", "folders", "rm", "folder_1");
+    expect(JSON.parse(removed.stdout)).toEqual({ deleted: ["folder_1"] });
+  });
+
   test("export download saves to the -o path", async () => {
     routes.set("GET /v1/exports/latest", () =>
       json({

@@ -72,7 +72,7 @@ const permanentDeleteCardForUserHandler = async (
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);
   }
-  await scheduleCardSearchSync(ctx, cardId, card.userId);
+  await scheduleCardSearchSync(ctx, cardId, card.userId, card);
   for (const key of cardStorageObjectKeys(card)) {
     await deleteObject(ctx, key);
   }

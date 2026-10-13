@@ -20,6 +20,10 @@ import {
   handleCreateUploadRequest,
   handleTagsRequest,
 } from "./publicApiHttpCards";
+import {
+  handleFolderByIdRequest,
+  handleFoldersRequest,
+} from "./publicApiHttpFolders";
 import { errorResponse, type PublicApiOperation } from "./publicApiHttpShared";
 import { handleMeRequest } from "./publicApiMe";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
@@ -98,6 +102,12 @@ export const executePublicApiOperation = (
   }
   if (request.method === "GET" && pathname === "/v1/tags") {
     return handleTagsRequest(ctx, request, resource);
+  }
+  if (pathname === "/v1/folders") {
+    return handleFoldersRequest(ctx, request, resource);
+  }
+  if (pathname.startsWith("/v1/folders/")) {
+    return handleFolderByIdRequest(ctx, request, resource);
   }
   if (request.method === "GET" && pathname === "/v1/cards/duplicate") {
     return handleDuplicateCardRequest(ctx, request, resource);
@@ -205,3 +215,11 @@ export const tagsV1 = withGatewayHeaders((ctx, request) => {
 
   return handleTagsRequest(ctx, request);
 });
+
+export const foldersV1 = withGatewayHeaders((ctx, request) =>
+  handleFoldersRequest(ctx, request)
+);
+
+export const folderByIdV1 = withGatewayHeaders((ctx, request) =>
+  handleFolderByIdRequest(ctx, request)
+);

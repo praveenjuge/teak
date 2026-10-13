@@ -3,6 +3,13 @@ import { resolveTeakDevApiUrl } from "./devUrls";
 import { MAX_TAG_LENGTH } from "./publicApiHttpShared";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
+import {
+  FOLDER_COLORS,
+  MAX_FOLDER_CARD_IDS,
+  MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_CARD,
+  MAX_FOLDERS_PER_USER,
+} from "./shared/folders";
 
 const CARD_TYPES = [
   "text",
@@ -16,6 +23,14 @@ const CARD_TYPES = [
 ] as const;
 const CARD_SORTS = ["newest", "oldest"] as const;
 const apiKeySecurity = [{ bearerAuth: [] }];
+const folderIdParameters = [
+  {
+    in: "path",
+    name: "folderId",
+    required: true,
+    schema: { type: "string" },
+  },
+];
 const tagListSchema = {
   items: { maxLength: MAX_TAG_LENGTH, type: "string" },
   type: "array",
@@ -99,6 +114,11 @@ const cardProperties = {
   archivedAt: {
     description: "When the card was archived, or null when it isn't.",
     type: ["number", "null"],
+  },
+  folderIds: {
+    description: `Ids of the folders the card is in (at most ${MAX_FOLDERS_PER_CARD}).`,
+    items: { type: "string" },
+    type: "array",
   },
   isArchived: {
     description:
@@ -208,6 +228,7 @@ const components = {
         id: { type: "string" },
         isDeleted: cardProperties.isDeleted,
         isArchived: cardProperties.isArchived,
+        folderIds: cardProperties.folderIds,
         isFavorited: { type: "boolean" },
         linkPreviewImageUrl: { type: ["string", "null"] },
         linkPreviewDescription: cardProperties.linkPreviewDescription,
@@ -415,6 +436,77 @@ const components = {
       required: ["deletedIds", "items", "pageInfo"],
       type: "object",
     },
+    Folder: {
+      properties: {
+        id: { type: "string" },
+        name: { type: "string" },
+        color: {
+          enum: [...FOLDER_COLORS, null],
+          type: ["string", "null"],
+        },
+        kind: { enum: ["manual", "smart"], type: "string" },
+        cardCount: {
+          description: "Cards in the folder that are not archived or in Trash.",
+          type: "number",
+        },
+        createdAt: { type: "number" },
+        updatedAt: { type: "number" },
+      },
+      required: [
+        "id",
+        "name",
+        "color",
+        "kind",
+        "cardCount",
+        "createdAt",
+        "updatedAt",
+      ],
+      type: "object",
+    },
+    FolderWriteRequest: {
+      properties: {
+        name: {
+          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case. Required to create.`,
+          type: "string",
+        },
+        color: {
+          description: "A palette color. On update, null clears it.",
+          enum: [...FOLDER_COLORS, null],
+          type: ["string", "null"],
+        },
+      },
+      type: "object",
+    },
+    FolderCardsRequest: {
+      properties: {
+        cardIds: {
+          items: { type: "string" },
+          maxItems: MAX_FOLDER_CARD_IDS,
+          minItems: 1,
+          type: "array",
+        },
+      },
+      required: ["cardIds"],
+      type: "object",
+    },
+    FolderCardsResult: {
+      properties: {
+        updatedIds: { items: { type: "string" }, type: "array" },
+        failedIds: {
+          description:
+            "Cards left unchanged: missing, another account's, or (when adding) already in the most folders a card can be in.",
+          items: { type: "string" },
+          type: "array",
+        },
+        folderLimitIds: {
+          description: `Failed cards that are already in ${MAX_FOLDERS_PER_CARD} folders.`,
+          items: { type: "string" },
+          type: "array",
+        },
+      },
+      required: ["updatedIds", "failedIds", "folderLimitIds"],
+      type: "object",
+    },
     UpdateCardRequest: {
       properties: {
         content: {
@@ -431,6 +523,12 @@ const components = {
           description:
             "True archives the card (hides it from the library without deleting it); false returns it to the library.",
           type: "boolean",
+        },
+        folderIds: {
+          description: `Replaces the card's folders with these folder ids (at most ${MAX_FOLDERS_PER_CARD}). An empty list takes it out of every folder.`,
+          items: { type: "string" },
+          maxItems: MAX_FOLDERS_PER_CARD,
+          type: "array",
         },
         notes: { type: ["string", "null"] },
         removeAiTags: {
@@ -718,6 +816,13 @@ export const openApiSpec = {
             name: "trashed",
             schema: { type: "boolean" },
             description: "List only cards in Trash when true.",
+          },
+          {
+            in: "query",
+            name: "folder",
+            schema: { type: "string" },
+            description:
+              "Only cards in this folder. An unknown folder returns 404.",
           },
           {
             in: "query",
@@ -1090,6 +1195,172 @@ export const openApiSpec = {
         security: apiKeySecurity,
         operationId: "listTags",
         summary: "List tags",
+      },
+    },
+    "/v1/folders": {
+      get: {
+        operationId: "listFolders",
+        summary: "List folders",
+        description: "Every folder in the account, sorted by name.",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Folders",
+            content: {
+              "application/json": {
+                schema: {
+                  properties: {
+                    items: {
+                      items: { $ref: "#/components/schemas/Folder" },
+                      type: "array",
+                    },
+                  },
+                  required: ["items"],
+                  type: "object",
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        operationId: "createFolder",
+        summary: "Create a folder",
+        description: `An account can have up to ${MAX_FOLDERS_PER_USER} folders.`,
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderWriteRequest" },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Folder created",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Folder" },
+              },
+            },
+          },
+          400: { description: "Invalid name or color" },
+          409: {
+            description:
+              "A folder with this name exists (`CONFLICT`) or the account has the most folders it can (`LIMIT_REACHED`)",
+          },
+        },
+      },
+    },
+    "/v1/folders/{folderId}": {
+      get: {
+        operationId: "getFolder",
+        parameters: folderIdParameters,
+        summary: "Get a folder",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Folder",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Folder" },
+              },
+            },
+          },
+          404: { description: "Folder not found" },
+        },
+      },
+      patch: {
+        operationId: "updateFolder",
+        parameters: folderIdParameters,
+        summary: "Rename or recolor a folder",
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderWriteRequest" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Folder updated",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Folder" },
+              },
+            },
+          },
+          404: { description: "Folder not found" },
+          409: { description: "A folder with this name exists" },
+        },
+      },
+      delete: {
+        operationId: "deleteFolder",
+        parameters: folderIdParameters,
+        summary: "Delete a folder",
+        description:
+          "Deletes the folder at once; its cards are kept and leave the folder shortly after.",
+        security: apiKeySecurity,
+        responses: {
+          204: { description: "Folder deleted" },
+          404: { description: "Folder not found" },
+        },
+      },
+    },
+    "/v1/folders/{folderId}/cards": {
+      post: {
+        operationId: "addCardsToFolder",
+        parameters: folderIdParameters,
+        summary: "Add cards to a folder",
+        description: `Adding a card already in the folder succeeds without change. A card can be in up to ${MAX_FOLDERS_PER_CARD} folders.`,
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderCardsRequest" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Per-card results",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/FolderCardsResult" },
+              },
+            },
+          },
+          404: { description: "Folder not found" },
+        },
+      },
+      delete: {
+        operationId: "removeCardsFromFolder",
+        parameters: folderIdParameters,
+        summary: "Remove cards from a folder",
+        security: apiKeySecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderCardsRequest" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Per-card results",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/FolderCardsResult" },
+              },
+            },
+          },
+          404: { description: "Folder not found" },
+        },
       },
     },
     "/v1/exports": {

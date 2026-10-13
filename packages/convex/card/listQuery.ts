@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 
@@ -168,4 +169,73 @@ export const buildCardListQuery = (
           .reduce((acc, condition) => q.or(acc, condition))
       )
     : query;
+};
+
+/**
+ * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
+ * Archive like the library: active cards by default, archived ones with
+ * `archived: "only"`, trashed ones with `trash`. Callers load each row's card.
+ */
+export const buildFolderCardListQuery = (
+  ctx: QueryCtx,
+  options: {
+    archived?: ArchivedFilter;
+    createdAt?: CreatedAtBounds;
+    folderId: Id<"folders">;
+    trash?: boolean;
+    types?: readonly CardType[];
+  }
+) => {
+  const types = options.types?.length ? options.types : undefined;
+  const archived = archivedFilterMatch(options.archived, options.trash);
+  const bounds = options.createdAt;
+  const query = ctx.db
+    .query("folderCards")
+    .withIndex("by_folder_deleted_archived_created", (q) => {
+      const range = q
+        .eq("folderId", options.folderId)
+        .eq("isDeleted", options.trash ? true : undefined);
+      if (archived === "any") {
+        // Trash, or archived and not: isArchived stays open, so the dates
+        // are filtered below instead.
+        return range;
+      }
+      let next: RangeBuilder = range.eq("isArchived", archived);
+      if (bounds?.gte !== undefined) {
+        next = next.gte("cardCreatedAt", bounds.gte);
+      }
+      if (bounds?.lte !== undefined) {
+        next = next.lte("cardCreatedAt", bounds.lte);
+      } else if (bounds?.lt !== undefined) {
+        next = next.lt("cardCreatedAt", bounds.lt);
+      }
+      return next;
+    });
+  const dated =
+    archived === "any" &&
+    (bounds?.gte !== undefined ||
+      bounds?.lte !== undefined ||
+      bounds?.lt !== undefined)
+      ? query.filter((q) => {
+          const after = q.gte(
+            q.field("cardCreatedAt"),
+            bounds?.gte ?? Number.MIN_SAFE_INTEGER
+          );
+          const before =
+            bounds?.lte === undefined
+              ? q.lt(
+                  q.field("cardCreatedAt"),
+                  bounds?.lt ?? Number.MAX_SAFE_INTEGER
+                )
+              : q.lte(q.field("cardCreatedAt"), bounds.lte);
+          return q.and(after, before);
+        })
+      : query;
+  return types
+    ? dated.filter((q) =>
+        types
+          .map((type) => q.eq(q.field("type"), type))
+          .reduce((acc, condition) => q.or(acc, condition))
+      )
+    : dated;
 };

@@ -1,6 +1,11 @@
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
+import { requireFolderForUser } from "../folder/folders";
+import {
+  applyFolderMembership,
+  type FolderMembershipAction,
+} from "../folder/membership";
 import { explainInvalidTags } from "../publicApiHttpShared";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import {
@@ -22,13 +27,23 @@ export const bulkCardActionValidator = v.union(
   v.literal("addTags"),
   v.literal("removeTags"),
   v.literal("delete"),
-  v.literal("restore")
+  v.literal("restore"),
+  v.literal("addToFolder"),
+  v.literal("removeFromFolder"),
+  v.literal("moveToFolder")
 );
 
 export type BulkCardAction = Infer<typeof bulkCardActionValidator>;
 
 const isTagAction = (action: BulkCardAction) =>
   action === "addTags" || action === "removeTags";
+
+const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
+  {
+    addToFolder: "add",
+    removeFromFolder: "remove",
+    moveToFolder: "move",
+  };
 
 /**
  * Trims and de-duplicates (ignoring case) the tags an Add tags or Remove tags
@@ -105,9 +120,15 @@ export const applyCardAction = async (
     cardId,
     action,
     tags = [],
+    folderId,
+    fromFolderId,
   }: {
     action: BulkCardAction;
     cardId: Id<"cards">;
+    /** The folder a folder action targets; the caller checked it is the user's. */
+    folderId?: Id<"folders">;
+    /** For a move: the folder the card leaves (the one being viewed). */
+    fromFolderId?: Id<"folders">;
     tags?: readonly string[];
     userId: TeakUserId;
   }
@@ -157,6 +178,24 @@ export const applyCardAction = async (
       }
       return;
     }
+    case "addToFolder":
+    case "removeFromFolder":
+    case "moveToFolder": {
+      if (!folderId) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Choose a folder",
+        });
+      }
+      await applyFolderMembership(ctx, {
+        action: FOLDER_ACTIONS[action] as FolderMembershipAction,
+        cardId,
+        folderId,
+        fromFolderId,
+        userId,
+      });
+      return;
+    }
     default:
       throw new Error(`Unsupported bulk action: ${action satisfies never}`);
   }
@@ -173,6 +212,8 @@ export const applyBulkCardAction = async (
   args: {
     action: BulkCardAction;
     cardIds: readonly Id<"cards">[];
+    folderId?: string;
+    fromFolderId?: string;
     tags?: readonly string[];
     userId: TeakUserId;
   }
@@ -193,6 +234,23 @@ export const applyBulkCardAction = async (
   const tags = isTagAction(args.action)
     ? normalizeBulkTags(args.tags)
     : undefined;
+  // Folder actions check the folders once: an unknown or foreign folder
+  // fails the whole call instead of every card.
+  const isFolderAction = FOLDER_ACTIONS[args.action] !== undefined;
+  if (isFolderAction && !args.folderId) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Choose a folder",
+    });
+  }
+  const folder =
+    isFolderAction && args.folderId
+      ? await requireFolderForUser(ctx, args.userId, args.folderId)
+      : undefined;
+  const fromFolder =
+    args.action === "moveToFolder" && args.fromFolderId
+      ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
+      : undefined;
 
   const updatedIds: Id<"cards">[] = [];
   const failedIds: Id<"cards">[] = [];
@@ -203,6 +261,8 @@ export const applyBulkCardAction = async (
         cardId,
         action: args.action,
         tags,
+        folderId: folder?._id,
+        fromFolderId: fromFolder?._id,
       });
       updatedIds.push(cardId);
     } catch {
@@ -217,6 +277,8 @@ export const bulkUpdateCards = mutation({
     cardIds: v.array(v.id("cards")),
     action: bulkCardActionValidator,
     tags: v.optional(v.array(v.string())),
+    folderId: v.optional(v.id("folders")),
+    fromFolderId: v.optional(v.id("folders")),
   },
   returns: v.object({
     updatedIds: v.array(v.id("cards")),

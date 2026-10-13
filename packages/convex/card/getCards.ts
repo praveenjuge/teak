@@ -12,6 +12,7 @@ import {
 import {
   type ArchivedFilter,
   buildCardListQuery,
+  buildFolderCardListQuery,
   type CardListSort,
   cardListSortValidator,
   compareCardsByCreatedAt,
@@ -284,6 +285,8 @@ export const searchCardsPaginatedArgsValidator = v.object({
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
   sort: v.optional(cardListSortValidator),
+  /** Only cards in this folder (the folder view). */
+  folderId: v.optional(v.id("folders")),
 });
 
 type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
@@ -318,6 +321,21 @@ export const searchCardsPaginatedHandler = async (
   const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
   const sort: CardListSort = normalizeCardListSort(args.sort);
   const order = sort === "oldest" ? "asc" : "desc";
+  // A folder view lists only that folder's cards. A folder that is missing,
+  // being deleted or another user's lists nothing.
+  const folderId = args.folderId;
+  if (folderId) {
+    const folder = await ctx.db.get("folders", folderId);
+    if (
+      !folder ||
+      folder.userId !== user.teakUserId ||
+      folder.deletingAt !== undefined
+    ) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+  }
+  const inFolder = (card: Doc<"cards">) =>
+    !folderId || (card.folderIds ?? []).includes(folderId);
   // Clamp the caller-provided page size so a single request cannot force an
   // arbitrarily large index read / in-memory sort. The cursor is validated
   // separately where it is parsed into an offset.
@@ -387,6 +405,7 @@ export const searchCardsPaginatedHandler = async (
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
     const matchesFilters = (card: Doc<"cards">) =>
+      inFolder(card) &&
       isCreatedAtInRange(card.createdAt, createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
       doesCardMatchVisualFilters(card, visualFilters);
@@ -456,8 +475,9 @@ export const searchCardsPaginatedHandler = async (
       sort,
     });
 
-    const page = visualResults.slice(offset, offset + pageSize);
-    const isDone = visualResults.length <= offset + pageSize;
+    const folderResults = visualResults.filter(inFolder);
+    const page = folderResults.slice(offset, offset + pageSize);
+    const isDone = folderResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
     const pageWithUrls = await attachListUrls(ctx, page);
 
@@ -465,6 +485,32 @@ export const searchCardsPaginatedHandler = async (
       page: applyQuoteFormattingToList(pageWithUrls),
       isDone,
       continueCursor,
+    };
+  }
+
+  if (folderId) {
+    const rows = await buildFolderCardListQuery(ctx, {
+      folderId,
+      trash: showTrashOnly,
+      archived,
+      types,
+      createdAt: createdAtRange
+        ? { gte: createdAtRange.start, lt: createdAtRange.end }
+        : undefined,
+    })
+      .order(order)
+      .paginate(paginationOpts);
+    const folderCards: Doc<"cards">[] = [];
+    for (const row of rows.page) {
+      const card = await ctx.db.get("cards", row.cardId);
+      if (card && (!favoritesOnly || card.isFavorited === true)) {
+        folderCards.push(card);
+      }
+    }
+    const folderCardsWithUrls = await attachListUrls(ctx, folderCards);
+    return {
+      ...rows,
+      page: applyQuoteFormattingToList(folderCardsWithUrls),
     };
   }
 

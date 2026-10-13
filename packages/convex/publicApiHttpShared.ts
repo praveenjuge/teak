@@ -37,10 +37,12 @@ type ErrorCode =
   | "CONFLICT"
   | "CONTENT_TOO_LARGE"
   | "FILE_TOO_LARGE"
+  | "FOLDER_LIMIT"
   | "INTERNAL_ERROR"
   | "INVALID_API_KEY"
   | "INVALID_INPUT"
   | "INVALID_UTF8"
+  | "LIMIT_REACHED"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
   | "NOT_IN_TRASH"
@@ -65,6 +67,8 @@ interface CardsQueryOptions {
   createdBefore?: number;
   cursor?: string;
   favoritesOnly: boolean;
+  /** A folder id from `?folder=`; the handler checks it is the user's. */
+  folder?: string;
   hexFilters?: string[];
   hueFilters?: string[];
   limit: number;
@@ -261,6 +265,8 @@ const AUTH_INTERNAL_ERROR = (): Response =>
 // Backend error codes that are not plain bad requests.
 const CONVEX_ERROR_STATUS: Partial<Record<string, number>> = {
   CONFLICT: 409,
+  FOLDER_LIMIT: 409,
+  LIMIT_REACHED: 409,
   NOT_FOUND: 404,
   NOT_IN_TRASH: 409,
 };
