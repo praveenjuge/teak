@@ -249,6 +249,17 @@ describe("library-wide tag operations", () => {
     expect((await card(id))?.tags).toEqual(["Design", "Web"]);
   });
 
+  test("changes a tag whose lowercase key is longer than its name", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const name = "İ".repeat(64);
+    const id = await insert({ tags: [name] });
+    await runScheduled();
+    // The Tags page passes the key it lists, here 128 code units long.
+    await start("rename", name.toLowerCase(), "turkish");
+    await runScheduled();
+    expect((await card(id))?.tags).toEqual(["turkish"]);
+  });
+
   test("refuses missing tags and bad names", async () => {
     const { insert, start, runScheduled } = await setup();
     await insert({ tags: ["real"] });

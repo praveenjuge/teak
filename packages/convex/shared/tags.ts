@@ -41,6 +41,23 @@ export const explainInvalidTagName = (name: string): string | null => {
   return null;
 };
 
+/**
+ * The longest tag being changed: a tag's lowercase key can be longer than
+ * the name (64 of "İ" lowercase to 128 code units), and the app passes keys.
+ */
+export const MAX_TAG_KEY_LENGTH = 256;
+
+/** Why the tag being changed is refused, or null when it is fine. */
+export const explainInvalidTagSource = (name: string): string | null => {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return TAG_ERROR_MESSAGES.EMPTY_NAME;
+  }
+  return trimmed.length > MAX_TAG_KEY_LENGTH
+    ? TAG_ERROR_MESSAGES.NAME_TOO_LONG
+    : null;
+};
+
 /** The message for renaming a tag onto one that already exists. */
 export const tagExistsMessage = (name: string): string =>
   `A tag named "${name.trim()}" already exists. Merge into it instead.`;

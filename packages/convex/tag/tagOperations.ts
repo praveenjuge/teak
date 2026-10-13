@@ -13,6 +13,7 @@ import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { getSessionUser } from "../securitySessions";
 import {
   explainInvalidTagName,
+  explainInvalidTagSource,
   rewriteTagList,
   TAG_ERROR_MESSAGES,
   TAG_OPERATION_COUNT_LIMIT,
@@ -132,7 +133,7 @@ export const startTagOperationForUser = async (
   userId: string,
   args: StartTagOperationArgs
 ): Promise<TagOperationSummary> => {
-  const fromError = explainInvalidTagName(args.from);
+  const fromError = explainInvalidTagSource(args.from);
   if (fromError) {
     throw invalidInput(fromError);
   }
