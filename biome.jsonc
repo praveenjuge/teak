@@ -42,7 +42,6 @@
       "includes": [
         "apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json",
         "apps/apple/SafariExtension/Resources/manifest.json",
-        "apps/mac/Shared (Extension)/Resources/manifest.json",
         "**/*.xcassets/**/Contents.json",
         ".agents/skills/workos/**"
       ],

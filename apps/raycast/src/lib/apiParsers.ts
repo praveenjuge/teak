@@ -115,13 +115,11 @@ export const parseCardsPageResponse = (payload: unknown): CardsResponse => {
 
   const { items, pageInfo } = payload;
 
-  if (
-    !(
-      Array.isArray(items) &&
-      items.every((item) => isRaycastCard(item)) &&
-      isJsonObject(pageInfo)
-    )
-  ) {
+  if (!(
+    Array.isArray(items) &&
+    items.every((item) => isRaycastCard(item)) &&
+    isJsonObject(pageInfo)
+  )) {
     throw new RaycastApiError("REQUEST_FAILED");
   }
 
@@ -163,13 +161,11 @@ export interface UploadTarget {
 }
 
 export const parseUploadResponse = (payload: unknown): UploadTarget => {
-  if (
-    !(
-      isJsonObject(payload) &&
-      typeof payload.fileKey === "string" &&
-      typeof payload.uploadUrl === "string"
-    )
-  ) {
+  if (!(
+    isJsonObject(payload) &&
+    typeof payload.fileKey === "string" &&
+    typeof payload.uploadUrl === "string"
+  )) {
     throw new RaycastApiError("REQUEST_FAILED");
   }
   return { fileKey: payload.fileKey, uploadUrl: payload.uploadUrl };
