@@ -69,10 +69,9 @@ If you connect Teak to another tool, such as Raycast AI, an MCP client like Clau
 Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) for product analytics and error reports across the web app, the iPhone, iPad, Mac and Android apps, the browser extension, and Teak's servers.
 
 - **What it receives:** page views, product events such as "card saved" or "signed in", performance timings, AI usage counts (model, token counts and timing, never prompts or results), and error reports. Events are linked to your Teak account ID and email so we can fix problems you hit.
-- **Page addresses:** web events include the page address, which can contain filters or a search term you typed in the web app.
 - **Session replays (web only):** a sample of web sessions, and sessions where an error occurs, are recorded so we can see what went wrong. Replays mask all text and typed input and block images and media, so your cards and notes are never visible in them.
 - **Feedback surveys (web only):** if you answer an in-app survey, your answer is stored in PostHog.
-- **What it never receives:** the content of your cards, files or notes, or AI prompts and results.
+- **What it never receives:** the content of your cards, files, notes or searches, or AI prompts and results. Search text is masked in page addresses before anything is sent.
 - **Where it doesn't run:** the Share and Safari extensions on Apple devices, the content scripts the browser extension adds to web pages, Raycast, and the CLI send nothing.
 
 ## Sharing & Disclosure
@@ -124,7 +123,7 @@ Depending on where you live (for example, the EEA, UK, California or India), you
 
 ## International Data
 
-Teak's providers are based in, and mainly process data in, the United States. Some providers, such as Cloudflare, also process data in other countries where they operate. Where the law requires it, these transfers are covered by safeguards such as the Standard Contractual Clauses in our providers' data processing terms.
+Teak stores your account, content and files in the United States. Some providers, such as Cloudflare, may also process data in other countries where they operate, for example to run AI processing close to where it's requested. Where the law requires it, these transfers are covered by safeguards such as the Standard Contractual Clauses in our providers' data processing terms.
 
 ## Platform Practices
 
@@ -152,4 +151,5 @@ We'll update the effective date above whenever this policy changes. For material
 ## Contact
 
 - Privacy questions and data requests: hello@praveenjuge.com
+- Grievance officer: Praveen Juge, hello@praveenjuge.com
 - We reply within 7 days and complete data requests within 30 days.
