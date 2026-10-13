@@ -1,5 +1,6 @@
 "use client";
 
+import { libraryViewForPath } from "@teak/ui/lib/libraryViews";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
@@ -31,9 +32,10 @@ function getPreviousHomeEntry(): NavigationEntry | null {
   }
 
   const previousUrl = new URL(previousEntry.url);
+  // Any library view (All, Favorites, Archive, Trash) counts as home.
   const isHome =
     previousUrl.origin === window.location.origin &&
-    previousUrl.pathname === "/";
+    libraryViewForPath(previousUrl.pathname) !== null;
   return isHome ? previousEntry : null;
 }
 

@@ -154,6 +154,30 @@
   }
 }
 
+/* With the app sidebar on screen, toasts and the bulk-action bar span the
+   content column only, so neither covers the sidebar. */
+:root {
+  --teak-content-left: 0px;
+  /* Phones use Sonner's own edge-to-edge layout (it switches at 600px). */
+  --teak-toaster-left: 0px;
+}
+
+@media (min-width: 601px) {
+  :root {
+    --teak-toaster-left: calc(50% + var(--teak-content-left) / 2);
+  }
+}
+
+@media (min-width: 48rem) {
+  :root:has([data-slot="sidebar"][data-state="expanded"]) {
+    --teak-content-left: 16rem;
+  }
+
+  :root:has([data-slot="sidebar"][data-collapsible="icon"]) {
+    --teak-content-left: 3rem;
+  }
+}
+
 [data-sonner-toaster] .sonner-loading-bar {
   background: var(--primary-foreground);
 }

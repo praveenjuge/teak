@@ -15,6 +15,10 @@ import {
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
 import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@teak/ui/components/ui/sidebar";
+import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
@@ -29,6 +33,11 @@ interface AddCardActionsProps {
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
+  /**
+   * `toolbar` renders icon buttons; `sidebar` renders labeled sidebar menu
+   * items (with tooltips when the sidebar is collapsed to icons).
+   */
+  variant?: "toolbar" | "sidebar";
 }
 
 function formatTime(seconds: number) {
@@ -66,6 +75,7 @@ export function AddCardActions({
   onSuccess,
   onUpgrade,
   upgradeUrl = "/settings",
+  variant = "toolbar",
 }: AddCardActionsProps) {
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -368,8 +378,31 @@ export function AddCardActions({
     ? "Speak naturally. Teak will save this as an audio card."
     : "Starting microphone...";
 
-  return (
-    <>
+  const triggers =
+    variant === "sidebar" ? (
+      <>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            disabled={globalFileDrop?.isUploading}
+            onClick={handleFileUpload}
+            tooltip="Upload files"
+          >
+            <Upload />
+            <span>Upload files</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            disabled={isRecording || isSubmitting}
+            onClick={() => void startRecording()}
+            tooltip="Record audio"
+          >
+            <Mic />
+            <span>Record audio</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </>
+    ) : (
       <div className="flex items-center gap-1">
         <Button
           aria-label="Upload files"
@@ -392,6 +425,11 @@ export function AddCardActions({
           <Mic className="size-4" />
         </Button>
       </div>
+    );
+
+  return (
+    <>
+      {triggers}
 
       <Dialog
         onOpenChange={handleDialogOpenChange}

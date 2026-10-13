@@ -1,9 +1,14 @@
 import { type CardListSort, normalizeCardListSort } from "@teak/convex/shared";
+import { type CardType, isCardType } from "@teak/convex/shared/constants";
 
-/** The search a library URL carries: `?q=` and `?sort=oldest`. */
+/**
+ * The search a library URL carries: `?q=`, `?sort=oldest` and the card types
+ * picked in the sidebar as `?type=link,image`.
+ */
 export interface SearchUrlState {
   q: string;
   sort: CardListSort;
+  types: CardType[];
 }
 
 // Long enough for any real search; keeps a pasted URL from filling the input
@@ -17,13 +22,27 @@ interface ReadableParams {
 export const EMPTY_SEARCH_URL_STATE: SearchUrlState = {
   q: "",
   sort: "newest",
+  types: [],
 };
+
+/** Known card types from `?type=`, once each, in the order given. */
+export function parseCardTypesParam(value: string | null): CardType[] {
+  const types: CardType[] = [];
+  for (const part of (value ?? "").split(",")) {
+    const type = part.trim().toLowerCase();
+    if (isCardType(type) && !types.includes(type)) {
+      types.push(type);
+    }
+  }
+  return types;
+}
 
 /** Reads the search from a URL. Unknown or malformed values fall back. */
 export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
   return {
     q: (params.get("q") ?? "").trim().slice(0, MAX_URL_SEARCH_LENGTH),
     sort: normalizeCardListSort(params.get("sort")),
+    types: parseCardTypesParam(params.get("type")),
   };
 }
 
@@ -48,12 +67,33 @@ export function serializeSearchUrlState(
   } else {
     next.delete("sort");
   }
-  return next.toString();
+  if (state.types.length > 0) {
+    next.set("type", state.types.join(","));
+  } else {
+    next.delete("type");
+  }
+  // Commas are valid in a query; keep `?type=link,image` readable.
+  return next.toString().replace(/%2C/g, ",");
 }
+
+const sameTypes = (left: CardType[], right: CardType[]): boolean =>
+  left.length === right.length && left.every((type) => right.includes(type));
 
 export const isSameSearchUrlState = (
   left: SearchUrlState,
   right: SearchUrlState
 ): boolean =>
   left.q.trim() === right.q.trim() &&
-  normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort);
+  normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort) &&
+  sameTypes(left.types, right.types);
+
+/** The same search with `type` switched on or off, for a sidebar type link. */
+export const toggleSearchUrlType = (
+  state: SearchUrlState,
+  type: CardType
+): SearchUrlState => ({
+  ...state,
+  types: state.types.includes(type)
+    ? state.types.filter((active) => active !== type)
+    : [...state.types, type],
+});

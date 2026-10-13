@@ -38,6 +38,21 @@ type MasonryColumns =
     };
 
 const DEFAULT_BATCH_SIZE = 24;
+const MIN_COLUMN_WIDTH = 200;
+const MAX_COLUMNS = 5;
+
+/**
+ * How many columns fit the grid's own width, so the sidebar (open, collapsed
+ * or hidden) never squeezes cards below a readable width.
+ */
+export const columnsForWidth = (width: number, gutter: number): number =>
+  Math.min(
+    MAX_COLUMNS,
+    Math.max(1, Math.floor((width + gutter) / (MIN_COLUMN_WIDTH + gutter)))
+  );
+
+// Before the grid is measured (and on the server) the viewport decides.
+const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 const DEFAULT_ROOT_MARGIN = "200px 0px";
 // Cards near the top of the grid are above the fold on every screen size, so
 // their media loads eagerly with high fetch priority instead of lazily.
@@ -103,7 +118,7 @@ export function MasonryGrid({
   hasMore = false,
   isLoadingMore = false,
   loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
-  columns = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 },
+  columns,
   gutter = 24,
   toastIdPrefix = "masonry",
 }: MasonryGridProps) {
@@ -126,6 +141,22 @@ export function MasonryGrid({
     Math.min(normalizedInitialBatchSize, filteredCards.length)
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [measuredColumns, setMeasuredColumns] = useState<number | null>(null);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (columns !== undefined || !grid) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) {
+        setMeasuredColumns(columnsForWidth(entry.contentRect.width, gutter));
+      }
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [columns, gutter]);
+  const resolvedColumns = columns ?? measuredColumns ?? FALLBACK_COLUMNS;
   const loadMoreRequestedRef = useRef(false);
   const resetKeyRef = useRef(resolvedResetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
@@ -444,14 +475,16 @@ export function MasonryGrid({
 
   return (
     <>
-      <Masonry
-        className={isSelectionMode ? "select-none" : ""}
-        columns={columns}
-        fresh
-        gutter={gutter}
-        itemRender={renderItem}
-        items={masonryItems}
-      />
+      <div ref={gridRef}>
+        <Masonry
+          className={isSelectionMode ? "select-none" : ""}
+          columns={resolvedColumns}
+          fresh
+          gutter={gutter}
+          itemRender={renderItem}
+          items={masonryItems}
+        />
+      </div>
       {filteredCards.length > 0 &&
         (visibleCount < filteredCards.length ||
           (onLoadMore && hasMore !== false)) && (

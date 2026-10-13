@@ -7,12 +7,10 @@ const renderSearchBar = (
   searchQuery = "",
   {
     filterTags = [],
-    showFavoritesOnly = false,
-    showTrashOnly = false,
+    keywordTags = [],
   }: {
     filterTags?: CardType[];
-    showFavoritesOnly?: boolean;
-    showTrashOnly?: boolean;
+    keywordTags?: string[];
   } = {}
 ) =>
   renderToStaticMarkup(
@@ -20,8 +18,8 @@ const renderSearchBar = (
       filterTags={filterTags}
       hexFilters={[]}
       hueFilters={[]}
-      keywordTags={[]}
-      onAddFilter={() => {}}
+      keywordTags={keywordTags}
+      leading={<button type="button">Toggle sidebar</button>}
       onClearAll={() => {}}
       onKeyDown={() => {}}
       onRemoveFilter={() => {}}
@@ -31,11 +29,8 @@ const renderSearchBar = (
       onRemoveStyleFilter={() => {}}
       onRemoveTimeFilter={() => {}}
       onSearchChange={() => {}}
-      onToggleFavorites={() => {}}
-      onToggleTrash={() => {}}
+      placeholder="Search favorites..."
       searchQuery={searchQuery}
-      showFavoritesOnly={showFavoritesOnly}
-      showTrashOnly={showTrashOnly}
       styleFilters={[]}
     />
   );
@@ -61,33 +56,38 @@ describe("SearchBar WebMCP annotations", () => {
 });
 
 describe("SearchBar filter chips", () => {
-  // The aria-pressed value of the chip button whose label is `label`.
-  const pressedState = (markup: string, label: string) => {
-    const button = markup
-      .split("<button")
-      .find((chunk) =>
-        chunk.split("</button>")[0]?.includes(`<span>${label}</span>`)
-      );
-    return button?.match(/aria-pressed="(true|false)"/)?.[1];
-  };
+  // Labels of the chip buttons under the search box.
+  const chipLabels = (markup: string) =>
+    [...markup.matchAll(/<span>([^<]+)<\/span>/g)].map((match) => match[1]);
 
-  test("reports inactive type, Favorites and Trash chips as not pressed", () => {
-    const markup = renderSearchBar("x");
-    expect(pressedState(markup, "Text")).toBe("false");
-    expect(pressedState(markup, "Link")).toBe("false");
-    expect(pressedState(markup, "Favorites")).toBe("false");
-    expect(pressedState(markup, "Trash")).toBe("false");
+  test("shows no chips while nothing narrows the results", () => {
+    const markup = renderSearchBar("typing");
+    expect(chipLabels(markup)).toEqual([]);
+    expect(markup).not.toContain("Clear all");
   });
 
-  test("reports active type, Favorites and Trash chips as pressed", () => {
+  // Views and card types to pick live in the sidebar now.
+  test("never offers view or unpicked type chips", () => {
+    const markup = renderSearchBar("", { filterTags: ["link"] });
+    for (const label of ["Text", "Image", "Favorites", "Trash", "Archived"]) {
+      expect(chipLabels(markup)).not.toContain(label);
+    }
+  });
+
+  test("shows picked types and keywords as removable chips", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link"],
-      showFavoritesOnly: true,
-      showTrashOnly: true,
+      keywordTags: ["design"],
     });
-    expect(pressedState(markup, "Link")).toBe("true");
-    expect(pressedState(markup, "Favorites")).toBe("true");
-    expect(pressedState(markup, "Trash")).toBe("true");
-    expect(pressedState(markup, "Text")).toBe("false");
+    expect(chipLabels(markup)).toEqual(["design", "Link"]);
+    expect(markup).toContain("Clear all");
+  });
+
+  test("renders the leading control and the view's placeholder", () => {
+    const markup = renderSearchBar();
+    expect(markup.indexOf("Toggle sidebar")).toBeLessThan(
+      markup.indexOf('name="q"')
+    );
+    expect(markup).toContain('placeholder="Search favorites..."');
   });
 });

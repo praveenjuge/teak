@@ -48,32 +48,40 @@ afterEach(() => {
   router.replace.mockReset();
 });
 
-const render = (search: string) => {
+const render = (
+  search: string,
+  view?: "all" | "favorites" | "archive" | "trash"
+) => {
   currentSearch = search;
-  renderToStaticMarkup(<HomePageClient />);
+  renderToStaticMarkup(<HomePageClient view={view} />);
 };
 
 describe("library URL", () => {
   test("hands the search and open card in the URL to the library", () => {
-    render("q=blue%20buttons&sort=oldest&card=card_1");
+    render("q=blue%20buttons&sort=oldest&type=link,image&card=card_1");
     expect(screenProps.searchUrlState).toEqual({
       q: "blue buttons",
       sort: "oldest",
+      types: ["link", "image"],
     });
     expect(screenProps.cardIdFromUrl).toBe("card_1");
   });
 
   test("an unknown sort in a pasted link falls back to newest", () => {
     render("sort=shuffle");
-    expect(screenProps.searchUrlState).toEqual({ q: "", sort: "newest" });
+    expect(screenProps.searchUrlState).toEqual({
+      q: "",
+      sort: "newest",
+      types: [],
+    });
   });
 
   test("typing replaces the history entry and keeps the open card", () => {
     render("card=card_1");
     const history = installWindow("?card=card_1");
     screenProps.onSearchUrlStateChange(
-      { q: "design", sort: "newest" },
-      { sortChanged: false }
+      { q: "design", sort: "newest", types: [] },
+      { sortChanged: false, typesChanged: false }
     );
     expect(history.pushState).not.toHaveBeenCalled();
     expect(history.replaceState).toHaveBeenCalledWith(
@@ -87,8 +95,8 @@ describe("library URL", () => {
     render("q=design");
     const history = installWindow("?q=design");
     screenProps.onSearchUrlStateChange(
-      { q: "design", sort: "oldest" },
-      { sortChanged: true }
+      { q: "design", sort: "oldest", types: [] },
+      { sortChanged: true, typesChanged: false }
     );
     expect(history.pushState).toHaveBeenCalledWith(
       null,
@@ -101,11 +109,46 @@ describe("library URL", () => {
     render("q=design");
     const history = installWindow("?q=design");
     screenProps.onSearchUrlStateChange(
-      { q: "design", sort: "newest" },
-      { sortChanged: false }
+      { q: "design", sort: "newest", types: [] },
+      { sortChanged: false, typesChanged: false }
     );
     expect(history.pushState).not.toHaveBeenCalled();
     expect(history.replaceState).not.toHaveBeenCalled();
+  });
+
+  test("removing a card type adds a history entry so Back restores it", () => {
+    render("type=link,image", "favorites");
+    const history = installWindow("?type=link,image");
+    screenProps.onSearchUrlStateChange(
+      { q: "", sort: "newest", types: ["link"] },
+      { sortChanged: false, typesChanged: true }
+    );
+    expect(history.pushState).toHaveBeenCalledWith(null, "", "/?type=link");
+  });
+
+  test("hands the routed view to the library", () => {
+    render("", "archive");
+    expect(screenProps.view).toBe("archive");
+  });
+
+  test("a quick command in search opens that view", () => {
+    render("");
+    const history = installWindow("");
+    screenProps.onNavigateView("trash");
+    expect(router.push).toHaveBeenCalledWith("/trash");
+    expect(history.replaceState).not.toHaveBeenCalled();
+  });
+
+  test("a settled quick command leaves this page's URL before navigating", () => {
+    render("q=trash&sort=oldest");
+    const history = installWindow("?q=trash&sort=oldest");
+    screenProps.onNavigateView("trash");
+    expect(history.replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/?sort=oldest"
+    );
+    expect(router.push).toHaveBeenCalledWith("/trash");
   });
 
   test("opening a card keeps the search in the URL", () => {

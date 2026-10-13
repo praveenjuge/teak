@@ -19,6 +19,11 @@ import type {
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SearchBarProps } from "../components/search";
+import {
+  type LibraryView,
+  libraryViewFlags,
+  quickCommandTarget,
+} from "../lib/libraryViews";
 import type { SearchUrlState } from "../lib/searchUrlState";
 
 export interface CardsSearchState {
@@ -53,6 +58,16 @@ export interface UseCardsSearchControllerOptions {
   /** The search to start with, usually read from the page URL. */
   initialUrlState?: SearchUrlState;
   localSearchCacheLimit?: number;
+  /**
+   * Called when a quick command (`fav`, `trash`, `archive`) is entered in a
+   * routed view: the app navigates instead of toggling hidden state.
+   */
+  onNavigateView?: (view: LibraryView) => void;
+  /**
+   * The routed view (All, Favorites, Archive, Trash). It decides the
+   * favorites, archive and trash flags; without it they are toggles.
+   */
+  view?: LibraryView;
   weekStart?: 0 | 1;
 }
 
@@ -67,14 +82,21 @@ export interface UseCardsSearchControllerResult {
   addKeywordTag: (keyword: string) => void;
   /**
    * Replaces the search with one from the URL (back, forward or a pasted
-   * link): the text becomes the typed query and chips are cleared.
+   * link): the text becomes the typed query and chips are cleared. With
+   * `keepSearch`, only the types and sort follow the URL, so text still
+   * being typed survives a change made elsewhere (a sidebar type).
    */
-  applyUrlState: (state: SearchUrlState) => void;
+  applyUrlState: (
+    state: SearchUrlState,
+    options?: { keepSearch?: boolean }
+  ) => void;
   clearAllFilters: () => void;
   displayCards: Doc<"cards">[];
   filterTags: CardType[];
   hasActiveSearch: boolean;
   hasNoFilters: boolean;
+  /** True when nothing narrows the current view (search, chips or types). */
+  hasNoSearchFilters: boolean;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   /** True while typed text waits for the debounce before querying remotely. */
@@ -82,7 +104,7 @@ export interface UseCardsSearchControllerResult {
   keywordTags: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
-  searchBarProps: Omit<SearchBarProps, "SettingsButton">;
+  searchBarProps: SearchBarProps;
   searchQuery: string;
   searchTerms: string;
   /**
@@ -104,8 +126,9 @@ export interface UseCardsSearchControllerResult {
   timeFilter: TimeFilter | null;
   updateCachedCard: (card: Doc<"cards">) => void;
   /**
-   * The settled search to mirror into the URL: the debounced terms and the
-   * sort. Changes only once typing pauses, so URL writes stay infrequent.
+   * The settled search to mirror into the URL: the debounced terms, the sort
+   * and the card types. Changes only once typing pauses, so URL writes stay
+   * infrequent.
    */
   urlState: SearchUrlState;
 }
@@ -394,11 +417,25 @@ export function useCardsSearchController(
     weekStart = 0,
     localSearchCacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
     initialUrlState,
+    onNavigateView,
+    view,
   } = options;
-  const [searchState, setSearchState] = useState<CardsSearchState>(() => ({
-    ...createInitialCardsSearchState(),
-    searchQuery: initialUrlState?.q ?? "",
-  }));
+  const [storedSearchState, setSearchState] = useState<CardsSearchState>(
+    () => ({
+      ...createInitialCardsSearchState(),
+      filterTags: initialUrlState?.types ?? [],
+      searchQuery: initialUrlState?.q ?? "",
+    })
+  );
+  // In a routed view the route owns the favorites, archive and trash flags;
+  // the stored state keeps them off, so Backspace never clears a view.
+  const searchState = useMemo<CardsSearchState>(
+    () =>
+      view === undefined
+        ? storedSearchState
+        : { ...storedSearchState, ...libraryViewFlags(view) },
+    [storedSearchState, view]
+  );
   const [sort, setSort] = useState<CardListSort>(
     initialUrlState?.sort ?? "newest"
   );
@@ -488,8 +525,8 @@ export function useCardsSearchController(
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
   const urlState = useMemo<SearchUrlState>(
-    () => ({ q: remoteSearchTerms, sort }),
-    [remoteSearchTerms, sort]
+    () => ({ q: remoteSearchTerms, sort, types: searchState.filterTags }),
+    [remoteSearchTerms, searchState.filterTags, sort]
   );
 
   const hasActiveSearch = useMemo(
@@ -556,6 +593,16 @@ export function useCardsSearchController(
     () => getHasNoFilters(searchState),
     [searchState]
   );
+  const hasNoSearchFilters = useMemo(
+    () =>
+      getHasNoFilters({
+        ...searchState,
+        showArchivedOnly: false,
+        showFavoritesOnly: false,
+        showTrashOnly: false,
+      }),
+    [searchState]
+  );
 
   const onSearchChange = useCallback((value: string) => {
     setSearchState((prev) => ({
@@ -567,6 +614,12 @@ export function useCardsSearchController(
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
+        const command = resolveQuickSearchCommand(e.currentTarget.value);
+        if (command && view !== undefined && onNavigateView) {
+          setSearchState((prev) => ({ ...prev, searchQuery: "" }));
+          onNavigateView(quickCommandTarget(command, view));
+          return;
+        }
         setSearchState((prev) =>
           applyEnterToCardsSearchState(prev, { weekStart, now: new Date() })
         );
@@ -577,7 +630,7 @@ export function useCardsSearchController(
         setSearchState((prev) => applyBackspaceToCardsSearchState(prev));
       }
     },
-    [weekStart]
+    [onNavigateView, view, weekStart]
   );
 
   const addFilter = useCallback((filter: CardType) => {
@@ -613,19 +666,34 @@ export function useCardsSearchController(
     setSearchState(createInitialCardsSearchState());
   }, []);
 
-  const applyUrlState = useCallback((state: SearchUrlState) => {
-    // A search from the URL is not typing: query it at once, so the screen
-    // never reports the previous search back into the URL meanwhile.
-    setDebouncedSearchQuery(state.q);
-    setSearchState((prev) => {
-      // Already showing this search (as chips or typed text): keep it as is.
-      if (buildCardsSearchTerms(prev) === state.q.trim()) {
-        return prev;
+  const applyUrlState = useCallback(
+    (state: SearchUrlState, options?: { keepSearch?: boolean }) => {
+      const keepSearch = options?.keepSearch ?? false;
+      // A search from the URL is not typing: query it at once, so the screen
+      // never reports the previous search back into the URL meanwhile.
+      if (!keepSearch) {
+        setDebouncedSearchQuery(state.q);
       }
-      return { ...prev, keywordTags: [], searchQuery: state.q };
-    });
-    setSort(state.sort);
-  }, []);
+      setSearchState((prev) => {
+        // Already showing this search (as chips or typed text): keep it as is.
+        const sameTerms =
+          keepSearch || buildCardsSearchTerms(prev) === state.q.trim();
+        const sameTypes =
+          prev.filterTags.length === state.types.length &&
+          prev.filterTags.every((type) => state.types.includes(type));
+        if (sameTerms && sameTypes) {
+          return prev;
+        }
+        return {
+          ...prev,
+          ...(sameTerms ? {} : { keywordTags: [], searchQuery: state.q }),
+          filterTags: sameTypes ? prev.filterTags : state.types,
+        };
+      });
+      setSort(state.sort);
+    },
+    []
+  );
 
   const setTimeFilter = useCallback((timeFilter: TimeFilter | null) => {
     setSearchState((prev) => ({
@@ -634,7 +702,7 @@ export function useCardsSearchController(
     }));
   }, []);
 
-  const searchBarProps = useMemo<Omit<SearchBarProps, "SettingsButton">>(
+  const searchBarProps = useMemo<SearchBarProps>(
     () => ({
       searchQuery: searchState.searchQuery,
       onSearchChange,
@@ -645,10 +713,6 @@ export function useCardsSearchController(
       styleFilters: searchState.styleFilters,
       hueFilters: searchState.hueFilters,
       hexFilters: searchState.hexFilters,
-      showFavoritesOnly: searchState.showFavoritesOnly,
-      showTrashOnly: searchState.showTrashOnly,
-      showArchivedOnly: searchState.showArchivedOnly,
-      onAddFilter: addFilter,
       onRemoveFilter: (filter) =>
         setSearchState((prev) => ({
           ...prev,
@@ -681,28 +745,11 @@ export function useCardsSearchController(
           ...prev,
           timeFilter: null,
         })),
-      onToggleFavorites: () =>
-        setSearchState((prev) => ({
-          ...prev,
-          showFavoritesOnly: !prev.showFavoritesOnly,
-        })),
-      onToggleTrash: () =>
-        setSearchState((prev) => ({
-          ...prev,
-          showTrashOnly: !prev.showTrashOnly,
-          showArchivedOnly: false,
-        })),
-      onToggleArchived: () =>
-        setSearchState((prev) => ({
-          ...prev,
-          showArchivedOnly: !prev.showArchivedOnly,
-          showTrashOnly: false,
-        })),
       onClearAll: clearAllFilters,
       sort,
       onSortChange: setSort,
     }),
-    [addFilter, clearAllFilters, onKeyDown, onSearchChange, searchState, sort]
+    [clearAllFilters, onKeyDown, onSearchChange, searchState, sort]
   );
 
   return {
@@ -723,6 +770,7 @@ export function useCardsSearchController(
     isSearchPending,
     resetKey,
     hasNoFilters,
+    hasNoSearchFilters,
     setRemoteCards,
     setTimeFilter,
     addFilter,

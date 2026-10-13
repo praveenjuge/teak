@@ -1,44 +1,52 @@
 "use client";
 
-import { Button } from "@teak/ui/components/ui/button";
+import {
+  LIBRARY_VIEW_PATHS,
+  type LibraryView,
+} from "@teak/ui/lib/libraryViews";
 import {
   parseSearchUrlState,
   type SearchUrlState,
   serializeSearchUrlState,
 } from "@teak/ui/lib/searchUrlState";
+import type { SearchUrlChange } from "@teak/ui/screens";
 import { CardsScreenAdapter } from "@teak/ui/screens";
-import { Settings } from "lucide-react";
+import { SidebarToggle } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
+import { rememberHomeScroll } from "@/lib/homeScroll";
 
-export function HomePageClient() {
+export function HomePageClient({ view = "all" }: { view?: LibraryView }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
   const searchQueryParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
-  const searchUrlState = useMemo(
-    () =>
-      parseSearchUrlState({
-        get: (name) => (name === "q" ? searchQueryParam : sortParam),
-      }),
-    [searchQueryParam, sortParam]
-  );
+  const typeParam = searchParams.get("type");
+  const searchUrlState = useMemo(() => {
+    const params: Record<string, string | null> = {
+      q: searchQueryParam,
+      sort: sortParam,
+      type: typeParam,
+    };
+    return parseSearchUrlState({ get: (name) => params[name] ?? null });
+  }, [searchQueryParam, sortParam, typeParam]);
 
-  // The search lives in `?q=` and `?sort=`. Native history calls update the
-  // URL (and useSearchParams) synchronously, so a fast typist's older search
-  // can never land after a newer one. Typing replaces the entry; changing
-  // the sort adds one, so Back returns to the previous order.
+  // The search lives in `?q=`, `?sort=` and `?type=`. Native history calls
+  // update the URL (and useSearchParams) synchronously, so a fast typist's
+  // older search can never land after a newer one. Typing replaces the
+  // entry; changing the sort or the card types adds one, so Back returns to
+  // the previous order or types.
   const handleSearchUrlStateChange = useCallback(
-    (state: SearchUrlState, change: { sortChanged: boolean }) => {
+    (state: SearchUrlState, change: SearchUrlChange) => {
       const query = serializeSearchUrlState(state, window.location.search);
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
       if (nextUrl === `${window.location.pathname}${window.location.search}`) {
         return;
       }
-      if (change.sortChanged) {
+      if (change.sortChanged || change.typesChanged) {
         window.history.pushState(null, "", nextUrl);
       } else {
         window.history.replaceState(null, "", nextUrl);
@@ -47,23 +55,26 @@ export function HomePageClient() {
     []
   );
 
-  const rememberHomeScroll = () => {
-    const navigation = (
-      window as Window & {
-        navigation?: {
-          currentEntry?: { getState: () => unknown };
-          updateCurrentEntry: (options: { state: unknown }) => void;
-        };
+  // `fav`, `trash` and `archive` typed in search open that view. The command
+  // was search text, so drop it from this page's entry first: Back then shows
+  // this page without it, and clearing the box has nothing left to write
+  // (a write after the push would replace the navigation).
+  const handleNavigateView = useCallback(
+    (nextView: LibraryView) => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("q")) {
+        params.delete("q");
+        const query = params.toString();
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${query ? `?${query}` : ""}`
+        );
       }
-    ).navigation;
-    const state = navigation?.currentEntry?.getState();
-    navigation?.updateCurrentEntry({
-      state: {
-        ...(typeof state === "object" && state ? state : {}),
-        __teakHomeScrollY: window.scrollY,
-      },
-    });
-  };
+      router.push(LIBRARY_VIEW_PATHS[nextView]);
+    },
+    [router]
+  );
 
   const setCardUrlParam = (cardId: string | null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -92,21 +103,11 @@ export function HomePageClient() {
     router.push("/settings");
   };
 
-  const settingsButton = (
-    <Button asChild size="icon" variant="outline">
-      <Link
-        aria-label="Settings"
-        href="/settings"
-        onClickCapture={rememberHomeScroll}
-      >
-        <Settings />
-      </Link>
-    </Button>
-  );
-
   return (
     <CardsScreenAdapter
       cardIdFromUrl={cardIdFromUrl}
+      headerLeading={<SidebarToggle className="mr-2 -ml-2" />}
+      onNavigateView={handleNavigateView}
       onSearchUrlStateChange={handleSearchUrlStateChange}
       onUpgrade={handleUpgrade}
       pushCardId={(cardId) => {
@@ -115,11 +116,11 @@ export function HomePageClient() {
       replaceCardId={(cardId) => {
         setCardUrlParam(cardId, true);
       }}
-      SettingsButton={settingsButton}
       searchUrlState={searchUrlState}
       toastIdPrefix="web-masonry"
       UpgradeLinkComponent={Link}
       upgradeUrl="/settings"
+      view={view}
     />
   );
 }
