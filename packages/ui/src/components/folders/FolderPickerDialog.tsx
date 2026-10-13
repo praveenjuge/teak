@@ -4,7 +4,6 @@ import { api } from "@teak/convex";
 import {
   explainInvalidFolderName,
   FOLDER_ERROR_MESSAGES,
-  MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
 import {
@@ -21,6 +20,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useFolders } from "../../hooks/useFolders";
 import { cardCountLabel } from "../../lib/bulkCardActions";
 import {
+  FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
   filterFolders,
   folderErrorMessage,
@@ -156,7 +156,7 @@ export function FolderPickerDialog({
             aria-label="Search folders"
             autoFocus
             className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
-            maxLength={MAX_FOLDER_NAME_LENGTH}
+            maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(0);

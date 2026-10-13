@@ -4,7 +4,6 @@ import { api } from "@teak/convex";
 import {
   explainInvalidFolderName,
   FOLDER_ERROR_MESSAGES,
-  MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
 import { Button } from "@teak/ui/components/ui/button";
@@ -26,6 +25,7 @@ import {
   FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
   FOLDER_DOT_CLASSES,
+  FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderColor,
   type FolderSummary,
   folderErrorMessage,
@@ -140,7 +140,7 @@ export function FolderNameDialog({
               autoComplete="off"
               autoFocus
               id={inputId}
-              maxLength={MAX_FOLDER_NAME_LENGTH}
+              maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
               onChange={(event) => {
                 setName(event.target.value);
                 setServerError(null);

@@ -1,5 +1,8 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
-import type { FolderColor } from "@teak/convex/shared/folders";
+import {
+  type FolderColor,
+  MAX_FOLDER_NAME_LENGTH,
+} from "@teak/convex/shared/folders";
 import { ConvexError } from "convex/values";
 
 /** A folder as `api.folders.listFolders` returns it. */
@@ -18,6 +21,13 @@ export {
   FOLDER_COLORS,
   type FolderColor,
 } from "@teak/convex/shared/folders";
+
+/**
+ * The input's maxLength. Browsers count UTF-16 units, so an emoji uses two;
+ * twice the limit lets 300 emoji through, and the name check (which counts
+ * characters, like the server) refuses anything longer.
+ */
+export const FOLDER_NAME_INPUT_MAX_LENGTH = MAX_FOLDER_NAME_LENGTH * 2;
 
 /** The dot color for each palette color; no color is a quiet outline. */
 export const FOLDER_DOT_CLASSES: Record<FolderColor, string> = {

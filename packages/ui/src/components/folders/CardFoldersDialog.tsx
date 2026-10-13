@@ -5,7 +5,6 @@ import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   explainInvalidFolderName,
   FOLDER_ERROR_MESSAGES,
-  MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_CARD,
 } from "@teak/convex/shared/folders";
 import {
@@ -22,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { updateCardsInSearchQueries } from "../../hooks/cardQueryOptimisticUpdates";
 import { useFolders } from "../../hooks/useFolders";
 import {
+  FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,
   folderErrorMessage,
   hasFolderNamed,
@@ -167,7 +167,7 @@ export function CardFoldersDialog({
             aria-label="Search folders"
             autoFocus
             className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
-            maxLength={MAX_FOLDER_NAME_LENGTH}
+            maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
             onChange={(event) => {
               setQuery(event.target.value);
               setError(null);
