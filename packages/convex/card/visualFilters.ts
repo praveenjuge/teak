@@ -7,6 +7,10 @@ import {
   type VisualStyle,
 } from "../shared/constants";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../shared/search/constants";
+import {
+  type CardListSort,
+  compareCardsByCreatedAt,
+} from "../shared/search/sort";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
 
 export interface VisualFilterState {
@@ -165,6 +169,7 @@ export const runVisualFacetQueries = async (
     createdAtRange?: CreatedAtRange;
     visualFilters: VisualFilterState;
     limit: number;
+    sort?: CardListSort;
   }
 ): Promise<Doc<"cards">[]> => {
   if (!options.visualFilters.hasVisualFilters) {
@@ -217,5 +222,5 @@ export const runVisualFacetQueries = async (
     favoritesOnly: options.favoritesOnly,
     createdAtRange: options.createdAtRange,
     visualFilters: options.visualFilters,
-  }).sort((a, b) => b.createdAt - a.createdAt);
+  }).sort((a, b) => compareCardsByCreatedAt(a, b, options.sort ?? "newest"));
 };

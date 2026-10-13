@@ -10,6 +10,7 @@ import {
 } from "./_generated/server";
 import { createCardForUserHandler } from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
+import { buildCardListQuery } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
@@ -451,21 +452,12 @@ const searchCardsByTag = async (
   return { cards: sorted.slice(0, limit), hasMore: sorted.length > limit };
 };
 
-// Date-filtered listings read the by_created index (createdAt order); the
-// others read indexes ordered by _creationTime.
-const usesCreatedAtOrder = (options: SearchOptions): boolean =>
-  !(
-    options.favorited !== undefined &&
-    options.createdAfter === undefined &&
-    options.createdBefore === undefined &&
-    options.type === undefined
-  ) &&
-  (options.createdAfter !== undefined || options.createdBefore !== undefined);
-
 /**
- * Builds the listing query. With an anchor, the range starts at the anchor's
- * position so a page resumes right after the last card returned, even when
- * cards were added or removed in between.
+ * Builds the listing query, ordered by `createdAt` (ties by insertion order).
+ * With an anchor, the range starts at the anchor's position so a page resumes
+ * right after the last card returned, even when cards were added or removed
+ * in between. The anchor bound is inclusive; cards that share its createdAt
+ * and come before it are skipped while reading (see isAtOrBeforeListAnchor).
  */
 const createBaseQuery = (
   ctx: QueryCtx,
@@ -474,79 +466,19 @@ const createBaseQuery = (
   anchor?: ListAnchor
 ) => {
   const descending = normalizeSort(options.sort) === "newest";
-  const isDeleted = options.showTrashOnly ? true : undefined;
-  if (
-    options.favorited !== undefined &&
-    options.createdAfter === undefined &&
-    options.createdBefore === undefined &&
-    options.type === undefined
-  ) {
-    return ctx.db
-      .query("cards")
-      .withIndex("by_user_favorites_deleted", (query) => {
-        const range = query
-          .eq("userId", userId)
-          .eq("isFavorited", options.favorited ? true : undefined)
-          .eq("isDeleted", isDeleted);
-        if (!anchor) {
-          return range;
-        }
-        return descending
-          ? range.lt("_creationTime", anchor.creationTime)
-          : range.gt("_creationTime", anchor.creationTime);
-      });
+  let lower = options.createdAfter;
+  let upper = options.createdBefore;
+  if (anchor && descending) {
+    upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
+  } else if (anchor) {
+    lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
   }
-
-  if (usesCreatedAtOrder(options)) {
-    // The anchor bound is inclusive here; cards that share its createdAt and
-    // come before it are skipped while reading (see isAtOrBeforeListAnchor).
-    let lower = options.createdAfter;
-    let upper =
-      options.createdBefore === undefined ? undefined : options.createdBefore;
-    if (anchor && descending) {
-      upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
-    } else if (anchor) {
-      lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
-    }
-    return ctx.db.query("cards").withIndex("by_created", (query) => {
-      const byUser = query.eq("userId", userId);
-      if (lower !== undefined && upper !== undefined) {
-        return byUser.gte("createdAt", lower).lte("createdAt", upper);
-      }
-      if (lower !== undefined) {
-        return byUser.gte("createdAt", lower);
-      }
-      if (upper !== undefined) {
-        return byUser.lte("createdAt", upper);
-      }
-      return byUser;
-    });
-  }
-
-  if (options.type) {
-    const cardType = options.type;
-    return ctx.db.query("cards").withIndex("by_user_type_deleted", (query) => {
-      const range = query
-        .eq("userId", userId)
-        .eq("type", cardType)
-        .eq("isDeleted", isDeleted);
-      if (!anchor) {
-        return range;
-      }
-      return descending
-        ? range.lt("_creationTime", anchor.creationTime)
-        : range.gt("_creationTime", anchor.creationTime);
-    });
-  }
-
-  return ctx.db.query("cards").withIndex("by_user_deleted", (query) => {
-    const range = query.eq("userId", userId).eq("isDeleted", isDeleted);
-    if (!anchor) {
-      return range;
-    }
-    return descending
-      ? range.lt("_creationTime", anchor.creationTime)
-      : range.gt("_creationTime", anchor.creationTime);
+  return buildCardListQuery(ctx, {
+    userId,
+    trash: options.showTrashOnly,
+    favoritesOnly: options.favorited === true,
+    types: options.type ? [options.type] : options.types,
+    createdAt: { gte: lower, lte: upper },
   });
 };
 
@@ -557,7 +489,7 @@ const isAtOrBeforeListAnchor = (
   anchor: ListAnchor | undefined,
   options: SearchOptions
 ): boolean => {
-  if (!(anchor && usesCreatedAtOrder(options))) {
+  if (!anchor) {
     return false;
   }
   if (card.createdAt !== anchor.createdAt) {

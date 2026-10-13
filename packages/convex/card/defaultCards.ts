@@ -47,6 +47,8 @@ export interface DefaultCardDef {
   aiTags?: string[];
   colors?: ReturnType<typeof createColor>[];
   content: string;
+  /** The saved date; defaults to the moment of insertion. */
+  createdAt?: number;
   /** Inserted, then moved to the trash. */
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -122,7 +124,9 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
 export const insertCompletedCards = async (
   ctx: MutationCtx,
   userId: string,
-  cards: DefaultCardDef[]
+  cards: DefaultCardDef[],
+  /** Dev scenario packs only: count the cards as on Pro, past the free cap. */
+  options: { ignoreCardLimit?: boolean } = {}
 ): Promise<void> => {
   await initializeCardUsageShards(
     ctx,
@@ -131,7 +135,7 @@ export const insertCompletedCards = async (
   const now = Date.now();
   const processingStatus = buildCompletedProcessingStatus(now);
   for (const [i, cardDef] of cards.entries()) {
-    const timestamp = now + i * 1000;
+    const timestamp = cardDef.createdAt ?? now + i * 1000;
     const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
     const cardId = await ctx.db.insert("cards", {
       userId,
@@ -164,7 +168,9 @@ export const insertCompletedCards = async (
       createdAt: timestamp,
       updatedAt: timestamp,
     });
-    await recordActiveCardCreated(ctx, userId, cardId);
+    await recordActiveCardCreated(ctx, userId, cardId, {
+      hasPremium: options.ignoreCardLimit,
+    });
     if (cardDef.isDeleted) {
       await ctx.db.patch("cards", cardId, {
         isDeleted: true,

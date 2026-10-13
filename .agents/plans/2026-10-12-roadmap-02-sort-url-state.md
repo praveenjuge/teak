@@ -106,3 +106,16 @@ Let people sort the library Newest or Oldest, keep the search and sort in the UR
 
 - Convex paginate cursors reset on deploy because the list paths change index. Verify the iPhone, iPad, Mac and Android pagers restart cleanly from an invalid cursor before merging.
 - Four new `cards` indexes build on deploy; schedule the deploy for a quiet hour.
+
+## As built
+
+Where the shipped change differs from the plan above:
+
+- Trash orders by saved date (`createdAt`) like every other view, through `by_user_deleted_created` (`["userId", "isDeleted", "createdAt"]`), instead of `by_user_deleted_deletedAt`. One order everywhere is simpler to explain, and Trash keeps the sort toggle.
+- `buildCardListQuery(ctx, { userId, trash?, favoritesOnly?, types?, createdAt? })` returns the index-bounded query and the caller applies `.order()`. It serves `getCards`, `searchCards`, `searchCardsPaginated`, the public API (`createBaseQuery`) and Raycast. Equal `createdAt` values fall back to `_creationTime`.
+- The public API keeps its anchor cursors (`createdAt` plus `_creationTime`) on every path, so `usesCreatedAtOrder` is gone. A cursor from the old index is caught and returned as 400 `INVALID_INPUT` ("`cursor` is invalid").
+- `useCardsSearchController` takes `initialUrlState` and reports `urlState` rather than a full controlled `value`/`onChange`. `CardsScreen` applies external URL state (Back, Forward, pasted links) and emits changes. `HomePageClient` writes them with the native `window.history.pushState` (sort change) and `replaceState` (typing), which Next.js 16 syncs with `useSearchParams` without a server round trip.
+- The sort control is `components/search/SortMenu.tsx` in `SearchBar`, a ghost icon button that tints when Oldest is active.
+- Android `CardPager` now restarts from the first page when a page fails with `InvalidCursor`, as the Apple pager and `usePaginatedQuery` already did.
+- The `ordering` seed pack uses text, quote, link and palette cards only: they render from their text alone, so the label with the saved date shows on every card. It seeds past the free-plan cap (`ignoreCardLimit`), 200 cards per call.
+- A broad text search ranks up to its candidate limit and then sorts those by saved date, so "oldest" on a very broad search means the oldest of the best matches. The local cache fills in recently seen cards.

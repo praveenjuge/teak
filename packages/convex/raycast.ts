@@ -8,6 +8,7 @@ import {
 import { createCardForUserHandler } from "./card/createCard";
 import { getCardForUserHandler } from "./card/getCard";
 import { cardReturnValidator } from "./card/getCards";
+import { buildCardListQuery } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
@@ -339,70 +340,15 @@ const getCardsForUser = async (
   } else if (normalizedOptions.tag) {
     cards = await searchCardsByTag(ctx, userId, normalizedOptions);
   } else {
-    let baseQuery = ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (query) =>
-        query.eq("userId", userId).eq("isDeleted", undefined)
-      );
-
-    if (
-      normalizedOptions.type &&
-      !normalizedOptions.favoritesOnly &&
-      normalizedOptions.createdAfter === undefined &&
-      normalizedOptions.createdBefore === undefined
-    ) {
-      const cardType = normalizedOptions.type;
-      baseQuery = ctx.db
-        .query("cards")
-        .withIndex("by_user_type_deleted", (query) =>
-          query
-            .eq("userId", userId)
-            .eq("type", cardType)
-            .eq("isDeleted", undefined)
-        );
-    } else if (
-      normalizedOptions.favoritesOnly &&
-      normalizedOptions.createdAfter === undefined &&
-      normalizedOptions.createdBefore === undefined
-    ) {
-      baseQuery = ctx.db
-        .query("cards")
-        .withIndex("by_user_favorites_deleted", (query) =>
-          query
-            .eq("userId", userId)
-            .eq("isFavorited", true)
-            .eq("isDeleted", undefined)
-        );
-    } else if (
-      normalizedOptions.createdAfter !== undefined ||
-      normalizedOptions.createdBefore !== undefined
-    ) {
-      baseQuery = ctx.db.query("cards").withIndex("by_created", (query) => {
-        if (
-          normalizedOptions.createdAfter !== undefined &&
-          normalizedOptions.createdBefore !== undefined
-        ) {
-          return query
-            .eq("userId", userId)
-            .gte("createdAt", normalizedOptions.createdAfter)
-            .lt("createdAt", normalizedOptions.createdBefore + 1);
-        }
-
-        if (normalizedOptions.createdAfter !== undefined) {
-          return query
-            .eq("userId", userId)
-            .gte("createdAt", normalizedOptions.createdAfter);
-        }
-
-        if (normalizedOptions.createdBefore !== undefined) {
-          return query
-            .eq("userId", userId)
-            .lt("createdAt", normalizedOptions.createdBefore + 1);
-        }
-
-        return query.eq("userId", userId);
-      });
-    }
+    const baseQuery = buildCardListQuery(ctx, {
+      userId,
+      favoritesOnly: normalizedOptions.favoritesOnly,
+      types: normalizedOptions.type ? [normalizedOptions.type] : undefined,
+      createdAt: {
+        gte: normalizedOptions.createdAfter,
+        lte: normalizedOptions.createdBefore,
+      },
+    });
 
     cards = await collectFromBaseQuery(baseQuery, normalizedOptions);
     cards = sortAndLimitCards(cards, normalizedOptions);

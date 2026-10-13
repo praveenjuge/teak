@@ -24,13 +24,27 @@ import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  isSameSearchUrlState,
+  type SearchUrlState,
+} from "../lib/searchUrlState";
 
 interface CardsScreenProps {
   contentContainerClassName?: string;
   onCloseCard: () => void;
   onOpenCard: (cardId: string) => void;
+  /**
+   * Called when the settled search changes, to mirror it into the URL.
+   * `sortChanged` marks a deliberate change worth its own history entry.
+   */
+  onSearchUrlStateChange?: (
+    state: SearchUrlState,
+    change: { sortChanged: boolean }
+  ) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
   SettingsButton?: ReactNode;
+  /** The search in the page URL; back and forward apply it. */
+  searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
   UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
@@ -47,13 +61,47 @@ export function CardsScreen({
   upgradeUrl,
   contentContainerClassName,
   toastIdPrefix,
+  searchUrlState,
+  onSearchUrlStateChange,
 }: CardsScreenProps) {
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
   const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef("");
-  const searchController = useCardsSearchController();
+  const searchController = useCardsSearchController({
+    initialUrlState: searchUrlState,
+  });
+  const { applyUrlState, urlState } = searchController;
+
+  // The URL and the search stay in step both ways. What this screen last
+  // wrote (or read) is remembered so its own URL updates never echo back.
+  const syncedUrlStateRef = useRef<SearchUrlState | null>(
+    searchUrlState ?? null
+  );
+  useEffect(() => {
+    if (
+      !searchUrlState ||
+      (syncedUrlStateRef.current &&
+        isSameSearchUrlState(syncedUrlStateRef.current, searchUrlState))
+    ) {
+      return;
+    }
+    syncedUrlStateRef.current = searchUrlState;
+    applyUrlState(searchUrlState);
+  }, [applyUrlState, searchUrlState]);
+  useEffect(() => {
+    const previous = syncedUrlStateRef.current;
+    if (previous && isSameSearchUrlState(previous, urlState)) {
+      return;
+    }
+    syncedUrlStateRef.current = urlState;
+    const sortChanged = previous !== null && previous.sort !== urlState.sort;
+    if (sortChanged) {
+      window.scrollTo({ top: 0 });
+    }
+    onSearchUrlStateChange?.(urlState, { sortChanged });
+  }, [onSearchUrlStateChange, urlState]);
 
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);

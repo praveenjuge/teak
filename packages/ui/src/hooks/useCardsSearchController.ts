@@ -1,5 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import {
+  type CardListSort,
   classifySearchToken,
   filterLocalCards,
   mergeCardsIntoLocalSearchCache,
@@ -18,6 +19,7 @@ import type {
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SearchBarProps } from "../components/search";
+import type { SearchUrlState } from "../lib/searchUrlState";
 
 export interface CardsSearchState {
   filterTags: CardType[];
@@ -38,11 +40,15 @@ export interface CardsSearchQueryArgs {
   hueFilters?: ColorHueBucket[];
   searchQuery?: string;
   showTrashOnly?: boolean;
+  /** Only set for oldest first, so the default query keeps its key. */
+  sort?: "oldest";
   styleFilters?: VisualStyle[];
   types?: CardType[];
 }
 
 export interface UseCardsSearchControllerOptions {
+  /** The search to start with, usually read from the page URL. */
+  initialUrlState?: SearchUrlState;
   localSearchCacheLimit?: number;
   weekStart?: 0 | 1;
 }
@@ -56,6 +62,11 @@ export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
 export interface UseCardsSearchControllerResult {
   addFilter: (filter: CardType) => void;
   addKeywordTag: (keyword: string) => void;
+  /**
+   * Replaces the search with one from the URL (back, forward or a pasted
+   * link): the text becomes the typed query and chips are cleared.
+   */
+  applyUrlState: (state: SearchUrlState) => void;
   clearAllFilters: () => void;
   displayCards: Doc<"cards">[];
   filterTags: CardType[];
@@ -80,12 +91,19 @@ export interface UseCardsSearchControllerResult {
     cards: Doc<"cards">[] | undefined,
     remoteQueryKey?: string
   ) => void;
+  setSort: (sort: CardListSort) => void;
   setTimeFilter: (timeFilter: TimeFilter | null) => void;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
+  sort: CardListSort;
   styleFilters: VisualStyle[];
   timeFilter: TimeFilter | null;
   updateCachedCard: (card: Doc<"cards">) => void;
+  /**
+   * The settled search to mirror into the URL: the debounced terms and the
+   * sort. Changes only once typing pauses, so URL writes stay infrequent.
+   */
+  urlState: SearchUrlState;
 }
 
 export function createInitialCardsSearchState(): CardsSearchState {
@@ -350,8 +368,15 @@ export function useCardsSearchController(
   const {
     weekStart = 0,
     localSearchCacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
+    initialUrlState,
   } = options;
-  const [searchState, setSearchState] = useState(createInitialCardsSearchState);
+  const [searchState, setSearchState] = useState<CardsSearchState>(() => ({
+    ...createInitialCardsSearchState(),
+    searchQuery: initialUrlState?.q ?? "",
+  }));
+  const [sort, setSort] = useState<CardListSort>(
+    initialUrlState?.sort ?? "newest"
+  );
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
   const lastRemoteResultRef = useRef<{
@@ -426,12 +451,20 @@ export function useCardsSearchController(
     : debouncedSearchQuery;
 
   const queryArgs = useMemo(
-    () =>
-      buildCardsSearchQueryArgs({
+    () => ({
+      ...buildCardsSearchQueryArgs({
         ...searchState,
         searchQuery: remoteSearchQuery,
       }),
-    [remoteSearchQuery, searchState]
+      ...(sort === "oldest" ? { sort: "oldest" as const } : {}),
+    }),
+    [remoteSearchQuery, searchState, sort]
+  );
+
+  const remoteSearchTerms = queryArgs.searchQuery ?? "";
+  const urlState = useMemo<SearchUrlState>(
+    () => ({ q: remoteSearchTerms, sort }),
+    [remoteSearchTerms, sort]
   );
 
   const hasActiveSearch = useMemo(
@@ -450,8 +483,9 @@ export function useCardsSearchController(
         favoritesOnly: searchState.showFavoritesOnly,
         showTrashOnly: searchState.showTrashOnly,
         createdAtRange: searchState.timeFilter?.range,
+        sort,
       }),
-    [localCards, searchState, searchTerms]
+    [localCards, searchState, searchTerms, sort]
   );
 
   const remoteSearchResults = useMemo(() => {
@@ -467,8 +501,9 @@ export function useCardsSearchController(
       favoritesOnly: searchState.showFavoritesOnly,
       showTrashOnly: searchState.showTrashOnly,
       createdAtRange: searchState.timeFilter?.range,
+      sort,
     });
-  }, [hasActiveSearch, remoteCards, searchState, searchTerms]);
+  }, [hasActiveSearch, remoteCards, searchState, searchTerms, sort]);
 
   // While typing pauses are pending, the previous remote results stay on
   // screen, narrowed to the current terms above, next to instant local hits.
@@ -479,14 +514,15 @@ export function useCardsSearchController(
       mergeLocalAndRemoteSearchResults(
         remoteSearchResults,
         localSearchResults,
-        hasActiveSearch
+        hasActiveSearch,
+        sort
       ),
-    [hasActiveSearch, localSearchResults, remoteSearchResults]
+    [hasActiveSearch, localSearchResults, remoteSearchResults, sort]
   );
 
   const resetKey = useMemo(
-    () => buildCardsSearchResetKey(searchState),
-    [searchState]
+    () => `${buildCardsSearchResetKey(searchState)}::${sort}`,
+    [searchState, sort]
   );
 
   const hasNoFilters = useMemo(
@@ -548,6 +584,20 @@ export function useCardsSearchController(
 
   const clearAllFilters = useCallback(() => {
     setSearchState(createInitialCardsSearchState());
+  }, []);
+
+  const applyUrlState = useCallback((state: SearchUrlState) => {
+    // A search from the URL is not typing: query it at once, so the screen
+    // never reports the previous search back into the URL meanwhile.
+    setDebouncedSearchQuery(state.q);
+    setSearchState((prev) => {
+      // Already showing this search (as chips or typed text): keep it as is.
+      if (buildCardsSearchTerms(prev) === state.q.trim()) {
+        return prev;
+      }
+      return { ...prev, keywordTags: [], searchQuery: state.q };
+    });
+    setSort(state.sort);
   }, []);
 
   const setTimeFilter = useCallback((timeFilter: TimeFilter | null) => {
@@ -614,8 +664,10 @@ export function useCardsSearchController(
           showTrashOnly: !prev.showTrashOnly,
         })),
       onClearAll: clearAllFilters,
+      sort,
+      onSortChange: setSort,
     }),
-    [addFilter, clearAllFilters, onKeyDown, onSearchChange, searchState]
+    [addFilter, clearAllFilters, onKeyDown, onSearchChange, searchState, sort]
   );
 
   return {
@@ -639,8 +691,12 @@ export function useCardsSearchController(
     setTimeFilter,
     addFilter,
     addKeywordTag,
+    applyUrlState,
     clearAllFilters,
     searchBarProps,
+    setSort,
+    sort,
     updateCachedCard,
+    urlState,
   };
 }

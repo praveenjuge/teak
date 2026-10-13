@@ -651,6 +651,8 @@ export const openApiSpec = {
           {
             in: "query",
             name: "sort",
+            description:
+              "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`.",
             schema: { enum: CARD_SORTS, type: "string" },
           },
           {

@@ -1,4 +1,4 @@
-import type { TimeFilter } from "@teak/convex/shared";
+import type { CardListSort, TimeFilter } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
+import { SortMenu } from "./SortMenu";
 
 export interface SearchBarProps {
   filterTags: CardType[];
@@ -47,12 +48,15 @@ export interface SearchBarProps {
   onRemoveStyleFilter: (style: VisualStyle) => void;
   onRemoveTimeFilter: () => void;
   onSearchChange: (value: string) => void;
+  /** Shows the sort menu when set. */
+  onSortChange?: (sort: CardListSort) => void;
   onToggleFavorites: () => void;
   onToggleTrash: () => void;
   SettingsButton?: ReactNode;
   searchQuery: string;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
+  sort?: CardListSort;
   styleFilters: VisualStyle[];
   timeFilter?: TimeFilter | null;
 }
@@ -118,6 +122,8 @@ export function SearchBar({
   onClearAll,
   SettingsButton,
   HeaderActions,
+  sort = "newest",
+  onSortChange,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -179,6 +185,7 @@ export function SearchBar({
         </div>
 
         <div className="flex items-center gap-1">
+          {onSortChange && <SortMenu onSortChange={onSortChange} sort={sort} />}
           {HeaderActions}
           {SettingsButton}
         </div>
