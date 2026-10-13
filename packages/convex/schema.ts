@@ -806,6 +806,9 @@ export default defineSchema({
     changed: v.number(),
     // Where the next batch resumes in the tag index.
     cursor: v.optional(v.string()),
+    // The pass over the tag index (from 1) and cards it has changed so far.
+    pass: v.optional(v.number()),
+    passChanged: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),

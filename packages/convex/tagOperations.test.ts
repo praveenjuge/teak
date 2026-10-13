@@ -156,6 +156,75 @@ describe("library-wide tag operations", () => {
     expect((await card(onlySource))?.tags).toEqual(["research"]);
   });
 
+  test("merge keeps one target when the user and AI tags each have one", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const id = await insert({ tags: ["draft", "keep"], aiTags: ["Final"] });
+    const reverse = await insert({ tags: ["final"], aiTags: ["draft"] });
+    await runScheduled();
+    await start("merge", "draft", "final");
+    await runScheduled();
+    expect((await card(id))?.tags).toEqual(["keep"]);
+    expect((await card(id))?.aiTags).toEqual(["Final"]);
+    expect((await card(reverse))?.tags).toEqual(["final"]);
+    expect((await card(reverse))?.aiTags).toBeUndefined();
+  });
+
+  test("a card the tag index had not caught up with is still changed", async () => {
+    const { t, insert, card, start, runScheduled } = await setup();
+    await insert({ tags: ["draft"] });
+    await runScheduled();
+    // Tagged just before the change starts: its index rows land later.
+    const late = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "late",
+        tags: ["draft"],
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const operation = await start("rename", "draft", "final");
+    // The first pass runs before the late card's index rows exist.
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    expect((await card(late))?.tags).toEqual(["draft"]);
+    await t.run((ctx) => syncCardSearchDocumentHandler(ctx, late));
+    await runScheduled();
+    expect((await card(late))?.tags).toEqual(["final"]);
+    const done = await t.run((ctx) =>
+      ctx.db.get("tagOperations", operation._id)
+    );
+    expect(done).toMatchObject({ status: "completed", changed: 2 });
+  });
+
+  test("a card restored from Trash behind the cursor is still changed", async () => {
+    const { t, insert, card, start, runScheduled } = await setup();
+    for (let index = 0; index < TAG_OPERATION_BATCH_SIZE + 5; index += 1) {
+      await insert({ tags: ["draft"], createdAt: 2000 + index });
+    }
+    const trashed = await insert({
+      tags: ["draft"],
+      isDeleted: true,
+      deletedAt: 1000,
+      createdAt: 1000,
+    });
+    await runScheduled();
+    await start("rename", "draft", "final");
+    // The first batch passes the oldest active cards; the restored card then
+    // sorts before the cursor.
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, trashed, {
+        isDeleted: undefined,
+        deletedAt: undefined,
+      })
+    );
+    await runScheduled();
+    expect((await card(trashed))?.tags).toEqual(["final"]);
+  });
+
   test("delete removes the tag from user and AI tags", async () => {
     const { insert, card, start, runScheduled } = await setup();
     const id = await insert({ tags: ["Old", "keep"], aiTags: ["old"] });

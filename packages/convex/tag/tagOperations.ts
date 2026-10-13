@@ -24,6 +24,15 @@ import {
 
 /** Cards one batch rewrites before it schedules the next. */
 export const TAG_OPERATION_BATCH_SIZE = 25;
+/**
+ * Passes over the tag index at most. A pass that changed cards is followed
+ * by another, a little later, to catch cards the index had not caught up
+ * with: one tagged just before the change started, or one restored from
+ * Trash behind the cursor. The change completes after a pass changes none.
+ */
+export const TAG_OPERATION_MAX_PASSES = 4;
+/** How long to wait before the next pass, so pending tag syncs land. */
+export const TAG_OPERATION_PASS_DELAY_MS = 2000;
 
 export const tagOperationKindValidator = v.union(
   v.literal("rename"),
@@ -270,6 +279,21 @@ export const runTagOperationBatchHandler = async (
     from: operation.from,
     to: operation.to,
   };
+  const toKey = operation.to === undefined ? undefined : tagKey(operation.to);
+  const hasTag = (list: readonly string[] | undefined, key: string) =>
+    list?.some((tag) => tagKey(tag) === key) ?? false;
+  // A card keeps one copy of the target: when only its other list (user or
+  // AI tags) has it, this list just drops the source.
+  const rewriteFor = (
+    own: readonly string[] | undefined,
+    other: readonly string[] | undefined
+  ) =>
+    toKey !== undefined &&
+    toKey !== operation.from &&
+    !hasTag(own, toKey) &&
+    hasTag(other, toKey)
+      ? { kind: "delete" as const, from: operation.from }
+      : rewrite;
   const now = Date.now();
   let changed = 0;
   for (const row of page.page) {
@@ -277,8 +301,11 @@ export const runTagOperationBatchHandler = async (
     if (!card || card.userId !== operation.userId) {
       continue;
     }
-    const tags = rewriteTagList(card.tags, rewrite);
-    const aiTags = rewriteTagList(card.aiTags, rewrite);
+    const tags = rewriteTagList(card.tags, rewriteFor(card.tags, card.aiTags));
+    const aiTags = rewriteTagList(
+      card.aiTags,
+      rewriteFor(card.aiTags, card.tags)
+    );
     if (!(tags || aiTags)) {
       continue;
     }
@@ -291,23 +318,45 @@ export const runTagOperationBatchHandler = async (
     changed += 1;
   }
 
+  const passChanged = (operation.passChanged ?? 0) + changed;
   const progress = {
-    processed: operation.processed + page.page.length,
+    // Later passes only sweep up stragglers, so progress counts the first.
+    processed:
+      (operation.pass ?? 1) === 1
+        ? operation.processed + page.page.length
+        : operation.processed,
     changed: operation.changed + changed,
     updatedAt: now,
   };
   if (page.isDone) {
+    const pass = operation.pass ?? 1;
+    if (passChanged === 0 || pass >= TAG_OPERATION_MAX_PASSES) {
+      await ctx.db.patch("tagOperations", operationId, {
+        ...progress,
+        status: "completed",
+        cursor: undefined,
+        completedAt: now,
+      });
+      return { done: true };
+    }
+    // Another pass from the start once pending tag syncs have landed.
     await ctx.db.patch("tagOperations", operationId, {
       ...progress,
-      status: "completed",
       cursor: undefined,
-      completedAt: now,
+      pass: pass + 1,
+      passChanged: 0,
     });
-    return { done: true };
+    await ctx.scheduler.runAfter(
+      TAG_OPERATION_PASS_DELAY_MS,
+      internal.tag.tagOperations.runTagOperationBatch,
+      { operationId }
+    );
+    return { done: false };
   }
   await ctx.db.patch("tagOperations", operationId, {
     ...progress,
     cursor: page.continueCursor,
+    passChanged,
   });
   await ctx.scheduler.runAfter(
     0,
