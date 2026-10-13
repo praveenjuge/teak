@@ -100,11 +100,90 @@ export const isNoiseException = (entries: ExceptionEntry[]): boolean =>
       isExternalDomMutation(entry)
   );
 
-/** Drops extension and injected-script noise and scrubs exception text. */
+// The library search lives in `?q=`. Analytics see that a search ran, never
+// what it was: the SDK masks it in `$current_url` and replays, and
+// `maskSearchText` covers the referrer properties the SDK leaves alone.
+const SEARCH_URL_PARAMS = ["q"];
+const MASKED_SEARCH = "<MASKED>";
+const URL_PROPERTIES = [
+  "$current_url",
+  "$initial_current_url",
+  "$initial_referrer",
+  "$prev_pageview_url",
+  "$referrer",
+];
+
+const maskSearchParams = (value: unknown): unknown => {
+  if (typeof value !== "string" || !value.includes("?")) {
+    return value;
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return value;
+  }
+  const masked = SEARCH_URL_PARAMS.filter((param) =>
+    url.searchParams.has(param)
+  );
+  if (masked.length === 0) {
+    return value;
+  }
+  for (const param of masked) {
+    url.searchParams.set(param, MASKED_SEARCH);
+  }
+  return url.toString();
+};
+
+const maskUrlProperties = (
+  properties: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined => {
+  if (!properties) {
+    return properties;
+  }
+  let changed: Record<string, unknown> | undefined;
+  for (const key of URL_PROPERTIES) {
+    const masked = maskSearchParams(properties[key]);
+    if (masked !== properties[key]) {
+      changed ??= { ...properties };
+      changed[key] = masked;
+    }
+  }
+  return changed ?? properties;
+};
+
+/** Masks search text in an event's page and referrer URLs. */
+export const maskSearchText = (event: CaptureResult): CaptureResult => {
+  const properties = maskUrlProperties(event.properties);
+  const $set = maskUrlProperties(event.$set);
+  const $set_once = maskUrlProperties(event.$set_once);
+  if (
+    properties === event.properties &&
+    $set === event.$set &&
+    $set_once === event.$set_once
+  ) {
+    return event;
+  }
+  return {
+    ...event,
+    properties: properties ?? event.properties,
+    ...($set ? { $set } : {}),
+    ...($set_once ? { $set_once } : {}),
+  };
+};
+
+/**
+ * Masks search text, drops extension and injected-script noise, and scrubs
+ * exception text.
+ */
 export const filterPostHogEvent = (
-  event: CaptureResult | null
+  captured: CaptureResult | null
 ): CaptureResult | null => {
-  if (event?.event !== "$exception") {
+  if (!captured) {
+    return captured;
+  }
+  const event = maskSearchText(captured);
+  if (event.event !== "$exception") {
     return event;
   }
   const entries = event.properties.$exception_list;
@@ -134,7 +213,9 @@ export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
   capture_heatmaps: false,
   capture_pageview: "history_change",
   capture_performance: { network_timing: false, web_vitals: true },
+  custom_personal_data_properties: SEARCH_URL_PARAMS,
   defaults: "2026-08-30",
+  mask_personal_data_properties: true,
   person_profiles: "identified_only",
   persistence: "localStorage+cookie",
   // Sampling (10% plus sessions with an exception) lives in project settings.
