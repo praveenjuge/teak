@@ -2,8 +2,8 @@
  * Teak's typed product-event catalog.
  *
  * Client surfaces (web, extension popup) call `captureEvent`; the host wires a
- * recorder at startup with `configureAnalytics`. Until then, and on surfaces
- * that never configure one (the frozen Expo app), every call is a no-op.
+ * recorder at startup with `configureAnalytics`. Until then, every call is a
+ * no-op.
  * Server events are sent from Convex with `captureBackendEvent`.
  *
  * Keep properties low-cardinality and free of user content.
