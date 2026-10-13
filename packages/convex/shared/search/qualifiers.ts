@@ -132,19 +132,17 @@ const tokenize = (input: string): RawToken[] => {
   return tokens;
 };
 
-const trimEdgePunctuation = (value: string): string => {
+/** Trims edge punctuation, except the characters in `keep`. */
+const trimEdgePunctuation = (value: string, keep = ""): string => {
+  const trims = (character: string) =>
+    SEARCH_TOKEN_TRIM_CHARACTERS.includes(character) &&
+    !keep.includes(character);
   let start = 0;
   let end = value.length;
-  while (
-    start < end &&
-    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[start] ?? "")
-  ) {
+  while (start < end && trims(value[start] ?? "")) {
     start += 1;
   }
-  while (
-    end > start &&
-    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[end - 1] ?? "")
-  ) {
+  while (end > start && trims(value[end - 1] ?? "")) {
     end -= 1;
   }
   return value.slice(start, end);
@@ -262,7 +260,10 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       const rawValue = token.text.slice(colon + 1);
       const qualifier = parseQualifier(
         key,
-        token.quoted ? rawValue : trimEdgePunctuation(rawValue)
+        token.quoted
+          ? rawValue
+          : // An IPv6 host keeps its brackets: `site:[::1]`.
+            trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
       );
       if (qualifier) {
         addQualifier(qualifier);
