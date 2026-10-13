@@ -130,7 +130,6 @@ const connectionNames: Record<string, string> = {
   raycast: "Raycast",
   chrome: "Chrome extension",
   firefox: "Firefox extension",
-  safari: "Teak for Mac",
 };
 
 // Pagination preserves empty pages of revoked records; clients must honor isDone.

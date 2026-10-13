@@ -42,7 +42,7 @@ let moveTokenEndpoint = false;
 let metadataIssuerOrigin: string | undefined;
 const clients = () =>
   Object.fromEntries(
-    ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
+    ["cli", "raycast", "chrome", "firefox"].map((surface) => [
       surface,
       `client_01${environment.toUpperCase()}${surface.toUpperCase()}`,
     ])

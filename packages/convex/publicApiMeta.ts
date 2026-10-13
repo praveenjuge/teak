@@ -178,7 +178,6 @@ export const readWorkosConnectClients = () => {
     raycast: env.WORKOS_CONNECT_RAYCAST_CLIENT_ID,
     chrome: env.WORKOS_CONNECT_CHROME_CLIENT_ID,
     firefox: env.WORKOS_CONNECT_FIREFOX_CLIENT_ID,
-    safari: env.WORKOS_CONNECT_SAFARI_CLIENT_ID,
   };
   return Object.fromEntries(
     OAUTH_SURFACES.map((surface) => {
@@ -193,15 +192,18 @@ export const readWorkosConnectClients = () => {
   );
 };
 
-// Published clients still read `primary` from this document.
-export const teakOAuthClients = httpAction(() =>
-  Promise.resolve(
+// Published clients still read `primary` from this document. teak-sdk up to
+// 1.0.86 (Raycast pins 1.0.81) also refuses it without a `safari` client,
+// retired with Teak for Mac. Nothing uses that ID, so it repeats the CLI's.
+export const teakOAuthClients = httpAction(() => {
+  const clients = readWorkosConnectClients();
+  return Promise.resolve(
     withPublicApiGatewayHeaders(
       json(200, {
         primary: "workos",
         issuer: readWorkosConnectIssuer(),
-        clients: readWorkosConnectClients(),
+        clients: { ...clients, safari: clients.cli },
       })
     )
-  )
-);
+  );
+});

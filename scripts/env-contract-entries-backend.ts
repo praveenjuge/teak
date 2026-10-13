@@ -80,7 +80,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     "WORKOS_CONNECT_RAYCAST_CLIENT_ID",
     "WORKOS_CONNECT_CHROME_CLIENT_ID",
     "WORKOS_CONNECT_FIREFOX_CLIENT_ID",
-    "WORKOS_CONNECT_SAFARI_CLIENT_ID",
   ].map((name) =>
     spec(name, {
       owners: ["@teak/convex"],
