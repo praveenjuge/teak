@@ -258,11 +258,15 @@ export const deleteFolderForUser = async (
   folderId: string
 ): Promise<Id<"folders">> => {
   const folder = await requireFolderForUser(ctx, userId, folderId);
-  await ctx.db.patch("folders", folder._id, { deletingAt: Date.now() });
+  const deletingAt = Date.now();
+  await ctx.db.patch("folders", folder._id, { deletingAt });
+  // The batch carries this delete's time, so a batch left over from an
+  // earlier delete that was undone stands down instead of cutting this
+  // delete's Undo window short.
   await ctx.scheduler.runAfter(
     FOLDER_DELETE_UNDO_MS,
     internal.folder.folders.deleteFolderBatch,
-    { folderId: folder._id }
+    { folderId: folder._id, deletingAt }
   );
   return folder._id;
 };
@@ -298,11 +302,17 @@ export const restoreFolderForUser = async (
 
 export const deleteFolderBatchHandler = async (
   ctx: MutationCtx,
-  folderId: Id<"folders">
+  folderId: Id<"folders">,
+  deletingAt?: number
 ): Promise<{ done: boolean }> => {
   const folder = await ctx.db.get("folders", folderId);
-  // Restored (Undo) before the batch ran: nothing to do.
-  if (!folder || folder.deletingAt === undefined) {
+  // Restored (Undo) before the batch ran, or restored and deleted again so
+  // that a later batch owns it: nothing to do.
+  if (
+    !folder ||
+    folder.deletingAt === undefined ||
+    (deletingAt !== undefined && folder.deletingAt !== deletingAt)
+  ) {
     return { done: true };
   }
   // Account deletion removes every folder and folder row itself; card
@@ -333,6 +343,7 @@ export const deleteFolderBatchHandler = async (
   if (rows.length === FOLDER_DELETE_BATCH_SIZE) {
     await ctx.scheduler.runAfter(0, internal.folder.folders.deleteFolderBatch, {
       folderId,
+      deletingAt: folder.deletingAt,
     });
     return { done: false };
   }
@@ -341,9 +352,11 @@ export const deleteFolderBatchHandler = async (
 };
 
 export const deleteFolderBatch = internalMutation({
-  args: { folderId: v.id("folders") },
+  // deletingAt is optional so batches scheduled before it existed still run.
+  args: { folderId: v.id("folders"), deletingAt: v.optional(v.number()) },
   returns: v.object({ done: v.boolean() }),
-  handler: (ctx, { folderId }) => deleteFolderBatchHandler(ctx, folderId),
+  handler: (ctx, { folderId, deletingAt }) =>
+    deleteFolderBatchHandler(ctx, folderId, deletingAt),
 });
 
 export const listFolders = query({

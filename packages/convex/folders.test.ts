@@ -531,6 +531,28 @@ describe("deleting a folder", () => {
     expect(leftovers.map((row) => row.folderId)).toEqual([other._id]);
   });
 
+  test("a batch from an undone delete leaves a later delete's Undo alone", async () => {
+    const { t, owner, create, insert, card, folder } = await setup();
+    const again = await create("Again");
+    const id = await insert({ content: "Still here", type: "text" });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: again._id,
+      cardIds: [id],
+    });
+    // Delete, Undo, then delete again 3 seconds in: the first delete's batch
+    // fires while the second delete can still be undone.
+    await owner.mutation(api.folders.deleteFolder, { folderId: again._id });
+    await owner.mutation(api.folders.restoreFolder, { folderId: again._id });
+    vi.advanceTimersByTime(3000);
+    await owner.mutation(api.folders.deleteFolder, { folderId: again._id });
+    vi.advanceTimersByTime(FOLDER_DELETE_UNDO_MS - 2000);
+    await t.finishInProgressScheduledFunctions();
+
+    await owner.mutation(api.folders.restoreFolder, { folderId: again._id });
+    expect((await card(id))?.folderIds).toEqual([again._id]);
+    expect((await folder(again._id))?.activeCardCount).toBe(1);
+  });
+
   test("Undo fails once the window has passed or the name was taken", async () => {
     const { owner, create } = await setup();
     const late = await create("Late");
