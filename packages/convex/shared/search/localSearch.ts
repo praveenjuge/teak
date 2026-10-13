@@ -3,7 +3,9 @@ import type { CardType } from "../constants";
 import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
+import { normalizeUrlHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
+import { matchesSearchPhrases, parseSearchQuery } from "./qualifiers";
 import { type CardListSort, compareCardsByCreatedAt } from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
 
@@ -102,8 +104,14 @@ export const filterLocalCards = (
     tag,
   }: LocalSearchFilters
 ) => {
-  const terms = tokenizeSearchQuery(searchTerms);
-  const tagKey = tag?.trim().toLowerCase() ?? "";
+  // Qualifiers filter like the server does; `folder:` names cannot be
+  // resolved here, so callers leave folder searches to the server.
+  const parsed = parseSearchQuery(searchTerms);
+  const terms = tokenizeSearchQuery(parsed.terms.join(" "));
+  const tagKeys = [tag?.trim().toLowerCase() ?? "", ...parsed.tags].filter(
+    Boolean
+  );
+  const archivedOnly = showArchivedOnly || parsed.archived;
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
@@ -114,9 +122,12 @@ export const filterLocalCards = (
         if (card.isDeleted !== true) {
           return false;
         }
+        if (parsed.archived && card.isArchived !== true) {
+          return false;
+        }
       } else if (
         card.isDeleted ||
-        (card.isArchived === true) !== showArchivedOnly
+        (card.isArchived === true) !== archivedOnly
       ) {
         return false;
       }
@@ -124,14 +135,26 @@ export const filterLocalCards = (
       if (types && types.length > 0 && !types.includes(card.type)) {
         return false;
       }
-
-      if (
-        tagKey &&
-        ![...(card.tags ?? []), ...(card.aiTags ?? [])].some(
-          (cardTag) => cardTag.trim().toLowerCase() === tagKey
-        )
-      ) {
+      if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
         return false;
+      }
+
+      if (tagKeys.length > 0) {
+        const cardTags = new Set(
+          [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
+            cardTag.trim().toLowerCase()
+          )
+        );
+        if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+          return false;
+        }
+      }
+
+      if (parsed.sites.length > 0) {
+        const host = normalizeUrlHost(card.url);
+        if (!(host && parsed.sites.includes(host))) {
+          return false;
+        }
       }
 
       if (
@@ -144,7 +167,7 @@ export const filterLocalCards = (
         return false;
       }
 
-      if (favoritesOnly && card.isFavorited !== true) {
+      if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
         return false;
       }
 
@@ -156,12 +179,15 @@ export const filterLocalCards = (
         return false;
       }
 
-      if (terms.length === 0) {
+      if (terms.length === 0 && parsed.phrases.length === 0) {
         return true;
       }
 
       const searchableText = buildSearchableText(card);
-      return terms.every((term) => searchableText.includes(term));
+      return (
+        terms.every((term) => searchableText.includes(term)) &&
+        matchesSearchPhrases(searchableText, parsed.phrases)
+      );
     })
     .sort((a, b) => compareCardsByCreatedAt(a, b, sort));
 };

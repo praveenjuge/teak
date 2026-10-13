@@ -35,6 +35,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FolderDot } from "../components/folders/FolderDot";
+import { useSearchSuggestionSources } from "../hooks/useSearchSuggestionSources";
 import type { FolderSummary } from "../lib/folders";
 import type { LibraryView } from "../lib/libraryViews";
 import {
@@ -235,6 +236,14 @@ export function CardsScreen({
   useEffect(() => {
     setRemoteCards(cards, searchKey);
   }, [cards, searchKey, setRemoteCards]);
+
+  // Suggestions load once the search box is first used, or right away when
+  // the page opens with qualifiers (so a folder chip can tell it is known).
+  const [suggestionsActive, setSuggestionsActive] = useState(
+    () => searchController.qualifierChips.length > 0
+  );
+  const activateSuggestions = useCallback(() => setSuggestionsActive(true), []);
+  const suggestionSources = useSearchSuggestionSources(suggestionsActive);
 
   // Some filtered views (colors or favorites inside a folder) can return a
   // page with no match while more remain. Whenever a requested page adds no
@@ -497,11 +506,13 @@ export function CardsScreen({
       <CardsSearchHeader
         {...searchBarProps}
         leading={headerLeading}
+        onActivate={activateSuggestions}
         placeholder={
           folder
             ? `Search ${clipName(folder.name)}...`
             : SEARCH_PLACEHOLDERS[view ?? "all"]
         }
+        suggestionSources={suggestionSources}
       />
 
       {folder && (
