@@ -82,6 +82,8 @@ const createdAtRangeValidator = v.object({
 const VISUAL_SEARCH_BUFFER = 12;
 // Paginated search pages are cut from this many best matches, sorted by date.
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
+/** The most results one search index query returns. */
+const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
 const isSearchTooBroadError = (error: unknown): boolean =>
   error instanceof ConvexError &&
@@ -90,11 +92,8 @@ export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
 const getVisualSearchBatchLimit = (desiredLimit: number) =>
   Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
-/**
- * Most folder rows a color, style or favorites view of one folder reads; a
- * larger folder is filtered within its newest (or oldest) cards.
- */
-const FOLDER_FILTER_SCAN_LIMIT = 1000;
+/** Folder rows a color, style or favorites view of one folder reads per page. */
+const FOLDER_FILTER_SCAN_BATCH = 200;
 
 export const getCards = query({
   args: {
@@ -441,11 +440,18 @@ export const searchCardsPaginatedHandler = async (
       if (!isSearchTooBroadError(error)) {
         throw error;
       }
-      // A saturated search with selective filters: filter the best matches
-      // instead of failing the grid.
-      searchResults = await searchCardsByDocument(ctx, searchArgs);
+      // A saturated search with selective filters: filter every match the
+      // index returned (not just the first page of candidates) instead of
+      // failing the grid, so a folder keeps the matches the filtered pass
+      // already found.
+      searchResults = await searchCardsByDocument(ctx, {
+        ...searchArgs,
+        limit: SEARCH_INDEX_RESULT_LIMIT,
+      });
     }
-    const uniqueResults = searchResults.filter(matchesFilters);
+    const uniqueResults = searchResults
+      .filter(matchesFilters)
+      .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
 
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     const filteredResults = uniqueResults;
@@ -466,15 +472,10 @@ export const searchCardsPaginatedHandler = async (
   }
 
   // Colors, styles and favorites inside a folder: the library-wide search
-  // indexes can't narrow to one folder, so read the folder's own rows (in
-  // date order) and filter them here.
+  // indexes can't narrow to one folder, so page through the folder's own
+  // rows (in date order) and filter each batch here. A batch can hold no
+  // match while more remain; the grid then loads the next one.
   if (folderId && (visualFilters.hasVisualFilters || favoritesOnly)) {
-    const rawCursor = paginationOpts.cursor ?? "0";
-    const parsedCursor = Number(rawCursor);
-    const offset = clampSearchOffset(
-      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
-    );
-    const pageSize = clampPageSize(paginationOpts.numItems);
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
       trash: showTrashOnly,
@@ -485,9 +486,12 @@ export const searchCardsPaginatedHandler = async (
         : undefined,
     })
       .order(order)
-      .take(FOLDER_FILTER_SCAN_LIMIT);
+      .paginate({
+        cursor: paginationOpts.cursor,
+        numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
+      });
     const cards: Doc<"cards">[] = [];
-    for (const row of rows) {
+    for (const row of rows.page) {
       const card = await ctx.db.get("cards", row.cardId);
       if (card) {
         cards.push(card);
@@ -499,13 +503,10 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
     });
-    const page = matches.slice(offset, offset + pageSize);
-    const isDone = matches.length <= offset + pageSize;
-    const pageWithUrls = await attachListUrls(ctx, page);
+    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
+      ...rows,
       page: applyQuoteFormattingToList(pageWithUrls),
-      isDone,
-      continueCursor: isDone ? null : String(offset + pageSize),
     };
   }
 

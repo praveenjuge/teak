@@ -228,17 +228,36 @@ export function CardsScreen({
     setRemoteCards(cards, searchKey);
   }, [cards, searchKey, setRemoteCards]);
 
+  // Some filtered views (colors or favorites inside a folder) can return a
+  // page with no match while more remain; keep loading until a card shows up
+  // or the list ends, instead of showing an empty state.
+  const isSeekingFirstMatch =
+    cards.length === 0 &&
+    (cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore");
+  useEffect(() => {
+    if (cards.length === 0 && cardsStatus === "CanLoadMore") {
+      loadMore(SEARCH_DEFAULT_CARD_LIMIT);
+    }
+  }, [cards.length, cardsStatus, loadMore]);
+
   useEffect(() => {
     if (
       !searchController.hasActiveSearch ||
       cardsStatus === "LoadingFirstPage" ||
+      isSeekingFirstMatch ||
       reportedSearchKeyRef.current === searchKey
     ) {
       return;
     }
     reportedSearchKeyRef.current = searchKey;
     captureEvent("search_performed", { zero_result: cards.length === 0 });
-  }, [cards.length, cardsStatus, searchController.hasActiveSearch, searchKey]);
+  }, [
+    cards.length,
+    cardsStatus,
+    isSeekingFirstMatch,
+    searchController.hasActiveSearch,
+    searchKey,
+  ]);
 
   const selectedCard = useMemo(
     () =>
@@ -384,6 +403,7 @@ export function CardsScreen({
     if (
       (isFolderView && folder === undefined) ||
       cardsStatus === "LoadingFirstPage" ||
+      isSeekingFirstMatch ||
       searchController.isSearchPending
     ) {
       return <CardsGridSkeleton />;

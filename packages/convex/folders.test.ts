@@ -8,7 +8,10 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { deleteAccountDataHandler } from "./accountDeletion";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import {
+  searchCardsByDocument,
+  syncCardSearchDocumentHandler,
+} from "./card/searchDocumentHelpers";
 import {
   FOLDER_DELETE_BATCH_SIZE,
   FOLDER_DELETE_UNDO_MS,
@@ -498,6 +501,104 @@ describe("folder view", () => {
     );
     expect(await grid({ folderId: box._id, searchQuery: "trash" })).toEqual([]);
   });
+
+  test("a saturated text search in a folder keeps every folder match it found", async () => {
+    const { t, owner, create, grid } = await setup();
+    const shelf = await create("Shelf");
+    // 1,100 matches fill the search index's 1,024 results; every third one
+    // is in the folder, too few to fill the candidate set, so the filtered
+    // search gives up and falls back.
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 1100; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `deepsearch ${index}`,
+          createdAt: index + 2,
+          updatedAt: index + 2,
+          ...(index % 3 === 0 ? { folderIds: [shelf._id] } : {}),
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+      }
+    });
+    const inFolder = (
+      await grid({ folderId: shelf._id, searchQuery: "deepsearch" })
+    ).length;
+    const searched = await t.run((ctx) =>
+      searchCardsByDocument(ctx, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 1024,
+      })
+    );
+    const reachable = searched.filter((card) =>
+      (card.folderIds ?? []).includes(shelf._id)
+    ).length;
+    expect(reachable).toBeGreaterThan(100);
+    // grid() reads one page of 100; page through to count them all.
+    let total = 0;
+    let cursor: string | null = null;
+    for (;;) {
+      const result: {
+        continueCursor: string | null;
+        isDone: boolean;
+        page: unknown[];
+      } = await owner.query(api.cards.searchCardsPaginated, {
+        paginationOpts: { numItems: 100, cursor },
+        folderId: shelf._id,
+        searchQuery: "deepsearch",
+      });
+      total += result.page.length;
+      if (result.isDone) {
+        break;
+      }
+      cursor = result.continueCursor;
+    }
+    expect(inFolder).toBe(100);
+    expect(total).toBe(reachable);
+  }, 60_000);
+
+  test("a color filter pages through a large folder to its oldest match", async () => {
+    const { t, owner, create } = await setup();
+    const shelf = await create("Shelf");
+    // 450 cards in the folder; only the oldest is red.
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 450; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "palette",
+          content: index === 0 ? "Oldest red" : `Blue ${index}`,
+          colorHues: [index === 0 ? "red" : "blue"],
+          createdAt: index + 2,
+          updatedAt: index + 2,
+          folderIds: [shelf._id],
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+      }
+    });
+    const found: string[] = [];
+    let pages = 0;
+    let cursor: string | null = null;
+    for (;;) {
+      const result: {
+        continueCursor: string | null;
+        isDone: boolean;
+        page: { content: string }[];
+      } = await owner.query(api.cards.searchCardsPaginated, {
+        paginationOpts: { numItems: 50, cursor },
+        folderId: shelf._id,
+        hueFilters: ["red"],
+      });
+      pages += 1;
+      found.push(...result.page.map((card) => card.content));
+      if (result.isDone) {
+        break;
+      }
+      cursor = result.continueCursor;
+    }
+    expect(found).toEqual(["Oldest red"]);
+    expect(pages).toBeGreaterThan(1);
+  }, 60_000);
 
   test("Trash in a folder is in date order across archived and active cards", async () => {
     const { owner, create, insert, grid } = await setup();
