@@ -15,6 +15,7 @@ import schema from "./schema";
 import { TAG_OPERATION_STALL_MS } from "./shared/tags";
 import {
   TAG_OPERATION_BATCH_SIZE,
+  TAG_OPERATION_MAX_SYNC_WAITS,
   TAG_OPERATION_PASS_DELAY_MS,
 } from "./tag/tagOperations";
 import { markTagSummaryDirty, TAG_SUMMARY_PAGE_ROWS } from "./tag/tagSummary";
@@ -242,6 +243,31 @@ describe("library-wide tag operations", () => {
     });
     await runScheduled();
     expect((await card(late))?.tags).toEqual(["final"]);
+  });
+
+  test("another user's pending tag syncs do not hold the change up", async () => {
+    const { t, insert, start, runScheduled } = await setup();
+    await insert({ tags: ["draft"] });
+    const theirs = await insert({ tags: ["x"] }, "stranger");
+    await runScheduled();
+    await t.run((ctx) =>
+      ctx.db.insert("cardSearchTagSyncStates", {
+        cardId: theirs,
+        phase: "tags",
+        generation: 1,
+        offset: 0,
+        pending: true,
+        userId: "stranger",
+      })
+    );
+    const operation = await start("rename", "draft", "final");
+    await runScheduled();
+    const done = await t.run((ctx) =>
+      ctx.db.get("tagOperations", operation._id)
+    );
+    expect(done).toMatchObject({ status: "completed" });
+    // Only the user's own syncs (from the rename itself) are waited on.
+    expect(done?.syncWaits ?? 0).toBeLessThan(TAG_OPERATION_MAX_SYNC_WAITS);
   });
 
   test("a card restored from Trash behind the cursor is still changed", async () => {

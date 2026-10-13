@@ -1023,7 +1023,8 @@ export default defineSchema({
     tagCountsChanged: v.optional(v.boolean()),
   })
     .index("by_cardId", ["cardId"])
-    .index("by_pending", ["pending"]),
+    .index("by_pending", ["pending"])
+    .index("by_userId_and_pending", ["userId", "pending"]),
   operationalRetentionStates: defineTable({
     kind: v.literal("idempotency"),
     cutoff: v.number(),

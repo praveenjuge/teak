@@ -40,22 +40,18 @@ export const TAG_OPERATION_PASS_DELAY_MS = 2000;
  * stuck sync delays completion by at most half a minute.
  */
 export const TAG_OPERATION_MAX_SYNC_WAITS = 15;
-/** Pending tag syncs read to look for the user's; more counts as busy. */
-const PENDING_SYNC_SCAN = 200;
-
-/** Whether one of the user's cards may still be on its way into the index. */
-const hasPendingTagSync = async (ctx: MutationCtx, userId: string) => {
-  const pending = await ctx.db
+/**
+ * Whether one of the user's cards may still be on its way into the index.
+ * Reads only the user's own pending syncs, so other users' card writes never
+ * conflict with the batch.
+ */
+const hasPendingTagSync = async (ctx: MutationCtx, userId: string) =>
+  (await ctx.db
     .query("cardSearchTagSyncStates")
-    .withIndex("by_pending", (q) => q.eq("pending", true))
-    .take(PENDING_SYNC_SCAN);
-  return (
-    pending.length >= PENDING_SYNC_SCAN ||
-    pending.some(
-      (state) => state.userId === undefined || state.userId === userId
+    .withIndex("by_userId_and_pending", (q) =>
+      q.eq("userId", userId).eq("pending", true)
     )
-  );
-};
+    .first()) !== null;
 
 export const tagOperationKindValidator = v.union(
   v.literal("rename"),
