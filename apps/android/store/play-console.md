@@ -50,7 +50,7 @@ No.
 - **In the app:** Settings, Delete Account. It asks you to type "delete account" to confirm.
 - **On the web:** https://app.teakvault.com, Settings, Delete account.
 - **Deletion link for the Data safety form:** https://teakvault.com/docs/delete-account. It has the steps for every app and an email option for people who can't sign in.
-- **What happens:** the account, cards, tags and uploaded files are deleted. Nothing is kept after deletion, apart from what the privacy policy describes for backups and legal requirements.
+- **What happens:** the account, sign-in details, cards, tags and uploaded files are deleted, within the privacy policy's 30 days. PostHog usage events and crash reports aren't removed automatically; people can email to have those deleted too.
 
 ## Data safety
 
