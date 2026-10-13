@@ -354,6 +354,25 @@ describe("search qualifiers", () => {
     expect(await search("foo:bar")).toEqual(["talk about foo:bar here"]);
   });
 
+  test("a site alone returns the page size asked for", async () => {
+    const { owner, insert, runScheduled } = await setup();
+    for (let index = 0; index < 5; index += 1) {
+      await insert({
+        content: `repo ${index}`,
+        url: `https://github.com/${index}`,
+      });
+    }
+    await runScheduled();
+    const first = await owner.query(api.cards.searchCardsPaginated, {
+      searchQuery: "site:github.com",
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+    expect(first.page.map((item: { content: string }) => item.content)).toEqual(
+      ["repo 4", "repo 3"]
+    );
+    expect(first.isDone).toBe(false);
+  });
+
   test("a site with more cards than one batch pages to the end", async () => {
     const { insert, search } = await setup();
     for (let index = 0; index < 230; index += 1) {

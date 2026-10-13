@@ -615,9 +615,19 @@ export const searchCardsPaginatedHandler = async (
           types,
           createdAt: createdAtBounds,
         });
+    // The host index alone answers a site with no other card filter, so
+    // every row matches and the page keeps the size asked for.
+    const exact =
+      host !== undefined &&
+      !types?.length &&
+      !favoritesOnly &&
+      resolved.phrases.length === 0 &&
+      !visualFilters.hasVisualFilters;
     const rows = await driver.order(order).paginate({
       cursor: paginationOpts.cursor,
-      numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
+      numItems: exact
+        ? paginationOpts.numItems
+        : Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
     });
     const matches = applyCardLevelFilters(rows.page.filter(matchesQualifiers), {
       types,
