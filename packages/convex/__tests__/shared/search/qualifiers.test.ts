@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  formatSearchQualifier,
   matchesSearchPhrases,
   parseSearchQuery,
 } from "../../../shared/search/qualifiers";
@@ -74,6 +75,24 @@ describe("parseSearchQuery", () => {
     expect(parseSearchQuery(parsed.canonical).qualifiers).toEqual(
       parsed.qualifiers
     );
+  });
+
+  test.each(["A\\B", 'Say "hi"', "<b>Not bold</b> & “quoted”", "trailing\\"])(
+    "folder name %p round-trips through its chip",
+    (name: string) => {
+      const chip = formatSearchQualifier({ key: "folder", value: name });
+      expect(parseSearchQuery(chip).qualifiers).toEqual([
+        { key: "folder", value: name },
+      ]);
+    }
+  );
+
+  test("a phrase with quotes round-trips through the canonical form", () => {
+    const parsed = parseSearchQuery('"say \\"hi\\" there"');
+    expect(parsed.phrases).toEqual(['say "hi" there']);
+    expect(parseSearchQuery(parsed.canonical).phrases).toEqual([
+      'say "hi" there',
+    ]);
   });
 
   test("the canonical form puts qualifiers first and shows Unicode hosts", () => {

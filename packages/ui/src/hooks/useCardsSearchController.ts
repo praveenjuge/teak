@@ -9,6 +9,7 @@ import {
   parseSearchQuery,
   parseTimeSearchQuery,
   pruneCardsMissingFromRemote,
+  quoteSearchValue,
   resolveQuickSearchCommand,
   SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
   type TimeFilter,
@@ -231,12 +232,10 @@ export function buildCardsSearchResetKey(state: CardsSearchState): string {
   return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.tagFilter}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
 }
 
-/** Quoted phrases as keyword chips, lowercased and still quoted. */
+/** Quoted phrases as keyword chips, lowercased, quoted and escaped. */
 const phraseChips = (phrases: readonly string[]) =>
   Array.from(
-    new Set(
-      phrases.map((phrase) => `"${phrase.replace(/"/g, "").toLowerCase()}"`)
-    )
+    new Set(phrases.map((phrase) => quoteSearchValue(phrase.toLowerCase())))
   );
 
 /** Each qualifier in `text` as a chip, written the canonical way. */

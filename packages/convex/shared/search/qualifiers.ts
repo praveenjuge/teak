@@ -76,7 +76,8 @@ interface RawToken {
 
 /**
  * Splits on whitespace outside quotes. A quote runs to the next quote (or
- * the end, when unbalanced); `\"` inside quotes is a literal quote.
+ * the end, when unbalanced); inside quotes, a backslash makes the next quote
+ * or backslash literal.
  */
 const tokenize = (input: string): RawToken[] => {
   const tokens: RawToken[] = [];
@@ -94,9 +95,10 @@ const tokenize = (input: string): RawToken[] => {
     while (index < input.length) {
       const character = input[index] ?? "";
       if (inQuotes) {
+        const next = input[index + 1] ?? "";
         if (
           character === "\\" &&
-          QUOTE_CHARACTERS.has(input[index + 1] ?? "")
+          (QUOTE_CHARACTERS.has(next) || next === "\\")
         ) {
           text += input[index + 1];
           index += 2;
@@ -204,8 +206,12 @@ const qualifierIdentity = (qualifier: SearchQualifier): string =>
 
 const needsQuotes = (value: string) => /[\s"“”\\]/.test(value);
 
-const quote = (value: string) =>
-  `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+/**
+ * A value in quotes, escaped so the tokenizer reads it back exactly:
+ * backslashes and every quote character get a backslash.
+ */
+export const quoteSearchValue = (value: string) =>
+  `"${value.replace(/[\\"“”]/g, (character) => `\\${character}`)}"`;
 
 /** A qualifier written as it is typed, quoting values with spaces. */
 export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
@@ -213,7 +219,7 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
     qualifier.key === "site"
       ? hostForDisplay(qualifier.value)
       : qualifier.value;
-  return `${qualifier.key}:${needsQuotes(value) ? quote(value) : value}`;
+  return `${qualifier.key}:${needsQuotes(value) ? quoteSearchValue(value) : value}`;
 };
 
 /**
@@ -312,7 +318,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
 
   const canonical = [
     ...qualifiers.map(formatSearchQualifier),
-    ...phrases.map(quote),
+    ...phrases.map(quoteSearchValue),
     ...terms,
   ].join(" ");
 

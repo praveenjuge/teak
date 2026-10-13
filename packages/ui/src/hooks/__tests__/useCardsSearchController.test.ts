@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { parseSearchQuery } from "@teak/convex/shared";
 import type { CardsSearchState } from "../useCardsSearchController";
 import {
   applyBackspaceToCardsSearchState,
@@ -224,6 +225,18 @@ describe("search qualifiers in the controller", () => {
     expect(buildCardsSearchQueryArgs(next).searchQuery).toBe(
       'site:github.com tag:design type:link "design system" notes'
     );
+  });
+
+  it("keeps quotes inside a phrase chip", () => {
+    const next = applyEnterToCardsSearchState({
+      ...baseState(),
+      searchQuery: '"say \\"hi\\""',
+    });
+    expect(next.keywordTags).toEqual(['"say \\"hi\\""']);
+    expect(
+      parseSearchQuery(buildCardsSearchQueryArgs(next).searchQuery ?? "")
+        .phrases
+    ).toEqual(['say "hi"']);
   });
 
   it("does not repeat a chip already there", () => {
