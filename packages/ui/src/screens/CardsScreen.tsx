@@ -9,7 +9,7 @@ import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import type { AddCardFormProps } from "@teak/ui/forms";
-import { AddCardActions, AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
+import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
 import {
   useBulkCardActions,
@@ -22,34 +22,69 @@ import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
+import { Archive, Heart, type LucideIcon, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { LibraryView } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
 
+/** What a routed view shows when it has no cards and nothing narrows it. */
+const EMPTY_VIEW_COPY: Record<
+  Exclude<LibraryView, "all">,
+  { icon: LucideIcon; text: string }
+> = {
+  favorites: {
+    icon: Heart,
+    text: "No favorites yet. Favorite a card to find it here.",
+  },
+  archive: {
+    icon: Archive,
+    text: "Nothing archived. Archive a card to keep it out of your library.",
+  },
+  trash: { icon: Trash2, text: "Trash is empty." },
+};
+
+const SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
+  all: "Search for anything...",
+  favorites: "Search favorites...",
+  archive: "Search the archive...",
+  trash: "Search Trash...",
+};
+
+/** A change worth its own history entry: a new sort or new card types. */
+export interface SearchUrlChange {
+  sortChanged: boolean;
+  typesChanged: boolean;
+}
+
 interface CardsScreenProps {
   contentContainerClassName?: string;
+  /** Shown before the search box, such as the sidebar toggle. */
+  headerLeading?: ReactNode;
   onCloseCard: () => void;
-  onOpenCard: (cardId: string) => void;
   /**
    * Called when the settled search changes, to mirror it into the URL.
    * `sortChanged` marks a deliberate change worth its own history entry.
    */
+  onNavigateView?: (view: LibraryView) => void;
+  onOpenCard: (cardId: string) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
-    change: { sortChanged: boolean }
+    change: SearchUrlChange
   ) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
-  SettingsButton?: ReactNode;
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
   UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
+  /** The routed library view; quick commands navigate between views. */
+  view?: LibraryView;
 }
 
 export function CardsScreen({
@@ -57,7 +92,9 @@ export function CardsScreen({
   onOpenCard,
   onCloseCard,
   onUpgrade,
-  SettingsButton,
+  headerLeading,
+  onNavigateView,
+  view,
   UpgradeLinkComponent,
   upgradeUrl,
   contentContainerClassName,
@@ -72,6 +109,8 @@ export function CardsScreen({
   const draftContentRef = useRef("");
   const searchController = useCardsSearchController({
     initialUrlState: searchUrlState,
+    onNavigateView,
+    view,
   });
   const { applyUrlState, urlState } = searchController;
 
@@ -98,10 +137,14 @@ export function CardsScreen({
     }
     syncedUrlStateRef.current = urlState;
     const sortChanged = previous !== null && previous.sort !== urlState.sort;
-    if (sortChanged) {
+    const typesChanged =
+      previous !== null &&
+      (previous.types.length !== urlState.types.length ||
+        previous.types.some((type) => !urlState.types.includes(type)));
+    if (sortChanged || typesChanged) {
       window.scrollTo({ top: 0 });
     }
-    onSearchUrlStateChange?.(urlState, { sortChanged });
+    onSearchUrlStateChange?.(urlState, { sortChanged, typesChanged });
   }, [onSearchUrlStateChange, urlState]);
 
   const queryArgs = searchController.queryArgs;
@@ -121,6 +164,7 @@ export function CardsScreen({
     clearAllFilters,
     displayCards,
     hasNoFilters,
+    hasNoSearchFilters,
     resetKey,
     searchBarProps,
     setRemoteCards,
@@ -272,22 +316,22 @@ export function CardsScreen({
       return <CardsGridSkeleton />;
     }
 
-    // The Archive view with nothing else narrowing it.
-    const isBareArchiveView =
-      showArchivedOnly &&
-      !searchBarProps.searchQuery &&
-      searchBarProps.keywordTags.length === 0 &&
-      searchBarProps.filterTags.length === 0 &&
-      searchBarProps.styleFilters.length === 0 &&
-      searchBarProps.hueFilters.length === 0 &&
-      searchBarProps.hexFilters.length === 0 &&
-      !searchBarProps.showFavoritesOnly &&
-      !searchBarProps.timeFilter;
-    if (displayCards.length === 0 && isBareArchiveView) {
+    // A routed view (or the Archive filter) with nothing else narrowing it.
+    let emptyView: Exclude<LibraryView, "all"> | null = null;
+    if (view && view !== "all") {
+      emptyView = view;
+    } else if (showArchivedOnly) {
+      emptyView = "archive";
+    }
+    if (displayCards.length === 0 && emptyView && hasNoSearchFilters) {
+      const { icon: Icon, text } = EMPTY_VIEW_COPY[emptyView];
       return (
-        <p className="py-12 text-center text-muted-foreground">
-          Nothing archived. Archive a card to keep it out of your library.
-        </p>
+        <div className="flex flex-col items-center gap-3 py-24 text-center text-muted-foreground">
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <Icon aria-hidden="true" className="size-4" />
+          </span>
+          <p>{text}</p>
+        </div>
       );
     }
 
@@ -320,10 +364,8 @@ export function CardsScreen({
     <>
       <CardsSearchHeader
         {...searchBarProps}
-        HeaderActions={
-          <AddCardActions onUpgrade={onUpgrade} upgradeUrl={upgradeUrl} />
-        }
-        SettingsButton={SettingsButton}
+        leading={headerLeading}
+        placeholder={SEARCH_PLACEHOLDERS[view ?? "all"]}
       />
 
       {displayCards.length > 0 ? (
@@ -355,7 +397,9 @@ export function CardsScreen({
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
           resetKey={resetKey}
-          showAddForm={!(showTrashOnly || showArchivedOnly)}
+          showAddForm={
+            !(showTrashOnly || showArchivedOnly || view === "favorites")
+          }
           showArchivedOnly={showArchivedOnly}
           showBulkActions={true}
           showTrashOnly={showTrashOnly}

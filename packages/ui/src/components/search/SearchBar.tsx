@@ -4,7 +4,6 @@ import {
   type CardType,
   COLOR_HUE_LABELS,
   type ColorHueBucket,
-  cardTypes,
   getCardTypeIcon,
   VISUAL_STYLE_LABELS,
   type VisualStyle,
@@ -12,34 +11,33 @@ import {
 import { Button } from "@teak/ui/components/ui/button";
 import { Input } from "@teak/ui/components/ui/input";
 import {
-  Archive,
   Clock,
   Droplets,
   File,
   FileText,
   Hash,
-  Heart,
   Image,
   Link as LinkIcon,
   Palette,
   Quote,
   Search,
   Sparkles,
-  Trash2,
   Video,
   Volume2,
+  X,
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
 import { SortMenu } from "./SortMenu";
 
 export interface SearchBarProps {
   filterTags: CardType[];
+  /** Controls at the end of the bar, such as the sort menu. */
   HeaderActions?: ReactNode;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
-  onAddFilter: (filter: CardType) => void;
+  /** Shown before the search icon, such as the sidebar toggle. */
+  leading?: ReactNode;
   onClearAll: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onRemoveFilter: (filter: CardType) => void;
@@ -51,15 +49,8 @@ export interface SearchBarProps {
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
   onSortChange?: (sort: CardListSort) => void;
-  /** Shows the Archived filter when set. */
-  onToggleArchived?: () => void;
-  onToggleFavorites: () => void;
-  onToggleTrash: () => void;
-  SettingsButton?: ReactNode;
+  placeholder?: string;
   searchQuery: string;
-  showArchivedOnly?: boolean;
-  showFavoritesOnly: boolean;
-  showTrashOnly: boolean;
   sort?: CardListSort;
   styleFilters: VisualStyle[];
   timeFilter?: TimeFilter | null;
@@ -112,44 +103,28 @@ export function SearchBar({
   styleFilters,
   hueFilters,
   hexFilters,
-  showFavoritesOnly,
-  showTrashOnly,
-  showArchivedOnly = false,
-  onAddFilter,
   onRemoveFilter,
   onRemoveStyleFilter,
   onRemoveHueFilter,
   onRemoveHexFilter,
   onRemoveKeyword,
   onRemoveTimeFilter,
-  onToggleFavorites,
-  onToggleTrash,
-  onToggleArchived,
   onClearAll,
-  SettingsButton,
   HeaderActions,
+  leading,
+  placeholder = "Search for anything...",
   sort = "newest",
   onSortChange,
 }: SearchBarProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
-
+  // Views and card types live in the sidebar; the row under the search box
+  // shows only what is narrowing the results, each chip removable.
   const hasAnyFilters =
     keywordTags.length > 0 ||
     Boolean(timeFilter) ||
     filterTags.length > 0 ||
     styleFilters.length > 0 ||
     hueFilters.length > 0 ||
-    hexFilters.length > 0 ||
-    showFavoritesOnly ||
-    showTrashOnly ||
-    showArchivedOnly;
-  const shouldShowFilters =
-    isFocused || hasAnyFilters || searchQuery.length > 0;
-
-  const availableFilters = cardTypes.filter(
-    (type) => !filterTags.includes(type)
-  );
+    hexFilters.length > 0;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     // Typing already filters live; committing on submit keeps Enter and
@@ -169,6 +144,7 @@ export function SearchBar({
         onSubmit={handleSubmit}
         {...webMcpSearchAttributes}
       >
+        {leading}
         <div className="flex items-center gap-2">
           <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
         </div>
@@ -179,12 +155,9 @@ export function SearchBar({
             autoCorrect="off"
             className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
             name="q"
-            onBlur={() => setIsFocused(false)}
             onChange={(e) => onSearchChange(e.target.value)}
-            onFocus={() => setIsFocused(true)}
             onKeyDown={onKeyDown}
-            placeholder="Search for anything..."
-            ref={inputRef}
+            placeholder={placeholder}
             type="search"
             value={searchQuery}
             {...webMcpQueryAttributes}
@@ -194,10 +167,9 @@ export function SearchBar({
         <div className="flex items-center gap-1">
           {onSortChange && <SortMenu onSortChange={onSortChange} sort={sort} />}
           {HeaderActions}
-          {SettingsButton}
         </div>
       </form>
-      {shouldShowFilters && (
+      {hasAnyFilters && (
         <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
           <div className="flex flex-wrap gap-2">
             {keywordTags.map((keyword) => (
@@ -206,10 +178,11 @@ export function SearchBar({
                 onClick={() => onRemoveKeyword(keyword)}
                 onMouseDown={preventBlur}
                 size="sm"
-                variant="default"
+                variant="secondary"
               >
                 <Hash className="size-3.5 stroke-2" />
                 <span>{keyword}</span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
             ))}
 
@@ -219,10 +192,11 @@ export function SearchBar({
                 onClick={onRemoveTimeFilter}
                 onMouseDown={preventBlur}
                 size="sm"
-                variant="default"
+                variant="secondary"
               >
                 <Clock className="size-3.5 stroke-2" />
                 <span>{timeFilter.label}</span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
             )}
 
@@ -235,10 +209,11 @@ export function SearchBar({
                   onClick={() => onRemoveFilter(filter)}
                   onMouseDown={preventBlur}
                   size="sm"
-                  variant="default"
+                  variant="secondary"
                 >
                   <IconComponent className="size-3.5 stroke-2" />
                   <span>{CARD_TYPE_LABELS[filter]}</span>
+                  <X aria-hidden="true" className="size-3 opacity-60" />
                 </Button>
               );
             })}
@@ -249,10 +224,11 @@ export function SearchBar({
                 onClick={() => onRemoveStyleFilter(style)}
                 onMouseDown={preventBlur}
                 size="sm"
-                variant="default"
+                variant="secondary"
               >
                 <Sparkles className="size-3.5 stroke-2" />
                 <span>{VISUAL_STYLE_LABELS[style]}</span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
             ))}
 
@@ -262,10 +238,11 @@ export function SearchBar({
                 onClick={() => onRemoveHueFilter(hue)}
                 onMouseDown={preventBlur}
                 size="sm"
-                variant="default"
+                variant="secondary"
               >
                 <Droplets className="size-3.5 stroke-2" />
                 <span>{COLOR_HUE_LABELS[hue]}</span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
             ))}
 
@@ -275,121 +252,25 @@ export function SearchBar({
                 onClick={() => onRemoveHexFilter(hex)}
                 onMouseDown={preventBlur}
                 size="sm"
-                variant="default"
+                variant="secondary"
               >
                 <span
                   className="size-3 rounded-full border"
                   style={{ backgroundColor: hex }}
                 />
                 <span>{hex}</span>
+                <X aria-hidden="true" className="size-3 opacity-60" />
               </Button>
             ))}
 
-            {showFavoritesOnly && (
-              <Button
-                aria-pressed={showFavoritesOnly}
-                onClick={onToggleFavorites}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="default"
-              >
-                <Heart className="size-3.5 stroke-2" />
-                <span>Favorites</span>
-              </Button>
-            )}
-
-            {showTrashOnly && (
-              <Button
-                aria-pressed={showTrashOnly}
-                onClick={onToggleTrash}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="default"
-              >
-                <Trash2 className="size-3.5 stroke-2" />
-                <span>Trash</span>
-              </Button>
-            )}
-
-            {showArchivedOnly && onToggleArchived && (
-              <Button
-                aria-pressed={showArchivedOnly}
-                onClick={onToggleArchived}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="default"
-              >
-                <Archive className="size-3.5 stroke-2" />
-                <span>Archived</span>
-              </Button>
-            )}
-
-            {availableFilters.map((filter) => {
-              const IconComponent = getFilterIcon(filter);
-              return (
-                <Button
-                  aria-pressed={false}
-                  key={`available-${filter}`}
-                  onClick={() => onAddFilter(filter)}
-                  onMouseDown={preventBlur}
-                  size="sm"
-                  variant="outline"
-                >
-                  <IconComponent className="size-3.5 stroke-2" />
-                  <span>{CARD_TYPE_LABELS[filter]}</span>
-                </Button>
-              );
-            })}
-
-            {!showFavoritesOnly && (
-              <Button
-                aria-pressed={showFavoritesOnly}
-                onClick={onToggleFavorites}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="outline"
-              >
-                <Heart className="size-3.5 stroke-2" />
-                <span>Favorites</span>
-              </Button>
-            )}
-
-            {!showTrashOnly && (
-              <Button
-                aria-pressed={showTrashOnly}
-                onClick={onToggleTrash}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="outline"
-              >
-                <Trash2 className="size-3.5 stroke-2" />
-                <span>Trash</span>
-              </Button>
-            )}
-
-            {!showArchivedOnly && onToggleArchived && (
-              <Button
-                aria-pressed={showArchivedOnly}
-                onClick={onToggleArchived}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="outline"
-              >
-                <Archive className="size-3.5 stroke-2" />
-                <span>Archived</span>
-              </Button>
-            )}
-
-            {(hasAnyFilters || searchQuery.length > 0) && (
-              <Button
-                onClick={onClearAll}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="outline"
-              >
-                Clear All
-              </Button>
-            )}
+            <Button
+              onClick={onClearAll}
+              onMouseDown={preventBlur}
+              size="sm"
+              variant="ghost"
+            >
+              Clear all
+            </Button>
           </div>
         </div>
       )}

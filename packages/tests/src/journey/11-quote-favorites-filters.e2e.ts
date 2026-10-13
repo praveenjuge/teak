@@ -21,11 +21,8 @@ const cardText = (screen: Screen, text: string | RegExp) =>
   screen.getByRole("main").getByText(text, { exact: false }).first();
 
 const focusSearch = async (screen: Screen) => {
-  const search = screen.getByPlaceholder("Search for anything...");
+  const search = screen.getByRole("searchbox");
   await search.click();
-  await expect(
-    screen.getByRole("button", "Favorites", { exact: false })
-  ).toBeVisible();
   return search;
 };
 
@@ -77,7 +74,8 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     const search = await focusSearch(screen);
     await search.fill(marker);
     await expect(cardText(screen, quoteBody)).toBeVisible();
-    await clearFilters(screen);
+    // Typed text alone shows no chips (so no Clear all); empty the box.
+    await search.fill("");
   });
 
   test("favorites filter and unfavorite stay coherent", async ({
@@ -102,8 +100,9 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible({
       timeout: 30_000,
     });
-    await focusSearch(screen);
-    await clickVisibleControl(screen.getByRole("button", "Favorites"));
+    // Favorites is its own page in the sidebar.
+    await clickVisibleControl(screen.getByRole("link", "Favorites"));
+    await expect(screen.getByPlaceholder("Search favorites...")).toBeVisible();
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
     await expect(cardText(screen, `${marker} hide-me`)).not.toBeVisible();
 
@@ -117,7 +116,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).not.toBeVisible({
       timeout: 15_000,
     });
-    await clearFilters(screen);
+    await clickVisibleControl(screen.getByRole("link", "All cards"));
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
   });
 
@@ -161,21 +160,23 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       timeout: 30_000,
     });
 
-    await focusSearch(screen);
-    await clickVisibleControl(screen.getByRole("button", "Quote"));
+    // Card types are sidebar buttons; a picked one also shows as a chip.
+    await clickVisibleControl(screen.getByRole("button", "Quote").first());
     await expect(cardText(screen, `${marker} quoted line`)).toBeVisible();
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await clearFilters(screen);
 
-    await focusSearch(screen);
-    await clickVisibleControl(screen.getByRole("button", "Palette"));
+    await clickVisibleControl(screen.getByRole("button", "Palette").first());
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await expect(screen.getByRole("main")).not.toContainText(
       `${marker} quoted line`
     );
     // Palette cards may render swatches instead of raw content; assert via
     // filter.
-    await expect(screen.getByRole("button", "Palette")).toBeVisible();
+    await expect(screen.getByRole("button", "Palette").first()).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
     await clearFilters(screen);
   });
 });

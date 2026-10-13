@@ -52,19 +52,23 @@ afterEach(async () => {
 });
 
 test("starts from the search in the URL without waiting for the debounce", async () => {
-  await mount({ q: "design", sort: "oldest" });
+  await mount({ q: "design", sort: "oldest", types: [] });
   expect(controller.searchBarProps.searchQuery).toBe("design");
   expect(controller.queryArgs).toMatchObject({
     searchQuery: "design",
     sort: "oldest",
   });
-  expect(controller.urlState).toEqual({ q: "design", sort: "oldest" });
+  expect(controller.urlState).toEqual({
+    q: "design",
+    sort: "oldest",
+    types: [],
+  });
 });
 
 test("the default query keeps no sort argument", async () => {
   await mount();
   expect(controller.queryArgs).not.toHaveProperty("sort");
-  expect(controller.urlState).toEqual({ q: "", sort: "newest" });
+  expect(controller.urlState).toEqual({ q: "", sort: "newest", types: [] });
 });
 
 test("the URL follows typing only once it pauses", async () => {
@@ -92,30 +96,40 @@ test("oldest first reorders local results and the query", async () => {
 test("back and forward replace the search with the URL's", async () => {
   await mount();
   await act(() => controller.addKeywordTag("design"));
-  await act(() => controller.applyUrlState({ q: "colors", sort: "oldest" }));
+  await act(() =>
+    controller.applyUrlState({ q: "colors", sort: "oldest", types: [] })
+  );
   expect(controller.keywordTags).toEqual([]);
   expect(controller.searchBarProps.searchQuery).toBe("colors");
   expect(controller.sort).toBe("oldest");
 });
 
 test("back and forward apply at once, without the typing pause", async () => {
-  await mount({ q: "design", sort: "newest" });
-  await act(() => controller.applyUrlState({ q: "colors", sort: "newest" }));
+  await mount({ q: "design", sort: "newest", types: [] });
+  await act(() =>
+    controller.applyUrlState({ q: "colors", sort: "newest", types: [] })
+  );
   // No timers advanced: a URL change must never report the old search back.
   expect(controller.queryArgs.searchQuery).toBe("colors");
-  expect(controller.urlState).toEqual({ q: "colors", sort: "newest" });
+  expect(controller.urlState).toEqual({
+    q: "colors",
+    sort: "newest",
+    types: [],
+  });
 });
 
 test("applying the search already shown keeps its chips", async () => {
   await mount();
   await act(() => controller.addKeywordTag("design"));
-  await act(() => controller.applyUrlState({ q: "design", sort: "newest" }));
+  await act(() =>
+    controller.applyUrlState({ q: "design", sort: "newest", types: [] })
+  );
   expect(controller.keywordTags).toEqual(["design"]);
   expect(controller.searchBarProps.searchQuery).toBe("");
 });
 
 test("clearing filters keeps the chosen sort", async () => {
-  await mount({ q: "design", sort: "oldest" });
+  await mount({ q: "design", sort: "oldest", types: [] });
   await act(() => controller.clearAllFilters());
-  expect(controller.urlState).toEqual({ q: "", sort: "oldest" });
+  expect(controller.urlState).toEqual({ q: "", sort: "oldest", types: [] });
 });

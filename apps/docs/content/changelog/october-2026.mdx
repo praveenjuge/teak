@@ -1,15 +1,22 @@
 ---
 title: "October 2026"
-description: Archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: A sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-13"
 changelog:
   category: Product updates
 ---
 
+## A sidebar for your library
+
+- On the web, a sidebar now holds **All cards**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark, share, and reach with Back and Forward.
+- Card types moved there too: pick one or more to narrow the open page, and the address bar keeps them for reloads and shared links.
+- **Upload files**, **Record audio**, and **Settings** sit at the bottom. Collapse the sidebar to icons and Teak remembers it; on a phone it opens as a drawer.
+- Typing `fav`, `archive`, or `trash` in search now opens that page. See [Sidebar](/docs/features#sidebar).
+
 ## Archive cards and act on many at once
 
-- **Archive:** right-click a card or open it and choose **Archive** to keep it out of your library without deleting it. Choose **Archived** under the search bar to find it again, and **Unarchive** to bring it back. Archived cards still count toward your card limit.
+- **Archive:** right-click a card or open it and choose **Archive** to keep it out of your library without deleting it. Open **Archive** in the sidebar to find it again, and **Unarchive** to bring it back. Archived cards still count toward your card limit.
 - **Bulk actions:** select cards and use the bar across the top to archive them, add them to favorites, add or remove tags, copy their links, or move them to Trash, hundreds at a time. Archive and Move to Trash offer **Undo**, and cards that couldn't be changed stay selected so you can retry.
 - **API, CLI, and MCP:** `PATCH /v1/cards/:id` takes `isArchived`, `GET /v1/cards?archived=only` lists archived cards, and `POST /v1/cards/bulk` adds `archive`, `unarchive`, `addTags`, `removeTags`, and `restore` and returns `failedIds`. The CLI adds `teak archive`, `teak unarchive`, and `teak ls --archived`; MCP adds `teak_v1_set_card_archived`. See the [API guide](/docs/api#archive-cards).
 

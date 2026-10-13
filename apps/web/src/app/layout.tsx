@@ -41,7 +41,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
           disableTransitionOnChange
           enableSystem={true}
         >
-          <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
+          {children}
           <Toaster position="bottom-center" />
         </ThemeProvider>
       </body>

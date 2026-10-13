@@ -9,8 +9,9 @@ import {
 } from "../helpers/test";
 import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
+// The placeholder names the open view, so find the box by its role.
 const enterSearch = async (screen: Screen, query: string) => {
-  const search = screen.getByPlaceholder("Search for anything...");
+  const search = screen.getByRole("searchbox");
   await search.fill(query);
 };
 
@@ -57,12 +58,17 @@ const clearFilters = async (screen: Screen) => {
     .click();
 };
 
+// Typing `trash` in search opens the Trash page.
 const showTrash = async ({ browser, screen }: Surface) => {
   await gotoApp(browser, "/");
-  const search = screen.getByPlaceholder("Search for anything...");
+  const search = screen.getByRole("searchbox");
   await search.fill("trash");
   await search.press("Enter");
-  await expect(screen.getByRole("button", "Trash").first()).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Trash...")).toBeVisible();
+  await expect(screen.getByRole("link", "Trash")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
 };
 
 const markerFor = (scope: string) =>
@@ -220,9 +226,11 @@ https://example.com/editor
     await expect(
       screen.getByText("2 cards selected", { exact: false })
     ).toBeVisible();
-    await screen.getByRole("button", "Delete", { exact: false }).click();
+    // Move to Trash sits in the bulk bar's More menu.
+    await screen.getByRole("button", "More actions").click();
+    await screen.getByRole("menuitem", "Move to Trash").click();
     await expect(
-      screen.getByText("Deleted 2 cards", { exact: false })
+      screen.getByText("Moved 2 cards to Trash", { exact: false })
     ).toBeVisible({
       timeout: 30_000,
     });
