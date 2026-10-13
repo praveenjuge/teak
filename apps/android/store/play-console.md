@@ -19,10 +19,12 @@ The app contains no ads.
 
 ## App access
 
-All functionality is behind sign-in. Give reviewers a demo account. Create it on teakvault.com with email sign-up, add a few sample cards, and enter it in the form:
+All functionality is behind sign-in, but anyone can create a free account in the app, so reviewers don't need a demo account (App Store review accepted the same). Choose "All or some functionality is restricted" and add one instruction with no username or password:
 
-- **Instructions:** "Tap Login with Email, then sign in with the email and password below. Use the Add tab to save a note, or share a link to Teak from Chrome."
-- **Credentials:** the demo account's email and password (entered in Play Console only; never commit them).
+- **Name:** Create a free account
+- **Instructions:** "Tap Continue with Google and pick any Google account, or tap Register with Email, to create a free Teak account. The library then opens. Use the Add tab to save a note or link, record a voice memo or upload a photo. Share a link to Teak from Chrome to test the share sheet. Settings has Delete Account."
+
+If Google asks for credentials anyway, create a demo account with email sign-up on teakvault.com, add a few sample cards, and enter its email and password in the form only. Never commit them.
 
 ## Content rating
 
@@ -47,7 +49,8 @@ No.
 
 - **In the app:** Settings, Delete Account. It asks you to type "delete account" to confirm.
 - **On the web:** https://app.teakvault.com, Settings, Delete account.
-- **What happens:** the account, cards, tags and uploaded files are deleted. Nothing is kept after deletion, apart from what the privacy policy describes for backups and legal requirements.
+- **Deletion link for the Data safety form:** https://teakvault.com/docs/delete-account. It has the steps for every app and an email option for people who can't sign in.
+- **What happens:** the account, sign-in details, cards, tags and uploaded files are deleted, within the privacy policy's 30 days. PostHog usage events and crash reports aren't removed automatically; people can email to have those deleted too.
 
 ## Data safety
 
