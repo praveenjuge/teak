@@ -20,6 +20,7 @@ export function cardMatchesSearchQuery(
       hexFilters: args.hexFilters,
       hueFilters: args.hueFilters,
       searchTerms: args.searchQuery,
+      showArchivedOnly: args.showArchivedOnly,
       showTrashOnly: args.showTrashOnly,
       styleFilters: args.styleFilters,
       types: args.types,
@@ -33,19 +34,30 @@ export function updateCardInSearchQueries(
   updater: (card: Doc<"cards">) => Doc<"cards"> | null
 ) {
   let updatedCard: Doc<"cards"> | null | undefined;
+  updateCardsInSearchQueries(localStore, new Set([cardId]), (card) => {
+    const nextCard = updater(card);
+    updatedCard ??= nextCard;
+    return nextCard;
+  });
+  return updatedCard;
+}
+
+/**
+ * Applies `updater` to every loaded copy of the given cards, then drops
+ * cards that no longer match each query (an archived card leaves the
+ * library, a restored one leaves Trash).
+ */
+export function updateCardsInSearchQueries(
+  localStore: OptimisticLocalStore,
+  cardIds: ReadonlySet<string>,
+  updater: (card: Doc<"cards">) => Doc<"cards"> | null
+) {
   const updateCards = (
     cards: Doc<"cards">[],
     args: SearchFilterArgs
   ): Doc<"cards">[] =>
     cards
-      .map((card) => {
-        if (card._id !== cardId) {
-          return card;
-        }
-        const nextCard = updater(card);
-        updatedCard ??= nextCard;
-        return nextCard;
-      })
+      .map((card) => (cardIds.has(card._id) ? updater(card) : card))
       .filter((card): card is Doc<"cards"> => card !== null)
       .filter((card) => cardMatchesSearchQuery(card, args));
 
@@ -75,6 +87,4 @@ export function updateCardInSearchQueries(
       page: updateCards(value.page as Doc<"cards">[], args),
     });
   }
-
-  return updatedCard;
 }

@@ -282,6 +282,65 @@ describe("publicApiHttp card endpoints", () => {
     });
   });
 
+  test("bulkCardsV1 runs the archive operations and reports failedIds", async () => {
+    const result = {
+      operation: "archive",
+      results: [
+        { index: 0, status: "success", cardId: "card_1" },
+        {
+          index: 1,
+          status: "error",
+          code: "NOT_FOUND",
+          error: "Card not found",
+        },
+      ],
+      failedIds: ["card_2"],
+      summary: { total: 2, succeeded: 1, failed: 1 },
+    };
+    const runMutation =
+      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
+        result
+      );
+
+    const response = await runHandler(
+      bulkCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/bulk", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          operation: "archive",
+          items: [{ cardId: "card_1" }, { cardId: "card_2" }],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(result);
+  });
+
+  test("bulkCardsV1 rejects an unknown operation", async () => {
+    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const response = await runHandler(
+      bulkCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/bulk", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ operation: "shred", items: [{ cardId: "c" }] }),
+      })
+    );
+    expect(response.status).toBe(400);
+  });
+
   test("bulkCardsV1 rejects requests over the item limit before fanning out", async () => {
     const runMutation = buildAuthorizedMutationMock();
 

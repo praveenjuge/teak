@@ -13,6 +13,33 @@ export const cardListSortValidator = v.union(
   v.literal("oldest")
 );
 
+/**
+ * Which archived cards a library read returns: none (the default), only
+ * archived ones (the Archive view), or both. Trash ignores it and lists every
+ * trashed card, archived or not.
+ */
+export type ArchivedFilter = "exclude" | "only" | "include";
+
+export const archivedFilterValidator = v.union(
+  v.literal("exclude"),
+  v.literal("only"),
+  v.literal("include")
+);
+
+/**
+ * The `isArchived` value an index or search filter should match, or `"any"`
+ * when the read must not constrain it (Trash, or archived and not).
+ */
+export const archivedFilterMatch = (
+  archived: ArchivedFilter | undefined,
+  trash?: boolean
+): true | undefined | "any" => {
+  if (trash || archived === "include") {
+    return "any";
+  }
+  return archived === "only" ? true : undefined;
+};
+
 /** Bounds on `createdAt`. A missing bound leaves that side open. */
 export interface CreatedAtBounds {
   gte?: number;
@@ -21,6 +48,8 @@ export interface CreatedAtBounds {
 }
 
 export interface CardListQueryOptions {
+  /** Archived cards to return outside Trash; defaults to `"exclude"`. */
+  archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
   /** Only favorites. `false` means "no favorite filter", like `undefined`. */
   favoritesOnly?: boolean;
@@ -51,8 +80,8 @@ const withCreatedAt = (range: RangeBuilder, bounds?: CreatedAtBounds) => {
 /**
  * The one query behind every library listing (web grid, mobile summaries,
  * public API, Raycast): the most selective index for the filters, ordered by
- * `createdAt`. Archived cards are left out of the library; Trash includes
- * them. Callers choose the direction with `.order()`:
+ * `createdAt`. Archived cards are left out unless `archived` asks for them;
+ * Trash includes them. Callers choose the direction with `.order()`:
  * `"desc"` for newest, `"asc"` for oldest.
  */
 export const buildCardListQuery = (
@@ -63,10 +92,18 @@ export const buildCardListQuery = (
   const types = options.types?.length ? options.types : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const cards = ctx.db.query("cards");
+  const archived = archivedFilterMatch(options.archived, options.trash);
 
-  if (options.trash) {
+  if (archived === "any") {
+    // Trash, or the library with archived cards in it: the index without
+    // isArchived covers both.
     const query = cards.withIndex("by_user_deleted_created", (q) =>
-      withCreatedAt(q.eq("userId", userId).eq("isDeleted", true), createdAt)
+      withCreatedAt(
+        q
+          .eq("userId", userId)
+          .eq("isDeleted", options.trash ? true : undefined),
+        createdAt
+      )
     );
     const ofTypes = types
       ? query.filter((q) =>
@@ -88,7 +125,7 @@ export const buildCardListQuery = (
           q
             .eq("userId", userId)
             .eq("isDeleted", undefined)
-            .eq("isArchived", undefined)
+            .eq("isArchived", archived)
             .eq("isFavorited", true),
           createdAt
         )
@@ -108,7 +145,7 @@ export const buildCardListQuery = (
         q
           .eq("userId", userId)
           .eq("isDeleted", undefined)
-          .eq("isArchived", undefined)
+          .eq("isArchived", archived)
           .eq("type", singleType),
         createdAt
       )
@@ -120,7 +157,7 @@ export const buildCardListQuery = (
       q
         .eq("userId", userId)
         .eq("isDeleted", undefined)
-        .eq("isArchived", undefined),
+        .eq("isArchived", archived),
       createdAt
     )
   );

@@ -56,6 +56,7 @@ const cardFiltersShape = {
   type: z.union([cardTypeSchema, z.array(cardTypeSchema).min(1)]).optional(),
   favorited: z.boolean().optional(),
   trashed: z.boolean().optional(),
+  archived: z.enum(["exclude", "only", "include"]).optional(),
   tag: nonEmptyString.optional(),
   sort: cardSortSchema.optional(),
   createdAfter: z.number().optional(),
@@ -86,7 +87,17 @@ const createUploadInputSchema = z.object({
 
 const bulkCardsInputSchema = z
   .object({
-    operation: z.enum(["create", "update", "favorite", "delete"]),
+    operation: z.enum([
+      "create",
+      "update",
+      "favorite",
+      "delete",
+      "archive",
+      "unarchive",
+      "addTags",
+      "removeTags",
+      "restore",
+    ]),
     items: z.array(z.record(z.string(), z.unknown())).min(1).max(100),
     confirm: z.literal(true).optional(),
     idempotencyKey: nonEmptyString.optional(),
@@ -163,6 +174,10 @@ const favoriteInputSchema = z.object({
   cardId: nonEmptyString,
   isFavorited: z.boolean(),
 });
+const archivedInputSchema = z.object({
+  cardId: nonEmptyString,
+  isArchived: z.boolean(),
+});
 
 const updateCardInputSchema = z
   .object({
@@ -235,6 +250,11 @@ const cardFilterProperties = {
   },
   favorited: { type: "boolean", description: "true lists favorites only" },
   trashed: { type: "boolean", description: "true lists cards in Trash only" },
+  archived: {
+    enum: ["exclude", "only", "include"],
+    description:
+      "Archived cards: exclude (default) leaves them out, only lists just them, include lists them too",
+  },
   tag: { type: "string", minLength: 1, description: "Exact tag" },
   sort: { enum: cardSortSchema.options },
   createdAfter: { type: "number", description: "Unix ms" },
@@ -362,11 +382,23 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_bulk_cards",
     description:
-      "Run a bulk card operation for up to 100 items. Delete batches move cards to Trash and require confirm: true.",
+      "Run a bulk card operation for up to 100 items. Items for favorite take { cardId, isFavorited }; delete, restore, archive and unarchive take { cardId }; addTags and removeTags take { cardId, tags }. Delete batches move cards to Trash and require confirm: true. failedIds lists the cards to retry.",
     annotations: { title: "Bulk card operation", ...DESTRUCTIVE },
     inputSchema: inputSchema(
       {
-        operation: { enum: ["create", "update", "favorite", "delete"] },
+        operation: {
+          enum: [
+            "create",
+            "update",
+            "favorite",
+            "delete",
+            "archive",
+            "unarchive",
+            "addTags",
+            "removeTags",
+            "restore",
+          ],
+        },
         idempotencyKey: { type: "string", minLength: 1 },
         items: {
           type: "array",
@@ -457,6 +489,19 @@ export const TEAK_V1_TOOLS = [
         isFavorited: { type: "boolean" },
       },
       ["cardId", "isFavorited"]
+    ),
+  },
+  {
+    name: "teak_v1_set_card_archived",
+    description:
+      "Archive a card (hide it from the library without deleting it) or return it to the library. List archived cards with archived: only.",
+    annotations: { title: "Set archived", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        isArchived: { type: "boolean" },
+      },
+      ["cardId", "isArchived"]
     ),
   },
   {
@@ -776,6 +821,16 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
+  },
+  teak_v1_set_card_archived: {
+    schema: archivedInputSchema,
+    operation: (input) => ({
+      method: "PATCH",
+      path: cardPath(input.cardId),
+      body: { isArchived: input.isArchived },
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.isArchived ? "archived" : "returned to the library"}`,
   },
   teak_v1_delete_card: {
     schema: deleteCardInputSchema,

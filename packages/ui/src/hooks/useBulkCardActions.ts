@@ -1,0 +1,113 @@
+import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import { useCallback, useRef } from "react";
+import { toast } from "sonner";
+import {
+  applyBulkActionToCard,
+  type BulkCardAction,
+  type BulkRunResult,
+  bulkActionCopy,
+  runBulkInChunks,
+  UNDO_BULK_ACTION,
+} from "../lib/bulkCardActions";
+import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
+
+export interface BulkActionOptions {
+  /** The tags Add tags or Remove tags applies. */
+  tags?: string[];
+}
+
+/**
+ * Runs bulk bar actions on any number of cards: the grid updates at once,
+ * the server work goes in chunks of 100 with one progress toast, and the
+ * result toast offers Undo (archive, unarchive, delete) or Retry for cards
+ * that couldn't be changed. Resolves with the cards that failed.
+ */
+export function useBulkCardActions(toastIdPrefix = "cards") {
+  const bulkUpdate = useMutation(
+    api.cards.bulkUpdateCards
+  ).withOptimisticUpdate((localStore, { cardIds, action, tags }) => {
+    const now = Date.now();
+    updateCardsInSearchQueries(localStore, new Set(cardIds), (card) =>
+      applyBulkActionToCard(card, action, tags, now)
+    );
+  });
+
+  // Each run gets its own toast, so an Undo started from one result never
+  // overwrites another run's progress.
+  const runCount = useRef(0);
+
+  const run = useCallback(
+    async (
+      action: BulkCardAction,
+      cardIds: string[],
+      options: BulkActionOptions = {}
+    ): Promise<BulkRunResult> => {
+      runCount.current += 1;
+      const toastId = `${toastIdPrefix}-bulk-${runCount.current}`;
+      const total = new Set(cardIds).size;
+      if (total > 1) {
+        toast.loading(bulkActionCopy.progress(action, 0, total), {
+          id: toastId,
+        });
+      }
+
+      const result = await runBulkInChunks(
+        cardIds,
+        (chunk) =>
+          bulkUpdate({
+            cardIds: chunk as Id<"cards">[],
+            action,
+            tags: options.tags,
+          }),
+        (done, count) => {
+          if (count > 1 && done < count) {
+            toast.loading(bulkActionCopy.progress(action, done, count), {
+              id: toastId,
+            });
+          }
+        }
+      );
+
+      const { updatedIds, failedIds } = result;
+      const undo = UNDO_BULK_ACTION[action];
+      if (failedIds.length === 0) {
+        toast.success(bulkActionCopy.done(action, updatedIds.length), {
+          id: toastId,
+          action: undo
+            ? {
+                label: "Undo",
+                onClick: () => {
+                  run(undo, updatedIds).catch(() => undefined);
+                },
+              }
+            : undefined,
+        });
+      } else {
+        toast.error(
+          updatedIds.length > 0
+            ? bulkActionCopy.partial(
+                action,
+                updatedIds.length,
+                failedIds.length
+              )
+            : bulkActionCopy.failed(action),
+          {
+            id: toastId,
+            action: {
+              label: "Retry",
+              onClick: () => {
+                run(action, failedIds, options).catch(() => undefined);
+              },
+            },
+          }
+        );
+      }
+      return result;
+    },
+    [bulkUpdate, toastIdPrefix]
+  );
+
+  return run;
+}

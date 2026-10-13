@@ -172,6 +172,32 @@ export const restoreCards = async (ids: string[], options: GlobalOptions) => {
   );
 };
 
+/** Archives cards (hidden from the library, not deleted) or returns them. */
+export const setCardsArchived = async (
+  ids: string[],
+  isArchived: boolean,
+  options: GlobalOptions
+) => {
+  const api = client(options);
+  const { failed, succeeded } = await eachCard(ids, (id) =>
+    api.cards.setArchived(id, isArchived)
+  );
+  writeBatch(
+    options.json
+      ? {
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          [isArchived ? "archivedIds" : "unarchivedIds"]: succeeded,
+        }
+      : succeeded
+          .map((id) =>
+            isArchived ? `Archived ${id}` : `Returned ${id} to the library`
+          )
+          .join("\n"),
+    failed,
+    options
+  );
+};
+
 export const refreshCards = async (ids: string[], options: GlobalOptions) => {
   const api = client(options);
   const { failed, succeeded } = await eachCard(ids, (id) =>

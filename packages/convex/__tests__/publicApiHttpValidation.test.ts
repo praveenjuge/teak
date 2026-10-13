@@ -244,8 +244,19 @@ describe("validatePatchPayload", () => {
     ["non-string content", { content: ["x"] }],
     ["non-array tags", { tags: "design" }],
     ["a tag over 64 characters", { tags: ["a".repeat(65)] }],
+    ["a string archive flag", { isArchived: "true" }],
   ])("rejects %s", (_label: string, payload: unknown) => {
     expect(validatePatchPayload(payload)).toBeNull();
+  });
+
+  test("accepts archiving on its own or with other edits", () => {
+    expect(validatePatchPayload({ isArchived: true })).toEqual({
+      isArchived: true,
+    });
+    expect(validatePatchPayload({ isArchived: false, notes: "n" })).toEqual({
+      isArchived: false,
+      notes: "n",
+    });
   });
 });
 
@@ -291,14 +302,26 @@ describe("parseCardsQueryOptions", () => {
       hexFilters: ["#AABBCC", "#112233"],
     });
   });
-  test.each(["trashed=yes", "style=unknown", "hue=unknown", "hex=badhex"])(
-    "rejects invalid filter %s",
-    (query: string) => {
-      const result = parseCardsQueryOptions(get(query));
-      expect(result).toBeInstanceOf(Response);
-      expect((result as Response).status).toBe(400);
+  test.each(["only", "include", "exclude"])(
+    "parses archived=%s",
+    (archived: string) => {
+      expect(parseCardsQueryOptions(get(`archived=${archived}`))).toMatchObject(
+        { archived }
+      );
     }
   );
+  test.each([
+    "trashed=yes",
+    "style=unknown",
+    "hue=unknown",
+    "hex=badhex",
+    "archived=true",
+    "archived=",
+  ])("rejects invalid filter %s", (query: string) => {
+    const result = parseCardsQueryOptions(get(query));
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(400);
+  });
   test("parses filters, favorites and a clamped limit", () => {
     expect(
       parseCardsQueryOptions(

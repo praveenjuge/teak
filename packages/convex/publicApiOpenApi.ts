@@ -96,6 +96,15 @@ const cardProperties = {
   fileSize: { type: ["number", "null"] },
   fileUrl: { type: ["string", "null"] },
   id: { type: "string" },
+  archivedAt: {
+    description: "When the card was archived, or null when it isn't.",
+    type: ["number", "null"],
+  },
+  isArchived: {
+    description:
+      "Archived cards are hidden from the library and listings unless you ask for them with `archived`.",
+    type: "boolean",
+  },
   isFavorited: { type: "boolean" },
   linkPreviewImageUrl: { type: ["string", "null"] },
   linkPreviewMedia: {
@@ -157,6 +166,7 @@ const components = {
         "content",
         "createdAt",
         "id",
+        "isArchived",
         "isFavorited",
         "placeholderUrl",
         "tags",
@@ -197,6 +207,7 @@ const components = {
         fileUrl: { type: ["string", "null"] },
         id: { type: "string" },
         isDeleted: cardProperties.isDeleted,
+        isArchived: cardProperties.isArchived,
         isFavorited: { type: "boolean" },
         linkPreviewImageUrl: { type: ["string", "null"] },
         linkPreviewDescription: cardProperties.linkPreviewDescription,
@@ -230,6 +241,7 @@ const components = {
         "appUrl",
         "createdAt",
         "id",
+        "isArchived",
         "isFavorited",
         "tags",
         "type",
@@ -315,11 +327,22 @@ const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
+          description: `Up to 100 items. \`create\` items take content, url, notes, tags and cardType; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
           type: "array",
         },
         operation: {
-          enum: ["create", "update", "favorite", "delete"],
+          enum: [
+            "create",
+            "update",
+            "favorite",
+            "delete",
+            "archive",
+            "unarchive",
+            "addTags",
+            "removeTags",
+            "restore",
+          ],
           type: "string",
         },
       },
@@ -329,13 +352,29 @@ const components = {
     BulkCardsResponse: {
       properties: {
         operation: {
-          enum: ["create", "update", "favorite", "delete"],
+          enum: [
+            "create",
+            "update",
+            "favorite",
+            "delete",
+            "archive",
+            "unarchive",
+            "addTags",
+            "removeTags",
+            "restore",
+          ],
           type: "string",
         },
         results: {
           description:
             'One result per item, in order: { index, status: "success", cardId } or { index, status: "error", code, error }. An item that fails changes nothing.',
           items: { additionalProperties: true, type: "object" },
+          type: "array",
+        },
+        failedIds: {
+          description:
+            "The `cardId` of every item that failed, so a client can retry just those.",
+          items: { type: "string" },
           type: "array",
         },
         summary: {
@@ -348,7 +387,7 @@ const components = {
           type: "object",
         },
       },
-      required: ["operation", "results", "summary"],
+      required: ["operation", "results", "failedIds", "summary"],
       type: "object",
     },
     CardsPageResponse: {
@@ -387,6 +426,11 @@ const components = {
         metadataTitle: {
           description: `Replacement title. Whitespace is trimmed and a longer title is cut to ${MAX_CARD_TITLE_LENGTH} characters. Null or a blank string clears it.`,
           type: ["string", "null"],
+        },
+        isArchived: {
+          description:
+            "True archives the card (hides it from the library without deleting it); false returns it to the library.",
+          type: "boolean",
         },
         notes: { type: ["string", "null"] },
         removeAiTags: {
@@ -464,7 +508,7 @@ const components = {
         },
         items: {
           description:
-            "Lowercase tag names on cards outside Trash, including tags Teak added, with the number of cards that have each. Any name works as the `tag` filter on GET /v1/cards.",
+            "Lowercase tag names on cards outside Trash and Archive, including tags Teak added, with the number of cards that have each. Any name works as the `tag` filter on GET /v1/cards.",
           items: { $ref: "#/components/schemas/TagSummary" },
           type: "array",
         },
@@ -674,6 +718,13 @@ export const openApiSpec = {
             name: "trashed",
             schema: { type: "boolean" },
             description: "List only cards in Trash when true.",
+          },
+          {
+            in: "query",
+            name: "archived",
+            schema: { enum: ["exclude", "only", "include"], type: "string" },
+            description:
+              "Archived cards to list: `exclude` (the default) leaves them out, `only` lists just them, `include` lists them with the rest. Trash lists every trashed card whatever this says.",
           },
           ...["style", "hue", "hex"].map((name) => ({
             in: "query",

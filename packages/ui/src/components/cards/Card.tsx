@@ -14,6 +14,8 @@ import {
 } from "@teak/ui/components/ui/context-menu";
 import { useAction } from "convex/react";
 import {
+  Archive,
+  ArchiveRestore,
   CheckSquare,
   Copy,
   ExternalLink,
@@ -111,6 +113,7 @@ export const Card = memo(function Card({
   onRestore,
   onPermanentDelete,
   onToggleFavorite,
+  onToggleArchive,
   onAddTags,
   onCopyImage,
   isSelectionMode,
@@ -201,6 +204,13 @@ export const Card = memo(function Card({
       return;
     }
     onToggleFavorite?.(card._id);
+  };
+
+  const handleToggleArchive = () => {
+    if (isOptimistic) {
+      return;
+    }
+    onToggleArchive?.(card._id, !card.isArchived);
   };
 
   const handleReprocess = () => {
@@ -672,6 +682,12 @@ export const Card = memo(function Card({
               <RefreshCw />
               Refresh details
             </ContextMenuItem>
+            {onToggleArchive && (
+              <ContextMenuItem onClick={handleToggleArchive}>
+                {card.isArchived ? <ArchiveRestore /> : <Archive />}
+                {card.isArchived ? "Unarchive" : "Archive"}
+              </ContextMenuItem>
+            )}
             <ContextMenuSeparator />
             <ContextMenuItem onClick={handleDelete}>
               <Trash2 />

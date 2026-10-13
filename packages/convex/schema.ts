@@ -684,15 +684,33 @@ export default defineSchema({
     // cardSearchDocuments.search_searchableText below.
     .searchIndex("search_visual_styles", {
       searchField: "visualStyles",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+      ],
     })
     .searchIndex("search_color_hexes", {
       searchField: "colorHexes",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+      ],
     })
     .searchIndex("search_color_hues", {
       searchField: "colorHues",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+      ],
     }),
   userCardUsage: defineTable({
     userId: v.string(),
@@ -769,13 +787,20 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
+    isArchived: v.optional(v.literal(true)),
     sourceUpdatedAt: v.number(),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+      ],
     }),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
@@ -784,6 +809,7 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
+    isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.number(),
     sourceUpdatedAt: v.number(),
     syncGeneration: v.number(),
@@ -822,6 +848,45 @@ export default defineSchema({
       "isFavorited",
       "cardCreatedAt",
       "cardId",
+    ])
+    // Library and Archive tag reads. Trash and "archived and not" reads keep
+    // the indexes above, which ignore isArchived; those are dropped once the
+    // readers move here (roadmap Phase 19).
+    .index("by_user_tag_deleted_archived_created_v2", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_type_v2", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_favorited_v2", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_type_favorited_v2", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
     ]),
   cardSearchTagSyncStates: defineTable({
     cardId: v.id("cards"),
@@ -844,6 +909,7 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()),
     type: v.optional(cardTypeValidator),
     isFavorited: v.optional(v.boolean()),
+    isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])

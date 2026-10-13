@@ -13,6 +13,8 @@ export interface LocalSearchFilters {
   hexFilters?: string[];
   hueFilters?: string[];
   searchTerms?: string;
+  /** The Archive view: archived cards outside Trash. */
+  showArchivedOnly?: boolean;
   showTrashOnly?: boolean;
   /** Order by saved date; newest first when omitted. */
   sort?: CardListSort;
@@ -92,6 +94,7 @@ export const filterLocalCards = (
     hexFilters,
     favoritesOnly = false,
     showTrashOnly = false,
+    showArchivedOnly = false,
     createdAtRange,
     sort = "newest",
   }: LocalSearchFilters
@@ -107,7 +110,10 @@ export const filterLocalCards = (
         if (card.isDeleted !== true) {
           return false;
         }
-      } else if (card.isDeleted) {
+      } else if (
+        card.isDeleted ||
+        (card.isArchived === true) !== showArchivedOnly
+      ) {
         return false;
       }
 

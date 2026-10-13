@@ -12,6 +12,7 @@ import {
   compareCardsByCreatedAt,
 } from "../shared/search/sort";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
+import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -140,6 +141,7 @@ const buildVisualSearchFilter =
   (options: {
     userId: string;
     showTrashOnly?: boolean;
+    archived?: ArchivedFilter;
     types?: string[];
     favoritesOnly?: boolean;
   }) =>
@@ -147,6 +149,13 @@ const buildVisualSearchFilter =
     let search = q
       .eq("userId", options.userId)
       .eq("isDeleted", options.showTrashOnly ? true : undefined);
+    const archived = archivedFilterMatch(
+      options.archived,
+      options.showTrashOnly
+    );
+    if (archived !== "any") {
+      search = search.eq("isArchived", archived);
+    }
 
     if (options.types?.length === 1) {
       search = search.eq("type", options.types[0]);
@@ -164,6 +173,7 @@ export const runVisualFacetQueries = async (
   options: {
     userId: string;
     showTrashOnly?: boolean;
+    archived?: ArchivedFilter;
     types?: string[];
     favoritesOnly?: boolean;
     createdAtRange?: CreatedAtRange;

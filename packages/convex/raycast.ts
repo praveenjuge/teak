@@ -72,6 +72,7 @@ const patchCardForUserArgs = {
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
   removeAiTags: v.optional(v.array(v.string())),
+  isArchived: v.optional(v.boolean()),
 } as const;
 
 const setCardFavoriteForUserArgs = {
@@ -500,6 +501,13 @@ export const patchCardForUser = internalMutation({
         userId,
         cardId: args.cardId,
         edits,
+      });
+    }
+    if (args.isArchived !== undefined) {
+      await updateCardFieldForUserHandler(ctx, {
+        userId,
+        cardId: args.cardId,
+        field: args.isArchived ? "archive" : "unarchive",
       });
     }
 

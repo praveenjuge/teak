@@ -36,6 +36,7 @@ export default defineConfig({
       "./workosAuthKit.test.ts",
       "./workosDeletionCompletion.test.ts",
       "./publicApiCardEditing.test.ts",
+      "./archive.test.ts",
       "./publicApiMe.test.ts",
       "./publicApiExports.test.ts",
       "./maintenanceQueries.test.ts",

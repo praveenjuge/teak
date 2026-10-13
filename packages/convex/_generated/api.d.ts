@@ -24,6 +24,7 @@ import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as authMonitoring from "../authMonitoring.js";
 import type * as billing from "../billing.js";
+import type * as card_bulkActions from "../card/bulkActions.js";
 import type * as card_cardUsage from "../card/cardUsage.js";
 import type * as card_createCard from "../card/createCard.js";
 import type * as card_defaultCards from "../card/defaultCards.js";
@@ -238,6 +239,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authMonitoring: typeof authMonitoring;
   billing: typeof billing;
+  "card/bulkActions": typeof card_bulkActions;
   "card/cardUsage": typeof card_cardUsage;
   "card/createCard": typeof card_createCard;
   "card/defaultCards": typeof card_defaultCards;

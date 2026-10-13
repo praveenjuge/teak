@@ -292,6 +292,37 @@ describe("@teak/convex/sdk", () => {
     ]);
   });
 
+  test("archives through a card PATCH and lists archived cards on request", async () => {
+    const sent: Array<{ body: unknown; method: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        sent.push({
+          body: JSON.parse(String(init?.body)),
+          method: String(init?.method),
+          url: String(url),
+        });
+        return Promise.resolve(
+          Response.json({ id: "c1", content: "x", isArchived: true })
+        );
+      }) as typeof fetch,
+    });
+    const archived = await client.cards.setArchived("c1", true);
+    expect(archived.isArchived).toBe(true);
+    expect(sent).toEqual([
+      {
+        body: { isArchived: true },
+        method: "PATCH",
+        url: "https://api.example/v1/cards/c1",
+      },
+    ]);
+    expect(buildCardsSearchParams({ archived: "only" })).toBe(
+      "archived=only&limit=50"
+    );
+    expect(buildCardsSearchParams({ archived: "exclude" })).toBe("limit=50");
+  });
+
   test("sends an idempotency key only when one is given", async () => {
     const { client, seen } = recordingClient(() =>
       Response.json({ appUrl: "https://app/", cardId: "c1", status: "created" })

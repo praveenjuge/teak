@@ -3,17 +3,12 @@
 import { useTheme } from "next-themes";
 import type { CSSProperties } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-import {
-  getToasterBottomOffset,
-  useIsBulkActionBarVisible,
-} from "../../lib/bulkActionBarPresence";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
-  // Toasts are full-width bars at the bottom; lift them above the bulk-action
-  // bar while it is visible so they never cover its buttons.
-  const bottomOffset = getToasterBottomOffset(useIsBulkActionBarVisible());
-  const offset = { top: 0, right: 0, bottom: bottomOffset, left: 0 };
+  // Toasts are full-width bars at the bottom; the bulk-action bar uses the
+  // top edge, so neither covers the other.
+  const offset = { top: 0, right: 0, bottom: 0, left: 0 };
 
   return (
     <Sonner

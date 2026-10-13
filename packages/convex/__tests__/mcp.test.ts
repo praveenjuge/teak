@@ -46,6 +46,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_refresh_card",
   "teak_v1_restore_card",
   "teak_v1_search_cards",
+  "teak_v1_set_card_archived",
   "teak_v1_set_card_favorite",
   "teak_v1_update_card",
 ];
@@ -593,6 +594,19 @@ describe("Convex MCP endpoint", () => {
     expect(new Headers(captured[5]?.headers).get("Idempotency-Key")).toBe(
       "step-1"
     );
+
+    await call("teak_v1_set_card_archived", {
+      cardId: "card_1",
+      isArchived: true,
+    });
+    expect(captured[6]).toMatchObject({
+      method: "PATCH",
+      path: "/v1/cards/card_1",
+      body: { isArchived: true },
+    });
+
+    await call("teak_v1_list_cards", { archived: "only" });
+    expect(captured[7]?.query).toMatchObject({ archived: "only" });
   });
 
   test("labels every tool as read-only or as a write for MCP clients", () => {

@@ -31,6 +31,36 @@ describe("useCardsSearchController helpers", () => {
     expect(next.searchQuery).toBe("");
   });
 
+  it("opens the Archive view with the archive command, never alongside Trash", () => {
+    const next = applyEnterToCardsSearchState({
+      ...baseState(),
+      showTrashOnly: true,
+      searchQuery: "archived",
+    });
+
+    expect(next.showArchivedOnly).toBe(true);
+    expect(next.showTrashOnly).toBe(false);
+    expect(buildCardsSearchQueryArgs(next)).toMatchObject({
+      showArchivedOnly: true,
+    });
+    expect(buildCardsSearchQueryArgs(next).showTrashOnly).toBeUndefined();
+
+    const back = applyEnterToCardsSearchState({
+      ...next,
+      searchQuery: "trash",
+    });
+    expect(back.showTrashOnly).toBe(true);
+    expect(back.showArchivedOnly).toBe(false);
+  });
+
+  it("Backspace leaves the Archive view", () => {
+    const next = applyBackspaceToCardsSearchState({
+      ...baseState(),
+      showArchivedOnly: true,
+    });
+    expect(next.showArchivedOnly).toBe(false);
+  });
+
   it("parses time command on Enter", () => {
     const next = applyEnterToCardsSearchState(
       {
@@ -134,12 +164,15 @@ describe("useCardsSearchController helpers", () => {
       styleFilters: [],
       hueFilters: [],
       hexFilters: [],
+      showArchivedOnly: false,
       showFavoritesOnly: false,
       showTrashOnly: false,
       timeFilter: null,
     });
     expect(buildCardsSearchQueryArgs(cleared).searchQuery).toBeUndefined();
-    expect(buildCardsSearchResetKey(cleared)).toBe("::::::::::false::false::-");
+    expect(buildCardsSearchResetKey(cleared)).toBe(
+      "::::::::::false::false::false::-"
+    );
   });
 
   it("keeps type filter chips in query args for image link palette and quote", () => {

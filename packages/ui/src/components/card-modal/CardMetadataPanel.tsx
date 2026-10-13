@@ -5,6 +5,8 @@ import { Button } from "@teak/ui/components/ui/button";
 import { Label } from "@teak/ui/components/ui/label";
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import {
+  Archive,
+  ArchiveRestore,
   Download,
   Edit,
   Heart,
@@ -33,6 +35,7 @@ interface CardMetadataPanelProps {
     restoreCard: () => void;
     permanentlyDeleteCard: () => void;
     reprocessCard?: () => void;
+    toggleArchive?: () => void;
   };
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
@@ -219,6 +222,21 @@ export function CardMetadataPanel({
               onClick={actions.reprocessCard}
             >
               Refresh details
+            </PanelButton>
+          )}
+
+          {!card.isDeleted && actions.toggleArchive && (
+            <PanelButton
+              icon={
+                card.isArchived ? (
+                  <ArchiveRestore className={iconClass} />
+                ) : (
+                  <Archive className={iconClass} />
+                )
+              }
+              onClick={actions.toggleArchive}
+            >
+              {card.isArchived ? "Unarchive" : "Archive"}
             </PanelButton>
           )}
 

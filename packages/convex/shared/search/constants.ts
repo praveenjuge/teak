@@ -78,7 +78,9 @@ const TRASH_SEARCH_COMMANDS = new Set([
   "trashed",
 ]);
 
-export type SearchQuickCommand = "favorites" | "trash" | null;
+const ARCHIVE_SEARCH_COMMANDS = new Set(["archive", "archived"]);
+
+export type SearchQuickCommand = "favorites" | "trash" | "archive" | null;
 
 export function resolveQuickSearchCommand(query: string): SearchQuickCommand {
   const normalizedQuery = query.toLowerCase().trim();
@@ -88,6 +90,10 @@ export function resolveQuickSearchCommand(query: string): SearchQuickCommand {
 
   if (TRASH_SEARCH_COMMANDS.has(normalizedQuery)) {
     return "trash";
+  }
+
+  if (ARCHIVE_SEARCH_COMMANDS.has(normalizedQuery)) {
+    return "archive";
   }
 
   return null;

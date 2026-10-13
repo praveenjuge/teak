@@ -29,8 +29,8 @@ async function render(showBulkBar: boolean) {
         <Toaster position="bottom-center" />
         {showBulkBar && (
           <BulkActionBar
+            onAction={() => undefined}
             onCancel={() => undefined}
-            onDelete={() => undefined}
             selectedCount={2}
           />
         )}
@@ -57,11 +57,9 @@ test("keeps bottom toasts flush with the screen edge by default", async () => {
   expect(toasterBottomOffset()).toBe("0px");
 });
 
-test("moves toasts above the bulk-action bar while it is shown", async () => {
+// The bulk-action bar sits along the top edge, so toasts stay at the bottom.
+test("keeps toasts at the bottom edge while the bulk-action bar is shown", async () => {
   await render(true);
   await showToast();
-  expect(toasterBottomOffset()).toBe("88px");
-
-  await render(false);
   expect(toasterBottomOffset()).toBe("0px");
 });

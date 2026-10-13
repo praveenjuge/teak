@@ -12,6 +12,7 @@ import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardActions, AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
 import {
+  useBulkCardActions,
   useCardActions,
   useCardClipboard,
   useCardModalFilterActions,
@@ -123,6 +124,7 @@ export function CardsScreen({
     resetKey,
     searchBarProps,
     setRemoteCards,
+    showArchivedOnly,
     showTrashOnly,
     updateCachedCard,
   } = searchController;
@@ -161,6 +163,16 @@ export function CardsScreen({
     },
     onCardUpdate: updateCachedCard,
   });
+
+  const runBulkAction = useBulkCardActions(toastIdPrefix);
+  const handleToggleArchive = useCallback(
+    (cardId: string, archive: boolean) => {
+      runBulkAction(archive ? "archive" : "unarchive", [cardId]).catch(
+        () => undefined
+      );
+    },
+    [runBulkAction]
+  );
 
   const tagManagementCard = useMemo(
     () =>
@@ -260,6 +272,25 @@ export function CardsScreen({
       return <CardsGridSkeleton />;
     }
 
+    // The Archive view with nothing else narrowing it.
+    const isBareArchiveView =
+      showArchivedOnly &&
+      !searchBarProps.searchQuery &&
+      searchBarProps.keywordTags.length === 0 &&
+      searchBarProps.filterTags.length === 0 &&
+      searchBarProps.styleFilters.length === 0 &&
+      searchBarProps.hueFilters.length === 0 &&
+      searchBarProps.hexFilters.length === 0 &&
+      !searchBarProps.showFavoritesOnly &&
+      !searchBarProps.timeFilter;
+    if (displayCards.length === 0 && isBareArchiveView) {
+      return (
+        <p className="py-12 text-center text-muted-foreground">
+          Nothing archived. Archive a card to keep it out of your library.
+        </p>
+      );
+    }
+
     if (displayCards.length === 0 && hasNoFilters) {
       return (
         <AddCardEmptyState
@@ -306,15 +337,7 @@ export function CardsScreen({
           initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
           onAddTags={handleAddTags}
-          onBulkDeleteCards={async (cardIds) => {
-            const result = await cardActions.handleBulkDeleteCards(
-              cardIds as Id<"cards">[]
-            );
-            return {
-              ...result,
-              failedIds: result.failedIds as string[],
-            };
-          }}
+          onBulkAction={runBulkAction}
           onCardClick={handleCardClick}
           onCopyImage={handleCopyImage}
           onDeleteCard={async (cardId) =>
@@ -327,11 +350,13 @@ export function CardsScreen({
           onRestoreCard={(cardId) =>
             cardActions.handleRestoreCard(cardId as Id<"cards">)
           }
+          onToggleArchive={handleToggleArchive}
           onToggleFavorite={(cardId) =>
             cardActions.handleToggleFavorite(cardId as Id<"cards">)
           }
           resetKey={resetKey}
-          showAddForm={!showTrashOnly}
+          showAddForm={!(showTrashOnly || showArchivedOnly)}
+          showArchivedOnly={showArchivedOnly}
           showBulkActions={true}
           showTrashOnly={showTrashOnly}
           toastIdPrefix={toastIdPrefix}

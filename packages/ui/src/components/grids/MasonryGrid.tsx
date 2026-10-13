@@ -6,7 +6,16 @@ import { Masonry } from "antd";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BulkActionBar } from "../selection/BulkActionBar";
+import {
+  type BulkCardAction,
+  collectCardLinks,
+} from "../../lib/bulkCardActions";
+import {
+  BulkActionBar,
+  type BulkBarAction,
+  type BulkBarView,
+} from "../selection/BulkActionBar";
+import { BulkTagsDialog } from "../selection/BulkTagsDialog";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 
 type CardItem = Doc<"cards"> | "add-form";
@@ -45,20 +54,27 @@ export interface MasonryGridProps {
   isLoadingMore?: boolean;
   loadMoreRootMargin?: string;
   onAddTags?: (cardId: string) => void;
-  onBulkDeleteCards?: (cardIds: string[]) => Promise<{
-    requestedCount: number;
-    deletedCount: number;
-    failedIds: string[];
-  }>;
+  /**
+   * Runs a bulk bar action on the selected cards and resolves with the ones
+   * that failed; those stay selected so the user can try again.
+   */
+  onBulkAction?: (
+    action: BulkCardAction,
+    cardIds: string[],
+    options?: { tags?: string[] }
+  ) => Promise<{ failedIds: string[] }>;
   onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
   onDeleteCard: (cardId: string) => Promise<boolean>;
   onLoadMore?: () => void;
   onPermanentDeleteCard?: (cardId: string) => void;
   onRestoreCard?: (cardId: string) => void;
+  onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
+  /** The Archive view: the bulk bar offers Unarchive instead of Archive. */
+  showArchivedOnly?: boolean;
   showBulkActions?: boolean;
   showTrashOnly?: boolean;
   toastIdPrefix?: string;
@@ -67,14 +83,16 @@ export interface MasonryGridProps {
 export function MasonryGrid({
   filteredCards,
   showTrashOnly = false,
+  showArchivedOnly = false,
   showAddForm = false,
   showBulkActions = true,
   AddCardFormComponent,
   onCardClick,
   onDeleteCard,
-  onBulkDeleteCards,
+  onBulkAction,
   onRestoreCard,
   onPermanentDeleteCard,
+  onToggleArchive,
   onToggleFavorite,
   onAddTags,
   onCopyImage,
@@ -100,6 +118,10 @@ export function MasonryGrid({
   const [pendingPermanentDeleteId, setPendingPermanentDeleteId] = useState<
     string | null
   >(null);
+  const [tagsDialogMode, setTagsDialogMode] = useState<"add" | "remove" | null>(
+    null
+  );
+  const [isBulkBusy, setIsBulkBusy] = useState(false);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(normalizedInitialBatchSize, filteredCards.length)
   );
@@ -235,73 +257,88 @@ export function MasonryGrid({
     [isSelectionMode, onCardClick, toggleCardSelection]
   );
 
-  const handleBulkDelete = useCallback(async () => {
-    const requestedIds = Array.from(selectedCardIds);
-    if (requestedIds.length === 0) {
-      return;
-    }
+  let bulkView: BulkBarView = "library";
+  if (showTrashOnly) {
+    bulkView = "trash";
+  } else if (showArchivedOnly) {
+    bulkView = "archive";
+  }
 
-    const loadingToastId = toast.loading(
-      `Deleting ${requestedIds.length} cards...`,
-      {
-        id: `${toastIdPrefix}-bulk-delete`,
+  const selectedCards = useMemo(
+    () => filteredCards.filter((card) => selectedCardIds.has(card._id)),
+    [filteredCards, selectedCardIds]
+  );
+
+  // Tags on the selection, offered as choices when removing tags.
+  const selectionTags = useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const card of selectedCards) {
+      for (const tag of [...(card.tags ?? []), ...(card.aiTags ?? [])]) {
+        if (!byName.has(tag.toLowerCase())) {
+          byName.set(tag.toLowerCase(), tag);
+        }
       }
-    );
+    }
+    return Array.from(byName.values())
+      .sort((left, right) => left.localeCompare(right))
+      .slice(0, 40);
+  }, [selectedCards]);
 
-    try {
-      const summary = onBulkDeleteCards
-        ? await onBulkDeleteCards(requestedIds)
-        : await (async () => {
-            const failedIds: string[] = [];
-            let deletedCount = 0;
-            for (const cardId of requestedIds) {
-              // Deleted sequentially to avoid tripping server rate limits on
-              // this no-batch-endpoint fallback path.
-              // react-doctor-disable-next-line react-doctor/async-await-in-loop
-              const didDelete = await onDeleteCard(cardId);
-              if (didDelete) {
-                deletedCount += 1;
-              } else {
-                failedIds.push(cardId);
-              }
-            }
-            return {
-              requestedCount: requestedIds.length,
-              deletedCount,
-              failedIds,
-            };
-          })();
-
-      if (summary.failedIds.length === 0) {
-        toast.success(`Deleted ${summary.deletedCount} cards`, {
-          id: loadingToastId,
-        });
-        exitSelectionMode();
+  const runBulk = useCallback(
+    async (action: BulkCardAction, tags?: string[]) => {
+      const cardIds = Array.from(selectedCardIds);
+      if (!onBulkAction || cardIds.length === 0 || isBulkBusy) {
         return;
       }
-
-      const failedCount = summary.failedIds.length;
-      if (summary.deletedCount === 0) {
-        toast.error("No cards deleted", { id: loadingToastId });
-      } else {
-        toast.error(
-          `Deleted ${summary.deletedCount} of ${summary.requestedCount} cards; ${failedCount} failed`,
-          { id: loadingToastId }
-        );
+      setIsBulkBusy(true);
+      try {
+        const { failedIds } = await onBulkAction(action, cardIds, { tags });
+        if (failedIds.length === 0) {
+          exitSelectionMode();
+        } else {
+          setSelectedCardIds(new Set(failedIds));
+          setIsSelectionMode(true);
+        }
+      } finally {
+        setIsBulkBusy(false);
       }
-      setSelectedCardIds(new Set(summary.failedIds));
-      setIsSelectionMode(true);
-    } catch (error) {
-      console.error("Error during bulk delete:", error);
-      toast.error("No cards deleted", { id: loadingToastId });
-    }
-  }, [
-    selectedCardIds,
-    onDeleteCard,
-    onBulkDeleteCards,
-    exitSelectionMode,
-    toastIdPrefix,
-  ]);
+    },
+    [exitSelectionMode, isBulkBusy, onBulkAction, selectedCardIds]
+  );
+
+  const handleBulkAction = useCallback(
+    (action: BulkBarAction) => {
+      if (action === "addTags" || action === "removeTags") {
+        setTagsDialogMode(action === "addTags" ? "add" : "remove");
+        return;
+      }
+      if (action === "copyLinks") {
+        const links = collectCardLinks(selectedCards);
+        if (links.length === 0) {
+          toast("None of these cards have a link", {
+            id: `${toastIdPrefix}-copy-links`,
+          });
+          return;
+        }
+        navigator.clipboard
+          .writeText(links.join("\n"))
+          .then(() =>
+            toast.success(
+              `Copied ${links.length} link${links.length === 1 ? "" : "s"}`,
+              { id: `${toastIdPrefix}-copy-links` }
+            )
+          )
+          .catch(() =>
+            toast.error("Couldn't copy the links", {
+              id: `${toastIdPrefix}-copy-links`,
+            })
+          );
+        return;
+      }
+      runBulk(action).catch(() => undefined);
+    },
+    [runBulk, selectedCards, toastIdPrefix]
+  );
 
   // "Delete Forever" can't be undone, so it always asks first.
   const requestPermanentDelete = useMemo(
@@ -370,6 +407,7 @@ export function MasonryGrid({
           onEnterSelectionMode={enterSelectionMode}
           onPermanentDelete={requestPermanentDelete}
           onRestore={onRestoreCard}
+          onToggleArchive={onToggleArchive}
           onToggleFavorite={onToggleFavorite}
           onToggleSelection={() => toggleCardSelection(card._id)}
         />
@@ -381,6 +419,7 @@ export function MasonryGrid({
       onDeleteCard,
       onRestoreCard,
       requestPermanentDelete,
+      onToggleArchive,
       onToggleFavorite,
       onAddTags,
       onCopyImage,
@@ -393,12 +432,13 @@ export function MasonryGrid({
   );
 
   const bulkActionBar: ReactNode =
-    showBulkActions && isSelectionMode ? (
+    showBulkActions && onBulkAction && isSelectionMode ? (
       <BulkActionBar
-        key={selectedCardIds.size}
+        isBusy={isBulkBusy}
+        onAction={handleBulkAction}
         onCancel={exitSelectionMode}
-        onDelete={handleBulkDelete}
         selectedCount={selectedCardIds.size}
+        view={bulkView}
       />
     ) : null;
 
@@ -423,6 +463,21 @@ export function MasonryGrid({
         </div>
       )}
       {bulkActionBar}
+      <BulkTagsDialog
+        mode={tagsDialogMode ?? "add"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTagsDialogMode(null);
+          }
+        }}
+        onSubmit={(tags) => {
+          const action = tagsDialogMode === "remove" ? "removeTags" : "addTags";
+          runBulk(action, tags).catch(() => undefined);
+        }}
+        open={tagsDialogMode !== null}
+        selectedCount={selectedCardIds.size}
+        suggestions={selectionTags}
+      />
       <ConfirmDialog
         confirmLabel="Delete Forever"
         description="This permanently deletes the card and its files. This can’t be undone."

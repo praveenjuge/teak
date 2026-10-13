@@ -606,6 +606,34 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(result.stdout)).toEqual({ queuedIds: ["card_a"] });
   });
 
+  test("archive and unarchive change each card, and ls --archived lists them", async () => {
+    routes.set("PATCH /v1/cards/card_a", () =>
+      json(card("card_a", { isArchived: true }))
+    );
+    routes.set("PATCH /v1/cards/card_b", () =>
+      json({ code: "NOT_FOUND", error: "Card not found" }, 404)
+    );
+
+    const archived = await teak("archive", "card_a", "card_b");
+    expect(archived.stdout).toContain("Archived card_a");
+    expect(archived.stderr).toContain("card_b: Card not found");
+    expect(archived.code).not.toBe(0);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({ isArchived: true });
+
+    requests.length = 0;
+    const restored = await teak("--json", "cards", "unarchive", "card_a");
+    expect(restored.code).toBe(0);
+    expect(JSON.parse(restored.stdout)).toEqual({ unarchivedIds: ["card_a"] });
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      isArchived: false,
+    });
+
+    routes.set("GET /v1/cards", emptyPage);
+    requests.length = 0;
+    await teak("ls", "--archived");
+    expect(requests[0]?.path).toContain("archived=only");
+  });
+
   test("export download saves to the -o path", async () => {
     routes.set("GET /v1/exports/latest", () =>
       json({

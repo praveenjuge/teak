@@ -18,6 +18,8 @@ export {
   isDataTransferItemFolder,
   summarizeBatchResults,
 } from "./globalFileDropHelpers";
+export type { BulkActionOptions } from "./useBulkCardActions";
+export { useBulkCardActions } from "./useBulkCardActions";
 export { useCardActions } from "./useCardActions";
 export type { CopyCardContentOptions } from "./useCardClipboard";
 export {

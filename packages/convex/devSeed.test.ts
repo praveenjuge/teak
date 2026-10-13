@@ -5,6 +5,9 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { components, internal } from "./_generated/api";
 import {
+  ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
+  ARCHIVE_MIX_SCENARIO_SIZE,
+  archiveMixScenarioCard,
   CARD_DETAILS_SCENARIO_CARDS,
   DEV_SEED_CARDS,
   ORDERING_SCENARIO_PAGE_SIZE,
@@ -331,6 +334,51 @@ describe("devSeed ordering pack", () => {
     );
     expect(seeded).toHaveLength(ORDERING_SCENARIO_PAGE_SIZE);
     expect(seeded.some((card) => card.createdAt < Date.UTC(2017, 0, 1))).toBe(
+      true
+    );
+  });
+});
+
+describe("devSeed archive-mix pack", () => {
+  test("mixes archived, trashed and favorite cards in the planned numbers", () => {
+    const cards = Array.from(
+      { length: ARCHIVE_MIX_SCENARIO_SIZE },
+      (_, index) => archiveMixScenarioCard(index)
+    );
+    const archived = cards.filter((card) => card.isArchived);
+    const trashed = cards.filter((card) => card.isDeleted);
+    expect(archived).toHaveLength(200);
+    expect(archived.filter((card) => card.isDeleted)).toHaveLength(20);
+    expect(trashed.filter((card) => !card.isArchived)).toHaveLength(100);
+    expect(archived.some((card) => card.isFavorited)).toBe(true);
+    expect(trashed.some((card) => card.isFavorited)).toBe(true);
+    const caseVariants = new Set(
+      cards
+        .flatMap((card) => card.tags ?? [])
+        .filter((tag) => tag !== "scenario-archive")
+    );
+    expect(caseVariants).toEqual(new Set(["Moodboard", "moodboard"]));
+  });
+
+  test("seeds archived cards with the date they were archived", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "archive-mix",
+        page: 0,
+      })
+    ).toEqual({ status: "seeded", cards: ARCHIVE_MIX_SCENARIO_PAGE_SIZE });
+    const seeded = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    const archived = seeded.filter((card) => card.isArchived);
+    expect(archived.length).toBeGreaterThan(0);
+    expect(archived.every((card) => typeof card.archivedAt === "number")).toBe(
       true
     );
   });

@@ -216,6 +216,7 @@ const handleCardsListRequest = async (
 
   try {
     const queryArgs = {
+      archived: options.archived,
       showTrashOnly: options.showTrashOnly,
       styleFilters: options.styleFilters,
       hueFilters: options.hueFilters,
@@ -469,7 +470,7 @@ const handleCardsByIdV1Request = async (
       return errorResponse(
         400,
         "INVALID_INPUT",
-        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags"
+        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags, isArchived"
       );
     }
     if (
@@ -604,6 +605,18 @@ const handleCardChangesRequest = async (
   }
 };
 
+const BULK_OPERATIONS = new Set([
+  "create",
+  "update",
+  "favorite",
+  "delete",
+  "archive",
+  "unarchive",
+  "addTags",
+  "removeTags",
+  "restore",
+]);
+
 const handleBulkCardsRequest = async (
   ctx: ActionCtx,
   request: Request,
@@ -632,13 +645,7 @@ const handleBulkCardsRequest = async (
   const source = payload as Record<string, unknown>;
   const operation = parseOptionalString(source.operation);
   const items = Array.isArray(source.items) ? source.items : null;
-  if (
-    !(
-      operation &&
-      items &&
-      ["create", "update", "favorite", "delete"].includes(operation)
-    )
-  ) {
+  if (!(operation && items && BULK_OPERATIONS.has(operation))) {
     return errorResponse(
       400,
       "INVALID_INPUT",

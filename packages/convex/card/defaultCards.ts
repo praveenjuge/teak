@@ -49,6 +49,8 @@ export interface DefaultCardDef {
   content: string;
   /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
+  /** Inserted archived (hidden from the library, still counted). */
+  isArchived?: boolean;
   /** Inserted, then moved to the trash. */
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -153,6 +155,9 @@ export const insertCompletedCards = async (
       metadata: cardDef.metadata,
       metadataTitle: cardDef.metadataTitle,
       metadataDescription: cardDef.metadataDescription,
+      ...(cardDef.isArchived
+        ? { isArchived: true as const, archivedAt: timestamp }
+        : {}),
       ...(cardDef.runProcessing
         ? {
             processingStatus: buildInitialProcessingStatus({

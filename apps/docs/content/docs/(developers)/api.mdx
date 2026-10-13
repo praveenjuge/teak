@@ -207,7 +207,7 @@ and replace your local copy.
 | `/v1/me` | Read your authenticated Teak identity |
 | `/v1/cards` | Create or list cards |
 | `/v1/uploads` | Start a direct file upload |
-| `/v1/cards/bulk` | Create, update, favorite, or delete up to 100 cards |
+| `/v1/cards/bulk` | Create, update, favorite, archive, tag, delete, or restore up to 100 cards |
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
@@ -264,6 +264,10 @@ these query parameters:
 
 <ParamField query="trashed" type="boolean">
   Set to `true` to list cards in Trash.
+</ParamField>
+
+<ParamField query="archived" type="string">
+  Archived cards to list: `exclude` (the default) leaves them out, `only` lists just archived cards, and `include` lists them with the rest. Trash lists every trashed card, archived or not.
 </ParamField>
 
 <ParamField query="style" type="string">
@@ -364,6 +368,14 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 `POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
 
 You can refresh a card once a minute and up to six cards a minute. Past that, the API answers `429 RATE_LIMITED` with `retryAt` and a `Retry-After` header. A card in Trash returns `409 CONFLICT`; restore it first.
+
+## Archive cards
+
+Archiving hides a card from listings and search without deleting it; it still counts toward your card limit. Send `PATCH /v1/cards/:cardId` with `{ "isArchived": true }` to archive a card and `{ "isArchived": false }` to return it. Cards include `isArchived` and `archivedAt`. List archived cards with `GET /v1/cards?archived=only`. `GET /v1/tags` counts only cards outside Trash and Archive.
+
+## Bulk actions
+
+`POST /v1/cards/bulk` takes an `operation` and up to 100 `items`. Besides `create`, `update`, `favorite` (`{ cardId, isFavorited }`) and `delete`, it accepts `archive`, `unarchive`, and `restore` (each item `{ cardId }`) and `addTags` and `removeTags` (each item `{ cardId, tags }`, up to 20 tags). Tags match ignoring case, and `removeTags` also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it, so retries are safe. The response lists each item's result and a `failedIds` array of the cards to retry.
 
 ## Delete and restore cards
 

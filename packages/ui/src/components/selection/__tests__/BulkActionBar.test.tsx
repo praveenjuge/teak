@@ -7,9 +7,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { BulkActionBar } = await import("../BulkActionBar");
-const { getToasterBottomOffset, isBulkActionBarVisible } = await import(
-  "../../../lib/bulkActionBarPresence"
-);
 
 let root: Root | undefined;
 
@@ -21,7 +18,11 @@ afterEach(async () => {
 
 async function renderBar(
   selectedCount: number,
-  onDelete = mock(),
+  options: {
+    isBusy?: boolean;
+    view?: "library" | "archive" | "trash";
+  } = {},
+  onAction = mock(),
   onCancel = mock()
 ) {
   const container = document.createElement("div");
@@ -30,21 +31,42 @@ async function renderBar(
   await act(() =>
     root?.render(
       <BulkActionBar
+        isBusy={options.isBusy}
+        onAction={onAction}
         onCancel={onCancel}
-        onDelete={onDelete}
         selectedCount={selectedCount}
+        view={options.view}
       />
     )
   );
-  return { onCancel, onDelete };
+  return { onAction, onCancel };
 }
 
 function button(name: string) {
   const match = [...document.querySelectorAll("button")].find(
-    (element) => element.textContent?.trim() === name
+    (element) =>
+      element.textContent?.trim() === name ||
+      element.getAttribute("aria-label") === name
   );
   expect(match).toBeDefined();
   return match as HTMLButtonElement;
+}
+
+async function openMoreMenu() {
+  const trigger = button("More actions");
+  await act(() => {
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
+    );
+  });
+}
+
+function menuItem(name: string) {
+  const match = [...document.querySelectorAll('[role="menuitem"]')].find(
+    (element) => element.textContent?.trim() === name
+  );
+  expect(match).toBeDefined();
+  return match as HTMLElement;
 }
 
 describe("BulkActionBar", () => {
@@ -53,54 +75,60 @@ describe("BulkActionBar", () => {
     expect(document.body.textContent).toContain("1 card selected");
     await act(() => root?.unmount());
 
-    await renderBar(2);
-    expect(document.body.textContent).toContain("2 cards selected");
+    await renderBar(300);
+    expect(document.body.textContent).toContain("300 cards selected");
   });
 
-  test("asks for confirmation before deleting", async () => {
-    const { onDelete } = await renderBar(2);
+  test("archives from the library and keeps the rest in More", async () => {
+    const { onAction } = await renderBar(3);
+    await act(() => button("Archive").click());
+    expect(onAction).toHaveBeenCalledWith("archive");
 
-    await act(() => button("Delete").click());
-    expect(onDelete).not.toHaveBeenCalled();
-    const dialog = document.querySelector('[role="alertdialog"]');
-    expect(dialog?.textContent).toContain("Delete 2 cards?");
-
-    await act(() => button("Delete 2 cards").click());
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
-  });
-
-  test("does not delete when the confirmation is cancelled", async () => {
-    const { onDelete, onCancel } = await renderBar(3);
-
-    await act(() => button("Delete").click());
-    const dialog = document.querySelector('[role="alertdialog"]');
-    const cancel = [...(dialog?.querySelectorAll("button") ?? [])].find(
-      (element) => element.textContent?.trim() === "Cancel"
+    await openMoreMenu();
+    const items = [...document.querySelectorAll('[role="menuitem"]')].map(
+      (element) => element.textContent?.trim()
     );
-    expect(cancel).toBeDefined();
-    await act(() => cancel?.click());
-
-    expect(onDelete).not.toHaveBeenCalled();
-    expect(onCancel).not.toHaveBeenCalled();
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(items).toEqual([
+      "Add to favorites",
+      "Remove from favorites",
+      "Add tags…",
+      "Remove tags…",
+      "Copy links",
+      "Move to Trash",
+    ]);
+    await act(() => menuItem("Move to Trash").click());
+    expect(onAction).toHaveBeenLastCalledWith("delete");
   });
 
-  test("disables delete when nothing is selected", async () => {
-    await renderBar(0);
-    expect(button("Delete").disabled).toBe(true);
-  });
-
-  test("lifts bottom toasts above the bar only while it is visible", async () => {
-    expect(isBulkActionBarVisible()).toBe(false);
-    expect(getToasterBottomOffset(isBulkActionBarVisible())).toBe(0);
-
-    await renderBar(1);
-    expect(isBulkActionBarVisible()).toBe(true);
-    expect(getToasterBottomOffset(isBulkActionBarVisible())).toBeGreaterThan(0);
-
+  test("offers Unarchive in Archive and only Restore in Trash", async () => {
+    const archive = await renderBar(2, { view: "archive" });
+    await act(() => button("Unarchive").click());
+    expect(archive.onAction).toHaveBeenCalledWith("unarchive");
     await act(() => root?.unmount());
-    root = undefined;
-    expect(isBulkActionBarVisible()).toBe(false);
+
+    const trash = await renderBar(2, { view: "trash" });
+    await act(() => button("Restore").click());
+    expect(trash.onAction).toHaveBeenCalledWith("restore");
+    expect(
+      [...document.querySelectorAll("button")].some(
+        (element) => element.getAttribute("aria-label") === "More actions"
+      )
+    ).toBe(false);
+  });
+
+  test("waits while nothing is selected or an action is running", async () => {
+    await renderBar(0);
+    expect(button("Archive").disabled).toBe(true);
+    await act(() => root?.unmount());
+
+    await renderBar(4, { isBusy: true });
+    expect(button("Archive").disabled).toBe(true);
+    expect(button("More actions").disabled).toBe(true);
+  });
+
+  test("cancels the selection", async () => {
+    const { onCancel } = await renderBar(2);
+    await act(() => button("Cancel selection").click());
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
