@@ -583,6 +583,55 @@ describe("Multi-field edits", () => {
     expect(card?.content).toBe("Third edit");
   });
 
+  test("a bulk edit refused by the account cap leaves the card's next edit a run", async () => {
+    const { t, cardId } = await setup();
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "First edit",
+    });
+    // Eleven more cards spend the rest of the account's six tokens and six
+    // reservations.
+    for (let index = 0; index < 11; index += 1) {
+      const otherId = await t.run((ctx) =>
+        ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `Card ${index}`,
+          createdAt: index,
+          updatedAt: index,
+        })
+      );
+      await t.mutation(internal.raycast.patchCardForUser, {
+        cardId: otherId,
+        userId: "owner",
+        content: `Edited ${index}`,
+      });
+    }
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "update",
+        items: [{ cardId, content: "Bulk edit" }],
+      }
+    );
+    expect(result.summary.failed).toBe(1);
+
+    // Once the account has a token again, the card's next edit gets its own
+    // run: the refused bulk item must not have left a reservation behind.
+    vi.advanceTimersByTime(11_000);
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      content: "Later edit",
+    });
+    const cardJobs = (await scheduledWorkflowStarts(t)).filter(
+      (job) => (job.args[0] as { cardId: string }).cardId === cardId
+    );
+    expect(cardJobs).toHaveLength(2);
+  });
+
   test("bulk update applies content and url together", async () => {
     const { t, cardId } = await setup();
     const result = await t.mutation(

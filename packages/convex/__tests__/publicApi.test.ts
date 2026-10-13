@@ -549,6 +549,7 @@ describe("publicApi", () => {
           patch: mock().mockResolvedValue(null),
         },
         runMutation: mock().mockResolvedValue({ ok: true }),
+        runQuery: mock().mockResolvedValue({ ok: true }),
         scheduler,
       },
       {

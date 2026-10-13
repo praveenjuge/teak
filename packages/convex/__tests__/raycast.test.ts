@@ -126,6 +126,7 @@ describe("raycast", () => {
         runAfter,
       },
       runMutation: mock().mockResolvedValue({ ok: true }),
+      runQuery: mock().mockResolvedValue({ ok: true }),
     } as any;
 
     await runHandler(patchCardForUser, ctx, {

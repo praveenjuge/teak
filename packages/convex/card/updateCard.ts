@@ -127,20 +127,27 @@ const reserveEditReprocess = async (
   userId: string,
   cardId: Id<"cards">
 ): Promise<number | null> => {
-  const perCard = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
-    key: String(cardId),
-    reserve: true,
-    throws: false,
-  });
-  if (!perCard.ok) {
+  const perCardArgs = { key: String(cardId), reserve: true } as const;
+  const accountArgs = { key: userId, reserve: true } as const;
+  // Check both before reserving either: a bulk update catches each item's
+  // refusal and commits, so a reservation made before the account refuses
+  // would stay behind, and this card's later edits would join a run that
+  // was never scheduled.
+  if (!(await rateLimiter.check(ctx, "cardReprocessPerCard", perCardArgs)).ok) {
     return null;
   }
-  const account = await rateLimiter.limit(ctx, "cardReprocess", {
-    key: userId,
-    reserve: true,
+  assertReprocessAllowed(
+    "cardReprocess",
+    await rateLimiter.check(ctx, "cardReprocess", accountArgs)
+  );
+  const perCard = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
+    ...perCardArgs,
     throws: false,
   });
-  assertReprocessAllowed("cardReprocess", account);
+  const account = await rateLimiter.limit(ctx, "cardReprocess", {
+    ...accountArgs,
+    throws: false,
+  });
   return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
 };
 
