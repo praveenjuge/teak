@@ -130,8 +130,8 @@ describe("card/updateCard.ts", () => {
     );
   });
 
-  test("updateCard rejects rapid reprocessing before changing the card", async () => {
-    mockReprocessLimit.mockResolvedValueOnce({ ok: false });
+  test("updateCard saves a rapid edit and schedules its run when the limit allows", async () => {
+    mockReprocessLimit.mockResolvedValueOnce({ ok: true, retryAfter: 45_000 });
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -142,17 +142,56 @@ describe("card/updateCard.ts", () => {
           type: "text",
           content: "Old",
         }),
-        patch: mock(),
+        patch: mock().mockResolvedValue(null),
       },
-      scheduler: { runAfter: mock() },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any);
 
     const handler = (updateCard as any).handler ?? updateCard;
-    await expect(handler(ctx, { id: "c1", content: "New" })).rejects.toThrow(
-      "already queued for reprocessing"
+    await handler(ctx, { id: "c1", content: "New" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ content: "New" })
     );
-    expect(ctx.db.patch).not.toHaveBeenCalled();
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      45_000,
+      expect.anything(),
+      { cardId: "c1" }
+    );
+  });
+
+  test("updateCard saves an edit made while the card's run is waiting without queueing another", async () => {
+    mockReprocessLimit.mockResolvedValueOnce({ ok: false, retryAfter: 30_000 });
+    const ctx = withTestSession({
+      runMutation: mockReprocessLimit,
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Old",
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+
+    const handler = (updateCard as any).handler ?? updateCard;
+    await handler(ctx, { id: "c1", content: "New" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ content: "New" })
+    );
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { cardId: "c1" }
+    );
   });
 
   test("updateCard throws when card not found", async () => {

@@ -19,17 +19,23 @@ export const RATE_LIMIT_CONFIG = {
     // traffic so the old shards are full before the new shards become live.
     shards: 6,
   },
+  // Card edits reserve reprocess tokens instead of being refused (see
+  // `reserveEditReprocess`), so `maxReserved` bounds how far ahead they queue.
   cardReprocess: {
     kind: "token bucket",
     rate: 6,
     period: MINUTE,
     capacity: 6,
+    maxReserved: 6,
   },
+  // One reserved token per card: while an edit's deferred run is waiting,
+  // later edits join it instead of queueing another.
   cardReprocessPerCard: {
     kind: "token bucket",
     rate: 1,
     period: MINUTE,
     capacity: 1,
+    maxReserved: 1,
   },
   publicApiRequests: {
     kind: "token bucket",

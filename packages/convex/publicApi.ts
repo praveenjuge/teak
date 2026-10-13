@@ -1150,7 +1150,7 @@ const performBulkUpdate = async (
     { userId: args.userId, cardId: args.cardId, edits },
     { deferPipelineSchedule: true }
   );
-  return result.shouldSchedulePipeline;
+  return result.pipelineDelayMs;
 };
 
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
@@ -1315,7 +1315,7 @@ export const executeBulkCardsForUser = internalMutation({
               });
             }
 
-            const shouldSchedulePipeline = await performBulkUpdate(ctx, {
+            const pipelineDelayMs = await performBulkUpdate(ctx, {
               userId,
               cardId,
               content:
@@ -1333,9 +1333,9 @@ export const executeBulkCardsForUser = internalMutation({
                   )
                 : undefined,
             });
-            if (shouldSchedulePipeline) {
+            if (pipelineDelayMs !== null) {
               await ctx.scheduler.runAfter(
-                0,
+                pipelineDelayMs,
                 (internal as any)["workflows/manager"]
                   .startCardProcessingWorkflow,
                 {

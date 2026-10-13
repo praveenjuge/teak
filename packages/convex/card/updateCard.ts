@@ -74,7 +74,9 @@ interface UpdateCardFieldForUserOptions {
 }
 
 interface UpdateCardFieldForUserResult {
-  shouldSchedulePipeline: boolean;
+  // Milliseconds until the processing workflow should start, or null when
+  // this update doesn't need a new run.
+  pipelineDelayMs: number | null;
 }
 
 type ReprocessLimitName = "cardReprocessPerCard" | "cardReprocess";
@@ -112,8 +114,36 @@ const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
     "You've refreshed a lot of cards. Wait a minute and try again.",
 };
 
-// Charges one reprocess for a card update: callers run it once per update,
-// however many fields change.
+/**
+ * Charges the pipeline run a content or URL edit needs. Edits are never
+ * refused for being too soon: a run the limits can't allow yet is reserved
+ * and returned as a delay, and an edit made while this card already has a
+ * reserved run waiting joins that run (it reads the card when it starts), so
+ * it returns null. Only a burst past the account-wide reservation cap throws.
+ * Callers run it once per update, however many fields change.
+ */
+const reserveEditReprocess = async (
+  ctx: MutationCtx,
+  userId: string,
+  cardId: Id<"cards">
+): Promise<number | null> => {
+  const perCard = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
+    key: String(cardId),
+    reserve: true,
+    throws: false,
+  });
+  if (!perCard.ok) {
+    return null;
+  }
+  const account = await rateLimiter.limit(ctx, "cardReprocess", {
+    key: userId,
+    reserve: true,
+    throws: false,
+  });
+  assertReprocessAllowed("cardReprocess", account);
+  return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
+};
+
 const consumeCardReprocessLimit = async (
   ctx: MutationCtx,
   userId: string,
@@ -200,9 +230,9 @@ export const updateCard = mutation({
       }
     }
 
-    if (contentChanged) {
-      await consumeCardReprocessLimit(ctx, user.teakUserId, id);
-    }
+    const pipelineDelayMs = contentChanged
+      ? await reserveEditReprocess(ctx, user.teakUserId, id)
+      : null;
 
     await ctx.db.patch("cards", id, {
       ...updates,
@@ -212,9 +242,9 @@ export const updateCard = mutation({
     await scheduleCardSearchSync(ctx, id, card.userId, card);
 
     // If content was updated, regenerate AI metadata
-    if (contentChanged) {
+    if (pipelineDelayMs !== null) {
       await ctx.scheduler.runAfter(
-        0,
+        pipelineDelayMs,
         (internal as any)["workflows/manager"].startCardProcessingWorkflow,
         {
           cardId: id,
@@ -400,8 +430,7 @@ const loadOwnedCard = async (
 /**
  * Applies several field edits to one card as a single update: every value is
  * validated first, the reprocess rate limit is charged at most once, and the
- * card is written with one patch. Nothing is written if any edit is invalid
- * or the reprocess limit is exhausted.
+ * card is written with one patch. Nothing is written if any edit is invalid.
  */
 export const updateCardFieldsForUserHandler = async (
   ctx: MutationCtx,
@@ -430,12 +459,12 @@ export const updateCardFieldsForUserHandler = async (
   }
 
   if (!changed) {
-    return { shouldSchedulePipeline: false };
+    return { pipelineDelayMs: null };
   }
 
-  if (state.shouldSchedulePipeline) {
-    await consumeCardReprocessLimit(ctx, userId, cardId);
-  }
+  const pipelineDelayMs = state.shouldSchedulePipeline
+    ? await reserveEditReprocess(ctx, userId, cardId)
+    : null;
 
   await ctx.db.patch("cards", cardId, {
     ...state.updateData,
@@ -448,9 +477,9 @@ export const updateCardFieldsForUserHandler = async (
     await scheduleCardSearchSync(ctx, cardId, userId, card);
   }
 
-  if (state.shouldSchedulePipeline && !options.deferPipelineSchedule) {
+  if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {
     await ctx.scheduler.runAfter(
-      0,
+      pipelineDelayMs,
       (internal as any)["workflows/manager"].startCardProcessingWorkflow,
       {
         cardId,
@@ -458,7 +487,7 @@ export const updateCardFieldsForUserHandler = async (
     );
   }
 
-  return { shouldSchedulePipeline: state.shouldSchedulePipeline };
+  return { pipelineDelayMs };
 };
 
 export const updateCardFieldForUserHandler = async (
@@ -515,7 +544,7 @@ export const updateCardFieldForUserHandler = async (
     // state, and restoring it returns it to Archive.
     case "archive":
       if (card.isArchived) {
-        return { shouldSchedulePipeline: false };
+        return { pipelineDelayMs: null };
       }
       updateData.isArchived = true;
       updateData.archivedAt = now;
@@ -523,7 +552,7 @@ export const updateCardFieldForUserHandler = async (
 
     case "unarchive":
       if (!card.isArchived) {
-        return { shouldSchedulePipeline: false };
+        return { pipelineDelayMs: null };
       }
       updateData.isArchived = undefined;
       updateData.archivedAt = undefined;
@@ -558,7 +587,7 @@ export const updateCardFieldForUserHandler = async (
     await scheduleCardSearchSync(ctx, cardId, userId, card);
   }
 
-  return { shouldSchedulePipeline: false };
+  return { pipelineDelayMs: null };
 };
 
 // Unified mutation for updating any card field

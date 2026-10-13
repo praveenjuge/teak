@@ -140,8 +140,9 @@ preserves titles you edit or clear.
 
 Every field in a request is checked before anything is saved, so an invalid
 field leaves the card unchanged. Changing `content` or `url` queues the card
-for processing again, which each card allows once a minute; changing both in
-one request counts once. A second change within the minute returns `429`.
+for processing again, which each card does at most once a minute; changing both
+in one request counts once. Changes within the minute still save right away,
+and one more processing run follows when the minute is up.
 
 `tags` replaces your own tags; each can be up to 64 characters. To drop tags Teak added, send them in
 `removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. Tags Teak
