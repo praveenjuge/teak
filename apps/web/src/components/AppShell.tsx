@@ -74,7 +74,7 @@ export function AppShell({
           <AddCardActions
             onUpgrade={handleUpgrade}
             upgradeUrl="/settings"
-            variant="sidebar"
+            variant="header"
           />
         }
         foldersSlot={

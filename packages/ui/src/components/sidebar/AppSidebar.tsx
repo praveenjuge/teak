@@ -8,7 +8,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -76,7 +75,7 @@ export interface AppSidebarProps {
   activeTypes: readonly CardType[];
   /** The open library view, or null outside the library (settings). */
   activeView: LibraryView | null;
-  /** Add actions (upload, record) rendered as menu items above Settings. */
+  /** Add actions (upload, record), shown as icon buttons beside the logo. */
   addActions?: ReactNode;
   /** Phase 5 renders folders here. */
   foldersSlot?: ReactNode;
@@ -91,8 +90,8 @@ export interface AppSidebarProps {
 }
 
 /**
- * The app's navigation: library views, card types, folders and tags (once
- * they ship), and the add and settings actions. Collapses to icons on
+ * The app's navigation: the logo with the add actions beside it, library
+ * views and Settings, card types, and folders and tags. Collapses to icons on
  * desktop and opens as a drawer on phones.
  */
 export function AppSidebar({
@@ -120,25 +119,30 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="h-11 hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-11! group-data-[collapsible=icon]:p-0.5!"
-              tooltip="Teak"
-            >
-              <LinkComponent
-                aria-label="Teak home"
-                href={LIBRARY_VIEW_PATHS.all}
-                onClick={handleNavigate}
+        {/* The logo on the left and the add actions on the right; stacked
+            when the sidebar is collapsed to icons. */}
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start">
+          <SidebarMenu className="w-auto">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                className="h-11 hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-11! group-data-[collapsible=icon]:p-0.5!"
+                tooltip="Teak"
               >
-                {/* The app icon's mark: left-aligned with the menu icons,
-                    centered in the rail when collapsed. */}
-                <LogoMark className="size-7! shrink-0" />
-              </LinkComponent>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+                <LinkComponent
+                  aria-label="Teak home"
+                  href={LIBRARY_VIEW_PATHS.all}
+                  onClick={handleNavigate}
+                >
+                  {/* The app icon's mark: left-aligned with the menu icons,
+                      centered in the rail when collapsed. */}
+                  <LogoMark className="size-7! shrink-0" />
+                </LinkComponent>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          {addActions}
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
@@ -166,6 +170,23 @@ export function AppSidebar({
                 </SidebarMenuItem>
               );
             })}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isSettingsActive}
+                tooltip="Settings"
+              >
+                <LinkComponent
+                  aria-current={isSettingsActive ? "page" : undefined}
+                  aria-label="Settings"
+                  href={settingsHref}
+                  onClick={handleNavigate}
+                >
+                  <Settings />
+                  <span>Settings</span>
+                </LinkComponent>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
@@ -199,28 +220,6 @@ export function AppSidebar({
         {tagsSlot}
       </SidebarContent>
 
-      <SidebarFooter>
-        <SidebarMenu>
-          {addActions}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isSettingsActive}
-              tooltip="Settings"
-            >
-              <LinkComponent
-                aria-current={isSettingsActive ? "page" : undefined}
-                aria-label="Settings"
-                href={settingsHref}
-                onClick={handleNavigate}
-              >
-                <Settings />
-                <span>Settings</span>
-              </LinkComponent>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

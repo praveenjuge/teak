@@ -15,9 +15,10 @@ import {
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
 import {
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@teak/ui/components/ui/sidebar";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@teak/ui/components/ui/tooltip";
 import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
@@ -25,7 +26,13 @@ import {
 import { useGlobalFileDrop } from "@teak/ui/hooks";
 import { useAction, useMutation } from "convex/react";
 import { Mic, Square, Upload } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 
@@ -34,10 +41,43 @@ interface AddCardActionsProps {
   onUpgrade?: () => void;
   upgradeUrl?: string;
   /**
-   * `toolbar` renders icon buttons; `sidebar` renders labeled sidebar menu
-   * items (with tooltips when the sidebar is collapsed to icons).
+   * `toolbar` renders icon buttons; `header` renders small icon buttons with
+   * tooltips for the sidebar's top row, stacked under the logo when the
+   * sidebar is collapsed to icons.
    */
-  variant?: "toolbar" | "sidebar";
+  variant?: "toolbar" | "header";
+}
+
+/** A small icon button with a tooltip, for the sidebar's top row. */
+function HeaderAction({
+  children,
+  disabled,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          aria-label={label}
+          className="size-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground [&_svg]:size-4"
+          disabled={disabled}
+          onClick={onClick}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 function formatTime(seconds: number) {
@@ -379,29 +419,23 @@ export function AddCardActions({
     : "Starting microphone...";
 
   const triggers =
-    variant === "sidebar" ? (
-      <>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            disabled={globalFileDrop?.isUploading}
-            onClick={handleFileUpload}
-            tooltip="Upload files"
-          >
-            <Upload />
-            <span>Upload files</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            disabled={isRecording || isSubmitting}
-            onClick={() => void startRecording()}
-            tooltip="Record audio"
-          >
-            <Mic />
-            <span>Record audio</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </>
+    variant === "header" ? (
+      <div className="flex items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
+        <HeaderAction
+          disabled={globalFileDrop?.isUploading}
+          label="Upload files"
+          onClick={handleFileUpload}
+        >
+          <Upload />
+        </HeaderAction>
+        <HeaderAction
+          disabled={isRecording || isSubmitting}
+          label="Record audio"
+          onClick={() => void startRecording()}
+        >
+          <Mic />
+        </HeaderAction>
+      </div>
     ) : (
       <div className="flex items-center gap-1">
         <Button
