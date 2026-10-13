@@ -23,8 +23,6 @@ Split any insight by `$lib`.
 | Apple app | `posthog-ios` | Lifecycle events, identify, crashes (main app only; Share and Safari extensions send nothing) | `apps/apple/Teak/App/PostHogReporting.swift` |
 | Android app | `posthog-android` | Lifecycle events, identify, crashes | `apps/android/.../TeakApplication.kt` |
 
-The frozen Expo app sends nothing.
-
 ## Event catalog
 
 The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events there first. Keep properties low-cardinality and never include card content, URLs, file names, prompts or outputs.
