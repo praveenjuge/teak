@@ -22,7 +22,7 @@
   "limits": {
     "freeTierCards": 200,
     "maxFileSize": 104857600,
-    "maxFilesPerUpload": 5,
+    "maxFilesPerUpload": 20,
     "maxFileNameLength": 240,
     "markdownContentMaxBytes": 524288
   },
@@ -36,7 +36,7 @@
     "INVALID_UTF8": "Markdown uploads must contain valid UTF-8 text.",
     "RATE_LIMITED": "Too many cards created. Please wait a moment and try again.",
     "FILE_TOO_LARGE": "File is too large. Maximum file size is 100MB.",
-    "TOO_MANY_FILES": "Too many files selected. You can upload up to 5 files at a time.",
+    "TOO_MANY_FILES": "Too many files selected. You can upload up to 20 files at a time.",
     "UNSUPPORTED_TYPE": "Unsupported file type. Please upload an image, video, audio, or document.",
     "TYPE_MISMATCH": "Uploaded file does not match the selected type."
   },

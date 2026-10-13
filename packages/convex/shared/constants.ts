@@ -251,7 +251,7 @@ export { MAX_FILE_SIZE } from "./fileFormats";
 /**
  * Maximum number of files that can be uploaded at once
  */
-export const MAX_FILES_PER_UPLOAD = 5;
+export const MAX_FILES_PER_UPLOAD = 20;
 export const MULTIPART_UPLOAD_THRESHOLD = 8 * 1024 * 1024;
 
 // === Error Codes & Messages ===
@@ -278,7 +278,7 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   RATE_LIMITED: "Too many cards created. Please wait a moment and try again.",
   FILE_TOO_LARGE: "File is too large. Maximum file size is 100MB.",
   TOO_MANY_FILES:
-    "Too many files selected. You can upload up to 5 files at a time.",
+    "Too many files selected. You can upload up to 20 files at a time.",
   UNSUPPORTED_TYPE:
     "Unsupported file type. Please upload an image, video, audio, or document.",
   TYPE_MISMATCH: "Uploaded file does not match the selected type.",

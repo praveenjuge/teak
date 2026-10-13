@@ -21,6 +21,7 @@ import {
   TOAST_IDS,
   UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
   UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
+  UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
   UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
 } from "../constants/toast";
 import {
@@ -29,6 +30,7 @@ import {
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,
+  formatSkippedNote,
   type GlobalDropQueueItem,
   isBlockedDropTarget,
   summarizeBatchResults,
@@ -98,6 +100,8 @@ export function GlobalFileDropProvider({
   const dragDepthRef = useRef(0);
   const uploadingRef = useRef(false);
   const batchAggregateRef = useRef<UploadMultipleFilesResultItem[]>([]);
+  // Files over the per-upload cap, reported in the queue's result toast.
+  const skippedCountRef = useRef(0);
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {
@@ -114,19 +118,28 @@ export function GlobalFileDropProvider({
   }, [onUpgrade, upgradeUrl]);
 
   const resolveResultToast = useCallback(
-    (results: UploadMultipleFilesResultItem[]) => {
+    (results: UploadMultipleFilesResultItem[], skippedCount: number) => {
       const summary = summarizeBatchResults(results);
+      const skippedNote = formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD);
+      const withSkippedNote = (message: string) =>
+        skippedNote ? `${message} ${skippedNote}` : message;
 
       if (summary.failures.length === 0) {
-        toast.success(
+        const uploaded =
           summary.total === 1
             ? "File uploaded"
-            : `Uploaded ${summary.total} files`,
-          {
-            ...UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
+            : `Uploaded ${summary.total} files`;
+        if (skippedNote) {
+          toast.warning(withSkippedNote(`${uploaded}.`), {
+            ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
-          }
-        );
+          });
+          return;
+        }
+        toast.success(uploaded, {
+          ...UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+        });
         return;
       }
 
@@ -139,7 +152,9 @@ export function GlobalFileDropProvider({
       );
       if (limitFailure) {
         toast.error(
-          "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
+          withSkippedNote(
+            "You've reached your free tier limit. Upgrade to Pro for unlimited cards."
+          ),
           {
             ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
@@ -158,10 +173,13 @@ export function GlobalFileDropProvider({
           failure.errorCode === CARD_ERROR_CODES.RATE_LIMITED
       );
       if (rateLimited) {
-        toast.error("Too many cards created. Please wait a moment.", {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-          id: TOAST_IDS.uploadQueue,
-        });
+        toast.error(
+          withSkippedNote("Too many cards created. Please wait a moment."),
+          {
+            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+            id: TOAST_IDS.uploadQueue,
+          }
+        );
         return;
       }
 
@@ -172,9 +190,11 @@ export function GlobalFileDropProvider({
             ? (first.error ?? "Upload failed")
             : "Upload failed";
         toast.error(
-          summary.total === 1
-            ? reason
-            : `Failed to upload ${summary.total} files. ${reason}`,
+          withSkippedNote(
+            summary.total === 1
+              ? reason
+              : `Failed to upload ${summary.total} files. ${reason}`
+          ),
           {
             ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
@@ -183,7 +203,7 @@ export function GlobalFileDropProvider({
         return;
       }
 
-      toast.error(formatPartialFailureMessage(summary), {
+      toast.error(withSkippedNote(formatPartialFailureMessage(summary)), {
         ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
         id: TOAST_IDS.uploadQueue,
       });
@@ -223,10 +243,11 @@ export function GlobalFileDropProvider({
       }
 
       if (batchAggregateRef.current.length > 0) {
-        resolveResultToast(batchAggregateRef.current);
+        resolveResultToast(batchAggregateRef.current, skippedCountRef.current);
       }
     } finally {
       batchAggregateRef.current = [];
+      skippedCountRef.current = 0;
       uploadingRef.current = false;
       setIsUploading(false);
     }
@@ -246,16 +267,19 @@ export function GlobalFileDropProvider({
       );
 
       if (rejectedCount > 0) {
-        toast.error(
-          `You can only upload up to ${MAX_FILES_PER_UPLOAD} files at a time.`,
-          {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-            id: "upload-queue-too-many",
-          }
-        );
+        skippedCountRef.current += rejectedCount;
       }
 
       if (accepted.length === 0) {
+        // A full queue is always draining, so its result toast reports these.
+        // Report them now only if nothing is uploading.
+        if (!uploadingRef.current) {
+          toast.warning(
+            formatSkippedNote(skippedCountRef.current, MAX_FILES_PER_UPLOAD),
+            { ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS, id: TOAST_IDS.uploadQueue }
+          );
+          skippedCountRef.current = 0;
+        }
         return;
       }
 

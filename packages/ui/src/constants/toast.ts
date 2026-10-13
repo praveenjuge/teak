@@ -45,9 +45,19 @@ export const UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS: ExternalToast = {
 };
 
 /**
+ * Upload result that needs no action, such as an upload where files over the
+ * per-upload cap were skipped. Long enough to read, then dismisses itself.
+ */
+export const UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS: ExternalToast = {
+  duration: 6000,
+  closeButton: true,
+  dismissible: true,
+};
+
+/**
  * Critical/actionable upload result — stays pinned until closed.
  *
- * Used for folder rejection, offline drops, too-many-files, card/rate limits,
+ * Used for folder rejection, offline drops, card/rate limits,
  * total failure and partial failure. Shares the manual-close semantics from
  * the existing constants but keeps its own name so we can tune copy/styling
  * for upload-specific flows without affecting auth toasts.

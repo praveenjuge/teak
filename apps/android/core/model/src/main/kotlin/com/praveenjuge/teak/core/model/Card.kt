@@ -216,4 +216,4 @@ object TeakMessages {
 const val MAX_FILE_SIZE: Long = 100L * 1024 * 1024
 
 /** The most items one share or one picker selection saves, like iOS. */
-const val MAX_FILES_PER_UPLOAD = 5
+const val MAX_FILES_PER_UPLOAD = 20

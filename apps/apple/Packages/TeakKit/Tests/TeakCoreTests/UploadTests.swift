@@ -127,10 +127,10 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
         #expect(result.failures == [.init(reason: .createFailed, message: "Nope")])
     }
 
-    @Test func savesAtMostFiveItems() async {
-        let items = (1...7).map { SharedItem.text("item \($0)") }
+    @Test func savesAtMostTheUploadLimit() async {
+        let items = (1...(TeakLimits.maxFilesPerUpload + 2)).map { SharedItem.text("item \($0)") }
         let result = await importer().importItems(items, isAuthenticated: true)
-        #expect(result.successfulItems == 5)
+        #expect(result.successfulItems == TeakLimits.maxFilesPerUpload)
         #expect(result.failures.filter { $0.reason == .tooManyItems }.count == 2)
     }
 
