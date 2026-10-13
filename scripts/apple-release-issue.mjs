@@ -145,11 +145,7 @@ function readOptional(filePath) {
   return sanitizeAscOutput(fs.readFileSync(filePath, "utf8"));
 }
 
-const releaseWorkflows = new Set([
-  "apple-release.yml",
-  "mac-release.yml",
-  "mobile-release.yml",
-]);
+const releaseWorkflows = new Set(["apple-release.yml"]);
 const applePlatforms = new Set(["ios", "macos", "both"]);
 
 export function failureBody(values) {
@@ -158,9 +154,7 @@ export function failureBody(values) {
     throw new Error(`Unsupported platform: ${platform}`);
   }
   const workflowUrl = validateWorkflowUrl(values["workflow-url"]);
-  const workflowFile =
-    values["workflow-file"] ??
-    (platform === "IOS" ? "mobile-release.yml" : "mac-release.yml");
+  const workflowFile = values["workflow-file"] ?? "apple-release.yml";
   if (!releaseWorkflows.has(workflowFile)) {
     throw new Error(`Unsupported release workflow: ${workflowFile}`);
   }

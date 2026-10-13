@@ -29,10 +29,10 @@ describe("parseDevArgs", () => {
     expect(parseDevArgs(["--push"]).push).toBe(true);
     expect(parseDevArgs(["--status"]).action).toBe("status");
     expect(parseDevArgs(["--stop"]).action).toBe("stop");
-    expect(() => parseDevArgs(["mobile", "--push"])).toThrow("web stack");
+    expect(() => parseDevArgs(["extension", "--push"])).toThrow("web stack");
     expect(parseDevArgs(["--detach"]).detach).toBe(true);
     expect(parseDevArgs(["--detach", "--push"]).push).toBe(true);
-    expect(() => parseDevArgs(["mobile", "--detach"])).toThrow("web stack");
+    expect(() => parseDevArgs(["extension", "--detach"])).toThrow("web stack");
     expect(() => parseDevArgs(["--all", "--detach"])).toThrow("web stack");
     expect(() => parseDevArgs(["--workos", "staging"])).toThrow(
       "Unknown dev target"
@@ -43,18 +43,16 @@ describe("parseDevArgs", () => {
     expect(usesWebStack(parseDevArgs([]))).toBe(true);
     expect(usesWebStack(parseDevArgs(["web"]))).toBe(true);
     expect(usesWebStack(parseDevArgs(["--all"]))).toBe(false);
-    expect(usesWebStack(parseDevArgs(["mobile"]))).toBe(false);
+    expect(usesWebStack(parseDevArgs(["extension"]))).toBe(false);
   });
 
   test("parses --headless and matrix aliases", () => {
     expect(parseDevArgs(["web", "--headless"]).headless).toBe(true);
-    expect(parseDevArgs(["mobile-simulator"]).target).toBe("mobile");
-    expect(parseDevArgs(["mobile-device"]).target).toBe("mobile");
     expect(parseDevArgs(["files-worker"]).target).toBe("files");
   });
 
   test("parses a single target", () => {
-    expect(parseDevArgs(["mobile"]).target).toBe("mobile");
+    expect(parseDevArgs(["extension"]).target).toBe("extension");
   });
 
   test("parses --all and --check", () => {
@@ -67,11 +65,11 @@ describe("parseDevArgs", () => {
   });
 
   test("rejects unknown flags", () => {
-    expect(() => parseDevArgs(["--typo", "mobile"])).toThrow();
+    expect(() => parseDevArgs(["--typo", "extension"])).toThrow();
   });
 
   test("rejects multiple targets", () => {
-    expect(() => parseDevArgs(["mobile", "extension"])).toThrow();
+    expect(() => parseDevArgs(["docs", "extension"])).toThrow();
   });
 });
 

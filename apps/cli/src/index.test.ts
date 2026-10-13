@@ -140,7 +140,6 @@ describe("teak cli formatting", () => {
           raycast: "client_01RAYCAST",
           chrome: "client_01CHROME",
           firefox: "client_01FIREFOX",
-          safari: "client_01SAFARI",
         },
       },
       {

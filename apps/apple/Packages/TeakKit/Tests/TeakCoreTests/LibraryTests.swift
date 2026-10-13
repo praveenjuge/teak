@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Ported from apps/mobile/__tests__/lib/{library-filters,card-grid}.test.ts,
-// apps/android TimeSearchTest and the Mac app's search tokens.
+// Ported from the Expo iPhone app's library-filters and card-grid tests,
+// apps/android TimeSearchTest and Teak for Mac's search tokens.
 
 private let newYork = TimeZone(identifier: "America/New_York")!
 /// Tuesday, Feb 3, 2026, noon in New York.

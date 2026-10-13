@@ -1,6 +1,6 @@
 # @teak/ui
 
-Shared UI package for Teak applications — consolidates components, hooks, screens, icons, and utilities used across `apps/web`, `apps/mobile`, and `apps/extension`.
+Shared UI package for Teak applications — consolidates components, hooks, screens, icons, and utilities used across `apps/web` and `apps/extension`.
 
 ## Installation
 

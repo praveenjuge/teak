@@ -60,7 +60,6 @@ next-env.d.ts
 
 
 .code
-apps/mobile/build-*.ipa
 .secrets/
 .env*.local
 

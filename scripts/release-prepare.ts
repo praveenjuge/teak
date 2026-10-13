@@ -2,9 +2,10 @@
 /**
  * Perform the shared release preparation from .agents/releases.md.
  *
- * Updates every tracked package manifest plus both Safari extension manifests,
- * the Mac Xcode project, and the Apple app's marketing version, synchronizes bun.lock (and apps/raycast/package-lock.json when
- * present), then verifies with a frozen install and the lockstep validator.
+ * Updates every tracked package manifest plus the Safari extension manifest
+ * and the Apple app's marketing version, synchronizes bun.lock (and
+ * apps/raycast/package-lock.json when present), then verifies with a frozen
+ * install and the lockstep validator.
  * Review the diff and commit it as one scoped version change afterwards.
  * Usage: bun run release:prepare <version> [--resume]
  */
@@ -22,11 +23,8 @@ import {
   appleVersionSources,
   assertLockstep,
   assertPatchBump,
-  parseVersion,
   releaseManifestFiles,
   replaceAppleMarketingVersions,
-  safariXcodeProject,
-  safariXcodeVersions,
 } from "./release-version.mjs";
 
 const ROOT = join(import.meta.dir, "..");
@@ -89,29 +87,6 @@ export const setManifestVersion = (
   writeFileAtomically(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 };
 
-export const setSafariXcodeVersion = (
-  projectPath: string,
-  version: string
-): boolean => {
-  const source = readFileSync(projectPath, "utf-8");
-  const current = safariXcodeVersions(source);
-  if (current.marketing.length === 0 || current.build.length === 0) {
-    throw new Error(`Missing Safari Xcode version settings in ${projectPath}.`);
-  }
-  const buildNumber = String(parseVersion(version)[2]);
-  const updated = source
-    .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${version};`)
-    .replace(
-      /CURRENT_PROJECT_VERSION = [^;]+;/g,
-      `CURRENT_PROJECT_VERSION = ${buildNumber};`
-    );
-  if (updated === source) {
-    return false;
-  }
-  writeFileAtomically(projectPath, updated);
-  return true;
-};
-
 export const setAppleMarketingVersion = (
   sourcePath: string,
   version: string
@@ -139,10 +114,6 @@ export const updateManifestVersions = (
       setManifestVersion(absolute, version);
       updated.push(relative);
     }
-  }
-  const projectPath = resolve(repoRoot, safariXcodeProject);
-  if (setSafariXcodeVersion(projectPath, version)) {
-    updated.push(safariXcodeProject);
   }
   for (const relative of appleVersionSources) {
     if (setAppleMarketingVersion(resolve(repoRoot, relative), version)) {

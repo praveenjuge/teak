@@ -19,7 +19,6 @@ import { join } from "node:path";
 import {
   checkBunVersion,
   checkNodeVersion,
-  inferLanHost,
   isInstallStale,
   readConvexSelection,
 } from "./capabilities.ts";
@@ -48,7 +47,6 @@ export const DOCTOR_TARGETS = [
   "convex",
   "files",
   "extension",
-  "mobile",
   "cli",
   "docs",
 ] as const;
@@ -108,7 +106,7 @@ export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
 };
 
 export const DOCTOR_USAGE =
-  "Usage: bun run doctor [--json] [--target web|convex|files|extension|mobile|cli|docs]";
+  "Usage: bun run doctor [--json] [--target web|convex|files|extension|cli|docs]";
 
 export const findMissingKeys = (content: string, keys: string[]): string[] => {
   const values = new Map<string, string>();
@@ -556,36 +554,6 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
           ],
           severity: "warn",
         };
-  }
-  if (target === "mobile") {
-    const path = join(ROOT, "apps/mobile/.env.local");
-    const lan = inferLanHost();
-    const hostDetail = lan
-      ? `simulators use loopback; physical devices reach this host at ${lan}`
-      : "no LAN address inferred: simulators work, physical devices need this host on a reachable network";
-    if (!existsSync(path)) {
-      return {
-        detail: `mobile .env.local is missing; ${hostDetail}`,
-        id,
-        ok: true,
-        remediation: [
-          "Run bun run setup --target mobile-simulator to derive EXPO_PUBLIC_CONVEX_*",
-          ...(lan ? [] : ["Join a LAN and re-run, or use a simulator"]),
-        ],
-        severity: "warn",
-      };
-    }
-    return {
-      detail: `mobile local dotenv is present; ${hostDetail}`,
-      id,
-      ok: true,
-      ...(lan
-        ? { severity: "error" as const }
-        : {
-            severity: "warn" as const,
-            remediation: ["Join a LAN and re-run, or use a simulator"],
-          }),
-    };
   }
   return {
     detail: `${target} needs no local dotenv (defaults and flags apply)`,

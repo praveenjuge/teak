@@ -14,8 +14,6 @@ export const SUPPORTED_TARGETS = [
   "docs",
   "cli",
   "extension",
-  "mobile-simulator",
-  "mobile-device",
   "files-worker",
 ] as const;
 
@@ -65,22 +63,6 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     needsConvex: true,
     defaultConvex: "cloud",
     note: "Chrome extension. Setup derives VITE_PUBLIC_CONVEX_* from the canonical deployment pair.",
-  },
-  "mobile-simulator": {
-    target: "mobile-simulator",
-    profiles: ["local"],
-    dotenvFiles: ["apps/mobile/.env.local"],
-    needsConvex: true,
-    defaultConvex: "cloud",
-    note: "Expo on a simulator, against the shared cloud dev deployment.",
-  },
-  "mobile-device": {
-    target: "mobile-device",
-    profiles: ["local"],
-    dotenvFiles: ["apps/mobile/.env.local"],
-    needsConvex: true,
-    defaultConvex: "cloud",
-    note: "Expo on a physical device. Requires a LAN-reachable host; doctor reports an actionable diagnostic when none can be inferred.",
   },
   "files-worker": {
     target: "files-worker",

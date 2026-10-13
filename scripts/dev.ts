@@ -7,7 +7,7 @@
  *   bun run dev --detach  # start the web stack in the background, return once ready
  *   bun run dev --stop    # stop this checkout's web stack
  *   bun run dev --status  # this checkout's ports, URLs and sign-in
- *   bun run dev mobile    # another surface (Turbo)
+ *   bun run dev docs      # another surface (Turbo)
  *   bun run dev --all     # every surface (Turbo)
  *   bun run dev --check   # print what would run
  *
@@ -39,7 +39,6 @@ export const DEV_TARGETS: Record<string, string[]> = {
   web: ["@teak/web", "@teak/convex"],
   convex: ["@teak/convex"],
   docs: ["@teak/docs"],
-  mobile: ["@teak/mobile"],
   extension: ["@teak/extension", "@teak/convex"],
   cli: ["teak-cli"],
   raycast: ["./apps/raycast"],
@@ -50,8 +49,6 @@ export const FILES_TARGETS = new Set(["files", "files:local"]);
 /** Matrix names that resolve to a dev target. */
 export const TARGET_ALIASES: Record<string, string> = {
   "files-worker": "files",
-  "mobile-device": "mobile",
-  "mobile-simulator": "mobile",
 };
 
 const resolveTarget = (target: string): string =>
@@ -66,7 +63,6 @@ export const describeTargets = (): string =>
     "  web (default) — Next.js on the shared cloud dev deployment, seeded",
     "  convex — Convex backend only",
     "  docs — Docs site",
-    "  mobile — Expo mobile",
     "  extension — Chrome extension + Convex",
     "  cli — CLI",
     "  raycast — Raycast extension",

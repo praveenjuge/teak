@@ -8,7 +8,6 @@ import {
   ensureWebEnv,
   extensionEnvTemplate,
   isMachineLocalValue,
-  mobileEnvTemplate,
   webEnvTemplate,
 } from "./setup-derived-env.ts";
 
@@ -44,14 +43,6 @@ describe("framework templates", () => {
     expect(template).toContain("VITE_PUBLIC_CONVEX_URL=https://cloud.example");
     expect(template).toContain(
       "VITE_PUBLIC_CONVEX_SITE_URL=https://site.example"
-    );
-  });
-
-  test("mobile template carries expo aliases", () => {
-    const template = mobileEnvTemplate(values);
-    expect(template).toContain("EXPO_PUBLIC_CONVEX_URL=https://cloud.example");
-    expect(template).toContain(
-      "EXPO_PUBLIC_CONVEX_SITE_URL=https://site.example"
     );
   });
 });
@@ -95,12 +86,12 @@ describe("ensureDerivedEnv", () => {
   test("replaces loopback values an earlier local stack left", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
     const path = join(dir, ".env.local");
-    writeFileSync(path, "EXPO_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n");
+    writeFileSync(path, "VITE_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n");
     expect(
-      ensureDerivedEnv(path, { EXPO_PUBLIC_CONVEX_URL: DEV.convexUrl })
+      ensureDerivedEnv(path, { VITE_PUBLIC_CONVEX_URL: DEV.convexUrl })
     ).toBe("repaired");
     expect(readFileSync(path, "utf-8")).toBe(
-      `EXPO_PUBLIC_CONVEX_URL=${DEV.convexUrl}\n`
+      `VITE_PUBLIC_CONVEX_URL=${DEV.convexUrl}\n`
     );
   });
 });

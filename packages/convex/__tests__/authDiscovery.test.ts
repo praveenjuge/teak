@@ -5,7 +5,7 @@ import { discoverAuthServer } from "../client/sdk";
 // change between documents, missing clients/PKCE, unsafe URLs, redirects,
 // oversized/bad JSON, failed cache entries, concurrent discovery, expiry, and a
 // stale failure evicting a newer result.
-const surfaces = ["cli", "raycast", "chrome", "firefox", "safari"] as const;
+const surfaces = ["cli", "raycast", "chrome", "firefox"] as const;
 const clientIds = Object.fromEntries(
   surfaces.map((surface) => [surface, `client_01${surface.toUpperCase()}`])
 );

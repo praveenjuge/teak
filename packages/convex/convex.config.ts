@@ -22,7 +22,6 @@ const app = defineApp({
     WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_CHROME_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_FIREFOX_CLIENT_ID: v.optional(v.string()),
-    WORKOS_CONNECT_SAFARI_CLIENT_ID: v.optional(v.string()),
     WORKOS_ENVIRONMENT_ID: v.optional(v.string()),
     WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
     WORKOS_ACTION_SECRET: v.optional(v.string()),

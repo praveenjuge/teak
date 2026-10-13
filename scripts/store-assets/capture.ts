@@ -2,7 +2,7 @@
  * Captures one raw screenshot from a running app into its store's source
  * folder. Put the app on the right screen first, then run:
  *
- *   bun scripts/store-assets/capture.ts prepare apple-iphone|apple-ipad|iphone|android
+ *   bun scripts/store-assets/capture.ts prepare apple-iphone|apple-ipad|android
  *   bun scripts/store-assets/capture.ts apple-ipad 01-library [--as-is]
  *   bun scripts/store-assets/capture.ts android 01-library
  *   bun scripts/store-assets/capture.ts apple-mac 01-library [--app Safari --window "<title>"]

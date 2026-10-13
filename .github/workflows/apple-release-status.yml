@@ -30,7 +30,10 @@ env:
   ASC_NO_UPDATE: "1"
   ASC_VERSION: "3.6.1"
   IOS_APP_ID: "6756574989"
-  SAFARI_APP_ID: "6770003409"
+  # The native app's Mac version lives on the same listing as iOS (Teak for
+  # Mac, 6770003409, is off sale). Apple's public lookup reports one version
+  # per listing, so the Mac storefront column shows the listing's version.
+  SAFARI_APP_ID: "6756574989"
 
 jobs:
   check:

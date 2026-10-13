@@ -24,8 +24,8 @@ public struct LinkMediaItem: Hashable, Sendable {
     public let height: Double?
 }
 
-/// The detail screen's formatting rules. Port of `apps/mobile/lib/card-sheet.ts`
-/// plus the Mac detail's link and document rules.
+/// The detail screen's formatting rules, ported from the Expo iPhone app,
+/// plus Teak for Mac's link and document rules.
 public enum CardSheet {
     private static let sizeUnits = ["B", "KB", "MB", "GB"]
     /// Same cap as the web's file text preview.

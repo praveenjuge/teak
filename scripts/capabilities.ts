@@ -2,9 +2,9 @@
  * Runtime probes and setup capability planning (issue #407, Phase 4).
  *
  * Shared by setup and doctor: pinned runtime versions (Bun and Node share
- * one policy: exact required, patch drift warns), port probes, LAN host
- * inference for physical-device mobile work, and the read-only capability
- * report behind `setup --check --json`. Names only, never values.
+ * one policy: exact required, patch drift warns), port probes, and the
+ * read-only capability report behind `setup --check --json`. Names only,
+ * never values.
  */
 
 import {
@@ -16,7 +16,6 @@ import {
   utimesSync,
 } from "node:fs";
 import { connect } from "node:net";
-import { networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { loadTargetEnv, parseDotenvValue } from "./env-loader.ts";
 import type { ConvexMode, SupportedTarget } from "./env-targets.ts";
@@ -227,18 +226,6 @@ export const readConvexSelection = (
     }
   }
   return { source: "none" };
-};
-
-/** First non-internal IPv4 address, for physical-device mobile URLs. */
-export const inferLanHost = (): string | null => {
-  for (const addresses of Object.values(networkInterfaces())) {
-    for (const address of addresses ?? []) {
-      if (address.family === "IPv4" && !address.internal) {
-        return address.address;
-      }
-    }
-  }
-  return null;
 };
 
 export const checkTcp = (

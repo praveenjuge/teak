@@ -28,8 +28,8 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
 /**
  * Names removed by the typed-env cleanup, the Better Auth removal (WorkOS
  * AuthKit is the only sign-in provider; WorkOS also sends every sign-in
- * email, so Resend has no key), and the move from Sentry to PostHog. The
- * audit fails if they return.
+ * email, so Resend has no key), the move from Sentry to PostHog, and Teak for
+ * Mac's retirement. The audit fails if they return.
  */
 export const DELETED_ALIASES = [
   "APPLE_APP_BUNDLE_IDENTIFIER",
@@ -76,6 +76,7 @@ export const DELETED_ALIASES = [
   "SENTRY_ORG",
   "SENTRY_PROJECT",
   "SENTRY_RELEASE",
+  "WORKOS_CONNECT_SAFARI_CLIENT_ID",
 ] as const;
 
 /**
@@ -92,9 +93,6 @@ export const PLATFORM_EXACT = [
   "CONVEX_CLOUD_URL",
   "CONVEX_DEPLOYMENT",
   "DEV",
-  "EAS_BUILD",
-  "EAS_BUILD_PROFILE",
-  "EXPO_OS",
   "GH_TOKEN",
   "GITHUB_ACTIONS",
   "GITHUB_ENV",
@@ -143,8 +141,6 @@ export const PLATFORM_EXACT = [
 export const PLATFORM_PATTERNS = [
   // Claude Code sets these in its sessions (CLAUDE_CODE_REMOTE in cloud VMs).
   /^CLAUDE_CODE_/,
-  /^EAS_/,
-  /^EXPO_(?!PUBLIC_)/,
   /^GITHUB_/,
   /^MAIN_WINDOW_VITE_/,
   /^npm_/,

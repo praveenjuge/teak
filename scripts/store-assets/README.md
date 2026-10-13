@@ -1,7 +1,7 @@
 # Store images
 
-One pipeline makes the App Store images for Mac and iPhone and the Play Store
-images for Android. Every image is the same meadow wallpaper, one short
+One pipeline makes the App Store images for iPhone, iPad and Mac and the Play
+Store images for Android. Every image is the same meadow wallpaper, one short
 headline, and a real capture of the app showing a designer's library.
 
 | Store | Raw captures | Final images |
@@ -9,16 +9,13 @@ headline, and a real capture of the app showing a designer's library.
 | Apple app, iPhone (`apple-iphone`) | `apps/apple/store/source/iphone/` | `apps/apple/store/screenshots/iphone/en-US/` (1320 × 2868) |
 | Apple app, iPad (`apple-ipad`) | `apps/apple/store/source/ipad/` | `apps/apple/store/screenshots/ipad/en-US/` (2064 × 2752) |
 | Apple app, Mac (`apple-mac`) | `apps/apple/store/source/mac/` | `apps/apple/store/screenshots/mac/en-US/` (2880 × 1800) |
-| Mac App Store | `apps/mac/assets/screenshots/source/` | `apps/mac/assets/screenshots/en-US/` (2880 × 1800) |
-| iPhone App Store | `apps/mobile/store/apple/source/` | `apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67/` (1320 × 2868) |
 | Play Store | `apps/android/store/source/` | `apps/android/store/listing/en-US/graphics/phone-screenshots/` (1080 × 1920) and `feature_graphic.png` (1024 × 500) |
 
 Raw captures are committed, so a headline change is a re-render, not a
 recapture.
 
-The `apple-*` sets belong to the native Apple app, which replaces the Expo
-iPhone app and Teak for Mac; their release workflow publishes them (see
-`apps/apple/store/screenshots/README.md`). Each store in `shots.ts` names the
+The `apple-*` sets belong to the native Apple app; its release workflow
+publishes them (see `apps/apple/store/screenshots/README.md`). Each store in `shots.ts` names the
 simulator or Mac window it captures from and the device frame it renders in.
 
 ## Files
@@ -46,33 +43,27 @@ simulator or Mac window it captures from and the device frame it renders in.
      `apps/apple` talks to production. Run it on the iPhone 17 Pro Max and
      iPad Pro 13-inch simulators, and on the Mac with the window at
      1440 × 900 points and Settings › Appearance set to Light.
-   - Mac (Teak for Mac): build the `teak-mac (macOS)` scheme in Release and launch it with
-     `--args -NSRequiresAquaSystemAppearance YES` for light mode.
-   - iPhone: `expo prebuild`, then a Release `xcodebuild` for the simulator with
-     the production `EXPO_PUBLIC_CONVEX_*` values from `mobile-release.yml`,
-     signed with `CODE_SIGN_IDENTITY=-` so the keychain works. Use the
-     iPhone 17 Pro Max simulator.
    - Android: `./gradlew :app:assembleRelease`, then `zipalign` and `apksigner`
      with the debug keystore, on a Pixel 9 emulator (Android 17).
-3. **Status bars.** `bun scripts/store-assets/capture.ts prepare iphone` and
-   `... prepare android`.
+3. **Status bars.** `bun scripts/store-assets/capture.ts prepare apple-iphone`,
+   `... prepare apple-ipad` and `... prepare android`.
 4. **Captures.** Put each app on the screen a shot needs, then run
-   `bun scripts/store-assets/capture.ts <mac|iphone|android> <name>`.
-   - iPhone uses `asc screenshots capture`, which brings Teak to the front first.
+   `bun scripts/store-assets/capture.ts <apple-iphone|apple-ipad|apple-mac|android> <name>`.
+   - iPhone and iPad use `asc screenshots capture`, which brings Teak to the front first.
      For another app's screen, like the Safari share sheet, add `--as-is`.
    - Mac captures a window by ID in the background. Use
      `--window "Quick Capture"` for the panel. Clicking in the window needs it
      on the current desktop.
-5. **Render.** `bun scripts/store-assets/render.ts [mac iphone android]`. It
-   frames iPhone captures in an iPhone 17 Pro Max with `asc screenshots frame`,
-   draws Android in a Pixel frame, and runs `asc screenshots validate` on both
-   Apple sets. Look at every image before committing.
+5. **Render.** `bun scripts/store-assets/render.ts [apple-iphone apple-ipad apple-mac android]`.
+   It frames iPhone and iPad captures with `asc screenshots frame`, draws
+   Android in a Pixel frame, and runs `asc screenshots validate` on every
+   Apple set. Look at every image before committing.
 6. **Publish** (only after the images are approved):
-   - Mac: the release workflow uploads the committed set for each release.
-   - iPhone: `bash scripts/store-assets/publish-apple.sh iphone <version-id>`
-     with the editable App Store version's ID (`asc versions list --app
-     <app-id>`). It validates, replaces the set, and waits until Apple holds the
-     exact files in order.
+   - Apple app: the release workflow uploads the committed sets for each
+     release. By hand, run `bash scripts/store-assets/publish-apple.sh
+     apple-<iphone|ipad|mac> <version-id>` with the editable App Store
+     version's ID (`asc versions list --app 6756574989`). It validates,
+     replaces the set, and waits until Apple holds the exact files in order.
    - Play: upload by hand in Play Console until the app is live.
 
 ## Tools

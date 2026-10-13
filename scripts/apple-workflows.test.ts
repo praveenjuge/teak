@@ -17,8 +17,6 @@ const workflowStep = (workflow: string, name: string) => {
 };
 
 describe("Apple release workflows", () => {
-  const mobile = read(".github/workflows/mobile-release.yml");
-  const safari = read(".github/workflows/mac-release.yml");
   const apple = read(".github/workflows/apple-release.yml");
   const status = read(".github/workflows/apple-release-status.yml");
   const issueHelper = read("scripts/apple-release-issue.mjs");
@@ -33,8 +31,6 @@ describe("Apple release workflows", () => {
 
   test("pins one explicit asc release and immutable setup action", () => {
     for (const [workflow, version] of [
-      [mobile, "3.6.1"],
-      [safari, "5.9.1"],
       [apple, "5.14.0"],
       [status, "3.6.1"],
     ]) {
@@ -44,109 +40,17 @@ describe("Apple release workflows", () => {
     }
   });
 
-  test("hands a runner-local iOS build to an isolated Ubuntu submission job", () => {
-    expect(mobile).toContain("build:\n    runs-on: macos-26");
-    expect(mobile).toContain("submit:\n    if: inputs.dry_run == false");
-    expect(mobile).toContain("runs-on: ubuntu-24.04");
-    expect(mobile).toContain("bunx expo prebuild --platform ios");
-    expect(mobile).toContain("xcodebuild");
-    expect(mobile).toContain("IOS_APP_STORE");
-    expect(mobile).toContain("--certificate-type IOS_DISTRIBUTION");
-    expect(mobile).not.toContain("--certificate-type DISTRIBUTION");
-    expect(mobile).toContain("Upload verified signed IPA handoff");
-    expect(mobile).toContain("Download verified signed IPA handoff");
-    const prepareHandoff = workflowStep(
-      mobile,
-      "Prepare verified signed IPA handoff"
-    );
-    const uploadHandoff = workflowStep(
-      mobile,
-      "Upload verified signed IPA handoff"
-    );
-    const downloadHandoff = workflowStep(
-      mobile,
-      "Download verified signed IPA handoff"
-    );
-    const verifyHandoff = workflowStep(mobile, "Verify signed IPA handoff");
-    expect(prepareHandoff).toContain(
-      'handoff_directory="$RUNNER_TEMP/ios-handoff"'
-    );
-    expect(prepareHandoff).toContain(
-      'echo "directory=$handoff_directory" >> "$GITHUB_OUTPUT"'
-    );
-    expect(uploadHandoff).toContain(
-      `path: ${expression("steps.handoff.outputs.directory")}`
-    );
-    expect(downloadHandoff).toContain(
-      `path: ${expression("runner.temp")}/ios-handoff`
-    );
-    expect(verifyHandoff).toContain(
-      'descriptor_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1'
-    );
-    expect(verifyHandoff).toContain(
-      'ipa_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1'
-    );
-    expect(verifyHandoff).toContain(
-      'if [ "$descriptor_count" -ne 1 ] || [ "$ipa_count" -ne 1 ]'
-    );
-    expect(mobile).toContain("Signed IPA handoff digest mismatch");
-    expect(mobile).toContain("asc builds upload");
-    expect(mobile).toContain("asc validate");
-    expect(mobile).toContain("asc review doctor");
-    expect(mobile).toContain("asc review submissions-submit");
-    expect(mobile).toContain("--include appStoreVersion");
-    expect(mobile).not.toContain("eas submit");
-    expect(mobile).not.toContain("eas-cli");
-    expect(mobile).not.toContain("EXPO_TOKEN");
-    expect(mobile).not.toContain("submit-app-review.mjs");
-    expect(mobile).toContain("manageAppVersionAndBuildNumber bool false");
-    expect(mobile).toContain("apple-build-number.mjs");
-    expect(mobile).toContain("EXPO_PUBLIC_CONVEX_URL");
-    expect(mobile).toContain("asc age-rating edit");
-    expect(mobile).toContain("--social-media-age-restricted false");
-  });
-
   test("serializes app-wide Apple mutations across versions", () => {
-    expect(mobile).toContain(
+    // One App Store app for every platform; the group name predates
+    // apple-release.yml and must stay stable.
+    expect(apple).toContain(
       `group: mobile-app-store-ios-${expression("github.repository")}`
     );
-    expect(mobile).not.toContain(
-      `group: mobile-app-store-${expression("inputs.version")}`
-    );
-    expect(safari).toContain(
-      `group: safari-app-store-${expression("github.repository")}`
-    );
-    expect(safari).not.toContain(
-      `group: safari-app-store-${expression("inputs.version")}`
-    );
-    expect(mobile).toContain("cancel-in-progress: false");
-    expect(safari).toContain("cancel-in-progress: false");
-  });
-
-  test("hands a signed Safari PKG to an isolated Ubuntu submission job", () => {
-    expect(safari).toContain("build:\n    runs-on: macos-26");
-    expect(safari).toContain("submit:\n    if: inputs.dry_run == false");
-    expect(safari).toContain("runs-on: ubuntu-24.04");
-    expect(safari).toContain("xcodebuild archive");
-    expect(safari).toContain("asc certificates");
-    expect(safari).toContain("asc profiles");
-    expect(safari).toContain("asc builds upload");
-    expect(safari).toContain("--pkg");
-    expect(safari).toContain("teak-mac-$VERSION-mac-app-store.pkg");
-    expect(safari).toContain("asc review submissions-submit");
-    expect(safari).toContain("--include appStoreVersion");
-    expect(safari).not.toContain("xcrun altool");
-    expect(safari).toContain('[ "$candidate_hash" = "$private_hash" ]');
-    expect(safari).not.toContain("EXPECTED_SIGNING_IDENTITY");
-    expect(safari).toContain("asc age-rating edit");
-    expect(safari).toContain("--social-media-age-restricted false");
-    expect(safari).toContain("Upload verified signed PKG handoff");
-    expect(safari).toContain("Download verified signed PKG handoff");
-    expect(safari).toContain("Signed PKG handoff digest mismatch");
+    expect(apple).toContain("cancel-in-progress: false");
   });
 
   test("permits mutation only from the exact tag or current main", () => {
-    for (const workflow of [mobile, safari, apple]) {
+    for (const workflow of [apple]) {
       expect(workflow).toContain('release_tag="v$VERSION"');
       expect(workflow).toContain('"refs/tags/$release_tag")');
       expect(workflow).toContain("refs/heads/main)");
@@ -159,18 +63,6 @@ describe("Apple release workflows", () => {
     }
   });
 
-  test("reuses a Safari PKG only for its exact App Store build", () => {
-    const assetLabel = (buildNumber: string) =>
-      `App Store build ${buildNumber}`;
-
-    expect(assetLabel("100")).not.toBe(assetLabel("101"));
-    expect(safari).toContain('asset_label="App Store build $build_number"');
-    expect(safari).toContain('[ "$existing_label" = "$asset_label" ]');
-    expect(safari).toContain(
-      'gh release upload "v$VERSION" "$PACKAGE_PATH#App Store build $build_number" --clobber'
-    );
-  });
-
   test("replays or dispatches every release from the one version tag", () => {
     for (const workflow of [
       "sdk-release.yml",
@@ -180,9 +72,6 @@ describe("Apple release workflows", () => {
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);
     }
-    // Expo is frozen and Teak for Mac is off sale: the native Apple app ships instead.
-    expect(versionTag).not.toContain("workflow: mobile-release.yml");
-    expect(versionTag).not.toContain("workflow: mac-release.yml");
     expect(versionTag).toContain(
       "title_prefix: Apple iOS\n            platforms: ios"
     );
@@ -207,8 +96,6 @@ describe("Apple release workflows", () => {
       "Waiting briefly for the tag-triggered $WORKFLOW run"
     );
     expect(versionTag).toContain("fail-fast: false");
-    expect(mobile).toContain(`run-name: iOS ${expression("inputs.version")}`);
-    expect(safari).toContain(`run-name: Mac ${expression("inputs.version")}`);
     expect(versionTag).toContain("release-version.mjs patch");
     expect(versionTag).toContain(
       'if [ "$previous_version" = "$VERSION" ]; then'
@@ -217,8 +104,6 @@ describe("Apple release workflows", () => {
   });
 
   test("supports safe dry runs and scheduled two-platform status checks", () => {
-    expect(mobile).toContain("dry_run:");
-    expect(safari).toContain("dry_run:");
     expect(status).toContain('cron: "17 */6 * * *"');
     expect(status).toContain("--platform IOS");
     expect(status).toContain("--platform MAC_OS");
@@ -231,7 +116,7 @@ describe("Apple release workflows", () => {
   });
 
   test("makes the newest package version replace an older Apple review", () => {
-    for (const workflow of [mobile, safari, apple]) {
+    for (const workflow of [apple]) {
       const releaseState = workflowStep(
         workflow,
         "Resolve current Apple release state"
@@ -250,7 +135,7 @@ describe("Apple release workflows", () => {
   });
 
   test("publishes replayable proof manifests after exact read-only verification", () => {
-    for (const workflow of [mobile, safari, apple]) {
+    for (const workflow of [apple]) {
       expect(workflow).toContain("apple-release-proof.mjs verify");
       expect(workflow).toContain('asc builds info --build-id "$build_id"');
       expect(workflow).toContain(
@@ -261,10 +146,6 @@ describe("Apple release workflows", () => {
       expect(workflow).toContain("gh release upload");
       expect(workflow).toContain("asc release stage");
     }
-    expect(mobile).toContain("asc publish appstore");
-    expect(safari).toContain(
-      "asc publish appstore: explicit lower-level PKG flow remains canonical"
-    );
   });
 
   test("ships the native app per platform from one archive-and-submit flow", () => {
@@ -277,10 +158,6 @@ describe("Apple release workflows", () => {
     expect(apple).toContain("apps/apple/scripts/select-xcode.sh");
     expect(apple).toContain("if: inputs.dry_run == false");
     expect(apple).toContain("max-parallel: 1");
-    // One App Store app, so share mobile-release's app-wide serialization.
-    expect(apple).toContain(
-      `group: mobile-app-store-ios-${expression("github.repository")}`
-    );
     expect(apple).toContain('ASC_APP_ID: "6756574989"');
     expect(apple).toContain("PROJECT_PATH: apps/apple/Teak.xcodeproj");
     expect(apple).toContain("SCHEME_NAME: Teak");
@@ -380,35 +257,15 @@ describe("Apple release workflows", () => {
   });
 
   test("reuses Apple builds only with exact canonical provenance", () => {
-    expect(mobile).toContain(
-      'manifest_name="teak-ios-$VERSION-app-store.json"'
-    );
-    expect(mobile).toContain(
-      '.build.id == $id and .build.number == $number and .artifact.sha256 != ""'
-    );
-    expect(safari).toContain(
-      'manifest_name="teak-mac-$VERSION-app-store.json"'
-    );
-    expect(safari).toContain('actual_sha="$(shasum -a 256 "$reusable_pkg"');
-    expect(safari).toContain('[ "$actual_sha" != "$expected_sha" ]');
     expect(apple).toContain(
       'manifest_name="teak-apple-$SLUG-$VERSION-app-store.json"'
     );
-    for (const workflow of [mobile, safari, apple]) {
-      expect(workflow).toContain('reuse=false\n            build_id=""');
-    }
+    expect(apple).toContain('reuse=false\n            build_id=""');
   });
 
   test("pins every third-party action in the Apple release workflows", () => {
     const mutableAction = /^\s*uses:\s*[^./\s][^\s]*@(v\d+|main|master)\s*$/m;
-    for (const workflow of [
-      mobile,
-      safari,
-      apple,
-      status,
-      versionTag,
-      ...productReleases,
-    ]) {
+    for (const workflow of [apple, status, versionTag, ...productReleases]) {
       expect(workflow).not.toMatch(mutableAction);
     }
   });
@@ -429,7 +286,7 @@ describe("Apple release workflows", () => {
               and ([.blockingChecks[]?.id] == ["version.state.editable"])
             '`;
 
-    for (const workflow of [mobile, safari, apple]) {
+    for (const workflow of [apple]) {
       expect(workflow.split(exactAttachRecovery)).toHaveLength(2);
       expect(workflow).toContain(
         'asc versions view --version-id "$VERSION_ID" --include-build'
@@ -449,12 +306,11 @@ describe("Apple release workflows", () => {
   });
 
   test("serializes failure deduplication by version", () => {
-    for (const workflow of [mobile, safari, apple, status]) {
+    for (const workflow of [apple, status]) {
       expect(workflow).toContain("apple-release-issue-");
     }
     expect(apple).toContain("--workflow-file apple-release.yml");
-    expect(mobile).toContain("apple-release-issue.mjs failure");
-    expect(safari).toContain("apple-release-issue.mjs failure");
+    expect(apple).toContain("apple-release-issue.mjs failure");
     expect(issueHelper).toContain("--ref main");
     expect(issueHelper).not.toContain(" --ref v");
   });

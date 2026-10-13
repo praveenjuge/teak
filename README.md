@@ -20,7 +20,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 | Platform | | |
 |----------|---|---|
 | 🌐 **Web** | Full dashboard with real-time sync | [Open app →](https://app.teakvault.com) |
-| 🖥️ **Mac** | Native library, capture, and Safari saves | [Mac App Store →](https://apps.apple.com/us/app/teak-for-mac/id6770003409?mt=12) |
+| 🖥️ **Mac** | Native library, capture, and Safari saves | [Mac App Store →](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989?mt=12) |
 | 📱 **iOS** | Save from anywhere via the share sheet | [App Store →](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989) |
 | 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
@@ -34,9 +34,9 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 teak/
 ├── apps/
 │   ├── web/        # Next.js app
-│   ├── mobile/     # Expo app
+│   ├── apple/      # Native iPhone, iPad and Mac app with its Safari extension
+│   ├── android/    # Native Android app
 │   ├── extension/  # Browser extension (Wxt)
-│   ├── mac/        # Native Mac app and Safari extension
 │   ├── raycast/    # Raycast extension
 │   ├── cli/        # npm command line client
 │   ├── docs/       # Documentation site (Blume)

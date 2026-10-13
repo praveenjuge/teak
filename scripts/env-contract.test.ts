@@ -60,8 +60,6 @@ describe("env-contract", () => {
       "PLAYWRIGHT_BASE_URL",
       "MAIN_WINDOW_VITE_DEV_SERVER_URL",
       "npm_package_version",
-      "EAS_BUILD_PROFILE",
-      "EXPO_OS",
     ]) {
       expect(isPlatformVar(name)).toBe(true);
     }
@@ -69,7 +67,6 @@ describe("env-contract", () => {
 
   test("platform patterns do not swallow operator-owned prefixes", () => {
     for (const name of [
-      "EXPO_PUBLIC_CONVEX_URL",
       "E2E_PUBLIC_ORIGIN",
       "NEXT_PUBLIC_CONVEX_URL",
       "VITE_PUBLIC_CONVEX_URL",
@@ -94,7 +91,6 @@ describe("env-contract", () => {
     const credentialProviders = new Set([
       "convex-dashboard",
       "vercel",
-      "eas",
       "wrangler-secret",
       "cloudflare",
       "github-secrets",
