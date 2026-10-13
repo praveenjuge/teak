@@ -571,8 +571,8 @@ export const changeFolderCards = async (
     options
   );
   if (failedIds.length > 0) {
+    const limited = new Set(folderLimitIds);
     if (!options.json) {
-      const limited = new Set(folderLimitIds);
       process.stderr.write(
         `${failedIds
           .map(
@@ -582,6 +582,12 @@ export const changeFolderCards = async (
           .join("\n")}\n`
       );
     }
-    process.exitCode = exitCodeFor(new TeakApiError("NOT_FOUND"));
+    // Not found wins when any card is missing; a run where every failure is
+    // the per-card folder limit exits like the API's FOLDER_LIMIT error.
+    process.exitCode = exitCodeFor(
+      new TeakApiError(
+        failedIds.some((id) => !limited.has(id)) ? "NOT_FOUND" : "FOLDER_LIMIT"
+      )
+    );
   }
 };

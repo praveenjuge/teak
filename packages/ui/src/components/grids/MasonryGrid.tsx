@@ -165,12 +165,15 @@ export function MasonryGrid({
   // Choosing cards for a folder keeps selection mode on even with nothing
   // picked, until the user adds them or cancels.
   const keepSelectionMode = Boolean(addToFolder);
+  // Keyed on the folder ID: the screen passes a fresh object each render, and
+  // a render (loading more cards, a live update) must not clear the picks.
+  const addToFolderId = addToFolder?.id;
   useEffect(() => {
-    if (addToFolder) {
+    if (addToFolderId) {
       setIsSelectionMode(true);
       setSelectedCardIds(new Set());
     }
-  }, [addToFolder]);
+  }, [addToFolderId]);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(normalizedInitialBatchSize, filteredCards.length)
   );

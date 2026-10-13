@@ -147,7 +147,9 @@ const assertNameAvailable = async (
     .withIndex("by_userId_and_nameKey", (q) =>
       q.eq("userId", userId).eq("nameKey", nameKey)
     )
-    .take(2);
+    // Folders being deleted keep their name until their row is gone, so
+    // several rows can share a key; read them all (bounded by the cap).
+    .take(MAX_FOLDERS_PER_USER);
   if (
     sameName.some(
       (folder) => folder._id !== exceptId && folder.deletingAt === undefined

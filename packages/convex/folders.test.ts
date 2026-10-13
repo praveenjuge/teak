@@ -157,6 +157,20 @@ describe("folders", () => {
     ).rejects.toThrow("A folder with this name already exists");
   });
 
+  test("a name is still taken when older deleted folders share it", async () => {
+    const { owner, create } = await setup();
+    // Two folders named X are mid-delete (their rows remain), then a third
+    // X is active: "x" must still clash with it.
+    for (let round = 0; round < 2; round += 1) {
+      const gone = await create("X");
+      await owner.mutation(api.folders.deleteFolder, { folderId: gone._id });
+    }
+    await create("X");
+    await expect(create("x")).rejects.toThrow(
+      "A folder with this name already exists"
+    );
+  });
+
   test("names must be present and at most 300 characters", async () => {
     const { create } = await setup();
     await expect(create("   ")).rejects.toThrow("Name the folder");
@@ -305,6 +319,24 @@ describe("membership", () => {
       cardIds: [id],
     });
     expect((await card(id))?.folderIds).toEqual([c._id]);
+  });
+
+  test("a move without a source keeps folders that can still be undeleted", async () => {
+    const { owner, create, insert, card } = await setup();
+    const a = await create("A");
+    const c = await create("C");
+    const id = await insert({ content: "Card", type: "text" });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: a._id,
+      cardIds: [id],
+    });
+    await owner.mutation(api.folders.deleteFolder, { folderId: a._id });
+    await owner.mutation(api.folders.moveCardsToFolder, {
+      folderId: c._id,
+      cardIds: [id],
+    });
+    await owner.mutation(api.folders.restoreFolder, { folderId: a._id });
+    expect((await card(id))?.folderIds).toEqual([a._id, c._id]);
   });
 
   test(`a card can be in up to ${MAX_FOLDERS_PER_CARD} folders`, async () => {

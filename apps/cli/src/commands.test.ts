@@ -701,7 +701,9 @@ describe("teak batch and fallback behavior", () => {
     expect(added.stderr).toContain(
       "card_b: already in the most folders a card can be in"
     );
-    expect(added.code).not.toBe(0);
+    // Every failure was the folder limit, so it exits like an API error,
+    // not like a missing card.
+    expect(added.code).toBe(1);
 
     const missing = await teak("folders", "add", "Nope", "card_a");
     expect(missing.stderr).toContain("Folder not found: Nope");

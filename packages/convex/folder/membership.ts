@@ -58,6 +58,21 @@ const writeCardFolders = async (
   });
 };
 
+/** The folders in `folderIds` that are being deleted but can still be restored. */
+const foldersBeingDeleted = async (
+  ctx: MutationCtx,
+  folderIds: readonly Id<"folders">[]
+): Promise<Id<"folders">[]> => {
+  const deleting: Id<"folders">[] = [];
+  for (const id of folderIds) {
+    const folder = await ctx.db.get("folders", id);
+    if (folder?.deletingAt !== undefined) {
+      deleting.push(id);
+    }
+  }
+  return deleting;
+};
+
 /**
  * Replaces the card's folders with `folderIds` (the order given, duplicates
  * dropped). Every folder must be the user's.
@@ -78,12 +93,9 @@ export const setCardFoldersForUser = async (
   }
   // A folder deleted moments ago is hidden from the caller but can still be
   // restored; keep the card in it so Undo brings the folder back whole.
-  for (const id of card.folderIds ?? []) {
+  for (const id of await foldersBeingDeleted(ctx, card.folderIds ?? [])) {
     if (!next.includes(id)) {
-      const folder = await ctx.db.get("folders", id);
-      if (folder?.deletingAt !== undefined) {
-        next.push(id);
-      }
+      next.push(id);
     }
   }
   if (next.length > MAX_FOLDERS_PER_CARD) {
@@ -125,9 +137,11 @@ export const applyFolderMembership = async (
       next = current.filter((id) => id !== args.folderId);
       break;
     case "move": {
+      // Without a source, the card leaves every folder except ones still in
+      // their Undo window, so Undo brings those back whole.
       const kept = args.fromFolderId
         ? current.filter((id) => id !== args.fromFolderId)
-        : [];
+        : await foldersBeingDeleted(ctx, current);
       next = kept.includes(args.folderId) ? kept : [...kept, args.folderId];
       break;
     }
