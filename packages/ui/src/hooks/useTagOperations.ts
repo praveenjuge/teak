@@ -6,7 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   isTagOperationStalled,
+  TAG_OPERATION_OVERLAY_MS,
   type TagOperationView,
+  tagErrorCode,
   tagErrorMessage,
   tagOperationDescription,
   tagOperationTitle,
@@ -78,6 +80,31 @@ export function useTagOperations(): UseTagOperationsResult {
     [startMutation]
   );
 
+  // Retry runs the change again on the cards it did not reach. A rename that
+  // got part way has already put the new name on some cards, so the rest are
+  // merged into it, which writes the same name.
+  const retry = useCallback(
+    async (operation: TagOperationView) => {
+      const input = {
+        kind: operation.kind,
+        from: operation.from,
+        ...(operation.to === undefined ? {} : { to: operation.to }),
+      };
+      try {
+        return await start(input);
+      } catch (error) {
+        if (
+          operation.kind === "rename" &&
+          tagErrorCode(error) === "TAG_EXISTS"
+        ) {
+          return await start({ ...input, kind: "merge" });
+        }
+        throw error;
+      }
+    },
+    [start]
+  );
+
   // A change that stops making progress (a lost batch) turns into a failure
   // with Retry instead of a spinner that never ends.
   const [now, setNow] = useState(() => Date.now());
@@ -90,9 +117,32 @@ export function useTagOperations(): UseTagOperationsResult {
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(timer);
   }, [isRunning]);
+  // A finished change adjusts the tag list for a while; the clock moves once
+  // more when that ends, even if the background counts never refresh.
+  const overlayEndsAt =
+    latest?.status === "completed" && latest.completedAt !== undefined
+      ? latest.completedAt + TAG_OPERATION_OVERLAY_MS
+      : undefined;
+  useEffect(() => {
+    if (overlayEndsAt === undefined) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, overlayEndsAt - Date.now()) + 1
+    );
+    return () => clearTimeout(timer);
+  }, [overlayEndsAt]);
   const shown = useMemo(() => asStalled(operation, now), [now, operation]);
-  // The tag list stops showing a stalled change as if it had landed.
-  const shownLatest = useMemo(() => asStalled(latest, now), [latest, now]);
+  // The tag list stops showing a stalled change as if it had landed, and a
+  // finished one once its time is up.
+  const shownLatest = useMemo(
+    () =>
+      overlayEndsAt !== undefined && now > overlayEndsAt
+        ? null
+        : asStalled(latest, now),
+    [latest, now, overlayEndsAt]
+  );
 
   useEffect(() => {
     if (!shown || settledRef.current.has(shown._id)) {
@@ -118,17 +168,13 @@ export function useTagOperations(): UseTagOperationsResult {
       action: {
         label: "Retry",
         onClick: () => {
-          start({
-            kind: operation.kind,
-            from: operation.from,
-            ...(operation.to === undefined ? {} : { to: operation.to }),
-          }).catch((error) =>
+          retry(operation).catch((error) =>
             toast.error(tagErrorMessage(error, "Couldn't start the tag change"))
           );
         },
       },
     });
-  }, [shown, start]);
+  }, [retry, shown]);
 
   return { latest: shownLatest, operation: shown, start };
 }
