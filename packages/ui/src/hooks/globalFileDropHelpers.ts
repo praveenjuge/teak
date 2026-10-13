@@ -271,3 +271,21 @@ export function formatPartialFailureMessage(summary: BatchSummary): string {
 
   return `${base} First failure: ${firstFailure.file} — ${reason}`;
 }
+
+/**
+ * Tells people that files over the per-upload cap were left out.
+ *
+ * Example: "5 files were skipped. You can upload up to 20 at a time."
+ * Empty when nothing was skipped.
+ */
+export function formatSkippedNote(
+  skippedCount: number,
+  maxFiles: number
+): string {
+  if (skippedCount <= 0) {
+    return "";
+  }
+  const files =
+    skippedCount === 1 ? "1 file was" : `${skippedCount} files were`;
+  return `${files} skipped. You can upload up to ${maxFiles} at a time.`;
+}

@@ -7,6 +7,7 @@ import {
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,
+  formatSkippedNote,
   isBlockedDropTarget,
   isDataTransferItemFolder,
   summarizeBatchResults,
@@ -233,5 +234,20 @@ describe("summarizeBatchResults / formatPartialFailureMessage", () => {
     expect(formatPartialFailureMessage(summary)).toBe(
       "Uploaded 3 of 5 files. First failure: video.mov — is too large"
     );
+  });
+});
+
+describe("formatSkippedNote", () => {
+  test("says how many files were skipped and what the limit is", () => {
+    expect(formatSkippedNote(5, 20)).toBe(
+      "5 files were skipped. You can upload up to 20 at a time."
+    );
+    expect(formatSkippedNote(1, 20)).toBe(
+      "1 file was skipped. You can upload up to 20 at a time."
+    );
+  });
+
+  test("is empty when nothing was skipped", () => {
+    expect(formatSkippedNote(0, 20)).toBe("");
   });
 });

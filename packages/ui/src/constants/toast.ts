@@ -45,8 +45,8 @@ export const UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS: ExternalToast = {
 };
 
 /**
- * Upload notice that needs no action, such as files over the per-upload cap
- * being skipped. Long enough to read, then dismisses itself.
+ * Upload result that needs no action, such as an upload where files over the
+ * per-upload cap were skipped. Long enough to read, then dismisses itself.
  */
 export const UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS: ExternalToast = {
   duration: 6000,
