@@ -493,6 +493,13 @@ describe("library tag filter", () => {
     });
     await insert({ content: "gamma", tags: ["other"], createdAt: 3 });
     await insert({
+      content: "starred quote",
+      type: "quote",
+      tags: ["design"],
+      isFavorited: true,
+      createdAt: 3.5,
+    });
+    await insert({
       content: "archived design",
       tags: ["design"],
       isArchived: true,
@@ -516,12 +523,14 @@ describe("library tag filter", () => {
       ).page.map((card: { content: string }) => card.content);
 
     expect(await grid({ tag: " Design " })).toEqual([
+      "starred quote",
       "beta link",
       "alpha note",
     ]);
     expect(await grid({ tag: "design", sort: "oldest" })).toEqual([
       "alpha note",
       "beta link",
+      "starred quote",
     ]);
     expect(await grid({ tag: "design", showArchivedOnly: true })).toEqual([
       "archived design",
@@ -532,6 +541,22 @@ describe("library tag filter", () => {
     expect(await grid({ tag: "design", types: ["link"] })).toEqual([
       "beta link",
     ]);
+    expect(await grid({ tag: "design", types: ["link", "text"] })).toEqual([
+      "beta link",
+      "alpha note",
+    ]);
+    expect(await grid({ tag: "design", favoritesOnly: true })).toEqual([
+      "starred quote",
+    ]);
+    expect(
+      await grid({ tag: "design", favoritesOnly: true, types: ["quote"] })
+    ).toEqual(["starred quote"]);
+    expect(
+      await grid({ tag: "design", favoritesOnly: true, types: ["link"] })
+    ).toEqual([]);
+    expect(
+      await grid({ tag: "design", showTrashOnly: true, types: ["text"] })
+    ).toEqual(["trashed design"]);
     expect(await grid({ tag: "design", searchQuery: "alpha" })).toEqual([
       "alpha note",
     ]);

@@ -74,6 +74,14 @@ describe("applyTagOperationToSummary", () => {
     expect(
       applyTagOperationToSummary(items, operation({ status: "failed" }))
     ).toEqual(items);
+    // A change that stopped making progress only changed part of the library.
+    expect(
+      applyTagOperationToSummary(
+        items,
+        operation({ updatedAt: now - 121_000 }),
+        now
+      )
+    ).toEqual(items);
     expect(
       applyTagOperationToSummary(items, operation({ from: "missing" }))
     ).toEqual(items);

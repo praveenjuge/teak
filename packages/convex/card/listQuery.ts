@@ -267,40 +267,60 @@ export const buildTagCardListQuery = (
     return next;
   };
   const isDeleted = options.trash ? (true as const) : undefined;
-  const dated =
-    archived === "any"
-      ? ctx.db
-          .query("cardSearchTags")
-          .withIndex("by_user_tag_deleted_created", (q) =>
-            withDates(
-              q
-                .eq("userId", options.userId)
-                .eq("tag", options.tag)
-                .eq("isDeleted", isDeleted)
-            )
-          )
-      : ctx.db
-          .query("cardSearchTags")
-          .withIndex("by_user_tag_deleted_archived_created_v2", (q) =>
-            withDates(
-              q
-                .eq("userId", options.userId)
-                .eq("tag", options.tag)
-                .eq("isDeleted", isDeleted)
-                .eq("isArchived", archived)
-            )
-          );
-  if (!(types || options.favoritesOnly)) {
-    return dated;
-  }
-  return dated.filter((q) => {
-    const typeMatch = types
-      ? types
+  const singleType = types?.length === 1 ? types[0] : undefined;
+  const favorited = options.favoritesOnly === true;
+  // Every index below orders by date after its equality fields, so one type
+  // and favorites narrow the range instead of filtering it.
+  const range = (q: RangeBuilder): RangeBuilder => {
+    let next = q
+      .eq("userId", options.userId)
+      .eq("tag", options.tag)
+      .eq("isDeleted", isDeleted);
+    if (archived !== "any") {
+      next = next.eq("isArchived", archived);
+    }
+    if (singleType) {
+      next = next.eq("type", singleType);
+    }
+    if (favorited) {
+      next = next.eq("isFavorited", true);
+    }
+    return withDates(next);
+  };
+  const dated = ctx.db
+    .query("cardSearchTags")
+    .withIndex(tagListIndex(archived === "any", singleType, favorited), range);
+  return types && !singleType
+    ? dated.filter((q) =>
+        types
           .map((type) => q.eq(q.field("type"), type))
           .reduce((acc, condition) => q.or(acc, condition))
-      : true;
-    return options.favoritesOnly
-      ? q.and(typeMatch, q.eq(q.field("isFavorited"), true))
-      : typeMatch;
-  });
+      )
+    : dated;
+};
+
+/** The tag index matching a read's equality fields. */
+const tagListIndex = (
+  anyArchived: boolean,
+  singleType: CardType | undefined,
+  favorited: boolean
+) => {
+  if (anyArchived) {
+    if (singleType) {
+      return favorited
+        ? "by_user_tag_deleted_type_favorited"
+        : "by_user_tag_deleted_type";
+    }
+    return favorited
+      ? "by_user_tag_deleted_favorited"
+      : "by_user_tag_deleted_created";
+  }
+  if (singleType) {
+    return favorited
+      ? "by_user_tag_deleted_archived_type_favorited_v2"
+      : "by_user_tag_deleted_archived_type_v2";
+  }
+  return favorited
+    ? "by_user_tag_deleted_archived_favorited_v2"
+    : "by_user_tag_deleted_archived_created_v2";
 };

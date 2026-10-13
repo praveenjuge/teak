@@ -32,6 +32,15 @@ export interface UseTagOperationsResult {
 
 const toastId = (operationId: string) => `tag-operation-${operationId}`;
 
+/** A running change that has stopped making progress reads as failed. */
+const asStalled = <T extends TagOperationView | null | undefined>(
+  operation: T,
+  now: number
+): T =>
+  operation && isTagOperationStalled(operation, now)
+    ? { ...operation, status: "failed" as const }
+    : operation;
+
 /**
  * Library-wide tag changes: starting one, and a single toast that tracks it
  * until it finishes. A change already running (after a reload, or from
@@ -72,7 +81,8 @@ export function useTagOperations(): UseTagOperationsResult {
   // A change that stops making progress (a lost batch) turns into a failure
   // with Retry instead of a spinner that never ends.
   const [now, setNow] = useState(() => Date.now());
-  const isRunning = operation?.status === "running";
+  const isRunning =
+    operation?.status === "running" || latest?.status === "running";
   useEffect(() => {
     if (!isRunning) {
       return;
@@ -80,13 +90,9 @@ export function useTagOperations(): UseTagOperationsResult {
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(timer);
   }, [isRunning]);
-  const shown = useMemo(
-    () =>
-      operation && isTagOperationStalled(operation, now)
-        ? { ...operation, status: "failed" as const }
-        : operation,
-    [now, operation]
-  );
+  const shown = useMemo(() => asStalled(operation, now), [now, operation]);
+  // The tag list stops showing a stalled change as if it had landed.
+  const shownLatest = useMemo(() => asStalled(latest, now), [latest, now]);
 
   useEffect(() => {
     if (!shown || settledRef.current.has(shown._id)) {
@@ -124,5 +130,5 @@ export function useTagOperations(): UseTagOperationsResult {
     });
   }, [shown, start]);
 
-  return { latest, operation: shown, start };
+  return { latest: shownLatest, operation: shown, start };
 }

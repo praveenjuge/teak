@@ -117,6 +117,7 @@ export const tagOperationDescription = (operation: TagOperationView) => {
  * counts take a few seconds to follow, so a running or just-finished change
  * is applied on top. Rename and merge move the count to the target (a card
  * with both is counted twice until the counts refresh); delete drops the tag.
+ * A failed or stalled change shows the counts as they are.
  */
 export const applyTagOperationToSummary = (
   items: readonly TagSummaryItem[],
@@ -126,6 +127,7 @@ export const applyTagOperationToSummary = (
   if (
     !operation ||
     operation.status === "failed" ||
+    isTagOperationStalled(operation, now) ||
     (operation.status === "completed" &&
       now - (operation.completedAt ?? 0) > TAG_OPERATION_OVERLAY_MS)
   ) {
