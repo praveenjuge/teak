@@ -35,34 +35,74 @@ export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
     archive: "unarchive",
     unarchive: "archive",
     delete: "restore",
-    addToFolder: "removeFromFolder",
-    removeFromFolder: "addToFolder",
-    moveToFolder: "moveToFolder",
   };
 
+/** One step of an Undo: an action on some of the cards. */
+export interface BulkUndoStep {
+  action: BulkCardAction;
+  cardIds: string[];
+  /** The folder, for a folder step. */
+  folder?: BulkFolderTarget;
+}
+
 /**
- * The folder target that undoes a folder action: the same folder for add and
- * remove, and the way back for a move. A move out of every folder has no way
- * back, so it offers no Undo.
+ * The steps that put each card's folders back the way they were, from the
+ * folders each card was in before the action (`before`, by card ID). Cards
+ * the action left as they were need nothing: adding a card already in the
+ * folder must not take it out on Undo, and moving a card that was already in
+ * the destination only puts back the folder it left. A move out of every
+ * folder has no way back, so it offers no Undo (undefined).
  */
-export const undoFolderTarget = (
+export const folderUndoSteps = (
   action: BulkCardAction,
-  target: BulkFolderTarget | undefined
-): BulkFolderTarget | undefined => {
-  if (!target) {
+  target: BulkFolderTarget,
+  updatedIds: readonly string[],
+  before: ReadonlyMap<string, readonly string[]>
+): BulkUndoStep[] | undefined => {
+  const had = (cardId: string, folderId: string) =>
+    (before.get(cardId) ?? []).includes(folderId);
+  const destination = {
+    folderId: target.folderId,
+    folderName: target.folderName,
+  };
+  let steps: BulkUndoStep[];
+  if (action === "addToFolder") {
+    steps = [
+      {
+        action: "removeFromFolder",
+        cardIds: updatedIds.filter((id) => !had(id, target.folderId)),
+        folder: destination,
+      },
+    ];
+  } else if (action === "removeFromFolder") {
+    steps = [
+      {
+        action: "addToFolder",
+        cardIds: updatedIds.filter((id) => had(id, target.folderId)),
+        folder: destination,
+      },
+    ];
+  } else if (action === "moveToFolder" && target.fromFolderId) {
+    const source = target.fromFolderId;
+    steps = [
+      {
+        action: "removeFromFolder",
+        cardIds: updatedIds.filter((id) => !had(id, target.folderId)),
+        folder: destination,
+      },
+      {
+        action: "addToFolder",
+        cardIds: updatedIds.filter((id) => had(id, source)),
+        folder: {
+          folderId: source,
+          folderName: target.fromFolderName ?? "the folder",
+        },
+      },
+    ];
+  } else {
     return;
   }
-  if (action !== "moveToFolder") {
-    return target;
-  }
-  return target.fromFolderId
-    ? {
-        folderId: target.fromFolderId,
-        folderName: target.fromFolderName ?? "the folder",
-        fromFolderId: target.folderId,
-        fromFolderName: target.folderName,
-      }
-    : undefined;
+  return steps.filter((step) => step.cardIds.length > 0);
 };
 
 const COPY: Record<

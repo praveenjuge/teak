@@ -189,48 +189,40 @@ export const buildFolderCardListQuery = (
   const types = options.types?.length ? options.types : undefined;
   const archived = archivedFilterMatch(options.archived, options.trash);
   const bounds = options.createdAt;
-  const query = ctx.db
-    .query("folderCards")
-    .withIndex("by_folder_deleted_archived_created", (q) => {
-      const range = q
-        .eq("folderId", options.folderId)
-        .eq("isDeleted", options.trash ? true : undefined);
-      if (archived === "any") {
-        // Trash, or archived and not: isArchived stays open, so the dates
-        // are filtered below instead.
-        return range;
-      }
-      let next: RangeBuilder = range.eq("isArchived", archived);
-      if (bounds?.gte !== undefined) {
-        next = next.gte("cardCreatedAt", bounds.gte);
-      }
-      if (bounds?.lte !== undefined) {
-        next = next.lte("cardCreatedAt", bounds.lte);
-      } else if (bounds?.lt !== undefined) {
-        next = next.lt("cardCreatedAt", bounds.lt);
-      }
-      return next;
-    });
+  const withDates = (range: RangeBuilder): RangeBuilder => {
+    let next = range;
+    if (bounds?.gte !== undefined) {
+      next = next.gte("cardCreatedAt", bounds.gte);
+    }
+    if (bounds?.lte !== undefined) {
+      next = next.lte("cardCreatedAt", bounds.lte);
+    } else if (bounds?.lt !== undefined) {
+      next = next.lt("cardCreatedAt", bounds.lt);
+    }
+    return next;
+  };
+  const isDeleted = options.trash ? (true as const) : undefined;
+  // Trash, or archived and not: rows of both archive states, ordered by date
+  // across them.
   const dated =
-    archived === "any" &&
-    (bounds?.gte !== undefined ||
-      bounds?.lte !== undefined ||
-      bounds?.lt !== undefined)
-      ? query.filter((q) => {
-          const after = q.gte(
-            q.field("cardCreatedAt"),
-            bounds?.gte ?? Number.MIN_SAFE_INTEGER
+    archived === "any"
+      ? ctx.db
+          .query("folderCards")
+          .withIndex("by_folder_deleted_created", (q) =>
+            withDates(
+              q.eq("folderId", options.folderId).eq("isDeleted", isDeleted)
+            )
+          )
+      : ctx.db
+          .query("folderCards")
+          .withIndex("by_folder_deleted_archived_created", (q) =>
+            withDates(
+              q
+                .eq("folderId", options.folderId)
+                .eq("isDeleted", isDeleted)
+                .eq("isArchived", archived)
+            )
           );
-          const before =
-            bounds?.lte === undefined
-              ? q.lt(
-                  q.field("cardCreatedAt"),
-                  bounds?.lt ?? Number.MAX_SAFE_INTEGER
-                )
-              : q.lte(q.field("cardCreatedAt"), bounds.lte);
-          return q.and(after, before);
-        })
-      : query;
   return types
     ? dated.filter((q) =>
         types

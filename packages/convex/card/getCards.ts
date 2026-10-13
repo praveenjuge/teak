@@ -90,6 +90,11 @@ export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
 const getVisualSearchBatchLimit = (desiredLimit: number) =>
   Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
+/**
+ * Most folder rows a color, style or favorites view of one folder reads; a
+ * larger folder is filtered within its newest (or oldest) cards.
+ */
+const FOLDER_FILTER_SCAN_LIMIT = 1000;
 
 export const getCards = query({
   args: {
@@ -454,6 +459,50 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
+  // Colors, styles and favorites inside a folder: the library-wide search
+  // indexes can't narrow to one folder, so read the folder's own rows (in
+  // date order) and filter them here.
+  if (folderId && (visualFilters.hasVisualFilters || favoritesOnly)) {
+    const rawCursor = paginationOpts.cursor ?? "0";
+    const parsedCursor = Number(rawCursor);
+    const offset = clampSearchOffset(
+      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+    );
+    const pageSize = clampPageSize(paginationOpts.numItems);
+    const rows = await buildFolderCardListQuery(ctx, {
+      folderId,
+      trash: showTrashOnly,
+      archived,
+      types,
+      createdAt: createdAtRange
+        ? { gte: createdAtRange.start, lt: createdAtRange.end }
+        : undefined,
+    })
+      .order(order)
+      .take(FOLDER_FILTER_SCAN_LIMIT);
+    const cards: Doc<"cards">[] = [];
+    for (const row of rows) {
+      const card = await ctx.db.get("cards", row.cardId);
+      if (card) {
+        cards.push(card);
+      }
+    }
+    const matches = applyCardLevelFilters(cards, {
+      types,
+      favoritesOnly,
+      createdAtRange,
+      visualFilters,
+    });
+    const page = matches.slice(offset, offset + pageSize);
+    const isDone = matches.length <= offset + pageSize;
+    const pageWithUrls = await attachListUrls(ctx, page);
+    return {
+      page: applyQuoteFormattingToList(pageWithUrls),
+      isDone,
+      continueCursor: isDone ? null : String(offset + pageSize),
+    };
+  }
+
   if (visualFilters.hasVisualFilters) {
     const rawCursor = paginationOpts.cursor ?? "0";
     const parsedCursor = Number(rawCursor);
@@ -475,9 +524,8 @@ export const searchCardsPaginatedHandler = async (
       sort,
     });
 
-    const folderResults = visualResults.filter(inFolder);
-    const page = folderResults.slice(offset, offset + pageSize);
-    const isDone = folderResults.length <= offset + pageSize;
+    const page = visualResults.slice(offset, offset + pageSize);
+    const isDone = visualResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
     const pageWithUrls = await attachListUrls(ctx, page);
 
@@ -503,7 +551,7 @@ export const searchCardsPaginatedHandler = async (
     const folderCards: Doc<"cards">[] = [];
     for (const row of rows.page) {
       const card = await ctx.db.get("cards", row.cardId);
-      if (card && (!favoritesOnly || card.isFavorited === true)) {
+      if (card) {
         folderCards.push(card);
       }
     }

@@ -4,8 +4,8 @@ import {
   applyBulkActionToCard,
   bulkActionCopy,
   collectCardLinks,
+  folderUndoSteps,
   runBulkInChunks,
-  undoFolderTarget,
 } from "../bulkCardActions";
 
 const card = (overrides: Partial<Doc<"cards">> = {}) =>
@@ -161,22 +161,67 @@ describe("folder bulk actions", () => {
     ).toEqual(["b", "c"] as never);
   });
 
-  test("Undo of a move goes back the way it came", () => {
+  test("Undo of an add leaves cards that were already in the folder", () => {
+    const before = new Map([
+      ["c1", []],
+      ["c2", ["r"]],
+    ]);
     expect(
-      undoFolderTarget("moveToFolder", {
-        folderId: "c",
-        folderName: "C",
-        fromFolderId: "a",
-        fromFolderName: "A",
-      })
-    ).toEqual({
-      folderId: "a",
-      folderName: "A",
-      fromFolderId: "c",
-      fromFolderName: "C",
-    });
+      folderUndoSteps(
+        "addToFolder",
+        { folderId: "r", folderName: "Reading" },
+        ["c1", "c2"],
+        before
+      )
+    ).toEqual([
+      {
+        action: "removeFromFolder",
+        cardIds: ["c1"],
+        folder: { folderId: "r", folderName: "Reading" },
+      },
+    ]);
+  });
+
+  test("Undo of a move puts back the source and keeps an earlier destination", () => {
+    // c1 was only in A; c2 was in A and already in C.
+    const before = new Map([
+      ["c1", ["a"]],
+      ["c2", ["a", "c"]],
+    ]);
     expect(
-      undoFolderTarget("moveToFolder", { folderId: "c", folderName: "C" })
+      folderUndoSteps(
+        "moveToFolder",
+        {
+          folderId: "c",
+          folderName: "C",
+          fromFolderId: "a",
+          fromFolderName: "A",
+        },
+        ["c1", "c2"],
+        before
+      )
+    ).toEqual([
+      {
+        action: "removeFromFolder",
+        cardIds: ["c1"],
+        folder: { folderId: "c", folderName: "C" },
+      },
+      {
+        action: "addToFolder",
+        cardIds: ["c1", "c2"],
+        folder: { folderId: "a", folderName: "A" },
+      },
+    ]);
+  });
+
+  test("a move out of every folder offers no Undo", () => {
+    expect(
+      folderUndoSteps(
+        "moveToFolder",
+        { folderId: "c", folderName: "C" },
+        ["c1"],
+        new Map()
+      )
     ).toBeUndefined();
   });
 

@@ -8,16 +8,24 @@ import {
   type BulkCardAction,
   type BulkFolderTarget,
   type BulkRunResult,
+  type BulkUndoStep,
   bulkActionCopy,
+  folderUndoSteps,
   runBulkInChunks,
   UNDO_BULK_ACTION,
-  undoFolderTarget,
 } from "../lib/bulkCardActions";
 import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 export interface BulkActionOptions {
   /** The folder a folder action targets. */
   folder?: BulkFolderTarget;
+  /**
+   * For folder actions: the folders each card was in before, by card ID, so
+   * Undo puts back exactly what changed.
+   */
+  priorFolderIds?: ReadonlyMap<string, readonly string[]>;
+  /** Skip the progress and success toasts (errors still show). */
+  silent?: boolean;
   /** The tags Add tags or Remove tags applies. */
   tags?: string[];
 }
@@ -59,7 +67,7 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
       runCount.current += 1;
       const toastId = `${toastIdPrefix}-bulk-${runCount.current}`;
       const total = new Set(cardIds).size;
-      if (total > 1) {
+      if (total > 1 && !options.silent) {
         toast.loading(bulkActionCopy.progress(action, 0, total), {
           id: toastId,
         });
@@ -85,7 +93,7 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
               : {}),
           }),
         (done, count) => {
-          if (count > 1 && done < count) {
+          if (count > 1 && done < count && !options.silent) {
             toast.loading(bulkActionCopy.progress(action, done, count), {
               id: toastId,
             });
@@ -95,21 +103,42 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
 
       const { updatedIds, failedIds } = result;
       const folderName = options.folder?.folderName;
-      const undoFolder = undoFolderTarget(action, options.folder);
-      const undo =
-        options.folder && !undoFolder ? undefined : UNDO_BULK_ACTION[action];
+      const plainUndo = UNDO_BULK_ACTION[action];
+      let undoSteps: BulkUndoStep[] | undefined;
+      if (options.folder) {
+        undoSteps = folderUndoSteps(
+          action,
+          options.folder,
+          updatedIds,
+          options.priorFolderIds ?? new Map()
+        );
+      } else if (plainUndo) {
+        undoSteps = [{ action: plainUndo, cardIds: updatedIds }];
+      }
+      const runUndo = async (steps: BulkUndoStep[]) => {
+        for (const [index, step] of steps.entries()) {
+          // Steps run in order; only the last one reports, so a move's Undo
+          // shows one toast.
+          // react-doctor-disable-next-line react-doctor/async-await-in-loop
+          await run(step.action, step.cardIds, {
+            folder: step.folder,
+            silent: index < steps.length - 1,
+          });
+        }
+      };
       if (failedIds.length === 0) {
+        if (options.silent) {
+          return result;
+        }
         toast.success(
           bulkActionCopy.done(action, updatedIds.length, folderName),
           {
             id: toastId,
-            action: undo
+            action: undoSteps?.length
               ? {
                   label: "Undo",
                   onClick: () => {
-                    run(undo, updatedIds, { folder: undoFolder }).catch(
-                      () => undefined
-                    );
+                    runUndo(undoSteps).catch(() => undefined);
                   },
                 }
               : undefined,

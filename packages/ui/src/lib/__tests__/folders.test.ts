@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  decodeFolderSegment,
   type FolderSummary,
   filterFolders,
   folderIdForPath,
@@ -61,5 +62,12 @@ describe("hasFolderNamed", () => {
   test("a folder being renamed does not clash with its own name", () => {
     expect(hasFolderNamed(FOLDERS, "MOODBOARD", "f2")).toBe(false);
     expect(hasFolderNamed(FOLDERS, "Reading list", "f2")).toBe(true);
+  });
+});
+
+describe("decodeFolderSegment", () => {
+  test("decodes escapes and keeps a mangled one as typed", () => {
+    expect(decodeFolderSegment("a%20b")).toBe("a b");
+    expect(decodeFolderSegment("%E0")).toBe("%E0");
   });
 });

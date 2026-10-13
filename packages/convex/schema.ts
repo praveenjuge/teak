@@ -758,6 +758,13 @@ export default defineSchema({
       "isArchived",
       "cardCreatedAt",
     ])
+    // Trash and "archived: include" list archived and active rows together,
+    // so they need the date right after the Trash flag to stay in order.
+    .index("by_folder_deleted_created", [
+      "folderId",
+      "isDeleted",
+      "cardCreatedAt",
+    ])
     .index("by_cardId_and_folderId", ["cardId", "folderId"])
     .index("by_userId", ["userId"]),
   userCardUsage: defineTable({

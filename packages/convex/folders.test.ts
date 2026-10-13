@@ -428,6 +428,83 @@ describe("folder view", () => {
     expect((await folder(trip._id))?.activeCardCount).toBe(3);
   });
 
+  test("colors and favorites find the folder's older cards past a busy library", async () => {
+    const { owner, create, insert } = await setup();
+    const shelf = await create("Shelf");
+    const oldRed = await insert({
+      content: "Old red",
+      type: "palette",
+      colorHues: ["red"],
+      isFavorited: true,
+      createdAt: 10,
+    });
+    const inFolder = [oldRed];
+    // The folder's newest cards are neither red nor favorites, and the
+    // library holds many newer red favorites outside the folder.
+    for (let index = 0; index < 5; index += 1) {
+      inFolder.push(
+        await insert({
+          content: `Plain ${index}`,
+          type: "text",
+          createdAt: 100 + index,
+        })
+      );
+    }
+    for (let index = 0; index < 40; index += 1) {
+      await insert({
+        content: `Other red ${index}`,
+        type: "palette",
+        colorHues: ["red"],
+        isFavorited: true,
+        createdAt: 1000 + index,
+      });
+    }
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: shelf._id,
+      cardIds: inFolder,
+    });
+    const firstPage = async (args: Record<string, unknown>) =>
+      (
+        await owner.query(api.cards.searchCardsPaginated, {
+          paginationOpts: { numItems: 2, cursor: null },
+          folderId: shelf._id,
+          ...args,
+        })
+      ).page.map((item: { content: string }) => item.content);
+
+    expect(await firstPage({ hueFilters: ["red"] })).toEqual(["Old red"]);
+    expect(await firstPage({ favoritesOnly: true })).toEqual(["Old red"]);
+  });
+
+  test("Trash in a folder is in date order across archived and active cards", async () => {
+    const { owner, create, insert, grid } = await setup();
+    const box = await create("Box");
+    const ids = [
+      await insert({ content: "Newest", type: "text", createdAt: 3000 }),
+      await insert({ content: "Middle", type: "text", createdAt: 2000 }),
+      await insert({ content: "Oldest", type: "text", createdAt: 1000 }),
+    ];
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: box._id,
+      cardIds: ids,
+    });
+    await owner.mutation(api.cards.updateCardField, {
+      cardId: ids[1],
+      field: "archive",
+    });
+    for (const cardId of ids) {
+      await owner.mutation(api.cards.updateCardField, {
+        cardId,
+        field: "delete",
+      });
+    }
+    expect(await grid({ folderId: box._id, showTrashOnly: true })).toEqual([
+      "Newest",
+      "Middle",
+      "Oldest",
+    ]);
+  });
+
   test("a hard-deleted card leaves no folder rows behind", async () => {
     const { t, owner, create, insert, rows, folder, runScheduled } =
       await setup();

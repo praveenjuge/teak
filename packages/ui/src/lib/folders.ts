@@ -53,14 +53,19 @@ export const folderIdForPath = (
   pathname: string | null | undefined
 ): string | null => {
   const match = /^\/f\/([^/]+)\/?$/.exec(pathname ?? "");
-  if (!match) {
-    return null;
-  }
+  return match ? decodeFolderSegment(match[1]) : null;
+};
+
+/**
+ * A folder ID from its address segment. A mangled escape (`/f/%E0`) is kept
+ * as typed instead of throwing; no folder has that ID, so the page shows
+ * Folder not found.
+ */
+export const decodeFolderSegment = (segment: string): string => {
   try {
-    return decodeURIComponent(match[1]);
+    return decodeURIComponent(segment);
   } catch {
-    // A mangled escape (/f/%E0) is no folder; the page shows Not found.
-    return match[1];
+    return segment;
   }
 };
 

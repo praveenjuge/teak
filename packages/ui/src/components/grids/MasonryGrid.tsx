@@ -90,7 +90,11 @@ export interface MasonryGridProps {
   onBulkAction?: (
     action: BulkCardAction,
     cardIds: string[],
-    options?: { folder?: BulkFolderTarget; tags?: string[] }
+    options?: {
+      folder?: BulkFolderTarget;
+      priorFolderIds?: ReadonlyMap<string, readonly string[]>;
+      tags?: string[];
+    }
   ) => Promise<{ failedIds: string[] }>;
   onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
@@ -366,7 +370,19 @@ export function MasonryGrid({
       }
       setIsBulkBusy(true);
       try {
-        const { failedIds } = await onBulkAction(action, cardIds, options);
+        // Each card's folders before the action, so Undo restores them.
+        const priorFolderIds = options.folder
+          ? new Map(
+              selectedCards.map((card) => [
+                card._id as string,
+                (card.folderIds ?? []) as string[],
+              ])
+            )
+          : undefined;
+        const { failedIds } = await onBulkAction(action, cardIds, {
+          ...options,
+          priorFolderIds,
+        });
         if (failedIds.length === 0) {
           exitSelectionMode();
           if (addToFolder) {
@@ -387,6 +403,7 @@ export function MasonryGrid({
       onAddToFolderDone,
       onBulkAction,
       selectedCardIds,
+      selectedCards,
     ]
   );
 
