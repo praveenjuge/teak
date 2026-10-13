@@ -11,6 +11,7 @@ import {
   TeakApiError,
   type TeakClient,
 } from "@teak/convex/sdk";
+import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
 import { InvalidArgumentError } from "commander";
 import {
   type ClientOptions,
@@ -629,6 +630,12 @@ const waitForTagOperation = async (
   let operation = started;
   let delay = intervalMs ?? FIRST_POLL_MS;
   while (operation.status === "running") {
+    // A change that stopped making progress (a lost batch) won't finish:
+    // report it like a failure instead of waiting forever.
+    if (Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS) {
+      operation = { ...operation, status: "failed" };
+      break;
+    }
     if (process.stderr.isTTY) {
       process.stderr.write(
         `\r${operation.changed} of ${cardsLabel(operation.total)} changed…`

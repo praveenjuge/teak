@@ -222,22 +222,23 @@ export const countTagSummaryPage = internalQuery({
 
 /**
  * Starts a recompute: clears the pending marker so tag changes from here on
- * schedule another. False when there is nothing to do (the marker is gone,
- * for example swept by account deletion) or the account is being deleted.
+ * schedule another, and returns when it was claimed. Null when there is
+ * nothing to do (the marker is gone, for example swept by account deletion)
+ * or the account is being deleted.
  */
 export const claimTagSummaryRefresh = internalMutation({
   args: { userId: v.string() },
-  returns: v.boolean(),
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, { userId }) => {
     if (await getAccountDeletionState(ctx, userId)) {
-      return false;
+      return null;
     }
     const pending = await pendingRefresh(ctx, userId);
     if (!pending) {
-      return false;
+      return null;
     }
     await ctx.db.delete("tagSummaryRefreshes", pending._id);
-    return true;
+    return Date.now();
   },
 });
 
@@ -246,17 +247,24 @@ export const writeTagSummary = internalMutation({
     userId: v.string(),
     items: v.array(tagSummaryItemValidator),
     isComplete: v.boolean(),
+    /** When the recompute claimed its marker: what the counts are as of. */
+    claimedAt: v.number(),
   },
   returns: v.null(),
-  handler: async (ctx, { userId, items, isComplete }) => {
+  handler: async (ctx, { userId, items, isComplete, claimedAt }) => {
     if (await getAccountDeletionState(ctx, userId)) {
       return null;
     }
-    const value = { userId, items, isComplete, computedAt: Date.now() };
+    const value = { userId, items, isComplete, computedAt: claimedAt };
     const existing = await ctx.db
       .query("userTagSummaries")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
+    // Recomputes can overlap; one that started earlier never replaces the
+    // counts of one that started later.
+    if (existing && existing.computedAt > claimedAt) {
+      return null;
+    }
     if (existing) {
       await ctx.db.replace("userTagSummaries", existing._id, value);
     } else {
@@ -275,11 +283,11 @@ export const recomputeTagSummary = internalAction({
   args: { userId: v.string() },
   returns: v.null(),
   handler: async (ctx, { userId }) => {
-    const claimed: boolean = await ctx.runMutation(
+    const claimedAt: number | null = await ctx.runMutation(
       internal.tag.tagSummary.claimTagSummaryRefresh,
       { userId }
     );
-    if (!claimed) {
+    if (claimedAt === null) {
       return null;
     }
     const totals = new Map<string, number>();
@@ -308,6 +316,7 @@ export const recomputeTagSummary = internalAction({
       userId,
       items: items.slice(0, MAX_TAG_SUMMARY_ITEMS),
       isComplete: state === null && items.length <= MAX_TAG_SUMMARY_ITEMS,
+      claimedAt,
     });
     return null;
   },

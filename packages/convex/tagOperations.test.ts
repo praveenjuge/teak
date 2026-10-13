@@ -421,6 +421,24 @@ describe("tag summary snapshot", () => {
   }, 30_000);
 });
 
+describe("overlapping recomputes", () => {
+  test("a recompute that started earlier never replaces newer counts", async () => {
+    const { t, summary } = await setup();
+    const write = (claimedAt: number, name: string) =>
+      t.mutation(internal.tag.tagSummary.writeTagSummary, {
+        userId: "owner",
+        items: [{ name, count: 1 }],
+        isComplete: true,
+        claimedAt,
+      });
+    await write(2000, "newer");
+    await write(1000, "older");
+    expect((await summary())?.items).toEqual([{ name: "newer", count: 1 }]);
+    await write(3000, "newest");
+    expect((await summary())?.items).toEqual([{ name: "newest", count: 1 }]);
+  });
+});
+
 describe("tag listings with many small tags", () => {
   test("the snapshot pages by tags and the live listing stops at its bound, without failing", async () => {
     const { t, summary } = await setup();

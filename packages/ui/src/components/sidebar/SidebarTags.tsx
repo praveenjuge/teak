@@ -32,7 +32,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   type StartTagOperationInput,
   useTagOperations,
@@ -49,6 +49,8 @@ import {
 } from "../modals/TagManagerDialog";
 
 const SKELETON_WIDTHS = ["58%", "44%", "66%"];
+/** How long to wait before asking for a first tag snapshot again. */
+const SUMMARY_RETRY_MS = 5000;
 /** With more tags than this, "Show all" adds a box to find one. */
 const TAG_FILTER_THRESHOLD = 12;
 
@@ -167,16 +169,23 @@ export function SidebarTags({ activeTag, onSelectTag }: SidebarTagsProps) {
     target?: string;
   } | null>(null);
 
-  // No snapshot yet (a first visit): ask for one once.
-  const requestedRef = useRef(false);
+  // No snapshot yet (a first visit): ask for one, and ask again a little
+  // later if the request fails.
+  const [request, setRequest] = useState<"idle" | "pending" | "failed">("idle");
   useEffect(() => {
-    if (summary === null && !requestedRef.current) {
-      requestedRef.current = true;
-      requestSummary({}).catch(() => {
-        requestedRef.current = false;
-      });
+    if (summary !== null || request !== "idle") {
+      return;
     }
-  }, [requestSummary, summary]);
+    setRequest("pending");
+    requestSummary({}).catch(() => setRequest("failed"));
+  }, [request, requestSummary, summary]);
+  useEffect(() => {
+    if (request !== "failed") {
+      return;
+    }
+    const retry = setTimeout(() => setRequest("idle"), SUMMARY_RETRY_MS);
+    return () => clearTimeout(retry);
+  }, [request]);
 
   const items = useMemo(
     () =>

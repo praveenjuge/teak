@@ -776,6 +776,7 @@ export default defineSchema({
     items: v.array(v.object({ name: v.string(), count: v.number() })),
     // False when the snapshot stopped at its row or item bound.
     isComplete: v.boolean(),
+    // When the recompute that wrote it started: the counts are as of then.
     computedAt: v.number(),
   }).index("by_userId", ["userId"]),
   // Exists only while a snapshot recompute is scheduled, so a burst of tag

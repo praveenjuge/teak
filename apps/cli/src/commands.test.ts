@@ -378,7 +378,7 @@ describe("teak parity commands", () => {
       changed,
       error: null,
       createdAt: 1,
-      updatedAt: 1,
+      updatedAt: Date.now(),
       completedAt: status === "completed" ? 2 : null,
     });
     let polls = 0;
@@ -407,6 +407,29 @@ describe("teak parity commands", () => {
 
     const started = await teak("tags", "rename", "Design", "Design Systems");
     expect(started.stdout).toContain("Check with: teak tags status op_1");
+  });
+
+  test("tags status --wait stops on a change that stopped making progress", async () => {
+    const stalled = {
+      id: "op_3",
+      kind: "delete",
+      from: "old",
+      to: null,
+      status: "running",
+      total: 10,
+      processed: 4,
+      changed: 4,
+      error: null,
+      createdAt: 1,
+      updatedAt: Date.now() - 10 * 60_000,
+      completedAt: null,
+    };
+    routes.set("GET /v1/tags/operations/op_3", () => json(stalled));
+    const result = await teak("tags", "status", "op_3", "--wait");
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stdout.trim()).toBe(
+      'Couldn\'t finish deleting "old". 4 of 10 cards changed.'
+    );
   });
 
   test("tags merge and status report a failed change with the API exit code", async () => {
