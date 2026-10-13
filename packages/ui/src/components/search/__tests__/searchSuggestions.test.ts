@@ -86,6 +86,24 @@ describe("buildSearchSuggestions", () => {
     ]);
   });
 
+  test("a hex color after # keeps Enter for the color", () => {
+    const hexy = {
+      tags: [
+        { name: "fff", count: 3 },
+        { name: "fffour", count: 1 },
+      ],
+    };
+    for (const token of ["#fff", "#FFF", "#3b82f6", "#bad,"]) {
+      expect(buildSearchSuggestions(token, hexy).completingValue).toBe(false);
+    }
+    // The tags are still offered to pick on purpose.
+    expect(inserts("#bad")).toEqual([]);
+    expect(
+      buildSearchSuggestions("#fff", hexy).suggestions.map((s) => s.insert)
+    ).toEqual(["tag:fff", "tag:fffour"]);
+    expect(buildSearchSuggestions("#fffo", hexy).completingValue).toBe(true);
+  });
+
   test("#tag completes tags", () => {
     expect(inserts("#dev")).toEqual(["tag:devops"]);
   });
