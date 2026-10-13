@@ -12,6 +12,7 @@ export * from "./card/getFileUrl";
 export * from "./card/mobileCardSummaries";
 export * from "./card/processingStatus";
 export * from "./card/quoteFormatting";
+export * from "./card/topSites";
 export * from "./card/updateCard";
 export * from "./card/uploadCard";
 export * from "./card/uploadCardAction";

@@ -8,6 +8,7 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 
@@ -186,6 +187,22 @@ export const restartCardSearchTagSync = async (
   }
 };
 
+/**
+ * A card write with `urlHost` kept beside a changed `url`, so the site
+ * lands in the same write (the search sync repairs any write without it).
+ */
+export const withUrlHost = <T extends object>(value: T): T => {
+  if (!("url" in value)) {
+    return value;
+  }
+  const { url } = value as { url?: unknown };
+  return {
+    ...value,
+    urlHost:
+      normalizeUrlHost(typeof url === "string" ? url : undefined) ?? undefined,
+  };
+};
+
 export const patchCardWithSearchSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -206,7 +223,7 @@ export const patchCardWithSearchSync = async (
   if (card && (await getAccountDeletionState(ctx, card.userId))) {
     return false;
   }
-  await ctx.db.patch("cards", cardId, value);
+  await ctx.db.patch("cards", cardId, withUrlHost(value));
   const searchableFields = [
     ...SEARCH_FIELDS,
     "tags",
@@ -218,6 +235,7 @@ export const patchCardWithSearchSync = async (
     "isArchived",
     "createdAt",
     "folderIds",
+    "url",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
@@ -264,6 +282,13 @@ export const syncCardSearchDocumentHandler = async (
     await syncCardFolderRows(ctx, cardId, card);
   }
 
+  // The card's site follows its URL here, the one place every card write
+  // passes through, so `site:` and its index never drift from `url`.
+  const urlHost = normalizeUrlHost(card.url) ?? undefined;
+  if (card.urlHost !== urlHost) {
+    await ctx.db.patch("cards", cardId, { urlHost });
+  }
+
   const value = {
     cardId,
     userId: card.userId,
@@ -272,6 +297,7 @@ export const syncCardSearchDocumentHandler = async (
     type: card.type,
     isFavorited: card.isFavorited,
     isArchived: card.isArchived === true ? (true as const) : undefined,
+    urlHost,
     sourceUpdatedAt: card.updatedAt,
   };
   if (existing) {
@@ -281,7 +307,8 @@ export const syncCardSearchDocumentHandler = async (
       existing.isDeleted !== value.isDeleted ||
       existing.type !== value.type ||
       existing.isFavorited !== value.isFavorited ||
-      existing.isArchived !== value.isArchived
+      existing.isArchived !== value.isArchived ||
+      existing.urlHost !== value.urlHost
     ) {
       await ctx.db.replace("cardSearchDocuments", existing._id, value);
     }
@@ -727,6 +754,8 @@ export const searchCardsByDocument = async (
     /** Archived cards to match outside Trash; defaults to `"exclude"`. */
     archived?: ArchivedFilter;
     type?: Doc<"cards">["type"];
+    /** Only cards on this normalized host (`site:`). */
+    urlHost?: string;
     limit: number;
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     resultFilter?: (card: Doc<"cards">) => boolean;
@@ -761,6 +790,9 @@ export const searchCardsByDocument = async (
           "isFavorited",
           args.isFavorited ? true : undefined
         );
+      }
+      if (args.urlHost !== undefined) {
+        filtered = filtered.eq("urlHost", args.urlHost);
       }
       return filtered;
     })

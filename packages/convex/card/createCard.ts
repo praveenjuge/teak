@@ -19,6 +19,7 @@ import {
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { startWorkflow } from "../workflows/manager";
@@ -225,6 +226,7 @@ export const createCardForUserHandler = async (
     content: finalContent,
     type: cardType,
     url: finalUrl,
+    urlHost: normalizeUrlHost(finalUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
     tags: args.tags,

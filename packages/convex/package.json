@@ -24,6 +24,7 @@
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
     "./shared/utils/safeUrl": "./shared/utils/safeUrl.ts",
     "./shared/utils/timeSearch": "./shared/utils/timeSearch.ts",
+    "./shared/utils/urlHost": "./shared/utils/urlHost.ts",
     "./_generated/api": "./_generated/api.js",
     "./_generated/dataModel": "./_generated/dataModel.js"
   },

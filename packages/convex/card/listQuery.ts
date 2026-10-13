@@ -172,6 +172,34 @@ export const buildCardListQuery = (
 };
 
 /**
+ * Cards on one site (`site:`), newest or oldest first: active cards, or
+ * archived ones with `archived: "only"`. `host` is a normalized host
+ * (shared/utils/urlHost.ts). Trash and "archived and not" read the plain
+ * list instead, since this index needs one archive state.
+ */
+export const buildHostCardListQuery = (
+  ctx: QueryCtx,
+  options: {
+    archived?: "exclude" | "only";
+    createdAt?: CreatedAtBounds;
+    host: string;
+    userId: string;
+  }
+) =>
+  ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted_archived_host_created", (q) =>
+      withCreatedAt(
+        q
+          .eq("userId", options.userId)
+          .eq("isDeleted", undefined)
+          .eq("isArchived", options.archived === "only" ? true : undefined)
+          .eq("urlHost", options.host),
+        options.createdAt
+      )
+    );
+
+/**
  * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
  * Archive like the library: active cards by default, archived ones with
  * `archived: "only"`, trashed ones with `trash`. Callers load each row's card.
