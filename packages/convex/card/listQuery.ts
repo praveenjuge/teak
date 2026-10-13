@@ -233,3 +233,74 @@ export const buildFolderCardListQuery = (
       )
     : dated;
 };
+
+/**
+ * Cards with one tag, from the tag index in date order: Trash, Archive or
+ * the library. `tag` is the lowercase name the index stores. Types and
+ * favorites narrow the index range; other filters apply to the cards.
+ */
+export const buildTagCardListQuery = (
+  ctx: QueryCtx,
+  options: {
+    archived?: ArchivedFilter;
+    createdAt?: CreatedAtBounds;
+    favoritesOnly?: boolean;
+    tag: string;
+    trash?: boolean;
+    types?: readonly CardType[];
+    userId: string;
+  }
+) => {
+  const types = options.types?.length ? options.types : undefined;
+  const archived = archivedFilterMatch(options.archived, options.trash);
+  const bounds = options.createdAt;
+  const withDates = (range: RangeBuilder): RangeBuilder => {
+    let next = range;
+    if (bounds?.gte !== undefined) {
+      next = next.gte("cardCreatedAt", bounds.gte);
+    }
+    if (bounds?.lte !== undefined) {
+      next = next.lte("cardCreatedAt", bounds.lte);
+    } else if (bounds?.lt !== undefined) {
+      next = next.lt("cardCreatedAt", bounds.lt);
+    }
+    return next;
+  };
+  const isDeleted = options.trash ? (true as const) : undefined;
+  const dated =
+    archived === "any"
+      ? ctx.db
+          .query("cardSearchTags")
+          .withIndex("by_user_tag_deleted_created", (q) =>
+            withDates(
+              q
+                .eq("userId", options.userId)
+                .eq("tag", options.tag)
+                .eq("isDeleted", isDeleted)
+            )
+          )
+      : ctx.db
+          .query("cardSearchTags")
+          .withIndex("by_user_tag_deleted_archived_created_v2", (q) =>
+            withDates(
+              q
+                .eq("userId", options.userId)
+                .eq("tag", options.tag)
+                .eq("isDeleted", isDeleted)
+                .eq("isArchived", archived)
+            )
+          );
+  if (!(types || options.favoritesOnly)) {
+    return dated;
+  }
+  return dated.filter((q) => {
+    const typeMatch = types
+      ? types
+          .map((type) => q.eq(q.field("type"), type))
+          .reduce((acc, condition) => q.or(acc, condition))
+      : true;
+    return options.favoritesOnly
+      ? q.and(typeMatch, q.eq(q.field("isFavorited"), true))
+      : typeMatch;
+  });
+};

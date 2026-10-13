@@ -12,6 +12,7 @@ import {
   folderByIdV1,
   foldersV1,
   listCardsV1,
+  tagOperationsV1,
   tagsV1,
 } from "./publicApiHttp";
 import { meV1 } from "./publicApiMe";
@@ -76,6 +77,9 @@ for (const path of [
   "/v1/cards/bulk",
   "/v1/cards/changes",
   "/v1/tags",
+  "/v1/tags/rename",
+  "/v1/tags/merge",
+  "/v1/tags/delete",
   "/v1/folders",
   "/v1/exports",
   "/v1/exports/latest",
@@ -95,6 +99,12 @@ http.route({
 
 http.route({
   pathPrefix: "/v1/folders/",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
+http.route({
+  pathPrefix: "/v1/tags/operations/",
   method: "OPTIONS",
   handler: v1CorsPreflight,
 });
@@ -159,6 +169,16 @@ http.route({
   path: "/v1/tags",
   method: "GET",
   handler: tagsV1,
+});
+
+for (const path of ["/v1/tags/rename", "/v1/tags/merge", "/v1/tags/delete"]) {
+  http.route({ path, method: "POST", handler: tagOperationsV1 });
+}
+
+http.route({
+  pathPrefix: "/v1/tags/operations/",
+  method: "GET",
+  handler: tagOperationsV1,
 });
 
 for (const method of ["GET", "POST"] as const) {

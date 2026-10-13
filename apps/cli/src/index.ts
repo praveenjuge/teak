@@ -35,6 +35,8 @@ import {
   restoreCards,
   setCardsArchived,
   startExport,
+  startTagOperation,
+  tagOperationStatus,
   updateFolder,
   whoami,
 } from "./library";
@@ -564,6 +566,44 @@ tags
   .argument("<id>")
   .argument("<tags...>")
   .action(async (id, names) => editTags(id, names, "remove", program.opts()));
+tags
+  .command("rename")
+  .argument("<from>", "the tag to rename, in any capitalization")
+  .argument("<to>", "the new name, as written")
+  .description("Rename a tag on every card, including Trash and Archive")
+  .option("--wait", "wait until every card has changed")
+  .action(async (from, to, options) =>
+    startTagOperation("rename", from, to, { ...program.opts(), ...options })
+  );
+tags
+  .command("merge")
+  .argument("<from>", "the tag to merge away")
+  .argument("<into>", "the tag to keep")
+  .description("Replace a tag with another on every card")
+  .option("--wait", "wait until every card has changed")
+  .action(async (from, into, options) =>
+    startTagOperation("merge", from, into, { ...program.opts(), ...options })
+  );
+tags
+  .command("delete")
+  .argument("<tag>")
+  .description("Remove a tag from every card; the cards are kept")
+  .option("--wait", "wait until every card has changed")
+  .option("-y, --yes", "don't ask for confirmation")
+  .action(async (tag, options) =>
+    startTagOperation("delete", tag, undefined, {
+      ...program.opts(),
+      ...options,
+    })
+  );
+tags
+  .command("status")
+  .argument("<operationId>")
+  .description("Show how far a tag rename, merge, or delete got")
+  .option("--wait", "wait until it finishes")
+  .action(async (id, options) =>
+    tagOperationStatus(id, { ...program.opts(), ...options })
+  );
 
 const parseFolderColor = oneOf("color", FOLDER_COLORS);
 const folders = program

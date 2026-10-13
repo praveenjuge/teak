@@ -25,6 +25,10 @@ import {
   handleFoldersRequest,
 } from "./publicApiHttpFolders";
 import { errorResponse, type PublicApiOperation } from "./publicApiHttpShared";
+import {
+  handleTagOperationRequest,
+  isTagOperationPath,
+} from "./publicApiHttpTags";
 import { handleMeRequest } from "./publicApiMe";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import type { WorkosResource } from "./workosTokens";
@@ -102,6 +106,9 @@ export const executePublicApiOperation = (
   }
   if (request.method === "GET" && pathname === "/v1/tags") {
     return handleTagsRequest(ctx, request, resource);
+  }
+  if (isTagOperationPath(pathname)) {
+    return handleTagOperationRequest(ctx, request, resource);
   }
   if (pathname === "/v1/folders") {
     return handleFoldersRequest(ctx, request, resource);
@@ -222,4 +229,8 @@ export const foldersV1 = withGatewayHeaders((ctx, request) =>
 
 export const folderByIdV1 = withGatewayHeaders((ctx, request) =>
   handleFolderByIdRequest(ctx, request)
+);
+
+export const tagOperationsV1 = withGatewayHeaders((ctx, request) =>
+  handleTagOperationRequest(ctx, request)
 );

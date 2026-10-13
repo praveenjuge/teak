@@ -192,11 +192,36 @@ export const ancillaryPage = internalMutation({
     for (const folder of folders) {
       await ctx.db.delete(folder._id);
     }
+    // Tag snapshots, pending recomputes and tag operations hold no card ids.
+    const tagSummaries = await ctx.db
+      .query("userTagSummaries")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(10);
+    for (const row of tagSummaries) {
+      await ctx.db.delete(row._id);
+    }
+    const tagRefreshes = await ctx.db
+      .query("tagSummaryRefreshes")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(10);
+    for (const row of tagRefreshes) {
+      await ctx.db.delete(row._id);
+    }
+    const tagOperations = await ctx.db
+      .query("tagOperations")
+      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of tagOperations) {
+      await ctx.db.delete(row._id);
+    }
     return (
       idempotency.length > 0 ||
       moreTombstones ||
       folderRows.length > 0 ||
-      folders.length > 0
+      folders.length > 0 ||
+      tagSummaries.length > 0 ||
+      tagRefreshes.length > 0 ||
+      tagOperations.length > 0
     );
   },
 });

@@ -5,6 +5,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDER_NAME_LENGTH,
 } from "../shared/folders";
+import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { captureBackendEvent } from "../telemetry/posthog";
 
 type JsonObject = Record<string, unknown>;
@@ -209,6 +210,21 @@ const folderCardsInputSchema = z.object({
   cardIds: z.array(nonEmptyString).min(1).max(MAX_FOLDER_CARD_IDS),
 });
 
+const tagNameSchema = nonEmptyString.max(MAX_TAG_NAME_LENGTH);
+const renameTagInputSchema = z.object({
+  from: tagNameSchema,
+  to: tagNameSchema,
+});
+const mergeTagsInputSchema = z.object({
+  from: tagNameSchema,
+  into: tagNameSchema,
+});
+const deleteTagInputSchema = z.object({
+  tag: tagNameSchema,
+  confirm: z.literal(true),
+});
+const tagOperationInputSchema = z.object({ operationId: nonEmptyString });
+
 const updateCardInputSchema = z
   .object({
     cardId: nonEmptyString,
@@ -400,6 +416,55 @@ export const TEAK_V1_TOOLS = [
     description: "List tags used by saved cards.",
     annotations: { title: "List tags", ...READ_ONLY },
     inputSchema: inputSchema({}),
+  },
+  {
+    name: "teak_v1_rename_tag",
+    description:
+      "Rename a tag on every card (user and AI tags, including Trash and Archive), matching it ignoring case. Runs in the background: poll teak_v1_get_tag_operation. Renaming onto an existing tag fails; merge instead.",
+    annotations: { title: "Rename tag", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        from: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        to: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+      },
+      ["from", "to"]
+    ),
+  },
+  {
+    name: "teak_v1_merge_tags",
+    description:
+      "Replace one tag with another on every card; a card with both keeps one. Runs in the background: poll teak_v1_get_tag_operation.",
+    annotations: { title: "Merge tags", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        from: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        into: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+      },
+      ["from", "into"]
+    ),
+  },
+  {
+    name: "teak_v1_delete_tag",
+    description:
+      "Remove a tag from every card. The cards are kept. Runs in the background: poll teak_v1_get_tag_operation. `confirm` must be true.",
+    annotations: { title: "Delete tag", ...DESTRUCTIVE },
+    inputSchema: inputSchema(
+      {
+        tag: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        confirm: { const: true },
+      },
+      ["tag", "confirm"]
+    ),
+  },
+  {
+    name: "teak_v1_get_tag_operation",
+    description:
+      "Get the progress of a tag rename, merge or delete: status, cards changed and total.",
+    annotations: { title: "Get tag operation", ...READ_ONLY },
+    inputSchema: inputSchema(
+      { operationId: { type: "string", minLength: 1 } },
+      ["operationId"]
+    ),
   },
   {
     name: "teak_v1_get_card_changes",
@@ -1030,6 +1095,43 @@ const toolConfigs: Record<string, ToolConfig> = {
     schema: z.object({}),
     operation: () => ({ method: "GET", path: "/v1/tags" }),
     summary: (payload) => `Fetched ${count(payload)} tags`,
+  },
+  teak_v1_rename_tag: {
+    schema: renameTagInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/tags/rename",
+      body: { from: input.from, to: input.to },
+    }),
+    summary: (_payload, input) => `Renaming tag ${input.from} to ${input.to}`,
+  },
+  teak_v1_merge_tags: {
+    schema: mergeTagsInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/tags/merge",
+      body: { from: input.from, into: input.into },
+    }),
+    summary: (_payload, input) =>
+      `Merging tag ${input.from} into ${input.into}`,
+  },
+  teak_v1_delete_tag: {
+    schema: deleteTagInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: "/v1/tags/delete",
+      body: { tag: input.tag },
+    }),
+    summary: (_payload, input) => `Deleting tag ${input.tag}`,
+  },
+  teak_v1_get_tag_operation: {
+    schema: tagOperationInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: `/v1/tags/operations/${encodeURIComponent(input.operationId)}`,
+    }),
+    summary: (payload) =>
+      `Tag ${String(payload.kind ?? "change")} ${String(payload.status ?? "")}: ${countLabel(Number(payload.changed) || 0, "card")} changed of ${Number(payload.total) || 0}`,
   },
   teak_v1_get_card_changes: {
     schema: getCardChangesInputSchema,

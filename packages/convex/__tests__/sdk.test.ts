@@ -323,6 +323,80 @@ describe("@teak/convex/sdk", () => {
     expect(buildCardsSearchParams({ archived: "exclude" })).toBe("limit=50");
   });
 
+  test("starts tag changes and polls their progress", async () => {
+    const sent: Array<{ body: unknown; method: string; url: string }> = [];
+    const operation = {
+      id: "op1",
+      kind: "rename",
+      from: "design",
+      to: "Design Systems",
+      status: "running",
+      total: 3,
+      processed: 0,
+      changed: 0,
+      error: null,
+      createdAt: 1,
+      updatedAt: 1,
+      completedAt: null,
+    };
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        const method = String(init?.method);
+        sent.push({
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          method,
+          url: String(url),
+        });
+        if (String(url).endsWith("/v1/tags/delete")) {
+          return Promise.resolve(
+            Response.json(
+              {
+                code: "TAG_OPERATION_RUNNING",
+                error: "Another tag change is still running",
+              },
+              { status: 409 }
+            )
+          );
+        }
+        return Promise.resolve(
+          Response.json(
+            method === "POST"
+              ? { operationId: "op1", ...operation }
+              : operation,
+            { status: method === "POST" ? 202 : 200 }
+          )
+        );
+      }) as typeof fetch,
+    });
+
+    expect(await client.tags.rename("Design", "Design Systems")).toEqual(
+      operation
+    );
+    await client.tags.merge("ux", "research");
+    expect((await client.tags.operation("op 1")).status).toBe("running");
+    const refused = await client.tags.delete("old").catch((error) => error);
+    expect(refused).toMatchObject({
+      code: "TAG_OPERATION_RUNNING",
+      status: 409,
+    });
+    expect(sent.map(({ method, url, body }) => [method, url, body])).toEqual([
+      [
+        "POST",
+        "https://api.example/v1/tags/rename",
+        { from: "Design", to: "Design Systems" },
+      ],
+      [
+        "POST",
+        "https://api.example/v1/tags/merge",
+        { from: "ux", into: "research" },
+      ],
+      ["GET", "https://api.example/v1/tags/operations/op%201", undefined],
+      ["POST", "https://api.example/v1/tags/delete", { tag: "old" }],
+    ]);
+  });
+
   test("manages folders and their cards", async () => {
     const sent: Array<{ body: unknown; method: string; url: string }> = [];
     const folder = {

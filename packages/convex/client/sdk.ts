@@ -44,6 +44,8 @@ export const ERROR_CODES = [
   "PARSE_ERROR",
   "RATE_LIMITED",
   "REQUEST_FAILED",
+  "TAG_EXISTS",
+  "TAG_OPERATION_RUNNING",
   "TIMEOUT",
   "UNAUTHORIZED",
 ] as const;
@@ -162,6 +164,28 @@ export interface Folder {
   id: string;
   kind: "manual" | "smart";
   name: string;
+  updatedAt: number;
+}
+export type TagOperationKind = "rename" | "merge" | "delete";
+export type TagOperationStatus = "running" | "completed" | "failed";
+/** A library-wide tag rename, merge or delete, finished in the background. */
+export interface TagOperation {
+  /** Cards rewritten so far. */
+  changed: number;
+  completedAt: number | null;
+  createdAt: number;
+  error: string | null;
+  /** The tag being changed, lowercased. */
+  from: string;
+  id: string;
+  kind: TagOperationKind;
+  /** Cards looked at so far. */
+  processed: number;
+  status: TagOperationStatus;
+  /** The new name (rename) or the tag merged into (merge). */
+  to: string | null;
+  /** Cards carrying the tag when the change started. */
+  total: number;
   updatedAt: number;
 }
 export interface FolderCardsResult {
@@ -498,6 +522,20 @@ const asFolderCards = (value: unknown): FolderCardsResult => {
       : [],
   };
 };
+const asTagOperation = (value: unknown): TagOperation => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== "string" ||
+    typeof value.status !== "string"
+  ) {
+    throw new TeakApiError(
+      "PARSE_ERROR",
+      "Teak returned an unexpected tag operation payload."
+    );
+  }
+  const { operationId: _operationId, ...operation } = value;
+  return operation as unknown as TagOperation;
+};
 const asTags = (value: unknown): { items: TagSummary[] } => {
   if (!(isObject(value) && Array.isArray(value.items))) {
     throw new TeakApiError("PARSE_ERROR");
@@ -788,7 +826,38 @@ export const createTeakClient = (options: {
     },
     me: () => request("/v1/me", { method: "GET" }, asMe),
     tags: {
+      /**
+       * Deletes a tag from every card, including cards in Trash and Archive.
+       * It finishes in the background; poll with `operation`.
+       */
+      delete: (tag: string) =>
+        request(
+          "/v1/tags/delete",
+          { body: JSON.stringify({ tag }), method: "POST" },
+          asTagOperation
+        ),
       list: () => request("/v1/tags", { method: "GET" }, asTags),
+      /** Replaces `from` with `into` on every card; it finishes in the background. */
+      merge: (from: string, into: string) =>
+        request(
+          "/v1/tags/merge",
+          { body: JSON.stringify({ from, into }), method: "POST" },
+          asTagOperation
+        ),
+      /** A tag change's progress. */
+      operation: (id: string) =>
+        request(
+          `/v1/tags/operations/${encodeURIComponent(id)}`,
+          { method: "GET" },
+          asTagOperation
+        ),
+      /** Renames a tag on every card; it finishes in the background. */
+      rename: (from: string, to: string) =>
+        request(
+          "/v1/tags/rename",
+          { body: JSON.stringify({ from, to }), method: "POST" },
+          asTagOperation
+        ),
     },
     uploads: {
       create: (input: CreateUploadInput) =>

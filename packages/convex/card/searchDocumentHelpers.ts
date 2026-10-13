@@ -8,6 +8,7 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 
 const internalAny = internal as any;
@@ -474,6 +475,10 @@ export const syncCardSearchTagsBatchHandler = async (
       });
     } else {
       await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    // The card's tag rows are final: the sidebar's tag counts follow.
+    if (ownerId) {
+      await markTagSummaryDirty(ctx, ownerId);
     }
     return { complete: true, processed: oldTags.length, writes };
   }

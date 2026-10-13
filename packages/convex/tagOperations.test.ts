@@ -1,0 +1,486 @@
+/// <reference types="vite/client" />
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
+import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
+import { convexTest } from "convex-test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
+import { api, internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import schema from "./schema";
+import { TAG_OPERATION_STALL_MS } from "./shared/tags";
+import { TAG_OPERATION_BATCH_SIZE } from "./tag/tagOperations";
+import { TAG_SUMMARY_PAGE_ROWS } from "./tag/tagSummary";
+
+const modules = import.meta.glob("./**/*.ts");
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
+
+type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
+
+const setup = async () => {
+  const t = convexTest(schema, modules);
+  rateLimiterTest.register(t, "rateLimiterV2");
+  workflowTest.register(t);
+  workosTest.register(t);
+  const workosUserId = await seedWorkosOwner(t, "owner");
+  const strangerWorkosId = await seedWorkosOwner(t, "stranger");
+  const identity = (subject: string, externalId: string) =>
+    t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject,
+      sid: `session_${externalId}`,
+      email_verified: true,
+      external_id: externalId,
+    });
+  const owner = identity(workosUserId, "owner");
+  const stranger = identity(strangerWorkosId, "stranger");
+
+  const runScheduled = () => t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  const insert = async (seed: CardSeed, userId = "owner") => {
+    const id = await t.run(async (ctx) => {
+      const cardId = await ctx.db.insert("cards", {
+        userId,
+        type: "text",
+        content: "card",
+        createdAt: 1000,
+        updatedAt: 1000,
+        ...seed,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      return cardId;
+    });
+    return id;
+  };
+
+  const card = (cardId: Id<"cards">) =>
+    t.run((ctx) => ctx.db.get("cards", cardId));
+
+  const start = (
+    kind: "rename" | "merge" | "delete",
+    from: string,
+    to?: string,
+    as = owner
+  ) => as.mutation(api.tags.startTagOperation, { kind, from, to });
+
+  const summary = () => owner.query(api.tags.listTagSummary, {});
+
+  return { t, owner, stranger, insert, card, start, summary, runScheduled };
+};
+
+describe("library-wide tag operations", () => {
+  test("rename collapses case variants in user and AI tags, in Trash and Archive too", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const active = await insert({ tags: ["Design", "web"] });
+    const trashed = await insert({
+      tags: ["DESIGN"],
+      isDeleted: true,
+      deletedAt: 1000,
+    });
+    const archived = await insert({
+      aiTags: ["design", "ui"],
+      isArchived: true,
+    });
+    const both = await insert({ tags: ["design"], aiTags: ["Design"] });
+    const other = await insert({ tags: ["designer"] });
+    await runScheduled();
+
+    const operation = await start("rename", "design", "Design Systems");
+    expect(operation).toMatchObject({
+      kind: "rename",
+      from: "design",
+      to: "Design Systems",
+      status: "running",
+      total: 4,
+    });
+    await runScheduled();
+
+    expect((await card(active))?.tags).toEqual(["Design Systems", "web"]);
+    expect((await card(trashed))?.tags).toEqual(["Design Systems"]);
+    // AI tags stay AI tags.
+    expect((await card(archived))?.aiTags).toEqual(["Design Systems", "ui"]);
+    expect((await card(archived))?.tags).toBeUndefined();
+    expect((await card(both))?.tags).toEqual(["Design Systems"]);
+    expect((await card(both))?.aiTags).toEqual(["Design Systems"]);
+    expect((await card(other))?.tags).toEqual(["designer"]);
+  });
+
+  test("progress is recorded and the operation completes", async () => {
+    const { owner, insert, start, runScheduled } = await setup();
+    const count = TAG_OPERATION_BATCH_SIZE + 5;
+    for (let index = 0; index < count; index += 1) {
+      await insert({ tags: ["bulk"], createdAt: 1000 + index });
+    }
+    await insert({ tags: ["unrelated"] });
+    await runScheduled();
+
+    const operation = await start("delete", "BULK");
+    await runScheduled();
+    const done = await owner.query(api.tags.getTagOperation, {
+      operationId: operation._id,
+    });
+    expect(done).toMatchObject({
+      status: "completed",
+      total: count,
+      processed: count,
+      changed: count,
+    });
+    expect(done?.completedAt).toBeTypeOf("number");
+    expect(await owner.query(api.tags.getLatestTagOperation, {})).toMatchObject(
+      { _id: operation._id, status: "completed" }
+    );
+  });
+
+  test("merge dedupes and keeps the casing a card already uses for the target", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const hasBoth = await insert({ tags: ["UX", "Research", "ux"] });
+    const onlySource = await insert({ tags: ["ux"] });
+    await insert({ tags: ["research"] });
+    await runScheduled();
+
+    await expect(start("merge", "ux", "UX")).rejects.toThrow(
+      "Choose a different tag to merge into"
+    );
+    await start("merge", "ux", "research");
+    await runScheduled();
+    expect((await card(hasBoth))?.tags).toEqual(["Research"]);
+    expect((await card(onlySource))?.tags).toEqual(["research"]);
+  });
+
+  test("delete removes the tag from user and AI tags", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const id = await insert({ tags: ["Old", "keep"], aiTags: ["old"] });
+    const onlyTag = await insert({ tags: ["old"] });
+    await runScheduled();
+    await start("delete", "old");
+    await runScheduled();
+    expect((await card(id))?.tags).toEqual(["keep"]);
+    expect((await card(id))?.aiTags).toBeUndefined();
+    expect((await card(onlyTag))?.tags).toBeUndefined();
+  });
+
+  test("renaming onto an existing tag suggests a merge; a case-only rename is allowed", async () => {
+    const { insert, card, start, runScheduled } = await setup();
+    const id = await insert({ tags: ["design", "Web"] });
+    await runScheduled();
+    await expect(start("rename", "design", "WEB")).rejects.toThrow(
+      "TAG_EXISTS"
+    );
+    await start("rename", "design", "Design");
+    await runScheduled();
+    expect((await card(id))?.tags).toEqual(["Design", "Web"]);
+  });
+
+  test("refuses missing tags and bad names", async () => {
+    const { insert, start, runScheduled } = await setup();
+    await insert({ tags: ["real"] });
+    await runScheduled();
+    await expect(start("delete", "ghost")).rejects.toThrow("Tag not found");
+    await expect(start("rename", "real", "   ")).rejects.toThrow(
+      "Name the tag"
+    );
+    await expect(start("rename", "real", "x".repeat(65))).rejects.toThrow(
+      "Tags can be at most 64 characters"
+    );
+  });
+
+  test("one operation runs at a time per user; a stalled one is replaced", async () => {
+    const { t, stranger, insert, start, runScheduled } = await setup();
+    await insert({ tags: ["a", "b"] });
+    await insert({ tags: ["mine"] }, "stranger");
+    await runScheduled();
+
+    const first = await start("rename", "a", "alpha");
+    await expect(start("delete", "b")).rejects.toThrow(
+      "Another tag change is still running"
+    );
+    // Another user is not blocked.
+    await start("delete", "mine", undefined, stranger);
+
+    // A running operation that stopped moving no longer blocks.
+    await t.run((ctx) =>
+      ctx.db.patch("tagOperations", first._id, {
+        updatedAt: Date.now() - TAG_OPERATION_STALL_MS - 1,
+      })
+    );
+    const second = await start("delete", "b");
+    expect(second.status).toBe("running");
+    const stalled = await t.run((ctx) =>
+      ctx.db.get("tagOperations", first._id)
+    );
+    expect(stalled?.status).toBe("failed");
+  });
+
+  test("edits made while the operation runs are kept", async () => {
+    const { t, insert, card, start, runScheduled } = await setup();
+    const id = await insert({ tags: ["draft"], notes: "before" });
+    await runScheduled();
+    await start("rename", "draft", "final");
+    // The card is edited before the batch reaches it.
+    await t.run((ctx) =>
+      ctx.db.patch("cards", id, {
+        notes: "after",
+        tags: ["draft", "added-later"],
+      })
+    );
+    await runScheduled();
+    const updated = await card(id);
+    expect(updated?.notes).toBe("after");
+    expect(updated?.tags).toEqual(["final", "added-later"]);
+  });
+
+  test("stands down while the account is being deleted", async () => {
+    const { t, insert, card, start, runScheduled } = await setup();
+    const id = await insert({ tags: ["keep-me"] });
+    await runScheduled();
+    const operation = await start("delete", "keep-me");
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: "owner",
+        startedAt: Date.now(),
+      })
+    );
+    await t.mutation(internal.tag.tagOperations.runTagOperationBatch, {
+      operationId: operation._id,
+    });
+    expect((await card(id))?.tags).toEqual(["keep-me"]);
+    // New changes are refused meanwhile.
+    await t.run(async (ctx) => {
+      await ctx.db.patch("tagOperations", operation._id, {
+        status: "completed",
+      });
+    });
+    await expect(start("delete", "keep-me")).rejects.toThrow();
+  });
+
+  test("another user's operation reads as missing", async () => {
+    const { owner, stranger, insert, start, runScheduled } = await setup();
+    await insert({ tags: ["secret"] });
+    await runScheduled();
+    const operation = await start("delete", "secret");
+    expect(
+      await stranger.query(api.tags.getTagOperation, {
+        operationId: operation._id,
+      })
+    ).toBeNull();
+    expect(
+      await owner.query(api.tags.getTagOperation, { operationId: "nope" })
+    ).toBeNull();
+  });
+});
+
+describe("tag summary snapshot", () => {
+  test("counts tags on cards outside Trash and Archive, most-used first", async () => {
+    const { owner, insert, summary, runScheduled } = await setup();
+    expect(await summary()).toBeNull();
+    await owner.mutation(api.tags.requestTagSummary, {});
+    await runScheduled();
+    expect(await summary()).toMatchObject({ items: [], isComplete: true });
+
+    await insert({ tags: ["Design", "web"] });
+    await insert({ tags: ["design"], aiTags: ["UI"] });
+    await insert({ tags: ["design"], isDeleted: true, deletedAt: 1000 });
+    await insert({ tags: ["archived-only"], isArchived: true });
+    await runScheduled();
+
+    expect((await summary())?.items).toEqual([
+      { name: "design", count: 2 },
+      { name: "ui", count: 1 },
+      { name: "web", count: 1 },
+    ]);
+  });
+
+  test("a burst of tag changes schedules one recompute", async () => {
+    const { t, insert } = await setup();
+    // Tag syncs finish within the burst; the recompute waits 15 seconds.
+    for (let index = 0; index < 5; index += 1) {
+      await insert({ tags: [`tag-${index}`] });
+    }
+    await t.finishInProgressScheduledFunctions();
+    for (let round = 0; round < 10; round += 1) {
+      vi.advanceTimersByTime(1);
+      await t.finishInProgressScheduledFunctions();
+    }
+    const scheduled = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect()
+    );
+    const recomputes = scheduled.filter((job) =>
+      job.name.includes("recomputeTagSummary")
+    );
+    expect(recomputes).toHaveLength(1);
+    const refreshes = await t.run((ctx) =>
+      ctx.db.query("tagSummaryRefreshes").collect()
+    );
+    expect(refreshes).toHaveLength(1);
+  });
+
+  test("pages through more rows than one page reads, including a tag split across pages", async () => {
+    const { t, owner, summary } = await setup();
+    const big = TAG_SUMMARY_PAGE_ROWS + 50;
+    await t.run(async (ctx) => {
+      for (let index = 0; index < big; index += 1) {
+        // Every card shares one date, so a page boundary falls among rows
+        // with the same date.
+        const cardId = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `card ${index}`,
+          createdAt: 5000,
+          updatedAt: 5000,
+          tags: ["big"],
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId,
+          userId: "owner",
+          tag: "big",
+          type: "text",
+          cardCreatedAt: 5000,
+          sourceUpdatedAt: 5000,
+          syncGeneration: 1,
+        });
+        if (index < 3) {
+          await ctx.db.insert("cardSearchTags", {
+            cardId,
+            userId: "owner",
+            tag: "small",
+            type: "text",
+            cardCreatedAt: 5000,
+            sourceUpdatedAt: 5000,
+            syncGeneration: 1,
+          });
+        }
+      }
+      await ctx.db.insert("tagSummaryRefreshes", { userId: "owner", dueAt: 0 });
+    });
+    await t.action(internal.tag.tagSummary.recomputeTagSummary, {
+      userId: "owner",
+    });
+    expect(await summary()).toMatchObject({
+      items: [
+        { name: "big", count: big },
+        { name: "small", count: 3 },
+      ],
+      isComplete: true,
+    });
+    // A recompute without a pending marker (swept by account deletion) does
+    // nothing.
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("userTagSummaries").first();
+      if (row) {
+        await ctx.db.patch("userTagSummaries", row._id, { items: [] });
+      }
+    });
+    await t.action(internal.tag.tagSummary.recomputeTagSummary, {
+      userId: "owner",
+    });
+    expect((await owner.query(api.tags.listTagSummary, {}))?.items).toEqual([]);
+  }, 30_000);
+});
+
+describe("tag listings with many small tags", () => {
+  test("the snapshot pages by tags and the live listing stops at its bound, without failing", async () => {
+    const { t, summary } = await setup();
+    const distinct = 1200;
+    await t.run(async (ctx) => {
+      for (let index = 0; index < distinct; index += 1) {
+        const tag = `topic-${String(index).padStart(4, "0")}`;
+        const cardId = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: tag,
+          createdAt: 1000 + index,
+          updatedAt: 1000,
+          tags: [tag],
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId,
+          userId: "owner",
+          tag,
+          type: "text",
+          cardCreatedAt: 1000 + index,
+          sourceUpdatedAt: 1000,
+          syncGeneration: 1,
+        });
+      }
+      await ctx.db.insert("tagSummaryRefreshes", { userId: "owner", dueAt: 0 });
+    });
+    await t.action(internal.tag.tagSummary.recomputeTagSummary, {
+      userId: "owner",
+    });
+    const snapshot = await summary();
+    expect(snapshot?.items).toHaveLength(distinct);
+    expect(snapshot?.isComplete).toBe(true);
+
+    const live = await t.query(internal.publicApi.listTagsForUser, {
+      userId: "owner",
+    });
+    expect(live.items).toHaveLength(500);
+    expect(live.isComplete).toBe(false);
+  }, 30_000);
+});
+
+describe("library tag filter", () => {
+  test("lists a tag's cards in each view, combined with search, types and folders", async () => {
+    const { owner, insert, runScheduled } = await setup();
+    await insert({ content: "alpha note", tags: ["Design"], createdAt: 1 });
+    await insert({
+      content: "beta link",
+      type: "link",
+      aiTags: ["design"],
+      createdAt: 2,
+    });
+    await insert({ content: "gamma", tags: ["other"], createdAt: 3 });
+    await insert({
+      content: "archived design",
+      tags: ["design"],
+      isArchived: true,
+      createdAt: 4,
+    });
+    await insert({
+      content: "trashed design",
+      tags: ["DESIGN"],
+      isDeleted: true,
+      deletedAt: 5,
+      createdAt: 5,
+    });
+    await runScheduled();
+
+    const grid = async (args: Record<string, unknown>) =>
+      (
+        await owner.query(api.cards.searchCardsPaginated, {
+          paginationOpts: { numItems: 50, cursor: null },
+          ...args,
+        })
+      ).page.map((card: { content: string }) => card.content);
+
+    expect(await grid({ tag: " Design " })).toEqual([
+      "beta link",
+      "alpha note",
+    ]);
+    expect(await grid({ tag: "design", sort: "oldest" })).toEqual([
+      "alpha note",
+      "beta link",
+    ]);
+    expect(await grid({ tag: "design", showArchivedOnly: true })).toEqual([
+      "archived design",
+    ]);
+    expect(await grid({ tag: "design", showTrashOnly: true })).toEqual([
+      "trashed design",
+    ]);
+    expect(await grid({ tag: "design", types: ["link"] })).toEqual([
+      "beta link",
+    ]);
+    expect(await grid({ tag: "design", searchQuery: "alpha" })).toEqual([
+      "alpha note",
+    ]);
+    // A quick command word is searched like any other inside a tag.
+    expect(await grid({ tag: "design", searchQuery: "trash" })).toEqual([]);
+    expect(await grid({ tag: "missing" })).toEqual([]);
+  }, 30_000);
+});

@@ -40,15 +40,19 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_create_upload",
   "teak_v1_delete_card",
   "teak_v1_delete_folder",
+  "teak_v1_delete_tag",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_me",
+  "teak_v1_get_tag_operation",
   "teak_v1_list_cards",
   "teak_v1_list_favorite_cards",
   "teak_v1_list_folders",
   "teak_v1_list_tags",
+  "teak_v1_merge_tags",
   "teak_v1_refresh_card",
   "teak_v1_remove_cards_from_folder",
+  "teak_v1_rename_tag",
   "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
@@ -613,6 +617,72 @@ describe("Convex MCP endpoint", () => {
 
     await call("teak_v1_list_cards", { archived: "only" });
     expect(captured[7]?.query).toMatchObject({ archived: "only" });
+  });
+
+  test("tag tools start tag changes and poll their progress", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json(
+          {
+            operationId: "op_1",
+            id: "op_1",
+            kind: "rename",
+            status: operation.method === "GET" ? "completed" : "running",
+            changed: 1,
+            total: 1,
+          },
+          { status: operation.method === "GET" ? 200 : 202 }
+        )
+      );
+    }) as PublicApiToolExecutor;
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 52, method: "tools/call" }),
+        executor
+      );
+
+    const renamed = await call("teak_v1_rename_tag", {
+      from: "Design",
+      to: "design-systems",
+    });
+    expect(captured[0]).toMatchObject({
+      method: "POST",
+      path: "/v1/tags/rename",
+      body: { from: "Design", to: "design-systems" },
+    });
+    expect(renamed.structuredContent).toMatchObject({ operationId: "op_1" });
+
+    await call("teak_v1_merge_tags", { from: "ux", into: "research" });
+    expect(captured[1]).toMatchObject({
+      method: "POST",
+      path: "/v1/tags/merge",
+      body: { from: "ux", into: "research" },
+    });
+
+    const unconfirmed = await call("teak_v1_delete_tag", { tag: "old" });
+    expect(unconfirmed.isError).toBe(true);
+    await call("teak_v1_delete_tag", { tag: "old", confirm: true });
+    expect(captured[2]).toMatchObject({
+      method: "POST",
+      path: "/v1/tags/delete",
+      body: { tag: "old" },
+    });
+
+    const polled = await call("teak_v1_get_tag_operation", {
+      operationId: "op 1",
+    });
+    expect(captured[3]).toMatchObject({
+      method: "GET",
+      path: "/v1/tags/operations/op%201",
+    });
+    expect(polled.content?.[0]?.text).toBe(
+      "Tag rename completed: 1 card changed of 1"
+    );
+    expect(captured).toHaveLength(4);
   });
 
   test("folder tools map onto the folder endpoints", async () => {

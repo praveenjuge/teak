@@ -564,13 +564,31 @@ const handleTagsRequest = async (
   }
 
   try {
+    const userId = auth.validated.userId;
     const tags = await ctx.runQuery(
       (internal as any).publicApi.listTagsForUser,
-      {
-        userId: auth.validated.userId,
-      }
+      { userId }
     );
-    return json(200, { items: tags.items, isComplete: tags.isComplete });
+    if (tags.isComplete) {
+      return json(200, { items: tags.items, isComplete: true });
+    }
+    // Too many tags to count live: answer from the background tag summary,
+    // which catches up a few seconds after tags change, and build it first
+    // if the account has none yet.
+    const summary = await ctx.runQuery(
+      internal.tag.tagSummary.getTagSummaryForUser,
+      { userId }
+    );
+    if (summary) {
+      return json(200, {
+        items: summary.items,
+        isComplete: summary.isComplete,
+      });
+    }
+    await ctx.runMutation(internal.tag.tagSummary.requestTagSummaryForUser, {
+      userId,
+    });
+    return json(200, { items: tags.items, isComplete: false });
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to fetch tags");
   }
