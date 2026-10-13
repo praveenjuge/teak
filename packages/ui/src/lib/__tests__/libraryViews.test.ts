@@ -14,8 +14,10 @@ describe("libraryViewForPath", () => {
     }
   });
 
-  test("ignores a trailing slash", () => {
+  test("ignores trailing slashes", () => {
     expect(libraryViewForPath("/archive/")).toBe("archive");
+    expect(libraryViewForPath("///")).toBe("all");
+    expect(libraryViewForPath(`/trash${"/".repeat(50_000)}`)).toBe("trash");
   });
 
   test.each(["/settings", "/favorites/extra", "/sign-in", null])(

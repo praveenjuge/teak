@@ -29,7 +29,13 @@ export function libraryViewForPath(
   if (!pathname) {
     return null;
   }
-  const path = pathname.replace(/\/+$/, "") || "/";
+  // Trim trailing slashes without a regex: a long run of "/" in a pasted URL
+  // must not cost more than one pass.
+  let end = pathname.length;
+  while (end > 1 && pathname[end - 1] === "/") {
+    end -= 1;
+  }
+  const path = pathname.slice(0, end);
   for (const view of LIBRARY_VIEWS) {
     if (LIBRARY_VIEW_PATHS[view] === path) {
       return view;
