@@ -20,7 +20,6 @@ const auth: AuthDiscovery = {
     raycast: "client_RAYCAST",
     chrome: "client_CHROME",
     firefox: "client_FIREFOX",
-    safari: "client_SAFARI",
   },
 };
 

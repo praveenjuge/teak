@@ -69,7 +69,7 @@ const server = serve({
         primary: "workos",
         issuer: server.url.origin,
         clients: Object.fromEntries(
-          ["cli", "raycast", "chrome", "firefox", "safari"].map((name) => [
+          ["cli", "raycast", "chrome", "firefox"].map((name) => [
             name,
             `client_${name}`,
           ])

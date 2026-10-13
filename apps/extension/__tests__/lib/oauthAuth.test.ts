@@ -106,7 +106,7 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
         primary: "workos",
         issuer,
         clients: Object.fromEntries(
-          ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
+          ["cli", "raycast", "chrome", "firefox"].map((surface) => [
             surface,
             `client_${process.env.DEV ? "dev_" : ""}${environment === "beta" ? "beta_" : ""}${surface}`,
           ])

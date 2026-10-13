@@ -148,7 +148,7 @@ void client; void surface;
           primary: "workos",
           issuer,
           clients: Object.fromEntries(
-            ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
+            ["cli", "raycast", "chrome", "firefox"].map((surface) => [
               surface,
               `client_${surface.toUpperCase()}`,
             ])

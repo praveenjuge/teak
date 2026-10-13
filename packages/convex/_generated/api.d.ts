@@ -102,7 +102,6 @@ import type * as publicApiOpenApi from "../publicApiOpenApi.js";
 import type * as publicApiTombstones from "../publicApiTombstones.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
 import type * as raycast from "../raycast.js";
-import type * as safariAccountSummary from "../safariAccountSummary.js";
 import type * as securitySessions from "../securitySessions.js";
 import type * as shared_analytics from "../shared/analytics.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
@@ -317,7 +316,6 @@ declare const fullApi: ApiFromModules<{
   publicApiTombstones: typeof publicApiTombstones;
   publicApiUploads: typeof publicApiUploads;
   raycast: typeof raycast;
-  safariAccountSummary: typeof safariAccountSummary;
   securitySessions: typeof securitySessions;
   "shared/analytics": typeof shared_analytics;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;

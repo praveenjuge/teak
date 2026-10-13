@@ -26,15 +26,15 @@ const page = (rows: unknown[]) => ({
 const grants = [
   {
     consentId: "app_consent_A",
-    clientId: "client_MAC",
-    name: "Teak for Mac",
+    clientId: "client_RAYCAST",
+    name: "Raycast",
     connectedAt: 1,
     lastUsedAt: 2,
   },
   {
     consentId: "app_consent_B",
-    clientId: "client_MAC",
-    name: "Teak for Mac",
+    clientId: "client_RAYCAST",
+    name: "Raycast",
     connectedAt: 3,
     lastUsedAt: 4,
   },
@@ -172,7 +172,7 @@ test("cached app retry retains devices and pages separate same-client grants", a
         "afterRevoked"
     )
   );
-  expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
+  expect(buttons("Disconnect Raycast")).toHaveLength(2);
   expect(region("Connected apps").textContent).not.toContain("Full access");
   expect(region("Connected apps").textContent).not.toContain("app_consent_");
   let failDisconnect!: (error: Error) => void;
@@ -180,18 +180,18 @@ test("cached app retry retains devices and pages separate same-client grants", a
     failDisconnect = reject;
   });
   transport.onCall(() => rejectedDisconnect);
-  await click("Disconnect Teak for Mac");
-  expect(buttons("Disconnect Teak for Mac")[0].disabled).toBe(true);
+  await click("Disconnect Raycast");
+  expect(buttons("Disconnect Raycast")[0].disabled).toBe(true);
   await act(async () => {
     failDisconnect(new Error("Mutation outage"));
     await rejectedDisconnect.catch(() => {});
   });
   expect(region("Connected apps").textContent).toContain("Could not update");
-  expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
+  expect(buttons("Disconnect Raycast")).toHaveLength(2);
   transport.onCall(async (call) =>
     call.path === "securitySessions:listAuthkitSessions" ? page([]) : null
   );
-  await click("Disconnect Teak for Mac");
+  await click("Disconnect Raycast");
   expect(transport.calls.at(-1)).toEqual({
     kind: "action",
     path: "workosConsents:disconnectConnection",
@@ -206,7 +206,7 @@ test("cached app retry retains devices and pages separate same-client grants", a
         "afterRevoked"
     )
   );
-  expect(buttons("Disconnect Teak for Mac")).toHaveLength(0);
+  expect(buttons("Disconnect Raycast")).toHaveLength(0);
   expect(buttons("Disconnect Other app")).toHaveLength(1);
 });
 
@@ -224,9 +224,9 @@ test("an account switch discards pending disconnect UI and rejects a stale callb
         })
       : page([])
   );
-  await click("Disconnect Teak for Mac");
+  await click("Disconnect Raycast");
   await act(() => transport.reply("auth:getCurrentUser", { _id: "B" }));
-  expect(region("Connected apps").textContent).not.toContain("Teak for Mac");
+  expect(region("Connected apps").textContent).not.toContain("Raycast");
   expect(region("Connected apps").textContent).toContain("Loading apps");
   const request = transport.requests
     .filter((entry) => entry.path === "workosConsents:listConnections")

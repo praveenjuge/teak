@@ -12,14 +12,12 @@ const clientIds = {
   raycast: "client_RAYCAST",
   chrome: "client_CHROME",
   firefox: "client_FIREFOX",
-  safari: "client_SAFARI",
 };
 const clientEnv = {
   cli: "WORKOS_CONNECT_CLI_CLIENT_ID",
   raycast: "WORKOS_CONNECT_RAYCAST_CLIENT_ID",
   chrome: "WORKOS_CONNECT_CHROME_CLIENT_ID",
   firefox: "WORKOS_CONNECT_FIREFOX_CLIENT_ID",
-  safari: "WORKOS_CONNECT_SAFARI_CLIENT_ID",
 } as const;
 const resourcePath = "/.well-known/oauth-protected-resource/mcp";
 const clientsPath = "/.well-known/teak-oauth-clients.json";
@@ -122,10 +120,11 @@ describe("provider-aware OAuth HTTP discovery", () => {
       });
       const clients = await t.fetch(clientsPath);
       expect(clients.status).toBe(200);
+      // teak-sdk up to 1.0.86 requires a key for the retired safari client.
       expect(await clients.json()).toEqual({
         primary: "workos",
         issuer: workosIssuer,
-        clients: clientIds,
+        clients: { ...clientIds, safari: clientIds.cli },
       });
     }
   );

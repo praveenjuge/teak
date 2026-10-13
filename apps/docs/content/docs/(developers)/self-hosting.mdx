@@ -66,11 +66,10 @@ The CLI, browser extensions, Mac app, Raycast, and MCP clients sign in through W
    | Raycast | `WORKOS_CONNECT_RAYCAST_CLIENT_ID` | `https://raycast.com/redirect?packageName=Extension` |
    | Chrome extension | `WORKOS_CONNECT_CHROME_CLIENT_ID` | `https://<extension-id>.chromiumapp.org/oauth/callback` |
    | Firefox extension | `WORKOS_CONNECT_FIREFOX_CLIENT_ID` | `https://<hash>.extensions.allizom.org/oauth/callback`, from `browser.identity.getRedirectURL()` for the add-on ID. Teak doesn't publish a Firefox build, but discovery still needs this ID. |
-   | Mac app (Safari) | `WORKOS_CONNECT_SAFARI_CLIENT_ID` | `teak-safari://oauth/callback` |
 
 4. Set `WORKOS_AUTHKIT_DOMAIN` to the environment's AuthKit domain, an HTTPS origin such as `https://your-domain.authkit.app` with no path or port.
 
-Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any of them is missing or malformed, discovery fails and none of these clients can sign in, so set all five even if you only use one.
+Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all four client IDs. If any of them is missing or malformed, discovery fails and none of these clients can sign in, so set all four even if you only use one.
 
 ## Quickstart (local)
 
@@ -171,9 +170,9 @@ WORKOS_API_KEY=sk_test_...
 WORKOS_ENVIRONMENT_ID=environment_...
 WORKOS_WEBHOOK_SECRET=secret
 WORKOS_ACTION_SECRET=secret                  # Optional: sign-up Action
-WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, extensions, Mac app, Raycast, MCP
+WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, extensions, Raycast, MCP
 WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origin>/api and <origin>/mcp (default https://teakvault.com)
-WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, FIREFOX, and SAFARI client IDs
+WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, and FIREFOX client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
 POLAR_ACCESS_TOKEN=token

@@ -256,7 +256,7 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
   });
 
-  test("profile and Mac account summary use the WorkOS email and permanent vault", async () => {
+  test("profile uses the WorkOS email and permanent vault", async () => {
     const f = await setup();
     const access = await token();
     const profile = await f.read(access, "/v1/me");
@@ -272,16 +272,6 @@ describe("WorkOS REST and MCP token boundary", () => {
         settingsUrl: "https://app.teakvault.com/settings",
       },
     });
-    const summary = await f.read(access, "/api/safari/account-summary");
-    expect(summary.status).toBe(200);
-    expect(await summary.json()).toEqual({
-      email: "provider@example.test",
-      cardCount: 1,
-    });
-    expect(
-      (await f.read(await token(mcpAudience), "/api/safari/account-summary"))
-        .status
-    ).toBe(401);
   });
 
   test("all REST route families reject MCP tokens before validation or data access", async () => {

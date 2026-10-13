@@ -24,7 +24,7 @@ declare global {
 const origin = "https://extension-runtime.test";
 const site = "https://fixture.convex.site";
 const owner = "permanent-teak-owner";
-const surfaces = ["cli", "raycast", "chrome", "firefox", "safari"];
+const surfaces = ["cli", "raycast", "chrome", "firefox"];
 const moduleSource = fileURLToPath(
   new URL("../../../../apps/extension/lib/oauthAuth.ts", import.meta.url)
 );

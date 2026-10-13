@@ -20,7 +20,6 @@ import {
   v1CorsPreflight,
 } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
-import { safariAccountSummary } from "./safariAccountSummary";
 import { disconnectWorkosConsent } from "./workosConnectRevocation";
 import { registerWorkosRoutes } from "./workosWebhook";
 
@@ -38,12 +37,6 @@ http.route({
 });
 
 registerWorkosRoutes(http);
-
-http.route({
-  path: "/api/safari/account-summary",
-  method: "GET",
-  handler: safariAccountSummary,
-});
 
 // Register the webhook handler at /polar/events
 polar.registerRoutes(http as any, { events: polarWebhookEvents });

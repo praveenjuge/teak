@@ -5,13 +5,7 @@ import {
   workosResourcesFor,
 } from "../shared/workosResources";
 
-export const OAUTH_SURFACES = [
-  "cli",
-  "raycast",
-  "chrome",
-  "firefox",
-  "safari",
-] as const;
+export const OAUTH_SURFACES = ["cli", "raycast", "chrome", "firefox"] as const;
 export type OAuthSurface = (typeof OAUTH_SURFACES)[number];
 export interface AuthDiscovery {
   readonly authorizationEndpoint: string;
