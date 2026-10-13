@@ -127,8 +127,14 @@ export function CardsScreen({
     ) {
       return;
     }
+    const previous = syncedUrlStateRef.current;
     syncedUrlStateRef.current = searchUrlState;
-    applyUrlState(searchUrlState);
+    // When only the types or sort changed (a sidebar type), keep any text
+    // still being typed rather than resetting it to the URL's older query.
+    applyUrlState(searchUrlState, {
+      keepSearch:
+        previous !== null && previous.q.trim() === searchUrlState.q.trim(),
+    });
   }, [applyUrlState, searchUrlState]);
   useEffect(() => {
     const previous = syncedUrlStateRef.current;

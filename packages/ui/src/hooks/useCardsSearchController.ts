@@ -82,9 +82,14 @@ export interface UseCardsSearchControllerResult {
   addKeywordTag: (keyword: string) => void;
   /**
    * Replaces the search with one from the URL (back, forward or a pasted
-   * link): the text becomes the typed query and chips are cleared.
+   * link): the text becomes the typed query and chips are cleared. With
+   * `keepSearch`, only the types and sort follow the URL, so text still
+   * being typed survives a change made elsewhere (a sidebar type).
    */
-  applyUrlState: (state: SearchUrlState) => void;
+  applyUrlState: (
+    state: SearchUrlState,
+    options?: { keepSearch?: boolean }
+  ) => void;
   clearAllFilters: () => void;
   displayCards: Doc<"cards">[];
   filterTags: CardType[];
@@ -661,27 +666,34 @@ export function useCardsSearchController(
     setSearchState(createInitialCardsSearchState());
   }, []);
 
-  const applyUrlState = useCallback((state: SearchUrlState) => {
-    // A search from the URL is not typing: query it at once, so the screen
-    // never reports the previous search back into the URL meanwhile.
-    setDebouncedSearchQuery(state.q);
-    setSearchState((prev) => {
-      // Already showing this search (as chips or typed text): keep it as is.
-      const sameTerms = buildCardsSearchTerms(prev) === state.q.trim();
-      const sameTypes =
-        prev.filterTags.length === state.types.length &&
-        prev.filterTags.every((type) => state.types.includes(type));
-      if (sameTerms && sameTypes) {
-        return prev;
+  const applyUrlState = useCallback(
+    (state: SearchUrlState, options?: { keepSearch?: boolean }) => {
+      const keepSearch = options?.keepSearch ?? false;
+      // A search from the URL is not typing: query it at once, so the screen
+      // never reports the previous search back into the URL meanwhile.
+      if (!keepSearch) {
+        setDebouncedSearchQuery(state.q);
       }
-      return {
-        ...prev,
-        ...(sameTerms ? {} : { keywordTags: [], searchQuery: state.q }),
-        filterTags: sameTypes ? prev.filterTags : state.types,
-      };
-    });
-    setSort(state.sort);
-  }, []);
+      setSearchState((prev) => {
+        // Already showing this search (as chips or typed text): keep it as is.
+        const sameTerms =
+          keepSearch || buildCardsSearchTerms(prev) === state.q.trim();
+        const sameTypes =
+          prev.filterTags.length === state.types.length &&
+          prev.filterTags.every((type) => state.types.includes(type));
+        if (sameTerms && sameTypes) {
+          return prev;
+        }
+        return {
+          ...prev,
+          ...(sameTerms ? {} : { keywordTags: [], searchQuery: state.q }),
+          filterTags: sameTypes ? prev.filterTags : state.types,
+        };
+      });
+      setSort(state.sort);
+    },
+    []
+  );
 
   const setTimeFilter = useCallback((timeFilter: TimeFilter | null) => {
     setSearchState((prev) => ({

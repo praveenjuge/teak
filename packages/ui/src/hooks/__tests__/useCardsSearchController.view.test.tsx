@@ -120,3 +120,18 @@ test("card types round-trip through the URL state", async () => {
   await act(() => controller.searchBarProps.onRemoveFilter("image"));
   expect(controller.urlState.types).toEqual(["palette"]);
 });
+
+test("a type picked mid-typing keeps the text being typed", async () => {
+  await render({ view: "all" });
+  // The URL still has no query: the typed text has not settled yet.
+  await act(() => controller.searchBarProps.onSearchChange("blue"));
+  await act(() =>
+    controller.applyUrlState(
+      { q: "", sort: "newest", types: ["image"] },
+      { keepSearch: true }
+    )
+  );
+  expect(controller.searchQuery).toBe("blue");
+  expect(controller.filterTags).toEqual(["image"]);
+  expect(controller.queryArgs.types).toEqual(["image"]);
+});
