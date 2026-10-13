@@ -371,11 +371,13 @@ async function revokeStoredSession(): Promise<SignOutResult> {
         // A dead grant, rejected client or unusable local connection permits
         // explicit local clearing without claiming remote revocation;
         // uncertain failures retain their credentials.
-        if (!(
-          error instanceof TeakRefreshRevokedError ||
-          error instanceof TeakLocalSignOutError ||
-          error instanceof TeakRefreshClientRejectedError
-        )) {
+        if (
+          !(
+            error instanceof TeakRefreshRevokedError ||
+            error instanceof TeakLocalSignOutError ||
+            error instanceof TeakRefreshClientRejectedError
+          )
+        ) {
           throw new Error(
             "Your credentials are still saved. Check your connection and try Sign Out again.",
           );
