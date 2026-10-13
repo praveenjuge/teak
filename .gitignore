@@ -25,6 +25,9 @@ out
 /build
 dist
 
+# expo
+.expo/
+
 # misc
 .DS_Store
 *.pem
