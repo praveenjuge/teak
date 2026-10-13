@@ -34,6 +34,28 @@ export const TAG_OPERATION_BATCH_SIZE = 25;
 export const TAG_OPERATION_MAX_PASSES = 4;
 /** How long to wait before the next pass, so pending tag syncs land. */
 export const TAG_OPERATION_PASS_DELAY_MS = 2000;
+/**
+ * Extra passes an operation makes while the user's tag syncs are still
+ * running (a card tagged just before it may not be in the index yet), so a
+ * stuck sync delays completion by at most half a minute.
+ */
+export const TAG_OPERATION_MAX_SYNC_WAITS = 15;
+/** Pending tag syncs read to look for the user's; more counts as busy. */
+const PENDING_SYNC_SCAN = 200;
+
+/** Whether one of the user's cards may still be on its way into the index. */
+const hasPendingTagSync = async (ctx: MutationCtx, userId: string) => {
+  const pending = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_pending", (q) => q.eq("pending", true))
+    .take(PENDING_SYNC_SCAN);
+  return (
+    pending.length >= PENDING_SYNC_SCAN ||
+    pending.some(
+      (state) => state.userId === undefined || state.userId === userId
+    )
+  );
+};
 
 export const tagOperationKindValidator = v.union(
   v.literal("rename"),
@@ -331,7 +353,28 @@ export const runTagOperationBatchHandler = async (
   };
   if (page.isDone) {
     const pass = operation.pass ?? 1;
+    const syncWaits = operation.syncWaits ?? 0;
     if (passChanged === 0 || pass >= TAG_OPERATION_MAX_PASSES) {
+      // A tag sync still running may yet add a card with the tag: sweep
+      // again once it lands.
+      if (
+        syncWaits < TAG_OPERATION_MAX_SYNC_WAITS &&
+        (await hasPendingTagSync(ctx, operation.userId))
+      ) {
+        await ctx.db.patch("tagOperations", operationId, {
+          ...progress,
+          cursor: undefined,
+          pass: pass + 1,
+          passChanged: 0,
+          syncWaits: syncWaits + 1,
+        });
+        await ctx.scheduler.runAfter(
+          TAG_OPERATION_PASS_DELAY_MS,
+          internal.tag.tagOperations.runTagOperationBatch,
+          { operationId }
+        );
+        return { done: false };
+      }
       await ctx.db.patch("tagOperations", operationId, {
         ...progress,
         status: "completed",

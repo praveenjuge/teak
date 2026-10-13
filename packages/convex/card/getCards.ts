@@ -508,10 +508,29 @@ export const searchCardsPaginatedHandler = async (
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
           : paginationOpts.numItems,
       });
+    // A card changes before its tag rows catch up, so check the card itself
+    // still has the tag and belongs in this view.
+    const inView = (card: Doc<"cards">) => {
+      if (showTrashOnly) {
+        return card.isDeleted === true;
+      }
+      if (card.isDeleted === true) {
+        return false;
+      }
+      return archived === "only"
+        ? card.isArchived === true
+        : card.isArchived !== true;
+    };
     const cards: Doc<"cards">[] = [];
     for (const row of rows.page) {
       const card = await ctx.db.get("cards", row.cardId);
-      if (card && card.userId === user.teakUserId && inFolder(card)) {
+      if (
+        card &&
+        card.userId === user.teakUserId &&
+        inFolder(card) &&
+        hasTag(card) &&
+        inView(card)
+      ) {
         cards.push(card);
       }
     }

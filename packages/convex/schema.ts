@@ -809,6 +809,8 @@ export default defineSchema({
     // The pass over the tag index (from 1) and cards it has changed so far.
     pass: v.optional(v.number()),
     passChanged: v.optional(v.number()),
+    // Sweeps made while the user's tag syncs were still running.
+    syncWaits: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),

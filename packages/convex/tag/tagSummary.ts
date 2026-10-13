@@ -71,7 +71,13 @@ export const markTagSummaryDirty = async (
   }
   const now = Date.now();
   const pending = await pendingRefresh(ctx, userId);
-  if (pending && pending.dueAt + TAG_SUMMARY_STALE_MS > now) {
+  // A pending recompute covers this change unless it was lost, or this
+  // asks for one sooner (a first visit to the Tags page).
+  if (
+    pending &&
+    pending.dueAt + TAG_SUMMARY_STALE_MS > now &&
+    pending.dueAt <= now + delayMs
+  ) {
     return;
   }
   if (pending) {

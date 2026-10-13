@@ -13,7 +13,10 @@ import {
 } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { TAG_OPERATION_STALL_MS } from "./shared/tags";
-import { TAG_OPERATION_BATCH_SIZE } from "./tag/tagOperations";
+import {
+  TAG_OPERATION_BATCH_SIZE,
+  TAG_OPERATION_PASS_DELAY_MS,
+} from "./tag/tagOperations";
 import { markTagSummaryDirty, TAG_SUMMARY_PAGE_ROWS } from "./tag/tagSummary";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -196,6 +199,49 @@ describe("library-wide tag operations", () => {
       ctx.db.get("tagOperations", operation._id)
     );
     expect(done).toMatchObject({ status: "completed", changed: 2 });
+  });
+
+  test("waits for the user's tag syncs before completing", async () => {
+    const { t, insert, card, start, runScheduled } = await setup();
+    const first = await insert({ tags: ["draft"] });
+    await runScheduled();
+    const late = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "late",
+        tags: ["draft"],
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    // The late card's tag sync is still running when the change starts.
+    const pendingSync = await t.run((ctx) =>
+      ctx.db.insert("cardSearchTagSyncStates", {
+        cardId: late,
+        phase: "tags",
+        generation: 1,
+        offset: 0,
+        pending: true,
+        userId: "owner",
+      })
+    );
+    const operation = await start("rename", "draft", "final");
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    expect((await card(first))?.tags).toEqual(["final"]);
+    // The next pass finds nothing more, but the sync has not landed.
+    vi.advanceTimersByTime(TAG_OPERATION_PASS_DELAY_MS + 1);
+    await t.finishInProgressScheduledFunctions();
+    expect(
+      (await t.run((ctx) => ctx.db.get("tagOperations", operation._id)))?.status
+    ).toBe("running");
+    await t.run(async (ctx) => {
+      await ctx.db.delete("cardSearchTagSyncStates", pendingSync);
+      await syncCardSearchDocumentHandler(ctx, late);
+    });
+    await runScheduled();
+    expect((await card(late))?.tags).toEqual(["final"]);
   });
 
   test("a card restored from Trash behind the cursor is still changed", async () => {
@@ -413,6 +459,24 @@ describe("tag summary snapshot", () => {
     expect(refreshes).toHaveLength(1);
   });
 
+  test("asking for counts now moves a pending recompute sooner", async () => {
+    const { t } = await setup();
+    const dueAt = () =>
+      t.run(async (ctx) => {
+        const rows = await ctx.db.query("tagSummaryRefreshes").collect();
+        return rows.map((row) => row.dueAt);
+      });
+    await t.run((ctx) => markTagSummaryDirty(ctx, "owner"));
+    const [later] = await dueAt();
+    await t.run((ctx) => markTagSummaryDirty(ctx, "owner", 0));
+    const [sooner] = await dueAt();
+    expect(sooner).toBeLessThan(later ?? 0);
+    expect(sooner).toBeLessThanOrEqual(Date.now());
+    // A later request leaves the sooner deadline alone.
+    await t.run((ctx) => markTagSummaryDirty(ctx, "owner"));
+    expect(await dueAt()).toEqual([sooner]);
+  });
+
   test("only changes that can move the counts schedule a recompute", async () => {
     const { t, insert, runScheduled } = await setup();
     const id = await insert({ tags: ["design"], notes: "before" });
@@ -573,7 +637,7 @@ describe("tag listings with many small tags", () => {
 
 describe("library tag filter", () => {
   test("lists a tag's cards in each view, combined with search, types and folders", async () => {
-    const { owner, insert, runScheduled } = await setup();
+    const { t, owner, insert, runScheduled } = await setup();
     await insert({ content: "alpha note", tags: ["Design"], createdAt: 1 });
     await insert({
       content: "beta link",
@@ -649,6 +713,22 @@ describe("library tag filter", () => {
     ).toEqual(["trashed design"]);
     expect(await grid({ tag: "design", searchQuery: "alpha" })).toEqual([
       "alpha note",
+    ]);
+    // A card changed before its tag rows catch up shows where it now is.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("cards").collect();
+      for (const row of rows) {
+        if (row.content === "alpha note") {
+          await ctx.db.patch("cards", row._id, { tags: ["other"] });
+        }
+        if (row.content === "beta link") {
+          await ctx.db.patch("cards", row._id, { isArchived: true });
+        }
+      }
+    });
+    expect(await grid({ tag: "design" })).toEqual(["starred quote"]);
+    expect(await grid({ tag: "design", showArchivedOnly: true })).toEqual([
+      "archived design",
     ]);
     // A quick command word is searched like any other inside a tag.
     expect(await grid({ tag: "design", searchQuery: "trash" })).toEqual([]);
