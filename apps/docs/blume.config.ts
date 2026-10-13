@@ -91,6 +91,12 @@ export default defineConfig({
       body: SN_PRO,
     },
   },
+  footer: {
+    links: [
+      { label: "Privacy", href: "/docs/privacy-policy" },
+      { label: "Terms", href: "/docs/terms-of-service" },
+    ],
+  },
   navigation: {
     tabs: [
       { label: "Pricing", path: "/pricing", href: "/pricing" },
