@@ -15,13 +15,11 @@ changelog:
 
 ## Account access and sign-in
 
-- Security in Settings brings devices, connected apps, and API keys together. Signing out a device or disconnecting an app stops its access immediately, including existing MCP connections. Desktop, CLI, and Raycast sign-out also revokes that installation's access; if sign-out fails, you can retry without losing its saved credentials.
+- Security in Settings brings devices, connected apps, and API keys together. Signing out a device or disconnecting an app stops its access immediately, including existing MCP connections. CLI and Raycast sign-out also revokes that installation's access; if sign-out fails, you can retry without losing its saved credentials.
 - Email sign-in works without configuring Google or Apple first. Unavailable social sign-in options now explain what is missing.
 
 ## Apps and integrations
 
-- Teak for Safari now opens a native Mac library for searching and reading your cards. See the [browser extension guide](/docs/extension).
-- Teak for Safari now has a native Mac settings window with Settings and About tabs.
 - AI agents in supporting browsers can search and read cards from the signed-in web app without extra setup. See [in-browser tools](/docs/webmcp).
 - The dedicated API search and favorites endpoints have been removed. Direct API integrations should use filtered card listing; the CLI, SDK, MCP tools, and Raycast already use it. See the [API guide](/docs/api).
 - Local self-hosting setup now uses one command. If your self-hosted installation uses custom API or assistant addresses, update them to a single public origin as described in the [self-hosting guide](/docs/self-hosting).
