@@ -78,9 +78,18 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await expect(
     screen.getByText("Deleted “Reading list”", { exact: false })
   ).toBeVisible();
-  await expect(screen.getByPlaceholder("Search for anything...")).toBeVisible();
-  expect(await pathOf(browser.url())).toBe("/");
-  await screen.getByRole("button", "Undo").click();
+  // The deleted folder's page stays mounted but hidden, so check the URL and
+  // the sidebar rather than the search placeholder both pages share.
+  await expect(browser).toHaveURL(/\/$/);
+  await expect(screen.getByRole("link", "Everything")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
+  await browser
+    .locator("[data-sonner-toast]")
+    .filter({ hasText: "Deleted “Reading list”" })
+    .getByRole("button", "Undo")
+    .click();
   await screen.getByRole("link", "Reading list").click();
   await expect(screen.getByText("2 cards")).toBeVisible();
 });
