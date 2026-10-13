@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import {
+  patchCardWithSearchSync,
+  syncCardSearchDocumentHandler,
+} from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { TAG_OPERATION_STALL_MS } from "./shared/tags";
 import { TAG_OPERATION_BATCH_SIZE } from "./tag/tagOperations";
@@ -318,6 +321,41 @@ describe("tag summary snapshot", () => {
       ctx.db.query("tagSummaryRefreshes").collect()
     );
     expect(refreshes).toHaveLength(1);
+  });
+
+  test("only changes that can move the counts schedule a recompute", async () => {
+    const { t, insert, runScheduled } = await setup();
+    const id = await insert({ tags: ["design"], notes: "before" });
+    // The new card's tags are synced and the snapshot recomputed.
+    await runScheduled();
+    const refreshes = () =>
+      t.run((ctx) => ctx.db.query("tagSummaryRefreshes").collect());
+    const patch = (value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, id, { ...value, updatedAt: Date.now() })
+      );
+    const settle = async () => {
+      for (let round = 0; round < 10; round += 1) {
+        vi.advanceTimersByTime(1);
+        await t.finishInProgressScheduledFunctions();
+      }
+    };
+    expect(await refreshes()).toHaveLength(0);
+
+    // Favorites and notes restart or skip the tag sync but leave the counts.
+    await patch({ isFavorited: true });
+    await patch({ notes: "after" });
+    await settle();
+    expect(await refreshes()).toHaveLength(0);
+
+    // A new tag, or moving the card to Archive, can change them.
+    await patch({ tags: ["design", "web"] });
+    await settle();
+    expect(await refreshes()).toHaveLength(1);
+    await runScheduled();
+    await patch({ isArchived: true });
+    await settle();
+    expect(await refreshes()).toHaveLength(1);
   });
 
   test("pages through more rows than one page reads, including a tag split across pages", async () => {

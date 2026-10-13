@@ -1011,6 +1011,10 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
+    // False when this chain cannot change the sidebar's tag counts (the
+    // card's tags and Trash and Archive state are as before), so finishing
+    // it skips the tag summary recompute. Missing on older rows: recompute.
+    tagCountsChanged: v.optional(v.boolean()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_pending", ["pending"]),

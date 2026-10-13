@@ -89,7 +89,13 @@ export const handleTagOperationRequest = async (
   const start = START_ROUTES[pathname];
   let operationId: string | undefined;
   if (!start) {
-    operationId = decodeURIComponent(pathname.slice(OPERATION_PREFIX.length));
+    try {
+      operationId = decodeURIComponent(
+        pathname.slice(OPERATION_PREFIX.length)
+      );
+    } catch {
+      return errorResponse(404, "NOT_FOUND", "Tag route not found");
+    }
     if (
       !(pathname.startsWith(OPERATION_PREFIX) && operationId) ||
       operationId.includes("/")
