@@ -343,6 +343,84 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   };
 };
 
+/**
+ * One search that matches what both `scope` and `typed` match, written the
+ * canonical way, or null when nothing can match both. Within one search
+ * `type:` and `site:` match any of their values, so across the two they
+ * intersect; tags, folders, phrases, words and `is:` add up. A smart
+ * folder's stored query is the scope and the search box's text is typed.
+ */
+export const combineSearchQueries = (
+  scope: string,
+  typed: string
+): string | null => {
+  const outer = parseSearchQuery(scope);
+  const inner = parseSearchQuery(typed);
+  const intersect = <T>(left: T[], right: T[]) => {
+    if (left.length === 0) {
+      return right;
+    }
+    if (right.length === 0) {
+      return left;
+    }
+    return left.filter((value) => right.includes(value));
+  };
+  const types = intersect(outer.types, inner.types);
+  const sites = intersect(outer.sites, inner.sites);
+  if (
+    (outer.types.length > 0 && inner.types.length > 0 && types.length === 0) ||
+    (outer.sites.length > 0 && inner.sites.length > 0 && sites.length === 0)
+  ) {
+    return null;
+  }
+  const narrowed = (qualifier: SearchQualifier) =>
+    qualifier.key === "type" || qualifier.key === "site";
+  const qualifiers: SearchQualifier[] = [
+    ...outer.qualifiers.filter((qualifier) => !narrowed(qualifier)),
+    ...inner.qualifiers.filter((qualifier) => !narrowed(qualifier)),
+    ...types.map((value) => ({ key: "type" as const, value })),
+    ...sites.map((value) => ({ key: "site" as const, value })),
+  ];
+  // Read back once more so a qualifier in both is written once.
+  return parseSearchQuery(
+    [
+      ...qualifiers.map(formatSearchQualifier),
+      ...[...outer.phrases, ...inner.phrases].map(quoteSearchValue),
+      ...outer.terms,
+      ...inner.terms,
+    ].join(" ")
+  ).canonical;
+};
+
+/**
+ * The search with every `folder:` naming `fromNameKey` (a folder's name
+ * key) renamed to `toName`, written the canonical way; unchanged when it
+ * names no such folder. Keeps smart folders pointing at a renamed folder.
+ */
+export const renameFolderInSearchQuery = (
+  query: string,
+  fromNameKey: string,
+  toName: string
+): string => {
+  const parsed = parseSearchQuery(query);
+  if (!parsed.folders.includes(fromNameKey)) {
+    return query;
+  }
+  const qualifiers = parsed.qualifiers.map((qualifier) =>
+    qualifier.key === "folder" &&
+    qualifier.value.trim().toLowerCase() === fromNameKey
+      ? { key: "folder" as const, value: toName }
+      : qualifier
+  );
+  return parseSearchQuery(
+    [
+      ...qualifiers.map(formatSearchQualifier),
+      ...parsed.phrases.map(quoteSearchValue),
+      ...parsed.terms,
+    ].join(" ")
+  ).canonical;
+};
+
 /** Whether a search uses any qualifier. */
 export const hasSearchQualifiers = (parsed: ParsedSearchQuery) =>
   parsed.qualifiers.length > 0;

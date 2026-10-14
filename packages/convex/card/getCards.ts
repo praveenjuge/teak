@@ -33,7 +33,7 @@ import {
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import { searchCardsByDocument } from "./searchDocumentHelpers";
-import { resolveSearch } from "./searchPlanner";
+import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -333,11 +333,21 @@ export const searchCardsPaginatedHandler = async (
   const order = sort === "oldest" ? "asc" : "desc";
   // Qualifiers in the search (`tag:`, `type:`, `is:fav`, `site:`, `folder:`)
   // merge into the view's own filters; the words left over search the text.
-  const parsed = parseSearchQuery(args.searchQuery ?? "");
+  // A smart folder's own search joins the typed one.
+  const view = await expandFolderSearch(
+    ctx,
+    user.teakUserId,
+    args.folderId,
+    args.searchQuery ?? ""
+  );
+  if (!view) {
+    return emptyPage;
+  }
+  const parsed = parseSearchQuery(view.searchQuery);
   const resolved = await resolveSearch(ctx, user.teakUserId, parsed, {
     archived: args.showArchivedOnly ? "only" : "exclude",
     favoritesOnly: args.favoritesOnly,
-    folderId: args.folderId,
+    folderId: view.folderId,
     tag: args.tag,
     trash: showTrashOnly,
     types: args.types,

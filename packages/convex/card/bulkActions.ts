@@ -5,6 +5,7 @@ import { requireFolderForUser } from "../folder/folders";
 import {
   applyFolderMembership,
   type FolderMembershipAction,
+  smartFolderMembership,
 } from "../folder/membership";
 import { explainInvalidTags } from "../publicApiHttpShared";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
@@ -247,10 +248,19 @@ export const applyBulkCardAction = async (
     isFolderAction && args.folderId
       ? await requireFolderForUser(ctx, args.userId, args.folderId)
       : undefined;
+  if (folder?.kind === "smart") {
+    throw smartFolderMembership();
+  }
   const fromFolder =
     args.action === "moveToFolder" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
+  // No card is ever in a smart folder, so moving out of one (from its view)
+  // only adds the cards to the target.
+  const action =
+    args.action === "moveToFolder" && fromFolder?.kind === "smart"
+      ? "addToFolder"
+      : args.action;
 
   const updatedIds: Id<"cards">[] = [];
   const failedIds: Id<"cards">[] = [];
@@ -259,10 +269,10 @@ export const applyBulkCardAction = async (
       await applyCardAction(ctx, {
         userId: args.userId,
         cardId,
-        action: args.action,
+        action,
         tags,
         folderId: folder?._id,
-        fromFolderId: fromFolder?._id,
+        fromFolderId: action === "moveToFolder" ? fromFolder?._id : undefined,
       });
       updatedIds.push(cardId);
     } catch {

@@ -479,11 +479,13 @@ export const resolveFolder = async (
   return match;
 };
 
+/** id, card count (a dash for smart folders), name, and a smart search. */
 export const formatFolderLine = (folder: Folder) =>
   [
     folder.id,
-    String(folder.cardCount).padStart(4),
+    (folder.kind === "smart" ? "-" : String(folder.cardCount)).padStart(4),
     folder.color ? `${folder.name} (${folder.color})` : folder.name,
+    ...(folder.kind === "smart" ? [`smart: ${folder.query ?? ""}`] : []),
   ].join("  ");
 
 export const listFolders = async (options: GlobalOptions) => {
@@ -496,23 +498,32 @@ export const listFolders = async (options: GlobalOptions) => {
 
 export const createFolder = async (
   name: string,
-  options: GlobalOptions & { color?: FolderColor }
+  options: GlobalOptions & { color?: FolderColor; query?: string }
 ) => {
-  const folder = await client(options).folders.create({
-    name,
-    ...(options.color ? { color: options.color } : {}),
-  });
+  const color = options.color ? { color: options.color } : {};
+  const folder = await client(options).folders.create(
+    options.query === undefined
+      ? { name, ...color }
+      : { name, ...color, kind: "smart", query: options.query }
+  );
   write(options.json ? folder : formatFolderLine(folder), options);
 };
 
-/** Renames a folder, recolors it ("none" clears the color), or both. */
+/**
+ * Renames a folder, recolors it ("none" clears the color), changes a smart
+ * folder's search, or any of these at once.
+ */
 export const updateFolder = async (
   ref: string,
   name: string | undefined,
-  options: GlobalOptions & { color?: FolderColor | "none" }
+  options: GlobalOptions & { color?: FolderColor | "none"; query?: string }
 ) => {
-  if (name === undefined && options.color === undefined) {
-    throw new InvalidArgumentError("give a new name or --color");
+  if (
+    name === undefined &&
+    options.color === undefined &&
+    options.query === undefined
+  ) {
+    throw new InvalidArgumentError("give a new name, --color or --query");
   }
   const api = client(options);
   const folder = await resolveFolder(api, ref);
@@ -521,6 +532,7 @@ export const updateFolder = async (
     ...(options.color === undefined
       ? {}
       : { color: options.color === "none" ? null : options.color }),
+    ...(options.query === undefined ? {} : { query: options.query }),
   });
   write(options.json ? updated : formatFolderLine(updated), options);
 };

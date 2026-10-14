@@ -13,7 +13,10 @@ import {
   toFolderSummary,
   updateFolderForUser,
 } from "./folder/folders";
-import { applyFolderMembershipToCards } from "./folder/membership";
+import {
+  applyFolderMembershipToCards,
+  smartFolderMembership,
+} from "./folder/membership";
 import { folderColorValidator } from "./schema";
 import { requireTeakUserId } from "./securitySessions";
 
@@ -43,6 +46,8 @@ export const createFolderForApi = internalMutation({
     userId: v.string(),
     name: v.string(),
     color: v.optional(folderColorValidator),
+    kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
+    query: v.optional(v.string()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, { userId, ...args }) =>
@@ -55,6 +60,7 @@ export const updateFolderForApi = internalMutation({
     folderId: v.string(),
     name: v.optional(v.string()),
     color: v.optional(v.union(folderColorValidator, v.null())),
+    query: v.optional(v.string()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, { userId, ...args }) =>
@@ -101,8 +107,12 @@ export const changeFolderCardsForApi = internalMutation({
     }
     const owner = await requireTeakUserId(ctx, userId);
     if (valid.length === 0) {
-      // Still check the folder, so a bad folder id reports NOT_FOUND.
-      await requireFolderForUser(ctx, owner, args.folderId);
+      // Still check the folder, so a bad folder id reports NOT_FOUND and a
+      // smart folder SMART_FOLDER.
+      const folder = await requireFolderForUser(ctx, owner, args.folderId);
+      if (folder.kind === "smart") {
+        throw smartFolderMembership();
+      }
       return { updatedIds: [], failedIds: invalid, folderLimitIds: [] };
     }
     const result = await applyFolderMembershipToCards(ctx, {

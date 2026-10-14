@@ -14,12 +14,18 @@ import { folderColorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import {
   explainInvalidFolderName,
+  explainInvalidSmartFolderQuery,
   FOLDER_ERROR_MESSAGES,
   type FolderColor,
+  type FolderKind,
   folderNameKey,
   MAX_FOLDERS_PER_USER,
   normalizeFolderName,
 } from "../shared/folders";
+import {
+  parseSearchQuery,
+  renameFolderInSearchQuery,
+} from "../shared/search/qualifiers";
 
 /** Cards one deletion batch detaches before it schedules the next. */
 export const FOLDER_DELETE_BATCH_SIZE = 50;
@@ -34,6 +40,8 @@ export const folderReturnValidator = v.object({
   name: v.string(),
   color: v.optional(folderColorValidator),
   kind: v.union(v.literal("manual"), v.literal("smart")),
+  /** A smart folder's search, written the canonical way. */
+  query: v.optional(v.string()),
   activeCardCount: v.number(),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -44,8 +52,9 @@ export interface FolderSummary {
   activeCardCount: number;
   color?: FolderColor;
   createdAt: number;
-  kind: "manual" | "smart";
+  kind: FolderKind;
   name: string;
+  query?: string;
   updatedAt: number;
 }
 
@@ -54,6 +63,7 @@ export const toFolderSummary = (folder: Doc<"folders">): FolderSummary => ({
   name: folder.name,
   ...(folder.color ? { color: folder.color } : {}),
   kind: folder.kind,
+  ...(folder.kind === "smart" ? { query: folder.query ?? "" } : {}),
   activeCardCount: folder.activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
@@ -162,32 +172,103 @@ const assertNameAvailable = async (
   }
 };
 
-/** Inserts an empty manual folder; callers check the name and the cap. */
+/**
+ * Inserts an empty folder, manual unless a smart folder's `query` is given;
+ * callers check the name, the query and the cap.
+ */
 export const insertFolder = (
   ctx: MutationCtx,
   userId: string,
   name: string,
   color?: FolderColor,
-  now = Date.now()
+  now = Date.now(),
+  query?: string
 ): Promise<Id<"folders">> =>
   ctx.db.insert("folders", {
     userId,
     name,
     nameKey: folderNameKey(name),
     ...(color ? { color } : {}),
-    kind: "manual",
+    ...(query === undefined
+      ? { kind: "manual" as const }
+      : { kind: "smart" as const, query }),
     activeCardCount: 0,
     createdAt: now,
     updatedAt: now,
   });
 
+/**
+ * A smart folder's search as stored (canonical), or an INVALID_INPUT error:
+ * empty, too long, or a `folder:` that is not one of the user's manual
+ * folders. A smart folder's cards come from its search, so `folder:` naming
+ * another smart folder would never match.
+ */
+export const normalizeSmartFolderQuery = async (
+  ctx: QueryCtx,
+  userId: string,
+  query: string
+): Promise<string> => {
+  const parsed = parseSearchQuery(query);
+  const invalid = explainInvalidSmartFolderQuery(parsed.canonical);
+  if (invalid) {
+    throw new ConvexError({ code: "INVALID_INPUT", message: invalid });
+  }
+  for (const qualifier of parsed.qualifiers) {
+    if (qualifier.key !== "folder") {
+      continue;
+    }
+    const nameKey = folderNameKey(qualifier.value);
+    let named: Doc<"folders"> | undefined;
+    for await (const folder of ctx.db
+      .query("folders")
+      .withIndex("by_userId_and_nameKey", (q) =>
+        q.eq("userId", userId).eq("nameKey", nameKey)
+      )) {
+      if (folder.deletingAt === undefined) {
+        named = folder;
+        break;
+      }
+    }
+    if (!named) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `No folder named ${qualifier.value}`,
+      });
+    }
+    if (named.kind === "smart") {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_IN_QUERY,
+      });
+    }
+  }
+  return parsed.canonical;
+};
+
 export const createFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
-  args: { color?: FolderColor; name: string }
+  args: {
+    color?: FolderColor;
+    /** "smart" needs a `query`; manual folders take none. */
+    kind?: FolderKind;
+    name: string;
+    query?: string;
+  }
 ): Promise<FolderSummary> => {
   assertValidName(args.name);
   const name = normalizeFolderName(args.name);
+  const kind = args.kind ?? (args.query === undefined ? "manual" : "smart");
+  if (kind === "manual" && args.query !== undefined) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER,
+    });
+  }
+  const query =
+    kind === "smart"
+      ? await normalizeSmartFolderQuery(ctx, userId, args.query ?? "")
+      : undefined;
   await assertNameAvailable(ctx, userId, name);
   // Folders being deleted still count until their row is gone.
   const existing = await ctx.db
@@ -200,7 +281,14 @@ export const createFolderForUser = async (
       message: FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS,
     });
   }
-  const folderId = await insertFolder(ctx, userId, name, args.color);
+  const folderId = await insertFolder(
+    ctx,
+    userId,
+    name,
+    args.color,
+    Date.now(),
+    query
+  );
   const folder = await ctx.db.get("folders", folderId);
   if (!folder) {
     throw new Error("Failed to create folder");
@@ -216,10 +304,24 @@ export const updateFolderForUser = async (
     color?: FolderColor | null;
     folderId: string;
     name?: string;
+    /** A smart folder's new search; manual folders refuse one. */
+    query?: string;
   }
 ): Promise<FolderSummary> => {
   const folder = await requireFolderForUser(ctx, userId, args.folderId);
   const patch: Partial<Doc<"folders">> = {};
+  if (args.query !== undefined) {
+    if (folder.kind !== "smart") {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER,
+      });
+    }
+    const query = await normalizeSmartFolderQuery(ctx, userId, args.query);
+    if (query !== folder.query) {
+      patch.query = query;
+    }
+  }
   if (args.name !== undefined) {
     assertValidName(args.name);
     const name = normalizeFolderName(args.name);
@@ -237,10 +339,33 @@ export const updateFolderForUser = async (
   if (Object.keys(patch).length === 0) {
     return toFolderSummary(folder);
   }
-  await ctx.db.patch("folders", folder._id, {
-    ...patch,
-    updatedAt: Date.now(),
-  });
+  const now = Date.now();
+  await ctx.db.patch("folders", folder._id, { ...patch, updatedAt: now });
+  // Smart folders name manual folders in `folder:`; follow the rename so
+  // they keep matching the same cards.
+  if (
+    folder.kind === "manual" &&
+    patch.nameKey !== undefined &&
+    patch.name !== undefined
+  ) {
+    const folders = await ctx.db
+      .query("folders")
+      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
+      .take(MAX_FOLDERS_PER_USER);
+    for (const other of folders) {
+      if (other.kind !== "smart" || other.query === undefined) {
+        continue;
+      }
+      const query = renameFolderInSearchQuery(
+        other.query,
+        folder.nameKey,
+        patch.name
+      );
+      if (query !== other.query) {
+        await ctx.db.patch("folders", other._id, { query, updatedAt: now });
+      }
+    }
+  }
   const updated = await ctx.db.get("folders", folder._id);
   if (!updated) {
     throw folderNotFound();
@@ -391,6 +516,8 @@ export const createFolder = mutation({
   args: {
     name: v.string(),
     color: v.optional(folderColorValidator),
+    kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
+    query: v.optional(v.string()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
@@ -402,6 +529,7 @@ export const updateFolder = mutation({
     folderId: v.id("folders"),
     name: v.optional(v.string()),
     color: v.optional(v.union(folderColorValidator, v.null())),
+    query: v.optional(v.string()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>

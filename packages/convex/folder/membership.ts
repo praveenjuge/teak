@@ -31,6 +31,16 @@ const requireOwnedCard = async (
   return card;
 };
 
+/**
+ * Cards are never put in a smart folder: it shows whatever matches its
+ * search. The public API answers this with 409.
+ */
+export const smartFolderMembership = () =>
+  new ConvexError({
+    code: "SMART_FOLDER",
+    message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_MEMBERSHIP,
+  });
+
 const sameFolders = (
   a: readonly Id<"folders">[],
   b: readonly Id<"folders">[]
@@ -87,6 +97,9 @@ export const setCardFoldersForUser = async (
   const next: Id<"folders">[] = [];
   for (const id of folderIds) {
     const folder = await requireFolderForUser(ctx, userId, id);
+    if (folder.kind === "smart") {
+      throw smartFolderMembership();
+    }
     if (!next.includes(folder._id)) {
       next.push(folder._id);
     }
@@ -186,10 +199,19 @@ export const applyFolderMembershipToCards = async (
     });
   }
   const folder = await requireFolderForUser(ctx, args.userId, args.folderId);
+  if (folder.kind === "smart") {
+    throw smartFolderMembership();
+  }
   const fromFolder =
     args.action === "move" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
+  // No card is ever in a smart folder, so moving out of one (from its view)
+  // only adds the cards to the target.
+  const action =
+    args.action === "move" && fromFolder?.kind === "smart"
+      ? "add"
+      : args.action;
 
   const updatedIds: Id<"cards">[] = [];
   const failedIds: Id<"cards">[] = [];
@@ -197,7 +219,7 @@ export const applyFolderMembershipToCards = async (
   for (const cardId of cardIds) {
     try {
       await applyFolderMembership(ctx, {
-        action: args.action,
+        action,
         cardId,
         folderId: folder._id,
         fromFolderId: fromFolder?._id,

@@ -37,6 +37,7 @@ import {
   validatePatchPayload,
   validateUploadPayload,
 } from "./publicApiHttpValidation";
+import { combineSearchQueries } from "./shared/search/qualifiers";
 import type { WorkosResource } from "./workosTokens";
 
 const handleCreateCardRequest = async (
@@ -198,7 +199,7 @@ const handleCardsListRequest = async (
     return auth.error;
   }
 
-  const options = parseCardsQueryOptions(request);
+  let options = parseCardsQueryOptions(request);
   if (options instanceof Response) {
     return options;
   }
@@ -224,7 +225,30 @@ const handleCardsListRequest = async (
       if (!folder) {
         return errorResponse(404, "NOT_FOUND", "Folder not found");
       }
-      folderId = folder._id;
+      if (folder.kind === "smart") {
+        // A smart folder lists what its search matches: its search joins
+        // `q` (both must match) and the folder drops out of the request.
+        const url = new URL(request.url);
+        const combined = combineSearchQueries(
+          folder.query ?? "",
+          url.searchParams.get("q") ?? ""
+        );
+        if (combined === null) {
+          return json(200, {
+            items: [],
+            pageInfo: { hasMore: false, nextCursor: null },
+          });
+        }
+        url.searchParams.set("q", combined);
+        url.searchParams.delete("folder");
+        const smartOptions = parseCardsQueryOptions(new Request(url));
+        if (smartOptions instanceof Response) {
+          return smartOptions;
+        }
+        options = smartOptions;
+      } else {
+        folderId = folder._id;
+      }
     }
     // After the folder check, so an unknown folder is a 404 whatever else
     // the request asks for.

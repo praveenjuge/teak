@@ -17,7 +17,11 @@ import {
   FOLDER_DELETE_UNDO_MS,
 } from "./folder/folders";
 import schema from "./schema";
-import { MAX_FOLDERS_PER_CARD, MAX_FOLDERS_PER_USER } from "./shared/folders";
+import {
+  FOLDER_ERROR_MESSAGES,
+  MAX_FOLDERS_PER_CARD,
+  MAX_FOLDERS_PER_USER,
+} from "./shared/folders";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -844,4 +848,220 @@ test("account deletion leaves no folders or folder rows", async () => {
     }
   }
   expect(await t.run((ctx) => ctx.db.query("folders").collect())).toEqual([]);
+});
+
+describe("smart folders", () => {
+  const smart = (
+    owner: Awaited<ReturnType<typeof setup>>["owner"],
+    name: string,
+    query: string
+  ) => owner.mutation(api.folders.createFolder, { name, kind: "smart", query });
+
+  test("save a search in the canonical form; the search is checked", async () => {
+    const { owner, create } = await setup();
+    const design = await smart(owner, "Design links", "  TYPE:link #Design ");
+    expect(design).toMatchObject({
+      kind: "smart",
+      query: "type:link tag:design",
+    });
+    expect(
+      (await owner.query(api.folders.listFolders, {})).map(
+        (folder: { kind: string; name: string }) => [folder.name, folder.kind]
+      )
+    ).toEqual([["Design links", "smart"]]);
+
+    await expect(smart(owner, "Empty", "   ")).rejects.toThrow(
+      FOLDER_ERROR_MESSAGES.EMPTY_QUERY
+    );
+    await expect(smart(owner, "Long", "a".repeat(501))).rejects.toThrow(
+      FOLDER_ERROR_MESSAGES.QUERY_TOO_LONG
+    );
+    expect(
+      (await smart(owner, "Just fits", "a".repeat(500))).query
+    ).toHaveLength(500);
+    await expect(
+      smart(owner, "Typo", 'folder:"No such folder"')
+    ).rejects.toThrow("No folder named No such folder");
+    await expect(
+      smart(owner, "Nested", 'folder:"design links"')
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.SMART_FOLDER_IN_QUERY);
+    await create("Reading");
+    expect((await smart(owner, "Unread", "folder:reading is:fav")).query).toBe(
+      "folder:reading is:fav"
+    );
+
+    // Only smart folders have a search.
+    await expect(
+      owner.mutation(api.folders.createFolder, {
+        name: "Manual",
+        kind: "manual",
+        query: "tag:x",
+      })
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER);
+    const manual = await create("Manual");
+    await expect(
+      owner.mutation(api.folders.updateFolder, {
+        folderId: manual._id,
+        query: "tag:x",
+      })
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER);
+
+    const edited = await owner.mutation(api.folders.updateFolder, {
+      folderId: design._id,
+      query: "type:image",
+    });
+    expect(edited.query).toBe("type:image");
+    await expect(
+      owner.mutation(api.folders.updateFolder, {
+        folderId: design._id,
+        query: "",
+      })
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.EMPTY_QUERY);
+  });
+
+  test("lists what its search matches, live, merged with the typed search", async () => {
+    const { owner, insert, grid, runScheduled } = await setup();
+    await insert({
+      content: "Design article",
+      type: "link",
+      url: "https://a.example",
+      tags: ["design"],
+      createdAt: 1,
+    });
+    await insert({
+      content: "Design note",
+      type: "text",
+      tags: ["design"],
+      createdAt: 2,
+    });
+    await insert({ content: "Plain link", type: "link", createdAt: 3 });
+    const folder = await smart(owner, "Design", "tag:design");
+    await runScheduled();
+    expect(await grid({ folderId: folder._id })).toEqual([
+      "Design note",
+      "Design article",
+    ]);
+
+    // A card saved later that matches shows up; one edited away drops out.
+    const later = await insert({
+      content: "Design later",
+      type: "text",
+      tags: ["Design"],
+      createdAt: 4,
+    });
+    await runScheduled();
+    expect(await grid({ folderId: folder._id })).toContain("Design later");
+    await owner.mutation(api.cards.updateCardField, {
+      cardId: later,
+      field: "tags",
+      value: ["other"],
+    });
+    await runScheduled();
+    expect(await grid({ folderId: folder._id })).not.toContain("Design later");
+
+    // The typed search narrows the folder's own; both must match.
+    expect(
+      await grid({ folderId: folder._id, searchQuery: "type:link" })
+    ).toEqual(["Design article"]);
+    const links = await smart(owner, "Links", "type:link type:image");
+    expect(
+      await grid({ folderId: links._id, searchQuery: "type:text" })
+    ).toEqual([]);
+    expect(
+      await grid({ folderId: links._id, searchQuery: "type:link" })
+    ).toEqual(["Plain link", "Design article"]);
+  });
+
+  test("folder: in a smart folder follows a renamed folder and empties when it is deleted", async () => {
+    const { owner, create, insert, grid, folder } = await setup();
+    const reading = await create("Reading");
+    const id = await insert({ content: "Filed", type: "text" });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: reading._id,
+      cardIds: [id],
+    });
+    const unread = await smart(owner, "Unread", "folder:reading");
+    expect(await grid({ folderId: unread._id })).toEqual(["Filed"]);
+
+    await owner.mutation(api.folders.updateFolder, {
+      folderId: reading._id,
+      name: "Reading list",
+    });
+    expect((await folder(unread._id))?.query).toBe('folder:"Reading list"');
+    expect(await grid({ folderId: unread._id })).toEqual(["Filed"]);
+
+    await owner.mutation(api.folders.deleteFolder, { folderId: reading._id });
+    expect(await grid({ folderId: unread._id })).toEqual([]);
+  });
+
+  test("cards are never put in a smart folder", async () => {
+    const { owner, create, insert, card } = await setup();
+    const design = await smart(owner, "Design", "tag:design");
+    const manual = await create("Manual");
+    const id = await insert({ content: "Card", type: "text" });
+    const refused = FOLDER_ERROR_MESSAGES.SMART_FOLDER_MEMBERSHIP;
+    await expect(
+      owner.mutation(api.folders.addCardsToFolder, {
+        folderId: design._id,
+        cardIds: [id],
+      })
+    ).rejects.toThrow(refused);
+    await expect(
+      owner.mutation(api.folders.setCardFolders, {
+        cardId: id,
+        folderIds: [manual._id, design._id],
+      })
+    ).rejects.toThrow(refused);
+    await expect(
+      owner.mutation(api.cards.bulkUpdateCards, {
+        cardIds: [id],
+        action: "addToFolder",
+        folderId: design._id,
+      })
+    ).rejects.toThrow(refused);
+    expect((await card(id))?.folderIds).toBeUndefined();
+
+    // Moving out of a smart folder's view only adds to the target.
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: manual._id,
+      cardIds: [id],
+    });
+    const other = await create("Other");
+    await owner.mutation(api.folders.moveCardsToFolder, {
+      folderId: other._id,
+      fromFolderId: design._id,
+      cardIds: [id],
+    });
+    expect((await card(id))?.folderIds).toEqual([manual._id, other._id]);
+    await owner.mutation(api.cards.bulkUpdateCards, {
+      cardIds: [id],
+      action: "moveToFolder",
+      folderId: manual._id,
+      fromFolderId: design._id,
+    });
+    expect((await card(id))?.folderIds).toEqual([manual._id, other._id]);
+  });
+
+  test("a smart folder is deleted like any folder, and another account cannot read it", async () => {
+    const { t, owner, stranger, insert, runScheduled } = await setup();
+    await insert({ content: "Mine", type: "text", tags: ["x"] });
+    const folder = await smart(owner, "X", "tag:x");
+    await runScheduled();
+    const strangerGrid = await stranger.query(api.cards.searchCardsPaginated, {
+      paginationOpts: { numItems: 10, cursor: null },
+      folderId: folder._id,
+    });
+    expect(strangerGrid.page).toEqual([]);
+    await expect(
+      stranger.mutation(api.folders.updateFolder, {
+        folderId: folder._id,
+        query: "tag:y",
+      })
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.NOT_FOUND);
+
+    await owner.mutation(api.folders.deleteFolder, { folderId: folder._id });
+    vi.advanceTimersByTime(FOLDER_DELETE_UNDO_MS + 1);
+    await runScheduled();
+    expect(await t.run((ctx) => ctx.db.get("folders", folder._id))).toBeNull();
+  });
 });
