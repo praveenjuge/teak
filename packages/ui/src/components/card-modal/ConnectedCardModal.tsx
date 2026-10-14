@@ -1,13 +1,10 @@
 import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
-import { MoreInformationModal } from "../modals/MoreInformationModal";
-import { NotesEditModal } from "../modals/NotesEditModal";
-import { TagManagementModal } from "../modals/TagManagementModal";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import type { CardModalCard } from "./types";
@@ -19,10 +16,12 @@ interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
+  /** Shows the next card in the grid; absent on the last card. */
+  onNext?: () => void;
+  /** Shows the previous card in the grid; absent on the first card. */
+  onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
-  onTagManagementOpenChange?: (open: boolean) => void;
   open: boolean;
-  openTagManagement?: boolean;
 }
 
 export function ConnectedCardModal({
@@ -33,13 +32,10 @@ export function ConnectedCardModal({
   onCardTypeClick,
   onCardUpdate,
   onInvalidCard,
-  onTagManagementOpenChange,
+  onNext,
+  onPrevious,
   onTagClick,
-  openTagManagement = false,
 }: ConnectedCardModalProps) {
-  const [showTagManagementModal, setShowTagManagementModal] = useState(false);
-  const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
-  const [showNotesEditModal, setShowNotesEditModal] = useState(false);
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
     cardId && open && !isAuthLoading && isAuthenticated
@@ -53,19 +49,13 @@ export function ConnectedCardModal({
   const resolvedCard = hydratedCard ?? cardData ?? null;
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
 
-  const setTagManagementModalOpen = useCallback(
-    (nextOpen: boolean) => {
-      setShowTagManagementModal(nextOpen);
-      onTagManagementOpenChange?.(nextOpen);
-    },
-    [onTagManagementOpenChange]
-  );
-
   const {
     card,
     tagInput,
     setTagInput,
     updateContent,
+    updateNotes,
+    updateTitle,
     toggleFavorite,
     addTag,
     removeTag,
@@ -76,7 +66,7 @@ export function ConnectedCardModal({
     openLink,
     downloadFile,
     saveChanges,
-    saveNotes,
+    saveState,
     hasUnsavedChanges,
     getCurrentValue,
     isDownloading,
@@ -121,15 +111,10 @@ export function ConnectedCardModal({
     open,
   ]);
 
-  useEffect(() => {
-    if (open && openTagManagement) {
-      setTagManagementModalOpen(true);
-    }
-  }, [open, openTagManagement, setTagManagementModalOpen]);
-
   return (
     <CardModal
       card={card}
+      cardId={cardId}
       downloadFile={downloadFile}
       getCurrentValue={getCurrentValue}
       handleDelete={handleDelete}
@@ -138,26 +123,10 @@ export function ConnectedCardModal({
       hasUnsavedChanges={hasUnsavedChanges}
       isDownloading={isDownloading}
       isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
-      MoreInformationModal={
-        <MoreInformationModal
-          card={card ?? null}
-          onOpenChange={setShowMoreInfoModal}
-          open={showMoreInfoModal}
-        />
-      }
-      NotesEditModal={
-        <NotesEditModal
-          notes={getCurrentValue("notes") || ""}
-          onCancel={() => {
-            // noop
-          }}
-          onOpenChange={setShowNotesEditModal}
-          onSave={saveNotes}
-          open={showNotesEditModal}
-        />
-      }
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
+      onNext={onNext}
+      onPrevious={onPrevious}
       onReprocess={
         cardId
           ? () => {
@@ -169,28 +138,19 @@ export function ConnectedCardModal({
       open={open}
       openLink={openLink}
       saveChanges={saveChanges}
-      setShowMoreInfoModal={setShowMoreInfoModal}
-      setShowNotesEditModal={setShowNotesEditModal}
-      setShowTagManagementModal={setTagManagementModalOpen}
-      showMoreInfoModal={showMoreInfoModal}
-      showNotesEditModal={showNotesEditModal}
-      showTagManagementModal={showTagManagementModal}
-      TagManagementModal={
-        <TagManagementModal
-          aiTags={card?.aiTags || []}
-          onAddTag={addTag}
-          onOpenChange={setTagManagementModalOpen}
-          onRemoveAiTag={removeAiTag}
-          onRemoveTag={removeTag}
-          open={showTagManagementModal}
-          setTagInput={setTagInput}
-          tagInput={tagInput}
-          userTags={card?.tags || []}
-        />
-      }
+      saveState={saveState}
+      tags={{
+        addTag,
+        removeAiTag,
+        removeTag,
+        setTagInput,
+        tagInput,
+      }}
       toggleArchive={toggleArchive}
       toggleFavorite={toggleFavorite}
       updateContent={updateContent}
+      updateNotes={updateNotes}
+      updateTitle={updateTitle}
     />
   );
 }

@@ -20,5 +20,5 @@ export type CardModalCard = Doc<"cards"> & {
 };
 
 export type GetCurrentValue = (
-  field: "content" | "url" | "notes" | "aiSummary"
+  field: "content" | "url" | "notes" | "aiSummary" | "metadataTitle"
 ) => string | undefined;

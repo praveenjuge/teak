@@ -38,10 +38,12 @@ import {
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { isOptimisticCard } from "../components/cards/types";
 import { FolderDot } from "../components/folders/FolderDot";
 import { FolderNameDialog } from "../components/folders/FolderNameDialog";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
 import { useFolders } from "../hooks/useFolders";
+import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
   FOLDER_ICON_CLASSES,
@@ -120,6 +122,8 @@ interface CardsScreenProps {
     state: SearchUrlState,
     change: SearchUrlChange
   ) => void;
+  /** Shows another card in the open dialog, for previous and next. */
+  onSwitchCard?: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
@@ -150,6 +154,7 @@ export function CardsScreen({
   toastIdPrefix,
   searchUrlState,
   onSearchUrlStateChange,
+  onSwitchCard,
 }: CardsScreenProps) {
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
@@ -370,6 +375,19 @@ export function CardsScreen({
     () =>
       displayCards.find((card: Doc<"cards">) => card._id === selectedCardId) ??
       null,
+    [displayCards, selectedCardId]
+  );
+
+  // Previous and next walk the cards in grid order, skipping ones still
+  // being saved.
+  const { previous: previousCardId, next: nextCardId } = useMemo(
+    () =>
+      getAdjacentCardIds(
+        displayCards
+          .map((card: Doc<"cards">) => card._id as string)
+          .filter((id: string) => !isOptimisticCard(id)),
+        selectedCardId
+      ),
     [displayCards, selectedCardId]
   );
 
@@ -779,6 +797,16 @@ export function CardsScreen({
         onCardTypeClick={handleCardTypeClick}
         onCardUpdate={updateCachedCard}
         onInvalidCard={handleInvalidSelectedCard}
+        onNext={
+          onSwitchCard && nextCardId
+            ? () => onSwitchCard(nextCardId)
+            : undefined
+        }
+        onPrevious={
+          onSwitchCard && previousCardId
+            ? () => onSwitchCard(previousCardId)
+            : undefined
+        }
         onTagClick={handleTagClick}
         open={!!selectedCardId}
       />

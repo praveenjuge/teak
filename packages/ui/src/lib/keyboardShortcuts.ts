@@ -39,6 +39,17 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
+    title: "Open card",
+    rows: [
+      { keys: ["←", "→"], label: "Previous or next card" },
+      { keys: ["F"], label: "Favorite or unfavorite" },
+      { keys: ["T"], label: "Add a tag" },
+      { keys: ["N"], label: "Write a note" },
+      { keys: ["E"], label: "Archive or unarchive" },
+      { keys: ["Delete"], label: "Move to Trash" },
+    ],
+  },
+  {
     title: "Go to",
     rows: [
       { keys: ["G", "E"], label: "Everything", sequence: true },

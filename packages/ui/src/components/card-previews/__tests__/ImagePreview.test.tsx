@@ -42,8 +42,8 @@ describe("ImagePreview", () => {
       />
     );
 
-    expect(markup).toContain("photo.jpg");
-    expect(markup).toContain("max-h-[75vh]");
+    expect(markup).toContain('src="https://cdn.example.com/photo.jpg"');
+    expect(markup).toContain('data-fit="contain"');
   });
 
   test("uses thumbnail derivatives for HEIC and tall-image layout", () => {
@@ -65,7 +65,7 @@ describe("ImagePreview", () => {
     );
 
     expect(markup).toContain("thumb.jpg");
-    expect(markup).toContain("min-h-full");
+    expect(markup).toContain('data-fit="width"');
     expect(markup).not.toContain("original.heic");
   });
 });

@@ -103,7 +103,7 @@ describe("MasonryGrid keyboard actions", () => {
     await press(cardElement("card_b"), "x");
     // The selection checkboxes are decoration, not extra Tab stops.
     const checkboxes = document.querySelectorAll<HTMLElement>(
-      "[data-card-id] [role='checkbox']"
+      "[data-card-shell] [role='checkbox']"
     );
     expect(checkboxes.length).toBe(2);
     for (const checkbox of checkboxes) {

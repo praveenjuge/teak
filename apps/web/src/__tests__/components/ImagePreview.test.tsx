@@ -27,12 +27,11 @@ describe("ImagePreview", () => {
       <ImagePreview card={createImageCard() as any} />
     );
 
-    expect(markup).toContain("min-h-full items-start");
-    expect(markup).toContain("h-auto w-full object-contain");
-    expect(markup).not.toContain("max-h-[75vh] max-w-full object-contain");
+    expect(markup).toContain('data-fit="width"');
+    expect(markup).not.toContain('data-fit="contain"');
   });
 
-  test("keeps standard images height-constrained", () => {
+  test("fits standard images inside the dialog", () => {
     const markup = renderToStaticMarkup(
       <ImagePreview
         card={
@@ -47,9 +46,8 @@ describe("ImagePreview", () => {
       />
     );
 
-    expect(markup).toContain("h-full items-center");
-    expect(markup).toContain("max-h-[75vh] max-w-full object-contain");
-    expect(markup).not.toContain("h-auto w-full object-contain");
+    expect(markup).toContain('data-fit="contain"');
+    expect(markup).not.toContain('data-fit="width"');
   });
 
   test("does not render the legacy in-preview palette overlay", () => {

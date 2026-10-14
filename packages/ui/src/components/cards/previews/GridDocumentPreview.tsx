@@ -1,9 +1,12 @@
 import { File } from "lucide-react";
+import { CARD_SURFACE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridDocumentPreviewProps {
   cardId?: string;
   fileName?: string;
+  /** A short file-type badge, such as `PDF`. */
+  formatBadge?: string;
   height?: number;
   isPriority?: boolean;
   thumbnailKey?: string;
@@ -15,10 +18,34 @@ interface GridDocumentPreviewProps {
 // reserve a portrait box so lazy-loaded thumbnails don't reflow the grid.
 const FALLBACK_ASPECT_RATIO = 3 / 4;
 
+function FileLabel({
+  fileName,
+  formatBadge,
+}: {
+  fileName?: string;
+  formatBadge?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {formatBadge ? (
+        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-semibold text-[10px] text-muted-foreground tracking-wide">
+          {formatBadge}
+        </span>
+      ) : (
+        <File className="size-4 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate font-medium text-sm" dir="auto">
+        {fileName}
+      </span>
+    </div>
+  );
+}
+
 export function GridDocumentPreview({
   cardId,
   thumbnailUrl,
   fileName,
+  formatBadge,
   width,
   height,
   isPriority = false,
@@ -26,9 +53,9 @@ export function GridDocumentPreview({
 }: GridDocumentPreviewProps) {
   if (thumbnailUrl) {
     return (
-      <div className="overflow-hidden rounded-2xl border bg-card">
+      <div className={`overflow-hidden ${CARD_SURFACE}`}>
         <div
-          className="relative w-full overflow-hidden"
+          className="relative w-full overflow-hidden bg-muted/60"
           style={{
             aspectRatio:
               width && height ? width / height : FALLBACK_ASPECT_RATIO,
@@ -37,7 +64,7 @@ export function GridDocumentPreview({
           <ResilientMediaImage
             alt={`Preview of ${fileName || "document"}`}
             cardId={cardId}
-            className="h-full w-full bg-muted object-contain"
+            className="h-full w-full object-contain"
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
             loading={isPriority ? "eager" : "lazy"}
@@ -46,18 +73,16 @@ export function GridDocumentPreview({
             style={{ objectFit: "contain" }}
           />
         </div>
-        <div className="flex items-center gap-2 border-t px-4 py-3">
-          <File className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-medium text-sm">{fileName}</span>
+        <div className="border-t px-4 py-3">
+          <FileLabel fileName={fileName} formatBadge={formatBadge} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-2xl border bg-card p-4">
-      <File className="size-4 shrink-0 text-muted-foreground" />
-      <span className="truncate font-medium">{fileName}</span>
+    <div className={`p-4 ${CARD_SURFACE}`}>
+      <FileLabel fileName={fileName} formatBadge={formatBadge} />
     </div>
   );
 }

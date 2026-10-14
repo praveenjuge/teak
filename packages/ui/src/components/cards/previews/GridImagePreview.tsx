@@ -1,3 +1,4 @@
+import { CARD_SURFACE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridImagePreviewProps {
@@ -25,7 +26,7 @@ export function GridImagePreview({
 }: GridImagePreviewProps) {
   return (
     <div
-      className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
       style={{
         aspectRatio: width && height ? width / height : 4 / 3,
         backgroundColor: placeholderColor,
