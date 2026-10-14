@@ -55,6 +55,10 @@ export interface CardsSearchState {
 export interface CardsSearchQueryArgs {
   createdAtRange?: TimeFilter["range"];
   favoritesOnly?: boolean;
+  /** A folder view's folder. */
+  folderId?: Id<"folders">;
+  /** A smart folder's search, as this view read it. */
+  folderQuery?: string;
   hexFilters?: string[];
   hueFilters?: ColorHueBucket[];
   searchQuery?: string;
@@ -620,8 +624,11 @@ export function useCardsSearchController(
       }),
       ...(sort === "oldest" ? { sort: "oldest" as const } : {}),
       ...(folderId ? { folderId } : {}),
+      // A smart folder's search is part of the query, so editing it starts
+      // a new one instead of reusing pages read with the old search.
+      ...(folderId && folderQuery !== undefined ? { folderQuery } : {}),
     }),
-    [folderId, remoteSearchQuery, searchState, sort]
+    [folderId, folderQuery, remoteSearchQuery, searchState, sort]
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";

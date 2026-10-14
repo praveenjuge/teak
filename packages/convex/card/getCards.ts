@@ -298,6 +298,13 @@ export const searchCardsPaginatedArgsValidator = v.object({
   sort: v.optional(cardListSortValidator),
   /** Only cards in this folder (the folder view). */
   folderId: v.optional(v.id("folders")),
+  /**
+   * For a smart folder, the search the client last read for it. The view
+   * runs this search, so a page's cursor always belongs to the search that
+   * issued it and editing the folder starts a new query; without it, the
+   * stored search. Any search the user could type is fine here.
+   */
+  folderQuery: v.optional(v.string()),
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
 });
@@ -338,7 +345,8 @@ export const searchCardsPaginatedHandler = async (
     ctx,
     user.teakUserId,
     args.folderId,
-    args.searchQuery ?? ""
+    args.searchQuery ?? "",
+    args.folderQuery
   );
   if (!view) {
     return emptyPage;

@@ -110,11 +110,14 @@ export function FolderNameDialog({
   } else if (trimmed) {
     problem = explainInvalidFolderName(trimmed);
   }
-  // Shown under the search once something was typed there or saving it
-  // would fail; the server checks folder names in it.
-  const queryProblem = isSmart
-    ? explainInvalidSmartFolderQuery(canonicalQuery)
-    : null;
+  // Like the name, an empty search (or one still being typed, such as
+  // `folder:`) only disables Save; the length limit shows as an error, and
+  // the server checks the folders a `folder:` names.
+  const queryIncomplete = isSmart && !canonicalQuery;
+  const queryProblem =
+    isSmart && canonicalQuery
+      ? explainInvalidSmartFolderQuery(canonicalQuery)
+      : null;
   // A server error about the search (a `folder:` it names) shows under the
   // search; one about the name, under the name.
   const serverErrorIsAboutName =
@@ -130,7 +133,12 @@ export function FolderNameDialog({
     color === folder?.color &&
     (!isSmart || canonicalQuery === folder?.query);
   const canSubmit =
-    Boolean(trimmed) && !problem && !queryProblem && !isSaving && !unchanged;
+    Boolean(trimmed) &&
+    !problem &&
+    !queryProblem &&
+    !queryIncomplete &&
+    !isSaving &&
+    !unchanged;
 
   const submit = async () => {
     if (!canSubmit || savingRef.current) {

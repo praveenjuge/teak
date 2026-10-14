@@ -103,7 +103,9 @@ export const expandFolderSearch = async (
   ctx: QueryCtx,
   userId: string,
   folderId: Id<"folders"> | undefined,
-  searchQuery: string
+  searchQuery: string,
+  /** A smart folder's search as the caller read it, over the stored one. */
+  folderQuery?: string
 ): Promise<{ folderId?: Id<"folders">; searchQuery: string } | null> => {
   if (!folderId) {
     return { searchQuery };
@@ -115,7 +117,10 @@ export const expandFolderSearch = async (
   if (folder.kind !== "smart") {
     return { folderId, searchQuery };
   }
-  const combined = combineSearchQueries(folder.query ?? "", searchQuery);
+  const combined = combineSearchQueries(
+    folderQuery ?? folder.query ?? "",
+    searchQuery
+  );
   return combined === null ? null : { searchQuery: combined };
 };
 

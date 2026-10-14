@@ -972,6 +972,44 @@ describe("smart folders", () => {
     ).toEqual(["Plain link", "Design article"]);
   });
 
+  test("a page keeps reading the search it started with after the search is edited", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    for (let index = 0; index < 5; index += 1) {
+      await insert({
+        content: `tagged ${index}`,
+        type: "text",
+        tags: ["a"],
+        createdAt: 10 + index,
+      });
+    }
+    await insert({ content: "a link", type: "link", url: "https://x.example" });
+    const folder = await smart(owner, "A", "tag:a");
+    await runScheduled();
+    const page = (cursor: string | null, folderQuery?: string) =>
+      owner.query(api.cards.searchCardsPaginated, {
+        folderId: folder._id,
+        ...(folderQuery === undefined ? {} : { folderQuery }),
+        paginationOpts: { numItems: 2, cursor },
+      });
+    const first = await page(null, "tag:a");
+    expect(first.isDone).toBe(false);
+
+    // The search is edited to one read from another index; a page the grid
+    // already holds still sends the search it started with, so its cursor
+    // stays valid instead of failing with InvalidCursor.
+    await t.run((ctx) =>
+      ctx.db.patch("folders", folder._id, { query: "type:link" })
+    );
+    const second = await page(first.continueCursor, "tag:a");
+    expect(
+      second.page.map((item: { content: string }) => item.content)
+    ).toEqual(["tagged 2", "tagged 1"]);
+    // A fresh read without it uses the stored search.
+    expect(
+      (await page(null)).page.map((item: { content: string }) => item.content)
+    ).toEqual(["a link"]);
+  });
+
   test("folder: in a smart folder follows a renamed folder and empties when it is deleted", async () => {
     const { owner, create, insert, grid, folder } = await setup();
     const reading = await create("Reading");
