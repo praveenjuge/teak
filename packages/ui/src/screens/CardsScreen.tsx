@@ -179,9 +179,19 @@ export function CardsScreen({
   const syncedUrlStateRef = useRef<SearchUrlState | null>(
     searchUrlState ?? null
   );
+  // The URL state this screen last read. Effects re-run without the URL
+  // changing (Activity showing a hidden screen again, Strict Mode), and the
+  // URL can still lag this screen's own write then; only a real URL change
+  // may overwrite the search.
+  const readUrlStateRef = useRef<SearchUrlState | null>(searchUrlState ?? null);
   useEffect(() => {
+    if (!searchUrlState) {
+      return;
+    }
+    const lastRead = readUrlStateRef.current;
+    readUrlStateRef.current = searchUrlState;
     if (
-      !searchUrlState ||
+      (lastRead && isSameSearchUrlState(lastRead, searchUrlState)) ||
       (syncedUrlStateRef.current &&
         isSameSearchUrlState(syncedUrlStateRef.current, searchUrlState))
     ) {
