@@ -1245,7 +1245,7 @@ export const openApiSpec = {
                     },
                     truncated: {
                       description:
-                        "True when the document is longer than Teak keeps: text comes from the first 500 pages of a PDF and at most 524,288 characters",
+                        "True when text is not the document's whole text. Teak keeps the first 500 pages of a PDF and at most 524,288 characters; when the stored text can't be read, its first 32 KiB is returned and text is shorter than charCount",
                       type: "boolean",
                     },
                   },

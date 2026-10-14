@@ -21,7 +21,7 @@ import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 // Text Teak extracts from a card's file (PDF, Word, PowerPoint, text and
 // code). The full text is an R2 object named by its SHA-256, so a rerun of
 // the same extraction writes nothing new; its first 32 KiB is a
-// cardTextContents row, appended to the card's search text.
+// cardTextContents row, which search reads through its own index.
 
 /** Bytes of extracted text that search covers. */
 export const SEARCH_PREFIX_MAX_BYTES = 32 * 1024;
@@ -53,7 +53,8 @@ export const searchPrefix = (
 
 /**
  * Whether the Files Worker stopped before the end of the document: it read
- * its whole character budget, or the PDF has pages past the ones it reads.
+ * its whole budget, or the PDF has pages past the ones it reads. Only PDFs
+ * report a page count, and only their budget counts characters.
  */
 export const isExtractedTextTruncated = (
   text: string,
@@ -61,7 +62,8 @@ export const isExtractedTextTruncated = (
 ): boolean =>
   text.length >= FILES_EXTRACTED_TEXT_MAX_CHARACTERS ||
   // The text and archive modes count their budget in UTF-8 bytes.
-  encoder.encode(text).byteLength >= FILES_EXTRACTED_TEXT_MAX_CHARACTERS ||
+  (pageCount === undefined &&
+    encoder.encode(text).byteLength >= FILES_EXTRACTED_TEXT_MAX_CHARACTERS) ||
   (pageCount ?? 0) > FILES_PDF_TEXT_MAX_PAGES;
 
 const sha256Hex = async (text: string): Promise<string> => {

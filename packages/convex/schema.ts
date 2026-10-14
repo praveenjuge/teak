@@ -954,7 +954,13 @@ export default defineSchema({
     truncated: v.boolean(),
   })
     .index("by_cardId", ["cardId"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    // Searched apart from cardSearchDocuments, a bounded number of rows a
+    // request (card/searchDocumentHelpers.ts), as each row is large.
+    .searchIndex("search_text", {
+      searchField: "text",
+      filterFields: ["userId"],
+    }),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

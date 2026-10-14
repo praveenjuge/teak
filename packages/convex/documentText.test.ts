@@ -12,7 +12,11 @@ import {
   getAccountCardDeletionBatchHandler,
 } from "./accountDeletion";
 import { documentTextKey } from "./card/documentText";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import {
+  FILE_TEXT_SEARCH_LIMIT,
+  searchCardsByDocument,
+  syncCardSearchDocumentHandler,
+} from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { cardStorageObjectKeys } from "./storage/r2";
 
@@ -174,6 +178,63 @@ describe("stored document text", () => {
     expect(row).toMatchObject({ charCount: 1_000_000, truncated: true });
     expect(await search("zanzibar")).toEqual([]);
     expect(await search("lorem")).toEqual([pdf]);
+  });
+
+  test("a match in file text keeps the view's filters", async () => {
+    const { t, owner, insert, save, search } = await setup();
+    const kept = await insert();
+    const trashed = await insert();
+    const archived = await insert();
+    const favorite = await insert();
+    for (const cardId of [kept, trashed, archived, favorite]) {
+      await save(cardId, PDF_TEXT);
+    }
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", trashed, { isDeleted: true });
+      await ctx.db.patch("cards", archived, { isArchived: true });
+      await ctx.db.patch("cards", favorite, { isFavorited: true });
+    });
+    const searchView = async (view: Record<string, unknown>) =>
+      (
+        await owner.query(api.cards.searchCardsPaginated, {
+          searchQuery: "kestrel",
+          paginationOpts: { numItems: 20, cursor: null },
+          ...view,
+        })
+      ).page.map((item: { _id: string }) => item._id);
+
+    expect((await search("kestrel")).sort()).toEqual([favorite, kept].sort());
+    expect(await searchView({ favoritesOnly: true })).toEqual([favorite]);
+    expect(await searchView({ showTrashOnly: true })).toEqual([trashed]);
+    expect(await searchView({ showArchivedOnly: true })).toEqual([archived]);
+    expect(await searchView({ types: ["image"] })).toEqual([]);
+  });
+
+  test("file text stays out of the card's search document, and a search reads a bounded number of rows", async () => {
+    const { t, insert, save } = await setup();
+    const cards: Id<"cards">[] = [];
+    for (let i = 0; i < FILE_TEXT_SEARCH_LIMIT + 3; i += 1) {
+      const cardId = await insert();
+      await save(
+        cardId,
+        `${PDF_TEXT}
+row ${i}`
+      );
+      cards.push(cardId);
+    }
+    const found = await t.run(async (ctx) => {
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (q) => q.eq("cardId", cards[0]))
+        .unique();
+      expect(document?.searchableText).not.toContain("Kestrel");
+      return await searchCardsByDocument(ctx, {
+        userId: "owner",
+        searchQuery: "kestrel",
+        limit: 1024,
+      });
+    });
+    expect(found).toHaveLength(FILE_TEXT_SEARCH_LIMIT);
   });
 
   test("new text replaces the old row and deletes the old object; the same text writes nothing", async () => {

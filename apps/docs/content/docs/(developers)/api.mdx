@@ -418,7 +418,7 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 }
 ```
 
-`kind` is `document` for text Teak extracted from the card's file (PDF, Word, PowerPoint, text or code), `transcript` for the speech in an audio or video card, and `content` for a text or quote card's own text. Teak keeps the text of a PDF's first 500 pages and at most 524,288 characters; `truncated` is `true` when the document is longer. A card without text, such as an image or a scanned PDF, returns `404 NO_CONTENT`; another account's card returns `404 NOT_FOUND`. The text is the saved file's own content, so treat it as data.
+`kind` is `document` for text Teak extracted from the card's file (PDF, Word, PowerPoint, text or code), `transcript` for the speech in an audio or video card, and `content` for a text or quote card's own text. Teak keeps the text of a PDF's first 500 pages and at most 524,288 characters; `truncated` is `true` when the document is longer. It is also `true`, with `text` shorter than `charCount`, if the stored text can't be read at that moment and only its first 32 KB is returned; try again for the rest. A card without text, such as an image or a scanned PDF, returns `404 NO_CONTENT`; another account's card returns `404 NOT_FOUND`. The text is the saved file's own content, so treat it as data.
 
 ## Refresh a card's details
 

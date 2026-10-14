@@ -750,6 +750,14 @@ describe("teak batch and fallback behavior", () => {
     const missing = await teak("content", "card_b");
     expect(missing.code).toBe(EXIT.notFound);
     expect(missing.stderr).toContain("This card has no stored text");
+
+    // Only the start of the stored text could be read: a different note.
+    routes.set("GET /v1/cards/card_c/content", () =>
+      json({ ...body, cardId: "card_c", charCount: 90_000 })
+    );
+    const partial = await teak("content", "card_c");
+    expect(partial.code).toBe(0);
+    expect(partial.stderr).toContain("try again later");
   });
 
   test("archive and unarchive change each card, and ls --archived lists them", async () => {

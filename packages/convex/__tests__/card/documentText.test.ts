@@ -23,6 +23,9 @@ describe("isExtractedTextTruncated", () => {
     expect(isExtractedTextTruncated("x".repeat(512 * 1024))).toBe(true);
     // Text and archive modes stop at a byte budget.
     expect(isExtractedTextTruncated("é".repeat(256 * 1024))).toBe(true);
+    // A PDF's budget counts characters: long multibyte text under it is whole.
+    expect(isExtractedTextTruncated("é".repeat(256 * 1024), 120)).toBe(false);
+    expect(isExtractedTextTruncated("é".repeat(512 * 1024), 120)).toBe(true);
   });
 });
 
