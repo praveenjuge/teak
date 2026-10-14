@@ -588,12 +588,47 @@ export const finishOnboardingCard = (
  * folder, beside a Moodboard smart folder. Cards whose files weren't stored
  * are left out (a link is processed instead).
  */
+/** Mark a new account's getting-started cards as on their way. */
+export const startVaultSetup = async (ctx: MutationCtx, userId: string) => {
+  await ctx.db.insert("vaultSetups", { userId, startedAt: Date.now() });
+};
+
+/** Clear the mark, in the transaction that gives the account its cards. */
+const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
+  const rows = await ctx.db
+    .query("vaultSetups")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .take(10);
+  for (const row of rows) {
+    await ctx.db.delete("vaultSetups", row._id);
+  }
+};
+
+/** How long the backstop waits before inserting what needs no files. */
+export const ONBOARDING_BACKSTOP_MS = 5 * 60 * 1000;
+
+/** True once the account has any getting-started card, in Trash or not. */
+const hasOnboardingCards = async (ctx: MutationCtx, userId: string) => {
+  // A new account holds few cards; the getting-started ones are among its
+  // first, so a bounded read of the oldest is enough.
+  const cards = await ctx.db
+    .query("cards")
+    .withIndex("by_created", (q) => q.eq("userId", userId))
+    .take(50);
+  return cards.some((card) => card.onboarding !== undefined);
+};
+
 const insertOnboardingCardSet = async (
   ctx: MutationCtx,
   userId: string,
   createdAt: number,
   stored: OnboardingStored[]
 ) => {
+  await finishVaultSetup(ctx, userId);
+  // The upload action and the backstop may both arrive; only one inserts.
+  if (await hasOnboardingCards(ctx, userId)) {
+    return 0;
+  }
   const prefix = `${buildR2UserPrefix(userId)}/`;
   for (const entry of stored) {
     if (Object.values(entry.keys).some((key) => !key?.startsWith(prefix))) {
@@ -643,6 +678,7 @@ export const createDefaultCardsForUser = internalMutation({
       .first();
 
     if (existingCard) {
+      await finishVaultSetup(ctx, userId);
       return { created: false, reason: "cards_exist" as const };
     }
 
@@ -653,6 +689,13 @@ export const createDefaultCardsForUser = internalMutation({
         internal.card.onboardingFiles.addOnboardingCards,
         { userId, createdAt }
       );
+      // Scheduled actions run at most once. If this one never inserts, the
+      // backstop still gives the account the cards that need no files.
+      await ctx.scheduler.runAfter(
+        ONBOARDING_BACKSTOP_MS,
+        internal.card.defaultCards.insertOnboardingCards,
+        { userId, createdAt, stored: [] }
+      );
       return { created: true, deferred: true as const };
     }
     const count = await insertOnboardingCardSet(ctx, userId, createdAt, []);
@@ -662,7 +705,11 @@ export const createDefaultCardsForUser = internalMutation({
 
 const onboardingSlotValidator = v.optional(v.string());
 
-/** Insert the getting-started cards once addOnboardingCards stored their files. */
+/**
+ * Insert the getting-started cards once addOnboardingCards stored their files,
+ * or, with none stored, the ones that need no files. Inserts nothing (and
+ * returns 0) when the account already has them.
+ */
 export const insertOnboardingCards = internalMutation({
   args: {
     createdAt: v.number(),

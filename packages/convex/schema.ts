@@ -736,6 +736,14 @@ export default defineSchema({
         "isFavorited",
       ],
     }),
+  // A new account's getting-started cards on their way (card/defaultCards.ts).
+  // Set when the account is created and cleared in the transaction that
+  // inserts the cards, so clients show "Setting up your vault", not an empty
+  // library, until they land.
+  vaultSetups: defineTable({
+    userId: v.string(),
+    startedAt: v.number(),
+  }).index("by_userId", ["userId"]),
   // Folders group cards by hand ("manual"); "smart" folders save a search.
   folders: defineTable({
     userId: v.string(),

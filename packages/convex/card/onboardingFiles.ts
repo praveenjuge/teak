@@ -91,19 +91,38 @@ export const addOnboardingCards = internalAction({
     const stored = results.filter(
       (entry): entry is OnboardingStored => entry !== null
     );
+    const storedKeys = stored.flatMap(
+      (entry) => Object.values(entry.keys) as string[]
+    );
     try {
-      await ctx.runMutation(internal.card.defaultCards.insertOnboardingCards, {
-        createdAt,
-        stored,
-        userId,
-      });
+      const inserted = await ctx.runMutation(
+        internal.card.defaultCards.insertOnboardingCards,
+        { createdAt, stored, userId }
+      );
+      if (inserted === 0) {
+        // The account already has them (the backstop ran first).
+        await deleteObjects(storedKeys);
+      }
     } catch (error) {
       console.error("[onboarding] Adding the getting-started cards failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-      await deleteObjects(
-        stored.flatMap((entry) => Object.values(entry.keys) as string[])
-      );
+      await deleteObjects(storedKeys);
+      // Still give the account the cards that need no files.
+      await ctx
+        .runMutation(internal.card.defaultCards.insertOnboardingCards, {
+          createdAt,
+          stored: [],
+          userId,
+        })
+        .catch((fallbackError: unknown) => {
+          console.error("[onboarding] The fallback cards failed too", {
+            error:
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : String(fallbackError),
+          });
+        });
     }
     return null;
   },

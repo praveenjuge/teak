@@ -1,13 +1,17 @@
 /// <reference types="vite/client" />
 import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
+import { api, internal } from "./_generated/api";
 import {
+  ONBOARDING_BACKSTOP_MS,
   ONBOARDING_CARDS,
   ONBOARDING_FOLDER,
   ONBOARDING_SMART_FOLDER,
   ONBOARDING_TAG,
+  startVaultSetup,
 } from "./card/defaultCards";
 import schema from "./schema";
 import { buildR2ObjectKey } from "./storage/r2";
@@ -91,6 +95,19 @@ describe("getting-started cards", () => {
 
     const [job] = await scheduled(t, "card/onboardingFiles:addOnboardingCards");
     expect(job?.args[0]).toMatchObject({ userId: USER_ID });
+    // A backstop follows, in case the upload action never inserts.
+    const [backstop] = await scheduled(
+      t,
+      "card/defaultCards:insertOnboardingCards"
+    );
+    expect(backstop?.args[0]).toEqual({
+      userId: USER_ID,
+      createdAt: (job!.args[0] as { createdAt: number }).createdAt,
+      stored: [],
+    });
+    expect(backstop!.scheduledTime - job!.scheduledTime).toBeGreaterThanOrEqual(
+      ONBOARDING_BACKSTOP_MS
+    );
     expect(await cardsOf(t)).toHaveLength(0);
     expect(await foldersOf(t)).toHaveLength(0);
   });
@@ -173,6 +190,25 @@ describe("getting-started cards", () => {
     ).toHaveLength(0);
   });
 
+  test("the backstop gives the cards needing no files, and only once", async () => {
+    const t = setup();
+    const insert = (stored: ReturnType<typeof storedEverything>) =>
+      t.mutation(internal.card.defaultCards.insertOnboardingCards, {
+        userId: USER_ID,
+        createdAt: 1,
+        stored,
+      });
+
+    expect(await insert([])).toBe(4);
+    // A late upload, or the backstop firing again, adds nothing.
+    expect(await insert(storedEverything())).toBe(0);
+    expect(await insert([])).toBe(0);
+
+    expect((await cardsOf(t)).map((card) => card.onboarding).sort()).toEqual(
+      ["link", "palette", "quote", "welcome"].sort()
+    );
+  });
+
   test("adds nothing to an account that already has cards", async () => {
     const t = setup();
     await t.run((ctx) =>
@@ -211,5 +247,66 @@ describe("getting-started cards", () => {
       })
     ).rejects.toThrow("does not belong");
     expect(await cardsOf(t)).toHaveLength(0);
+  });
+
+  describe("Setting up your vault", () => {
+    /** The signed-in owner's view of the setup, through the real query. */
+    const signedIn = async () => {
+      const t = setup();
+      workosTest.register(t);
+      const workosUserId = await seedWorkosOwner(t, USER_ID);
+      const owner = t.withIdentity({
+        issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+        subject: workosUserId,
+        sid: "session_vaultsetup",
+        email_verified: true,
+        external_id: USER_ID,
+      });
+      const setupState = () =>
+        owner.query(api.card.vaultSetup.getVaultSetup, {});
+      return { t, setupState };
+    };
+
+    test("shows from sign-up until the cards land, in the same transaction", async () => {
+      const { t, setupState } = await signedIn();
+      await t.run((ctx) => startVaultSetup(ctx, USER_ID));
+      expect(await setupState()).toEqual({ startedAt: expect.any(Number) });
+
+      await createDefaults(t);
+      // The files are still being stored: still setting up, still no cards.
+      expect(await setupState()).not.toBeNull();
+      expect(await cardsOf(t)).toHaveLength(0);
+
+      await t.mutation(internal.card.defaultCards.insertOnboardingCards, {
+        userId: USER_ID,
+        createdAt: 1,
+        stored: storedEverything(),
+      });
+      expect(await setupState()).toBeNull();
+      expect(await cardsOf(t)).toHaveLength(ONBOARDING_CARDS.length);
+    });
+
+    test("ends when the account already had cards, so nothing is coming", async () => {
+      const { t, setupState } = await signedIn();
+      await t.run(async (ctx) => {
+        await startVaultSetup(ctx, USER_ID);
+        await ctx.db.insert("cards", {
+          userId: USER_ID,
+          type: "text",
+          content: "Mine",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      });
+
+      await createDefaults(t);
+
+      expect(await setupState()).toBeNull();
+    });
+
+    test("is null for an account that was never setting up", async () => {
+      const { setupState } = await signedIn();
+      expect(await setupState()).toBeNull();
+    });
   });
 });

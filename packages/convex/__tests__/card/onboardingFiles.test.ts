@@ -26,7 +26,10 @@ interface Stored {
 
 let inserts: { createdAt: number; stored: Stored[]; userId: string }[];
 let failUploadOf: string | undefined;
+/** Fails the insert that carries stored files; the fallback still lands. */
 let failInsert: boolean;
+/** What the insert reports, e.g. 0 when the account already has the cards. */
+let insertedCount: number;
 
 // The Files Worker is the boundary: PUTs store bytes, op POSTs delete them.
 const filesWorkerFetch = mock(
@@ -70,11 +73,12 @@ const ctx = {
       return Promise.resolve(true);
     }
     if (name.endsWith("insertOnboardingCards")) {
-      if (failInsert) {
+      const insert = args as (typeof inserts)[number];
+      if (failInsert && insert.stored.length > 0) {
         return Promise.reject(new Error("insert failed"));
       }
-      inserts.push(args as (typeof inserts)[number]);
-      return Promise.resolve(8);
+      inserts.push(insert);
+      return Promise.resolve(insertedCount);
     }
     return Promise.reject(new Error(`unexpected mutation ${name}`));
   }),
@@ -96,6 +100,7 @@ beforeEach(() => {
   inserts = [];
   failUploadOf = undefined;
   failInsert = false;
+  insertedCount = 8;
 });
 
 afterEach(() => {
@@ -161,11 +166,21 @@ describe("addOnboardingCards", () => {
     expect(deletedKeys.sort()).toEqual(videoKeys.sort());
   });
 
-  test("when the cards can't be inserted, every stored file is deleted", async () => {
+  test("when the cards can't be inserted, the files are deleted and the cards needing none still arrive", async () => {
     failInsert = true;
 
     await run();
 
+    expect(deletedKeys.sort()).toEqual(uploads.map((u) => u.key).sort());
+    expect(inserts).toEqual([{ createdAt: 1000, stored: [], userId: USER_ID }]);
+  });
+
+  test("when the account already has the cards, the stored files are deleted", async () => {
+    insertedCount = 0;
+
+    await run();
+
+    expect(inserts).toHaveLength(1);
     expect(deletedKeys.sort()).toEqual(uploads.map((u) => u.key).sort());
   });
 });
