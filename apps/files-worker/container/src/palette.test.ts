@@ -64,6 +64,47 @@ describe("extractPalette", () => {
     ]);
   });
 
+  test("never swaps in an accent whose hue a vivid pick already has", () => {
+    const palette = extractPalette(
+      image(
+        [opaque("#FFFFFF"), 300],
+        [opaque("#000000"), 250],
+        [opaque("#808080"), 200],
+        [opaque("#E02020"), 130],
+        [opaque("#C8B496"), 105],
+        [opaque("#B00000"), 15]
+      )
+    );
+    // A darker red beside the red already kept would only repeat it.
+    expect(palette.map((swatch) => swatch.hex)).toEqual([
+      "#FFFFFF",
+      "#000000",
+      "#808080",
+      "#E02020",
+      "#C8B496",
+    ]);
+  });
+
+  test("keeps the largest share first when the accent outweighs a pick", () => {
+    const palette = extractPalette(
+      image(
+        [opaque("#FFFFFF"), 300],
+        [opaque("#000000"), 250],
+        [opaque("#808080"), 200],
+        [opaque("#1F2A44"), 126],
+        [opaque("#C8B496"), 120],
+        [opaque("#20A0E0"), 130]
+      )
+    );
+    expect(palette.map((swatch) => swatch.hex)).toEqual([
+      "#FFFFFF",
+      "#000000",
+      "#808080",
+      "#20A0E0",
+      "#1F2A44",
+    ]);
+  });
+
   test("prefers a distinct color over another shade of one already picked", () => {
     const palette = extractPalette(
       image(

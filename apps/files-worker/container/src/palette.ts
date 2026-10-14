@@ -25,6 +25,8 @@ const MIN_ALPHA = 128;
 const MERGE_DISTANCE = 0.08;
 const ACCENT_MIN_CHROMA = 0.12;
 const ACCENT_MIN_WEIGHT = 0.01;
+/** An accent's hue must be this far from every vivid pick's (30°). */
+const ACCENT_MIN_HUE_GAP = Math.PI / 6;
 /** Colors closer than this to one already picked count for less. */
 const DISTINCT_DISTANCE = 0.25;
 
@@ -78,6 +80,14 @@ const distanceSquared = (left: Lab, right: Lab): number =>
   (left.l - right.l) ** 2 + (left.a - right.a) ** 2 + (left.b - right.b) ** 2;
 
 const chroma = (color: Lab): number => Math.hypot(color.a, color.b);
+
+/** Angle between two colors' hues, 0 to π radians. */
+const hueGap = (left: Lab, right: Lab): number => {
+  const gap = Math.abs(
+    Math.atan2(left.b, left.a) - Math.atan2(right.b, right.a)
+  );
+  return Math.min(gap, 2 * Math.PI - gap);
+};
 
 const toHex = (value: number): string =>
   Math.round(Math.max(0, Math.min(255, value)))
@@ -260,8 +270,8 @@ const byWeight = (left: Cluster, right: Cluster): number =>
 /**
  * Picks the largest colors, discounting each by how close it is to a color
  * already picked so the palette spans the image rather than listing shades
- * of one area; then swaps the most vivid leftover in for the smallest pick.
- * Returned largest first.
+ * of one area; then swaps the most vivid leftover whose hue the other picks
+ * lack in for the smallest one. Returned largest first.
  */
 const rank = (clusters: Cluster[], maxColors: number, total: number) => {
   const remaining = [...clusters].sort(byWeight);
@@ -283,11 +293,19 @@ const rank = (clusters: Cluster[], maxColors: number, total: number) => {
     picks.push(...remaining.splice(bestIndex, 1));
   }
   picks.sort(byWeight);
+  // Leftovers are mostly shades of a color already kept, so the accent must
+  // add a hue that no vivid pick beside it already has.
+  const kept = picks.slice(0, -1);
   const accent = remaining
     .filter(
       (cluster) =>
         chroma(cluster) >= ACCENT_MIN_CHROMA &&
-        cluster.weight / total >= ACCENT_MIN_WEIGHT
+        cluster.weight / total >= ACCENT_MIN_WEIGHT &&
+        !kept.some(
+          (pick) =>
+            chroma(pick) >= ACCENT_MIN_CHROMA &&
+            hueGap(pick, cluster) < ACCENT_MIN_HUE_GAP
+        )
     )
     .sort((left, right) => chroma(right) - chroma(left))[0];
   const smallest = picks.at(-1);
@@ -298,6 +316,7 @@ const rank = (clusters: Cluster[], maxColors: number, total: number) => {
     chroma(accent) > chroma(smallest)
   ) {
     picks[picks.length - 1] = accent;
+    picks.sort(byWeight);
   }
   return picks;
 };
