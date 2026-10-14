@@ -97,10 +97,14 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - Retries back off on `attempts`. After 5 attempts the row keeps `lastError` and is picked up by the next backfill run.
 - `cardProcessing.ts`: append a final `embed` step after the metadata and renderables results and before the completion telemetry. It calls the same action, swallows failures (logging them), and adds nothing to the workflow's return value.
 - Delete cascade:
-  - `card/deleteCard.ts` and `cleanupDeletedCard` delete the `cardEmbeddings` row and schedule `embedding/vectorCleanup.startVectorDeletion({ ids })`, a durable workflow modelled on `objectCleanup` with `OBJECT_DELETION_STEP_RETRY`.
+  - `card/deleteCard.ts` and `cleanupDeletedCard` do **not** delete the `cardEmbeddings` row. They mark it as a tombstone (`pendingVectorDeleteAt: now`) and schedule `embedding/vectorCleanup.startVectorDeletion({ ids })`, a durable workflow modelled on `objectCleanup` with `OBJECT_DELETION_STEP_RETRY`. Only after `vector-delete` succeeds does the workflow delete the row. If it runs out of retries, the tombstone stays, so a failed delete is never invisible.
   - In account deletion, `getAccountCardDeletionBatch` and `captureDeletionBatch("cards")` also return `vectorIds` (card ids that have a `cardEmbeddings` row).
-  - `deleteKeys` and `drainStorageBatch` call `vector-delete` before the rows are committed. `ancillaryPage` removes the leftover `cardEmbeddings` rows by `by_userId`.
-- `orphanSweep.ts`: page through `cardEmbeddings` and report rows whose card is missing or hard-deleted (vectors that should have been deleted). Also sample card ids whose `cardEmbeddings` row is gone and check them with `vector-get`. Report only. Every upsert writes its `cardEmbeddings` row first, so the ledger is a superset of the index.
+  - `deleteKeys` and `drainStorageBatch` call `vector-delete` before the rows are committed. `ancillaryPage` removes the user's `cardEmbeddings` rows by `by_userId` only after that call succeeded. A failed batch leaves them as tombstones for the redrive.
+- `orphanSweep.ts`: page through `cardEmbeddings` and report:
+  - tombstones whose `pendingVectorDeleteAt` is older than 24 hours (a delete that failed)
+  - live rows whose card is missing (a delete path that skipped the tombstone)
+  
+  It reports only. Every upsert writes its `cardEmbeddings` row first, and a row is removed only after its vector is deleted. So the ledger always covers everything in the index, and every orphan class shows up as a row.
 - `migration/backfillEmbeddings.ts`:
   - Pages `cards` (100 at a time) and counts the cards with text and no up-to-date `cardEmbeddings` hash, plus any `userId` over 64 bytes.
   - A real run calls `markCardForEmbedding` with spaced `dueAt`, at about 300 cards a minute.
@@ -132,6 +136,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - An edit that does not change the text makes no AI call.
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
+  - `vector-delete` fails on every retry: the tombstone stays, and the sweep reports it after 24 hours.
   - Purge after 30 days in Trash.
   - Account deletion through both paths, then `vector-get` on that user's former card ids returns nothing, and a `vector-query` filtered to that `userId` returns no matches.
   - A `vector-query` with another user's id returns nothing, and `vectorOfId` on another user's card is refused.
