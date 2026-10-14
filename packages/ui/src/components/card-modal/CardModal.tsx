@@ -51,7 +51,7 @@ import { SiteFavicon } from "../cards/SiteFavicon";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
-import { cardModalKeyAction } from "./cardModalKeys";
+import { canLeaveWithoutSaving, cardModalKeyAction } from "./cardModalKeys";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
@@ -257,13 +257,16 @@ export function CardModal({
     }
   };
 
-  // Closing or moving to another card saves first; if that fails, the card
-  // stays open so the edit isn't lost and can be saved again.
+  // Closing or moving to another card saves first. If that fails, the card
+  // stays open so the edit can be saved again; a second try leaves anyway.
+  const readyToLeave = async () =>
+    canLeaveWithoutSaving({ hasUnsavedChanges, saveState }) ||
+    (await saveChanges({ silent: true }));
+
   const handleClose = async () => {
-    if (hasUnsavedChanges && !(await saveChanges({ silent: true }))) {
-      return;
+    if (await readyToLeave()) {
+      onCancel?.();
     }
-    onCancel?.();
   };
 
   // Delete, archive and restore take the card out of this view, so the
@@ -279,10 +282,9 @@ export function CardModal({
     if (!show) {
       return;
     }
-    if (hasUnsavedChanges && !(await saveChanges({ silent: true }))) {
-      return;
+    if (await readyToLeave()) {
+      show();
     }
-    show();
   };
 
   const isDeleted = Boolean(card?.isDeleted);

@@ -8,7 +8,9 @@ afterAll(() => {
   document.body.innerHTML = "";
 });
 
-const { cardModalKeyAction } = await import("../cardModalKeys");
+const { canLeaveWithoutSaving, cardModalKeyAction } = await import(
+  "../cardModalKeys"
+);
 
 const press = (
   key: string,
@@ -73,5 +75,27 @@ describe("cardModalKeyAction", () => {
     expect(press("ArrowRight", plain, { shiftKey: true })).toBeNull();
     expect(press("f", plain, { repeat: true })).toBeNull();
     expect(press("ArrowRight", plain, { repeat: true })).toBe("next");
+  });
+});
+
+describe("canLeaveWithoutSaving", () => {
+  test("leaves at once with nothing to save", () => {
+    expect(
+      canLeaveWithoutSaving({ hasUnsavedChanges: false, saveState: "idle" })
+    ).toBe(true);
+  });
+
+  test("saves first while an edit is pending", () => {
+    for (const saveState of ["unsaved", "saving", "saved", "idle"]) {
+      expect(
+        canLeaveWithoutSaving({ hasUnsavedChanges: true, saveState })
+      ).toBe(false);
+    }
+  });
+
+  test("lets a second try leave after a save failed, so no error traps the dialog", () => {
+    expect(
+      canLeaveWithoutSaving({ hasUnsavedChanges: true, saveState: "error" })
+    ).toBe(true);
   });
 });
