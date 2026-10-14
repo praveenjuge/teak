@@ -132,6 +132,8 @@ Both commands accept several card IDs and try every one, even if some fail. They
 
 `teak folders` lists your folders with how many cards each holds. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
 
+A smart folder saves a search and lists whatever matches it: `teak folders create "Design links" --query 'tag:design type:link'` makes one, and `teak folders rename "Design links" --query 'tag:design'` changes its search. `teak folders` shows a dash instead of a count for a smart folder, followed by its search. Smart folders don't take cards, so `teak folders add` refuses them.
+
 ### Filter and page through cards
 
 `teak ls`, `teak search`, `teak trash`, and `teak cards favorites` accept the same filters as search on the web:
