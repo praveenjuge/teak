@@ -89,6 +89,55 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     .click();
   await screen.getByRole("link", "Reading list").click();
   await expect(screen.getByText("2 cards")).toBeVisible();
+
+  // Dragging a card onto a folder in the sidebar adds it there. A headless
+  // browser can't drag with the pointer, so send the drag events the card
+  // and the folder exchange.
+  await screen.getByRole("link", "Everything").click();
+  await expect(screen.getByPlaceholder("Search everything")).toBeVisible();
+  await expect(
+    screen.getByText(FIRST_CARD, { exact: false }).first()
+  ).toBeVisible();
+  await browser.evaluate(
+    ([first, second]) => {
+      const card = [
+        ...document.querySelectorAll<HTMLElement>("[data-card-id]"),
+      ].find(
+        (element) =>
+          !(
+            element.textContent?.includes(first) ||
+            element.textContent?.includes(second)
+          )
+      );
+      const folder = [...document.querySelectorAll("a")].find(
+        (anchor) => anchor.textContent?.trim() === "Reading list"
+      );
+      if (!(card && folder)) {
+        throw new Error("No card to drag or no folder to drop on");
+      }
+      const data = new DataTransfer();
+      const fire = (target: Element, type: string) =>
+        target.dispatchEvent(
+          new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: data,
+          })
+        );
+      fire(card, "dragstart");
+      fire(folder, "dragenter");
+      fire(folder, "dragover");
+      fire(folder, "drop");
+      fire(card, "dragend");
+      return null;
+    },
+    [FIRST_CARD, SECOND_CARD] as [string, string]
+  );
+  await expect(
+    screen.getByText("Added 1 card to Reading list", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+  await screen.getByRole("link", "Reading list").click();
+  await expect(screen.getByText("3 cards")).toBeVisible();
 });
 
 test("save a search as a smart folder; a card saved later shows up live", async ({

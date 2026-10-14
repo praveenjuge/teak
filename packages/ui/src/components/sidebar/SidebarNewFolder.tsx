@@ -33,11 +33,16 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   const createFolder = useMutation(api.folders.createFolder);
   const [name, setName] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
+  // State, not just a ref: the folder list gains the new folder before the
+  // create resolves, and that render must not call its own name taken.
+  const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
 
   const trimmed = name.trim();
   let problem: string | null = null;
-  if (folders && folders.length >= MAX_FOLDERS_PER_USER) {
+  if (isSaving) {
+    problem = null;
+  } else if (folders && folders.length >= MAX_FOLDERS_PER_USER) {
     problem = FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS;
   } else if (folders && hasFolderNamed(folders, trimmed)) {
     problem = FOLDER_ERROR_MESSAGES.DUPLICATE_NAME;
@@ -55,11 +60,13 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
       return;
     }
     savingRef.current = true;
+    setIsSaving(true);
     try {
       await createFolder({ name: trimmed });
       onDone();
     } catch (caught) {
       savingRef.current = false;
+      setIsSaving(false);
       setServerError(folderErrorMessage(caught, "Couldn't create the folder"));
     }
   };

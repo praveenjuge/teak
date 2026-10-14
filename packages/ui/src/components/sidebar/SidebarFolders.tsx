@@ -29,6 +29,7 @@ import {
 } from "@teak/ui/components/ui/sidebar";
 import { useMutation } from "convex/react";
 import {
+  FolderPlus,
   FolderSearch,
   MoreHorizontal,
   Palette,
@@ -186,14 +187,17 @@ export function SidebarFolders({
   return (
     <SidebarGroup className="pt-3">
       <SidebarGroupLabel>Folders</SidebarGroupLabel>
-      <SidebarGroupAction
-        className="top-3.5"
-        onClick={openCreate}
-        title="New folder"
-      >
-        <Plus />
-        <span className="sr-only">New folder</span>
-      </SidebarGroupAction>
+      {/* With no folders yet, the empty state below is the one way in. */}
+      {folders?.length !== 0 && (
+        <SidebarGroupAction
+          className="top-3.5"
+          onClick={openCreate}
+          title="New folder"
+        >
+          <Plus />
+          <span className="sr-only">New folder</span>
+        </SidebarGroupAction>
+      )}
       <SidebarMenu>
         {folders === undefined &&
           SKELETON_WIDTHS.map((width) => (
@@ -203,13 +207,29 @@ export function SidebarFolders({
           ))}
         {folders?.length === 0 && !isCreating && (
           <SidebarMenuItem>
+            {/* A quiet card that says what folders are for and how cards
+                get in, with the one button to start. */}
+            <div className="mt-0.5 rounded-lg border border-sidebar-border border-dashed px-3 pt-2.5 pb-3 group-data-[collapsible=icon]:hidden">
+              <p className="text-[12px] text-sidebar-foreground/55 leading-snug">
+                Group related cards. Make a folder, then drag cards onto it.
+              </p>
+              <button
+                className="mt-2.5 inline-flex h-7 items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 font-medium text-[12px] text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border focus-visible:ring-2 [&>svg]:size-3.5"
+                onClick={openCreate}
+                type="button"
+              >
+                <FolderPlus aria-hidden="true" />
+                New folder
+              </button>
+            </div>
+            {/* Collapsed to icons, just the button. */}
             <SidebarMenuButton
-              className="text-sidebar-foreground/50"
+              aria-label="New folder"
+              className="hidden group-data-[collapsible=icon]:flex"
               onClick={openCreate}
               tooltip="New folder"
             >
-              <Plus />
-              <span>New folder</span>
+              <FolderPlus />
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
