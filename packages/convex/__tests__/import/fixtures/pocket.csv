@@ -1,0 +1,4 @@
+title,url,time_added,cursor,tags,status
+"Why ""Tabs"" Win, Mostly",https://example.com/tabs,1700000000,MTcw,design|ux,unread
+Archived read,https://example.com/read,1690000000,MTY5,,archive
+Bad scheme,javascript:alert(1),1690000000,MTY5,,unread

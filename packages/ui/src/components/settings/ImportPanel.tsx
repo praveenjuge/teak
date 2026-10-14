@@ -1,37 +1,35 @@
 "use client";
 
 import { api } from "@teak/convex";
-import {
-  MAX_ARCHIVE_BYTES,
-  MAX_BOOKMARK_BYTES,
-  MAX_RAINDROP_BYTES,
-} from "@teak/convex/import/constants";
 import { captureEvent, resolveSizeBucket } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import {
+  describeImportFailure,
+  IMPORT_MODES,
+  IMPORT_SOURCES,
+  type ImportMode,
+  importFileMatches,
+  importMaxBytes,
+} from "@teak/convex/shared/importSources";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useAction, useMutation } from "convex/react";
-import {
-  Archive,
-  Bookmark,
-  ChevronRight,
-  Copy,
-  Download,
-  Droplet,
-  FileText,
-  type LucideIcon,
-  Upload,
-  X,
-} from "lucide-react";
+import { Copy, Download, FileText, Upload, X } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
+import { Label } from "../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatRelativeTime } from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";
 import { SettingsIconTile } from "./SettingsDialog";
-
-type ImportMode = "bookmarks" | "archive" | "raindrop";
 
 interface ImportJob {
   completedAt?: number;
@@ -60,44 +58,12 @@ interface ImportPanelProps {
   onActiveChange?: (active: boolean) => void;
 }
 
-const MODE_META: Record<
-  ImportMode,
-  {
-    accept: string;
-    hint: string;
-    icon: LucideIcon;
-    maxBytes: number;
-    title: string;
-    typeLabel: string;
-  }
-> = {
-  bookmarks: {
-    accept: ".html,.htm,text/html",
-    hint: "Browser HTML exports, up to 20 MiB",
-    icon: Bookmark,
-    maxBytes: MAX_BOOKMARK_BYTES,
-    title: "Import Bookmarks",
-    typeLabel: "Bookmarks HTML",
-  },
-  archive: {
-    accept: ".zip,application/zip",
-    hint: "Teak ZIP archives, up to 5 GiB",
-    icon: Archive,
-    maxBytes: MAX_ARCHIVE_BYTES,
-    title: "Import Teak Archive",
-    typeLabel: "Teak archive",
-  },
-  raindrop: {
-    accept: ".csv,text/csv",
-    hint: "Raindrop CSV exports, up to 20 MiB",
-    icon: Droplet,
-    maxBytes: MAX_RAINDROP_BYTES,
-    title: "Import from Raindrop",
-    typeLabel: "Raindrop CSV",
-  },
-};
+const acceptFor = (mode: ImportMode) =>
+  IMPORT_SOURCES[mode].extensions.join(",");
 
-const MODE_ORDER: ImportMode[] = ["bookmarks", "archive", "raindrop"];
+const ALL_EXTENSIONS = [
+  ...new Set(IMPORT_MODES.flatMap((mode) => IMPORT_SOURCES[mode].extensions)),
+].join(",");
 
 function isActive(status: ImportJob["status"] | undefined) {
   return (
@@ -109,7 +75,11 @@ function isActive(status: ImportJob["status"] | undefined) {
 }
 
 function validateFile(file: File, mode: ImportMode): string | null {
-  const { maxBytes } = MODE_META[mode];
+  const { extensions, title } = IMPORT_SOURCES[mode];
+  if (!importFileMatches(mode, file.name)) {
+    return `Choose a ${extensions.join(" or ")} file from ${title}.`;
+  }
+  const maxBytes = importMaxBytes(mode, file.name);
   if (file.size > maxBytes) {
     return `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`;
   }
@@ -132,7 +102,7 @@ function describeFailure(job: ImportJob): string | null {
   if (job.status !== "failed") {
     return null;
   }
-  return job.failureClass ?? "Import failed. Please try again.";
+  return describeImportFailure(job.mode, job.failureClass);
 }
 
 // Overall progress as one monotonic fraction: upload fills the first stretch,
@@ -240,11 +210,8 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     | ImportJob
     | null
     | undefined;
-  const inputRefs = {
-    archive: useRef<HTMLInputElement>(null),
-    bookmarks: useRef<HTMLInputElement>(null),
-    raindrop: useRef<HTMLInputElement>(null),
-  };
+  const [source, setSource] = useState<ImportMode>("bookmarks");
+  const fileInput = useRef<HTMLInputElement>(null);
   const resumeInput = useRef<HTMLInputElement>(null);
   const controllersRef = useRef<Set<AbortController> | null>(null);
   if (!controllersRef.current) {
@@ -471,7 +438,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             <div className="min-w-0">
               <div className="truncate font-medium">{pending.file.name}</div>
               <div className="text-muted-foreground text-xs leading-5">
-                {MODE_META[pending.mode].typeLabel} ·{" "}
+                {IMPORT_SOURCES[pending.mode].title} ·{" "}
                 {formatBytes(pending.file.size)}
               </div>
             </div>
@@ -492,28 +459,38 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {showModes ? (
-        <div className="divide-y overflow-hidden rounded-xl border">
-          {MODE_ORDER.map((mode) => {
-            const meta = MODE_META[mode];
-            return (
-              <button
-                className="group flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-50"
-                disabled={active}
-                key={mode}
-                onClick={() => inputRefs[mode].current?.click()}
-                type="button"
-              >
-                <SettingsIconTile icon={meta.icon} />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{meta.title}</span>
-                  <span className="block text-muted-foreground text-xs leading-5">
-                    {meta.hint}
-                  </span>
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-              </button>
-            );
-          })}
+        <div className="space-y-3 rounded-xl border p-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="import-source">Import from</Label>
+            <Select
+              disabled={active}
+              onValueChange={(value) => setSource(value as ImportMode)}
+              value={source}
+            >
+              <SelectTrigger className="w-full" id="import-source">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {IMPORT_MODES.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {IMPORT_SOURCES[mode].title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs leading-5">
+              {IMPORT_SOURCES[source].hint} Up to{" "}
+              {formatBytes(IMPORT_SOURCES[source].maxBytes)}.
+            </p>
+          </div>
+          <Button
+            disabled={active}
+            onClick={() => fileInput.current?.click()}
+            size="sm"
+          >
+            <Upload />
+            Choose file
+          </Button>
         </div>
       ) : null}
 
@@ -521,8 +498,8 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         <div className="space-y-2 rounded-xl border p-4">
           <div className="font-medium">Upload interrupted</div>
           <div className="text-muted-foreground">
-            Choose the same {MODE_META[job.mode].typeLabel} file to resume where
-            it left off.
+            Choose the same {IMPORT_SOURCES[job.mode].title} file to resume
+            where it left off.
           </div>
           <Button
             onClick={() => resumeInput.current?.click()}
@@ -535,19 +512,16 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         </div>
       ) : null}
 
-      {MODE_ORDER.map((mode) => (
-        <input
-          accept={MODE_META[mode].accept}
-          aria-label={`Choose a file for ${MODE_META[mode].title}`}
-          className="hidden"
-          key={`input-${mode}`}
-          onChange={(event) => handleInputChange(event, mode)}
-          ref={inputRefs[mode]}
-          type="file"
-        />
-      ))}
       <input
-        accept=".html,.htm,.zip,.csv"
+        accept={acceptFor(source)}
+        aria-label={`Choose a file from ${IMPORT_SOURCES[source].title}`}
+        className="hidden"
+        onChange={(event) => handleInputChange(event, source)}
+        ref={fileInput}
+        type="file"
+      />
+      <input
+        accept={ALL_EXTENSIONS}
         aria-label="Choose a file to resume the interrupted upload"
         className="hidden"
         onChange={handleResumeInput}

@@ -1,89 +1,8 @@
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
+import { isEmptyRow, parseCsvRows } from "./csv";
+import { cleanTags, folderPath } from "./sourceItems";
 import { parseImportedTimestamp } from "./validate";
-
-/**
- * Minimal RFC-4180 CSV parser. Handles quoted fields, embedded commas and
- * newlines, `""` escaping, and CRLF/LF/CR line endings. Returns rows of raw
- * (untrimmed) cell strings. Dependency-free, matching the repo's hand-rolled
- * parsing style in `bookmarks.ts`.
- */
-export function parseCsvRows(input: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let pieces: string[] = [];
-  let blocks: string[] = [];
-  let pieceLength = 0;
-  const appendPiece = (piece: string) => {
-    pieces.push(piece);
-    pieceLength += piece.length;
-    if (pieceLength >= 65_536 || pieces.length >= 1024) {
-      blocks.push(pieces.join(""));
-      pieces = [];
-      pieceLength = 0;
-    }
-  };
-  let fieldStart = 0;
-  let inQuotes = false;
-  let index = 0;
-  const length = input.length;
-  const endField = () => {
-    if (row.length >= 256) {
-      throw new Error("Raindrop CSV has too many columns");
-    }
-    appendPiece(input.slice(fieldStart, index));
-    blocks.push(pieces.join(""));
-    row.push(blocks.join(""));
-    pieces = [];
-    blocks = [];
-    pieceLength = 0;
-    fieldStart = index + 1;
-  };
-  const endRow = () => {
-    endField();
-    if (rows.length === 0 || !isEmptyRow(row)) {
-      if (rows.length > 10_000) {
-        throw new Error("Raindrop CSV exceeds 10,000 bookmarks");
-      }
-      rows.push(row);
-    }
-    row = [];
-  };
-  while (index < length) {
-    const char = input[index];
-    if (char === '"') {
-      appendPiece(input.slice(fieldStart, index));
-      if (inQuotes && input[index + 1] === '"') {
-        appendPiece('"');
-        index += 2;
-      } else {
-        inQuotes = !inQuotes;
-        index += 1;
-      }
-      fieldStart = index;
-      continue;
-    }
-    if (!inQuotes && char === ",") {
-      endField();
-    }
-    if (!inQuotes && (char === "\r" || char === "\n")) {
-      endRow();
-      if (char === "\r" && input[index + 1] === "\n") {
-        index += 1;
-        fieldStart = index + 1;
-      }
-    }
-    index += 1;
-  }
-  if (fieldStart < length || pieces.length || blocks.length || row.length) {
-    endRow();
-  }
-  return rows;
-}
-
-function isEmptyRow(row: string[]): boolean {
-  return row.every((cell) => cell.trim() === "");
-}
 
 /**
  * Parses a Raindrop `created` value. Raindrop exports an ISO 8601 timestamp,
@@ -109,24 +28,6 @@ function isTruthyFavorite(raw: string): boolean {
   return value === "true" || value === "1" || value === "yes";
 }
 
-function collectTags(folder: string, tags: string): string[] {
-  const collected: string[] = [];
-  // Folder nesting becomes individual tags, matching the bookmark importer.
-  for (const segment of folder.split("/")) {
-    const tag = segment.trim();
-    if (tag) {
-      collected.push(tag);
-    }
-  }
-  for (const segment of tags.split(",")) {
-    const tag = segment.trim();
-    if (tag) {
-      collected.push(tag);
-    }
-  }
-  return [...new Set(collected)];
-}
-
 /**
  * Parses a Raindrop.io CSV export into the shared bookmark item shape so it
  * reuses the same downstream normalization as the HTML bookmark importer.
@@ -135,7 +36,7 @@ function collectTags(folder: string, tags: string): string[] {
  * export (`id, title, note, excerpt, url, folder, tags, created, cover,
  * highlights, favorite`) and the import-compatible subset are supported. The
  * `url` column is required; `id`, `excerpt`, `cover`, and `highlights` are
- * ignored.
+ * ignored. The `folder` column becomes a Teak folder.
  */
 export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
   // Strip a leading UTF-8 BOM if present.
@@ -182,7 +83,9 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
       });
       continue;
     }
-    const tags = collectTags(cell(row, "folder"), cell(row, "tags"));
+    const tags = cleanTags(cell(row, "tags").split(","));
+    // Raindrop nests collections as "Parent/Child"; one Teak folder each.
+    const folder = folderPath(cell(row, "folder").split("/"));
     const notes = cell(row, "note");
     output.push({
       label: title || url,
@@ -190,7 +93,8 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
         type: "link",
         content: title || url,
         url,
-        tags: tags.length ? tags : undefined,
+        tags,
+        folders: folder ? [folder] : undefined,
         notes: notes || undefined,
         isFavorited: isTruthyFavorite(cell(row, "favorite")) || undefined,
         createdAt: parseRaindropCreated(cell(row, "created")),
@@ -199,3 +103,6 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
   }
   return output;
 }
+
+/** The shared CSV reader, kept here for existing callers. */
+export { parseCsvRows } from "./csv";

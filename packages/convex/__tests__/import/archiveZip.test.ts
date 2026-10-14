@@ -71,6 +71,28 @@ describe("import worker client", () => {
       )
     ).toEqual(failure);
   });
+  test("names a file that isn't the source's export, or has too many items", async () => {
+    const reply = (message: string) =>
+      Response.json(
+        {
+          ok: false,
+          error: { code: "INVALID_INPUT", message, requestId: "r" },
+        },
+        { status: 400 }
+      );
+    const read = () =>
+      readImportIndexPage({
+        sourceKey: "users/u/imports/j/source",
+        mode: "pocket",
+        expectedSize: 20,
+      });
+    fetchMock.mockResolvedValue(reply("invalid_import_source"));
+    await expect(read()).rejects.toThrow("invalid_source");
+    fetchMock.mockResolvedValue(reply("invalid_bookmark_count"));
+    await expect(read()).rejects.toThrow("too_many_items");
+    fetchMock.mockResolvedValue(reply("invalid_archive_card_count"));
+    await expect(read()).rejects.toThrow("too_many_items");
+  });
   test("does not silently fall back to S3 or accept a different namespace", async () => {
     fetchMock.mockResolvedValue(
       Response.json(

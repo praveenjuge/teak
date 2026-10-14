@@ -1,5 +1,6 @@
 import type { BrowserWorker } from "@cloudflare/puppeteer";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
   buildFilesOpSigningPayload,
   FILES_OPS,
@@ -311,6 +312,9 @@ const dispatch = async (
     case "capabilities":
       return success(requestId, {
         operations: FILES_OPS,
+        // Import sources index-import-source reads; the deploy gate checks
+        // the backend's are all here before Convex ships a new one.
+        importModes: IMPORT_MODES,
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),

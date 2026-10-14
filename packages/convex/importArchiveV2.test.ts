@@ -30,7 +30,7 @@ interface ItemSeed {
   url?: string;
 }
 
-const setup = async (mode: "archive" | "bookmarks" = "archive") => {
+const setup = async (mode: "archive" | "bookmarks" | "pocket" = "archive") => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
   workflowTest.register(t);
@@ -204,8 +204,8 @@ describe("schema v2 archive import", () => {
     expect(items.map((item) => item.status)).toEqual(["created", "failed"]);
   });
 
-  test("bookmark imports ignore archive fields", async () => {
-    const { run, cardByContent, folders } = await setup("bookmarks");
+  test("other sources keep archive state and folders, not archive titles", async () => {
+    const { run, cardByContent, folders } = await setup("pocket");
     await run([
       {
         type: "link",
@@ -213,11 +213,23 @@ describe("schema v2 archive import", () => {
         url: "https://example.com/",
         isArchived: true,
         metadataTitle: "Not used",
+        folders: ["Work / Design"],
+      },
+      {
+        type: "link",
+        content: "Second",
+        url: "https://example.com/2",
+        folders: ["work / design"],
       },
     ]);
     const card = await cardByContent("My bookmark");
-    expect(card?.isArchived).toBeUndefined();
+    expect(card?.isArchived).toBe(true);
+    // Bookmark sources take the title from the link's name.
     expect(card?.metadataTitle).toBe("My bookmark");
-    expect(await folders()).toEqual([]);
+    // Both items share the folder the first one created.
+    expect((await folders()).map((folder) => folder.name)).toEqual([
+      "Work / Design",
+    ]);
+    expect((await cardByContent("Second"))?.folderIds).toEqual(card?.folderIds);
   });
 });

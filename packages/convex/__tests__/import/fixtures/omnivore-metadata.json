@@ -1,0 +1,32 @@
+[
+  {
+    "id": "8f1c",
+    "slug": "why-tabs-win-18c2",
+    "title": "Why tabs win",
+    "description": "An essay",
+    "author": "A. Writer",
+    "url": "https://example.com/tabs",
+    "state": "Archived",
+    "readingProgress": 100,
+    "thumbnail": "https://example.com/thumb.png",
+    "labels": ["design", "Newsletter"],
+    "savedAt": "2024-05-01T09:00:00.000Z",
+    "updatedAt": "2024-05-02T09:00:00.000Z",
+    "publishedAt": null
+  },
+  {
+    "id": "8f1d",
+    "slug": "active-one-18c3",
+    "title": "Active one",
+    "description": null,
+    "author": null,
+    "url": "https://example.com/active",
+    "state": "Active",
+    "readingProgress": 0,
+    "thumbnail": null,
+    "labels": [],
+    "savedAt": "2024-05-03T09:00:00.000Z",
+    "updatedAt": "2024-05-03T09:00:00.000Z",
+    "publishedAt": null
+  }
+]

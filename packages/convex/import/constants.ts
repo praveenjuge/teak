@@ -24,4 +24,5 @@ export const TERMINAL_IMPORT_STATUSES = [
   "canceled",
 ] as const;
 
-export type ImportMode = "bookmarks" | "archive" | "raindrop";
+export type { ImportMode } from "../shared/importSources";
+export { IMPORT_FAILURE } from "../shared/importSources";

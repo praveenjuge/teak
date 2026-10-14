@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 /** Read-only deployment gate: the worker must support the backend's byte paths. */
+import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
 
 const required = [
@@ -63,6 +64,7 @@ for (;;) {
         ai?: boolean;
         browser?: boolean;
         images?: boolean;
+        importModes?: string[];
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -76,7 +78,8 @@ for (;;) {
       result.data.browser === true &&
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
-      required.every((op) => result.data?.operations?.includes(op));
+      required.every((op) => result.data?.operations?.includes(op)) &&
+      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch {
     // Never log signed URLs, request headers, or deployment secrets.
   }

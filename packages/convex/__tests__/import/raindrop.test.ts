@@ -15,7 +15,8 @@ describe("backend raindrop CSV parser", () => {
       content: "Example Site",
       url: "https://example.com",
       notes: "A great resource",
-      tags: ["Design", "Tools", "design", "tools"],
+      tags: ["design", "tools"],
+      folders: ["Design / Tools"],
       isFavorited: true,
       createdAt,
     });
@@ -31,7 +32,8 @@ describe("backend raindrop CSV parser", () => {
     expect(parsed[0].card).toMatchObject({
       content: "Title, with comma",
       notes: "Note, with comma",
-      tags: ["Inbox", "a", "b", "c"],
+      tags: ["a", "b", "c"],
+      folders: ["Inbox"],
       url: "https://safe.test",
       createdAt: 1_700_000_000_000,
     });

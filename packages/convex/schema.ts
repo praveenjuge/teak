@@ -293,10 +293,18 @@ export const importStatusValidator = v.union(
   v.literal("canceled")
 );
 
+// Every source in shared/importSources.ts IMPORT_MODES.
 export const importModeValidator = v.union(
   v.literal("bookmarks"),
   v.literal("archive"),
-  v.literal("raindrop")
+  v.literal("raindrop"),
+  v.literal("pocket"),
+  v.literal("instapaper"),
+  v.literal("readwise"),
+  v.literal("omnivore"),
+  v.literal("linkwarden"),
+  v.literal("mymind"),
+  v.literal("onetab")
 );
 
 export const importItemStatusValidator = v.union(

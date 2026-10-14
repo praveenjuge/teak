@@ -42,11 +42,38 @@ function renderImportPanel() {
 }
 
 describe("ImportPanel", () => {
-  test("renders all backend import modes", () => {
+  test("opens on browser bookmarks with its guidance and one Choose file", () => {
     const markup = renderImportPanel();
-    expect(markup).toContain("Import Bookmarks");
-    expect(markup).toContain("Import Teak Archive");
-    expect(markup).toContain("Import from Raindrop");
+    expect(markup).toContain("Import from");
+    expect(markup).toContain(
+      "The bookmarks HTML file from your browser&#x27;s Export bookmarks."
+    );
+    expect(markup).toContain("Choose file");
+    expect(markup).toContain('accept=".html,.htm"');
+  });
+
+  test("words a file that isn't the chosen source's export", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "pocket",
+      status: "failed",
+      failureClass: "invalid_source",
+      createdCount: 0,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 0,
+      phase: "Import failed",
+      processedCount: 0,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("This doesn&#x27;t look like a Pocket export.");
+      expect(markup).not.toContain("invalid_source");
+    } finally {
+      importQueryResult = null;
+    }
   });
 
   test("shows an empty last-import state when there are no imports", () => {

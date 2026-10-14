@@ -3,6 +3,7 @@ import type {
   FilesImportIndexResult,
   FilesImportMarkdownResult,
 } from "@teak/files-protocol";
+import { IMPORT_FAILURE } from "../shared/importSources";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { assertR2KeyInNamespace } from "../storage/r2";
 
@@ -14,8 +15,18 @@ export async function readImportIndexPage(
   const outcome = await callFilesWorkerJson<FilesImportIndexResult>({
     op: "index-import-source",
     params: { ...params },
+    fallbackCodes: ["INVALID_INPUT"],
   });
   if (outcome.kind !== "ok") {
+    if (outcome.code === "INVALID_INPUT") {
+      // The file isn't the source's export, or is too big; the import panel
+      // explains either in words.
+      throw new Error(
+        /_count$/.test(outcome.message)
+          ? IMPORT_FAILURE.TOO_MANY_ITEMS
+          : IMPORT_FAILURE.INVALID_SOURCE
+      );
+    }
     throw new Error("import_source_unavailable");
   }
   return outcome.data;

@@ -255,7 +255,18 @@ export const FILES_IMPORT_PAGE_ITEMS = 100;
 export interface FilesImportIndexParams {
   cursor?: number;
   expectedSize: number;
-  mode: "archive" | "bookmarks" | "raindrop";
+  /** A source in @teak/convex shared/importSources.ts IMPORT_MODES. */
+  mode:
+    | "archive"
+    | "bookmarks"
+    | "raindrop"
+    | "pocket"
+    | "instapaper"
+    | "readwise"
+    | "omnivore"
+    | "linkwarden"
+    | "mymind"
+    | "onetab";
   sourceEtag?: string;
   sourceKey: string;
 }

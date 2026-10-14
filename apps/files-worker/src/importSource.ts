@@ -1,5 +1,6 @@
-import { parseBookmarksHtml } from "@teak/convex/import/bookmarks";
-import { parseRaindropCsv } from "@teak/convex/import/raindrop";
+import type { ParsedBookmarkItem } from "@teak/convex/import/bookmarks";
+import { parseImportSource } from "@teak/convex/import/sources";
+import { isImportMode } from "@teak/convex/shared/importSources";
 import {
   decodeMarkdownUtf8,
   MARKDOWN_CONTENT_MAX_BYTES,
@@ -14,6 +15,7 @@ import {
   type FilesImportMarkdownResult,
 } from "@teak/files-protocol";
 import { readImportJson } from "./importJson";
+import { indexOmnivoreZip, isZipSource } from "./importOmnivore";
 import { isValidUploadKey } from "./upload";
 import {
   ArchiveEntryTooLargeError,
@@ -35,7 +37,7 @@ export async function indexImportSource(
     !(
       typeof sourceKey === "string" &&
       isValidUploadKey(sourceKey) &&
-      ["archive", "bookmarks", "raindrop"].includes(mode) &&
+      isImportMode(mode) &&
       Number.isSafeInteger(expectedSize)
     ) ||
     expectedSize < 0 ||
@@ -104,6 +106,13 @@ export async function indexImportSource(
       sourceEtag: meta.httpEtag,
     };
   }
+  // Omnivore exports a ZIP of metadata files; its other sources are text.
+  if (
+    mode === "omnivore" &&
+    (await isZipSource(bucket, sourceKey, meta.httpEtag))
+  ) {
+    return indexOmnivoreZip(bucket, sourceKey, meta.httpEtag, cursor);
+  }
   if (meta.size > 20 * 1024 * 1024) {
     throw new Error("source_too_large");
   }
@@ -116,12 +125,16 @@ export async function indexImportSource(
     throw new Error("source_changed");
   }
   const text = await object.text();
-  let parsed: ReturnType<typeof parseBookmarksHtml>;
+  let parsed: ParsedBookmarkItem[];
   try {
-    parsed =
-      mode === "raindrop" ? parseRaindropCsv(text) : parseBookmarksHtml(text);
+    parsed = parseImportSource(mode, text);
   } catch (error) {
-    throw new Error("invalid_bookmark_source", { cause: error });
+    // Parsers stop at 10,000 items (CSV readers at a row count); Convex words
+    // that, and anything else as "This doesn't look like a <source> export".
+    if (error instanceof Error && /exceeds [\d,]+ /.test(error.message)) {
+      throw new Error("invalid_bookmark_count", { cause: error });
+    }
+    throw new Error("invalid_import_source", { cause: error });
   }
   if (parsed.length > 10_000) {
     throw new Error("invalid_bookmark_count");

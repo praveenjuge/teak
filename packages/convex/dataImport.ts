@@ -625,7 +625,7 @@ export const createPendingBatch = internalMutation({
             importedVisibleFields: {
               createdAt: item.importedCreatedAt,
               isFavorited: item.isFavorited,
-              isArchived: job.mode === "archive" && item.isArchived === true,
+              isArchived: item.isArchived === true,
               metadataTitle: importedBookmarkTitle(job.mode, item),
             },
             source: "import",
