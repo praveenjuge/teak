@@ -51,9 +51,10 @@ import { SiteFavicon } from "../cards/SiteFavicon";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
-import { canLeaveWithoutSaving, cardModalKeyAction } from "./cardModalKeys";
+import { cardModalKeyAction } from "./cardModalKeys";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
+import { useLeaveGuard } from "./useLeaveGuard";
 
 /** How long typing pauses before an edit saves on its own. */
 export const AUTOSAVE_DELAY_MS = 800;
@@ -259,9 +260,23 @@ export function CardModal({
 
   // Closing or moving to another card saves first. If that fails, the card
   // stays open so the edit can be saved again; a second try leaves anyway.
-  const readyToLeave = async () =>
-    canLeaveWithoutSaving({ hasUnsavedChanges, saveState }) ||
-    (await saveChanges({ silent: true }));
+  const { noteEdit, readyToLeave } = useLeaveGuard({
+    cardId,
+    hasUnsavedChanges,
+    saveChanges,
+  });
+  const editContent = (value: string) => {
+    noteEdit();
+    updateContent(value);
+  };
+  const editNotes = (value: string) => {
+    noteEdit();
+    updateNotes(value);
+  };
+  const editTitle = (value: string | undefined) => {
+    noteEdit();
+    updateTitle(value);
+  };
 
   const handleClose = async () => {
     if (await readyToLeave()) {
@@ -436,10 +451,10 @@ export function CardModal({
                           if (event.target.value.trim()) {
                             commit();
                           } else {
-                            updateTitle(undefined);
+                            editTitle(undefined);
                           }
                         }}
-                        onChange={(event) => updateTitle(event.target.value)}
+                        onChange={(event) => editTitle(event.target.value)}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") {
                             event.preventDefault();
@@ -669,7 +684,7 @@ export function CardModal({
                       saveChanges={() => {
                         void saveChanges();
                       }}
-                      updateContent={updateContent}
+                      updateContent={editContent}
                     />
                   </div>
                 </main>
@@ -684,7 +699,7 @@ export function CardModal({
                     notesRef={notesRef}
                     onCardTypeClick={() => onCardTypeClick?.(card.type)}
                     onCommit={commit}
-                    onNotesChange={updateNotes}
+                    onNotesChange={editNotes}
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)
                     }

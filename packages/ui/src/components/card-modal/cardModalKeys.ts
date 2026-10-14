@@ -63,20 +63,3 @@ export function cardModalKeyAction(event: {
   }
   return action;
 }
-
-/**
- * Whether the dialog may close or move to another card without saving
- * first: there is nothing to save, or the last save already failed. After a
- * failure the first try stays open so the edit can be saved again; trying
- * again leaves, so an error that won't clear (an expired session, a card
- * deleted elsewhere) never traps anyone in the dialog.
- */
-export function canLeaveWithoutSaving({
-  hasUnsavedChanges,
-  saveState,
-}: {
-  hasUnsavedChanges: boolean;
-  saveState: string;
-}): boolean {
-  return !hasUnsavedChanges || saveState === "error";
-}
