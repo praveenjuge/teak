@@ -94,7 +94,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
   - `inboundAddresses { userId, tokenHash, version, status: "active" | "disabled", createdAt, updatedAt, lastReceivedAt? }`, with `by_userId` and `by_tokenHash`.
   - `inboundEmailReceipts { userId, messageKey, cardIds, createdAt }`, with `by_userId_and_messageKey`, `by_userId` and `by_createdAt`. `messageKey` is the SHA-256 of the token hash plus the Message-ID, or of the body hash when the Message-ID is missing.
 - `inbound/address.ts`:
-  - `token = base32(HMAC(INBOUND_ADDRESS_SECRET, userId:version))[0..16]`, and only `sha256(token)` is stored. The address can always be shown again, and a database leak alone reveals nothing.
+  - `token = base32(HMAC(INBOUND_ADDRESS_SECRET, userId:version))[0..16]`, and only `sha256(token)` is stored. The address can always be shown again, and a database leak alone reveals nothing. The token is lowercased wherever it is derived, shown, hashed or looked up (`normalizeInboundToken`), so a mail client or MTA that changes the letter case of the local part still matches.
   - Mutations `enable`, `regenerate` (`version + 1`) and `disable`. Query `get` returns the address only for its owner.
   - `INBOUND_EMAIL_DOMAIN` defaults to `in.teakvault.com`; the dev deployment overrides it.
 - `inbound/emailContent.ts` is pure:
@@ -189,9 +189,9 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 
 ## Tests
 
-- `apps/email-worker/src/index.test.ts`: address matching, auto-reply skip, signing payload, reject versus accept per status (fetch mocked).
+- `apps/email-worker/src/index.test.ts`: address matching (including a mixed-case local part such as `Save+AbC…@In.TeakVault.com`), auto-reply skip, signing payload, reject versus accept per status (fetch mocked).
 - `packages/convex/__tests__/inbound/emailContent.test.ts`: a fixture table of HTML to Markdown, one-link detection, unwrapping, pixel removal and truncation.
-- `packages/convex/__tests__/inbound/address.test.ts`: token derivation is stable per version, the hash matches, and regenerate changes the token.
+- `packages/convex/__tests__/inbound/address.test.ts`: token derivation is stable per version, the hash matches, regenerate changes the token, and a mixed-case token hashes the same as its lowercase form.
 - `packages/convex/inboundEmail.test.ts` (convex-test, add to `vitest.config.ts`): signature check, idempotent receipt, silent drop at 200, `RATE_LIMITED` mapped to `503` with no receipt and a retry that saves once, unknown and disabled `404`, `email` tag and source, account deletion cascade.
 - `packages/convex/__tests__/publicApiHttpInboundAddress.test.ts` and `mcp.test.ts`, plus `apps/cli/src/commands.test.ts`.
 - `packages/ui/src/components/settings/__tests__/InboundEmailDialog.contract.test.tsx`.
