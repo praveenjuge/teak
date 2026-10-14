@@ -15,15 +15,17 @@ import {
 import type { FolderSummary } from "../../lib/folders";
 import { type GridDirection, nextCardIndex } from "../../lib/gridNavigation";
 import { isOptimisticCard } from "../cards/types";
-import { CardFoldersDialog } from "../folders/CardFoldersDialog";
-import { FolderPickerDialog } from "../folders/FolderPickerDialog";
+import {
+  BulkTagsDialog,
+  CardFoldersDialog,
+  FolderPickerDialog,
+} from "../lazyDialogs";
 import {
   BulkActionBar,
   type BulkBarAction,
   type BulkBarFolder,
   type BulkBarView,
 } from "../selection/BulkActionBar";
-import { BulkTagsDialog } from "../selection/BulkTagsDialog";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 
 type CardItem = Doc<"cards"> | "add-form";

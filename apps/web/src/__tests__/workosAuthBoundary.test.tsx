@@ -85,7 +85,7 @@ const render = (useAuth = useSignedIn) =>
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <WorkosAuthBoundary>
+          <WorkosAuthBoundary loading={<p>App frame</p>}>
             <p>Vault open</p>
           </WorkosAuthBoundary>
         </ConvexQueryCacheProvider>
@@ -113,6 +113,16 @@ test("opens the vault for a linked owner without running ensureUser", async () =
 
   expect(text()).toContain("Vault open");
   expect(ensureCalls()).toHaveLength(0);
+});
+
+test("shows the app frame, not the vault, until the backend accepts the session", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", profile);
+  await mount(useSignedIn, { backendAnswers: false });
+  expect(text()).toBe("App frame");
+
+  await act(() => answerAuth?.(true));
+  expect(text()).toBe("Vault open");
 });
 
 test("bootstraps a new owner once, then opens the vault", async () => {

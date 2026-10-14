@@ -54,11 +54,27 @@ import {
 } from "../../lib/folders";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "../folders/FolderDot";
-import { FolderNameDialog } from "../folders/FolderNameDialog";
+import { FolderNameDialog } from "../lazyDialogs";
 import type { SidebarLinkComponent } from "./AppSidebar";
 import { SidebarNewFolder } from "./SidebarNewFolder";
 
 const SKELETON_WIDTHS = ["62%", "48%", "70%"];
+
+const folderSkeletonRows = SKELETON_WIDTHS.map((width) => (
+  <SidebarMenuItem key={width}>
+    <SidebarMenuSkeleton showIcon width={width} />
+  </SidebarMenuItem>
+));
+
+/** The Folders group while the app signs in, before its folders load. */
+export function SidebarFoldersSkeleton() {
+  return (
+    <SidebarGroup className="pt-3">
+      <SidebarGroupLabel>Folders</SidebarGroupLabel>
+      <SidebarMenu>{folderSkeletonRows}</SidebarMenu>
+    </SidebarGroup>
+  );
+}
 
 interface SidebarFoldersProps {
   /** The folder being viewed, highlighted in the list. */
@@ -199,12 +215,7 @@ export function SidebarFolders({
         </SidebarGroupAction>
       )}
       <SidebarMenu>
-        {folders === undefined &&
-          SKELETON_WIDTHS.map((width) => (
-            <SidebarMenuItem key={width}>
-              <SidebarMenuSkeleton showIcon width={width} />
-            </SidebarMenuItem>
-          ))}
+        {folders === undefined && folderSkeletonRows}
         {folders?.length === 0 && !isCreating && (
           <SidebarMenuItem>
             {/* A quiet card that says what folders are for and how cards

@@ -9,25 +9,6 @@
   --typeset-flow: 1.25em;
 }
 
-/* SN Pro Font Face Declarations */
-@font-face {
-  font-family: "SN Pro";
-  src:
-    url("./fonts/SNPro-VariableRegular.woff2") format("woff2-variations"),
-    url("./fonts/SNPro-VariableRegular.woff") format("woff");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "SN Pro";
-  src: url("./fonts/SNPro-VariableItalic.woff2") format("woff2-variations");
-  font-weight: 200 900;
-  font-style: italic;
-  font-display: swap;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

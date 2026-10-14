@@ -22,6 +22,14 @@ export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
   trash: "Trash",
 };
 
+/** Each view's search field placeholder. */
+export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
+  all: "Search everything",
+  favorites: "Search favorites",
+  archive: "Search archive",
+  trash: "Search Trash",
+};
+
 /** The view a pathname shows, or null outside the library (settings). */
 export function libraryViewForPath(
   pathname: string | null | undefined

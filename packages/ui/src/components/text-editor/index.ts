@@ -1,3 +1,5 @@
-export { MarkdownTextEditor } from "./MarkdownTextEditor";
-export { prepareNoteCapture } from "./markdownDocument";
+export {
+  MarkdownTextEditor,
+  preloadMarkdownTextEditor,
+} from "./MarkdownTextEditor";
 export type { MarkdownTextEditorProps } from "./types";

@@ -4,7 +4,6 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
@@ -20,7 +19,6 @@ import {
   useCardsSearchController,
   useVaultSetup,
 } from "@teak/ui/hooks";
-import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
 import { Authenticated, AuthLoading } from "convex/react";
 import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
@@ -38,10 +36,18 @@ import {
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  LazyConnectedCardModal as ConnectedCardModal,
+  preloadCardModal,
+} from "../components/card-modal/LazyCardModal";
 import { isOptimisticCard } from "../components/cards/types";
 import { FolderDot } from "../components/folders/FolderDot";
-import { FolderNameDialog } from "../components/folders/FolderNameDialog";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
+import {
+  FolderNameDialog,
+  preloadLibraryDialogs,
+  TagManagementModal,
+} from "../components/lazyDialogs";
 import { useFolders } from "../hooks/useFolders";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
@@ -50,7 +56,12 @@ import {
   type FolderSummary,
   manualFolders,
 } from "../lib/folders";
-import { LIBRARY_VIEW_LABELS, type LibraryView } from "../lib/libraryViews";
+import { whenIdle } from "../lib/lazyWithPreload";
+import {
+  LIBRARY_VIEW_LABELS,
+  LIBRARY_VIEW_SEARCH_PLACEHOLDERS,
+  type LibraryView,
+} from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
   type SearchUrlState,
@@ -71,13 +82,6 @@ const EMPTY_VIEW_COPY: Record<
     text: "Nothing archived. Archive a card to keep it out of your library.",
   },
   trash: { icon: Trash2, text: "Trash is empty." },
-};
-
-const SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
-  all: "Search everything",
-  favorites: "Search favorites",
-  archive: "Search archive",
-  trash: "Search Trash",
 };
 
 /** A folder name short enough for the search placeholder. */
@@ -371,6 +375,19 @@ export function CardsScreen({
     searchKey,
   ]);
 
+  // Once cards are on screen, load the card dialog (and the other dialogs)
+  // while the page is idle, so even a quick first click opens a card at once.
+  const hasCards = displayCards.length > 0;
+  useEffect(() => {
+    if (!hasCards) {
+      return;
+    }
+    return whenIdle(() => {
+      preloadCardModal().catch(() => undefined);
+      preloadLibraryDialogs().catch(() => undefined);
+    });
+  }, [hasCards]);
+
   const selectedCard = useMemo(
     () =>
       displayCards.find((card: Doc<"cards">) => card._id === selectedCardId) ??
@@ -604,8 +621,10 @@ export function CardsScreen({
 
     if (displayCards.length === 0 && hasNoFilters) {
       // Until a new account's cards land, show them on their way rather
-      // than an empty library.
-      if (vaultSetup === "loading") {
+      // than an empty library. Cards that have arrived reach the grid an
+      // effect later, so they are on their way too: an empty library here
+      // would mount its composer and take focus for that one render.
+      if (vaultSetup === "loading" || cards.length > 0) {
         return <CardsGridSkeleton />;
       }
       return (
@@ -712,7 +731,7 @@ export function CardsScreen({
         placeholder={
           folder
             ? `Search ${clipName(folder.name)}`
-            : SEARCH_PLACEHOLDERS[view ?? "all"]
+            : LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view ?? "all"]
         }
         title={title}
       />
