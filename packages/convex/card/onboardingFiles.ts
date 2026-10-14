@@ -5,75 +5,105 @@ import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, storeObject } from "../storage/r2";
-import { ONBOARDING_CARDS } from "./defaultCards";
+import {
+  ONBOARDING_CARDS,
+  type OnboardingSlot,
+  type OnboardingStored,
+} from "./defaultCards";
 import { ONBOARDING_FILES } from "./onboarding/files";
 
+/** The storage key role for each slot, as the card pipeline names them. */
+const SLOT_ROLES: Record<OnboardingSlot, string> = {
+  file: "file",
+  linkImage: "link-preview-image",
+  screenshot: "screenshot",
+  scrub: "scrub",
+  thumbnail: "thumbnail",
+};
+
+const deleteObjects = (keys: string[]) =>
+  Promise.all(
+    keys.map((key) =>
+      callFilesWorkerJson({ op: "delete-object", params: { key } }).catch(
+        () => undefined
+      )
+    )
+  );
+
 /**
- * Upload the getting-started image, voice memo, PDF, and video into a new
- * account, then add each as a card. Each file stands alone: one that fails is
- * logged and skipped, and the rest still arrive.
+ * Store every getting-started file in a new account, all at once, then insert
+ * the cards in one mutation. A card whose files fail to store is left out and
+ * its stored files are deleted; the rest still arrive.
  */
-export const addOnboardingFileCards = internalAction({
-  args: {
-    cards: v.array(v.object({ createdAt: v.number(), onboarding: v.string() })),
-    folderId: v.optional(v.id("folders")),
-    userId: v.string(),
-  },
+export const addOnboardingCards = internalAction({
+  args: { createdAt: v.number(), userId: v.string() },
   returns: v.null(),
-  handler: async (ctx, { cards, folderId, userId }) => {
-    for (const planned of cards) {
-      const file = ONBOARDING_CARDS.find(
-        (card) => card.onboarding === planned.onboarding
-      )?.file;
-      const base64 = file ? ONBOARDING_FILES[file.source] : undefined;
-      if (!(file && base64)) {
-        console.error("[onboarding] Missing getting-started file", {
-          onboarding: planned.onboarding,
-        });
-        continue;
-      }
-      const bytes = Buffer.from(base64, "base64");
-      const fileKey = buildR2ObjectKey({
-        userId,
-        cardId: "stored",
-        role: "file",
-        fileName: file.name,
-      });
-      try {
-        await storeObject(ctx, new Blob([bytes], { type: file.mimeType }), {
-          key: fileKey,
-          userId,
-          type: file.mimeType,
-        });
-      } catch (error) {
-        console.error("[onboarding] Storing a getting-started file failed", {
-          onboarding: planned.onboarding,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        continue;
-      }
-      try {
-        await ctx.runMutation(
-          internal.card.defaultCards.insertOnboardingFileCard,
-          {
-            createdAt: planned.createdAt,
-            fileKey,
-            fileSize: bytes.byteLength,
-            folderId,
-            onboarding: planned.onboarding,
-            userId,
+  handler: async (ctx, { createdAt, userId }) => {
+    const results = await Promise.all(
+      ONBOARDING_CARDS.filter((card) => card.uploads?.length).map(
+        async (card): Promise<OnboardingStored | null> => {
+          const entry: OnboardingStored = {
+            onboarding: card.onboarding,
+            keys: {},
+          };
+          const settled = await Promise.allSettled(
+            (card.uploads ?? []).map(async (upload) => {
+              const base64 = ONBOARDING_FILES[upload.source];
+              if (!base64) {
+                throw new Error(`missing_onboarding_file:${upload.source}`);
+              }
+              const bytes = Buffer.from(base64, "base64");
+              const key = buildR2ObjectKey({
+                userId,
+                cardId: "stored",
+                role: SLOT_ROLES[upload.slot],
+                fileName: upload.name,
+              });
+              await storeObject(
+                ctx,
+                new Blob([bytes], { type: upload.mimeType }),
+                { key, userId, type: upload.mimeType }
+              );
+              entry.keys[upload.slot] = key;
+              if (upload.slot === "file") {
+                entry.fileSize = bytes.byteLength;
+              }
+            })
+          );
+          const failure = settled.find(
+            (result) => result.status === "rejected"
+          );
+          if (!failure) {
+            return entry;
           }
-        );
-      } catch (error) {
-        console.error("[onboarding] Adding a getting-started card failed", {
-          onboarding: planned.onboarding,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await callFilesWorkerJson({
-          op: "delete-object",
-          params: { key: fileKey },
-        }).catch(() => undefined);
-      }
+          console.error("[onboarding] Storing a getting-started file failed", {
+            onboarding: card.onboarding,
+            error:
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : String(failure.reason),
+          });
+          await deleteObjects(Object.values(entry.keys) as string[]);
+          return null;
+        }
+      )
+    );
+    const stored = results.filter(
+      (entry): entry is OnboardingStored => entry !== null
+    );
+    try {
+      await ctx.runMutation(internal.card.defaultCards.insertOnboardingCards, {
+        createdAt,
+        stored,
+        userId,
+      });
+    } catch (error) {
+      console.error("[onboarding] Adding the getting-started cards failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await deleteObjects(
+        stored.flatMap((entry) => Object.values(entry.keys) as string[])
+      );
     }
     return null;
   },

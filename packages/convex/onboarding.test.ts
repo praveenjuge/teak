@@ -14,7 +14,7 @@ import { buildR2ObjectKey } from "./storage/r2";
 
 const modules = import.meta.glob("./**/*.ts");
 const USER_ID = "teak_onboarding";
-const FILE_CARDS = ONBOARDING_CARDS.filter((card) => card.file);
+const UPLOAD_CARDS = ONBOARDING_CARDS.filter((card) => card.uploads);
 
 const setup = () => {
   const t = convexTest(schema, modules);
@@ -39,18 +39,39 @@ const foldersOf = (t: Backend) =>
       .take(10)
   );
 
-const scheduledFileCards = async (t: Backend) =>
+const scheduled = async (t: Backend, name: string) =>
   (
     await t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(100))
-  ).filter((job) => job.name === "card/onboardingFiles:addOnboardingFileCards");
+  ).filter((job) => job.name === name);
 
 const createDefaults = (t: Backend) =>
   t.mutation(internal.card.defaultCards.createDefaultCardsForUser, {
     userId: USER_ID,
   });
 
-// Card creation stops at the committed mutation. Hold the scheduled workflow
-// runs so link processing never reaches the network or outlives the test.
+const keyFor = (slot: string, name: string) =>
+  buildR2ObjectKey({
+    userId: USER_ID,
+    cardId: "stored",
+    role: slot,
+    fileName: name,
+  });
+
+/** What addOnboardingCards hands over once every file is stored. */
+const storedEverything = () =>
+  UPLOAD_CARDS.map((card) => ({
+    onboarding: card.onboarding,
+    fileSize: 1234,
+    keys: Object.fromEntries(
+      (card.uploads ?? []).map((upload) => [
+        upload.slot,
+        keyFor(upload.slot, upload.name),
+      ])
+    ),
+  }));
+
+// Card creation stops at the committed mutation. Hold scheduled work so a
+// processed link never reaches the network or outlives the test.
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("FILES_BASE", "https://files.example.test");
@@ -63,14 +84,30 @@ afterEach(() => {
 });
 
 describe("getting-started cards", () => {
-  test("a new account gets a Start here folder of tagged cards, newest first", async () => {
+  test("a new account's files are stored first; nothing is inserted until then", async () => {
     const t = setup();
 
-    expect(await createDefaults(t)).toEqual({
-      created: true,
-      count: ONBOARDING_CARDS.length - FILE_CARDS.length,
-      files: FILE_CARDS.length,
-    });
+    expect(await createDefaults(t)).toEqual({ created: true, deferred: true });
+
+    const [job] = await scheduled(t, "card/onboardingFiles:addOnboardingCards");
+    expect(job?.args[0]).toMatchObject({ userId: USER_ID });
+    expect(await cardsOf(t)).toHaveLength(0);
+    expect(await foldersOf(t)).toHaveLength(0);
+  });
+
+  test("every card arrives at once, finished, in Start here, newest first", async () => {
+    const t = setup();
+    const stored = storedEverything();
+    const keysOf = (onboarding: string) =>
+      stored.find((entry) => entry.onboarding === onboarding)?.keys ?? {};
+
+    expect(
+      await t.mutation(internal.card.defaultCards.insertOnboardingCards, {
+        userId: USER_ID,
+        createdAt: 10_000_000,
+        stored,
+      })
+    ).toBe(ONBOARDING_CARDS.length);
 
     const folders = await foldersOf(t);
     const startHere = folders.find((f) => f.name === ONBOARDING_FOLDER.name);
@@ -81,46 +118,59 @@ describe("getting-started cards", () => {
 
     const cards = await cardsOf(t);
     expect(cards.map((card) => card.onboarding).sort()).toEqual(
-      ["link", "palette", "quote", "welcome"].sort()
+      ONBOARDING_CARDS.map((card) => card.onboarding).sort()
     );
     for (const card of cards) {
       expect(card.tags).toEqual([ONBOARDING_TAG]);
       expect(card.folderIds).toEqual([startHere?._id]);
+      // Nothing is left to process, so nothing reflows the grid later.
+      expect(card.metadataStatus).toBe("completed");
+      expect(
+        Object.values(card.processingStatus ?? {}).every(
+          (stage) => stage?.status === "completed"
+        )
+      ).toBe(true);
     }
-    // The welcome card leads the grid, which lists the newest card first.
     const newest = [...cards].sort((a, b) => b.createdAt - a.createdAt)[0];
-    expect(newest?.onboarding).toBe("welcome");
-    expect(newest?.isFavorited).toBe(true);
-  });
+    expect(newest).toMatchObject({
+      onboarding: "welcome",
+      createdAt: 10_000_000,
+    });
 
-  test("hands the image, memo, PDF, and video to the upload action in grid order", async () => {
-    const t = setup();
-    await createDefaults(t);
-    const cards = await cardsOf(t);
-    const welcome = cards.find((card) => card.onboarding === "welcome");
-    const palette = cards.find((card) => card.onboarding === "palette");
-    const [job] = await scheduledFileCards(t);
-    const planned = job?.args[0] as {
-      cards: { createdAt: number; onboarding: string }[];
-      userId: string;
-    };
-
-    expect(planned.userId).toBe(USER_ID);
-    expect(planned.cards.map((card) => card.onboarding)).toEqual(
-      FILE_CARDS.map((card) => card.onboarding)
+    const video = cards.find((card) => card.type === "video");
+    expect(video).toMatchObject({
+      fileKey: keysOf("video").file,
+      thumbnailKey: keysOf("video").thumbnail,
+      scrubKey: keysOf("video").scrub,
+      fileMetadata: { width: 1920, height: 1200, fileSize: 1234 },
+    });
+    const link = cards.find((card) => card.type === "link");
+    expect(link?.metadata?.linkPreview).toMatchObject({
+      imageStorageKey: keysOf("link").linkImage,
+      screenshotStorageKey: keysOf("link").screenshot,
+    });
+    expect(cards.find((card) => card.type === "audio")?.aiTranscript).toContain(
+      "serif"
     );
-    // The image lands between the welcome card and the palette.
-    const image = planned.cards.find((card) => card.onboarding === "image");
-    expect(image?.createdAt).toBeLessThan(welcome?.createdAt ?? 0);
-    expect(image?.createdAt).toBeGreaterThan(palette?.createdAt ?? 0);
   });
 
-  test("leaves out the file cards when there is no Files Worker to store them", async () => {
+  test("without a Files Worker, the cards that need no files arrive at once", async () => {
     vi.stubEnv("FILES_BASE", "");
     const t = setup();
 
-    expect(await createDefaults(t)).toMatchObject({ created: true, files: 0 });
-    expect(await scheduledFileCards(t)).toHaveLength(0);
+    expect(await createDefaults(t)).toEqual({ created: true, count: 4 });
+
+    const cards = await cardsOf(t);
+    expect(cards.map((card) => card.onboarding).sort()).toEqual(
+      ["link", "palette", "quote", "welcome"].sort()
+    );
+    // The link has no stored preview, so it is processed like a saved link.
+    expect(cards.find((card) => card.type === "link")?.metadataStatus).toBe(
+      "pending"
+    );
+    expect(
+      await scheduled(t, "card/onboardingFiles:addOnboardingCards")
+    ).toHaveLength(0);
   });
 
   test("adds nothing to an account that already has cards", async () => {
@@ -143,63 +193,21 @@ describe("getting-started cards", () => {
     expect(await cardsOf(t)).toHaveLength(1);
   });
 
-  test("an uploaded getting-started file becomes a processing card in Start here", async () => {
+  test("refuses files stored outside the account", async () => {
     const t = setup();
-    await createDefaults(t);
-    const startHere = (await foldersOf(t)).find(
-      (f) => f.name === ONBOARDING_FOLDER.name
-    );
-    const fileKey = buildR2ObjectKey({
-      userId: USER_ID,
+    const stored = storedEverything();
+    stored[0]!.keys.file = buildR2ObjectKey({
+      userId: "someone_else",
       cardId: "stored",
       role: "file",
-      fileName: "Teak search cheat sheet.pdf",
+      fileName: "Coral lily.webp",
     });
-
-    const cardId = await t.mutation(
-      internal.card.defaultCards.insertOnboardingFileCard,
-      {
-        createdAt: 1234,
-        fileKey,
-        fileSize: 5000,
-        folderId: startHere?._id,
-        onboarding: "document",
-        userId: USER_ID,
-      }
-    );
-
-    const card = await t.run((ctx) => ctx.db.get("cards", cardId!));
-    expect(card).toMatchObject({
-      type: "document",
-      fileKey,
-      onboarding: "document",
-      tags: [ONBOARDING_TAG],
-      folderIds: [startHere?._id],
-      createdAt: 1234,
-      fileMetadata: {
-        fileName: "Teak search cheat sheet.pdf",
-        fileSize: 5000,
-        mimeType: "application/pdf",
-      },
-    });
-    expect(card?.processingStatus?.metadata?.status).toBe("pending");
-  });
-
-  test("refuses a getting-started file stored outside the account", async () => {
-    const t = setup();
 
     await expect(
-      t.mutation(internal.card.defaultCards.insertOnboardingFileCard, {
-        createdAt: 1,
-        fileKey: buildR2ObjectKey({
-          userId: "someone_else",
-          cardId: "stored",
-          role: "file",
-          fileName: "Coral flowers.webp",
-        }),
-        fileSize: 10,
-        onboarding: "image",
+      t.mutation(internal.card.defaultCards.insertOnboardingCards, {
         userId: USER_ID,
+        createdAt: 1,
+        stored,
       })
     ).rejects.toThrow("does not belong");
     expect(await cardsOf(t)).toHaveLength(0);

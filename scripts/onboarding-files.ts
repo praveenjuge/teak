@@ -12,7 +12,14 @@ import { extname, join } from "node:path";
 const ROOT = join(import.meta.dir, "..");
 export const ONBOARDING_DIR = join(ROOT, "packages/convex/card/onboarding");
 export const OUTPUT = join(ONBOARDING_DIR, "files.ts");
-const EMBEDDED_EXTENSIONS = new Set([".m4a", ".mp4", ".pdf", ".webp"]);
+const EMBEDDED_EXTENSIONS = new Set([
+  ".jpg",
+  ".m4a",
+  ".mp4",
+  ".pdf",
+  ".png",
+  ".webp",
+]);
 
 /** The generated module for the files in `dir`, sorted by name. */
 export const renderOnboardingFiles = (dir: string): string => {

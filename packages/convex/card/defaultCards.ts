@@ -5,7 +5,6 @@ import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import { insertFolder } from "../folder/folders";
 import type { CardType } from "../schema";
-import { validateFileFormat } from "../shared/fileFormats";
 import { type FolderColor, folderNameKey } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import { buildColorFacets } from "../shared/utils/colorUtils";
@@ -19,6 +18,7 @@ import {
   recordActiveCardCreated,
   recordActiveCardRemoved,
 } from "./cardUsage";
+import { AUDIO_TRANSCRIPT, AUDIO_WAVEFORM } from "./onboarding/processed";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,
@@ -52,10 +52,14 @@ const createColor = (
 export interface DefaultCardDef {
   aiSummary?: string;
   aiTags?: string[];
+  aiTranscript?: string;
   colors?: ReturnType<typeof createColor>[];
   content: string;
   /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
+  /** A stored original, with its processed facts in `fileMetadata`. */
+  fileKey?: string;
+  fileMetadata?: Doc<"cards">["fileMetadata"];
   /** Dev scenario packs only: the folders the card starts in. */
   folderIds?: Id<"folders">[];
   /** Inserted archived (hidden from the library, still counted). */
@@ -71,7 +75,9 @@ export interface DefaultCardDef {
   onboarding?: string;
   /** Inserted pending and handed to the card processing workflow. */
   runProcessing?: boolean;
+  scrubKey?: string;
   tags?: string[];
+  thumbnailKey?: string;
   type: CardType;
   url?: string;
 }
@@ -108,21 +114,38 @@ export const ONBOARDING_SMART_FOLDER = {
   query: "type:image type:palette",
 } as const;
 
-/** A file from card/onboarding that a getting-started card is made from. */
-export interface OnboardingFile {
-  height?: number;
+/** Where a stored getting-started file goes on its card. */
+export type OnboardingSlot =
+  | "file"
+  | "linkImage"
+  | "screenshot"
+  | "scrub"
+  | "thumbnail";
+
+/** A file stored in the new account before its card is inserted. */
+export interface OnboardingUpload {
   mimeType: string;
-  /** The name the card shows. */
+  /** The stored name; for `file`, also the name the card shows. */
   name: string;
+  slot: OnboardingSlot;
   /** The file in card/onboarding, embedded by scripts/onboarding-files.ts. */
   source: string;
-  width?: number;
+}
+
+/** The storage keys of a card's uploads, and its original's size. */
+export interface OnboardingStored {
+  fileSize?: number;
+  keys: Partial<Record<OnboardingSlot, string>>;
+  onboarding: string;
 }
 
 export interface OnboardingCardDef extends DefaultCardDef {
-  /** Uploaded to the new account, then processed like any upload. */
-  file?: OnboardingFile;
   onboarding: string;
+  /**
+   * Files the card needs, with the pipeline's output for them captured in
+   * card/onboarding (see its README), so the card arrives finished.
+   */
+  uploads?: OnboardingUpload[];
 }
 
 const WELCOME_CONTENT = `Welcome to Teak, a home for everything that inspires you. Save links, images, videos, voice memos, PDFs, colors, and notes, and Teak helps you find them again.
@@ -146,6 +169,8 @@ These cards live in the **Start here** folder. When you're done exploring, selec
 /**
  * The getting-started cards, newest first, so the welcome card leads the grid.
  * Each one is an example of its card type, and its note says what to try.
+ * File cards carry what Teak's pipeline made of their files, so a new account
+ * gets every card complete and at its final size, with nothing left to process.
  */
 export const ONBOARDING_CARDS: OnboardingCardDef[] = [
   {
@@ -161,15 +186,35 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     onboarding: "image",
     type: "image",
     content: "",
-    file: {
-      source: "coral-flowers.webp",
-      name: "Coral flowers.webp",
+    uploads: [
+      {
+        slot: "file",
+        source: "coral-lily.webp",
+        name: "Coral lily.webp",
+        mimeType: "image/webp",
+      },
+    ],
+    metadataTitle: "Coral lily.webp",
+    fileMetadata: {
+      extension: "webp",
+      fileName: "Coral lily.webp",
+      kind: "image",
       mimeType: "image/webp",
-      width: 640,
-      height: 640,
+      width: 2400,
+      height: 1600,
     },
+    colors: [
+      createColor("#FFA050"),
+      createColor("#FFB060"),
+      createColor("#FF9040"),
+      createColor("#FFA040"),
+      createColor("#FFC080"),
+    ],
+    aiTags: ["flower", "lily", "petal", "pollen", "macro", "nature"],
+    aiSummary:
+      "A macro close-up of an orange lily, focused on stamens covered in yellow pollen.",
     notes:
-      "Teak pulled the colors out of this photo and tagged what's in it, so searching orange or pink finds it.",
+      "Teak pulled the colors out of this photo and tagged what's in it, so searching orange or lily finds it.",
   },
   {
     onboarding: "palette",
@@ -192,23 +237,68 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     onboarding: "video",
     type: "video",
     content: "",
-    file: {
-      source: "find-anything-in-teak.mp4",
-      name: "Find anything in Teak.mp4",
+    uploads: [
+      {
+        slot: "file",
+        source: "find-anything-in-teak.mp4",
+        name: "Find anything in Teak.mp4",
+        mimeType: "video/mp4",
+      },
+      {
+        slot: "thumbnail",
+        source: "tour-thumbnail.jpg",
+        name: "thumbnail.jpg",
+        mimeType: "image/jpeg",
+      },
+      {
+        slot: "scrub",
+        source: "tour-scrub.jpg",
+        name: "scrub.jpg",
+        mimeType: "image/jpeg",
+      },
+    ],
+    metadataTitle: "Find anything in Teak.mp4",
+    fileMetadata: {
+      extension: "mp4",
+      fileName: "Find anything in Teak.mp4",
+      kind: "motion",
       mimeType: "video/mp4",
+      width: 1920,
+      height: 1200,
+      duration: 26,
+      scrub: { frames: 10, frameWidth: 360, frameHeight: 224 },
     },
+    aiTags: ["teak", "search", "interface", "design", "workspace"],
+    aiSummary:
+      "A short screen recording of Teak: finding a photo by color, a voice memo by a spoken word, and a smart folder of images and palettes.",
     notes:
-      "A 20-second tour: find a photo by its color, a voice memo by what was said, and a smart folder that fills itself. Hover a video in the grid to scrub through it.",
+      "A short tour: find a photo by its color, a voice memo by what was said, and a smart folder that fills itself. Hover a video in the grid to scrub through it.",
   },
   {
     onboarding: "audio",
     type: "audio",
     content: "",
-    file: {
-      source: "brand-refresh-voice-memo.m4a",
-      name: "Brand refresh voice memo.m4a",
+    uploads: [
+      {
+        slot: "file",
+        source: "brand-refresh-voice-memo.m4a",
+        name: "Brand refresh voice memo.m4a",
+        mimeType: "audio/mp4",
+      },
+    ],
+    metadataTitle: "Brand refresh voice memo.m4a",
+    fileMetadata: {
+      extension: "m4a",
+      fileName: "Brand refresh voice memo.m4a",
+      kind: "audio",
       mimeType: "audio/mp4",
+      duration: 17.8,
+      waveform: AUDIO_WAVEFORM,
     },
+    aiTranscript: AUDIO_TRANSCRIPT,
+    aiTags: ["studio", "brand", "refresh", "coral", "serif", "layout"],
+    aiSummary:
+      "A note on the studio brand refresh: a coral main button, a warm serif headline, and calmer, roomier spacing.",
     notes:
       "Record a thought with the microphone button, or upload a memo. Teak writes out what was said, so searching serif finds this card.",
   },
@@ -216,11 +306,32 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     onboarding: "document",
     type: "document",
     content: "",
-    file: {
-      source: "teak-search-cheat-sheet.pdf",
-      name: "Teak search cheat sheet.pdf",
+    uploads: [
+      {
+        slot: "file",
+        source: "teak-search-cheat-sheet.pdf",
+        name: "Teak search cheat sheet.pdf",
+        mimeType: "application/pdf",
+      },
+      {
+        slot: "thumbnail",
+        source: "cheat-sheet-thumbnail.png",
+        name: "thumbnail.png",
+        mimeType: "image/png",
+      },
+    ],
+    metadataTitle: "Teak search cheat sheet.pdf",
+    fileMetadata: {
+      extension: "pdf",
+      fileName: "Teak search cheat sheet.pdf",
+      kind: "pdf",
       mimeType: "application/pdf",
+      width: 1132,
+      height: 1600,
     },
+    aiTags: ["teak", "search", "filter", "moodboard", "pdf", "design"],
+    aiSummary:
+      "A one-page guide to searching in Teak: by color and style, by type, tag, site, and folder, by date, and by words.",
     notes:
       "Every search trick on one page. Teak reads the text inside PDFs, Office files, and design files, so you can search for what's in them.",
   },
@@ -239,9 +350,57 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     type: "link",
     content: "https://teakvault.com/apps",
     url: "https://teakvault.com/apps",
+    uploads: [
+      {
+        slot: "linkImage",
+        source: "apps-image.webp",
+        name: "image.webp",
+        mimeType: "image/webp",
+      },
+      {
+        slot: "screenshot",
+        source: "apps-screenshot.jpg",
+        name: "screenshot.jpg",
+        mimeType: "image/jpeg",
+      },
+    ],
+    metadataTitle: "Teak Apps",
+    metadataDescription:
+      "Save ideas with Teak on Mac, iPhone, and iPad, web, browser extensions, and Raycast, with Android coming soon. Connect your library through the API, MCP, CLI, and agent skills.",
+    metadata: {
+      linkPreview: {
+        source: "teak",
+        status: "success",
+        url: "https://teakvault.com/apps",
+        finalUrl: "https://teakvault.com/apps",
+        canonicalUrl: "https://teakvault.com/apps",
+        title: "Teak Apps",
+        description:
+          "Save ideas with Teak on Mac, iPhone, and iPad, web, browser extensions, and Raycast, with Android coming soon. Connect your library through the API, MCP, CLI, and agent skills.",
+        siteName: "Teak",
+        author: "Teak Team",
+        publisher: "Teak",
+        faviconUrl: "https://teakvault.com/favicon.ico",
+        imageUrl: "https://teakvault.com/hero-image.png",
+        imageWidth: 1600,
+        imageHeight: 840,
+        screenshotWidth: 2560,
+        screenshotHeight: 1440,
+      },
+      linkCategory: {
+        category: "other",
+        confidence: 0.35,
+        detectedProvider: "teakvault.com",
+        fetchedAt: 0,
+        imageUrl: "https://teakvault.com/hero-image.png",
+        sourceUrl: "https://teakvault.com/apps",
+      },
+    },
+    aiTags: ["teak", "apps", "mac", "iphone", "raycast", "productivity"],
+    aiSummary:
+      "Where to get Teak: apps for Mac, iPhone, and iPad, the web, browser extensions, and Raycast, plus the API, MCP, CLI, and agent skills.",
     notes:
       "Links get a preview, a screenshot, and a summary on their own. Get Teak for iPhone, iPad, Mac, Chrome, Safari, and Raycast here.",
-    runProcessing: true,
   },
 ];
 
@@ -280,6 +439,11 @@ export const insertCompletedCards = async (
       colorHues,
       aiTags: cardDef.aiTags,
       aiSummary: cardDef.aiSummary,
+      aiTranscript: cardDef.aiTranscript,
+      fileKey: cardDef.fileKey,
+      fileMetadata: cardDef.fileMetadata,
+      thumbnailKey: cardDef.thumbnailKey,
+      scrubKey: cardDef.scrubKey,
       isFavorited: cardDef.isFavorited,
       ...(cardDef.folderIds?.length ? { folderIds: cardDef.folderIds } : {}),
       metadata: cardDef.metadata,
@@ -361,10 +525,108 @@ const ensureFolder = async (
 };
 
 /**
- * Give a new account its getting-started cards: a Start here folder holding
- * one card of each type, and a Moodboard smart folder. Cards made from files
- * are uploaded by an action and arrive a moment later, already in their place
- * in the grid. Runs only while the account has no cards.
+ * A getting-started card as inserted: its stored files in place, or null when
+ * one is missing. A link without its preview files is processed instead, like
+ * any saved link.
+ */
+export const finishOnboardingCard = (
+  def: OnboardingCardDef,
+  stored: OnboardingStored | undefined,
+  now: number
+): DefaultCardDef | null => {
+  const { uploads, ...card } = def;
+  const keys = stored?.keys ?? {};
+  if (uploads?.some((upload) => !keys[upload.slot])) {
+    if (card.type !== "link") {
+      return null;
+    }
+    const { metadata: _metadata, ...unprocessed } = card;
+    return {
+      ...unprocessed,
+      aiSummary: undefined,
+      aiTags: undefined,
+      metadataDescription: undefined,
+      metadataTitle: undefined,
+      runProcessing: true,
+    };
+  }
+  const linkPreview = card.metadata?.linkPreview;
+  const linkCategory = card.metadata?.linkCategory;
+  return {
+    ...card,
+    ...(keys.file ? { fileKey: keys.file } : {}),
+    ...(keys.thumbnail ? { thumbnailKey: keys.thumbnail } : {}),
+    ...(keys.scrub ? { scrubKey: keys.scrub } : {}),
+    ...(card.fileMetadata
+      ? { fileMetadata: { ...card.fileMetadata, fileSize: stored?.fileSize } }
+      : {}),
+    ...(card.metadata
+      ? {
+          metadata: {
+            ...card.metadata,
+            ...(linkPreview && {
+              linkPreview: {
+                ...linkPreview,
+                fetchedAt: now,
+                imageStorageKey: keys.linkImage,
+                imageUpdatedAt: now,
+                screenshotStorageKey: keys.screenshot,
+                screenshotUpdatedAt: now,
+              },
+            }),
+            ...(linkCategory && {
+              linkCategory: { ...linkCategory, fetchedAt: now },
+            }),
+          },
+        }
+      : {}),
+  };
+};
+
+/**
+ * Insert every getting-started card at once, finished, in a Start here
+ * folder, beside a Moodboard smart folder. Cards whose files weren't stored
+ * are left out (a link is processed instead).
+ */
+const insertOnboardingCardSet = async (
+  ctx: MutationCtx,
+  userId: string,
+  createdAt: number,
+  stored: OnboardingStored[]
+) => {
+  const prefix = `${buildR2UserPrefix(userId)}/`;
+  for (const entry of stored) {
+    if (Object.values(entry.keys).some((key) => !key?.startsWith(prefix))) {
+      throw new Error("Onboarding file key does not belong to the user");
+    }
+  }
+  const now = Date.now();
+  const folderId = await ensureFolder(ctx, userId, ONBOARDING_FOLDER, now);
+  await ensureFolder(ctx, userId, ONBOARDING_SMART_FOLDER, now + 1);
+  const byCard = new Map(stored.map((entry) => [entry.onboarding, entry]));
+  const cards: DefaultCardDef[] = [];
+  // Newest first: each card is a second older than the one before it.
+  for (const [index, def] of ONBOARDING_CARDS.entries()) {
+    const card = finishOnboardingCard(def, byCard.get(def.onboarding), now);
+    if (card) {
+      cards.push({
+        ...card,
+        createdAt: createdAt - index * 1000,
+        tags: [ONBOARDING_TAG],
+        ...(folderId ? { folderIds: [folderId] } : {}),
+      });
+    }
+  }
+  await insertCompletedCards(ctx, userId, cards);
+  return cards.length;
+};
+
+/**
+ * Give a new account its getting-started cards. Their files are stored first
+ * (addOnboardingCards), then every card is inserted in one go, so the grid
+ * fills once and nothing moves. Without the Files Worker (a self-hosted setup
+ * without files), the cards that need no files are inserted right away. Runs
+ * only while the account has no cards.
  */
 export const createDefaultCardsForUser = internalMutation({
   args: { userId: v.string() },
@@ -384,114 +646,44 @@ export const createDefaultCardsForUser = internalMutation({
       return { created: false, reason: "cards_exist" as const };
     }
 
-    const now = Date.now();
-    const folderId = await ensureFolder(ctx, userId, ONBOARDING_FOLDER, now);
-    await ensureFolder(ctx, userId, ONBOARDING_SMART_FOLDER, now + 1);
-    // Newest first: each card is a second older than the one before it.
-    const planned = ONBOARDING_CARDS.map(({ file, ...card }, index) => ({
-      card: {
-        ...card,
-        createdAt: now - index * 1000,
-        tags: [ONBOARDING_TAG],
-        ...(folderId ? { folderIds: [folderId] } : {}),
-      },
-      file,
-    }));
-    const inline = planned.filter(({ file }) => !file).map(({ card }) => card);
-    await insertCompletedCards(ctx, userId, inline);
-    // Without the Files Worker (a self-hosted setup without files), there is
-    // nowhere to store the image, memo, PDF, and video.
-    const files = isFilesWorkerConfigured()
-      ? planned
-          .filter(({ file }) => file)
-          .map(({ card }) => ({
-            onboarding: card.onboarding,
-            createdAt: card.createdAt,
-          }))
-      : [];
-    if (files.length > 0) {
+    const createdAt = Date.now();
+    if (isFilesWorkerConfigured()) {
       await ctx.scheduler.runAfter(
         0,
-        internal.card.onboardingFiles.addOnboardingFileCards,
-        { userId, folderId: folderId ?? undefined, cards: files }
+        internal.card.onboardingFiles.addOnboardingCards,
+        { userId, createdAt }
       );
+      return { created: true, deferred: true as const };
     }
-
-    return { created: true, count: inline.length, files: files.length };
+    const count = await insertOnboardingCardSet(ctx, userId, createdAt, []);
+    return { created: true, count };
   },
 });
 
-/**
- * Insert a getting-started card for a file the onboarding action stored under
- * the account's prefix, and process it like an upload.
- */
-export const insertOnboardingFileCard = internalMutation({
+const onboardingSlotValidator = v.optional(v.string());
+
+/** Insert the getting-started cards once addOnboardingCards stored their files. */
+export const insertOnboardingCards = internalMutation({
   args: {
     createdAt: v.number(),
-    fileKey: v.string(),
-    fileSize: v.number(),
-    folderId: v.optional(v.id("folders")),
-    onboarding: v.string(),
+    stored: v.array(
+      v.object({
+        fileSize: v.optional(v.number()),
+        keys: v.object({
+          file: onboardingSlotValidator,
+          linkImage: onboardingSlotValidator,
+          screenshot: onboardingSlotValidator,
+          scrub: onboardingSlotValidator,
+          thumbnail: onboardingSlotValidator,
+        }),
+        onboarding: v.string(),
+      })
+    ),
     userId: v.string(),
   },
-  returns: v.union(v.id("cards"), v.null()),
-  handler: async (ctx, args) => {
-    await assertAccountNotDeleting(ctx, args.userId);
-    const def = ONBOARDING_CARDS.find(
-      (card) => card.onboarding === args.onboarding
-    );
-    if (!def?.file) {
-      return null;
-    }
-    if (!args.fileKey.startsWith(`${buildR2UserPrefix(args.userId)}/`)) {
-      throw new Error("Onboarding file key does not belong to the user");
-    }
-    const format = validateFileFormat({
-      fileName: def.file.name,
-      mimeType: def.file.mimeType,
-    });
-    const folder = args.folderId
-      ? await ctx.db.get("folders", args.folderId)
-      : null;
-    const keepFolder =
-      folder?.userId === args.userId &&
-      folder.kind === "manual" &&
-      folder.deletingAt === undefined;
-    const now = Date.now();
-    const cardId = await ctx.db.insert("cards", {
-      userId: args.userId,
-      type: format.cardType,
-      content: def.content,
-      fileKey: args.fileKey,
-      fileMetadata: {
-        extension: format.extension,
-        fileName: def.file.name,
-        fileSize: args.fileSize,
-        kind: format.kind,
-        mimeType: format.mimeType,
-        ...(def.file.width ? { width: def.file.width } : {}),
-        ...(def.file.height ? { height: def.file.height } : {}),
-      },
-      metadataTitle: def.file.name,
-      notes: def.notes,
-      tags: [ONBOARDING_TAG],
-      onboarding: def.onboarding,
-      ...(keepFolder && args.folderId ? { folderIds: [args.folderId] } : {}),
-      processingStatus: buildInitialProcessingStatus({
-        now,
-        cardType: format.cardType,
-        classificationStatus: stageCompleted(now, 1),
-      }),
-      createdAt: args.createdAt,
-      updatedAt: args.createdAt,
-    });
-    await recordActiveCardCreated(ctx, args.userId, cardId);
-    await scheduleCardSearchSync(ctx, cardId, args.userId);
-    await ctx.scheduler.runAfter(
-      0,
-      (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-      { cardId }
-    );
-    return cardId;
+  returns: v.number(),
+  handler: async (ctx, { createdAt, stored, userId }) => {
+    await assertAccountNotDeleting(ctx, userId);
+    return await insertOnboardingCardSet(ctx, userId, createdAt, stored);
   },
 });

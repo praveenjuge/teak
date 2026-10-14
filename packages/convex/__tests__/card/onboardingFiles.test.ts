@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ONBOARDING_CARDS } from "../../card/defaultCards";
-import { addOnboardingFileCards } from "../../card/onboardingFiles";
+import { addOnboardingCards } from "../../card/onboardingFiles";
 import { buildR2UserPrefix } from "../../storage/r2";
 
 const USER_ID = "teak_new";
-const FILE_CARDS = ONBOARDING_CARDS.filter((card) => card.file);
+const UPLOADS = ONBOARDING_CARDS.flatMap((card) => card.uploads ?? []);
 const ENV_KEYS = ["FILES_BASE", "FILES_SIGNING_SECRET"] as const;
 const savedEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 const realFetch = globalThis.fetch;
@@ -18,9 +18,15 @@ interface Upload {
 
 let uploads: Upload[];
 let deletedKeys: string[];
-let inserted: Record<string, unknown>[];
+interface Stored {
+  fileSize?: number;
+  keys: Record<string, string>;
+  onboarding: string;
+}
+
+let inserts: { createdAt: number; stored: Stored[]; userId: string }[];
 let failUploadOf: string | undefined;
-let failInsertOf: string | undefined;
+let failInsert: boolean;
 
 // The Files Worker is the boundary: PUTs store bytes, op POSTs delete them.
 const filesWorkerFetch = mock(
@@ -63,28 +69,22 @@ const ctx = {
     if (name.endsWith("registerObject")) {
       return Promise.resolve(true);
     }
-    if (name.endsWith("insertOnboardingFileCard")) {
-      if (args.onboarding === failInsertOf) {
+    if (name.endsWith("insertOnboardingCards")) {
+      if (failInsert) {
         return Promise.reject(new Error("insert failed"));
       }
-      inserted.push(args);
-      return Promise.resolve("card_id");
+      inserts.push(args as (typeof inserts)[number]);
+      return Promise.resolve(8);
     }
     return Promise.reject(new Error(`unexpected mutation ${name}`));
   }),
 };
 
-const run = (cards = FILE_CARDS) => {
-  const registered = addOnboardingFileCards as unknown as {
+const run = () => {
+  const registered = addOnboardingCards as unknown as {
     _handler: (c: typeof ctx, a: unknown) => Promise<null>;
   };
-  return registered._handler(ctx, {
-    userId: USER_ID,
-    cards: cards.map((card, index) => ({
-      onboarding: card.onboarding,
-      createdAt: 1000 - index,
-    })),
-  });
+  return registered._handler(ctx, { userId: USER_ID, createdAt: 1000 });
 };
 
 beforeEach(() => {
@@ -93,9 +93,9 @@ beforeEach(() => {
   globalThis.fetch = filesWorkerFetch as unknown as typeof fetch;
   uploads = [];
   deletedKeys = [];
-  inserted = [];
+  inserts = [];
   failUploadOf = undefined;
-  failInsertOf = undefined;
+  failInsert = false;
 });
 
 afterEach(() => {
@@ -109,53 +109,63 @@ afterEach(() => {
   }
 });
 
-describe("addOnboardingFileCards", () => {
-  test("stores each getting-started file in the account, then adds its card", async () => {
+describe("addOnboardingCards", () => {
+  test("stores every file in the account, then inserts all the cards at once", async () => {
     await run();
 
-    expect(uploads.map((upload) => upload.contentType)).toEqual(
-      FILE_CARDS.map((card) => card.file?.mimeType ?? "")
+    expect(uploads.map((upload) => upload.contentType).sort()).toEqual(
+      UPLOADS.map((upload) => upload.mimeType).sort()
     );
     for (const upload of uploads) {
       expect(upload.key.startsWith(`${buildR2UserPrefix(USER_ID)}/`)).toBe(
         true
       );
-      expect(upload.bytes).toBeGreaterThan(1000);
     }
-    expect(
-      inserted.map(({ onboarding, createdAt, fileKey }) => ({
-        onboarding,
-        createdAt,
-        stored: uploads.some((upload) => upload.key === fileKey),
-      }))
-    ).toEqual(
-      FILE_CARDS.map((card, index) => ({
-        onboarding: card.onboarding,
-        createdAt: 1000 - index,
-        stored: true,
-      }))
+    expect(inserts).toHaveLength(1);
+    const [insert] = inserts;
+    expect(insert?.createdAt).toBe(1000);
+    const stored = new Map(
+      insert?.stored.map((entry) => [entry.onboarding, entry])
     );
+    for (const card of ONBOARDING_CARDS.filter((def) => def.uploads)) {
+      const entry = stored.get(card.onboarding);
+      for (const upload of card.uploads ?? []) {
+        expect(uploads.some((u) => u.key === entry?.keys[upload.slot])).toBe(
+          true
+        );
+      }
+    }
+    // The original's size lands on the card.
+    const memo = uploads.find((upload) => upload.contentType === "audio/mp4");
+    expect(stored.get("audio")?.fileSize).toBe(memo?.bytes);
   });
 
-  test("a file that fails to upload is skipped and the rest still arrive", async () => {
-    failUploadOf = "voice-memo";
+  test("a card whose file fails to store is left out, and its other files deleted", async () => {
+    failUploadOf = "scrub";
 
     await run();
 
-    expect(inserted.map((args) => args.onboarding)).toEqual(
-      FILE_CARDS.map((card) => card.onboarding).filter((key) => key !== "audio")
-    );
+    const onboarding = inserts[0]?.stored.map((entry) => entry.onboarding);
+    expect(onboarding).not.toContain("video");
+    expect(onboarding).toContain("audio");
+    // The video's original and poster were stored before its scrub failed.
+    const videoKeys = uploads
+      .filter(
+        (upload) =>
+          upload.contentType === "video/mp4" ||
+          (upload.contentType === "image/jpeg" &&
+            upload.key.includes("/thumbnail/"))
+      )
+      .map((upload) => upload.key);
+    expect(videoKeys.length).toBeGreaterThan(0);
+    expect(deletedKeys.sort()).toEqual(videoKeys.sort());
   });
 
-  test("a card that can't be added has its stored file deleted", async () => {
-    failInsertOf = "document";
+  test("when the cards can't be inserted, every stored file is deleted", async () => {
+    failInsert = true;
 
     await run();
 
-    const pdfUpload = uploads.find(
-      (upload) => upload.contentType === "application/pdf"
-    );
-    expect(deletedKeys).toEqual([pdfUpload?.key ?? ""]);
-    expect(inserted.map((args) => args.onboarding)).not.toContain("document");
+    expect(deletedKeys.sort()).toEqual(uploads.map((u) => u.key).sort());
   });
 });
