@@ -395,6 +395,42 @@ describe("devSeed archive-mix pack", () => {
   });
 });
 
+describe("devSeed keyboard-mixed pack", () => {
+  test("seeds tall and wide blocks beside short cards, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "keyboard-mixed",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 48 });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    const seeded = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    const pack = seeded.filter((card) =>
+      card.tags?.includes("scenario-keyboard-mixed")
+    );
+    expect(pack).toHaveLength(48);
+    const ratios = pack
+      .filter((card) => card.type === "image")
+      .map(
+        (card) =>
+          (card.fileMetadata?.height ?? 0) / (card.fileMetadata?.width ?? 1)
+      );
+    // Blocks three times taller than wide, and wider than tall.
+    expect(Math.max(...ratios)).toBeGreaterThanOrEqual(3);
+    expect(Math.min(...ratios)).toBeLessThan(1);
+    expect(pack.filter((card) => card.type === "text").length).toBeGreaterThan(
+      0
+    );
+  });
+});
+
 describe("devSeed tag packs", () => {
   test("tags-2000 spreads 2,000 distinct tags over 1,000 cards", () => {
     const cards = Array.from({ length: TAGS_2000_SCENARIO_SIZE }, (_, index) =>

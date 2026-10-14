@@ -82,6 +82,11 @@ export interface CardProps {
   isPriority?: boolean;
   isSelected?: boolean;
   isSelectionMode?: boolean;
+  /**
+   * Whether Tab stops on this card. The grid keeps one card a tab stop and
+   * moves between cards with the arrow keys; on its own a card always is.
+   */
+  isTabStop?: boolean;
   isTrashMode?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;

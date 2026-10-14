@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
+import { Kbd } from "@teak/ui/components/ui/kbd";
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +28,7 @@ import { useGlobalFileDrop } from "@teak/ui/hooks";
 import { useAction, useMutation } from "convex/react";
 import { Mic, Square, Upload } from "lucide-react";
 import {
+  type ComponentProps,
   type ReactNode,
   useCallback,
   useEffect,
@@ -54,16 +56,21 @@ function HeaderAction({
   disabled,
   label,
   onClick,
+  shortcut,
+  ...props
 }: {
   children: ReactNode;
   disabled?: boolean;
   label: string;
   onClick: () => void;
-}) {
+  /** The key that does the same, shown in the tooltip. */
+  shortcut?: string;
+} & Omit<ComponentProps<typeof Button>, "children" | "onClick">) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
+          aria-keyshortcuts={shortcut}
           aria-label={label}
           className="size-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground [&_svg]:size-4"
           disabled={disabled}
@@ -71,11 +78,15 @@ function HeaderAction({
           size="icon"
           type="button"
           variant="ghost"
+          {...props}
         >
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{label}</TooltipContent>
+      <TooltipContent className="flex items-center gap-2" side="bottom">
+        {label}
+        {shortcut && <Kbd>{shortcut}</Kbd>}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -422,9 +433,11 @@ export function AddCardActions({
     variant === "header" ? (
       <div className="flex items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
         <HeaderAction
+          data-upload-files=""
           disabled={globalFileDrop?.isUploading}
           label="Upload files"
           onClick={handleFileUpload}
+          shortcut="U"
         >
           <Upload />
         </HeaderAction>
@@ -439,7 +452,9 @@ export function AddCardActions({
     ) : (
       <div className="flex items-center gap-1">
         <Button
+          aria-keyshortcuts="U"
           aria-label="Upload files"
+          data-upload-files=""
           disabled={globalFileDrop?.isUploading}
           onClick={handleFileUpload}
           size="icon"

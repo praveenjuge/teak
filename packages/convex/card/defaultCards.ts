@@ -50,6 +50,11 @@ export interface DefaultCardDef {
   content: string;
   /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
+  /**
+   * Dev scenario packs only: file facts for an image with no stored file,
+   * which the grid shows as a block of the card's first color at that size.
+   */
+  fileMetadata?: Doc<"cards">["fileMetadata"];
   /** Dev scenario packs only: the folders the card starts in. */
   folderIds?: Id<"folders">[];
   /** Inserted archived (hidden from the library, still counted). */
@@ -157,6 +162,7 @@ export const insertCompletedCards = async (
       aiSummary: cardDef.aiSummary,
       isFavorited: cardDef.isFavorited,
       ...(cardDef.folderIds?.length ? { folderIds: cardDef.folderIds } : {}),
+      ...(cardDef.fileMetadata ? { fileMetadata: cardDef.fileMetadata } : {}),
       metadata: cardDef.metadata,
       metadataTitle: cardDef.metadataTitle,
       metadataDescription: cardDef.metadataDescription,
