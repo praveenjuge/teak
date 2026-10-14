@@ -1085,9 +1085,79 @@ const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
   );
 };
 
+// "keyboard-mixed": 48 cards whose heights differ a lot (tall and wide
+// blocks beside one-line notes and palettes), so moving through the masonry
+// grid with the arrow keys has to pick the visually nearest card. The blocks
+// are images with no stored file: the grid shows them in their color at
+// their size.
+const KEYBOARD_MIXED_START = Date.UTC(2026, 9, 1);
+const KEYBOARD_MIXED_SHAPES = [
+  "tall",
+  "palette",
+  "short",
+  "wide",
+  "quote",
+  "link",
+  "very tall",
+  "short",
+] as const;
+const KEYBOARD_MIXED_COLORS = [
+  "#1f6feb",
+  "#d97706",
+  "#059669",
+  "#be185d",
+  "#7c3aed",
+  "#0f766e",
+];
+
+export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
+  const shape = KEYBOARD_MIXED_SHAPES[index % KEYBOARD_MIXED_SHAPES.length];
+  const label = `Keyboard mix #${String(index).padStart(2, "0")} ${shape}`;
+  const color =
+    KEYBOARD_MIXED_COLORS[index % KEYBOARD_MIXED_COLORS.length] ?? "#1f6feb";
+  const base = {
+    createdAt: KEYBOARD_MIXED_START + index * 60_000,
+    tags: ["scenario-keyboard-mixed"],
+  };
+  const block = (width: number, height: number): DefaultCardDef => ({
+    ...base,
+    type: "image",
+    content: label,
+    colors: [{ hex: color }],
+    fileMetadata: {
+      fileName: `keyboard-mix-${String(index).padStart(2, "0")}.png`,
+      fileSize: 0,
+      mimeType: "image/png",
+      width,
+      height,
+    },
+  });
+  switch (shape) {
+    case "tall":
+      return block(600, 1200);
+    case "very tall":
+      return block(400, 1400);
+    case "wide":
+      return block(1600, 600);
+    case "palette":
+      return { ...base, ...palette(label, [color, "#f5f5f4", "#1c1917"]) };
+    case "quote":
+      return { ...base, type: "quote", content: `"${label}"` };
+    case "link": {
+      const url = `https://example.com/keyboard-mixed/${index}#${SCENARIO_MARKER}-keyboard-mixed-${index}`;
+      return { ...base, type: "link", content: url, url, metadataTitle: label };
+    }
+    default:
+      return { ...base, type: "text", content: label };
+  }
+};
+
+const KEYBOARD_MIXED_SCENARIO_SIZE = 48;
+
 const scenarioPackPage = (
   scenario:
     | "card-details"
+    | "keyboard-mixed"
     | "ordering"
     | "archive-mix"
     | "tags-2000"
@@ -1097,6 +1167,13 @@ const scenarioPackPage = (
 ): DefaultCardDef[] => {
   if (scenario === "search-qualifiers-1000") {
     return searchQualifiersVolumePage(page);
+  }
+  if (scenario === "keyboard-mixed") {
+    return page === 0
+      ? Array.from({ length: KEYBOARD_MIXED_SCENARIO_SIZE }, (_, index) =>
+          keyboardMixedScenarioCard(index)
+        )
+      : [];
   }
   if (scenario === "ordering") {
     return orderingScenarioPage(page);
@@ -1128,7 +1205,8 @@ export const seedScenario = internalMutation({
       v.literal("folders-ugly"),
       v.literal("search-qualifiers"),
       v.literal("search-qualifiers-1000"),
-      v.literal("smart-folders")
+      v.literal("smart-folders"),
+      v.literal("keyboard-mixed")
     ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),

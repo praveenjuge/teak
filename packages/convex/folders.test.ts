@@ -890,9 +890,11 @@ describe("smart folders", () => {
       "folder:reading is:fav"
     );
 
-    // A bare favorites word means Favorites, also once more is typed; a bare
-    // Trash word is refused (smart folders don't show Trash) unless quoted.
+    // A bare favorites or archive word means that view, also once more is
+    // typed; a bare Trash word is refused (smart folders don't show Trash)
+    // unless quoted.
     expect((await smart(owner, "Favs", " Favorites ")).query).toBe("is:fav");
+    expect((await smart(owner, "Arch", "archive")).query).toBe("is:archived");
     await expect(smart(owner, "Bin", "trash")).rejects.toThrow(
       FOLDER_ERROR_MESSAGES.SMART_FOLDER_TRASH
     );

@@ -59,6 +59,11 @@ export interface DefaultCardDef {
   createdAt?: number;
   /** A stored original, with its processed facts in `fileMetadata`. */
   fileKey?: string;
+  /**
+   * File facts: a stored original's, or, in dev scenario packs, an image's
+   * with no stored file, which the grid shows as a block of the card's first
+   * color at that size.
+   */
   fileMetadata?: Doc<"cards">["fileMetadata"];
   /** Dev scenario packs only: the folders the card starts in. */
   folderIds?: Id<"folders">[];

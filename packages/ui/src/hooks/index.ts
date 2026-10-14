@@ -59,6 +59,14 @@ export { useFileUpload } from "./useFileUpload";
 export { useFolders } from "./useFolders";
 export type { UseInfiniteScrollOptions } from "./useInfiniteScroll";
 export { useInfiniteScroll } from "./useInfiniteScroll";
+export type { KeyboardShortcut } from "./useKeyboardShortcuts";
+export {
+  isOverlayOpen,
+  isTypingTarget,
+  SHORTCUT_SEQUENCE_TIMEOUT_MS,
+  SHORTCUTS_DIALOG_ATTRIBUTE,
+  useKeyboardShortcuts,
+} from "./useKeyboardShortcuts";
 export { useNetworkStatus } from "./useNetworkStatus";
 export { useObjectState } from "./useObjectState";
 export { useReprocessCard } from "./useReprocessCard";

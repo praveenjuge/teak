@@ -144,10 +144,11 @@ export function HomePageClient({
     [router]
   );
 
-  const handleUpgrade = () => {
+  // Stable, so the composer (which takes it) isn't remounted on renders.
+  const handleUpgrade = useCallback(() => {
     rememberHomeScroll();
     router.push("/settings");
-  };
+  }, [router]);
 
   return (
     <CardsScreenAdapter

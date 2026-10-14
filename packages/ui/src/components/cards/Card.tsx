@@ -121,6 +121,7 @@ export const Card = memo(function Card({
   isSelectionMode,
   isSelected,
   isPriority = false,
+  isTabStop = true,
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
@@ -596,16 +597,17 @@ export const Card = memo(function Card({
           aria-disabled={isOptimistic || undefined}
           aria-label={getCardAccessibleLabel(card, linkCardTitle)}
           aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
-          className={`relative overflow-hidden rounded-none border-0 bg-transparent p-0 outline-none contain-content focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+          className={`relative scroll-my-20 overflow-hidden rounded-none border-0 bg-transparent p-0 outline-none contain-content focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-2xl ring-2 ring-primary" : ""}`}
+          data-card-id={isOptimistic ? undefined : card._id}
           onClick={handleClick}
           onFocus={handlePrefetch}
           onKeyDown={handleKeyDown}
           onPointerDown={handlePrefetch}
           onPointerEnter={handlePrefetch}
           role="button"
-          tabIndex={isOptimistic ? -1 : 0}
+          tabIndex={isOptimistic || !isTabStop ? -1 : 0}
         >
           {isOptimistic && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -614,9 +616,13 @@ export const Card = memo(function Card({
           )}
           {isSelectionMode && !isOptimistic && (
             <div className="absolute top-3 left-3 z-10">
+              {/* Decorative: the card itself is the toggle (aria-pressed),
+                  so the box stays out of the Tab order. */}
               <Checkbox
+                aria-hidden="true"
                 checked={isSelected}
                 className="pointer-events-none select-auto"
+                tabIndex={-1}
               />
             </div>
           )}
