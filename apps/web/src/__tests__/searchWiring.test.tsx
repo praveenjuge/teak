@@ -69,10 +69,21 @@ describe("library URL", () => {
   });
 
   test("an unknown sort in a pasted link falls back to newest", () => {
-    render("sort=shuffle");
+    render("sort=random&seed=4");
     expect(screenProps.searchUrlState).toEqual({
       q: "",
       sort: "newest",
+      tag: "",
+      types: [],
+    });
+  });
+
+  test("hands a shuffle and its seed to the library", () => {
+    render("sort=shuffle&seed=42");
+    expect(screenProps.searchUrlState).toEqual({
+      q: "",
+      seed: 42,
+      sort: "shuffle",
       tag: "",
       types: [],
     });

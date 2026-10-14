@@ -70,6 +70,32 @@ describe("shared search helpers", () => {
     expect(ids("oldest")).toEqual(["cached-old", "both", "remote-new"]);
   });
 
+  it("keeps the server's shuffled order and adds local hits after it", () => {
+    const remote = [
+      makeCard({ _id: "b", createdAt: 1000 }),
+      makeCard({ _id: "c", createdAt: 3000 }),
+      makeCard({ _id: "a", createdAt: 2000 }),
+    ];
+    const local = [
+      makeCard({ _id: "cached", createdAt: 4000 }),
+      makeCard({ _id: "a", createdAt: 2000 }),
+    ];
+    const ids = (hasActiveSearch: boolean) =>
+      mergeLocalAndRemoteSearchResults(
+        remote,
+        local,
+        hasActiveSearch,
+        "shuffle"
+      ).map((card) => card._id);
+    expect(ids(true)).toEqual(["b", "c", "a", "cached"]);
+    expect(ids(false)).toEqual(["b", "c", "a"]);
+    expect(
+      filterLocalCards(remote, { searchTerms: "", sort: "shuffle" }).map(
+        (card) => card._id
+      )
+    ).toEqual(["b", "c", "a"]);
+  });
+
   it("reorders the shown library at once when the sort changes", () => {
     // Still the newest-first page while the oldest-first one loads.
     const shown = [

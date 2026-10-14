@@ -25,6 +25,7 @@ import {
   stageCompleted,
 } from "./processingStatus";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { newShuffleKey } from "./shuffle";
 
 // Helper to create a fully completed processing status
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
@@ -81,6 +82,11 @@ export interface DefaultCardDef {
   /** Inserted pending and handed to the card processing workflow. */
   runProcessing?: boolean;
   scrubKey?: string;
+  /**
+   * Dev scenario packs only: the Shuffle key, or `null` for none (a card
+   * saved before Shuffle). Normally a fresh random key.
+   */
+  shuffleKey?: number | null;
   tags?: string[];
   thumbnailKey?: string;
   type: CardType;
@@ -437,6 +443,10 @@ export const insertCompletedCards = async (
       content: cardDef.content,
       url: cardDef.url,
       urlHost: normalizeUrlHost(cardDef.url) ?? undefined,
+      // `null` (dev packs only) leaves the key unset, as on old cards.
+      ...(cardDef.shuffleKey === null
+        ? {}
+        : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
       tags: cardDef.tags,
       notes: cardDef.notes,
       colors: cardDef.colors as any,

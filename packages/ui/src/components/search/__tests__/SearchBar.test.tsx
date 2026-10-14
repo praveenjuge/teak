@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { CardListSort } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SearchBar } from "../SearchBar";
@@ -9,11 +10,17 @@ const renderSearchBar = (
   {
     filterTags = [],
     keywordTags = [],
+    onReshuffle,
+    onSortChange,
     onToggleFilter,
+    sort,
   }: {
     filterTags?: CardType[];
     keywordTags?: string[];
+    onReshuffle?: () => void;
+    onSortChange?: (sort: CardListSort) => void;
     onToggleFilter?: (filter: CardType) => void;
+    sort?: CardListSort;
   } = {}
 ) =>
   renderToStaticMarkup(
@@ -31,10 +38,13 @@ const renderSearchBar = (
       onRemoveKeyword={() => {}}
       onRemoveStyleFilter={() => {}}
       onRemoveTimeFilter={() => {}}
+      onReshuffle={onReshuffle}
       onSearchChange={() => {}}
+      onSortChange={onSortChange}
       onToggleFilter={onToggleFilter}
       placeholder="Search favorites"
       searchQuery={searchQuery}
+      sort={sort}
       styleFilters={[]}
     />
   );
@@ -122,6 +132,21 @@ describe("SearchBar View menu", () => {
     expect(viewMenuLabel(["quote"], "oldest")).toBe(
       "View: Quote, oldest first"
     );
+  });
+
+  test("shows Reshuffle beside the View menu only while shuffling", () => {
+    const shuffled = renderSearchBar("", {
+      onReshuffle: () => {},
+      onSortChange: () => {},
+      sort: "shuffle",
+    });
+    expect(shuffled).toContain('aria-label="Reshuffle"');
+    expect(shuffled).toContain('aria-label="View: shuffled"');
+    const newest = renderSearchBar("", {
+      onReshuffle: () => {},
+      onSortChange: () => {},
+    });
+    expect(newest).not.toContain('aria-label="Reshuffle"');
   });
 
   test("reads as the default view when nothing is changed", () => {

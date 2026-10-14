@@ -26,7 +26,7 @@ const CARD_TYPES = new Set([
   "palette",
   "quote",
 ]);
-const CARD_SORTS = new Set(["newest", "oldest"]);
+const CARD_SORTS = new Set(["newest", "oldest", "shuffle"]);
 const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
 // Same per-tag cap as data import.
 const MAX_TAG_LENGTH = 64;
@@ -87,7 +87,9 @@ interface CardsQueryOptions {
   };
   searchQuery?: string;
   showTrashOnly?: boolean;
-  sort?: "newest" | "oldest";
+  /** Shuffle's seed; required with `sort=shuffle`. */
+  shuffleSeed?: number;
+  sort?: "newest" | "oldest" | "shuffle";
   styleFilters?: string[];
   tag?: string;
   type?: string;

@@ -40,7 +40,7 @@ interface McpToolResult {
 const MCP_UNAUTHORIZED_MESSAGE = "Missing or invalid Authorization header";
 
 const nonEmptyString = z.string().trim().min(1);
-const cardSortSchema = z.enum(["newest", "oldest"]);
+const cardSortSchema = z.enum(["newest", "oldest", "shuffle"]);
 const cardTypeSchema = z.enum([
   "text",
   "link",
@@ -67,6 +67,7 @@ const cardFiltersShape = {
   folder: nonEmptyString.optional(),
   tag: nonEmptyString.optional(),
   sort: cardSortSchema.optional(),
+  shuffleSeed: z.number().int().min(0).max(2_147_483_647).optional(),
   createdAfter: z.number().optional(),
   createdBefore: z.number().optional(),
   style: z
@@ -329,7 +330,18 @@ const cardFilterProperties = {
     description: "Only cards in this folder id (see teak_v1_list_folders)",
   },
   tag: { type: "string", minLength: 1, description: "Exact tag" },
-  sort: { enum: cardSortSchema.options },
+  sort: {
+    enum: cardSortSchema.options,
+    description:
+      "newest (default) or oldest by saved date, or shuffle: a stable random order (needs shuffleSeed)",
+  },
+  shuffleSeed: {
+    type: "integer",
+    minimum: 0,
+    maximum: 2_147_483_647,
+    description:
+      "Required with sort shuffle; the same seed gives the same order, a new one reshuffles",
+  },
   createdAfter: { type: "number", description: "Unix ms" },
   createdBefore: { type: "number", description: "Unix ms" },
   style: stringList(VISUAL_STYLE_TAXONOMY, MAX_VISUAL_FILTERS),

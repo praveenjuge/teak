@@ -17,6 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@teak/ui/components/ui/tooltip";
+import {
+  Dices,
   File,
   FileText,
   FolderSearch,
@@ -34,6 +41,7 @@ import { cn } from "../../lib/utils";
 export const SORT_LABELS: Record<CardListSort, string> = {
   newest: "Newest first",
   oldest: "Oldest first",
+  shuffle: "Shuffle",
 };
 
 const TYPE_ICONS: Record<CardType, LucideIcon> = {
@@ -60,7 +68,10 @@ interface ViewMenuProps {
   sort?: CardListSort;
 }
 
-/** What the View button reads as: "View: Link, Image, oldest first". */
+/**
+ * What the View button reads as: "View: Link, Image, oldest first" (or
+ * "shuffled").
+ */
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
   sort: CardListSort = "newest"
@@ -68,6 +79,8 @@ export const viewMenuLabel = (
   const parts = activeTypes.map((type) => CARD_TYPE_LABELS[type]);
   if (sort === "oldest") {
     parts.push("oldest first");
+  } else if (sort === "shuffle") {
+    parts.push("shuffled");
   }
   return parts.length > 0 ? `View: ${parts.join(", ")}` : "View";
 };
@@ -157,7 +170,7 @@ export function ViewMenu({
           <>
             {onToggleType && <DropdownMenuSeparator />}
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-              Sort by date saved
+              Sort
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               onValueChange={(value) => onSortChange(value as CardListSort)}
@@ -168,6 +181,9 @@ export function ViewMenu({
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="oldest">
                 {SORT_LABELS.oldest}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="shuffle">
+                {SORT_LABELS.shuffle}
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </>
@@ -183,5 +199,31 @@ export function ViewMenu({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * Shown beside the View menu while shuffling: a new seed, a new order. The
+ * old order stays one Back away.
+ */
+export function ReshuffleButton({ onReshuffle }: { onReshuffle: () => void }) {
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            aria-label="Reshuffle"
+            className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={onReshuffle}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Dices className="size-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Reshuffle</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

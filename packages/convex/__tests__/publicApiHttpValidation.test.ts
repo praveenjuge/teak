@@ -322,6 +322,27 @@ describe("parseCardsQueryOptions", () => {
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(400);
   });
+  test("shuffle needs a whole-number seed", () => {
+    expect(
+      parseCardsQueryOptions(get("sort=shuffle&shuffleSeed=42"))
+    ).toMatchObject({ sort: "shuffle", shuffleSeed: 42 });
+    for (const query of [
+      "sort=shuffle",
+      "sort=shuffle&shuffleSeed=",
+      "sort=shuffle&shuffleSeed=4.2",
+      "sort=shuffle&shuffleSeed=-1",
+      "sort=shuffle&shuffleSeed=2147483648",
+      "sort=random",
+    ]) {
+      const result = parseCardsQueryOptions(get(query));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    }
+    // A seed without shuffle is ignored.
+    expect(
+      parseCardsQueryOptions(get("sort=newest&shuffleSeed=42"))
+    ).not.toHaveProperty("shuffleSeed");
+  });
   test("parses filters, favorites and a clamped limit", () => {
     expect(
       parseCardsQueryOptions(
@@ -362,7 +383,7 @@ describe("parseCardsQueryOptions", () => {
     [
       "an unknown sort",
       "sort=popular",
-      "Query parameter `sort` must be `newest` or `oldest`",
+      "Query parameter `sort` must be `newest`, `oldest` or `shuffle`",
     ],
     [
       "a non-numeric createdAfter",

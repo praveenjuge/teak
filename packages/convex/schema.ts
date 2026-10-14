@@ -455,6 +455,12 @@ export const cardValidator = v.object({
    * by the search sync. Absent when the card has no web URL.
    */
   urlHost: v.optional(v.string()),
+  /**
+   * A random number in [0, 1), set once when the card is saved and never
+   * changed: the Shuffle order walks cards by it (card/shuffle.ts). Absent
+   * on cards saved before Shuffle until the backfill sets it.
+   */
+  shuffleKey: v.optional(v.number()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
   scrubKey: v.optional(r2KeyValidator),
@@ -686,6 +692,13 @@ export default defineSchema({
       "isArchived",
       "urlHost",
       "createdAt",
+    ])
+    // Shuffle walks one archive state's cards by their random key.
+    .index("by_user_deleted_archived_shuffle", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "shuffleKey",
     ])
     // Trash lists every trashed card, archived or not.
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])

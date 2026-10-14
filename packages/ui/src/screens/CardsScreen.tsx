@@ -217,7 +217,11 @@ export function CardsScreen({
       return;
     }
     syncedUrlStateRef.current = urlState;
-    const sortChanged = previous !== null && previous.sort !== urlState.sort;
+    // A reshuffle is a new order too, unless the URL only lacked a seed.
+    const sortChanged =
+      previous !== null &&
+      (previous.sort !== urlState.sort ||
+        (previous.seed !== undefined && previous.seed !== urlState.seed));
     const typesChanged =
       previous !== null &&
       (previous.types.length !== urlState.types.length ||

@@ -125,7 +125,8 @@ type CardFilters = {
   style?: string[];             // e.g. ["minimal", "vintage"]
   hue?: string[];               // e.g. ["blue", "neutral"]
   hex?: string[];               // e.g. ["#112233"]
-  sort?: "newest" | "oldest";
+  sort?: "newest" | "oldest" | "shuffle";
+  shuffleSeed?: number;         // required with "shuffle": 0 to 2147483647
   createdAfter?: number;        // Unix ms
   createdBefore?: number;
   cursor?: string;              // pageInfo.nextCursor

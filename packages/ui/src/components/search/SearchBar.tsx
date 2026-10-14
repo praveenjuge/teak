@@ -58,7 +58,7 @@ import {
   type SearchSuggestion,
   type SearchSuggestionSources,
 } from "./searchSuggestions";
-import { ViewMenu } from "./ViewMenu";
+import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
   filterTags: CardType[];
@@ -89,6 +89,8 @@ export interface SearchBarProps {
   /** Clears the sidebar tag; shown when `tagFilter` is set. */
   onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
+  /** Shuffles again; shown beside the View menu while the sort is Shuffle. */
+  onReshuffle?: () => void;
   /**
    * Saves what is on screen as a smart folder; offered in the sort menu
    * while set (there is a search to save).
@@ -251,6 +253,7 @@ export function SearchBar({
   sort = "newest",
   onSaveSearch,
   onSortChange,
+  onReshuffle,
   onToggleFilter,
   title,
 }: SearchBarProps) {
@@ -519,6 +522,11 @@ export function SearchBar({
             >
               Cancel
             </Button>
+          )}
+          {onSortChange && onReshuffle && sort === "shuffle" && (
+            <div className={cn(mobileOpen && "max-sm:hidden")}>
+              <ReshuffleButton onReshuffle={onReshuffle} />
+            </div>
           )}
           {(onToggleFilter || onSortChange) && (
             <div className={cn(mobileOpen && "max-sm:hidden")}>

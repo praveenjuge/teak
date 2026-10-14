@@ -116,82 +116,87 @@ export const filterLocalCards = (
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
 
-  return cards
-    .filter((card) => {
-      if (showTrashOnly) {
-        if (card.isDeleted !== true) {
+  return (
+    cards
+      .filter((card) => {
+        if (showTrashOnly) {
+          if (card.isDeleted !== true) {
+            return false;
+          }
+          if (parsed.archived && card.isArchived !== true) {
+            return false;
+          }
+        } else if (
+          card.isDeleted ||
+          (card.isArchived === true) !== archivedOnly
+        ) {
           return false;
         }
-        if (parsed.archived && card.isArchived !== true) {
+
+        if (types && types.length > 0 && !types.includes(card.type)) {
           return false;
         }
-      } else if (
-        card.isDeleted ||
-        (card.isArchived === true) !== archivedOnly
-      ) {
-        return false;
-      }
+        if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
+          return false;
+        }
 
-      if (types && types.length > 0 && !types.includes(card.type)) {
-        return false;
-      }
-      if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
-        return false;
-      }
+        if (tagKeys.length > 0) {
+          const cardTags = new Set(
+            [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
+              cardTag.trim().toLowerCase()
+            )
+          );
+          if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+            return false;
+          }
+        }
 
-      if (tagKeys.length > 0) {
-        const cardTags = new Set(
-          [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
-            cardTag.trim().toLowerCase()
-          )
+        if (parsed.sites.length > 0) {
+          const host = normalizeUrlHost(card.url);
+          if (!(host && parsed.sites.includes(host))) {
+            return false;
+          }
+        }
+
+        if (
+          !matchesVisualFilters(card, {
+            styleFilters: normalizedStyles,
+            hueFilters: normalizedHues,
+            hexFilters: normalizedHexes,
+          })
+        ) {
+          return false;
+        }
+
+        if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
+          return false;
+        }
+
+        if (
+          createdAtRange &&
+          (card.createdAt < createdAtRange.start ||
+            card.createdAt >= createdAtRange.end)
+        ) {
+          return false;
+        }
+
+        if (terms.length === 0 && parsed.phrases.length === 0) {
+          return true;
+        }
+
+        const searchableText = buildSearchableText(card);
+        // A phrase stays inside one field, as on the server: two tags in a
+        // row ("design", "systems") are not the phrase "design system".
+        return (
+          terms.every((term) => searchableText.includes(term)) &&
+          matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
         );
-        if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
-          return false;
-        }
-      }
-
-      if (parsed.sites.length > 0) {
-        const host = normalizeUrlHost(card.url);
-        if (!(host && parsed.sites.includes(host))) {
-          return false;
-        }
-      }
-
-      if (
-        !matchesVisualFilters(card, {
-          styleFilters: normalizedStyles,
-          hueFilters: normalizedHues,
-          hexFilters: normalizedHexes,
-        })
-      ) {
-        return false;
-      }
-
-      if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
-        return false;
-      }
-
-      if (
-        createdAtRange &&
-        (card.createdAt < createdAtRange.start ||
-          card.createdAt >= createdAtRange.end)
-      ) {
-        return false;
-      }
-
-      if (terms.length === 0 && parsed.phrases.length === 0) {
-        return true;
-      }
-
-      const searchableText = buildSearchableText(card);
-      // A phrase stays inside one field, as on the server: two tags in a
-      // row ("design", "systems") are not the phrase "design system".
-      return (
-        terms.every((term) => searchableText.includes(term)) &&
-        matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
-      );
-    })
-    .sort((a, b) => compareCardsByCreatedAt(a, b, sort));
+      })
+      // Shuffle's order comes from the server (or the caller); keep it.
+      .sort((a, b) =>
+        sort === "shuffle" ? 0 : compareCardsByCreatedAt(a, b, sort)
+      )
+  );
 };
 
 export function mergeCardsIntoLocalSearchCache(
@@ -257,7 +262,8 @@ export function pruneCardsMissingFromRemote(
 /**
  * Instant local matches plus what the server found, without duplicates.
  * With `sort`, the combined list is ordered by saved date, so cards the cache
- * picked up in another view never land out of order.
+ * picked up in another view never land out of order. Shuffle keeps the
+ * server's order and adds local matches it has not returned yet after it.
  */
 export function mergeLocalAndRemoteSearchResults(
   remoteCards: Doc<"cards">[],
@@ -265,6 +271,16 @@ export function mergeLocalAndRemoteSearchResults(
   hasActiveSearch: boolean,
   sort?: CardListSort
 ) {
+  if (sort === "shuffle") {
+    if (!hasActiveSearch || localSearchResults.length === 0) {
+      return remoteCards;
+    }
+    const remoteIds = new Set(remoteCards.map((card) => card._id));
+    return [
+      ...remoteCards,
+      ...localSearchResults.filter((card) => !remoteIds.has(card._id)),
+    ];
+  }
   const ordered = (cards: Doc<"cards">[]) =>
     sort
       ? [...cards].sort((left, right) =>

@@ -46,6 +46,7 @@ import {
   hasSearchQualifiers,
   parseSearchQuery,
 } from "./shared/search/qualifiers";
+import { parseShuffleSeed } from "./shared/search/shuffle";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -481,7 +482,17 @@ const parseCardsQueryOptions = (
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Query parameter `sort` must be `newest` or `oldest`"
+      "Query parameter `sort` must be `newest`, `oldest` or `shuffle`"
+    );
+  }
+
+  // Shuffle needs a seed: the same seed gives the same order.
+  const shuffleSeed = parseShuffleSeed(searchParams.get("shuffleSeed"));
+  if (sort === "shuffle" && shuffleSeed === undefined) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `shuffleSeed` is required with `sort=shuffle` and must be a whole number from 0 to 2147483647"
     );
   }
 
@@ -581,6 +592,7 @@ const parseCardsQueryOptions = (
     limit: parseLimit(searchParams.get("limit")),
     searchQuery: parsed.text || undefined,
     sort: sort as CardsQueryOptions["sort"] | undefined,
+    ...(sort === "shuffle" ? { shuffleSeed } : {}),
     tag: tags[0],
     type: resolvedTypes.length === 1 ? resolvedTypes[0] : undefined,
     types: resolvedTypes.length > 1 ? resolvedTypes : undefined,

@@ -17,6 +17,7 @@ import {
   SEARCH_QUALIFIER_HOSTS,
   SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
   SEARCH_QUALIFIERS_VOLUME_SIZE,
+  SHUFFLE_PARTIAL_SCENARIO_SIZE,
   searchQualifiersVolumeCard,
   TAGS_2000_SCENARIO_PAGE_SIZE,
   TAGS_2000_SCENARIO_SIZE,
@@ -427,6 +428,35 @@ describe("devSeed keyboard-mixed pack", () => {
     expect(Math.min(...ratios)).toBeLessThan(1);
     expect(pack.filter((card) => card.type === "text").length).toBeGreaterThan(
       0
+    );
+  });
+});
+
+describe("devSeed shuffle-partial pack", () => {
+  test("seeds 300 cards without a Shuffle key beside keyed ones, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "shuffle-partial",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 200 });
+    expect(await seed(1)).toEqual({ status: "seeded", cards: 200 });
+    expect(await seed(2)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    const pack = (
+      await t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+          .collect()
+      )
+    ).filter((card) => card.tags?.includes("scenario-shuffle-partial"));
+    expect(pack).toHaveLength(SHUFFLE_PARTIAL_SCENARIO_SIZE);
+    expect(pack.filter((card) => card.shuffleKey === undefined)).toHaveLength(
+      300
     );
   });
 });

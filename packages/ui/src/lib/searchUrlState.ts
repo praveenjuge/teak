@@ -1,13 +1,22 @@
-import { type CardListSort, normalizeCardListSort } from "@teak/convex/shared";
+import {
+  type CardListSort,
+  normalizeCardListSort,
+  parseShuffleSeed,
+} from "@teak/convex/shared";
 import { type CardType, isCardType } from "@teak/convex/shared/constants";
 
 /**
- * The search a library URL carries: `?q=`, `?sort=oldest`, the card types
- * picked in the sidebar as `?type=link,image`, and a sidebar tag as
- * `?tag=design`.
+ * The search a library URL carries: `?q=`, `?sort=oldest` (or
+ * `?sort=shuffle&seed=42`), the card types picked in the sidebar as
+ * `?type=link,image`, and a sidebar tag as `?tag=design`.
  */
 export interface SearchUrlState {
   q: string;
+  /**
+   * Shuffle's seed, so a shared link or Back shows the same order. Only
+   * read with `sort: "shuffle"`; missing there means "pick one".
+   */
+  seed?: number;
   sort: CardListSort;
   /** A tag, lowercased like the tag list; empty or missing for none. */
   tag?: string;
@@ -55,13 +64,21 @@ export function parseCardTypesParam(value: string | null): CardType[] {
 
 /** Reads the search from a URL. Unknown or malformed values fall back. */
 export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
+  const sort = normalizeCardListSort(params.get("sort"));
+  const seed =
+    sort === "shuffle" ? parseShuffleSeed(params.get("seed")) : undefined;
   return {
     q: (params.get("q") ?? "").trim().slice(0, MAX_URL_SEARCH_LENGTH),
-    sort: normalizeCardListSort(params.get("sort")),
+    ...(seed === undefined ? {} : { seed }),
+    sort,
     tag: parseTagParam(params.get("tag")),
     types: parseCardTypesParam(params.get("type")),
   };
 }
+
+/** The seed a state's order uses: Shuffle's, or none for a date order. */
+const shuffleSeedOf = (state: SearchUrlState): number | undefined =>
+  normalizeCardListSort(state.sort) === "shuffle" ? state.seed : undefined;
 
 /**
  * Writes the search into a copy of `params` and returns the query string.
@@ -79,10 +96,16 @@ export function serializeSearchUrlState(
   } else {
     next.delete("q");
   }
-  if (state.sort === "oldest") {
-    next.set("sort", "oldest");
+  if (state.sort === "oldest" || state.sort === "shuffle") {
+    next.set("sort", state.sort);
   } else {
     next.delete("sort");
+  }
+  const seed = shuffleSeedOf(state);
+  if (seed === undefined) {
+    next.delete("seed");
+  } else {
+    next.set("seed", String(seed));
   }
   if (state.types.length > 0) {
     next.set("type", state.types.join(","));
@@ -108,5 +131,6 @@ export const isSameSearchUrlState = (
 ): boolean =>
   left.q.trim() === right.q.trim() &&
   normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort) &&
+  shuffleSeedOf(left) === shuffleSeedOf(right) &&
   parseTagParam(left.tag ?? null) === parseTagParam(right.tag ?? null) &&
   sameTypes(left.types, right.types);

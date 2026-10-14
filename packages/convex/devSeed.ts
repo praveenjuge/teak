@@ -1154,11 +1154,58 @@ export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
 
 const KEYBOARD_MIXED_SCENARIO_SIZE = 48;
 
+// "shuffle-partial": 400 cards, 300 of them without a Shuffle key, as cards
+// saved before the key existed are until the backfill runs. Every fourth
+// card has a key. Shuffle must still show each card exactly once. Seeded 200
+// at a time; each page starts with its marker link.
+export const SHUFFLE_PARTIAL_SCENARIO_SIZE = 400;
+const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
+const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
+const SHUFFLE_PARTIAL_TYPES = ["text", "quote", "palette"] as const;
+
+export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
+  const keyed = index % 4 === 0;
+  const label = `Shuffle #${String(index).padStart(3, "0")} ${
+    keyed ? "keyed" : "no key"
+  }`;
+  const base = {
+    createdAt: SHUFFLE_PARTIAL_START + index * 86_400_000,
+    tags: ["scenario-shuffle-partial"],
+    // null: inserted without a key, like a card from before Shuffle.
+    shuffleKey: keyed ? undefined : null,
+  };
+  if (index % SHUFFLE_PARTIAL_PAGE_SIZE === 0) {
+    const url = `https://example.com/shuffle-partial/${index}#${SCENARIO_MARKER}-shuffle-partial-${index}`;
+    return { ...base, type: "link", content: url, url, metadataTitle: label };
+  }
+  const type = SHUFFLE_PARTIAL_TYPES[index % SHUFFLE_PARTIAL_TYPES.length];
+  if (type === "palette") {
+    return { ...base, ...palette(label, ["#0f766e", "#f5f5f4", "#1c1917"]) };
+  }
+  return {
+    ...base,
+    type,
+    content: type === "quote" ? `"${label}"` : label,
+  };
+};
+
+const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
+  const start = page * SHUFFLE_PARTIAL_PAGE_SIZE;
+  const end = Math.min(
+    start + SHUFFLE_PARTIAL_PAGE_SIZE,
+    SHUFFLE_PARTIAL_SCENARIO_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    shufflePartialScenarioCard(start + offset)
+  );
+};
+
 const scenarioPackPage = (
   scenario:
     | "card-details"
     | "keyboard-mixed"
     | "ordering"
+    | "shuffle-partial"
     | "archive-mix"
     | "tags-2000"
     | "tags-case"
@@ -1177,6 +1224,9 @@ const scenarioPackPage = (
   }
   if (scenario === "ordering") {
     return orderingScenarioPage(page);
+  }
+  if (scenario === "shuffle-partial") {
+    return shufflePartialScenarioPage(page);
   }
   if (scenario === "tags-2000") {
     return tags2000ScenarioPage(page);
@@ -1206,7 +1256,8 @@ export const seedScenario = internalMutation({
       v.literal("search-qualifiers"),
       v.literal("search-qualifiers-1000"),
       v.literal("smart-folders"),
-      v.literal("keyboard-mixed")
+      v.literal("keyboard-mixed"),
+      v.literal("shuffle-partial")
     ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),

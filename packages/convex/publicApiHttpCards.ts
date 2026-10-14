@@ -38,6 +38,10 @@ import {
   validateUploadPayload,
 } from "./publicApiHttpValidation";
 import { combineSearchQueries } from "./shared/search/qualifiers";
+
+// A shuffled page reads at most this many times to fill up.
+const MAX_SHUFFLE_READS = 4;
+
 import type { WorkosResource } from "./workosTokens";
 
 const handleCreateCardRequest = async (
@@ -280,7 +284,38 @@ const handleCardsListRequest = async (
       pageInfo: { hasMore: boolean; nextCursor: string | null };
     };
 
-    if (options.searchQuery || options.tag) {
+    if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
+      // A shuffled page can end early (where the walk wraps, or after rows
+      // a filter skipped); read on until it is full or the order ends.
+      const items: any[] = [];
+      let cursor = options.cursor;
+      let hasMore = true;
+      for (
+        let read = 0;
+        read < MAX_SHUFFLE_READS && items.length < options.limit && hasMore;
+        read++
+      ) {
+        const page = await ctx.runQuery(
+          (internal as any).publicApi.shuffleCardsPageForUser,
+          {
+            ...queryArgs,
+            sort: undefined,
+            cursor,
+            limit: options.limit - items.length,
+            searchQuery: options.searchQuery,
+            shuffleSeed: options.shuffleSeed,
+            tag: options.tag,
+          }
+        );
+        items.push(...page.items);
+        cursor = page.pageInfo.nextCursor ?? undefined;
+        hasMore = page.pageInfo.hasMore;
+      }
+      cardsPage = {
+        items,
+        pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
+      };
+    } else if (options.searchQuery || options.tag) {
       cardsPage = await ctx.runQuery(
         (internal as any).publicApi.searchCardsPageForUser,
         {

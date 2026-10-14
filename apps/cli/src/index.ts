@@ -13,6 +13,10 @@ import {
   VISUAL_STYLE_TAXONOMY,
 } from "@teak/convex/shared/constants";
 import { FOLDER_COLORS } from "@teak/convex/shared/folders";
+import {
+  parseShuffleSeed,
+  randomShuffleSeed,
+} from "@teak/convex/shared/search/shuffle";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { Command, CommanderError, InvalidArgumentError } from "commander";
 import { addCard, readStdin } from "./files";
@@ -118,10 +122,20 @@ export const parseDateRange = (value: string, now?: Date) => {
 };
 
 export const parseSort = (value: string): CardSort => {
-  if (!(value === "newest" || value === "oldest")) {
-    throw new InvalidArgumentError("sort must be newest or oldest");
+  if (!(value === "newest" || value === "oldest" || value === "shuffle")) {
+    throw new InvalidArgumentError("sort must be newest, oldest or shuffle");
   }
   return value;
+};
+
+export const parseSeed = (value: string): number => {
+  const seed = parseShuffleSeed(value.trim());
+  if (seed === undefined) {
+    throw new InvalidArgumentError(
+      "seed must be a whole number from 0 to 2147483647"
+    );
+  }
+  return seed;
 };
 
 const strings = (value: unknown): string[] | undefined =>
@@ -129,7 +143,9 @@ const strings = (value: unknown): string[] | undefined =>
 
 export const queryOptions = (options: Record<string, unknown>) => {
   const sort: CardSort | undefined =
-    options.sort === "newest" || options.sort === "oldest"
+    options.sort === "newest" ||
+    options.sort === "oldest" ||
+    options.sort === "shuffle"
       ? options.sort
       : undefined;
   const range = options.date as { end: number; start: number } | undefined;
@@ -151,6 +167,9 @@ export const queryOptions = (options: Record<string, unknown>) => {
     limit: typeof options.limit === "number" ? options.limit : undefined,
     query: typeof options.query === "string" ? options.query : undefined,
     sort,
+    ...(sort === "shuffle" && typeof options.seed === "number"
+      ? { shuffleSeed: options.seed }
+      : {}),
     style: strings(options.style),
     tag: typeof options.tag === "string" ? options.tag : undefined,
     trashed: options.trashed === true,
@@ -193,7 +212,12 @@ const withListOptions = (command: Command) =>
     )
     .option("--limit <n>", "result limit", parseLimit)
     .option("--cursor <cursor>", "nextCursor from the previous page")
-    .option("--sort <sort>", "newest or oldest", parseSort)
+    .option("--sort <sort>", "newest, oldest or shuffle", parseSort)
+    .option(
+      "--seed <n>",
+      "with --sort shuffle: the same seed gives the same order",
+      parseSeed
+    )
     .option("--created-after <ms>", "created after a millisecond timestamp")
     .option("--created-before <ms>", "created before a millisecond timestamp")
     .option("--include <groups>", "content, metadata, processing")
@@ -201,13 +225,35 @@ const withListOptions = (command: Command) =>
 
 type ListMode = "list" | "search" | "favorites";
 
+/**
+ * A listing as JSON. A shuffled one carries its seed: a later
+ * `--seed` with `--cursor` continues it, and a cursor only works with the
+ * seed that issued it.
+ */
+export const listingJson = <T extends object>(
+  page: T,
+  seed: number | undefined
+): T | (T & { seed: number }) =>
+  seed === undefined ? page : { ...page, seed };
+
 const writeCards = async (
   options: ClientOptions & Record<string, unknown>,
   mode: ListMode = "list"
 ) => {
   const api = client(options);
+  // Shuffle without a seed picks one and says which, so the order can be
+  // seen again (and paged with --cursor) by passing --seed.
+  const shuffleSeed =
+    options.sort === "shuffle" && typeof options.seed !== "number"
+      ? randomShuffleSeed()
+      : undefined;
+  if (shuffleSeed !== undefined && !options.json) {
+    process.stderr.write(`seed: ${shuffleSeed}\n`);
+  }
   const query = {
-    ...queryOptions(options),
+    ...queryOptions(
+      shuffleSeed === undefined ? options : { ...options, seed: shuffleSeed }
+    ),
     ...(typeof options.folder === "string"
       ? { folder: (await resolveFolder(api, options.folder)).id }
       : {}),
@@ -221,7 +267,14 @@ const writeCards = async (
   };
   const page = await collectPages(fetchPage, options.all === true);
   write(
-    options.json ? page : page.items.map(formatCardLine).join("\n"),
+    options.json
+      ? listingJson(
+          page,
+          options.sort === "shuffle"
+            ? (shuffleSeed ?? (options.seed as number | undefined))
+            : undefined
+        )
+      : page.items.map(formatCardLine).join("\n"),
     options
   );
   if (!(options.json || page.pageInfo.nextCursor === null)) {

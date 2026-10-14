@@ -15,9 +15,12 @@ import {
   bulkItems,
   formatCardLine,
   getUploadFileInfo,
+  listingJson,
   mimeFor,
+  parseSeed,
   parseSort,
   program,
+  queryOptions,
 } from ".";
 import { resolveAddInput } from "./files";
 import { VERSION } from "./runtime";
@@ -119,7 +122,29 @@ describe("teak cli formatting", () => {
 
   test("rejects invalid sort values", () => {
     expect(parseSort("oldest")).toBe("oldest");
-    expect(() => parseSort("newestt")).toThrow("sort must be newest or oldest");
+    expect(parseSort("shuffle")).toBe("shuffle");
+    expect(() => parseSort("newestt")).toThrow(
+      "sort must be newest, oldest or shuffle"
+    );
+  });
+
+  test("a shuffled listing's JSON carries its seed", () => {
+    const page = { items: [], pageInfo: { hasMore: true, nextCursor: "c" } };
+    expect(listingJson(page, 42)).toEqual({ ...page, seed: 42 });
+    expect(listingJson(page, undefined)).toEqual(page);
+  });
+
+  test("shuffle passes its seed, and seeds must be whole numbers", () => {
+    expect(parseSeed("42")).toBe(42);
+    expect(() => parseSeed("4.2")).toThrow("seed must be a whole number");
+    expect(() => parseSeed("-1")).toThrow("seed must be a whole number");
+    expect(queryOptions({ sort: "shuffle", seed: 42 })).toMatchObject({
+      sort: "shuffle",
+      shuffleSeed: 42,
+    });
+    expect(queryOptions({ sort: "newest", seed: 42 })).not.toHaveProperty(
+      "shuffleSeed"
+    );
   });
 
   test("uses package version for CLI output", () => {

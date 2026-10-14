@@ -33,6 +33,7 @@ import {
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { newShuffleKey } from "./shuffle";
 import { extractUrlFromContent } from "./validationUtils";
 
 // The signed-in apps say which surface saved the card, for analytics only.
@@ -244,6 +245,7 @@ export const createCardForUserHandler = async (
     }),
     createdAt: options.importedVisibleFields?.createdAt ?? now,
     updatedAt: now,
+    shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
     // An edited title survives link-preview refreshes (linkMetadata.ts).
     ...(importedTitle
