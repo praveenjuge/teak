@@ -280,7 +280,11 @@ const stringList = (values: readonly string[], maxItems?: number) => ({
   ...(maxItems ? { maxItems } : {}),
 });
 const cardFilterProperties = {
-  q: { type: "string", description: "Full-text search query" },
+  q: {
+    type: "string",
+    description:
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", and "quoted phrases". Qualifiers combine with the other filters.',
+  },
   limit: { type: "integer", minimum: 1, maximum: 100 },
   cursor: {
     type: "string",
@@ -543,7 +547,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      "Search cards by text with the same filters as list_cards. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.",
+      'Search cards by text and qualifiers, with the same filters as list_cards. q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },

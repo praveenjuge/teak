@@ -450,6 +450,11 @@ export const cardValidator = v.object({
   content: v.string(),
   type: cardTypeValidator,
   url: v.optional(v.string()),
+  /**
+   * The `url`'s site as `site:` matches it (shared/utils/urlHost.ts), kept
+   * by the search sync. Absent when the card has no web URL.
+   */
+  urlHost: v.optional(v.string()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
   scrubKey: v.optional(r2KeyValidator),
@@ -669,6 +674,14 @@ export default defineSchema({
       "isDeleted",
       "isArchived",
       "isFavorited",
+      "createdAt",
+    ])
+    // `site:` searches read one host's cards in date order.
+    .index("by_user_deleted_archived_host_created", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "urlHost",
       "createdAt",
     ])
     // Trash lists every trashed card, archived or not.
@@ -894,6 +907,7 @@ export default defineSchema({
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
+    urlHost: v.optional(v.string()),
     sourceUpdatedAt: v.number(),
   })
     .index("by_cardId", ["cardId"])
@@ -906,6 +920,7 @@ export default defineSchema({
         "isArchived",
         "type",
         "isFavorited",
+        "urlHost",
       ],
     }),
   cardSearchTags: defineTable({

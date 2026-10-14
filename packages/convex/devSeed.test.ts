@@ -14,6 +14,10 @@ import {
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
+  SEARCH_QUALIFIER_HOSTS,
+  SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
+  SEARCH_QUALIFIERS_VOLUME_SIZE,
+  searchQualifiersVolumeCard,
   TAGS_2000_SCENARIO_PAGE_SIZE,
   TAGS_2000_SCENARIO_SIZE,
   TAGS_CASE_SCENARIO_CARDS,
@@ -543,5 +547,64 @@ describe("devSeed folder packs", () => {
     expect(
       folders.some((folder) => Array.from(folder.name).length === 300)
     ).toBe(true);
+  });
+
+  test("search-qualifiers seeds its hosts once, every way of writing one host as one site", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "search-qualifiers")).toMatchObject({
+      status: "seeded",
+      cards: SEARCH_QUALIFIER_HOSTS.length + 7,
+      folders: 4,
+    });
+    expect(await seedFolders(t, "search-qualifiers")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const hosts = await t.run(async (ctx) => {
+      const counts = new Map<string, number>();
+      for (const card of await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()) {
+        if (card.urlHost) {
+          counts.set(card.urlHost, (counts.get(card.urlHost) ?? 0) + 1);
+        }
+      }
+      return Object.fromEntries(counts);
+    });
+    expect(hosts).toMatchObject({
+      "github.com": 3,
+      "gist.github.com": 1,
+      "xn--r8jz45g.jp": 2,
+      "xn--bcher-kva.example": 1,
+      "192.168.1.20": 1,
+      // The pack's marker card, www.example.com and example.com.
+      "example.com": 3,
+    });
+  });
+
+  test("search-qualifiers-1000 seeds in pages", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "search-qualifiers-1000",
+        page,
+      });
+    expect(await seed(4)).toEqual({
+      status: "seeded",
+      cards: SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
+    });
+    expect(await seed(4)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = Array.from(
+      { length: SEARCH_QUALIFIERS_VOLUME_SIZE },
+      (_, index) => searchQualifiersVolumeCard(index)
+    );
+    expect(
+      cards.filter((card) => card.url?.includes("//noise.example/"))
+    ).toHaveLength(900);
   });
 });

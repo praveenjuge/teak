@@ -395,6 +395,11 @@ export const buildCardsSearchParams = (input: {
   hue?: string | readonly string[];
   include?: string;
   limit?: number;
+  /**
+   * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
+   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and
+   * `"quoted phrases"`.
+   */
   query?: string;
   sort?: CardSort;
   style?: string | readonly string[];

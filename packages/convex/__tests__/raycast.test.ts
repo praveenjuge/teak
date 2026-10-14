@@ -111,6 +111,7 @@ describe("raycast", () => {
           type: "text",
           content: "old content",
           url: "https://old.example.com",
+          urlHost: "old.example.com",
           createdAt: 1,
           updatedAt: 1,
         }),

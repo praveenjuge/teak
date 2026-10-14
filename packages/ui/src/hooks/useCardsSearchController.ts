@@ -3,10 +3,13 @@ import {
   type CardListSort,
   classifySearchToken,
   filterLocalCards,
+  formatSearchQualifier,
   mergeCardsIntoLocalSearchCache,
   mergeLocalAndRemoteSearchResults,
+  parseSearchQuery,
   parseTimeSearchQuery,
   pruneCardsMissingFromRemote,
+  quoteSearchValue,
   resolveQuickSearchCommand,
   SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
   type TimeFilter,
@@ -31,6 +34,12 @@ export interface CardsSearchState {
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
+  /**
+   * Accepted qualifiers (`tag:design`, `site:github.com`), each written the
+   * one way the parser writes it. They search as part of the text; the
+   * server reads them again.
+   */
+  qualifierChips: string[];
   searchQuery: string;
   /** The Archive view; never on together with Trash. */
   showArchivedOnly: boolean;
@@ -85,6 +94,8 @@ export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
 export interface UseCardsSearchControllerResult {
   addFilter: (filter: CardType) => void;
   addKeywordTag: (keyword: string) => void;
+  /** Adds a qualifier chip (`site:github.com`); invalid text is ignored. */
+  addQualifier: (qualifier: string) => void;
   /**
    * Replaces the search with one from the URL (back, forward or a pasted
    * link): the text becomes the typed query and chips are cleared. With
@@ -107,6 +118,7 @@ export interface UseCardsSearchControllerResult {
   /** True while typed text waits for the debounce before querying remotely. */
   isSearchPending: boolean;
   keywordTags: string[];
+  qualifierChips: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
   searchBarProps: SearchBarProps;
@@ -143,6 +155,7 @@ export function createInitialCardsSearchState(): CardsSearchState {
   return {
     searchQuery: "",
     keywordTags: [],
+    qualifierChips: [],
     filterTags: [],
     styleFilters: [],
     hueFilters: [],
@@ -157,6 +170,7 @@ export function createInitialCardsSearchState(): CardsSearchState {
 
 export function buildCardsSearchTerms(state: CardsSearchState): string {
   return [
+    ...state.qualifierChips,
     ...state.keywordTags,
     ...(state.searchQuery.trim() ? [state.searchQuery.trim()] : []),
   ].join(" ");
@@ -199,6 +213,7 @@ function getHasActiveSearch(state: CardsSearchState): boolean {
 function getHasNoFilters(state: CardsSearchState): boolean {
   return (
     state.keywordTags.length === 0 &&
+    state.qualifierChips.length === 0 &&
     state.filterTags.length === 0 &&
     state.styleFilters.length === 0 &&
     state.hueFilters.length === 0 &&
@@ -215,6 +230,51 @@ function getHasNoFilters(state: CardsSearchState): boolean {
 export function buildCardsSearchResetKey(state: CardsSearchState): string {
   const searchTerms = buildCardsSearchTerms(state);
   return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.tagFilter}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
+}
+
+/** Quoted phrases as keyword chips, lowercased, quoted and escaped. */
+const phraseChips = (phrases: readonly string[]) =>
+  Array.from(
+    new Set(phrases.map((phrase) => quoteSearchValue(phrase.toLowerCase())))
+  );
+
+/** Each qualifier in `text` as a chip, written the canonical way. */
+export function qualifierChipsFromText(text: string): string[] {
+  return parseSearchQuery(text).qualifiers.map(formatSearchQualifier);
+}
+
+const addChips = (current: string[], additions: string[]) => {
+  const next = [...current];
+  for (const chip of additions) {
+    if (!next.includes(chip)) {
+      next.push(chip);
+    }
+  }
+  return next.length === current.length ? current : next;
+};
+
+/**
+ * A search from the URL: its qualifiers and quoted phrases become chips and
+ * the plain words stay typed text, so a reload shows the chips it left with.
+ */
+export function cardsSearchStateFromQuery(
+  query: string
+): Pick<CardsSearchState, "keywordTags" | "qualifierChips" | "searchQuery"> {
+  const parsed = parseSearchQuery(query);
+  return {
+    keywordTags: phraseChips(parsed.phrases),
+    qualifierChips: parsed.qualifiers.map(formatSearchQualifier),
+    searchQuery: parsed.terms.join(" "),
+  };
+}
+
+/** Whether two searches mean the same thing, however they are written. */
+export function isSameSearch(left: string, right: string): boolean {
+  // Search ignores case, and chips are lowercased where it doesn't matter.
+  return (
+    parseSearchQuery(left).canonical.toLowerCase() ===
+    parseSearchQuery(right).canonical.toLowerCase()
+  );
 }
 
 export function applyEnterToCardsSearchState(
@@ -271,9 +331,15 @@ export function applyEnterToCardsSearchState(
   const styleAdditions: VisualStyle[] = [];
   const hueAdditions: ColorHueBucket[] = [];
   const hexAdditions: string[] = [];
-  const keywordAdditions: string[] = [];
+  // Qualifiers and quoted phrases become chips whole; the plain words left
+  // over are classified one by one.
+  const parsed = parseSearchQuery(state.searchQuery);
+  const qualifierAdditions = parsed.qualifiers.map(formatSearchQualifier);
+  const keywordAdditions: string[] = phraseChips(parsed.phrases).filter(
+    (phrase) => !state.keywordTags.includes(phrase)
+  );
 
-  for (const token of state.searchQuery.split(/\s+/)) {
+  for (const token of parsed.terms) {
     const classified = classifySearchToken(token);
     if (!classified) {
       continue;
@@ -341,8 +407,9 @@ export function applyEnterToCardsSearchState(
         : state.hexFilters,
     keywordTags:
       keywordAdditions.length > 0
-        ? [...state.keywordTags, ...keywordAdditions]
+        ? addChips(state.keywordTags, keywordAdditions)
         : state.keywordTags,
+    qualifierChips: addChips(state.qualifierChips, qualifierAdditions),
     searchQuery: "",
   };
 }
@@ -424,6 +491,13 @@ export function applyBackspaceToCardsSearchState(
     };
   }
 
+  if (state.qualifierChips.length > 0) {
+    return {
+      ...state,
+      qualifierChips: state.qualifierChips.slice(0, -1),
+    };
+  }
+
   return state;
 }
 
@@ -441,8 +515,8 @@ export function useCardsSearchController(
   const [storedSearchState, setSearchState] = useState<CardsSearchState>(
     () => ({
       ...createInitialCardsSearchState(),
+      ...cardsSearchStateFromQuery(initialUrlState?.q ?? ""),
       filterTags: initialUrlState?.types ?? [],
-      searchQuery: initialUrlState?.q ?? "",
       tagFilter: initialUrlState?.tag ?? "",
     })
   );
@@ -509,7 +583,7 @@ export function useCardsSearchController(
   );
 
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(
-    searchState.searchQuery
+    () => searchState.searchQuery
   );
   const isSearchQueryEmpty = searchState.searchQuery.trim() === "";
 
@@ -559,31 +633,40 @@ export function useCardsSearchController(
     [searchState]
   );
 
+  // `folder:` names resolve on the server only, so those searches wait for
+  // remote results instead of showing local hits from other folders.
+  const hasFolderQualifier = useMemo(
+    () => parseSearchQuery(searchTerms).folders.length > 0,
+    [searchTerms]
+  );
+
   // Instant local hits come from every card this screen has seen, so a
   // folder view keeps only the folder's own.
   const localSearchResults = useMemo(
     () =>
-      filterLocalCards(
-        folderId
-          ? localCards.filter((card) =>
-              (card.folderIds ?? []).includes(folderId)
-            )
-          : localCards,
-        {
-          searchTerms,
-          types: searchState.filterTags,
-          styleFilters: searchState.styleFilters,
-          hueFilters: searchState.hueFilters,
-          hexFilters: searchState.hexFilters,
-          favoritesOnly: searchState.showFavoritesOnly,
-          showTrashOnly: searchState.showTrashOnly,
-          showArchivedOnly: searchState.showArchivedOnly,
-          createdAtRange: searchState.timeFilter?.range,
-          sort,
-          tag: searchState.tagFilter,
-        }
-      ),
-    [folderId, localCards, searchState, searchTerms, sort]
+      hasFolderQualifier
+        ? []
+        : filterLocalCards(
+            folderId
+              ? localCards.filter((card) =>
+                  (card.folderIds ?? []).includes(folderId)
+                )
+              : localCards,
+            {
+              searchTerms,
+              types: searchState.filterTags,
+              styleFilters: searchState.styleFilters,
+              hueFilters: searchState.hueFilters,
+              hexFilters: searchState.hexFilters,
+              favoritesOnly: searchState.showFavoritesOnly,
+              showTrashOnly: searchState.showTrashOnly,
+              showArchivedOnly: searchState.showArchivedOnly,
+              createdAtRange: searchState.timeFilter?.range,
+              sort,
+              tag: searchState.tagFilter,
+            }
+          ),
+    [folderId, hasFolderQualifier, localCards, searchState, searchTerms, sort]
   );
 
   const remoteSearchResults = useMemo(() => {
@@ -681,6 +764,17 @@ export function useCardsSearchController(
     });
   }, []);
 
+  const addQualifier = useCallback((qualifier: string) => {
+    const chips = qualifierChipsFromText(qualifier);
+    if (chips.length === 0) {
+      return;
+    }
+    setSearchState((prev) => ({
+      ...prev,
+      qualifierChips: addChips(prev.qualifierChips, chips),
+    }));
+  }, []);
+
   const addKeywordTag = useCallback((keyword: string) => {
     const normalizedKeyword = keyword.trim().toLowerCase();
     if (!normalizedKeyword) {
@@ -713,7 +807,7 @@ export function useCardsSearchController(
       setSearchState((prev) => {
         // Already showing this search (as chips or typed text): keep it as is.
         const sameTerms =
-          keepSearch || buildCardsSearchTerms(prev) === state.q.trim();
+          keepSearch || isSameSearch(buildCardsSearchTerms(prev), state.q);
         const sameTypes =
           prev.filterTags.length === state.types.length &&
           prev.filterTags.every((type) => state.types.includes(type));
@@ -723,7 +817,7 @@ export function useCardsSearchController(
         }
         return {
           ...prev,
-          ...(sameTerms ? {} : { keywordTags: [], searchQuery: state.q }),
+          ...(sameTerms ? {} : cardsSearchStateFromQuery(state.q)),
           filterTags: sameTypes ? prev.filterTags : state.types,
           tagFilter: tag,
         };
@@ -778,6 +872,15 @@ export function useCardsSearchController(
           ...prev,
           keywordTags: prev.keywordTags.filter((tag) => tag !== keyword),
         })),
+      qualifierChips: searchState.qualifierChips,
+      onAddQualifier: addQualifier,
+      onRemoveQualifier: (qualifier) =>
+        setSearchState((prev) => ({
+          ...prev,
+          qualifierChips: prev.qualifierChips.filter(
+            (chip) => chip !== qualifier
+          ),
+        })),
       onRemoveTimeFilter: () =>
         setSearchState((prev) => ({
           ...prev,
@@ -793,12 +896,20 @@ export function useCardsSearchController(
       sort,
       onSortChange: setSort,
     }),
-    [clearAllFilters, onKeyDown, onSearchChange, searchState, sort]
+    [
+      addQualifier,
+      clearAllFilters,
+      onKeyDown,
+      onSearchChange,
+      searchState,
+      sort,
+    ]
   );
 
   return {
     searchQuery: searchState.searchQuery,
     keywordTags: searchState.keywordTags,
+    qualifierChips: searchState.qualifierChips,
     filterTags: searchState.filterTags,
     styleFilters: searchState.styleFilters,
     hueFilters: searchState.hueFilters,
@@ -820,6 +931,7 @@ export function useCardsSearchController(
     setTimeFilter,
     addFilter,
     addKeywordTag,
+    addQualifier,
     applyUrlState,
     clearAllFilters,
     searchBarProps,

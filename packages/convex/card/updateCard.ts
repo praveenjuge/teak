@@ -31,7 +31,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { scheduleCardSearchSync, withUrlHost } from "./searchDocumentHelpers";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -241,11 +241,15 @@ export const updateCard = mutation({
       ? await reserveEditReprocess(ctx, user.teakUserId, id)
       : null;
 
-    await ctx.db.patch("cards", id, {
-      ...updates,
-      ...(processingStatus ? { processingStatus } : {}),
-      updatedAt: now,
-    });
+    await ctx.db.patch(
+      "cards",
+      id,
+      withUrlHost({
+        ...updates,
+        ...(processingStatus ? { processingStatus } : {}),
+        updatedAt: now,
+      })
+    );
     await scheduleCardSearchSync(ctx, id, card.userId, card);
 
     // If content was updated, regenerate AI metadata
@@ -473,13 +477,17 @@ export const updateCardFieldsForUserHandler = async (
     ? await reserveEditReprocess(ctx, userId, cardId)
     : null;
 
-  await ctx.db.patch("cards", cardId, {
-    ...state.updateData,
-    ...(state.processingStatus
-      ? { processingStatus: state.processingStatus }
-      : {}),
-    updatedAt: now,
-  });
+  await ctx.db.patch(
+    "cards",
+    cardId,
+    withUrlHost({
+      ...state.updateData,
+      ...(state.processingStatus
+        ? { processingStatus: state.processingStatus }
+        : {}),
+      updatedAt: now,
+    })
+  );
   if (!options.deferSearchSync) {
     await scheduleCardSearchSync(ctx, cardId, userId, card);
   }

@@ -51,6 +51,7 @@ export default defineConfig({
       "./cardListOrdering.test.ts",
       "./folders.test.ts",
       "./tagOperations.test.ts",
+      "./searchQualifiers.test.ts",
     ],
   },
 });

@@ -21,7 +21,7 @@ const cardText = (screen: Screen, text: string | RegExp) =>
   screen.getByRole("main").getByText(text, { exact: false }).first();
 
 const focusSearch = async (screen: Screen) => {
-  const search = screen.getByRole("searchbox");
+  const search = screen.getByRole("combobox");
   await search.click();
   return search;
 };

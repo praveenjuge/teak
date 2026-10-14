@@ -5,6 +5,7 @@ import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
+import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { startWorkflow } from "../workflows/manager";
 import {
   getOrInitializeCardUsage,
@@ -146,6 +147,7 @@ export const insertCompletedCards = async (
       type: cardDef.type,
       content: cardDef.content,
       url: cardDef.url,
+      urlHost: normalizeUrlHost(cardDef.url) ?? undefined,
       tags: cardDef.tags,
       notes: cardDef.notes,
       colors: cardDef.colors as any,

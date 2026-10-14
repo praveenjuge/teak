@@ -21,13 +21,16 @@ import {
   archivedFilterValidator,
   buildCardListQuery,
   buildFolderCardListQuery,
+  buildHostCardListQuery,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
+  buildCardSearchText,
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
+import { cardUrlHost, resolveFolderNames } from "./card/searchPlanner";
 import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
@@ -47,6 +50,7 @@ import {
 import { cardTypes, cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
+import { matchesSearchPhrases } from "./shared/search/qualifiers";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -110,19 +114,29 @@ const bulkResultValidator = v.object({
 interface SearchOptions {
   /** Archived cards outside Trash; defaults to `"exclude"`. */
   archived?: ArchivedFilter;
+  /** In Trash, only the cards that were archived (`is:archived`). */
+  archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
   /** Only cards in this folder; the caller checked it is the user's. */
   folderId?: Id<"folders">;
+  /** Folders a card must also be in (`folder:`), already resolved. */
+  folderIds?: Id<"folders">[];
   hexFilters?: string[];
   hueFilters?: string[];
   limit?: number;
+  /** Quoted phrases a card's text must contain. */
+  phrases?: string[];
   searchQuery?: string;
   showTrashOnly?: boolean;
+  /** Normalized hosts (`site:`); a card on any of them matches. */
+  sites?: string[];
   sort?: ApiCardSort;
   styleFilters?: string[];
   tag?: string;
+  /** More tags a card must carry besides `tag`. */
+  tags?: string[];
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }
@@ -244,12 +258,42 @@ const matchesStructuredFilters = (
     return false;
   }
 
-  if (options.tag) {
+  const requiredTags = [
+    ...(options.tag ? [options.tag] : []),
+    ...(options.tags ?? []),
+  ];
+  if (requiredTags.length > 0) {
     const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])];
     const tagSet = new Set(tags.map((tag) => tag.trim().toLowerCase()));
-    if (!tagSet.has(options.tag)) {
+    if (!requiredTags.every((tag) => tagSet.has(tag))) {
       return false;
     }
+  }
+
+  if (
+    options.folderIds?.some(
+      (folderId) => !(card.folderIds ?? []).includes(folderId)
+    )
+  ) {
+    return false;
+  }
+
+  if (options.sites?.length) {
+    const host = cardUrlHost(card);
+    if (!(host && options.sites.includes(host))) {
+      return false;
+    }
+  }
+
+  if (
+    options.phrases?.length &&
+    !matchesSearchPhrases(buildCardSearchText(card), options.phrases)
+  ) {
+    return false;
+  }
+
+  if (options.archivedInTrash && card.isArchived !== true) {
+    return false;
   }
 
   const archived = archivedFilterMatch(options.archived, options.showTrashOnly);
@@ -406,6 +450,7 @@ const searchCardsByQuery = async (
         archived: options.archived,
         isFavorited: options.favorited,
         type,
+        urlHost: options.sites?.length === 1 ? options.sites[0] : undefined,
         limit: SEARCH_CANDIDATE_LIMIT,
         scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
@@ -505,6 +550,16 @@ const createBaseQuery = (
     upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
   } else if (anchor) {
     lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
+  }
+  // One site reads its host index; the scan filters everything else.
+  const host = options.sites?.length === 1 ? options.sites[0] : undefined;
+  if (host && !options.showTrashOnly && options.archived !== "include") {
+    return buildHostCardListQuery(ctx, {
+      userId,
+      host,
+      archived: options.archived === "only" ? "only" : "exclude",
+      createdAt: { gte: lower, lte: upper },
+    });
   }
   return buildCardListQuery(ctx, {
     userId,
@@ -703,7 +758,12 @@ const scanCardsWithBaseQuery = async (
 
 const normalizeCardsQueryOptions = (args: {
   archived?: ArchivedFilter;
+  archivedInTrash?: boolean;
   folderId?: Id<"folders">;
+  folderIds?: Id<"folders">[];
+  phrases?: string[];
+  sites?: string[];
+  tags?: string[];
   showTrashOnly?: boolean;
   styleFilters?: string[];
   hueFilters?: string[];
@@ -718,9 +778,17 @@ const normalizeCardsQueryOptions = (args: {
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }): SearchOptions => {
+  const tags = Array.from(
+    new Set((args.tags ?? []).map(normalizeTag).filter(Boolean))
+  ) as string[];
   const normalized: SearchOptions = {
     archived: args.archived,
+    archivedInTrash: args.archivedInTrash === true && args.showTrashOnly,
     folderId: args.folderId,
+    folderIds: args.folderIds?.length ? args.folderIds : undefined,
+    phrases: args.phrases?.length ? args.phrases : undefined,
+    sites: args.sites?.length ? args.sites : undefined,
+    tags: tags.length ? tags : undefined,
     showTrashOnly: args.showTrashOnly,
     ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -762,6 +830,12 @@ export const searchCardsPageForUser = internalQuery({
     type: v.optional(cardTypeValidator),
     types: v.optional(v.array(cardTypeValidator)),
     tag: v.optional(v.string()),
+    /** Qualifiers from `q` (shared/search/qualifiers.ts), merged in. */
+    tags: v.optional(v.array(v.string())),
+    sites: v.optional(v.array(v.string())),
+    phrases: v.optional(v.array(v.string())),
+    folderNames: v.optional(v.array(v.string())),
+    archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),
@@ -771,7 +845,15 @@ export const searchCardsPageForUser = internalQuery({
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    const options = normalizeCardsQueryOptions(args);
+    const folderIds = await resolveFolderNames(
+      ctx,
+      userId,
+      args.folderNames ?? []
+    );
+    if (!folderIds) {
+      return { items: [], pageInfo: { nextCursor: null, hasMore: false } };
+    }
+    const options = normalizeCardsQueryOptions({ ...args, folderIds });
     const limit = normalizeLimit(options.limit);
     const sort = normalizeSort(options.sort);
     const decodedCursor = decodeCursor(args.cursor);
@@ -860,11 +942,31 @@ export const scanCardsPageForUser = internalQuery({
     createdBefore: v.optional(v.number()),
     sort: v.optional(apiCardSortValidator),
     scanLimit: v.number(),
+    /** Qualifiers from `q` (shared/search/qualifiers.ts), merged in. */
+    tags: v.optional(v.array(v.string())),
+    sites: v.optional(v.array(v.string())),
+    phrases: v.optional(v.array(v.string())),
+    folderNames: v.optional(v.array(v.string())),
+    archivedInTrash: v.optional(v.boolean()),
   },
   returns: scannedCardsResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    const options = normalizeCardsQueryOptions(args);
+    const folderIds = await resolveFolderNames(
+      ctx,
+      userId,
+      args.folderNames ?? []
+    );
+    if (!folderIds) {
+      return { itemCursors: [], items: [], nextCursor: null, scannedRows: 0 };
+    }
+    // A `folder:` name drives the read like `folder=` when that is unset.
+    const [firstFolder, ...otherFolders] = folderIds;
+    const options = normalizeCardsQueryOptions({
+      ...args,
+      folderId: args.folderId ?? firstFolder,
+      folderIds: args.folderId ? folderIds : otherFolders,
+    });
     const scanLimit = normalizeLimit(args.scanLimit);
     const page = await scanCardsWithBaseQuery(
       ctx,

@@ -226,6 +226,14 @@ const handleCardsListRequest = async (
       }
       folderId = folder._id;
     }
+    // After the folder check, so an unknown folder is a 404 whatever else
+    // the request asks for.
+    if (options.matchesNothing) {
+      return json(200, {
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+      });
+    }
     const queryArgs = {
       archived: options.archived,
       folderId,
@@ -241,6 +249,7 @@ const handleCardsListRequest = async (
       type: options.type,
       types: options.types,
       userId: auth.validated.userId,
+      ...options.qualifiers,
     };
     let cardsPage: {
       items: any[];

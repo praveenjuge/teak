@@ -50,16 +50,31 @@ Special tokens work automatically:
 | **Hex color** | `#FF5733`, `#3B82F6` | Exact color match |
 | **Date** | `today`, `this week`, `january`, `last year` | Creation date |
 | **Quick view** | `favorites` / `fav`, `archive`, `trash` / `bin` / `deleted` | Opens that page; type it again to go back to Everything |
+| **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
+| **Type** | `type:link`, `type:images` | Cards of that type |
+| **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
+| **Site** | `site:github.com` | Links from that website |
+| **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder |
+| **Phrase** | `"design system"` | Those words together, in that order |
 | **Keyword** | anything else | Full-text match |
 
-Mix tokens in one query — all recognized filters apply together.
+Mix tokens in one query — all recognized filters apply together. Tags and folders must all match; several types or sites match any of them.
 
 ```
 blue button hover state
 minimal dark
 #3B82F6
 feedback this week
+site:github.com tag:design "design system"
 ```
+
+As you type, the search box suggests filters, your tags and folders, and the sites you save most. Pick one with the arrow keys and **Enter**, or click it, and it becomes a removable pill. **Esc** closes the suggestions, and **Backspace** in an empty search box removes the last pill. The address bar keeps the whole search, so you can bookmark or share it.
+
+A few details:
+
+- `site:` matches the website exactly. `www.` and capital letters don't matter, so `site:www.GitHub.com` is the same as `site:github.com`, but `site:example.com` doesn't include `blog.example.com`.
+- `#` followed by a color code, like `#fff` or `#3B82F6`, is a color. Use `tag:fff` for a tag that looks like one.
+- A filter Teak doesn't recognize, like `type:banana`, is searched as text. A folder name you don't have shows as **No folder named …** and matches nothing.
 
 ### Folders
 

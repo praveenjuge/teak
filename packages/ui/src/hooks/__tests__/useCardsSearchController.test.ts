@@ -1,11 +1,15 @@
 import { describe, expect, it } from "bun:test";
+import { parseSearchQuery } from "@teak/convex/shared";
 import type { CardsSearchState } from "../useCardsSearchController";
 import {
   applyBackspaceToCardsSearchState,
   applyEnterToCardsSearchState,
   buildCardsSearchQueryArgs,
   buildCardsSearchResetKey,
+  buildCardsSearchTerms,
+  cardsSearchStateFromQuery,
   createInitialCardsSearchState,
+  isSameSearch,
 } from "../useCardsSearchController";
 
 const baseState = (): CardsSearchState => createInitialCardsSearchState();
@@ -160,6 +164,7 @@ describe("useCardsSearchController helpers", () => {
     expect(cleared).toEqual({
       searchQuery: "",
       keywordTags: [],
+      qualifierChips: [],
       filterTags: [],
       styleFilters: [],
       hueFilters: [],
@@ -199,5 +204,80 @@ describe("useCardsSearchController helpers", () => {
       expect(next.types).toEqual([type]);
       expect(next.searchQuery).toBeUndefined();
     }
+  });
+});
+
+describe("search qualifiers in the controller", () => {
+  it("turns qualifiers and phrases into chips on Enter, written canonically", () => {
+    const next = applyEnterToCardsSearchState({
+      ...baseState(),
+      searchQuery:
+        'SITE:www.GitHub.com #Design "Design System" type:links notes #fff',
+    });
+    expect(next.qualifierChips).toEqual([
+      "site:github.com",
+      "tag:design",
+      "type:link",
+    ]);
+    expect(next.keywordTags).toEqual(['"design system"', "notes"]);
+    expect(next.hexFilters).toEqual(["#FFFFFF"]);
+    expect(next.searchQuery).toBe("");
+    expect(buildCardsSearchQueryArgs(next).searchQuery).toBe(
+      'site:github.com tag:design type:link "design system" notes'
+    );
+  });
+
+  it("keeps quotes inside a phrase chip", () => {
+    const next = applyEnterToCardsSearchState({
+      ...baseState(),
+      searchQuery: '"say \\"hi\\""',
+    });
+    expect(next.keywordTags).toEqual(['"say \\"hi\\""']);
+    expect(
+      parseSearchQuery(buildCardsSearchQueryArgs(next).searchQuery ?? "")
+        .phrases
+    ).toEqual(['say "hi"']);
+  });
+
+  it("does not repeat a chip already there", () => {
+    const next = applyEnterToCardsSearchState({
+      ...baseState(),
+      qualifierChips: ["tag:design"],
+      searchQuery: "tag:DESIGN folder:Inbox",
+    });
+    expect(next.qualifierChips).toEqual(["tag:design", "folder:Inbox"]);
+  });
+
+  it("removes qualifier chips last with Backspace", () => {
+    let state: CardsSearchState = {
+      ...baseState(),
+      qualifierChips: ["site:github.com", "is:fav"],
+      keywordTags: ["notes"],
+    };
+    state = applyBackspaceToCardsSearchState(state);
+    expect(state.keywordTags).toEqual([]);
+    state = applyBackspaceToCardsSearchState(state);
+    expect(state.qualifierChips).toEqual(["site:github.com"]);
+    state = applyBackspaceToCardsSearchState(state);
+    expect(state.qualifierChips).toEqual([]);
+  });
+
+  it("reads a URL search back into chips and typed text", () => {
+    const fromUrl = cardsSearchStateFromQuery(
+      'notes folder:"Reading list" "a phrase" site:example.com'
+    );
+    expect(fromUrl).toEqual({
+      keywordTags: ['"a phrase"'],
+      qualifierChips: ['folder:"Reading list"', "site:example.com"],
+      searchQuery: "notes",
+    });
+    const terms = buildCardsSearchTerms({ ...baseState(), ...fromUrl });
+    expect(
+      isSameSearch(
+        terms,
+        'notes folder:"Reading list" "a phrase" site:example.com'
+      )
+    ).toBe(true);
+    expect(isSameSearch(terms, "notes")).toBe(false);
   });
 });

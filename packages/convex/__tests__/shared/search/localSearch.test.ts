@@ -423,3 +423,58 @@ describe("shared search helpers", () => {
     expect(next).toBe(cache);
   });
 });
+
+describe("filterLocalCards qualifiers", () => {
+  const cards = [
+    makeCard({
+      _id: "repo",
+      type: "link",
+      content: "Design system repo",
+      url: "https://www.github.com/acme/ds",
+      tags: ["Design"],
+      createdAt: 4,
+    }),
+    makeCard({
+      _id: "fav",
+      type: "link",
+      content: "System design blog",
+      url: "https://blog.example.com",
+      tags: ["design", "writing"],
+      isFavorited: true,
+      createdAt: 3,
+    }),
+    makeCard({
+      _id: "note",
+      content: "design system notes",
+      tags: ["design"],
+      createdAt: 2,
+    }),
+    makeCard({
+      _id: "archived",
+      type: "link",
+      content: "Old repo",
+      url: "https://github.com/old",
+      isArchived: true,
+      createdAt: 1,
+    }),
+  ];
+  const ids = (searchTerms: string, showTrashOnly = false) =>
+    filterLocalCards([...cards], { searchTerms, showTrashOnly }).map(
+      (card) => card._id
+    );
+
+  it.each([
+    ["site:github.com", ["repo"]],
+    ["site:GITHUB.com is:archived", ["archived"]],
+    ['"design system"', ["repo", "note"]],
+    ["tag:design tag:writing", ["fav"]],
+    ["#design type:text", ["note"]],
+    ["is:fav", ["fav"]],
+    ["type:links design", ["repo", "fav"]],
+    ["foo:bar", []],
+    // Two tags in a row are not a phrase.
+    ['"design writing"', []],
+  ])("%s", (searchTerms: string, expected: string[]) => {
+    expect(ids(searchTerms)).toEqual(expected);
+  });
+});

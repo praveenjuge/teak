@@ -80,7 +80,7 @@ test("quick commands in search open their view", async ({
 }) => {
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
-  const search = screen.getByRole("searchbox");
+  const search = screen.getByRole("combobox");
   await search.fill("fav");
   // Let the typed text settle into the URL (?q=fav) before the command runs.
   await expect(browser).toHaveURL(/\?q=fav$/);
@@ -89,14 +89,14 @@ test("quick commands in search open their view", async ({
   expect(await pathOf(browser.url())).toBe("/favorites");
   // Back returns to Everything without the command left in the search.
   await browser.back();
-  await expect(screen.getByRole("searchbox")).toHaveValue("");
+  await expect(screen.getByRole("combobox")).toHaveValue("");
   expect(await pathOf(browser.url())).toBe("/");
   await browser.forward();
   await expect(screen.getByPlaceholder("Search favorites...")).toBeVisible();
 
   // The open view's own command goes back to Everything.
-  await screen.getByRole("searchbox").fill("favorites");
-  await screen.getByRole("searchbox").press("Enter");
+  await screen.getByRole("combobox").fill("favorites");
+  await screen.getByRole("combobox").press("Enter");
   await expect(screen.getByPlaceholder("Search for anything...")).toBeVisible();
   expect(await pathOf(browser.url())).toBe("/");
 });

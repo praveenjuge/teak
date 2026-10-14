@@ -175,6 +175,119 @@ describe("publicApiHttp card endpoints", () => {
     expect(JSON.stringify(item)).not.toContain("storageKey");
   });
 
+  const authorized = (url: string) =>
+    new Request(url, {
+      headers: {
+        Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+      },
+    });
+
+  test("listCardsV1 reads qualifiers in q and merges them with the parameters", async () => {
+    const runQuery = mock().mockResolvedValue({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const q = encodeURIComponent(
+      'tag:design type:link site:www.GitHub.com "design system" #ui folder:"Reading list" is:fav'
+    );
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?q=${q}&tag=Brand&type=link&type=image`
+      )
+    );
+    expect(response.status).toBe(200);
+    // The text and the first tag route the search; the rest filter it.
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      searchQuery: "design system",
+      tag: "brand",
+      tags: ["design", "ui"],
+      type: "link",
+      types: undefined,
+      sites: ["github.com"],
+      phrases: ["design system"],
+      folderNames: ["reading list"],
+      favorited: true,
+      archivedInTrash: false,
+    });
+  });
+
+  test("listCardsV1 scans when q holds only qualifiers without text or tags", async () => {
+    const runQuery = mock().mockResolvedValue({
+      itemCursors: [],
+      items: [],
+      nextCursor: null,
+      scannedRows: 0,
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?q=${encodeURIComponent("site:example.com is:archived")}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      archived: "only",
+      sites: ["example.com"],
+      scanLimit: expect.any(Number),
+    });
+    expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
+  });
+
+  test.each([
+    ["type:text", "type=link"],
+    ["is:archived", "archived=exclude"],
+  ])("listCardsV1 answers %s with %s with no cards", async (q, param) => {
+    const runQuery = mock();
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?q=${encodeURIComponent(q)}&${param}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    expect(runQuery).not.toHaveBeenCalled();
+  });
+
+  test("listCardsV1 answers an unknown folder with 404 even when q contradicts the other filters", async () => {
+    const runQuery = mock().mockResolvedValue(null);
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        "https://example.com/v1/cards?folder=missing&type=link&q=type:text"
+      )
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("listCardsV1 keeps is:archived in Trash to the archived cards", async () => {
+    const runQuery = mock().mockResolvedValue({
+      itemCursors: [],
+      items: [],
+      nextCursor: null,
+      scannedRows: 0,
+    });
+    await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized("https://example.com/v1/cards?q=is:archived&trashed=true")
+    );
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      showTrashOnly: true,
+      archivedInTrash: true,
+    });
+    expect(runQuery.mock.calls[0]?.[1].archived).toBeUndefined();
+  });
+
   test("listCardsV1 rejects any invalid repeated type", async () => {
     const response = await runHandler(
       listCardsV1,
