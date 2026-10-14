@@ -1,3 +1,8 @@
+import {
+  explainInvalidFolderName,
+  MAX_FOLDERS_PER_CARD,
+  normalizeFolderName,
+} from "../shared/folders";
 import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import {
@@ -34,7 +39,13 @@ export interface ImportCardInput {
   content: string;
   createdAt?: number;
   file?: ImportFileInput;
+  /** Folder names (archive schema v2), trimmed and deduped by name. */
+  folders?: string[];
+  /** Archive schema v2: the card was archived when exported. */
+  isArchived?: boolean;
   isFavorited?: boolean;
+  /** Archive schema v2: the card's title. */
+  metadataTitle?: string;
   notes?: string;
   tags?: string[];
   type: ImportCardType;
@@ -105,6 +116,53 @@ function validNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : undefined;
+}
+
+/** Longest imported title kept; longer ones are cut, as card creation does. */
+export const MAX_IMPORT_TITLE_LENGTH = 512;
+
+/**
+ * Folder names from an archive card: names a folder can't have are dropped
+ * rather than failing the card, and the list is deduped ignoring case and
+ * capped at a card's folder limit.
+ */
+function importFolderNames(raw: unknown): string[] | undefined {
+  if (raw === undefined || raw === null) {
+    return;
+  }
+  if (!Array.isArray(raw)) {
+    throw new Error("Card folders are invalid");
+  }
+  const names: string[] = [];
+  const keys = new Set<string>();
+  for (const value of raw) {
+    if (typeof value !== "string" || explainInvalidFolderName(value)) {
+      continue;
+    }
+    const name = normalizeFolderName(value);
+    const key = name.toLowerCase();
+    if (keys.has(key)) {
+      continue;
+    }
+    keys.add(key);
+    names.push(name);
+    if (names.length === MAX_FOLDERS_PER_CARD) {
+      break;
+    }
+  }
+  return names.length ? names : undefined;
+}
+
+function importTitle(raw: unknown): string | undefined {
+  if (typeof raw !== "string") {
+    return;
+  }
+  let title = raw.trim().slice(0, MAX_IMPORT_TITLE_LENGTH);
+  // Never end on half of an emoji's surrogate pair.
+  if (/[\uD800-\uDBFF]$/.test(title)) {
+    title = title.slice(0, -1);
+  }
+  return title.trim() || undefined;
 }
 
 export function validateImportCard(raw: unknown): ImportCardInput {
@@ -207,6 +265,9 @@ export function validateImportCard(raw: unknown): ImportCardInput {
       : undefined,
     notes,
     isFavorited: value.isFavorited === true,
+    isArchived: value.isArchived === true ? true : undefined,
+    metadataTitle: importTitle(value.metadataTitle),
+    folders: importFolderNames(value.folders),
     colors: rawColors as ImportCardInput["colors"],
     createdAt: parseImportedTimestamp(value.createdAt),
     file,

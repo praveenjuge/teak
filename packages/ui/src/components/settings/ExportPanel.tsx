@@ -240,7 +240,8 @@ export function ExportPanel({
           <div className="space-y-0.5">
             <div className="font-medium">Export your data</div>
             <p className="text-muted-foreground text-xs leading-5">
-              A ZIP of your active cards and their original files.
+              A ZIP of every card outside Trash with its original files, plus a
+              bookmarks file for your browser and a spreadsheet.
             </p>
           </div>
           <div className="space-y-2">

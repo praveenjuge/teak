@@ -43,6 +43,7 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
+import { MAX_FOLDERS_PER_USER } from "./shared/folders";
 import { getR2Url } from "./storage/fileUrls";
 
 const internalAny = internal as Record<string, any>;
@@ -508,6 +509,11 @@ export const getExportCardsPage = internalQuery({
         fileKey: card.type === "text" ? undefined : card.fileKey,
         fileMetadata: card.type === "text" ? undefined : card.fileMetadata,
         colors: card.colors,
+        aiTags: card.aiTags,
+        aiSummary: card.aiSummary,
+        metadataTitle: card.metadataTitle,
+        isArchived: card.isArchived,
+        folderIds: card.folderIds,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,
       });
@@ -518,6 +524,28 @@ export const getExportCardsPage = internalQuery({
       isDone: page.isDone,
       cards,
     };
+  },
+});
+
+/**
+ * Names of the job owner's folders by id, read once per export so each
+ * card's `folderIds` serialize as names. Folders being deleted are left out.
+ */
+export const getExportFolderNames = internalQuery({
+  args: { jobId: v.id("exportJobs") },
+  returns: v.array(v.object({ id: v.id("folders"), name: v.string() })),
+  handler: async (ctx, { jobId }) => {
+    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    if (!job) {
+      return [];
+    }
+    const folders = await ctx.db
+      .query("folders")
+      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", job.userId))
+      .take(MAX_FOLDERS_PER_USER);
+    return folders
+      .filter((folder) => folder.deletingAt === undefined)
+      .map((folder) => ({ id: folder._id, name: folder.name }));
   },
 });
 

@@ -47,13 +47,16 @@ const baseCard = {
     { hex: "#ffffff", name: "White", rgb: { r: 255, g: 255, b: 255 } },
     { hex: "#000000" },
   ],
-  // Excluded fields that must never appear in output:
+  // Schema v2 fields:
   aiTags: ["ai1"],
-  aiSummary: "secret summary",
+  aiSummary: "A short summary",
+  metadataTitle: "Card title",
+  isArchived: true,
+  folderIds: ["folder_b", "folder_gone", "folder_a", "folder_b"],
+  // Excluded fields that must never appear in output:
   aiTranscript: "secret transcript",
   metadata: { source: "ext", linkPreview: { title: "scraped" } },
   thumbnailKey: "users/x/cards/card_1/thumbnail/zzz",
-  metadataTitle: "scraped title",
   metadataDescription: "scraped desc",
   visualStyles: ["minimal"],
   colorHexes: ["#ffffff"],
@@ -105,9 +108,14 @@ describe("buildFilePath", () => {
   });
 });
 
+const folderNames = new Map([
+  ["folder_a", "Reading"],
+  ["folder_b", 'Design, "refs"'],
+]);
+
 describe("serializeCard", () => {
   test("includes only the allow-listed fields", () => {
-    const out = serializeCard(baseCard, { includeFile: true });
+    const out = serializeCard(baseCard, { includeFile: true, folderNames });
     expect(out).toEqual({
       id: "card_1",
       type: "image",
@@ -115,7 +123,12 @@ describe("serializeCard", () => {
       url: "https://example.com",
       notes: "my note",
       tags: ["a", "b"],
+      aiTags: ["ai1"],
+      aiSummary: "A short summary",
+      metadataTitle: "Card title",
+      folders: ['Design, "refs"', "Reading"],
       isFavorited: true,
+      isArchived: true,
       colors: [{ hex: "#ffffff", name: "White" }, { hex: "#000000" }],
       file: {
         path: "files/card_1-My-Photo-1-.PNG",
@@ -131,17 +144,16 @@ describe("serializeCard", () => {
     });
   });
 
-  test("excludes AI, scraped, account, source, thumbnail fields", () => {
-    const out = serializeCard(baseCard, { includeFile: true });
+  test("excludes transcripts, scraped, account, source, thumbnail fields", () => {
+    const out = serializeCard(baseCard, { includeFile: true, folderNames });
     const json = JSON.stringify(out);
-    expect(json).not.toContain("secret summary");
     expect(json).not.toContain("secret transcript");
-    expect(json).not.toContain("ai1");
     expect(json).not.toContain("scraped");
     expect(json).not.toContain("thumbnail");
     expect(json).not.toContain("visualStyles");
     expect(json).not.toContain("processingStatus");
-    expect(out).not.toHaveProperty("aiTags");
+    expect(json).not.toContain("folder_");
+    expect(out).not.toHaveProperty("folderIds");
     expect(out).not.toHaveProperty("metadata");
     expect(out).not.toHaveProperty("thumbnailKey");
     expect(out).not.toHaveProperty("fileKey");
@@ -201,6 +213,32 @@ describe("serializeCard", () => {
     expect(out.colors).toBeUndefined();
     expect(out.tags).toEqual([]);
     expect(out.isFavorited).toBe(false);
+    // Schema v2: lists and flags are always present, strings only when set.
+    expect(out.aiTags).toEqual([]);
+    expect(out.folders).toEqual([]);
+    expect(out.isArchived).toBe(false);
+    expect(out).not.toHaveProperty("aiSummary");
+    expect(out).not.toHaveProperty("metadataTitle");
+  });
+
+  test("leaves out blank titles and summaries", () => {
+    const out = serializeCard({
+      _id: "c3",
+      type: "link",
+      content: "x",
+      metadataTitle: "   ",
+      aiSummary: "",
+      createdAt: 1,
+      updatedAt: 2,
+    });
+    expect(out).not.toHaveProperty("metadataTitle");
+    expect(out).not.toHaveProperty("aiSummary");
+  });
+
+  test("names only folders it knows, once each, in the card's order", () => {
+    const out = serializeCard(baseCard, { includeFile: false, folderNames });
+    expect(out.folders).toEqual(['Design, "refs"', "Reading"]);
+    expect(serializeCard(baseCard).folders).toEqual([]);
   });
 });
 
@@ -215,6 +253,8 @@ describe("buildManifest", () => {
     });
     expect(manifest.exportVersion).toBe(EXPORT_VERSION);
     expect(manifest.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(manifest.schemaVersion).toBe(2);
+    expect(manifest.exportVersion).toBe(1);
     expect(manifest.appName).toBe("Teak");
     expect(manifest.retentionMs).toBe(EXPORT_RETENTION_MS);
     expect(manifest.counts).toEqual({

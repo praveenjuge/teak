@@ -1653,7 +1653,7 @@ export const openApiSpec = {
         operationId: "startExport",
         summary: "Start a ZIP export of every card and original file",
         description:
-          "One export can run at a time, and one can be started every 7 days. Poll GET /v1/exports/latest for progress and the download URL.",
+          "One export can run at a time, and one can be started every 7 days. Poll GET /v1/exports/latest for progress and the download URL. The ZIP holds manifest.json, cards.json, the original files under files/, bookmarks.html (Netscape bookmark format) and cards.csv. manifest.json reports `schemaVersion: 2`: each card in cards.json also has `aiTags`, `aiSummary`, `metadataTitle`, `isArchived` and `folders` (names).",
         security: apiKeySecurity,
         responses: {
           202: {

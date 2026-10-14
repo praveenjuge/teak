@@ -83,6 +83,35 @@ describe("worker import source", () => {
       }
     }
   });
+  test("reads schema v1 and v2 Teak exports, passing v2 card fields through", async () => {
+    const v1Card = { id: "c1", type: "text", content: "Old", tags: [] };
+    const v2Card = {
+      ...v1Card,
+      id: "c2",
+      metadataTitle: "Kept title",
+      isArchived: true,
+      folders: ["Reading", 'Design, "refs"'],
+      aiTags: ["ui"],
+      aiSummary: "A summary",
+    };
+    for (const [schemaVersion, card] of [
+      [1, v1Card],
+      [2, v2Card],
+    ] as const) {
+      const { bucket, params } = archive({
+        "manifest.json": strToU8(
+          JSON.stringify({ exportVersion: 1, schemaVersion, appName: "Teak" })
+        ),
+        "cards.json": strToU8(JSON.stringify({ cards: [card] }, null, 2)),
+        // v2 exports add these; the importer reads only cards.json.
+        "bookmarks.html": strToU8("<!DOCTYPE NETSCAPE-Bookmark-file-1>"),
+        "cards.csv": strToU8('\uFEFF"id"\r\n'),
+      });
+      const result = await indexImportSource(asBucket(bucket), params);
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.card).toEqual(card);
+    }
+  });
   test("rejects unsupported versions, missing cards, unsafe paths, and encrypted entries", async () => {
     for (const manifest of [{ version: 2, cards: [] }, { version: 1 }]) {
       const { bucket, params } = archive({

@@ -569,6 +569,7 @@ export const FOLDER_SCENARIOS = [
   "folders-ugly",
   "search-qualifiers",
   "smart-folders",
+  "export-ugly",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -938,6 +939,103 @@ const smartFoldersPack = (): FolderScenarioPack => {
   };
 };
 
+/** Folder names that break naive CSV, HTML and spreadsheet writers. */
+export const EXPORT_UGLY_FOLDER_NAMES = [
+  'Quotes "and", commas',
+  "Line one\nline two",
+  "<script>alert(1)</script>",
+  '=HYPERLINK("https://example.com","Click")',
+  "🎨 Moodboard 😀",
+  "مجلد الأفكار",
+  "東京のアイデア",
+  longName("Folder"),
+];
+
+// "export-ugly": what an export must write safely in cards.json,
+// bookmarks.html and cards.csv: titles and folder names with quotes, commas,
+// newlines, markup, formulas, emoji, RTL and CJK; a link in 50 folders;
+// archived and favorite cards; cards with and without AI fields.
+const exportUglyPack = (): FolderScenarioPack => {
+  const scenario = "export-ugly" as const;
+  const stacks = Array.from(
+    { length: MAX_FOLDERS_PER_CARD },
+    (_, index) => EXPORT_UGLY_FOLDER_NAMES.length + index
+  );
+  const ai = (summary: string, ...aiTags: string[]) => ({
+    aiSummary: summary,
+    aiTags,
+  });
+  const link = (
+    index: number,
+    title: string,
+    folders: number[],
+    extra: Partial<DefaultCardDef> = {}
+  ) => {
+    const url = `https://example.com/export-ugly/${index}?a=1&b="2"`;
+    return {
+      ...folderScenarioCard(scenario, index, "", folders, extra),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle: title,
+    };
+  };
+  return {
+    folders: [
+      ...EXPORT_UGLY_FOLDER_NAMES.map((name, index) => ({
+        name,
+        color: FOLDER_COLOR_CYCLE[index % FOLDER_COLOR_CYCLE.length],
+      })),
+      ...stacks.map((_, index) => ({
+        name: `Export stack ${String(index + 1).padStart(2, "0")}`,
+      })),
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Export ugly pack", [0]),
+      link(1, 'He said "hi", then left, quickly', [0, 1], {
+        isFavorited: true,
+        tags: [`scenario-${scenario}`, "a,b", "=SUM(1+1)"],
+        ...ai('A summary, with a comma and "quotes".', "quotes", "commas"),
+      }),
+      link(2, '<script>alert("x")</script> & <b>bold</b>', [2], {
+        isArchived: true,
+        ...ai("<img src=x onerror=alert(1)>", "markup"),
+      }),
+      link(3, '=HYPERLINK("https://evil.example","Click me")', [3], {
+        notes: "+1 for this\n-1 for that\n@someone",
+      }),
+      folderScenarioCard(
+        scenario,
+        4,
+        'Line one\nLine two, with "quotes"\r\nLine three',
+        [1],
+        ai("-starts with a minus", "newlines")
+      ),
+      link(5, "🎨 مرحبا 東京 שלום 👩‍👩‍👧", [4, 5, 6], ai("多言語", "unicode")),
+      link(6, longName("Title"), [7]),
+      link(7, "In 50 folders", stacks, ai("A link in every stack", "stacks")),
+      link(8, "Archived favorite, no AI", [], {
+        isArchived: true,
+        isFavorited: true,
+      }),
+      folderScenarioCard(scenario, 9, "@mention at the start", []),
+      {
+        ...folderScenarioCard(
+          scenario,
+          10,
+          "+plus at the start",
+          [],
+          ai("A quote", "quote")
+        ),
+        type: "quote" as const,
+      },
+      folderScenarioCard(scenario, 11, "In Trash, left out of exports", [0], {
+        isDeleted: true,
+      }),
+    ],
+  };
+};
+
 export const folderScenarioPack = (
   scenario: FolderScenario
 ): FolderScenarioPack => {
@@ -946,6 +1044,8 @@ export const folderScenarioPack = (
       return searchQualifiersPack();
     case "smart-folders":
       return smartFoldersPack();
+    case "export-ugly":
+      return exportUglyPack();
     case "folders-one":
       return foldersOnePack();
     case "folders-500":
@@ -1256,6 +1356,7 @@ export const seedScenario = internalMutation({
       v.literal("search-qualifiers"),
       v.literal("search-qualifiers-1000"),
       v.literal("smart-folders"),
+      v.literal("export-ugly"),
       v.literal("keyboard-mixed"),
       v.literal("shuffle-partial")
     ),

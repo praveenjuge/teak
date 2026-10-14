@@ -19,6 +19,7 @@ import {
   type FolderColor,
   type FolderKind,
   folderNameKey,
+  MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
   normalizeFolderName,
 } from "../shared/folders";
@@ -197,6 +198,78 @@ export const insertFolder = (
     createdAt: now,
     updatedAt: now,
   });
+
+/**
+ * Folder lookups remembered across the cards of one import batch: name key
+ * to folder id (null when the name can't be used), and the user's folder
+ * count once read.
+ */
+export interface ImportFolderCache {
+  count?: number;
+  ids: Map<string, Id<"folders"> | null>;
+}
+
+export const newImportFolderCache = (): ImportFolderCache => ({
+  ids: new Map(),
+});
+
+/**
+ * The user's manual folders with these names, creating the missing ones, for
+ * cards made by an import. Names match ignoring case, so a later batch of the
+ * same import (or a second import) reuses the folder. A name that is invalid,
+ * belongs to a smart folder, or would pass the folder cap is skipped: the
+ * card is still imported, just without that folder.
+ */
+export const getOrCreateImportFolderIds = async (
+  ctx: MutationCtx,
+  userId: string,
+  names: readonly string[],
+  cache: ImportFolderCache
+): Promise<Id<"folders">[]> => {
+  const ids: Id<"folders">[] = [];
+  for (const raw of names) {
+    if (explainInvalidFolderName(raw)) {
+      continue;
+    }
+    const name = normalizeFolderName(raw);
+    const nameKey = folderNameKey(name);
+    let id = cache.ids.get(nameKey);
+    if (id === undefined) {
+      id = null;
+      let existing: Doc<"folders"> | undefined;
+      for await (const folder of ctx.db
+        .query("folders")
+        .withIndex("by_userId_and_nameKey", (q) =>
+          q.eq("userId", userId).eq("nameKey", nameKey)
+        )) {
+        if (folder.deletingAt === undefined) {
+          existing = folder;
+          break;
+        }
+      }
+      if (existing) {
+        id = existing.kind === "manual" ? existing._id : null;
+      } else {
+        // Folders being deleted still count until their row is gone.
+        cache.count ??= (
+          await ctx.db
+            .query("folders")
+            .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
+            .take(MAX_FOLDERS_PER_USER)
+        ).length;
+        if (cache.count < MAX_FOLDERS_PER_USER) {
+          id = await insertFolder(ctx, userId, name);
+          cache.count += 1;
+        }
+      }
+      cache.ids.set(nameKey, id);
+    }
+    if (id !== null && !ids.includes(id)) {
+      ids.push(id);
+    }
+  }
+  return ids.slice(0, MAX_FOLDERS_PER_CARD);
+};
 
 /**
  * A smart folder's search as stored (canonical), or an INVALID_INPUT error:

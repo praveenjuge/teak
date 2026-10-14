@@ -3,7 +3,7 @@ title: Export Your Data
 description: Download a portable archive of your Teak cards and original files
 ---
 
-Teak can prepare a portable ZIP archive of your active cards and the original files attached to them. Exports are available from Settings in the web app.
+Teak can prepare a portable ZIP archive of your cards and the original files attached to them, with a bookmarks file your browser can import and a spreadsheet of every card. Exports are available from Settings in the web app.
 
 :::note[Exports are read-only]
 Starting an export does not change, delete, or move anything in your Teak library.
@@ -29,11 +29,23 @@ You can cancel an export while it is still preparing. Canceled and failed export
 
 ## What the Archive Includes
 
-Each export is a ZIP with your active cards (`cards.json`), their original files (`files/`), and a manifest. Importing the archive adds the exported cards and included files that satisfy import limits; cards with missing or oversized (>20 MiB) files fail to import.
+Each export is a ZIP with every card outside Trash, archived cards included:
+
+| File | What it holds |
+|---|---|
+| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folder names, favorite and archive state, and dates. Teak imports this file back. |
+| `files/` | The original file attached to each image, video, audio, and document card. |
+| `bookmarks.html` | Your link cards in the bookmark format Chrome, Firefox, and Safari import. Links in no folder come first; each folder is its own bookmarks folder, and a link in several folders appears in each. Your tags are kept where the browser supports them. |
+| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, and `createdAt`. Tags and folders are separated by commas. |
+| `manifest.json` | When the archive was made, its card and file counts, and its format version (`schemaVersion` 2). |
+
+`cards.csv` is safe to open in a spreadsheet: a cell that starts with `=`, `+`, `-`, or `@` begins with an apostrophe so it shows as text instead of running as a formula.
+
+[Importing the archive](/docs/import) adds the exported cards and included files that satisfy import limits, back in their folders and with their archive state and titles; cards with missing or oversized (>20 MiB) files fail to import.
 
 ## What Is Not Included
 
-Exports focus on portable library content: trash, AI enrichment, generated previews, and account data are not included. If an original file cannot be read, its card is still included in the archive, but the card cannot be restored on re-import.
+Exports focus on portable library content: Trash, transcripts, generated previews, and account data are not included. If an original file cannot be read, its card is still included in the archive, but the card cannot be restored on re-import.
 
 ## Limits and Availability
 
@@ -42,7 +54,7 @@ Exports focus on portable library content: trash, AI enrichment, generated previ
 | Frequency | One successful export every 7 days. |
 | Active jobs | One export can prepare at a time. |
 | Download window | Ready archives stay available for 7 days. |
-| Library size | Exports support up to 10,000 active cards or an estimated 5 GB archive. |
+| Library size | Exports support up to 10,000 cards outside Trash or an estimated 5 GB archive. |
 
 If your latest export is still available, download it from **Settings → Import/Export Data → Manage**. After it expires, you can start a new export when your weekly quota allows it.
 

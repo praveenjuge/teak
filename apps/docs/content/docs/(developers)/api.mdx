@@ -482,3 +482,9 @@ Poll `GET /v1/exports/latest` for `job.status` (`pending`, `running`, `ready`,
 `job.downloadUrl` is a short-lived link to the ZIP. Ready exports are kept for
 7 days. `canStartNew` and `nextAvailableAt` say when you can start the next
 one.
+
+The ZIP holds `manifest.json`, `cards.json`, the original files under `files/`,
+`bookmarks.html`, and `cards.csv`. `manifest.json` reports `schemaVersion: 2`;
+each card in `cards.json` has `aiTags`, `aiSummary` (when there is one),
+`metadataTitle` (when there is one), `isArchived`, and `folders` (names). See
+[Export Your Data](/docs/export#what-the-archive-includes).

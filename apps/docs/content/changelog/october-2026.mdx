@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: A calmer card grid and card view, shuffle your library, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: A calmer card grid and card view, shuffle your library, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
@@ -21,6 +21,12 @@ changelog:
 - **Reshuffle** (the dice beside the **View** menu) picks a new order, and Back returns to the previous one. The order is part of the address, so a reload or a shared link shows the same one.
 - Shuffle works in search, tags, folders, Favorites, Archive, and Trash too. See [Sort and share a search](/docs/features#sort-and-share-a-search).
 - **API, CLI, and MCP:** `GET /v1/cards?sort=shuffle&shuffleSeed=42` returns the same order for the same seed, `teak ls --sort shuffle --seed 42` does the same, and the MCP list and search tools take `sort: "shuffle"` with `shuffleSeed`. See the [API guide](/docs/api).
+
+## Richer exports
+
+- An export now includes `bookmarks.html`, which Chrome, Firefox, and Safari import with your folders, and `cards.csv`, a spreadsheet of every card that opens safely in Excel, Numbers, and Google Sheets.
+- `cards.json` adds each card's title, AI tags and summary, folder names, and whether it's archived.
+- Importing a new Teak archive brings back your folders, archived cards, and titles. Older archives import as before. See [Export Your Data](/docs/export).
 
 ## Keyboard shortcuts on the web
 

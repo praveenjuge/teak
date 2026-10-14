@@ -88,6 +88,8 @@ interface CreateCardArgs {
 
 interface ImportedVisibleFields {
   createdAt?: number;
+  /** The card was archived where it came from (a Teak archive). */
+  isArchived?: boolean;
   isFavorited?: boolean;
   /** A title the user chose (e.g. a bookmark's name), kept over fetched page titles. */
   metadataTitle?: string;
@@ -247,6 +249,9 @@ export const createCardForUserHandler = async (
     updatedAt: now,
     shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
+    ...(options.importedVisibleFields?.isArchived
+      ? { isArchived: true as const, archivedAt: now }
+      : {}),
     // An edited title survives link-preview refreshes (linkMetadata.ts).
     ...(importedTitle
       ? { metadataTitle: importedTitle, metadataTitleEdited: true }

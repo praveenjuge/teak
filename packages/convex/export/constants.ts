@@ -17,9 +17,10 @@ export const EXPORT_VERSION = 1;
 
 /**
  * Card payload schema version. Bump when the shape of serialized card objects
- * in `cards.json` changes.
+ * in `cards.json` changes. v2 added `aiTags`, `aiSummary`, `metadataTitle`,
+ * `isArchived` and `folders`; readers of v1 ignore them.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** Maximum estimated artifact size (uncompressed bytes) for a V1 export. */
 export const MAX_EXPORT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
@@ -42,6 +43,12 @@ export const MISSING_FILE_MAX_ATTEMPTS = 2; // initial try + one retry
 /** Names of the JSON entries inside the archive. */
 export const MANIFEST_ENTRY_NAME = "manifest.json";
 export const CARDS_ENTRY_NAME = "cards.json";
+
+/** Browser-importable links (Netscape bookmark format). */
+export const BOOKMARKS_ENTRY_NAME = "bookmarks.html";
+
+/** Every card as one spreadsheet row (RFC 4180). */
+export const CSV_ENTRY_NAME = "cards.csv";
 
 /** Directory prefix for original files inside the archive. */
 export const FILES_DIR = "files";
