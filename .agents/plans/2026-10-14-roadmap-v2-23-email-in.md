@@ -121,7 +121,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
   Over a limit, the mail is dropped silently with `200`.
 - `shared/analytics.ts`:
   - `CardCreationSource` gains `"email"`.
-  - New events: `email_received { outcome: "saved" | "dropped_limit" | "dropped_rate" | "deferred_rate" | "empty" | "duplicate" }` and `email_address_changed { action }`.
+  - New events: `email_received { outcome: "saved" | "dropped_limit" | "dropped_rate" | "deferred_rate" | "empty" | "duplicate" }`. `dropped_limit` is the free card limit. `dropped_rate` is the per-address or per-sender inbound limits (a silent `200`). `deferred_rate` is the temporary `cardCreation` bucket (`503`, retried by the sender) and `email_address_changed { action }`.
 - New env vars (contract, `convex.config.ts` and the E2E stack):
   - `EMAIL_INBOUND_SIGNING_SECRET`: convex plus a new `email-worker` target
   - `INBOUND_ADDRESS_SECRET`: convex only
