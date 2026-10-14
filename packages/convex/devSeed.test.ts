@@ -25,6 +25,7 @@ import {
   UGLY_FOLDER_NAMES,
 } from "./devSeed";
 import schema from "./schema";
+import { MAX_SMART_FOLDER_QUERY_LENGTH } from "./shared/folders";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -582,6 +583,34 @@ describe("devSeed folder packs", () => {
       // The pack's marker card, www.example.com and example.com.
       "example.com": 3,
     });
+  });
+
+  test("smart-folders seeds smart folders with canonical searches once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "smart-folders")).toMatchObject({
+      status: "seeded",
+      cards: 9,
+      folders: 9,
+    });
+    expect(await seedFolders(t, "smart-folders")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const folders = await foldersOf(t);
+    const smart = folders.filter((folder) => folder.kind === "smart");
+    expect(smart).toHaveLength(8);
+    const byName = new Map(folders.map((folder) => [folder.name, folder]));
+    expect(byName.get("Reading list")?.kind).toBe("manual");
+    expect(byName.get("Design links")?.query).toBe("tag:design type:link");
+    expect(byName.get("🎨 Moodboard ✨")?.query).toBe("tag:design 🎨");
+    expect(byName.get("Favorite reading")?.query).toBe(
+      'folder:"Reading list" is:fav'
+    );
+    const long = byName.get("Five hundred characters")?.query ?? "";
+    expect(long.length).toBeGreaterThan(450);
+    expect(long.length).toBeLessThanOrEqual(MAX_SMART_FOLDER_QUERY_LENGTH);
   });
 
   test("search-qualifiers-1000 seeds in pages", async () => {

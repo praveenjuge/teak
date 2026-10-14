@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useMemo } from "react";
 import type { SearchSuggestionSources } from "../components/search/searchSuggestions";
+import { type FolderSummary, manualFolders } from "../lib/folders";
 
 /**
  * Tags, folders and the most saved sites for the search box's suggestions,
@@ -13,7 +14,10 @@ export function useSearchSuggestionSources(
 ): SearchSuggestionSources {
   const skip = enabled ? {} : "skip";
   const tagSummary = useQuery(api.tags.listTagSummary, skip);
-  const folders = useQuery(api.folders.listFolders, skip);
+  const folders: FolderSummary[] | undefined = useQuery(
+    api.folders.listFolders,
+    skip
+  );
   const sites = useQuery(
     api.cards.listTopSites,
     enabled ? { limit: 20 } : "skip"
@@ -21,7 +25,8 @@ export function useSearchSuggestionSources(
   return useMemo(
     () => ({
       tags: tagSummary?.items,
-      folders,
+      // `folder:` names manual folders: no card is in a smart one.
+      folders: folders === undefined ? undefined : manualFolders(folders),
       sites,
     }),
     [folders, sites, tagSummary?.items]

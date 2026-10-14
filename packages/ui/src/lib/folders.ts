@@ -1,6 +1,14 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  combineSearchQueries,
+  formatSearchQualifier,
+  hostForDisplay,
+  parseSearchQuery,
+} from "@teak/convex/shared";
+import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import {
   type FolderColor,
+  type FolderKind,
   MAX_FOLDER_NAME_LENGTH,
 } from "@teak/convex/shared/folders";
 import { ConvexError } from "convex/values";
@@ -8,14 +16,21 @@ import { ConvexError } from "convex/values";
 /** A folder as `api.folders.listFolders` returns it. */
 export interface FolderSummary {
   _id: Id<"folders">;
-  /** Cards in the folder that are neither archived nor in Trash. */
+  /** Cards in a manual folder that are neither archived nor in Trash. */
   activeCardCount: number;
   color?: FolderColor;
   createdAt: number;
-  kind: "manual" | "smart";
+  kind: FolderKind;
   name: string;
+  /** A smart folder's search, written the canonical way. */
+  query?: string;
   updatedAt: number;
 }
+
+/** Folders cards can be put in: smart folders show a search instead. */
+export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
+  folders: readonly T[]
+): T[] => folders.filter((folder) => folder.kind !== "smart");
 
 export {
   FOLDER_COLORS,
@@ -40,6 +55,19 @@ export const FOLDER_DOT_CLASSES: Record<FolderColor, string> = {
   blue: "bg-blue-500",
   violet: "bg-violet-500",
   pink: "bg-pink-500",
+};
+
+/** Folder icon tints, so folders read at a glance even in the icon rail. */
+export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
+  gray: "text-zinc-500 fill-zinc-500/15",
+  red: "text-red-500 fill-red-500/15",
+  orange: "text-orange-500 fill-orange-500/15",
+  amber: "text-amber-500 fill-amber-500/15",
+  green: "text-emerald-500 fill-emerald-500/15",
+  teal: "text-teal-500 fill-teal-500/15",
+  blue: "text-blue-500 fill-blue-500/15",
+  violet: "text-violet-500 fill-violet-500/15",
+  pink: "text-pink-500 fill-pink-500/15",
 };
 
 export const FOLDER_COLOR_LABELS: Record<FolderColor, string> = {
@@ -111,4 +139,84 @@ export const folderErrorMessage = (error: unknown, fallback: string) => {
     }
   }
   return fallback;
+};
+
+/** What the screen shows besides the search box, for saving it. */
+export interface SmartFolderSearchContext {
+  /** The folder being viewed. */
+  folder?: Pick<FolderSummary, "kind" | "name" | "query"> | null;
+  /** The sidebar tag (`?tag=`). */
+  tag?: string;
+  /** The search box's chips and text, as the server reads them. */
+  terms: string;
+  types?: readonly CardType[];
+  view?: "all" | "favorites" | "archive" | "trash";
+}
+
+/**
+ * The search a smart folder would save for what is on screen: the words
+ * and chips, the card types, the sidebar tag, the Favorites or Archive
+ * view, and the folder being viewed (a manual one as `folder:`, a smart
+ * one's own search). Null when there is nothing to save: Trash, an empty
+ * search, or a smart folder with nothing added to its search.
+ */
+export const buildSmartFolderQuery = ({
+  folder,
+  tag,
+  terms,
+  types = [],
+  view = "all",
+}: SmartFolderSearchContext): string | null => {
+  if (view === "trash") {
+    return null;
+  }
+  // Where the search runs first (folder, view), then what narrows it.
+  const extra = [
+    ...(folder && folder.kind !== "smart"
+      ? [formatSearchQualifier({ key: "folder", value: folder.name })]
+      : []),
+    ...(view === "favorites" ? ["is:fav"] : []),
+    ...(view === "archive" ? ["is:archived"] : []),
+    ...types.map((type) => formatSearchQualifier({ key: "type", value: type })),
+    ...(tag ? [formatSearchQualifier({ key: "tag", value: tag })] : []),
+    terms,
+  ].join(" ");
+  if (folder?.kind === "smart") {
+    const added = parseSearchQuery(extra).canonical;
+    if (!added) {
+      return null;
+    }
+    return combineSearchQueries(folder.query ?? "", extra);
+  }
+  return parseSearchQuery(extra).canonical || null;
+};
+
+const capitalize = (text: string) =>
+  text ? `${text[0]?.toUpperCase() ?? ""}${text.slice(1)}` : text;
+
+/**
+ * A readable name for a smart folder from its search, such as
+ * "Design · Links · github.com" for `tag:design type:link site:github.com`,
+ * clipped to the name limit.
+ */
+export const suggestSmartFolderName = (query: string): string => {
+  const parsed = parseSearchQuery(query);
+  const parts = [
+    ...parsed.qualifiers.map((qualifier) => {
+      switch (qualifier.key) {
+        case "type":
+          return `${CARD_TYPE_LABELS[qualifier.value]}s`;
+        case "site":
+          return hostForDisplay(qualifier.value);
+        case "is":
+          return qualifier.value === "fav" ? "Favorites" : "Archived";
+        default:
+          return qualifier.value;
+      }
+    }),
+    ...parsed.phrases.map((phrase) => `“${phrase}”`),
+    ...(parsed.terms.length > 0 ? [parsed.terms.join(" ")] : []),
+  ];
+  const name = capitalize(parts.join(" · ").trim());
+  return Array.from(name).slice(0, MAX_FOLDER_NAME_LENGTH).join("");
 };

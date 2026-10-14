@@ -16,6 +16,7 @@ interface CardsScreenAdapterProps {
   onAddCardsToFolder?: (folderId: string) => void;
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onNavigateView?: (view: LibraryView) => void;
+  onOpenFolder?: (folderId: string) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
     change: SearchUrlChange
@@ -42,6 +43,7 @@ export function CardsScreenAdapter({
   replaceCardId,
   headerLeading,
   onNavigateView,
+  onOpenFolder,
   searchUrlState,
   onSearchUrlStateChange,
   toastIdPrefix,
@@ -66,6 +68,7 @@ export function CardsScreenAdapter({
       onCloseCard={closeCard}
       onNavigateView={onNavigateView}
       onOpenCard={openCard}
+      onOpenFolder={onOpenFolder}
       onSearchUrlStateChange={onSearchUrlStateChange}
       onUpgrade={onUpgrade}
       searchUrlState={searchUrlState}

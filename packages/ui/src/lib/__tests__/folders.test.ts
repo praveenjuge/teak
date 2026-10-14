@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  buildSmartFolderQuery,
   decodeFolderSegment,
   type FolderSummary,
   filterFolders,
   folderIdForPath,
   folderPath,
   hasFolderNamed,
+  manualFolders,
+  suggestSmartFolderName,
 } from "../folders";
 
 const folder = (id: string, name: string): FolderSummary => ({
@@ -69,5 +72,72 @@ describe("decodeFolderSegment", () => {
   test("decodes escapes and keeps a mangled one as typed", () => {
     expect(decodeFolderSegment("a%20b")).toBe("a b");
     expect(decodeFolderSegment("%E0")).toBe("%E0");
+  });
+});
+
+describe("smart folder searches", () => {
+  test("save the chips, types, tag and view on screen", () => {
+    expect(
+      buildSmartFolderQuery({
+        terms: "#design notes",
+        types: ["link"],
+        tag: "UI",
+        view: "favorites",
+      })
+    ).toBe("is:fav type:link tag:ui tag:design notes");
+    expect(buildSmartFolderQuery({ terms: "", view: "archive" })).toBe(
+      "is:archived"
+    );
+  });
+
+  test("a manual folder is saved as folder:, a smart one's search joins in", () => {
+    expect(
+      buildSmartFolderQuery({
+        terms: "type:link",
+        folder: { kind: "manual", name: "Reading list" },
+      })
+    ).toBe('folder:"Reading list" type:link');
+    expect(
+      buildSmartFolderQuery({
+        terms: "type:link",
+        folder: { kind: "smart", name: "Design", query: "tag:design" },
+      })
+    ).toBe("tag:design type:link");
+  });
+
+  test("nothing to save: Trash, an empty search, an unchanged smart folder", () => {
+    expect(buildSmartFolderQuery({ terms: "notes", view: "trash" })).toBeNull();
+    expect(buildSmartFolderQuery({ terms: "  " })).toBeNull();
+    expect(
+      buildSmartFolderQuery({
+        terms: "",
+        folder: { kind: "smart", name: "Design", query: "tag:design" },
+      })
+    ).toBeNull();
+    expect(
+      buildSmartFolderQuery({
+        terms: "type:image",
+        folder: { kind: "smart", name: "Links", query: "type:link" },
+      })
+    ).toBeNull();
+  });
+
+  test("a name reads like the search", () => {
+    expect(
+      suggestSmartFolderName('tag:design type:link site:github.com "a b" x')
+    ).toBe("Design · Links · github.com · “a b” · x");
+    expect(suggestSmartFolderName("is:fav")).toBe("Favorites");
+    expect(Array.from(suggestSmartFolderName("a".repeat(400)))).toHaveLength(
+      300
+    );
+  });
+
+  test("manualFolders leaves out smart folders", () => {
+    expect(
+      manualFolders([
+        { kind: "manual", name: "A" },
+        { kind: "smart", name: "B" },
+      ])
+    ).toEqual([{ kind: "manual", name: "A" }]);
   });
 });
