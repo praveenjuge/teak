@@ -22,6 +22,7 @@ import {
   buildCardListQuery,
   buildFolderCardListQuery,
   buildHostCardListQuery,
+  buildTagCardListQuery,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -994,15 +995,17 @@ const decodeShuffleCursor = (
 // After the anchor in seeded order: by rank, then by id.
 const isAfterShuffleAnchor = (
   seed: number,
-  card: Doc<"cards">,
+  id: string,
   anchor: { rank: number; id: string }
 ) => {
-  const rank = shuffleRank(seed, card._id);
-  return rank > anchor.rank || (rank === anchor.rank && card._id > anchor.id);
+  const rank = shuffleRank(seed, id);
+  return rank > anchor.rank || (rank === anchor.rank && id > anchor.id);
 };
 
-/** Folder rows a shuffled folder listing puts in order (the newest). */
-const SHUFFLE_FOLDER_ROWS = 2000;
+/** Tag or folder rows a shuffled listing puts in order (the newest). */
+const SHUFFLE_SET_ROWS = 2000;
+/** Cards one shuffled tag or folder page loads at most. */
+const SHUFFLE_SET_LOADS = MAX_QUERY_SCAN;
 /** Rows one shuffled library page reads at most. */
 const SHUFFLE_WALK_SCAN = MAX_QUERY_SCAN;
 
@@ -1086,7 +1089,9 @@ export const shuffleCardsPageForUser = internalQuery({
       const ordered = shuffleBySeed(cards, seed, (card) => card._id);
       const remaining =
         cursor.mode === "after"
-          ? ordered.filter((card) => isAfterShuffleAnchor(seed, card, cursor))
+          ? ordered.filter((card) =>
+              isAfterShuffleAnchor(seed, card._id, cursor)
+            )
           : ordered;
       const items = remaining.slice(0, limit);
       const last = items[items.length - 1];
@@ -1098,39 +1103,78 @@ export const shuffleCardsPageForUser = internalQuery({
       );
     };
 
+    // A tag's or folder's rows: their card ids in the seed's order, loading
+    // only the cards a page needs (at most SHUFFLE_SET_LOADS, so a page can
+    // come back short). The cursor resumes after the last card examined.
+    const idSetPage = async (cardIds: readonly Id<"cards">[]) => {
+      if (cursor.mode === "walk") {
+        throw invalidCursorError();
+      }
+      const ordered = shuffleBySeed([...new Set(cardIds)], seed, (id) => id);
+      const remaining =
+        cursor.mode === "after"
+          ? ordered.filter((id) => isAfterShuffleAnchor(seed, id, cursor))
+          : ordered;
+      const items: Doc<"cards">[] = [];
+      let examined = 0;
+      while (
+        examined < remaining.length &&
+        items.length < limit &&
+        examined < SHUFFLE_SET_LOADS
+      ) {
+        const card = await ctx.db.get("cards", remaining[examined]);
+        examined += 1;
+        if (
+          card &&
+          card.userId === userId &&
+          matchesStructuredFilters(card, options)
+        ) {
+          items.push(card);
+        }
+      }
+      const lastId = remaining[examined - 1];
+      return respond(
+        items,
+        examined < remaining.length && lastId
+          ? { mode: "after", rank: shuffleRank(seed, lastId), id: lastId }
+          : null
+      );
+    };
+    const createdAt = {
+      gte: options.createdAfter,
+      lte: options.createdBefore,
+    };
+    const types = options.type ? [options.type] : options.types;
+
     if (options.searchQuery) {
       return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
     }
-    if (options.tag) {
-      return setPage(
-        (
-          await searchCardsByTag(
-            ctx,
-            userId,
-            options,
-            MAX_QUERY_SCAN,
-            undefined
-          )
-        ).cards
-      );
+    const tag = normalizeTag(options.tag);
+    if (tag) {
+      const rows = await buildTagCardListQuery(ctx, {
+        userId,
+        tag,
+        trash: options.showTrashOnly,
+        archived: options.archived,
+        types,
+        favoritesOnly: options.favorited === true,
+        createdAt,
+      })
+        .order("desc")
+        .take(SHUFFLE_SET_ROWS);
+      return idSetPage(rows.map((row) => row.cardId));
     }
     if (options.folderId) {
       const rows = await buildFolderCardListQuery(ctx, {
         folderId: options.folderId,
         trash: options.showTrashOnly,
         archived: options.archived,
-        types: options.type ? [options.type] : options.types,
+        types,
+        createdAt,
       })
         .order("desc")
-        .take(SHUFFLE_FOLDER_ROWS);
-      const cards: Doc<"cards">[] = [];
-      for (const row of rows) {
-        const card = await ctx.db.get("cards", row.cardId);
-        if (card && matchesStructuredFilters(card, options)) {
-          cards.push(card);
-        }
-      }
-      return setPage(cards);
+        .take(SHUFFLE_SET_ROWS);
+      return idSetPage(rows.map((row) => row.cardId));
     }
 
     // The library: walk it by each card's random key.

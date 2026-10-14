@@ -315,6 +315,23 @@ describe("GET /v1/cards?sort=shuffle", () => {
     expect(order).toHaveLength(matches.length);
   });
 
+  test("a tag with more than a search's 400 matches is read in full", async () => {
+    const { t, insert, runScheduled } = await setup();
+    const tagged = new Set<string>();
+    for (let index = 0; index < 450; index += 1) {
+      tagged.add(await insert({ tags: ["Deep"], shuffleKey: 0.5 }));
+    }
+    await insert({ tags: ["deep"], isDeleted: true });
+    await insert({ tags: ["other"] });
+    await runScheduled();
+    const order = await readApi(t, { shuffleSeed: 11, tag: "deep" }, 100);
+    expect(order).toHaveLength(tagged.size);
+    expect(new Set(order)).toEqual(tagged);
+    expect(await readApi(t, { shuffleSeed: 11, tag: "deep" }, 100)).toEqual(
+      order
+    );
+  }, 60_000);
+
   test("a cursor only works with its own seed", async () => {
     const { t, insert } = await setup();
     await seedLibrary(insert, 10);
