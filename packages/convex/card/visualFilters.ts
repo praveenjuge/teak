@@ -1,4 +1,6 @@
 import type { Doc } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
+import type { CardType } from "../schema";
 import type { CreatedAtRange } from "../shared";
 import {
   type ColorHueBucket,
@@ -12,7 +14,7 @@ import {
   compareCardsByCreatedAt,
 } from "../shared/search/sort";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
-import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
+import { type ArchivedFilter, buildCardListQuery } from "./listQuery";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -137,44 +139,46 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-const buildVisualSearchFilter =
-  (options: {
-    userId: string;
-    showTrashOnly?: boolean;
-    archived?: ArchivedFilter;
-    types?: string[];
-    favoritesOnly?: boolean;
-  }) =>
-  (q: any) => {
-    let search = q
-      .eq("userId", options.userId)
-      .eq("isDeleted", options.showTrashOnly ? true : undefined);
-    const archived = archivedFilterMatch(
-      options.archived,
-      options.showTrashOnly
-    );
-    if (archived !== "any") {
-      search = search.eq("isArchived", archived);
-    }
+/** Only images carry styles; images and palettes carry colors. */
+const VISUAL_STYLE_TYPES: readonly CardType[] = ["image"];
+const VISUAL_COLOR_TYPES: readonly CardType[] = ["image", "palette"];
 
-    if (options.types?.length === 1) {
-      search = search.eq("type", options.types[0]);
-    }
+/**
+ * The card types that can match the visual filters, within the requested
+ * types: undefined when any type can, an empty list when none can.
+ */
+export const visualFilterTypes = (
+  types: readonly CardType[] | undefined,
+  visualFilters: VisualFilterState
+): readonly CardType[] | undefined => {
+  if (!visualFilters.hasVisualFilters) {
+    return types;
+  }
+  const visualTypes = visualFilters.styleFilters?.length
+    ? VISUAL_STYLE_TYPES
+    : VISUAL_COLOR_TYPES;
+  return types?.length
+    ? visualTypes.filter((type) => types.includes(type))
+    : visualTypes;
+};
 
-    if (options.favoritesOnly) {
-      search = search.eq("isFavorited", true);
-    }
+/** How many cards of each type one color or style search reads at most. */
+export const VISUAL_SCAN_LIMIT = 1000;
 
-    return search;
-  };
-
-export const runVisualFacetQueries = async (
-  ctx: any,
+/**
+ * The newest (or oldest) cards matching color or style filters. Colors and
+ * styles are stored as arrays, which Convex search indexes don't cover, so
+ * this reads each type that can match (images, palettes) in date order and
+ * keeps the matches: up to `limit` of them, within VISUAL_SCAN_LIMIT cards
+ * of each type.
+ */
+export const findVisualMatches = async (
+  ctx: QueryCtx,
   options: {
     userId: string;
     showTrashOnly?: boolean;
     archived?: ArchivedFilter;
-    types?: string[];
+    types?: CardType[];
     favoritesOnly?: boolean;
     createdAtRange?: CreatedAtRange;
     visualFilters: VisualFilterState;
@@ -185,52 +189,39 @@ export const runVisualFacetQueries = async (
   if (!options.visualFilters.hasVisualFilters) {
     return [];
   }
-
-  const applySearchFilters = buildVisualSearchFilter(options);
-  const queryRunners: Promise<Doc<"cards">[]>[] = [];
-
-  for (const style of options.visualFilters.styleFilters ?? []) {
-    queryRunners.push(
-      ctx.db
-        .query("cards")
-        .withSearchIndex("search_visual_styles", (q: any) =>
-          applySearchFilters(q).search("visualStyles", style)
-        )
-        .take(options.limit)
-    );
-  }
-
-  for (const hue of options.visualFilters.hueFilters ?? []) {
-    queryRunners.push(
-      ctx.db
-        .query("cards")
-        .withSearchIndex("search_color_hues", (q: any) =>
-          applySearchFilters(q).search("colorHues", hue)
-        )
-        .take(options.limit)
-    );
-  }
-
-  for (const hex of options.visualFilters.hexFilters ?? []) {
-    queryRunners.push(
-      ctx.db
-        .query("cards")
-        .withSearchIndex("search_color_hexes", (q: any) =>
-          applySearchFilters(q).search("colorHexes", hex)
-        )
-        .take(options.limit)
-    );
-  }
-
-  const rawResults = (await Promise.all(queryRunners)).flat();
-  const deduped = Array.from(
-    new Map(rawResults.map((card) => [card._id, card])).values()
+  const sort = options.sort ?? "newest";
+  const types = visualFilterTypes(options.types, options.visualFilters) ?? [];
+  const perType = await Promise.all(
+    types.map(async (type) => {
+      const cards = buildCardListQuery(ctx, {
+        userId: options.userId,
+        trash: options.showTrashOnly,
+        archived: options.archived,
+        favoritesOnly: options.favoritesOnly,
+        types: [type],
+        createdAt: options.createdAtRange
+          ? {
+              gte: options.createdAtRange.start,
+              lt: options.createdAtRange.end,
+            }
+          : undefined,
+      }).order(sort === "oldest" ? "asc" : "desc");
+      const matches: Doc<"cards">[] = [];
+      let read = 0;
+      for await (const card of cards) {
+        read += 1;
+        if (doesCardMatchVisualFilters(card, options.visualFilters)) {
+          matches.push(card);
+        }
+        if (matches.length >= options.limit || read >= VISUAL_SCAN_LIMIT) {
+          break;
+        }
+      }
+      return matches;
+    })
   );
-
-  return applyCardLevelFilters(deduped, {
-    types: options.types,
-    favoritesOnly: options.favoritesOnly,
-    createdAtRange: options.createdAtRange,
-    visualFilters: options.visualFilters,
-  }).sort((a, b) => compareCardsByCreatedAt(a, b, options.sort ?? "newest"));
+  return perType
+    .flat()
+    .sort((a, b) => compareCardsByCreatedAt(a, b, sort))
+    .slice(0, options.limit);
 };

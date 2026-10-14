@@ -702,40 +702,12 @@ export default defineSchema({
       "createdAt",
     ])
     .index("by_updated", ["userId", "updatedAt"])
+    // No search index covers colors or styles: they are arrays, which
+    // search indexes skip, so color and style searches read the library in
+    // date order (card/visualFilters.ts). Text search uses
+    // cardSearchDocuments.
     // Index for duplicate URL checking
-    .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
-    // Visual-search indexes remain card-native; general text search uses
-    // cardSearchDocuments.search_searchableText below.
-    .searchIndex("search_visual_styles", {
-      searchField: "visualStyles",
-      filterFields: [
-        "userId",
-        "isDeleted",
-        "isArchived",
-        "type",
-        "isFavorited",
-      ],
-    })
-    .searchIndex("search_color_hexes", {
-      searchField: "colorHexes",
-      filterFields: [
-        "userId",
-        "isDeleted",
-        "isArchived",
-        "type",
-        "isFavorited",
-      ],
-    })
-    .searchIndex("search_color_hues", {
-      searchField: "colorHues",
-      filterFields: [
-        "userId",
-        "isDeleted",
-        "isArchived",
-        "type",
-        "isFavorited",
-      ],
-    }),
+    .index("by_user_url_deleted", ["userId", "url", "isDeleted"]),
   // A new account's getting-started cards on their way (card/defaultCards.ts).
   // Set when the account is created and cleared in the transaction that
   // inserts the cards, so clients show "Setting up your vault", not an empty

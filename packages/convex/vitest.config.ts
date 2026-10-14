@@ -50,6 +50,7 @@ export default defineConfig({
       "./billingCheckout.test.ts",
       "./cardListOrdering.test.ts",
       "./folders.test.ts",
+      "./colorSearch.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
       "./onboarding.test.ts",
