@@ -121,9 +121,7 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const blocks = await getBlockEditor(dialog);
     await blocks.click();
     await blocks.press("ControlOrMeta+a");
-    await expect(
-      dialog.getByRole("button", "Save changes", { exact: false })
-    ).toHaveCount(0);
+    await expect(dialog.getByText("Unsaved changes")).toHaveCount(0);
     await browser.keyboard.press("Escape");
     expect(await library.read(id)).toBe(stored);
   });
@@ -138,7 +136,7 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const blocks = await getBlockEditor(dialog);
     await goToEnd(browser, DIALOG_EDITOR);
     await blocks.pressSequentially(" edited");
-    await dialog.getByRole("button", "Save changes", { exact: false }).click();
+    await blocks.press("ControlOrMeta+Enter");
     await expect.poll(() => library.read(id)).toBe(`${original} edited`);
   });
 
@@ -152,9 +150,10 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const dialog = await library.open(id);
     const input = await getBlockEditor(dialog);
     await expect(input).toHaveText(source);
+    // The side panel's Notes field is a textarea; the note itself has none.
     await expect(
       browser.locator(
-        '[role="dialog"] textarea, [role="dialog"] img, [role="dialog"] script'
+        '[role="dialog"] main textarea, [role="dialog"] img, [role="dialog"] script'
       )
     ).toHaveCount(0);
     await expect(
@@ -298,7 +297,8 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const id = await library.create("# Tasks\n\n- [ ] Pending");
     const dialog = await library.open(id);
     await dialog.getByRole("checkbox").check();
-    await dialog.getByRole("button", "Save changes", { exact: false }).click();
+    // Edits save themselves once typing pauses.
+    await expect(dialog.getByText("Saved")).toBeVisible();
     await expect.poll(() => library.read(id)).toContain("- [x] Pending");
   });
 
@@ -424,16 +424,14 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const dialog = await library.open(id);
     const blocks = await getBlockEditor(dialog);
     await blocks.fill(`${original} edited`);
-    await dialog.getByRole("button", "Save changes", { exact: false }).click();
+    // The autosave fails; the dialog says so and keeps the draft.
     await expect
       .poll(async () => (await readSocketState(browser)).failed)
       .toBe(true);
-    await expect(
-      dialog.getByRole("button", "Save changes", { exact: false })
-    ).toBeVisible();
+    await expect(dialog.getByText("Couldn't save")).toBeVisible();
     expect(await library.read(id)).toBe(original);
     await expect(blocks).toHaveText(`${original} edited`);
-    await dialog.getByRole("button", "Save changes", { exact: false }).click();
+    await blocks.press("ControlOrMeta+Enter");
     await expect.poll(() => library.read(id)).toBe(`${original} edited`);
   });
 
@@ -518,7 +516,7 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const editor = await getBlockEditor(dialog);
     await goToEnd(browser, DIALOG_EDITOR);
     await editor.press("Enter");
-    await dialog.getByRole("button", "Save changes", { exact: false }).click();
+    await editor.press("ControlOrMeta+Enter");
     await expect.poll(() => library.read(id)).toBe(`${original}\n\n`);
   });
 

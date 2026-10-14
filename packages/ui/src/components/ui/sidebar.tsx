@@ -699,7 +699,7 @@ function SidebarGroupLabel({
   return (
     <Comp
       className={cn(
-        "flex h-6 shrink-0 items-center rounded-md px-[9px] font-medium text-[11px] text-sidebar-foreground/50 outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-150 ease-out focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
+        "flex h-6 shrink-0 items-center rounded-md px-[9px] font-medium text-[11px] text-sidebar-foreground/60 outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-150 ease-out focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
         "group-data-[collapsible=icon]:-mt-6 group-data-[collapsible=icon]:opacity-0",
         className
       )}

@@ -129,7 +129,9 @@ test("the library works from the keyboard", async ({
   await press("?");
   const shortcuts = screen.getByRole("dialog", "Keyboard shortcuts");
   await expect(shortcuts).toBeVisible();
-  await expect(shortcuts.getByText("Move to Trash")).toBeVisible();
+  await expect(
+    shortcuts.getByRole("region", "Cards").getByText("Move to Trash")
+  ).toBeVisible();
   await press("g");
   await press("f");
   await expect.poll(() => pathOf(browser.url())).toBe("/favorites");

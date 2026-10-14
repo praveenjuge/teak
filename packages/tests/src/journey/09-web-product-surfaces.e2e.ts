@@ -152,7 +152,7 @@ https://example.com/editor
       "href",
       "https://example.com/edited"
     );
-    await screen.getByRole("button", "Save changes", { exact: false }).click();
+    await editor.press("ControlOrMeta+Enter");
     await expect(editor).toContainText("updated");
     await expect(browser).toHaveURL(/[?&]card=[^&]+/);
     const deepLink = await browser.url();
@@ -194,9 +194,14 @@ https://example.com/editor
       source: "e2e",
       url: "https://example.com",
     });
-    await searchForVisibleCard(surface, marker, `${marker} link`);
-    // Without a Files Worker there is no screenshot, so the card keeps
-    // showing its text; the fetched page title still lands on the card.
+    // A link card shows its page's title, or its address until the title
+    // arrives. Without a Files Worker there is no screenshot, but the
+    // fetched page title still lands on the card.
+    await searchForVisibleCard(
+      surface,
+      marker,
+      /^(?:example\.com|Example Domain)$/
+    );
     await expect
       .poll(async () => (await api.cards.get(link.cardId)).metadataTitle, {
         timeout: 90_000,
@@ -245,26 +250,23 @@ https://example.com/editor
       `${marker} restore-me`
     );
     await screen.getByText(`${marker} restore-me`, { exact: false }).click();
-    await screen.getByRole("button", "Favorite", { exact: false }).click();
-    await screen.getByRole("button", "Manage Tags", { exact: false }).click();
-    const tagsDialog = screen.getByRole("dialog", "Manage Tags", {
-      exact: false,
-    });
-    await expect(tagsDialog).toBeVisible();
-    await tagsDialog
-      .getByLabel("Add New Tag", { exact: false })
-      .fill(`${marker}-tag`);
-    await tagsDialog.getByRole("button", "Add tag", { exact: false }).click();
+    const dialog = screen.getByRole("dialog");
+    await dialog.getByRole("button", "Favorite").click();
+    // Tags are added in the dialog's side panel.
+    const tagInput = dialog.getByRole("textbox", "Add a tag");
+    await tagInput.fill(`${marker}-tag`);
+    await tagInput.press("Enter");
     await expect(
-      tagsDialog.getByText(`${marker}-tag`, { exact: false })
+      dialog.getByRole("button", `Remove tag ${marker}-tag`)
     ).toBeVisible();
-    await browser.keyboard.press("Escape");
-    await screen.getByRole("button", "Delete", { exact: false }).click();
-    await expect(screen.getByRole("dialog")).not.toBeVisible();
+    await dialog.getByRole("button", "More actions").click();
+    await screen.getByRole("menuitem", "Delete").click();
+    await expect(dialog).not.toBeVisible();
     await showTrash(surface);
     await screen.getByText(`${marker} restore-me`, { exact: false }).click();
-    await screen.getByRole("dialog").getByRole("button", "Restore").click();
-    await expect(screen.getByRole("dialog")).not.toBeVisible();
+    await dialog.getByRole("button", "More actions").click();
+    await screen.getByRole("menuitem", "Restore").click();
+    await expect(dialog).not.toBeVisible();
     await searchForVisibleCard(
       surface,
       `${marker} restore-me`,
