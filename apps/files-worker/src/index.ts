@@ -24,6 +24,7 @@ import {
   verifySignedFileRequest,
 } from "./lib";
 import { handleInternalOp } from "./ops";
+import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
@@ -342,7 +343,13 @@ const handler = {
     if (!bindings.OBJECT_GATES) {
       return json({ error: "object_gate_not_configured" }, 503);
     }
-    const env = { ...bindings, BUCKET: gatedBucket(bindings) };
+    const env = {
+      ...bindings,
+      BUCKET: gatedBucket({
+        ...bindings,
+        BUCKET: retryingReads(bindings.BUCKET),
+      }),
+    };
 
     if (url.pathname === "/__ops/v1") {
       if (requestMethod !== "POST") {
