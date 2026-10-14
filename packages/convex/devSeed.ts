@@ -889,7 +889,8 @@ const smartFoldersPack = (): FolderScenarioPack => {
         query: 'folder:"Reading list" is:fav',
       },
       { name: "Design links", color: "violet", query: "tag:design type:link" },
-      { name: "🎨 Moodboard ✨", color: "orange", query: "#design 🎨" },
+      // An emoji tag, not an emoji word: full-text search skips emoji.
+      { name: "🎨 Moodboard ✨", color: "orange", query: "#design tag:🎨" },
       { name: "مجلد ذكي للتصميم", color: "teal", query: '"تصميم"' },
       { name: "Five hundred characters", query: smartFolderLongQuery() },
     ],
@@ -915,7 +916,13 @@ const smartFoldersPack = (): FolderScenarioPack => {
         [],
         tagged()
       ),
-      folderScenarioCard(scenario, 6, "🎨 Palette ideas", [], tagged("design")),
+      folderScenarioCard(
+        scenario,
+        6,
+        "🎨 Palette ideas",
+        [],
+        tagged("design", "🎨")
+      ),
       folderScenarioCard(
         scenario,
         7,

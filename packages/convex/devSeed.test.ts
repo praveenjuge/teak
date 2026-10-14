@@ -604,7 +604,7 @@ describe("devSeed folder packs", () => {
     const byName = new Map(folders.map((folder) => [folder.name, folder]));
     expect(byName.get("Reading list")?.kind).toBe("manual");
     expect(byName.get("Design links")?.query).toBe("tag:design type:link");
-    expect(byName.get("🎨 Moodboard ✨")?.query).toBe("tag:design 🎨");
+    expect(byName.get("🎨 Moodboard ✨")?.query).toBe("tag:design tag:🎨");
     expect(byName.get("Favorite reading")?.query).toBe(
       'folder:"Reading list" is:fav'
     );
