@@ -56,9 +56,9 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 - `schema.ts`: `cards.thumbnailOverride: v.optional(v.object({ storageKey: r2KeyValidator, width: v.number(), height: v.number(), updatedAt: v.number() }))`.
 - `card/thumbnailOverride.ts`:
-  - `createThumbnailUploadUrl({ cardId })`: owner, link type and not trashed. It uses role `thumbnail-override-pending` and checks no card quota.
+  - `createThumbnailUploadUrl({ cardId })`: owner, link type and not trashed. It checks no card quota. The pending key goes in the swept pending namespace, not under the card: `buildR2ObjectKey({ cardId: PENDING_UPLOAD_CARD_ID, role: "thumbnail-override-pending", fileName: "card-" + cardId })`. A replacement abandoned after upload (reload, offline, closed tab, or a failed `setLinkThumbnail`) is then deleted by the existing 24-hour `cleanup-stale-pending-uploads` sweep (`storage/pendingUploadCleanup.ts`, `apps/files-worker/src/ops.ts`), which only looks under `/cards/upload-pending-v2/`.
   - `setLinkThumbnail({ cardId, fileKey })` (action):
-    - It checks that `fileKey` is in the caller's namespace and is a pending key for this card.
+    - It checks that `fileKey` is in the caller's namespace, sits under `upload-pending-v2/thumbnail-override-pending/`, and ends in `-card-<cardId>`, so a pending key for another card is refused.
     - It runs `finalize-image-upload` to `buildR2ObjectKey({ role: "thumbnail-override" })`.
     - An internal mutation then patches the card (`patchCardWithSearchSync`), moves the previous replacement into `previousThumbnailOverride`, and schedules its deletion after the undo window.
     - `undoThumbnailChange({ cardId, changeId })` works only when `changeId` equals the card's current `thumbnailChangeId` and `deleteAfter` is in the future. Otherwise it returns `UNDO_EXPIRED`. That covers an expired window and a stale toast from an earlier replace (A→B→C: the A→B toast can no longer restore B). When it works, it restores `previousThumbnailOverride.override` as the card's `thumbnailOverride`, including width and height. A `null` override resets the card to its original image, so undoing a first replace works. It also cancels that key's scheduled deletion and schedules the newer key's deletion instead.
@@ -119,7 +119,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
   - replace twice quickly
   - reset during an upload
   - paste while typing a note (ignored)
-  - reload mid-upload
+  - reload mid-upload, and reload after the bytes are uploaded but before `setLinkThumbnail` (the pending object is left in `upload-pending-v2` and the sweep deletes it after 24 hours)
   - two tabs replacing the same card
   - offline mid-upload
   - keyboard only
@@ -136,7 +136,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 ## Tests
 
-- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key survives until the undo window closes and is deleted after it, undo restores the previous override with its own width and height (a portrait A replaced by a landscape B comes back portrait) and cancels its deletion, undo of a first replace resets to the original image, a stale toast after A→B→C returns `UNDO_EXPIRED` and leaves C in place, undo after the window returns `UNDO_EXPIRED`, a double replace inside the window deletes only the right objects, reset, rate limit (Files Worker mocked).
+- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key survives until the undo window closes and is deleted after it, undo restores the previous override with its own width and height (a portrait A replaced by a landscape B comes back portrait) and cancels its deletion, undo of a first replace resets to the original image, a stale toast after A→B→C returns `UNDO_EXPIRED` and leaves C in place, undo after the window returns `UNDO_EXPIRED`, a double replace inside the window deletes only the right objects, reset, rate limit, the pending key lands under `upload-pending-v2` and a pending key for another card is refused (Files Worker mocked).
 - `packages/convex/__tests__/storage/r2.test.ts`: `cardStorageObjectKeys` includes the replacement key.
 - `packages/convex/__tests__/card/queryUtils.test.ts` and `mobileCardSummaries.test.ts`: URL and aspect-ratio precedence.
 - `packages/convex/__tests__/linkMetadata.test.ts`: `updateCardMetadata` keeps `thumbnailOverride`.
