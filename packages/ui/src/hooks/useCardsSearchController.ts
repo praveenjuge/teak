@@ -18,6 +18,7 @@ import type {
 } from "@teak/convex/shared/constants";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { SearchBarProps } from "../components/search";
 import {
   type LibraryView,
@@ -525,6 +526,27 @@ export function useCardsSearchController(
     );
     return () => clearTimeout(timeout);
   }, [isSearchQueryEmpty, searchState.searchQuery]);
+
+  // A click (a link, a card, a sidebar view) ends the typing, so apply the
+  // text before the click's own handlers run. Mirrored into the URL after a
+  // navigation has started, it would cancel that navigation.
+  useEffect(() => {
+    if (
+      isSearchQueryEmpty ||
+      debouncedSearchQuery === searchState.searchQuery
+    ) {
+      return;
+    }
+    const applyTypedSearch = () => {
+      flushSync(() => setDebouncedSearchQuery(searchState.searchQuery));
+    };
+    document.addEventListener("click", applyTypedSearch, { capture: true });
+    return () => {
+      document.removeEventListener("click", applyTypedSearch, {
+        capture: true,
+      });
+    };
+  }, [debouncedSearchQuery, isSearchQueryEmpty, searchState.searchQuery]);
 
   // Clearing the input (or turning it into a chip on Enter) applies at once.
   const remoteSearchQuery = isSearchQueryEmpty

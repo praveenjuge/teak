@@ -99,6 +99,19 @@ test("the URL follows typing only once it pauses", async () => {
   expect(controller.urlState.q).toBe("des");
 });
 
+test("a click applies typed text before the click's own handlers", async () => {
+  await mount();
+  await act(() => controller.searchBarProps.onSearchChange("des"));
+  const link = document.createElement("a");
+  document.body.append(link);
+  let qWhenClicked: string | undefined;
+  link.addEventListener("click", () => {
+    qWhenClicked = controller.urlState.q;
+  });
+  await act(() => link.click());
+  expect(qWhenClicked).toBe("des");
+});
+
 test("oldest first reorders local results and the query", async () => {
   await mount();
   await act(() =>
