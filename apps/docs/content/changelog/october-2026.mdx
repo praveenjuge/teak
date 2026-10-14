@@ -16,7 +16,7 @@ changelog:
 
 ## Smart folders
 
-- On the web, save any search as a smart folder: search, open the sort menu at the end of the search box, and choose **Save as smart folder…**. It shows every card that matches, including cards you save later, so a `tag:design type:link` folder fills itself.
+- On the web, save any search as a smart folder: search, open the **View** menu at the end of the search box, and choose **Save as smart folder…**. It shows every card that matches, including cards you save later, so a `tag:design type:link` folder fills itself.
 - Smart folders sit with your folders and have a search icon. The search shows at the top of the folder with **Edit search**, and typing narrows it further. A smart folder can look inside a regular folder with `folder:`, and follows it if you rename it.
 - **API, CLI, and MCP:** create one with `POST /v1/folders` and `{ "kind": "smart", "query": "..." }`, change its search with `PATCH`, and `GET /v1/cards?folder=` lists what it matches. The CLI adds `teak folders create --query`, and the MCP folder tools take `kind` and `query`. See [Smart folders](/docs/features#smart-folders) and the [API guide](/docs/api#folders).
 
@@ -43,9 +43,10 @@ changelog:
 
 ## A sidebar for your library
 
-- On the web, a sidebar now holds **Everything**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark, share, and reach with Back and Forward.
-- Card types moved there too: pick one or more to narrow the open page, and the address bar keeps them for reloads and shared links.
-- **Upload files** and **Record audio** sit beside the Teak logo, and **Settings** sits right below **Trash**. Collapse the sidebar to icons and Teak remembers it; on a phone it opens as a drawer.
+- On the web, a compact sidebar holds **Everything**, **Favorites**, **Tags**, **Archive**, **Trash**, and **Settings**, each its own page you can bookmark, share, and reach with Back and Forward, with your folders below them.
+- A slim header on every page shows the page's name, a compact search box with your filters as pills inside it, and one **View** menu for card types, order, and saving a smart folder. It stays at the top as you scroll, and the address bar keeps your filters for reloads and shared links.
+- **+** beside the Teak logo starts a note or link, uploads files, or records audio. Drag a card onto a folder to add it, or name a new folder right in the list.
+- Drag the sidebar's edge to resize it. Collapse it to icons and rest the pointer on them to see it in full; Teak remembers the width and your choice. On a phone it opens as a drawer.
 - Typing `fav`, `archive`, or `trash` in search now opens that page. See [Sidebar](/docs/features#sidebar).
 
 ## Archive cards and act on many at once
@@ -56,7 +57,7 @@ changelog:
 
 ## Sort your library oldest first
 
-- On the web, the new sort button beside the search bar switches between **Newest first** and **Oldest first**.
+- On the web, the **View** menu beside the search bar switches between **Newest first** and **Oldest first**.
 - Cards are now ordered by the date you saved them everywhere, so imported bookmarks appear where they were first saved instead of at the top. This also applies to the API, CLI, MCP, Raycast, and the iPhone and Android apps.
 - Your search and sort stay in the address bar, so reloading, Back and Forward, and shared links keep the same view.
 - **API:** `GET /v1/cards?sort=` orders by `createdAt` on every listing. A `cursor` from before this update returns `400 INVALID_INPUT`; start again from the first page. See the [API guide](/docs/api).

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
@@ -38,13 +38,11 @@ const Link = ({
 
 async function renderSidebar(
   options: {
-    activeTypes?: ("link" | "image")[];
     activeView?: "all" | "favorites" | "archive" | "trash" | null;
     defaultOpen?: boolean;
     isSettingsActive?: boolean;
     isTagsActive?: boolean;
-  } = {},
-  onToggleType = mock()
+  } = {}
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -53,7 +51,6 @@ async function renderSidebar(
     root?.render(
       <SidebarProvider defaultOpen={options.defaultOpen ?? true}>
         <AppSidebar
-          activeTypes={options.activeTypes ?? []}
           activeView={
             options.activeView === undefined ? "all" : options.activeView
           }
@@ -61,12 +58,10 @@ async function renderSidebar(
           isSettingsActive={options.isSettingsActive}
           isTagsActive={options.isTagsActive}
           LinkComponent={Link}
-          onToggleType={onToggleType}
         />
       </SidebarProvider>
     )
   );
-  return onToggleType;
 }
 
 const link = (name: string) =>
@@ -74,10 +69,8 @@ const link = (name: string) =>
     (anchor) =>
       (anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()) === name
   );
-const button = (name: string) =>
-  [...document.querySelectorAll("button")].find(
-    (element) => element.textContent?.trim() === name
-  );
+const sidebarState = () =>
+  document.querySelector('[data-slot="sidebar"]')?.getAttribute("data-state");
 
 describe("AppSidebar", () => {
   test("marks only the open view as the current page", async () => {
@@ -113,12 +106,43 @@ describe("AppSidebar", () => {
     expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
-  test("shows picked card types as pressed and toggles them", async () => {
-    const onToggleType = await renderSidebar({ activeTypes: ["image"] });
-    expect(button("Image")?.getAttribute("aria-pressed")).toBe("true");
-    expect(button("Link")?.getAttribute("aria-pressed")).toBe("false");
-    await act(() => button("Link")?.click());
-    expect(onToggleType).toHaveBeenCalledWith("link");
+  test("lists every place before the folders, with no footer", async () => {
+    await renderSidebar();
+    const names = [...document.querySelectorAll("a")].map(
+      (anchor) =>
+        anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()
+    );
+    expect(names).toEqual([
+      "Teak home",
+      "Everything",
+      "Favorites",
+      "Tags",
+      "Archive",
+      "Trash",
+      "Settings",
+    ]);
+    // Folders come after the last place, Settings.
+    const order = [
+      ...document.querySelectorAll('a, [data-testid="folders"]'),
+    ].map(
+      (element) => element.getAttribute("data-testid") ?? element.textContent
+    );
+    expect(order.at(-1)).toBe("folders");
+    expect(document.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Types");
+  });
+
+  test("its edge expands the collapsed sidebar but never collapses it", async () => {
+    await renderSidebar({ defaultOpen: false });
+    const rail = () =>
+      document.querySelector<HTMLButtonElement>('[data-slot="sidebar-rail"]');
+    expect(rail()?.getAttribute("aria-label")).toBe("Expand sidebar");
+    await act(() => rail()?.click());
+    expect(sidebarState()).toBe("expanded");
+    // Expanded, the edge resizes; a click leaves it open.
+    expect(rail()?.getAttribute("aria-label")).toBe("Resize sidebar");
+    await act(() => rail()?.click());
+    expect(sidebarState()).toBe("expanded");
   });
 
   test("renders the folders slot", async () => {
@@ -143,6 +167,5 @@ describe("AppSidebar", () => {
       expect(link(name)).toBeDefined();
     }
     expect(link("Settings")).toBeDefined();
-    expect(button("Quote")).toBeDefined();
   });
 });

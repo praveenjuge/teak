@@ -35,7 +35,7 @@ test("signup, create, and search", { timeout: 180_000 }, async ({
     .toBe(true);
   const savedCard = screen.getByRole("main").getByText(marker).first();
   await expect(savedCard).toBeVisible();
-  const search = screen.getByPlaceholder("Search for anything...");
+  const search = screen.getByPlaceholder("Search everything");
   await search.fill(`${marker}-missing`);
   await expect(savedCard).toBeHidden();
   await expect(screen.getByText(/nothing found/i)).toBeVisible();

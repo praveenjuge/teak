@@ -96,16 +96,30 @@ export function focusNewNoteComposer(): boolean {
   return true;
 }
 
+// The sidebar's New menu keeps Upload files inside a closed menu, so it
+// registers what Upload files does instead of leaving a button to press.
+let uploadFilesHandler: (() => boolean) | null = null;
+
+/** Makes `U` run `handler` while no Upload files button is on the page. */
+export function registerUploadFiles(handler: () => boolean): () => void {
+  uploadFilesHandler = handler;
+  return () => {
+    if (uploadFilesHandler === handler) {
+      uploadFilesHandler = null;
+    }
+  };
+}
+
 /** Presses the Upload files button; false when there is none to press. */
 export function pressUploadFiles(): boolean {
   const button = Array.from(
     document.querySelectorAll<HTMLButtonElement>(`[${UPLOAD_FILES_ATTRIBUTE}]`)
   ).find((candidate) => visible(candidate) && !candidate.disabled);
-  if (!button) {
-    return false;
+  if (button) {
+    button.click();
+    return true;
   }
-  button.click();
-  return true;
+  return uploadFilesHandler?.() ?? false;
 }
 
 // `N` away from the composer opens Everything first; the composer then

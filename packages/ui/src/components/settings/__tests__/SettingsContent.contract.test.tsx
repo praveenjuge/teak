@@ -66,7 +66,7 @@ describe("SettingsContent", () => {
       <SettingsContent {...baseProps} accountLoading={true} cardCount={0} />
     );
 
-    expect(markup).toContain("Settings");
+    expect(markup).toContain("Email");
     expect(markup).toContain("Theme toggle");
     expect(markup).toContain("Sign out");
     expect(markup).toContain("Import/Export Data");

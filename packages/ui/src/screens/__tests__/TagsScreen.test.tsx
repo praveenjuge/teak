@@ -92,7 +92,7 @@ test("lists tags most-used first, each opening the library narrowed to it", asyn
   };
   await render();
 
-  expect(document.body.textContent).toContain("3 tags across your library");
+  expect(document.body.textContent).toContain("3 tags");
   expect(rows()).toEqual([
     ["design systems, 12 cards", "/?tag=design+systems"],
     ["web, 3 cards", "/?tag=web"],

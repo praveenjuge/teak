@@ -5,7 +5,6 @@ import {
   MAX_URL_SEARCH_LENGTH,
   parseSearchUrlState,
   serializeSearchUrlState,
-  toggleSearchUrlType,
 } from "../searchUrlState";
 
 const parse = (query: string) =>
@@ -109,12 +108,6 @@ describe("card types in the URL", () => {
     expect(
       serializeSearchUrlState({ q: "", sort: "newest", types: [] }, "type=link")
     ).toBe("");
-  });
-
-  test("toggles one type on and off", () => {
-    const on = toggleSearchUrlType(EMPTY_SEARCH_URL_STATE, "video");
-    expect(on.types).toEqual(["video"]);
-    expect(toggleSearchUrlType(on, "video").types).toEqual([]);
   });
 
   test("compares types regardless of order", () => {
