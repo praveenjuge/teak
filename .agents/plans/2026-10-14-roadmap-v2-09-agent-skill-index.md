@@ -91,6 +91,7 @@ Make sure agents can discover the Teak Agent Skill from the web: `/.well-known/a
 - `packages/tests/src/docs/extra-prod-surfaces.e2e.ts`:
   - Add probes for `${published.siteUrl}/.well-known/agent-skills/index.json` (json, `/skills/`) and for the api.teakvault.com address with redirects followed.
   - Add a test that fetches the index, fetches each artifact, compares the SHA-256 with `digest`, and checks `access-control-allow-origin`.
+  - It also hashes `.agents/skills/teak/SKILL.md` from the checkout and compares that with the published `digest`. A stale deployment whose old index and old `SKILL.md` still agree with each other then fails, which covers the break-it case where the repository skill changed without a deploy. On pull requests this comparison runs against the preview deployment; on `main` it runs against production.
 
 ## Proof before the PR
 
