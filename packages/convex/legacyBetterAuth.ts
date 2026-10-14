@@ -4,7 +4,7 @@ import type { ActionCtx, QueryCtx } from "./_generated/server";
 // The Better Auth component stays mounted only for rows retained from before
 // WorkOS. Apart from the backup exporter, this is the only module that reads
 // or writes them: account deletion finds a legacy owner's user and removes
-// every row keyed to it. Removing the retained data itself needs separate
+// every row keyed to it, and admin stats count them. Removing the retained data itself needs separate
 // owner approval.
 
 const LEGACY_USER_MODELS = [
@@ -25,6 +25,32 @@ export const findLegacyBetterAuthUser = (
     model: "user",
     where: [{ field: "_id", value: teakUserId }],
   });
+
+const LEGACY_COUNT_PAGE_SIZE = 200;
+const LEGACY_COUNT_MAX_PAGES = 40;
+
+// Counts retained Better Auth users, reading only their IDs. Stops after a
+// bounded number of pages and reports whether the count is complete.
+export async function countLegacyBetterAuthUsers(
+  ctx: Pick<QueryCtx, "runQuery">
+): Promise<{ count: number; isComplete: boolean }> {
+  let count = 0;
+  let cursor: string | null = null;
+  for (let page = 0; page < LEGACY_COUNT_MAX_PAGES; page++) {
+    const result: { page: unknown[]; isDone: boolean; continueCursor: string } =
+      await ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "user",
+        select: ["_id"],
+        paginationOpts: { cursor, numItems: LEGACY_COUNT_PAGE_SIZE },
+      });
+    count += result.page.length;
+    if (result.isDone) {
+      return { count, isComplete: true };
+    }
+    cursor = result.continueCursor;
+  }
+  return { count, isComplete: false };
+}
 
 type LegacyUserModel = (typeof LEGACY_USER_MODELS)[number];
 
