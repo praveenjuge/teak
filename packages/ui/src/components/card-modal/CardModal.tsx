@@ -187,7 +187,7 @@ interface CardModalProps {
   toggleFavorite: () => void;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
-  updateTitle: (value: string) => void;
+  updateTitle: (value: string | undefined) => void;
 }
 
 export function CardModal({
@@ -419,10 +419,12 @@ export function CardModal({
                         dir="auto"
                         maxLength={512}
                         onBlur={(event) => {
-                          if (!event.target.value.trim()) {
-                            updateTitle(heading.title);
+                          // Leaving the title blank keeps the one it had.
+                          if (event.target.value.trim()) {
+                            commit();
+                          } else {
+                            updateTitle(undefined);
                           }
-                          commit();
                         }}
                         onChange={(event) => updateTitle(event.target.value)}
                         onKeyDown={(event) => {

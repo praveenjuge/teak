@@ -72,6 +72,9 @@ export function getUnsavedUpdates(
     .filter(
       (update): update is { field: TextField; value: string } =>
         update.value !== undefined &&
+        // A title someone is still clearing is never saved blank; that
+        // would drop the name they gave the link.
+        !(update.field === "metadataTitle" && !update.value.trim()) &&
         update.value !== (card[update.field] ?? "") &&
         update.value !== saved[update.field]
     );
@@ -320,7 +323,8 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, notes }));
   }, []);
 
-  const updateTitle = useCallback((metadataTitle: string) => {
+  /** Edits a link's title; undefined drops the edit and keeps the saved one. */
+  const updateTitle = useCallback((metadataTitle: string | undefined) => {
     setPendingChanges((prev) => ({ ...prev, metadataTitle }));
   }, []);
 

@@ -32,4 +32,13 @@ describe("getUnsavedUpdates", () => {
   test("never treats favoriting as a text edit", () => {
     expect(getUnsavedUpdates({}, { isFavorited: true }, {})).toEqual([]);
   });
+
+  test("never saves a link title someone has cleared", () => {
+    const card = { metadataTitle: "My name for it" };
+    expect(getUnsavedUpdates(card, { metadataTitle: "" }, {})).toEqual([]);
+    expect(getUnsavedUpdates(card, { metadataTitle: "   " }, {})).toEqual([]);
+    expect(
+      getUnsavedUpdates(card, { metadataTitle: "A new name" }, {})
+    ).toEqual([{ field: "metadataTitle", value: "A new name" }]);
+  });
 });
