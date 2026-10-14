@@ -59,7 +59,9 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
   - Archive and Keep buttons, with the keys shown as `kbd`.
   - Pointer swipe with a threshold.
   - The end screen.
-- `hooks/useRevisitDeck.ts`: loads the page of 20 with `searchCardsPaginated`, snapshots the IDs, steps through them, holds the archive undo stack and continues from the cursor.
+- `hooks/useRevisitDeck.ts`: loads the page of 20 with `searchCardsPaginated`, snapshots the IDs, steps through them and holds the archive undo stack. It keeps a `seen` set of every card ID shown in this session.
+  - "Revisit 20 more" never continues from a numeric offset. For bounded views (search, smart folder, tag), `searchCardsPaginatedHandler` rebuilds the candidate set on every request and pages by offset, so archiving cards from the first 20 would shift the offsets and skip unseen cards.
+  - Instead it restarts from the first page of the same seed and skips IDs already in `seen`, paging until it has 20 unseen cards or the view runs out. The seeded shuffle order of the remaining cards doesn't change when others are archived, so the next 20 are exactly the next unseen cards. The walk is capped at the view's 1,000-card offset limit, after which "Start over" appears.
 - `screens/CardsScreen.tsx`: renders the deck when the sort is revisit. Esc and the end screen's "Done" call `router.back()` when the deck was pushed, or else replace the URL with the previous sort.
 
 ## API / MCP / SDK / CLI
@@ -108,7 +110,7 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
 ## Tests
 
 - `packages/ui/src/lib/__tests__/searchUrlState.test.ts`: `?sort=revisit&seed=42` round-trips, a bad seed drops it, and it maps to a shuffle query.
-- `packages/ui/src/hooks/__tests__/useRevisitDeck.test.tsx`: stepping, the snapshot ignoring live removals, the undo stack, the "20 more" cursor, and the "Start over" seed change.
+- `packages/ui/src/hooks/__tests__/useRevisitDeck.test.tsx`: stepping, the snapshot ignoring live removals, the undo stack, "20 more" after archiving 5 of the first 20 in a bounded tag view (the next 20 are exactly the next unseen cards, none skipped or repeated), and the "Start over" seed change.
 - `packages/ui/src/components/search/__tests__/ViewMenu.test.tsx` (`renderToStaticMarkup`): Revisit is listed, absent when told so (Archive/Trash), and disabled when the view is empty.
 - `packages/convex/__tests__/shared/analytics.test.ts`: the new events are typed.
 - `packages/tests/src/web/revisit.e2e.ts`: choose Revisit, the URL has `sort=revisit`, ← archives with undo, → keeps, Esc returns to the previous sort, and reload keeps the same first card.
