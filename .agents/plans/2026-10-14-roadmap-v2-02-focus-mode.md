@@ -1,6 +1,6 @@
 ## Goal
 
-Let people write in an existing text card full screen, with nothing on screen but the text. Today only new notes can open full screen. Phase 2 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
+Make full-screen writing one feature, Focus, for new and existing notes alike, with nothing on screen but the text. Today only new notes can open full screen, through a separate dialog. Phase 2 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 
 ## Depends on
 
@@ -8,11 +8,11 @@ Let people write in an existing text card full screen, with nothing on screen bu
 
 ## Success Criteria
 
-- A text card's modal has an "Focus" button (the `Maximize2` icon) that opens the card's editor full screen. A keyboard shortcut enters and leaves focus mode, and Esc leaves it.
+- A text card's modal has a "Focus" button (the `Maximize2` icon) that opens the card's editor full screen. ⌘E enters and leaves Focus, and Esc leaves it.
 - Focus mode shows one centered column (`max-w-3xl`) and nothing else. The Close and Save bar fades out while you type and comes back when you move the pointer or press a key outside the editor. The formatting toolbar still appears only when text is selected.
 - A word count fades in at the bottom right after 1 second without typing, and fades out when typing starts. CJK text is counted correctly.
 - Edits made in focus mode go into the card modal's unsaved changes and save the same way the modal does: Save, Cmd/Ctrl+Enter, or closing the modal. Leaving focus mode never throws away an edit.
-- The new-note full-screen dialog keeps working exactly as before, through the same generalized component.
+- New notes and existing notes share one Focus mode: the same component, the same ⌘E shortcut, the same fading chrome and word count, and the same name and tooltip ("Focus (⌘E)") in the composer and the card modal. There's no separate "full-screen note" any more. In the composer, Save creates the card as it does today.
 
 ## Context And Current Facts
 
@@ -26,8 +26,8 @@ Let people write in an existing text card full screen, with nothing on screen bu
 ## Constraints And Non-goals
 
 - Web and the shared UI only. No change to the backend, the API or the native apps.
-- Generalize `FullScreenAddCardDialog` into `FocusEditor` (`packages/ui/src/components/text-editor/FocusEditor.tsx`), and turn `FullScreenAddCardDialog` into a thin wrapper around it so that `AddCardForm` and its tests don't change.
-- **Shortcut:** Cmd/Ctrl+E (the existing `Mod-e`) enters focus mode from the modal and leaves it from inside. The approved plan proposed ⌘⇧F; see Risks.
+- Merge the two into one: replace `FullScreenAddCardDialog` with `FocusEditor` (`packages/ui/src/components/text-editor/FocusEditor.tsx`) and delete the old dialog and its `forms/index.ts` export. `AddCardForm` renders `FocusEditor` directly, and its tests are updated for the new name and labels.
+- **Shortcut:** Cmd/Ctrl+E (the existing `Mod-e`) everywhere: it enters Focus from the composer or the card modal and leaves it from inside. Decided by the owner: one feature, one shortcut, no ⌘⇧F.
 - Only text cards. Quote cards stay out of scope.
 - No typewriter scrolling, no themes and no fonts (reader themes were rejected).
 
@@ -44,7 +44,7 @@ Let people write in an existing text card full screen, with nothing on screen bu
 - `text-editor/wordCount.ts`: a pure `countWords(markdown)` that uses `markdownToPlainText` (`lib/markdownToPlainText.ts`) and `Intl.Segmenter` with `granularity: "word"`, counting segments where `isWordLike` is true.
 - `card-previews/TextPreview.tsx`: passes `onOpenFullScreen`. It owns the focus state and renders `FocusEditor` with `getCurrentValue("content")`, `onContentChange` and `onSaveShortcut`.
 - `card-modal/CardModal.tsx`: a ghost icon button "Focus" in the text preview's top-right corner, with tooltip "Focus (⌘E)".
-- `forms/FullScreenAddCardDialog.tsx`: delegates to `FocusEditor`.
+- `forms/FullScreenAddCardDialog.tsx`: deleted. `forms/AddCardForm.tsx` (lines 287–322) renders `FocusEditor`, and its expand button (lines 341–346) changes its `aria-label` and `title` from "Open full-screen note" to "Focus (⌘E)".
 
 ## API / MCP / SDK / CLI
 
@@ -52,9 +52,9 @@ Let people write in an existing text card full screen, with nothing on screen bu
 
 ## Docs
 
-- `features.mdx`: a sentence under the notes and editing text on focus mode and ⌘E.
+- `features.mdx`: replace the full-screen note sentence with one on Focus mode, for new and existing notes, and ⌘E.
 - The ⌘E row in the shortcut table, if it isn't there yet.
-- Ship-month changelog: "Write existing notes in focus mode".
+- Ship-month changelog: "Focus mode for every note, new or existing".
 
 ## UI states
 
@@ -95,11 +95,11 @@ Let people write in an existing text card full screen, with nothing on screen bu
 
 - `packages/ui/src/components/text-editor/__tests__/wordCount.test.ts`: `test.each` with English, CJK (no word breaks), Markdown syntax that isn't counted, code blocks, emoji and an empty string.
 - `packages/ui/src/components/text-editor/__tests__/FocusEditor.test.tsx` (`renderToStaticMarkup`): the Save button is disabled when `canSave` is false, the screen-reader title is there, and the word count is there.
-- `packages/ui/src/components/forms/__tests__/AddCardForm.test.tsx`: existing; must stay green.
+- `packages/ui/src/components/forms/__tests__/AddCardForm.test.tsx`: updated for `FocusEditor` and the "Focus (⌘E)" label; the composer still saves a new note from Focus.
 - `packages/tests/src/web/focus-mode.e2e.ts`:
   - Open a text card, press ⌘E, type, press Esc. The modal shows "Save changes".
   - Press Cmd+Enter: the saved content shows in the grid.
-  - ⌘E on the composer still opens the new-note dialog.
+  - ⌘E on the composer opens the same Focus mode, with the fading chrome and word count, and Save creates the card.
 
 ## Proof before the PR
 
@@ -116,5 +116,5 @@ Let people write in an existing text card full screen, with nothing on screen bu
 
 ## Risks And Open Questions
 
-- **Shortcut.** The approved plan named ⌘⇧F. The code already uses ⌘E (`Mod-e`) for full screen in the composer, and ⌘⇧F is taken by some browsers and OS full-screen bindings. This plan uses ⌘E for consistency. The owner should confirm.
+- **Shortcut.** Decided: the owner merged the composer's full-screen note and Focus into one feature on ⌘E (`Mod-e`, already used by the composer). ⌘⇧F is not used.
 - **Two tabs.** Last write wins: there is no conflict detection today. That is unchanged, but focus mode makes long edit sessions more likely. A "changed elsewhere" notice could come later.

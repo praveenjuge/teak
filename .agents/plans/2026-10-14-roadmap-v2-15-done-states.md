@@ -174,4 +174,4 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
 - **The master plan expects an index rebuild in phase 15.** This phase needs none: done and todo are card-level filters with batch scans. Add a `by_user_deleted_archived_completed` index later only if p95 for `is:done` alone on a 10,000-card library is too slow. Measure it on dev.
 - **Naming.** `completedAt` on a card shares its name with the processing-stage `completedAt`. Keep the docstring explicit.
 - **API shape.** The approved plan uses POST and DELETE on `/done`, while favorite uses `PATCH /favorite {isFavorited}`. POST and DELETE need no new route. Confirm with the owner before building.
-- **Link cards only.** Whether notes or images should also be markable is an open question for the owner.
+- **Link cards only.** Decided by the owner: done states are for link cards only. Notes, images and other types are not markable.

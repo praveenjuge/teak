@@ -154,6 +154,6 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
 
 ## Risks And Open Questions
 
-- **Existing tags.** People who already use `private`, `nsfw` or `hidden` as ordinary tags will see those cards disappear on deploy. The dry run gives the count. The changelog must explain it, and the owner should decide whether to announce it before the backfill runs.
+- **Existing tags.** People who already use `private`, `nsfw` or `hidden` as ordinary tags will see those cards disappear on deploy. The dry run gives the count. Decided: no separate announcement. The ship-month changelog entry already says that cards carrying those tags are now hidden, and the backfill runs right after the deploy.
 - **Short pages.** Filtering after the index read can make a page short when many hidden cards cluster together. That's acceptable for rare tags. If a user hides thousands of cards, add `by_user_deleted_archived_hidden_created` next to the existing index.
 - **Native views.** Native apps that read Convex directly through other queries must route through the filtered queries. Verify on Apple before merge.

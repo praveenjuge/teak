@@ -116,7 +116,12 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 
 ## Docs
 
-- `(legal)/privacy-policy.mdx`: the Cloudflare row covers "search index of card text (embeddings)". The owner reviews the wording.
+- `(legal)/privacy-policy.mdx`, in this PR. The owner has approved this wording:
+  - **AI Processing**, a new bullet after "What is created":
+    > **Search by meaning:** Teak turns each card's title, summary, tags, notes, text found in images, and the start of its text or transcript into a list of numbers (an embedding) with a model on Cloudflare Workers AI. The embedding is stored in a Cloudflare Vectorize search index, tagged with your account so searches only ever return your own cards, and used only to find your cards by meaning. It's updated when the card changes and deleted when the card or your account is deleted.
+  - **Service Providers**, the Cloudflare row's purpose becomes "File storage, AI processing, search index, image, video and document processing, page rendering", and its data becomes "Uploaded files, card content sent for AI processing, embeddings of card text, saved page content".
+  - **Retention** table: no new row, because embeddings already fall under "Cards, files and generated data: until you delete them".
+  - "Generated data" in **What We Collect** adds "search embeddings" after "screenshots".
 - No `features.mdx` or changelog entry, because nothing changes for users yet.
 
 ## UI states

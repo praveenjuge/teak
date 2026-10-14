@@ -203,14 +203,20 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 
 | Phase | Decision | Default in the plan |
 |---|---|---|
-| 2 | Focus-mode shortcut. ⌘E already opens new notes full screen | ⌘E, not ⌘⇧F |
-| 4 | How to announce cards that disappear on deploy because they already carry `private`, `nsfw` or `hidden` | The dry run reports the count; the owner decides |
 | 5 | Is Revisit offered in Archive and Trash? | No |
 | 6 | Field names next to the existing `source` key in `POST /v1/cards` | `sourceUrl`, `sourceTitle` |
 | 11 | Should OCR also read the link's `og:image`? The page screenshot is taken with network blocked, so images and fonts don't render | Ask before building |
-| 12 | Privacy policy wording about embeddings | Owner reviews it before phase 12 merges |
-| 15 | Are done states for link cards only? `POST`/`DELETE /done`, or `PATCH` like favorite? | Links only; `POST`/`DELETE` |
+| 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
 | 23 | New secret `INBOUND_ADDRESS_SECRET`, so the address can be shown again while only its hash is stored | Add it |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
+
+### Decided
+
+| Phase | Decision |
+|---|---|
+| 2 | The composer's full-screen note and Focus mode become one feature, on ⌘E, for new and existing notes |
+| 4 | No announcement for cards that already carry `private`, `nsfw` or `hidden`; the normal changelog entry covers it |
+| 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |
+| 15 | Done states are for link cards only |

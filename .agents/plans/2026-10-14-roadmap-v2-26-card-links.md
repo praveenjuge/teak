@@ -31,7 +31,7 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
   - A note opens as rich blocks only when `hasSameMarkdownMeaning` (a `marked` GFM token comparison) holds. Anything else becomes literal text.
   - `[[…]]` is plain text to `marked` today.
 - **Editor rules.** The Tiptap packages are pinned to 3.31.4 and `@editorcn/block-editor` to 0.2.0 (`text-editor/README.md`). The README forbids silent rewrites: "Opening or selecting a note never rewrites its string."
-- **Where the editor is used.** Text card content (`card-previews/TextPreview.tsx`, `forms/AddCardForm.tsx`, `forms/FullScreenAddCardDialog.tsx`). Notes use a plain `Textarea` (`modals/NotesEditModal.tsx`), so links live in text card content only.
+- **Where the editor is used.** Text card content (`card-previews/TextPreview.tsx`, `forms/AddCardForm.tsx`, and `text-editor/FocusEditor.tsx`, which replaces `forms/FullScreenAddCardDialog.tsx` in phase 2). Notes use a plain `Textarea` (`modals/NotesEditModal.tsx`), so links live in text card content only.
 - **Content saves.**
   - `updateCard` (`card/updateCard.ts:178`) patches content and calls `scheduleCardSearchSync`.
   - `updateCardFieldsForUserHandler` (the `"content"` edit, used by `updateCardField` and the public API) does the same.
