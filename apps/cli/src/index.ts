@@ -225,6 +225,17 @@ const withListOptions = (command: Command) =>
 
 type ListMode = "list" | "search" | "favorites";
 
+/**
+ * A listing as JSON. A shuffled one carries its seed: a later
+ * `--seed` with `--cursor` continues it, and a cursor only works with the
+ * seed that issued it.
+ */
+export const listingJson = <T extends object>(
+  page: T,
+  seed: number | undefined
+): T | (T & { seed: number }) =>
+  seed === undefined ? page : { ...page, seed };
+
 const writeCards = async (
   options: ClientOptions & Record<string, unknown>,
   mode: ListMode = "list"
@@ -256,7 +267,14 @@ const writeCards = async (
   };
   const page = await collectPages(fetchPage, options.all === true);
   write(
-    options.json ? page : page.items.map(formatCardLine).join("\n"),
+    options.json
+      ? listingJson(
+          page,
+          options.sort === "shuffle"
+            ? (shuffleSeed ?? (options.seed as number | undefined))
+            : undefined
+        )
+      : page.items.map(formatCardLine).join("\n"),
     options
   );
   if (!(options.json || page.pageInfo.nextCursor === null)) {

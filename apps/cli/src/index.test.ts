@@ -15,6 +15,7 @@ import {
   bulkItems,
   formatCardLine,
   getUploadFileInfo,
+  listingJson,
   mimeFor,
   parseSeed,
   parseSort,
@@ -125,6 +126,12 @@ describe("teak cli formatting", () => {
     expect(() => parseSort("newestt")).toThrow(
       "sort must be newest, oldest or shuffle"
     );
+  });
+
+  test("a shuffled listing's JSON carries its seed", () => {
+    const page = { items: [], pageInfo: { hasMore: true, nextCursor: "c" } };
+    expect(listingJson(page, 42)).toEqual({ ...page, seed: 42 });
+    expect(listingJson(page, undefined)).toEqual(page);
   });
 
   test("shuffle passes its seed, and seeds must be whole numbers", () => {
