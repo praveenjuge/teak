@@ -1,3 +1,4 @@
+import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -5,10 +6,23 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
+  env,
   internalMutation,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import {
+  ACTIVATION_CARD_THRESHOLD,
+  ACTIVATION_WINDOW_DAYS,
+  DAY_MS,
+  type SubscriptionLike,
+  startOfUtcDay,
+  summarizeAccounts,
+  summarizeDailyActivity,
+  summarizeDeletionQueue,
+  summarizeQuarantine,
+  summarizeSubscriptions,
+} from "./adminStats";
 import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
 import type {
   ProcessingStageKey,
@@ -16,6 +30,7 @@ import type {
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
 import { getSessionUser, readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
@@ -50,6 +65,12 @@ const MAX_MISSING_CARDS = 50;
 // For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
+const MAX_ACTIVITY_DAYS = 90;
+const ACTIVITY_USER_LIMIT = 5000;
+const ACTIVITY_CARD_LIMIT = 10_000;
+const ACTIVATION_COHORT_LIMIT = 500;
+const OPERATIONS_ROW_LIMIT = 10_000;
+const SUBSCRIPTION_LIMIT = 5000;
 
 // Helper to check if a card is an onboarding card by its content
 const isOnboardingCard = (card: { content: string }): boolean =>
@@ -401,6 +422,140 @@ export const listAllUsers = query({
         })
     );
     return { ...result, page };
+  },
+});
+
+/**
+ * Daily totals for the last `days` days (new accounts, cards, uploads, AI
+ * stage runs) and the share of new accounts that saved at least five cards in
+ * their first week. Onboarding cards are not counted.
+ */
+export const getActivity = query({
+  args: { days: v.optional(v.number()) },
+  handler: async (ctx, { days }) => {
+    await ensureAdmin(ctx);
+    const span = Math.min(
+      Math.max(Math.floor(days ?? 30), 1),
+      MAX_ACTIVITY_DAYS
+    );
+    const now = Date.now();
+    const since = startOfUtcDay(now) - (span - 1) * DAY_MS;
+
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+      .take(ACTIVITY_USER_LIMIT);
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+      .take(ACTIVITY_CARD_LIMIT);
+
+    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
+    const eligible = users.filter(
+      (user) =>
+        user.deletedAt === undefined && user._creationTime <= now - windowMs
+    );
+    const cohort = eligible.slice(0, ACTIVATION_COHORT_LIMIT);
+    let activated = 0;
+    for (const user of cohort) {
+      const firstWeek = await ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) =>
+          q
+            .eq("userId", user.teakUserId)
+            .gte("createdAt", user._creationTime)
+            .lt("createdAt", user._creationTime + windowMs)
+        )
+        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARD_CONTENTS.length);
+      const saved = firstWeek.filter((card) => !isOnboardingCard(card));
+      if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
+        activated += 1;
+      }
+    }
+
+    return {
+      since,
+      days: summarizeDailyActivity({
+        since,
+        now,
+        signupTimes: users.map((user) => user._creationTime),
+        cards: cards.filter((card) => !isOnboardingCard(card)),
+      }),
+      activation: {
+        cohort: cohort.length,
+        activated,
+        threshold: ACTIVATION_CARD_THRESHOLD,
+        windowDays: ACTIVATION_WINDOW_DAYS,
+      },
+      isApproximate:
+        users.length === ACTIVITY_USER_LIMIT ||
+        cards.length === ACTIVITY_CARD_LIMIT ||
+        eligible.length > ACTIVATION_COHORT_LIMIT,
+    };
+  },
+});
+
+/** Account migration and account deletion queue totals. */
+export const getOperations = query({
+  args: {},
+  handler: async (ctx) => {
+    await ensureAdmin(ctx);
+    const now = Date.now();
+    const users = await ctx.db.query("users").take(OPERATIONS_ROW_LIMIT);
+    const quarantine = await ctx.db
+      .query("migrationQuarantine")
+      .withIndex("by_unresolved", (q) => q.eq("resolvedAt", undefined))
+      .take(OPERATIONS_ROW_LIMIT);
+    const deletions = await ctx.db
+      .query("accountDeletionStates")
+      .take(OPERATIONS_ROW_LIMIT);
+    const legacy = await countLegacyBetterAuthUsers(ctx);
+
+    return {
+      accounts: summarizeAccounts(users),
+      legacyAccounts: legacy.count,
+      quarantine: summarizeQuarantine(quarantine),
+      deletions: summarizeDeletionQueue(deletions, now),
+      isApproximate:
+        !legacy.isComplete ||
+        users.length === OPERATIONS_ROW_LIMIT ||
+        quarantine.length === OPERATIONS_ROW_LIMIT ||
+        deletions.length === OPERATIONS_ROW_LIMIT,
+    };
+  },
+});
+
+/** Active subscription totals by status and plan, read from Polar. */
+export const getBillingSummary = action({
+  args: {},
+  handler: async (ctx) => {
+    await ensureAdmin(ctx);
+    if (!env.POLAR_ACCESS_TOKEN) {
+      return {
+        configured: false,
+        fetchedAt: Date.now(),
+        isApproximate: false,
+        ...summarizeSubscriptions([]),
+      };
+    }
+    const polar = new PolarBilling({
+      accessToken: env.POLAR_ACCESS_TOKEN,
+      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
+    });
+    const subscriptions: SubscriptionLike[] = [];
+    const pages = await polar.subscriptions.list({ active: true, limit: 100 });
+    for await (const page of pages) {
+      subscriptions.push(...page.result.items);
+      if (subscriptions.length >= SUBSCRIPTION_LIMIT) {
+        break;
+      }
+    }
+    return {
+      configured: true,
+      fetchedAt: Date.now(),
+      isApproximate: subscriptions.length >= SUBSCRIPTION_LIMIT,
+      ...summarizeSubscriptions(subscriptions),
+    };
   },
 });
 
