@@ -18,3 +18,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 ### 2026-10-12
 - First run. Telemetry went live with #633/#635 the same day; PostHog had 1 `card_created` (source `unknown`) and 1 `card_processing_completed`, no exceptions, empty inbox. Nothing fixed.
 - Check tomorrow: first real error-tracking and `card_create_failed` data; whether `source` is populated for web/apple/android after #635.
+
+### 2026-10-14
+- Inbox empty. Error tracking (24h): `NoClassDefFoundError` (`android.window.SplashScreenView`, 8 events) and Convex `ClientException$InternalException` (`channel closed`, 3 events), both from Android 1.0.86 on Android 11 (API 30) within 10 minutes on 2026-10-13, apparently one test device (events share a `distinct_id`; "4 users" is mostly anonymous ids). Not fixed: no reproduction, so root cause (core-splashscreen 1.2.0 on API 30) is unconfirmed; raised as a `needs-praveen` issue.
+- Product health: 13 `card_created` events, 17 `card_processing_completed`, zero failures. `source` is populated for web, android and raycast; still `unknown` on a few text/video cards (older app versions).
+- Tip: `inbox-reports-list` returns an empty list when nothing is flagged; check `$lib` and `distinct_id` on error events before counting "users", since crash loops on one device inflate it.
+- Check tomorrow: whether the Android crash recurs from other devices; first non-zero failure events.
