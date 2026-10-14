@@ -16,7 +16,10 @@ test("signup, create, and search", { timeout: 180_000 }, async ({
   await gotoApp(browser, "/");
   await expect(
     screen.getByText(
-      "Welcome to Teak! Start capturing your thoughts, links, and inspiration."
+      "Welcome to Teak, a home for everything that inspires you",
+      {
+        exact: false,
+      }
     )
   ).toBeVisible();
   await fillAndSubmitTextCard(surface, marker);

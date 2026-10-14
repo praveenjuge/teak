@@ -499,49 +499,6 @@ describe("card/getCards.ts", () => {
       expect(result).toHaveLength(1);
     });
 
-    test("filters by normalized visual style, hue, and hex", async () => {
-      const cards = [
-        {
-          _id: "c1",
-          _creationTime: 1,
-          userId: "u1",
-          content: "Image card",
-          type: "image",
-          visualStyles: ["vintage"],
-          colorHues: ["purple"],
-          colorHexes: ["#663399"],
-          createdAt: 1000,
-        },
-        {
-          _id: "c2",
-          _creationTime: 2,
-          userId: "u1",
-          content: "Palette card",
-          type: "palette",
-          colorHues: ["purple"],
-          colorHexes: ["#663399"],
-          createdAt: 900,
-        },
-      ];
-      const query = buildQuery(cards);
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (searchCards as any).handler ?? searchCards;
-      const result = await handler(ctx, {
-        styleFilters: ["vintage"],
-        hueFilters: ["violet"],
-        hexFilters: ["663399"],
-      });
-
-      expect(result).toHaveLength(1);
-      expect(result[0]._id).toBe("c1");
-      expect(query.withSearchIndex).toHaveBeenCalled();
-    });
-
     test("throws for invalid hex filters", async () => {
       const query = buildQuery([]);
       const ctx = withTestSession({
@@ -814,46 +771,6 @@ describe("card/getCards.ts", () => {
         searchQuery: "test",
       });
       expect(Array.isArray(result.page)).toBe(true);
-    });
-
-    test("applies normalized hue and hex filters in paginated mode", async () => {
-      const cards = [
-        {
-          _id: "c1",
-          _creationTime: 1,
-          userId: "u1",
-          type: "image",
-          colorHues: ["blue"],
-          colorHexes: ["#1E90FF"],
-          createdAt: 1000,
-        },
-        {
-          _id: "c2",
-          _creationTime: 2,
-          userId: "u1",
-          type: "palette",
-          colorHues: ["blue"],
-          colorHexes: ["#1E90FF"],
-          createdAt: 900,
-        },
-      ];
-      const query = buildQuery(cards);
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler =
-        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: "0" },
-        hueFilters: ["blue"],
-        hexFilters: ["1e90ff"],
-      });
-
-      expect(result.page).toHaveLength(2);
-      expect(query.withSearchIndex).toHaveBeenCalled();
     });
 
     test("throws for invalid hex filters in paginated mode", async () => {

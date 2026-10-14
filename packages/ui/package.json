@@ -31,6 +31,7 @@
     "./feedback/Loading": "./src/feedback/Loading.tsx",
     "./feedback/PageErrorState": "./src/feedback/PageErrorState.tsx",
     "./feedback/PageLoadingState": "./src/feedback/PageLoadingState.tsx",
+    "./feedback/VaultSetupState": "./src/feedback/VaultSetupState.tsx",
     "./feedback": "./src/feedback/index.ts",
     "./icons": "./src/icons/index.ts",
     "./grids": "./src/components/grids/index.ts",

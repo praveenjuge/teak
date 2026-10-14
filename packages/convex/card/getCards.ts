@@ -37,8 +37,9 @@ import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
+  findVisualMatches,
   normalizeVisualFilterArgs,
-  runVisualFacetQueries,
+  visualFilterTypes,
 } from "./visualFilters";
 
 // Return validator for card arrays - includes _id and _creationTime from Convex
@@ -86,7 +87,6 @@ const createdAtRangeValidator = v.object({
   end: v.number(),
 });
 
-const VISUAL_SEARCH_BUFFER = 12;
 // Paginated search pages are cut from this many best matches, sorted by date.
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
 /** The most results one search index query returns. */
@@ -97,8 +97,6 @@ const isSearchTooBroadError = (error: unknown): boolean =>
   (error.data as { code?: unknown } | undefined)?.code === "INVALID_INPUT";
 export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
-const getVisualSearchBatchLimit = (desiredLimit: number) =>
-  Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
 /** Folder rows a color, style or favorites view of one folder reads per page. */
 const FOLDER_FILTER_SCAN_BATCH = 200;
 
@@ -245,9 +243,9 @@ export const searchCards = query({
       return applyQuoteFormattingToList(resultsWithUrls);
     }
 
-    // No search query - use visual facet indexes when requested.
+    // No search query: colors and styles read the library in date order.
     if (visualFilters.hasVisualFilters) {
-      const visualResults = await runVisualFacetQueries(ctx, {
+      const visualResults = await findVisualMatches(ctx, {
         userId: user.teakUserId,
         showTrashOnly,
         archived,
@@ -610,10 +608,15 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
-  // Sites, phrases and the other card-level qualifiers without a folder or
-  // tag: one site reads its host index, several (or Trash) the library
-  // list, and each batch is filtered here like the folder views above.
-  if (resolved.hasCardFilters) {
+  // Sites, phrases, colors, styles and the other card-level filters without
+  // a folder or tag: one site reads its host index, anything else the
+  // library list, and each batch is filtered here like the folder views
+  // above. Colors and styles are arrays, which no search index covers.
+  if (resolved.hasCardFilters || visualFilters.hasVisualFilters) {
+    const scanTypes = visualFilterTypes(types, visualFilters);
+    if (scanTypes?.length === 0) {
+      return emptyPage;
+    }
     const host =
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]
@@ -630,7 +633,7 @@ export const searchCardsPaginatedHandler = async (
           trash: showTrashOnly,
           archived,
           favoritesOnly,
-          types,
+          types: scanTypes,
           createdAt: createdAtBounds,
         });
     // The host index alone answers a site with no other card filter, so
@@ -657,39 +660,6 @@ export const searchCardsPaginatedHandler = async (
     return {
       ...rows,
       page: applyQuoteFormattingToList(pageWithUrls),
-    };
-  }
-
-  if (visualFilters.hasVisualFilters) {
-    const rawCursor = paginationOpts.cursor ?? "0";
-    const parsedCursor = Number(rawCursor);
-    const offset = clampSearchOffset(
-      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
-    );
-    const pageSize = clampPageSize(paginationOpts.numItems);
-    const desiredLimit = offset + pageSize + 1;
-
-    const visualResults = await runVisualFacetQueries(ctx, {
-      userId: user.teakUserId,
-      showTrashOnly,
-      archived,
-      types,
-      favoritesOnly,
-      createdAtRange,
-      visualFilters,
-      limit: getVisualSearchBatchLimit(desiredLimit),
-      sort,
-    });
-
-    const page = visualResults.slice(offset, offset + pageSize);
-    const isDone = visualResults.length <= offset + pageSize;
-    const continueCursor = isDone ? null : String(offset + pageSize);
-    const pageWithUrls = await attachListUrls(ctx, page);
-
-    return {
-      page: applyQuoteFormattingToList(pageWithUrls),
-      isDone,
-      continueCursor,
     };
   }
 

@@ -5,3 +5,4 @@ export { GlobalFileDropOverlay } from "./GlobalFileDropOverlay";
 export { Loading } from "./Loading";
 export { PageErrorState } from "./PageErrorState";
 export { PageLoadingState } from "./PageLoadingState";
+export { VAULT_SETUP_STEPS, VaultSetupState } from "./VaultSetupState";

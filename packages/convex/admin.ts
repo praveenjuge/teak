@@ -26,7 +26,7 @@ import {
   summarizeSubscriptions,
   toActivityRow,
 } from "./adminStats";
-import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
+import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
@@ -75,12 +75,6 @@ const ACTIVATION_COHORT_LIMIT = 1000;
 const OPERATIONS_USER_LIMIT = 8000;
 const OPERATIONS_QUEUE_LIMIT = 2000;
 const SUBSCRIPTION_LIMIT = 5000;
-
-// Helper to check if a card is an onboarding card by its content
-const isOnboardingCard = (card: { content: string }): boolean =>
-  ONBOARDING_CARD_CONTENTS.includes(
-    card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
-  );
 
 type AdminCtx = QueryCtx | ActionCtx;
 
@@ -512,7 +506,7 @@ export const countActivatedUsers = internalQuery({
             .gte("createdAt", user.createdAt)
             .lt("createdAt", user.createdAt + windowMs)
         )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARD_CONTENTS.length);
+        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARDS.length);
       const saved = firstWeek.filter((card) => !isOnboardingCard(card));
       if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
         activated += 1;
