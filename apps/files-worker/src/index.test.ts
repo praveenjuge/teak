@@ -641,4 +641,58 @@ describe("files worker handler", () => {
     );
     expect(response.status).toBe(416);
   });
+
+  describe("transient R2 read failures", () => {
+    const R2_INTERNAL_ERROR =
+      "get: We encountered an internal error. Please try again. (10001)";
+
+    const failingGets = (env_: Env, message: string, failures: number) => {
+      const bucket = env_.BUCKET as unknown as FakeBucket;
+      const get = bucket.get.bind(bucket);
+      const calls = { count: 0 };
+      bucket.get = (...args: Parameters<FakeBucket["get"]>) => {
+        calls.count += 1;
+        if (calls.count <= failures) {
+          throw new Error(message);
+        }
+        return get(...args);
+      };
+      return calls;
+    };
+
+    const download = async (env_: Env) =>
+      worker.fetch(
+        new Request(await signedUrl("/users/u1/cards/f/x.png")),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+
+    test("serves the object when R2 recovers from an internal error", async () => {
+      const env_ = env();
+      seed(env_);
+      const calls = failingGets(env_, R2_INTERNAL_ERROR, 2);
+      const response = await download(env_);
+      expect(response.status).toBe(200);
+      expect(new Uint8Array(await response.arrayBuffer()).length).toBe(
+        makePng(32, 32).length
+      );
+      expect(calls.count).toBe(3);
+    });
+
+    test("fails after R2 keeps returning internal errors", async () => {
+      const env_ = env();
+      seed(env_);
+      const calls = failingGets(env_, R2_INTERNAL_ERROR, 10);
+      await expect(download(env_)).rejects.toThrow(R2_INTERNAL_ERROR);
+      expect(calls.count).toBe(3);
+    });
+
+    test("does not retry errors R2 does not mark as transient", async () => {
+      const env_ = env();
+      seed(env_);
+      const calls = failingGets(env_, "get: Object key too long (10020)", 1);
+      await expect(download(env_)).rejects.toThrow("(10020)");
+      expect(calls.count).toBe(1);
+    });
+  });
 });
