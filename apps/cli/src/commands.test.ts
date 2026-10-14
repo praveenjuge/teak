@@ -837,6 +837,69 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(removed.stdout)).toEqual({ deleted: ["folder_1"] });
   });
 
+  test("folders: smart folders save a search and show it", async () => {
+    const design = {
+      id: "folder_3",
+      name: "Design links",
+      color: null,
+      kind: "smart",
+      query: "tag:design type:link",
+      cardCount: null,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    routes.set("GET /v1/folders", () => json({ items: [design] }));
+    routes.set("POST /v1/folders", () => json(design, 201));
+    routes.set("PATCH /v1/folders/folder_3", () =>
+      json({ ...design, query: "tag:design" })
+    );
+    routes.set("POST /v1/folders/folder_3/cards", () =>
+      json(
+        {
+          code: "SMART_FOLDER",
+          error:
+            "Cards can't be added to a smart folder; it shows the cards that match its search",
+        },
+        409
+      )
+    );
+
+    const created = await teak(
+      "folders",
+      "create",
+      "Design links",
+      "--query",
+      "tag:design type:link"
+    );
+    expect(created.code).toBe(0);
+    expect(created.stdout).toContain("smart: tag:design type:link");
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({
+      name: "Design links",
+      kind: "smart",
+      query: "tag:design type:link",
+    });
+
+    const listed = await teak("folders");
+    expect(listed.stdout).toContain("folder_3     -  Design links  smart:");
+
+    requests.length = 0;
+    const edited = await teak(
+      "folders",
+      "rename",
+      "design links",
+      "--query",
+      "tag:design"
+    );
+    expect(edited.stdout).toContain("smart: tag:design");
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({
+      query: "tag:design",
+    });
+
+    const refused = await teak("folders", "add", "Design links", "card_a");
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("Cards can't be added to a smart folder");
+  });
+
   test("export download saves to the -o path", async () => {
     routes.set("GET /v1/exports/latest", () =>
       json({

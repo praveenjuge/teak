@@ -55,6 +55,7 @@ describe("public API folders", () => {
           name: "Reading",
           color: "blue",
           kind: "manual",
+          query: null,
           cardCount: 3,
           createdAt: 1,
           updatedAt: 2,
@@ -233,6 +234,139 @@ describe("public API folders", () => {
       .map((call) => call[1])
       .find((args) => args?.scanLimit !== undefined);
     expect(scanArgs).toMatchObject({ folderId: "folder_1" });
+  });
+
+  test("creates and edits a smart folder with kind and query", async () => {
+    const smart = {
+      ...folder,
+      _id: "folder_2",
+      name: "Design links",
+      kind: "smart",
+      query: "tag:design type:link",
+      activeCardCount: 0,
+    };
+    const mutation = mock().mockResolvedValue(smart);
+    const created = await run(
+      {
+        method: "POST",
+        path: "/v1/folders",
+        body: {
+          name: "Design links",
+          kind: "smart",
+          query: "#design type:link",
+        },
+      },
+      { mutation }
+    ).response;
+    expect(created.status).toBe(201);
+    expect(await created.json()).toMatchObject({
+      kind: "smart",
+      query: "tag:design type:link",
+      cardCount: null,
+    });
+    expect(argsOf(mutation)).toMatchObject({
+      name: "Design links",
+      kind: "smart",
+      query: "#design type:link",
+    });
+
+    const edit = mock().mockResolvedValue(smart);
+    const patched = await run(
+      {
+        method: "PATCH",
+        path: "/v1/folders/folder_2",
+        body: { query: "tag:design" },
+      },
+      { mutation: edit }
+    ).response;
+    expect(patched.status).toBe(200);
+    expect(argsOf(edit)).toMatchObject({
+      folderId: "folder_2",
+      query: "tag:design",
+    });
+
+    for (const [method, path, body] of [
+      ["POST", "/v1/folders", { name: "A", kind: "smart" }],
+      ["POST", "/v1/folders", { name: "A", query: "tag:x" }],
+      ["POST", "/v1/folders", { name: "A", kind: "magic", query: "x" }],
+      ["POST", "/v1/folders", { name: "A", kind: "smart", query: 5 }],
+      ["PATCH", "/v1/folders/folder_2", { kind: "manual" }],
+    ]) {
+      const refused = mock();
+      const response = await run({ method, path, body }, { mutation: refused })
+        .response;
+      expect(response.status).toBe(400);
+      expect(refused).not.toHaveBeenCalled();
+    }
+  });
+
+  test("adding cards to a smart folder is a 409", async () => {
+    const mutation = mock().mockRejectedValue(
+      new ConvexError({ code: "SMART_FOLDER", message: "Smart" })
+    );
+    const response = await run(
+      {
+        method: "POST",
+        path: "/v1/folders/folder_2/cards",
+        body: { cardIds: ["card_1"] },
+      },
+      { mutation }
+    ).response;
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "SMART_FOLDER",
+      error: "Smart",
+    });
+  });
+
+  test("?folder= on a smart folder lists what its search and q both match", async () => {
+    const smart = {
+      ...folder,
+      _id: "folder_2",
+      kind: "smart",
+      query: "tag:design type:link type:image",
+    };
+    const query = mock((_ref, args) =>
+      Promise.resolve(
+        args.folderId === "folder_2"
+          ? smart
+          : { items: [], pageInfo: { hasMore: false, nextCursor: null } }
+      )
+    );
+    const found = await run(
+      {
+        method: "GET",
+        path: "/v1/cards",
+        query: { folder: "folder_2", q: "type:link notes" },
+      },
+      { query }
+    ).response;
+    expect(found.status).toBe(200);
+    const searchArgs = query.mock.calls.at(-1)?.[1];
+    expect(searchArgs).toMatchObject({
+      tag: "design",
+      type: "link",
+      searchQuery: "notes",
+    });
+    expect(searchArgs.folderId).toBeUndefined();
+
+    // Searches that cannot both match list nothing without reading cards.
+    const none = mock((_ref, args) =>
+      Promise.resolve(args.folderId === "folder_2" ? smart : null)
+    );
+    const empty = await run(
+      {
+        method: "GET",
+        path: "/v1/cards",
+        query: { folder: "folder_2", q: "type:text" },
+      },
+      { query: none }
+    ).response;
+    expect(await empty.json()).toEqual({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    expect(none).toHaveBeenCalledTimes(1);
   });
 
   test("sets a card's folders with PATCH folderIds", async () => {

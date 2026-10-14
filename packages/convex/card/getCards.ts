@@ -33,7 +33,7 @@ import {
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import { searchCardsByDocument } from "./searchDocumentHelpers";
-import { resolveSearch } from "./searchPlanner";
+import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -298,6 +298,13 @@ export const searchCardsPaginatedArgsValidator = v.object({
   sort: v.optional(cardListSortValidator),
   /** Only cards in this folder (the folder view). */
   folderId: v.optional(v.id("folders")),
+  /**
+   * For a smart folder, the search the client last read for it. The view
+   * runs this search, so a page's cursor always belongs to the search that
+   * issued it and editing the folder starts a new query; without it, the
+   * stored search. Any search the user could type is fine here.
+   */
+  folderQuery: v.optional(v.string()),
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
 });
@@ -333,11 +340,22 @@ export const searchCardsPaginatedHandler = async (
   const order = sort === "oldest" ? "asc" : "desc";
   // Qualifiers in the search (`tag:`, `type:`, `is:fav`, `site:`, `folder:`)
   // merge into the view's own filters; the words left over search the text.
-  const parsed = parseSearchQuery(args.searchQuery ?? "");
+  // A smart folder's own search joins the typed one.
+  const view = await expandFolderSearch(
+    ctx,
+    user.teakUserId,
+    args.folderId,
+    args.searchQuery ?? "",
+    args.folderQuery
+  );
+  if (!view) {
+    return emptyPage;
+  }
+  const parsed = parseSearchQuery(view.searchQuery);
   const resolved = await resolveSearch(ctx, user.teakUserId, parsed, {
     archived: args.showArchivedOnly ? "only" : "exclude",
     favoritesOnly: args.favoritesOnly,
-    folderId: args.folderId,
+    folderId: view.folderId,
     tag: args.tag,
     trash: showTrashOnly,
     types: args.types,

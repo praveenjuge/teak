@@ -25,6 +25,7 @@ import {
   filterFolders,
   folderErrorMessage,
   hasFolderNamed,
+  manualFolders,
 } from "../../lib/folders";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
@@ -73,7 +74,8 @@ export function FolderPickerDialog({
 
   const matches = useMemo(
     () =>
-      filterFolders(folders ?? [], query).filter(
+      // Cards can't be put in a smart folder, so it is never offered.
+      filterFolders(manualFolders(folders ?? []), query).filter(
         (folder) => folder._id !== excludeFolderId
       ),
     [excludeFolderId, folders, query]

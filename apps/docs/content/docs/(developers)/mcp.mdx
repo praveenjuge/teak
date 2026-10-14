@@ -192,21 +192,22 @@ type CardFilters = {
   - Output: updated card object
 - `teak_v1_list_folders`
   - Input: `{}`
-  - Output: `{ items: Folder[] }`, sorted by name, each with `id`, `name`, `color`, and `cardCount`. List a folder's cards with `folder` in `CardFilters`.
+  - Output: `{ items: Folder[] }`, sorted by name, each with `id`, `name`, `color`, `kind` (`manual` or `smart`), `query`, and `cardCount` (`null` for a smart folder). List a folder's cards with `folder` in `CardFilters`; a smart folder lists the cards its query matches.
 - `teak_v1_create_folder`
-  - Input: `{ name: string, color?: FolderColor }`
+  - Input: `{ name: string, color?: FolderColor, kind?: "manual" | "smart", query?: string }`
   - Names are unique ignoring case; an account can have up to 500 folders.
+  - With `kind: "smart"` and a `query` (the `q` grammar, up to 500 characters), it saves a search as a smart folder: its cards are whatever matches, and cards can't be added to it.
   - Output: the new folder
 - `teak_v1_update_folder`
-  - Input: `{ folderId: string, name?: string, color?: FolderColor | null }`
-  - Renames or recolors the folder; `color: null` clears it.
+  - Input: `{ folderId: string, name?: string, color?: FolderColor | null, query?: string }`
+  - Renames or recolors the folder (`color: null` clears it), or changes a smart folder's `query`.
   - Output: updated folder
 - `teak_v1_delete_folder`
   - Input: `{ folderId: string, confirm: true }`
   - Deletes the folder. Its cards are kept.
 - `teak_v1_add_cards_to_folder` / `teak_v1_remove_cards_from_folder`
   - Input: `{ folderId: string, cardIds: string[] }` (up to 100)
-  - Output: `{ updatedIds, failedIds, folderLimitIds }`. A card can be in up to 50 folders; `folderLimitIds` lists cards already in 50.
+  - Output: `{ updatedIds, failedIds, folderLimitIds }`. A card can be in up to 50 folders; `folderLimitIds` lists cards already in 50. A smart folder refuses cards with `SMART_FOLDER`.
 - `teak_v1_delete_card` <Badge variant="danger">Needs confirm</Badge>
   - Input: `{ cardId: string, confirm: true }`
   - Moves the card to Trash. Teak empties Trash after 30 days.

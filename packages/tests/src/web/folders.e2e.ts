@@ -1,3 +1,4 @@
+import { api } from "@teak/convex";
 import { expectVault, gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
@@ -92,4 +93,88 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     .click();
   await screen.getByRole("link", "Reading list").click();
   await expect(screen.getByText("2 cards")).toBeVisible();
+});
+
+test("save a search as a smart folder; a card saved later shows up live", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const create = async (content: string, tags: string[]) => {
+    const id = await library.client.mutation(api.cards.createCard, {
+      content,
+      type: "text",
+      tags,
+    });
+    library.ids.push(id);
+    return id;
+  };
+  await create("Smart folder first match", ["smartfolder"]);
+  await create("Smart folder other card", ["elsewhere"]);
+
+  await gotoApp(browser, "/?q=tag%3Asmartfolder");
+  await expect(
+    screen.getByText("Smart folder first match", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+
+  // Saving is in the sort menu while there is a search to keep.
+  await screen
+    .getByRole("button", "Sort and save search", { exact: false })
+    .click();
+  await screen.getByRole("menuitem", "Save as smart folder…").click();
+  const save = screen.getByRole("dialog", "Save as smart folder");
+  await expect(save.getByLabel("Search", { exact: true })).toHaveValue(
+    "tag:smartfolder"
+  );
+  await save.getByLabel("Name").fill("Smart picks");
+  await save.getByRole("button", "Save smart folder").click();
+  await expect(
+    screen.getByText("Saved “Smart picks”", { exact: false })
+  ).toBeVisible();
+
+  // Its view shows what the search matches, and the search as chips.
+  await screen.getByRole("link", "Smart picks").click();
+  await expect(screen.getByPlaceholder("Search Smart picks...")).toBeVisible();
+  expect(await pathOf(browser.url())).toMatch(/^\/f\//);
+  await expect(
+    screen.getByText("Smart folder first match", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(
+    screen.getByText("Smart folder other card", { exact: false })
+  ).not.toBeVisible();
+
+  // A matching card saved elsewhere appears without a reload.
+  await create("Smart folder live match", ["smartfolder"]);
+  await expect(
+    screen.getByText("Smart folder live match", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+
+  // Cards can't be put in a smart folder: the picker never lists it.
+  await screen
+    .getByText("Smart folder live match", { exact: false })
+    .secondaryTap();
+  await screen.getByRole("menuitem", "Select", { exact: false }).click();
+  await screen.getByRole("button", "More actions").click();
+  await expect(
+    screen.getByRole("menuitem", "Remove from Smart picks")
+  ).not.toBeVisible();
+  await screen.getByRole("menuitem", "Add to folder…").click();
+  await expect(
+    screen.getByRole("option", "Smart picks", { exact: false })
+  ).not.toBeVisible();
+  await screen.getByLabel("Search folders").press("Escape");
+  await screen.getByRole("button", "Cancel selection").click();
+
+  // Editing the search to match nothing shows the empty state.
+  await screen.getByRole("button", "Edit search").first().click();
+  const edit = screen.getByRole("dialog", "Edit smart folder");
+  // A search still being typed only disables Save.
+  await edit.getByLabel("Search", { exact: true }).fill("folder:");
+  await expect(edit.getByRole("button", "Save")).toBeDisabled();
+  await expect(edit.getByRole("alert")).not.toBeVisible();
+  await edit.getByLabel("Search", { exact: true }).fill("tag:nothing-here");
+  await edit.getByRole("button", "Save").click();
+  await expect(
+    screen.getByText("No cards match this smart folder.")
+  ).toBeVisible({ timeout: 30_000 });
 });

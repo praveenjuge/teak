@@ -2,6 +2,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   type CardListSort,
   classifySearchToken,
+  combineSearchQueries,
   filterLocalCards,
   formatSearchQualifier,
   mergeCardsIntoLocalSearchCache,
@@ -55,6 +56,10 @@ export interface CardsSearchState {
 export interface CardsSearchQueryArgs {
   createdAtRange?: TimeFilter["range"];
   favoritesOnly?: boolean;
+  /** A folder view's folder. */
+  folderId?: Id<"folders">;
+  /** A smart folder's search, as this view read it. */
+  folderQuery?: string;
   hexFilters?: string[];
   hueFilters?: ColorHueBucket[];
   searchQuery?: string;
@@ -70,6 +75,11 @@ export interface CardsSearchQueryArgs {
 export interface UseCardsSearchControllerOptions {
   /** A folder view: every read is limited to this folder's cards. */
   folderId?: Id<"folders">;
+  /**
+   * A smart folder's search (its view's `folderId` is the smart folder):
+   * its cards are what this and the typed search both match.
+   */
+  folderQuery?: string;
   /** The search to start with, usually read from the page URL. */
   initialUrlState?: SearchUrlState;
   localSearchCacheLimit?: number;
@@ -512,6 +522,7 @@ export function useCardsSearchController(
     onNavigateView,
     view,
     folderId,
+    folderQuery,
   } = options;
   const [storedSearchState, setSearchState] = useState<CardsSearchState>(
     () => ({
@@ -635,8 +646,11 @@ export function useCardsSearchController(
       }),
       ...(sort === "oldest" ? { sort: "oldest" as const } : {}),
       ...(folderId ? { folderId } : {}),
+      // A smart folder's search is part of the query, so editing it starts
+      // a new one instead of reusing pages read with the old search.
+      ...(folderId && folderQuery !== undefined ? { folderQuery } : {}),
     }),
-    [folderId, remoteSearchQuery, searchState, sort]
+    [folderId, folderQuery, remoteSearchQuery, searchState, sort]
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
@@ -655,27 +669,39 @@ export function useCardsSearchController(
     [searchState]
   );
 
+  // In a smart folder, local hits must match its search too. Null when the
+  // two searches can never both match.
+  const localSearchTerms = useMemo(
+    () =>
+      folderQuery === undefined
+        ? searchTerms
+        : combineSearchQueries(folderQuery, searchTerms),
+    [folderQuery, searchTerms]
+  );
+
   // `folder:` names resolve on the server only, so those searches wait for
   // remote results instead of showing local hits from other folders.
   const hasFolderQualifier = useMemo(
-    () => parseSearchQuery(searchTerms).folders.length > 0,
-    [searchTerms]
+    () =>
+      localSearchTerms === null ||
+      parseSearchQuery(localSearchTerms).folders.length > 0,
+    [localSearchTerms]
   );
 
   // Instant local hits come from every card this screen has seen, so a
-  // folder view keeps only the folder's own.
+  // manual folder's view keeps only the folder's own.
   const localSearchResults = useMemo(
     () =>
-      hasFolderQualifier
+      hasFolderQualifier || localSearchTerms === null
         ? []
         : filterLocalCards(
-            folderId
+            folderId && folderQuery === undefined
               ? localCards.filter((card) =>
                   (card.folderIds ?? []).includes(folderId)
                 )
               : localCards,
             {
-              searchTerms,
+              searchTerms: localSearchTerms,
               types: searchState.filterTags,
               styleFilters: searchState.styleFilters,
               hueFilters: searchState.hueFilters,
@@ -688,15 +714,26 @@ export function useCardsSearchController(
               tag: searchState.tagFilter,
             }
           ),
-    [folderId, hasFolderQualifier, localCards, searchState, searchTerms, sort]
+    [
+      folderId,
+      folderQuery,
+      hasFolderQualifier,
+      localCards,
+      localSearchTerms,
+      searchState,
+      sort,
+    ]
   );
 
   const remoteSearchResults = useMemo(() => {
     if (!hasActiveSearch) {
       return remoteCards;
     }
+    if (localSearchTerms === null) {
+      return [];
+    }
     return filterLocalCards(remoteCards, {
-      searchTerms,
+      searchTerms: localSearchTerms,
       types: searchState.filterTags,
       styleFilters: searchState.styleFilters,
       hueFilters: searchState.hueFilters,
@@ -708,7 +745,7 @@ export function useCardsSearchController(
       sort,
       tag: searchState.tagFilter,
     });
-  }, [hasActiveSearch, remoteCards, searchState, searchTerms, sort]);
+  }, [hasActiveSearch, localSearchTerms, remoteCards, searchState, sort]);
 
   // While typing pauses are pending, the previous remote results stay on
   // screen, narrowed to the current terms above, next to instant local hits.

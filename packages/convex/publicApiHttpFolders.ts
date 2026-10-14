@@ -70,6 +70,10 @@ export const handleFoldersRequest = async (
         userId,
         name: parsed.payload.name ?? "",
         ...(parsed.payload.color ? { color: parsed.payload.color } : {}),
+        ...(parsed.payload.kind ? { kind: parsed.payload.kind } : {}),
+        ...(parsed.payload.query === undefined
+          ? {}
+          : { query: parsed.payload.query }),
       }
     );
     return json(201, serializeFolder(folder));
@@ -80,7 +84,8 @@ export const handleFoldersRequest = async (
 
 /**
  * GET, PATCH and DELETE /v1/folders/:id, and POST or DELETE
- * /v1/folders/:id/cards with `{ cardIds }` to add or remove cards.
+ * /v1/folders/:id/cards with `{ cardIds }` to add or remove cards (409
+ * SMART_FOLDER for a smart folder).
  */
 export const handleFolderByIdRequest = async (
   ctx: ActionCtx,

@@ -25,9 +25,11 @@ import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
 import {
   Archive,
   Folder,
+  FolderSearch,
   FolderX,
   Heart,
   type LucideIcon,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -35,7 +37,15 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FolderDot } from "../components/folders/FolderDot";
-import type { FolderSummary } from "../lib/folders";
+import { FolderNameDialog } from "../components/folders/FolderNameDialog";
+import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
+import { useFolders } from "../hooks/useFolders";
+import {
+  buildSmartFolderQuery,
+  FOLDER_ICON_CLASSES,
+  type FolderSummary,
+  manualFolders,
+} from "../lib/folders";
 import type { LibraryView } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
@@ -101,6 +111,8 @@ interface CardsScreenProps {
    */
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
+  /** Opens a folder's view, such as a smart folder just saved. */
+  onOpenFolder?: (folderId: string) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
     change: SearchUrlChange
@@ -124,6 +136,7 @@ export function CardsScreen({
   selectedCardId,
   onOpenCard,
   onCloseCard,
+  onOpenFolder,
   onUpgrade,
   headerLeading,
   onNavigateView,
@@ -151,8 +164,10 @@ export function CardsScreen({
     addToFolderId ? { folderId: addToFolderId } : "skip"
   );
   const isFolderView = Boolean(folderId);
+  const isSmartFolder = folder?.kind === "smart";
   const searchController = useCardsSearchController({
     folderId: folder?._id,
+    folderQuery: isSmartFolder ? (folder?.query ?? "") : undefined,
     initialUrlState: searchUrlState,
     onNavigateView,
     view,
@@ -232,15 +247,62 @@ export function CardsScreen({
     addKeywordTag,
     clearAllFilters,
     displayCards,
+    filterTags,
     hasNoFilters,
     hasNoSearchFilters,
+    hexFilters,
+    hueFilters,
     resetKey,
     searchBarProps,
+    searchTerms,
     setRemoteCards,
     showArchivedOnly,
     showTrashOnly,
+    styleFilters,
+    tagFilter,
+    timeFilter,
     updateCachedCard,
   } = searchController;
+
+  // Saving what is on screen as a smart folder, or editing the smart folder
+  // being viewed.
+  const [folderDialog, setFolderDialog] = useState<
+    | { mode: "save"; query: string }
+    | { focusQuery: boolean; mode: "edit" }
+    | null
+  >(null);
+  const saveableQuery = useMemo(
+    () =>
+      buildSmartFolderQuery({
+        folder,
+        tag: tagFilter,
+        terms: searchTerms,
+        types: filterTags,
+        view,
+      }),
+    [filterTags, folder, searchTerms, tagFilter, view]
+  );
+  const hasUnsavableFilters =
+    styleFilters.length > 0 ||
+    hueFilters.length > 0 ||
+    hexFilters.length > 0 ||
+    timeFilter !== null;
+  const allFolders = useFolders();
+  // Lowercased manual folder names, so a smart folder's `folder:` that no
+  // longer names one reads "No folder named …".
+  const folderNames = useMemo(
+    () =>
+      allFolders === undefined
+        ? undefined
+        : new Set(
+            manualFolders(allFolders).map((item) => item.name.toLowerCase())
+          ),
+    [allFolders]
+  );
+  const editSmartFolder = useCallback(
+    () => setFolderDialog({ mode: "edit", focusQuery: true }),
+    []
+  );
 
   useEffect(() => {
     setRemoteCards(cards, searchKey);
@@ -438,6 +500,21 @@ export function CardsScreen({
       return <CardsGridSkeleton />;
     }
 
+    if (isSmartFolder && displayCards.length === 0 && hasNoSearchFilters) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-24 text-center text-muted-foreground">
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <FolderSearch aria-hidden="true" className="size-4" />
+          </span>
+          <p>No cards match this smart folder.</p>
+          <Button onClick={editSmartFolder} variant="outline">
+            <Pencil />
+            Edit search
+          </Button>
+        </div>
+      );
+    }
+
     if (folder && displayCards.length === 0 && hasNoSearchFilters) {
       return (
         <div className="flex flex-col items-center gap-3 py-24 text-center text-muted-foreground">
@@ -507,6 +584,11 @@ export function CardsScreen({
       <CardsSearchHeader
         {...searchBarProps}
         leading={headerLeading}
+        onSaveSearch={
+          saveableQuery === null
+            ? undefined
+            : () => setFolderDialog({ mode: "save", query: saveableQuery })
+        }
         placeholder={
           folder
             ? `Search ${clipName(folder.name)}...`
@@ -514,7 +596,7 @@ export function CardsScreen({
         }
       />
 
-      {folder && (
+      {folder && !isSmartFolder && (
         <div className="mb-4 flex min-w-0 items-center gap-2">
           <FolderDot className="size-3" color={folder.color} />
           <h1
@@ -531,6 +613,42 @@ export function CardsScreen({
         </div>
       )}
 
+      {folder && isSmartFolder && (
+        <div className="mb-4 min-w-0 space-y-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <FolderSearch
+              aria-hidden="true"
+              className={
+                folder.color
+                  ? `size-4 shrink-0 ${FOLDER_ICON_CLASSES[folder.color]}`
+                  : "size-4 shrink-0 text-muted-foreground"
+              }
+            />
+            <h1
+              className="min-w-0 truncate font-semibold text-lg"
+              dir="auto"
+              title={folder.name}
+            >
+              {folder.name}
+            </h1>
+            <span className="sr-only">Smart folder</span>
+            <Button
+              className="ml-auto shrink-0 text-muted-foreground"
+              onClick={editSmartFolder}
+              size="sm"
+              variant="ghost"
+            >
+              <Pencil />
+              <span className="max-sm:sr-only">Edit search</span>
+            </Button>
+          </div>
+          <SmartFolderQuery
+            folderNames={folderNames}
+            query={folder.query ?? ""}
+          />
+        </div>
+      )}
+
       {displayCards.length > 0 ? (
         <MasonryGrid
           AddCardFormComponent={AddCardFormWrapper}
@@ -541,7 +659,13 @@ export function CardsScreen({
           }
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
-          folder={folder ? { id: folder._id, name: folder.name } : undefined}
+          folder={
+            // No card is ever in a smart folder, so its view offers no
+            // Remove from folder.
+            folder && !isSmartFolder
+              ? { id: folder._id, name: folder.name }
+              : undefined
+          }
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
@@ -602,6 +726,39 @@ export function CardsScreen({
         onInvalidCard={handleInvalidSelectedCard}
         onTagClick={handleTagClick}
         open={!!selectedCardId}
+      />
+
+      <FolderNameDialog
+        focusQuery={folderDialog?.mode === "edit" && folderDialog.focusQuery}
+        folder={folderDialog?.mode === "edit" ? folder : null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFolderDialog(null);
+          }
+        }}
+        onSaved={(saved) => {
+          if (folderDialog?.mode !== "save") {
+            return;
+          }
+          toast.success(`Saved “${saved.name}”`, {
+            description: "It shows every card that matches, as you save them.",
+            ...(onOpenFolder
+              ? {
+                  action: {
+                    label: "Open",
+                    onClick: () => onOpenFolder(saved._id),
+                  },
+                }
+              : {}),
+          });
+        }}
+        open={folderDialog !== null}
+        query={folderDialog?.mode === "save" ? folderDialog.query : undefined}
+        queryNote={
+          folderDialog?.mode === "save" && hasUnsavableFilters
+            ? "Colors, styles and dates aren't saved in a smart folder."
+            : undefined
+        }
       />
 
       <TagManagementModal

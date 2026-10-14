@@ -137,6 +137,13 @@ export function HomePageClient({
     [router]
   );
 
+  const handleOpenFolder = useCallback(
+    (targetFolderId: string) => {
+      router.push(folderPath(targetFolderId));
+    },
+    [router]
+  );
+
   const handleUpgrade = () => {
     rememberHomeScroll();
     router.push("/settings");
@@ -151,6 +158,7 @@ export function HomePageClient({
       onAddCardsToFolder={handleAddCardsToFolder}
       onAddToFolderDone={handleAddToFolderDone}
       onNavigateView={handleNavigateView}
+      onOpenFolder={handleOpenFolder}
       onSearchUrlStateChange={handleSearchUrlStateChange}
       onUpgrade={handleUpgrade}
       pushCardId={(cardId) => {

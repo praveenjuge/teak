@@ -3,12 +3,18 @@ import { Button } from "@teak/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  FolderSearch,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export const SORT_LABELS: Record<CardListSort, string> = {
@@ -17,21 +23,28 @@ export const SORT_LABELS: Record<CardListSort, string> = {
 };
 
 interface SortMenuProps {
+  /** Offers "Save as smart folder…" under the sort options. */
+  onSaveSearch?: () => void;
   onSortChange: (sort: CardListSort) => void;
   sort: CardListSort;
 }
 
 /**
  * A quiet icon button that orders the library by saved date. Oldest first
- * tints the icon so a non-default order is noticeable at a glance.
+ * tints the icon so a non-default order is noticeable at a glance. While
+ * there is a search to keep, it also saves it as a smart folder.
  */
-export function SortMenu({ sort, onSortChange }: SortMenuProps) {
+export function SortMenu({ sort, onSaveSearch, onSortChange }: SortMenuProps) {
   const Icon = sort === "oldest" ? ArrowUpNarrowWide : ArrowDownWideNarrow;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`Sort: ${SORT_LABELS[sort]}`}
+          aria-label={
+            onSaveSearch
+              ? `Sort and save search: ${SORT_LABELS[sort]}`
+              : `Sort: ${SORT_LABELS[sort]}`
+          }
           size="icon"
           type="button"
           variant="ghost"
@@ -44,7 +57,7 @@ export function SortMenu({ sort, onSortChange }: SortMenuProps) {
           />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
           Sort by date saved
         </DropdownMenuLabel>
@@ -59,6 +72,15 @@ export function SortMenu({ sort, onSortChange }: SortMenuProps) {
             {SORT_LABELS.oldest}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+        {onSaveSearch && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onSaveSearch}>
+              <FolderSearch />
+              Save as smart folder…
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

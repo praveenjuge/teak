@@ -29,6 +29,7 @@ import {
 import { useMutation } from "convex/react";
 import {
   Folder,
+  FolderSearch,
   MoreHorizontal,
   Palette,
   Pencil,
@@ -41,6 +42,7 @@ import { useFolders } from "../../hooks/useFolders";
 import {
   FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
+  FOLDER_ICON_CLASSES,
   type FolderColor,
   type FolderSummary,
   folderErrorMessage,
@@ -49,19 +51,6 @@ import {
 import { FolderDot } from "../folders/FolderDot";
 import { FolderNameDialog } from "../folders/FolderNameDialog";
 import type { SidebarLinkComponent } from "./AppSidebar";
-
-/** Folder icon tints, so folders read at a glance even in the icon rail. */
-const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
-  gray: "text-zinc-500 fill-zinc-500/15",
-  red: "text-red-500 fill-red-500/15",
-  orange: "text-orange-500 fill-orange-500/15",
-  amber: "text-amber-500 fill-amber-500/15",
-  green: "text-emerald-500 fill-emerald-500/15",
-  teal: "text-teal-500 fill-teal-500/15",
-  blue: "text-blue-500 fill-blue-500/15",
-  violet: "text-violet-500 fill-violet-500/15",
-  pink: "text-pink-500 fill-pink-500/15",
-};
 
 const SKELETON_WIDTHS = ["62%", "48%", "70%"];
 
@@ -78,7 +67,9 @@ interface SidebarFoldersProps {
 /**
  * The Folders group in the sidebar: every folder with its card count, a
  * New folder button, and a menu (or right-click) to rename, recolor or
- * delete. Deleting offers Undo for a few seconds.
+ * delete. Smart folders show a search icon, no count (their cards are
+ * found when opened) and Edit search. Deleting offers Undo for a few
+ * seconds.
  */
 export function SidebarFolders({
   activeFolderId,
@@ -89,6 +80,7 @@ export function SidebarFolders({
   const { isMobile, setOpenMobile } = useSidebar();
   const folders = useFolders();
   const [dialog, setDialog] = useState<{
+    focusQuery?: boolean;
     folder: FolderSummary | null;
   } | null>(null);
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null);
@@ -190,6 +182,8 @@ export function SidebarFolders({
         )}
         {folders?.map((folder) => {
           const isActive = folder._id === activeFolderId;
+          const isSmart = folder.kind === "smart";
+          const Icon = isSmart ? FolderSearch : Folder;
           return (
             <SidebarMenuItem
               key={folder._id}
@@ -208,7 +202,7 @@ export function SidebarFolders({
                   href={folderPath(folder._id)}
                   onClick={navigate}
                 >
-                  <Folder
+                  <Icon
                     className={
                       folder.color
                         ? FOLDER_ICON_CLASSES[folder.color]
@@ -220,7 +214,7 @@ export function SidebarFolders({
                   </span>
                 </LinkComponent>
               </SidebarMenuButton>
-              {folder.activeCardCount > 0 && (
+              {!isSmart && folder.activeCardCount > 0 && (
                 <SidebarMenuBadge className="text-sidebar-foreground/55 transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
                   {folder.activeCardCount}
                 </SidebarMenuBadge>
@@ -248,6 +242,14 @@ export function SidebarFolders({
                     <Pencil />
                     Rename…
                   </DropdownMenuItem>
+                  {isSmart && (
+                    <DropdownMenuItem
+                      onSelect={() => setDialog({ folder, focusQuery: true })}
+                    >
+                      <FolderSearch />
+                      Edit search…
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <Palette />
@@ -293,6 +295,7 @@ export function SidebarFolders({
         })}
       </SidebarMenu>
       <FolderNameDialog
+        focusQuery={dialog?.focusQuery}
         folder={dialog?.folder}
         onOpenChange={(open) => {
           if (!open) {

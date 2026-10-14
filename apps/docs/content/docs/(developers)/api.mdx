@@ -279,7 +279,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="folder" type="string">
-  A folder ID. Lists only that folder's cards; an unknown folder returns `404`. See [Folders](#folders).
+  A folder ID. Lists only that folder's cards, or for a smart folder the cards its search matches (together with `q`); an unknown folder returns `404`. See [Folders](#folders).
 </ParamField>
 
 <ParamField query="style" type="string">
@@ -331,7 +331,7 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `is:fav` | Favorites only, like `favorited=true` |
 | `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
-| `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name matches no cards |
+| `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
 | `"design system"` | Cards whose text contains that phrase |
 
 Qualifiers combine with each other and with the other parameters: tags and
@@ -411,14 +411,15 @@ Archiving hides a card from listings and search without deleting it; it still co
 
 ## Folders
 
-Folders group cards by hand, and a card can be in up to 50 folders. `GET /v1/folders` lists your folders by name, each with `id`, `name`, `color` (one of `gray`, `red`, `orange`, `amber`, `green`, `teal`, `blue`, `violet`, `pink`, or `null`), and `cardCount`, which counts cards that are not archived or in Trash.
+Folders group cards by hand, and a card can be in up to 50 folders. `GET /v1/folders` lists your folders by name, each with `id`, `name`, `color` (one of `gray`, `red`, `orange`, `amber`, `green`, `teal`, `blue`, `violet`, `pink`, or `null`), `kind` (`manual` or `smart`), `query`, and `cardCount`, which counts cards that are not archived or in Trash. A smart folder saves a search: its `query` is that search and its `cardCount` is `null`; a manual folder's `query` is `null`.
 
 - `POST /v1/folders` with `{ "name": "Reading", "color": "blue" }` creates a folder and returns `201`. Names are 1 to 300 characters and unique ignoring case; a taken name returns `409 CONFLICT`, and an account can have up to 500 folders (`409 LIMIT_REACHED`).
-- `PATCH /v1/folders/:folderId` renames or recolors a folder; `"color": null` clears the color.
+- `POST /v1/folders` with `{ "name": "Design links", "kind": "smart", "query": "tag:design type:link" }` creates a smart folder. The query uses the [search qualifiers](#search-qualifiers), is at most 500 characters, and is stored written the canonical way (`#design` becomes `tag:design`). A `folder:` in it must name one of your manual folders, or the request returns `400`.
+- `PATCH /v1/folders/:folderId` renames or recolors a folder; `"color": null` clears the color. `{ "query": "..." }` changes a smart folder's search.
 - `DELETE /v1/folders/:folderId` deletes a folder and returns `204`. Its cards are kept and leave the folder shortly after.
-- `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). Adding a card that is already in the folder succeeds without change.
+- `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). Adding a card that is already in the folder succeeds without change. A smart folder holds no cards of its own, so adding to one, or naming one in a card's `folderIds`, returns `409 SMART_FOLDER`.
 
-Cards include `folderIds`. `PATCH /v1/cards/:cardId` with `{ "folderIds": [...] }` replaces a card's folders, and an empty list takes it out of every folder. List a folder's cards with `GET /v1/cards?folder=<folderId>`; like the library, the listing leaves out archived cards and cards in Trash unless you ask for them.
+Cards include `folderIds`. `PATCH /v1/cards/:cardId` with `{ "folderIds": [...] }` replaces a card's folders, and an empty list takes it out of every folder. List a folder's cards with `GET /v1/cards?folder=<folderId>`; like the library, the listing leaves out archived cards and cards in Trash unless you ask for them. For a smart folder, the listing runs its search, and `q` narrows it: both must match, so `?folder=<id>&q=type:image` on a `type:link` smart folder lists nothing.
 
 ## Rename, merge, and delete tags
 

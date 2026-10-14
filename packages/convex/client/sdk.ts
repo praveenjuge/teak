@@ -157,13 +157,19 @@ export interface TagSummary {
 }
 export type FolderColor = (typeof FOLDER_COLORS)[number];
 export interface Folder {
-  /** Cards in the folder that are not archived or in Trash. */
-  cardCount: number;
+  /**
+   * Cards in a manual folder that are not archived or in Trash; null for a
+   * smart folder, whose cards are found when listed.
+   */
+  cardCount: number | null;
   color: FolderColor | null;
   createdAt: number;
   id: string;
+  /** Manual folders hold the cards put in them; smart ones save a search. */
   kind: "manual" | "smart";
   name: string;
+  /** A smart folder's search; null for a manual folder. */
+  query: string | null;
   updatedAt: number;
 }
 export type TagOperationKind = "rename" | "merge" | "delete";
@@ -793,14 +799,25 @@ export const createTeakClient = (options: {
         ),
     },
     folders: {
-      /** Adds up to 100 cards; cards already in the folder are left as they are. */
+      /**
+       * Adds up to 100 cards; cards already in the folder are left as they
+       * are. A smart folder refuses cards (409 SMART_FOLDER).
+       */
       addCards: (id: string, cardIds: string[]) =>
         request(
           `${folderPath(id)}/cards`,
           { body: JSON.stringify({ cardIds }), method: "POST" },
           asFolderCards
         ),
-      create: (input: { color?: FolderColor; name: string }) =>
+      /**
+       * Creates a folder; `{ kind: "smart", query }` saves a search, whose
+       * cards are whatever matches it when listed.
+       */
+      create: (
+        input:
+          | { color?: FolderColor; kind?: "manual"; name: string }
+          | { color?: FolderColor; kind: "smart"; name: string; query: string }
+      ) =>
         request(
           "/v1/folders",
           { body: JSON.stringify(input), method: "POST" },
@@ -818,10 +835,13 @@ export const createTeakClient = (options: {
           { body: JSON.stringify({ cardIds }), method: "DELETE" },
           asFolderCards
         ),
-      /** Renames or recolors; `color: null` clears the color. */
+      /**
+       * Renames or recolors; `color: null` clears the color. `query` changes
+       * a smart folder's search.
+       */
       update: (
         id: string,
-        input: { color?: FolderColor | null; name?: string }
+        input: { color?: FolderColor | null; name?: string; query?: string }
       ) =>
         request(
           folderPath(id),

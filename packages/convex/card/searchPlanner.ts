@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
+  combineSearchQueries,
   matchesSearchPhrases,
   type ParsedSearchQuery,
 } from "../shared/search/qualifiers";
@@ -60,8 +61,9 @@ export const cardUrlHost = (card: Pick<Doc<"cards">, "url" | "urlHost">) =>
 
 /**
  * The user's folders for `folder:` name keys (trimmed, lowercased names),
- * or null when any name is not one of their folders. A folder being deleted
- * no longer answers to its name.
+ * or null when any name is not one of their manual folders. A folder being
+ * deleted no longer answers to its name, and no card is ever in a smart
+ * folder, so naming one matches nothing.
  */
 export const resolveFolderNames = async (
   ctx: QueryCtx,
@@ -78,7 +80,7 @@ export const resolveFolderNames = async (
         query.eq("userId", userId).eq("nameKey", nameKey)
       )) {
       if (folder.deletingAt === undefined) {
-        found = folder._id;
+        found = folder.kind === "smart" ? undefined : folder._id;
         break;
       }
     }
@@ -88,6 +90,38 @@ export const resolveFolderNames = async (
     folderIds.push(found);
   }
   return folderIds;
+};
+
+/**
+ * A folder view's search. A manual folder keeps its id as the view's
+ * filter; a smart folder has no cards of its own, so its stored search
+ * joins the typed one (both must match) and the view drops the folder.
+ * Null when nothing can match: the folder is missing, another user's or
+ * being deleted, or the two searches contradict each other.
+ */
+export const expandFolderSearch = async (
+  ctx: QueryCtx,
+  userId: string,
+  folderId: Id<"folders"> | undefined,
+  searchQuery: string,
+  /** A smart folder's search as the caller read it, over the stored one. */
+  folderQuery?: string
+): Promise<{ folderId?: Id<"folders">; searchQuery: string } | null> => {
+  if (!folderId) {
+    return { searchQuery };
+  }
+  const folder = await ctx.db.get("folders", folderId);
+  if (!folder || folder.userId !== userId || folder.deletingAt !== undefined) {
+    return null;
+  }
+  if (folder.kind !== "smart") {
+    return { folderId, searchQuery };
+  }
+  const combined = combineSearchQueries(
+    folderQuery ?? folder.query ?? "",
+    searchQuery
+  );
+  return combined === null ? null : { searchQuery: combined };
 };
 
 /**

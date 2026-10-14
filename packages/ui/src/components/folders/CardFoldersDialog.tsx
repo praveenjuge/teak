@@ -25,6 +25,7 @@ import {
   filterFolders,
   folderErrorMessage,
   hasFolderNamed,
+  manualFolders,
 } from "../../lib/folders";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
@@ -84,7 +85,8 @@ export function CardFoldersDialog({
   }, [folderIds, open]);
 
   const visible = useMemo(
-    () => filterFolders(folders ?? [], query),
+    // Cards can't be put in a smart folder, so it is never listed.
+    () => filterFolders(manualFolders(folders ?? []), query),
     [folders, query]
   );
   const trimmed = query.trim();

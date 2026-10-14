@@ -4,6 +4,7 @@ import {
   FOLDER_COLORS,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDER_NAME_LENGTH,
+  MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
 import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { captureBackendEvent } from "../telemetry/posthog";
@@ -187,20 +188,37 @@ const archivedInputSchema = z.object({
 });
 const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
 const folderColorSchema = z.enum(FOLDER_COLORS);
-const createFolderInputSchema = z.object({
-  name: folderNameSchema,
-  color: folderColorSchema.optional(),
-});
+const smartFolderQuerySchema = nonEmptyString.max(
+  MAX_SMART_FOLDER_QUERY_LENGTH
+);
+const createFolderInputSchema = z
+  .object({
+    name: folderNameSchema,
+    color: folderColorSchema.optional(),
+    kind: z.enum(["manual", "smart"]).optional(),
+    query: smartFolderQuerySchema.optional(),
+  })
+  .refine((value) => (value.kind === "smart") === (value.query !== undefined), {
+    message: 'A smart folder needs `query`, and `query` needs kind "smart"',
+    path: ["query"],
+  });
 const updateFolderInputSchema = z
   .object({
     folderId: nonEmptyString,
     name: folderNameSchema.optional(),
     color: folderColorSchema.or(z.null()).optional(),
+    query: smartFolderQuerySchema.optional(),
   })
-  .refine((value) => value.name !== undefined || value.color !== undefined, {
-    message: "Provide name or color",
-    path: ["name"],
-  });
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.color !== undefined ||
+      value.query !== undefined,
+    {
+      message: "Provide name, color or query",
+      path: ["name"],
+    }
+  );
 const deleteFolderInputSchema = z.object({
   folderId: nonEmptyString,
   confirm: z.literal(true),
@@ -611,14 +629,14 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_list_folders",
     description:
-      "List folders by name with their ids and card counts. List a folder's cards with teak_v1_list_cards and `folder`.",
+      "List folders by name with their ids, kinds and card counts (null for smart folders, which have a `query`). List a folder's cards with teak_v1_list_cards and `folder`; a smart folder lists what its query matches.",
     annotations: { title: "List folders", ...READ_ONLY },
     inputSchema: inputSchema({}),
   },
   {
     name: "teak_v1_create_folder",
     description:
-      "Create a folder. Names are unique per account, ignoring case.",
+      'Create a folder. Names are unique per account, ignoring case. With kind "smart" and a `query` (the search grammar of teak_v1_search_cards, e.g. "tag:design type:link"), it saves a search: its cards are whatever matches, and cards cannot be added to it.',
     annotations: { title: "Create folder", ...WRITES },
     inputSchema: inputSchema(
       {
@@ -628,13 +646,20 @@ export const TEAK_V1_TOOLS = [
           maxLength: MAX_FOLDER_NAME_LENGTH,
         },
         color: { enum: FOLDER_COLORS },
+        kind: { enum: ["manual", "smart"] },
+        query: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
+        },
       },
       ["name"]
     ),
   },
   {
     name: "teak_v1_update_folder",
-    description: "Rename a folder or change its color (null clears it).",
+    description:
+      "Rename a folder, change its color (null clears it) or change a smart folder's query.",
     annotations: { title: "Update folder", ...IDEMPOTENT_WRITE },
     inputSchema: inputSchema(
       {
@@ -645,6 +670,11 @@ export const TEAK_V1_TOOLS = [
           maxLength: MAX_FOLDER_NAME_LENGTH,
         },
         color: { enum: [...FOLDER_COLORS, null] },
+        query: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
+        },
       },
       ["folderId"]
     ),
@@ -663,7 +693,7 @@ export const TEAK_V1_TOOLS = [
   },
   {
     name: "teak_v1_add_cards_to_folder",
-    description: `Add up to ${MAX_FOLDER_CARD_IDS} cards to a folder. Cards already in it are left as they are.`,
+    description: `Add up to ${MAX_FOLDER_CARD_IDS} cards to a manual folder. Cards already in it are left as they are. Smart folders refuse cards.`,
     annotations: { title: "Add cards to folder", ...IDEMPOTENT_WRITE },
     inputSchema: inputSchema(
       {

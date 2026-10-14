@@ -9,6 +9,7 @@ import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
+  MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
 import { MAX_TAG_NAME_LENGTH, TAG_OPERATION_COUNT_LIMIT } from "./shared/tags";
 
@@ -502,10 +503,21 @@ const components = {
           enum: [...FOLDER_COLORS, null],
           type: ["string", "null"],
         },
-        kind: { enum: ["manual", "smart"], type: "string" },
+        kind: {
+          description:
+            "`manual` folders hold the cards put in them; `smart` folders show the cards that match their `query` when listed.",
+          enum: ["manual", "smart"],
+          type: "string",
+        },
+        query: {
+          description:
+            "A smart folder's search (the same grammar as `q`), written the canonical way; null for a manual folder.",
+          type: ["string", "null"],
+        },
         cardCount: {
-          description: "Cards in the folder that are not archived or in Trash.",
-          type: "number",
+          description:
+            "Cards in a manual folder that are not archived or in Trash; null for a smart folder, whose cards are found when listed.",
+          type: ["number", "null"],
         },
         createdAt: { type: "number" },
         updatedAt: { type: "number" },
@@ -515,6 +527,7 @@ const components = {
         "name",
         "color",
         "kind",
+        "query",
         "cardCount",
         "createdAt",
         "updatedAt",
@@ -532,6 +545,16 @@ const components = {
           enum: [...FOLDER_COLORS],
           type: "string",
         },
+        kind: {
+          description:
+            "`smart` saves a search as a folder and needs `query`. Defaults to `manual`.",
+          enum: ["manual", "smart"],
+          type: "string",
+        },
+        query: {
+          description: `A smart folder's search, with the qualifiers \`q\` accepts; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters. A \`folder:\` must name one of your manual folders.`,
+          type: "string",
+        },
       },
       required: ["name"],
       type: "object",
@@ -547,6 +570,10 @@ const components = {
           description: "A palette color, or null to clear it.",
           enum: [...FOLDER_COLORS, null],
           type: ["string", "null"],
+        },
+        query: {
+          description: `A smart folder's new search (at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters). Manual folders have none.`,
+          type: "string",
         },
       },
       type: "object",
@@ -902,7 +929,7 @@ export const openApiSpec = {
             name: "folder",
             schema: { type: "string" },
             description:
-              "Only cards in this folder. An unknown folder returns 404.",
+              "Only cards in this folder; for a smart folder, the cards its search matches (combined with `q`). An unknown folder returns 404.",
           },
           {
             in: "query",
@@ -1581,6 +1608,10 @@ export const openApiSpec = {
             },
           },
           404: { description: "Folder not found" },
+          409: {
+            description:
+              "SMART_FOLDER: a smart folder shows the cards its search matches; cards cannot be added to it",
+          },
         },
       },
       delete: {
@@ -1606,6 +1637,7 @@ export const openApiSpec = {
             },
           },
           404: { description: "Folder not found" },
+          409: { description: "SMART_FOLDER: the folder is a smart folder" },
         },
       },
     },

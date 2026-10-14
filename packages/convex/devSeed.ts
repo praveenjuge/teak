@@ -26,7 +26,9 @@ import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
+  MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
 // Seed data for development accounts (`bun run dev`). It runs only on the
@@ -556,7 +558,8 @@ export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
 
 export interface FolderScenarioPack {
   cards: FolderScenarioCard[];
-  folders: { color?: FolderColor; name: string }[];
+  /** `query` makes a smart folder with that search. */
+  folders: { color?: FolderColor; name: string; query?: string }[];
 }
 
 export const FOLDER_SCENARIOS = [
@@ -565,6 +568,7 @@ export const FOLDER_SCENARIOS = [
   "card-in-50-folders",
   "folders-ugly",
   "search-qualifiers",
+  "smart-folders",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -834,12 +838,114 @@ const searchQualifiersPack = (): FolderScenarioPack => {
   };
 };
 
+// "smart-folders": smart folders whose searches match nothing, the whole
+// pack, exactly one card, a manual folder's favorites (`folder:`), design
+// links, an emoji and an RTL search, and a search at the 500-character
+// limit, over a handful of cards that exercise each.
+const SMART_FOLDER_PHRASE = "the only card with this phrase";
+const smartFolderLongQuery = () => {
+  const head = "tag:scenario-smart-folders";
+  const filler = Array.from({ length: 200 }, (_, index) => `w${index}`).join(
+    " "
+  );
+  return `${head} ${filler}`.slice(0, MAX_SMART_FOLDER_QUERY_LENGTH).trim();
+};
+
+const smartFoldersPack = (): FolderScenarioPack => {
+  const scenario = "smart-folders" as const;
+  const tagged = (...tags: string[]) => ({
+    tags: [`scenario-${scenario}`, ...tags],
+  });
+  const designLink = (index: number, host: string, title: string) => {
+    const url = `https://${host}/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", [], tagged("design")),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle: title,
+    };
+  };
+  return {
+    folders: [
+      { name: "Reading list", color: "blue" },
+      {
+        name: "Nothing matches",
+        query: `tag:scenario-${scenario} tag:no-such-tag`,
+      },
+      {
+        name: "Everything in the pack",
+        color: "gray",
+        query: `tag:scenario-${scenario}`,
+      },
+      {
+        name: "Just one card",
+        color: "amber",
+        query: `"${SMART_FOLDER_PHRASE}"`,
+      },
+      {
+        name: "Favorite reading",
+        color: "pink",
+        query: 'folder:"Reading list" is:fav',
+      },
+      { name: "Design links", color: "violet", query: "tag:design type:link" },
+      // An emoji tag, not an emoji word: full-text search skips emoji.
+      { name: "🎨 Moodboard ✨", color: "orange", query: "#design tag:🎨" },
+      { name: "مجلد ذكي للتصميم", color: "teal", query: '"تصميم"' },
+      { name: "Five hundred characters", query: smartFolderLongQuery() },
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Smart folders pack", [0], tagged()),
+      designLink(1, "dribbble.com/shots", "Design link on Dribbble"),
+      designLink(2, "www.figma.com/file", "Design link on Figma"),
+      folderScenarioCard(scenario, 3, "A favorite to read", [0], {
+        ...tagged(),
+        isFavorited: true,
+      }),
+      folderScenarioCard(
+        scenario,
+        4,
+        "Read later, not a favorite",
+        [0],
+        tagged()
+      ),
+      folderScenarioCard(
+        scenario,
+        5,
+        `This is ${SMART_FOLDER_PHRASE}.`,
+        [],
+        tagged()
+      ),
+      folderScenarioCard(
+        scenario,
+        6,
+        "🎨 Palette ideas",
+        [],
+        tagged("design", "🎨")
+      ),
+      folderScenarioCard(
+        scenario,
+        7,
+        "ملاحظات حول تصميم الواجهات",
+        [],
+        tagged()
+      ),
+      folderScenarioCard(scenario, 8, "Archived design note", [], {
+        ...tagged("design"),
+        isArchived: true,
+      }),
+    ],
+  };
+};
+
 export const folderScenarioPack = (
   scenario: FolderScenario
 ): FolderScenarioPack => {
   switch (scenario) {
     case "search-qualifiers":
       return searchQualifiersPack();
+    case "smart-folders":
+      return smartFoldersPack();
     case "folders-one":
       return foldersOnePack();
     case "folders-500":
@@ -888,7 +994,10 @@ const seedFolderScenario = async (
         userId,
         folder.name.trim(),
         folder.color,
-        now + index
+        now + index,
+        folder.query === undefined
+          ? undefined
+          : parseSearchQuery(folder.query).canonical
       );
       byKey.set(key, folderId);
       total += 1;
@@ -1018,7 +1127,8 @@ export const seedScenario = internalMutation({
       v.literal("card-in-50-folders"),
       v.literal("folders-ugly"),
       v.literal("search-qualifiers"),
-      v.literal("search-qualifiers-1000")
+      v.literal("search-qualifiers-1000"),
+      v.literal("smart-folders")
     ),
     /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),

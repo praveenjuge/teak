@@ -81,6 +81,11 @@ export interface SearchBarProps {
   /** Clears the sidebar tag; shown when `tagFilter` is set. */
   onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
+  /**
+   * Saves what is on screen as a smart folder; offered in the sort menu
+   * while set (there is a search to save).
+   */
+  onSaveSearch?: () => void;
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
   onSortChange?: (sort: CardListSort) => void;
@@ -112,7 +117,7 @@ const iconComponentMap = {
   Quote,
 } as const;
 
-const getFilterIcon = (filter: CardType) => {
+export const getFilterIcon = (filter: CardType) => {
   const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
   return iconComponentMap[iconName] || FileText;
 };
@@ -121,7 +126,7 @@ function preventBlur(e: React.MouseEvent) {
   e.preventDefault();
 }
 
-const QUALIFIER_ICONS = {
+export const QUALIFIER_ICONS = {
   tag: Tag,
   site: Globe,
   folder: Folder,
@@ -264,6 +269,7 @@ export function SearchBar({
   leading,
   placeholder = "Search for anything...",
   sort = "newest",
+  onSaveSearch,
   onSortChange,
 }: SearchBarProps) {
   // Views and card types live in the sidebar; the row under the search box
@@ -424,7 +430,13 @@ export function SearchBar({
         </div>
 
         <div className="flex items-center gap-1">
-          {onSortChange && <SortMenu onSortChange={onSortChange} sort={sort} />}
+          {onSortChange && (
+            <SortMenu
+              onSaveSearch={onSaveSearch}
+              onSortChange={onSortChange}
+              sort={sort}
+            />
+          )}
           {HeaderActions}
         </div>
 

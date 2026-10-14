@@ -36,6 +36,7 @@ import {
   explainInvalidFolderName,
   FOLDER_COLORS,
   type FolderColor,
+  type FolderKind,
   isFolderColor,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
@@ -796,13 +797,18 @@ const serializeFolder = (folder: {
   createdAt: number;
   kind: string;
   name: string;
+  query?: string;
   updatedAt: number;
 }) => ({
   id: folder._id,
   name: folder.name,
   color: folder.color ?? null,
   kind: folder.kind,
-  cardCount: folder.activeCardCount,
+  // A smart folder's search, or null for a manual folder.
+  query: folder.kind === "smart" ? (folder.query ?? "") : null,
+  // A smart folder's cards are whatever its search matches when listed,
+  // so it has no stored count.
+  cardCount: folder.kind === "smart" ? null : folder.activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
 });
@@ -828,12 +834,20 @@ const parseFolderRoute = (
 };
 
 type FolderPayload =
-  | { payload: { color?: FolderColor | null; name?: string } }
+  | {
+      payload: {
+        color?: FolderColor | null;
+        kind?: FolderKind;
+        name?: string;
+        query?: string;
+      };
+    }
   | { error: string };
 
 /**
- * A folder create (name required) or update (name and/or color) body.
- * `color: null` clears the color on update.
+ * A folder create (name required) or update (name, color and/or query)
+ * body. `color: null` clears the color on update. A smart folder is created
+ * with `kind: "smart"` and its `query`; the server checks the query.
  */
 const parseFolderPayload = (
   payload: unknown,
@@ -843,12 +857,23 @@ const parseFolderPayload = (
     return { error: "Body must be a JSON object" };
   }
   const source = payload as Record<string, unknown>;
+  const allowed =
+    mode === "create"
+      ? ["name", "color", "kind", "query"]
+      : ["name", "color", "query"];
   for (const key of Object.keys(source)) {
-    if (key !== "name" && key !== "color") {
-      return { error: "Body may include only `name` and `color`" };
+    if (!allowed.includes(key)) {
+      return {
+        error: `Body may include only ${allowed.map((name) => `\`${name}\``).join(", ")}`,
+      };
     }
   }
-  const next: { color?: FolderColor | null; name?: string } = {};
+  const next: {
+    color?: FolderColor | null;
+    kind?: FolderKind;
+    name?: string;
+    query?: string;
+  } = {};
   if ("name" in source) {
     if (typeof source.name !== "string") {
       return { error: "`name` must be a string" };
@@ -872,8 +897,28 @@ const parseFolderPayload = (
       };
     }
   }
+  if ("kind" in source) {
+    if (source.kind !== "manual" && source.kind !== "smart") {
+      return { error: "`kind` must be `manual` or `smart`" };
+    }
+    next.kind = source.kind;
+  }
+  if ("query" in source) {
+    if (typeof source.query !== "string") {
+      return { error: "`query` must be a string" };
+    }
+    next.query = source.query;
+  }
+  if (mode === "create") {
+    if (next.kind === "smart" && next.query === undefined) {
+      return { error: "A smart folder needs a `query`" };
+    }
+    if (next.kind !== "smart" && next.query !== undefined) {
+      return { error: '`query` needs `kind: "smart"`' };
+    }
+  }
   if (mode === "update" && Object.keys(next).length === 0) {
-    return { error: "Body must include `name` or `color`" };
+    return { error: "Body must include `name`, `color` or `query`" };
   }
   return { payload: next };
 };

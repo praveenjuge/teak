@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  combineSearchQueries,
   formatSearchQualifier,
   matchesSearchPhrases,
   parseSearchQuery,
+  renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
 
 describe("parseSearchQuery", () => {
@@ -146,5 +148,66 @@ describe("matchesSearchPhrases", () => {
       false
     );
     expect(matchesSearchPhrases("anything", [])).toBe(true);
+  });
+});
+
+describe("combineSearchQueries", () => {
+  test.each([
+    // Both must match: tags, folders, phrases and words add up.
+    ["tag:design", "tag:ui notes", "tag:design tag:ui notes"],
+    [
+      'folder:reading "deep work"',
+      "is:fav",
+      'folder:reading is:fav "deep work"',
+    ],
+    ["", "tag:x", "tag:x"],
+    ["tag:x", "", "tag:x"],
+    // type: and site: match any of their values, so across the two they
+    // intersect.
+    ["type:link type:image", "type:link", "type:link"],
+    ["type:link", "type:link type:image", "type:link"],
+    ["site:a.com site:b.com", "site:B.com", "site:b.com"],
+    ["type:link", "site:a.com", "type:link site:a.com"],
+    ["tag:x tag:x", "#X", "tag:x"],
+  ])("%j with %j", (scope: string, typed: string, combined: string) => {
+    expect(combineSearchQueries(scope, typed)).toBe(combined);
+  });
+
+  test("searches that cannot both match combine to null", () => {
+    expect(combineSearchQueries("type:link", "type:image")).toBeNull();
+    expect(combineSearchQueries("site:a.com", "site:b.com")).toBeNull();
+  });
+
+  test("the combined search reads back to the same filters", () => {
+    const combined = combineSearchQueries(
+      'folder:"Reading list" type:link',
+      'tag:"a b" "say \\"hi\\""'
+    );
+    expect(parseSearchQuery(combined ?? "")).toMatchObject({
+      folders: ["reading list"],
+      types: ["link"],
+      tags: ["a b"],
+      phrases: ['say "hi"'],
+    });
+  });
+});
+
+describe("renameFolderInSearchQuery", () => {
+  test("renames every folder: naming the folder, ignoring case", () => {
+    expect(
+      renameFolderInSearchQuery(
+        "folder:Reading tag:x notes",
+        "reading",
+        "Reading list"
+      )
+    ).toBe('folder:"Reading list" tag:x notes');
+    expect(
+      renameFolderInSearchQuery('FOLDER:"reading"', "reading", "Inbox")
+    ).toBe("folder:Inbox");
+  });
+
+  test("leaves a search that names other folders as it was", () => {
+    const query = "folder:inbox  tag:x";
+    expect(renameFolderInSearchQuery(query, "reading", "Later")).toBe(query);
   });
 });

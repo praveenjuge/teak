@@ -619,13 +619,21 @@ const folders = program
 folders
   .command("list")
   .alias("ls")
-  .description("List folders with how many cards each holds")
+  .description(
+    "List folders with how many cards each holds; smart folders show their search"
+  )
   .action(async () => listFolders(program.opts()));
 folders
   .command("create")
   .argument("<name>")
-  .description("Create a folder")
+  .description(
+    "Create a folder, or with --query a smart folder that shows the cards matching a search"
+  )
   .option("--color <color>", `${FOLDER_COLORS.join(", ")}`, parseFolderColor)
+  .option(
+    "--query <search>",
+    "save a search as a smart folder, e.g. 'tag:design type:link'"
+  )
   .action(async (name, options) =>
     createFolder(name, { ...program.opts(), ...options })
   );
@@ -633,12 +641,15 @@ folders
   .command("rename")
   .argument("<folder>", "folder name or id")
   .argument("[name]", "new name")
-  .description("Rename a folder or change its color")
+  .description(
+    "Rename a folder, change its color, or change a smart folder's search"
+  )
   .option(
     "--color <color>",
     `${FOLDER_COLORS.join(", ")}, or none`,
     oneOf("color", [...FOLDER_COLORS, "none"])
   )
+  .option("--query <search>", "a smart folder's new search")
   .action(async (folder, name, options) =>
     updateFolder(folder, name, { ...program.opts(), ...options })
   );
@@ -652,7 +663,7 @@ folders
   .command("add")
   .argument("<folder>", "folder name or id")
   .argument("<ids...>", "card ids")
-  .description("Add cards to a folder")
+  .description("Add cards to a folder (smart folders refuse cards)")
   .action(async (folder, ids) =>
     changeFolderCards(folder, ids, "add", program.opts())
   );
