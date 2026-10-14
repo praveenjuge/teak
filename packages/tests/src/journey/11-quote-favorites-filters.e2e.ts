@@ -66,7 +66,8 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     const dialog = screen.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(/Quote/i).first()).toBeVisible();
-    await expect(browser.locator('[role="dialog"] textarea')).toHaveValue(
+    // The quote itself, not the side panel's Notes field.
+    await expect(browser.locator('[role="dialog"] main textarea')).toHaveValue(
       quoteBody
     );
     await browser.keyboard.press("Escape");
