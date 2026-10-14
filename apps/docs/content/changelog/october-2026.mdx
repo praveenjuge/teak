@@ -1,11 +1,18 @@
 ---
 title: "October 2026"
-description: A calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
   category: Product updates
 ---
+
+## Search inside documents and videos
+
+- Search now finds a card by the words inside its file: a sentence from the middle of a PDF, a line in a Word or PowerPoint file, a function in a code file, or something someone said in a video. Quoted phrases match inside documents too.
+- Video cards get a transcript of their speech, like audio already did. For a video saved earlier, use **Refresh details** to get one. Documents saved earlier become searchable as Teak catches up on them.
+- An open document card's details show how much text Teak read from it.
+- **API, CLI, and MCP:** `GET /v1/cards/:cardId/content`, `teak content <card-id>`, and the `teak_v1_get_card_content` tool return a card's full text. See [Read a card's text](/docs/api#read-a-cards-text).
 
 ## A calmer card grid and card view
 

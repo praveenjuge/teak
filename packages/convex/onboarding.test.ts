@@ -175,6 +175,13 @@ describe("getting-started cards", () => {
     expect(cards.find((card) => card.type === "audio")?.aiTranscript).toContain(
       "serif"
     );
+    // The ready-made PDF skips processing, so its text is read on its own.
+    const pdf = cards.find((card) => card.type === "document");
+    expect(
+      (
+        await scheduled(t, "migration/extractDocumentText:extractDocumentText")
+      ).map((job) => (job.args[0] as { cardId: string }).cardId)
+    ).toEqual([pdf?._id]);
   });
 
   test("without a Files Worker, the cards that need no files arrive at once", async () => {

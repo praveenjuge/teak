@@ -73,6 +73,7 @@ export const buildR2ObjectKey = ({
 };
 
 export const cardStorageObjectKeys = (card: {
+  documentTextKey?: string;
   fileKey?: string;
   metadata?: {
     linkCategory?: { rawStorageKey?: string };
@@ -95,6 +96,7 @@ export const cardStorageObjectKeys = (card: {
     card.thumbnailKey,
     card.scrubKey,
     card.previewKey,
+    card.documentTextKey,
     ...(card.workflowArtifactKeys ?? []),
     linkPreview?.rawStorageKey,
     card.metadata?.linkCategory?.rawStorageKey,

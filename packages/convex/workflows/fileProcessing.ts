@@ -61,16 +61,21 @@ const isUnsupportedInspectModeError = (error: unknown): boolean =>
   error instanceof Error &&
   error.message.startsWith("files_worker_error:INVALID_INPUT:");
 
-export const extractFileTextForAiForKey = async (
+/**
+ * A document's text from the Files Worker, with the PDF's page count when it
+ * reported one. Empty text for formats without text, scans, and documents
+ * the Worker declines.
+ */
+export const extractFileTextForKey = async (
   sourceKey: string,
   format: FileFormat,
   card: FileCardInput
-): Promise<string> => {
+): Promise<{ pageCount?: number; text: string }> => {
   const archive = ["word", "powerpoint"].includes(format.id);
   const pdf = format.kind === "pdf";
   const text = ["markdown", "source", "text", "tokens"].includes(format.kind);
   if (!(archive || pdf || text)) {
-    return "";
+    return { text: "" };
   }
   requireWorker();
   let mode: FilesInspectMode = "text";
@@ -100,9 +105,23 @@ export const extractFileTextForAiForKey = async (
     // PDF text is an optional enrichment: until the Worker with the pdf mode
     // is deployed, fall back to the file name instead of failing the step.
     if (pdf && isUnsupportedInspectModeError(error)) {
-      return "";
+      return { text: "" };
     }
     throw error;
   }
-  return outcome.kind === "ok" ? (outcome.data.text ?? "") : "";
+  if (outcome.kind !== "ok") {
+    return { text: "" };
+  }
+  const pageCount = outcome.data.facts?.pageCount;
+  return {
+    text: outcome.data.text ?? "",
+    ...(typeof pageCount === "number" && { pageCount }),
+  };
 };
+
+export const extractFileTextForAiForKey = async (
+  sourceKey: string,
+  format: FileFormat,
+  card: FileCardInput
+): Promise<string> =>
+  (await extractFileTextForKey(sourceKey, format, card)).text;

@@ -239,6 +239,13 @@ export const FILES_TRANSCRIPTION_MODEL =
   "@cf/openai/whisper-large-v3-turbo" as const;
 export const FILES_AUDIO_MAX_BYTES = 100 * 1024 * 1024;
 export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
+/**
+ * Text the inspect op extracts from a document: at most this many characters
+ * (UTF-8 bytes for the text and archive modes), from at most
+ * FILES_PDF_TEXT_MAX_PAGES pages of a PDF. Teak stores it as the card's text.
+ */
+export const FILES_EXTRACTED_TEXT_MAX_CHARACTERS = 512 * 1024;
+export const FILES_PDF_TEXT_MAX_PAGES = 500;
 export interface FilesTranscriptParams {
   mimeType?: string;
   sourceKey: string;

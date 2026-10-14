@@ -535,7 +535,7 @@ export const exitCodeFor = (error: unknown) => {
   ) {
     return EXIT.auth;
   }
-  if (error.code === "NOT_FOUND") {
+  if (error.code === "NOT_FOUND" || error.code === "NO_CONTENT") {
     return EXIT.notFound;
   }
   if (error.code === "RATE_LIMITED") {

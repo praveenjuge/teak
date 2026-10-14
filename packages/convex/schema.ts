@@ -510,6 +510,15 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
+  /**
+   * The document's extracted text in R2 (card/documentText.ts). Its first
+   * 32 KiB, in cardTextContents, is part of search.
+   */
+  documentTextKey: v.optional(r2KeyValidator),
+  /** Set with documentTextKey; absent on cards without stored text. */
+  hasExtractedText: v.optional(v.literal(true)),
+  /** Characters in the stored text, for the card's details. */
+  extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),
   // Times the periodic AI backfill has retried this card. After the limit the
   // backfill stops picking it, so cards that always fail can't starve others.
@@ -932,6 +941,20 @@ export default defineSchema({
         "urlHost",
       ],
     }),
+  // Text extracted from a card's file. `text` is the searchable prefix (at
+  // most 32 KiB of UTF-8); the full text is the R2 object at `sourceKey`,
+  // which is also the card's documentTextKey. One row per card.
+  cardTextContents: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    kind: v.union(v.literal("document"), v.literal("transcript")),
+    text: v.string(),
+    sourceKey: r2KeyValidator,
+    charCount: v.number(),
+    truncated: v.boolean(),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"]),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

@@ -883,6 +883,220 @@ describe("metadata handler", () => {
     });
   });
 
+  describe("stored document text", () => {
+    const pdfCard = {
+      _id: "c1",
+      userId: "u1",
+      fileKey: "users/u1/cards/c1/file/report.pdf",
+      fileMetadata: { fileName: "report.pdf", mimeType: "application/pdf" },
+    };
+    // Routes worker ops by name; a PUT is the text upload.
+    const routeWorker = (
+      answers: Record<string, unknown>,
+      { putStatus = 200 }: { putStatus?: number } = {}
+    ) =>
+      mockFetch.mockImplementation((url: unknown, init?: any) => {
+        if (init?.method === "PUT") {
+          return putStatus === 200
+            ? envelope(
+                {
+                  data: { etag: "e", key: "k", size: 1 },
+                  ok: true,
+                  requestId: "r1",
+                  version: 1,
+                },
+                200
+              )
+            : envelope(
+                {
+                  error: { code: "UPSTREAM", message: "down", retryable: true },
+                  ok: false,
+                  version: 1,
+                },
+                putStatus
+              );
+        }
+        const { op } = JSON.parse(init?.body ?? "{}");
+        if (op in answers) {
+          const answer = answers[op] as { status?: number; data?: unknown };
+          return answer.status && answer.status !== 200
+            ? envelope(
+                {
+                  error: {
+                    code: answer.status === 415 ? "UNSUPPORTED" : "BUSY",
+                    message: "no",
+                    requestId: "r1",
+                    retryable: answer.status !== 415,
+                  },
+                  ok: false,
+                  version: 1,
+                },
+                answer.status
+              )
+            : envelope(
+                { data: answer.data, ok: true, requestId: "r1", version: 1 },
+                200
+              );
+        }
+        return fakeWorker(url, init);
+      });
+    const putUrls = () =>
+      mockFetch.mock.calls
+        .filter((call) => (call[1] as any)?.method === "PUT")
+        .map((call) => decodeURIComponent(String(call[0])));
+    const savedText = () =>
+      mockRunMutation.mock.calls.find((call) =>
+        String(call[1]?.key ?? "").includes("/document-text/")
+      )?.[1];
+    const savedAi = () =>
+      mockRunMutation.mock.calls.find(
+        (call) => "aiTranscript" in (call[1] ?? {})
+      )?.[1];
+
+    test("stores a PDF's text in R2 and its searchable prefix", async () => {
+      mockRunQuery.mockResolvedValue(pdfCard);
+      routeWorker({
+        inspect: {
+          data: {
+            facts: { characterCount: 40, pageCount: 3 },
+            text: "Kestrel Freight agreed to net 30 days.",
+          },
+        },
+      });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "document",
+      });
+      expect(putUrls()).toHaveLength(1);
+      expect(putUrls()[0]).toMatch(/\/c1\/document-text\/[a-f0-9]{64}\.txt/);
+      expect(savedText()).toMatchObject({
+        cardId: "c1",
+        text: "Kestrel Freight agreed to net 30 days.",
+        charCount: 38,
+        truncated: false,
+      });
+      expect(result.mode).toBe("completed");
+    });
+
+    test("a PDF longer than the pages read is marked truncated", async () => {
+      mockRunQuery.mockResolvedValue(pdfCard);
+      routeWorker({
+        inspect: { data: { facts: { pageCount: 900 }, text: "First pages" } },
+      });
+      await generateHandler(ctx, { cardId: "c1", cardType: "document" });
+      expect(savedText()).toMatchObject({ truncated: true });
+    });
+
+    test("a scan without a text layer stores nothing", async () => {
+      mockRunQuery.mockResolvedValue(pdfCard);
+      routeWorker({ inspect: { data: { facts: { pageCount: 2 }, text: "" } } });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "document",
+      });
+      expect(putUrls()).toEqual([]);
+      expect(savedText()).toBeUndefined();
+      expect(result.mode).toBe("completed");
+    });
+
+    test("an upload failure keeps the step's tags and summary", async () => {
+      mockRunQuery.mockResolvedValue(pdfCard);
+      aiResult = { tags: ["freight"], summary: "A review" };
+      routeWorker(
+        { inspect: { data: { text: "Kestrel Freight" } } },
+        { putStatus: 503 }
+      );
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "document",
+      });
+      expect(savedText()).toBeUndefined();
+      expectSaved(["freight"], "A review");
+      expect(result.mode).toBe("completed");
+    });
+
+    const videoCard = {
+      _id: "c1",
+      userId: "u1",
+      fileKey: "users/u1/cards/c1/file/clip.mp4",
+      fileMetadata: { fileName: "clip.mp4", mimeType: "video/mp4" },
+      thumbnailKey: "t1",
+    };
+
+    test("a video's speech becomes its transcript; its waveform stays off the card", async () => {
+      mockRunQuery.mockResolvedValue(videoCard);
+      routeWorker({
+        "generate-image-metadata": {
+          data: { summary: "A talk", tags: ["talk"] },
+        },
+        "process-audio": { data: processedAudio("welcome to the launch", 12) },
+      });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "video",
+      });
+      const processAudioCall = mockFetch.mock.calls.find((call) =>
+        String((call[1] as any)?.body).includes("process-audio")
+      );
+      const processAudio = JSON.parse(
+        (processAudioCall?.[1] as any)?.body ?? "{}"
+      );
+      expect(processAudio.params).toMatchObject({
+        sourceKey: "users/u1/cards/c1/file/clip.mp4",
+        transcribe: true,
+      });
+      expect(savedAi()).toMatchObject({
+        aiTags: ["talk"],
+        aiSummary: "A talk",
+        aiTranscript: "welcome to the launch",
+      });
+      expect(
+        mockRunMutation.mock.calls.some(
+          (call) =>
+            call[0] ===
+            internal.workflows.steps.renderables.mutations.updateCardMediaFacts
+        )
+      ).toBe(false);
+      expect(result.hasTranscript).toBe(true);
+    });
+
+    test("a silent or unreadable video keeps its thumbnail tags", async () => {
+      for (const answer of [{ status: 415 }, { status: 503 }]) {
+        mockRunMutation.mockClear();
+        mockRunQuery.mockResolvedValue(videoCard);
+        routeWorker({
+          "generate-image-metadata": {
+            data: { summary: "A clip", tags: ["clip"] },
+          },
+          "process-audio": answer,
+        });
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "video",
+        });
+        expect(result).toMatchObject({
+          hasTranscript: false,
+          mode: "completed",
+        });
+        expectSaved(["clip"], "A clip");
+      }
+    });
+
+    test("a video without a thumbnail is described from its transcript", async () => {
+      mockRunQuery.mockResolvedValue({ ...videoCard, thumbnailKey: undefined });
+      aiResult = { tags: ["launch"], summary: "A launch talk" };
+      routeWorker({
+        "process-audio": { data: processedAudio("welcome to the launch", 12) },
+      });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "video",
+      });
+      expectSaved(["launch"], "A launch talk");
+      expect(result.hasTranscript).toBe(true);
+    });
+  });
+
   describe("quote card metadata", () => {
     test("generates metadata for quote", async () => {
       mockRunQuery.mockResolvedValue({

@@ -43,6 +43,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_delete_tag",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
+  "teak_v1_get_card_content",
   "teak_v1_get_me",
   "teak_v1_get_tag_operation",
   "teak_v1_list_cards",

@@ -222,6 +222,21 @@ export const refreshCards = async (ids: string[], options: GlobalOptions) => {
   );
 };
 
+/**
+ * Prints a card's stored text (document text, transcript or a text card's
+ * content); `--json` prints the whole response. A note on stderr says when
+ * the document is longer than Teak keeps, so piped text stays clean.
+ */
+export const showCardContent = async (id: string, options: GlobalOptions) => {
+  const content = await client(options).cards.content(id);
+  write(options.json ? content : content.text, options);
+  if (!options.json && content.truncated) {
+    process.stderr.write(
+      "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n"
+    );
+  }
+};
+
 export const openCard = async (id: string, options: GlobalOptions) => {
   const card = await client(options).cards.get(id);
   const opened = await openBrowser(card.appUrl);

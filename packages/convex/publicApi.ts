@@ -246,7 +246,10 @@ const matchesCreatedAt = (
 
 const matchesStructuredFilters = (
   card: Doc<"cards">,
-  options: SearchOptions
+  options: SearchOptions,
+  // The card's search document text, when the caller read it: it holds the
+  // card's extracted text too, which quoted phrases also match.
+  searchableText?: string
 ): boolean => {
   if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
     return false;
@@ -298,7 +301,10 @@ const matchesStructuredFilters = (
 
   if (
     options.phrases?.length &&
-    !matchesSearchPhrases(buildCardSearchText(card), options.phrases)
+    !matchesSearchPhrases(
+      searchableText ?? buildCardSearchText(card),
+      options.phrases
+    )
   ) {
     return false;
   }
@@ -464,7 +470,8 @@ const searchCardsByQuery = async (
         urlHost: options.sites?.length === 1 ? options.sites[0] : undefined,
         limit: SEARCH_CANDIDATE_LIMIT,
         scanBudget,
-        resultFilter: (card) => matchesStructuredFilters(card, options),
+        resultFilter: (card, searchableText) =>
+          matchesStructuredFilters(card, options, searchableText),
       })
     );
   }

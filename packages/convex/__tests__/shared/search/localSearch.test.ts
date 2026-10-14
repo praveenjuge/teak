@@ -504,3 +504,41 @@ describe("filterLocalCards qualifiers", () => {
     expect(ids(searchTerms)).toEqual(expected);
   });
 });
+
+describe("filterLocalCards textMatchedByServer", () => {
+  it("keeps cards the server matched by text the client lacks; other filters still apply", () => {
+    const pdf = makeCard({
+      _id: "pdf",
+      type: "document",
+      content: "supplier-review.pdf",
+      createdAt: 2,
+    });
+    const archived = makeCard({
+      _id: "archived",
+      type: "document",
+      content: "old.pdf",
+      isArchived: true,
+      createdAt: 1,
+    });
+    const ids = (cards: Doc<"cards">[]) => cards.map((card) => card._id);
+    expect(
+      ids(filterLocalCards([pdf, archived], { searchTerms: "kestrel" }))
+    ).toEqual([]);
+    expect(
+      ids(
+        filterLocalCards([pdf, archived], {
+          searchTerms: '"net 30 days" type:document',
+          textMatchedByServer: true,
+        })
+      )
+    ).toEqual(["pdf"]);
+    expect(
+      ids(
+        filterLocalCards([pdf], {
+          searchTerms: "kestrel type:image",
+          textMatchedByServer: true,
+        })
+      )
+    ).toEqual([]);
+  });
+});

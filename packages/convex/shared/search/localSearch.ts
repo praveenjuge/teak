@@ -23,6 +23,12 @@ export interface LocalSearchFilters {
   styleFilters?: string[];
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag?: string;
+  /**
+   * The server already matched these cards to these words, against text
+   * the client doesn't have (text inside a card's file), so the words and
+   * phrases are not checked again; every other filter still is.
+   */
+  textMatchedByServer?: boolean;
   types?: CardType[];
 }
 
@@ -102,6 +108,7 @@ export const filterLocalCards = (
     createdAtRange,
     sort = "newest",
     tag,
+    textMatchedByServer = false,
   }: LocalSearchFilters
 ) => {
   // Qualifiers filter like the server does; `folder:` names cannot be
@@ -180,7 +187,10 @@ export const filterLocalCards = (
           return false;
         }
 
-        if (terms.length === 0 && parsed.phrases.length === 0) {
+        if (
+          textMatchedByServer ||
+          (terms.length === 0 && parsed.phrases.length === 0)
+        ) {
           return true;
         }
 

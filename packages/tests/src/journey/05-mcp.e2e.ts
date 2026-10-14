@@ -30,6 +30,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_delete_tag",
       "teak_v1_get_card",
       "teak_v1_get_card_changes",
+      "teak_v1_get_card_content",
       "teak_v1_get_me",
       "teak_v1_get_tag_operation",
       "teak_v1_list_cards",
@@ -64,6 +65,8 @@ test("MCP lists and calls every public tool", async () => {
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],
+    // A text card's own content is its text.
+    ["teak_v1_get_card_content", { cardId }],
     ["teak_v1_search_cards", { q: "mcp" }],
     ["teak_v1_list_favorite_cards", {}],
     ["teak_v1_update_card", { cardId, notes: "updated" }],

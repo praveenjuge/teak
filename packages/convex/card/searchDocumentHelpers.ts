@@ -11,6 +11,7 @@ import {
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
+import { deleteCardTextContents, readSearchPrefix } from "./textContents";
 
 const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
@@ -24,11 +25,19 @@ const SEARCH_FIELDS = [
   "metadataDescription",
 ] as const;
 
-export const buildCardSearchText = (card: Doc<"cards">): string =>
+/**
+ * The text a card is found by: its own fields, then the searchable prefix
+ * of any text extracted from its file (card/documentText.ts).
+ */
+export const buildCardSearchText = (
+  card: Doc<"cards">,
+  extractedText?: string
+): string =>
   [
     ...SEARCH_FIELDS.map((field) => card[field]),
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
+    extractedText,
   ]
     .filter(
       (value): value is string =>
@@ -236,6 +245,8 @@ export const patchCardWithSearchSync = async (
     "createdAt",
     "folderIds",
     "url",
+    "documentTextKey",
+    "hasExtractedText",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
@@ -269,6 +280,10 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
+    // A pre-delete card without extracted text has no row to read.
+    if (!previousCard || previousCard.hasExtractedText) {
+      await deleteCardTextContents(ctx, cardId);
+    }
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
@@ -292,7 +307,10 @@ export const syncCardSearchDocumentHandler = async (
   const value = {
     cardId,
     userId: card.userId,
-    searchableText: buildCardSearchText(card),
+    searchableText: buildCardSearchText(
+      card,
+      await readSearchPrefix(ctx, card)
+    ),
     isDeleted: card.isDeleted,
     type: card.type,
     isFavorited: card.isFavorited,
@@ -758,7 +776,13 @@ export const searchCardsByDocument = async (
     urlHost?: string;
     limit: number;
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
-    resultFilter?: (card: Doc<"cards">) => boolean;
+    /**
+     * Keeps a card; gets the search document's text too, which holds the
+     * card's extracted text as well (quoted phrases check it).
+     */
+    resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
+    /** Filled with each kept card's search text, for filtering later. */
+    searchTexts?: Map<Id<"cards">, string>;
   }
 ): Promise<Doc<"cards">[]> => {
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
@@ -803,8 +827,12 @@ export const searchCardsByDocument = async (
   }
   for (const document of documents) {
     const card = await ctx.db.get("cards", document.cardId);
-    if (card && (!args.resultFilter || args.resultFilter(card))) {
+    if (
+      card &&
+      (!args.resultFilter || args.resultFilter(card, document.searchableText))
+    ) {
       cardsById.set(card._id, card);
+      args.searchTexts?.set(card._id, document.searchableText);
       if (cardsById.size >= matchLimit) {
         break;
       }

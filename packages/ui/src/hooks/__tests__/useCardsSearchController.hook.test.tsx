@@ -100,3 +100,17 @@ test("removes a card deleted on another client from active search results", asyn
   );
   expect(displayedIds()).toEqual(["kept"]);
 });
+
+test("keeps a card the server found by text inside its file, but narrows stale results", async () => {
+  // The card's own fields don't mention the word; its document's text does.
+  const pdf = card("pdf", "supplier-review.pdf");
+  await act(() => controller.searchBarProps.onSearchChange("kestrel"));
+  await act(() => jest.advanceTimersByTime(200));
+  await act(() => controller.setRemoteCards([pdf], remoteKey()));
+  expect(displayedIds()).toEqual(["pdf"]);
+
+  // Typing on: the shown results answer earlier words, so they narrow to the
+  // new ones until the server answers again.
+  await act(() => controller.searchBarProps.onSearchChange("kestrel invoice"));
+  expect(displayedIds()).toEqual([]);
+});

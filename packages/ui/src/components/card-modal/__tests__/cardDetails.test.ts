@@ -43,6 +43,21 @@ describe("getCardDetailSections", () => {
     expect(sections.source).toEqual([]);
   });
 
+  test("lists how much text Teak extracted from a document", () => {
+    const sections = getCardDetailSections({
+      ...baseCard,
+      type: "document",
+      extractedTextCharCount: 12_345,
+    });
+    expect(sections.details).toContainEqual({
+      label: "Text",
+      value: "12,345 characters extracted",
+    });
+    expect(
+      labels(getCardDetailSections({ ...baseCard, type: "document" }).details)
+    ).not.toContain("Text");
+  });
+
   test("shows an image's camera facts but never its location", () => {
     const sections = getCardDetailSections({
       ...baseCard,

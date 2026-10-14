@@ -637,6 +637,8 @@ export function useCardsSearchController(
     }));
   }, []);
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
+  // The query the remote cards answer, as the screen keys it.
+  const [remoteCardsKey, setRemoteCardsKey] = useState<string | undefined>();
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
   const lastRemoteResultRef = useRef<{
     ids: ReadonlySet<string>;
@@ -647,6 +649,7 @@ export function useCardsSearchController(
     (cards: Doc<"cards">[] | undefined, remoteQueryKey?: string) => {
       const nextCards = cards ?? [];
       setRemoteCardsState(nextCards);
+      setRemoteCardsKey(remoteQueryKey);
 
       const previousResult = lastRemoteResultRef.current;
       const previousRemoteIds =
@@ -827,6 +830,13 @@ export function useCardsSearchController(
     sort,
   ]);
 
+  // While typing pauses are pending, the previous remote results stay on
+  // screen, narrowed to the current terms below, next to instant local hits.
+  const isSearchPending = remoteSearchQuery !== searchState.searchQuery;
+  // Remote cards answer the words typed now: their query is the current one.
+  const remoteCardsAreCurrent =
+    !isSearchPending && remoteCardsKey === JSON.stringify(queryArgs);
+
   const remoteSearchResults = useMemo(() => {
     if (!hasActiveSearch) {
       return remoteCards;
@@ -836,6 +846,10 @@ export function useCardsSearchController(
     }
     return filterLocalCards(remoteCards, {
       searchTerms: localSearchTerms,
+      // Results for the current words matched them on the server, including
+      // text inside files that cards here don't carry; only stale results
+      // for earlier words are narrowed to the new ones.
+      textMatchedByServer: remoteCardsAreCurrent,
       types: searchState.filterTags,
       styleFilters: searchState.styleFilters,
       hueFilters: searchState.hueFilters,
@@ -847,11 +861,14 @@ export function useCardsSearchController(
       sort,
       tag: searchState.tagFilter,
     });
-  }, [hasActiveSearch, localSearchTerms, remoteCards, searchState, sort]);
-
-  // While typing pauses are pending, the previous remote results stay on
-  // screen, narrowed to the current terms above, next to instant local hits.
-  const isSearchPending = remoteSearchQuery !== searchState.searchQuery;
+  }, [
+    hasActiveSearch,
+    localSearchTerms,
+    remoteCards,
+    remoteCardsAreCurrent,
+    searchState,
+    sort,
+  ]);
 
   const displayCards = useMemo(
     () =>
