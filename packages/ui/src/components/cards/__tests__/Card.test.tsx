@@ -254,3 +254,103 @@ describe("Cards/Card", () => {
     expect((markup.match(/height:100%/g) ?? []).length).toBe(45);
   });
 });
+
+describe("Cards/Card redesign", () => {
+  const linkWithPreview = (overrides?: Record<string, unknown>) =>
+    createLinkCard({
+      url: "https://www.example.com/story",
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "A story worth keeping",
+          imageWidth: 1200,
+          imageHeight: 630,
+        },
+      },
+      linkPreviewImageUrl: "https://example.com/og.jpg",
+      ...overrides,
+    });
+
+  test("names a link by its favicon and title, without spelling out the site", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={linkWithPreview() as any} />
+    );
+    expect(markup).toContain("A story worth keeping");
+    expect(markup).toContain("domain=example.com");
+    expect(markup).not.toContain(">example.com<");
+  });
+
+  test("offers open, favorite and more actions on an active card", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={linkWithPreview() as any}
+        onEnterSelectionMode={() => undefined}
+      />
+    );
+    expect(markup).toContain('aria-label="Open link"');
+    expect(markup).toContain('aria-label="Favorite"');
+    expect(markup).toContain('aria-label="More actions"');
+    expect(markup).toContain('aria-label="Select"');
+  });
+
+  test("leaves only More actions on a card in Trash", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={linkWithPreview({ isDeleted: true }) as any}
+        onEnterSelectionMode={() => undefined}
+      />
+    );
+    expect(markup).toContain('aria-label="More actions"');
+    expect(markup).not.toContain('aria-label="Favorite"');
+    expect(markup).not.toContain('aria-label="Open link"');
+    expect(markup).not.toContain('aria-label="Select"');
+  });
+
+  test("hides the hover actions while selecting cards", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={linkWithPreview() as any} isSelectionMode />
+    );
+    expect(markup).not.toContain('aria-label="More actions"');
+    expect(markup).not.toContain('aria-label="Favorite"');
+  });
+
+  test("marks a favorite and offers to unfavorite it", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={linkWithPreview({ isFavorited: true }) as any} />
+    );
+    expect(markup).toContain('aria-label="Unfavorite"');
+    expect(markup).toContain('aria-pressed="true"');
+  });
+
+  test("shows a note's first line as its heading and the rest below", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "text",
+            url: undefined,
+            content: "Groceries\n\nOat milk, lemons, basil",
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">Groceries<");
+    expect(markup).toContain(">Oat milk, lemons, basil<");
+  });
+
+  test("names an audio card's recording and its length", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "audio",
+            url: undefined,
+            fileMetadata: { fileName: "Standup.m4a", duration: 84 },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain("Standup.m4a");
+    expect(markup).toContain("1:24");
+  });
+});

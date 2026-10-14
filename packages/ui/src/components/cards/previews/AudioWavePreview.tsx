@@ -1,3 +1,6 @@
+import { Play } from "lucide-react";
+import { CARD_SURFACE } from "../cardDisplay";
+
 const AUDIO_WAVE_BARS = 45;
 const AUDIO_WAVE_BAR_WIDTH_PX = 2;
 const AUDIO_WAVE_MIN_HEIGHT = 20;
@@ -55,28 +58,52 @@ function getWaveformBarHeights(
 
 interface AudioWavePreviewProps {
   cardId: string;
+  /** How long the recording runs, such as `1:24`. */
+  durationLabel?: string;
+  /** The recording's name, shown under the waveform. */
+  title?: string;
   /** Real 45-value waveform; hash-based bars are drawn when absent or invalid. */
   waveformGrid?: number[];
 }
 
 export function AudioWavePreview({
   cardId,
+  durationLabel,
+  title,
   waveformGrid,
 }: AudioWavePreviewProps) {
   const heights = getWaveformBarHeights(cardId, waveformGrid);
   return (
-    <div className="flex h-14 items-center justify-between space-x-0.5 rounded-2xl border bg-card px-4 py-2">
-      {heights.map((height, i) => (
-        <div
-          className="rounded-full bg-muted-foreground"
-          // biome-ignore lint/suspicious/noArrayIndexKey: decorative bars use cardId + index for stable keys
-          key={`${cardId}-bar-${i}`}
-          style={{
-            width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
-            height,
-          }}
-        />
-      ))}
+    <div className={`px-4 pt-3 pb-3 ${CARD_SURFACE}`}>
+      <div className="flex h-10 items-center justify-between gap-0.5">
+        {heights.map((height, i) => (
+          <div
+            className="rounded-full bg-foreground/45"
+            // biome-ignore lint/suspicious/noArrayIndexKey: decorative bars use cardId + index for stable keys
+            key={`${cardId}-bar-${i}`}
+            style={{
+              width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
+              height,
+            }}
+          />
+        ))}
+      </div>
+      {(title || durationLabel) && (
+        <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+            <Play
+              aria-hidden="true"
+              className="size-2.5 translate-x-px fill-current"
+            />
+          </span>
+          <span className="min-w-0 flex-1 truncate" dir="auto">
+            {title}
+          </span>
+          {durationLabel && (
+            <span className="shrink-0 tabular-nums">{durationLabel}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

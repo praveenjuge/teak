@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getMoreInformationSections } from "../MoreInformationModal";
+import { getCardDetailSections } from "../cardDetails";
 
 const baseCard = {
   createdAt: Date.UTC(2026, 0, 2, 3, 4),
@@ -9,9 +9,9 @@ const baseCard = {
 const labels = (fields: { label: string }[]) =>
   fields.map((field) => field.label);
 
-describe("getMoreInformationSections", () => {
+describe("getCardDetailSections", () => {
   test("lists a link's author, publisher and publish date", () => {
-    const sections = getMoreInformationSections({
+    const sections = getCardDetailSections({
       ...baseCard,
       type: "link",
       url: "https://example.com/story",
@@ -33,7 +33,7 @@ describe("getMoreInformationSections", () => {
   });
 
   test("hides a publish date the page wrote as garbage", () => {
-    const sections = getMoreInformationSections({
+    const sections = getCardDetailSections({
       ...baseCard,
       type: "link",
       metadata: {
@@ -44,7 +44,7 @@ describe("getMoreInformationSections", () => {
   });
 
   test("shows an image's camera facts but never its location", () => {
-    const sections = getMoreInformationSections({
+    const sections = getCardDetailSections({
       ...baseCard,
       type: "image",
       fileMetadata: {
@@ -61,8 +61,8 @@ describe("getMoreInformationSections", () => {
       },
     });
     expect(labels(sections.details)).toEqual([
-      "Created",
-      "Updated",
+      "Added",
+      "Edited",
       "File name",
       "File size",
       "File type",
@@ -79,12 +79,20 @@ describe("getMoreInformationSections", () => {
   });
 
   test("an image without EXIF has no camera section", () => {
-    const sections = getMoreInformationSections({
+    const sections = getCardDetailSections({
       ...baseCard,
       type: "image",
       fileMetadata: { fileName: "screenshot.png" },
     });
     expect(sections.camera).toEqual([]);
     expect(sections.source).toEqual([]);
+  });
+
+  test("leaves out the edit date of a card no one has changed since adding it", () => {
+    const sections = getCardDetailSections({
+      createdAt: Date.UTC(2026, 0, 2, 3, 4),
+      updatedAt: Date.UTC(2026, 0, 2, 3, 4, 30),
+    });
+    expect(labels(sections.details)).toEqual(["Added"]);
   });
 });

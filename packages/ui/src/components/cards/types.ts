@@ -37,6 +37,7 @@ export interface WaveformMetadata {
 
 export interface CardWithUrls {
   _id: string;
+  aiSummary?: string;
   colors?: Array<{ hex: string }>;
   compactUrl?: string;
   content?: string;
@@ -67,6 +68,12 @@ export interface CardWithUrls {
   metadataTitle?: string;
   metadataTitleEdited?: boolean;
   placeholderUrl?: string;
+  processingStatus?: Partial<
+    Record<
+      string,
+      { status: "completed" | "failed" | "in_progress" | "pending" }
+    >
+  >;
   screenshotUrl?: string;
   scrubKey?: string;
   scrubUrl?: string;

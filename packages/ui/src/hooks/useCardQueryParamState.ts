@@ -10,6 +10,8 @@ export interface UseCardQueryParamStateResult {
   closeCard: () => void;
   openCard: (cardId: string) => void;
   selectedCardId: string | null;
+  /** Shows another card in the open dialog without adding history. */
+  switchCard: (cardId: string) => void;
 }
 
 export function normalizeCardQueryId(value: string | null | undefined) {
@@ -47,6 +49,19 @@ export function useCardQueryParamState({
     [pushCardId, selectedCardId]
   );
 
+  const switchCard = useCallback(
+    (cardId: string) => {
+      const nextCardId = normalizeCardQueryId(cardId);
+      if (!nextCardId || selectedCardId === nextCardId) {
+        return;
+      }
+
+      setSelectedCardId(nextCardId);
+      replaceCardId(nextCardId);
+    },
+    [replaceCardId, selectedCardId]
+  );
+
   const closeCard = useCallback(() => {
     if (selectedCardId === null) {
       return;
@@ -60,5 +75,6 @@ export function useCardQueryParamState({
     selectedCardId,
     openCard,
     closeCard,
+    switchCard,
   };
 }

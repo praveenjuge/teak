@@ -1,6 +1,7 @@
 import { Play } from "lucide-react";
 import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { CARD_SURFACE } from "../cardDisplay";
 import type { ScrubMetadata } from "../types";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
@@ -21,10 +22,8 @@ interface GridVideoPreviewProps {
 
 function PlayOverlay() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-      <div className="rounded-full bg-black/50 p-2">
-        <Play className="size-6 text-white" />
-      </div>
+    <div className="pointer-events-none absolute bottom-2.5 left-2.5 flex size-7 items-center justify-center rounded-full bg-black/45 text-white ring-1 ring-white/15 backdrop-blur-md">
+      <Play className="size-3.5 translate-x-px fill-current" />
     </div>
   );
 }
@@ -84,7 +83,7 @@ function ScrubPreview({
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
       onPointerEnter={(event) => {
         if (event.pointerType !== "mouse") {
           return;
@@ -190,7 +189,7 @@ function HoverVideoPreview({
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     <div
-      className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
       onMouseEnter={() => {
         setShouldLoadVideo(true);
         setIsHovering(true);
@@ -258,7 +257,7 @@ export function GridVideoPreview({
   if (isGif && videoUrl) {
     return (
       <div
-        className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+        className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
@@ -308,7 +307,7 @@ export function GridVideoPreview({
   if (thumbnailUrl) {
     return (
       <div
-        className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+        className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
@@ -329,7 +328,7 @@ export function GridVideoPreview({
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border bg-black text-white"
+      className={`relative flex h-full w-full items-center justify-center overflow-hidden ${CARD_SURFACE} bg-black text-white`}
       style={{ aspectRatio }}
     >
       <Play className="size-6 text-white" />

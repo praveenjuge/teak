@@ -1,5 +1,4 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { cn } from "@teak/ui/lib/utils";
 
 type CardWithUrls = Doc<"cards"> & {
   detailUrl?: string;
@@ -31,27 +30,33 @@ export function ImagePreview({ card }: ImagePreviewProps) {
     );
   }
 
-  return (
-    <div
-      className={cn(
-        "flex w-full justify-center",
-        isTallImage ? "min-h-full items-start" : "h-full items-center"
-      )}
-    >
-      <div className={cn("relative", isTallImage ? "w-full" : "max-w-full")}>
+  // Tall images (screenshots of whole pages) keep their width and scroll;
+  // the rest fit inside the dialog.
+  if (isTallImage) {
+    return (
+      <div className="flex min-h-full w-full max-w-3xl items-start justify-center self-start">
         <img
           alt={card.content || "Image"}
-          className={cn(
-            "block overflow-hidden",
-            isTallImage
-              ? "h-auto w-full object-contain"
-              : "max-h-[75vh] max-w-full object-contain"
-          )}
+          className="block h-auto w-full rounded-md object-contain shadow-sm"
+          data-fit="width"
           height={imageHeight}
           src={fileUrl}
           width={imageWidth}
         />
       </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <img
+        alt={card.content || "Image"}
+        className="block h-auto max-h-[60dvh] w-auto max-w-full rounded-md object-contain shadow-sm md:max-h-full"
+        data-fit="contain"
+        height={imageHeight}
+        src={fileUrl}
+        width={imageWidth}
+      />
     </div>
   );
 }

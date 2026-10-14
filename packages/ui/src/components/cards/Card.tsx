@@ -12,36 +12,65 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@teak/ui/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@teak/ui/components/ui/dropdown-menu";
 import { useAction } from "convex/react";
 import {
   Archive,
   ArchiveRestore,
+  ArrowUpRight,
+  Check,
   CheckSquare,
   Copy,
   ExternalLink,
   Folder as FolderIcon,
   Heart,
   Loader2,
+  MoreHorizontal,
   RefreshCw,
   RotateCcw,
   Tag,
   Trash,
   Trash2,
 } from "lucide-react";
-import type { DragEvent, KeyboardEvent, SyntheticEvent } from "react";
-import { memo, useState } from "react";
+import type {
+  ComponentProps,
+  ComponentType,
+  DragEvent,
+  KeyboardEvent,
+  ReactNode,
+  SyntheticEvent,
+} from "react";
+import { memo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
+import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
+import { cn } from "../../lib/utils";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
+import {
+  CARD_SURFACE,
+  formatDuration,
+  getDisplayHostname,
+  getFileFormatBadge,
+  isCardProcessing,
+  readableTextOn,
+  splitNotePreview,
+} from "./cardDisplay";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
 import { GridImagePreview } from "./previews/GridImagePreview";
 import { GridVideoPreview } from "./previews/GridVideoPreview";
 import { ResilientMediaImage } from "./previews/ResilientMediaImage";
+import { SiteFavicon } from "./SiteFavicon";
 import type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
 import { isOptimisticCard } from "./types";
 
@@ -131,6 +160,7 @@ export const Card = memo(function Card({
   );
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
+  const cardRef = useRef<HTMLDivElement>(null);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
     card.type === "document" && fileName
@@ -167,6 +197,9 @@ export const Card = memo(function Card({
   const handleClick = () => {
     if (isOptimistic) {
       return;
+    }
+    if (cardRef.current && !isSelectionMode) {
+      rememberCardOpenOrigin(card._id, cardRef.current.getBoundingClientRect());
     }
     onClick?.(card);
   };
@@ -387,55 +420,111 @@ export const Card = memo(function Card({
     }
   };
 
-  // Keeps the selection checkbox (top-left) clear of the first line of text.
-  const checkboxInset = isSelectionMode && !isOptimistic ? "pl-10" : "";
+  const hostname =
+    card.type === "link" ? getDisplayHostname(card.url) : undefined;
+  const linkDescription =
+    linkPreview?.description || card.metadataDescription || card.aiSummary;
+  const isProcessing =
+    !(isOptimistic || card.isDeleted) && isCardProcessing(card);
+  const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
+  // Text-only cards keep their first line clear of the corner marks.
+  const checkboxInset = isSelectionMode && !isOptimistic ? "pl-11" : "";
+  const favoriteInset = showFavoriteMark ? "pr-11" : "";
+  const textInsets = cn(checkboxInset, favoriteInset);
+
+  // A link is named by its favicon and title; the site's name would only
+  // repeat what the favicon already says.
+  const linkTitleRow = (
+    <div className="flex min-w-0 items-start gap-2">
+      {hostname && (
+        <SiteFavicon className="mt-[3px] size-4" hostname={hostname} />
+      )}
+      <p
+        className="line-clamp-2 min-w-0 break-words font-medium leading-snug"
+        dir="auto"
+      >
+        {linkCardTitle}
+      </p>
+    </div>
+  );
+
+  const linkFooter = <div className="px-4 py-3">{linkTitleRow}</div>;
 
   const renderCardContent = () => {
     if (card.type === "text") {
+      const { heading, body } = splitNotePreview(card.content);
+      const headingText = markdownToPlainText(heading);
+      const bodyText = markdownToPlainText(body) || card.fileMetadata?.fileName;
       return (
-        <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
-          <p className="line-clamp-2 font-medium">
-            {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
-          </p>
+        <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
+          {headingText ? (
+            <>
+              <p
+                className="line-clamp-2 break-words font-semibold leading-snug"
+                dir="auto"
+              >
+                {headingText}
+              </p>
+              <p
+                className="line-clamp-5 break-words text-muted-foreground text-sm leading-relaxed"
+                dir="auto"
+              >
+                {bodyText}
+              </p>
+            </>
+          ) : (
+            <p
+              className="line-clamp-6 break-words font-medium leading-relaxed"
+              dir="auto"
+            >
+              {bodyText}
+            </p>
+          )}
         </div>
       );
     }
 
     if (card.type === "quote") {
       return (
-        <div
-          className={`rounded-2xl border bg-card px-6 py-4 ${checkboxInset}`}
+        <figure
+          className={cn(CARD_SURFACE, "relative px-5 pt-8 pb-5", textInsets)}
         >
-          <div className="relative">
-            <p className="line-clamp-2 text-balance text-center font-medium italic leading-relaxed">
-              {markdownToPlainText(card.content)}
-            </p>
-            <div className="pointer-events-none absolute -top-3.5 -left-4 select-none font-serif text-4xl text-muted-foreground/20 leading-none">
-              &ldquo;
-            </div>
-            <div className="pointer-events-none absolute -right-4 -bottom-7 select-none font-serif text-4xl text-muted-foreground/20 leading-none">
-              &rdquo;
-            </div>
-          </div>
-        </div>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-3 left-4 select-none font-serif text-4xl text-muted-foreground/35 leading-none"
+          >
+            &ldquo;
+          </span>
+          <blockquote
+            className="line-clamp-6 text-pretty break-words font-medium italic leading-relaxed"
+            dir="auto"
+          >
+            {markdownToPlainText(card.content)}
+          </blockquote>
+        </figure>
       );
     }
 
     if (card.type === "link") {
       if (displayLinkImage && displayLinkImageSize) {
         return (
-          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <div className={cn(CARD_SURFACE, "overflow-hidden")}>
             <div
-              className="w-full overflow-hidden"
+              className="w-full overflow-hidden border-b bg-muted"
               style={{
-                aspectRatio:
-                  displayLinkImageSize.width / displayLinkImageSize.height,
+                aspectRatio: Math.min(
+                  Math.max(
+                    displayLinkImageSize.width / displayLinkImageSize.height,
+                    0.5
+                  ),
+                  3
+                ),
               }}
             >
               <ResilientMediaImage
                 alt={linkCardTitle}
                 cardId={card._id}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-top"
                 onPermanentError={handleLinkImageError}
                 src={displayLinkImage}
                 storageKey={
@@ -445,47 +534,64 @@ export const Card = memo(function Card({
                 }
               />
             </div>
-            <div className="px-4 py-3">
-              <p className="max-w-full truncate font-medium">{linkCardTitle}</p>
-            </div>
+            {linkFooter}
           </div>
         );
       }
 
       if (legacyDisplayImage) {
+        const legacyKey = useFallbackImage
+          ? screenshotStorageKey
+          : primaryLinkImageKey;
         return (
-          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
-            <div className="h-28 min-h-28 overflow-hidden">
+          <div className={cn(CARD_SURFACE, "overflow-hidden")}>
+            <div className="h-32 min-h-32 overflow-hidden border-b bg-muted">
               <ResilientMediaImage
                 alt={linkCardTitle}
                 cardId={card._id}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-top"
                 onPermanentError={handleLinkImageError}
                 src={legacyDisplayImage}
                 storageKey={
-                  typeof (useFallbackImage
-                    ? screenshotStorageKey
-                    : primaryLinkImageKey) === "string"
-                    ? ((useFallbackImage
-                        ? screenshotStorageKey
-                        : primaryLinkImageKey) as string)
-                    : undefined
+                  typeof legacyKey === "string" ? legacyKey : undefined
                 }
               />
             </div>
-            <div className="px-4 py-3">
-              <p className="max-w-full truncate font-medium">{linkCardTitle}</p>
-            </div>
+            {linkFooter}
           </div>
         );
       }
 
+      const titleIsUrl = linkCardTitle === card.url;
       return (
-        <p
-          className={`w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-2xl border bg-card p-4 font-medium ${checkboxInset}`}
-        >
-          {markdownToPlainText(card.content) || linkCardTitle}
-        </p>
+        <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
+          <div className="flex min-w-0 items-start gap-2">
+            {hostname && (
+              <SiteFavicon className="mt-[3px] size-4" hostname={hostname} />
+            )}
+            <p
+              className={cn(
+                "min-w-0 font-medium leading-snug",
+                titleIsUrl
+                  ? "line-clamp-2 break-all"
+                  : "line-clamp-3 break-words"
+              )}
+              dir="auto"
+            >
+              {titleIsUrl
+                ? linkCardTitle.replace(/^https?:\/\/(www\.)?/, "")
+                : linkCardTitle}
+            </p>
+          </div>
+          {linkDescription && !titleIsUrl && (
+            <p
+              className="line-clamp-2 break-words text-muted-foreground text-sm leading-relaxed"
+              dir="auto"
+            >
+              {linkDescription}
+            </p>
+          )}
+        </div>
       );
     }
 
@@ -533,6 +639,8 @@ export const Card = memo(function Card({
       return (
         <AudioWavePreview
           cardId={card._id}
+          durationLabel={formatDuration(card.fileMetadata?.duration)}
+          title={card.metadataTitle || fileName || "Recording"}
           waveformGrid={card.fileMetadata?.waveform?.grid}
         />
       );
@@ -543,6 +651,10 @@ export const Card = memo(function Card({
         <GridDocumentPreview
           cardId={card._id}
           fileName={card.fileMetadata?.fileName || card.content}
+          formatBadge={getFileFormatBadge(
+            fileName,
+            card.fileMetadata?.mimeType
+          )}
           height={card.fileMetadata?.height}
           isPriority={isPriority}
           thumbnailKey={card.thumbnailKey}
@@ -552,34 +664,32 @@ export const Card = memo(function Card({
       );
     }
 
-    if (card.type === "palette") {
-      if (card.colors?.length) {
-        return (
-          <div className="flex overflow-hidden rounded-2xl border bg-card">
-            {card.colors.slice(0, 12).map((color) => (
-              <div
-                className="h-14 min-w-0 flex-1"
-                key={color.hex}
-                style={{ backgroundColor: color.hex }}
-                title={color.hex}
-              />
-            ))}
-          </div>
-        );
-      }
-
+    if (card.type === "palette" && card.colors?.length) {
       return (
-        <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
-          <p className="line-clamp-2 font-medium">
-            {markdownToPlainText(card.content)}
-          </p>
+        <div className={cn(CARD_SURFACE, "flex h-20 overflow-hidden")}>
+          {card.colors.slice(0, 12).map((color, index) => (
+            <div
+              className="group/swatch flex min-w-0 flex-1 items-end justify-center overflow-hidden pb-2 transition-[flex-grow] duration-300 ease-out hover:flex-[2.6] motion-reduce:transition-none"
+              // biome-ignore lint/suspicious/noArrayIndexKey: a palette may repeat a color
+              key={`${color.hex}-${index}`}
+              style={{
+                backgroundColor: color.hex,
+                color: readableTextOn(color.hex),
+              }}
+              title={color.hex}
+            >
+              <span className="whitespace-nowrap font-medium font-mono text-[10px] uppercase opacity-0 transition-opacity duration-200 group-hover/swatch:opacity-80">
+                {color.hex}
+              </span>
+            </div>
+          ))}
         </div>
       );
     }
 
     return (
-      <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
-        <p className="line-clamp-2 font-medium">
+      <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
+        <p className="line-clamp-4 break-words font-medium" dir="auto">
           {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
         </p>
       </div>
@@ -595,153 +705,305 @@ export const Card = memo(function Card({
     event.dataTransfer.effectAllowed = "copy";
   };
 
+  const canCopy =
+    !card.isDeleted &&
+    (card.type === "text" ||
+      card.type === "link" ||
+      (card.type === "image" &&
+        card.fileMetadata?.mimeType !== "image/svg+xml"));
   const copyLinkOrImageLabel =
     card.type === "link" ? "Copy Link" : "Copy Image";
   const copyMenuLabel =
     card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
 
+  const menuItems: CardMenuEntry[] = [
+    ...(card.url
+      ? [{ icon: ExternalLink, label: "Open Link", onSelect: openLink }]
+      : []),
+    ...(canCopy
+      ? [
+          {
+            icon: Copy,
+            label: copyMenuLabel,
+            onSelect: () => void handleCopyImage(),
+          },
+        ]
+      : []),
+    ...(card.isDeleted
+      ? [
+          { icon: RotateCcw, label: "Restore", onSelect: handleRestore },
+          "separator" as const,
+          {
+            destructive: true,
+            icon: Trash,
+            label: "Delete Forever",
+            onSelect: handlePermanentDelete,
+          },
+        ]
+      : [
+          isSelectionMode
+            ? {
+                icon: CheckSquare,
+                label: isSelected ? "Deselect" : "Select",
+                onSelect: () => onToggleSelection?.(),
+              }
+            : { icon: CheckSquare, label: "Select", onSelect: handleSelect },
+          { icon: Tag, label: "Add Tags", onSelect: handleAddTags },
+          ...(onEditFolders
+            ? [
+                {
+                  icon: FolderIcon,
+                  label: "Folders…",
+                  onSelect: () => {
+                    if (!isOptimistic) {
+                      onEditFolders(card._id);
+                    }
+                  },
+                },
+              ]
+            : []),
+          {
+            icon: Heart,
+            iconClassName: card.isFavorited
+              ? "fill-destructive text-destructive"
+              : undefined,
+            label: card.isFavorited ? "Unfavorite" : "Favorite",
+            onSelect: handleToggleFavorite,
+          },
+          {
+            disabled: reprocessingCardId === card._id,
+            icon: RefreshCw,
+            label: "Refresh details",
+            onSelect: handleReprocess,
+          },
+          ...(onToggleArchive
+            ? [
+                {
+                  icon: card.isArchived ? ArchiveRestore : Archive,
+                  label: card.isArchived ? "Unarchive" : "Archive",
+                  onSelect: handleToggleArchive,
+                },
+              ]
+            : []),
+          "separator" as const,
+          { icon: Trash2, label: "Delete", onSelect: handleDelete },
+        ]),
+  ];
+
+  const showQuickActions = !(isOptimistic || isSelectionMode);
+  const showHoverSelect =
+    !(isOptimistic || isSelectionMode || card.isDeleted) &&
+    Boolean(onEnterSelectionMode);
+  const isMediaCard =
+    card.type === "image" ||
+    card.type === "video" ||
+    card.type === "document" ||
+    (card.type === "link" && Boolean(displayLinkImage || legacyDisplayImage)) ||
+    (card.type === "palette" && Boolean(card.colors?.length));
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
-        <UICard
-          aria-disabled={isOptimistic || undefined}
-          aria-label={getCardAccessibleLabel(card, linkCardTitle)}
-          aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
-          className={`relative scroll-my-20 overflow-hidden rounded-none border-0 bg-transparent p-0 outline-none contain-content focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-            isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
-          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-2xl ring-2 ring-primary" : ""}`}
-          data-card-id={isOptimistic ? undefined : card._id}
-          draggable={canDrag}
-          onClick={handleClick}
-          onDragStart={canDrag ? handleDragStart : undefined}
-          onFocus={handlePrefetch}
-          onKeyDown={handleKeyDown}
-          onPointerDown={handlePrefetch}
-          onPointerEnter={handlePrefetch}
-          role="button"
-          tabIndex={isOptimistic || !isTabStop ? -1 : 0}
-        >
-          {isOptimistic && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            </div>
-          )}
+        <div className="group/card relative" data-card-shell="">
+          <UICard
+            aria-disabled={isOptimistic || undefined}
+            aria-label={getCardAccessibleLabel(card, linkCardTitle)}
+            aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
+            className={cn(
+              "relative scroll-my-20 overflow-hidden rounded-2xl border-0 bg-transparent p-0 outline-none contain-content focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
+              card.isDeleted && "opacity-60",
+              isSelected &&
+                "ring-2 ring-primary ring-offset-2 ring-offset-background"
+            )}
+            data-card-id={isOptimistic ? undefined : card._id}
+            draggable={canDrag}
+            onClick={handleClick}
+            onDragStart={canDrag ? handleDragStart : undefined}
+            onFocus={handlePrefetch}
+            onKeyDown={handleKeyDown}
+            onPointerDown={handlePrefetch}
+            onPointerEnter={handlePrefetch}
+            ref={cardRef}
+            role="button"
+            tabIndex={isOptimistic || !isTabStop ? -1 : 0}
+          >
+            {isOptimistic && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center">
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            <CardContent className="p-0">{renderCardContent()}</CardContent>
+            {isProcessing && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-4 bottom-0 h-0.5 overflow-hidden rounded-full"
+              >
+                <div className="h-full w-1/3 animate-progress-slide rounded-full bg-foreground/30 motion-reduce:animate-none" />
+              </div>
+            )}
+          </UICard>
+
           {isSelectionMode && !isOptimistic && (
-            <div className="absolute top-3 left-3 z-10">
+            <div className="pointer-events-none absolute top-3 left-3 z-10">
               {/* Decorative: the card itself is the toggle (aria-pressed),
                   so the box stays out of the Tab order. */}
               <Checkbox
                 aria-hidden="true"
                 checked={isSelected}
-                className="pointer-events-none select-auto"
+                className="size-5 rounded-full border-foreground/30 bg-background/90 shadow-sm backdrop-blur"
                 tabIndex={-1}
               />
             </div>
           )}
-          {card.isFavorited && !isOptimistic && (
-            <div className="absolute top-3 right-3 z-10">
-              <Heart className="size-4 fill-destructive text-destructive" />
+
+          {showHoverSelect && (
+            <button
+              aria-label="Select"
+              className="absolute top-2.5 left-2.5 z-20 flex size-7 items-center justify-center rounded-full bg-background/85 text-muted-foreground opacity-0 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 dark:ring-white/10"
+              onClick={handleSelect}
+              tabIndex={-1}
+              title="Select"
+              type="button"
+            >
+              <Check className="size-3.5" strokeWidth={2.5} />
+            </button>
+          )}
+
+          {showFavoriteMark && (
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex size-7 items-center justify-center rounded-full transition-opacity duration-150",
+                isMediaCard &&
+                  "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10",
+                showQuickActions && "group-hover/card:opacity-0"
+              )}
+            >
+              <Heart className="size-3.5 fill-destructive text-destructive" />
             </div>
           )}
 
-          <CardContent className="space-y-2 p-0">
-            {renderCardContent()}
-          </CardContent>
-        </UICard>
+          {showQuickActions && (
+            <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+              {card.url && !card.isDeleted && (
+                <QuickActionButton label="Open link" onClick={openLink}>
+                  <ArrowUpRight />
+                </QuickActionButton>
+              )}
+              {!card.isDeleted && (
+                <QuickActionButton
+                  label={card.isFavorited ? "Unfavorite" : "Favorite"}
+                  onClick={handleToggleFavorite}
+                  pressed={Boolean(card.isFavorited)}
+                >
+                  <Heart
+                    className={cn(
+                      card.isFavorited && "fill-destructive text-destructive"
+                    )}
+                  />
+                </QuickActionButton>
+              )}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <QuickActionButton label="More actions">
+                    <MoreHorizontal />
+                  </QuickActionButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <CardMenuEntries
+                    entries={menuItems}
+                    Item={DropdownMenuItem}
+                    Separator={DropdownMenuSeparator}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-48">
-        {card.url && (
-          <ContextMenuItem onClick={openLink}>
-            <ExternalLink />
-            Open Link
-          </ContextMenuItem>
-        )}
-
-        {!card.isDeleted &&
-          (card.type === "text" ||
-            card.type === "link" ||
-            (card.type === "image" &&
-              card.fileMetadata?.mimeType !== "image/svg+xml")) && (
-            <ContextMenuItem onClick={() => void handleCopyImage()}>
-              <Copy />
-              {copyMenuLabel}
-            </ContextMenuItem>
-          )}
-
-        {!card.isDeleted && (
-          <>
-            {!isSelectionMode && (
-              <ContextMenuItem onClick={handleSelect}>
-                <CheckSquare />
-                Select
-              </ContextMenuItem>
-            )}
-            {isSelectionMode && (
-              <ContextMenuItem onClick={onToggleSelection}>
-                <CheckSquare />
-                {isSelected ? "Deselect" : "Select"}
-              </ContextMenuItem>
-            )}
-            <ContextMenuItem onClick={handleAddTags}>
-              <Tag />
-              Add Tags
-            </ContextMenuItem>
-            {onEditFolders && (
-              <ContextMenuItem
-                onClick={() => {
-                  if (!isOptimistic) {
-                    onEditFolders(card._id);
-                  }
-                }}
-              >
-                <FolderIcon />
-                Folders…
-              </ContextMenuItem>
-            )}
-            <ContextMenuItem onClick={handleToggleFavorite}>
-              <Heart
-                className={`${
-                  card.isFavorited ? "fill-destructive text-destructive" : ""
-                }`}
-              />
-              {card.isFavorited ? "Unfavorite" : "Favorite"}
-            </ContextMenuItem>
-            <ContextMenuItem
-              disabled={reprocessingCardId === card._id}
-              onClick={handleReprocess}
-            >
-              <RefreshCw />
-              Refresh details
-            </ContextMenuItem>
-            {onToggleArchive && (
-              <ContextMenuItem onClick={handleToggleArchive}>
-                {card.isArchived ? <ArchiveRestore /> : <Archive />}
-                {card.isArchived ? "Unarchive" : "Archive"}
-              </ContextMenuItem>
-            )}
-            <ContextMenuSeparator />
-            <ContextMenuItem onClick={handleDelete}>
-              <Trash2 />
-              Delete
-            </ContextMenuItem>
-          </>
-        )}
-
-        {card.isDeleted && (
-          <>
-            <ContextMenuItem onClick={handleRestore}>
-              <RotateCcw />
-              Restore
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem onClick={handlePermanentDelete}>
-              <Trash />
-              Delete Forever
-            </ContextMenuItem>
-          </>
-        )}
+        <CardMenuEntries
+          entries={menuItems}
+          Item={ContextMenuItem}
+          Separator={ContextMenuSeparator}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
 });
+
+type CardMenuEntry =
+  | "separator"
+  | {
+      destructive?: boolean;
+      disabled?: boolean;
+      icon: ComponentType<{ className?: string }>;
+      iconClassName?: string;
+      label: string;
+      onSelect: () => void;
+    };
+
+type MenuItemComponent = ComponentType<{
+  children?: ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
+  variant?: "default" | "destructive";
+}>;
+
+/** The card's actions, as its context menu and its More menu both list them. */
+function CardMenuEntries({
+  entries,
+  Item,
+  Separator,
+}: {
+  entries: CardMenuEntry[];
+  Item: MenuItemComponent;
+  Separator: ComponentType;
+}) {
+  return entries.map((entry, index) => {
+    if (entry === "separator") {
+      // biome-ignore lint/suspicious/noArrayIndexKey: separators have no identity
+      return <Separator key={`separator-${index}`} />;
+    }
+    const Icon = entry.icon;
+    return (
+      <Item
+        disabled={entry.disabled}
+        key={entry.label}
+        onClick={entry.onSelect}
+        variant={entry.destructive ? "destructive" : "default"}
+      >
+        <Icon className={entry.iconClassName} />
+        {entry.label}
+      </Item>
+    );
+  });
+}
+
+function QuickActionButton({
+  children,
+  label,
+  pressed,
+  ref,
+  ...props
+}: ComponentProps<"button"> & {
+  label: string;
+  pressed?: boolean;
+}) {
+  return (
+    <button
+      aria-label={label}
+      aria-pressed={pressed}
+      className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground/80 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-colors hover:bg-background hover:text-foreground data-[state=open]:bg-background dark:ring-white/10 [&_svg]:size-3.5"
+      ref={ref}
+      tabIndex={-1}
+      title={label}
+      type="button"
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}

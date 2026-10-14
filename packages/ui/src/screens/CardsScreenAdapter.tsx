@@ -51,11 +51,12 @@ export function CardsScreenAdapter({
   upgradeUrl,
   view,
 }: CardsScreenAdapterProps) {
-  const { selectedCardId, openCard, closeCard } = useCardQueryParamState({
-    cardIdFromUrl,
-    pushCardId,
-    replaceCardId,
-  });
+  const { selectedCardId, openCard, closeCard, switchCard } =
+    useCardQueryParamState({
+      cardIdFromUrl,
+      pushCardId,
+      replaceCardId,
+    });
 
   return (
     <CardsScreen
@@ -70,6 +71,7 @@ export function CardsScreenAdapter({
       onOpenCard={openCard}
       onOpenFolder={onOpenFolder}
       onSearchUrlStateChange={onSearchUrlStateChange}
+      onSwitchCard={switchCard}
       onUpgrade={onUpgrade}
       searchUrlState={searchUrlState}
       selectedCardId={selectedCardId}

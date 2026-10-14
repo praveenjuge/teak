@@ -2,7 +2,7 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
@@ -25,13 +25,24 @@ export type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
 };
 
+export type TextField =
+  | "content"
+  | "url"
+  | "notes"
+  | "aiSummary"
+  | "metadataTitle";
+
 interface PendingChanges {
   aiSummary?: string;
   content?: string;
   isFavorited?: boolean;
+  metadataTitle?: string;
   notes?: string;
   url?: string;
 }
+
+/** Where the open card's edits stand, for the dialog's save indicator. */
+export type CardSaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 export interface CardModalConfig {
   onCardTypeClick?: (cardType: string) => void;
@@ -46,6 +57,26 @@ export interface CardModalOptions extends CardModalConfig {
   card?: CardWithUrls | null;
 }
 
+/**
+ * Edited text fields still to write: changed from the card, and not the
+ * value a save already sent (the card may not show it yet).
+ */
+export function getUnsavedUpdates(
+  card: Partial<Record<TextField, string | undefined>>,
+  pending: PendingChanges,
+  saved: PendingChanges
+): { field: TextField; value: string }[] {
+  return (Object.keys(pending) as (keyof PendingChanges)[])
+    .filter((key): key is TextField => key !== "isFavorited")
+    .map((field) => ({ field, value: pending[field] }))
+    .filter(
+      (update): update is { field: TextField; value: string } =>
+        update.value !== undefined &&
+        update.value !== (card[update.field] ?? "") &&
+        update.value !== saved[update.field]
+    );
+}
+
 export function useCardModal(
   cardId: string | null,
   options: CardModalOptions = {}
@@ -53,8 +84,25 @@ export function useCardModal(
   const { card: cardData = null, ...config } = options;
   const [tagInput, setTagInput] = useState("");
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
+  // Values already written to the server, by field. An edit stays in
+  // `pendingChanges` until the card catches up, so the editor never flashes
+  // back to the old text while a save is in flight.
+  const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [editsCardId, setEditsCardId] = useState(cardId);
+
+  // Edits belong to one card: opening another starts clean.
+  if (editsCardId !== cardId) {
+    setEditsCardId(cardId);
+    setPendingChanges({});
+    setSavedValues({});
+    setTagInput("");
+    setIsSaved(false);
+    setSaveFailed(false);
+  }
 
   const notifyError = useCallback(
     (error: Error, operation: string) => {
@@ -118,6 +166,7 @@ export function useCardModal(
       case "content":
       case "url":
       case "notes":
+      case "metadataTitle":
       case "aiSummary": {
         const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
@@ -137,57 +186,83 @@ export function useCardModal(
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const convex = useConvex();
 
-  const hasUnsavedChanges = useMemo(() => {
+  const unsavedUpdates = useMemo(
+    () => (card ? getUnsavedUpdates(card, pendingChanges, savedValues) : []),
+    [card, pendingChanges, savedValues]
+  );
+
+  const hasUnsavedChanges = unsavedUpdates.length > 0;
+
+  // Once the card shows a saved value, neither the edit nor the record of
+  // saving it has anything left to hold.
+  useEffect(() => {
     if (!card) {
-      return false;
-    }
-    return Object.keys(pendingChanges).some((key) => {
-      if (key === "isFavorited") {
-        return false;
-      }
-
-      const pendingValue = pendingChanges[key as keyof PendingChanges];
-      const currentValue = card[key as keyof typeof card];
-      return pendingValue !== undefined && pendingValue !== currentValue;
-    });
-  }, [card, pendingChanges]);
-
-  const saveChanges = useCallback(async () => {
-    if (!(cardId && hasUnsavedChanges)) {
       return;
     }
-
-    const updates = Object.entries(pendingChanges)
-      .filter(
-        ([field, value]) => value !== undefined && field !== "isFavorited"
-      )
-      .map(([field, value]) => ({ field, value }));
-
-    const currentPendingChanges = { ...pendingChanges };
-
-    setPendingChanges({});
-    setIsSaved(true);
-
-    try {
-      for (const { field, value } of updates) {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: field as "content" | "url" | "notes" | "aiSummary",
-          value,
-        });
-      }
-
-      toast.success("Changes saved");
-      setTimeout(() => {
-        setIsSaved(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Failed to save changes:", error);
-      setPendingChanges(currentPendingChanges);
-      setIsSaved(false);
-      notifyError(error as Error, "save changes");
+    const caughtUp = (Object.keys(savedValues) as TextField[]).filter(
+      (field) =>
+        savedValues[field] !== undefined &&
+        (card[field] ?? "") === savedValues[field]
+    );
+    if (caughtUp.length === 0) {
+      return;
     }
-  }, [cardId, hasUnsavedChanges, pendingChanges, updateCardField, notifyError]);
+    setSavedValues((prev) => {
+      const next = { ...prev };
+      for (const field of caughtUp) {
+        next[field] = undefined;
+      }
+      return next;
+    });
+    setPendingChanges((prev) => {
+      const next = { ...prev };
+      for (const field of caughtUp) {
+        if ((prev[field] ?? "") === (card[field] ?? "")) {
+          next[field] = undefined;
+        }
+      }
+      return next;
+    });
+  }, [card, savedValues]);
+
+  /**
+   * Writes every unsaved edit. `silent` skips the toast, for saves that run
+   * on their own while someone types.
+   */
+  const saveChanges = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!(cardId && unsavedUpdates.length > 0)) {
+        return;
+      }
+      const updates = unsavedUpdates;
+      setIsSaving(true);
+      setSaveFailed(false);
+      try {
+        for (const { field, value } of updates) {
+          await updateCardField({
+            cardId: cardId as Id<"cards">,
+            field,
+            value,
+          });
+          setSavedValues((prev) => ({ ...prev, [field]: value }));
+        }
+        setIsSaved(true);
+        if (!silent) {
+          toast.success("Changes saved");
+        }
+        setTimeout(() => {
+          setIsSaved(false);
+        }, 2000);
+      } catch (error) {
+        console.error("Failed to save changes:", error);
+        setSaveFailed(true);
+        notifyError(error as Error, "save changes");
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [cardId, unsavedUpdates, updateCardField, notifyError]
+  );
 
   const updateField = useCallback(
     async (
@@ -245,35 +320,9 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, notes }));
   }, []);
 
-  const saveNotes = useCallback(
-    async (notes: string): Promise<boolean> => {
-      if (!cardId) {
-        return false;
-      }
-
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "notes",
-          value: notes,
-        });
-        setPendingChanges((prev) => ({ ...prev, notes: undefined }));
-        setIsSaved(true);
-        toast.success("Notes updated");
-        setTimeout(() => {
-          setIsSaved(false);
-        }, 2000);
-        return true;
-      } catch (error) {
-        console.error("Failed to save notes:", error);
-        toast.error("Failed to update notes");
-        config.onError?.(error as Error, "update notes");
-        return false;
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cardId, updateCardField, config.onError]
-  );
+  const updateTitle = useCallback((metadataTitle: string) => {
+    setPendingChanges((prev) => ({ ...prev, metadataTitle }));
+  }, []);
 
   const updateAiSummary = useCallback((summary: string) => {
     setPendingChanges((prev) => ({ ...prev, aiSummary: summary }));
@@ -439,6 +488,17 @@ export function useCardModal(
     notifyError,
   ]);
 
+  let saveState: CardSaveState = "idle";
+  if (isSaving) {
+    saveState = "saving";
+  } else if (saveFailed) {
+    saveState = "error";
+  } else if (hasUnsavedChanges) {
+    saveState = "unsaved";
+  } else if (isSaved) {
+    saveState = "saved";
+  }
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {
       if (e.key === "Enter" && tagInput.trim()) {
@@ -464,7 +524,7 @@ export function useCardModal(
   }, [card?.type, config.onCardTypeClick]);
 
   const getCurrentValue = useCallback(
-    (field: "content" | "url" | "notes" | "aiSummary") =>
+    (field: TextField) =>
       pendingChanges[field] === undefined
         ? card?.[field]
         : pendingChanges[field],
@@ -491,7 +551,7 @@ export function useCardModal(
     updateContent,
     updateUrl,
     updateNotes,
-    saveNotes,
+    updateTitle,
     updateAiSummary,
     toggleFavorite,
     removeAiTag,
@@ -508,6 +568,7 @@ export function useCardModal(
     hasUnsavedChanges,
     getCurrentValue,
     isSaved,
+    saveState,
     isDownloading,
   };
 }

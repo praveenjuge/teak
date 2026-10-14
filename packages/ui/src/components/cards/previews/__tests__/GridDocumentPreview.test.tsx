@@ -1,27 +1,48 @@
-import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { describe, expect, mock, test } from "bun:test";
+import { renderToStaticMarkup } from "react-dom/server";
 
-const source = readFileSync(
-  join(import.meta.dir, "../GridDocumentPreview.tsx"),
-  "utf8"
-);
+// Convex is the boundary: the thumbnail only asks it for a fresh URL when an
+// image fails, which static rendering never does.
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
+const { GridDocumentPreview } = await import("../GridDocumentPreview");
+
+const thumbnail = "https://files.teakvault.com/page-1.jpg";
 
 describe("GridDocumentPreview", () => {
-  test("reserves aspect ratio from width/height with a portrait fallback", () => {
-    expect(source).toContain(
-      "width && height ? width / height : FALLBACK_ASPECT_RATIO"
+  test("reserves the page's shape, or a portrait page when it is unknown", () => {
+    const sized = renderToStaticMarkup(
+      <GridDocumentPreview height={600} thumbnailUrl={thumbnail} width={800} />
     );
-    expect(source).toContain("aspectRatio:");
+    const unsized = renderToStaticMarkup(
+      <GridDocumentPreview thumbnailUrl={thumbnail} />
+    );
+    expect(sized).toContain("aspect-ratio:1.3333333333333333");
+    expect(unsized).toContain("aspect-ratio:0.75");
   });
 
-  test("lazy-loads the thumbnail inside the reserved box by default", () => {
-    expect(source).toContain('loading={isPriority ? "eager" : "lazy"}');
-    expect(source).toContain('className="relative w-full overflow-hidden"');
+  test("lazy-loads thumbnails below the fold and prioritizes those above it", () => {
+    const lazy = renderToStaticMarkup(
+      <GridDocumentPreview thumbnailUrl={thumbnail} />
+    );
+    const eager = renderToStaticMarkup(
+      <GridDocumentPreview isPriority thumbnailUrl={thumbnail} />
+    );
+    expect(lazy).toContain('loading="lazy"');
+    expect(lazy).not.toContain("fetchPriority");
+    expect(eager).toContain('loading="eager"');
+    expect(eager).toContain('fetchPriority="high"');
   });
 
-  test("prioritizes above-the-fold thumbnails", () => {
-    expect(source).toContain('fetchPriority={isPriority ? "high" : undefined}');
-    expect(source).toContain('decoding="async"');
+  test("names the file with its format badge", () => {
+    const markup = renderToStaticMarkup(
+      <GridDocumentPreview fileName="Annual report.pdf" formatBadge="PDF" />
+    );
+    expect(markup).toContain("Annual report.pdf");
+    expect(markup).toContain(">PDF<");
   });
 });

@@ -18,10 +18,19 @@ describe("AudioWavePreview", () => {
       <AudioWavePreview cardId="card_audio_1" />
     );
 
-    expect(
-      (markup.match(/rounded-full bg-muted-foreground/g) ?? []).length
-    ).toBe(AUDIO_WAVE_BARS);
-    expect(markup).toContain("rounded-2xl border bg-card");
+    expect((markup.match(/width:2px/g) ?? []).length).toBe(AUDIO_WAVE_BARS);
+  });
+
+  test("names the recording and its length under the waveform", () => {
+    const markup = renderToStaticMarkup(
+      <AudioWavePreview
+        cardId="card_audio_1"
+        durationLabel="1:24"
+        title="Standup notes.m4a"
+      />
+    );
+    expect(markup).toContain("Standup notes.m4a");
+    expect(markup).toContain("1:24");
   });
 
   test("produces deterministic heights for the same card id", () => {
@@ -50,9 +59,7 @@ describe("AudioWavePreview", () => {
     expect(markup).not.toBe(fallbackMarkup);
     expect(markup).toContain("height:10%");
     expect(markup).toContain("height:89.2%");
-    expect(
-      (markup.match(/rounded-full bg-muted-foreground/g) ?? []).length
-    ).toBe(AUDIO_WAVE_BARS);
+    expect((markup.match(/width:2px/g) ?? []).length).toBe(AUDIO_WAVE_BARS);
   });
 });
 
