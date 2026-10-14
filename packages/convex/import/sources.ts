@@ -12,19 +12,6 @@ import { parseReadwiseCsv } from "./readwise";
 /** Sources read from one text file (not a Teak archive or Omnivore ZIP). */
 export type TextImportMode = Exclude<ImportMode, "archive">;
 
-const PARSERS: Record<TextImportMode, (text: string) => ParsedBookmarkItem[]> =
-  {
-    bookmarks: parseBookmarksHtml,
-    pocket: parsePocketExport,
-    raindrop: parseRaindropCsv,
-    instapaper: parseInstapaperCsv,
-    readwise: parseReadwiseCsv,
-    omnivore: parseOmnivoreJson,
-    linkwarden: parseLinkwardenJson,
-    mymind: parseMymindCsv,
-    onetab: parseOneTabText,
-  };
-
 /**
  * Parses a text export from `mode`'s source. Throws when the file isn't one
  * (the Files Worker reports that as an invalid source); items that can't be
@@ -34,5 +21,26 @@ export function parseImportSource(
   mode: TextImportMode,
   text: string
 ): ParsedBookmarkItem[] {
-  return PARSERS[mode](text);
+  switch (mode) {
+    case "bookmarks":
+      return parseBookmarksHtml(text);
+    case "pocket":
+      return parsePocketExport(text);
+    case "raindrop":
+      return parseRaindropCsv(text);
+    case "instapaper":
+      return parseInstapaperCsv(text);
+    case "readwise":
+      return parseReadwiseCsv(text);
+    case "omnivore":
+      return parseOmnivoreJson(text);
+    case "linkwarden":
+      return parseLinkwardenJson(text);
+    case "mymind":
+      return parseMymindCsv(text);
+    case "onetab":
+      return parseOneTabText(text);
+    default:
+      throw new Error(`Unsupported import source: ${mode satisfies never}`);
+  }
 }
