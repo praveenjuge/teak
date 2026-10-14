@@ -45,7 +45,7 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
 ## Constraints And Non-goals
 
 - **Token grammar.**
-  - Pattern: `\[\[([^\]\|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]`. A title's `|`, `]` and newlines are replaced with spaces when the token is written.
+  - Pattern: `\[\[([^\]\|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]`. A title's `|`, `]` and newlines are replaced with spaces when the token is written. It is then cut to at most 200 characters, ending on a whole grapheme with `…` appended, because card titles can be up to 512 characters and the grammar accepts 200. The stored title is only a readable fallback: the pill always shows the target's current full title, and the link itself is the id.
   - Tokens inside code spans and blocks are not links.
   - At most 500 distinct targets per card are indexed. Later ones render, but they're not stored.
 - Links are made only to the user's own cards. A foreign or unknown ID never creates a row and renders as missing.
@@ -60,7 +60,7 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
 - `shared/cardLinks.ts` (pure, shared with web and native ports):
   - `CARD_LINK_PATTERN`
   - `parseCardLinkIds(markdown)` returns IDs: ordered, unique, max 500, with code excluded
-  - `formatCardLinkToken(title, id)`
+  - `formatCardLinkToken(title, id)`: sanitizes and truncates the title as above, so every token it produces matches the parse pattern
   - `replaceCardLinkTokens(markdown, (title, id) => string)`
 - `card/displayTitle.ts`: `cardDisplayTitle(card)`, extracted from `toMobileCardSummary`. The summary function then uses it.
 - `schema.ts cardLinks { userId, fromCardId: v.id("cards"), toCardId: v.id("cards"), createdAt }`, with `by_fromCardId_and_toCardId`, `by_toCardId` and `by_userId`.
@@ -142,6 +142,8 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
 - Editor corpus: a note that holds tokens opens without being rewritten (the README's preservation rule).
 
 ## Tests
+
+- `packages/convex/__tests__/shared/cardLinks.test.ts`: `formatCardLinkToken` with the 300-character and 512-character title fixtures, including titles that end in emoji and CJK, produces a token that `parseCardLinkIds` reads back with the same id, with a title of 200 characters or fewer.
 
 - `packages/convex/__tests__/shared/cardLinks.test.ts`: the parse, format and replace table (code spans, malformed tokens, escaping, the 500 cap).
 - `packages/convex/__tests__/card/displayTitle.test.ts`: the title rules move over unchanged.
