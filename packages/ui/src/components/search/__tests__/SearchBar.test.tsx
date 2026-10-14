@@ -8,9 +8,11 @@ const renderSearchBar = (
   {
     filterTags = [],
     keywordTags = [],
+    onToggleFilter,
   }: {
     filterTags?: CardType[];
     keywordTags?: string[];
+    onToggleFilter?: (filter: CardType) => void;
   } = {}
 ) =>
   renderToStaticMarkup(
@@ -29,6 +31,7 @@ const renderSearchBar = (
       onRemoveStyleFilter={() => {}}
       onRemoveTimeFilter={() => {}}
       onSearchChange={() => {}}
+      onToggleFilter={onToggleFilter}
       placeholder="Search favorites..."
       searchQuery={searchQuery}
       styleFilters={[]}
@@ -66,7 +69,7 @@ describe("SearchBar filter chips", () => {
     expect(markup).not.toContain("Clear all");
   });
 
-  // Views and card types to pick live in the sidebar now.
+  // Views live in the sidebar and types to pick in the type filter menu.
   test("never offers view or unpicked type chips", () => {
     const markup = renderSearchBar("", { filterTags: ["link"] });
     for (const label of ["Text", "Image", "Favorites", "Trash", "Archived"]) {
@@ -89,5 +92,26 @@ describe("SearchBar filter chips", () => {
       markup.indexOf('name="q"')
     );
     expect(markup).toContain('placeholder="Search favorites..."');
+  });
+});
+
+describe("SearchBar type filter", () => {
+  test("names the picked types on the filter button", () => {
+    const markup = renderSearchBar("", {
+      filterTags: ["link", "image"],
+      onToggleFilter: () => {},
+    });
+    expect(markup).toContain('aria-label="Card types: Link, Image"');
+  });
+
+  test("reads as unfiltered when no type is picked", () => {
+    const markup = renderSearchBar("", { onToggleFilter: () => {} });
+    expect(markup).toContain('aria-label="Card types"');
+  });
+
+  test("is left out where types can't be picked", () => {
+    expect(renderSearchBar("", { filterTags: ["link"] })).not.toContain(
+      "Card types"
+    );
   });
 });

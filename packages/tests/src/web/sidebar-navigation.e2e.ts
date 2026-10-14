@@ -62,13 +62,13 @@ test("the sidebar opens each view, with back and forward", async ({
   await browser.forward();
   await expect(screen.getByPlaceholder("Search the archive...")).toBeVisible();
 
-  // A card type narrows the open view and lives in the URL.
-  await screen.getByRole("button", "Image").first().click();
+  // A card type, picked beside the search, narrows the open view and lives
+  // in the URL.
+  await screen.getByRole("button", "Card types").click();
+  await screen.getByRole("menuitemcheckbox", "Image").click();
   await expect(browser).toHaveURL(/\/archive\?type=image$/);
-  await expect(screen.getByRole("button", "Image").first()).toHaveAttribute(
-    "aria-pressed",
-    "true"
-  );
+  await browser.keyboard.press("Escape");
+  await expect(screen.getByRole("button", "Card types: Image")).toBeVisible();
   await browser.back();
   await expect(browser).toHaveURL(/\/archive$/);
 });

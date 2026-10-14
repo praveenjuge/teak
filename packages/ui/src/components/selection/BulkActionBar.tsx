@@ -90,7 +90,7 @@ export function BulkActionBar({
   // A strip across the top of the content column (beside the sidebar), like
   // the toasts at the bottom, so the two never cover each other.
   return (
-    <div className="fade-in-0 slide-in-from-top-2 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur transition-[left] duration-200">
+    <div className="fade-in-0 slide-in-from-top-2 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur transition-[left] duration-150 ease-out">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
         <span
           aria-live="polite"

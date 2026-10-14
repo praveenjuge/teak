@@ -56,6 +56,7 @@ import {
   type SearchSuggestion,
   type SearchSuggestionSources,
 } from "./searchSuggestions";
+import { TypeFilterMenu } from "./TypeFilterMenu";
 
 export interface SearchBarProps {
   filterTags: CardType[];
@@ -89,6 +90,8 @@ export interface SearchBarProps {
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
   onSortChange?: (sort: CardListSort) => void;
+  /** Shows the card type filter when set. */
+  onToggleFilter?: (filter: CardType) => void;
   placeholder?: string;
   /** Accepted qualifiers, each a removable chip. */
   qualifierChips?: string[];
@@ -271,9 +274,11 @@ export function SearchBar({
   sort = "newest",
   onSaveSearch,
   onSortChange,
+  onToggleFilter,
 }: SearchBarProps) {
-  // Views and card types live in the sidebar; the row under the search box
-  // shows only what is narrowing the results, each chip removable.
+  // Views live in the sidebar and card types in the filter beside the
+  // search; the row under the search box shows what is narrowing the
+  // results, each chip removable.
   const hasAnyFilters =
     qualifierChips.length > 0 ||
     keywordTags.length > 0 ||
@@ -432,6 +437,17 @@ export function SearchBar({
         </div>
 
         <div className="flex items-center gap-1">
+          {onToggleFilter && (
+            <TypeFilterMenu
+              activeTypes={filterTags}
+              onClear={() => {
+                for (const filter of filterTags) {
+                  onRemoveFilter(filter);
+                }
+              }}
+              onToggle={onToggleFilter}
+            />
+          )}
           {onSortChange && (
             <SortMenu
               onSaveSearch={onSaveSearch}

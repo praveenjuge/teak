@@ -18,24 +18,20 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
 
-  // No folders yet: the group offers New folder.
+  // No folders yet: the group offers New folder, named in place.
   await screen.getByRole("button", "New folder").first().click();
-  const dialog = screen.getByRole("dialog", "New folder");
-  await dialog.getByLabel("Name").fill("Reading");
-  await dialog.getByRole("button", "Blue").click();
-  await dialog.getByRole("button", "Create folder").click();
+  await screen.getByLabel("New folder name").fill("Reading");
+  await screen.getByLabel("New folder name").press("Enter");
   await expect(screen.getByRole("link", "Reading")).toBeVisible();
 
-  // Names are unique ignoring case.
+  // Names are unique ignoring case; Escape leaves the row.
   await screen.getByRole("button", "New folder").first().click();
-  await screen
-    .getByRole("dialog", "New folder")
-    .getByLabel("Name")
-    .fill("reading");
+  await screen.getByLabel("New folder name").fill("reading");
   await expect(
     screen.getByText("A folder with this name already exists")
   ).toBeVisible();
-  await screen.getByRole("button", "Cancel").click();
+  await screen.getByLabel("New folder name").press("Escape");
+  await expect(screen.getByLabel("New folder name")).toHaveCount(0);
 
   // Select two cards and add them through the bulk bar.
   await screen.getByText(FIRST_CARD, { exact: false }).secondaryTap();
