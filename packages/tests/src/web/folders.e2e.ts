@@ -49,7 +49,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
 
   // The folder page lists just those cards.
   await screen.getByRole("link", "Reading").click();
-  await expect(screen.getByPlaceholder("Search Reading...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Reading")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
   await expect(screen.getByRole("link", "Reading")).toHaveAttribute(
     "aria-current",
@@ -66,7 +66,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await rename.getByLabel("Name").fill("Reading list");
   await rename.getByRole("button", "Save").click();
   await expect(screen.getByRole("link", "Reading list")).toBeVisible();
-  await expect(screen.getByPlaceholder("Search Reading list...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Reading list")).toBeVisible();
 
   // Deleting the open folder returns to Everything; Undo brings it back
   // with its cards.
@@ -113,10 +113,8 @@ test("save a search as a smart folder; a card saved later shows up live", async 
     screen.getByText("Smart folder first match", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // Saving is in the sort menu while there is a search to keep.
-  await screen
-    .getByRole("button", "Sort and save search", { exact: false })
-    .click();
+  // Saving is in the View menu while there is a search to keep.
+  await screen.getByRole("button", /^View/).click();
   await screen.getByRole("menuitem", "Save as smart folder…").click();
   const save = screen.getByRole("dialog", "Save as smart folder");
   await expect(save.getByLabel("Search", { exact: true })).toHaveValue(
@@ -130,7 +128,7 @@ test("save a search as a smart folder; a card saved later shows up live", async 
 
   // Its view shows what the search matches, and the search as chips.
   await screen.getByRole("link", "Smart picks").click();
-  await expect(screen.getByPlaceholder("Search Smart picks...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Smart picks")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
   await expect(
     screen.getByText("Smart folder first match", { exact: false })

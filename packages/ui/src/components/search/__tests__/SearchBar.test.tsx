@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { CardType } from "@teak/convex/shared/constants";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SearchBar } from "../SearchBar";
+import { viewMenuLabel } from "../ViewMenu";
 
 const renderSearchBar = (
   searchQuery = "",
@@ -32,7 +33,7 @@ const renderSearchBar = (
       onRemoveTimeFilter={() => {}}
       onSearchChange={() => {}}
       onToggleFilter={onToggleFilter}
-      placeholder="Search favorites..."
+      placeholder="Search favorites"
       searchQuery={searchQuery}
       styleFilters={[]}
     />
@@ -59,59 +60,78 @@ describe("SearchBar WebMCP annotations", () => {
 });
 
 describe("SearchBar filter chips", () => {
-  // Labels of the chip buttons under the search box.
-  const chipLabels = (markup: string) =>
-    [...markup.matchAll(/<span>([^<]+)<\/span>/g)].map((match) => match[1]);
+  // Names of the chip buttons inside the field, in order.
+  const chipNames = (markup: string) =>
+    [...markup.matchAll(/aria-label="Remove ([^"]+)"/g)].map(
+      (match) => match[1]
+    );
 
-  test("shows no chips while nothing narrows the results", () => {
-    const markup = renderSearchBar("typing");
-    expect(chipLabels(markup)).toEqual([]);
+  test("shows no chips and nothing to clear while the field is empty", () => {
+    const markup = renderSearchBar("");
+    expect(chipNames(markup)).toEqual([]);
     expect(markup).not.toContain("Clear all");
   });
 
-  // Views live in the sidebar and types to pick in the type filter menu.
-  test("never offers view or unpicked type chips", () => {
-    const markup = renderSearchBar("", { filterTags: ["link"] });
-    for (const label of ["Text", "Image", "Favorites", "Trash", "Archived"]) {
-      expect(chipLabels(markup)).not.toContain(label);
-    }
+  test("offers Clear all once something is typed", () => {
+    const markup = renderSearchBar("typing");
+    expect(chipNames(markup)).toEqual([]);
+    expect(markup).toContain('aria-label="Clear all"');
   });
 
-  test("shows picked types and keywords as removable chips", () => {
+  // Views live in the sidebar and types to pick in the View menu.
+  test("never offers view or unpicked type chips", () => {
+    const names = chipNames(renderSearchBar("", { filterTags: ["link"] }));
+    expect(names).toEqual(["type Link"]);
+  });
+
+  test("shows keywords and picked types as removable chips in the field", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link"],
       keywordTags: ["design"],
     });
-    expect(chipLabels(markup)).toEqual(["design", "Link"]);
-    expect(markup).toContain("Clear all");
+    expect(chipNames(markup)).toEqual(["design", "type Link"]);
+    expect(markup).toContain('aria-label="Clear all"');
   });
 
-  test("renders the leading control and the view's placeholder", () => {
-    const markup = renderSearchBar();
+  test("folds chips past the third into a +N menu", () => {
+    const markup = renderSearchBar("", {
+      filterTags: ["link", "image", "quote"],
+      keywordTags: ["design", "ideas"],
+    });
+    expect(chipNames(markup)).toEqual(["design", "ideas", "type Link"]);
+    expect(markup).toContain('aria-label="2 more filters"');
+  });
+
+  test("names the search box for the page, ahead of its chips", () => {
+    const markup = renderSearchBar("", { keywordTags: ["design"] });
     expect(markup.indexOf("Toggle sidebar")).toBeLessThan(
       markup.indexOf('name="q"')
     );
-    expect(markup).toContain('placeholder="Search favorites..."');
+    expect(markup).toContain('aria-label="Search favorites"');
+    expect(markup).toContain('placeholder="Search favorites"');
   });
 });
 
-describe("SearchBar type filter", () => {
-  test("names the picked types on the filter button", () => {
+describe("SearchBar View menu", () => {
+  test("names the picked types and a changed order on its button", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link", "image"],
       onToggleFilter: () => {},
     });
-    expect(markup).toContain('aria-label="Card types: Link, Image"');
+    expect(markup).toContain('aria-label="View: Link, Image"');
+    expect(viewMenuLabel(["quote"], "oldest")).toBe(
+      "View: Quote, oldest first"
+    );
   });
 
-  test("reads as unfiltered when no type is picked", () => {
+  test("reads as the default view when nothing is changed", () => {
     const markup = renderSearchBar("", { onToggleFilter: () => {} });
-    expect(markup).toContain('aria-label="Card types"');
+    expect(markup).toContain('aria-label="View"');
   });
 
-  test("is left out where types can't be picked", () => {
+  test("is left out where the view can't change", () => {
     expect(renderSearchBar("", { filterTags: ["link"] })).not.toContain(
-      "Card types"
+      'aria-label="View'
     );
   });
 });

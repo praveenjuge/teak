@@ -18,6 +18,7 @@ import {
   Heart,
   LayoutGrid,
   type LucideIcon,
+  PanelLeft,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -100,7 +101,7 @@ export function AppSidebar({
   settingsHref = "/settings",
   tagsHref = "/tags",
 }: AppSidebarProps) {
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
 
   // On phones the drawer closes once the user picks where to go.
   const handleNavigate = () => {
@@ -137,10 +138,10 @@ export function AppSidebar({
   };
 
   return (
-    <Sidebar collapsible="icon">
-      {/* As tall as the search bar beside it, so the two share a top line.
+    <Sidebar className="group/sidebar-panel" collapsible="icon">
+      {/* As tall as the page header beside it, so the two share a top line.
           Collapsed, the New button stacks under the logo. */}
-      <SidebarHeader className="h-16 flex-row items-center justify-between gap-1 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-4 group-data-[collapsible=icon]:pb-2">
+      <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-2">
         <SidebarMenu className="w-auto">
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -158,6 +159,22 @@ export function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <span className="flex-1 group-data-[collapsible=icon]:hidden" />
+        {/* Shown while the pointer is over the sidebar; peeking, it pins
+            the sidebar open instead. */}
+        <button
+          aria-label={
+            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
+          }
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/55 opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden"
+          onClick={toggleSidebar}
+          title={
+            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
+          }
+          type="button"
+        >
+          <PanelLeft className="size-4" />
+        </button>
         {addActions}
       </SidebarHeader>
 

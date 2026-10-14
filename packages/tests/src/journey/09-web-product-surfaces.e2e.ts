@@ -64,7 +64,7 @@ const showTrash = async ({ browser, screen }: Surface) => {
   const search = screen.getByRole("combobox");
   await search.fill("trash");
   await search.press("Enter");
-  await expect(screen.getByPlaceholder("Search Trash...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Trash")).toBeVisible();
   await expect(screen.getByRole("link", "Trash")).toHaveAttribute(
     "aria-current",
     "page"
@@ -276,12 +276,16 @@ https://example.com/editor
       .getByRole("dialog")
       .getByRole("button", `${marker}-tag`)
       .click();
-    await expect(screen.getByRole("button", `${marker}-tag`)).toBeVisible();
+    await expect(
+      screen.getByRole("button", `Remove ${marker}-tag`)
+    ).toBeVisible();
     await expect(
       screen.getByText(`${marker} restore-me`, { exact: false })
     ).toBeVisible();
     await enterSearch(screen, `${marker}-tag-empty`);
-    await expect(screen.getByRole("button", `${marker}-tag`)).toBeVisible();
+    await expect(
+      screen.getByRole("button", `Remove ${marker}-tag`)
+    ).toBeVisible();
     await expect(cardText(screen, `${marker} restore-me`)).not.toBeVisible();
     await expect(
       screen.getByRole("main").getByText(/nothing found/i)
@@ -291,9 +295,7 @@ https://example.com/editor
     await searchFor(surface, `${marker}-no-results`);
     await expect(screen.getByText(/nothing found/i)).toBeVisible();
     await clearFilters(screen);
-    await expect(screen.getByPlaceholder("Search for anything...")).toHaveValue(
-      ""
-    );
+    await expect(screen.getByPlaceholder("Search everything")).toHaveValue("");
     await showTrash(surface);
     await expectSearchToFilterCurrentView(
       screen,

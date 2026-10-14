@@ -87,11 +87,12 @@ export function BulkActionBar({
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
 
-  // A strip across the top of the content column (beside the sidebar), like
-  // the toasts at the bottom, so the two never cover each other.
+  // Takes the page header's place across the top of the content column
+  // (beside the sidebar), the same height, so selecting swaps the bar in
+  // place; like the toasts at the bottom, it never covers the sidebar.
   return (
-    <div className="fade-in-0 slide-in-from-top-2 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur transition-[left] duration-150 ease-out">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
+    <div className="fade-in-0 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background pt-[env(safe-area-inset-top)] transition-[left] duration-150 ease-out">
+      <div className="mx-auto flex h-13 max-w-7xl items-center gap-2 px-4">
         <span
           aria-live="polite"
           className="mr-auto truncate font-medium text-sm tabular-nums"

@@ -12,6 +12,8 @@ interface SmartFolderQueryProps {
    * naming none of them reads "No folder named …".
    */
   folderNames?: ReadonlySet<string>;
+  /** One line of quieter chips, for the start of the search field. */
+  inline?: boolean;
   query: string;
 }
 
@@ -26,9 +28,10 @@ function QueryChip({
     <li
       className={cn(
         "inline-flex h-6 max-w-[min(18rem,100%)] shrink-0 items-center gap-1 rounded-md px-2 text-xs",
+        "in-data-[inline]:max-w-40 in-data-[inline]:px-1.5",
         dashed
           ? "border border-dashed text-muted-foreground"
-          : "bg-secondary text-secondary-foreground"
+          : "bg-secondary in-data-[inline]:bg-foreground/[0.06] in-data-[inline]:text-muted-foreground text-secondary-foreground"
       )}
     >
       {children}
@@ -38,12 +41,13 @@ function QueryChip({
 
 /**
  * A smart folder's search as read-only chips: qualifiers with their
- * labels, quoted phrases and words. Wraps to two lines, then clips; the
- * whole search is in the tooltip.
+ * labels, quoted phrases and words. Wraps to two lines (or, inline, stays
+ * on one), then clips; the whole search is in the tooltip.
  */
 export function SmartFolderQuery({
   className,
   folderNames,
+  inline = false,
   query,
 }: SmartFolderQueryProps) {
   const parsed = parseSearchQuery(query);
@@ -106,9 +110,12 @@ export function SmartFolderQuery({
     <ul
       aria-label={`Search: ${query}`}
       className={cn(
-        "flex max-h-[3.375rem] flex-wrap gap-1.5 overflow-hidden",
+        inline
+          ? "flex min-w-0 flex-nowrap gap-1 overflow-hidden"
+          : "flex max-h-[3.375rem] flex-wrap gap-1.5 overflow-hidden",
         className
       )}
+      data-inline={inline || undefined}
       title={query}
     >
       {chips}

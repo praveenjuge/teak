@@ -1,6 +1,9 @@
 "use client";
 
 import { libraryViewForPath } from "@teak/ui/lib/libraryViews";
+import { PageHeader, PageTitle } from "@teak/ui/screens";
+import { SidebarToggle } from "@teak/ui/sidebar";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
@@ -74,11 +77,23 @@ export function SettingsBackLink() {
 
   return (
     <Link
-      className="inline-block font-medium text-primary"
+      aria-label="Back"
+      className="-ml-1.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       href="/"
       onClick={handleClick}
+      title="Back"
     >
-      &larr; Back
+      <ArrowLeft className="size-4" />
     </Link>
+  );
+}
+
+/** Settings' page header: the sidebar toggle, Back, and the title. */
+export function SettingsHeader() {
+  return (
+    <PageHeader
+      leading={<SidebarToggle className="-ml-2" />}
+      title={<PageTitle icon={<SettingsBackLink />}>Settings</PageTitle>}
+    />
   );
 }

@@ -119,8 +119,6 @@ export function SettingsContent({
 
   return (
     <>
-      <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
-
       <SettingRow title="Email">
         {accountLoading ? (
           <SettingValueSkeleton className="w-44" />
