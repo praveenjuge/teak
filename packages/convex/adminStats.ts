@@ -184,9 +184,19 @@ export interface SubscriptionLike {
   amount: number;
   cancelAtPeriodEnd: boolean;
   currency: string;
+  discount?: SubscriptionDiscountLike | null;
   product: { id: string; name: string };
   recurringInterval: string;
+  recurringIntervalCount?: number;
   status: string;
+}
+
+// The parts of a Polar discount that change what a subscription pays.
+export interface SubscriptionDiscountLike {
+  amount?: number;
+  basisPoints?: number;
+  duration: string;
+  type: string;
 }
 
 const MONTHS_PER_INTERVAL: Record<string, number> = {
@@ -196,10 +206,79 @@ const MONTHS_PER_INTERVAL: Record<string, number> = {
   year: 12,
 };
 
-/** Subscription counts by status and plan, with monthly recurring revenue. */
+// Polar's merchant-of-record fee per payment: 4% + 40¢ (USD), from
+// https://polar.sh/docs/merchant-of-record/fees. An estimate: payout, refund
+// and international card surcharges are not included.
+export const POLAR_FEE_RATE = 0.04;
+export const POLAR_FEE_FIXED_MINOR = 40;
+
+/**
+ * What one subscription brings in per month, in minor units, after a
+ * discount that keeps applying (`forever` or `repeating`). One-time discounts
+ * only touch the first invoice, so they are left out.
+ */
+export const monthlyAmount = (subscription: SubscriptionLike): number => {
+  const months =
+    (MONTHS_PER_INTERVAL[subscription.recurringInterval] ?? 1) *
+    Math.max(subscription.recurringIntervalCount ?? 1, 1);
+  let amount = subscription.amount;
+  const discount = subscription.discount;
+  if (discount && discount.duration !== "once") {
+    if (typeof discount.basisPoints === "number") {
+      amount -= (amount * discount.basisPoints) / 10_000;
+    } else if (typeof discount.amount === "number") {
+      amount -= discount.amount;
+    }
+  }
+  return Math.max(amount, 0) / months;
+};
+
+/** Estimated monthly Polar fee for one subscription, in minor units. */
+export const monthlyPolarFee = (subscription: SubscriptionLike): number => {
+  const months =
+    (MONTHS_PER_INTERVAL[subscription.recurringInterval] ?? 1) *
+    Math.max(subscription.recurringIntervalCount ?? 1, 1);
+  const perMonth = monthlyAmount(subscription);
+  if (perMonth === 0) {
+    return 0;
+  }
+  return perMonth * POLAR_FEE_RATE + POLAR_FEE_FIXED_MINOR / months;
+};
+
+export interface CurrencyRevenue {
+  /** Paying now: active, including those canceling at period end. */
+  mrr: number;
+  /** Past due, unpaid, or canceling at period end. */
+  mrrAtRisk: number;
+  /** MRR minus the estimated Polar fees. */
+  netMrr: number;
+  /** What trials would add if every one converted. */
+  trialMrr: number;
+}
+
+export type RevenueStatus = "paying" | "trialing" | "past_due" | "other";
+
+export const revenueStatus = (status: string): RevenueStatus => {
+  if (status === "active") {
+    return "paying";
+  }
+  if (status === "trialing") {
+    return "trialing";
+  }
+  if (status === "past_due" || status === "unpaid") {
+    return "past_due";
+  }
+  return "other";
+};
+
+/**
+ * Subscription counts by status and plan, with monthly recurring revenue
+ * split into what is collected, what is at risk, and what trials could add.
+ * Past-due and trialing subscriptions are not counted as MRR.
+ */
 export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
   const byStatus: Record<string, number> = {};
-  const monthlyRevenue: Record<string, number> = {};
+  const revenue: Record<string, CurrencyRevenue> = {};
   const plans = new Map<
     string,
     {
@@ -209,45 +288,286 @@ export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
       amount: number;
       currency: string;
       count: number;
+      mrr: number;
     }
   >();
   let canceling = 0;
+  let paying = 0;
+  let trialing = 0;
+  let pastDue = 0;
 
   for (const subscription of subscriptions) {
     byStatus[subscription.status] = (byStatus[subscription.status] ?? 0) + 1;
-    if (subscription.cancelAtPeriodEnd) {
-      canceling += 1;
-    }
-    const months = MONTHS_PER_INTERVAL[subscription.recurringInterval] ?? 1;
     const currency = subscription.currency.toLowerCase();
-    monthlyRevenue[currency] =
-      (monthlyRevenue[currency] ?? 0) + subscription.amount / months;
+    const totals = revenue[currency] ?? {
+      mrr: 0,
+      mrrAtRisk: 0,
+      netMrr: 0,
+      trialMrr: 0,
+    };
+    revenue[currency] = totals;
+    const perMonth = monthlyAmount(subscription);
+    const kind = revenueStatus(subscription.status);
+    if (kind === "paying") {
+      paying += 1;
+      totals.mrr += perMonth;
+      totals.netMrr += perMonth - monthlyPolarFee(subscription);
+      if (subscription.cancelAtPeriodEnd) {
+        canceling += 1;
+        totals.mrrAtRisk += perMonth;
+      }
+    } else if (kind === "trialing") {
+      trialing += 1;
+      totals.trialMrr += perMonth;
+    } else if (kind === "past_due") {
+      pastDue += 1;
+      totals.mrrAtRisk += perMonth;
+    }
 
     const key = `${subscription.product.id}:${subscription.recurringInterval}`;
-    const plan = plans.get(key);
-    if (plan) {
-      plan.count += 1;
-    } else {
-      plans.set(key, {
-        productId: subscription.product.id,
-        name: subscription.product.name,
-        interval: subscription.recurringInterval,
-        amount: subscription.amount,
-        currency,
-        count: 1,
-      });
+    const plan = plans.get(key) ?? {
+      productId: subscription.product.id,
+      name: subscription.product.name,
+      interval: subscription.recurringInterval,
+      amount: subscription.amount,
+      currency,
+      count: 0,
+      mrr: 0,
+    };
+    plan.count += 1;
+    if (kind === "paying") {
+      plan.mrr += perMonth;
     }
+    plans.set(key, plan);
   }
 
-  for (const currency of Object.keys(monthlyRevenue)) {
-    monthlyRevenue[currency] = Math.round(monthlyRevenue[currency]);
+  for (const totals of Object.values(revenue)) {
+    totals.mrr = Math.round(totals.mrr);
+    totals.mrrAtRisk = Math.round(totals.mrrAtRisk);
+    totals.netMrr = Math.round(totals.netMrr);
+    totals.trialMrr = Math.round(totals.trialMrr);
   }
 
   return {
     total: subscriptions.length,
-    byStatus,
+    paying,
+    trialing,
+    pastDue,
     canceling,
-    monthlyRevenue,
-    plans: [...plans.values()].sort((a, b) => b.count - a.count),
+    byStatus,
+    revenue,
+    plans: [...plans.values()]
+      .map((plan) => ({ ...plan, mrr: Math.round(plan.mrr) }))
+      .sort((a, b) => b.count - a.count),
   };
+}
+
+/* Growth ------------------------------------------------------------------ */
+
+/** Week-over-week change as a percentage, or null without a base. */
+export const growthPercent = (
+  current: number,
+  previous: number
+): number | null =>
+  previous > 0 ? ((current - previous) / previous) * 100 : null;
+
+/** Monday 00:00 UTC of the week containing `timestamp`. */
+export const startOfUtcWeek = (timestamp: number) => {
+  const day = startOfUtcDay(timestamp);
+  const weekday = (new Date(day).getUTCDay() + 6) % 7;
+  return day - weekday * DAY_MS;
+};
+
+export interface CohortMember {
+  /** Week offsets from the signup week in which the account saved a card. */
+  activeWeeks: number[];
+  signedUpAt: number;
+}
+
+export interface RetentionCohort {
+  /** Share of the cohort active in each week since signup (index 0 = week 0). */
+  retention: Array<number | null>;
+  size: number;
+  /** Monday of the signup week, YYYY-MM-DD. */
+  week: string;
+}
+
+/**
+ * Weekly signup cohorts with the share of each cohort that saved a card in
+ * every later week. Weeks that have not finished yet are null.
+ */
+export function buildRetentionCohorts(
+  members: CohortMember[],
+  { now, weeks }: { now: number; weeks: number }
+): RetentionCohort[] {
+  const currentWeek = startOfUtcWeek(now);
+  const cohorts: RetentionCohort[] = [];
+  for (let index = weeks - 1; index >= 0; index--) {
+    const weekStart = currentWeek - index * 7 * DAY_MS;
+    const inCohort = members.filter(
+      (member) => startOfUtcWeek(member.signedUpAt) === weekStart
+    );
+    const elapsedWeeks = index;
+    const retention: Array<number | null> = [];
+    for (let offset = 0; offset < weeks; offset++) {
+      if (offset > elapsedWeeks || inCohort.length === 0) {
+        retention.push(offset > elapsedWeeks ? null : 0);
+        continue;
+      }
+      const active = inCohort.filter((member) =>
+        member.activeWeeks.includes(offset)
+      ).length;
+      retention.push(active / inCohort.length);
+    }
+    cohorts.push({
+      week: utcDay(weekStart),
+      size: inCohort.length,
+      retention,
+    });
+  }
+  return cohorts;
+}
+
+export interface FunnelMember {
+  activated: boolean;
+  /** Saved a card in days 7-13 after signup. */
+  returnedWeek2: boolean | null;
+  savedFirstCard: boolean;
+  subscribed: boolean;
+}
+
+/** Counts for signup -> first card -> activated -> came back -> paid. */
+export function summarizeFunnel(members: FunnelMember[]) {
+  const eligibleWeek2 = members.filter(
+    (member) => member.returnedWeek2 !== null
+  );
+  return {
+    signedUp: members.length,
+    savedFirstCard: members.filter((member) => member.savedFirstCard).length,
+    activated: members.filter((member) => member.activated).length,
+    returnedWeek2: eligibleWeek2.filter((member) => member.returnedWeek2)
+      .length,
+    eligibleForWeek2: eligibleWeek2.length,
+    subscribed: members.filter((member) => member.subscribed).length,
+  };
+}
+
+/* Health ----------------------------------------------------------------- */
+
+// Common throwaway-inbox domains. Not exhaustive: a spike from any one
+// domain is flagged too.
+export const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "10minutemail.com",
+  "dispostable.com",
+  "emailondeck.com",
+  "fakeinbox.com",
+  "getnada.com",
+  "guerrillamail.com",
+  "maildrop.cc",
+  "mailinator.com",
+  "mohmal.com",
+  "sharklasers.com",
+  "temp-mail.org",
+  "tempmail.com",
+  "throwawaymail.com",
+  "trashmail.com",
+  "yopmail.com",
+]);
+
+// Domains that host many unrelated people; volume from them is normal.
+const SHARED_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "icloud.com",
+  "me.com",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "yahoo.com",
+  "proton.me",
+  "protonmail.com",
+  "hey.com",
+  "fastmail.com",
+]);
+
+export const SIGNUP_SPIKE_THRESHOLD = 5;
+
+export interface SignupDomain {
+  disposable: boolean;
+  domain: string;
+  lastDay: number;
+  spike: boolean;
+  total: number;
+}
+
+/**
+ * Signups per email domain, flagging throwaway domains and any non-shared
+ * domain with a burst of signups in the last 24 hours.
+ */
+export function summarizeSignupDomains(
+  signups: Array<{ createdAt: number; email: string }>,
+  now: number
+): SignupDomain[] {
+  const byDomain = new Map<string, SignupDomain>();
+  for (const signup of signups) {
+    const domain = signup.email.split("@").pop()?.toLowerCase() ?? "";
+    if (!domain) {
+      continue;
+    }
+    const entry = byDomain.get(domain) ?? {
+      domain,
+      total: 0,
+      lastDay: 0,
+      disposable: DISPOSABLE_EMAIL_DOMAINS.has(domain),
+      spike: false,
+    };
+    entry.total += 1;
+    if (signup.createdAt >= now - DAY_MS) {
+      entry.lastDay += 1;
+    }
+    byDomain.set(domain, entry);
+  }
+  for (const entry of byDomain.values()) {
+    entry.spike =
+      !SHARED_EMAIL_DOMAINS.has(entry.domain) &&
+      entry.lastDay >= SIGNUP_SPIKE_THRESHOLD;
+  }
+  return [...byDomain.values()].sort(
+    (a, b) =>
+      Number(b.disposable || b.spike) - Number(a.disposable || a.spike) ||
+      b.total - a.total
+  );
+}
+
+export type CronHealth = "ok" | "late" | "failing" | "running" | "never_ran";
+
+/**
+ * A cron is late when it has not succeeded within twice its schedule, and
+ * failing when its latest run failed.
+ */
+export function cronHealth(
+  heartbeat:
+    | {
+        lastStatus: "running" | "succeeded" | "failed";
+        lastStartedAt: number;
+        lastSucceededAt?: number;
+      }
+    | undefined,
+  expectedEveryMs: number,
+  now: number
+): CronHealth {
+  if (!heartbeat) {
+    return "never_ran";
+  }
+  if (heartbeat.lastStatus === "failed") {
+    return "failing";
+  }
+  const lastGood = heartbeat.lastSucceededAt ?? 0;
+  if (now - lastGood > expectedEveryMs * 2) {
+    return heartbeat.lastStatus === "running" &&
+      now - heartbeat.lastStartedAt < expectedEveryMs
+      ? "running"
+      : "late";
+  }
+  return "ok";
 }

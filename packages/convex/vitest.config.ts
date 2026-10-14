@@ -54,6 +54,7 @@ export default defineConfig({
       "./colorSearch.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./adminConsole.test.ts",
       "./onboarding.test.ts",
     ],
   },

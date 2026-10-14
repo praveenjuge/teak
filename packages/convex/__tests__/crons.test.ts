@@ -48,7 +48,15 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "0 3 * * *",
     handler: "cleanupExpiredExports",
   },
+  "admin-daily-snapshot": {
+    cron: "20 0 * * *",
+    handler: "adminDailySnapshot",
+  },
 };
+
+// Monitored crons also write heartbeats (adminHealth.recordCronRun).
+const isHeartbeat = (ref: FunctionReference<"mutation">) =>
+  getFunctionAddress(ref).name === "adminHealth:recordCronRun";
 
 describe("crons.ts", () => {
   test("registers exactly the expected cron identifiers", () => {
@@ -74,7 +82,9 @@ test("email retention awaits component cleanup with safe horizons", async () => 
   }[] = [];
   const runMutation = mock(
     (ref: FunctionReference<"mutation">, args: { olderThan: number }) => {
-      calls.push({ reference: getFunctionAddress(ref).reference, args });
+      if (!isHeartbeat(ref)) {
+        calls.push({ reference: getFunctionAddress(ref).reference, args });
+      }
       return Promise.resolve(null);
     }
   );
@@ -98,7 +108,10 @@ test("email retention awaits component cleanup with safe horizons", async () => 
 for (const failingBatch of [1, 2]) {
   test(`email cleanup reports a failure in batch ${failingBatch}`, async () => {
     let calls = 0;
-    const runMutation = mock(() => {
+    const runMutation = mock((ref: FunctionReference<"mutation">) => {
+      if (isHeartbeat(ref)) {
+        return Promise.resolve(null);
+      }
       calls += 1;
       if (calls === failingBatch) {
         return Promise.reject(new Error("cleanup_failed"));

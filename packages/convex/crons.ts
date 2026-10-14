@@ -88,6 +88,14 @@ crons.cron(
   {}
 );
 
+// Saves yesterday's business metrics for the superadmin console's trends.
+crons.cron(
+  "admin-daily-snapshot",
+  "20 0 * * *",
+  internal.telemetry.crons.adminDailySnapshot,
+  {}
+);
+
 crons.cron(
   "redrive-account-deletion",
   "*/5 * * * *",

@@ -662,6 +662,28 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   const normalizedUrl = normalizeUrl(card.url);
   const keyBase = { cardId, userId: card.userId };
 
+  // Kill switch from the superadmin console. The card keeps a failed preview
+  // naming the pause; refreshing it from the console fetches it again.
+  if (
+    (await ctx.runQuery(internal.adminAccess.isLinkFetchPaused, {})) === true
+  ) {
+    const message = "Link fetching is paused";
+    await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+      cardId,
+      linkPreview: buildErrorPreview(normalizedUrl, {
+        type: "fetching_paused",
+        message,
+      }),
+      status: "failed",
+    });
+    return {
+      status: "failed" as const,
+      normalizedUrl,
+      errorType: "fetching_paused",
+      errorMessage: message,
+    };
+  }
+
   // SSRF guard: validate the destination before any server-side fetch or
   // headless-browser navigation. A blocked URL is a permanent failure, not a
   // retryable transient error.
