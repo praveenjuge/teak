@@ -52,6 +52,7 @@ export default defineConfig({
       "./folders.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./adminConsole.test.ts",
     ],
   },
 });

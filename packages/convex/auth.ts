@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 import { type QueryCtx, query } from "./_generated/server";
+import { readSignupsPaused } from "./adminAccess";
 import { polar } from "./billing";
 import { getActiveCardCount } from "./card/cardUsage";
-import { readAccountChangesPaused, readSignupsDisabled } from "./env";
+import { readAccountChangesPaused } from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
@@ -43,9 +44,9 @@ export const getAuthMode = query({
     accountChangesPaused: v.boolean(),
     authKitClientId: v.optional(v.string()),
   }),
-  handler: (): PublicAuthMode => ({
+  handler: async (ctx): Promise<PublicAuthMode> => ({
     primary: "workos",
-    signupsDisabled: readSignupsDisabled(),
+    signupsDisabled: await readSignupsPaused(ctx),
     accountChangesPaused: readAccountChangesPaused(),
     ...(process.env.WORKOS_CLIENT_ID
       ? { authKitClientId: process.env.WORKOS_CLIENT_ID }

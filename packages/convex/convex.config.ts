@@ -37,9 +37,13 @@ const app = defineApp({
     // A validator for the env var name, not a token value.
     // nosemgrep: codacy.yaml.security.hard-coded-tokens
     POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
+    // Personal API key (query:read) for the superadmin console's PostHog reads.
+    POSTHOG_QUERY_API_KEY: v.optional(v.string()),
     // Stamped by Backend Deploy; sent as the backend's $app_version.
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.
+    // Slack or Discord incoming webhook for superadmin sign-in and reveal alerts.
+    ADMIN_ALERT_WEBHOOK_URL: v.optional(v.string()),
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     // The shared cloud dev deployment: "true" enables dev tooling (seed data,

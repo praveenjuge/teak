@@ -10,6 +10,7 @@
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
+import { collectAiUsage } from "../../ai/telemetry";
 import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
@@ -145,11 +146,36 @@ export const generate: any = internalAction({
 
 export async function generateHandler(
   ctx: any,
-  { cardId, cardType }: { cardId: Id<"cards">; cardType: string }
+  args: { cardId: Id<"cards">; cardType: string }
+) {
+  let ownerId: string | undefined;
+  return await collectAiUsage(
+    () =>
+      generateForCard(ctx, args, (userId) => {
+        ownerId = userId;
+      }),
+    async (usage) => {
+      if (ownerId && usage.calls > 0) {
+        await ctx.runMutation(internal.adminUsage.recordAiUsage, {
+          userId: ownerId,
+          ...usage,
+        });
+      }
+    }
+  );
+}
+
+async function generateForCard(
+  ctx: any,
+  { cardId, cardType }: { cardId: Id<"cards">; cardType: string },
+  onOwner: (userId: string) => void
 ) {
   const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
     cardId,
   });
+  if (card) {
+    onOwner(card.userId);
+  }
 
   if (!card) {
     return {
@@ -179,6 +205,29 @@ export async function generateHandler(
       mode: "skipped" as const,
     };
   };
+
+  // Kill switches from the superadmin console (adminAccess.ts). A global
+  // pause defers like a provider outage, so the periodic backfill picks the
+  // card up once AI is back on. An account with AI turned off completes
+  // without AI; refreshing the card runs it again.
+  const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
+    userId: card.userId,
+  });
+  if (aiGate === "user_disabled") {
+    return await completeWithoutAi();
+  }
+  if (aiGate === "paused") {
+    console.warn("[workflow/metadata] AI paused from the console; deferring", {
+      cardId,
+    });
+    return {
+      aiTagsCount: 0,
+      hasSummary: false,
+      hasTranscript: false,
+      confidence: 0,
+      mode: "skipped" as const,
+    };
+  }
 
   let aiTags: string[] = [];
   let aiSummary = "";

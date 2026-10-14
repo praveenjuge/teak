@@ -1,0 +1,418 @@
+/// <reference types="vite/client" />
+import polarTest from "@convex-dev/polar/test";
+import workosTest from "@convex-dev/workos-authkit/test";
+import { convexTest } from "convex-test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
+import { api, internal } from "./_generated/api";
+import schema from "./schema";
+
+const modules = import.meta.glob("./**/*.ts");
+const clientId = "client_ADMIN";
+const adminClaims = {
+  issuer: `https://api.workos.com/user_management/${clientId}`,
+  subject: "user_ADMIN",
+  sid: "session_ADMIN",
+  email_verified: true,
+  email: "owner@teak.dev",
+  external_id: "teak_admin",
+  client_id: clientId,
+  jti: "01ADMIN",
+  auth_time: 1,
+};
+
+const setup = () => {
+  const t = convexTest(schema, modules);
+  workosTest.register(t);
+  polarTest.register(t);
+  return t;
+};
+type Backend = ReturnType<typeof setup>;
+
+const seedAccount = async (
+  t: Backend,
+  teakUserId: string,
+  workosUserId: string,
+  email: string,
+  role?: "admin"
+) => {
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      teakUserId,
+      workosUserId,
+      email,
+      emailVerified: true,
+      ...(role ? { role } : {}),
+    })
+  );
+  await seedComponentUser(t, {
+    id: workosUserId,
+    email,
+    externalId: teakUserId,
+  });
+};
+
+const seedAdmin = (t: Backend) =>
+  seedAccount(t, "teak_admin", "user_ADMIN", "owner@teak.dev", "admin");
+
+const seedCustomer = (t: Backend) =>
+  seedAccount(t, "teak_customer", "user_CUSTOMER", "reader@teak.dev");
+
+const asAdmin = (t: Backend) => t.withIdentity(adminClaims);
+const asCustomer = (t: Backend) =>
+  t.withIdentity({
+    ...adminClaims,
+    subject: "user_CUSTOMER",
+    email: "reader@teak.dev",
+    external_id: "teak_customer",
+  });
+
+const privateCard = (t: Backend) =>
+  t.run((ctx) =>
+    ctx.db.insert("cards", {
+      userId: "teak_customer",
+      type: "text",
+      content: "my private journal entry",
+      notes: "secret note",
+      url: "https://private.example.org/diary",
+      aiSummary: "a summary of the diary",
+      createdAt: 1,
+      updatedAt: 1,
+    })
+  );
+
+const auditRows = (t: Backend) =>
+  t.run((ctx) => ctx.db.query("adminAuditLog").take(50));
+
+beforeEach(() => {
+  vi.stubEnv("WORKOS_CLIENT_ID", clientId);
+  vi.stubEnv("SIGNUPS_DISABLED", "false");
+});
+afterEach(() => vi.unstubAllEnvs());
+
+describe("card privacy", () => {
+  test("the card list never carries content, notes, URLs or AI output", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    await privateCard(t);
+
+    const result = await asAdmin(t).query(api.admin.listAllCards, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+
+    expect(result.page).toHaveLength(1);
+    const listed = JSON.stringify(result.page[0]);
+    for (const secret of [
+      "private journal",
+      "secret note",
+      "private.example.org",
+      "summary of the diary",
+    ]) {
+      expect(listed).not.toContain(secret);
+    }
+    expect(result.page[0]).toMatchObject({
+      type: "text",
+      hasUrl: true,
+      hasAiSummary: true,
+      isRedacted: true,
+    });
+  });
+
+  test("revealing a card needs a reason and is written to the audit log", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    const cardId = await privateCard(t);
+
+    await expect(
+      asAdmin(t).mutation(api.admin.revealCard, { cardId, reason: " " })
+    ).rejects.toThrow("A reason is required");
+    expect(await auditRows(t)).toHaveLength(0);
+
+    const revealed = await asAdmin(t).mutation(api.admin.revealCard, {
+      cardId,
+      reason: "Support email asking why the card failed",
+    });
+    expect(revealed.content).toBe("my private journal entry");
+    expect(await auditRows(t)).toEqual([
+      expect.objectContaining({
+        action: "card.reveal",
+        actorEmail: "owner@teak.dev",
+        targetTeakUserId: "teak_customer",
+        targetCardId: cardId,
+        reason: "Support email asking why the card failed",
+      }),
+    ]);
+  });
+
+  test("a customer cannot reveal cards", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    const cardId = await privateCard(t);
+    await expect(
+      asCustomer(t).mutation(api.admin.revealCard, {
+        cardId,
+        reason: "curious",
+      })
+    ).rejects.toThrow("Unauthorized");
+    expect(await auditRows(t)).toHaveLength(0);
+  });
+});
+
+describe("kill switches", () => {
+  test("pausing signups from the console reaches the public auth mode", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    expect((await t.query(api.auth.getAuthMode, {})).signupsDisabled).toBe(
+      false
+    );
+
+    await asAdmin(t).mutation(api.adminConsole.setKillSwitch, {
+      name: "signupsPaused",
+      enabled: true,
+      reason: "spam wave",
+    });
+
+    expect((await t.query(api.auth.getAuthMode, {})).signupsDisabled).toBe(
+      true
+    );
+    expect(await auditRows(t)).toEqual([
+      expect.objectContaining({
+        action: "kill_switch.signupsPaused",
+        reason: "spam wave",
+        details: { before: false, after: true },
+      }),
+    ]);
+  });
+
+  test("the AI gate follows the global pause and per-account switch", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    const gate = () =>
+      t.query(internal.adminAccess.getAiGate, { userId: "teak_customer" });
+    expect(await gate()).toBe("allowed");
+
+    await asAdmin(t).mutation(api.adminConsole.setUserFlag, {
+      teakUserId: "teak_customer",
+      flag: "aiDisabled",
+      value: true,
+    });
+    expect(await gate()).toBe("user_disabled");
+
+    await asAdmin(t).mutation(api.adminConsole.setKillSwitch, {
+      name: "aiPaused",
+      enabled: true,
+    });
+    expect(await gate()).toBe("paused");
+  });
+
+  test("a customer cannot flip switches", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    await expect(
+      asCustomer(t).mutation(api.adminConsole.setKillSwitch, {
+        name: "aiPaused",
+        enabled: true,
+      })
+    ).rejects.toThrow("Unauthorized");
+    expect(await t.query(internal.adminAccess.getAiGate, { userId: "x" })).toBe(
+      "allowed"
+    );
+  });
+});
+
+describe("internal accounts", () => {
+  test("flagging an account internal is audited against that account", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+
+    await asAdmin(t).mutation(api.adminConsole.setUserFlag, {
+      teakUserId: "teak_customer",
+      flag: "internal",
+      value: true,
+      reason: "my test phone",
+    });
+
+    expect(await t.query(internal.adminAccess.listInternalUserIds, {})).toEqual(
+      ["teak_customer"]
+    );
+    const page = await asAdmin(t).query(api.adminConsole.listAuditLog, {
+      paginationOpts: { cursor: null, numItems: 10 },
+      targetTeakUserId: "teak_customer",
+    });
+    expect(page.page).toEqual([
+      expect.objectContaining({
+        action: "user.internal",
+        reason: "my test phone",
+      }),
+    ]);
+  });
+});
+
+describe("AI usage", () => {
+  test("adds every step's spend into one row per account per day", async () => {
+    const t = setup();
+    const usage = {
+      userId: "teak_customer",
+      calls: 2,
+      errors: 1,
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0.25,
+    };
+    await t.mutation(internal.adminUsage.recordAiUsage, usage);
+    await t.mutation(internal.adminUsage.recordAiUsage, usage);
+
+    const rows = await t.run((ctx) => ctx.db.query("aiUsageDaily").take(5));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      calls: 4,
+      errors: 2,
+      inputTokens: 200,
+      outputTokens: 100,
+      costUsd: 0.5,
+    });
+  });
+});
+
+describe("daily snapshots", () => {
+  const snapshot = {
+    date: "2026-10-01",
+    capturedAt: 1,
+    accounts: 10,
+    signups: 1,
+    cardsSaved: 5,
+    totalCards: 50,
+    activeSavers1d: 2,
+    activeSavers7d: 4,
+    activeSavers28d: 6,
+    storageBytes: 1000,
+    storageBytesAdded: 100,
+    aiCostUsd: 0.1,
+    aiCalls: 3,
+    topStorage: [],
+    isApproximate: false,
+  };
+
+  test("recapturing a past day keeps the billing seen on that day", async () => {
+    const t = setup();
+    const billing = {
+      currency: "usd",
+      mrr: 5000,
+      mrrAtRisk: 0,
+      netMrr: 4600,
+      paying: 10,
+      trialing: 0,
+      pastDue: 0,
+      canceling: 0,
+    };
+    await t.mutation(internal.adminMetrics.writeSnapshot, {
+      snapshot: { ...snapshot, billing },
+    });
+    await t.mutation(internal.adminMetrics.writeSnapshot, {
+      snapshot: { ...snapshot, cardsSaved: 7, capturedAt: 2 },
+    });
+
+    const rows = await t.run((ctx) =>
+      ctx.db.query("adminDailyMetrics").take(5)
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ cardsSaved: 7, billing });
+  });
+});
+
+describe("cron heartbeats", () => {
+  test("counts consecutive failures and clears them on success", async () => {
+    const t = setup();
+    const run = (phase: "started" | "succeeded" | "failed") =>
+      t.mutation(internal.adminHealth.recordCronRun, {
+        name: "admin-daily-snapshot",
+        phase,
+        ...(phase === "failed" ? { error: "Polar timed out" } : {}),
+      });
+    await run("started");
+    await run("failed");
+    await run("started");
+    await run("failed");
+    const failing = await t.run((ctx) =>
+      ctx.db.query("cronHeartbeats").first()
+    );
+    expect(failing).toMatchObject({
+      lastStatus: "failed",
+      lastError: "Polar timed out",
+      consecutiveFailures: 2,
+    });
+
+    await run("started");
+    await run("succeeded");
+    const healthy = await t.run((ctx) =>
+      ctx.db.query("cronHeartbeats").first()
+    );
+    expect(healthy).toMatchObject({
+      lastStatus: "succeeded",
+      consecutiveFailures: 0,
+    });
+    expect(healthy?.lastError).toBeUndefined();
+  });
+});
+
+describe("admin sign-in alerts", () => {
+  test("a sign-in is audited and posted to the alert webhook", async () => {
+    vi.stubEnv("ADMIN_ALERT_WEBHOOK_URL", "https://hooks.example.org/teak");
+    const fetchMock = vi.fn(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+    try {
+      const t = setup();
+      await seedAdmin(t);
+
+      await asAdmin(t).mutation(api.adminConsole.recordSignIn, {
+        ipAddress: "203.0.113.9",
+        userAgent: "Safari",
+      });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      expect(await auditRows(t)).toEqual([
+        expect.objectContaining({
+          action: "admin.sign_in",
+          details: { ipAddress: "203.0.113.9", userAgent: "Safari" },
+        }),
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      expect(url).toBe("https://hooks.example.org/teak");
+      expect(JSON.parse(String(init.body)).text).toBe(
+        "Teak console sign-in: owner@teak.dev from 203.0.113.9"
+      );
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test("nothing is posted without a webhook, and customers cannot record sign-ins", async () => {
+    const fetchMock = vi.fn(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const t = setup();
+      await seedAdmin(t);
+      await seedCustomer(t);
+      await asAdmin(t).mutation(api.adminConsole.recordSignIn, {});
+      await expect(
+        asCustomer(t).mutation(api.adminConsole.recordSignIn, {})
+      ).rejects.toThrow("Unauthorized");
+      expect(await auditRows(t)).toHaveLength(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

@@ -1111,4 +1111,103 @@ export default defineSchema({
     .index("by_identity_status", ["identityKey", "status"])
     .index("by_source_key", ["sourceKey"])
     .index("by_expires_at", ["expiresAt"]),
+  // Superadmin console. Append-only record of every admin action.
+  adminAuditLog: defineTable({
+    actorTeakUserId: v.string(),
+    actorEmail: v.string(),
+    action: v.string(),
+    targetTeakUserId: v.optional(v.string()),
+    targetCardId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    // Small JSON-safe before/after values, never card content.
+    details: v.optional(v.record(v.string(), v.any())),
+    at: v.number(),
+  })
+    .index("by_at", ["at"])
+    .index("by_targetTeakUserId_and_at", ["targetTeakUserId", "at"]),
+  // One row (key "global"): kill switches and goals set from the console.
+  adminSettings: defineTable({
+    key: v.literal("global"),
+    signupsPaused: v.boolean(),
+    aiPaused: v.boolean(),
+    linkFetchPaused: v.boolean(),
+    weeklyGrowthTargetPct: v.number(),
+    primaryMetric: v.union(v.literal("mrr"), v.literal("weeklyActiveSavers")),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+  // Per-account admin flags, kept off the identity table.
+  adminUserFlags: defineTable({
+    teakUserId: v.string(),
+    internal: v.boolean(),
+    aiDisabled: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_teakUserId", ["teakUserId"])
+    .index("by_internal", ["internal"]),
+  // The founder's running "what's blocking growth" list.
+  adminNotes: defineTable({
+    body: v.string(),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  }).index("by_createdAt", ["createdAt"]),
+  // One row per UTC day, written by the daily snapshot cron. Counts exclude
+  // internal and test accounts. Billing fields describe the moment of capture
+  // and are only present for the day the snapshot ran.
+  adminDailyMetrics: defineTable({
+    date: v.string(),
+    capturedAt: v.number(),
+    accounts: v.number(),
+    signups: v.number(),
+    cardsSaved: v.number(),
+    totalCards: v.number(),
+    activeSavers1d: v.number(),
+    activeSavers7d: v.number(),
+    activeSavers28d: v.number(),
+    storageBytes: v.number(),
+    storageBytesAdded: v.number(),
+    aiCostUsd: v.number(),
+    aiCalls: v.number(),
+    billing: v.optional(
+      v.object({
+        currency: v.string(),
+        mrr: v.number(),
+        mrrAtRisk: v.number(),
+        netMrr: v.number(),
+        paying: v.number(),
+        trialing: v.number(),
+        pastDue: v.number(),
+        canceling: v.number(),
+      })
+    ),
+    topStorage: v.array(
+      v.object({ teakUserId: v.string(), bytes: v.number() })
+    ),
+    isApproximate: v.boolean(),
+  }).index("by_date", ["date"]),
+  // AI spend per account per UTC day, from every model call.
+  aiUsageDaily: defineTable({
+    date: v.string(),
+    userId: v.string(),
+    calls: v.number(),
+    errors: v.number(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    costUsd: v.number(),
+  })
+    .index("by_date_and_userId", ["date", "userId"])
+    .index("by_userId_and_date", ["userId", "date"]),
+  // Last run of each cron job, for the console's health view.
+  cronHeartbeats: defineTable({
+    name: v.string(),
+    lastStartedAt: v.number(),
+    lastFinishedAt: v.optional(v.number()),
+    lastSucceededAt: v.optional(v.number()),
+    lastStatus: v.union(
+      v.literal("running"),
+      v.literal("succeeded"),
+      v.literal("failed")
+    ),
+    lastError: v.optional(v.string()),
+    consecutiveFailures: v.number(),
+  }).index("by_name", ["name"]),
 });

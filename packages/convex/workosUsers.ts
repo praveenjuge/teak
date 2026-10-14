@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import { readSignupsDisabled } from "./env";
+import { readSignupsPaused } from "./adminAccess";
 import { readComponentUser } from "./securitySessions";
 import {
   isStorableEmail,
@@ -185,7 +185,7 @@ export const linkWorkosUser = internalMutation({
       }
       candidate = emailRows[0];
       if (!candidate) {
-        if (readSignupsDisabled()) {
+        if (await readSignupsPaused(ctx)) {
           return quarantine("signups_frozen");
         }
         if (

@@ -9,6 +9,20 @@ import {
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
+// The overview reads the cards table and the internal-account flags.
+const overviewTables =
+  (cards: any[], internalIds: string[] = []) =>
+  (table: string) =>
+    table === "adminUserFlags"
+      ? {
+          withIndex: () => ({
+            take: mock().mockResolvedValue(
+              internalIds.map((teakUserId) => ({ teakUserId, internal: true }))
+            ),
+          }),
+        }
+      : { take: mock().mockResolvedValue(cards) };
+
 describe("admin.ts", () => {
   let getAccess: any;
   let getOverview: any;
@@ -79,9 +93,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue([]),
-            }),
+            query: overviewTables([]),
           },
         } as any,
         { role: "admin" }
@@ -129,9 +141,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue(cards),
-            }),
+            query: overviewTables(cards),
           },
         } as any,
         { role: "admin" }
@@ -179,9 +189,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue(cards),
-            }),
+            query: overviewTables(cards),
           },
         } as any,
         { role: "admin" }
@@ -215,9 +223,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue(cards),
-            }),
+            query: overviewTables(cards),
           },
         } as any,
         { role: "admin" }
@@ -245,9 +251,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue(cards),
-            }),
+            query: overviewTables(cards),
           },
         } as any,
         { role: "admin" }
@@ -290,9 +294,7 @@ describe("admin.ts", () => {
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
           db: {
             ...inlineSearchSyncDb(),
-            query: mock().mockReturnValue({
-              take: mock().mockResolvedValue(cards),
-            }),
+            query: overviewTables(cards),
           },
         } as any,
         { role: "admin" }
@@ -301,6 +303,32 @@ describe("admin.ts", () => {
       const result = await handler(ctx, {});
 
       expect(result.totals.uniqueUsers).toBe(2);
+    });
+    test("leaves internal and test accounts out of every count", async () => {
+      const cards = [
+        { _id: "c1", type: "text", userId: "customer", createdAt: Date.now() },
+        { _id: "c2", type: "link", userId: "tester", createdAt: Date.now() },
+        { _id: "c3", type: "link", userId: "tester", createdAt: Date.now() },
+      ];
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: overviewTables(cards, ["tester"]),
+          },
+        } as any,
+        { role: "admin" }
+      );
+      const handler = (getOverview as any).handler ?? getOverview;
+      const result = await handler(ctx, {});
+
+      expect(result.totals.totalCards).toBe(1);
+      expect(result.totals.uniqueUsers).toBe(1);
+      expect(result.cardsByType).toEqual({ text: 1 });
     });
   });
 

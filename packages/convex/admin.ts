@@ -1,31 +1,37 @@
-import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  type ActionCtx,
   action,
-  env,
   internalMutation,
   internalQuery,
+  mutation,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import {
+  ensureAdmin,
+  readAdminActor,
+  readInternalUserIds,
+  readUserFlags,
+  requireReason,
+  writeAudit,
+} from "./adminAccess";
+import { scheduleAdminAlert } from "./adminAlerts";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
   DAY_MS,
-  type SubscriptionLike,
   startOfUtcDay,
   summarizeAccounts,
   summarizeDailyActivity,
   summarizeDeletionQueue,
   summarizeQuarantine,
-  summarizeSubscriptions,
   toActivityRow,
 } from "./adminStats";
+import { readHasPremium } from "./auth";
 import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
 import type {
   ProcessingStageKey,
@@ -34,7 +40,7 @@ import type {
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
-import { getSessionUser, readComponentUser } from "./securitySessions";
+import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
@@ -74,35 +80,12 @@ const ACTIVATION_COHORT_LIMIT = 1000;
 // per-query document and byte limits.
 const OPERATIONS_USER_LIMIT = 8000;
 const OPERATIONS_QUEUE_LIMIT = 2000;
-const SUBSCRIPTION_LIMIT = 5000;
 
 // Helper to check if a card is an onboarding card by its content
 const isOnboardingCard = (card: { content: string }): boolean =>
   ONBOARDING_CARD_CONTENTS.includes(
     card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
   );
-
-type AdminCtx = QueryCtx | ActionCtx;
-
-const hasAdminAccess = async (ctx: AdminCtx): Promise<boolean> => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    return false;
-  }
-  const mapping = await ctx.runQuery(
-    internal.securitySessions.identityMapping,
-    {
-      teakUserId: user.teakUserId,
-    }
-  );
-  return mapping?.role === "admin" && mapping.deletedAt === undefined;
-};
-
-const ensureAdmin = async (ctx: AdminCtx) => {
-  if (!(await hasAdminAccess(ctx))) {
-    throw new Error("Unauthorized");
-  }
-};
 
 const clampPagination = (paginationOpts: {
   cursor: string | null;
@@ -173,7 +156,7 @@ const getActiveCardCountForUser = async (
 export const getAccess = query({
   args: {},
   returns: v.object({ allowed: v.boolean() }),
-  handler: async (ctx) => ({ allowed: await hasAdminAccess(ctx) }),
+  handler: async (ctx) => ({ allowed: (await readAdminActor(ctx)) !== null }),
 });
 
 export const getOverview = query({
@@ -222,10 +205,14 @@ export const getOverview = query({
     // Use .take() with limit instead of unbounded .collect() to prevent memory issues
     // For production at scale, consider denormalizing these counts into a separate table
     const allCards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
-    // Filter out onboarding cards unless explicitly requested
-    const cards = includeOnboarding
-      ? allCards
-      : allCards.filter((card) => !isOnboardingCard(card));
+    const internalIds = await readInternalUserIds(ctx);
+    // Internal and test accounts never count. Onboarding cards are left out
+    // unless explicitly requested.
+    const cards = allCards.filter(
+      (card) =>
+        !internalIds.has(card.userId) &&
+        (includeOnboarding || !isOnboardingCard(card))
+    );
     const isLimitReached = allCards.length === ADMIN_OVERVIEW_LIMIT;
 
     for (const card of cards) {
@@ -369,32 +356,96 @@ export const getOverview = query({
   },
 });
 
+/**
+ * What the console shows for a card without a stated reason: its type, state
+ * and sizes, never its content, notes, URL, file name, AI output or files.
+ */
+export const redactCard = (card: Doc<"cards">) => ({
+  _id: card._id,
+  _creationTime: card._creationTime,
+  userId: card.userId,
+  type: card.type,
+  createdAt: card.createdAt,
+  updatedAt: card.updatedAt,
+  isDeleted: card.isDeleted,
+  deletedAt: card.deletedAt,
+  isArchived: card.isArchived,
+  isFavorited: card.isFavorited,
+  metadataStatus: card.metadataStatus,
+  processingStatus: card.processingStatus,
+  fileMetadata: card.fileMetadata
+    ? {
+        mimeType: card.fileMetadata.mimeType,
+        fileSize: card.fileMetadata.fileSize,
+        width: card.fileMetadata.width,
+        height: card.fileMetadata.height,
+      }
+    : undefined,
+  hasFile: card.fileKey !== undefined,
+  hasUrl: card.url !== undefined,
+  aiTagCount: card.aiTags?.length ?? 0,
+  hasAiSummary: Boolean(card.aiSummary),
+  hasAiTranscript: Boolean(card.aiTranscript),
+  isRedacted: true as const,
+});
+
 export const listAllCards = query({
   args: {
     paginationOpts: paginationOptsValidator,
     includeOnboarding: v.optional(v.boolean()),
+    userId: v.optional(v.string()),
   },
-  handler: async (ctx, { paginationOpts, includeOnboarding }) => {
+  handler: async (ctx, { paginationOpts, includeOnboarding, userId }) => {
     await ensureAdmin(ctx);
 
     const safePagination = clampPagination(paginationOpts);
 
-    const result = await ctx.db
-      .query("cards")
-      .order("desc")
-      .paginate(safePagination);
+    const result =
+      userId === undefined
+        ? await ctx.db.query("cards").order("desc").paginate(safePagination)
+        : await ctx.db
+            .query("cards")
+            .withIndex("by_created", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(safePagination);
 
     // Filter out onboarding cards unless explicitly requested
     const filteredPage = includeOnboarding
       ? result.page
       : result.page.filter((card) => !isOnboardingCard(card));
 
-    const page = await attachCardUrls(ctx, filteredPage);
-
     return {
       ...result,
-      page,
+      page: filteredPage.map(redactCard),
     };
+  },
+});
+
+/**
+ * Break glass: one card's full content and files, for a stated reason. Every
+ * reveal is written to the audit log against the card's owner.
+ */
+export const revealCard = mutation({
+  args: { cardId: v.id("cards"), reason: v.string() },
+  handler: async (ctx, { cardId, reason }) => {
+    const actor = await ensureAdmin(ctx);
+    const why = requireReason(reason);
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      throw new Error("Card not found");
+    }
+    await writeAudit(ctx, actor, {
+      action: "card.reveal",
+      targetTeakUserId: card.userId,
+      targetCardId: cardId,
+      reason: why,
+    });
+    await scheduleAdminAlert(
+      ctx,
+      `Teak console: ${actor.email} revealed a card (${why})`
+    );
+    const [revealed] = await attachCardUrls(ctx, [card]);
+    return revealed;
   },
 });
 
@@ -416,12 +467,16 @@ export const listAllUsers = query({
           const profile = user.workosUserId
             ? await readComponentUser(ctx, user.workosUserId)
             : null;
+          const flags = await readUserFlags(ctx, user.teakUserId);
           return {
             id: user.teakUserId,
             email: profile?.email ?? user.email,
             emailVerified: profile?.emailVerified ?? user.emailVerified,
             createdAt: user._creationTime,
             cardsCount: await getActiveCardCountForUser(ctx, user.teakUserId),
+            isPro: await readHasPremium(ctx, user.teakUserId),
+            internal: flags?.internal ?? false,
+            aiDisabled: flags?.aiDisabled ?? false,
           };
         })
     );
@@ -463,9 +518,12 @@ export const activityCardsPage = internalQuery({
         numItems: ACTIVITY_CARD_PAGE,
         maximumBytesRead: ACTIVITY_PAGE_BYTES,
       });
+    const internalIds = await readInternalUserIds(ctx);
     return {
       rows: result.page
-        .filter((card) => !isOnboardingCard(card))
+        .filter(
+          (card) => !(isOnboardingCard(card) || internalIds.has(card.userId))
+        )
         .map(toActivityRow),
       isDone: result.isDone,
       continueCursor: result.continueCursor,
@@ -483,12 +541,15 @@ export const activityUsersPage = internalQuery({
       .query("users")
       .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
       .paginate({ cursor, numItems: ACTIVITY_USER_PAGE });
+    const internalIds = await readInternalUserIds(ctx);
     return {
-      rows: result.page.map((user) => ({
-        teakUserId: user.teakUserId,
-        createdAt: user._creationTime,
-        deleted: user.deletedAt !== undefined,
-      })),
+      rows: result.page
+        .filter((user) => !internalIds.has(user.teakUserId))
+        .map((user) => ({
+          teakUserId: user.teakUserId,
+          createdAt: user._creationTime,
+          deleted: user.deletedAt !== undefined,
+        })),
       isDone: result.isDone,
       continueCursor: result.continueCursor,
     };
@@ -631,40 +692,6 @@ export const getOperations = query({
   },
 });
 
-/** Active subscription totals by status and plan, read from Polar. */
-export const getBillingSummary = action({
-  args: {},
-  handler: async (ctx) => {
-    await ensureAdmin(ctx);
-    if (!env.POLAR_ACCESS_TOKEN) {
-      return {
-        configured: false,
-        fetchedAt: Date.now(),
-        isApproximate: false,
-        ...summarizeSubscriptions([]),
-      };
-    }
-    const polar = new PolarBilling({
-      accessToken: env.POLAR_ACCESS_TOKEN,
-      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-    });
-    const subscriptions: SubscriptionLike[] = [];
-    const pages = await polar.subscriptions.list({ active: true, limit: 100 });
-    for await (const page of pages) {
-      subscriptions.push(...page.result.items);
-      if (subscriptions.length >= SUBSCRIPTION_LIMIT) {
-        break;
-      }
-    }
-    return {
-      configured: true,
-      fetchedAt: Date.now(),
-      isApproximate: subscriptions.length >= SUBSCRIPTION_LIMIT,
-      ...summarizeSubscriptions(subscriptions),
-    };
-  },
-});
-
 // Operator-only bootstrap, e.g. for a new self-hosted deployment. Runtime
 // authorization always uses the stored role.
 export const seedAdmin = internalMutation({
@@ -767,7 +794,7 @@ export const resetCardProcessingState = internalMutation({
 export const retryAiBackfill = action({
   args: {},
   handler: async (ctx): Promise<BackfillSummary> => {
-    await ensureAdmin(ctx);
+    const actor = await ensureAdmin(ctx);
 
     const workflowResult = (await ctx.runMutation(
       internal.workflows.aiBackfill.startAiBackfillWorkflow,
@@ -784,6 +811,15 @@ export const retryAiBackfill = action({
       internal.ai.queries.findCardsMissingAi,
       {}
     )) as PendingSample[];
+
+    await ctx.runMutation(internal.adminAccess.recordAudit, {
+      actor,
+      action: "cards.retry_ai_backfill",
+      details: {
+        enqueued: normalizedResult.enqueuedCount,
+        failed: normalizedResult.failedCardIds.length,
+      },
+    });
 
     return {
       requestedAt: Date.now(),
@@ -806,7 +842,7 @@ export const refreshCardProcessing = action({
     success: boolean;
     reason?: "not_found";
   }> => {
-    await ensureAdmin(ctx);
+    const actor = await ensureAdmin(ctx);
 
     const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
       cardId,
@@ -829,6 +865,13 @@ export const refreshCardProcessing = action({
       (internal as any)["workflows/manager"].startCardProcessingWorkflow,
       { cardId }
     );
+
+    await ctx.runMutation(internal.adminAccess.recordAudit, {
+      actor,
+      action: "card.refresh_processing",
+      targetTeakUserId: card.userId,
+      targetCardId: cardId,
+    });
 
     return {
       requestedAt: Date.now(),
