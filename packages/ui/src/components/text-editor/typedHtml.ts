@@ -1,8 +1,11 @@
+import { Marked, type Token } from "marked";
+
 // The rich editor keeps HTML typed into a note as text: `<b>` saves as
 // `&lt;b&gt;`. Its stand-in edits Markdown directly, so it escapes typed tags
-// the same way before they reach the note.
+// the same way before they reach the note. Code keeps its text as typed:
+// Markdown shows an entity in code literally.
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const lexer = new Marked({ gfm: true });
 const BACKTICKS = /`+/g;
 // What Markdown could read as raw HTML (a tag, comment or declaration) or
 // as an autolink: `<` and a letter, `/`, `!` or `?`, up to the next `>`.
@@ -15,10 +18,10 @@ const escapeTags = (text: string) =>
       `&lt;${inner}${close ? "&gt;" : ""}`
   );
 
-/** Escapes a line's tags outside its code spans (a run of backticks up to
- * the next run of the same length), whose text Markdown keeps as it is. */
-function escapeLine(line: string): string {
-  const runs = [...line.matchAll(BACKTICKS)];
+/** Escapes the tags outside code spans (a run of backticks up to the next
+ * run of the same length). */
+function escapeOutsideCodeSpans(text: string): string {
+  const runs = [...text.matchAll(BACKTICKS)];
   let result = "";
   let last = 0;
   for (let open = 0; open < runs.length; open++) {
@@ -31,31 +34,35 @@ function escapeLine(line: string): string {
     }
     const end = runs[close].index + runs[close][0].length;
     result +=
-      escapeTags(line.slice(last, start.index)) + line.slice(start.index, end);
+      escapeTags(text.slice(last, start.index)) + text.slice(start.index, end);
     last = end;
     open = close;
   }
-  return result + escapeTags(line.slice(last));
+  return result + escapeTags(text.slice(last));
 }
 
-/** Markdown with its HTML tags escaped, outside code spans and fences. */
+function holdsCodeBlock(token: Token): boolean {
+  let found = token.type === "code";
+  lexer.walkTokens([token], (child) => {
+    found ||= child.type === "code";
+  });
+  return found;
+}
+
+/** Markdown with its HTML tags escaped, outside code. */
 export function escapeTypedHtml(source: string): string {
   if (!source.includes("<")) {
     return source;
   }
-  let fence = "";
-  return source
-    .split("\n")
-    .map((line) => {
-      const marker = FENCE.exec(line)?.[1] ?? "";
-      if (fence) {
-        if (marker.startsWith(fence[0]) && marker.length >= fence.length) {
-          fence = line.trim() === marker ? "" : fence;
-        }
-        return line;
-      }
-      fence = marker;
-      return marker ? line : escapeLine(line);
-    })
-    .join("\n");
+  // Top-level blocks, which together are the whole source. A fenced or
+  // indented code block, or a list or quote holding one, keeps its text.
+  const blocks = lexer.lexer(source);
+  if (blocks.map((block) => block.raw).join("") !== source) {
+    return escapeOutsideCodeSpans(source);
+  }
+  return blocks
+    .map((block) =>
+      holdsCodeBlock(block) ? block.raw : escapeOutsideCodeSpans(block.raw)
+    )
+    .join("");
 }

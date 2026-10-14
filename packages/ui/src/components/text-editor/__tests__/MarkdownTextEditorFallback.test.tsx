@@ -93,11 +93,13 @@ describe("the editor while it loads", () => {
     if (!textarea) {
       throw new Error("No stand-in textarea");
     }
-    type(textarea, 'Hi <script>alert("x")</script> in `<b>`');
+    // Code shows an entity literally, so tags in code stay as typed.
+    const note = 'Hi <script>alert("x")</script> in `<b>`\n\n    <div>';
+    type(textarea, note);
     expect(saved.at(-1)).toBe(
-      'Hi &lt;script&gt;alert("x")&lt;/script&gt; in `<b>`'
+      'Hi &lt;script&gt;alert("x")&lt;/script&gt; in `<b>`\n\n    <div>'
     );
-    expect(textarea.value).toBe('Hi <script>alert("x")</script> in `<b>`');
+    expect(textarea.value).toBe(note);
   });
 
   test("leaves the HTML a note already holds as it is", () => {
