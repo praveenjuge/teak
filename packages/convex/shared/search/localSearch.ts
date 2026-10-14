@@ -24,9 +24,10 @@ export interface LocalSearchFilters {
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag?: string;
   /**
-   * The server already matched these cards to these words, against text
-   * the client doesn't have (text inside a card's file), so the words and
-   * phrases are not checked again; every other filter still is.
+   * The server already matched these cards to these words. A card with
+   * text inside its file (`hasExtractedText`) matched text the client
+   * doesn't have, so its words and phrases are not checked again; every
+   * other card, and every other filter, still is.
    */
   textMatchedByServer?: boolean;
   types?: CardType[];
@@ -188,7 +189,7 @@ export const filterLocalCards = (
         }
 
         if (
-          textMatchedByServer ||
+          (textMatchedByServer && card.hasExtractedText === true) ||
           (terms.length === 0 && parsed.phrases.length === 0)
         ) {
           return true;
