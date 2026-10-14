@@ -95,6 +95,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - When the text becomes empty for a card that already has a vector (for example every note, tag, OCR and content field was cleared), it calls `vector-delete` for that id and clears the row's `hash` and `embeddedAt` instead of skipping. A stale vector can then never keep matching semantic searches or anchor `like:`. A card that never had a vector and still has no text is simply skipped.
   - Reads the row's `dueAt` (its generation) together with the card text. It calls `embed-upsert`, then `recordEmbedded({ cardId, hash, expectedDueAt })`.
   - `recordEmbedded` completes the row only if `dueAt` still equals `expectedDueAt`. If `markCardForEmbedding` advanced `dueAt` while the upsert was in flight (an edit landed in the meantime), it records nothing and makes sure `embedDue` is scheduled for the new `dueAt`. The newer text is then always embedded, and an older run can never mark a newer pending edit as done.
+  - The reverse order is covered too. If an older run A stalls in `embed-upsert` while a newer run B upserts and completes, A's late upsert can overwrite B's vector with stale text. So every rejected `recordEmbedded` (a `dueAt` mismatch, or the row already completed with a different hash) schedules a forced re-embed: `embedDue({ cardIds: [cardId], force: true })` re-reads the current text and upserts it even when the stored hash matches. The forced run itself goes through the same `dueAt` fence, so it can't loop. The last vector write is therefore always from current text.
   - If `recordEmbedded` finds the card hard-deleted in the meantime, it schedules `vector-delete`.
   - Retries back off on `attempts`. After 5 attempts the row keeps `lastError` and is picked up by the next backfill run.
 - `cardProcessing.ts`: append a final `embed` step after the metadata and renderables results and before the completion telemetry. It calls the same action, swallows failures (logging them), and adds nothing to the workflow's return value.
@@ -138,6 +139,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - An edit that does not change the text makes no AI call.
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
+  - Older run A's upsert lands after newer run B completed: A's `recordEmbedded` is rejected, a forced re-embed runs, and `vector-get` returns the vector for the current text.
   - Edit a card while its `embed-upsert` is in flight: the older run's `recordEmbedded` is skipped (its `dueAt` no longer matches), and the newer text is embedded on the next run.
   - Clear every embeddable field on an embedded card: its vector is deleted, `vector-get` returns nothing, and it no longer appears for a semantic query that used to match it.
   - `vector-delete` fails on every retry: the tombstone stays, and the sweep reports it after 24 hours.

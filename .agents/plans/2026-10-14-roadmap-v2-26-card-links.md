@@ -49,6 +49,7 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
   - Tokens inside code spans and blocks are not links.
   - At most 500 distinct targets per card are indexed. Later ones render, but they're not stored.
 - Links are made only to the user's own cards. A foreign or unknown ID never creates a row and renders as missing.
+- Parsed IDs are normalized before any lookup. The grammar accepts any 16–64 character lowercase string, which is broader than the set of valid Convex IDs, and tokens can arrive from the API, MCP, CLI, imports or pasted Markdown. Each value goes through `ctx.db.normalizeId("cards", value)`, and `null` is treated as missing. It is never passed to a validator or `ctx.db.get` as-is, so one malformed token never fails the whole link sync or target query.
 - Self-links are ignored (no row), and so are duplicates.
 - **Link rows sync after the save.** Saves schedule `syncCardLinks` (`ctx.scheduler.runAfter(0)`), as the search sync does. The rebuild reads the current content, so it's idempotent and the last write wins.
 - No rewriting of stored titles on open or save. A token's title refreshes only when its pill is re-inserted. Display always uses the live title.
@@ -71,7 +72,7 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
   - `scheduleCardLinkSync(ctx, cardId)`, called from `updateCard`, the `"content"` edit in `updateCardFieldsForUserHandler` and `createCardForUserHandler` (text cards).
   - `deleteCardLinksForCard(ctx, cardId)` deletes both directions, 500 per call, and schedules itself again while more remain. It's called from `permanentDeleteCardForUserHandler` and `cleanupDeletedCard`.
   - Session query `getCardLinkTargets({ cardIds })`, max 500: returns `[{ id, title, type, missing }]`, with `missing` for trashed, deleted or foreign targets. It's re-exported from `cards.ts` as `cards:getCardLinkTargets` (also used by phase 29).
-  - Session query `searchCardLinkSuggestions({ query, excludeCardId })`: 8 results from `cardSearchDocuments.search_searchableText` with the user's filter, excluding trashed cards. An empty query returns recent cards (`by_user_deleted_archived_created`). Returns `[{ id, title, type }]`.
+  - Session query `searchCardLinkSuggestions({ query, excludeCardId })`: 8 results from `cardSearchDocuments.search_searchableText` with the user's filter, excluding trashed cards and phase 4's hidden cards (`isHidden`). A hidden card is offered only when the suggestion query itself contains a revealing tag (`#private`, `#nsfw`, `#hidden`), the same rule as library search, so typing `[[` in an unrelated note never exposes a hidden card's title. `getCardLinkTargets` still resolves an existing link to a hidden card, because the user created that link knowingly. An empty query returns recent cards (`by_user_deleted_archived_created`). Returns `[{ id, title, type }]`.
 - `accountDeletionData.ts ancillaryPage`: delete 100 `cardLinks` rows per page through `by_userId`.
 - `toMobileCardSummary`: `previewText` replaces each token with its stored title, so old native builds show text. The same applies to the web tile preview.
 - `buildCardSearchText` indexes the token's title and drops the `teak:<id>` part.
@@ -142,6 +143,8 @@ Let people link cards from inside a note. Typing `[[` offers matching cards, and
 - Editor corpus: a note that holds tokens opens without being rewritten (the README's preservation rule).
 
 ## Tests
+
+- `packages/convex/cardLinks.test.ts` (convex-test): a token with a malformed or foreign-table ID syncs no row and renders as missing without failing the save; `searchCardLinkSuggestions` never returns a hidden card unless the query contains its revealing tag.
 
 - `packages/convex/__tests__/shared/cardLinks.test.ts`: `formatCardLinkToken` with the 300-character and 512-character title fixtures, including titles that end in emoji and CJK, produces a token that `parseCardLinkIds` reads back with the same id, with a title of 200 characters or fewer.
 
