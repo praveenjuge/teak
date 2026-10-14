@@ -4,9 +4,9 @@ import { expect, test } from "./fixtures";
 
 // Folders from the sidebar: create one, add cards to it from a selection,
 // open it, rename it, then delete it and bring it back with Undo. A fresh
-// account starts with no folders and three welcome cards.
-const FIRST_CARD = "The best way to predict the future";
-const SECOND_CARD = "Welcome to Teak!";
+// account starts with the getting-started cards in a Start here folder.
+const FIRST_CARD = "Good design is as little design as possible";
+const SECOND_CARD = "Welcome to Teak, a home for everything";
 
 const pathOf = async (url: Promise<string>) => new URL(await url).pathname;
 
@@ -18,7 +18,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
 
-  // No folders yet: the group offers New folder.
+  // New folder sits beside the Folders heading.
   await screen.getByRole("button", "New folder").first().click();
   const dialog = screen.getByRole("dialog", "New folder");
   await dialog.getByLabel("Name").fill("Reading");
