@@ -80,7 +80,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
   7. Act on the response:
      - `200`: accept the message.
      - `404 unknown_address`: `setReject` as in step 1.
-     - `5xx` after the retries: throw, so the sending server retries. Confirm Email Routing's behaviour in the spike.
+     - `5xx` (including `503 rate_limited`) after the retries: throw, so the sending server retries. Confirm Email Routing's behaviour in the spike.
 - Bun tests use `.eml` fixtures in `src/fixtures/`.
 - `README.md` doubles as the **deploy runbook**:
   - DNS for `in.teakvault.com`: Email Routing on the subdomain and its MX records
@@ -111,6 +111,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
     3. Check the receipt; an existing one returns its `200` again.
     4. Create the card through `createCardForUserHandler(..., { source: "email" })` with `tags: ["email"]` and `metadata: { source: "email" }`.
     5. `CARD_LIMIT_REACHED` means the mail is dropped silently: the receipt is stored and the route returns `200 dropped`.
+    6. `RATE_LIMITED` from the `cardCreation` bucket is temporary, because the bucket refills within a minute. `ingestEmail` catches it before writing anything and returns `{ status: "rate_limited", retryAt }`. The route then answers `503 rate_limited` with `Retry-After`, and no receipt is written. The worker treats it like any other retryable `5xx` (worker step 7): it retries, then throws so the sending server tries again later. A later delivery that finds room is saved normally.
   - `http.ts` adds `POST /inbound/email`.
 - Rate limits:
   - `inboundEmailPerAddress`: 60 per hour
@@ -120,7 +121,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
   Over a limit, the mail is dropped silently with `200`.
 - `shared/analytics.ts`:
   - `CardCreationSource` gains `"email"`.
-  - New events: `email_received { outcome: "saved" | "dropped_limit" | "dropped_rate" | "empty" | "duplicate" }` and `email_address_changed { action }`.
+  - New events: `email_received { outcome: "saved" | "dropped_limit" | "dropped_rate" | "deferred_rate" | "empty" | "duplicate" }` and `email_address_changed { action }`.
 - New env vars (contract, `convex.config.ts` and the E2E stack):
   - `EMAIL_INBOUND_SIGNING_SECRET`: convex plus a new `email-worker` target
   - `INBOUND_ADDRESS_SECRET`: convex only
@@ -180,7 +181,8 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 - Backend:
   - signature tampering on the body, the timestamp or the header length
   - receipt replay, OCC with 10 parallel posts
-  - quota at 200 (silent drop), the `cardCreation` bucket empty
+  - quota at 200 (silent drop)
+  - the `cardCreation` bucket empty: expect `503 rate_limited` with `Retry-After`, no receipt, and a later retry that saves exactly one card
   - another user's token hash
   - account deletion removes both tables, and regenerating invalidates at once
 - Real mail: send from Gmail, iCloud and Outlook to the dev address on the staging subdomain.
@@ -190,7 +192,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 - `apps/email-worker/src/index.test.ts`: address matching, auto-reply skip, signing payload, reject versus accept per status (fetch mocked).
 - `packages/convex/__tests__/inbound/emailContent.test.ts`: a fixture table of HTML to Markdown, one-link detection, unwrapping, pixel removal and truncation.
 - `packages/convex/__tests__/inbound/address.test.ts`: token derivation is stable per version, the hash matches, and regenerate changes the token.
-- `packages/convex/inboundEmail.test.ts` (convex-test, add to `vitest.config.ts`): signature check, idempotent receipt, silent drop at 200, unknown and disabled `404`, `email` tag and source, account deletion cascade.
+- `packages/convex/inboundEmail.test.ts` (convex-test, add to `vitest.config.ts`): signature check, idempotent receipt, silent drop at 200, `RATE_LIMITED` mapped to `503` with no receipt and a retry that saves once, unknown and disabled `404`, `email` tag and source, account deletion cascade.
 - `packages/convex/__tests__/publicApiHttpInboundAddress.test.ts` and `mcp.test.ts`, plus `apps/cli/src/commands.test.ts`.
 - `packages/ui/src/components/settings/__tests__/InboundEmailDialog.contract.test.tsx`.
 - `scripts/env-contract.test.ts` covers the new entries and target.
