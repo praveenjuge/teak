@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: Shuffle your library, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Shuffle your library, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
@@ -74,6 +74,12 @@ changelog:
 - **Refresh details:** open a card and choose **Refresh details**, or right-click it in the grid, to get a fresh summary, tags, transcript, and link preview. Your own tags and notes stay. It's also available as `POST /v1/cards/:id/refresh` in the [API](/docs/api#refresh-a-cards-details), `teak refresh` in the [CLI](/docs/cli), and `teak_v1_refresh_card` in [MCP](/docs/mcp).
 - **Who wrote it, and when:** link cards on the web show the author and publish date next to the site name when the page includes them.
 - **Photo details:** **Info** on a photo lists its camera, exposure, aperture, focal length, ISO, and when it was taken. Teak never shows where a photo was taken.
+
+## A hands-on start for new accounts
+
+- New accounts start with a **Start here** folder of eight cards, one of each type: a welcome checklist, a photo, a palette, a short video tour, a voice memo, a search cheat sheet PDF, a quote, and a link to the Teak apps. Each card's note suggests something to try, such as searching for a color or for a word spoken in the memo.
+- A **Moodboard** smart folder shows how a saved search fills itself, collecting your images and palettes as you save them.
+- The cards are ordinary cards tagged `getting-started`. Select them in **Start here** and move them to Trash when you're done.
 
 ## Sign in again after the sign-in update
 
@@ -155,6 +161,7 @@ These apply to videos, recordings, and links you save from now on.
 
 **Web**
 
+- Searching for a color, like `orange` or `#FFA050`, or a style, like `vintage`, now finds your matching images and palettes instead of showing nothing.
 - A dropped connection, like when your laptop wakes up or switches Wi-Fi, no longer asks you to sign in again. Teak reconnects on its own once you're back online.
 - A link pasted on its own into **Write a note…** saves as a link card with its preview, instead of as a text note.
 - Notes with underscores or asterisks, like `file_name_v2` or `2*3`, show correctly in the grid instead of with stray backslashes.

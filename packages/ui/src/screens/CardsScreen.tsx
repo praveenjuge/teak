@@ -8,6 +8,7 @@ import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
+import { VaultSetupState } from "@teak/ui/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
@@ -17,6 +18,7 @@ import {
   useCardClipboard,
   useCardModalFilterActions,
   useCardsSearchController,
+  useVaultSetup,
 } from "@teak/ui/hooks";
 import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
@@ -166,6 +168,8 @@ export function CardsScreen({
   );
   const isFolderView = Boolean(folderId);
   const isSmartFolder = folder?.kind === "smart";
+  // A brand-new account's getting-started cards land a moment after sign-up.
+  const vaultSetup = useVaultSetup();
   const searchController = useCardsSearchController({
     folderId: folder?._id,
     folderQuery: isSmartFolder ? (folder?.query ?? "") : undefined,
@@ -268,6 +272,13 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
+  // A new account's library shows its vault being set up, for a moment
+  // even after the cards land (see useVaultSetup).
+  const showVaultSetup =
+    vaultSetup === "settingUp" &&
+    hasNoFilters &&
+    !isFolderView &&
+    (!view || view === "all");
 
   // Saving what is on screen as a smart folder, or editing the smart folder
   // being viewed.
@@ -574,6 +585,11 @@ export function CardsScreen({
     }
 
     if (displayCards.length === 0 && hasNoFilters) {
+      // Until a new account's cards land, show them on their way rather
+      // than an empty library.
+      if (vaultSetup === "loading") {
+        return <CardsGridSkeleton />;
+      }
       return (
         <AddCardEmptyState
           UpgradeLinkComponent={UpgradeLinkComponent}
@@ -683,7 +699,9 @@ export function CardsScreen({
         title={title}
       />
 
-      {displayCards.length > 0 ? (
+      {showVaultSetup && <VaultSetupState />}
+
+      {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
           AddCardFormComponent={AddCardFormWrapper}
           addToFolder={
@@ -743,7 +761,9 @@ export function CardsScreen({
           showTrashOnly={showTrashOnly}
           toastIdPrefix={toastIdPrefix}
         />
-      ) : (
+      )}
+
+      {!showVaultSetup && displayCards.length === 0 && (
         <>
           <AuthLoading>
             <CardsGridSkeleton />

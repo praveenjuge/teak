@@ -214,7 +214,15 @@ export const ancillaryPage = internalMutation({
     for (const row of tagOperations) {
       await ctx.db.delete(row._id);
     }
+    const vaultSetups = await ctx.db
+      .query("vaultSetups")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(10);
+    for (const row of vaultSetups) {
+      await ctx.db.delete(row._id);
+    }
     return (
+      vaultSetups.length > 0 ||
       idempotency.length > 0 ||
       moreTombstones ||
       folderRows.length > 0 ||

@@ -283,7 +283,10 @@ export function MasonryGrid({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];
+        // One callback can carry several reports, oldest first: the first
+        // check (sentinel below the fold) and then a scroll that brought it
+        // into view. Only the newest says where the sentinel is now.
+        const entry = entries[entries.length - 1];
         if (!entry?.isIntersecting) {
           return;
         }

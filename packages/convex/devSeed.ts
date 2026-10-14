@@ -12,7 +12,8 @@ import {
 import {
   type DefaultCardDef,
   insertCompletedCards,
-  ONBOARDING_CARD_CONTENTS,
+  isOnboardingCard,
+  ONBOARDING_CARDS,
 } from "./card/defaultCards";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
@@ -216,12 +217,11 @@ export const seed = internalMutation({
         "The dev account has no Teak owner yet; its user.created webhook has not linked it."
       );
     }
-    const onboarding: readonly string[] = ONBOARDING_CARD_CONTENTS;
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) => q.eq("userId", owner.teakUserId))
-      .take(onboarding.length + 1);
-    if (cards.some((card) => !onboarding.includes(card.content))) {
+      .take(ONBOARDING_CARDS.length + 1);
+    if (cards.some((card) => !isOnboardingCard(card))) {
       return { status: "already_seeded" as const, cards: 0 };
     }
     await insertCompletedCards(ctx, owner.teakUserId, DEV_SEED_CARDS);

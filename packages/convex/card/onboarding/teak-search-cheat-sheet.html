@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Teak search cheat sheet</title>
+    <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+    }
+    html,
+    body {
+      width: 210mm;
+      height: 297mm;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      gap: 9mm;
+      padding: 18mm 16mm 14mm;
+      font-family: "Inter", sans-serif;
+      color: #1c1917;
+      background: #fafaf9;
+    }
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .eyebrow {
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: #e7000b;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+    h1 {
+      margin-top: 3mm;
+      font-family: "Inter Display", "Inter", sans-serif;
+      font-size: 34pt;
+      font-weight: 600;
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+    }
+    .lede {
+      max-width: 118mm;
+      margin-top: 4mm;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      color: #57534e;
+    }
+    .swatches {
+      display: flex;
+      gap: 2mm;
+    }
+    .swatches span {
+      width: 9mm;
+      height: 22mm;
+      border-radius: 2mm;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+    }
+    section {
+      padding: 5mm 5.5mm;
+      background: #fff;
+      border: 0.3mm solid #e7e5e4;
+      border-radius: 3mm;
+    }
+    section.wide {
+      grid-column: span 2;
+    }
+    h2 {
+      margin-bottom: 1.2mm;
+      font-size: 11pt;
+      font-weight: 600;
+    }
+    .hint {
+      margin-bottom: 3.5mm;
+      font-size: 8.5pt;
+      line-height: 1.45;
+      color: #78716c;
+    }
+    table {
+      width: 100%;
+      font-size: 9pt;
+      border-collapse: collapse;
+    }
+    td {
+      padding: 1.6mm 0;
+      vertical-align: top;
+      border-top: 0.25mm solid #f0efee;
+    }
+    tr:first-child td {
+      border-top: 0;
+    }
+    td:first-child {
+      width: 46%;
+    }
+    code {
+      padding: 0.5mm 1.4mm;
+      font-family: "DejaVu Sans Mono", monospace;
+      font-size: 8.2pt;
+      color: #292524;
+      background: #f5f5f4;
+      border-radius: 1.2mm;
+    }
+    .chip {
+      display: inline-block;
+      width: 2.6mm;
+      height: 2.6mm;
+      margin-right: 1mm;
+      vertical-align: -0.3mm;
+      border-radius: 50%;
+    }
+    .combo {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3mm;
+    }
+    .combo div {
+      padding: 3mm;
+      font-size: 8.5pt;
+      line-height: 1.45;
+      color: #57534e;
+      background: #fafaf9;
+      border-radius: 2mm;
+    }
+    .combo code {
+      display: inline-block;
+      margin-bottom: 1.5mm;
+      background: #fff;
+      border: 0.25mm solid #e7e5e4;
+    }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: auto;
+      font-size: 8pt;
+      color: #a8a29e;
+    }
+    footer b {
+      font-weight: 600;
+      color: #e7000b;
+    }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <div class="eyebrow">Teak field guide</div>
+        <h1>Find anything,<br>even by color.</h1>
+        <p class="lede">
+          Teak reads every card you save: the colors in an image, the words in a
+          voice memo, the text inside a PDF. Type into the search bar and mix
+          any of these.
+        </p>
+      </div>
+      <div aria-hidden="true" class="swatches">
+        <span style="background:#FF6B6B"></span>
+        <span style="background:#FFA06B"></span>
+        <span style="background:#FFD93D"></span>
+        <span style="background:#6BCB77"></span>
+        <span style="background:#4D96FF"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section>
+        <h2>Search by look</h2>
+        <p class="hint">
+          Colors and styles come from the image itself. No tagging needed.
+        </p>
+        <table>
+          <tr>
+            <td><code>orange</code> <code>teal</code></td>
+            <td>
+              <span class="chip" style="background:#FF7F6B"></span>A dominant
+              color
+            </td>
+          </tr>
+          <tr>
+            <td><code>#FF6B6B</code></td>
+            <td>An exact hex match</td>
+          </tr>
+          <tr>
+            <td><code>minimal</code> <code>dark</code></td>
+            <td>A visual style</td>
+          </tr>
+          <tr>
+            <td><code>pastel</code> <code>vibrant</code></td>
+            <td>Mood of the palette</td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Narrow it down</h2>
+        <p class="hint">Filters become removable pills as you pick them.</p>
+        <table>
+          <tr>
+            <td><code>type:image</code></td>
+            <td>Only one card type</td>
+          </tr>
+          <tr>
+            <td><code>#branding</code></td>
+            <td>Cards with that tag</td>
+          </tr>
+          <tr>
+            <td><code>site:dribbble.com</code></td>
+            <td>Links from one site</td>
+          </tr>
+          <tr>
+            <td><code>folder:"Moodboard"</code></td>
+            <td>Inside a folder</td>
+          </tr>
+          <tr>
+            <td><code>is:fav</code></td>
+            <td>Only favorites</td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Find it by when</h2>
+        <p class="hint">Dates match when you saved the card.</p>
+        <table>
+          <tr>
+            <td><code>today</code></td>
+            <td>Saved today</td>
+          </tr>
+          <tr>
+            <td><code>this week</code></td>
+            <td>The last few days</td>
+          </tr>
+          <tr>
+            <td><code>january</code></td>
+            <td>A month</td>
+          </tr>
+          <tr>
+            <td><code>last year</code></td>
+            <td>A whole year</td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Find it by words</h2>
+        <p class="hint">
+          Titles, notes, AI summaries, transcripts and PDF text are all
+          searchable.
+        </p>
+        <table>
+          <tr>
+            <td><code>button hover</code></td>
+            <td>Words anywhere in a card</td>
+          </tr>
+          <tr>
+            <td><code>"design system"</code></td>
+            <td>The exact phrase</td>
+          </tr>
+          <tr>
+            <td><code>favorites</code></td>
+            <td>Jump to a view</td>
+          </tr>
+          <tr>
+            <td><code>trash</code></td>
+            <td>Open Trash</td>
+          </tr>
+        </table>
+      </section>
+
+      <section class="wide">
+        <h2>Put them together</h2>
+        <p class="hint">
+          Every filter applies at once. Save any search as a smart folder and it
+          keeps filling itself as you save.
+        </p>
+        <div class="combo">
+          <div>
+            <code>type:image orange</code><br>Warm references for a moodboard.
+          </div>
+          <div>
+            <code>#typography this week</code><br>Type ideas you saved lately.
+          </div>
+          <div>
+            <code>site:github.com "design system"</code><br>GitHub links about
+            design systems.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <span><b>Teak</b> · Collect, remember, rediscover.</span>
+      <span>teakvault.com/docs/features</span>
+    </footer>
+  </body>
+</html>

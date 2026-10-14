@@ -22,6 +22,7 @@ afterEach(() => {
 type CardSeed = Partial<
   Pick<
     Doc<"cards">,
+    | "colorHues"
     | "content"
     | "isArchived"
     | "isDeleted"
@@ -260,6 +261,28 @@ describe("Shuffle of a set of matches", () => {
     });
     expect(new Set(inFolder)).toEqual(new Set(designs.slice(0, 6)));
     expect(inFolder).toHaveLength(6);
+  });
+});
+
+describe("Shuffle with a color filter", () => {
+  test("shows each matching card once, the same way for a seed", async () => {
+    const { insert, readAll } = await setup();
+    const blue = new Set<string>();
+    for (let index = 0; index < 30; index += 1) {
+      const id = await insert({
+        colorHues: index % 3 === 0 ? ["blue"] : ["red"],
+        shuffleKey: index / 30,
+        type: "image",
+      });
+      if (index % 3 === 0) {
+        blue.add(id);
+      }
+    }
+    const args = { hueFilters: ["blue"], sort: "shuffle", shuffleSeed: 4 };
+    const order = await readAll(args, 4);
+    expect(order).toHaveLength(blue.size);
+    expect(new Set(order)).toEqual(blue);
+    expect(await readAll(args, 3)).toEqual(order);
   });
 });
 
