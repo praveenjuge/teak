@@ -583,22 +583,20 @@ export const finishOnboardingCard = (
   };
 };
 
-/**
- * Insert every getting-started card at once, finished, in a Start here
- * folder, beside a Moodboard smart folder. Cards whose files weren't stored
- * are left out (a link is processed instead).
- */
 /** Mark a new account's getting-started cards as on their way. */
 export const startVaultSetup = async (ctx: MutationCtx, userId: string) => {
   await ctx.db.insert("vaultSetups", { userId, startedAt: Date.now() });
 };
 
-/** Clear the mark, in the transaction that gives the account its cards. */
-const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
-  const rows = await ctx.db
+const vaultSetupsOf = (ctx: MutationCtx, userId: string) =>
+  ctx.db
     .query("vaultSetups")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .take(10);
+
+/** Clear the mark, in the transaction that gives the account its cards. */
+const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
+  const rows = await vaultSetupsOf(ctx, userId);
   for (const row of rows) {
     await ctx.db.delete("vaultSetups", row._id);
   }
@@ -618,6 +616,11 @@ const hasOnboardingCards = async (ctx: MutationCtx, userId: string) => {
   return cards.some((card) => card.onboarding !== undefined);
 };
 
+/**
+ * Insert every getting-started card at once, finished, in a Start here
+ * folder, beside a Moodboard smart folder. Cards whose files weren't stored
+ * are left out (a link is processed instead).
+ */
 const insertOnboardingCardSet = async (
   ctx: MutationCtx,
   userId: string,
@@ -625,7 +628,6 @@ const insertOnboardingCardSet = async (
   stored: OnboardingStored[]
 ) => {
   await finishVaultSetup(ctx, userId);
-  // The upload action and the backstop may both arrive; only one inserts.
   if (await hasOnboardingCards(ctx, userId)) {
     return 0;
   }
@@ -684,6 +686,10 @@ export const createDefaultCardsForUser = internalMutation({
 
     const createdAt = Date.now();
     if (isFilesWorkerConfigured()) {
+      // The mark lets exactly one deferred insert through (see below).
+      if ((await vaultSetupsOf(ctx, userId)).length === 0) {
+        await startVaultSetup(ctx, userId);
+      }
       await ctx.scheduler.runAfter(
         0,
         internal.card.onboardingFiles.addOnboardingCards,
@@ -707,8 +713,10 @@ const onboardingSlotValidator = v.optional(v.string());
 
 /**
  * Insert the getting-started cards once addOnboardingCards stored their files,
- * or, with none stored, the ones that need no files. Inserts nothing (and
- * returns 0) when the account already has them.
+ * or, with none stored, the ones that need no files. The upload action and
+ * the backstop both arrive; only the first finds the setup mark and inserts,
+ * so cards deleted for good in between never come back. Returns how many
+ * cards it inserted.
  */
 export const insertOnboardingCards = internalMutation({
   args: {
@@ -731,6 +739,9 @@ export const insertOnboardingCards = internalMutation({
   returns: v.number(),
   handler: async (ctx, { createdAt, stored, userId }) => {
     await assertAccountNotDeleting(ctx, userId);
+    if ((await vaultSetupsOf(ctx, userId)).length === 0) {
+      return 0;
+    }
     return await insertOnboardingCardSet(ctx, userId, createdAt, stored);
   },
 });

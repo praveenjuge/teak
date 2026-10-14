@@ -53,6 +53,12 @@ const createDefaults = (t: Backend) =>
     userId: USER_ID,
   });
 
+/** A new account whose cards are on their way, as sign-up leaves it. */
+const signedUp = () => {
+  const t = setup();
+  return t.run((ctx) => startVaultSetup(ctx, USER_ID)).then(() => t);
+};
+
 const keyFor = (slot: string, name: string) =>
   buildR2ObjectKey({
     userId: USER_ID,
@@ -113,7 +119,7 @@ describe("getting-started cards", () => {
   });
 
   test("every card arrives at once, finished, in Start here, newest first", async () => {
-    const t = setup();
+    const t = await signedUp();
     const stored = storedEverything();
     const keysOf = (onboarding: string) =>
       stored.find((entry) => entry.onboarding === onboarding)?.keys ?? {};
@@ -191,7 +197,7 @@ describe("getting-started cards", () => {
   });
 
   test("the backstop gives the cards needing no files, and only once", async () => {
-    const t = setup();
+    const t = await signedUp();
     const insert = (stored: ReturnType<typeof storedEverything>) =>
       t.mutation(internal.card.defaultCards.insertOnboardingCards, {
         userId: USER_ID,
@@ -207,6 +213,37 @@ describe("getting-started cards", () => {
     expect((await cardsOf(t)).map((card) => card.onboarding).sort()).toEqual(
       ["link", "palette", "quote", "welcome"].sort()
     );
+  });
+
+  test("cards deleted for good before the backstop fires stay gone", async () => {
+    const t = await signedUp();
+    await createDefaults(t);
+    await t.mutation(internal.card.defaultCards.insertOnboardingCards, {
+      userId: USER_ID,
+      createdAt: 1,
+      stored: storedEverything(),
+    });
+    await t.run(async (ctx) => {
+      for (const card of await ctx.db.query("cards").take(50)) {
+        await ctx.db.delete("cards", card._id);
+      }
+    });
+
+    const [backstop] = await scheduled(
+      t,
+      "card/defaultCards:insertOnboardingCards"
+    );
+    expect(
+      await t.mutation(
+        internal.card.defaultCards.insertOnboardingCards,
+        backstop!.args[0] as {
+          userId: string;
+          createdAt: number;
+          stored: [];
+        }
+      )
+    ).toBe(0);
+    expect(await cardsOf(t)).toHaveLength(0);
   });
 
   test("adds nothing to an account that already has cards", async () => {
@@ -230,7 +267,7 @@ describe("getting-started cards", () => {
   });
 
   test("refuses files stored outside the account", async () => {
-    const t = setup();
+    const t = await signedUp();
     const stored = storedEverything();
     stored[0]!.keys.file = buildR2ObjectKey({
       userId: "someone_else",
