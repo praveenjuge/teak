@@ -47,7 +47,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 - The new card field is top-level and optional, so old clients ignore it.
 - The server resolves `linkPreviewImageUrl` from the replacement when one exists, so native apps show it with no update. The web's grid order changes so a replacement beats attached media.
-- The new R2 role is `thumbnail-override`. Replacing or resetting deletes the old object through `deleteObject` (the durable cleanup workflow).
+- The new R2 role is `thumbnail-override`. Replacing or resetting does not delete the old object at once. Its key is kept in `cards.previousThumbnailOverride { key, deleteAfter }`, and `deleteObject` (the durable cleanup workflow) is scheduled with `ctx.scheduler.runAfter(THUMBNAIL_UNDO_WINDOW_MS = 2 minutes)`. This keeps an undo from pointing at a deleted object.
 - Accepted types are JPEG, PNG, WebP, GIF (first frame on the grid), AVIF and HEIC if the worker decodes it. The limit is 20 MB, the Images binding input cap in `finalizeImage.ts`. SVG is refused.
 - Rate limit `thumbnailReplace` (20 a minute per user) in `shared/rateLimits.ts`.
 - Analytics: `card_thumbnail_replaced { source: "drop" | "paste" | "pick" | "api" }` and `card_thumbnail_reset`.
@@ -60,7 +60,9 @@ Let people replace any link card's image by dropping, pasting or choosing a file
   - `setLinkThumbnail({ cardId, fileKey })` (action):
     - It checks that `fileKey` is in the caller's namespace and is a pending key for this card.
     - It runs `finalize-image-upload` to `buildR2ObjectKey({ role: "thumbnail-override" })`.
-    - An internal mutation then patches the card (`patchCardWithSearchSync`) and deletes the previous replacement.
+    - An internal mutation then patches the card (`patchCardWithSearchSync`), moves the previous replacement into `previousThumbnailOverride`, and schedules its deletion after the undo window.
+    - `undoThumbnailChange` restores `previousThumbnailOverride.key` while `deleteAfter` is in the future. It cancels the scheduled deletion and schedules the newer key's deletion instead. After the window it returns `UNDO_EXPIRED`.
+    - The scheduled deletion checks that the key is not the card's current override before deleting, so a late undo or a double replace never removes a live image.
   - `resetLinkThumbnail({ cardId })`. Each of these has a `…ForUser` internal twin for the API.
 - `storage/r2.ts cardStorageObjectKeys`: add `card.thumbnailOverride?.storageKey`.
 - `card/queryUtils.ts` (`attachListUrls`, grid URLs) and `mobileCardSummaries.ts`:
@@ -74,7 +76,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
   - The preview image is a drop target with a dashed outline on drag-over.
   - While uploading, it shows the local object URL with a skeleton shimmer.
   - With no image, it shows a quiet "Add an image" drop area.
-- `card-modal/CardMetadataPanel.tsx`: for link cards, "Replace image" (`ImageUp`), and "Reset to original image" when a replacement exists. The update is optimistic, with an undo toast that restores the previous key while it still exists.
+- `card-modal/CardMetadataPanel.tsx`: for link cards, "Replace image" (`ImageUp`), and "Reset to original image" when a replacement exists. The update is optimistic, with an undo toast that lasts as long as the server's 2-minute undo window and calls `undoThumbnailChange`.
 - Paste: a `paste` listener in `CardModal.tsx`. It does nothing when the focus is in an input, a textarea or the editor.
 - `cards/Card.tsx`: when `hasThumbnailOverride`, use `linkPreviewImageUrl` before attached media.
 
@@ -134,7 +136,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 ## Tests
 
-- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key is deleted, reset, rate limit (Files Worker mocked).
+- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key survives until the undo window closes and is deleted after it, undo restores the previous key and cancels its deletion, undo after the window returns `UNDO_EXPIRED`, a double replace inside the window deletes only the right objects, reset, rate limit (Files Worker mocked).
 - `packages/convex/__tests__/storage/r2.test.ts`: `cardStorageObjectKeys` includes the replacement key.
 - `packages/convex/__tests__/card/queryUtils.test.ts` and `mobileCardSummaries.test.ts`: URL and aspect-ratio precedence.
 - `packages/convex/__tests__/linkMetadata.test.ts`: `updateCardMetadata` keeps `thumbnailOverride`.

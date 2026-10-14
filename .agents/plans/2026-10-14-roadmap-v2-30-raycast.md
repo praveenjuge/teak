@@ -15,9 +15,9 @@ Bring similar-card search and done states to the Raycast extension. That means a
   - The Filters section offers Done and To do.
   - Each row has a **Mark as Done / Mark as To Do** action (⌘⇧D) and a done accessory icon.
 - **AI tools.**
-  - `search-cards` gains `similarTo?: string` (a card ID), `done?: "done" | "todo"` and `mood?: string` (search images by mood).
-  - `update-card` gains `done?: boolean`.
-  - `get-card` returns the done state.
+  - `search-cards` gains `similarTo?: string` (a card ID), `done?: "done" | "todo"` and `mood?: string` (search images by mood). `done` is sent to the API as `q=is:done` / `q=is:todo`; phase 15 adds no `done` query parameter.
+  - `update-card` gains `done?: boolean`, sent through `POST` / `DELETE /v1/cards/:id/done`.
+  - `get-card` returns `completedAt`.
   - The `ai.instructions` text explains when to use each.
 - `CHANGELOG.md` gets a new entry. The extension is published through the Raycast store process.
 
@@ -61,8 +61,8 @@ Bring similar-card search and done states to the Raycast extension. That means a
   - parse `is:done`, `is:todo` and `like:<id>` into `done` and `similarTo` fields
   - include them in `hasExplicitFilters` and `buildSearchText`
   - extract the card ID from a Teak URL (`?card=<id>`)
-- `src/lib/api.ts` and `apiErrors.ts`: `buildCardsSearchParams` sends `similarTo`, `done` and `mood` when they're set. A new `setCardDone(cardId, done)` uses `PATCH /v1/cards/:id`.
-- `src/lib/apiParsers.ts`: parse the optional done field.
+- `src/lib/api.ts` and `apiErrors.ts`: `buildCardsSearchParams` sends `similarTo` when it's set, and folds `done` and `mood` into `q` as `is:done` / `is:todo` and `mood:"…"`. A new `setCardDone(cardId, done)` calls `POST /v1/cards/:id/done` to mark done and `DELETE /v1/cards/:id/done` to undo, the contract phase 15 defines. Generic `PATCH /v1/cards/:id` does not accept a done field.
+- `src/lib/apiParsers.ts`: parse the optional `completedAt` field (`number | null`).
 - `src/find-similar.tsx`: resolves the argument, then renders `CardsListCommand` with `similarTo`, titled "Like: <card title>".
 - `src/components/CardListActions.tsx`:
   - "Find Similar" (⌘⇧S) pushes the find-similar list
@@ -109,13 +109,13 @@ Bring similar-card search and done states to the Raycast extension. That means a
   - toggle while signed out (the auth flow)
   - toggle with the API down
 - AI: "find cards like the one about kerning", "what haven't I read yet?" and "mark it done" (tool confirmation shown).
-- Filters: `is:done is:todo` together resolves to the last one, matching the server's rule.
+- Filters: `is:done is:todo` together matches nothing, matching phase 15's rule, and the UI shows the empty state.
 
 ## Tests
 
 - `src/__tests__/searchFilters.test.ts`: parsing `is:done`, `is:todo`, `like:` and Teak URL extraction, plus the `buildSearchText` round trip.
-- `src/__tests__/api.test.ts`: `buildCardsSearchParams` sends `similarTo`, `done` and `mood`, the fallback to `q=like:`, and `setCardDone` builds a `PATCH`.
-- `src/__tests__/apiResponses.test.ts`: the done field parsed when present and absent.
+- `src/__tests__/api.test.ts`: `buildCardsSearchParams` sends `similarTo` and folds `done` and `mood` into `q`, the fallback to `q=like:`, and `setCardDone` builds `POST` / `DELETE /v1/cards/:id/done`.
+- `src/__tests__/apiResponses.test.ts`: `completedAt` parsed when present, null and absent.
 - `src/__tests__/cardDetailModel.test.ts`: the Done row.
 - `src/__tests__/tools.test.ts` (new): the `search-cards` and `update-card` tools map their new inputs (API mocked with `createRaycastApiMock`).
 - `npm run lint` (`ray lint`), `typecheck` and `build` pass headless.
@@ -125,7 +125,7 @@ Bring similar-card search and done states to the Raycast extension. That means a
 - Video 1, recorded in Raycast on macOS: Search Cards, then Find Similar (⌘⇧S), Mark as Done (⌘⇧D), then filter by Done.
 - Video 2: Raycast AI asked "find cards like <title> that I haven't read", showing the tool calls and the results.
 - Screenshots: the Find Similar list, the empty state, the not-found toast and the detail Done row, in light and dark Raycast themes.
-- `bun test` and `ray build` / `ray lint` output, and a captured `/v1/cards?similarTo=…&done=todo` request and response.
+- `bun test` and `ray build` / `ray lint` output, and a captured `/v1/cards?similarTo=…&q=is:todo` request and response, and `POST /v1/cards/:id/done`.
 
 ## Release gate
 

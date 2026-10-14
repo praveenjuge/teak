@@ -78,7 +78,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
     - It filters `userId` (and `type` with `$in`) and returns no metadata, so `topK` can reach 100.
     - It refuses a `vectorOfId` vector whose `userId` metadata is someone else's.
   - `vector-delete { ids ≤ 1000 }`: `deleteByIds`.
-  - `vector-list { cursor? }`: a page of ids for the orphan sweep.
+  - `vector-get { ids ≤ 100 }`: `getByIds`, returning which ids exist. The `Vectorize` binding (`apps/files-worker/worker-configuration.d.ts`) has no operation that lists vector ids, so orphan checks start from the `cardEmbeddings` ledger rather than from the index.
 - `capabilities` adds `vectorize: Boolean(env.VECTORIZE)`.
 
 ## Backend
@@ -100,7 +100,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - `card/deleteCard.ts` and `cleanupDeletedCard` delete the `cardEmbeddings` row and schedule `embedding/vectorCleanup.startVectorDeletion({ ids })`, a durable workflow modelled on `objectCleanup` with `OBJECT_DELETION_STEP_RETRY`.
   - In account deletion, `getAccountCardDeletionBatch` and `captureDeletionBatch("cards")` also return `vectorIds` (card ids that have a `cardEmbeddings` row).
   - `deleteKeys` and `drainStorageBatch` call `vector-delete` before the rows are committed. `ancillaryPage` removes the leftover `cardEmbeddings` rows by `by_userId`.
-- `orphanSweep.ts`: page through `vector-list` and report vector ids with no card. Report only.
+- `orphanSweep.ts`: page through `cardEmbeddings` and report rows whose card is missing or hard-deleted (vectors that should have been deleted). Also sample card ids whose `cardEmbeddings` row is gone and check them with `vector-get`. Report only. Every upsert writes its `cardEmbeddings` row first, so the ledger is a superset of the index.
 - `migration/backfillEmbeddings.ts`:
   - Pages `cards` (100 at a time) and counts the cards with text and no up-to-date `cardEmbeddings` hash, plus any `userId` over 64 bytes.
   - A real run calls `markCardForEmbedding` with spaced `dueAt`, at about 300 cards a minute.
@@ -133,7 +133,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
   - Purge after 30 days in Trash.
-  - Account deletion through both paths, then `vector-list` for that user returns nothing.
+  - Account deletion through both paths, then `vector-get` on that user's former card ids returns nothing, and a `vector-query` filtered to that `userId` returns no matches.
   - A `vector-query` with another user's id returns nothing, and `vectorOfId` on another user's card is refused.
   - The worker is down: processing completes and the embed retries.
   - OCC under `occContention.test.ts` fixtures.
@@ -161,7 +161,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - a dev `vector-query` for a seeded user returning their card ids with scores
   - the same query for another user returning nothing
   - the 20-edit churn log showing one embed
-  - `vector-list` empty after an account deletion
+  - `vector-get` and a `userId`-filtered `vector-query` both empty after an account deletion
   - the backfill dry-run report
 - A short video of saving, editing and deleting cards on dev at 1440px, to show there is no slowdown.
 
