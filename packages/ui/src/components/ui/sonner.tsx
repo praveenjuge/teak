@@ -6,42 +6,42 @@ import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
-  // Toasts are full-width bars at the bottom of the content column (beside
-  // the app sidebar, see --teak-content-left); the bulk-action bar uses the
-  // top edge, so neither covers the other. Inline, so Sonner's own centered
-  // position rule can't win.
-  const offset = { top: 0, right: 0, bottom: 0, left: 0 };
 
+  // Toasts are small pills centered at the bottom of the content column
+  // (beside the app sidebar), or of the window while a dialog is open; the
+  // layout lives with the --teak-toast-* tokens in styles.css. The
+  // bulk-action bar uses the top edge, so neither covers the other.
   return (
     <Sonner
       className="toaster group"
-      mobileOffset={offset}
-      offset={offset}
+      gap={8}
+      mobileOffset={16}
+      offset={24}
       style={
         {
-          "--normal-bg": "var(--primary)",
-          "--normal-text": "var(--primary-foreground)",
-          "--normal-border": "transparent",
-          "--width": "100%",
-          left: "var(--teak-toaster-left, 50%)",
-          width: "calc(100% - var(--teak-content-left, 0px))",
-          transition: "left 200ms linear, width 200ms linear",
-          "--border-radius": "0px",
+          "--normal-bg": "var(--teak-toast-bg)",
+          "--normal-text": "var(--teak-toast-text)",
+          "--normal-border": "var(--teak-toast-border)",
+          "--width": "min(28rem, calc(100vw - 2rem))",
         } as CSSProperties
       }
       theme={theme as ToasterProps["theme"]}
       toastOptions={{
-        className:
-          "!rounded-none !shadow-none !border-0 !w-full !max-w-none !items-center !justify-center !text-center",
-        descriptionClassName: "!text-primary-foreground !text-center",
         classNames: {
-          actionButton: "!order-3",
-          cancelButton: "!order-3",
+          toast:
+            "!gap-2.5 !font-medium !text-sm !leading-5 !shadow-[0_8px_24px_-6px_rgb(0_0_0/0.3),0_2px_6px_-2px_rgb(0_0_0/0.15)]",
+          title: "!font-medium",
+          description: "!font-normal !text-(--teak-toast-text)/65",
+          icon: "!m-0 !size-4 text-(--teak-toast-muted)",
+          success: "[&_[data-icon]]:!text-(--teak-toast-success)",
+          error: "[&_[data-icon]]:!text-(--teak-toast-error)",
+          actionButton:
+            "!order-3 !ml-1 !h-7 !rounded-full !bg-(--teak-toast-text)/12 !px-3 !font-medium !text-(--teak-toast-text) !text-xs hover:!bg-(--teak-toast-text)/20",
+          cancelButton:
+            "!order-3 !h-7 !rounded-full !bg-transparent !px-3 !font-medium !text-(--teak-toast-text)/65 !text-xs hover:!text-(--teak-toast-text)",
           closeButton:
-            "!static !order-2 !ml-0 !size-6 !translate-none !rounded-none !border-0 !bg-transparent !p-0 !text-primary-foreground/70 hover:!border-0 hover:!bg-transparent hover:!text-primary-foreground focus-visible:!outline-none focus-visible:!ring-0 [&_svg]:stroke-3 [&_svg]:size-4 [&_svg]:text-white !transform-none",
-          content: "!order-1 !items-center !text-center",
-          title: "!text-center",
-          icon: "!mx-2",
+            "!static !order-4 !size-6 !shrink-0 !transform-none !rounded-full !border-0 !bg-transparent !text-(--teak-toast-text)/55 hover:!bg-(--teak-toast-text)/12 hover:!text-(--teak-toast-text) [&_svg]:!size-3.5",
+          content: "!order-1",
         },
       }}
       {...props}

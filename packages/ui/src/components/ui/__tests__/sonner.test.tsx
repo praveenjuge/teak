@@ -51,15 +51,15 @@ const toasterBottomOffset = () =>
     .querySelector<HTMLElement>("[data-sonner-toaster]")
     ?.style.getPropertyValue("--offset-bottom");
 
-test("keeps bottom toasts flush with the screen edge by default", async () => {
+test("floats bottom toasts just above the screen edge", async () => {
   await render(false);
   await showToast();
-  expect(toasterBottomOffset()).toBe("0px");
+  expect(toasterBottomOffset()).toBe("24px");
 });
 
 // The bulk-action bar sits along the top edge, so toasts stay at the bottom.
 test("keeps toasts at the bottom edge while the bulk-action bar is shown", async () => {
   await render(true);
   await showToast();
-  expect(toasterBottomOffset()).toBe("0px");
+  expect(toasterBottomOffset()).toBe("24px");
 });

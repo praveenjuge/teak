@@ -166,18 +166,16 @@
   }
 }
 
-/* With the app sidebar on screen, toasts and the bulk-action bar span the
-   content column only, so neither covers the sidebar. */
+/* With the app sidebar on screen, the bulk-action bar spans the content
+   column only and toasts center on it, so neither covers the sidebar. */
 :root {
   --teak-content-left: 0px;
-  /* Phones use Sonner's own edge-to-edge layout (it switches at 600px). */
-  --teak-toaster-left: 0px;
+  --teak-toaster-center: calc(50% + var(--teak-content-left) / 2);
 }
 
-@media (min-width: 601px) {
-  :root {
-    --teak-toaster-left: calc(50% + var(--teak-content-left) / 2);
-  }
+/* A dialog covers the sidebar too, so toasts center on the window. */
+:root:has([data-slot="dialog-content"][data-state="open"]) {
+  --teak-toaster-center: 50%;
 }
 
 /* The sidebar's live width (it can be dragged) comes from SidebarProvider as
@@ -193,14 +191,62 @@
   }
 }
 
-[data-sonner-toaster] .sonner-loading-bar {
-  background: var(--primary-foreground);
+/* Toasts are dark pills in both themes: inverted on the light page, raised
+   with a hairline on the dark one. */
+:root {
+  --teak-toast-bg: var(--foreground);
+  --teak-toast-text: var(--background);
+  --teak-toast-border: transparent;
+  --teak-toast-muted: oklch(0.707 0.022 261.325);
+  --teak-toast-success: oklch(0.792 0.209 151.711);
+  --teak-toast-error: oklch(0.704 0.191 22.216);
 }
 
-/* Keep toast icons next to the centered title instead of pinned to the left
-   edge of the full-width bar. */
-[data-sonner-toaster] [data-sonner-toast] [data-content] {
-  flex: 0 1 auto;
+.dark {
+  --teak-toast-bg: oklch(0.278 0.033 256.848);
+  --teak-toast-text: var(--foreground);
+  --teak-toast-border: oklch(1 0 0 / 10%);
+}
+
+/* The repeated attribute outranks Sonner's own position rules, which put
+   bottom-center toasts full width on phones. Each toast is as wide as its
+   message and centered in the toaster. */
+[data-sonner-toaster][data-sonner-toaster][data-x-position="center"] {
+  right: auto;
+  left: var(--teak-toaster-center);
+  width: var(--width);
+  font-family: inherit;
+  transform: translateX(-50%);
+  transition: left 200ms linear;
+}
+
+[data-sonner-toaster][data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"] {
+  right: 0;
+  left: 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.625rem 1rem;
+  margin-inline: auto;
+  border-radius: 9999px;
+}
+
+[data-sonner-toaster][data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has(
+    [data-close-button],
+    [data-button]
+  ) {
+  padding-right: 0.5rem;
+}
+
+/* Two lines of text read better in a softer pill than in a stadium. */
+[data-sonner-toaster][data-sonner-toaster]
+[data-sonner-toast][data-styled="true"]:has([data-description]) {
+  border-radius: 1.25rem;
+}
+
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--teak-toast-text);
 }
 
 .teak-markdown-editor {
