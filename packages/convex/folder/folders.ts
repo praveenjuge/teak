@@ -22,6 +22,7 @@ import {
   MAX_FOLDERS_PER_USER,
   normalizeFolderName,
 } from "../shared/folders";
+import { resolveQuickSearchCommand } from "../shared/search/constants";
 import {
   parseSearchQuery,
   renameFolderInSearchQuery,
@@ -209,6 +210,23 @@ export const normalizeSmartFolderQuery = async (
   query: string
 ): Promise<string> => {
   const parsed = parseSearchQuery(query);
+  // A bare quick command is a view, not words: Favorites is saved as
+  // `is:fav`, so typing more still narrows the favorites; Trash is refused.
+  const command =
+    parsed.qualifiers.length === 0 &&
+    parsed.phrases.length === 0 &&
+    parsed.terms.length === 1
+      ? resolveQuickSearchCommand(parsed.terms[0] ?? "")
+      : null;
+  if (command === "favorites") {
+    return "is:fav";
+  }
+  if (command === "trash") {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_TRASH,
+    });
+  }
   const invalid = explainInvalidSmartFolderQuery(parsed.canonical);
   if (invalid) {
     throw new ConvexError({ code: "INVALID_INPUT", message: invalid });

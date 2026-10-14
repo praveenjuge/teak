@@ -890,6 +890,14 @@ describe("smart folders", () => {
       "folder:reading is:fav"
     );
 
+    // A bare favorites word means Favorites, also once more is typed; a bare
+    // Trash word is refused (smart folders don't show Trash) unless quoted.
+    expect((await smart(owner, "Favs", " Favorites ")).query).toBe("is:fav");
+    await expect(smart(owner, "Bin", "trash")).rejects.toThrow(
+      FOLDER_ERROR_MESSAGES.SMART_FOLDER_TRASH
+    );
+    expect((await smart(owner, "Word", '"trash"')).query).toBe('"trash"');
+
     // Only smart folders have a search.
     await expect(
       owner.mutation(api.folders.createFolder, {

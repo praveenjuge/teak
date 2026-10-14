@@ -48,6 +48,8 @@ export const FOLDER_ERROR_MESSAGES = {
   SMART_FOLDER_MEMBERSHIP:
     "Cards can't be added to a smart folder; it shows the cards that match its search",
   QUERY_ON_MANUAL_FOLDER: "Only smart folders have a search",
+  SMART_FOLDER_TRASH:
+    "Smart folders don't show Trash. To search for the word, put it in quotes",
 } as const;
 
 /** The name as stored: trimmed, with inner whitespace runs kept. */
