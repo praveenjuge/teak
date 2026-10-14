@@ -14,6 +14,13 @@ export const cardListSortValidator = v.union(
   v.literal("oldest")
 );
 
+/** The grid's sorts: by date, or Shuffle with a seed (card/shuffle.ts). */
+export const cardListSortWithShuffleValidator = v.union(
+  v.literal("newest"),
+  v.literal("oldest"),
+  v.literal("shuffle")
+);
+
 /**
  * Which archived cards a library read returns: none (the default), only
  * archived ones (the Archive view), or both. Trash ignores it and lists every

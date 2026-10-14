@@ -42,6 +42,58 @@ describe("parseSearchUrlState", () => {
   });
 });
 
+describe("shuffle seeds in the URL", () => {
+  test("reads a seed with the Shuffle sort", () => {
+    expect(parse("sort=shuffle&seed=42")).toMatchObject({
+      seed: 42,
+      sort: "shuffle",
+    });
+  });
+
+  test.each([
+    ["no seed", "sort=shuffle"],
+    ["a negative seed", "sort=shuffle&seed=-1"],
+    ["a fraction", "sort=shuffle&seed=1.5"],
+    ["a seed out of range", "sort=shuffle&seed=2147483648"],
+    ["text", "sort=shuffle&seed=abc"],
+  ])("leaves %s for the screen to pick", (_label, query) => {
+    const state = parse(query);
+    expect(state.sort).toBe("shuffle");
+    expect(state).not.toHaveProperty("seed");
+  });
+
+  test("ignores a seed with a date sort", () => {
+    expect(parse("sort=oldest&seed=42")).not.toHaveProperty("seed");
+    expect(
+      serializeSearchUrlState(
+        { q: "", seed: 42, sort: "newest", types: [] },
+        "sort=shuffle&seed=7"
+      )
+    ).toBe("");
+  });
+
+  test("round-trips, so a shared link shows the same order", () => {
+    const state = {
+      q: "",
+      seed: 2_147_483_647,
+      sort: "shuffle" as const,
+      tag: "",
+      types: [],
+    };
+    const query = serializeSearchUrlState(state);
+    expect(query).toBe("sort=shuffle&seed=2147483647");
+    expect(parse(query)).toEqual(state);
+  });
+
+  test("a reshuffle is a different search state", () => {
+    const shuffled = { q: "", seed: 1, sort: "shuffle" as const, types: [] };
+    expect(isSameSearchUrlState(shuffled, { ...shuffled, seed: 2 })).toBe(
+      false
+    );
+    expect(isSameSearchUrlState(shuffled, { ...shuffled })).toBe(true);
+  });
+});
+
 describe("serializeSearchUrlState", () => {
   test("keeps the open card and other params", () => {
     const query = serializeSearchUrlState(

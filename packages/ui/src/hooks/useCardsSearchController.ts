@@ -11,8 +11,10 @@ import {
   parseTimeSearchQuery,
   pruneCardsMissingFromRemote,
   quoteSearchValue,
+  randomShuffleSeed,
   resolveQuickSearchCommand,
   SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
+  shuffleBySeed,
   type TimeFilter,
 } from "@teak/convex/shared";
 import type {
@@ -65,8 +67,10 @@ export interface CardsSearchQueryArgs {
   searchQuery?: string;
   showArchivedOnly?: boolean;
   showTrashOnly?: boolean;
-  /** Only set for oldest first, so the default query keeps its key. */
-  sort?: "oldest";
+  /** Shuffle's seed; set with `sort: "shuffle"` only. */
+  shuffleSeed?: number;
+  /** Only set off the default, so the default query keeps its key. */
+  sort?: "oldest" | "shuffle";
   styleFilters?: VisualStyle[];
   tag?: string;
   types?: CardType[];
@@ -132,6 +136,8 @@ export interface UseCardsSearchControllerResult {
   qualifierChips: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
+  /** Shuffle again with a new seed (switching to Shuffle if needed). */
+  reshuffle: () => void;
   searchBarProps: SearchBarProps;
   searchQuery: string;
   searchTerms: string;
@@ -149,6 +155,8 @@ export interface UseCardsSearchControllerResult {
   showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
+  /** Shuffle's seed while the sort is Shuffle. */
+  shuffleSeed?: number;
   sort: CardListSort;
   styleFilters: VisualStyle[];
   tagFilter: string;
@@ -512,6 +520,46 @@ export function applyBackspaceToCardsSearchState(
   return state;
 }
 
+/** The library order: a sort, and Shuffle's seed while shuffling. */
+interface CardsOrder {
+  seed?: number;
+  sort: CardListSort;
+}
+
+/** A seed other than `previous`, so a reshuffle always changes the order. */
+const nextShuffleSeed = (previous?: number): number => {
+  const seed = randomShuffleSeed();
+  return seed === previous ? (seed + 1) % 2 ** 31 : seed;
+};
+
+/**
+ * The order a URL asks for. Shuffle without a seed keeps the one in use, or
+ * picks a new one.
+ */
+const orderFromUrl = (
+  state: Pick<SearchUrlState, "seed" | "sort"> | undefined,
+  previous?: CardsOrder
+): CardsOrder => {
+  const sort = state?.sort ?? "newest";
+  if (sort !== "shuffle") {
+    return { sort };
+  }
+  const seed =
+    state?.seed ??
+    (previous?.sort === "shuffle" ? previous.seed : undefined) ??
+    nextShuffleSeed();
+  return { seed, sort };
+};
+
+const orderQueryArgs = (
+  order: CardsOrder
+): Pick<CardsSearchQueryArgs, "shuffleSeed" | "sort"> => {
+  if (order.sort === "shuffle") {
+    return { shuffleSeed: order.seed, sort: "shuffle" };
+  }
+  return order.sort === "oldest" ? { sort: "oldest" } : {};
+};
+
 export function useCardsSearchController(
   options: UseCardsSearchControllerOptions = {}
 ): UseCardsSearchControllerResult {
@@ -541,9 +589,27 @@ export function useCardsSearchController(
         : { ...storedSearchState, ...libraryViewFlags(view) },
     [storedSearchState, view]
   );
-  const [sort, setSort] = useState<CardListSort>(
-    initialUrlState?.sort ?? "newest"
+  const [order, setOrder] = useState<CardsOrder>(() =>
+    orderFromUrl(initialUrlState)
   );
+  const sort = order.sort;
+  const shuffleSeed = order.sort === "shuffle" ? order.seed : undefined;
+  const setSort = useCallback((next: CardListSort) => {
+    setOrder((prev) => {
+      if (prev.sort === next) {
+        return prev;
+      }
+      return next === "shuffle"
+        ? { seed: nextShuffleSeed(), sort: next }
+        : { sort: next };
+    });
+  }, []);
+  const reshuffle = useCallback(() => {
+    setOrder((prev) => ({
+      seed: nextShuffleSeed(prev.sort === "shuffle" ? prev.seed : undefined),
+      sort: "shuffle",
+    }));
+  }, []);
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
   const lastRemoteResultRef = useRef<{
@@ -644,24 +710,31 @@ export function useCardsSearchController(
         ...searchState,
         searchQuery: remoteSearchQuery,
       }),
-      ...(sort === "oldest" ? { sort: "oldest" as const } : {}),
+      ...orderQueryArgs(order),
       ...(folderId ? { folderId } : {}),
       // A smart folder's search is part of the query, so editing it starts
       // a new one instead of reusing pages read with the old search.
       ...(folderId && folderQuery !== undefined ? { folderQuery } : {}),
     }),
-    [folderId, folderQuery, remoteSearchQuery, searchState, sort]
+    [folderId, folderQuery, order, remoteSearchQuery, searchState]
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
   const urlState = useMemo<SearchUrlState>(
     () => ({
       q: remoteSearchTerms,
+      ...(shuffleSeed === undefined ? {} : { seed: shuffleSeed }),
       sort,
       tag: searchState.tagFilter,
       types: searchState.filterTags,
     }),
-    [remoteSearchTerms, searchState.filterTags, searchState.tagFilter, sort]
+    [
+      remoteSearchTerms,
+      searchState.filterTags,
+      searchState.tagFilter,
+      shuffleSeed,
+      sort,
+    ]
   );
 
   const hasActiveSearch = useMemo(
@@ -690,40 +763,43 @@ export function useCardsSearchController(
 
   // Instant local hits come from every card this screen has seen, so a
   // manual folder's view keeps only the folder's own.
-  const localSearchResults = useMemo(
-    () =>
-      hasFolderQualifier || localSearchTerms === null
-        ? []
-        : filterLocalCards(
-            folderId && folderQuery === undefined
-              ? localCards.filter((card) =>
-                  (card.folderIds ?? []).includes(folderId)
-                )
-              : localCards,
-            {
-              searchTerms: localSearchTerms,
-              types: searchState.filterTags,
-              styleFilters: searchState.styleFilters,
-              hueFilters: searchState.hueFilters,
-              hexFilters: searchState.hexFilters,
-              favoritesOnly: searchState.showFavoritesOnly,
-              showTrashOnly: searchState.showTrashOnly,
-              showArchivedOnly: searchState.showArchivedOnly,
-              createdAtRange: searchState.timeFilter?.range,
-              sort,
-              tag: searchState.tagFilter,
-            }
-          ),
-    [
-      folderId,
-      folderQuery,
-      hasFolderQualifier,
-      localCards,
-      localSearchTerms,
-      searchState,
-      sort,
-    ]
-  );
+  const localSearchResults = useMemo(() => {
+    if (hasFolderQualifier || localSearchTerms === null) {
+      return [];
+    }
+    const matches = filterLocalCards(
+      folderId && folderQuery === undefined
+        ? localCards.filter((card) => (card.folderIds ?? []).includes(folderId))
+        : localCards,
+      {
+        searchTerms: localSearchTerms,
+        types: searchState.filterTags,
+        styleFilters: searchState.styleFilters,
+        hueFilters: searchState.hueFilters,
+        hexFilters: searchState.hexFilters,
+        favoritesOnly: searchState.showFavoritesOnly,
+        showTrashOnly: searchState.showTrashOnly,
+        showArchivedOnly: searchState.showArchivedOnly,
+        createdAtRange: searchState.timeFilter?.range,
+        sort,
+        tag: searchState.tagFilter,
+      }
+    );
+    // In seed order, as the server orders a search's matches, so instant
+    // hits do not jump when its results arrive.
+    return shuffleSeed === undefined
+      ? matches
+      : shuffleBySeed(matches, shuffleSeed, (card) => card._id);
+  }, [
+    folderId,
+    folderQuery,
+    hasFolderQualifier,
+    localCards,
+    localSearchTerms,
+    searchState,
+    shuffleSeed,
+    sort,
+  ]);
 
   const remoteSearchResults = useMemo(() => {
     if (!hasActiveSearch) {
@@ -763,8 +839,11 @@ export function useCardsSearchController(
   );
 
   const resetKey = useMemo(
-    () => `${buildCardsSearchResetKey(searchState)}::${sort}`,
-    [searchState, sort]
+    () =>
+      `${buildCardsSearchResetKey(searchState)}::${sort}${
+        shuffleSeed === undefined ? "" : `:${shuffleSeed}`
+      }`,
+    [searchState, shuffleSeed, sort]
   );
 
   const hasNoFilters = useMemo(
@@ -881,7 +960,10 @@ export function useCardsSearchController(
           tagFilter: tag,
         };
       });
-      setSort(state.sort);
+      setOrder((prev) => {
+        const next = orderFromUrl(state, prev);
+        return next.sort === prev.sort && next.seed === prev.seed ? prev : next;
+      });
     },
     []
   );
@@ -954,13 +1036,16 @@ export function useCardsSearchController(
       onClearAll: clearAllFilters,
       sort,
       onSortChange: setSort,
+      onReshuffle: reshuffle,
     }),
     [
       addQualifier,
       clearAllFilters,
       onKeyDown,
       onSearchChange,
+      reshuffle,
       searchState,
+      setSort,
       sort,
     ]
   );
@@ -994,7 +1079,9 @@ export function useCardsSearchController(
     applyUrlState,
     clearAllFilters,
     searchBarProps,
+    reshuffle,
     setSort,
+    shuffleSeed,
     sort,
     updateCachedCard,
     urlState,

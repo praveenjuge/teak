@@ -21,6 +21,7 @@
     "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",
     "./shared/linkCategories": "./shared/linkCategories.ts",
+    "./shared/search/shuffle": "./shared/search/shuffle.ts",
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
     "./shared/utils/safeUrl": "./shared/utils/safeUrl.ts",
     "./shared/utils/timeSearch": "./shared/utils/timeSearch.ts",

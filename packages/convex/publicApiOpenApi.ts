@@ -23,7 +23,7 @@ const CARD_TYPES = [
   "palette",
   "quote",
 ] as const;
-const CARD_SORTS = ["newest", "oldest"] as const;
+const CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
 const apiKeySecurity = [{ bearerAuth: [] }];
 const folderIdParameters = [
   {
@@ -901,8 +901,15 @@ export const openApiSpec = {
             in: "query",
             name: "sort",
             description:
-              "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`.",
+              "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`: a stable random order picked by `shuffleSeed`. A search, tag or folder shuffles its matches (a search its best 400, a tag or folder its newest 2,000).",
             schema: { enum: CARD_SORTS, type: "string" },
+          },
+          {
+            in: "query",
+            name: "shuffleSeed",
+            description:
+              "Required with `sort=shuffle`: a whole number from 0 to 2147483647. The same seed gives the same order on every page and device; pick a new one to reshuffle. A `cursor` only works with the seed that issued it.",
+            schema: { maximum: 2_147_483_647, minimum: 0, type: "integer" },
           },
           {
             in: "query",

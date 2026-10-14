@@ -36,23 +36,26 @@ export function HomePageClient({
     : (searchParams.get("addTo") ?? undefined);
   const searchQueryParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
+  const seedParam = searchParams.get("seed");
   const typeParam = searchParams.get("type");
   const tagParam = searchParams.get("tag");
   const searchUrlState = useMemo(() => {
     const params: Record<string, string | null> = {
       q: searchQueryParam,
+      seed: seedParam,
       sort: sortParam,
       tag: tagParam,
       type: typeParam,
     };
     return parseSearchUrlState({ get: (name) => params[name] ?? null });
-  }, [searchQueryParam, sortParam, tagParam, typeParam]);
+  }, [searchQueryParam, seedParam, sortParam, tagParam, typeParam]);
 
-  // The search lives in `?q=`, `?sort=`, `?type=` and `?tag=`. Native
-  // history calls update the URL (and useSearchParams) synchronously, so a
-  // fast typist's older search can never land after a newer one. Typing
-  // replaces the entry; changing the sort, the card types or the tag adds
-  // one, so Back returns to the previous order or filters.
+  // The search lives in `?q=`, `?sort=` (with Shuffle's `?seed=`), `?type=`
+  // and `?tag=`. Native history calls update the URL (and useSearchParams)
+  // synchronously, so a fast typist's older search can never land after a
+  // newer one. Typing replaces the entry; changing the sort (a reshuffle
+  // included), the card types or the tag adds one, so Back returns to the
+  // previous order or filters.
   const handleSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
       const query = serializeSearchUrlState(state, window.location.search);

@@ -126,6 +126,72 @@ test("oldest first reorders local results and the query", async () => {
   expect(controller.displayCards.map((c) => c._id)).toEqual(["old", "new"]);
 });
 
+test("shuffle queries with the URL's seed and puts it back in the URL", async () => {
+  await mount({ q: "", seed: 42, sort: "shuffle", types: [] });
+  expect(controller.queryArgs).toMatchObject({
+    shuffleSeed: 42,
+    sort: "shuffle",
+  });
+  expect(controller.urlState).toMatchObject({ seed: 42, sort: "shuffle" });
+});
+
+test("shuffle without a seed in the URL picks one", async () => {
+  await mount({ q: "", sort: "shuffle", types: [] });
+  const seed = controller.queryArgs.shuffleSeed;
+  expect(typeof seed).toBe("number");
+  expect(controller.urlState.seed).toBe(seed);
+  // Keeps it when the URL comes back without one (a sidebar link).
+  await act(() =>
+    controller.applyUrlState({ q: "", sort: "shuffle", types: ["link"] })
+  );
+  expect(controller.queryArgs.shuffleSeed).toBe(seed);
+});
+
+test("choosing Shuffle picks a seed and reshuffle picks another", async () => {
+  await mount();
+  await act(() => controller.searchBarProps.onSortChange?.("shuffle"));
+  const first = controller.queryArgs.shuffleSeed;
+  expect(controller.queryArgs.sort).toBe("shuffle");
+  expect(typeof first).toBe("number");
+  const resetKey = controller.resetKey;
+
+  await act(() => controller.searchBarProps.onReshuffle?.());
+  expect(controller.queryArgs.shuffleSeed).not.toBe(first);
+  expect(controller.urlState.seed).toBe(controller.queryArgs.shuffleSeed);
+  expect(controller.resetKey).not.toBe(resetKey);
+
+  // Back to the previous order, then to a date order without a seed.
+  await act(() =>
+    controller.applyUrlState({ q: "", seed: first, sort: "shuffle", types: [] })
+  );
+  expect(controller.queryArgs.shuffleSeed).toBe(first);
+  await act(() => controller.searchBarProps.onSortChange?.("newest"));
+  expect(controller.queryArgs).not.toHaveProperty("shuffleSeed");
+  expect(controller.urlState).not.toHaveProperty("seed");
+});
+
+test("shuffle keeps the server's order of cards", async () => {
+  await mount({ q: "", seed: 7, sort: "shuffle", types: [] });
+  await act(() =>
+    controller.setRemoteCards([
+      card("old", 1000),
+      card("new", 3000),
+      card("mid", 2000),
+    ])
+  );
+  expect(controller.displayCards.map((c) => c._id)).toEqual([
+    "old",
+    "new",
+    "mid",
+  ]);
+  await act(() => controller.addKeywordTag("design"));
+  expect(controller.displayCards.map((c) => c._id)).toEqual([
+    "old",
+    "new",
+    "mid",
+  ]);
+});
+
 test("back and forward replace the search with the URL's", async () => {
   await mount();
   await act(() => controller.addKeywordTag("design"));

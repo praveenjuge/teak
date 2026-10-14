@@ -32,6 +32,11 @@ import {
 } from "./card/searchDocumentHelpers";
 import { cardUrlHost, resolveFolderNames } from "./card/searchPlanner";
 import {
+  pageShuffleWalk,
+  type ShuffleWalkPosition,
+  shuffleSegmentCount,
+} from "./card/shuffle";
+import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
@@ -51,6 +56,11 @@ import { cardTypes, cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
 import { matchesSearchPhrases } from "./shared/search/qualifiers";
+import {
+  isShuffleSeed,
+  shuffleBySeed,
+  shuffleRank,
+} from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -922,6 +932,241 @@ export const searchCardsPageForUser = internalQuery({
         hasMore: nextCursor !== null,
       },
     };
+  },
+});
+
+// Shuffle cursors carry the seed they belong to: a walk position through
+// the library, or the last card of a shuffled set of matches.
+type ShuffleApiCursor =
+  | { mode: "start" }
+  | { mode: "walk"; position: ShuffleWalkPosition }
+  | { mode: "after"; rank: number; id: string };
+
+const encodeShuffleCursor = (
+  seed: number,
+  cursor: Exclude<ShuffleApiCursor, { mode: "start" }>
+): string =>
+  btoa(
+    JSON.stringify(
+      cursor.mode === "walk"
+        ? { mode: "shuffle", seed, position: cursor.position }
+        : { mode: "shuffle", seed, rank: cursor.rank, id: cursor.id }
+    )
+  );
+
+const decodeShuffleCursor = (
+  seed: number,
+  cursor: string | undefined
+): ShuffleApiCursor => {
+  if (!cursor) {
+    return { mode: "start" };
+  }
+  let parsed: Record<string, unknown> | null;
+  try {
+    parsed = JSON.parse(atob(cursor));
+  } catch {
+    throw invalidCursorError();
+  }
+  // A cursor from another seed or sort would skip or repeat cards.
+  if (parsed?.mode !== "shuffle" || parsed.seed !== seed) {
+    throw invalidCursorError();
+  }
+  if (parsed.position && typeof parsed.position === "object") {
+    const position = parsed.position as Record<string, unknown>;
+    if (
+      typeof position.segment === "number" &&
+      Number.isInteger(position.segment) &&
+      position.segment >= 0 &&
+      (position.page === null || typeof position.page === "string")
+    ) {
+      return {
+        mode: "walk",
+        position: { segment: position.segment, page: position.page },
+      };
+    }
+  }
+  if (isFiniteNumber(parsed.rank) && typeof parsed.id === "string") {
+    return { mode: "after", rank: parsed.rank, id: parsed.id };
+  }
+  throw invalidCursorError();
+};
+
+// After the anchor in seeded order: by rank, then by id.
+const isAfterShuffleAnchor = (
+  seed: number,
+  card: Doc<"cards">,
+  anchor: { rank: number; id: string }
+) => {
+  const rank = shuffleRank(seed, card._id);
+  return rank > anchor.rank || (rank === anchor.rank && card._id > anchor.id);
+};
+
+/** Folder rows a shuffled folder listing puts in order (the newest). */
+const SHUFFLE_FOLDER_ROWS = 2000;
+/** Rows one shuffled library page reads at most. */
+const SHUFFLE_WALK_SCAN = MAX_QUERY_SCAN;
+
+/**
+ * `sort=shuffle`: a stable random order for `shuffleSeed`. A search, a tag
+ * or a folder puts its matches in the seed's order (a search keeps its
+ * best MAX_QUERY_SCAN matches, a tag or folder its newest); the library
+ * walks every card by its random key. A page can come back short with
+ * more to read; the HTTP handler reads on until the page is full.
+ */
+export const shuffleCardsPageForUser = internalQuery({
+  args: {
+    userId: v.string(),
+    shuffleSeed: v.number(),
+    showTrashOnly: v.optional(v.boolean()),
+    archived: v.optional(archivedFilterValidator),
+    folderId: v.optional(v.id("folders")),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
+    cursor: v.optional(v.string()),
+    searchQuery: v.optional(v.string()),
+    type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
+    tag: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    sites: v.optional(v.array(v.string())),
+    phrases: v.optional(v.array(v.string())),
+    folderNames: v.optional(v.array(v.string())),
+    archivedInTrash: v.optional(v.boolean()),
+    favorited: v.optional(v.boolean()),
+    createdAfter: v.optional(v.number()),
+    createdBefore: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  returns: paginatedCardsResultValidator,
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    if (!isShuffleSeed(args.shuffleSeed)) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message:
+          "Query parameter `shuffleSeed` must be a whole number from 0 to 2147483647",
+      });
+    }
+    const seed = args.shuffleSeed;
+    const empty = { items: [], pageInfo: { nextCursor: null, hasMore: false } };
+    const folderIds = await resolveFolderNames(
+      ctx,
+      userId,
+      args.folderNames ?? []
+    );
+    if (!folderIds) {
+      return empty;
+    }
+    const options = normalizeCardsQueryOptions({
+      ...args,
+      folderIds,
+      sort: "newest",
+    });
+    const limit = normalizeLimit(options.limit);
+    const cursor = decodeShuffleCursor(seed, args.cursor);
+    const respond = async (
+      items: Doc<"cards">[],
+      next: Exclude<ShuffleApiCursor, { mode: "start" }> | null
+    ) => {
+      const cardsWithUrls = await attachFileUrls(ctx, items);
+      const nextCursor = next ? encodeShuffleCursor(seed, next) : null;
+      return {
+        items: applyQuoteFormattingToList(cardsWithUrls),
+        pageInfo: { nextCursor, hasMore: nextCursor !== null },
+      };
+    };
+
+    // A set of matches: put it in the seed's order and resume after the
+    // last card served.
+    const setPage = (cards: Doc<"cards">[]) => {
+      if (cursor.mode === "walk") {
+        throw invalidCursorError();
+      }
+      const ordered = shuffleBySeed(cards, seed, (card) => card._id);
+      const remaining =
+        cursor.mode === "after"
+          ? ordered.filter((card) => isAfterShuffleAnchor(seed, card, cursor))
+          : ordered;
+      const items = remaining.slice(0, limit);
+      const last = items[items.length - 1];
+      return respond(
+        items,
+        remaining.length > limit && last
+          ? { mode: "after", rank: shuffleRank(seed, last._id), id: last._id }
+          : null
+      );
+    };
+
+    if (options.searchQuery) {
+      return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
+    }
+    if (options.tag) {
+      return setPage(
+        (
+          await searchCardsByTag(
+            ctx,
+            userId,
+            options,
+            MAX_QUERY_SCAN,
+            undefined
+          )
+        ).cards
+      );
+    }
+    if (options.folderId) {
+      const rows = await buildFolderCardListQuery(ctx, {
+        folderId: options.folderId,
+        trash: options.showTrashOnly,
+        archived: options.archived,
+        types: options.type ? [options.type] : options.types,
+      })
+        .order("desc")
+        .take(SHUFFLE_FOLDER_ROWS);
+      const cards: Doc<"cards">[] = [];
+      for (const row of rows) {
+        const card = await ctx.db.get("cards", row.cardId);
+        if (card && matchesStructuredFilters(card, options)) {
+          cards.push(card);
+        }
+      }
+      return setPage(cards);
+    }
+
+    // The library: walk it by each card's random key.
+    if (cursor.mode === "after") {
+      throw invalidCursorError();
+    }
+    const walk = {
+      userId,
+      seed,
+      trash: options.showTrashOnly,
+      archived: options.archived,
+      favoritesOnly: options.favorited === true,
+      types: options.type ? [options.type] : options.types,
+      createdAt: {
+        gte: options.createdAfter,
+        lte: options.createdBefore,
+      },
+    };
+    const position =
+      cursor.mode === "walk" ? cursor.position : { segment: 0, page: null };
+    if (position.segment >= shuffleSegmentCount(walk)) {
+      throw invalidCursorError();
+    }
+    let result: Awaited<ReturnType<typeof pageShuffleWalk>>;
+    try {
+      result = await pageShuffleWalk(ctx, walk, position, {
+        numItems: limit,
+        maximumRowsRead: SHUFFLE_WALK_SCAN,
+      });
+    } catch {
+      throw invalidCursorError();
+    }
+    return respond(
+      result.cards.filter((card) => matchesStructuredFilters(card, options)),
+      result.next ? { mode: "walk", position: result.next } : null
+    );
   },
 });
 

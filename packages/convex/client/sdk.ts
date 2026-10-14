@@ -24,7 +24,7 @@ import type { FOLDER_COLORS } from "../shared/folders";
 export type { CardType } from "../shared/constants";
 
 export const CARD_TYPES = cardTypes;
-export const CARD_SORTS = ["newest", "oldest"] as const;
+export const CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
 export const ERROR_CODES = [
   "AUTH_REQUIRED",
   "BAD_REQUEST",
@@ -407,6 +407,8 @@ export const buildCardsSearchParams = (input: {
    * `"quoted phrases"`.
    */
   query?: string;
+  /** Required with `sort: "shuffle"`: the same seed gives the same order. */
+  shuffleSeed?: number;
   sort?: CardSort;
   style?: string | readonly string[];
   tag?: string;
@@ -445,8 +447,11 @@ export const buildCardsSearchParams = (input: {
   if (input.archived === "only" || input.archived === "include") {
     search.set("archived", input.archived);
   }
-  if (input.sort === "oldest") {
-    search.set("sort", "oldest");
+  if (input.sort === "oldest" || input.sort === "shuffle") {
+    search.set("sort", input.sort);
+  }
+  if (input.sort === "shuffle" && typeof input.shuffleSeed === "number") {
+    search.set("shuffleSeed", String(input.shuffleSeed));
   }
   if (typeof input.createdAfter === "number") {
     search.set("createdAfter", String(input.createdAfter));

@@ -33,6 +33,7 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { newShuffleKey } from "./shuffle";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
   new ConvexError({
@@ -265,6 +266,7 @@ export const createUploadedCardForUser = async (
 
   const cardId = await ctx.db.insert("cards", {
     userId: args.userId,
+    shuffleKey: newShuffleKey(),
     content: args.content || "",
     type: cardType,
     fileKey: args.fileKey,

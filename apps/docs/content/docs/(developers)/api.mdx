@@ -247,7 +247,11 @@ these query parameters:
 </ParamField>
 
 <ParamField query="sort" type="string">
-  Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`.
+  Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`, a random order picked by `shuffleSeed`.
+</ParamField>
+
+<ParamField query="shuffleSeed" type="number">
+  Required with `sort=shuffle`: a whole number from `0` to `2147483647`. The same seed gives the same order on every page and every call; pick another for a new order. A `cursor` only continues the seed that issued it, and returns `400 INVALID_INPUT` with any other.
 </ParamField>
 
 <ParamField query="createdAfter" type="number">

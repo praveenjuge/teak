@@ -48,7 +48,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { SortMenu } from "./SortMenu";
+import { ReshuffleButton, SortMenu } from "./SortMenu";
 import {
   buildSearchSuggestions,
   currentSearchToken,
@@ -81,6 +81,8 @@ export interface SearchBarProps {
   /** Clears the sidebar tag; shown when `tagFilter` is set. */
   onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
+  /** Shuffles again; shown next to the sort menu while the sort is Shuffle. */
+  onReshuffle?: () => void;
   /**
    * Saves what is on screen as a smart folder; offered in the sort menu
    * while set (there is a search to save).
@@ -271,6 +273,7 @@ export function SearchBar({
   sort = "newest",
   onSaveSearch,
   onSortChange,
+  onReshuffle,
 }: SearchBarProps) {
   // Views and card types live in the sidebar; the row under the search box
   // shows only what is narrowing the results, each chip removable.
@@ -432,6 +435,9 @@ export function SearchBar({
         </div>
 
         <div className="flex items-center gap-1">
+          {onSortChange && onReshuffle && sort === "shuffle" && (
+            <ReshuffleButton onReshuffle={onReshuffle} />
+          )}
           {onSortChange && (
             <SortMenu
               onSaveSearch={onSaveSearch}

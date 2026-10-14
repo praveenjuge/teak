@@ -13,6 +13,7 @@ import {
   hasSearchQualifiers,
   parseSearchQuery,
 } from "../shared/search/qualifiers";
+import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
 import {
   type ArchivedFilter,
   buildCardListQuery,
@@ -21,6 +22,7 @@ import {
   buildTagCardListQuery,
   type CardListSort,
   cardListSortValidator,
+  cardListSortWithShuffleValidator,
   compareCardsByCreatedAt,
   normalizeCardListSort,
 } from "./listQuery";
@@ -34,6 +36,12 @@ import {
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import { searchCardsByDocument } from "./searchDocumentHelpers";
 import { expandFolderSearch, resolveSearch } from "./searchPlanner";
+import {
+  decodeShuffleWalkCursor,
+  encodeShuffleWalkCursor,
+  pageShuffleWalk,
+  type ShuffleWalkOptions,
+} from "./shuffle";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -101,6 +109,28 @@ const getVisualSearchBatchLimit = (desiredLimit: number) =>
   Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
 /** Folder rows a color, style or favorites view of one folder reads per page. */
 const FOLDER_FILTER_SCAN_BATCH = 200;
+/**
+ * Shuffle of a tag or folder: how many of its rows (the newest) are put in
+ * seeded order. Rows are small; only a page's cards are loaded.
+ */
+const SHUFFLE_ROW_LIMIT = 2000;
+/** Rows a filtered Shuffle walk reads at most per page. */
+const SHUFFLE_WALK_SCAN_LIMIT = 400;
+
+/** The cards behind index rows, in order, skipping any since deleted. */
+const loadCards = async (
+  ctx: QueryCtx,
+  cardIds: readonly Doc<"cards">["_id"][]
+): Promise<Doc<"cards">[]> => {
+  const cards: Doc<"cards">[] = [];
+  for (const cardId of cardIds) {
+    const card = await ctx.db.get("cards", cardId);
+    if (card) {
+      cards.push(card);
+    }
+  }
+  return cards;
+};
 
 export const getCards = query({
   args: {
@@ -295,7 +325,9 @@ export const searchCardsPaginatedArgsValidator = v.object({
   hueFilters: v.optional(v.array(v.string())),
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
-  sort: v.optional(cardListSortValidator),
+  sort: v.optional(cardListSortWithShuffleValidator),
+  /** Shuffle's seed: the same seed gives the same order. Defaults to 0. */
+  shuffleSeed: v.optional(v.number()),
   /** Only cards in this folder (the folder view). */
   folderId: v.optional(v.id("folders")),
   /**
@@ -389,6 +421,64 @@ export const searchCardsPaginatedHandler = async (
     ? { gte: createdAtRange.start, lt: createdAtRange.end }
     : undefined;
 
+  // Shuffle: the library is walked by each card's random key from a point
+  // the seed picks; a bounded set of matches (a search, tag, folder, site
+  // or colors) is put in the seed's order instead (shared/search/shuffle.ts).
+  const shuffle = sort === "shuffle";
+  const seed = isShuffleSeed(args.shuffleSeed) ? args.shuffleSeed : 0;
+  const offsetPage = async <T>(
+    ordered: T[],
+    load: (items: T[]) => Promise<Doc<"cards">[]>
+  ) => {
+    const rawCursor = paginationOpts.cursor ?? "0";
+    const parsedCursor = Number(rawCursor);
+    const offset = clampSearchOffset(
+      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+    );
+    const pageSize = clampPageSize(paginationOpts.numItems);
+    const cards = await load(ordered.slice(offset, offset + pageSize));
+    const isDone = ordered.length <= offset + pageSize;
+    const pageWithUrls = await attachListUrls(ctx, cards);
+    return {
+      page: applyQuoteFormattingToList(pageWithUrls),
+      isDone,
+      continueCursor: isDone ? null : String(offset + pageSize),
+    };
+  };
+  const shuffleWalkPage = async (
+    walk: Omit<ShuffleWalkOptions, "seed" | "userId">,
+    keep?: (cards: Doc<"cards">[]) => Doc<"cards">[]
+  ) => {
+    // A cursor from another walk (an older format) starts over.
+    const position = decodeShuffleWalkCursor(seed, paginationOpts.cursor) ?? {
+      segment: 0,
+      page: null,
+    };
+    const filtered = Boolean(
+      keep || walk.favoritesOnly || walk.types?.length || walk.createdAt
+    );
+    const result = await pageShuffleWalk(
+      ctx,
+      { ...walk, seed, userId: user.teakUserId },
+      position,
+      {
+        numItems: keep
+          ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
+          : paginationOpts.numItems,
+        maximumRowsRead: filtered ? SHUFFLE_WALK_SCAN_LIMIT : undefined,
+      }
+    );
+    const cards = keep ? keep(result.cards) : result.cards;
+    const pageWithUrls = await attachListUrls(ctx, cards);
+    return {
+      page: applyQuoteFormattingToList(pageWithUrls),
+      isDone: result.next === null,
+      continueCursor: result.next
+        ? encodeShuffleWalkCursor(seed, result.next)
+        : null,
+    };
+  };
+
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
     // The bare quick commands list the whole library, so with a folder, a
@@ -404,6 +494,16 @@ export const searchCardsPaginatedHandler = async (
       quickCommand &&
       ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
     ) {
+      if (shuffle) {
+        return shuffleWalkPage({ favoritesOnly: true }, (cards) =>
+          applyCardLevelFilters(cards, {
+            types,
+            favoritesOnly: true,
+            createdAtRange,
+            visualFilters,
+          })
+        );
+      }
       const favorites = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
         favoritesOnly: true,
@@ -427,6 +527,16 @@ export const searchCardsPaginatedHandler = async (
       quickCommand &&
       ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
     ) {
+      if (shuffle) {
+        return shuffleWalkPage({ trash: true }, (cards) =>
+          applyCardLevelFilters(cards, {
+            types,
+            favoritesOnly,
+            createdAtRange,
+            visualFilters,
+          })
+        );
+      }
       const trashed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
         trash: true,
@@ -498,9 +608,9 @@ export const searchCardsPaginatedHandler = async (
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     const filteredResults = uniqueResults;
 
-    const sortedResults = filteredResults.sort((a, b) =>
-      compareCardsByCreatedAt(a, b, sort)
-    );
+    const sortedResults = shuffle
+      ? shuffleBySeed(filteredResults, seed, (card) => card._id)
+      : filteredResults.sort((a, b) => compareCardsByCreatedAt(a, b, sort));
     const page = sortedResults.slice(offset, offset + pageSize);
     const isDone = sortedResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
@@ -517,6 +627,42 @@ export const searchCardsPaginatedHandler = async (
   // colors or styles filter each batch here, so a batch can hold no match
   // while more remain; the grid then loads the next one.
   if (tag) {
+    // A card changes before its tag rows catch up, so check the card itself
+    // still has the tag and belongs in this view.
+    const inView = (card: Doc<"cards">) => {
+      if (showTrashOnly) {
+        return card.isDeleted === true;
+      }
+      if (card.isDeleted === true) {
+        return false;
+      }
+      return archived === "only"
+        ? card.isArchived === true
+        : card.isArchived !== true;
+    };
+    const keepTagMatches = (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters(
+        cards.filter((card) => matchesQualifiers(card) && inView(card)),
+        { types, favoritesOnly, createdAtRange, visualFilters }
+      );
+    if (shuffle) {
+      const rows = await buildTagCardListQuery(ctx, {
+        userId: user.teakUserId,
+        tag,
+        trash: showTrashOnly,
+        archived,
+        types,
+        favoritesOnly,
+        createdAt: createdAtBounds,
+      })
+        .order("desc")
+        .take(SHUFFLE_ROW_LIMIT);
+      const cardIds = Array.from(new Set(rows.map((row) => row.cardId)));
+      return offsetPage(
+        shuffleBySeed(cardIds, seed, (cardId) => cardId),
+        async (pageIds) => keepTagMatches(await loadCards(ctx, pageIds))
+      );
+    }
     const filtersCards =
       Boolean(folderId) ||
       visualFilters.hasVisualFilters ||
@@ -537,32 +683,12 @@ export const searchCardsPaginatedHandler = async (
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
           : paginationOpts.numItems,
       });
-    // A card changes before its tag rows catch up, so check the card itself
-    // still has the tag and belongs in this view.
-    const inView = (card: Doc<"cards">) => {
-      if (showTrashOnly) {
-        return card.isDeleted === true;
-      }
-      if (card.isDeleted === true) {
-        return false;
-      }
-      return archived === "only"
-        ? card.isArchived === true
-        : card.isArchived !== true;
-    };
-    const cards: Doc<"cards">[] = [];
-    for (const row of rows.page) {
-      const card = await ctx.db.get("cards", row.cardId);
-      if (card && matchesQualifiers(card) && inView(card)) {
-        cards.push(card);
-      }
-    }
-    const matches = applyCardLevelFilters(cards, {
-      types,
-      favoritesOnly,
-      createdAtRange,
-      visualFilters,
-    });
+    const matches = keepTagMatches(
+      await loadCards(
+        ctx,
+        rows.page.map((row) => row.cardId)
+      )
+    );
     const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
@@ -574,6 +700,32 @@ export const searchCardsPaginatedHandler = async (
   // indexes can't narrow to one folder, so page through the folder's own
   // rows (in date order) and filter each batch here. A batch can hold no
   // match while more remain; the grid then loads the next one.
+  // Shuffle of a folder: its newest rows in the seed's order, each page's
+  // cards checked against the view's filters.
+  if (folderId && shuffle) {
+    const rows = await buildFolderCardListQuery(ctx, {
+      folderId,
+      trash: showTrashOnly,
+      archived,
+      types,
+      createdAt: createdAtBounds,
+    })
+      .order("desc")
+      .take(SHUFFLE_ROW_LIMIT);
+    return offsetPage(
+      shuffleBySeed(
+        rows.map((row) => row.cardId),
+        seed,
+        (cardId) => cardId
+      ),
+      async (pageIds) =>
+        applyCardLevelFilters(
+          (await loadCards(ctx, pageIds)).filter(matchesQualifiers),
+          { types, favoritesOnly, createdAtRange, visualFilters }
+        )
+    );
+  }
+
   if (
     folderId &&
     (visualFilters.hasVisualFilters || favoritesOnly || resolved.hasCardFilters)
@@ -618,6 +770,40 @@ export const searchCardsPaginatedHandler = async (
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]
         : undefined;
+    const keepMatches = (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters(cards.filter(matchesQualifiers), {
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+      });
+    if (shuffle && host) {
+      // One site: its newest cards, in the seed's order.
+      const cards = await buildHostCardListQuery(ctx, {
+        userId: user.teakUserId,
+        host,
+        archived: archived === "only" ? "only" : "exclude",
+        createdAt: createdAtBounds,
+      })
+        .order("desc")
+        .take(SEARCH_PAGE_CANDIDATE_LIMIT);
+      return offsetPage(
+        shuffleBySeed(keepMatches(cards), seed, (card) => card._id),
+        async (page) => page
+      );
+    }
+    if (shuffle) {
+      return shuffleWalkPage(
+        {
+          trash: showTrashOnly,
+          archived,
+          favoritesOnly,
+          types,
+          createdAt: createdAtBounds,
+        },
+        keepMatches
+      );
+    }
     const driver = host
       ? buildHostCardListQuery(ctx, {
           userId: user.teakUserId,
@@ -658,6 +844,25 @@ export const searchCardsPaginatedHandler = async (
       ...rows,
       page: applyQuoteFormattingToList(pageWithUrls),
     };
+  }
+
+  if (visualFilters.hasVisualFilters && shuffle) {
+    // Colors and styles: their newest matches, in the seed's order.
+    const visualResults = await runVisualFacetQueries(ctx, {
+      userId: user.teakUserId,
+      showTrashOnly,
+      archived,
+      types,
+      favoritesOnly,
+      createdAtRange,
+      visualFilters,
+      limit: SEARCH_PAGE_CANDIDATE_LIMIT,
+      sort: "newest",
+    });
+    return offsetPage(
+      shuffleBySeed(visualResults, seed, (card) => card._id),
+      async (page) => page
+    );
   }
 
   if (visualFilters.hasVisualFilters) {
@@ -715,6 +920,16 @@ export const searchCardsPaginatedHandler = async (
       ...rows,
       page: applyQuoteFormattingToList(folderCardsWithUrls),
     };
+  }
+
+  if (shuffle) {
+    return shuffleWalkPage({
+      trash: showTrashOnly,
+      archived,
+      favoritesOnly,
+      types,
+      createdAt: createdAtBounds,
+    });
   }
 
   const cards = await buildCardListQuery(ctx, {

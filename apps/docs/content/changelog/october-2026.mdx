@@ -1,11 +1,18 @@
 ---
 title: "October 2026"
-description: Keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Shuffle your library, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
   category: Product updates
 ---
+
+## Shuffle your library
+
+- On the web, choose **Shuffle** from the sort button beside the search bar to see your cards in a random order and rediscover what you saved long ago. The order holds while you scroll, so no card repeats or goes missing.
+- **Reshuffle** (the dice beside the sort button) picks a new order, and Back returns to the previous one. The order is part of the address, so a reload or a shared link shows the same one.
+- Shuffle works in search, tags, folders, Favorites, Archive, and Trash too. See [Sort and share a search](/docs/features#sort-and-share-a-search).
+- **API, CLI, and MCP:** `GET /v1/cards?sort=shuffle&shuffleSeed=42` returns the same order for the same seed, `teak ls --sort shuffle --seed 42` does the same, and the MCP list and search tools take `sort: "shuffle"` with `shuffleSeed`. See the [API guide](/docs/api).
 
 ## Keyboard shortcuts on the web
 
