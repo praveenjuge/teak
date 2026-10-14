@@ -35,6 +35,10 @@ Read `packages/convex/AGENTS.md` before editing backend code.
 - Verify user-facing work in the real interface when practical. A passing build alone is not proof of the experience.
 - The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `.agents/testing.md`).
 
+## Pull requests
+
+Read `.agents/pull-requests.md` before opening a PR or posting on GitHub. It covers the PR template, what must never appear in a public PR, and how to attach screenshots and video.
+
 ## Documentation contract
 
 For user documentation or changelog changes, follow `apps/docs/AGENTS.md`.
