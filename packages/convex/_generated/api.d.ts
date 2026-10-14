@@ -14,6 +14,7 @@ import type * as accountDeletionBatch from "../accountDeletionBatch.js";
 import type * as accountDeletionData from "../accountDeletionData.js";
 import type * as accountDeletionJobs from "../accountDeletionJobs.js";
 import type * as admin from "../admin.js";
+import type * as adminStats from "../adminStats.js";
 import type * as ai_actions from "../ai/actions.js";
 import type * as ai_models from "../ai/models.js";
 import type * as ai_mutations from "../ai/mutations.js";
@@ -249,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   accountDeletionData: typeof accountDeletionData;
   accountDeletionJobs: typeof accountDeletionJobs;
   admin: typeof admin;
+  adminStats: typeof adminStats;
   "ai/actions": typeof ai_actions;
   "ai/models": typeof ai_models;
   "ai/mutations": typeof ai_mutations;
