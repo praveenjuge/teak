@@ -1,4 +1,4 @@
-import { Marked, type Token } from "marked";
+import { Marked, type Token, type Tokens } from "marked";
 
 // The rich editor keeps HTML typed into a note as text: `<b>` saves as
 // `&lt;b&gt;`. Its stand-in edits Markdown directly, so it escapes typed tags
@@ -49,20 +49,32 @@ function holdsCodeBlock(token: Token): boolean {
   return found;
 }
 
+/** A block with its tags escaped. One holding a code block keeps its text,
+ * except that a list's items are escaped one by one. */
+function escapeBlock(block: Token): string {
+  if (!holdsCodeBlock(block)) {
+    return escapeOutsideCodeSpans(block.raw);
+  }
+  if (block.type === "list") {
+    // The items are the list's text, less the blank lines that end it.
+    const { items } = block as Tokens.List;
+    const itemsRaw = items.map((item) => item.raw).join("");
+    if (block.raw.startsWith(itemsRaw)) {
+      return items.map(escapeBlock).join("") + block.raw.slice(itemsRaw.length);
+    }
+  }
+  return block.raw;
+}
+
 /** Markdown with its HTML tags escaped, outside code. */
 export function escapeTypedHtml(source: string): string {
   if (!source.includes("<")) {
     return source;
   }
-  // Top-level blocks, which together are the whole source. A fenced or
-  // indented code block, or a list or quote holding one, keeps its text.
+  // Top-level blocks, which together are the whole source.
   const blocks = lexer.lexer(source);
   if (blocks.map((block) => block.raw).join("") !== source) {
     return escapeOutsideCodeSpans(source);
   }
-  return blocks
-    .map((block) =>
-      holdsCodeBlock(block) ? block.raw : escapeOutsideCodeSpans(block.raw)
-    )
-    .join("");
+  return blocks.map(escapeBlock).join("");
 }
