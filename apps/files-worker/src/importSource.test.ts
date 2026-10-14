@@ -218,6 +218,24 @@ describe("worker import source", () => {
     );
     expect(rest.nextCursor).toBeNull();
   });
+  test("finds Omnivore highlights beside metadata wrapped in a folder", async () => {
+    const files = {
+      "omnivore-export/metadata_0_to_1.json": strToU8(
+        JSON.stringify([
+          {
+            slug: "wrapped",
+            title: "Wrapped",
+            url: "https://a.test/w",
+            savedAt: "2024-05-01T09:00:00.000Z",
+          },
+        ])
+      ),
+      "omnivore-export/highlights/wrapped.md": strToU8("> Wrapped highlight"),
+    };
+    const { bucket, params } = upload("omnivore", zipSync(files));
+    const page = await indexImportSource(bucket, params);
+    expect(page.items[0]?.card?.notes).toBe("> Wrapped highlight");
+  });
   test("an Omnivore ZIP without metadata files is not an Omnivore export", async () => {
     const { bucket, params } = upload(
       "omnivore",

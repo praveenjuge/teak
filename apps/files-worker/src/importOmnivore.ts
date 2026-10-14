@@ -37,6 +37,8 @@ export async function isZipSource(
 interface MetadataFile {
   end: number;
   entry: ZipCentralEntry;
+  /** The folder the metadata file sits in; its highlights sit beside it. */
+  prefix: string;
   start: number;
 }
 
@@ -63,7 +65,8 @@ async function inBatches<T, R>(
  * the items it holds, `metadata_<start>_to_<end>.json` (end exclusive), so a
  * page reads only the files it overlaps; when the names don't chain from 0
  * every file is read to place the items. Each item's
- * `highlights/<slug>.md` becomes its note.
+ * `highlights/<slug>.md`, beside its metadata file (the ZIP may wrap the
+ * export in a folder), becomes its note.
  */
 export async function indexOmnivoreZip(
   bucket: R2Bucket,
@@ -79,7 +82,12 @@ export async function indexOmnivoreZip(
   for (const entry of directory.entries) {
     const match = OMNIVORE_METADATA_PATTERN.exec(entry.name);
     if (match) {
-      files.push({ entry, start: Number(match[1]), end: Number(match[2]) });
+      files.push({
+        entry,
+        start: Number(match[1]),
+        end: Number(match[2]),
+        prefix: entry.name.slice(0, entry.name.lastIndexOf("/") + 1),
+      });
     }
   }
   if (files.length === 0) {
@@ -104,7 +112,8 @@ export async function indexOmnivoreZip(
   };
 
   let total: number;
-  let pageItems: Array<{ index: number; item: OmnivoreItem }> = [];
+  let pageItems: Array<{ index: number; item: OmnivoreItem; prefix: string }> =
+    [];
   const pageEnd = cursor + FILES_IMPORT_PAGE_ITEMS;
   if (chained) {
     total = files.at(-1)?.end ?? 0;
@@ -121,25 +130,32 @@ export async function indexOmnivoreZip(
         throw new Error("invalid_import_source");
       }
       list.forEach((item, offset) => {
-        pageItems.push({ index: file.start + offset, item });
+        pageItems.push({
+          index: file.start + offset,
+          item,
+          prefix: file.prefix,
+        });
       });
     });
   } else {
-    const all = (await inBatches(files, readFile)).flat();
+    const lists = await inBatches(files, readFile);
+    const all = files.flatMap((file, fileIndex) =>
+      (lists[fileIndex] ?? []).map((item) => ({ item, prefix: file.prefix }))
+    );
     total = all.length;
     if (total > MAX_ITEMS) {
       throw new Error("invalid_bookmark_count");
     }
-    pageItems = all.map((item, index) => ({ index, item }));
+    pageItems = all.map((entry, index) => ({ index, ...entry }));
   }
   pageItems = pageItems.filter(
     ({ index }) => index >= cursor && index < pageEnd
   );
 
-  const highlights = await inBatches(pageItems, async ({ item }) => {
+  const highlights = await inBatches(pageItems, async ({ item, prefix }) => {
     const entry =
       typeof item.slug === "string"
-        ? entries.get(omnivoreHighlightsPath(item.slug))
+        ? entries.get(`${prefix}${omnivoreHighlightsPath(item.slug)}`)
         : undefined;
     if (!entry || entry.uncompressedSize > HIGHLIGHTS_LIMIT) {
       return;

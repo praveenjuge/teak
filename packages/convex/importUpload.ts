@@ -11,6 +11,7 @@ import {
   type ImportMode,
   importContentType,
   importFileMatches,
+  importMaxBytes,
 } from "./shared/importSources";
 import {
   buildSignedMultipartPartUrl,
@@ -57,11 +58,12 @@ function validateSource(mode: ImportMode, fileName: string, fileSize: number) {
       message: `Choose a ${source.extensions.join(" or ")} file from ${source.title}`,
     });
   }
-  if (fileSize > source.maxBytes) {
+  const maxBytes = importMaxBytes(mode, fileName);
+  if (fileSize > maxBytes) {
     const limit =
-      source.maxBytes >= 1024 ** 3
-        ? `${source.maxBytes / 1024 ** 3} GiB`
-        : `${source.maxBytes / 1024 ** 2} MiB`;
+      maxBytes >= 1024 ** 3
+        ? `${maxBytes / 1024 ** 3} GiB`
+        : `${maxBytes / 1024 ** 2} MiB`;
     throw new ConvexError({
       code: "FILE_TOO_LARGE",
       message: `${source.title} files are limited to ${limit}`,

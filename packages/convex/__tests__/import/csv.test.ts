@@ -58,6 +58,9 @@ describe("shared CSV reader", () => {
     expect(() => parseCsvRows("a\n".repeat(10_002))).toThrow(
       "exceeds 10,000 rows"
     );
+    expect(
+      parseCsvRows("a\n".repeat(10_002), { maxRows: 20_000 })
+    ).toHaveLength(10_002);
   });
 });
 
@@ -78,6 +81,20 @@ describe("source item helpers", () => {
       "Work / Design System"
     );
     expect(folderPath(["", " "])).toBeUndefined();
+  });
+
+  test("folderPath keeps the deepest folders of a path too long for one name", () => {
+    const name = folderPath([
+      "a".repeat(200),
+      "b".repeat(100),
+      "Fonts",
+      "Serif",
+    ]);
+    expect(name).toBe(`… / ${"b".repeat(100)} / Fonts / Serif`);
+    expect(folderPath(["x".repeat(400)])).toBe("x".repeat(300));
+    expect(Array.from(folderPath(["a", "😀".repeat(400)]) ?? "")).toHaveLength(
+      300
+    );
   });
 
   test("parseSourceDate reads seconds, milliseconds and ISO-like dates", () => {

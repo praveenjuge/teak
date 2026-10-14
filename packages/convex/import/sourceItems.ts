@@ -1,4 +1,7 @@
-import { MAX_FOLDERS_PER_CARD } from "../shared/folders";
+import {
+  MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_CARD,
+} from "../shared/folders";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { parseImportedTimestamp } from "./validate";
@@ -38,7 +41,13 @@ export function cleanTags(tags: Iterable<string>): string[] | undefined {
   return seen.size ? [...seen] : undefined;
 }
 
-/** A nested folder as one Teak folder name: "Work / Design / Fonts". */
+const characters = (text: string) => Array.from(text).length;
+
+/**
+ * A nested folder as one Teak folder name: "Work / Design / Fonts". A path
+ * longer than a folder name allows keeps its deepest folders behind
+ * "… / ", and a single over-long name is cut, so the card keeps a folder.
+ */
 export function folderPath(segments: Iterable<string>): string | undefined {
   const parts: string[] = [];
   for (const segment of segments) {
@@ -47,7 +56,15 @@ export function folderPath(segments: Iterable<string>): string | undefined {
       parts.push(part);
     }
   }
-  return parts.length ? parts.join(" / ") : undefined;
+  if (parts.length === 0) {
+    return;
+  }
+  let name = parts.join(" / ");
+  while (characters(name) > MAX_FOLDER_NAME_LENGTH && parts.length > 1) {
+    parts.shift();
+    name = `… / ${parts.join(" / ")}`;
+  }
+  return Array.from(name).slice(0, MAX_FOLDER_NAME_LENGTH).join("").trim();
 }
 
 /**

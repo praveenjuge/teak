@@ -129,9 +129,9 @@ export async function indexImportSource(
   try {
     parsed = parseImportSource(mode, text);
   } catch (error) {
-    // Parsers stop at 10,000 items; Convex words that, and anything else as
-    // "This doesn't look like a <source> export".
-    if (error instanceof Error && error.message.includes("exceeds 10,000")) {
+    // Parsers stop at 10,000 items (CSV readers at a row count); Convex words
+    // that, and anything else as "This doesn't look like a <source> export".
+    if (error instanceof Error && /exceeds [\d,]+ /.test(error.message)) {
       throw new Error("invalid_bookmark_count", { cause: error });
     }
     throw new Error("invalid_import_source", { cause: error });

@@ -9,6 +9,7 @@ import {
   IMPORT_SOURCES,
   type ImportMode,
   importFileMatches,
+  importMaxBytes,
 } from "@teak/convex/shared/importSources";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useAction, useMutation } from "convex/react";
@@ -74,10 +75,11 @@ function isActive(status: ImportJob["status"] | undefined) {
 }
 
 function validateFile(file: File, mode: ImportMode): string | null {
-  const { extensions, maxBytes, title } = IMPORT_SOURCES[mode];
+  const { extensions, title } = IMPORT_SOURCES[mode];
   if (!importFileMatches(mode, file.name)) {
     return `Choose a ${extensions.join(" or ")} file from ${title}.`;
   }
+  const maxBytes = importMaxBytes(mode, file.name);
   if (file.size > maxBytes) {
     return `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`;
   }

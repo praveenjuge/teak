@@ -3,6 +3,10 @@ import { readCsvTable } from "./csv";
 import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
 
 const SOURCE = "Readwise Reader";
+const MAX_ITEMS = 10_000;
+// Feed items are skipped, so a library can hold far more rows than it
+// imports; the 10,000 limit applies to what's kept.
+const MAX_ROWS = 100_000;
 
 /**
  * Reader writes Document tags as a Python-style list, `['design', "it's"]`.
@@ -21,11 +25,11 @@ export function parseReaderTags(raw: string): string[] {
 /**
  * Readwise Reader's library CSV: `Title, URL, ID, Document tags, Saved date,
  * Reading progress, Location, Seen`. Feed items (RSS Reader added on its
- * own) are skipped; Location "archive" becomes archive state and
- * "shortlist" a favorite.
+ * own) are skipped; Location "archive" becomes archive state, and a
+ * "shortlist" Location or tag (Reader's Shortlist workflow) a favorite.
  */
 export function parseReadwiseCsv(csv: string): ParsedBookmarkItem[] {
-  const table = readCsvTable(csv);
+  const table = readCsvTable(csv, { maxRows: MAX_ROWS });
   if (!(table.has("url") && table.has("location"))) {
     notAnExport(SOURCE);
   }
@@ -35,14 +39,20 @@ export function parseReadwiseCsv(csv: string): ParsedBookmarkItem[] {
     if (location === "feed") {
       continue;
     }
+    if (output.length === MAX_ITEMS) {
+      throw new Error("Readwise Reader export exceeds 10,000 items");
+    }
+    const tags = parseReaderTags(table.cell(row, "document tags"));
     output.push(
       linkItem(SOURCE, {
         url: table.cell(row, "url"),
         title: table.cell(row, "title"),
-        tags: parseReaderTags(table.cell(row, "document tags")),
+        tags,
         createdAt: parseSourceDate(table.cell(row, "saved date")),
         isArchived: location === "archive",
-        isFavorited: location === "shortlist",
+        isFavorited:
+          location === "shortlist" ||
+          tags.some((tag) => tag.trim().toLowerCase() === "shortlist"),
       })
     );
   }

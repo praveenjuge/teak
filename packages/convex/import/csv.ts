@@ -3,13 +3,23 @@
  * Instapaper, Readwise Reader, mymind).
  */
 
+const MAX_CSV_ROWS = 10_000;
+
+export interface CsvLimits {
+  /** Data rows to read before refusing the file; 10,000 by default. */
+  maxRows?: number;
+}
+
 /**
  * Minimal RFC-4180 CSV parser. Handles quoted fields, embedded commas and
  * newlines, `""` escaping, and CRLF/LF/CR line endings. Returns rows of raw
  * (untrimmed) cell strings. Dependency-free, matching the repo's hand-rolled
  * parsing style in `bookmarks.ts`. Shared by every CSV import source.
  */
-export function parseCsvRows(input: string): string[][] {
+export function parseCsvRows(
+  input: string,
+  { maxRows = MAX_CSV_ROWS }: CsvLimits = {}
+): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let pieces: string[] = [];
@@ -43,8 +53,8 @@ export function parseCsvRows(input: string): string[][] {
   const endRow = () => {
     endField();
     if (rows.length === 0 || !isEmptyRow(row)) {
-      if (rows.length > 10_000) {
-        throw new Error("CSV exceeds 10,000 rows");
+      if (rows.length > maxRows) {
+        throw new Error(`CSV exceeds ${maxRows.toLocaleString("en-US")} rows`);
       }
       rows.push(row);
     }
@@ -100,9 +110,9 @@ export interface CsvTable {
  * columns by header name, ignoring case, so extra or reordered columns are
  * fine. Throws when the file has no header row.
  */
-export function readCsvTable(input: string): CsvTable {
+export function readCsvTable(input: string, limits?: CsvLimits): CsvTable {
   const text = input.charCodeAt(0) === 0xfe_ff ? input.slice(1) : input;
-  const [header, ...rows] = parseCsvRows(text);
+  const [header, ...rows] = parseCsvRows(text, limits);
   if (!header || isEmptyRow(header)) {
     throw new Error("CSV is empty");
   }

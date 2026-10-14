@@ -12,6 +12,7 @@ import { validateImportCard } from "../../import/validate";
 import {
   describeImportFailure,
   IMPORT_MODES,
+  importMaxBytes,
 } from "../../shared/importSources";
 
 // Fixtures follow each service's real export: the column names, list
@@ -102,6 +103,7 @@ describe("Readwise Reader", () => {
       "Archived essay",
       "Shortlisted",
       "Later",
+      "Tagged for shortlist",
     ]);
     expect(items[0]?.card).toMatchObject({
       isArchived: true,
@@ -110,7 +112,29 @@ describe("Readwise Reader", () => {
     });
     expect(items[1]?.card?.isFavorited).toBe(true);
     expect(items[2]?.card?.tags).toEqual(["later"]);
+    expect(items[2]?.card?.isFavorited).toBeUndefined();
+    // Reader's Shortlist workflow tags documents instead of moving them.
+    expect(items[3]?.card?.isFavorited).toBe(true);
     expectValidCards(items);
+  });
+
+  test("feed rows don't count toward the 10,000-item limit", () => {
+    const header = "Title,URL,Location";
+    const feed = Array.from(
+      { length: 10_500 },
+      (_, i) => `F${i},https://a.test/f${i},feed`
+    );
+    const items = parseReadwiseCsv(
+      [header, ...feed, "Kept,https://a.test/kept,later"].join("\n")
+    );
+    expect(items.map((item) => item.card?.content)).toEqual(["Kept"]);
+    const saved = Array.from(
+      { length: 10_001 },
+      (_, i) => `S${i},https://a.test/s${i},new`
+    );
+    expect(() => parseReadwiseCsv([header, ...saved].join("\n"))).toThrow(
+      "exceeds 10,000 items"
+    );
   });
 
   test("reads quoted tags with escapes", () => {
@@ -256,6 +280,16 @@ describe("parseImportSource", () => {
         }
       }
     }
+  });
+});
+
+describe("importMaxBytes", () => {
+  test("a ZIP gets the source's limit; files read whole stop at 20 MiB", () => {
+    expect(importMaxBytes("omnivore", "Export.ZIP")).toBe(5 * 1024 ** 3);
+    expect(importMaxBytes("omnivore", "metadata_0_to_20.json")).toBe(
+      20 * 1024 ** 2
+    );
+    expect(importMaxBytes("pocket", "part_000000.csv")).toBe(20 * 1024 ** 2);
   });
 });
 
