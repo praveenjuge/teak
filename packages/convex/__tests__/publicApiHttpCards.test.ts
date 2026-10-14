@@ -966,6 +966,23 @@ describe("publicApiHttp card endpoints", () => {
       });
     });
 
+    test("a fallback prefix that holds all of a short document's text is not truncated", async () => {
+      await withStoredText("tampered text", async (key) => {
+        const response = await respond({
+          cardId: "card_1",
+          kind: "document",
+          text: fullText,
+          sourceKey: key,
+          charCount: fullText.length,
+          truncated: false,
+        });
+        expect(await response.json()).toMatchObject({
+          text: fullText,
+          truncated: false,
+        });
+      });
+    });
+
     test("a transcript or written content comes from the card itself", async () => {
       const response = await respond({
         cardId: "card_1",

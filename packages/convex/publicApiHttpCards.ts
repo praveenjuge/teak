@@ -436,7 +436,8 @@ const ensureCardExistsForUser = (
  * A card's full stored text: the document text Teak extracted from its file
  * (read from R2), else its transcript, else a text or quote card's content.
  * If the stored document text can't be read, its searchable prefix is
- * returned and marked truncated rather than failing the request.
+ * returned rather than failing the request, marked truncated when it is
+ * shorter than the stored text.
  */
 const cardContentResponse = async (
   ctx: ActionCtx,
@@ -459,7 +460,8 @@ const cardContentResponse = async (
         cardId,
         message: error instanceof Error ? error.message : String(error),
       });
-      truncated = true;
+      // A short document's prefix is all of its text.
+      truncated ||= Array.from(text).length < source.charCount;
     }
   }
   return json(200, {
