@@ -1,369 +1,69 @@
-// @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { CARD_USAGE_TOTAL_SHARDS } from "../../card/cardUsage";
+import { describe, expect, test } from "bun:test";
+import {
+  isOnboardingCard,
+  LEGACY_ONBOARDING_CARD_CONTENTS,
+  ONBOARDING_CARDS,
+  type OnboardingCardDef,
+} from "../../card/defaultCards";
+import { validateTextCardContent } from "../../card/markdown";
+import { ONBOARDING_FILES } from "../../card/onboarding/files";
+import { validateFileFormat } from "../../shared/fileFormats";
 
-describe("card/defaultCards.ts", () => {
-  let createDefaultCardsForUser: any;
-  let DEFAULT_CARDS: any;
-
-  const addUsageRecord = (ctx: any) => {
-    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
-    const usageRecord = {
-      _id: "usage_1",
-      activeCardCount: 0,
-      isCountExact: true,
-      isSaturated: false,
-      updatedAt: 1,
-      userId: "u1",
-    };
-    const usageShards = new Map<number, Record<string, any>>();
-    const query = ctx.db.query.bind(ctx.db);
-    ctx.db.query = mock((table: string) => {
-      if (table === "userCardUsageShards") {
-        return {
-          withIndex: (_name: string, callback: (builder: any) => void) => {
-            let shard: number | undefined;
-            const builder = {
-              eq: (field: string, value: unknown) => {
-                if (field === "shard") {
-                  shard = value as number;
-                }
-                return builder;
-              },
-            };
-            callback(builder);
-            return {
-              collect: mock().mockImplementation(async () => [
-                ...usageShards.values(),
-              ]),
-              take: mock().mockImplementation(async () => [
-                ...usageShards.values(),
-              ]),
-              unique: mock().mockImplementation(async () =>
-                shard === undefined ? null : (usageShards.get(shard) ?? null)
-              ),
-            };
-          },
-        };
-      }
-      if (table !== "userCardUsage") {
-        return query(table);
-      }
-      return {
-        withIndex: () => ({
-          unique: mock().mockImplementation(async () => usageRecord),
-        }),
-      };
-    });
-    const insert = ctx.db.insert.bind(ctx.db);
-    ctx.db.insert = mock(async (table: string, value: Record<string, any>) => {
-      if (table === "userCardUsageShards") {
-        usageShards.set(value.shard, {
-          ...value,
-          _id: `usage_shard_${value.shard}`,
-        });
-      }
-      return await insert(table, value);
-    });
-    const patch = ctx.db.patch?.bind(ctx.db);
-    ctx.db.patch = mock(
-      (table: string, id: string, value: Record<string, unknown>) => {
-        if (table === "userCardUsage" && id === usageRecord._id) {
-          Object.assign(usageRecord, value);
-        }
-        return patch?.(table, id, value);
-      }
+describe("getting-started cards", () => {
+  test("cover every card type once", () => {
+    expect(ONBOARDING_CARDS.map((card) => card.type).sort()).toEqual(
+      [
+        "audio",
+        "document",
+        "image",
+        "link",
+        "palette",
+        "quote",
+        "text",
+        "video",
+      ].sort()
     );
-  };
-
-  beforeEach(async () => {
-    const module = await import("../../card/defaultCards");
-    const registered = module.createDefaultCardsForUser;
-    const handler = (registered as any).handler ?? registered;
-    createDefaultCardsForUser = {
-      handler: (ctx: any, args: any) => {
-        addUsageRecord(ctx);
-        return handler(ctx, args);
-      },
-    };
-    DEFAULT_CARDS = module.DEFAULT_CARDS;
-  });
-
-  test("exports DEFAULT_CARDS array", () => {
-    expect(DEFAULT_CARDS).toBeDefined();
-    expect(Array.isArray(DEFAULT_CARDS)).toBe(true);
-    expect(DEFAULT_CARDS.length).toBe(3);
-  });
-
-  test("DEFAULT_CARDS contains expected card types", () => {
-    const types = DEFAULT_CARDS.map((c: any) => c.type);
-    expect(types).toContain("text");
-    expect(types).toContain("quote");
-    expect(types).toContain("palette");
-  });
-
-  test("DEFAULT_CARDS welcome card has expected properties", () => {
-    const welcomeCard = DEFAULT_CARDS.find((c: any) => c.type === "text");
-    expect(welcomeCard).toBeDefined();
-    expect(welcomeCard.content).toContain("Welcome to Teak");
-    expect(welcomeCard.isFavorited).toBe(true);
-    expect(welcomeCard.aiTags).toContain("welcome");
-    expect(welcomeCard.aiSummary).toBeDefined();
-  });
-
-  test("DEFAULT_CARDS quote card has expected properties", () => {
-    const quoteCard = DEFAULT_CARDS.find((c: any) => c.type === "quote");
-    expect(quoteCard).toBeDefined();
-    expect(quoteCard.content).toContain("predict the future");
-    expect(quoteCard.notes).toContain("Alan Kay");
-    expect(quoteCard.aiTags).toContain("quote");
-    expect(quoteCard.isFavorited).toBe(false);
-  });
-
-  test("DEFAULT_CARDS palette card has colors", () => {
-    const paletteCard = DEFAULT_CARDS.find((c: any) => c.type === "palette");
-    expect(paletteCard).toBeDefined();
-    expect(paletteCard.colors).toBeDefined();
-    expect(Array.isArray(paletteCard.colors)).toBe(true);
-    expect(paletteCard.colors.length).toBe(5);
-    expect(paletteCard.colors[0]).toHaveProperty("hex");
-    expect(paletteCard.colors[0]).toHaveProperty("name");
-  });
-
-  test("returns cards_exist when user already has cards", async () => {
-    const ctx = {
-      db: {
-        get: mock().mockResolvedValue(null),
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            first: mock().mockResolvedValue({ _id: "existing" }),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock(),
-      },
-    } as any;
-
-    const handler =
-      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
-    const result = await handler(ctx, { userId: "u1" });
-
-    expect(result).toEqual({ created: false, reason: "cards_exist" });
-    expect(
-      ctx.db.insert.mock.calls.filter(
-        ([table]: [string]) => table === "userCardUsageShards"
-      )
-    ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
-  });
-
-  test("creates default cards for new user", async () => {
-    const cardsById = new Map<string, any>();
-    let nextCardId = 0;
-    const ctx = {
-      db: {
-        get: mock().mockImplementation(
-          async (_table: string, id: string) => cardsById.get(id) ?? null
-        ),
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            first: mock().mockResolvedValue(null),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock().mockImplementation((table: string, data: any) => {
-          if (table === "cards") {
-            const id = `card_${++nextCardId}`;
-            cardsById.set(id, { ...data, _id: id });
-            return Promise.resolve(id);
-          }
-          return Promise.resolve(`${table}_${nextCardId}`);
-        }),
-      },
-      scheduler: { runAfter: mock() },
-    } as any;
-
-    const handler =
-      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
-    const result = await handler(ctx, { userId: "u1" });
-
-    const insertTables = ctx.db.insert.mock.calls.map(
-      ([table]: [string]) => table
+    expect(new Set(ONBOARDING_CARDS.map((card) => card.onboarding)).size).toBe(
+      ONBOARDING_CARDS.length
     );
-    expect(
-      insertTables.filter((table: string) => table === "cards")
-    ).toHaveLength(3);
-    expect(
-      insertTables.filter((table: string) => table === "userCardUsageShards")
-    ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
-    expect(ctx.db.insert).toHaveBeenCalledWith(
-      "userCardUsageShards",
-      expect.objectContaining({ userId: "u1", shard: 0 })
-    );
-    const searchDocInserts = ctx.db.insert.mock.calls
-      .filter(([table]: [string]) => table === "cardSearchDocuments")
-      .map(([, doc]: [string, any]) => doc);
-    expect(searchDocInserts).toHaveLength(3);
-    for (const defaultCard of DEFAULT_CARDS) {
-      expect(searchDocInserts).toContainEqual(
-        expect.objectContaining({
-          userId: "u1",
-          type: defaultCard.type,
-          searchableText: expect.stringContaining(defaultCard.content),
-        })
-      );
+  });
+
+  // A file card whose bytes are missing, or whose format uploads would
+  // refuse, never reaches a new account.
+  test.each(
+    ONBOARDING_CARDS.filter((card) => card.file).map(
+      (card): [string, OnboardingCardDef] => [card.onboarding, card]
+    )
+  )(
+    "the %s card's file is embedded and accepted as its card type",
+    (_: string, card: OnboardingCardDef) => {
+      const file = card.file!;
+      expect(ONBOARDING_FILES[file.source]?.length).toBeGreaterThan(1000);
+      expect(
+        validateFileFormat({ fileName: file.name, mimeType: file.mimeType })
+          .cardType
+      ).toBe(card.type);
     }
-    expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(3);
-    expect(result).toEqual({ created: true, count: 3 });
+  );
+
+  test("the welcome card is valid text card content", () => {
+    const welcome = ONBOARDING_CARDS.find((card) => card.type === "text")!;
+    expect(validateTextCardContent(welcome.content)).toBe(welcome.content);
   });
+});
 
-  test("creates cards with correct structure", async () => {
-    const cardsById = new Map<string, any>();
-    const _nextCardId = 0;
-    const insertedCards: any[] = [];
-    const ctx = {
-      db: {
-        get: mock().mockImplementation(
-          async (_table: string, id: string) => cardsById.get(id) ?? null
-        ),
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            first: mock().mockResolvedValue(null),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock().mockImplementation((table: string, data: any) => {
-          if (table === "cards") {
-            const id = `id_${insertedCards.length + 1}`;
-            insertedCards.push(data);
-            cardsById.set(id, { ...data, _id: id });
-            return id;
-          }
-          return `${table}_${insertedCards.length}`;
-        }),
-      },
-    } as any;
-
-    const handler =
-      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
-    await handler(ctx, { userId: "u1" });
-
-    expect(insertedCards).toHaveLength(3);
-
-    // Check welcome card
-    const welcomeCard = insertedCards[0];
-    expect(welcomeCard.userId).toBe("u1");
-    expect(welcomeCard.type).toBe("text");
-    expect(welcomeCard.content).toContain("Welcome");
-    expect(welcomeCard.isFavorited).toBe(true);
-    expect(welcomeCard.aiTags).toEqual([
-      "welcome",
-      "getting-started",
-      "onboarding",
-      "tutorial",
-    ]);
-    expect(welcomeCard.metadataStatus).toBe("completed");
-    expect(welcomeCard.processingStatus).toBeDefined();
-
-    // Check quote card
-    const quoteCard = insertedCards[1];
-    expect(quoteCard.userId).toBe("u1");
-    expect(quoteCard.type).toBe("quote");
-    expect(quoteCard.content).toContain("predict the future");
-    expect(quoteCard.notes).toContain("Alan Kay");
-    expect(quoteCard.isFavorited).toBe(false);
-    expect(quoteCard.aiTags).toContain("quote");
-
-    // Check palette card
-    const paletteCard = insertedCards[2];
-    expect(paletteCard.userId).toBe("u1");
-    expect(paletteCard.type).toBe("palette");
-    expect(paletteCard.colors).toHaveLength(5);
-  });
-
-  test("creates cards with incremental timestamps", async () => {
-    const cardsById = new Map<string, any>();
-    const _nextCardId = 0;
-    const insertedCards: any[] = [];
-    const baseTimestamp = 1_700_000_000_000;
-
-    const ctx = {
-      db: {
-        get: mock().mockImplementation(
-          async (_table: string, id: string) => cardsById.get(id) ?? null
-        ),
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            first: mock().mockResolvedValue(null),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock().mockImplementation((table: string, data: any) => {
-          if (table === "cards") {
-            const id = `id_${insertedCards.length + 1}`;
-            insertedCards.push(data);
-            cardsById.set(id, { ...data, _id: id });
-            return id;
-          }
-          return `${table}_${insertedCards.length}`;
-        }),
-      },
-    } as any;
-
-    // Mock Date.now() to return consistent values
-    const originalDateNow = Date.now;
-    let callCount = 0;
-    Date.now = mock(() => baseTimestamp + callCount++ * 500);
-
-    const handler =
-      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
-    await handler(ctx, { userId: "u1" });
-
-    // Each card should have a timestamp 1 second apart (1000ms)
-    expect(insertedCards[0].createdAt).toBe(insertedCards[0].updatedAt);
-    expect(insertedCards[1].createdAt).toBe(insertedCards[1].updatedAt);
-
-    Date.now = originalDateNow;
-  });
-
-  test("creates palette cards with proper color structure", async () => {
-    const cardsById = new Map<string, any>();
-    const _nextCardId = 0;
-    const insertedCards: any[] = [];
-
-    const ctx = {
-      db: {
-        get: mock().mockImplementation(
-          async (_table: string, id: string) => cardsById.get(id) ?? null
-        ),
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            first: mock().mockResolvedValue(null),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock().mockImplementation((table: string, data: any) => {
-          if (table === "cards") {
-            const id = `id_${insertedCards.length + 1}`;
-            insertedCards.push(data);
-            cardsById.set(id, { ...data, _id: id });
-            return id;
-          }
-          return `${table}_${insertedCards.length}`;
-        }),
-      },
-    } as any;
-
-    const handler =
-      (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
-    await handler(ctx, { userId: "u1" });
-
-    const paletteCard = insertedCards.find((c: any) => c.type === "palette");
-    expect(paletteCard.colors).toEqual([
-      { hex: "#FF6B6B", name: "Coral Red" },
-      { hex: "#FFA06B", name: "Sunset Orange" },
-      { hex: "#FFD93D", name: "Golden Yellow" },
-      { hex: "#6BCB77", name: "Fresh Green" },
-      { hex: "#4D96FF", name: "Sky Blue" },
-    ]);
+describe("isOnboardingCard", () => {
+  type Case = [string, { content: string; onboarding?: string }, boolean];
+  const cases: Case[] = [
+    ["a new getting-started card", { content: "", onboarding: "image" }, true],
+    [
+      "a card from the first onboarding set",
+      { content: LEGACY_ONBOARDING_CARD_CONTENTS[0]! },
+      true,
+    ],
+    ["a card someone saved", { content: "Sunset palette ideas" }, false],
+  ];
+  test.each(cases)("%s", (_: string, card: Case[1], expected: boolean) => {
+    expect(isOnboardingCard(card)).toBe(expected);
   });
 });

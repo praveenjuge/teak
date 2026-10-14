@@ -501,6 +501,9 @@ export const cardValidator = v.object({
   colorHues: v.optional(v.array(v.string())),
   // Pipeline processing status per stage
   processingStatus: processingStatusValidator,
+  // The getting-started card this is (card/defaultCards.ts). Absent on cards
+  // people save, and on the first onboarding cards, which predate it.
+  onboarding: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });

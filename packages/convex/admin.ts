@@ -9,7 +9,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
+import { isOnboardingCard } from "./card/defaultCards";
 import type {
   ProcessingStageKey,
   ProcessingStatus,
@@ -50,12 +50,6 @@ const MAX_MISSING_CARDS = 50;
 // For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
-
-// Helper to check if a card is an onboarding card by its content
-const isOnboardingCard = (card: { content: string }): boolean =>
-  ONBOARDING_CARD_CONTENTS.includes(
-    card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
-  );
 
 type AdminCtx = QueryCtx | ActionCtx;
 
