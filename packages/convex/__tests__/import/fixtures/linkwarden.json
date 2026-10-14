@@ -12,8 +12,18 @@
           "name": "Linkwarden docs",
           "url": "https://example.com/lw",
           "description": "Self-hosted bookmarks",
-          "tags": [{ "id": 1, "name": "tools" }],
-          "createdAt": "2024-02-01T10:00:00.000Z"
+          "tags": [
+            {
+              "id": 1,
+              "name": "tools"
+            }
+          ],
+          "createdAt": "2024-02-01T10:00:00.000Z",
+          "pinnedBy": [
+            {
+              "id": 1
+            }
+          ]
         }
       ]
     },
@@ -42,10 +52,25 @@
           "name": "Looped",
           "url": "https://example.com/loop",
           "tags": [],
-          "createdAt": "2024-02-03T10:00:00.000Z"
+          "createdAt": "2024-02-03T10:00:00.000Z",
+          "pinnedBy": [
+            {
+              "id": 2
+            }
+          ]
         }
       ]
     },
-    { "id": 13, "name": "Loop B", "parentId": 12, "links": [] }
+    {
+      "id": 13,
+      "name": "Loop B",
+      "parentId": 12,
+      "links": []
+    }
+  ],
+  "pinnedLinks": [
+    {
+      "id": 101
+    }
   ]
 }

@@ -195,6 +195,17 @@ describe("Linkwarden", () => {
     expectValidCards(items);
   });
 
+  test("links the exporting user pinned become favorites", () => {
+    const items = parseLinkwardenJson(fixture("linkwarden.json"));
+    // Pinned through pinnedBy, through the user's pinnedLinks, and only by
+    // someone else.
+    expect(items.map((item) => item.card?.isFavorited)).toEqual([
+      true,
+      true,
+      undefined,
+    ]);
+  });
+
   test("JSON that isn't a Linkwarden backup", () => {
     expect(() => parseLinkwardenJson("{")).toThrow("Linkwarden");
     expect(() => parseLinkwardenJson('{"links":[]}')).toThrow("Linkwarden");

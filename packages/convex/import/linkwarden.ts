@@ -19,7 +19,9 @@ interface LinkwardenCollection {
 interface LinkwardenLink {
   createdAt?: unknown;
   description?: unknown;
+  id?: unknown;
   name?: unknown;
+  pinnedBy?: unknown;
   tags?: unknown;
   url?: unknown;
 }
@@ -27,11 +29,21 @@ interface LinkwardenLink {
 const text = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
+/** The `id` of each `{ id }` in a list, for pin lookups. */
+const ids = (value: unknown): Set<unknown> =>
+  new Set(
+    Array.isArray(value)
+      ? value.map((entry: { id?: unknown } | null) => entry?.id)
+      : []
+  );
+
 /**
  * Linkwarden's JSON backup: `{ collections: [{ id, name, parentId, links:
  * [{ name, url, description, tags: [{ name }], createdAt }] }] }`. Each
  * collection becomes a Teak folder, nested collections flattened to
- * "Parent / Child"; a link's description becomes its note.
+ * "Parent / Child"; a link's description becomes its note. The backup is
+ * the exporting user's record, so a link they pinned (in their
+ * `pinnedLinks`, or with them in its `pinnedBy`) becomes a favorite.
  */
 export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
   let parsed: unknown;
@@ -44,6 +56,11 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
   if (!Array.isArray(collections)) {
     notAnExport(SOURCE);
   }
+  const user = parsed as { id?: unknown; pinnedLinks?: unknown };
+  const pinnedLinks = ids(user.pinnedLinks);
+  const isPinned = (link: LinkwardenLink | null) =>
+    (link?.id !== undefined && pinnedLinks.has(link.id)) ||
+    (user.id !== undefined && ids(link?.pinnedBy).has(user.id));
   const byId = new Map<unknown, LinkwardenCollection>();
   for (const collection of collections as LinkwardenCollection[]) {
     if (collection && typeof collection === "object") {
@@ -88,6 +105,7 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
           tags,
           folders: folder ? [folder] : undefined,
           createdAt: parseSourceDate(text(link?.createdAt)),
+          isFavorited: isPinned(link),
         })
       );
     }
