@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const { act } = await import("react");
+const { act, useState } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { MarkdownTextEditor } = await import("../MarkdownTextEditor");
 const { focusNewNoteComposer } = await import("../../../lib/keyboardShortcuts");
@@ -15,7 +15,8 @@ const { focusNewNoteComposer } = await import("../../../lib/keyboardShortcuts");
 // textarea that stands in for it.
 // Failure modes: a note typed while the editor loads is lost, the stand-in
 // accepts a note over the size limit, its save shortcut does nothing, and
-// `N` finds no composer to focus.
+// `N` finds no composer to focus, and HTML typed into a note saves as markup
+// here but as text in the rich editor.
 
 let root: Root | undefined;
 
@@ -68,6 +69,41 @@ describe("the editor while it loads", () => {
     expect(textarea.getAttribute("aria-label")).toBe("Markdown content");
     type(textarea, "Draft and more");
     expect(onChange).toHaveBeenCalledWith("Draft and more");
+  });
+
+  test("saves typed HTML as text, as the rich editor does", () => {
+    const saved: string[] = [];
+    function Composer() {
+      const [note, setNote] = useState("");
+      return (
+        <MarkdownTextEditor
+          onChange={(content) => {
+            saved.push(content);
+            setNote(content);
+          }}
+          value={note}
+        />
+      );
+    }
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(<Composer />));
+    const textarea = container.querySelector("textarea");
+    if (!textarea) {
+      throw new Error("No stand-in textarea");
+    }
+    type(textarea, 'Hi <script>alert("x")</script> in `<b>`');
+    expect(saved.at(-1)).toBe(
+      'Hi &lt;script&gt;alert("x")&lt;/script&gt; in `<b>`'
+    );
+    expect(textarea.value).toBe('Hi <script>alert("x")</script> in `<b>`');
+  });
+
+  test("leaves the HTML a note already holds as it is", () => {
+    const { onChange, textarea } = renderEditor({ value: "<b>Draft</b>" });
+    type(textarea, "<b>Draft</b> <i>more</i>");
+    expect(onChange).toHaveBeenCalledWith("<b>Draft</b> <i>more</i>");
   });
 
   test("refuses a note over 512 KiB", () => {

@@ -17,11 +17,12 @@ const { AppShellSkeleton } = await import("../../components/AppShellSkeleton");
 
 const render = (path: string, defaultOpen = true) => {
   pathname = path;
-  const host = document.createElement("div");
-  host.innerHTML = renderToStaticMarkup(
-    <AppShellSkeleton defaultOpen={defaultOpen} defaultWidth={256} />
-  );
-  return host;
+  return new DOMParser().parseFromString(
+    renderToStaticMarkup(
+      <AppShellSkeleton defaultOpen={defaultOpen} defaultWidth={256} />
+    ),
+    "text/html"
+  ).body;
 };
 
 afterAll(async () => {

@@ -5,7 +5,14 @@ import {
   markdownContentByteLength,
 } from "@teak/convex/shared/markdown";
 import { cn } from "@teak/ui/lib/utils";
-import type { CSSProperties, KeyboardEvent, ReactNode, Ref } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+  useState,
+} from "react";
+import { escapeTypedHtml } from "./typedHtml";
 import type { MarkdownTextEditorProps } from "./types";
 
 /** Whether the stand-in has focus, so the rich editor takes the caret over. */
@@ -64,16 +71,25 @@ export function MarkdownStandIn({
   focus: StandInFocus;
   ref?: Ref<HTMLTextAreaElement>;
 }) {
+  // HTML typed here saves as text, as in the rich editor, while the textarea
+  // shows what was typed. A note that already holds HTML is one the rich
+  // editor keeps as literal Markdown, so its HTML stays as it is.
+  const [escapesHtml] = useState(() => escapeTypedHtml(value) === value);
+  const [typed, setTyped] = useState({ markdown: value, text: value });
+  const text = typed.markdown === value ? typed.text : value;
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (!(event.metaKey || event.ctrlKey) || disabled) {
       return;
     }
     // The rich editor's Cmd/Ctrl+Enter (save) and Cmd/Ctrl+E (full screen).
-    const shortcuts: Record<string, (() => void) | undefined> = {
-      e: onOpenFullScreen,
-      enter: onSaveShortcut,
-    };
-    const shortcut = shortcuts[event.key.toLowerCase()];
+    const key = event.key.toLowerCase();
+    let shortcut: (() => void) | undefined;
+    if (key === "enter") {
+      shortcut = onSaveShortcut;
+    } else if (key === "e") {
+      shortcut = onOpenFullScreen;
+    }
     if (shortcut) {
       event.preventDefault();
       shortcut();
@@ -91,11 +107,13 @@ export function MarkdownStandIn({
       }}
       onChange={(event) => {
         const next = event.target.value;
-        if (markdownContentByteLength(next) > MARKDOWN_CONTENT_MAX_BYTES) {
+        const markdown = escapesHtml ? escapeTypedHtml(next) : next;
+        if (markdownContentByteLength(markdown) > MARKDOWN_CONTENT_MAX_BYTES) {
           onLimitExceeded?.();
           return;
         }
-        onChange(next);
+        setTyped({ markdown, text: next });
+        onChange(markdown);
       }}
       onFocus={() => {
         focus.current = true;
@@ -104,7 +122,7 @@ export function MarkdownStandIn({
       placeholder={placeholder}
       ref={ref}
       spellCheck
-      value={value}
+      value={text}
     />
   );
 }
