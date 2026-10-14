@@ -826,10 +826,22 @@ export function MasonryGrid({
     if (!card) {
       return;
     }
+    const isActionKey =
+      key === "f" || key === "e" || key === "Delete" || key === "Backspace";
+    // Choosing cards for a folder only picks them: no other card actions.
+    if (addToFolder && isActionKey) {
+      event.preventDefault();
+      return;
+    }
     // With cards selected, F, E and Delete act on all of them, like the bar.
     const hasSelection =
       isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction);
-    if (hasSelection && !showTrashOnly && !addToFolder) {
+    // Trash's bar has no Delete Forever for a selection, so neither do keys.
+    if (hasSelection && showTrashOnly && isActionKey) {
+      event.preventDefault();
+      return;
+    }
+    if (hasSelection && !showTrashOnly) {
       let action: BulkCardAction | null = null;
       if (key === "f") {
         action = selectedCards.every((selected) => selected.isFavorited)

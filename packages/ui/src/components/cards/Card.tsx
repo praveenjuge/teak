@@ -616,9 +616,13 @@ export const Card = memo(function Card({
           )}
           {isSelectionMode && !isOptimistic && (
             <div className="absolute top-3 left-3 z-10">
+              {/* Decorative: the card itself is the toggle (aria-pressed),
+                  so the box stays out of the Tab order. */}
               <Checkbox
+                aria-hidden="true"
                 checked={isSelected}
                 className="pointer-events-none select-auto"
+                tabIndex={-1}
               />
             </div>
           )}
