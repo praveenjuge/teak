@@ -155,7 +155,7 @@ export function HomePageClient({
       addToFolderId={addToFolderId}
       cardIdFromUrl={cardIdFromUrl}
       folderId={folderId}
-      headerLeading={<SidebarToggle className="mr-2 -ml-2" />}
+      headerLeading={<SidebarToggle className="-ml-2" />}
       onAddCardsToFolder={handleAddCardsToFolder}
       onAddToFolderDone={handleAddToFolderDone}
       onNavigateView={handleNavigateView}

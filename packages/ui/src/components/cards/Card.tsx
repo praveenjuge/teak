@@ -28,10 +28,11 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import type { KeyboardEvent, SyntheticEvent } from "react";
+import type { DragEvent, KeyboardEvent, SyntheticEvent } from "react";
 import { memo, useState } from "react";
 import { toast } from "sonner";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
+import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -585,6 +586,15 @@ export const Card = memo(function Card({
     );
   };
 
+  // A card can be dragged onto a sidebar folder to add it there. Its own
+  // drag data replaces the image or link the browser would otherwise carry.
+  const canDrag = !(isOptimistic || isSelectionMode || card.isDeleted);
+  const handleDragStart = (event: DragEvent<HTMLElement>) => {
+    event.dataTransfer.clearData();
+    event.dataTransfer.setData(CARD_DRAG_TYPE, card._id);
+    event.dataTransfer.effectAllowed = "copy";
+  };
+
   const copyLinkOrImageLabel =
     card.type === "link" ? "Copy Link" : "Copy Image";
   const copyMenuLabel =
@@ -601,7 +611,9 @@ export const Card = memo(function Card({
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-2xl ring-2 ring-primary" : ""}`}
           data-card-id={isOptimistic ? undefined : card._id}
+          draggable={canDrag}
           onClick={handleClick}
+          onDragStart={canDrag ? handleDragStart : undefined}
           onFocus={handlePrefetch}
           onKeyDown={handleKeyDown}
           onPointerDown={handlePrefetch}

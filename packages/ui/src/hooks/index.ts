@@ -77,3 +77,9 @@ export type {
   UseTagOperationsResult,
 } from "./useTagOperations";
 export { useTagOperations } from "./useTagOperations";
+export type { VaultSetupState as VaultSetupPhase } from "./useVaultSetup";
+export {
+  useVaultSetup,
+  VAULT_SETUP_MAX_MS,
+  vaultSetupState,
+} from "./useVaultSetup";

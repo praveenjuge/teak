@@ -1,12 +1,11 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import { internalQuery, query } from "./_generated/server";
 import { ensureAdmin, readUserFlags } from "./adminAccess";
 import { DAY_MS, startOfUtcWeek, utcDay } from "./adminStats";
 import { daysAgoDate } from "./adminUsage";
 import { readHasPremium } from "./auth";
-import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
+import { isOnboardingCard } from "./card/defaultCards";
 import { readComponentUser } from "./securitySessions";
 
 // One account at a time for the superadmin console. Returns counts, states
@@ -20,11 +19,6 @@ const JOBS_LIMIT = 5;
 const AUDIT_LIMIT = 20;
 const ACTIVITY_WEEKS = 12;
 const STAGES = ["classify", "categorize", "metadata", "renderables"] as const;
-
-const isOnboardingCard = (card: Pick<Doc<"cards">, "content">) =>
-  ONBOARDING_CARD_CONTENTS.includes(
-    card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
-  );
 
 /** Emails for a handful of accounts, for tables that list people. */
 export const emailsFor = internalQuery({

@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: Keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
@@ -16,7 +16,7 @@ changelog:
 
 ## Smart folders
 
-- On the web, save any search as a smart folder: search, open the sort menu at the end of the search box, and choose **Save as smart folder…**. It shows every card that matches, including cards you save later, so a `tag:design type:link` folder fills itself.
+- On the web, save any search as a smart folder: search, open the **View** menu at the end of the search box, and choose **Save as smart folder…**. It shows every card that matches, including cards you save later, so a `tag:design type:link` folder fills itself.
 - Smart folders sit with your folders and have a search icon. The search shows at the top of the folder with **Edit search**, and typing narrows it further. A smart folder can look inside a regular folder with `folder:`, and follows it if you rename it.
 - **API, CLI, and MCP:** create one with `POST /v1/folders` and `{ "kind": "smart", "query": "..." }`, change its search with `PATCH`, and `GET /v1/cards?folder=` lists what it matches. The CLI adds `teak folders create --query`, and the MCP folder tools take `kind` and `query`. See [Smart folders](/docs/features#smart-folders) and the [API guide](/docs/api#folders).
 
@@ -43,9 +43,10 @@ changelog:
 
 ## A sidebar for your library
 
-- On the web, a sidebar now holds **Everything**, **Favorites**, **Archive**, and **Trash**, each its own page you can bookmark, share, and reach with Back and Forward.
-- Card types moved there too: pick one or more to narrow the open page, and the address bar keeps them for reloads and shared links.
-- **Upload files** and **Record audio** sit beside the Teak logo, and **Settings** sits right below **Trash**. Collapse the sidebar to icons and Teak remembers it; on a phone it opens as a drawer.
+- On the web, a compact sidebar holds **Everything**, **Favorites**, **Tags**, **Archive**, **Trash**, and **Settings**, each its own page you can bookmark, share, and reach with Back and Forward, with your folders below them.
+- A slim header on every page shows the page's name, a compact search box with your filters as pills inside it, and one **View** menu for card types, order, and saving a smart folder. It stays at the top as you scroll, and the address bar keeps your filters for reloads and shared links.
+- **+** beside the Teak logo starts a note or link, uploads files, or records audio. Drag a card onto a folder to add it, or name a new folder right in the list.
+- Drag the sidebar's edge to resize it. Collapse it to icons and rest the pointer on them to see it in full; Teak remembers the width and your choice. On a phone it opens as a drawer.
 - Typing `fav`, `archive`, or `trash` in search now opens that page. See [Sidebar](/docs/features#sidebar).
 
 ## Archive cards and act on many at once
@@ -56,7 +57,7 @@ changelog:
 
 ## Sort your library oldest first
 
-- On the web, the new sort button beside the search bar switches between **Newest first** and **Oldest first**.
+- On the web, the **View** menu beside the search bar switches between **Newest first** and **Oldest first**.
 - Cards are now ordered by the date you saved them everywhere, so imported bookmarks appear where they were first saved instead of at the top. This also applies to the API, CLI, MCP, Raycast, and the iPhone and Android apps.
 - Your search and sort stay in the address bar, so reloading, Back and Forward, and shared links keep the same view.
 - **API:** `GET /v1/cards?sort=` orders by `createdAt` on every listing. A `cursor` from before this update returns `400 INVALID_INPUT`; start again from the first page. See the [API guide](/docs/api).
@@ -66,6 +67,12 @@ changelog:
 - **Refresh details:** open a card and choose **Refresh details**, or right-click it in the grid, to get a fresh summary, tags, transcript, and link preview. Your own tags and notes stay. It's also available as `POST /v1/cards/:id/refresh` in the [API](/docs/api#refresh-a-cards-details), `teak refresh` in the [CLI](/docs/cli), and `teak_v1_refresh_card` in [MCP](/docs/mcp).
 - **Who wrote it, and when:** link cards on the web show the author and publish date next to the site name when the page includes them.
 - **Photo details:** **Info** on a photo lists its camera, exposure, aperture, focal length, ISO, and when it was taken. Teak never shows where a photo was taken.
+
+## A hands-on start for new accounts
+
+- New accounts start with a **Start here** folder of eight cards, one of each type: a welcome checklist, a photo, a palette, a short video tour, a voice memo, a search cheat sheet PDF, a quote, and a link to the Teak apps. Each card's note suggests something to try, such as searching for a color or for a word spoken in the memo.
+- A **Moodboard** smart folder shows how a saved search fills itself, collecting your images and palettes as you save them.
+- The cards are ordinary cards tagged `getting-started`. Select them in **Start here** and move them to Trash when you're done.
 
 ## Sign in again after the sign-in update
 
@@ -147,6 +154,7 @@ These apply to videos, recordings, and links you save from now on.
 
 **Web**
 
+- Searching for a color, like `orange` or `#FFA050`, or a style, like `vintage`, now finds your matching images and palettes instead of showing nothing.
 - A dropped connection, like when your laptop wakes up or switches Wi-Fi, no longer asks you to sign in again. Teak reconnects on its own once you're back online.
 - A link pasted on its own into **Write a note…** saves as a link card with its preview, instead of as a text note.
 - Notes with underscores or asterisks, like `file_name_v2` or `2*3`, show correctly in the grid instead of with stray backslashes.

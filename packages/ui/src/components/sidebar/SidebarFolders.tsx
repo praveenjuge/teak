@@ -2,6 +2,7 @@
 
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { FOLDER_ERROR_MESSAGES } from "@teak/convex/shared/folders";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ import {
 } from "@teak/ui/components/ui/sidebar";
 import { useMutation } from "convex/react";
 import {
-  Folder,
+  FolderPlus,
   FolderSearch,
   MoreHorizontal,
   Palette,
@@ -39,7 +40,9 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { useFolders } from "../../hooks/useFolders";
+import { bulkActionCopy } from "../../lib/bulkCardActions";
 import {
+  CARD_DRAG_TYPE,
   FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
   FOLDER_ICON_CLASSES,
@@ -47,10 +50,13 @@ import {
   type FolderSummary,
   folderErrorMessage,
   folderPath,
+  isCardDrag,
 } from "../../lib/folders";
+import { cn } from "../../lib/utils";
 import { FolderDot } from "../folders/FolderDot";
 import { FolderNameDialog } from "../folders/FolderNameDialog";
 import type { SidebarLinkComponent } from "./AppSidebar";
+import { SidebarNewFolder } from "./SidebarNewFolder";
 
 const SKELETON_WIDTHS = ["62%", "48%", "70%"];
 
@@ -65,10 +71,11 @@ interface SidebarFoldersProps {
 }
 
 /**
- * The Folders group in the sidebar: every folder with its card count, a
- * New folder button, and a menu (or right-click) to rename, recolor or
- * delete. Smart folders show a search icon, no count (their cards are
- * found when opened) and Edit search. Deleting offers Undo for a few
+ * The Folders group in the sidebar: every folder with its color dot and
+ * card count, a New folder button that names one in place, and a menu (or
+ * right-click) to rename, recolor or delete. Smart folders show a search
+ * icon, no count (their cards are found when opened) and Edit search.
+ * Dropping a card on a folder adds it. Deleting offers Undo for a few
  * seconds.
  */
 export function SidebarFolders({
@@ -84,6 +91,8 @@ export function SidebarFolders({
     folder: FolderSummary | null;
   } | null>(null);
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [dropFolderId, setDropFolderId] = useState<string | null>(null);
 
   const updateFolder = useMutation(
     api.folders.updateFolder
@@ -114,6 +123,27 @@ export function SidebarFolders({
     }
   });
   const restoreFolder = useMutation(api.folders.restoreFolder);
+  const addCardsToFolder = useMutation(api.folders.addCardsToFolder);
+
+  const dropCard = async (folder: FolderSummary, cardId: string) => {
+    try {
+      const result = await addCardsToFolder({
+        folderId: folder._id as Id<"folders">,
+        cardIds: [cardId as Id<"cards">],
+      });
+      if (result.folderLimitIds.length > 0) {
+        toast.error(FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS_ON_CARD);
+      } else if (result.failedIds.length > 0) {
+        toast.error(bulkActionCopy.failed("addToFolder"));
+      } else {
+        toast.success(bulkActionCopy.done("addToFolder", 1, folder.name));
+      }
+    } catch (error) {
+      toast.error(
+        folderErrorMessage(error, bulkActionCopy.failed("addToFolder"))
+      );
+    }
+  };
 
   const navigate = () => {
     onNavigate?.();
@@ -152,15 +182,22 @@ export function SidebarFolders({
     });
   };
 
-  const openCreate = () => setDialog({ folder: null });
+  const openCreate = () => setIsCreating(true);
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className="pt-3">
       <SidebarGroupLabel>Folders</SidebarGroupLabel>
-      <SidebarGroupAction onClick={openCreate} title="New folder">
-        <Plus />
-        <span className="sr-only">New folder</span>
-      </SidebarGroupAction>
+      {/* With no folders yet, the empty state below is the one way in. */}
+      {folders?.length !== 0 && (
+        <SidebarGroupAction
+          className="top-3.5"
+          onClick={openCreate}
+          title="New folder"
+        >
+          <Plus />
+          <span className="sr-only">New folder</span>
+        </SidebarGroupAction>
+      )}
       <SidebarMenu>
         {folders === undefined &&
           SKELETON_WIDTHS.map((width) => (
@@ -168,22 +205,38 @@ export function SidebarFolders({
               <SidebarMenuSkeleton showIcon width={width} />
             </SidebarMenuItem>
           ))}
-        {folders?.length === 0 && (
+        {folders?.length === 0 && !isCreating && (
           <SidebarMenuItem>
+            {/* A quiet card that says what folders are for and how cards
+                get in, with the one button to start. */}
+            <div className="mt-0.5 rounded-lg border border-sidebar-border border-dashed px-3 pt-2.5 pb-3 group-data-[collapsible=icon]:hidden">
+              <p className="text-[12px] text-sidebar-foreground/55 leading-snug">
+                Group related cards. Make a folder, then drag cards onto it.
+              </p>
+              <button
+                className="mt-2.5 inline-flex h-7 items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 font-medium text-[12px] text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border focus-visible:ring-2 [&>svg]:size-3.5"
+                onClick={openCreate}
+                type="button"
+              >
+                <FolderPlus aria-hidden="true" />
+                New folder
+              </button>
+            </div>
+            {/* Collapsed to icons, just the button. */}
             <SidebarMenuButton
-              className="text-sidebar-foreground/70"
+              aria-label="New folder"
+              className="hidden group-data-[collapsible=icon]:flex"
               onClick={openCreate}
               tooltip="New folder"
             >
-              <Plus />
-              <span>New folder</span>
+              <FolderPlus />
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
         {folders?.map((folder) => {
           const isActive = folder._id === activeFolderId;
           const isSmart = folder.kind === "smart";
-          const Icon = isSmart ? FolderSearch : Folder;
+          const isDropTarget = dropFolderId === folder._id;
           return (
             <SidebarMenuItem
               key={folder._id}
@@ -191,9 +244,39 @@ export function SidebarFolders({
                 event.preventDefault();
                 setMenuFolderId(folder._id);
               }}
+              // Smart folders show what matches their search, so only
+              // manual folders take a dropped card.
+              onDragLeave={(event) => {
+                if (
+                  !event.currentTarget.contains(event.relatedTarget as Node)
+                ) {
+                  setDropFolderId(null);
+                }
+              }}
+              onDragOver={(event) => {
+                if (isSmart || !isCardDrag(event.dataTransfer)) {
+                  return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+                setDropFolderId(folder._id);
+              }}
+              onDrop={(event) => {
+                setDropFolderId(null);
+                const cardId = event.dataTransfer.getData(CARD_DRAG_TYPE);
+                if (isSmart || !cardId) {
+                  return;
+                }
+                event.preventDefault();
+                dropCard(folder, cardId).catch(() => undefined);
+              }}
             >
               <SidebarMenuButton
                 asChild
+                className={cn(
+                  isDropTarget &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring"
+                )}
                 isActive={isActive}
                 tooltip={folder.name}
               >
@@ -202,20 +285,26 @@ export function SidebarFolders({
                   href={folderPath(folder._id)}
                   onClick={navigate}
                 >
-                  <Icon
-                    className={
-                      folder.color
-                        ? FOLDER_ICON_CLASSES[folder.color]
-                        : "text-sidebar-foreground/60"
-                    }
-                  />
+                  {isSmart ? (
+                    <FolderSearch
+                      className={
+                        folder.color
+                          ? FOLDER_ICON_CLASSES[folder.color]
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <span className="flex size-3.5 shrink-0 items-center justify-center">
+                      <FolderDot className="size-[7px]" color={folder.color} />
+                    </span>
+                  )}
                   <span dir="auto" title={folder.name}>
                     {folder.name}
                   </span>
                 </LinkComponent>
               </SidebarMenuButton>
               {!isSmart && folder.activeCardCount > 0 && (
-                <SidebarMenuBadge className="text-sidebar-foreground/55 transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
+                <SidebarMenuBadge className="transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
                   {folder.activeCardCount}
                 </SidebarMenuBadge>
               )}
@@ -293,6 +382,12 @@ export function SidebarFolders({
             </SidebarMenuItem>
           );
         })}
+        {isCreating && (
+          <SidebarNewFolder
+            folders={folders}
+            onDone={() => setIsCreating(false)}
+          />
+        )}
       </SidebarMenu>
       <FolderNameDialog
         focusQuery={dialog?.focusQuery}

@@ -110,14 +110,3 @@ export const isSameSearchUrlState = (
   normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort) &&
   parseTagParam(left.tag ?? null) === parseTagParam(right.tag ?? null) &&
   sameTypes(left.types, right.types);
-
-/** The same search with `type` switched on or off, for a sidebar type link. */
-export const toggleSearchUrlType = (
-  state: SearchUrlState,
-  type: CardType
-): SearchUrlState => ({
-  ...state,
-  types: state.types.includes(type)
-    ? state.types.filter((active) => active !== type)
-    : [...state.types, type],
-});

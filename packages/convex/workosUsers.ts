@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
+import { startVaultSetup } from "./card/defaultCards";
 import { readComponentUser } from "./securitySessions";
 import {
   isStorableEmail,
@@ -246,6 +247,7 @@ export const linkWorkosUser = internalMutation({
           throw new Error("Permanent Teak owner collision");
         }
         await ctx.db.patch("users", ownerId, { teakUserId });
+        await startVaultSetup(ctx, teakUserId);
         await ctx.scheduler.runAfter(
           0,
           internal.card.defaultCards.createDefaultCardsForUser,

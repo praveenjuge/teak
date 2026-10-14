@@ -148,7 +148,7 @@ test("the library works from the keyboard", async ({
     screen.getByRole("textbox", "Markdown content", { exact: false })
   ).toBeFocused({ timeout: 30_000 });
 
-  // U opens the file picker, as the sidebar's Upload files does. (Last:
+  // U opens the file picker, as New > Upload files does. (Last:
   // the picker takes focus from the page.)
   await browser.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();

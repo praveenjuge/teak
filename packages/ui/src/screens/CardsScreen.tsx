@@ -8,6 +8,7 @@ import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
+import { VaultSetupState } from "@teak/ui/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
@@ -17,6 +18,7 @@ import {
   useCardClipboard,
   useCardModalFilterActions,
   useCardsSearchController,
+  useVaultSetup,
 } from "@teak/ui/hooks";
 import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
@@ -46,11 +48,12 @@ import {
   type FolderSummary,
   manualFolders,
 } from "../lib/folders";
-import type { LibraryView } from "../lib/libraryViews";
+import { LIBRARY_VIEW_LABELS, type LibraryView } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
+import { PageTitle } from "./PageHeader";
 
 /** What a routed view shows when it has no cards and nothing narrows it. */
 const EMPTY_VIEW_COPY: Record<
@@ -69,10 +72,10 @@ const EMPTY_VIEW_COPY: Record<
 };
 
 const SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
-  all: "Search for anything...",
-  favorites: "Search favorites...",
-  archive: "Search the archive...",
-  trash: "Search Trash...",
+  all: "Search everything",
+  favorites: "Search favorites",
+  archive: "Search archive",
+  trash: "Search Trash",
 };
 
 /** A folder name short enough for the search placeholder. */
@@ -165,6 +168,8 @@ export function CardsScreen({
   );
   const isFolderView = Boolean(folderId);
   const isSmartFolder = folder?.kind === "smart";
+  // A brand-new account's getting-started cards land a moment after sign-up.
+  const vaultSetup = useVaultSetup();
   const searchController = useCardsSearchController({
     folderId: folder?._id,
     folderQuery: isSmartFolder ? (folder?.query ?? "") : undefined,
@@ -263,6 +268,13 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
+  // A new account's library shows its vault being set up, for a moment
+  // even after the cards land (see useVaultSetup).
+  const showVaultSetup =
+    vaultSetup === "settingUp" &&
+    hasNoFilters &&
+    !isFolderView &&
+    (!view || view === "all");
 
   // Saving what is on screen as a smart folder, or editing the smart folder
   // being viewed.
@@ -569,6 +581,11 @@ export function CardsScreen({
     }
 
     if (displayCards.length === 0 && hasNoFilters) {
+      // Until a new account's cards land, show them on their way rather
+      // than an empty library.
+      if (vaultSetup === "loading") {
+        return <CardsGridSkeleton />;
+      }
       return (
         <AddCardEmptyState
           UpgradeLinkComponent={UpgradeLinkComponent}
@@ -593,43 +610,16 @@ export function CardsScreen({
     return null;
   };
 
-  const content = (
-    <>
-      <CardsSearchHeader
-        {...searchBarProps}
-        leading={headerLeading}
-        onSaveSearch={
-          saveableQuery === null
-            ? undefined
-            : () => setFolderDialog({ mode: "save", query: saveableQuery })
-        }
-        placeholder={
-          folder
-            ? `Search ${clipName(folder.name)}...`
-            : SEARCH_PLACEHOLDERS[view ?? "all"]
-        }
-      />
-
-      {folder && !isSmartFolder && (
-        <div className="mb-4 flex min-w-0 items-center gap-2">
-          <FolderDot className="size-3" color={folder.color} />
-          <h1
-            className="min-w-0 truncate font-semibold text-lg"
-            dir="auto"
-            title={folder.name}
-          >
-            {folder.name}
-          </h1>
-          <span className="shrink-0 text-muted-foreground text-sm tabular-nums">
-            {folder.activeCardCount}{" "}
-            {folder.activeCardCount === 1 ? "card" : "cards"}
-          </span>
-        </div>
-      )}
-
-      {folder && isSmartFolder && (
-        <div className="mb-4 min-w-0 space-y-2">
-          <div className="flex min-w-0 items-center gap-2">
+  // The page's name at the start of the header: the view, or the folder
+  // with its color (or search icon) and count.
+  let title: ReactNode = (
+    <PageTitle>{LIBRARY_VIEW_LABELS[view ?? "all"]}</PageTitle>
+  );
+  if (isFolderView) {
+    if (folder && isSmartFolder) {
+      title = (
+        <PageTitle
+          icon={
             <FolderSearch
               aria-hidden="true"
               className={
@@ -638,32 +628,76 @@ export function CardsScreen({
                   : "size-4 shrink-0 text-muted-foreground"
               }
             />
-            <h1
-              className="min-w-0 truncate font-semibold text-lg"
-              dir="auto"
-              title={folder.name}
-            >
-              {folder.name}
-            </h1>
-            <span className="sr-only">Smart folder</span>
+          }
+          trailing={
             <Button
-              className="ml-auto shrink-0 text-muted-foreground"
+              aria-label="Edit search"
+              className="size-7 shrink-0 text-muted-foreground"
               onClick={editSmartFolder}
-              size="sm"
+              size="icon"
+              title="Edit search"
               variant="ghost"
             >
-              <Pencil />
-              <span className="max-sm:sr-only">Edit search</span>
+              <Pencil className="size-3.5" />
             </Button>
-          </div>
-          <SmartFolderQuery
-            folderNames={folderNames}
-            query={folder.query ?? ""}
-          />
-        </div>
-      )}
+          }
+        >
+          <span title={folder.name}>{folder.name}</span>
+          <span className="sr-only"> (smart folder)</span>
+        </PageTitle>
+      );
+    } else if (folder) {
+      title = (
+        <PageTitle
+          count={
+            <>
+              {folder.activeCardCount.toLocaleString()}
+              <span className="sr-only">
+                {folder.activeCardCount === 1 ? " card" : " cards"}
+              </span>
+            </>
+          }
+          icon={<FolderDot className="size-2" color={folder.color} />}
+        >
+          <span title={folder.name}>{folder.name}</span>
+        </PageTitle>
+      );
+    } else {
+      title = <PageTitle>Folder</PageTitle>;
+    }
+  }
 
-      {displayCards.length > 0 ? (
+  const content = (
+    <>
+      <CardsSearchHeader
+        {...searchBarProps}
+        leading={headerLeading}
+        lockedChips={
+          folder && isSmartFolder ? (
+            <SmartFolderQuery
+              className="max-w-[45%] shrink-0"
+              folderNames={folderNames}
+              inline
+              query={folder.query ?? ""}
+            />
+          ) : undefined
+        }
+        onSaveSearch={
+          saveableQuery === null
+            ? undefined
+            : () => setFolderDialog({ mode: "save", query: saveableQuery })
+        }
+        placeholder={
+          folder
+            ? `Search ${clipName(folder.name)}`
+            : SEARCH_PLACEHOLDERS[view ?? "all"]
+        }
+        title={title}
+      />
+
+      {showVaultSetup && <VaultSetupState />}
+
+      {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
           AddCardFormComponent={AddCardFormWrapper}
           addToFolder={
@@ -723,7 +757,9 @@ export function CardsScreen({
           showTrashOnly={showTrashOnly}
           toastIdPrefix={toastIdPrefix}
         />
-      ) : (
+      )}
+
+      {!showVaultSetup && displayCards.length === 0 && (
         <>
           <AuthLoading>
             <CardsGridSkeleton />

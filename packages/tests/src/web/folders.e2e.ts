@@ -4,9 +4,9 @@ import { expect, test } from "./fixtures";
 
 // Folders from the sidebar: create one, add cards to it from a selection,
 // open it, rename it, then delete it and bring it back with Undo. A fresh
-// account starts with no folders and three welcome cards.
-const FIRST_CARD = "The best way to predict the future";
-const SECOND_CARD = "Welcome to Teak!";
+// account starts with the getting-started cards in a Start here folder.
+const FIRST_CARD = "Good design is as little design as possible";
+const SECOND_CARD = "Welcome to Teak, a home for everything";
 
 const pathOf = async (url: Promise<string>) => new URL(await url).pathname;
 
@@ -18,24 +18,20 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
 
-  // No folders yet: the group offers New folder.
+  // New folder, beside the Folders heading, is named in place.
   await screen.getByRole("button", "New folder").first().click();
-  const dialog = screen.getByRole("dialog", "New folder");
-  await dialog.getByLabel("Name").fill("Reading");
-  await dialog.getByRole("button", "Blue").click();
-  await dialog.getByRole("button", "Create folder").click();
+  await screen.getByLabel("New folder name").fill("Reading");
+  await screen.getByLabel("New folder name").press("Enter");
   await expect(screen.getByRole("link", "Reading")).toBeVisible();
 
-  // Names are unique ignoring case.
+  // Names are unique ignoring case; Escape leaves the row.
   await screen.getByRole("button", "New folder").first().click();
-  await screen
-    .getByRole("dialog", "New folder")
-    .getByLabel("Name")
-    .fill("reading");
+  await screen.getByLabel("New folder name").fill("reading");
   await expect(
     screen.getByText("A folder with this name already exists")
   ).toBeVisible();
-  await screen.getByRole("button", "Cancel").click();
+  await screen.getByLabel("New folder name").press("Escape");
+  await expect(screen.getByLabel("New folder name")).toHaveCount(0);
 
   // Select two cards and add them through the bulk bar.
   await screen.getByText(FIRST_CARD, { exact: false }).secondaryTap();
@@ -53,7 +49,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
 
   // The folder page lists just those cards.
   await screen.getByRole("link", "Reading").click();
-  await expect(screen.getByPlaceholder("Search Reading...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Reading")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
   await expect(screen.getByRole("link", "Reading")).toHaveAttribute(
     "aria-current",
@@ -70,7 +66,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await rename.getByLabel("Name").fill("Reading list");
   await rename.getByRole("button", "Save").click();
   await expect(screen.getByRole("link", "Reading list")).toBeVisible();
-  await expect(screen.getByPlaceholder("Search Reading list...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Reading list")).toBeVisible();
 
   // Deleting the open folder returns to Everything; Undo brings it back
   // with its cards.
@@ -93,6 +89,55 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     .click();
   await screen.getByRole("link", "Reading list").click();
   await expect(screen.getByText("2 cards")).toBeVisible();
+
+  // Dragging a card onto a folder in the sidebar adds it there. A headless
+  // browser can't drag with the pointer, so send the drag events the card
+  // and the folder exchange.
+  await screen.getByRole("link", "Everything").click();
+  await expect(screen.getByPlaceholder("Search everything")).toBeVisible();
+  await expect(
+    screen.getByText(FIRST_CARD, { exact: false }).first()
+  ).toBeVisible();
+  await browser.evaluate(
+    ([first, second]) => {
+      const card = [
+        ...document.querySelectorAll<HTMLElement>("[data-card-id]"),
+      ].find(
+        (element) =>
+          !(
+            element.textContent?.includes(first) ||
+            element.textContent?.includes(second)
+          )
+      );
+      const folder = [...document.querySelectorAll("a")].find(
+        (anchor) => anchor.textContent?.trim() === "Reading list"
+      );
+      if (!(card && folder)) {
+        throw new Error("No card to drag or no folder to drop on");
+      }
+      const data = new DataTransfer();
+      const fire = (target: Element, type: string) =>
+        target.dispatchEvent(
+          new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: data,
+          })
+        );
+      fire(card, "dragstart");
+      fire(folder, "dragenter");
+      fire(folder, "dragover");
+      fire(folder, "drop");
+      fire(card, "dragend");
+      return null;
+    },
+    [FIRST_CARD, SECOND_CARD] as [string, string]
+  );
+  await expect(
+    screen.getByText("Added 1 card to Reading list", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+  await screen.getByRole("link", "Reading list").click();
+  await expect(screen.getByText("3 cards")).toBeVisible();
 });
 
 test("save a search as a smart folder; a card saved later shows up live", async ({
@@ -117,10 +162,8 @@ test("save a search as a smart folder; a card saved later shows up live", async 
     screen.getByText("Smart folder first match", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // Saving is in the sort menu while there is a search to keep.
-  await screen
-    .getByRole("button", "Sort and save search", { exact: false })
-    .click();
+  // Saving is in the View menu while there is a search to keep.
+  await screen.getByRole("button", /^View/).click();
   await screen.getByRole("menuitem", "Save as smart folder…").click();
   const save = screen.getByRole("dialog", "Save as smart folder");
   await expect(save.getByLabel("Search", { exact: true })).toHaveValue(
@@ -134,7 +177,7 @@ test("save a search as a smart folder; a card saved later shows up live", async 
 
   // Its view shows what the search matches, and the search as chips.
   await screen.getByRole("link", "Smart picks").click();
-  await expect(screen.getByPlaceholder("Search Smart picks...")).toBeVisible();
+  await expect(screen.getByPlaceholder("Search Smart picks")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
   await expect(
     screen.getByText("Smart folder first match", { exact: false })

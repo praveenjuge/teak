@@ -29,7 +29,7 @@ import {
   utcDay,
 } from "./adminStats";
 import { readHasPremium } from "./auth";
-import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
+import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 
 // Business metrics for the superadmin console: the daily snapshot that gives
 // every number a history, and the live growth view (weekly active savers,
@@ -48,11 +48,6 @@ const COHORT_BATCH = 20;
 const RECENT_SIGNUPS = 50;
 const TOP_STORAGE = 20;
 const SNAPSHOT_LIST_LIMIT = 400;
-
-const isOnboardingCard = (card: Pick<Doc<"cards">, "content">) =>
-  ONBOARDING_CARD_CONTENTS.includes(
-    card.content as (typeof ONBOARDING_CARD_CONTENTS)[number]
-  );
 
 interface Page<T> {
   continueCursor: string;
@@ -448,7 +443,7 @@ export const cohortActivity = internalQuery({
         .withIndex("by_created", (q) =>
           q.eq("userId", userId).gte("createdAt", from).lt("createdAt", to)
         )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARD_CONTENTS.length);
+        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARDS.length);
       return rows.filter((card) => !isOnboardingCard(card)).length;
     };
     const results: CohortActivity[] = [];
