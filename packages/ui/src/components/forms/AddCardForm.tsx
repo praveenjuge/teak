@@ -9,7 +9,7 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
-import { MarkdownTextEditor, prepareNoteCapture } from "@teak/ui/text-editor";
+import { MarkdownTextEditor } from "@teak/ui/text-editor";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
@@ -20,7 +20,8 @@ import {
   clearNewNoteComposerFocusRequest,
   isNewNoteComposerFocusRequested,
 } from "../../lib/keyboardShortcuts";
-import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
+import { FullScreenAddCardDialog } from "../lazyDialogs";
+import { prepareNoteCapture } from "../text-editor/noteCapture";
 
 function addCardToSearchQueries(
   localStore: OptimisticLocalStore,

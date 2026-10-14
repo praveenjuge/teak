@@ -96,7 +96,8 @@ export function focusLibrarySearch(): boolean {
 export function focusNewNoteComposer(): boolean {
   const editor = Array.from(
     document.querySelectorAll<HTMLElement>(
-      `[${NEW_NOTE_COMPOSER_ATTRIBUTE}] [contenteditable='true']`
+      // The textarea stands in while the rich editor loads.
+      `[${NEW_NOTE_COMPOSER_ATTRIBUTE}] :is([contenteditable='true'], textarea)`
     )
   ).find(visible);
   if (!editor) {

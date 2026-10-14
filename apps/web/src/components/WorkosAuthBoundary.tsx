@@ -33,7 +33,14 @@ const signIn = () => window.location.replace("/sign-in");
 // A linked owner opens the vault from getAuthUser alone. Only an identity
 // without a Teak owner yet runs the ensureUser bootstrap, which links or
 // creates the owner and reports why the vault stays closed.
-export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
+export function WorkosAuthBoundary({
+  children,
+  loading: loadingState = <Loading />,
+}: {
+  children: ReactNode;
+  /** Shown while the session and vault load (the app frame, on the web). */
+  loading?: ReactNode;
+}) {
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
   const auth = useConvexAuth();
@@ -137,7 +144,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     return <AuthUnavailable />;
   }
   if (loading || auth.isLoading || changed) {
-    return <Loading />;
+    return loadingState;
   }
   if (!(user && auth.isAuthenticated)) {
     return (
@@ -149,7 +156,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     );
   }
   if (profile === undefined) {
-    return <Loading />;
+    return loadingState;
   }
   if (ownerId !== null && profile?._id !== ownerId) {
     return (
@@ -168,7 +175,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     );
   }
   if (blocked === null) {
-    return <Loading />;
+    return loadingState;
   }
   return (
     <StatusScreen
