@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   type KeyboardShortcut,
   useKeyboardShortcuts,
@@ -27,18 +27,23 @@ interface LibraryShortcutsProps {
  */
 export function LibraryShortcuts({ onGoToView }: LibraryShortcutsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  // A shortcut pressed in the list closes it and keeps the focus it moved
-  // (to the search box, say) instead of returning focus to the page.
-  const keepFocusOnCloseRef = useRef(false);
+  const isDialogOpenRef = useRef(false);
+  const setDialogOpen = useCallback((open: boolean) => {
+    isDialogOpenRef.current = open;
+    setIsDialogOpen(open);
+  }, []);
+  // A shortcut pressed in the list closes it first and runs once it has
+  // closed: while the dialog's focus trap is up, moving focus (to the
+  // search box, say) would be pulled back into it.
+  const afterCloseRef = useRef<(() => void) | null>(null);
 
   const shortcuts = useMemo<KeyboardShortcut[]>(() => {
     const closeDialogThen = (action: () => void) => () => {
-      setIsDialogOpen((open) => {
-        if (open) {
-          keepFocusOnCloseRef.current = true;
-        }
-        return false;
-      });
+      if (isDialogOpenRef.current) {
+        afterCloseRef.current = action;
+        setDialogOpen(false);
+        return;
+      }
       action();
     };
     return [
@@ -64,25 +69,28 @@ export function LibraryShortcuts({ onGoToView }: LibraryShortcutsProps) {
           pressUploadFiles();
         }),
       },
-      { keys: "?", run: () => setIsDialogOpen((open) => !open) },
+      { keys: "?", run: () => setDialogOpen(!isDialogOpenRef.current) },
       ...LIBRARY_VIEWS.map((view) => ({
         keys: `g ${GO_TO_VIEW_KEYS[view]}`,
         run: closeDialogThen(() => onGoToView(view)),
       })),
     ];
-  }, [onGoToView]);
+  }, [onGoToView, setDialogOpen]);
 
   useKeyboardShortcuts(shortcuts);
 
   return (
     <KeyboardShortcutsDialog
       onCloseAutoFocus={(event) => {
-        if (keepFocusOnCloseRef.current) {
-          keepFocusOnCloseRef.current = false;
+        const action = afterCloseRef.current;
+        if (action) {
+          afterCloseRef.current = null;
+          // The shortcut decides where focus goes, not the dialog.
           event.preventDefault();
+          action();
         }
       }}
-      onOpenChange={setIsDialogOpen}
+      onOpenChange={setDialogOpen}
       open={isDialogOpen}
     />
   );

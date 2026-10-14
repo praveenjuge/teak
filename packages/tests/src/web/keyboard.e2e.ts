@@ -114,7 +114,18 @@ test("the library works from the keyboard", async ({
   await expect(card(THIRD)).toBeHidden({ timeout: 30_000 });
   await expect(card(SECOND)).toBeFocused();
 
-  // `?` lists the shortcuts; a `g` sequence there closes it and goes.
+  // `?` lists the shortcuts; `/` there closes it and lands in search.
+  await press("?");
+  await expect(screen.getByRole("dialog", "Keyboard shortcuts")).toBeVisible();
+  await press("/");
+  await expect(screen.getByRole("dialog", "Keyboard shortcuts")).toBeHidden();
+  await expect(search).toBeFocused();
+  await browser.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    return null;
+  });
+
+  // A `g` sequence in the list closes it and goes.
   await press("?");
   const shortcuts = screen.getByRole("dialog", "Keyboard shortcuts");
   await expect(shortcuts).toBeVisible();
