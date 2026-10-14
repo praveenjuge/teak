@@ -56,6 +56,7 @@ export default defineConfig({
       "./searchQualifiers.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",
+      "./importArchiveV2.test.ts",
     ],
   },
 });

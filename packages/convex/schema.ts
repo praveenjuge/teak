@@ -428,6 +428,11 @@ export const importJobItemValidator = v.object({
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
+  // Archive schema v2: restored on the created card. Folders are names,
+  // matched to the user's folders (or created) when the card is made.
+  isArchived: v.optional(v.boolean()),
+  metadataTitle: v.optional(v.string()),
+  folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),

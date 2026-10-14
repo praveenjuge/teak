@@ -4,9 +4,10 @@
  * This module is intentionally free of Convex/server imports so it can be unit
  * tested directly and reused by the workflow. It is responsible for:
  *   - deciding which cards are included (active only)
- *   - producing the user-facing card JSON with the correct field allow-list
- *     (excluding AI fields, scraped link metadata, account data, source
- *     metadata, thumbnails/screenshots/preview media, etc.)
+ *   - producing the user-facing card JSON with the correct field allow-list:
+ *     the visible AI tags and summary, the title and folder names are in
+ *     (schema v2); transcripts, scraped link metadata, account data, source
+ *     metadata and thumbnails/screenshots/preview media stay out
  *   - building the manifest
  *   - sanitizing original filenames for archive paths
  *   - quota / cap / expiry predicates
@@ -26,6 +27,8 @@ import {
 /** Minimal shape of a stored card needed for serialization. */
 export interface ExportableCard {
   _id: string;
+  aiSummary?: string;
+  aiTags?: string[];
   colors?: Array<{
     hex: string;
     name?: string;
@@ -45,8 +48,11 @@ export interface ExportableCard {
     height?: number;
     recordingTimestamp?: number;
   };
+  folderIds?: string[];
+  isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
+  metadataTitle?: string;
   notes?: string;
   tags?: string[];
   type: string;
@@ -72,12 +78,21 @@ export interface SerializedCardFile {
 }
 
 export interface SerializedCard {
+  /** Present when AI wrote a summary (schema v2). */
+  aiSummary?: string;
+  /** Tags AI added, apart from the user's own `tags` (schema v2). */
+  aiTags: string[];
   colors?: Array<{ hex: string; name?: string }>;
   content: string;
   createdAt: DualTimestamp;
   file?: SerializedCardFile;
+  /** Names of the folders the card is in, in the card's order (schema v2). */
+  folders: string[];
   id: string;
+  isArchived: boolean;
   isFavorited: boolean;
+  /** The card's title, when it has one (schema v2). */
+  metadataTitle?: string;
   notes?: string;
   tags: string[];
   type: string;
@@ -131,23 +146,41 @@ export function buildFilePath(
   return `${FILES_DIR}/${cardId}-${sanitizeFilename(rawName)}`;
 }
 
+const nonEmpty = (value: string | undefined): string | undefined =>
+  typeof value === "string" && value.trim().length > 0 ? value : undefined;
+
 /**
  * Serialize a single card to its user-facing export shape.
  *
  * `includeFile` indicates whether the original file was successfully read and
  * placed into the archive. When false (missing file omitted after retry), the
- * card is still serialized but without a `file` entry.
+ * card is still serialized but without a `file` entry. `folderNames` maps the
+ * user's folder ids to names; ids missing from it (a folder being deleted)
+ * are left out.
  */
 export function serializeCard(
   card: ExportableCard,
-  options: { includeFile: boolean } = { includeFile: false }
+  options: {
+    includeFile: boolean;
+    folderNames?: ReadonlyMap<string, string>;
+  } = { includeFile: false }
 ): SerializedCard {
+  const folders: string[] = [];
+  for (const id of card.folderIds ?? []) {
+    const name = options.folderNames?.get(id);
+    if (name !== undefined && !folders.includes(name)) {
+      folders.push(name);
+    }
+  }
   const serialized: SerializedCard = {
     id: card._id,
     type: card.type,
     content: card.content ?? "",
     tags: Array.isArray(card.tags) ? [...card.tags] : [],
+    aiTags: Array.isArray(card.aiTags) ? [...card.aiTags] : [],
+    folders,
     isFavorited: card.isFavorited === true,
+    isArchived: card.isArchived === true,
     createdAt: toDualTimestamp(card.createdAt),
     updatedAt: toDualTimestamp(card.updatedAt),
   };
@@ -157,6 +190,14 @@ export function serializeCard(
   }
   if (typeof card.notes === "string" && card.notes.length > 0) {
     serialized.notes = card.notes;
+  }
+  const title = nonEmpty(card.metadataTitle);
+  if (title !== undefined) {
+    serialized.metadataTitle = title;
+  }
+  const summary = nonEmpty(card.aiSummary);
+  if (summary !== undefined) {
+    serialized.aiSummary = summary;
   }
 
   // Visible palette colors only: hex + optional human-readable name. Drop rgb/hsl

@@ -10,6 +10,7 @@ import {
   archiveMixScenarioCard,
   CARD_DETAILS_SCENARIO_CARDS,
   DEV_SEED_CARDS,
+  EXPORT_UGLY_FOLDER_NAMES,
   type FolderScenario,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
@@ -26,7 +27,10 @@ import {
   UGLY_FOLDER_NAMES,
 } from "./devSeed";
 import schema from "./schema";
-import { MAX_SMART_FOLDER_QUERY_LENGTH } from "./shared/folders";
+import {
+  MAX_FOLDERS_PER_CARD,
+  MAX_SMART_FOLDER_QUERY_LENGTH,
+} from "./shared/folders";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -677,6 +681,38 @@ describe("devSeed folder packs", () => {
     const long = byName.get("Five hundred characters")?.query ?? "";
     expect(long.length).toBeGreaterThan(450);
     expect(long.length).toBeLessThanOrEqual(MAX_SMART_FOLDER_QUERY_LENGTH);
+  });
+
+  test("export-ugly seeds awkward names, a card in 50 folders, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "export-ugly")).toMatchObject({
+      status: "seeded",
+      cards: 12,
+      folders: EXPORT_UGLY_FOLDER_NAMES.length + MAX_FOLDERS_PER_CARD,
+    });
+    expect(await seedFolders(t, "export-ugly")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const names = new Set((await foldersOf(t)).map((folder) => folder.name));
+    for (const name of EXPORT_UGLY_FOLDER_NAMES) {
+      expect(names.has(name)).toBe(true);
+    }
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(
+      cards.find((card) => card.metadataTitle === "In 50 folders")?.folderIds
+    ).toHaveLength(MAX_FOLDERS_PER_CARD);
+    expect(cards.filter((card) => card.isArchived)).toHaveLength(2);
+    expect(cards.filter((card) => card.aiSummary)).toHaveLength(6);
+    expect(cards.filter((card) => card.type === "link")).toHaveLength(8);
+    expect(cards.filter((card) => card.type === "quote")).toHaveLength(1);
   });
 
   test("search-qualifiers-1000 seeds in pages", async () => {

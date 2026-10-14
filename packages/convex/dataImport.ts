@@ -12,6 +12,11 @@ import {
 } from "./_generated/server";
 import { assertAccountNotDeleting } from "./accountDeletion";
 import { createCardForUserHandler } from "./card/createCard";
+import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import {
+  getOrCreateImportFolderIds,
+  newImportFolderCache,
+} from "./folder/folders";
 import {
   ACTIVE_IMPORT_STATUSES,
   IMPORT_FAILURE_SAMPLE_LIMIT,
@@ -72,6 +77,9 @@ const itemInputValidator = v.object({
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
+  isArchived: v.optional(v.boolean()),
+  metadataTitle: v.optional(v.string()),
+  folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
@@ -515,14 +523,23 @@ function errorData(error: unknown) {
 }
 
 /**
- * The name a user gave a bookmark (bookmarks HTML or Raindrop). The parsers
- * fall back to the URL when a bookmark has no name, which is not a title.
+ * The title an imported card keeps: the name a user gave a bookmark
+ * (bookmarks HTML or Raindrop), or an archive card's own title. The bookmark
+ * parsers fall back to the URL when a bookmark has no name, which is not a
+ * title.
  */
 export function importedBookmarkTitle(
   mode: Doc<"importJobs">["mode"],
-  item: Pick<Doc<"importJobItems">, "content" | "type" | "url">
+  item: Pick<
+    Doc<"importJobItems">,
+    "content" | "metadataTitle" | "type" | "url"
+  >
 ): string | undefined {
-  if (mode === "archive" || item.type !== "link" || !item.url) {
+  // A Teak archive (schema v2) carries the card's title as it was.
+  if (mode === "archive") {
+    return item.metadataTitle;
+  }
+  if (item.type !== "link" || !item.url) {
     return;
   }
   const title = item.content.trim();
@@ -565,6 +582,7 @@ export const createPendingBatch = internalMutation({
     let created = 0,
       skipped = 0,
       failed = 0;
+    const folderCache = newImportFolderCache();
     for (const itemId of itemIds) {
       const item = await ctx.db.get(itemId);
       if (!item || item.jobId !== jobId || item.status !== "pending") {
@@ -607,11 +625,25 @@ export const createPendingBatch = internalMutation({
             importedVisibleFields: {
               createdAt: item.importedCreatedAt,
               isFavorited: item.isFavorited,
+              isArchived: job.mode === "archive" && item.isArchived === true,
               metadataTitle: importedBookmarkTitle(job.mode, item),
             },
             source: "import",
           }
         );
+        // Folders come after the card so a card refused at the card limit
+        // leaves no empty folders behind.
+        if (item.folders?.length) {
+          const folderIds = await getOrCreateImportFolderIds(
+            ctx,
+            job.userId,
+            item.folders,
+            folderCache
+          );
+          if (folderIds.length) {
+            await patchCardWithSearchSync(ctx, cardId, { folderIds });
+          }
+        }
         await ctx.db.patch(itemId, {
           status: "created",
           cardId,

@@ -24,12 +24,16 @@ import {
 import { buildR2ObjectKey, storeObject } from "../storage/r2";
 import { getR2KeyPrefix } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
+import { buildBookmarksHtml } from "./bookmarks";
 import {
+  BOOKMARKS_ENTRY_NAME,
   CARDS_ENTRY_NAME,
+  CSV_ENTRY_NAME,
   EXPORT_FAILURE_CLASS,
   MANIFEST_ENTRY_NAME,
   MAX_EXPORT_BYTES,
 } from "./constants";
+import { buildCardsCsv } from "./csv";
 import {
   buildFilePath,
   buildManifest,
@@ -106,6 +110,7 @@ async function runExportArchiveViaFilesWorker(
     userId: string;
     jobId: string;
     inputs: ArchiveCardInput[];
+    folderNames: ReadonlyMap<string, string>;
     createdAtMs: number;
     expiresAtMs: number;
   }
@@ -118,7 +123,8 @@ async function runExportArchiveViaFilesWorker(
   filesOmitted: number;
 } | null> {
   try {
-    const { userId, jobId, inputs, createdAtMs, expiresAtMs } = args;
+    const { userId, jobId, inputs, folderNames, createdAtMs, expiresAtMs } =
+      args;
     const artifactKey = buildArtifactKey(userId, jobId);
     for (const key of [
       artifactKey,
@@ -155,7 +161,10 @@ async function runExportArchiveViaFilesWorker(
       const serializedCards = inputs.map((input) => {
         const included =
           Boolean(input.fileKey) && !omittedCardIds.has(input.card._id);
-        return serializeCard(input.card, { includeFile: included });
+        return serializeCard(input.card, {
+          includeFile: included,
+          folderNames,
+        });
       });
       const filesIncluded = serializedCards.filter(
         (card) => card.file !== undefined
@@ -187,6 +196,20 @@ async function runExportArchiveViaFilesWorker(
             path: CARDS_ENTRY_NAME,
             contentBase64: Buffer.from(
               JSON.stringify({ cards: serializedCards }, null, 2),
+              "utf8"
+            ).toString("base64"),
+          },
+          {
+            path: BOOKMARKS_ENTRY_NAME,
+            contentBase64: Buffer.from(
+              buildBookmarksHtml(serializedCards),
+              "utf8"
+            ).toString("base64"),
+          },
+          {
+            path: CSV_ENTRY_NAME,
+            contentBase64: Buffer.from(
+              buildCardsCsv(serializedCards),
               "utf8"
             ).toString("base64"),
           },
@@ -319,12 +342,23 @@ export const runExportArchive = internalAction({
         cursor = page.cursor;
       }
 
+      const folders: Array<{ id: string; name: string }> = await ctx.runQuery(
+        internalAny.dataExport.getExportFolderNames,
+        {
+          jobId,
+        }
+      );
+      const folderNames = new Map(
+        folders.map((folder) => [folder.id, folder.name])
+      );
+
       const createdAtMs = Date.now();
       const expiresAtMs = computeExpiry(createdAtMs);
 
       const workerResult = await runExportArchiveViaFilesWorker(ctx, {
         jobId,
         inputs,
+        folderNames,
         userId,
         createdAtMs,
         expiresAtMs,

@@ -61,6 +61,63 @@ describe("Teak archive card validation", () => {
     });
   });
 
+  test("leaves the schema v2 fields out of a v1 card", () => {
+    const card = validateImportCard({ type: "text", content: "Note" });
+    expect(card.folders).toBeUndefined();
+    expect(card.isArchived).toBeUndefined();
+    expect(card.metadataTitle).toBeUndefined();
+  });
+
+  test("accepts schema v2 folders, archive state, and title, bounded", () => {
+    const card = validateImportCard({
+      type: "link",
+      content: "x",
+      url: "https://example.com",
+      isArchived: true,
+      metadataTitle: `  ${"t".repeat(600)}  `,
+      folders: [
+        " Reading ",
+        "reading",
+        "",
+        "   ",
+        "x".repeat(301),
+        42,
+        ...Array.from({ length: 60 }, (_, index) => `F${index}`),
+      ],
+      aiTags: ["ignored"],
+      aiSummary: "ignored",
+    });
+    expect(card.isArchived).toBe(true);
+    expect(card.metadataTitle).toBe("t".repeat(512));
+    expect(card.folders?.[0]).toBe("Reading");
+    expect(card.folders).toHaveLength(50);
+    expect(card.folders).not.toContain("reading");
+    expect(card).not.toHaveProperty("aiTags");
+    expect(card).not.toHaveProperty("aiSummary");
+  });
+
+  test("never cuts a title inside an emoji", () => {
+    const card = validateImportCard({
+      type: "text",
+      content: "x",
+      metadataTitle: `${"a".repeat(511)}😀`,
+    });
+    expect(card.metadataTitle).toBe("a".repeat(511));
+  });
+
+  test("ignores isArchived values other than true, refuses non-list folders", () => {
+    expect(
+      validateImportCard({ type: "text", content: "x", isArchived: "yes" })
+        .isArchived
+    ).toBeUndefined();
+    expect(() =>
+      validateImportCard({ type: "text", content: "x", folders: "Reading" })
+    ).toThrow("Card folders are invalid");
+    expect(
+      validateImportCard({ type: "text", content: "x", folders: null }).folders
+    ).toBeUndefined();
+  });
+
   test("reports card limits in terms of the selected import mode", () => {
     expect(() => assertImportCardCount(10_001, "bookmarks")).toThrow(
       "Bookmark file exceeds 10,000 bookmarks"
