@@ -62,7 +62,8 @@ Publish the Teak extension for Firefox on addons.mozilla.org (AMO), with every f
 - `.github/workflows/extension-release.yml`:
   - build `zip:firefox`
   - attach `teak-extension-<version>-firefox.zip`
-  - sign and submit with `web-ext`, skipping when the version was already submitted, like the Chrome step
+  - find the `*-sources.zip` WXT wrote and copy it to `teak-extension-<version>-sources.zip`, the way the Chrome step renames its zip
+  - sign and submit with `web-ext sign --channel=listed --upload-source-code teak-extension-<version>-sources.zip`, so every listed version ships its sources to AMO, skipping when the version was already submitted, like the Chrome step
 
 ## API / MCP / SDK / CLI
 
@@ -121,7 +122,7 @@ Publish the Teak extension for Firefox on addons.mozilla.org (AMO), with every f
 - **Video (Firefox latest):** install the unpacked build, sign in, auto-save with tags, Save Text with its source, an inline Instagram save, and address-bar search.
 - **Video, worst case:** Firefox 140, a private window, offline retry.
 - **Screenshots:** each popup state in Firefox, light and dark. The apps page and `extension.mdx` at 390px and 1440px.
-- Captured output: `web-ext lint`, the contents of the sources zip, and a dry run of the release workflow.
+- Captured output: `web-ext lint`, the contents of the sources zip, and a dry run of the release workflow showing the `web-ext sign` command with `--upload-source-code` pointing at the versioned sources zip.
 
 ## Release gate
 

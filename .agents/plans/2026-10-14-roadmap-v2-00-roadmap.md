@@ -1,10 +1,10 @@
 ## Goal
 
-Make Teak better at saving, finding and rediscovering things, as 31 separate plans. Each phase is one PR, deployed and verified in production on its own before the next one starts. This roadmap is separate from the [v1 roadmap](2026-10-12-roadmap-00-roadmap.md). The v1 phases 11–19 ship first and are not changed.
+Make Teak better at saving, finding and rediscovering things, as 31 separate plans. Each phase is one PR (phase 9 may be folded into another), deployed and verified in production on its own before the next one starts. This roadmap is separate from the [v1 roadmap](2026-10-12-roadmap-00-roadmap.md). The v1 phases 11–19 ship first and are not changed.
 
 ## Success Criteria
 
-- Every phase below merges as its own PR, with:
+- Every phase below merges as its own PR, except phase 9, which may be folded into another PR (see Risks). Each PR has:
   - green CI
   - a break-it pass over its mock data packs
   - a proof bundle (videos plus screenshots) sent to the owner before the PR opens
@@ -31,7 +31,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
   - **Worker calls:** Convex calls the worker through `callFilesWorkerJson` (`packages/convex/storage/filesWorkerClient.ts`) with HMAC-signed `{op, params, version}` requests. The ops are listed in `FILES_OPS` (`packages/files-protocol/src/index.ts`) and dispatched in `apps/files-worker/src/ops.ts`.
   - **Document text** is extracted by `extractFileTextForAiForKey` (`workflows/fileProcessing.ts`). It is cut to 6,000 characters for the AI and then thrown away. v1 phase 13 starts keeping it.
   - **Audio transcripts** are stored in `cards.aiTranscript` and are already searchable.
-  - **Link categories:** 15 categories in `shared/linkCategories.ts`, plus site-specific providers in `workflows/steps/categorization/providers/` (amazon, dribbble, github, goodreads, imdb). Products and recipes also get JSON-LD enrichment (`enrichment.ts`).
+  - **Link categories:** 15 categories in `shared/linkCategories.ts`, plus site-specific providers in `workflows/steps/categorization/providers/` (Amazon, Dribbble, GitHub, Goodreads, IMDb). Products and recipes also get JSON-LD enrichment (`enrichment.ts`).
     - Prices are display strings inside `facts`.
     - YouTube is classified as `tv` and has no enrichment handler.
   - **Extension** (`apps/extension`, WXT):
@@ -209,7 +209,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
-| 23 | New secret `INBOUND_ADDRESS_SECRET`, so the address can be shown again while only its hash is stored | Add it |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
 
 ### Decided
@@ -220,3 +219,4 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 4 | No announcement for cards that already carry `private`, `nsfw` or `hidden`; the normal changelog entry covers it |
 | 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |
 | 15 | Done states are for link cards only |
+| 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

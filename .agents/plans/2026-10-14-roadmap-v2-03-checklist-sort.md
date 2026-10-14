@@ -41,7 +41,8 @@ When you tick a checklist item in a note, it moves below the open items in its l
 
 - `text-editor/taskListSort.ts`:
   - A pure `moveToggledTaskItem(state, tr) => Transaction | null`. It finds the `taskItem` whose `checked` attribute changed, then works out where it goes among its siblings in the parent `taskList`.
-  - Ticked: after the last unticked sibling. Unticked: after the last unticked sibling other than itself.
+  - Ticked: after the last unticked sibling other than itself, or first in the list when there is none. Unticked: after the last unticked sibling other than itself.
+  - When the item already sits at its target position, it returns `null` and nothing moves.
   - It moves the whole node, children included, with one `ReplaceStep`.
   - A Tiptap `Extension` (`TaskListSort`) wraps it in an `appendTransaction` plugin.
 - `text-editor/markdownDocument.ts`: add `TaskListSort` to the editor's extensions only (inside `RichMarkdownEditor`'s list), so `markdownManager` parsing is unaffected.
@@ -58,7 +59,7 @@ When you tick a checklist item in a note, it moves below the open items in its l
 
 ## UI states
 
-- **Empty:** a list whose items are all unticked does nothing. Ticking the last open item moves nothing.
+- **Empty:** a list whose items are all unticked does nothing. Ticking the last open item moves it to the start of the done items. It stays put only when it already sits there: in `- [ ] A`, `- [x] B` ticking A moves nothing, but a note loaded as `- [x] A`, `- [ ] B` (loading never reorders) becomes `- [x] B`, `- [x] A` when B is ticked.
 - **Loading:** not applicable.
 - **One / many items:**
   - A list with 1 item never moves.
@@ -96,7 +97,8 @@ When you tick a checklist item in a note, it moves below the open items in its l
 
 - `packages/ui/src/components/text-editor/__tests__/taskListSort.test.ts`, as a `test.each` table. It parses Markdown with `markdownManager`, builds an `EditorState` with the editor's schema, toggles item N, applies `moveToggledTaskItem` and serializes. Cases:
   - tick the first of 3 items
-  - tick the last open item
+  - tick the last open item already above the done items (`[ ] A, [x] B` → unchanged, no move transaction)
+  - tick the last open item below a done item (`[x] A, [ ] B` → `[x] B, [x] A`)
   - untick
   - nested lists
   - a child moving with its parent

@@ -58,6 +58,7 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
   - `withHiddenFlag(value)` for patches
   - `revealsHidden(tags: string[])`
   - `excludeHidden` filter helpers for index queries (`q.neq(q.field("isHidden"), true)`) and for loaded cards
+  - the loaded-card check `isCardHidden(card)`, defined in `shared/tags.ts` next to `isHiddenTagList` so `localSearch.ts` can use it: `card.isHidden === true` or `isHiddenTagList(card.tags)`. A card the backfill hasn't reached has no `isHidden` and passes the index filter, so every read path also runs this check on the cards it loads. Reserved-tag cards are then hidden from the moment the read paths deploy, with no window before the backfill finishes.
 - Card creation and every path that inserts cards (`card/createCard.ts`, `uploadCard.ts`, `defaultCards.ts`, `raycast.quickSaveForUser`, imports) set `isHidden` from the initial tags.
 - Every read path in Context takes an `includeHidden` option, which is false by default. `resolveSearch` sets it when `tags` intersects `HIDDEN_TAG_KEYS`.
 - `workflows/aiMetadata/tags.ts`: `normalizeAiTags` drops the reserved keys.
@@ -107,7 +108,7 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
   - Untag while searching `#private`; the card leaves the results.
   - Undo the toast quickly.
   - Shuffle and Reshuffle; no hidden card ever appears.
-  - The local cache: a card hidden in another tab must not show in instant results.
+  - The local cache: a card hidden in another tab must not show in instant results. `filterLocalCards` uses `isCardHidden`, so unbackfilled cards are covered too.
   - The `?card=` deep link to a hidden card still opens.
   - Back and forward.
   - Two tabs.
@@ -118,12 +119,13 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
   - Trashed and archived hidden cards.
   - AI output containing "NSFW".
   - Backfill idempotency and dry-run totals.
+  - Reads before and during the backfill: reserved-tag cards without `isHidden` never appear.
   - OCC between a tag edit and the search sync (`occContention.test.ts`).
   - API, MCP and CLI with and without `#private`, with a bad cursor, and without auth.
 
 ## Tests
 
-- `packages/convex/__tests__/shared/tags.test.ts`: `isHiddenTagList` over case, spacing and AI-only tags.
+- `packages/convex/__tests__/shared/tags.test.ts`: `isHiddenTagList` over case, spacing and AI-only tags, and `isCardHidden` with and without `isHidden` set.
 - `packages/convex/__tests__/workflows/aiMetadata/tags.test.ts`: reserved words are dropped.
 - `packages/convex/hiddenCards.test.ts` (convex-test, add it to `vitest.config.ts`):
   - every read path excludes hidden cards, and the reveal tag includes them
@@ -132,6 +134,7 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
   - a get by ID still works
   - `/v1/cards/changes` includes them
   - creating a card with a reserved tag sets the flag
+  - a card tagged `private` with no `isHidden` (not yet backfilled) is excluded from every read path, and the reveal tag includes it
 - `packages/convex/__tests__/migration/backfillHiddenCards.test.ts`: the dry run writes nothing, a real run sets both rows, deleting accounts are skipped.
 - `packages/convex/__tests__/shared/search/localSearch.test.ts`: `filterLocalCards` drops hidden cards unless the search reveals them.
 - `packages/convex/__tests__/publicApiHttpCards.test.ts` and `mcp.test.ts`: `isHidden` in the JSON, and hidden cards excluded by default.
@@ -150,10 +153,10 @@ Let people hide cards by giving them one of the reserved tags `private`, `nsfw` 
 1. Run the narrow tests, then the repo checks, plus `hidden-cards.e2e.ts`, `search-qualifiers.e2e.ts`, `folders.e2e.ts`, `shuffle.e2e.ts`, `03-api.e2e.ts`, `04-cli.e2e.ts` and `05-mcp.e2e.ts`.
 2. Seed `hidden-mix`, run the break-it pass, then fix and add regression tests.
 3. Send the proof bundle, including the production dry-run counts.
-4. Open the PR; CI must be green. Merge. Deploy Convex (the search index rebuild runs; deploy in a low-traffic window and watch database I/O, per `.agents/convex-costs.md`), then the web app. Run `migration/backfillHiddenCards:backfillHiddenCards` as a dry run, review the counts, then `'{"dryRun":false}'`. Smoke-test production: tag a test card `private`, check web, API and `teak ls`.
+4. Open the PR; CI must be green. Merge. Deploy Convex (the search index rebuild runs; deploy in a low-traffic window and watch database I/O, per `.agents/convex-costs.md`), then the web app. The tag check in `isCardHidden` hides reserved-tag cards from this deploy on, so the backfill only fills in the flag. Run `migration/backfillHiddenCards:backfillHiddenCards` as a dry run, review the counts, then `'{"dryRun":false}'`. Smoke-test production: tag a test card `private`, check web, API and `teak ls`.
 
 ## Risks And Open Questions
 
-- **Existing tags.** People who already use `private`, `nsfw` or `hidden` as ordinary tags will see those cards disappear on deploy. The dry run gives the count. Decided: no separate announcement. The ship-month changelog entry already says that cards carrying those tags are now hidden, and the backfill runs right after the deploy.
+- **Existing tags.** People who already use `private`, `nsfw` or `hidden` as ordinary tags will see those cards disappear on deploy. The dry run gives the count. Decided: no separate announcement. The ship-month changelog entry already says that cards carrying those tags are now hidden. They are hidden from the deploy on (through `isCardHidden`), and the backfill runs right after it.
 - **Short pages.** Filtering after the index read can make a page short when many hidden cards cluster together. That's acceptable for rare tags. If a user hides thousands of cards, add `by_user_deleted_archived_hidden_created` next to the existing index.
 - **Native views.** Native apps that read Convex directly through other queries must route through the filtered queries. Verify on Apple before merge.

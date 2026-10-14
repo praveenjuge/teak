@@ -221,7 +221,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 ## Risks And Open Questions
 
 - **Fact versus the master plan.** The master plan says the signature check "copies `workosWebhook.ts`". That route verifies through the WorkOS SDK, not an HMAC. This phase copies its response structure, and takes the HMAC and replay window from the Files Worker protocol.
-- **Hashed token versus copying it again.** The master plan says the table stores a hash of the token. Storing only a random token's hash would make the address impossible to show again. Deriving the token from `INBOUND_ADDRESS_SECRET` keeps only a hash at rest while still letting Settings show it. The owner should confirm.
+- **Hashed token versus copying it again.** The master plan says the table stores a hash of the token. Storing only a random token's hash would make the address impossible to show again. Deriving the token from `INBOUND_ADDRESS_SECRET` keeps only a hash at rest while still letting Settings show it. Decided by the owner: add the secret and derive the token. Mail still arrives through Cloudflare Email Routing's single catch-all rule.
 - **Email Routing on a subdomain.** Check, in the deploy spike, that subdomain catch-alls work, that `+` survives to `message.to`, and how a thrown error is retried.
 - **Spoofed senders.** Anyone holding the address can add cards, which is the stated trade-off. Should mail that fails DMARC (`authResults`) be dropped too? Proposed yes.
 - Over a rate limit, mail is dropped silently, which matches the rule for the card limit. Should a temporary SMTP rejection be used instead?

@@ -39,8 +39,9 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - Semantic matches below `SEMANTIC_MIN_SCORE` are dropped (start at 0.5 cosine and tune on dev) unless the card is also a keyword match.
   - The fused set is capped at the existing candidate limits (401 grid, 400 API), then filtered by `resolved.matches` / `matchesStructuredFilters`. Semantic candidates use the same `includeHidden` rule as the keyword side: hidden cards are dropped unless `resolveSearch` set `includeHidden` because the tags reveal them. Then the set is sorted.
   - With newest, oldest or shuffle sorts, fusion decides which cards are in the set, not their order. A relevance sort is not added.
+- **Modes.** All three apply the same filters, `includeHidden` rule and sort. `hybrid` returns the RRF fusion. `keyword` returns only keyword matches (today's results). `semantic` returns only semantic matches above `SEMANTIC_MIN_SCORE`, and drops keyword-only matches.
 - **Semantic cache.** Every surface writes to and reads from one cache table:
-  - `semanticSearchResults { userId, key, ranking: [{ cardId, score }] (≤ 100), createdAt, expiresAt }`, with `by_userId_and_key` and `by_expiresAt`.
+  - `semanticSearchResults { userId, key, status: "ok" | "pending" | "unavailable", ranking: [{ cardId, score }] (≤ 100), createdAt, expiresAt }`, with `by_userId_and_key` and `by_expiresAt`. This phase writes only `ok`; phase 14 adds `pending` and `unavailable`. Readers fuse a ranking only when `status` is `ok`.
   - `key` is a SHA-256 of the normalized free text, `EMBED_TEXT_VERSION` and the sorted type filter.
   - Each entry lives for 10 minutes. A bounded cron removes expired rows, and account deletion's `ancillaryPage` removes them by user.
   - Queries only read the cache, so they stay deterministic and reactive. Card state is filtered live.
@@ -54,7 +55,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - `fuseRankings(keyword, semantic, { minScore, k: 60, limit })`
   - `shouldRunSemantic(parsed)`
 - `search/semanticActions.ts`:
-  - `requestSemanticResults` (public `action`, session auth): checks `shouldRunSemantic` and the new `semanticSearch` rate limit (60/min per user, in `shared/rateLimits.ts`); returns at once on a cache hit; otherwise calls `vector-query { userId, text, topK: 100, types }` and writes the cache.
+  - `requestSemanticResults` (public `action`, session auth): checks `shouldRunSemantic` and the new `semanticSearch` rate limit (60/min per user, in `shared/rateLimits.ts`); returns at once on an unexpired cache hit (phase 14 re-checks a `like:` anchor before this lookup, so a cached status never outlives a change to the anchor); otherwise calls `vector-query { userId, text, topK: 100, types }` and writes the cache.
   - `fetchSemanticRanking(ctx, userId, parsed, types)`: a shared helper for httpActions, with a 1.5 s timeout. On failure it returns `null`.
 - `getCards.ts` `searchCardsPaginatedHandler`:
   - takes `mode?: "hybrid" | "keyword" | "semantic"`
@@ -144,6 +145,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - Worker 429 and timeout fall back to keyword results.
   - The rate limit is hit.
   - `mode=keyword` returns exactly today's results (snapshot test).
+  - `mode=semantic` drops a card that matches only by keyword.
 
 ## Tests
 
@@ -152,7 +154,8 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - seeded cache rows merged into `searchCardsPaginated`
   - filters, hidden, trash, ownership
   - each sort
-  - `mode=keyword` matches the old output
+  - `mode=keyword` matches the old output, and `mode=semantic` excludes keyword-only matches
+  - a cache row whose `status` is not `ok` adds no cards
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`: `mode` parsing, `searchMode`, fallback when the mocked worker throws, paging across an expired cache entry (same frozen set), an expired session (`CURSOR_EXPIRED`), and inserts and deletes between pages (no skips or duplicates).
 - `packages/convex/__tests__/mcp.test.ts`, `__tests__/sdk.test.ts` and `apps/cli/src/commands.test.ts`: `mode` is passed through.
 - `packages/convex/__tests__/card/mobileCardSummaries.test.ts`: reads the cache; old args are unchanged.

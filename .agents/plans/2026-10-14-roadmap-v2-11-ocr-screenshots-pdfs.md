@@ -42,7 +42,7 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 
 - Two new ops go into `FILES_OPS`, `apps/files-worker/src/ops.ts`, `OP_TIMEOUT_MS` and the `required` list in `scripts/check-files-readiness.ts`. The worker deploys first.
   - `extract-image-text` takes `{ sourceKey }` and returns `{ text }`. It uses Gemma with an OCR-only prompt and the same capacity and validation retries as `generateImageMetadataForOp`. Timeout 120 s.
-  - `ocr-pdf-pages` takes `{ sourceKey, maxPages ≤ 3 }` and returns `{ text, pagesRead, pageCount }`. It renders each page in memory and runs Gemma on it, writing nothing to R2, so no new R2 keys are created. Timeout 240 s.
+  - `ocr-pdf-pages` takes `{ sourceKey, maxPages ≤ 3 }` and always returns `{ text: string, pagesRead: number, pageCount: number | null }`, with `pageCount` `null` when it is unknown. It renders each page in memory and runs Gemma on it, writing nothing to R2, so no new R2 keys are created. Timeout 240 s.
 - A PDF counts as scanned when its page count is known and the extracted text averages under 20 letters or digits per page across the pages read. A "Scanned by …" footer alone still counts as scanned.
 - At most 3 pages are read, whatever the PDF's length. The text is cut at `MAX_IMAGE_OCR_CHARS`, with `--- Page N ---` separators.
 - Rendering and OCR happen inside the existing metadata step (no new `cardProcessing` step). Screenshot OCR is a new final step in `screenshotWorkflowHandler`, after the stage is recorded.
@@ -59,22 +59,23 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
   - Factor the model loop into `runVisionJson(env, imageBytes, systemPrompt, parse)`.
   - Add `IMAGE_TEXT_SYSTEM_PROMPT`, which answers `{"text": "..."}`.
   - `extract-image-text` fetches the `detail` rendition the same way `generateImageMetadataForOp` does.
-- `ocr-pdf-pages`: pages run one after another, which keeps one renderer slot per call. A `RendererDeclined` result (password protected, no pages) returns `{ text: "" }`.
+- `ocr-pdf-pages`: pages run one after another, which keeps one renderer slot per call. A `RendererDeclined` result (password protected, no pages) returns the full shape, `{ text: "", pagesRead: 0, pageCount: null }`, never a partial object.
 
 ## Backend
 
 - `fileProcessing.ts`: `extractFileTextForAiForKey` also returns `pageCount`. Callers keep using the text.
 - `steps/metadata.ts`, document branch:
   - When the PDF counts as scanned, call `ocrPdfPagesForStoredKey`.
-  - When it returns text:
+  - Every completed attempt sets `ocrCheckedAt`, including one that returns empty text and a declined render, so the backfill never picks the card again.
+  - Only when the text is nonempty:
     - pass it as the content for `generateTextMetadata`
-    - set `aiOcrText` and `ocrCheckedAt`
+    - set `aiOcrText`
     - store it through v1 phase 13's path as `cardTextContents { kind: "document", fromOcr: true }`
-  - A renderer that is busy throws so the step retries. A declined render completes with today's behavior.
+  - A renderer that is busy throws so the step retries, and sets nothing. A declined render completes with today's behavior.
 - `cardTextContents`: add `fromOcr: v.optional(v.literal(true))`, so `GET /content` can label it, and `pageCount: v.optional(v.number())`, which the document branch now stores from `extractFileTextForAiForKey`. Neither v1 phase 13's row nor the card kept the page count before, so it has to be persisted for the scanned-PDF predicate to work outside the live pipeline.
 - `workflows/steps/screenshot/ocrScreenshot.ts` (new `internalAction`):
   - Reads `screenshotStorageKey`, calls `extract-image-text`, and writes through a mutation that uses `patchCardWithSearchSync`.
-  - It writes only if the card still has the same screenshot key and is not trashed.
+  - It writes only if the card still has the same screenshot key and is not trashed. It sets `ocrCheckedAt` after every completed call, and `aiOcrText` only when the text is nonempty.
   - `screenshotWorkflowHandler` runs it after `recordStage(stageCompleted)` inside a try/catch. Failures are logged and leave the stage as `completed`.
 - `migration/backfillLinkScreenshotOcr.ts` covers link cards with a `screenshotStorageKey` and no `ocrCheckedAt`. `migration/backfillPdfOcr.ts` covers PDF document cards with no `ocrCheckedAt` that pass the same `isScannedPdf` predicate the pipeline uses (page count known and fewer than 20 letters or digits per page on average). It does not filter on `hasExtractedText` alone, because a scan with only a "Scanned by …" footer has `hasExtractedText` set yet still counts as scanned. Existing PDFs have no stored page count. The backfill therefore runs in two passes. A preparation pass pages PDF document cards directly, by card rather than by `cardTextContents`. v1 phase 13 writes no row at all for an image-only scan with no extracted text (`2026-10-12-roadmap-13-stored-text.md:76`), and those are the main OCR case. For every PDF card with no `ocrCheckedAt` that either has no row or has a row without `pageCount`, the pass calls the existing `inspect` op in `pdf` mode (page count only, bounded batches, rate-limited like the pipeline). It writes `pageCount` onto the existing row, or creates a placeholder row `{ kind: "document", text: "", pageCount }` when none exists. A missing row with a known page count has zero text, so it always passes the scanned predicate. The selection pass then applies the predicate to the stored text length and page count, with no further worker calls. For both:
   - Dry run by default.
@@ -124,6 +125,7 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 - Backend:
   - Scanned detection on 0, 1 and 3+ pages, and on footer-only text.
   - A busy renderer is retried. A declined render completes.
+  - A scan whose OCR comes back empty, then the PDF backfill: the card is not read again.
   - A screenshot replaced mid-OCR is not written.
   - A card trashed or hard-deleted mid-OCR is not written.
   - An old worker without the new ops: the ops are treated as missing and skipped, with no failure loops.
@@ -135,13 +137,13 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 
 - `apps/files-worker/container/test/pdf.test.ts` and `container/src/args.test.ts`: the `page` parameter and its bounds.
 - `apps/files-worker/src/mediaJobs.test.ts`: `renderPdfPageBytes`.
-- `apps/files-worker/src/ops.test.ts` and `index.test.ts`: both ops are dispatched, validated and listed in capabilities.
+- `apps/files-worker/src/ops.test.ts` and `index.test.ts`: both ops are dispatched, validated and listed in capabilities. `ocr-pdf-pages` returns `{ text, pagesRead, pageCount }` on success and `{ text: "", pagesRead: 0, pageCount: null }` on a declined render.
 - `apps/files-worker/src/imageMetadata.test.ts`: the OCR-only parser.
 - `packages/convex/__tests__/workflows/fileProcessing.test.ts`: `pageCount` is passed through and stored on `cardTextContents`.
 - `packages/convex/__tests__/migration/backfillPdfOcr.test.ts` also covers the preparation pass: rows without `pageCount` get one from the mocked `inspect` op, a PDF card with no `cardTextContents` row gets a placeholder row and is then selected as scanned, and the dry run writes nothing.
-- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: scanned PDF leads to OCR text, summary and stored text; a text PDF makes no OCR call; a declined render.
+- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: scanned PDF leads to OCR text, summary and stored text; a text PDF makes no OCR call; a declined render and an empty OCR result both set `ocrCheckedAt` and write no `aiOcrText` or stored text; a busy renderer sets nothing.
 - `packages/convex/__tests__/workflows/screenshot.test.ts`: the OCR step runs after capture, its failure keeps the stage `completed`, and a replaced key is not written.
-- `packages/convex/__tests__/migration/backfillPdfOcr.test.ts` and `backfillLinkScreenshotOcr.test.ts`: the dry run writes nothing; pages resume; a PDF with a short "Scanned by …" footer (`hasExtractedText` true, under 20 characters per page) is selected, and a normal text PDF is not.
+- `packages/convex/__tests__/migration/backfillPdfOcr.test.ts` and `backfillLinkScreenshotOcr.test.ts`: the dry run writes nothing; pages resume; a card whose OCR came back empty has `ocrCheckedAt` and is not selected again; a PDF with a short "Scanned by …" footer (`hasExtractedText` true, under 20 characters per page) is selected, and a normal text PDF is not.
 - `packages/convex/__tests__/card/content.test.ts` and `__tests__/publicApiHttpCards.test.ts`: `source: "ocr"`.
 - `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the titles and the "First 3 pages" note.
 

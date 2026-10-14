@@ -8,7 +8,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 ## Success Criteria
 
-- In a link card's details, people can replace the image three ways: drop an image on the preview, paste one (⌘V / Ctrl+V while the card is open and no text field has focus), or choose "Replace image". The new image shows in the grid, the modal and the native apps without an app update.
+- In a link card's details, people can replace the image three ways: drop an image on the preview, paste one (⌘V / Ctrl+V while the card is open and no text field has focus), or choose "Replace image". The new image shows in the web grid and modal, and in the native grids and native views that use `linkPreviewImageUrl`, without an app update. Native detail views that prefer attached media follow in phases 29 (Apple) and 31 (Android).
 - "Reset to original image" brings back the scraped image (or the screenshot fallback) and deletes the uploaded file.
 - The replacement survives Refresh details, the screenshot workflow and new link media.
 - API calls:
@@ -46,7 +46,7 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 ## Constraints And Non-goals
 
 - The new card field is top-level and optional, so old clients ignore it.
-- The server resolves `linkPreviewImageUrl` from the replacement when one exists, so native apps show it with no update. The web's grid order changes so a replacement beats attached media.
+- The server resolves `linkPreviewImageUrl` from the replacement when one exists, so native grids and native views that use `linkPreviewImageUrl` show it with no update. Apple's detail view (`CardSheet.linkImageURL`) prefers attached media first; native detail-view precedence is handled in phases 29 (Apple) and 31 (Android). The web's grid order changes so a replacement beats attached media.
 - The new R2 role is `thumbnail-override`. Replacing or resetting does not delete the old object at once. The whole previous override is kept, not just its key: `cards.previousThumbnailOverride { override: { storageKey, width, height, updatedAt } | null, changeId, deleteAfter }`. A live `thumbnailOverride` needs its trusted width and height (native layout uses them for the aspect ratio), so undo restores the complete object. A `null` override means the card was showing its original image. A new `changeId` is minted on every replace or reset, stored on the card as `thumbnailChangeId` and returned to the client, and `deleteObject` (the durable cleanup workflow) is scheduled with `ctx.scheduler.runAfter(THUMBNAIL_UNDO_WINDOW_MS = 2 minutes)`. This keeps an undo from pointing at a deleted object.
 - Accepted types are JPEG, PNG, WebP, GIF (first frame on the grid), AVIF and HEIC if the worker decodes it. The limit is 20 MB, the Images binding input cap in `finalizeImage.ts`. SVG is refused.
 - Rate limit `thumbnailReplace` (20 a minute per user) in `shared/rateLimits.ts`.
@@ -54,17 +54,21 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 ## Backend
 
-- `schema.ts`: `cards.thumbnailOverride: v.optional(v.object({ storageKey: r2KeyValidator, width: v.number(), height: v.number(), updatedAt: v.number() }))`.
+- `schema.ts`, with one shared `thumbnailOverrideValidator = v.object({ storageKey: r2KeyValidator, width: v.number(), height: v.number(), updatedAt: v.number() })`:
+  - `cards.thumbnailOverride: v.optional(thumbnailOverrideValidator)`
+  - `cards.previousThumbnailOverride: v.optional(v.object({ override: v.union(thumbnailOverrideValidator, v.null()), changeId: v.string(), deleteAfter: v.number() }))`
+  - `cards.thumbnailChangeId: v.optional(v.string())`
 - `card/thumbnailOverride.ts`:
   - `createThumbnailUploadUrl({ cardId })`: owner, link type and not trashed. It checks no card quota. The pending key goes in the swept pending namespace, not under the card: `buildR2ObjectKey({ cardId: PENDING_UPLOAD_CARD_ID, role: "thumbnail-override-pending", fileName: "card-" + cardId })`. A replacement abandoned after upload (reload, offline, closed tab, or a failed `setLinkThumbnail`) is then deleted by the existing 24-hour `cleanup-stale-pending-uploads` sweep (`storage/pendingUploadCleanup.ts`, `apps/files-worker/src/ops.ts`), which only looks under `/cards/upload-pending-v2/`.
   - `setLinkThumbnail({ cardId, fileKey })` (action):
     - It checks that `fileKey` is in the caller's namespace, sits under `upload-pending-v2/thumbnail-override-pending/`, and ends in `-card-<cardId>`, so a pending key for another card is refused.
     - It runs `finalize-image-upload` to `buildR2ObjectKey({ role: "thumbnail-override" })`.
     - An internal mutation then patches the card (`patchCardWithSearchSync`), moves the previous replacement into `previousThumbnailOverride`, and schedules its deletion after the undo window.
+    - If that mutation fails (or skips the patch), the action deletes the finalized key with the Files Worker `delete-object` op in its catch block, as `finalizeForUser` in `card/uploadCardAction.ts` does, then rethrows. The finalized object sits outside the pending namespace, so the 24-hour sweep would never remove it.
     - `undoThumbnailChange({ cardId, changeId })` works only when `changeId` equals the card's current `thumbnailChangeId` and `deleteAfter` is in the future. Otherwise it returns `UNDO_EXPIRED`. That covers an expired window and a stale toast from an earlier replace (A→B→C: the A→B toast can no longer restore B). When it works, it restores `previousThumbnailOverride.override` as the card's `thumbnailOverride`, including width and height. A `null` override resets the card to its original image, so undoing a first replace works. It also cancels that key's scheduled deletion and schedules the newer key's deletion instead.
     - The scheduled deletion checks that the key is not the card's current override before deleting, so a late undo or a double replace never removes a live image.
   - `resetLinkThumbnail({ cardId })`. Each of these has a `…ForUser` internal twin for the API.
-- `storage/r2.ts cardStorageObjectKeys`: add `card.thumbnailOverride?.storageKey`.
+- `storage/r2.ts cardStorageObjectKeys`: add `card.thumbnailOverride?.storageKey` and `card.previousThumbnailOverride?.override?.storageKey`, so an object kept for the undo window is deleted with the card.
 - `card/queryUtils.ts` (`attachListUrls`, grid URLs) and `mobileCardSummaries.ts`:
   - With a replacement, `linkPreviewImageUrl` comes from its key, and the aspect ratio comes from its width and height.
   - They expose `hasThumbnailOverride: true`.
@@ -129,18 +133,19 @@ Let people replace any link card's image by dropping, pasting or choosing a file
   - a key from another role or card
   - a non-link card and a trashed card
   - Refresh details after a replacement
-  - hard delete and account deletion remove the replacement (R2 mock)
+  - hard delete and account deletion remove the replacement and the previous override kept for undo (R2 mock)
+  - the card mutation in `setLinkThumbnail` fails after finalize: the finalized object is deleted
   - reset with no replacement (idempotent 200)
   - CORS preflight for PUT
   - an account at the free cap can still replace an image
 
 ## Tests
 
-- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key survives until the undo window closes and is deleted after it, undo restores the previous override with its own width and height (a portrait A replaced by a landscape B comes back portrait) and cancels its deletion, undo of a first replace resets to the original image, a stale toast after A→B→C returns `UNDO_EXPIRED` and leaves C in place, undo after the window returns `UNDO_EXPIRED`, a double replace inside the window deletes only the right objects, reset, rate limit, the pending key lands under `upload-pending-v2` and a pending key for another card is refused (Files Worker mocked).
-- `packages/convex/__tests__/storage/r2.test.ts`: `cardStorageObjectKeys` includes the replacement key.
+- `packages/convex/__tests__/card/thumbnailOverride.test.ts`: ownership, types, link only, the previous key survives until the undo window closes and is deleted after it, undo restores the previous override with its own width and height (a portrait A replaced by a landscape B comes back portrait) and cancels its deletion, undo of a first replace resets to the original image, a stale toast after A→B→C returns `UNDO_EXPIRED` and leaves C in place, undo after the window returns `UNDO_EXPIRED`, a double replace inside the window deletes only the right objects, reset, rate limit, the pending key lands under `upload-pending-v2` and a pending key for another card is refused, and a failed card mutation deletes the finalized key (Files Worker mocked).
+- `packages/convex/__tests__/storage/r2.test.ts`: `cardStorageObjectKeys` includes the replacement key and the previous override key.
 - `packages/convex/__tests__/card/queryUtils.test.ts` and `mobileCardSummaries.test.ts`: URL and aspect-ratio precedence.
 - `packages/convex/__tests__/linkMetadata.test.ts`: `updateCardMetadata` keeps `thumbnailOverride`.
-- `packages/convex/accountDeletionStorage.test.ts` (convex-test): the replacement key is deleted.
+- `packages/convex/accountDeletionStorage.test.ts` (convex-test): the replacement key and the previous override key are deleted.
 - `__tests__/publicApiHttpCards.test.ts`, `__tests__/publicApiGateway.test.ts` (PUT in CORS), `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
 - UI: `cards/__tests__/Card.test.tsx` (a replacement beats attached media), `card-previews/__tests__/LinkPreview.test.tsx` (the empty "Add an image" state).
 - e2e: `packages/tests/src/web/replace-thumbnail.e2e.ts` (new): pick a file, reload, reset. Plus `journey/03-api.e2e.ts` and `04-cli.e2e.ts`.
@@ -164,4 +169,4 @@ Let people replace any link card's image by dropping, pasting or choosing a file
 
 - **API shape.** `POST /v1/uploads` checks the card quota, so the plan adds a thumbnail-specific upload URL instead of reusing it. That means a third route, besides the PUT and DELETE in the approved plan.
 - **HEIC.** Decoding through `finalize-image-upload` is unproven. If it fails, refuse HEIC in this phase.
-- **Native detail views.** Native detail screens may prefer attached media over `linkPreviewImageUrl`. The grid follows the replacement, but the Apple and Android detail views get the same precedence in phases 29 and 31.
+- **Native detail views.** Apple's detail view prefers attached media over `linkPreviewImageUrl` (`CardSheet.linkImageURL`). The native grids follow the replacement, but the Apple and Android detail views get the same precedence in phases 29 and 31.

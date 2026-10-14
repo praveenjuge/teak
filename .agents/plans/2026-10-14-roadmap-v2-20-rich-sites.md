@@ -73,6 +73,7 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
   - A URL duplicate check can't work here: `createUploadedCardForUser` stores no top-level `url`, so the document never appears in `cards.by_user_url_deleted`. A `/pdf/` source card's lookup would also find the link card itself. Instead it records provenance in a new table, `linkedPdfs { userId, sourceCardId, pdfUrl, status: "pending" | "done" | "failed", cardId?, createdAt }` with `by_sourceCardId` and a reverse index `by_cardId`. Rows are deleted with the source card and in account deletion. When the generated document is hard-deleted, both hard-delete paths (`card/deleteCard.ts` and `workflows/cardCleanup.ts`) look the row up through `by_cardId` and clear it, with no table scan, so a later Save PDF creates a fresh document instead of returning the deleted one.
   - First an internal mutation claims the row atomically. A `done` row returns its `cardId` (`created: false`). A fresh `pending` row (under 2 minutes old) returns `409 IN_PROGRESS`, so concurrent calls never create two documents. A missing or `failed` row is (re)claimed as `pending`.
   - Then it checks the quota, downloads with `safeFetch`, stores to R2 (role `file`), and finalizes through the same promotion path as `finalizeUploadedCard`. The provenance claim (`{ linkedPdfId, claimToken }`) is passed into the card-creating mutation, which re-checks the claim, returns the existing `cardId` if the row is already `done`, and otherwise creates the document and marks the row `done` with its `cardId` in the same transaction. This matches phase 24's attachment pattern. The R2 destination key is derived from the `linkedPdfs` row id, so a retry after an interruption between storing and creating reuses the stored object instead of writing a second one. It returns `{ cardId, created: true }`. If the new document is later deleted, the row is cleared so Save PDF works again.
+  - Any refusal before the document exists (quota, content type, size, or a failed download) marks the claimed row `failed` before it returns its error. An immediate retry then reclaims the row instead of getting `409 IN_PROGRESS`.
 - Analytics: `link_pdf_saved { source }`.
 
 ## Web
@@ -130,6 +131,7 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
   - a 2 MB Open Library response (cap)
   - a PDF URL answering `text/html`
   - a 200 MB PDF (refused)
+  - Save PDF over quota, then again right away (the retry gets the quota error again, not `IN_PROGRESS`)
   - Save PDF on another user's card
   - Save PDF twice, one after the other (one card), and twice concurrently (one card, the other call gets `IN_PROGRESS` and then the same `cardId`)
   - Save PDF on a source card whose URL is already the `/pdf/` URL (creates a document, never returns the link card)
@@ -140,7 +142,7 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
 - One file per site under `packages/convex/__tests__/workflows/steps/categorization/remote/`: `wikipedia.test.ts`, `arxiv.test.ts`, `spotify.test.ts`, `appleMusic.test.ts`, `openLibrary.test.ts`. Each covers fixture parsing, null cases and caps, with the network mocked. `openLibrary.test.ts` also checks the ISBN checksum.
 - `__tests__/workflows/steps/categorization/index.test.ts`: the remote layer merges facts and ignores failures.
 - `__tests__/workflows/steps/metadata.test.ts`: the summary appears in the AI input within 6,000 characters.
-- `packages/convex/__tests__/card/saveLinkedPdf.test.ts`: owner only, provenance replay returns the same document, hard-deleting the generated document (through both hard-delete paths) clears its `linkedPdfs` row via `by_cardId` and the next Save PDF creates a new document, concurrent claims create one document, an interruption injected after card creation leaves the row `done` (a retry returns that card and writes no new R2 object), the `/pdf/` source URL case, deleting the document clears provenance, quota, content-type and size refusals (R2 and network mocked).
+- `packages/convex/__tests__/card/saveLinkedPdf.test.ts`: owner only, provenance replay returns the same document, hard-deleting the generated document (through both hard-delete paths) clears its `linkedPdfs` row via `by_cardId` and the next Save PDF creates a new document, concurrent claims create one document, an interruption injected after card creation leaves the row `done` (a retry returns that card and writes no new R2 object), the `/pdf/` source URL case, deleting the document clears provenance, quota, content-type and size refusals, each followed by an immediate retry that is not blocked by `IN_PROGRESS` (R2 and network mocked).
 - `__tests__/publicApiHttpCards.test.ts`, `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
 - `packages/ui/src/components/card-previews/__tests__/LinkPreview.test.tsx`: the Save PDF button shows only with a `pdfUrl`.
 

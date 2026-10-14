@@ -66,7 +66,7 @@ Turn the product price Teak already scrapes into a structured `{amount, currency
 - `migration/backfillLinkPrice.ts`:
   - It pages the cards table and handles link cards whose `linkCategory` has no `price`.
   - Sources, in order: inline `raw.structured.offers`, then inline `raw.provider.price/currency`, then the `Price` fact.
-  - It writes through `patchCardWithSearchSync`.
+  - It writes through `patchCardWithSearchSync`, which patches the value it is given unconditionally. So the write mutation re-reads the card itself, skips it when `metadata.linkCategory.price` is already present (a refresh got there first), and merges the price into the fresh `metadata`, never into a copy from an earlier read.
   - Its totals are `examined`, `priced`, `skippedArchivedRaw`, `unparsable` and `skippedDeletingAccounts`.
 
 ## Web
@@ -131,7 +131,7 @@ Turn the product price Teak already scrapes into a structured `{amount, currency
 - `__tests__/workflows/steps/categorization/index.test.ts`: an `offers` array, `AggregateOffer`, and provider versus JSON-LD precedence.
 - `__tests__/shared/search/qualifiers.test.ts` and `localSearch.test.ts`: `price:` parsing and filtering.
 - `packages/convex/searchQualifiers.test.ts` (convex-test): `price:` bounds across batch pages, and cards without a price.
-- `packages/convex/__tests__/migration/backfillLinkPrice.test.ts`: a dry run writes nothing, the source order, archived raw is skipped, and pages resume.
+- `packages/convex/__tests__/migration/backfillLinkPrice.test.ts`: a dry run writes nothing, the source order, archived raw is skipped, pages resume, and a price written between the read and the write is kept.
 - `packages/ui/src/components/cards/__tests__/Card.test.tsx`: pill text for USD, EUR, JPY and Free, and no pill without a price.
 - `__tests__/publicApiHttpCards.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
 

@@ -45,6 +45,7 @@ Make full-screen writing one feature, Focus, for new and existing notes alike, w
 - `card-previews/TextPreview.tsx`: passes `onOpenFullScreen`. It owns the focus state and renders `FocusEditor` with `getCurrentValue("content")`, `onContentChange` and `onSaveShortcut`.
 - `card-modal/CardModal.tsx`: a ghost icon button "Focus" in the text preview's top-right corner, with tooltip "Focus (⌘E)".
 - `forms/FullScreenAddCardDialog.tsx`: deleted. `forms/AddCardForm.tsx` (lines 287–322) renders `FocusEditor`, and its expand button (lines 341–346) changes its `aria-label` and `title` from "Open full-screen note" to "Focus (⌘E)".
+- `packages/ui/README.md`: remove `FullScreenAddCardDialog` from the `@teak/ui/forms` import example. `FocusEditor` stays internal to `packages/ui`, so it isn't added to the public exports or the README.
 
 ## API / MCP / SDK / CLI
 

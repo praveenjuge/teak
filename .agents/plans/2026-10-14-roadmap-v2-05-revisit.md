@@ -18,7 +18,7 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
   - Esc exits.
   - On touch screens you can swipe left or right.
 - The end screen says "All caught up". "Revisit 20 more" loads the next 20 of the same seed, so there are no repeats. When the view is used up, the button reads "Start over" and picks a new seed.
-- The URL is `?sort=revisit&seed=N`. Reload brings back the same deck; Back closes it and returns to the previous sort.
+- The URL is `?sort=revisit&seed=N`. Reload takes a fresh snapshot from the same seed: the first 20 cards of that seed as the view is now, with progress back at 1. Before any archive that is the same deck. Cards archived before the reload have left the view, so they are gone and the next cards of the seed fill in. Back closes the deck and returns to the previous sort.
 - No backend change. Analytics events: `revisit_started` and `revisit_finished`.
 
 ## Context And Current Facts
@@ -98,7 +98,7 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
   - Archive then Z quickly.
   - Hold ← down (key repeat must not skip cards: ignore `event.repeat`).
   - Double-click Archive.
-  - Reload mid-deck (the same seed and the same first card; progress restarts at 1).
+  - Reload mid-deck: a fresh snapshot of the same seed, progress back at 1. With no archives, the same first card. After archiving the first card, the deck starts on the old second card.
   - Back, then Forward.
   - Two tabs archiving the same card.
   - A swipe on touch that is cancelled halfway.
@@ -113,7 +113,7 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
 - `packages/ui/src/hooks/__tests__/useRevisitDeck.test.tsx`: stepping, the snapshot ignoring live removals, the undo stack, "20 more" after archiving 5 of the first 20 in a bounded tag view (the next 20 are exactly the next unseen cards, none skipped or repeated), and the "Start over" seed change.
 - `packages/ui/src/components/search/__tests__/ViewMenu.test.tsx` (`renderToStaticMarkup`): Revisit is listed, absent when told so (Archive/Trash), and disabled when the view is empty.
 - `packages/convex/__tests__/shared/analytics.test.ts`: the new events are typed.
-- `packages/tests/src/web/revisit.e2e.ts`: choose Revisit, the URL has `sort=revisit`, ← archives with undo, → keeps, Esc returns to the previous sort, and reload keeps the same first card.
+- `packages/tests/src/web/revisit.e2e.ts`: choose Revisit, the URL has `sort=revisit`, ← archives with undo, → keeps, Esc returns to the previous sort, and a reload takes a fresh snapshot of the same seed (the same first card before any archive, the old second card after archiving the first).
 
 ## Proof before the PR
 

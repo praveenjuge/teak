@@ -55,8 +55,8 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
     4. auto English
   - It fetches `baseUrl&fmt=json3` (2 MiB cap) with `safeFetch`, accepting the `youtube.com` host only.
 - `captions/vimeo.ts`:
-  - It parses the ID (and the unlisted hash) from `vimeo.com/<id>[/<hash>]` and `player.vimeo.com/video/<id>`.
-  - It calls `https://player.vimeo.com/video/<id>/config` and reads `request.text_tracks[]`, preferring captions over subtitles in the same language order.
+  - It parses the ID (and the unlisted hash) from `vimeo.com/<id>[/<hash>]` and `player.vimeo.com/video/<id>`, and takes the hash from an `h=<hash>` query parameter on either form.
+  - It calls `https://player.vimeo.com/video/<id>/config`, or `https://player.vimeo.com/video/<id>/config?h=<hash>` when a hash is present (an unlisted video's config refuses requests without it), and reads `request.text_tracks[]`, preferring captions over subtitles in the same language order.
   - It fetches the WebVTT file.
 - `captions/parse.ts`: the pure functions `parseYouTubeJson3`, `parseWebVtt` and `collapseRollingCaptions`.
 - `captions/index.ts fetchVideoCaptions(url): Promise<{ text, language, auto } | null>`.
@@ -97,7 +97,7 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
   - YouTube watch pages with manual English captions, with auto captions only, with no captions, with Japanese only, and with 5 languages
   - a live stream, a Short, an age-restricted page (no `captions`), and an EU consent page
   - a 10-hour json3 track (over 512 KiB)
-  - Vimeo configs with tracks, without tracks, and a 403 private video
+  - Vimeo configs with tracks, without tracks, an unlisted video (`vimeo.com/<id>/<hash>` and `?h=<hash>`), and a 403 private video
 - Seeded YouTube and Vimeo link cards with a prefilled `aiTranscript`, to check search in the UI.
 
 ## Break-it checklist
@@ -122,7 +122,7 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
 - `packages/convex/__tests__/workflows/steps/metadata.test.ts`: a caption fetch whose run id was superseded by a Refresh details writes nothing (`stale_run`), and the newer run's transcript stays.
 
 - `packages/convex/__tests__/workflows/steps/linkMetadata/captions/youtube.test.ts`: ID parsing and track choice over the fixtures (network mocked).
-- `.../captions/vimeo.test.ts`: config parsing, the unlisted hash, 403.
+- `.../captions/vimeo.test.ts`: config parsing, the unlisted hash from both the path and `?h=` (the config request carries `h=<hash>`), 403.
 - `.../captions/parse.test.ts`: json3 and VTT tables, rolling-caption collapse, the 512 KiB cut.
 - `packages/convex/__tests__/workflows/steps/metadata.test.ts`: the link branch stores `aiTranscript`, keeps the AI input within 6,000 characters, and completes when captions fail.
 - `__tests__/workflows/steps/categorization/providers/providers.test.ts`: YouTube Channel, Length and Uploaded facts.

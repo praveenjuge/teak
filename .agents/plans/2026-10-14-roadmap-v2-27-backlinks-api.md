@@ -10,13 +10,13 @@ Show which cards link to the open card ("Linked from") in its detail panel, and 
 
 - The card detail panel has a "Linked from" section listing up to 50 cards that link to this card.
   - Each row shows a type icon and the current title. Clicking a row opens that card.
-  - Beyond 50, the section ends with "and N more".
+  - Beyond 50, the section ends with "and more". The panel fetches 50 + 1 rows, so it knows more exist but not how many.
   - The section is hidden when nothing links to the card. Trashed source cards are not listed.
 - `GET /v1/cards/:id` (and the single-card responses of `PATCH`, favorite, restore and create) include:
   - `links: [{ id, title, type, missing }]`, which is this card's outgoing links in token order
   - `backlinks: [{ id, title, type }]`, the cards linking here, newest first
   - Each array holds at most 100 entries; `linksTruncated` and `backlinksTruncated` are booleans.
-- MCP `teak_v1_get_card_links { id }` returns `{ links, backlinks }`.
+- MCP `teak_v1_get_card_links { id }` returns `{ links, backlinks, linksTruncated, backlinksTruncated }`.
 - SDK `cards.links(id)` and CLI `teak links <id>` (`--json`) return both lists.
 - OpenAPI documents both arrays.
 
@@ -63,7 +63,7 @@ Show which cards link to the open card ("Linked from") in its detail panel, and 
   - a quiet label
   - `PanelButton` rows with a type icon and a truncated title
   - clicking a row opens that card (`?card=`)
-  - "and N more" as muted text
+  - "and more" as muted text when the query returned the 51st row
   - while loading, two skeleton rows, rendered only when phase 26 found any link rows; otherwise nothing
 - `ConnectedCardModal.tsx` subscribes to `cards:getCardBacklinks` for the open card.
 - Keyboard: rows are buttons in tab order after folders.
@@ -97,7 +97,7 @@ Show which cards link to the open card ("Linked from") in its detail panel, and 
 
 - Empty: the section is hidden. The API returns empty arrays, and the CLI prints "No links."
 - Loading: two skeleton rows, only after the first link exists.
-- One item / many items: 1 backlink, and 60 backlinks (50 rows plus "and 10 more").
+- One item / many items: 1 backlink, and 60 backlinks (50 rows plus "and more").
 - Very long names: titles truncate to one line with a tooltip; RTL titles align correctly.
 - Error: on a failed query, the section is hidden and the error is logged, not shown.
 - Rate-limited: API calls follow `publicApiRequests` (120 per minute) and return the usual `429` body. The CLI prints the retry hint.
@@ -134,7 +134,7 @@ Show which cards link to the open card ("Linked from") in its detail panel, and 
 - `packages/convex/__tests__/publicApiHttpValidation.test.ts`: `serializeCard` with and without extras.
 - `packages/convex/__tests__/mcp.test.ts` and `sdk.test.ts`: the new tool and method.
 - `apps/cli/src/commands.test.ts`: `teak links` text and JSON output, exit codes.
-- `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: section hidden at 0, rows, "and N more".
+- `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: section hidden at 0, rows, "and more" at 51 backlinks and not at 50.
 - `packages/tests/src/web/card-links.e2e.ts` (extend): the "Linked from" row opens the source card.
 - `packages/tests/src/journey/03-api.e2e.ts`, `04-cli.e2e.ts` and `05-mcp.e2e.ts`: one links assertion each.
 

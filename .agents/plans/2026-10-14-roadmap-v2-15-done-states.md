@@ -59,7 +59,7 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
     - done: everything else
   - `ACTIONABLE_LINK_CATEGORIES`: book, movie, tv, article, news, podcast, music, product, recipe, course and event.
   - `doneActionLabel(category?: string)`, which also gives "done" for an unknown string or a missing category.
-- `card/updateCard.ts`: add `"done"` and `"undone"` literals to `updateCardFieldValidator`. They set `completedAt = now` and clear it, and both are idempotent.
+- `card/updateCard.ts`: add `"done"` and `"undone"` literals to `updateCardFieldValidator`. `done` keeps an existing `completedAt` and sets it to now only when it is absent, so a retry never moves the date. `undone` clears it. Both are idempotent.
 - `raycast.ts` (next to `setCardFavoriteForUser`): `setCardDoneForUser({ userId, cardId, done })` for the API and MCP.
 - `qualifiers.ts`:
   - `SearchIsValue` gains `done` (words: done, completed, finished) and `todo` (words: todo, to-do).
@@ -75,8 +75,8 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
 
 - `card-modal/CardMetadataPanel.tsx`:
   - Add a `PanelButton` beside Favorite, for link cards only.
-  - Icons are `Circle` and `CircleCheck`. The label is "Mark as read" when the card is not done, and "Read" with `aria-pressed` when it is.
-  - The update is optimistic, with an undo toast: "Marked as read · Undo".
+  - Icons are `Circle` and `CircleCheck`. Both labels come from `doneActionLabel(category)`: "Mark as <verb>" when the card is not done ("Mark as read", "Mark as watched"), and the capitalized verb ("Read", "Watched") with `aria-pressed` when it is.
+  - The update is optimistic, with an undo toast that uses the same verb: "Marked as watched · Undo".
 - `cards/Card.tsx`: a done link tile shows a quiet `CircleCheck` next to the hostname, labelled for screen readers.
 - `searchSuggestions.ts` / `SearchBar.tsx`: add "Done" and "To do" to the `is:` suggestions, with icons.
 
@@ -137,7 +137,7 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
   - `is:done is:todo`
   - `is:todo type:image`
   - `is:todo` inside a smart folder with `type:` filters
-  - POST twice and DELETE when not done (idempotent)
+  - POST twice and DELETE when not done (idempotent; the second POST keeps the first `completedAt`)
   - a non-link card, a trashed card and another user's ID
   - Apple and Android fixtures decoding a card with `completedAt`
 
@@ -147,11 +147,11 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
 - `packages/convex/__tests__/shared/search/qualifiers.test.ts`: parsing, synonyms, canonical form, `combineSearchQueries`.
 - `packages/convex/__tests__/shared/search/localSearch.test.ts`: done and todo filtering.
 - `packages/convex/searchQualifiers.test.ts` (convex-test, already in `vitest.config.ts`): `is:done` and `is:todo` across batch pages, archive and trash.
-- `packages/convex/__tests__/card/updateCard.test.ts`: `done` and `undone` set and clear the field, are idempotent, and refuse trashed cards and other users' cards.
+- `packages/convex/__tests__/card/updateCard.test.ts`: `done` and `undone` set and clear the field, are idempotent (a repeated `done` keeps the original `completedAt`), and refuse trashed cards and other users' cards.
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`, `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `__tests__/export/serialize.test.ts`.
 - `apps/cli/src/commands.test.ts`: `teak done` and `--undo` stdout and exit codes.
 - UI:
-  - `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx` (new): the label per category
+  - `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx` (new): the not-done and done labels per category, including an unknown or missing category ("done")
   - `cards/__tests__/Card.test.tsx`: the done mark
 - e2e: `packages/tests/src/web/done-states.e2e.ts` (new), plus `journey/03-api.e2e.ts`, `04-cli.e2e.ts` and `05-mcp.e2e.ts`.
 

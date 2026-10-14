@@ -67,7 +67,9 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
   - Add `"generate-image-metadata": 120_000` to `OP_TIMEOUT_MS`.
 - `steps/metadata.ts`:
   - The image and video branches pass `aiOcrText` and `ocrCheckedAt` to `updateCardAI`.
-  - These writes are guarded by run, because a Refresh details can start a second workflow while the first 120-second vision call is still running. This phase introduces `cards.processingRunId?: string`, set by `startCardProcessingWorkflow` (`workflows/manager.ts`) each time a processing workflow starts, including Refresh details. It also adds the optional `expectedRunId` argument on `updateCardAI`, which skips the write and returns `stale_run` when the run id no longer matches. The metadata step reads the run id when it starts and passes it on every OCR and summary write. Phases 21 and 22 reuse the same field.
+  - These writes are guarded by run, because a Refresh details can start a second workflow while the first 120-second vision call is still running. This phase introduces `cards.processingRunId?: string` and the optional `expectedRunId` argument on `updateCardAI`, which skips the write and returns `stale_run` when the run id no longer matches. Phases 21 and 22 reuse the same field.
+  - The run id is made before the workflow starts. Every place that starts `cardProcessingWorkflow` makes one with `crypto.randomUUID()`, writes it to `cards.processingRunId` before `startWorkflow`, and passes it in the workflow args. Today those places are `startCardProcessingWorkflowHandler` (`workflows/manager.ts`, which Refresh details uses), and `card/createCard.ts` and `card/defaultCards.ts`, which start the workflow directly.
+  - `cardProcessingWorkflow` args gain `runId: v.optional(v.string())`, so workflows started before the deploy still replay. The workflow passes `runId` to the metadata step, and the step passes it as `expectedRunId` on every OCR and summary write. The step never reads the run id back from the card. A workflow without `runId` writes unguarded, as today.
   - `updateCardAI` takes `aiOcrText` and maps `""` to `undefined`, so a refresh clears stale text.
   - `resetCardAI` clears both new fields.
 - `searchDocumentHelpers.ts`:
@@ -140,13 +142,15 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
   - A 768-token-style cut-off answer (mocked) is retried and then deferred, never stored half-written.
   - The model returns `"text": 42` or a description instead of text.
   - Refresh after the text was removed clears `aiOcrText`.
+  - Refresh details twice while the first vision call is still running: only the newest run's text and summary are stored.
   - An old worker without `text`, and an old Convex with the new worker.
   - `text:` on another user's cards; on trashed, archived and hidden cards; `text:` together with `#private`.
   - The backfill dry-run counts; a resume after `once: true`; it skips accounts that are being deleted and never changes `aiSummary`.
 
 ## Tests
 
-- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: an image OCR result from a run superseded by Refresh details writes nothing (`stale_run`), and the newer run's OCR text and processing status stay.
+- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: an image OCR result from a run superseded by Refresh details writes nothing (`stale_run`), and the newer run's OCR text and processing status stay. This includes an older run whose metadata step starts after Refresh details wrote the new `processingRunId`: it still passes its own run id, returns `stale_run` and writes nothing.
+- `packages/convex/__tests__/workflows/manager.test.ts`: starting a processing workflow writes `processingRunId` before the workflow starts and passes the same id in the workflow args.
 
 - `apps/files-worker/src/imageMetadata.test.ts` (new): a table for `parseImageMetadata` covering missing, empty, non-string, oversized and fenced `text`, and noise-only text.
 - `apps/files-worker/src/upload.test.ts`: `generateImageMetadataForOp` returns `text` from a mocked `AI.run`.

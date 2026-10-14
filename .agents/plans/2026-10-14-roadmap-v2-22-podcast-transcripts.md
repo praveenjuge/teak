@@ -14,7 +14,7 @@ Transcribe podcast episode links whose page exposes a public audio file. Each ep
   1. `og:audio`
   2. JSON-LD `PodcastEpisode.associatedMedia.contentUrl`
   3. an Apple Podcasts episode through the public iTunes lookup
-  4. the show's RSS enclosure, found from `<link rel="alternate" type="application/rss+xml">`
+  4. the show's feed enclosure, found from `<link rel="alternate">` of type `application/rss+xml` or `application/atom+xml`
 - Episodes over 100 MB, Spotify episodes (no public audio), dead feeds and private hosts get no transcript, and the card completes as today.
 - The downloaded audio is temporary: it is deleted after transcription, and it is covered by card delete and account deletion while it exists.
 
@@ -36,10 +36,11 @@ Transcribe podcast episode links whose page exposes a public audio file. Each ep
 - `safeFetch` re-validates every redirect hop and allows at most `MAX_REDIRECTS = 5` (`linkMetadata/ssrf.ts:49`).
 - `cardStorageObjectKeys` includes `workflowArtifactKeys` (`storage/r2.ts:98`). The orphan sweep (`workflows/orphanSweep.ts`) also reads them.
 - `cardProcessing.ts` ends with metadata and renderables, then telemetry. New steps go at the end (the master rule).
+- Each workflow step is awaited, so the card stays in processing until the last one returns. Long follow-up work runs on its own instead: the metadata step starts the link screenshot as a separate workflow (`workflows/steps/metadata.ts:387` schedules `screenshot.startScreenshotWorkflow`).
 
 ## Constraints And Non-goals
 
-- A new step, `podcastTranscript`, is appended at the end of `cardProcessing.ts`. It runs only for link cards categorized `podcast` and is wrapped so it never fails the workflow. It retries only when the worker is busy (two attempts).
+- The transcript runs as its own workflow, `podcastTranscriptWorkflow`, after card processing completes. `cardProcessing.ts` appends one short step that only starts it, the same way `startScreenshotWorkflow` is started, and does not wait for it. So download and Whisper never keep the card in processing. It runs only for link cards categorized `podcast`, and it never fails the card. Its transcript step retries only when the worker is busy (two attempts).
 - Size gate: a `Content-Length` over 100 MiB stops before downloading. A body without a length is streamed and aborted at 100 MiB. Either way, no transcript and no error.
 - No new Files Worker op. Convex streams the audio into R2 in multipart parts (role `podcast-audio`) and adds the key to `workflowArtifactKeys`. After `process-audio` it deletes the object and removes the key.
 - No waveform or duration is written to link cards. Audio is accepted only when its content type is `audio/*` or `video/mp4`.
@@ -48,21 +49,23 @@ Transcribe podcast episode links whose page exposes a public audio file. Each ep
 
 ## Backend
 
-- `linkMetadata/selectors.ts`: `PODCAST_SOURCES`: `meta[property='og:audio']`, `og:audio:secure_url`, `og:audio:type` and `link[rel='alternate'][type='application/rss+xml']`. Add `associatedMedia` and `audio` to `STRUCTURED_DATA_FIELDS`.
+- `linkMetadata/selectors.ts`: `PODCAST_SOURCES`: `meta[property='og:audio']`, `og:audio:secure_url`, `og:audio:type`, `link[rel='alternate'][type='application/rss+xml']` and `link[rel='alternate'][type='application/atom+xml']`. Add `associatedMedia` and `audio` to `STRUCTURED_DATA_FIELDS`.
 - `workflows/steps/podcast/resolveEnclosure.ts`: pure resolvers plus fetches.
   - Apple: `https://itunes.apple.com/lookup?id=<showId>&entity=podcastEpisode&limit=200`, matching `trackId` to the URL's `?i=`. Use its `episodeUrl` (check this during the build).
-  - RSS: the feed URL from the page, through `safeFetch` (2 MiB), then `parseFeed`. Match the item by `link`, `guid` or title against the card URL, and use the enclosure URL.
+  - Feed: the RSS or Atom feed URL from the page, through `safeFetch` (2 MiB), then `parseFeed`. Match the item by `link`, `guid` or title against the card URL, and use the enclosure URL.
+  - `feeds/parse.ts parseFeed` items gain an optional `enclosureUrl`: the RSS `<enclosure url>`, or the Atom `<link rel="enclosure" href>`. Existing callers ignore it.
 - `workflows/steps/podcast/downloadToR2.ts`:
   - `safeFetch` + `pinnedFetch` with a size gate.
   - The body is streamed into multipart parts of 8 MiB or more, with a running byte count.
   - Returns `{ key, contentType, bytes }` or a reason.
 - `workflows/mediaFacts.ts`: split out `transcribeStoredAudio(ctx, { sourceKey, mimeType })`. It calls `process-audio` with `transcribe: true`, writes no media facts, and returns the sanitized text or null. `processAudioCard` calls it.
+- `workflows/podcastTranscript.ts`: `podcastTranscriptWorkflow` (one step, `podcastTranscript`) and an internal mutation `startPodcastTranscriptWorkflow({ cardId, expectedRunId })` that calls `startWorkflow`, like `startScreenshotWorkflow`.
 - `workflows/steps/podcastTranscript.ts` (internal action):
   - Load the card, resolve the enclosure, check the rate limit, download, transcribe, delete the temporary key.
   - Then `updateCardAI` with `aiTranscript`, plus a summary and tags regenerated by `generateLinkMetadata(contentParts + "Transcript: …")` within 6,000 characters.
-  - The write is guarded by run, reusing phase 10's `cards.processingRunId` and `updateCardAI`'s `expectedRunId` argument. The step reads the run id when it begins and passes it as `expectedRunId`. `updateCardAI` skips the write, returning `stale_run`, when it no longer matches. A slow transcription from an older run can then never overwrite a newer run's transcript, summary, tags or processing state.
+  - The write is guarded by run, reusing phase 10's `cards.processingRunId` and `updateCardAI`'s `expectedRunId` argument. The start mutation records the run id that started it, and the step passes it as `expectedRunId`. `updateCardAI` skips the write, returning `stale_run`, when it no longer matches. A slow transcription from an older run can then never overwrite a newer run's transcript, summary, tags or processing state.
   - It logs a reason: `no_enclosure`, `too_large`, `blocked`, `rate_limited`, `no_speech` or `worker_declined`.
-- `cardProcessing.ts`: append the step, guarded by `categorization?.category === "podcast"`, with failures caught and logged.
+- `cardProcessing.ts`: append a `step.runMutation` of `startPodcastTranscriptWorkflow`, guarded by `categorization?.category === "podcast"`, with failures caught and logged. It returns as soon as the workflow is started.
 
 ## Web
 
@@ -110,15 +113,17 @@ Transcribe podcast episode links whose page exposes a public audio file. Each ep
   - the temporary key is deleted on success, on failure and on card hard delete
   - account deletion mid-step
   - the rate limit at 21 episodes
-  - the workflow completes when the step throws
+  - card processing completes before the transcript workflow starts its download, and stays completed when that workflow throws
 
 ## Tests
 
-- `packages/convex/__tests__/workflows/steps/podcast/resolveEnclosure.test.ts`: the resolution order, the Apple lookup match, the RSS item match (network mocked).
+- `packages/convex/__tests__/workflows/steps/podcast/resolveEnclosure.test.ts`: the resolution order, the Apple lookup match, the RSS 2.0 and Atom item matches, including an Atom `<link rel="enclosure">` (network mocked).
+- `packages/convex/__tests__/feeds/parse.test.ts`: `enclosureUrl` from an RSS 2.0 `<enclosure>` and an Atom `<link rel="enclosure">`.
 - `.../podcast/downloadToR2.test.ts`: the size gates, the streamed abort, content-type refusal, the SSRF refusal (multipart and network mocked).
 - `packages/convex/__tests__/workflows/steps/podcastTranscript.test.ts`: transcript and summary saved, the temporary key deleted in every outcome, the rate limit, fail-soft.
 - `packages/convex/__tests__/workflows/mediaFacts.test.ts`: `transcribeStoredAudio` writes no media facts. `processAudioCard` behaves the same as before.
-- `packages/convex/__tests__/workflows/cardProcessing.test.ts`: the step is appended, runs only for podcasts, and its failure keeps the workflow successful.
+- `packages/convex/__tests__/workflows/cardProcessing.test.ts`: the start step is appended and runs only for podcasts. The workflow completes without waiting for the transcript, and a failure to start keeps it successful.
+- `packages/convex/__tests__/workflows/podcastTranscript.test.ts`: the transcript workflow runs after card processing has completed, and a stale run id skips its write.
 - `packages/convex/mediaFacts.test.ts` (convex-test): the link card's `fileMetadata` is untouched.
 - `packages/convex/__tests__/storage/r2.test.ts`: a temporary key in `workflowArtifactKeys` is in `cardStorageObjectKeys`.
 

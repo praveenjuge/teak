@@ -55,8 +55,8 @@ Make adding feeds forgiving and portable. A YouTube channel URL finds that chann
   - `youtubeFeedUrl(url)` maps a `/channel/UC…` URL directly.
   - `discoverFeedLinks(html, baseUrl)` returns `[{ url, title? }]`, resolving relative and protocol-relative hrefs and de-duplicating them.
   - `resolveFeedInput(url)`:
-    1. Fetch the URL.
-    2. If it parses as a feed, return it.
+    1. If `youtubeFeedUrl(url)` returns a feed URL, skip fetching the input URL and validate that feed URL with `fetchFeed` and `parseFeed`. A consent or interstitial page can't block a `/channel/UC…` URL this way.
+    2. Otherwise fetch the URL. If it parses as a feed, return it.
     3. If it's HTML, discover the candidates and validate each with `fetchFeed` and `parseFeed`.
     4. Return `{ kind: "feed" } | { kind: "choose", candidates } | { kind: "none" }`.
 - `feeds/feeds.ts addFeed`:
@@ -134,7 +134,7 @@ Make adding feeds forgiving and portable. A YouTube channel URL finds that chann
 
 ## Tests
 
-- `packages/convex/__tests__/feeds/discover.test.ts`: the discovery table (relative URLs, several candidates, none) and every YouTube URL shape.
+- `packages/convex/__tests__/feeds/discover.test.ts`: the discovery table (relative URLs, several candidates, none) and every YouTube URL shape. A `/channel/UC…` URL resolves without fetching the channel page, even when that page would return a consent interstitial.
 - `packages/convex/__tests__/feeds/opml.test.ts`: parse and build round trip, malformed input, nesting, limits, escaping and entity safety.
 - `packages/convex/feeds.test.ts` (extend): import dedupe and cap, `FEED_CHOICE_REQUIRED`, and stored `siteUrl`.
 - `packages/convex/__tests__/publicApiHttpFeeds.test.ts`: OPML GET content type and POST size limit. `mcp.test.ts` covers the candidates.

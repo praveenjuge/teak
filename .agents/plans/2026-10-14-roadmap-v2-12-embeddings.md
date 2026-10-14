@@ -83,11 +83,12 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 
 ## Backend
 
-- `schema.ts`: `cardEmbeddings { cardId, userId, hash, embeddedAt?, dueAt?, attempts?, lastError? }` with `by_cardId`, `by_userId` and `by_dueAt`.
+- `schema.ts`: `cardEmbeddings { cardId, userId, hash, embeddedAt?, dueAt?, attempts?, lastError?, pendingVectorDeleteAt?: v.number() }` with `by_cardId`, `by_userId`, `by_dueAt` and `by_pendingVectorDeleteAt`. The sweep reads tombstones through the last index.
 - `embedding/text.ts`: pure `buildEmbeddingText(card, storedTextPrefix)` and `embeddingHash()` (SHA-256 through WebCrypto).
 - `embedding/schedule.ts` `markCardForEmbedding(ctx, cardId, userId)`:
   - Called by `syncCardSearchDocumentHandler` when `searchableText` changed, and on insert.
-  - Upserts the card's own row with `dueAt = now + 30 s`, and schedules `embedding/embedCard:embedDue` only when no row was already due. One read and one write of a per-card row, so it adds no shared hot spot.
+  - Upserts the card's own row with `dueAt = now + 30 s`, and schedules `embedding/embedCard:embedDue({ cardIds: [cardId] })` only when no row was already due. One read and one write of a per-card row, so it adds no shared hot spot.
+  - A later edit only moves `dueAt` forward, so the job already queued can start before the new deadline. When `embedDue` starts and a row's `dueAt` is still in the future, it does nothing for that card and re-schedules itself for that `dueAt`, keeping `force` if it was set. Each card therefore always has one job waiting for its latest `dueAt`.
   - It stands down during account deletion, like the search sync.
 - `embedding/embedCard.ts` (`internalAction`):
   - Batches due rows (≤ 32) and builds each text and hash.
@@ -104,7 +105,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - In account deletion, `getAccountCardDeletionBatch` and `captureDeletionBatch("cards")` also return `vectorIds` (card ids that have a `cardEmbeddings` row).
   - `deleteKeys` and `drainStorageBatch` call `vector-delete` before the rows are committed. `ancillaryPage` removes the user's `cardEmbeddings` rows by `by_userId` only after that call succeeded. A failed batch leaves them as tombstones for the redrive.
 - `orphanSweep.ts`: page through `cardEmbeddings` and report:
-  - tombstones whose `pendingVectorDeleteAt` is older than 24 hours (a delete that failed)
+  - tombstones whose `pendingVectorDeleteAt` is older than 24 hours (a delete that failed), read through `by_pendingVectorDeleteAt`
   - live rows whose card is missing (a delete path that skipped the tombstone)
   
   It reports only. Every upsert writes its `cardEmbeddings` row first, and a row is removed only after its vector is deleted. So the ledger always covers everything in the index, and every orphan class shows up as a row.
@@ -140,7 +141,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 ## Break-it checklist
 
 - Backend:
-  - 20 edits in a minute produce one embed.
+  - 20 edits in a minute produce one embed, of the last edit's text, about 30 s after that edit.
   - An edit that does not change the text makes no AI call.
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
@@ -164,6 +165,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 - `packages/convex/__tests__/embedding/text.test.ts`: field order, cap, version-in-hash, CJK and emoji.
 - `packages/convex/embeddings.test.ts` (new convex-test file, added to `vitest.config.ts`):
   - the debounce row, and that an unchanged hash skips the call (worker mocked)
+  - an edit that moves `dueAt` forward after `embedDue` was scheduled: the first job finds the row not yet due, embeds nothing and re-schedules itself for the new `dueAt`, and the card is then embedded once with the newer text
   - hard delete, Trash purge and both account deletion paths schedule `vector-delete` and remove the rows
   - a delete during an embed
 - `packages/convex/__tests__/workflows/cardProcessing.test.ts`: the embed step runs last and a failure in it does not fail the workflow.

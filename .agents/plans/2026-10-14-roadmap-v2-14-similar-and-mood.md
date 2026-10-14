@@ -52,7 +52,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
 - **`mood:"…"`.**
   - The text is embedded and filtered to `types: ["image"]`, with the phase 13 threshold.
   - Together with `type:link` it matches nothing, through the existing type intersection.
-- **Cache.** Results are cached in `semanticSearchResults` keyed by `like:<id>` or `mood:<text>`. A `like:` entry for an anchor without a vector yet is cached as `pending` for 15 s.
+- **Cache.** Results are cached in `semanticSearchResults` keyed by `like:<id>` plus the reveal state (`includeHidden`), or by `mood:<text>`. The anchor check runs on every request and every read before any cached `status` is used, so a cached `unavailable` or `ok` never outlives a change to the anchor, and `like:<id> #private` never reuses the entry of `like:<id>`. A `like:` entry for an anchor without a vector yet is cached as `pending` for 15 s.
 - No visual (pixel) embeddings. Mood is matched against the text description of an image, its `visualStyles` and its OCR text, which phase 12 embeds.
 
 ## Backend
@@ -65,7 +65,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
 - `search/semanticActions.ts` `requestSemanticResults`:
   - For `like`, it first runs an internal query that checks the anchor (owner, not trashed, and not hidden unless the query reveals hidden cards) and then queries by id.
   - For `mood`, it queries by text with image types.
-  - States written to the cache: `ok`, `pending` (no vector yet) and `unavailable`.
+  - States written to the cache's `status` field (defined in phase 13): `ok`, `pending` (no vector yet) and `unavailable`. Only `ok` rows carry a ranking.
 - `getCards.ts` and `publicApi.ts`:
   - When an anchor is set, the similar set replaces the keyword driver.
   - The other qualifiers filter through `resolved.matches`, and hidden cards use the same `includeHidden` rule as the keyword side (excluded unless a reveal tag is present). Then the sort applies.
@@ -141,6 +141,8 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
   - `similarTo` plus `q=like:` with a different id.
   - A pending vector.
   - Hidden results excluded without a reveal tag and included with `#private`.
+  - Search a hidden anchor with `like:<id>` (cached `unavailable`), then at once with `like:<id> #private`: the similar set appears.
+  - Untrash an anchor within its cache window: the chip and results come back.
   - API paging across the 100-card cap.
   - Rate limit.
 
@@ -152,7 +154,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
   - an unavailable anchor
   - another user's anchor
   - `similarAnchorSummary` privacy
-- `packages/convex/__tests__/search/semanticActions.test.ts`: `like` routes to `vectorOfId`, `mood` to image types, the pending state (worker mocked).
+- `packages/convex/__tests__/search/semanticActions.test.ts`: `like` routes to `vectorOfId`, `mood` to image types, the pending state, and a cached `unavailable` for `like:<id>` that does not block `like:<id> #private` (worker mocked).
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`: `similarTo` mapping, 400 on a bad id, `similarity: "unavailable"`.
 - `packages/convex/__tests__/mcp.test.ts`: `teak_v1_find_similar_cards` schema and mapping. `__tests__/sdk.test.ts`: `cards.similar`. `apps/cli/src/commands.test.ts`: `teak similar`.
 - `packages/ui/src/components/search/__tests__/searchSuggestions.test.ts`: chip labels. `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the button is shown, and hidden in Trash.

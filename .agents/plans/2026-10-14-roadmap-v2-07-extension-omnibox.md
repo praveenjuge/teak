@@ -9,7 +9,8 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 ## Success Criteria
 
 - The manifest declares the keyword `teak`. In Chromium browsers and Firefox, typing `teak` and Tab or Space enters Teak mode.
-- After 2 or more characters, with typing debounced by 250 ms, up to 5 suggestions arrive from `GET /v1/cards?q=…&limit=5`. Each shows the card title, its type and its host.
+- After 2 or more characters, with typing debounced by 400 ms and at most one request per second, up to 5 suggestions arrive from `GET /v1/cards?q=…&limit=5`. Each shows the card title, its type and its host.
+- Sustained typing sends at most 60 requests a minute, half the public API limit, so the popup and other clients keep headroom in the shared per-user bucket.
 - Choosing a suggestion opens its `appUrl` (`https://app.teakvault.com/?card=<id>`). Enter on the typed text opens `https://app.teakvault.com/?q=<text>`. Both open in the current tab, or in a new tab with Alt/⌘, following `OnInputEnteredDisposition`.
 - **Signed out:** the default suggestion reads "Sign in to Teak to search", and Enter opens the extension's sign-in.
 - Qualifiers work (`#tag`, `type:image`, `site:`) because the API parses them.
@@ -29,6 +30,7 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 - Extension only. No backend change. The API, hidden-card filtering and qualifiers already exist.
 - No search history and no recent cards (rejected). Nothing is stored about queries, and the query text never goes into telemetry.
 - Requests are cancelled with `AbortController` when the input changes. Only the latest response is shown, and responses are not cached beyond the current input session.
+- Requests are throttled to at most one per second. Input that arrives inside the window waits for the window to end and sends only the latest text. If the text is unchanged since the last request, the last result is reused and no request is sent.
 - An `extension_omnibox_used { result: "card" | "search" }` event goes into `ClientEventCatalog` first.
 
 ## Backend
@@ -44,11 +46,11 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 - `wxt.config.ts`: `omnibox: { keyword: "teak" }`.
 - `lib/omnibox.ts`, pure functions:
   - `buildSuggestions(items, browser)` escapes the XML for Chromium and returns plain text for Firefox, truncating titles to 80 characters.
-  - `searchUrl(appUrl, text)` and `debounceInput`.
+  - `searchUrl(appUrl, text)`, and `createInputThrottle({ debounceMs: 400, minIntervalMs: 1000 })`, which debounces, enforces the one-second gap and skips unchanged text.
 - `lib/appUrl.ts`: moves `APP_URL` out of the popup so the background can use it.
 - `entrypoints/background.ts`:
   - `chrome.omnibox.onInputStarted` checks the auth state.
-  - `onInputChanged(text, suggest)` debounces, calls `oauthRequest('/v1/cards?q=…&limit=5')` and calls `suggest`.
+  - `onInputChanged(text, suggest)` goes through the input throttle, calls `oauthRequest('/v1/cards?q=…&limit=5')` and calls `suggest`.
   - `setDefaultSuggestion` reads "Search Teak for "%s"", or the sign-in text.
   - `onInputEntered(text, disposition)`: an `appUrl` from a suggestion opens it, after checking it is on the app origin; anything else opens the search. Tabs open through `chrome.tabs.update` / `create`.
 
@@ -80,7 +82,8 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 ## Break-it checklist
 
 - **Extension:**
-  - Type 20 characters fast (at most one request every 250 ms, and stale responses dropped).
+  - Type 20 characters fast (at most one request per second, only the latest text sent, and stale responses dropped).
+  - Type steadily for 60 seconds (60 requests or fewer, and no 429).
   - Unicode and emoji queries.
   - `teak` followed only by whitespace.
   - A query of 500 or more characters.
@@ -94,7 +97,7 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 
 ## Tests
 
-- `apps/extension/__tests__/lib/omnibox.test.ts`: a `test.each` over XML escaping (Chromium) and plain text (Firefox), truncation, empty titles, the search URL encoding, and refusing an off-origin suggestion URL.
+- `apps/extension/__tests__/lib/omnibox.test.ts`: a `test.each` over XML escaping (Chromium) and plain text (Firefox), truncation, empty titles, the search URL encoding, and refusing an off-origin suggestion URL. With fake timers, the input throttle sends at most one request per second during a minute of keystrokes every 100 ms, sends the latest text after the window, and sends nothing for unchanged text.
 - `apps/extension/__tests__/build/wxtConfig.test.ts`: the manifest has `omnibox.keyword === "teak"`.
 - `packages/convex/__tests__/shared/analytics.test.ts`: the new event is typed.
 

@@ -121,7 +121,7 @@ Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 ## Scenario seed packs
 
 - Reuse the v2 packs on an iPhone 17 simulator, an iPad Pro 13" simulator and a Mac: `hidden-cards`, `revisit`, `done-states`, `similar-and-mood`, `ocr-images`, `card-links` and `backlinks`.
-- Add `apple-native`: one account with every card type in done and todo states, hidden-tag variants (`Private`, `NSFW `, ` hidden`), text cards with and without a source URL, and images with long OCR text.
+- Add `apple-native`: one account with every card type in done and todo states, hidden-tag variants (`Private`, `NSFW` with a trailing space, and `hidden` with a leading space), text cards with and without a source URL, and images with long OCR text.
 
 ## Break-it checklist
 

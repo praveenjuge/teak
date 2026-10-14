@@ -38,9 +38,10 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
 
 - `src/attachments.ts` (pure): `selectAttachments(parsed)` keeps parts with a file name or a known MIME type. It skips the decoration rule above and `application/pkcs7-signature`, `application/ms-tnef` and `text/calendar`, and caps the selection at 50 parts.
 - The payload gains `attachments: [{ index, fileName, mimeType, size }]`.
-- The Convex `200` response gains `uploads: [{ index, uploadUrl, fileKey }]`. The worker PUTs each part's bytes to `uploadUrl` with its `Content-Type`, two at a time.
+- The Convex `200` response gains `receiptKey` (the receipt's `_id`) and `uploads: [{ index, uploadUrl, fileKey }]`. The worker PUTs each part's bytes to `uploadUrl` with its `Content-Type`, two at a time.
+- A replayed receipt (phase 23's "an existing one returns its `200` again") returns the same `receiptKey` and fresh upload URLs for every index that isn't `done`, using the `fileKey` already recorded. No new keys are minted on a replay. So when Convex commits the receipt but its response is lost, the sender's redelivery still uploads and finalizes the attachments. When every index is `done`, `uploads` is empty.
 - After each PUT, the worker POSTs a signed `POST /inbound/email/attachments` with `{ v: 1, receiptKey, index, fileKey, storedSize }`.
-- With an old Convex deployment, which returns no `uploads`, the worker skips attachments.
+- With an old Convex deployment, which returns no `uploads` and no `receiptKey`, the worker skips attachments.
 - A failed PUT is retried twice. After that, the attachment is dropped and the pending sweep removes the object.
 
 ## Backend
@@ -49,7 +50,8 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
   - It runs `validateUploadFile` and skips failures.
   - It mints the signed upload URLs with the same steps as `generateUploadUrlForUser`, extracted to a shared helper `mintPendingUpload(ctx, userId, { fileName, fileSize, mimeType })`.
   - It stops minting at the quota.
-  - It records `pendingAttachments: [{ index, fileKey }]` on the receipt.
+  - It records `pendingAttachments: [{ index, fileKey }]` on the receipt and returns the receipt `_id` as `receiptKey`.
+  - On a receipt replay, it re-signs upload URLs for the recorded `fileKey` of each index that isn't `done`, and mints nothing new.
 - `inboundEmailReceipts` gains `pendingAttachments?: [{ index, fileKey, state: "unclaimed" | "pending" | "done", claimedAt?, claimToken?, cardId? }]`. The per-index `cardId` replaces a separate list of card ids.
 - New `httpAction` `inboundEmailAttachment` (same signature check) runs the internal **action** `finalizeEmailAttachment`. It must not call `createUploadedCardForUser` directly. That would leave `fileKey` under `cards/upload-pending-v2`, which `cleanup-stale-pending-uploads` deletes after 24 hours even when a card points at it. The action:
   - claims the index with an internal mutation (`claimEmailAttachment`). That mutation checks that the receipt and index exist and that `fileKey` matches the pending one. It then sets the index to `pending { claimedAt }` in the same transaction, so two overlapping finalizes (a worker retry after a timeout, or a duplicate delivery) can't both pass.
@@ -102,7 +104,8 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
 - Backend:
   - quota boundary mid-email (5 saved, 5 dropped and their objects removed)
   - an empty rate bucket (scheduled retry)
-  - a receipt replay
+  - a receipt replay (same `receiptKey`, URLs reissued only for indexes not `done`)
+  - a committed receipt whose response is lost, then a redelivery (attachments still finalized, no duplicate cards)
   - account deletion while attachments are pending
   - a card hard delete removing the R2 object
 - UI: 30 cards arriving while the grid is open, at 390px, and both themes.
@@ -111,7 +114,7 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
 
 - `apps/email-worker/src/attachments.test.ts`: the selection table (inline, decoration, signature parts, cap).
 - `apps/email-worker/src/index.test.ts`: the upload and finalize sequence, PUT retries, and the old-backend path (fetch mocked).
-- `packages/convex/inboundEmail.test.ts` (extend): minting skips bad formats, finalize is idempotent (sequentially, and with two concurrent finalizes for one index, which create exactly one card and return `IN_PROGRESS` to the loser), a stale `pending` claim is reclaimed, an interruption injected after card creation leaves the index `done` with that card (no duplicate on retry), an interruption after promotion but before card creation finishes on retry from the already-promoted object, a forged key is refused, a quota drop deletes the pending object, `RATE_LIMITED` reschedules, and a finalized attachment's card `fileKey` sits under the permanent `stored` prefix, not `upload-pending-v2`. The test runs the stale-pending sweep afterwards, and the file must still exist.
+- `packages/convex/inboundEmail.test.ts` (extend): minting skips bad formats, finalize is idempotent (sequentially, and with two concurrent finalizes for one index, which create exactly one card and return `IN_PROGRESS` to the loser), a stale `pending` claim is reclaimed, an interruption injected after card creation leaves the index `done` with that card (no duplicate on retry), an interruption after promotion but before card creation finishes on retry from the already-promoted object, a forged key is refused, a committed receipt whose response is lost followed by a redelivery returns the same `receiptKey` and reissues URLs only for indexes not `done`, so every attachment ends `done` with exactly one card each and the body card isn't duplicated, a quota drop deletes the pending object, `RATE_LIMITED` reschedules, and a finalized attachment's card `fileKey` sits under the permanent `stored` prefix, not `upload-pending-v2`. The test runs the stale-pending sweep afterwards, and the file must still exist.
 - `packages/convex/__tests__/publicApiUploads.test.ts`: `mintPendingUpload` behaves as before for the API.
 - `packages/tests/src/journey/14-email-in.e2e.ts`: a signed fixture with 2 attachments produces 2 file cards tagged `email`.
 
