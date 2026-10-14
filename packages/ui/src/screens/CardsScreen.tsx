@@ -379,6 +379,20 @@ export function CardsScreen({
     [runBulkAction]
   );
 
+  // Sets the favorite to the opposite of what the card shows (instantly,
+  // through the optimistic update), so pressing F quickly never races.
+  const handleToggleFavorite = useCallback(
+    (cardId: string) => {
+      const card = displayCards.find(
+        (candidate: Doc<"cards">) => candidate._id === cardId
+      );
+      runBulkAction(card?.isFavorited ? "unfavorite" : "favorite", [cardId], {
+        silent: true,
+      }).catch(() => undefined);
+    },
+    [displayCards, runBulkAction]
+  );
+
   const tagManagementCard = useMemo(
     () =>
       displayCards.find(
@@ -680,9 +694,11 @@ export function CardsScreen({
           onBulkAction={runBulkAction}
           onCardClick={handleCardClick}
           onCopyImage={handleCopyImage}
-          onDeleteCard={async (cardId) =>
-            cardActions.handleDeleteCard(cardId as Id<"cards">)
-          }
+          onDeleteCard={async (cardId) => {
+            // Like the bulk bar: optimistic, with Undo in the toast.
+            const { failedIds } = await runBulkAction("delete", [cardId]);
+            return failedIds.length === 0;
+          }}
           onLoadMore={requestMoreCards}
           onPermanentDeleteCard={(cardId) =>
             cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
@@ -691,9 +707,8 @@ export function CardsScreen({
             cardActions.handleRestoreCard(cardId as Id<"cards">)
           }
           onToggleArchive={handleToggleArchive}
-          onToggleFavorite={(cardId) =>
-            cardActions.handleToggleFavorite(cardId as Id<"cards">)
-          }
+          onToggleFavorite={handleToggleFavorite}
+          openCardId={selectedCardId}
           resetKey={resetKey}
           showAddForm={
             !(

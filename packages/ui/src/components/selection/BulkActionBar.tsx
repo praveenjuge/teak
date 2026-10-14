@@ -6,6 +6,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
+import { Kbd } from "@teak/ui/components/ui/kbd";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@teak/ui/components/ui/tooltip";
 import {
   Archive,
   ArchiveRestore,
@@ -164,15 +171,26 @@ export function BulkActionBar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Button
-          aria-label="Cancel selection"
-          className="size-8"
-          onClick={onCancel}
-          size="icon"
-          variant="ghost"
-        >
-          <X />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-keyshortcuts="Escape"
+                aria-label="Cancel selection"
+                className="size-8"
+                onClick={onCancel}
+                size="icon"
+                variant="ghost"
+              >
+                <X />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="flex items-center gap-2" side="bottom">
+              Cancel selection
+              <Kbd>Esc</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

@@ -408,10 +408,12 @@ export function SearchBar({
             aria-autocomplete="list"
             aria-controls={open ? listId : undefined}
             aria-expanded={open}
+            aria-keyshortcuts="/"
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
             className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+            data-library-search=""
             name="q"
             onBlur={() => setFocused(false)}
             onChange={(e) => onSearchChange(e.target.value)}

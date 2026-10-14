@@ -210,8 +210,9 @@ export const normalizeSmartFolderQuery = async (
   query: string
 ): Promise<string> => {
   const parsed = parseSearchQuery(query);
-  // A bare quick command is a view, not words: Favorites is saved as
-  // `is:fav`, so typing more still narrows the favorites; Trash is refused.
+  // A bare quick command is a view, not words: Favorites and Archive are
+  // saved as `is:fav` and `is:archived`, so typing more still narrows them;
+  // Trash is refused.
   const command =
     parsed.qualifiers.length === 0 &&
     parsed.phrases.length === 0 &&
@@ -220,6 +221,9 @@ export const normalizeSmartFolderQuery = async (
       : null;
   if (command === "favorites") {
     return "is:fav";
+  }
+  if (command === "archive") {
+    return "is:archived";
   }
   if (command === "trash") {
     throw new ConvexError({

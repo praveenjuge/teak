@@ -16,6 +16,10 @@ import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
+import {
+  clearNewNoteComposerFocusRequest,
+  isNewNoteComposerFocusRequested,
+} from "../../lib/keyboardShortcuts";
 import { FullScreenAddCardDialog } from "./FullScreenAddCardDialog";
 
 function addCardToSearchQueries(
@@ -113,6 +117,10 @@ export function AddCardForm({
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  // `N` pressed away from Everything opens it and asks for the composer;
+  // the request stands until the composer has focus (it can mount more
+  // than once while the page loads).
+  const [focusRequested] = useState(isNewNoteComposerFocusRequested);
 
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
@@ -285,7 +293,11 @@ export function AddCardForm({
         open={isFullScreenOpen}
         placeholder={fullScreenPlaceholderText}
       />
-      <Card className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+      <Card
+        className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+        data-new-note-composer=""
+        onFocus={clearNewNoteComposerFocusRequest}
+      >
         <CardContent className="h-full p-0">
           <form
             className="relative flex min-h-36 flex-1 flex-col"
@@ -296,7 +308,7 @@ export function AddCardForm({
           >
             <MarkdownTextEditor
               ariaLabel="Markdown content"
-              autoFocus={autoFocus}
+              autoFocus={autoFocus || focusRequested}
               className={cn(
                 "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"

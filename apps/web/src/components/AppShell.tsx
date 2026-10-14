@@ -4,6 +4,7 @@ import type { CardType } from "@teak/convex/shared/constants";
 import { SidebarInset, SidebarProvider } from "@teak/ui/components/ui/sidebar";
 import { AddCardActions } from "@teak/ui/forms";
 import { folderIdForPath, folderPath } from "@teak/ui/lib/folders";
+import type { LibraryView } from "@teak/ui/lib/libraryViews";
 import {
   LIBRARY_VIEW_PATHS,
   libraryViewForPath,
@@ -15,10 +16,11 @@ import {
   serializeSearchUrlState,
   toggleSearchUrlType,
 } from "@teak/ui/lib/searchUrlState";
+import { LibraryShortcuts } from "@teak/ui/shortcuts";
 import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import { rememberHomeScroll } from "@/lib/homeScroll";
 
 /**
@@ -63,6 +65,17 @@ export function AppShell({
   const handleToggleType = (type: CardType) =>
     pushSearch((state) => toggleSearchUrlType(state, type));
 
+  // `g` then a letter opens a view, like its sidebar link.
+  const handleGoToView = useCallback(
+    (target: LibraryView) => {
+      if (isCardsPage) {
+        rememberHomeScroll();
+      }
+      router.push(LIBRARY_VIEW_PATHS[target]);
+    },
+    [isCardsPage, router]
+  );
+
   const handleUpgrade = () => {
     rememberHomeScroll();
     router.push("/settings");
@@ -70,6 +83,7 @@ export function AppShell({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
+      <LibraryShortcuts onGoToView={handleGoToView} />
       <AppSidebar
         activeTypes={activeTypes}
         activeView={view}

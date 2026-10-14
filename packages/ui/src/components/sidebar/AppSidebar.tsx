@@ -41,12 +41,14 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
 import {
   LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
   LIBRARY_VIEWS,
   type LibraryView,
 } from "../../lib/libraryViews";
+import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 
 export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
   all: LayoutGrid,
@@ -165,7 +167,24 @@ export function AppSidebar({
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      tooltip={LIBRARY_VIEW_LABELS[view]}
+                      tooltip={{
+                        className: "flex items-center gap-2",
+                        children: (
+                          <>
+                            {LIBRARY_VIEW_LABELS[view]}
+                            <ShortcutHint
+                              row={{
+                                keys: [
+                                  "G",
+                                  GO_TO_VIEW_KEYS[view].toUpperCase(),
+                                ],
+                                label: LIBRARY_VIEW_LABELS[view],
+                                sequence: true,
+                              }}
+                            />
+                          </>
+                        ),
+                      }}
                     >
                       <LinkComponent
                         aria-current={isActive ? "page" : undefined}
