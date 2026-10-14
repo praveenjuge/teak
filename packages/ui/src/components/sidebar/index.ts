@@ -3,5 +3,5 @@ export type {
   SidebarLinkComponent,
 } from "./AppSidebar";
 export { AppSidebar, LIBRARY_VIEW_ICONS } from "./AppSidebar";
-export { SidebarFolders } from "./SidebarFolders";
+export { SidebarFolders, SidebarFoldersSkeleton } from "./SidebarFolders";
 export { SidebarToggle } from "./SidebarToggle";

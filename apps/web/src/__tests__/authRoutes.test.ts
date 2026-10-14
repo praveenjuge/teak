@@ -7,6 +7,7 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { sealData } from "iron-session";
 import { NextRequest } from "next/server";
 
 mock.module("server-only", () => ({}));
@@ -237,6 +238,101 @@ describe("web sign-in routing", () => {
       }
     }
   );
+});
+
+// A signed-in session the proxy accepts: an access token signed with a key
+// this test serves as the WorkOS JWKS, sealed into the session cookie.
+const base64url = (bytes: ArrayBuffer | Uint8Array | string) =>
+  Buffer.from(
+    typeof bytes === "string" ? bytes : new Uint8Array(bytes)
+  ).toString("base64url");
+// One key for the file: the SDK caches the JWKS it first fetches.
+const signingKey = crypto.subtle.generateKey(
+  {
+    name: "RSASSA-PKCS1-v1_5",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  },
+  true,
+  ["sign", "verify"]
+);
+async function signedInSession() {
+  const { privateKey, publicKey } = await signingKey;
+  const jwk = await crypto.subtle.exportKey("jwk", publicKey);
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", kid: "test" }));
+  const payload = base64url(
+    JSON.stringify({
+      sid: "session_test",
+      sub: "user_test",
+      iat: now,
+      exp: now + 3600,
+    })
+  );
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    privateKey,
+    new TextEncoder().encode(`${header}.${payload}`)
+  );
+  const accessToken = `${header}.${payload}.${base64url(signature)}`;
+  const cookie = await sealData(
+    {
+      accessToken,
+      refreshToken: "refresh_test",
+      user: { id: "user_test", email: "test@example.org", object: "user" },
+    },
+    { password: process.env.WORKOS_COOKIE_PASSWORD as string }
+  );
+  // Only the JWKS may be fetched: a valid token needs no refresh.
+  const jwks = ((input: RequestInfo | URL) => {
+    if (String(input).includes("/jwks/")) {
+      return Promise.resolve(
+        Response.json({
+          keys: [{ ...jwk, alg: "RS256", kid: "test", use: "sig" }],
+        })
+      );
+    }
+    throw new Error(`Must not reach ${String(input)}`);
+  }) as typeof fetch;
+  return { accessToken, cookie: `wos-session=${cookie}`, jwks };
+}
+
+// Failure mode: Convex waits on a token round trip after every page load
+// because the page load never handed the browser its access token.
+describe("signed-in page loads", () => {
+  test("hand the browser its access token in a short-lived cookie", async () => {
+    const session = await signedInSession();
+    globalThis.fetch = session.jwks;
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/", {
+        headers: { accept: "text/html", cookie: session.cookie },
+      })
+    );
+    expect(response.headers.get("location")).toBeNull();
+    const tokenCookie = response.headers
+      .getSetCookie()
+      .find((value) => value.startsWith("workos-access-token="));
+    expect(tokenCookie).toStartWith(
+      `workos-access-token=${session.accessToken};`
+    );
+    expect(tokenCookie).toContain("Max-Age=30");
+  });
+  test("leave in-app navigations without it", async () => {
+    const session = await signedInSession();
+    globalThis.fetch = session.jwks;
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/favorites", {
+        headers: { accept: "*/*", cookie: session.cookie, rsc: "1" },
+      })
+    );
+    expect(response.headers.get("location")).toBeNull();
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((value) => value.startsWith("workos-access-token="))
+    ).toBe(false);
+  });
 });
 
 // SDK env values are captured at import. Restore after this module's tests.

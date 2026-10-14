@@ -55,6 +55,7 @@ import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
+import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import {
   CARD_SURFACE,
@@ -190,6 +191,10 @@ export const Card = memo(function Card({
     if (isOptimistic) {
       return;
     }
+    // Usually loaded at idle already; this covers a click that beats it.
+    preloadCardModal().catch(() => {
+      // Opening the card retries the load.
+    });
     prefetchDocumentPreview();
     prefetchCardModalMedia(card);
   };

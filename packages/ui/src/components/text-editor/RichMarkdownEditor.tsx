@@ -31,7 +31,13 @@ import type { MarkdownTextEditorProps } from "./types";
 const commands = defaultSlashCommandItems;
 const slashKey = new PluginKey("teakSlashCommands");
 
-export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
+export function RichMarkdownEditor({
+  onEditorReady,
+  ...props
+}: MarkdownTextEditorProps & {
+  /** Called once Tiptap has made the editor (and with each new one). */
+  onEditorReady?: (editor: Editor) => void;
+}) {
   const callbacks = useRef(props);
   callbacks.current = props;
   const lastValue = useRef(props.value);
@@ -281,6 +287,12 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
     lastValue.current = props.value;
     lastSerialized.current = markdownManager.serialize(prepared.document);
   }, [editor, initial, props.value]);
+
+  useEffect(() => {
+    if (editor) {
+      onEditorReady?.(editor);
+    }
+  }, [editor, onEditorReady]);
 
   useEffect(() => {
     if (editor) {

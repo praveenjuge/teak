@@ -52,6 +52,10 @@ import { SiteFavicon } from "../cards/SiteFavicon";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
+import {
+  CARD_MODAL_OVERLAY_CLASS,
+  cardModalFrameClass,
+} from "./cardModalFrame";
 import { cardModalKeyAction } from "./cardModalKeys";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
@@ -59,24 +63,6 @@ import { useLeaveGuard } from "./useLeaveGuard";
 
 /** How long typing pauses before an edit saves on its own. */
 export const AUTOSAVE_DELAY_MS = 800;
-
-type Stage = "media" | "reading" | "compact";
-
-/** How much room a card's content needs: media fills the dialog. */
-function stageFor(type?: string): Stage {
-  if (
-    type === "image" ||
-    type === "video" ||
-    type === "document" ||
-    type === "link"
-  ) {
-    return "media";
-  }
-  if (type === "text") {
-    return "reading";
-  }
-  return "compact";
-}
 
 function CardPreview({
   card,
@@ -394,7 +380,6 @@ export function CardModal({
     }
   };
 
-  const stage = stageFor(card?.type);
   const heading = card ? getCardHeading(card) : null;
   const TypeIcon = getCardTypeIconComponent(card?.type as CardType);
   const hostname =
@@ -421,17 +406,7 @@ export function CardModal({
       >
         <DialogContent
           className={cn(
-            "flex flex-col gap-0 overflow-hidden border bg-background p-0 shadow-2xl outline-none sm:max-w-none",
-            // Opens quickly and closes at once, with no animation out.
-            "data-[state=closed]:!animate-none data-[state=open]:duration-150",
-            // Phones: a sheet from the bottom that scrolls as one page.
-            "max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:zoom-in-100 max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[94dvh] max-md:w-full max-md:max-w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0",
-            stage === "media" &&
-              "md:h-[min(56rem,calc(100dvh-4rem))] md:w-[min(82rem,calc(100vw-4rem))]",
-            stage === "reading" &&
-              "md:h-[min(52rem,calc(100dvh-4rem))] md:w-[min(70rem,calc(100vw-4rem))]",
-            stage === "compact" &&
-              "md:h-[min(40rem,calc(100dvh-4rem))] md:w-[min(64rem,calc(100vw-4rem))]",
+            cardModalFrameClass(card?.type),
             openOrigin &&
               "md:data-[state=open]:zoom-in-[0.7] md:data-[state=open]:duration-200 md:data-[state=open]:ease-out"
           )}
@@ -442,7 +417,7 @@ export function CardModal({
             event.preventDefault();
             contentRef.current?.focus();
           }}
-          overlayClassName="data-[state=open]:duration-150 data-[state=closed]:!animate-none"
+          overlayClassName={CARD_MODAL_OVERLAY_CLASS}
           ref={contentRef}
           showCloseButton={false}
           style={openOrigin ? { transformOrigin: openOrigin } : undefined}

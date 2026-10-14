@@ -560,6 +560,37 @@ const orderQueryArgs = (
   return order.sort === "oldest" ? { sort: "oldest" } : {};
 };
 
+/** The search state a library page starts from, read from its URL. */
+const initialCardsSearchState = (
+  urlState: SearchUrlState | undefined
+): CardsSearchState => ({
+  ...createInitialCardsSearchState(),
+  ...cardsSearchStateFromQuery(urlState?.q ?? ""),
+  filterTags: urlState?.types ?? [],
+  tagFilter: urlState?.tag ?? "",
+});
+
+/**
+ * The cards query a library view asks for on its first render, before
+ * anyone types: the same arguments `useCardsSearchController` starts with.
+ * Null for Shuffle without a seed, which picks its seed at random.
+ */
+export function initialCardsSearchQueryArgs(
+  view: LibraryView,
+  urlState?: SearchUrlState
+): CardsSearchQueryArgs | null {
+  if (urlState?.sort === "shuffle" && urlState.seed === undefined) {
+    return null;
+  }
+  return {
+    ...buildCardsSearchQueryArgs({
+      ...initialCardsSearchState(urlState),
+      ...libraryViewFlags(view),
+    }),
+    ...orderQueryArgs(orderFromUrl(urlState)),
+  };
+}
+
 export function useCardsSearchController(
   options: UseCardsSearchControllerOptions = {}
 ): UseCardsSearchControllerResult {
@@ -572,13 +603,8 @@ export function useCardsSearchController(
     folderId,
     folderQuery,
   } = options;
-  const [storedSearchState, setSearchState] = useState<CardsSearchState>(
-    () => ({
-      ...createInitialCardsSearchState(),
-      ...cardsSearchStateFromQuery(initialUrlState?.q ?? ""),
-      filterTags: initialUrlState?.types ?? [],
-      tagFilter: initialUrlState?.tag ?? "",
-    })
+  const [storedSearchState, setSearchState] = useState<CardsSearchState>(() =>
+    initialCardsSearchState(initialUrlState)
   );
   // In a routed view the route owns the favorites, archive and trash flags;
   // the stored state keeps them off, so Backspace never clears a view.

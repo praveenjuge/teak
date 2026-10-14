@@ -58,6 +58,25 @@ interface AddCardActionsProps {
 }
 
 /** The sidebar's New button, with its tooltip. */
+const NEW_MENU_TRIGGER_CLASS =
+  "size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4";
+
+/** The sidebar's New button while the app signs in: it looks the same. */
+export function NewMenuPlaceholder() {
+  return (
+    <Button
+      aria-label="New"
+      className={NEW_MENU_TRIGGER_CLASS}
+      disabled
+      size="icon"
+      type="button"
+      variant="ghost"
+    >
+      <Plus />
+    </Button>
+  );
+}
+
 function NewMenuTrigger(props: ComponentProps<typeof Button>) {
   return (
     <Tooltip>
@@ -65,7 +84,7 @@ function NewMenuTrigger(props: ComponentProps<typeof Button>) {
         <DropdownMenuTrigger asChild>
           <Button
             aria-label="New"
-            className="size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4"
+            className={NEW_MENU_TRIGGER_CLASS}
             size="icon"
             type="button"
             variant="ghost"

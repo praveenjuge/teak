@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@teak/ui/fonts.css";
 @import "@teak/ui/styles.css";
 
 @source "../../packages/ui/src/logo.tsx";

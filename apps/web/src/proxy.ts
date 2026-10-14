@@ -35,6 +35,10 @@ export default async function proxy(request: NextRequest) {
       return new NextResponse("Invalid sign-in origin.", { status: 400 });
     }
     const { session, headers } = await authkit(request, {
+      // Page loads also carry the access token in a 30-second cookie that the
+      // client reads (and deletes) as it starts, so Convex signs in without
+      // first asking the server for a token.
+      eagerAuth: true,
       redirectUri: config.redirectUri,
     });
     const entry = workosEntryRedirect(request.nextUrl, Boolean(session.user));

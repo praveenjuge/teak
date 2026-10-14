@@ -9,7 +9,7 @@ import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import type { CardModalCard } from "./types";
 
-interface ConnectedCardModalProps {
+export interface ConnectedCardModalProps {
   card?: CardModalCard | null;
   cardId: string | null;
   onCancel?: () => void;
