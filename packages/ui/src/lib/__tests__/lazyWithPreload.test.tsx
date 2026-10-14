@@ -87,6 +87,29 @@ describe("on-demand dialogs", () => {
     expect(container.textContent).toBe("dialog closed");
   });
 
+  // React.lazy keeps a failed load for good; rendered, a failed chunk
+  // (offline, or gone after a deploy) must not throw to an error boundary.
+  test("keep their fallback while their code fails to load, then open once it loads", async () => {
+    let attempts = 0;
+    const LazyDialog = onDemand(
+      () => {
+        attempts += 1;
+        return attempts === 1
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve(Dialog);
+      },
+      ({ open }) => <p>{open ? "loading" : ""}</p>
+    );
+    mount();
+    await act(() => root?.render(<LazyDialog open />));
+    expect(container.textContent).toBe("loading");
+    expect(attempts).toBe(1);
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1100)));
+    expect(attempts).toBe(2);
+    expect(container.textContent).toBe("dialog open");
+  });
+
   test("try again after a failed load", async () => {
     let attempts = 0;
     const LazyDialog = onDemand(() => {

@@ -16,10 +16,19 @@ export type PreloadableComponent<P extends object> = LazyExoticComponent<
   preload: () => Promise<unknown>;
 };
 
+const FIRST_RETRY_MS = 1000;
+const MAX_RETRY_MS = 30_000;
+
 /**
  * `React.lazy` that can also be loaded ahead of its first render, so code
  * kept out of the first page load is ready by the time someone needs it.
- * A failed load is forgotten, so the next render or preload tries again.
+ * A failed preload is forgotten, so the next one tries again.
+ *
+ * Rendered, it never fails: React.lazy keeps a failed load for good, so its
+ * load instead retries (with backoff, and at once when the browser is back
+ * online) while the Suspense fallback stays up, and the content swaps in
+ * when a retry lands. Offline, or after a deploy replaced the code, the
+ * fallback (the editor's textarea, the card dialog's frame) keeps working.
  *
  * Render `loaded()` when it is set instead of the lazy component: a lazy
  * component suspends on its first render even when its code is already
@@ -43,7 +52,28 @@ export function lazyWithPreload<P extends object>(
     );
     return loading;
   };
-  return Object.assign(lazy(preload), { loaded: () => component, preload });
+  const loadUntilLoaded = () =>
+    new Promise<{ default: ComponentType<P> }>((resolve) => {
+      const attempt = (delay: number) => {
+        preload().then(resolve, () => {
+          if (typeof window === "undefined") {
+            return;
+          }
+          const retry = () => {
+            window.clearTimeout(timeout);
+            window.removeEventListener("online", retry);
+            attempt(Math.min(delay * 2, MAX_RETRY_MS));
+          };
+          const timeout = window.setTimeout(retry, delay);
+          window.addEventListener("online", retry);
+        });
+      };
+      attempt(FIRST_RETRY_MS);
+    });
+  return Object.assign(lazy(loadUntilLoaded), {
+    loaded: () => component,
+    preload,
+  });
 }
 
 /**
