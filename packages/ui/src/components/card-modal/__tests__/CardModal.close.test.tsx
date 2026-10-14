@@ -98,7 +98,7 @@ test("closing hides the dialog first, then tells the page", async () => {
     open: true,
   });
 
-  await act(async () => {
+  await act(() => {
     closeButton()?.click();
   });
   expect(dialog()).toBeNull();
@@ -115,7 +115,7 @@ test("opens again after a close", async () => {
     onCancel,
     open: true,
   });
-  await act(async () => {
+  await act(() => {
     closeButton()?.click();
   });
   await act(nextPaint);
