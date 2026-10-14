@@ -1,4 +1,5 @@
 import type { UploadMultipleFilesResultItem } from "@teak/convex/shared";
+import { CARD_DRAG_TYPE } from "../lib/folders";
 
 /**
  * Shared pure helpers used by the global drag-and-drop provider and its tests.
@@ -114,6 +115,16 @@ export function dataTransferHasFiles(
   dataTransfer: DataTransfer | null | undefined
 ): boolean {
   if (!dataTransfer) {
+    return false;
+  }
+
+  // A card dragged to a sidebar folder can carry its image as a file too;
+  // it is a move within the app, not an upload.
+  if (
+    dataTransfer.types &&
+    typeof dataTransfer.types !== "string" &&
+    Array.from(dataTransfer.types as ArrayLike<string>).includes(CARD_DRAG_TYPE)
+  ) {
     return false;
   }
 

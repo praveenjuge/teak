@@ -47,7 +47,7 @@ test("shuffle keeps its order in the URL", async ({
     );
   };
   const openSortMenu = () =>
-    screen.getByRole("button", "Sort", { exact: false }).click();
+    screen.getByRole("button", "View", { exact: false }).click();
 
   await gotoApp(browser, `/?tag=${TAG}`);
   await expect(card(0)).toBeVisible({ timeout: 30_000 });

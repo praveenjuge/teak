@@ -82,6 +82,15 @@ export const FOLDER_COLOR_LABELS: Record<FolderColor, string> = {
   pink: "Pink",
 };
 
+/** The drag data a card carries, so a sidebar folder can take it. */
+export const CARD_DRAG_TYPE = "application/x-teak-card";
+
+/** Whether a drag carries a card (its ID is only readable on drop). */
+export const isCardDrag = (dataTransfer: DataTransfer | null): boolean =>
+  Boolean(
+    dataTransfer && Array.from(dataTransfer.types).includes(CARD_DRAG_TYPE)
+  );
+
 /** The app path of a folder's view. */
 export const folderPath = (folderId: string) =>
   `/f/${encodeURIComponent(folderId)}`;

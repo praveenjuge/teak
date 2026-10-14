@@ -5,7 +5,13 @@ import {
   libraryViewForPath,
   quickCommandTarget,
 } from "../libraryViews";
-import { sidebarOpenFromCookie } from "../sidebarState";
+import {
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  sidebarOpenFromCookie,
+  sidebarWidthFromCookie,
+} from "../sidebarState";
 
 describe("libraryViewForPath", () => {
   test("maps every view's path back to the view", () => {
@@ -45,5 +51,18 @@ describe("sidebarOpenFromCookie", () => {
     expect(sidebarOpenFromCookie("true")).toBe(true);
     expect(sidebarOpenFromCookie("garbage")).toBe(true);
     expect(sidebarOpenFromCookie("false")).toBe(false);
+  });
+});
+
+describe("sidebarWidthFromCookie", () => {
+  test("uses the default width until one is remembered", () => {
+    expect(sidebarWidthFromCookie(undefined)).toBe(SIDEBAR_DEFAULT_WIDTH);
+    expect(sidebarWidthFromCookie("wide")).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  test("keeps a remembered width within the sidebar's bounds", () => {
+    expect(sidebarWidthFromCookie("240")).toBe(240);
+    expect(sidebarWidthFromCookie("80")).toBe(SIDEBAR_MIN_WIDTH);
+    expect(sidebarWidthFromCookie("9000")).toBe(SIDEBAR_MAX_WIDTH);
   });
 });

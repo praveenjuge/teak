@@ -46,11 +46,12 @@ import {
   type FolderSummary,
   manualFolders,
 } from "../lib/folders";
-import type { LibraryView } from "../lib/libraryViews";
+import { LIBRARY_VIEW_LABELS, type LibraryView } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
+import { PageTitle } from "./PageHeader";
 
 /** What a routed view shows when it has no cards and nothing narrows it. */
 const EMPTY_VIEW_COPY: Record<
@@ -69,10 +70,10 @@ const EMPTY_VIEW_COPY: Record<
 };
 
 const SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
-  all: "Search for anything...",
-  favorites: "Search favorites...",
-  archive: "Search the archive...",
-  trash: "Search Trash...",
+  all: "Search everything",
+  favorites: "Search favorites",
+  archive: "Search archive",
+  trash: "Search Trash",
 };
 
 /** A folder name short enough for the search placeholder. */
@@ -597,43 +598,16 @@ export function CardsScreen({
     return null;
   };
 
-  const content = (
-    <>
-      <CardsSearchHeader
-        {...searchBarProps}
-        leading={headerLeading}
-        onSaveSearch={
-          saveableQuery === null
-            ? undefined
-            : () => setFolderDialog({ mode: "save", query: saveableQuery })
-        }
-        placeholder={
-          folder
-            ? `Search ${clipName(folder.name)}...`
-            : SEARCH_PLACEHOLDERS[view ?? "all"]
-        }
-      />
-
-      {folder && !isSmartFolder && (
-        <div className="mb-4 flex min-w-0 items-center gap-2">
-          <FolderDot className="size-3" color={folder.color} />
-          <h1
-            className="min-w-0 truncate font-semibold text-lg"
-            dir="auto"
-            title={folder.name}
-          >
-            {folder.name}
-          </h1>
-          <span className="shrink-0 text-muted-foreground text-sm tabular-nums">
-            {folder.activeCardCount}{" "}
-            {folder.activeCardCount === 1 ? "card" : "cards"}
-          </span>
-        </div>
-      )}
-
-      {folder && isSmartFolder && (
-        <div className="mb-4 min-w-0 space-y-2">
-          <div className="flex min-w-0 items-center gap-2">
+  // The page's name at the start of the header: the view, or the folder
+  // with its color (or search icon) and count.
+  let title: ReactNode = (
+    <PageTitle>{LIBRARY_VIEW_LABELS[view ?? "all"]}</PageTitle>
+  );
+  if (isFolderView) {
+    if (folder && isSmartFolder) {
+      title = (
+        <PageTitle
+          icon={
             <FolderSearch
               aria-hidden="true"
               className={
@@ -642,30 +616,72 @@ export function CardsScreen({
                   : "size-4 shrink-0 text-muted-foreground"
               }
             />
-            <h1
-              className="min-w-0 truncate font-semibold text-lg"
-              dir="auto"
-              title={folder.name}
-            >
-              {folder.name}
-            </h1>
-            <span className="sr-only">Smart folder</span>
+          }
+          trailing={
             <Button
-              className="ml-auto shrink-0 text-muted-foreground"
+              aria-label="Edit search"
+              className="size-7 shrink-0 text-muted-foreground"
               onClick={editSmartFolder}
-              size="sm"
+              size="icon"
+              title="Edit search"
               variant="ghost"
             >
-              <Pencil />
-              <span className="max-sm:sr-only">Edit search</span>
+              <Pencil className="size-3.5" />
             </Button>
-          </div>
-          <SmartFolderQuery
-            folderNames={folderNames}
-            query={folder.query ?? ""}
-          />
-        </div>
-      )}
+          }
+        >
+          <span title={folder.name}>{folder.name}</span>
+          <span className="sr-only"> (smart folder)</span>
+        </PageTitle>
+      );
+    } else if (folder) {
+      title = (
+        <PageTitle
+          count={
+            <>
+              {folder.activeCardCount.toLocaleString()}
+              <span className="sr-only">
+                {folder.activeCardCount === 1 ? " card" : " cards"}
+              </span>
+            </>
+          }
+          icon={<FolderDot className="size-2" color={folder.color} />}
+        >
+          <span title={folder.name}>{folder.name}</span>
+        </PageTitle>
+      );
+    } else {
+      title = <PageTitle>Folder</PageTitle>;
+    }
+  }
+
+  const content = (
+    <>
+      <CardsSearchHeader
+        {...searchBarProps}
+        leading={headerLeading}
+        lockedChips={
+          folder && isSmartFolder ? (
+            <SmartFolderQuery
+              className="max-w-[45%] shrink-0"
+              folderNames={folderNames}
+              inline
+              query={folder.query ?? ""}
+            />
+          ) : undefined
+        }
+        onSaveSearch={
+          saveableQuery === null
+            ? undefined
+            : () => setFolderDialog({ mode: "save", query: saveableQuery })
+        }
+        placeholder={
+          folder
+            ? `Search ${clipName(folder.name)}`
+            : SEARCH_PLACEHOLDERS[view ?? "all"]
+        }
+        title={title}
+      />
 
       {displayCards.length > 0 ? (
         <MasonryGrid

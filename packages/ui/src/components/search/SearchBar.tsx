@@ -9,13 +9,14 @@ import {
   type VisualStyle,
 } from "@teak/convex/shared/constants";
 import { Button } from "@teak/ui/components/ui/button";
-import { Input } from "@teak/ui/components/ui/input";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@teak/ui/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@teak/ui/components/ui/dropdown-menu";
+import { Input } from "@teak/ui/components/ui/input";
+import { Kbd } from "@teak/ui/components/ui/kbd";
 import { cn } from "@teak/ui/lib/utils";
 import {
   Archive,
@@ -46,9 +47,10 @@ import {
   type ReactNode,
   useId,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { ReshuffleButton, SortMenu } from "./SortMenu";
+import { PageHeader } from "../../screens/PageHeader";
 import {
   buildSearchSuggestions,
   currentSearchToken,
@@ -56,6 +58,7 @@ import {
   type SearchSuggestion,
   type SearchSuggestionSources,
 } from "./searchSuggestions";
+import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
   filterTags: CardType[];
@@ -64,8 +67,13 @@ export interface SearchBarProps {
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
-  /** Shown before the search icon, such as the sidebar toggle. */
+  /** Shown first in the header, such as the sidebar toggle. */
   leading?: ReactNode;
+  /**
+   * Read-only chips at the start of the field, such as a smart folder's own
+   * search, which the typed search narrows further.
+   */
+  lockedChips?: ReactNode;
   /** Called when the search box is first focused, to load suggestions. */
   onActivate?: () => void;
   /** Turns a picked suggestion (`site:github.com`) into a chip. */
@@ -81,7 +89,7 @@ export interface SearchBarProps {
   /** Clears the sidebar tag; shown when `tagFilter` is set. */
   onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
-  /** Shuffles again; shown next to the sort menu while the sort is Shuffle. */
+  /** Shuffles again; shown beside the View menu while the sort is Shuffle. */
   onReshuffle?: () => void;
   /**
    * Saves what is on screen as a smart folder; offered in the sort menu
@@ -91,6 +99,8 @@ export interface SearchBarProps {
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
   onSortChange?: (sort: CardListSort) => void;
+  /** Shows the card type filter when set. */
+  onToggleFilter?: (filter: CardType) => void;
   placeholder?: string;
   /** Accepted qualifiers, each a removable chip. */
   qualifierChips?: string[];
@@ -106,6 +116,8 @@ export interface SearchBarProps {
   /** A tag picked in the sidebar, shown as a removable chip. */
   tagFilter?: string;
   timeFilter?: TimeFilter | null;
+  /** The page's name at the start of the header (a PageTitle). */
+  title?: ReactNode;
 }
 
 const iconComponentMap = {
@@ -146,83 +158,50 @@ const suggestionIcon = (suggestion: SearchSuggestion) => {
   return QUALIFIER_ICONS[suggestion.key];
 };
 
-/** A long chip label stays one line; the full text is in a tooltip. */
-function ChipLabel({ text }: { text: string }) {
-  if (text.length <= 28) {
-    return (
-      <span className="truncate" dir="auto">
-        {text}
-      </span>
-    );
-  }
-  return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="truncate" dir="auto">
-            {text}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-80 break-all">{text}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+/** How many filter chips sit in the field before the rest fold into "+N". */
+const MAX_INLINE_CHIPS = 3;
+
+/** The search box: a soft, rounded field that lifts a little on focus. */
+export const searchFieldClassName =
+  "group/search flex h-9 w-full min-w-0 items-center gap-1.5 rounded-lg bg-muted/60 pr-1.5 pl-2.5 ring-1 ring-transparent transition-[background-color,box-shadow] duration-150 hover:bg-muted focus-within:bg-background focus-within:shadow-sm focus-within:ring-border dark:bg-muted/40";
+
+interface FilterChip {
+  ariaLabel: string;
+  /** A folder the search names that doesn't exist. */
+  dashed?: boolean;
+  icon: ReactNode;
+  key: string;
+  label: string;
+  onRemove: () => void;
+  /** Muted text before the label, such as "Site". */
+  prefix?: string;
 }
 
-function QualifierChip({
-  chip,
-  folderNames,
-  onRemove,
-}: {
-  chip: string;
-  /** Lowercased folder names, once the folder list has loaded. */
-  folderNames?: ReadonlySet<string>;
-  onRemove?: (chip: string) => void;
-}) {
-  const described = describeQualifierChip(chip);
-  if (!described) {
-    return null;
-  }
-  const { qualifier, label, title } = described;
-  const unknownFolder =
-    qualifier.key === "folder" &&
-    folderNames !== undefined &&
-    !folderNames.has(qualifier.value.trim().toLowerCase());
-  let Icon: typeof Tag = QUALIFIER_ICONS[qualifier.key];
-  if (qualifier.key === "type") {
-    Icon = getFilterIcon(qualifier.value);
-  } else if (qualifier.key === "is" && qualifier.value === "archived") {
-    Icon = Archive;
-  } else if (unknownFolder) {
-    Icon = CircleSlash;
-  }
+/** One filter in the field: click to remove it. */
+function FilterChipButton({ chip }: { chip: FilterChip }) {
   return (
-    <Button
-      aria-label={
-        unknownFolder
-          ? `Remove ${chip}: no folder named ${qualifier.value}`
-          : `Remove ${title.toLowerCase()} ${label}`
-      }
+    <button
+      aria-label={chip.ariaLabel}
       className={cn(
-        "max-w-[min(18rem,100%)]",
-        unknownFolder && "border-dashed text-muted-foreground"
+        "inline-flex h-6 min-w-0 max-w-44 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
+        chip.dashed
+          ? "border border-dashed text-muted-foreground"
+          : "bg-background text-foreground shadow-xs ring-1 ring-border/70 hover:bg-accent"
       )}
-      onClick={() => onRemove?.(chip)}
+      onClick={chip.onRemove}
       onMouseDown={preventBlur}
-      size="sm"
-      variant={unknownFolder ? "outline" : "secondary"}
+      title={chip.prefix ? `${chip.prefix} ${chip.label}` : chip.label}
+      type="button"
     >
-      <Icon className="size-3.5 shrink-0 stroke-2" />
-      {unknownFolder ? (
-        <ChipLabel text={`No folder named ${label}`} />
-      ) : (
-        <>
-          <span className="shrink-0 text-muted-foreground">{title}</span>
-          <ChipLabel text={label} />
-        </>
+      {chip.icon}
+      {chip.prefix && (
+        <span className="shrink-0 text-muted-foreground">{chip.prefix}</span>
       )}
-      <X aria-hidden="true" className="size-3 shrink-0 opacity-60" />
-    </Button>
+      <span className="truncate" dir="auto">
+        {chip.label}
+      </span>
+      <X aria-hidden="true" className="opacity-50" />
+    </button>
   );
 }
 
@@ -269,14 +248,17 @@ export function SearchBar({
   onClearAll,
   HeaderActions,
   leading,
-  placeholder = "Search for anything...",
+  lockedChips,
+  placeholder = "Search everything",
   sort = "newest",
   onSaveSearch,
   onSortChange,
   onReshuffle,
+  onToggleFilter,
+  title,
 }: SearchBarProps) {
-  // Views and card types live in the sidebar; the row under the search box
-  // shows only what is narrowing the results, each chip removable.
+  // Views live in the sidebar and card types in the View menu; whatever is
+  // narrowing the results shows as removable chips inside the field.
   const hasAnyFilters =
     qualifierChips.length > 0 ||
     keywordTags.length > 0 ||
@@ -288,7 +270,10 @@ export function SearchBar({
     hexFilters.length > 0;
 
   const listId = useId();
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   // Both reset by typing: they belong to the text they were set for.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ index: number; query: string }>({
@@ -390,20 +375,255 @@ export function SearchBar({
     }
   };
 
+  // Every filter narrowing the results, as one list of removable chips:
+  // the first few sit inside the field, the rest behind "+N".
+  const chips: FilterChip[] = [];
+  if (tagFilter) {
+    chips.push({
+      ariaLabel: `Remove tag filter ${tagFilter}`,
+      icon: <Tag />,
+      key: "tag-filter",
+      label: tagFilter,
+      onRemove: () => onRemoveTagFilter?.(),
+    });
+  }
+  for (const chip of qualifierChips) {
+    const described = describeQualifierChip(chip);
+    if (!described) {
+      continue;
+    }
+    const { qualifier, label, title } = described;
+    const unknownFolder =
+      qualifier.key === "folder" &&
+      folderNames !== undefined &&
+      !folderNames.has(qualifier.value.trim().toLowerCase());
+    let Icon: typeof Tag = QUALIFIER_ICONS[qualifier.key];
+    if (qualifier.key === "type") {
+      Icon = getFilterIcon(qualifier.value);
+    } else if (qualifier.key === "is" && qualifier.value === "archived") {
+      Icon = Archive;
+    } else if (unknownFolder) {
+      Icon = CircleSlash;
+    }
+    chips.push({
+      ariaLabel: unknownFolder
+        ? `Remove ${chip}: no folder named ${qualifier.value}`
+        : `Remove ${title.toLowerCase()} ${label}`,
+      dashed: unknownFolder,
+      icon: <Icon />,
+      key: `qualifier-${chip}`,
+      label: unknownFolder ? `No folder named ${label}` : label,
+      prefix: unknownFolder ? undefined : title,
+      onRemove: () => onRemoveQualifier?.(chip),
+    });
+  }
+  for (const keyword of keywordTags) {
+    chips.push({
+      ariaLabel: `Remove ${keyword}`,
+      icon: keyword.startsWith('"') ? <Quote /> : <Hash />,
+      key: `keyword-${keyword}`,
+      label: keyword,
+      onRemove: () => onRemoveKeyword(keyword),
+    });
+  }
+  if (timeFilter) {
+    chips.push({
+      ariaLabel: `Remove ${timeFilter.label}`,
+      icon: <Clock />,
+      key: "time-filter",
+      label: timeFilter.label,
+      onRemove: onRemoveTimeFilter,
+    });
+  }
+  for (const filter of filterTags) {
+    const Icon = getFilterIcon(filter);
+    chips.push({
+      ariaLabel: `Remove type ${CARD_TYPE_LABELS[filter]}`,
+      icon: <Icon />,
+      key: `filter-${filter}`,
+      label: CARD_TYPE_LABELS[filter],
+      onRemove: () => onRemoveFilter(filter),
+    });
+  }
+  for (const style of styleFilters) {
+    chips.push({
+      ariaLabel: `Remove ${VISUAL_STYLE_LABELS[style]}`,
+      icon: <Sparkles />,
+      key: `style-${style}`,
+      label: VISUAL_STYLE_LABELS[style],
+      onRemove: () => onRemoveStyleFilter(style),
+    });
+  }
+  for (const hue of hueFilters) {
+    chips.push({
+      ariaLabel: `Remove ${COLOR_HUE_LABELS[hue]}`,
+      icon: <Droplets />,
+      key: `hue-${hue}`,
+      label: COLOR_HUE_LABELS[hue],
+      onRemove: () => onRemoveHueFilter(hue),
+    });
+  }
+  for (const hex of hexFilters) {
+    chips.push({
+      ariaLabel: `Remove ${hex}`,
+      icon: (
+        <span
+          className="size-3 shrink-0 rounded-full border"
+          style={{ backgroundColor: hex }}
+        />
+      ),
+      key: `hex-${hex}`,
+      label: hex,
+      onRemove: () => onRemoveHexFilter(hex),
+    });
+  }
+  const inlineChips = chips.slice(0, MAX_INLINE_CHIPS);
+  const overflowChips = chips.slice(MAX_INLINE_CHIPS);
+  const canClear = hasAnyFilters || searchQuery.length > 0;
+  // On phones the field hides behind a search button until it is opened
+  // or already holds a search.
+  const fieldShown = mobileOpen || canClear;
+
+  const clearAll = () => {
+    onClearAll();
+    onSearchChange("");
+  };
+
   return (
-    <>
+    <PageHeader
+      actions={
+        <>
+          <Button
+            aria-label="Search"
+            className={cn(
+              "size-9 shrink-0 text-muted-foreground sm:hidden",
+              fieldShown && "hidden"
+            )}
+            onClick={() => {
+              setMobileOpen(true);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Search className="size-4" />
+          </Button>
+          {mobileOpen && (
+            <Button
+              className="h-9 shrink-0 px-2 text-muted-foreground sm:hidden"
+              onClick={() => {
+                setMobileOpen(false);
+                onSearchChange("");
+              }}
+              onMouseDown={preventBlur}
+              type="button"
+              variant="ghost"
+            >
+              Cancel
+            </Button>
+          )}
+          {onSortChange && onReshuffle && sort === "shuffle" && (
+            <div className={cn(mobileOpen && "max-sm:hidden")}>
+              <ReshuffleButton onReshuffle={onReshuffle} />
+            </div>
+          )}
+          {(onToggleFilter || onSortChange) && (
+            <div className={cn(mobileOpen && "max-sm:hidden")}>
+              <ViewMenu
+                activeTypes={filterTags}
+                onClearTypes={() => {
+                  for (const filter of filterTags) {
+                    onRemoveFilter(filter);
+                  }
+                }}
+                onSaveSearch={onSaveSearch}
+                onSortChange={onSortChange}
+                onToggleType={onToggleFilter}
+                sort={sort}
+              />
+            </div>
+          )}
+          {HeaderActions}
+        </>
+      }
+      leading={
+        leading ? (
+          <div className={cn("contents", mobileOpen && "max-sm:hidden")}>
+            {leading}
+          </div>
+        ) : undefined
+      }
+      title={
+        title ? (
+          // On phones the open field takes the title's room.
+          <div className={cn("contents", fieldShown && "max-sm:hidden")}>
+            {title}
+          </div>
+        ) : undefined
+      }
+    >
       <form
         aria-label="Search cards"
-        className="group relative flex items-center"
+        className={cn(
+          "relative min-w-0 flex-1 sm:ml-auto sm:max-w-xl",
+          !fieldShown && "max-sm:hidden"
+        )}
         onSubmit={handleSubmit}
         {...webMcpSearchAttributes}
       >
-        {leading}
-        <div className="flex items-center gap-2">
-          <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
-        </div>
-
-        <div className="relative flex-1">
+        {/* A label, so a click anywhere on the field puts the cursor in it. */}
+        <label
+          className={searchFieldClassName}
+          data-search-field=""
+          htmlFor={inputId}
+        >
+          <Search
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted-foreground group-focus-within/search:text-foreground"
+          />
+          {lockedChips}
+          {inlineChips.length > 0 && (
+            <div className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
+              {inlineChips.map((chip) => (
+                <FilterChipButton chip={chip} key={chip.key} />
+              ))}
+            </div>
+          )}
+          {overflowChips.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label={`${overflowChips.length} more ${overflowChips.length === 1 ? "filter" : "filters"}`}
+                  className="inline-flex h-6 shrink-0 items-center rounded-md bg-background px-1.5 font-medium text-muted-foreground text-xs shadow-xs ring-1 ring-border/70 hover:text-foreground"
+                  onMouseDown={preventBlur}
+                  type="button"
+                >
+                  +{overflowChips.length}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {overflowChips.map((chip) => (
+                  <DropdownMenuItem
+                    aria-label={chip.ariaLabel}
+                    key={chip.key}
+                    onSelect={chip.onRemove}
+                  >
+                    {chip.icon}
+                    <span className="min-w-0 flex-1 truncate" dir="auto">
+                      {chip.prefix && (
+                        <span className="text-muted-foreground">
+                          {chip.prefix}{" "}
+                        </span>
+                      )}
+                      {chip.label}
+                    </span>
+                    <X className="opacity-50" />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Input
             aria-activedescendant={
               open && active >= 0 ? optionId(active) : undefined
@@ -412,11 +632,14 @@ export function SearchBar({
             aria-controls={open ? listId : undefined}
             aria-expanded={open}
             aria-keyshortcuts="/"
+            // Named for the page, not by the chips the field also holds.
+            aria-label={placeholder}
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
-            className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+            className="h-full min-w-20 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
             data-library-search=""
+            id={inputId}
             name="q"
             onBlur={() => setFocused(false)}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -426,32 +649,36 @@ export function SearchBar({
             }}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
+            ref={inputRef}
             role="combobox"
             spellCheck={false}
             type="search"
             value={searchQuery}
             {...webMcpQueryAttributes}
           />
-        </div>
-
-        <div className="flex items-center gap-1">
-          {onSortChange && onReshuffle && sort === "shuffle" && (
-            <ReshuffleButton onReshuffle={onReshuffle} />
+          {canClear ? (
+            <button
+              aria-label="Clear all"
+              className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              onClick={clearAll}
+              onMouseDown={preventBlur}
+              type="button"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : (
+            !focused && (
+              <Kbd aria-hidden="true" className="max-sm:hidden">
+                /
+              </Kbd>
+            )
           )}
-          {onSortChange && (
-            <SortMenu
-              onSaveSearch={onSaveSearch}
-              onSortChange={onSortChange}
-              sort={sort}
-            />
-          )}
-          {HeaderActions}
-        </div>
+        </label>
 
         {open && (
           <div
             aria-label="Search suggestions"
-            className="fade-in-0 zoom-in-95 absolute inset-x-0 top-full z-50 -mt-2 max-h-80 animate-in overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-md duration-100"
+            className="fade-in-0 zoom-in-95 absolute inset-x-0 top-full z-50 mt-1.5 max-h-80 animate-in overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-md duration-100"
             id={listId}
             role="listbox"
           >
@@ -507,142 +734,6 @@ export function SearchBar({
           </div>
         )}
       </form>
-      {hasAnyFilters && (
-        <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
-          <div className="flex flex-wrap gap-2">
-            {tagFilter && (
-              <Button
-                aria-label={`Remove tag filter ${tagFilter}`}
-                className="max-w-full"
-                key="tag-filter"
-                onClick={onRemoveTagFilter}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                <Tag className="size-3.5 stroke-2" />
-                <span className="truncate" dir="auto">
-                  {tagFilter}
-                </span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            )}
-
-            {qualifierChips.map((chip) => (
-              <QualifierChip
-                chip={chip}
-                folderNames={folderNames}
-                key={`qualifier-${chip}`}
-                onRemove={onRemoveQualifier}
-              />
-            ))}
-
-            {keywordTags.map((keyword) => (
-              <Button
-                key={`keyword-${keyword}`}
-                onClick={() => onRemoveKeyword(keyword)}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                {keyword.startsWith('"') ? (
-                  <Quote className="size-3.5 stroke-2" />
-                ) : (
-                  <Hash className="size-3.5 stroke-2" />
-                )}
-                <span>{keyword}</span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            ))}
-
-            {timeFilter && (
-              <Button
-                key="time-filter"
-                onClick={onRemoveTimeFilter}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                <Clock className="size-3.5 stroke-2" />
-                <span>{timeFilter.label}</span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            )}
-
-            {filterTags.map((filter) => {
-              const IconComponent = getFilterIcon(filter);
-              return (
-                <Button
-                  aria-pressed={true}
-                  key={`filter-${filter}`}
-                  onClick={() => onRemoveFilter(filter)}
-                  onMouseDown={preventBlur}
-                  size="sm"
-                  variant="secondary"
-                >
-                  <IconComponent className="size-3.5 stroke-2" />
-                  <span>{CARD_TYPE_LABELS[filter]}</span>
-                  <X aria-hidden="true" className="size-3 opacity-60" />
-                </Button>
-              );
-            })}
-
-            {styleFilters.map((style) => (
-              <Button
-                key={`style-${style}`}
-                onClick={() => onRemoveStyleFilter(style)}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                <Sparkles className="size-3.5 stroke-2" />
-                <span>{VISUAL_STYLE_LABELS[style]}</span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            ))}
-
-            {hueFilters.map((hue) => (
-              <Button
-                key={`hue-${hue}`}
-                onClick={() => onRemoveHueFilter(hue)}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                <Droplets className="size-3.5 stroke-2" />
-                <span>{COLOR_HUE_LABELS[hue]}</span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            ))}
-
-            {hexFilters.map((hex) => (
-              <Button
-                key={`hex-${hex}`}
-                onClick={() => onRemoveHexFilter(hex)}
-                onMouseDown={preventBlur}
-                size="sm"
-                variant="secondary"
-              >
-                <span
-                  className="size-3 rounded-full border"
-                  style={{ backgroundColor: hex }}
-                />
-                <span>{hex}</span>
-                <X aria-hidden="true" className="size-3 opacity-60" />
-              </Button>
-            ))}
-
-            <Button
-              onClick={onClearAll}
-              onMouseDown={preventBlur}
-              size="sm"
-              variant="ghost"
-            >
-              Clear all
-            </Button>
-          </div>
-        </div>
-      )}
-    </>
+    </PageHeader>
   );
 }
