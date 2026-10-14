@@ -79,7 +79,8 @@ Add six link categories: place (restaurants, venues and real estate), typeface, 
     - reddit.com `/comments/`
     - linkedin.com `/posts/` and `/feed/update/`
     - substack.com `/note/`
-  - `PATH_CATEGORY_RULES`: Mastodon-style `^/@[^/]+/\d+$` maps to social_post.
+  - The Mastodon-style path `^/@[^/]+/\d+$` is **not** added to `PATH_CATEGORY_RULES`. Those rules test only the pathname (`linkCategoryResolver.ts:186`), so `https://example.com/@alice/123` would wrongly become `social_post`. It is a host-gated domain rule instead: the path counts only when the host is in `MASTODON_HOSTS`, a short allow-list in `shared/linkCategories.ts` (mastodon.social, mastodon.online, mas.to, fosstodon.org, hachyderm.io, infosec.exchange, mstdn.social).
+  - Other instances are not guessed here. Phase 19's Mastodon fetcher confirms them through the status API during link metadata and sets the category then.
 - `providers/index.ts`: github `categories: ["software", "repo"]`.
 - `enrichment.ts` new cases:
   - place (`Restaurant`, `LocalBusiness`, `Place`, `LodgingBusiness`, `Residence`, `SingleFamilyResidence`, `Apartment`, `RealEstateListing`): Address, Cuisine, Price range, Rating, and an image
@@ -88,7 +89,7 @@ Add six link categories: place (restaurants, venues and real estate), typeface, 
   - typeface, social_post and repo add no JSON-LD case.
 - `migration/backfillLinkCategories.ts`:
   - It defaults to a dry run, pages the cards table and skips non-link cards and accounts being deleted.
-  - It recomputes `resolveLinkCategory(card.url)`, and patches `metadata.linkCategory.category` through `patchCardWithSearchSync` only when the reason is `domain_rule` or `path_rule` and the category changed.
+  - It recomputes `resolveLinkCategory(card.url)`, and patches `metadata.linkCategory.category` through `patchCardWithSearchSync` only when the reason is `domain_rule` or `path_rule` and the category changed. The Mastodon rule is a `domain_rule` gated on `MASTODON_HOSTS`, so the backfill never re-categorizes `/@user/123` paths on other hosts.
   - Its totals are counted per from→to pair.
 
 ## Web

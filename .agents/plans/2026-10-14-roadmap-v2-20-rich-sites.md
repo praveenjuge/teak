@@ -70,8 +70,9 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
 - `card/saveLinkedPdf.ts`:
   - `saveLinkedPdf({ cardId })` is a session action. A `…ForUser` internal action backs the API.
   - It checks that the owner's link card has an arXiv `pdfUrl`.
-  - If a card with that URL already exists (duplicate check by URL), it returns that card's ID.
-  - Otherwise it checks the quota, downloads with `safeFetch`, stores to R2 (role `file`), finalizes through the same path as `finalizeUploadedCard`, and returns `{ cardId, created }`.
+  - A URL duplicate check can't work here: `createUploadedCardForUser` stores no top-level `url`, so the document never appears in `cards.by_user_url_deleted`. A `/pdf/` source card's lookup would also find the link card itself. Instead it records provenance in a new table, `linkedPdfs { userId, sourceCardId, pdfUrl, status: "pending" | "done" | "failed", cardId?, createdAt }` with `by_sourceCardId` (deleted with the source card and in account deletion).
+  - First an internal mutation claims the row atomically. A `done` row returns its `cardId` (`created: false`). A fresh `pending` row (under 2 minutes old) returns `409 IN_PROGRESS`, so concurrent calls never create two documents. A missing or `failed` row is (re)claimed as `pending`.
+  - Then it checks the quota, downloads with `safeFetch`, stores to R2 (role `file`), and finalizes through the same promotion path as `finalizeUploadedCard`. A second mutation marks the row `done` with the new `cardId`, and it returns `{ cardId, created: true }`. If the new document is later deleted, the row is cleared so Save PDF works again.
 - Analytics: `link_pdf_saved { source }`.
 
 ## Web
@@ -130,7 +131,8 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
   - a PDF URL answering `text/html`
   - a 200 MB PDF (refused)
   - Save PDF on another user's card
-  - Save PDF twice (one card)
+  - Save PDF twice, one after the other (one card), and twice concurrently (one card, the other call gets `IN_PROGRESS` and then the same `cardId`)
+  - Save PDF on a source card whose URL is already the `/pdf/` URL (creates a document, never returns the link card)
   - a timeout from each source
 
 ## Tests
@@ -138,7 +140,7 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
 - One file per site under `packages/convex/__tests__/workflows/steps/categorization/remote/`: `wikipedia.test.ts`, `arxiv.test.ts`, `spotify.test.ts`, `appleMusic.test.ts`, `openLibrary.test.ts`. Each covers fixture parsing, null cases and caps, with the network mocked. `openLibrary.test.ts` also checks the ISBN checksum.
 - `__tests__/workflows/steps/categorization/index.test.ts`: the remote layer merges facts and ignores failures.
 - `__tests__/workflows/steps/metadata.test.ts`: the summary appears in the AI input within 6,000 characters.
-- `packages/convex/__tests__/card/saveLinkedPdf.test.ts`: owner only, duplicate, quota, content-type and size refusals (R2 and network mocked).
+- `packages/convex/__tests__/card/saveLinkedPdf.test.ts`: owner only, provenance replay returns the same document, concurrent claims create one document, the `/pdf/` source URL case, deleting the document clears provenance, quota, content-type and size refusals (R2 and network mocked).
 - `__tests__/publicApiHttpCards.test.ts`, `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
 - `packages/ui/src/components/card-previews/__tests__/LinkPreview.test.tsx`: the Save PDF button shows only with a `pdfUrl`.
 

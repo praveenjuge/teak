@@ -51,11 +51,11 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
   - It stops minting at the quota.
   - It records `pendingAttachments: [{ index, fileKey }]` on the receipt.
 - `inboundEmailReceipts` gains `pendingAttachments?` and `attachmentCardIds?: v.optional(v.array(v.id("cards")))`.
-- New `httpAction` `inboundEmailAttachment` (same signature check) runs the internal mutation `finalizeEmailAttachment`. It:
-  - checks that the receipt and index exist and that `fileKey` matches the pending one
-  - is idempotent per index
-  - calls `createUploadedCardForUser` with `tags: ["email"]`, `additionalMetadata: { source: "email" }` and `source: "email"`
-- On `RATE_LIMITED`, the mutation schedules itself at `retryAt` (`ctx.scheduler.runAt`) and returns `202`. On `CARD_LIMIT_REACHED`, it deletes the pending object and records `email_received` with `outcome: "dropped_limit"`.
+- New `httpAction` `inboundEmailAttachment` (same signature check) runs the internal **action** `finalizeEmailAttachment`. It must not call `createUploadedCardForUser` directly. That would leave `fileKey` under `cards/upload-pending-v2`, which `cleanup-stale-pending-uploads` deletes after 24 hours even when a card points at it. The action:
+  - claims the index with an internal mutation (`claimEmailAttachment`). That mutation checks that the receipt and index exist, that `fileKey` matches the pending one and that the index isn't already finalized, so the action is idempotent per index.
+  - calls the existing promotion path, `finalizeForUser` in `card/uploadCardAction.ts`. That path builds the permanent `stored` destination key and runs the Files Worker `finalize-upload` / `finalize-image-upload` op, then creates the card. `finalizeForUser` gains optional `tags`, `additionalMetadata` and `source: "email"` arguments for this.
+  - records the new card id on the receipt (`attachmentCardIds`) with a second internal mutation.
+- On `RATE_LIMITED`, the action schedules itself at `retryAt` (`ctx.scheduler.runAt`) and returns `202`. The object stays pending, inside the 24-hour sweep window. On `CARD_LIMIT_REACHED`, it deletes the pending object and records `email_received` with `outcome: "dropped_limit"`.
 - `http.ts` adds `POST /inbound/email/attachments`.
 - Analytics: `email_attachment_saved { kind, size_bucket }` and `email_attachment_skipped { reason: "format" | "size" | "decoration" | "limit" | "upload_failed" }`.
 
@@ -106,7 +106,7 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
 
 - `apps/email-worker/src/attachments.test.ts`: the selection table (inline, decoration, signature parts, cap).
 - `apps/email-worker/src/index.test.ts`: the upload and finalize sequence, PUT retries, and the old-backend path (fetch mocked).
-- `packages/convex/inboundEmail.test.ts` (extend): minting skips bad formats, finalize is idempotent, a forged key is refused, a quota drop deletes the pending object, and `RATE_LIMITED` reschedules.
+- `packages/convex/inboundEmail.test.ts` (extend): minting skips bad formats, finalize is idempotent, a forged key is refused, a quota drop deletes the pending object, `RATE_LIMITED` reschedules, and a finalized attachment's card `fileKey` sits under the permanent `stored` prefix, not `upload-pending-v2`. The test runs the stale-pending sweep afterwards, and the file must still exist.
 - `packages/convex/__tests__/publicApiUploads.test.ts`: `mintPendingUpload` behaves as before for the API.
 - `packages/tests/src/journey/14-email-in.e2e.ts`: a signed fixture with 2 attachments produces 2 file cards tagged `email`.
 
