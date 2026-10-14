@@ -270,7 +270,7 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
       mimeType: "video/mp4",
       width: 1920,
       height: 1200,
-      duration: 26,
+      duration: 29.8,
       scrub: { frames: 10, frameWidth: 360, frameHeight: 224 },
     },
     aiTags: ["teak", "search", "interface", "design", "workspace"],
@@ -305,7 +305,7 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     aiSummary:
       "A note on the studio brand refresh: a coral main button, a warm serif headline, and calmer, roomier spacing.",
     notes:
-      "Record a thought with the microphone button, or upload a memo. Teak writes out what was said, so searching serif finds this card.",
+      "Record a voice memo in Teak, or upload one. Teak writes out what was said, so searching serif finds this card.",
   },
   {
     onboarding: "document",
