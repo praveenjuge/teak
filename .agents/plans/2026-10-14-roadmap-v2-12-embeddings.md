@@ -91,7 +91,8 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - It stands down during account deletion, like the search sync.
 - `embedding/embedCard.ts` (`internalAction`):
   - Batches due rows (≤ 32) and builds each text and hash.
-  - Skips cards whose hash is unchanged or whose text is empty. A trashed card is still embedded.
+  - Skips cards whose hash is unchanged. A trashed card is still embedded.
+  - When the text becomes empty for a card that already has a vector (for example every note, tag, OCR and content field was cleared), it calls `vector-delete` for that id and clears the row's `hash` and `embeddedAt` instead of skipping. A stale vector can then never keep matching semantic searches or anchor `like:`. A card that never had a vector and still has no text is simply skipped.
   - Calls `embed-upsert`, then `recordEmbedded` with the hash it embedded.
   - If `recordEmbedded` finds the card hard-deleted in the meantime, it schedules `vector-delete`.
   - Retries back off on `attempts`. After 5 attempts the row keeps `lastError` and is picked up by the next backfill run.
@@ -136,6 +137,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - An edit that does not change the text makes no AI call.
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
+  - Clear every embeddable field on an embedded card: its vector is deleted, `vector-get` returns nothing, and it no longer appears for a semantic query that used to match it.
   - `vector-delete` fails on every retry: the tombstone stays, and the sweep reports it after 24 hours.
   - Purge after 30 days in Trash.
   - Account deletion through both paths, then `vector-get` on that user's former card ids returns nothing, and a `vector-query` filtered to that `userId` returns no matches.

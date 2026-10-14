@@ -54,7 +54,7 @@ Save social posts the way X posts are saved today: the post text, the author, th
   - On 403 or 429, try `https://www.reddit.com/oembed?url=`, then fall through.
 - `linkMetadata/tiktok.ts`: `https://www.tiktok.com/oembed?url=` gives the caption (`title`), `author_name` and `thumbnail_url` as a poster. No video download.
 - `linkMetadata/threads.ts`, `linkedin.ts`, `substackNotes.ts`: Open Graph only. Map the generic scrape's `og:description`/`og:image` into the post shape (author from `og:title` or the URL handle). Threads oEmbed needs an app token, so it is not used. Check for an unauthenticated Substack Notes JSON endpoint during the build.
-- `linkMetadata/socialPost.ts fetchSocialPostMetadata(url)`: the dispatcher. `fetchMetadataHandler` calls it after the X branch and before `scrapeWithFetch`. A hit stores media with `storeLinkPreviewMedia` and saves the preview the same way the X branch does.
+- `linkMetadata/socialPost.ts fetchSocialPostMetadata(url)`: the dispatcher. `fetchMetadataHandler` calls it after the X branch and before `scrapeWithFetch`. A hit stores media with `storeLinkPreviewMedia` and saves the preview the same way the X branch does. `SocialPostMetadata` also carries `platform` and a `categoryHint: "social_post"`. The dispatcher saves that hint on `metadata.linkPreview.categoryHint`, and the categorizer (`categorization/index.ts classifyStep`) uses it before the URL rules. A Mastodon status confirmed through `/api/v1/statuses/:id` on an instance outside phase 18's `MASTODON_HOSTS` allow-list is therefore stored as `social_post`. Any confirmed post from the other fetchers is too.
 
 ## Web
 
@@ -105,6 +105,7 @@ Save social posts the way X posts are saved today: the post text, the author, th
 
 - One file per site: `packages/convex/__tests__/linkMetadata/bluesky.test.ts`, `mastodon.test.ts`, `reddit.test.ts`, `tiktok.test.ts`, `threads.test.ts`, `linkedin.test.ts`, `substackNotes.test.ts`. Each covers URL matching, fixture parsing, the null cases and the size caps, with the network mocked.
 - `packages/convex/__tests__/linkMetadata/ssrf.test.ts`: Mastodon hosts refused for private ranges.
+- `packages/convex/__tests__/workflows/steps/categorization/index.test.ts`: a status confirmed on an unlisted Mastodon instance ends up `social_post` through `categoryHint`, and an unconfirmed `/@user/123` path on a blog stays `other`.
 - `packages/convex/__tests__/workflows/steps/linkMetadata/fetchMetadata.test.ts`: dispatch order, falling through to the scrape on null, media stored through `storeLinkPreviewMedia`, and a 429 that never becomes retryable.
 - `packages/ui/src/components/cards/__tests__/Card.test.tsx`: a text-only social post tile shows the author.
 

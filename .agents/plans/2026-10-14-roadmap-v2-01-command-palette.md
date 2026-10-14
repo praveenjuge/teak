@@ -10,7 +10,7 @@ Add a ⌘K / Ctrl+K command palette to the web app. From one box you can jump to
 
 - ⌘K (Apple) or Ctrl+K (everywhere else) opens the palette on every signed-in page. Pressing it again, or Esc, closes it, and focus goes back to where it was.
 - **Navigate:** Everything, Favorites, Archive, Trash, Tags and Settings, plus every folder and smart folder by name (up to `MAX_FOLDERS_PER_USER = 500`).
-- **Cards:** after 2 or more characters, up to 8 matches from the normal search, qualifiers included (`#tag`, `type:`, `site:`). Enter opens the card in the card modal (`?card=<id>`) on the current page.
+- **Cards:** after 2 or more characters, up to 8 matches from the normal search, qualifiers included (`#tag`, `type:`, `site:`). Enter opens the card in the card modal. On a library route (Everything, Favorites, Archive, Trash, a folder or a tag view), which mounts `CardsScreen` and `ConnectedCardModal`, it sets `?card=<id>` on the current page. On any other route, such as `/settings` (`SettingsPageClient` mounts neither and never reads `card`), it navigates to `/?card=<id>`, so the card always opens.
 - **Actions:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts and Sign out.
 - It shows no recent searches and no recent cards (rejected in the master Decisions).
 - Inside a text editor, ⌘K still edits a link. While another dialog, menu or popup list is open, ⌘K does nothing.
@@ -53,6 +53,8 @@ Add a ⌘K / Ctrl+K command palette to the web app. From one box you can jump to
 ## API / MCP / SDK / CLI
 
 - None.
+
+- `CommandPalette.tsx` picks the card target with `isLibraryRoute(pathname)`. Library routes update the `card` query param in place; others push `/?card=<id>`. A web test covers opening a card from `/settings`.
 
 ## Docs
 

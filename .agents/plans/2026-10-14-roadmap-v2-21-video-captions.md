@@ -64,6 +64,7 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
   - For YouTube and Vimeo URLs, call `fetchVideoCaptions`.
   - On a hit, set `aiTranscript`, and append `Transcript: <text>` to the AI input, cut so the total stays within 6,000 characters.
   - The step's return value already carries `hasTranscript`.
+  - Every caption-derived write is guarded by run, the same way as phase 22. This phase adds `cards.processingRunId?: string`, set by `startCardProcessingWorkflow` (`workflows/manager.ts`) each time a processing workflow starts, including Refresh details, plus the optional `expectedRunId` argument on `updateCardAI`. The metadata step reads the run id when it starts. It then passes `expectedRunId` to `updateCardAI` for the transcript, summary and tags. A slow caption fetch from an older run that finishes after a Refresh details is skipped with `stale_run` and never overwrites the newer run.
 
 ## Web
 
@@ -117,6 +118,8 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
   - the card completes when every caption call throws
 
 ## Tests
+
+- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: a caption fetch whose run id was superseded by a Refresh details writes nothing (`stale_run`), and the newer run's transcript stays.
 
 - `packages/convex/__tests__/workflows/steps/linkMetadata/captions/youtube.test.ts`: ID parsing and track choice over the fixtures (network mocked).
 - `.../captions/vimeo.test.ts`: config parsing, the unlisted hash, 403.
