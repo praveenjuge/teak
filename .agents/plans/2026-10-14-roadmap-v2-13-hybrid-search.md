@@ -5,13 +5,13 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
 ## Depends on
 
 - [Phase 12](2026-10-14-roadmap-v2-12-embeddings.md): vectors and `vector-query`.
-- [Phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md): `isHidden`, which semantic results always exclude.
+- [Phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md): `isHidden` and its `includeHidden` reveal rule, which the semantic side follows exactly like the keyword side.
 
 ## Success Criteria
 
 - Searching `cozy reading nook` finds a photo summarized as "armchair by a window with books", even though no keyword matches. Typos (`typograhpy`) and cross-language queries (`猫` for cat photos) find related cards. Exact keyword hits are still found.
 - Keyword results appear as fast as today. Semantic matches merge in when they arrive (target p95 under 700 ms on dev), with no layout jump.
-- Every view behaves the same: Trash, Archive, favorites, folders, smart folders, tags, types and visual filters all hold, and hidden cards never come from the semantic side.
+- Every view behaves the same: Trash, Archive, favorites, folders, smart folders, tags, types and visual filters all hold, and hidden cards come from the semantic side only when the search reveals them (`#private`, `#nsfw`, `#hidden`), exactly as on the keyword side.
 - `GET /v1/cards?q=…` blends by default, so the MCP tools, the SDK, the CLI and Raycast (which calls the API) all blend too. `mode=keyword` gives today's results exactly. Responses carry `searchMode`.
 - If the vector service is down, slow (over 1.5 s) or rate-limited, search quietly falls back to keyword results and reports `searchMode: "keyword"`.
 
@@ -37,7 +37,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - Keyword rank is the order Convex search returns. Semantic rank is the Vectorize score order (`topK` 100).
   - `rrf = Σ 1 / (60 + rank)`.
   - Semantic matches below `SEMANTIC_MIN_SCORE` are dropped (start at 0.5 cosine and tune on dev) unless the card is also a keyword match.
-  - The fused set is capped at the existing candidate limits (401 grid, 400 API), then filtered by `resolved.matches` / `matchesStructuredFilters`. Hidden cards are always excluded from the semantic side, then sorted.
+  - The fused set is capped at the existing candidate limits (401 grid, 400 API), then filtered by `resolved.matches` / `matchesStructuredFilters`. Semantic candidates use the same `includeHidden` rule as the keyword side: hidden cards are dropped unless `resolveSearch` set `includeHidden` because the tags reveal them. Then the set is sorted.
   - With newest, oldest or shuffle sorts, fusion decides which cards are in the set, not their order. A relevance sort is not added.
 - **Semantic cache.** Every surface writes to and reads from one cache table:
   - `semanticSearchResults { userId, key, ranking: [{ cardId, score }] (≤ 100), createdAt, expiresAt }`, with `by_userId_and_key` and `by_expiresAt`.
@@ -135,7 +135,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - 390px and 1440px, light and dark.
 - Backend:
   - Another user's cards never appear.
-  - Hidden cards never come from the semantic side, even with `#private`.
+  - Hidden cards never come from the semantic side without a reveal tag. With one, a hidden card that matches only by meaning is returned: `#private cozy reading nook` finds a private card titled "Window seat".
   - Trash only shows trashed cards.
   - A cache entry expires between API pages: later pages still use the frozen session, so nothing is skipped or repeated.
   - A session expires between pages: `400 CURSOR_EXPIRED` reaches SDK and MCP callers unchanged (no silent restart, no repeated cards), and `teak cards search --all` restarts the whole listing once with a notice.
@@ -163,7 +163,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
 ## Proof before the PR
 
 - Video 1: on dev, search `cozy reading nook` and watch the photo merge in. Then switch to oldest, then Shuffle.
-- Video 2: the nastiest case, a smart folder plus a typed query plus Trash, with a hidden match that must not appear.
+- Video 2: the nastiest case, a smart folder plus a typed query plus Trash, with a hidden match that must not appear, then the same query with `#private` added, where it must appear.
 - Screenshots of the grid with the hint, the empty state and the fallback: light and dark, 390px and 1440px.
 - Captured `GET /v1/cards?q=…` with each mode, the MCP `teak_v1_search_cards` output, `teak cards search "cozy reading nook" --mode semantic`, and a p50/p95 latency table from dev.
 

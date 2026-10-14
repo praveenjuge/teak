@@ -16,8 +16,8 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
 ## Success Criteria
 
 - "More like this" on a brutalist building photo lists other concrete architecture photos and related notes and links, of any type. The card itself is never listed.
-- `like:<id> type:link`, `like:<id> #design` and `like:<id> is:archived` narrow the similar set like any qualifier. The sort menu applies. Hidden cards never appear.
-- The `like:` chip reads "Similar to: <card title>", which truncates and opens the card on click. For a trashed, hidden, deleted or another user's card, the chip reads "Similar to: unavailable card" and the grid shows the empty state, never an error.
+- `like:<id> type:link`, `like:<id> #design` and `like:<id> is:archived` narrow the similar set like any qualifier. The sort menu applies. Hidden cards follow phase 4's reveal rule: they never appear unless the query also has `#private`, `#nsfw` or `#hidden`, so `like:<id> #private` shows similar private cards.
+- The `like:` chip reads "Similar to: <card title>", which truncates and opens the card on click. For a trashed, deleted or another user's card, or a hidden card in a query without a reveal tag, the chip reads "Similar to: unavailable card" and the grid shows the empty state, never an error.
 - A smart folder saved with `like:<id>` keeps working and survives the anchor card being renamed.
 - `mood:"moody brutalist"` returns only images, ranked by meaning against their summary, tags, styles and text, then sorted.
 - `GET /v1/cards?similarTo=<id>` equals `q=like:<id>`. MCP `teak_v1_find_similar_cards` and `teak similar <id>` return the same cards.
@@ -63,12 +63,12 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
   - Anchor rules in `combineSearchQueries`.
 - `search/semantic.ts`: `semanticSearchKey` covers both kinds. `shouldRunSemantic` returns true for any anchor.
 - `search/semanticActions.ts` `requestSemanticResults`:
-  - For `like`, it first runs an internal query that checks the anchor (owner, not trashed, not hidden) and then queries by id.
+  - For `like`, it first runs an internal query that checks the anchor (owner, not trashed, and not hidden unless the query reveals hidden cards) and then queries by id.
   - For `mood`, it queries by text with image types.
   - States written to the cache: `ok`, `pending` (no vector yet) and `unavailable`.
 - `getCards.ts` and `publicApi.ts`:
   - When an anchor is set, the similar set replaces the keyword driver.
-  - The other qualifiers filter through `resolved.matches` and hidden is always excluded. Then the sort applies.
+  - The other qualifiers filter through `resolved.matches`, and hidden cards use the same `includeHidden` rule as the keyword side (excluded unless a reveal tag is present). Then the sort applies.
   - Cards are capped at 100 per anchor. The API's `match` cursor pages them.
 - `card/getCards.ts` `similarAnchorSummary` (query): `{ status: "ok" | "unavailable" | "pending", title? }` for the chip. It never returns another user's title.
 - `publicApiHttpCards.ts`:
@@ -117,7 +117,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
 - `similar-cards` on dev, through the real pipeline:
   - Clusters of 15 cards each (concrete architecture, sourdough, TypeScript errors, synthwave palettes) across all 8 types.
   - A card saved seconds ago (vector pending).
-  - Anchors that are trashed, hidden, hard-deleted or another account's.
+  - Anchors that are trashed, hard-deleted or another account's, and hidden anchors with and without `#private`.
   - A library with no images, for `mood:`.
   - A 300-character emoji anchor title.
   - Smart folders saved with `like:` and `mood:`.
@@ -140,7 +140,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
   - `mood:` with `type:link`.
   - `similarTo` plus `q=like:` with a different id.
   - A pending vector.
-  - Hidden results excluded.
+  - Hidden results excluded without a reveal tag and included with `#private`.
   - API paging across the 100-card cap.
   - Rate limit.
 
@@ -148,7 +148,7 @@ The homepage then calls out the new search features. Phase 14 of the [roadmap v2
 
 - `packages/convex/__tests__/shared/search/qualifiers.test.ts`: `like` and `mood` parsing, id validation, canonical form, anchor rules in `combineSearchQueries`.
 - `packages/convex/similarSearch.test.ts` (new convex-test file, added to `vitest.config.ts`):
-  - seeded cache rows give the anchor excluded, filters applied, hidden excluded and sorts applied
+  - seeded cache rows give the anchor excluded, filters applied, hidden excluded unless revealed and sorts applied
   - an unavailable anchor
   - another user's anchor
   - `similarAnchorSummary` privacy
