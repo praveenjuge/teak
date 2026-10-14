@@ -3,15 +3,15 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { type ActionCtx, action } from "./_generated/server";
-import {
-  IMPORT_PART_BYTES,
-  IMPORT_UPLOAD_TTL_MS,
-  MAX_ARCHIVE_BYTES,
-  MAX_BOOKMARK_BYTES,
-  MAX_RAINDROP_BYTES,
-} from "./import/constants";
+import { IMPORT_PART_BYTES, IMPORT_UPLOAD_TTL_MS } from "./import/constants";
 import { importModeValidator } from "./schema";
 import { getSessionUser, type TeakUserId } from "./securitySessions";
+import {
+  IMPORT_SOURCES,
+  type ImportMode,
+  importContentType,
+  importFileMatches,
+} from "./shared/importSources";
 import {
   buildSignedMultipartPartUrl,
   callFilesWorkerJson,
@@ -38,11 +38,7 @@ async function requireUserId(ctx: ActionCtx): Promise<TeakUserId> {
   return identity.teakUserId;
 }
 
-function validateSource(
-  mode: "bookmarks" | "archive" | "raindrop",
-  fileName: string,
-  fileSize: number
-) {
+function validateSource(mode: ImportMode, fileName: string, fileSize: number) {
   if (
     !fileName.trim() ||
     fileName.length > 255 ||
@@ -54,56 +50,23 @@ function validateSource(
       message: "Import file is invalid",
     });
   }
-  const extension = fileName.toLowerCase();
-  if (
-    mode === "bookmarks" &&
-    !(extension.endsWith(".html") || extension.endsWith(".htm"))
-  ) {
+  const source = IMPORT_SOURCES[mode];
+  if (!importFileMatches(mode, fileName)) {
     throw new ConvexError({
       code: "INVALID_FILE",
-      message: "Choose a bookmarks HTML file",
+      message: `Choose a ${source.extensions.join(" or ")} file from ${source.title}`,
     });
   }
-  if (mode === "raindrop" && !extension.endsWith(".csv")) {
-    throw new ConvexError({
-      code: "INVALID_FILE",
-      message: "Choose a Raindrop CSV file",
-    });
-  }
-  if (mode === "archive" && !extension.endsWith(".zip")) {
-    throw new ConvexError({
-      code: "INVALID_FILE",
-      message: "Choose a Teak ZIP archive",
-    });
-  }
-  let limit = MAX_ARCHIVE_BYTES;
-  if (mode === "bookmarks") {
-    limit = MAX_BOOKMARK_BYTES;
-  } else if (mode === "raindrop") {
-    limit = MAX_RAINDROP_BYTES;
-  }
-  if (fileSize > limit) {
-    let message = "Teak archives are limited to 5 GiB";
-    if (mode === "bookmarks") {
-      message = "Bookmark files are limited to 20 MiB";
-    } else if (mode === "raindrop") {
-      message = "Raindrop CSV files are limited to 20 MiB";
-    }
+  if (fileSize > source.maxBytes) {
+    const limit =
+      source.maxBytes >= 1024 ** 3
+        ? `${source.maxBytes / 1024 ** 3} GiB`
+        : `${source.maxBytes / 1024 ** 2} MiB`;
     throw new ConvexError({
       code: "FILE_TOO_LARGE",
-      message,
+      message: `${source.title} files are limited to ${limit}`,
     });
   }
-}
-
-function contentTypeForMode(mode: "bookmarks" | "archive" | "raindrop") {
-  if (mode === "bookmarks") {
-    return "text/html";
-  }
-  if (mode === "raindrop") {
-    return "text/csv";
-  }
-  return "application/zip";
 }
 
 function totalParts(fileSize: number) {
@@ -178,7 +141,10 @@ export const createImportUpload = action({
     try {
       const creation = await callFilesWorkerJson<{ uploadId: string }>({
         op: "create-multipart",
-        params: { key: sourceKey, contentType: contentTypeForMode(args.mode) },
+        params: {
+          key: sourceKey,
+          contentType: importContentType(args.fileName),
+        },
       });
       if (creation.kind !== "ok" || !creation.data.uploadId) {
         throw new Error("R2 did not return an upload ID");

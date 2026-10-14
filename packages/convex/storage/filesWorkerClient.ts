@@ -264,6 +264,8 @@ export type FilesWorkerOutcome<T> =
 export const callFilesWorkerJson = async <T>(spec: {
   op: FilesOp;
   params: Record<string, unknown>;
+  /** More error codes to return as a fallback instead of throwing. */
+  fallbackCodes?: readonly FilesErrorCode[];
 }): Promise<FilesWorkerOutcome<T>> => {
   const signed = await buildSignedWorkerOpRequest(spec);
   let response: Response;
@@ -297,7 +299,8 @@ export const callFilesWorkerJson = async <T>(spec: {
     if (
       code === "NOT_FOUND" ||
       code === "PAYLOAD_TOO_LARGE" ||
-      code === "UNSUPPORTED"
+      code === "UNSUPPORTED" ||
+      spec.fallbackCodes?.includes(code)
     ) {
       return {
         kind: "fallback",

@@ -1,0 +1,5 @@
+﻿Title,URL,ID,Document tags,Saved date,Reading progress,Location,Seen
+Archived essay,https://example.com/essay,01hx,"['design', ""it's fine""]",2024-03-01 10:30:00+00:00,1.0,archive,True
+Shortlisted,https://example.com/short,01hy,[],2024-03-02 08:00:00+00:00,0,shortlist,False
+From a feed,https://example.com/feed,01hz,,2024-03-03 08:00:00+00:00,0,feed,False
+Later,https://example.com/later,01ia,['later'],2024-03-04T09:00:00Z,0.25,later,True

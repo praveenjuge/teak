@@ -1,0 +1,185 @@
+import {
+  OMNIVORE_METADATA_PATTERN,
+  type OmnivoreItem,
+  omnivoreHighlightsPath,
+  omnivoreItem,
+  readOmnivoreMetadata,
+} from "@teak/convex/import/omnivore";
+import {
+  FILES_IMPORT_PAGE_BYTES,
+  FILES_IMPORT_PAGE_ITEMS,
+  type FilesImportIndexResult,
+} from "@teak/files-protocol";
+import {
+  rangeRead,
+  readZipDirectory,
+  readZipEntry,
+  type ZipCentralEntry,
+  type ZipDirectory,
+} from "./zip";
+
+const MAX_ITEMS = 10_000;
+const METADATA_LIMIT = 8 * 1024 * 1024;
+// Notes hold up to 100,000 characters; UTF-8 needs at most 4 bytes each.
+const HIGHLIGHTS_LIMIT = 400_000;
+const PARALLEL_READS = 12;
+
+/** Whether the upload starts with a ZIP local file header ("PK"). */
+export async function isZipSource(
+  bucket: R2Bucket,
+  key: string,
+  etag: string
+): Promise<boolean> {
+  const head = await rangeRead(bucket, key, 0, 2, etag).catch(() => null);
+  return head !== null && head[0] === 0x50 && head[1] === 0x4b;
+}
+
+interface MetadataFile {
+  end: number;
+  entry: ZipCentralEntry;
+  start: number;
+}
+
+const decode = (bytes: Uint8Array) =>
+  new TextDecoder("utf-8", { fatal: false, ignoreBOM: false }).decode(bytes);
+
+async function inBatches<T, R>(
+  values: T[],
+  read: (value: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let index = 0; index < values.length; index += PARALLEL_READS) {
+    results.push(
+      ...(await Promise.all(
+        values.slice(index, index + PARALLEL_READS).map(read)
+      ))
+    );
+  }
+  return results;
+}
+
+/**
+ * Pages through an Omnivore export ZIP. Omnivore names each metadata file by
+ * the items it holds, `metadata_<start>_to_<end>.json` (end exclusive), so a
+ * page reads only the files it overlaps; when the names don't chain from 0
+ * every file is read to place the items. Each item's
+ * `highlights/<slug>.md` becomes its note.
+ */
+export async function indexOmnivoreZip(
+  bucket: R2Bucket,
+  key: string,
+  etag: string,
+  cursor: number
+): Promise<FilesImportIndexResult> {
+  const directory: ZipDirectory = await readZipDirectory(bucket, key, etag);
+  const entries = new Map(
+    directory.entries.map((entry) => [entry.name, entry])
+  );
+  const files: MetadataFile[] = [];
+  for (const entry of directory.entries) {
+    const match = OMNIVORE_METADATA_PATTERN.exec(entry.name);
+    if (match) {
+      files.push({ entry, start: Number(match[1]), end: Number(match[2]) });
+    }
+  }
+  if (files.length === 0) {
+    throw new Error("invalid_import_source");
+  }
+  files.sort((a, b) => a.start - b.start);
+  const chained = files.every(
+    (file, index) =>
+      file.end > file.start &&
+      file.start === (index === 0 ? 0 : files[index - 1]?.end)
+  );
+  const readFile = async (file: MetadataFile) => {
+    try {
+      return readOmnivoreMetadata(
+        decode(
+          await readZipEntry(bucket, key, directory, file.entry, METADATA_LIMIT)
+        )
+      );
+    } catch {
+      throw new Error("invalid_import_source");
+    }
+  };
+
+  let total: number;
+  let pageItems: Array<{ index: number; item: OmnivoreItem }> = [];
+  const pageEnd = cursor + FILES_IMPORT_PAGE_ITEMS;
+  if (chained) {
+    total = files.at(-1)?.end ?? 0;
+    if (total > MAX_ITEMS) {
+      throw new Error("invalid_bookmark_count");
+    }
+    const needed = files.filter(
+      (file) => file.end > cursor && file.start < pageEnd
+    );
+    const lists = await inBatches(needed, readFile);
+    needed.forEach((file, fileIndex) => {
+      const list = lists[fileIndex] ?? [];
+      if (list.length !== file.end - file.start) {
+        throw new Error("invalid_import_source");
+      }
+      list.forEach((item, offset) => {
+        pageItems.push({ index: file.start + offset, item });
+      });
+    });
+  } else {
+    const all = (await inBatches(files, readFile)).flat();
+    total = all.length;
+    if (total > MAX_ITEMS) {
+      throw new Error("invalid_bookmark_count");
+    }
+    pageItems = all.map((item, index) => ({ index, item }));
+  }
+  pageItems = pageItems.filter(
+    ({ index }) => index >= cursor && index < pageEnd
+  );
+
+  const highlights = await inBatches(pageItems, async ({ item }) => {
+    const entry =
+      typeof item.slug === "string"
+        ? entries.get(omnivoreHighlightsPath(item.slug))
+        : undefined;
+    if (!entry || entry.uncompressedSize > HIGHLIGHTS_LIMIT) {
+      return;
+    }
+    try {
+      return decode(
+        await readZipEntry(bucket, key, directory, entry, HIGHLIGHTS_LIMIT)
+      );
+    } catch {
+      // Highlights are extra; the link still imports without them.
+    }
+  });
+
+  const items: FilesImportIndexResult["items"] = [];
+  let bytes = 0;
+  for (const [position, { index, item }] of pageItems.entries()) {
+    let parsed = {
+      ...omnivoreItem(item, highlights[position]),
+      sourceIndex: index,
+    };
+    let size = new TextEncoder().encode(JSON.stringify(parsed)).length;
+    if (size > FILES_IMPORT_PAGE_BYTES) {
+      parsed = {
+        label: parsed.label.slice(0, 100_000),
+        error: "Import item is too large",
+        sourceIndex: index,
+      };
+      size = new TextEncoder().encode(JSON.stringify(parsed)).length;
+    }
+    if (items.length && bytes + size > FILES_IMPORT_PAGE_BYTES) {
+      break;
+    }
+    items.push(parsed);
+    bytes += size;
+  }
+  const next = cursor + items.length;
+  return {
+    items,
+    total,
+    nextCursor: next < total ? next : null,
+    sourceEtag: etag,
+  };
+}

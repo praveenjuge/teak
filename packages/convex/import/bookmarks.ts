@@ -1,5 +1,6 @@
 import { Parser } from "htmlparser2";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
+import { cleanTags, folderPath } from "./sourceItems";
 import type { ImportCardInput } from "./validate";
 
 export interface ParsedBookmarkItem {
@@ -13,28 +14,36 @@ interface BookmarkList {
   pendingFolder?: string;
 }
 
-/** Parse Netscape bookmark exports without constructing a DOM for the 20 MiB source. */
+/**
+ * Parse Netscape bookmark exports without constructing a DOM for the 20 MiB
+ * source. Each link keeps the folder it sits in, nested paths flattened to
+ * "Parent / Child"; the browser's own Bookmarks bar and Other bookmarks
+ * folders count as the top level.
+ */
 export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];
   const lists: BookmarkList[] = [];
   let foundList = false;
   let finishedList = false;
-  let depth = 0;
   let heading: string[] | undefined;
+  // The browser's own toolbar and "Other bookmarks" folders, which hold
+  // everything; they're the top level, not folders of the user's.
+  let builtInHeading = false;
   let anchor:
     | { attributes: Record<string, string>; text: string[] }
     | undefined;
   const parser = new Parser(
     {
       onopentag(name, attributes) {
-        depth += 1;
-        if (depth > 128) {
-          throw new Error("Bookmark HTML nesting exceeds its limit");
-        }
         if (finishedList) {
           return;
         }
         if (name === "dl") {
+          // Exports leave <DT> and <p> open, so only folder lists count as
+          // nesting.
+          if (lists.length >= 128) {
+            throw new Error("Bookmark HTML nesting exceeds its limit");
+          }
           foundList = true;
           const parent = lists[lists.length - 1];
           const folders = parent?.pendingFolder
@@ -50,6 +59,9 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
         }
         if (name === "h3") {
           heading = [];
+          builtInHeading =
+            attributes.personal_toolbar_folder === "true" ||
+            attributes.unfiled_bookmarks_folder === "true";
         }
         if (name === "a") {
           anchor = { attributes, text: [] };
@@ -60,11 +72,12 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
         anchor?.text.push(text);
       },
       onclosetag(name) {
-        depth -= 1;
         if (name === "h3" && heading) {
           const list = lists[lists.length - 1];
           if (list) {
-            list.pendingFolder = heading.join("").trim();
+            list.pendingFolder = builtInHeading
+              ? undefined
+              : heading.join("").trim();
           }
           heading = undefined;
         }
@@ -73,7 +86,10 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
           const rawUrl = anchor.attributes.href;
           const url = sanitizeExternalUrl(rawUrl);
           const seconds = Number(anchor.attributes.add_date);
-          const folders = lists[lists.length - 1]?.folders ?? [];
+          // Nested folders become one Teak folder, "Parent / Child".
+          const folder = folderPath(lists[lists.length - 1]?.folders ?? []);
+          // Firefox and Teak write tags as a comma-separated TAGS attribute.
+          const tags = cleanTags((anchor.attributes.tags ?? "").split(","));
           if (output.length >= 10_000) {
             throw new Error("Bookmark file exceeds 10,000 bookmarks");
           }
@@ -85,7 +101,8 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
                     type: "link",
                     content: title || url,
                     url,
-                    tags: folders.length ? [...folders] : undefined,
+                    tags,
+                    folders: folder ? [folder] : undefined,
                     createdAt:
                       Number.isFinite(seconds) && seconds > 0
                         ? Math.floor(seconds * 1000)

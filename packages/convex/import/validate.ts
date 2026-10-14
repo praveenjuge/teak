@@ -3,6 +3,7 @@ import {
   MAX_FOLDERS_PER_CARD,
   normalizeFolderName,
 } from "../shared/folders";
+import { IMPORT_SOURCES } from "../shared/importSources";
 import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import {
@@ -281,8 +282,8 @@ export function assertImportCardCount(count: number, mode: ImportMode): void {
   if (mode === "bookmarks") {
     throw new Error("Bookmark file exceeds 10,000 bookmarks");
   }
-  if (mode === "raindrop") {
-    throw new Error("Raindrop CSV exceeds 10,000 bookmarks");
+  if (mode === "archive") {
+    throw new Error("Archive exceeds 10,000 cards");
   }
-  throw new Error("Archive exceeds 10,000 cards");
+  throw new Error(`${IMPORT_SOURCES[mode].title} file exceeds 10,000 items`);
 }

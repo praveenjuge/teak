@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: A calmer card grid and card view, shuffle your library, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: A calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-14"
 changelog:
@@ -21,6 +21,13 @@ changelog:
 - **Reshuffle** (the dice beside the **View** menu) picks a new order, and Back returns to the previous one. The order is part of the address, so a reload or a shared link shows the same one.
 - Shuffle works in search, tags, folders, Favorites, Archive, and Trash too. See [Sort and share a search](/docs/features#sort-and-share-a-search).
 - **API, CLI, and MCP:** `GET /v1/cards?sort=shuffle&shuffleSeed=42` returns the same order for the same seed, `teak ls --sort shuffle --seed 42` does the same, and the MCP list and search tools take `sort: "shuffle"` with `shuffleSeed`. See the [API guide](/docs/api).
+
+## Import from more apps
+
+- Settings → Import/Export Data now brings in your saves from Pocket, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, and OneTab, as well as browser bookmarks, Raindrop.io, and Teak archives. Pick the source and Teak tells you which file to upload.
+- Titles, tags, notes, highlights, favorites, archived items, and saved dates come along wherever the source has them.
+- **Changed:** folders in bookmark files and Raindrop exports now become Teak folders instead of tags. A nested folder becomes one folder named after its path, like **Work / Design**.
+- A file that isn't from the source you picked now says so, instead of showing an error code. See [Import Your Data](/docs/import).
 
 ## Richer exports
 

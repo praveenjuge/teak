@@ -1,0 +1,6 @@
+https://example.com/one | First tab | with a pipe
+https://example.com/two | Second tab
+
+https://example.com/three
+not a link line
+chrome://settings | Settings

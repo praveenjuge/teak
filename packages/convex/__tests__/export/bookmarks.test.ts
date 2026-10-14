@@ -89,7 +89,7 @@ describe("buildBookmarksHtml", () => {
     ]);
     const parsed = parseBookmarksHtml(html).map((item) => [
       item.card?.url,
-      item.card?.tags ?? [],
+      item.card?.folders ?? [],
     ]);
     expect(parsed).toEqual([
       ["https://loose.example/", []],
@@ -120,7 +120,8 @@ describe("buildBookmarksHtml", () => {
     const [item] = parseBookmarksHtml(html);
     expect(item?.card?.content).toBe('<script>alert("x")</script> & co');
     expect(item?.card?.url).toBe('https://x.example/?q="a"&b=<c>');
-    expect(item?.card?.tags).toEqual(['</DL><script>alert(1)</script>"']);
+    expect(item?.card?.folders).toEqual(['</DL><script>alert(1)</script>"']);
+    expect(item?.card?.tags).toEqual(['"><img src=x>']);
   });
 
   test("titles and folder names stay on one line", () => {
@@ -129,7 +130,7 @@ describe("buildBookmarksHtml", () => {
     ]);
     const [item] = parseBookmarksHtml(html);
     expect(item?.card?.content).toBe("Line one line two");
-    expect(item?.card?.tags).toEqual(["A B"]);
+    expect(item?.card?.folders).toEqual(["A B"]);
   });
 
   test("keeps 300-character titles and folder names whole", () => {
@@ -138,7 +139,7 @@ describe("buildBookmarksHtml", () => {
       buildBookmarksHtml([link({ metadataTitle: long, folders: [long] })])
     );
     expect(item?.card?.content).toBe(long);
-    expect(item?.card?.tags).toEqual([long]);
+    expect(item?.card?.folders).toEqual([long]);
   });
 
   test("fuzz: escaped text parses back unchanged", () => {
@@ -156,7 +157,7 @@ describe("buildBookmarksHtml", () => {
       const parsed = parseBookmarksHtml(html);
       expect(parsed).toHaveLength(1);
       expect(parsed[0]?.card?.content).toBe(title);
-      expect(parsed[0]?.card?.tags).toEqual([title]);
+      expect(parsed[0]?.card?.folders).toEqual([title]);
       expect(escapeHtml(title)).not.toMatch(/[<>"']/);
     }
   });

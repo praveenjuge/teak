@@ -1,0 +1,6 @@
+URL,Title,Selection,Folder,Timestamp,Tags
+https://example.com/a,Starred article,"A highlighted, quoted ""line""",Starred,1700000000,"[""design"",""typography""]"
+https://example.com/b,In archive,,Archive,1690000000,[]
+https://example.com/c,My folder,,Reading list,1680000000,
+https://example.com/d,Unread one,,Unread,1670000000,
+instapaper-private://email/123,Private note,,Unread,1660000000,

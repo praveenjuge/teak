@@ -1,0 +1,5 @@
+id,type,title,url,content,note,tags,created
+a1,Article,A saved page,https://example.com/page,,Remember this,"design, inspiration",2024-01-05T12:00:00Z
+a2,Note,Grocery idea,,"Buy figs
+and honey",,food,2024-01-06T12:00:00Z
+a3,Image,,,,,,2024-01-07T12:00:00Z
