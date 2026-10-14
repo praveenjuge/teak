@@ -92,7 +92,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 
 - `schema.ts`:
   - `inboundAddresses { userId, tokenHash, version, status: "active" | "disabled", createdAt, updatedAt, lastReceivedAt? }`, with `by_userId` and `by_tokenHash`.
-  - `inboundEmailReceipts { userId, messageKey, cardIds, createdAt }`, with `by_userId_and_messageKey`, `by_userId` and `by_createdAt`. `messageKey` is the SHA-256 of the token hash plus the Message-ID. When the Message-ID is missing, the fallback hashes the token hash, the envelope sender, the `Date` header, the `Subject` and the body hash together. A retry of the same delivery carries the same headers, so it is deduplicated, while sending the same URL or forwarding the same newsletter twice later produces a different `Date` and creates a second card. If the `Date` header is also missing, the worker's received timestamp, rounded to the minute, takes its place.
+  - `inboundEmailReceipts { userId, messageKey, cardIds, createdAt }`, with `by_userId_and_messageKey`, `by_userId` and `by_createdAt`. `messageKey` is the SHA-256 of the token hash plus the Message-ID. When the Message-ID is missing, the fallback hashes the token hash, the envelope sender, the `Date` header, the `Subject` and the body hash together. A retry of the same delivery carries the same headers, so it is deduplicated, while sending the same URL or forwarding the same newsletter twice later produces a different `Date` and creates a second card. If the `Date` header is also missing, the key hashes only the token hash, envelope sender, `Subject` and body hash. No received timestamp goes into the key: after a thrown `5xx` the sending server redelivers minutes or hours later, and a time-based key would turn that redelivery into a duplicate card. Two identical sends that both lack `Date` are therefore saved once, which is rare and harmless.
 - `inbound/address.ts`:
   - `token = base32(HMAC(INBOUND_ADDRESS_SECRET, userId:version))[0..16]`, and only `sha256(token)` is stored. The address can always be shown again, and a database leak alone reveals nothing. The token is lowercased wherever it is derived, shown, hashed or looked up (`normalizeInboundToken`), so a mail client or MTA that changes the letter case of the local part still matches.
   - Mutations `enable`, `regenerate` (`version + 1`) and `disable`. Query `get` returns the address only for its owner.
@@ -177,7 +177,7 @@ Give every person a private address, `save+<token>@in.teakvault.com`. Mail sent 
 ## Break-it checklist
 
 - UI: double-click Regenerate, copy then regenerate in two tabs, Disable then Turn on, check at 390px, use the keyboard only, and go offline mid-regenerate.
-- Worker: malformed MIME, a missing Message-ID (a retry is deduplicated, while the same body sent again later with a new `Date` creates a second card), a non-UTF-8 charset, a 25 MiB limit hit, a Convex `500` then `200` (no duplicate), and a clock 6 minutes off (rejected).
+- Worker: malformed MIME, a missing Message-ID (a retry is deduplicated, while the same body sent again later with a new `Date` creates a second card), a message with neither Message-ID nor `Date` that Convex saved but whose response was lost, redelivered by the sender an hour later (no duplicate), a non-UTF-8 charset, a 25 MiB limit hit, a Convex `500` then `200` (no duplicate), and a clock 6 minutes off (rejected).
 - Backend:
   - signature tampering on the body, the timestamp or the header length
   - receipt replay, OCC with 10 parallel posts
