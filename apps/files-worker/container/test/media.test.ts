@@ -98,6 +98,57 @@ describe.skipIf(!RENDERER_URL)("renderer media jobs", () => {
     }
   );
 
+  test("video reports the palette across the thumbnail and scrub frames", async () => {
+    const result = await renderFixture("/video?scrubFrames=4", "h264.mp4");
+    expect(result.status).toBe(200);
+    const palette = result.manifest?.palette as string[];
+    expect(palette.length).toBeGreaterThan(1);
+    expect(palette.length).toBeLessThanOrEqual(5);
+    for (const hex of palette) {
+      expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+    }
+  });
+
+  test("an animation's palette includes colors from its later frames", async () => {
+    const result = await renderFixture(
+      "/animation/palette?frames=8",
+      "animation.gif"
+    );
+    expect(result.status).toBe(200);
+    expect(result.manifest?.facts?.videoCodec).toBe("gif");
+    expect(result.manifest?.parts).toEqual([]);
+    // The two largest colors are the red and the blue, in either order:
+    // each covers half the frames.
+    const palette = (result.manifest?.palette ?? []) as string[];
+    const largest = palette.slice(0, 2);
+    const isRed = largest.map(
+      (hex) =>
+        Number.parseInt(hex.slice(1, 3), 16) >
+        Number.parseInt(hex.slice(5, 7), 16)
+    );
+    expect(isRed.sort()).toEqual([false, true]);
+  });
+
+  test("an animation read as one frame has only its first color", async () => {
+    const result = await renderFixture(
+      "/animation/palette?frames=1",
+      "animation.gif"
+    );
+    expect(result.status).toBe(200);
+    const palette = result.manifest?.palette as string[];
+    expect(palette.length).toBeGreaterThan(0);
+    for (const hex of palette) {
+      expect(Number.parseInt(hex.slice(1, 3), 16)).toBeGreaterThan(
+        Number.parseInt(hex.slice(5, 7), 16)
+      );
+    }
+  });
+
+  test("animation palette refuses an audio-only file", async () => {
+    const result = await renderFixture("/animation/palette", "audio.mp3");
+    expect(result.status).toBe(415);
+  });
+
   test("video refuses an audio-only file", async () => {
     const result = await renderFixture("/video", "audio.mp3");
     expect(result.status).toBe(415);

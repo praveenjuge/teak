@@ -60,6 +60,8 @@ export const FILES_OPS = [
   "capture-screenshot",
   "scrape-html",
   "probe-media",
+  // Palette of an animated GIF from frames across it; stores nothing.
+  "extract-animation-palette",
   // Waveform, media facts and transcript in one pass; supersedes
   // transcribe-audio, which stays for Convex deployments that predate it.
   "process-audio",

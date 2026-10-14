@@ -18,6 +18,7 @@ export const runFilesWorkerRendering = async <T>(
   op: Extract<
     FilesOp,
     | "capture-screenshot"
+    | "extract-animation-palette"
     | "extract-video-frame"
     | "render-pdf-thumbnail"
     | "scrape-html"

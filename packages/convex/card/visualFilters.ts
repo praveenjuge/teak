@@ -3,7 +3,9 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import type { CreatedAtRange } from "../shared";
 import {
+  COLOR_CARD_TYPES,
   type ColorHueBucket,
+  isColorCardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
   type VisualStyle,
@@ -90,7 +92,7 @@ export const doesCardMatchVisualFilters = (
   }
 
   if (visualFilters.hueFilters?.length) {
-    if (!(card.type === "image" || card.type === "palette")) {
+    if (!isColorCardType(card.type)) {
       return false;
     }
 
@@ -101,7 +103,7 @@ export const doesCardMatchVisualFilters = (
   }
 
   if (visualFilters.hexFilters?.length) {
-    if (!(card.type === "image" || card.type === "palette")) {
+    if (!isColorCardType(card.type)) {
       return false;
     }
 
@@ -139,9 +141,8 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-/** Only images carry styles; images and palettes carry colors. */
+/** Only images carry styles; COLOR_CARD_TYPES carry colors. */
 const VISUAL_STYLE_TYPES: readonly CardType[] = ["image"];
-const VISUAL_COLOR_TYPES: readonly CardType[] = ["image", "palette"];
 
 /**
  * The card types that can match the visual filters, within the requested
@@ -156,7 +157,7 @@ export const visualFilterTypes = (
   }
   const visualTypes = visualFilters.styleFilters?.length
     ? VISUAL_STYLE_TYPES
-    : VISUAL_COLOR_TYPES;
+    : COLOR_CARD_TYPES;
   return types?.length
     ? visualTypes.filter((type) => types.includes(type))
     : visualTypes;
@@ -168,7 +169,7 @@ export const VISUAL_SCAN_LIMIT = 1000;
 /**
  * The newest (or oldest) cards matching color or style filters. Colors and
  * styles are stored as arrays, which Convex search indexes don't cover, so
- * this reads each type that can match (images, palettes) in date order and
+ * this reads each type that can match (images, palettes, videos) in date order and
  * keeps the matches: up to `limit` of them, within VISUAL_SCAN_LIMIT cards
  * of each type.
  */

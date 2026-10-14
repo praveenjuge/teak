@@ -157,6 +157,19 @@ export function extractVisualStylesFromTags(
   return normalized.length > 0 ? normalized : undefined;
 }
 
+/**
+ * Card types whose colors are searchable: palettes from their text, images
+ * from their pixels, and videos (including GIFs) from frames across them.
+ */
+export const COLOR_CARD_TYPES: readonly CardType[] = [
+  "image",
+  "palette",
+  "video",
+];
+
+export const isColorCardType = (type: string): boolean =>
+  (COLOR_CARD_TYPES as readonly string[]).includes(type);
+
 export const COLOR_HUE_BUCKETS = [
   "red",
   "orange",
