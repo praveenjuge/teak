@@ -267,6 +267,13 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
+  // A new account's library shows its vault being set up, for a moment
+  // even after the cards land (see useVaultSetup).
+  const showVaultSetup =
+    vaultSetup === "settingUp" &&
+    hasNoFilters &&
+    !isFolderView &&
+    (!view || view === "all");
 
   // Saving what is on screen as a smart folder, or editing the smart folder
   // being viewed.
@@ -564,9 +571,6 @@ export function CardsScreen({
       if (vaultSetup === "loading") {
         return <CardsGridSkeleton />;
       }
-      if (vaultSetup === "settingUp") {
-        return <VaultSetupState />;
-      }
       return (
         <AddCardEmptyState
           UpgradeLinkComponent={UpgradeLinkComponent}
@@ -661,7 +665,9 @@ export function CardsScreen({
         </div>
       )}
 
-      {displayCards.length > 0 ? (
+      {showVaultSetup && <VaultSetupState />}
+
+      {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
           AddCardFormComponent={AddCardFormWrapper}
           addToFolder={
@@ -720,7 +726,9 @@ export function CardsScreen({
           showTrashOnly={showTrashOnly}
           toastIdPrefix={toastIdPrefix}
         />
-      ) : (
+      )}
+
+      {!showVaultSetup && displayCards.length === 0 && (
         <>
           <AuthLoading>
             <CardsGridSkeleton />

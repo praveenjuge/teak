@@ -31,7 +31,7 @@ export function VaultSetupState() {
   return (
     <div
       aria-live="polite"
-      className="fade-in mx-auto flex max-w-xs animate-in flex-col items-center gap-5 py-20 text-center duration-500 motion-reduce:animate-none"
+      className="fade-in mx-auto flex min-h-[calc(100dvh-10rem)] max-w-xs animate-in flex-col items-center justify-center gap-5 pb-16 text-center duration-500 motion-reduce:animate-none"
       role="status"
     >
       <LogoMark className="size-8" />
