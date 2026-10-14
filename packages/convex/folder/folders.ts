@@ -317,9 +317,11 @@ export const updateFolderForUser = async (
         message: FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER,
       });
     }
-    const query = await normalizeSmartFolderQuery(ctx, userId, args.query);
-    if (query !== folder.query) {
-      patch.query = query;
+    // An unchanged search (the dialog sends it with a rename) is not checked
+    // again: its `folder:` may name a folder deleted since, which only
+    // makes it match nothing.
+    if (parseSearchQuery(args.query).canonical !== folder.query) {
+      patch.query = await normalizeSmartFolderQuery(ctx, userId, args.query);
     }
   }
   if (args.name !== undefined) {

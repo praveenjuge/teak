@@ -1030,6 +1030,24 @@ describe("smart folders", () => {
 
     await owner.mutation(api.folders.deleteFolder, { folderId: reading._id });
     expect(await grid({ folderId: unread._id })).toEqual([]);
+
+    // The dialog sends the unchanged search with a rename; it is not checked
+    // again, so the folder can still be renamed. A changed search is.
+    const renamed = await owner.mutation(api.folders.updateFolder, {
+      folderId: unread._id,
+      name: "Unread later",
+      query: 'folder:"Reading list"',
+    });
+    expect(renamed).toMatchObject({
+      name: "Unread later",
+      query: 'folder:"Reading list"',
+    });
+    await expect(
+      owner.mutation(api.folders.updateFolder, {
+        folderId: unread._id,
+        query: 'folder:"Reading list" is:fav',
+      })
+    ).rejects.toThrow("No folder named Reading list");
   });
 
   test("cards are never put in a smart folder", async () => {
