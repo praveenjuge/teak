@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
@@ -192,7 +193,7 @@ interface CardModalProps {
 }
 
 export function CardModal({
-  card,
+  card: cardProp,
   cardId,
   open,
   onCancel,
@@ -221,6 +222,13 @@ export function CardModal({
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
+  // Closing clears the open card in the same render; keep showing the last
+  // one so the dialog never flashes the loading layout on its way out.
+  const lastCardRef = useRef(cardProp);
+  if (cardProp) {
+    lastCardRef.current = cardProp;
+  }
+  const card = open ? cardProp : (cardProp ?? lastCardRef.current);
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -278,9 +286,23 @@ export function CardModal({
     updateTitle(value);
   };
 
+  // Closing re-renders the whole grid behind the dialog, so the dialog
+  // hides itself and paints first, then tells the page.
+  const [hidden, setHidden] = useState(false);
+  if (hidden && !open) {
+    setHidden(false);
+  }
+  const leave = () => {
+    if (!onCancel) {
+      return;
+    }
+    flushSync(() => setHidden(true));
+    requestAnimationFrame(() => setTimeout(onCancel, 0));
+  };
+
   const handleClose = async () => {
     if (await readyToLeave()) {
-      onCancel?.();
+      leave();
     }
   };
 
@@ -290,7 +312,7 @@ export function CardModal({
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
     }
-    onCancel?.();
+    leave();
   };
 
   const goTo = async (show?: () => void) => {
@@ -395,13 +417,15 @@ export function CardModal({
             void handleClose();
           }
         }}
-        open={open}
+        open={open && !hidden}
       >
         <DialogContent
           className={cn(
             "flex flex-col gap-0 overflow-hidden border bg-background p-0 shadow-2xl outline-none sm:max-w-none",
+            // Opens quickly and closes at once, with no animation out.
+            "data-[state=closed]:!animate-none data-[state=open]:duration-150",
             // Phones: a sheet from the bottom that scrolls as one page.
-            "max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:zoom-out-100 max-md:data-[state=open]:zoom-in-100 max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[94dvh] max-md:w-full max-md:max-w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0",
+            "max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:zoom-in-100 max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[94dvh] max-md:w-full max-md:max-w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0",
             stage === "media" &&
               "md:h-[min(56rem,calc(100dvh-4rem))] md:w-[min(82rem,calc(100vw-4rem))]",
             stage === "reading" &&
@@ -409,7 +433,7 @@ export function CardModal({
             stage === "compact" &&
               "md:h-[min(40rem,calc(100dvh-4rem))] md:w-[min(64rem,calc(100vw-4rem))]",
             openOrigin &&
-              "md:data-[state=open]:zoom-in-[0.55] md:data-[state=open]:duration-300 md:data-[state=open]:ease-out"
+              "md:data-[state=open]:zoom-in-[0.7] md:data-[state=open]:duration-200 md:data-[state=open]:ease-out"
           )}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
@@ -418,6 +442,7 @@ export function CardModal({
             event.preventDefault();
             contentRef.current?.focus();
           }}
+          overlayClassName="data-[state=open]:duration-150 data-[state=closed]:!animate-none"
           ref={contentRef}
           showCloseButton={false}
           style={openOrigin ? { transformOrigin: openOrigin } : undefined}

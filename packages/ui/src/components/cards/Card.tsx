@@ -427,22 +427,17 @@ export const Card = memo(function Card({
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  // Text-only cards keep their first line clear of the corner marks.
-  const checkboxInset = isSelectionMode && !isOptimistic ? "pl-11" : "";
-  const favoriteInset = showFavoriteMark ? "pr-11" : "";
-  const textInsets = cn(checkboxInset, favoriteInset);
+  // Text-only cards keep their first line clear of the favorite mark. The
+  // selection checkbox sits on the card's corner instead, so selecting never
+  // rewraps text or moves the grid.
+  const textInsets = showFavoriteMark ? "pr-11" : "";
 
   // A link is named by its favicon and title; the site's name would only
   // repeat what the favicon already says.
   const linkTitleRow = (
-    <div className="flex min-w-0 items-start gap-2">
-      {hostname && (
-        <SiteFavicon className="mt-[3px] size-4" hostname={hostname} />
-      )}
-      <p
-        className="line-clamp-2 min-w-0 break-words font-medium leading-snug"
-        dir="auto"
-      >
+    <div className="flex min-w-0 items-center gap-2">
+      {hostname && <SiteFavicon className="size-4" hostname={hostname} />}
+      <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
         {linkCardTitle}
       </p>
     </div>
@@ -565,19 +560,9 @@ export const Card = memo(function Card({
       const titleIsUrl = linkCardTitle === card.url;
       return (
         <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
-          <div className="flex min-w-0 items-start gap-2">
-            {hostname && (
-              <SiteFavicon className="mt-[3px] size-4" hostname={hostname} />
-            )}
-            <p
-              className={cn(
-                "min-w-0 font-medium leading-snug",
-                titleIsUrl
-                  ? "line-clamp-2 break-all"
-                  : "line-clamp-3 break-words"
-              )}
-              dir="auto"
-            >
+          <div className="flex min-w-0 items-center gap-2">
+            {hostname && <SiteFavicon className="size-4" hostname={hostname} />}
+            <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
               {titleIsUrl
                 ? linkCardTitle.replace(/^https?:\/\/(www\.)?/, "")
                 : linkCardTitle}
@@ -845,13 +830,13 @@ export const Card = memo(function Card({
           </UICard>
 
           {isSelectionMode && !isOptimistic && (
-            <div className="pointer-events-none absolute top-3 left-3 z-10">
+            <div className="pointer-events-none absolute -top-2 -left-2 z-10">
               {/* Decorative: the card itself is the toggle (aria-pressed),
                   so the box stays out of the Tab order. */}
               <Checkbox
                 aria-hidden="true"
                 checked={isSelected}
-                className="size-5 rounded-full border-foreground/30 bg-background/90 shadow-sm backdrop-blur"
+                className="size-6 rounded-full border-foreground/25 bg-background shadow-sm ring-2 ring-background"
                 tabIndex={-1}
               />
             </div>
@@ -860,7 +845,7 @@ export const Card = memo(function Card({
           {showHoverSelect && (
             <button
               aria-label="Select"
-              className="absolute top-2.5 left-2.5 z-20 flex size-7 items-center justify-center rounded-full bg-background/85 text-muted-foreground opacity-0 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 dark:ring-white/10"
+              className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
               onClick={handleSelect}
               tabIndex={-1}
               title="Select"
