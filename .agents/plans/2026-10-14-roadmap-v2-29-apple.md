@@ -80,7 +80,7 @@ Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
   - `LibraryQuery` gains `revisitArgs(seed:)`.
 - `TeakCore/Logic/CardLinks.swift`: a port of `shared/cardLinks.ts` (`parseCardLinkIds`, `replaceCardLinkTokens`), using the same pattern string and test table.
 - `TeakCore/Logic/HiddenTags.swift`: `isHiddenTag(_:)` and `hiddenTagHint(for:)`, using `tagKey` rules (case and spaces).
-- `TeakCore/Models/Card.swift`: optional fields for the done state and the source URL, named as in phases 15 and 6, plus `ocrText`, named as in phase 10.
+- `TeakCore/Models/Card.swift`: optional fields for the done state and the source URL, named as in phases 15 and 6, plus `aiOcrText`. That is the field name phase 10 actually exposes, so the synthesized `Decodable` picks it up. The Swift property is named `aiOcrText` too, with no `CodingKeys` remapping, which keeps the decoder test honest.
 - `Components/MarkdownView.swift`: inline pills for link tokens. Tokens are resolved with one `cards:getCardLinkTargets` call per detail view and shown through `Button` with `.buttonStyle(.bordered)` and a type symbol.
 - `Features/Card/CardDetailView.swift`:
   - the Done toggle, with the toolbar on regular width and `moreMenu` on compact
@@ -96,6 +96,7 @@ Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
   - VoiceOver actions "Archive" and "Keep"
   - opened from a toolbar button in `LibraryView.swift`, as a sheet on iPhone and a window-sized cover on iPad and Mac
 - `Features/Library/CardContextMenu.swift`: "More like this" and "Mark as done".
+- **Semantic results on native.** Writing `like:<id>` (or free text) into the query only subscribes to the cached ranking. It never runs Vectorize. So the library view model calls phase 13's `search.semanticActions.requestSemanticResults` action (with the same args the query uses) whenever the query has free words, a `like:` token or a `mood:` token, and in parallel with subscribing to `searchMobileCardSummariesPaginated`. The reactive query then picks up the cache row on its own. An action failure or rate limit falls back to keyword results silently. The action is debounced like the web search (300 ms) and skipped for empty queries.
 - `Features/Library/LibraryView.swift`: the "Hidden cards" header when the query has a hidden tag token.
 - `App/` commands: menu items with the shortcuts above.
 
@@ -139,7 +140,7 @@ Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 
 ## Tests
 
-- `Packages/TeakKit/Tests/TeakCoreTests/LibraryTests.swift`: classify and `searchArgs` tables for `is:done`, `is:todo`, `like:`, `text:` and `revisitArgs`.
+- `Packages/TeakKit/Tests/TeakCoreTests/LibraryTests.swift`: classify and `searchArgs` tables for `is:done`, `is:todo`, `like:`, `text:` and `revisitArgs`. A view-model test asserts that `requestSemanticResults` is called for `like:<id>` and free-text queries, and not for qualifier-only queries. A decoding test asserts that a card JSON with `aiOcrText` populates the property.
 - `Packages/TeakKit/Tests/TeakCoreTests/CardLinksTests.swift`: the same table as `packages/convex/__tests__/shared/cardLinks.test.ts`.
 - `Packages/TeakKit/Tests/TeakCoreTests/CardTests.swift`: decoding with and without the new fields, and the hidden-tag hint.
 - `TeakUITests/RevisitFlowTests.swift`: open Revisit, archive one card, Undo, keep one card, end of deck.

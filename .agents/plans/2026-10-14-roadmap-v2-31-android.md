@@ -79,6 +79,9 @@ The two apps then ship with the same features. Phase 31 of the [roadmap v2](2026
   - `LibraryScreen` gets the "Hidden cards" header
 - `app/.../ui/TeakNavigation.kt`: a Revisit route, and a library route with an initial query.
 
+- **Semantic results on native.** As on Apple, `like:<id>` in the query only reads the cached ranking. `ConvexCardsRepository` gains `requestSemanticResults(query)`, which calls phase 13's `search.semanticActions.requestSemanticResults` action. `LibraryViewModel` calls it (debounced 300 ms) whenever the query has free words, a `like:` token or a `mood:` token, in parallel with the paged query subscription, which picks up the cache row reactively. Failures fall back to keyword results silently.
+- The card model decodes the OCR field as `aiOcrText`, phase 10's API name.
+
 ## Docs
 
 - No public docs page while Android is unreleased (see Constraints). The PR body lists the features for the future Play listing text in `apps/android/store/`.
@@ -114,7 +117,7 @@ The two apps then ship with the same features. Phase 31 of the [roadmap v2](2026
 ## Tests
 
 - `core/model/src/test/.../CardLinksTest.kt`, `HiddenTagsTest.kt` and `SearchQualifiersTest.kt`: the same tables as Apple's `CardLinksTests.swift` and `LibraryTests.swift`.
-- `core/data/src/test/.../repository/ConvexCardsRepositoryTest.kt`: `setDone`, `archive` and `revisitDeck` send the right function names and `Double` arguments.
+- `core/data/src/test/.../repository/ConvexCardsRepositoryTest.kt`: `setDone`, `archive` and `revisitDeck` send the right function names and `Double` arguments. `requestSemanticResults` is called for `like:<id>`, `mood:` and free-text queries and not for qualifier-only ones, and an action failure leaves keyword results in place.
 - `feature/card/src/test/.../CardDetailViewModelTest.kt` and `CardDetailUiTest.kt`: the done toggle with rollback, pills (normal and missing), the From site row, OCR text.
 - `feature/library/src/test/.../RevisitViewModelTest.kt` and `LibraryScreenTest.kt`: deck end, Undo, the hidden header (Robolectric Compose).
 - `app/src/androidTest/.../LaunchSmokeTest.kt` (extend): open Revisit and archive one card on the emulator.

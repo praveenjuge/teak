@@ -76,7 +76,7 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
   - Reads `screenshotStorageKey`, calls `extract-image-text`, and writes through a mutation that uses `patchCardWithSearchSync`.
   - It writes only if the card still has the same screenshot key and is not trashed.
   - `screenshotWorkflowHandler` runs it after `recordStage(stageCompleted)` inside a try/catch. Failures are logged and leave the stage as `completed`.
-- `migration/backfillLinkScreenshotOcr.ts` covers link cards with a `screenshotStorageKey` and no `ocrCheckedAt`. `migration/backfillPdfOcr.ts` covers PDF document cards with no `hasExtractedText` and no `ocrCheckedAt`. For both:
+- `migration/backfillLinkScreenshotOcr.ts` covers link cards with a `screenshotStorageKey` and no `ocrCheckedAt`. `migration/backfillPdfOcr.ts` covers PDF document cards with no `ocrCheckedAt` that pass the same `isScannedPdf` predicate the pipeline uses (page count known and fewer than 20 letters or digits per page on average). It does not filter on `hasExtractedText` alone, because a scan with only a "Scanned by …" footer has `hasExtractedText` set yet still counts as scanned. The predicate reads the stored text length and page count, so selecting candidates needs no extra worker calls. For both:
   - Dry run by default.
   - Pages of 25, with one action every 3 s.
   - Accounts being deleted are skipped.
@@ -140,7 +140,7 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 - `packages/convex/__tests__/workflows/fileProcessing.test.ts`: `pageCount` is passed through.
 - `packages/convex/__tests__/workflows/steps/metadata.test.ts`: scanned PDF leads to OCR text, summary and stored text; a text PDF makes no OCR call; a declined render.
 - `packages/convex/__tests__/workflows/screenshot.test.ts`: the OCR step runs after capture, its failure keeps the stage `completed`, and a replaced key is not written.
-- `packages/convex/__tests__/migration/backfillPdfOcr.test.ts` and `backfillLinkScreenshotOcr.test.ts`: the dry run writes nothing; pages resume.
+- `packages/convex/__tests__/migration/backfillPdfOcr.test.ts` and `backfillLinkScreenshotOcr.test.ts`: the dry run writes nothing; pages resume; a PDF with a short "Scanned by …" footer (`hasExtractedText` true, under 20 characters per page) is selected, and a normal text PDF is not.
 - `packages/convex/__tests__/card/content.test.ts` and `__tests__/publicApiHttpCards.test.ts`: `source: "ocr"`.
 - `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the titles and the "First 3 pages" note.
 
