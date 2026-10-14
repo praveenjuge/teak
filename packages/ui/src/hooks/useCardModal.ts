@@ -175,6 +175,8 @@ export function useCardModal(
           ...card,
           [field]:
             typeof value === "string" ? value.trim() || undefined : value,
+          // As the server does, so a renamed link shows its new title at once.
+          ...(field === "metadataTitle" ? { metadataTitleEdited: true } : {}),
           updatedAt: now,
         });
         updateCardInSearchQueries(localStore, updateCardId, updateTextField);
@@ -230,12 +232,13 @@ export function useCardModal(
 
   /**
    * Writes every unsaved edit. `silent` skips the toast, for saves that run
-   * on their own while someone types.
+   * on their own while someone types. Resolves false when a write failed, so
+   * the dialog can stay open instead of dropping the edit.
    */
   const saveChanges = useCallback(
-    async ({ silent = false }: { silent?: boolean } = {}) => {
+    async ({ silent = false }: { silent?: boolean } = {}): Promise<boolean> => {
       if (!(cardId && unsavedUpdates.length > 0)) {
-        return;
+        return true;
       }
       const updates = unsavedUpdates;
       setIsSaving(true);
@@ -256,10 +259,12 @@ export function useCardModal(
         setTimeout(() => {
           setIsSaved(false);
         }, 2000);
+        return true;
       } catch (error) {
         console.error("Failed to save changes:", error);
         setSaveFailed(true);
         notifyError(error as Error, "save changes");
+        return false;
       } finally {
         setIsSaving(false);
       }

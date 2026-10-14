@@ -179,7 +179,7 @@ interface CardModalProps {
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
-  saveChanges: (options?: { silent?: boolean }) => Promise<void>;
+  saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
   /** Archives or unarchives the card; the dialog then closes. */
@@ -257,7 +257,18 @@ export function CardModal({
     }
   };
 
+  // Closing or moving to another card saves first; if that fails, the card
+  // stays open so the edit isn't lost and can be saved again.
   const handleClose = async () => {
+    if (hasUnsavedChanges && !(await saveChanges({ silent: true }))) {
+      return;
+    }
+    onCancel?.();
+  };
+
+  // Delete, archive and restore take the card out of this view, so the
+  // dialog closes after them even if a last save fails.
+  const closeAfterAction = async () => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
     }
@@ -268,8 +279,8 @@ export function CardModal({
     if (!show) {
       return;
     }
-    if (hasUnsavedChanges) {
-      await saveChanges({ silent: true });
+    if (hasUnsavedChanges && !(await saveChanges({ silent: true }))) {
+      return;
     }
     show();
   };
@@ -286,7 +297,7 @@ export function CardModal({
   const archive = () => {
     if (toggleArchive && !isDeleted) {
       toggleArchive();
-      void handleClose();
+      void closeAfterAction();
     }
   };
 
@@ -330,7 +341,7 @@ export function CardModal({
         break;
       case "delete":
         if (!isDeleted) {
-          void handleDelete(handleClose);
+          void handleDelete(closeAfterAction);
         }
         break;
       case "focusTags":
@@ -581,7 +592,7 @@ export function CardModal({
                       {isDeleted ? (
                         <>
                           <DropdownMenuItem
-                            onClick={() => void handleRestore(handleClose)}
+                            onClick={() => void handleRestore(closeAfterAction)}
                           >
                             <RotateCcw />
                             Restore
@@ -620,7 +631,7 @@ export function CardModal({
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => void handleDelete(handleClose)}
+                            onClick={() => void handleDelete(closeAfterAction)}
                             variant="destructive"
                           >
                             <Trash2 />
@@ -675,7 +686,7 @@ export function CardModal({
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)
                     }
-                    onRestore={() => void handleRestore(handleClose)}
+                    onRestore={() => void handleRestore(closeAfterAction)}
                     onTagClick={onTagClick}
                     tags={{ ...tags, inputRef: tagInputRef }}
                   />
@@ -704,7 +715,7 @@ export function CardModal({
         confirmLabel="Delete Forever"
         description="This permanently deletes the card and its files. This can’t be undone."
         onConfirm={() => {
-          void handlePermanentDelete(handleClose);
+          void handlePermanentDelete(closeAfterAction);
         }}
         onOpenChange={setIsPermanentDeleteConfirmOpen}
         open={isPermanentDeleteConfirmOpen}
