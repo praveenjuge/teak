@@ -784,21 +784,8 @@ export const searchCardsPaginatedHandler = async (
         createdAtRange,
         visualFilters,
       });
-    if (shuffle && host) {
-      // One site: its newest cards, in the seed's order.
-      const cards = await buildHostCardListQuery(ctx, {
-        userId: user.teakUserId,
-        host,
-        archived: archived === "only" ? "only" : "exclude",
-        createdAt: createdAtBounds,
-      })
-        .order("desc")
-        .take(SEARCH_PAGE_CANDIDATE_LIMIT);
-      return offsetPage(
-        shuffleBySeed(keepMatches(cards), seed, (card) => card._id),
-        async (page) => page
-      );
-    }
+    // Shuffle walks the whole library with the same filters (a site
+    // included), so no matching card is left out.
     if (shuffle) {
       return shuffleWalkPage(
         {

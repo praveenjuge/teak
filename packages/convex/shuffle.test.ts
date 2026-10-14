@@ -31,6 +31,7 @@ type CardSeed = Partial<
     | "tags"
     | "type"
     | "url"
+    | "urlHost"
   >
 >;
 
@@ -284,6 +285,37 @@ describe("Shuffle with a color filter", () => {
     expect(new Set(order)).toEqual(blue);
     expect(await readAll(args, 3)).toEqual(order);
   });
+});
+
+describe("Shuffle of one site", () => {
+  test("reaches every card on a site with more than 401 of them", async () => {
+    const { insert, readAll } = await setup();
+    const onSite = new Set<string>();
+    for (let index = 0; index < 450; index += 1) {
+      onSite.add(
+        await insert({
+          type: "link",
+          url: `https://github.com/teak/${index}`,
+          urlHost: "github.com",
+          shuffleKey: ((index * 7919) % 1000) / 1000,
+        })
+      );
+    }
+    await insert({
+      type: "link",
+      url: "https://example.com/other",
+      urlHost: "example.com",
+      shuffleKey: 0.5,
+    });
+    const args = {
+      searchQuery: "site:github.com",
+      sort: "shuffle",
+      shuffleSeed: 6,
+    };
+    const order = await readAll(args, 100);
+    expect(order).toHaveLength(onSite.size);
+    expect(new Set(order)).toEqual(onSite);
+  }, 120_000);
 });
 
 describe("Shuffle of a large tag in the grid", () => {
