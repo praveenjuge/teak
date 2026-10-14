@@ -263,6 +263,23 @@ describe("Shuffle of a set of matches", () => {
   });
 });
 
+describe("Shuffle of a large tag in the grid", () => {
+  test("reaches every card past a search's 1,000 offset", async () => {
+    const { insert, readAll, runScheduled } = await setup();
+    const tagged = new Set<string>();
+    for (let index = 0; index < 1250; index += 1) {
+      tagged.add(await insert({ tags: ["big"], shuffleKey: 0.5 }));
+    }
+    await runScheduled();
+    const order = await readAll(
+      { tag: "big", sort: "shuffle", shuffleSeed: 9 },
+      100
+    );
+    expect(order).toHaveLength(tagged.size);
+    expect(new Set(order)).toEqual(tagged);
+  }, 120_000);
+});
+
 describe("GET /v1/cards?sort=shuffle", () => {
   // Every page the API serves for a seed, `limit` at a time.
   const readApi = async (

@@ -430,10 +430,14 @@ export const searchCardsPaginatedHandler = async (
     ordered: T[],
     load: (items: T[]) => Promise<Doc<"cards">[]>
   ) => {
-    const rawCursor = paginationOpts.cursor ?? "0";
-    const parsedCursor = Number(rawCursor);
-    const offset = clampSearchOffset(
-      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+    const parsedCursor = Number(paginationOpts.cursor ?? "0");
+    // Bounded by the set itself (up to SHUFFLE_ROW_LIMIT), not by a
+    // search's offset cap, so every card of a large tag or folder is reached.
+    const offset = Math.min(
+      Number.isFinite(parsedCursor) && parsedCursor > 0
+        ? Math.floor(parsedCursor)
+        : 0,
+      ordered.length
     );
     const pageSize = clampPageSize(paginationOpts.numItems);
     const cards = await load(ordered.slice(offset, offset + pageSize));
