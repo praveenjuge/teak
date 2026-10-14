@@ -32,6 +32,7 @@ import {
   TagManagerDialog,
   type TagManagerMode,
 } from "../components/modals/TagManagerDialog";
+import { searchFieldClassName } from "../components/search/SearchBar";
 import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
@@ -40,6 +41,7 @@ import {
   type TagSummaryItem,
   tagKey,
 } from "../lib/tags";
+import { PageHeader, PageTitle } from "./PageHeader";
 
 /** How the list is ordered: most-used first, or by name. */
 export type TagSort = "count" | "name";
@@ -174,6 +176,7 @@ function TagSortMenu({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={`Sort: ${SORT_LABELS[sort]}`}
+          className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
           size="icon"
           type="button"
           variant="ghost"
@@ -205,9 +208,6 @@ function TagSortMenu({
     </DropdownMenu>
   );
 }
-
-const tagCountLabel = (count: number) =>
-  `${count.toLocaleString()} ${count === 1 ? "tag" : "tags"}`;
 
 /**
  * Every tag in the library with how many cards outside Archive and Trash
@@ -282,127 +282,140 @@ export function TagsScreen({
     setDialog({ mode, open: true, tag });
   };
 
-  let subtitle: ReactNode = <Skeleton className="h-4 w-40" />;
-  if (items && matches) {
+  // The count beside the title: how many match while finding, the most
+  // used while the list is still partial, else every tag.
+  let count: ReactNode;
+  if (items && matches && (needle || items.length > 0)) {
+    let figure = items.length.toLocaleString();
     if (needle) {
-      subtitle = `${matches.length.toLocaleString()} of ${tagCountLabel(items.length)}`;
+      figure = `${matches.length.toLocaleString()} of ${figure}`;
     } else if (summary && !summary.isComplete) {
-      subtitle = `Your ${tagCountLabel(items.length)} used most`;
-    } else {
-      subtitle =
-        items.length === 0
-          ? "Tags on your cards show up here"
-          : `${tagCountLabel(items.length)} across your library`;
+      figure = `Top ${figure}`;
     }
+    // Just the number on screen; the unit is for screen readers.
+    count = (
+      <>
+        {figure}
+        <span className="sr-only"> tags</span>
+      </>
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-16">
-      <form
-        aria-label="Find a tag"
-        className="group flex items-center"
-        onSubmit={(event) => event.preventDefault()}
+    <div className="w-full pb-16">
+      <PageHeader
+        actions={
+          <TagSortMenu
+            onSortChange={(next) => {
+              setSort(next);
+              setLimit(TAG_PAGE_SIZE);
+            }}
+            sort={sort}
+          />
+        }
+        leading={headerLeading}
+        title={<PageTitle count={count}>Tags</PageTitle>}
       >
-        {headerLeading}
-        <Search className="size-4 shrink-0 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
-        <Input
+        <form
           aria-label="Find a tag"
-          autoCapitalize="off"
-          autoCorrect="off"
-          className="h-16 flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
-          onChange={(event) => {
-            // A new search starts from the top of the list again.
-            setQuery(event.target.value);
-            setLimit(TAG_PAGE_SIZE);
-          }}
-          placeholder="Find a tag…"
-          type="search"
-          value={query}
-        />
-        <TagSortMenu
-          onSortChange={(next) => {
-            setSort(next);
-            setLimit(TAG_PAGE_SIZE);
-          }}
-          sort={sort}
-        />
-      </form>
-
-      <div className="mt-4 mb-5 space-y-1.5">
-        <h1 className="font-semibold text-2xl tracking-tight">Tags</h1>
-        <div className="text-muted-foreground text-sm">{subtitle}</div>
-      </div>
-
-      {matches === undefined && (
-        <ul
-          aria-label="Loading tags"
-          className="overflow-hidden rounded-xl border bg-card"
+          className="min-w-0 max-w-44 flex-1 sm:ml-auto sm:max-w-xl"
+          onSubmit={(event) => event.preventDefault()}
         >
-          {SKELETON_WIDTHS.map((width) => (
-            <li
-              className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
-              key={width}
-            >
-              <Skeleton className="size-4 rounded" />
-              <Skeleton className="h-4" style={{ width }} />
-              <Skeleton className="ml-auto h-4 w-8" />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {items?.length === 0 && (
-        <div className="flex flex-col items-center rounded-xl border bg-card px-6 py-16 text-center">
-          <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-muted">
-            <Hash className="size-5 text-muted-foreground" />
-          </div>
-          <p className="font-medium">No tags yet</p>
-          <p className="mt-1 max-w-xs text-muted-foreground text-sm">
-            Tags you add to cards, and the ones Teak suggests, show up here.
-          </p>
-        </div>
-      )}
-
-      {items && items.length > 0 && matches?.length === 0 && (
-        <div className="rounded-xl border bg-card px-6 py-12 text-center">
-          <p className="text-muted-foreground text-sm">
-            No tags match “{query.trim()}”.
-          </p>
-        </div>
-      )}
-
-      {visible.length > 0 && (
-        <ul
-          aria-label="Tags"
-          className="overflow-hidden rounded-xl border bg-card"
-        >
-          {visible.map((item) => (
-            <TagRow
-              href={tagHref(item.name)}
-              isMenuOpen={menuTag === item.name}
-              item={item}
-              key={item.name}
-              LinkComponent={LinkComponent}
-              onAction={openAction}
-              onMenuOpenChange={setMenuTag}
+          <div className={searchFieldClassName}>
+            <Search
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground group-focus-within/search:text-foreground"
             />
-          ))}
-        </ul>
-      )}
+            <Input
+              aria-label="Find a tag"
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+              onChange={(event) => {
+                // A new search starts from the top of the list again.
+                setQuery(event.target.value);
+                setLimit(TAG_PAGE_SIZE);
+              }}
+              placeholder="Find a tag"
+              type="search"
+              value={query}
+            />
+          </div>
+        </form>
+      </PageHeader>
 
-      {remaining > 0 && (
-        <div className="mt-4 flex justify-center">
-          <Button
-            className="text-muted-foreground"
-            onClick={() => setLimit((value) => value + TAG_PAGE_SIZE)}
-            size="sm"
-            type="button"
-            variant="ghost"
+      <div className="max-w-3xl">
+        {matches === undefined && (
+          <ul
+            aria-label="Loading tags"
+            className="overflow-hidden rounded-xl border bg-card"
           >
-            Show {Math.min(remaining, TAG_PAGE_SIZE).toLocaleString()} more
-          </Button>
-        </div>
-      )}
+            {SKELETON_WIDTHS.map((width) => (
+              <li
+                className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
+                key={width}
+              >
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-4" style={{ width }} />
+                <Skeleton className="ml-auto h-4 w-8" />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {items?.length === 0 && (
+          <div className="flex flex-col items-center rounded-xl border bg-card px-6 py-16 text-center">
+            <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-muted">
+              <Hash className="size-5 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No tags yet</p>
+            <p className="mt-1 max-w-xs text-muted-foreground text-sm">
+              Tags you add to cards, and the ones Teak suggests, show up here.
+            </p>
+          </div>
+        )}
+
+        {items && items.length > 0 && matches?.length === 0 && (
+          <div className="rounded-xl border bg-card px-6 py-12 text-center">
+            <p className="text-muted-foreground text-sm">
+              No tags match “{query.trim()}”.
+            </p>
+          </div>
+        )}
+
+        {visible.length > 0 && (
+          <ul
+            aria-label="Tags"
+            className="overflow-hidden rounded-xl border bg-card"
+          >
+            {visible.map((item) => (
+              <TagRow
+                href={tagHref(item.name)}
+                isMenuOpen={menuTag === item.name}
+                item={item}
+                key={item.name}
+                LinkComponent={LinkComponent}
+                onAction={openAction}
+                onMenuOpenChange={setMenuTag}
+              />
+            ))}
+          </ul>
+        )}
+
+        {remaining > 0 && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              className="text-muted-foreground"
+              onClick={() => setLimit((value) => value + TAG_PAGE_SIZE)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Show {Math.min(remaining, TAG_PAGE_SIZE).toLocaleString()} more
+            </Button>
+          </div>
+        )}
+      </div>
 
       <TagManagerDialog
         initialTarget={dialog?.target}

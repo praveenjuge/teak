@@ -54,7 +54,7 @@ describe("web core journey", { serial: true }, () => {
         { timeout: 30_000, interval: 1000 }
       )
       .toBe(expectedMarkdown);
-    await screen.getByPlaceholder("Search for anything...").fill(marker);
+    await screen.getByPlaceholder("Search everything").fill(marker);
     await browser.keyboard.press("Enter");
     await expect(savedCard).toBeVisible();
     await screen.getByRole("button", "Clear All", { exact: false }).click();

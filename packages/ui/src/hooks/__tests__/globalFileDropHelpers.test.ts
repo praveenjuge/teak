@@ -116,6 +116,17 @@ describe("dataTransferHasFiles", () => {
     ).toBe(false);
   });
 
+  test("ignores a card dragged within the app, even with its image file", () => {
+    expect(
+      dataTransferHasFiles(
+        makeDataTransfer({
+          items: [makeItem(makeFile("a.png"))],
+          types: ["Files", "application/x-teak-card"],
+        })
+      )
+    ).toBe(false);
+  });
+
   test("falls back to Files type hint when items is empty", () => {
     expect(dataTransferHasFiles(makeDataTransfer({ types: ["Files"] }))).toBe(
       true

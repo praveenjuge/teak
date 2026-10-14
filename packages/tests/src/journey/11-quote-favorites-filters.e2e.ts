@@ -102,7 +102,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     });
     // Favorites is its own page in the sidebar.
     await clickVisibleControl(screen.getByRole("link", "Favorites"));
-    await expect(screen.getByPlaceholder("Search favorites...")).toBeVisible();
+    await expect(screen.getByPlaceholder("Search favorites")).toBeVisible();
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
     await expect(cardText(screen, `${marker} hide-me`)).not.toBeVisible();
 
@@ -160,23 +160,28 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       timeout: 30_000,
     });
 
-    // Card types are sidebar buttons; a picked one also shows as a chip.
-    await clickVisibleControl(screen.getByRole("button", "Quote").first());
+    // Card types are picked in the View menu; a picked one also shows as a
+    // chip in the search field.
+    const pickType = async (name: string) => {
+      await clickVisibleControl(screen.getByRole("button", /^View/));
+      await screen.getByRole("menuitemcheckbox", name).click();
+      await browser.keyboard.press("Escape");
+    };
+    await pickType("Quote");
     await expect(cardText(screen, `${marker} quoted line`)).toBeVisible();
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await clearFilters(screen);
 
-    await clickVisibleControl(screen.getByRole("button", "Palette").first());
+    await pickType("Palette");
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await expect(screen.getByRole("main")).not.toContainText(
       `${marker} quoted line`
     );
     // Palette cards may render swatches instead of raw content; assert via
-    // filter.
-    await expect(screen.getByRole("button", "Palette").first()).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
+    // the filter's chip.
+    await expect(
+      screen.getByRole("button", "Remove type Palette")
+    ).toBeVisible();
     await clearFilters(screen);
   });
 });

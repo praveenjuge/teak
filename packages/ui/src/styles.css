@@ -96,7 +96,8 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.002 247.839);
+  /* The sidebar shares the page background; a hairline separates them. */
+  --sidebar: var(--background);
   --sidebar-foreground: oklch(0.13 0.028 261.692);
   --sidebar-primary: oklch(0.21 0.034 264.665);
   --sidebar-primary-foreground: oklch(0.985 0.002 247.839);
@@ -130,7 +131,7 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.034 264.665);
+  --sidebar: var(--background);
   --sidebar-foreground: oklch(0.985 0.002 247.839);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0.002 247.839);
@@ -168,12 +169,15 @@
   }
 }
 
+/* The sidebar's live width (it can be dragged) comes from SidebarProvider as
+   --teak-sidebar-width; collapsed (even while it peeks over the page) only
+   the icon rail takes room. */
 @media (min-width: 48rem) {
   :root:has([data-slot="sidebar"][data-state="expanded"]) {
-    --teak-content-left: 16rem;
+    --teak-content-left: var(--teak-sidebar-width, 14rem);
   }
 
-  :root:has([data-slot="sidebar"][data-collapsible="icon"]) {
+  :root:has([data-slot="sidebar"][data-state="collapsed"]) {
     --teak-content-left: 3rem;
   }
 }

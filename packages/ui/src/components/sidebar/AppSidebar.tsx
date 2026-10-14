@@ -1,15 +1,9 @@
 "use client";
 
 import {
-  CARD_TYPE_LABELS,
-  type CardType,
-  cardTypes,
-} from "@teak/convex/shared/constants";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -20,32 +14,19 @@ import {
 import { LogoMark } from "@teak/ui/logo";
 import {
   Archive,
-  File,
-  FileText,
   Hash,
   Heart,
-  Image,
   LayoutGrid,
-  Link as LinkIcon,
   type LucideIcon,
-  Palette,
-  Quote,
+  PanelLeft,
   Settings,
   Trash2,
-  Video,
-  Volume2,
 } from "lucide-react";
-import {
-  type ComponentType,
-  Fragment,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
+import type { ComponentType, MouseEvent, ReactNode } from "react";
 import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
 import {
   LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
-  LIBRARY_VIEWS,
   type LibraryView,
 } from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
@@ -57,16 +38,9 @@ export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
   trash: Trash2,
 };
 
-export const CARD_TYPE_ICONS: Record<CardType, LucideIcon> = {
-  text: FileText,
-  link: LinkIcon,
-  image: Image,
-  video: Video,
-  audio: Volume2,
-  document: File,
-  palette: Palette,
-  quote: Quote,
-};
+/** Views before Tags; Archive and Trash follow it. */
+const PRIMARY_VIEWS = ["all", "favorites"] as const;
+const SECONDARY_VIEWS = ["archive", "trash"] as const;
 
 /** The app's link (Next.js `Link` on the web), so routes stay client-side. */
 export type SidebarLinkComponent = ComponentType<{
@@ -79,11 +53,9 @@ export type SidebarLinkComponent = ComponentType<{
 }>;
 
 export interface AppSidebarProps {
-  /** Card types narrowing the library, shown pressed. */
-  activeTypes: readonly CardType[];
   /** The open library view, or null outside the library (settings). */
   activeView: LibraryView | null;
-  /** Add actions (upload, record), shown as icon buttons beside the logo. */
+  /** The New menu, shown beside the logo. */
   addActions?: ReactNode;
   /** The Folders group. */
   foldersSlot?: ReactNode;
@@ -93,18 +65,32 @@ export interface AppSidebarProps {
   LinkComponent: SidebarLinkComponent;
   /** Called before any sidebar link navigates (e.g. to remember scroll). */
   onNavigate?: () => void;
-  onToggleType: (type: CardType) => void;
   settingsHref?: string;
   tagsHref?: string;
 }
 
+function ViewTooltip({ view }: { view: LibraryView }) {
+  return (
+    <>
+      {LIBRARY_VIEW_LABELS[view]}
+      <ShortcutHint
+        row={{
+          keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
+          label: LIBRARY_VIEW_LABELS[view],
+          sequence: true,
+        }}
+      />
+    </>
+  );
+}
+
 /**
- * The app's navigation: the logo with the add actions beside it, library
- * views with Tags and Settings, card types, and folders. Collapses to icons
- * on desktop and opens as a drawer on phones.
+ * The app's navigation: the logo with the New menu, one list of places
+ * (Everything, Favorites, Tags, Archive, Trash, Settings), then folders.
+ * Collapses to icons on desktop (peeking open on hover) and opens as a
+ * drawer on phones.
  */
 export function AppSidebar({
-  activeTypes,
   activeView,
   addActions,
   foldersSlot,
@@ -112,11 +98,10 @@ export function AppSidebar({
   isTagsActive = false,
   LinkComponent,
   onNavigate,
-  onToggleType,
   settingsHref = "/settings",
   tagsHref = "/tags",
 }: AppSidebarProps) {
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
 
   // On phones the drawer closes once the user picks where to go.
   const handleNavigate = () => {
@@ -126,98 +111,90 @@ export function AppSidebar({
     }
   };
 
+  const viewItem = (view: LibraryView) => {
+    const Icon = LIBRARY_VIEW_ICONS[view];
+    const isActive = activeView === view;
+    return (
+      <SidebarMenuItem key={view}>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive}
+          tooltip={{
+            className: "flex items-center gap-2",
+            children: <ViewTooltip view={view} />,
+          }}
+        >
+          <LinkComponent
+            aria-current={isActive ? "page" : undefined}
+            href={LIBRARY_VIEW_PATHS[view]}
+            onClick={handleNavigate}
+          >
+            <Icon />
+            <span>{LIBRARY_VIEW_LABELS[view]}</span>
+          </LinkComponent>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        {/* The logo on the left and the add actions on the right; stacked
-            when the sidebar is collapsed to icons. */}
-        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start">
-          <SidebarMenu className="w-auto">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className="h-11 hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-11! group-data-[collapsible=icon]:p-0.5!"
-                tooltip="Teak"
+    <Sidebar className="group/sidebar-panel" collapsible="icon">
+      {/* As tall as the page header beside it, so the two share a top line.
+          Collapsed, the New button stacks under the logo. */}
+      <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-2">
+        <SidebarMenu className="w-auto">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              className="h-8 w-auto px-[7px] hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:px-[7px]! [&>svg]:size-[18px]"
+              tooltip="Teak"
+            >
+              <LinkComponent
+                aria-label="Teak home"
+                href={LIBRARY_VIEW_PATHS.all}
+                onClick={handleNavigate}
               >
-                <LinkComponent
-                  aria-label="Teak home"
-                  href={LIBRARY_VIEW_PATHS.all}
-                  onClick={handleNavigate}
-                >
-                  {/* The app icon's mark: left-aligned with the menu icons,
-                      centered in the rail when collapsed. */}
-                  <LogoMark className="size-7! shrink-0" />
-                </LinkComponent>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          {addActions}
-        </div>
+                <LogoMark />
+              </LinkComponent>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <span className="flex-1 group-data-[collapsible=icon]:hidden" />
+        {/* Shown while the pointer is over the sidebar; peeking, it pins
+            the sidebar open instead. */}
+        <button
+          aria-label={
+            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
+          }
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/55 opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden"
+          onClick={toggleSidebar}
+          title={
+            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
+          }
+          type="button"
+        >
+          <PanelLeft className="size-4" />
+        </button>
+        {addActions}
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {LIBRARY_VIEWS.map((view) => {
-              const Icon = LIBRARY_VIEW_ICONS[view];
-              const isActive = activeView === view;
-              return (
-                <Fragment key={view}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={{
-                        className: "flex items-center gap-2",
-                        children: (
-                          <>
-                            {LIBRARY_VIEW_LABELS[view]}
-                            <ShortcutHint
-                              row={{
-                                keys: [
-                                  "G",
-                                  GO_TO_VIEW_KEYS[view].toUpperCase(),
-                                ],
-                                label: LIBRARY_VIEW_LABELS[view],
-                                sequence: true,
-                              }}
-                            />
-                          </>
-                        ),
-                      }}
-                    >
-                      <LinkComponent
-                        aria-current={isActive ? "page" : undefined}
-                        href={LIBRARY_VIEW_PATHS[view]}
-                        onClick={handleNavigate}
-                      >
-                        <Icon />
-                        <span>{LIBRARY_VIEW_LABELS[view]}</span>
-                      </LinkComponent>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {/* Tags sit with the library, right after Favorites. */}
-                  {view === "favorites" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isTagsActive}
-                        tooltip="Tags"
-                      >
-                        <LinkComponent
-                          aria-current={isTagsActive ? "page" : undefined}
-                          href={tagsHref}
-                          onClick={handleNavigate}
-                        >
-                          <Hash />
-                          <span>Tags</span>
-                        </LinkComponent>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                </Fragment>
-              );
-            })}
+            {PRIMARY_VIEWS.map(viewItem)}
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isTagsActive} tooltip="Tags">
+                <LinkComponent
+                  aria-current={isTagsActive ? "page" : undefined}
+                  href={tagsHref}
+                  onClick={handleNavigate}
+                >
+                  <Hash />
+                  <span>Tags</span>
+                </LinkComponent>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {SECONDARY_VIEWS.map(viewItem)}
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -235,32 +212,6 @@ export function AppSidebar({
                 </LinkComponent>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Types</SidebarGroupLabel>
-          <SidebarMenu>
-            {cardTypes.map((type) => {
-              const Icon = CARD_TYPE_ICONS[type];
-              const isActive = activeTypes.includes(type);
-              return (
-                <SidebarMenuItem key={type}>
-                  <SidebarMenuButton
-                    aria-pressed={isActive}
-                    isActive={isActive}
-                    onClick={() => {
-                      onToggleType(type);
-                      handleNavigate();
-                    }}
-                    tooltip={CARD_TYPE_LABELS[type]}
-                  >
-                    <Icon />
-                    <span>{CARD_TYPE_LABELS[type]}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
           </SidebarMenu>
         </SidebarGroup>
 

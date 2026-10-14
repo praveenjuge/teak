@@ -7,7 +7,7 @@ import Link from "next/link";
 export function TagsPageClient() {
   return (
     <TagsScreen
-      headerLeading={<SidebarToggle className="mr-2 -ml-2" />}
+      headerLeading={<SidebarToggle className="-ml-2" />}
       LinkComponent={Link}
     />
   );

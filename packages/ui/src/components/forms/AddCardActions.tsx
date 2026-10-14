@@ -14,7 +14,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
-import { Kbd } from "@teak/ui/components/ui/kbd";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@teak/ui/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -26,10 +32,9 @@ import {
 } from "@teak/ui/constants/toast";
 import { useGlobalFileDrop } from "@teak/ui/hooks";
 import { useAction, useMutation } from "convex/react";
-import { Mic, Square, Upload } from "lucide-react";
+import { Mic, PenLine, Plus, Square, Upload } from "lucide-react";
 import {
   type ComponentProps,
-  type ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -37,56 +42,40 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
+import { registerUploadFiles } from "../../lib/keyboardShortcuts";
 
 interface AddCardActionsProps {
+  /** Starts a note (or a pasted link) in the composer; offered in the menu. */
+  onNewNote?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
   /**
-   * `toolbar` renders icon buttons; `header` renders small icon buttons with
-   * tooltips for the sidebar's top row, stacked under the logo when the
-   * sidebar is collapsed to icons.
+   * `toolbar` renders icon buttons; `header` renders one New button for the
+   * sidebar's top row whose menu holds every way to add a card.
    */
   variant?: "toolbar" | "header";
 }
 
-/** A small icon button with a tooltip, for the sidebar's top row. */
-function HeaderAction({
-  children,
-  disabled,
-  label,
-  onClick,
-  shortcut,
-  ...props
-}: {
-  children: ReactNode;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-  /** The key that does the same, shown in the tooltip. */
-  shortcut?: string;
-} & Omit<ComponentProps<typeof Button>, "children" | "onClick">) {
+/** The sidebar's New button, with its tooltip. */
+function NewMenuTrigger(props: ComponentProps<typeof Button>) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          aria-keyshortcuts={shortcut}
-          aria-label={label}
-          className="size-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground [&_svg]:size-4"
-          disabled={disabled}
-          onClick={onClick}
-          size="icon"
-          type="button"
-          variant="ghost"
-          {...props}
-        >
-          {children}
-        </Button>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label="New"
+            className="size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4"
+            size="icon"
+            type="button"
+            variant="ghost"
+            {...props}
+          >
+            <Plus />
+          </Button>
+        </DropdownMenuTrigger>
       </TooltipTrigger>
-      <TooltipContent className="flex items-center gap-2" side="bottom">
-        {label}
-        {shortcut && <Kbd>{shortcut}</Kbd>}
-      </TooltipContent>
+      <TooltipContent side="right">New</TooltipContent>
     </Tooltip>
   );
 }
@@ -123,6 +112,7 @@ const selectAudioRecordingFormat = (): AudioRecordingFormat => {
 };
 
 export function AddCardActions({
+  onNewNote,
   onSuccess,
   onUpgrade,
   upgradeUrl = "/settings",
@@ -429,26 +419,77 @@ export function AddCardActions({
     ? "Speak naturally. Teak will save this as an audio card."
     : "Starting microphone...";
 
+  // `U` uploads through the New menu, which keeps no button on the page.
+  const uploadRef = useRef(handleFileUpload);
+  uploadRef.current = handleFileUpload;
+  const isUploading = globalFileDrop?.isUploading ?? false;
+  useEffect(() => {
+    if (variant !== "header") {
+      return;
+    }
+    return registerUploadFiles(() => {
+      if (isUploading) {
+        return false;
+      }
+      uploadRef.current();
+      return true;
+    });
+  }, [isUploading, variant]);
+  // An item that moves focus (the composer, the file picker) keeps it; only
+  // Escape or a click away hands focus back to the New button.
+  const keepFocusRef = useRef(false);
+
   const triggers =
     variant === "header" ? (
-      <div className="flex items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
-        <HeaderAction
-          data-upload-files=""
-          disabled={globalFileDrop?.isUploading}
-          label="Upload files"
-          onClick={handleFileUpload}
-          shortcut="U"
+      <DropdownMenu>
+        <NewMenuTrigger />
+        <DropdownMenuContent
+          align="start"
+          className="w-52"
+          onCloseAutoFocus={(event) => {
+            if (keepFocusRef.current) {
+              keepFocusRef.current = false;
+              event.preventDefault();
+            }
+          }}
+          side="bottom"
         >
-          <Upload />
-        </HeaderAction>
-        <HeaderAction
-          disabled={isRecording || isSubmitting}
-          label="Record audio"
-          onClick={() => void startRecording()}
-        >
-          <Mic />
-        </HeaderAction>
-      </div>
+          {onNewNote && (
+            <DropdownMenuItem
+              onSelect={() => {
+                keepFocusRef.current = true;
+                // After the menu has closed, so its focus trap lets go.
+                setTimeout(onNewNote, 0);
+              }}
+            >
+              <PenLine />
+              Note or link
+              <DropdownMenuShortcut>N</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            disabled={isUploading}
+            onSelect={() => {
+              keepFocusRef.current = true;
+              handleFileUpload();
+            }}
+          >
+            <Upload />
+            Upload files
+            <DropdownMenuShortcut>U</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={isRecording || isSubmitting}
+            onSelect={() => {
+              keepFocusRef.current = true;
+              startRecording().catch(() => undefined);
+            }}
+          >
+            <Mic />
+            Record audio
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     ) : (
       <div className="flex items-center gap-1">
         <Button

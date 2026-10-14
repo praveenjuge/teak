@@ -909,6 +909,13 @@ export function useCardsSearchController(
           ...prev,
           filterTags: prev.filterTags.filter((tag) => tag !== filter),
         })),
+      onToggleFilter: (filter) =>
+        setSearchState((prev) => ({
+          ...prev,
+          filterTags: prev.filterTags.includes(filter)
+            ? prev.filterTags.filter((tag) => tag !== filter)
+            : [...prev.filterTags, filter],
+        })),
       onRemoveStyleFilter: (style) =>
         setSearchState((prev) => ({
           ...prev,
