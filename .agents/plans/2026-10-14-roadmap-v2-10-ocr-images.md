@@ -67,6 +67,7 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
   - Add `"generate-image-metadata": 120_000` to `OP_TIMEOUT_MS`.
 - `steps/metadata.ts`:
   - The image and video branches pass `aiOcrText` and `ocrCheckedAt` to `updateCardAI`.
+  - These writes are guarded by run, because a Refresh details can start a second workflow while the first 120-second vision call is still running. This phase introduces `cards.processingRunId?: string`, set by `startCardProcessingWorkflow` (`workflows/manager.ts`) each time a processing workflow starts, including Refresh details. It also adds the optional `expectedRunId` argument on `updateCardAI`, which skips the write and returns `stale_run` when the run id no longer matches. The metadata step reads the run id when it starts and passes it on every OCR and summary write. Phases 21 and 22 reuse the same field.
   - `updateCardAI` takes `aiOcrText` and maps `""` to `undefined`, so a refresh clears stale text.
   - `resetCardAI` clears both new fields.
 - `searchDocumentHelpers.ts`:
@@ -144,6 +145,8 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
   - The backfill dry-run counts; a resume after `once: true`; it skips accounts that are being deleted and never changes `aiSummary`.
 
 ## Tests
+
+- `packages/convex/__tests__/workflows/steps/metadata.test.ts`: an image OCR result from a run superseded by Refresh details writes nothing (`stale_run`), and the newer run's OCR text and processing status stay.
 
 - `apps/files-worker/src/imageMetadata.test.ts` (new): a table for `parseImageMetadata` covering missing, empty, non-string, oversized and fenced `text`, and noise-only text.
 - `apps/files-worker/src/upload.test.ts`: `generateImageMetadataForOp` returns `text` from a mocked `AI.run`.

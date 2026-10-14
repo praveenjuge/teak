@@ -72,7 +72,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - call `fetchSemanticRanking` (cache first) before `runQuery`
   - add `searchMode` to the JSON
   - The cursor binds to its ranking. Page 1 stores the fused candidate ids in a `searchSessions { userId, id, cardIds (≤ 500), mode, createdAt, expiresAt (1 hour) }` row and puts its id in every `match` cursor. Later pages read that frozen list, apply live card state (trash, archive, hidden) and page from the anchor, so cards are never skipped or repeated.
-  - If the session row has expired, the API returns `400 CURSOR_EXPIRED` instead of silently switching to a keyword-only set. The SDK, CLI and MCP restart the search from page 1 on that error.
+  - If the session row has expired, the API returns `400 CURSOR_EXPIRED` instead of silently switching to a keyword-only set. The SDK and MCP pass that error through to the caller unchanged. They take one cursor per stateless request, so restarting at page 1 on their own would hand back cards the caller already has as if they were the next page. The caller decides whether to discard what it has accumulated and restart. Only the CLI's stateful `--all` loop restarts the whole listing itself: it drops what it has collected, starts again from page 1 and prints a one-line notice.
   - `searchSessions` gets a bounded cleanup cron and is covered by account deletion's `ancillaryPage`.
 - `shared/analytics.ts`: add `search_performed.search_mode` and `semantic_merged?: boolean`, plus a server event `semantic_search { outcome: "ok" | "fallback" | "rate_limited", duration_ms }`.
 
@@ -138,7 +138,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - Hidden cards never come from the semantic side, even with `#private`.
   - Trash only shows trashed cards.
   - A cache entry expires between API pages: later pages still use the frozen session, so nothing is skipped or repeated.
-  - A session expires between pages: `400 CURSOR_EXPIRED`, and the SDK and CLI restart cleanly.
+  - A session expires between pages: `400 CURSOR_EXPIRED` reaches SDK and MCP callers unchanged (no silent restart, no repeated cards), and `teak cards search --all` restarts the whole listing once with a notice.
   - Cards created or deleted between pages are neither duplicated nor skipped.
   - `mode=bogus` returns 400.
   - Worker 429 and timeout fall back to keyword results.

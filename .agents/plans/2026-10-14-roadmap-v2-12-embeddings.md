@@ -93,7 +93,8 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - Batches due rows (≤ 32) and builds each text and hash.
   - Skips cards whose hash is unchanged. A trashed card is still embedded.
   - When the text becomes empty for a card that already has a vector (for example every note, tag, OCR and content field was cleared), it calls `vector-delete` for that id and clears the row's `hash` and `embeddedAt` instead of skipping. A stale vector can then never keep matching semantic searches or anchor `like:`. A card that never had a vector and still has no text is simply skipped.
-  - Calls `embed-upsert`, then `recordEmbedded` with the hash it embedded.
+  - Reads the row's `dueAt` (its generation) together with the card text. It calls `embed-upsert`, then `recordEmbedded({ cardId, hash, expectedDueAt })`.
+  - `recordEmbedded` completes the row only if `dueAt` still equals `expectedDueAt`. If `markCardForEmbedding` advanced `dueAt` while the upsert was in flight (an edit landed in the meantime), it records nothing and makes sure `embedDue` is scheduled for the new `dueAt`. The newer text is then always embedded, and an older run can never mark a newer pending edit as done.
   - If `recordEmbedded` finds the card hard-deleted in the meantime, it schedules `vector-delete`.
   - Retries back off on `attempts`. After 5 attempts the row keeps `lastError` and is picked up by the next backfill run.
 - `cardProcessing.ts`: append a final `embed` step after the metadata and renderables results and before the completion telemetry. It calls the same action, swallows failures (logging them), and adds nothing to the workflow's return value.
@@ -137,6 +138,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
   - An edit that does not change the text makes no AI call.
   - A rename across 300 cards spreads its re-embeds out.
   - Hard delete while an embed is in flight leaves no orphan.
+  - Edit a card while its `embed-upsert` is in flight: the older run's `recordEmbedded` is skipped (its `dueAt` no longer matches), and the newer text is embedded on the next run.
   - Clear every embeddable field on an embedded card: its vector is deleted, `vector-get` returns nothing, and it no longer appears for a semantic query that used to match it.
   - `vector-delete` fails on every retry: the tombstone stays, and the sweep reports it after 24 hours.
   - Purge after 30 days in Trash.
