@@ -25,10 +25,29 @@ export interface DailyActivity {
   signups: number;
 }
 
-type ActivityCard = Pick<
-  Doc<"cards">,
-  "createdAt" | "fileMetadata" | "processingStatus"
->;
+/** The few numbers a card contributes to daily activity. */
+export interface ActivityRow {
+  aiCompletedAt: number[];
+  createdAt: number;
+  fileSize?: number;
+}
+
+export const toActivityRow = (
+  card: Pick<Doc<"cards">, "createdAt" | "fileMetadata" | "processingStatus">
+): ActivityRow => {
+  const aiCompletedAt: number[] = [];
+  for (const stage of STAGE_KEYS) {
+    const status = card.processingStatus?.[stage];
+    if (status?.status === "completed" && status.completedAt !== undefined) {
+      aiCompletedAt.push(status.completedAt);
+    }
+  }
+  return {
+    createdAt: card.createdAt,
+    fileSize: card.fileMetadata?.fileSize,
+    aiCompletedAt,
+  };
+};
 
 export const utcDay = (timestamp: number) =>
   new Date(timestamp).toISOString().slice(0, 10);
@@ -39,7 +58,7 @@ export const startOfUtcDay = (timestamp: number) =>
 /**
  * Per-day totals from `since` through `now`, oldest first: new accounts,
  * cards saved, uploaded files and their bytes, and AI processing stages
- * finished that day.
+ * finished that day on cards saved in the window.
  */
 export function summarizeDailyActivity({
   since,
@@ -50,7 +69,7 @@ export function summarizeDailyActivity({
   since: number;
   now: number;
   signupTimes: number[];
-  cards: ActivityCard[];
+  cards: ActivityRow[];
 }): DailyActivity[] {
   const days: DailyActivity[] = [];
   const byDate = new Map<string, DailyActivity>();
@@ -81,16 +100,13 @@ export function summarizeDailyActivity({
     const created = bucket(card.createdAt);
     if (created) {
       created.cards += 1;
-      const size = card.fileMetadata?.fileSize;
-      if (typeof size === "number" && size > 0) {
+      if (typeof card.fileSize === "number" && card.fileSize > 0) {
         created.files += 1;
-        created.fileBytes += size;
+        created.fileBytes += card.fileSize;
       }
     }
-    for (const stage of STAGE_KEYS) {
-      const status = card.processingStatus?.[stage];
-      const finished = status?.status === "completed" ? status : undefined;
-      const entry = bucket(finished?.completedAt);
+    for (const completedAt of card.aiCompletedAt) {
+      const entry = bucket(completedAt);
       if (entry) {
         entry.aiRuns += 1;
       }

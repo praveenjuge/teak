@@ -27,7 +27,7 @@ export const findLegacyBetterAuthUser = (
   });
 
 const LEGACY_COUNT_PAGE_SIZE = 200;
-const LEGACY_COUNT_MAX_PAGES = 50;
+const LEGACY_COUNT_MAX_PAGES = 40;
 
 // Counts retained Better Auth users, reading only their IDs. Stops after a
 // bounded number of pages and reports whether the count is complete.

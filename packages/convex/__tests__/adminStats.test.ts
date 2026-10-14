@@ -6,6 +6,7 @@ import {
   summarizeDeletionQueue,
   summarizeQuarantine,
   summarizeSubscriptions,
+  toActivityRow,
 } from "../adminStats";
 import { withTestSession } from "./helpers/session.test-utils";
 
@@ -26,12 +27,21 @@ describe("summarizeDailyActivity", () => {
         {
           createdAt: day("2026-10-02"),
           processingStatus: {
-            classify: { status: "completed", completedAt: day("2026-10-02") },
-            metadata: { status: "completed", completedAt: day("2026-10-03") },
-            renderables: { status: "failed", completedAt: day("2026-10-03") },
+            classify: {
+              status: "completed" as const,
+              completedAt: day("2026-10-02"),
+            },
+            metadata: {
+              status: "completed" as const,
+              completedAt: day("2026-10-03"),
+            },
+            renderables: {
+              status: "failed" as const,
+              completedAt: day("2026-10-03"),
+            },
           },
         },
-      ],
+      ].map(toActivityRow),
     });
 
     expect(days).toEqual([
@@ -67,7 +77,7 @@ describe("summarizeDailyActivity", () => {
       since,
       now,
       signupTimes: [since - DAY_MS, now + DAY_MS],
-      cards: [{ createdAt: since - 1 }],
+      cards: [{ createdAt: since - 1, aiCompletedAt: [now + DAY_MS] }],
     });
 
     expect(
@@ -188,9 +198,9 @@ describe("summarizeSubscriptions", () => {
 });
 
 describe("admin stats access", () => {
-  test.each(["getActivity", "getOperations"] as const)(
+  test.each(["getActivity", "getOperations", "getBillingSummary"] as const)(
     "%s refuses non-admins",
-    async (name: "getActivity" | "getOperations") => {
+    async (name: "getActivity" | "getOperations" | "getBillingSummary") => {
       const module = await import("../admin");
       const registered = module[name] as any;
       const handler = registered.handler ?? registered;

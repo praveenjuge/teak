@@ -8,12 +8,14 @@ import {
   action,
   env,
   internalMutation,
+  internalQuery,
   type QueryCtx,
   query,
 } from "./_generated/server";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
+  type ActivityRow,
   DAY_MS,
   type SubscriptionLike,
   startOfUtcDay,
@@ -22,6 +24,7 @@ import {
   summarizeDeletionQueue,
   summarizeQuarantine,
   summarizeSubscriptions,
+  toActivityRow,
 } from "./adminStats";
 import { ONBOARDING_CARD_CONTENTS } from "./card/defaultCards";
 import type {
@@ -66,10 +69,11 @@ const MAX_MISSING_CARDS = 50;
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
 const MAX_ACTIVITY_DAYS = 90;
-const ACTIVITY_USER_LIMIT = 5000;
-const ACTIVITY_CARD_LIMIT = 10_000;
-const ACTIVATION_COHORT_LIMIT = 500;
-const OPERATIONS_ROW_LIMIT = 10_000;
+const ACTIVATION_COHORT_LIMIT = 1000;
+// Summed with the legacy account count, these stay well under the
+// per-query document and byte limits.
+const OPERATIONS_USER_LIMIT = 8000;
+const OPERATIONS_QUEUE_LIMIT = 2000;
 const SUBSCRIPTION_LIMIT = 5000;
 
 // Helper to check if a card is an onboarding card by its content
@@ -425,12 +429,121 @@ export const listAllUsers = query({
   },
 });
 
+// Activity is read in byte-capped pages from an action, so neither the
+// per-transaction document count nor its byte limit is reached.
+const ACTIVITY_CARD_PAGE = 500;
+const ACTIVITY_USER_PAGE = 1000;
+const ACTIVITY_PAGE_BYTES = 4 * 1024 * 1024;
+const ACTIVITY_MAX_PAGES = 200;
+const ACTIVATION_BATCH_SIZE = 25;
+
+interface ActivityPage<T> {
+  continueCursor: string;
+  isDone: boolean;
+  rows: T[];
+}
+
+interface ActivityUser {
+  createdAt: number;
+  deleted: boolean;
+  teakUserId: string;
+}
+
+export const activityCardsPage = internalQuery({
+  args: { since: v.number(), cursor: v.union(v.string(), v.null()) },
+  handler: async (
+    ctx,
+    { since, cursor }
+  ): Promise<ActivityPage<ActivityRow>> => {
+    const result = await ctx.db
+      .query("cards")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+      .paginate({
+        cursor,
+        numItems: ACTIVITY_CARD_PAGE,
+        maximumBytesRead: ACTIVITY_PAGE_BYTES,
+      });
+    return {
+      rows: result.page
+        .filter((card) => !isOnboardingCard(card))
+        .map(toActivityRow),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
+  },
+});
+
+export const activityUsersPage = internalQuery({
+  args: { since: v.number(), cursor: v.union(v.string(), v.null()) },
+  handler: async (
+    ctx,
+    { since, cursor }
+  ): Promise<ActivityPage<ActivityUser>> => {
+    const result = await ctx.db
+      .query("users")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+      .paginate({ cursor, numItems: ACTIVITY_USER_PAGE });
+    return {
+      rows: result.page.map((user) => ({
+        teakUserId: user.teakUserId,
+        createdAt: user._creationTime,
+        deleted: user.deletedAt !== undefined,
+      })),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
+  },
+});
+
+/** How many of these accounts saved enough cards in their first week. */
+export const countActivatedUsers = internalQuery({
+  args: {
+    users: v.array(v.object({ teakUserId: v.string(), createdAt: v.number() })),
+  },
+  handler: async (ctx, { users }): Promise<number> => {
+    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
+    let activated = 0;
+    for (const user of users) {
+      const firstWeek = await ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) =>
+          q
+            .eq("userId", user.teakUserId)
+            .gte("createdAt", user.createdAt)
+            .lt("createdAt", user.createdAt + windowMs)
+        )
+        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARD_CONTENTS.length);
+      const saved = firstWeek.filter((card) => !isOnboardingCard(card));
+      if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
+        activated += 1;
+      }
+    }
+    return activated;
+  },
+});
+
+async function readAllPages<T>(
+  readPage: (cursor: string | null) => Promise<ActivityPage<T>>
+): Promise<{ rows: T[]; isComplete: boolean }> {
+  const rows: T[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < ACTIVITY_MAX_PAGES; page++) {
+    const result = await readPage(cursor);
+    rows.push(...result.rows);
+    if (result.isDone) {
+      return { rows, isComplete: true };
+    }
+    cursor = result.continueCursor;
+  }
+  return { rows, isComplete: false };
+}
+
 /**
  * Daily totals for the last `days` days (new accounts, cards, uploads, AI
- * stage runs) and the share of new accounts that saved at least five cards in
- * their first week. Onboarding cards are not counted.
+ * stage runs on those cards) and the share of new accounts that saved at
+ * least five cards in their first week. Onboarding cards are not counted.
  */
-export const getActivity = query({
+export const getActivity = action({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) => {
     await ensureAdmin(ctx);
@@ -441,36 +554,30 @@ export const getActivity = query({
     const now = Date.now();
     const since = startOfUtcDay(now) - (span - 1) * DAY_MS;
 
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
-      .take(ACTIVITY_USER_LIMIT);
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
-      .take(ACTIVITY_CARD_LIMIT);
+    const cards = await readAllPages(
+      (cursor): Promise<ActivityPage<ActivityRow>> =>
+        ctx.runQuery(internal.admin.activityCardsPage, { since, cursor })
+    );
+    const users = await readAllPages(
+      (cursor): Promise<ActivityPage<ActivityUser>> =>
+        ctx.runQuery(internal.admin.activityUsersPage, { since, cursor })
+    );
 
     const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
-    const eligible = users.filter(
-      (user) =>
-        user.deletedAt === undefined && user._creationTime <= now - windowMs
+    const eligible = users.rows.filter(
+      (user) => !user.deleted && user.createdAt <= now - windowMs
     );
     const cohort = eligible.slice(0, ACTIVATION_COHORT_LIMIT);
     let activated = 0;
-    for (const user of cohort) {
-      const firstWeek = await ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .gte("createdAt", user._creationTime)
-            .lt("createdAt", user._creationTime + windowMs)
-        )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARD_CONTENTS.length);
-      const saved = firstWeek.filter((card) => !isOnboardingCard(card));
-      if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
-        activated += 1;
-      }
+    for (let i = 0; i < cohort.length; i += ACTIVATION_BATCH_SIZE) {
+      const batch = cohort
+        .slice(i, i + ACTIVATION_BATCH_SIZE)
+        .map(({ teakUserId, createdAt }) => ({ teakUserId, createdAt }));
+      const count: number = await ctx.runQuery(
+        internal.admin.countActivatedUsers,
+        { users: batch }
+      );
+      activated += count;
     }
 
     return {
@@ -478,8 +585,8 @@ export const getActivity = query({
       days: summarizeDailyActivity({
         since,
         now,
-        signupTimes: users.map((user) => user._creationTime),
-        cards: cards.filter((card) => !isOnboardingCard(card)),
+        signupTimes: users.rows.map((user) => user.createdAt),
+        cards: cards.rows,
       }),
       activation: {
         cohort: cohort.length,
@@ -488,8 +595,7 @@ export const getActivity = query({
         windowDays: ACTIVATION_WINDOW_DAYS,
       },
       isApproximate:
-        users.length === ACTIVITY_USER_LIMIT ||
-        cards.length === ACTIVITY_CARD_LIMIT ||
+        !(cards.isComplete && users.isComplete) ||
         eligible.length > ACTIVATION_COHORT_LIMIT,
     };
   },
@@ -501,14 +607,14 @@ export const getOperations = query({
   handler: async (ctx) => {
     await ensureAdmin(ctx);
     const now = Date.now();
-    const users = await ctx.db.query("users").take(OPERATIONS_ROW_LIMIT);
+    const users = await ctx.db.query("users").take(OPERATIONS_USER_LIMIT);
     const quarantine = await ctx.db
       .query("migrationQuarantine")
       .withIndex("by_unresolved", (q) => q.eq("resolvedAt", undefined))
-      .take(OPERATIONS_ROW_LIMIT);
+      .take(OPERATIONS_QUEUE_LIMIT);
     const deletions = await ctx.db
       .query("accountDeletionStates")
-      .take(OPERATIONS_ROW_LIMIT);
+      .take(OPERATIONS_QUEUE_LIMIT);
     const legacy = await countLegacyBetterAuthUsers(ctx);
 
     return {
@@ -518,9 +624,9 @@ export const getOperations = query({
       deletions: summarizeDeletionQueue(deletions, now),
       isApproximate:
         !legacy.isComplete ||
-        users.length === OPERATIONS_ROW_LIMIT ||
-        quarantine.length === OPERATIONS_ROW_LIMIT ||
-        deletions.length === OPERATIONS_ROW_LIMIT,
+        users.length === OPERATIONS_USER_LIMIT ||
+        quarantine.length === OPERATIONS_QUEUE_LIMIT ||
+        deletions.length === OPERATIONS_QUEUE_LIMIT,
     };
   },
 });
