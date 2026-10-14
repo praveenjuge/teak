@@ -64,6 +64,7 @@ import {
 } from "../lib/libraryViews";
 import {
   isSameSearchUrlState,
+  parseSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
 import { PageTitle } from "./PageHeader";
@@ -220,6 +221,39 @@ export function CardsScreen({
         previous !== null && previous.q.trim() === searchUrlState.q.trim(),
     });
   }, [applyUrlState, searchUrlState]);
+  // Back or Forward right after this screen writes the URL can reach the
+  // router together with that write, so the URL state above never changes
+  // and the screen keeps the newer search (a reshuffled order under the old
+  // seed). Read the entry Back lands on, when it is still this page.
+  const urlDriven = searchUrlState !== undefined;
+  const pagePathRef = useRef<string | null>(null);
+  useEffect(() => {
+    pagePathRef.current = window.location.pathname;
+  });
+  useEffect(() => {
+    if (!urlDriven) {
+      return;
+    }
+    const handlePopState = () => {
+      if (window.location.pathname !== pagePathRef.current) {
+        return;
+      }
+      const landed = parseSearchUrlState(
+        new URLSearchParams(window.location.search)
+      );
+      const previous = syncedUrlStateRef.current;
+      if (previous && isSameSearchUrlState(previous, landed)) {
+        return;
+      }
+      readUrlStateRef.current = landed;
+      syncedUrlStateRef.current = landed;
+      applyUrlState(landed, {
+        keepSearch: previous !== null && previous.q.trim() === landed.q.trim(),
+      });
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [applyUrlState, urlDriven]);
   useEffect(() => {
     const previous = syncedUrlStateRef.current;
     if (previous && isSameSearchUrlState(previous, urlState)) {
