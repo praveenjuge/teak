@@ -41,7 +41,7 @@ When you tick a checklist item in a note, it moves below the open items in its l
 
 - `text-editor/taskListSort.ts`:
   - A pure `moveToggledTaskItem(state, tr) => Transaction | null`. It finds the `taskItem` whose `checked` attribute changed, then works out where it goes among its siblings in the parent `taskList`.
-  - Ticked: after the last unticked sibling other than itself, or first in the list when there is none. Unticked: after the last unticked sibling other than itself.
+  - Ticked: after the last unticked sibling other than itself, or first in the list when there is none. Unticked: after the last unticked sibling other than itself, or first in the list when there is none (`[x] A`, `[x] B`, untick B → `[ ] B`, `[x] A`).
   - When the item already sits at its target position, it returns `null` and nothing moves.
   - It moves the whole node, children included, with one `ReplaceStep`.
   - A Tiptap `Extension` (`TaskListSort`) wraps it in an `appendTransaction` plugin.
@@ -100,6 +100,7 @@ When you tick a checklist item in a note, it moves below the open items in its l
   - tick the last open item already above the done items (`[ ] A, [x] B` → unchanged, no move transaction)
   - tick the last open item below a done item (`[x] A, [ ] B` → `[x] B, [x] A`)
   - untick
+  - untick when every sibling is ticked (`[x] A, [x] B`, untick B → `[ ] B, [x] A`)
   - nested lists
   - a child moving with its parent
   - mixed bullets
