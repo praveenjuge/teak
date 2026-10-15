@@ -158,7 +158,6 @@ export const formatFileSize = (bytes: number): string => {
 const SWATCH_SIZE = 56;
 const SWATCH_GAP = 8;
 
-/** One image with the palette's swatches side by side, like the web's strip. */
 const paletteMarkdown = (hexes: string[]): string => {
   const width = hexes.length * (SWATCH_SIZE + SWATCH_GAP) - SWATCH_GAP;
   const rects = hexes

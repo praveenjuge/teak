@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import { readResponseBlobWithinLimit } from "@teak/convex/shared/bounded-response";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
@@ -9,7 +8,7 @@ import {
 } from "../../lib/saveFileToTeak";
 
 const createDependencies = () => {
-  const request = mock((path: string) =>
+  const request = mock((path: string, _init?: RequestInit) =>
     Promise.resolve(
       Response.json(
         path === "/v1/uploads"
@@ -46,14 +45,14 @@ describe("extension file saving", () => {
     expect(
       request.mock.calls.filter(([path]) => path === "/v1/uploads")
     ).toHaveLength(1);
-    expect(JSON.parse(request.mock.calls[0]?.[1].body)).toMatchObject({
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toMatchObject({
       fileName: "component.tsx",
       mimeType: "text/tsx",
     });
     expect(
       request.mock.calls.filter(([path]) => path === "/v1/cards")
     ).toHaveLength(1);
-    expect(JSON.parse(request.mock.calls[1]?.[1].body)).toMatchObject({
+    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       cardType: "document",
       fileEtag: '"upload-etag"',
       fileName: "component.tsx",

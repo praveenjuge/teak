@@ -16,19 +16,12 @@ import {
   TeakDiscoveryError,
   TeakSignOutRequiredError,
 } from "./oauth";
-import { getPreferences } from "./preferences";
+import { grandfatheredApiKey } from "./preferences";
 
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/i;
 
-// Shared guard for no-view save commands. Confirms usable credentials WITHOUT
-// launching sign-in: an API key, or an existing OAuth session (silently
-// refreshing an expired access token when possible). Refreshing here also means
-// the subsequent request path finds a valid token and never opens the browser
-// overlay. When there is no usable session (missing or stale/revoked), it shows
-// recovery or sign-in guidance and returns false, stopping the command before
-// interactive reauthorization from a background command.
 export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
-  if (getPreferences().apiKey?.trim()) {
+  if (grandfatheredApiKey()) {
     return true;
   }
 
@@ -78,9 +71,7 @@ export const extractFirstHttpUrl = (value: string): string | null => {
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
       return trimmed;
     }
-  } catch {
-    // Fall back to inline extraction below.
-  }
+  } catch {}
 
   const match = trimmed.match(URL_INLINE_PATTERN);
   if (!match?.[1]) {
@@ -119,10 +110,6 @@ export const isUploadableFile = (path: string): boolean => {
   }
 };
 
-/**
- * Uploads local files one at a time, like dropping them on the web, and
- * reports a single summary toast.
- */
 export const saveFilesWithFeedback = async (
   paths: string[],
   source: string,
@@ -139,7 +126,7 @@ export const saveFilesWithFeedback = async (
       toast.message = `${index + 1} of ${paths.length}`;
     }
     try {
-      saved.push(await saveFileCard(path, { source }, { interactive: false }));
+      saved.push(await saveFileCard(path, { source }, "stored"));
     } catch (error) {
       lastError = error;
     }
@@ -169,16 +156,11 @@ export const saveFilesWithFeedback = async (
   return saved;
 };
 
-/**
- * Shows "Already saved" with a way to open the existing card, so saving the
- * same page twice doesn't make a duplicate. Returns true when it was saved.
- */
 export const showIfAlreadySaved = async (url: string): Promise<boolean> => {
   let cardId: string | null = null;
   try {
-    cardId = await findSavedCardId(url, { interactive: false });
+    cardId = await findSavedCardId(url, "stored");
   } catch {
-    // If the check fails, saving still works; the user can tidy up later.
     return false;
   }
   if (!cardId) {
@@ -209,8 +191,7 @@ export const saveCardWithFeedback = async (
   });
 
   try {
-    // No-view command: never open the sign-in overlay from the request path.
-    const result = await createCard(input, { interactive: false });
+    const result = await createCard(input, "stored");
 
     const appUrl = result.appUrl;
     if (appUrl) {

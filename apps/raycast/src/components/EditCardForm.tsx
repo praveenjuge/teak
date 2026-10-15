@@ -27,8 +27,6 @@ interface EditCardFormValues {
   tags: string;
 }
 
-// The web lets you rewrite text and quote cards; other types keep their
-// source content (a URL, a file, colors) and only take notes and tags.
 const EDITABLE_CONTENT_TYPES = new Set(["text", "quote"]);
 
 const parseTags = (value: string): string[] =>
@@ -75,12 +73,16 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
         canEditContent && values.content !== card.content
           ? values.content
           : undefined;
-      const updated = await updateCard(card.id, {
-        content,
-        notes: values.notes.trim() ? values.notes.trim() : null,
-        removeAiTags: removeAiTags.length > 0 ? removeAiTags : undefined,
-        tags: parseTags(values.tags),
-      });
+      const updated = await updateCard(
+        card.id,
+        {
+          content,
+          notes: values.notes.trim() ? values.notes.trim() : null,
+          removeAiTags: removeAiTags.length > 0 ? removeAiTags : undefined,
+          tags: parseTags(values.tags),
+        },
+        "prompt",
+      );
       onCardUpdated(updated);
       toast.style = Toast.Style.Success;
       toast.title = "Card updated";

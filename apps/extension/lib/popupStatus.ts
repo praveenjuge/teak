@@ -1,9 +1,7 @@
+import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
 import type { AutoSaveState } from "../hooks/useAutoSaveUrl";
 import type { ContextMenuSaveState } from "../types/contextMenu";
 import type { TeakSaveResponse } from "../types/messages";
-
-// Matches CARD_LIMIT_REACHED in packages/convex/shared/constants.ts.
-const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
 
 export type FileUploadState =
   | "duplicate"
@@ -29,7 +27,6 @@ export interface PopupStatus {
 
 export interface PopupStatusInput {
   autoSave: { error?: string; state: AutoSaveState; url?: string };
-  /** The latest right-click save, only while it is recent enough to report. */
   contextMenu?: ContextMenuSaveState;
   fileUpload: { error?: string; fileName?: string; state: FileUploadState };
 }
@@ -42,7 +39,7 @@ const UPGRADE_STATUS: PopupStatus = {
 };
 
 const isCardLimitError = (message?: string) =>
-  Boolean(message?.includes(CARD_LIMIT_REACHED_CODE));
+  Boolean(message?.includes(CARD_ERROR_CODES.CARD_LIMIT_REACHED));
 
 const errorStatus = (title: string, message?: string): PopupStatus =>
   isCardLimitError(message)
@@ -63,7 +60,6 @@ const CONTEXT_MENU_SAVED_TITLES = {
   "save-text": "Text saved",
 } as const;
 
-/** Maps a right-click save result to the state the popup reports for it. */
 export function toContextMenuStatus(
   result: TeakSaveResponse
 ): Exclude<ContextMenuSaveState["status"], "idle" | "saving"> {
@@ -73,10 +69,6 @@ export function toContextMenuStatus(
   return result.status === "duplicate" ? "duplicate" : "error";
 }
 
-/**
- * Decides what the popup shows. A file the user just picked wins, then a
- * recent right-click save, then the automatic save of the current tab.
- */
 export function getPopupStatus({
   autoSave,
   contextMenu,

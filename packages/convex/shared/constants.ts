@@ -251,6 +251,7 @@ export { MAX_FILE_SIZE } from "./fileFormats";
 
 export const MAX_FILES_PER_UPLOAD = 20;
 export const MULTIPART_UPLOAD_THRESHOLD = 8 * 1024 * 1024;
+export const API_IDEMPOTENCY_KEY_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const CARD_ERROR_CODES = {
   CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",

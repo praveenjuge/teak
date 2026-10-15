@@ -14,7 +14,6 @@ import App from "./App.tsx";
 import "../../style.css";
 
 reportUncaughtErrors(window, "popup");
-// Shared @teak/ui code reports through the same fetch-only sender.
 configureClientTelemetry({
   captureException: (error, attributes) =>
     void captureExtensionException(error, { ...attributes, context: "popup" }),
@@ -29,7 +28,6 @@ if (!rootElement) {
   throw new Error("Root element #root not found in popup document");
 }
 
-// Follow the system theme, like the web app's default.
 const darkScheme = window.matchMedia("(prefers-color-scheme: dark)");
 const applyTheme = () =>
   document.documentElement.classList.toggle("dark", darkScheme.matches);
