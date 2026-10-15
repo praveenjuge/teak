@@ -18,11 +18,6 @@ import {
 import { daysAgoDate, type UsageByUser } from "./adminUsage";
 import { readHasPremium } from "./auth";
 
-// Money for the superadmin console, read live from Polar: MRR split into
-// collected, at risk and trial; failed payments; churn with reasons; drift
-// between Polar and Teak's plan state; and AI cost against revenue.
-// Internal and test accounts are left out of every number.
-
 const SUBSCRIPTION_LIMIT = 5000;
 const CHURN_WINDOW_DAYS = 90;
 const COST_WINDOW_DAYS = 30;
@@ -54,7 +49,6 @@ export const createPolarClient = () =>
       })
     : null;
 
-// Customers carry the Teak user id in metadata (see billing.ts).
 export const subscriptionOwnerId = (
   subscription: Pick<PolarSubscription, "customer">
 ): string | undefined => {
@@ -79,7 +73,6 @@ export const listPolarSubscriptions = async (
   return { items, isComplete: true };
 };
 
-/** Subscriptions owned by customers, with internal accounts removed. */
 export const readCustomerSubscriptions = async (
   ctx: Pick<ActionCtx, "runQuery">,
   polar: PolarBilling
@@ -105,7 +98,6 @@ export const readCustomerSubscriptions = async (
   };
 };
 
-/** Teak's view of each subscription and owner, for drift checks. */
 export const teakBillingState = internalQuery({
   args: { subscriptionIds: v.array(v.string()), userIds: v.array(v.string()) },
   handler: async (ctx, { subscriptionIds, userIds }) => {
@@ -226,8 +218,6 @@ export const getRevenue = action({
       (sub) => (toIso(sub.endedAt) ?? 0) >= since30
     ).length;
 
-    // Drift: Polar is the source of truth for money; Teak's synced copy
-    // decides who gets Pro.
     const payingOwners = new Map<string, PolarSubscription>();
     for (const sub of subscriptions) {
       const owner = subscriptionOwnerId(sub);
@@ -302,7 +292,6 @@ export const getRevenue = action({
       }
     }
 
-    // AI cost against revenue over the last 30 days.
     const usage: { users: UsageByUser[]; isApproximate: boolean } =
       await ctx.runQuery(internal.adminUsage.usageByUserSince, {
         sinceDate: daysAgoDate(COST_WINDOW_DAYS - 1, now),

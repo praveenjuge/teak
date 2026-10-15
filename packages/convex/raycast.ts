@@ -376,8 +376,9 @@ export const quickSaveForUser = internalMutation({
     const normalizedTags = normalizeTags(args.tags);
     const normalizedSource = args.source?.trim() || undefined;
 
+    const content = submittedContent ?? (normalizedUrl || undefined);
     if (
-      (submittedContent === undefined && !normalizedUrl) ||
+      content === undefined ||
       (args.cardType !== "text" && !normalizedUrl && !submittedContent?.trim())
     ) {
       throw new ConvexError({
@@ -398,10 +399,8 @@ export const quickSaveForUser = internalMutation({
       throw new ConvexError({ code: "INVALID_INPUT", message: createError });
     }
 
-    // The guard above ensures at least one of these is set; the trailing
-    // fallback only exists so TypeScript sees a definite string.
     const createArgs: Parameters<typeof createCardForUserHandler>[2] = {
-      content: submittedContent ?? normalizedUrl ?? "",
+      content,
       metadata: normalizedSource ? { source: normalizedSource } : undefined,
       notes: normalizedNotes,
       tags: normalizedTags,
@@ -498,8 +497,6 @@ export const patchCardForUser = internalMutation({
     }
 
     if (edits.length > 0) {
-      // One validated update charges the reprocess limit at most once, even
-      // when content and url change together.
       await updateCardFieldsForUserHandler(ctx, {
         userId,
         cardId: args.cardId,

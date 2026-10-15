@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { deleteObject } from "./storage/r2";
@@ -70,8 +70,30 @@ export const getCardForMetadata = internalQuery({
   handler: getCardForMetadataHandler,
 });
 
-// Actions need only their own gate and storage ownership fields. Keep large
-// content, transcripts and raw previews out of their query response.
+// Account deletion fences the patch and leaves the card unchanged; then the
+// objects this write introduced are the orphans, not the ones it replaced.
+const commitCardStorageSwap = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  patch: Parameters<typeof patchCardWithSearchSync>[2],
+  storage: { introduced: string[]; replaced: string[] }
+): Promise<boolean> => {
+  const patched = await patchCardWithSearchSync(ctx, cardId, patch);
+  await Promise.all(
+    (patched ? storage.replaced : storage.introduced).map(async (key) => {
+      try {
+        await deleteObject(ctx, key);
+      } catch (error) {
+        console.error(
+          `[linkMetadata] Failed to delete storage ${key} for card ${cardId}:`,
+          error
+        );
+      }
+    })
+  );
+  return patched;
+};
+
 export const getCardForLinkFetchHandler = async (
   ctx: QueryCtx,
   { cardId }: { cardId: Id<"cards"> }
@@ -166,10 +188,6 @@ export const updateCardMetadataHandler = async (
 
   const previousImageRef = previousLinkPreview?.imageStorageKey;
   const nextImageRef = nextLinkPreview?.imageStorageKey;
-  // Obsolete storage objects are deleted only after the card patch below
-  // succeeds. patchCardWithSearchSync stands down during account deletion
-  // (returns false), and deleting first would leave the unchanged card
-  // referencing removed objects.
   const pendingStorageDeletes: string[] = [];
 
   if (previousImageRef) {
@@ -266,57 +284,27 @@ export const updateCardMetadataHandler = async (
     updateFields.metadataDescription = description;
   }
 
-  const result = await patchCardWithSearchSync(ctx, cardId, updateFields);
-  if (result) {
-    await Promise.all(
-      pendingStorageDeletes.map(async (storageRef) => {
-        try {
-          await deleteObject(ctx, storageRef);
-        } catch (error) {
-          console.error(
-            `[linkMetadata] Failed to delete previous storage ${storageRef} for card ${cardId}:`,
-            error
-          );
-        }
-      })
-    );
-    if (serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.storage.rawMetadataMaintenance.archiveCard,
-        { cardId }
-      );
-    }
-  } else {
-    // The patch was fenced by account deletion: the unchanged card keeps
-    // its current references, so objects this call introduced (new OG
-    // image, screenshot, media) would otherwise be orphaned - account
-    // deletion only removes keys collected from card rows.
-    const previousRefs = new Set<string>(
-      [
-        previousLinkPreview?.imageStorageKey,
-        previousLinkPreview?.screenshotStorageKey,
-        ...collectMediaStorageRefs(previousLinkPreview?.media),
-      ].filter((ref): ref is string => Boolean(ref))
-    );
-    const orphanedRefs = [
-      nextLinkPreview?.imageStorageKey,
-      nextLinkPreview?.screenshotStorageKey,
-      ...collectMediaStorageRefs(nextLinkPreview?.media),
-    ].filter(
-      (ref): ref is string => Boolean(ref) && !previousRefs.has(ref as string)
-    );
-    await Promise.all(
-      orphanedRefs.map(async (storageRef) => {
-        try {
-          await deleteObject(ctx, storageRef);
-        } catch (error) {
-          console.error(
-            `[linkMetadata] Failed to delete orphaned storage ${storageRef} for card ${cardId}:`,
-            error
-          );
-        }
-      })
+  const previousRefs = new Set<string>(
+    [
+      previousLinkPreview?.imageStorageKey,
+      previousLinkPreview?.screenshotStorageKey,
+      ...collectMediaStorageRefs(previousLinkPreview?.media),
+    ].filter((ref): ref is string => Boolean(ref))
+  );
+  const introducedRefs = [
+    nextLinkPreview?.imageStorageKey,
+    nextLinkPreview?.screenshotStorageKey,
+    ...collectMediaStorageRefs(nextLinkPreview?.media),
+  ].filter((ref): ref is string => Boolean(ref) && !previousRefs.has(ref));
+  const result = await commitCardStorageSwap(ctx, cardId, updateFields, {
+    introduced: introducedRefs,
+    replaced: pendingStorageDeletes,
+  });
+  if (result && serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.storage.rawMetadataMaintenance.archiveCard,
+      { cardId }
     );
   }
   return result;
@@ -367,36 +355,18 @@ export const updateCardScreenshotHandler = async (
     linkPreview: updatedLinkPreview,
   };
 
-  // Delete the replaced screenshot only after the patch succeeds; a
-  // fenced patch (account deletion) leaves the card referencing it. On a
-  // fenced patch the freshly uploaded screenshot is the orphan instead:
-  // the card never references it, so remove it.
-  const patched = await patchCardWithSearchSync(ctx, cardId, {
-    metadata: updatedMetadata,
-    updatedAt: Date.now(),
-  });
-  if (patched && previousScreenshotKey) {
-    try {
-      await deleteObject(ctx, previousScreenshotKey);
-    } catch (error) {
-      console.error(
-        `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
-        error
-      );
+  await commitCardStorageSwap(
+    ctx,
+    cardId,
+    { metadata: updatedMetadata, updatedAt: Date.now() },
+    {
+      introduced:
+        screenshotStorageKey === existingLinkPreview.screenshotStorageKey
+          ? []
+          : [screenshotStorageKey],
+      replaced: previousScreenshotKey ? [previousScreenshotKey] : [],
     }
-  } else if (
-    !patched &&
-    screenshotStorageKey !== existingLinkPreview.screenshotStorageKey
-  ) {
-    try {
-      await deleteObject(ctx, screenshotStorageKey);
-    } catch (error) {
-      console.error(
-        `[linkMetadata] Failed to delete orphaned screenshot for card ${cardId}:`,
-        error
-      );
-    }
-  }
+  );
 };
 
 export const updateCardScreenshot = internalMutation({

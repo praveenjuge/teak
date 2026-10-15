@@ -8,8 +8,6 @@ import {
   MARKDOWN_INVALID_UTF8_MESSAGE,
 } from "./markdown";
 
-// === Card Types ===
-// NOTE: Keep in sync with convex/schema.ts
 export const cardTypes = [
   "text",
   "link",
@@ -21,11 +19,7 @@ export const cardTypes = [
   "quote",
 ] as const;
 
-// === Derived Constants from Schema ===
-
 export type CardType = (typeof cardTypes)[number];
-
-// === Visual Style + Color Facet Vocabulary ===
 
 export const VISUAL_STYLE_TAXONOMY = [
   "abstract",
@@ -249,25 +243,14 @@ export function normalizeHueFilters(values?: string[]): ColorHueBucket[] {
   return normalized;
 }
 
-// === App Configuration Constants ===
-
-/**
- * Maximum number of cards allowed for free tier users
- */
 export const FREE_TIER_LIMIT = 200;
 
-/**
- * Maximum file size for uploads (100MB in bytes)
- */
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
 export { MAX_FILE_SIZE } from "./fileFormats";
 
-/**
- * Maximum number of files that can be uploaded at once
- */
 export const MAX_FILES_PER_UPLOAD = 20;
 export const MULTIPART_UPLOAD_THRESHOLD = 8 * 1024 * 1024;
-
-// === Error Codes & Messages ===
 
 export const CARD_ERROR_CODES = {
   CARD_LIMIT_REACHED: "CARD_LIMIT_REACHED",
@@ -297,14 +280,8 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   TYPE_MISMATCH: "Uploaded file does not match the selected type.",
 } as const;
 
-/**
- * All card types as readonly array
- */
 export const CARD_TYPES = [...cardTypes] as readonly CardType[];
 
-/**
- * Card type labels for UI display
- */
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
   text: "Text",
   link: "Link",
@@ -316,9 +293,6 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
   quote: "Quote",
 } as const;
 
-/**
- * Card type icons mapping (for UI components)
- */
 export const CARD_TYPE_ICONS: Record<CardType, string> = {
   text: "FileText",
   link: "Link",
@@ -330,9 +304,6 @@ export const CARD_TYPE_ICONS: Record<CardType, string> = {
   quote: "Quote",
 } as const;
 
-/**
- * Card type configuration registry for centralized management
- */
 export interface CardTypeConfig {
   icon: string;
   label: string;
@@ -382,9 +353,6 @@ export const CARD_TYPE_REGISTRY: Record<CardType, CardTypeConfig> = {
   },
 } as const;
 
-/**
- * Helper functions for card type configuration
- */
 export function getCardTypeConfig(cardType: CardType): CardTypeConfig {
   return CARD_TYPE_REGISTRY[cardType];
 }
@@ -397,19 +365,11 @@ export function getCardTypeLabel(cardType: CardType): string {
   return CARD_TYPE_REGISTRY[cardType].label;
 }
 
-// === UI-Specific Types ===
-
-/**
- * Typeahead option for search/filter dropdowns
- */
 export interface TypeaheadOption {
   label: string;
   value: CardType | "favorites" | "trash";
 }
 
-/**
- * Reserved keywords for search functionality
- */
 export const RESERVED_KEYWORDS: TypeaheadOption[] = [
   ...cardTypes.map(
     (cardType): TypeaheadOption => ({
@@ -421,11 +381,6 @@ export const RESERVED_KEYWORDS: TypeaheadOption[] = [
   { value: "trash", label: "Trash" },
 ] as const;
 
-// === Validation Helpers ===
-
-/**
- * Type guard to check if a value is a valid CardType
- */
 export function isCardType(value: unknown): value is CardType {
   return typeof value === "string" && cardTypes.includes(value as CardType);
 }

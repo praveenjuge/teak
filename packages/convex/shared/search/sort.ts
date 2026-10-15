@@ -1,7 +1,3 @@
-/**
- * Library order: by the date a card was saved, newest first by default, or
- * Shuffle, a stable random order picked by a seed (shuffle.ts).
- */
 export type CardListSort = "newest" | "oldest" | "shuffle";
 
 export const CARD_LIST_SORTS: readonly CardListSort[] = [

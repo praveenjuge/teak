@@ -22,11 +22,6 @@ const principalValidator = {
 };
 const MAX_APP_PAGES = 20;
 
-// Disconnecting revokes the app's grant at WorkOS, then marks every consent
-// Teak has seen for that app as revoked. Revoked consents are denied at once
-// and forever. A token from a consent Teak has not seen yet stops working when
-// it expires, within five minutes.
-
 // The caller supplies a verified Connect token or a live session. A consent
 // Teak already knows must belong to the same owner, user and app.
 export const check = internalMutation({
@@ -60,8 +55,6 @@ export const check = internalMutation({
       return { status: "denied" as const };
     }
     if (known?.revokedAt !== undefined) {
-      // The previous flow revoked its trigger consent before dispatching, so
-      // a retry with that consent must still be able to settle its fence.
       const fences = await ctx.db
         .query("workosApplicationDisconnects")
         .withIndex("by_workosUserId_and_clientId", (q) =>
@@ -86,9 +79,6 @@ export const check = internalMutation({
   },
 });
 
-// Runs once the grant is gone at WorkOS. Marks the triggering consent and every
-// consent seen for the app before this disconnect began as revoked, and settles
-// any disconnect the previous flow left unfinished for this app.
 export const revoke = internalMutation({
   args: {
     userId: v.string(),
@@ -135,7 +125,6 @@ export const revoke = internalMutation({
       )
       .take(100);
     for (const sibling of siblings) {
-      // A consent first seen after this disconnect began is a new grant.
       if (sibling.firstSeenAt > args.startedAt) {
         continue;
       }
@@ -210,8 +199,8 @@ async function findApp(workosUserId: string, clientId: string, apiKey: string) {
   throw new Error("Provider application pagination limit");
 }
 
-// Returns an HTTP status: 204 when disconnected, 401 when the principal can't
-// disconnect this consent, 503 when WorkOS could not be reached.
+export type DisconnectStatus = 204 | 401 | 503;
+
 export async function disconnectApplication(
   ctx: ActionCtx,
   principal: {
@@ -221,7 +210,7 @@ export async function disconnectApplication(
     externalId?: string | null;
     tokenExpiresAt?: number;
   }
-): Promise<number> {
+): Promise<DisconnectStatus> {
   const apiKey = process.env.WORKOS_API_KEY;
   if (!apiKey) {
     return 503;
@@ -237,9 +226,6 @@ export async function disconnectApplication(
     return 204;
   }
   const startedAt = Date.now();
-  // An expired token proves an old sign-in, not today's grant, so it may only
-  // replay its own revocation. Otherwise a leaked old token could lock the
-  // owner out of this app.
   if (
     principal.tokenExpiresAt !== undefined &&
     principal.tokenExpiresAt * 1000 <= startedAt
@@ -270,6 +256,6 @@ export async function disconnectApplication(
 
 export const run = internalAction({
   args: principalValidator,
-  returns: v.number(),
+  returns: v.union(v.literal(204), v.literal(401), v.literal(503)),
   handler: disconnectApplication,
 });

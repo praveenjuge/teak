@@ -624,9 +624,6 @@ const findFormatByFileName = (
   if (matches.length === 0) {
     return undefined;
   }
-  // Extensions such as `.webm` and `.mp4` exist in both audio and video
-  // flavors. Keep the first match as the default, but prefer a definition
-  // whose MIME types accept the provided MIME when the default rejects it.
   const primary = matches[0];
   if (
     !mimeType ||

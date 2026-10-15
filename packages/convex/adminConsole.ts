@@ -21,9 +21,6 @@ import {
 import { scheduleAdminAlert } from "./adminAlerts";
 import { readSignupsDisabled } from "./env";
 
-// Console settings, account flags, the audit log and the founder's notes.
-// Every change here writes an audit entry.
-
 const AUDIT_PAGE_LIMIT = 100;
 const NOTES_LIMIT = 200;
 const MAX_NOTE_LENGTH = 2000;
@@ -34,7 +31,6 @@ export const getSettings = query({
     await ensureAdmin(ctx);
     return {
       ...(await readAdminSettings(ctx)),
-      // The deployment's own freeze wins over the console switch.
       signupsDisabledByEnv: readSignupsDisabled(),
     };
   },
@@ -65,7 +61,6 @@ const writeSettings = async (
   });
 };
 
-/** Flips one kill switch. A reason is kept with the audit entry. */
 export const setKillSwitch = mutation({
   args: {
     name: switchValidator,
@@ -130,7 +125,6 @@ const assertAccountExists = async (
   }
 };
 
-/** Marks an account internal (left out of every metric) or AI-disabled. */
 export const setUserFlag = mutation({
   args: {
     teakUserId: v.string(),
@@ -154,7 +148,6 @@ export const setUserFlag = mutation({
   },
 });
 
-/** Flags admins, e2e and reserved-domain accounts as internal right away. */
 export const syncInternalAccounts = action({
   args: {},
   handler: async (ctx): Promise<{ flagged: number }> => {
@@ -198,8 +191,6 @@ export const listAuditLog = query({
           .paginate(opts);
   },
 });
-
-/* Notes: "what's blocking growth" --------------------------------------- */
 
 export const listNotes = query({
   args: {},
@@ -258,10 +249,6 @@ export const deleteNote = mutation({
   },
 });
 
-/**
- * Called by the console right after an admin signs in: writes the sign-in to
- * the audit log and posts it to the alert webhook.
- */
 export const recordSignIn = mutation({
   args: {
     ipAddress: v.optional(v.string()),

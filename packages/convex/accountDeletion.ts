@@ -10,6 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import type { DeletionBatchKind } from "./accountDeletionBatch";
+import { accountDeletionStage } from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextContents } from "./card/textContents";
 import { readAccountChangesPaused } from "./env";
@@ -69,63 +70,8 @@ export const beginAccountDeletion = async (
   }
 };
 
-// Production evidence: account deletion batches race scheduled card search
-// sync jobs that keep writing the same cardSearchTagSyncStates documents.
-// Convex retries a conflicted mutation immediately, so under a hot writer
-// every internal retry conflicts again and the whole deletion fails with a
-// 500. Back off at the action level so the scheduled jobs can drain before
-// the batch runs again.
-export const ACCOUNT_DELETION_OCC_RETRY_DELAYS_MS: number[] = [
-  250, 500, 1000, 2000, 4000,
-];
-
-export const isOptimisticConcurrencyConflict = (error: unknown): boolean =>
-  error instanceof Error &&
-  error.message.includes("changed while this") &&
-  error.message.includes("was being run");
-
-export const withOptimisticConcurrencyRetry = async <T>(
-  run: () => Promise<T>,
-  options?: {
-    retryDelaysMs?: number[];
-    sleep?: (delayMs: number) => Promise<void>;
-  }
-): Promise<T> => {
-  const retryDelaysMs =
-    options?.retryDelaysMs ?? ACCOUNT_DELETION_OCC_RETRY_DELAYS_MS;
-  const sleep =
-    options?.sleep ??
-    ((delayMs: number) =>
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, delayMs);
-      }));
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await run();
-    } catch (error) {
-      if (
-        !isOptimisticConcurrencyConflict(error) ||
-        attempt >= retryDelaysMs.length
-      ) {
-        throw error;
-      }
-      await sleep(retryDelaysMs[attempt]);
-    }
-  }
-};
-
-// How long one account-deletion workflow step keeps draining storage pages
-// before it yields. Every page is still its own fenced prepare/checkpoint
-// pair, so a crash or retry resumes from the last checkpoint. Draining many
-// pages per step keeps an account with many cards from costing one workflow
-// step, and one wait in the shared workflow queue, per card.
 export const ACCOUNT_DELETION_DRAIN_BUDGET_MS = 20_000;
 
-/**
- * Drain each kind in order, one bounded page at a time, until every kind is
- * empty (true) or the budget runs out (false: the caller yields and runs
- * again).
- */
 export const drainStorageWithinBudget = async (
   ctx: Pick<ActionCtx, "runAction">,
   binding: { stateId: Id<"accountDeletionStates">; generation: number },
@@ -222,11 +168,9 @@ export const runAccountDataDeletion = (
             keys: batch.objectKeys,
           });
         }
-        deletedCards += await withOptimisticConcurrencyRetry(() =>
-          ctx.runMutation(internal.accountDeletion.deleteAccountDataBatch, {
-            cardIds: batch.cardIds,
-            userId,
-          })
+        deletedCards += await ctx.runMutation(
+          internal.accountDeletion.deleteAccountDataBatch,
+          { cardIds: batch.cardIds, userId }
         );
         deletedStorageObjectCount += batch.objectKeys.length;
       }
@@ -241,12 +185,13 @@ export const runAccountDataDeletion = (
         if (batch.objects.length > 0) {
           await deleteImportObjects(batch.objects);
         }
-        await withOptimisticConcurrencyRetry(() =>
-          ctx.runMutation(internal.accountDeletion.deleteAccountImportRows, {
+        await ctx.runMutation(
+          internal.accountDeletion.deleteAccountImportRows,
+          {
             itemIds: batch.itemIds,
             jobIds: batch.jobIds,
             userId,
-          })
+          }
         );
       }
       const finalCards = await ctx.runQuery(
@@ -346,10 +291,7 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    // Its R2 object is among the card's object keys, deleted with the batch.
     await deleteCardTextContents(ctx, cardId);
-    // A card is in at most MAX_FOLDERS_PER_CARD folders; any rows past the
-    // bound are swept with the user's folders in the ancillary pass.
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_cardId_and_folderId", (query) =>
@@ -499,13 +441,7 @@ export const initiateAccountDeletion = async (
   if (readAccountChangesPaused()) {
     throw new ConvexError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
   }
-  // Accounts that existed before WorkOS also have retained Better Auth rows,
-  // which deletion removes too. Owners WorkOS created have a `teak_` key that
-  // is no Better Auth document ID, so looking one up would throw.
-  const legacy =
-    owner.identityOrigin === "workos"
-      ? null
-      : await findLegacyBetterAuthUser(ctx, owner.teakUserId);
+  const legacy = await findLegacyBetterAuthUser(ctx, owner);
   const target = await currentWorkosDeletionTarget();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
@@ -514,7 +450,7 @@ export const initiateAccountDeletion = async (
     ...(legacy ? { betterAuthUserId: legacy._id } : {}),
     ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
     ...(target ? { workosTarget: target } : {}),
-    stage: 0,
+    stage: accountDeletionStage("accessAndBilling"),
     generation: 1,
     nextAttemptAt: Date.now() + 60_000,
   });

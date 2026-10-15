@@ -1,14 +1,11 @@
 import type { Doc } from "./_generated/dataModel";
 import type { ProcessingStageKey } from "./card/processingStatus";
-
-// Pure aggregations behind the admin stats queries. Every result is a count
-// or a total; nothing here returns per-account data.
+import { CRONS } from "./cronSchedules";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;
 export const ACTIVATION_WINDOW_DAYS = 7;
-// The redrive cron runs every five minutes; a retry this late was missed.
-const OVERDUE_RETRY_MS = 60 * 60 * 1000;
+const OVERDUE_RETRY_MS = 12 * CRONS.redriveAccountDeletion.everyMs;
 const STAGE_KEYS: ProcessingStageKey[] = [
   "classify",
   "categorize",
@@ -25,7 +22,6 @@ export interface DailyActivity {
   signups: number;
 }
 
-/** The few numbers a card contributes to daily activity. */
 export interface ActivityRow {
   aiCompletedAt: number[];
   createdAt: number;
@@ -55,11 +51,6 @@ export const utcDay = (timestamp: number) =>
 export const startOfUtcDay = (timestamp: number) =>
   Date.parse(`${utcDay(timestamp)}T00:00:00.000Z`);
 
-/**
- * Per-day totals from `since` through `now`, oldest first: new accounts,
- * cards saved, uploaded files and their bytes, and AI processing stages
- * finished that day on cards saved in the window.
- */
 export function summarizeDailyActivity({
   since,
   now,
@@ -191,7 +182,6 @@ export interface SubscriptionLike {
   status: string;
 }
 
-// The parts of a Polar discount that change what a subscription pays.
 export interface SubscriptionDiscountLike {
   amount?: number;
   basisPoints?: number;
@@ -233,7 +223,6 @@ export const monthlyAmount = (subscription: SubscriptionLike): number => {
   return Math.max(amount, 0) / months;
 };
 
-/** Estimated monthly Polar fee for one subscription, in minor units. */
 export const monthlyPolarFee = (subscription: SubscriptionLike): number => {
   const months =
     (MONTHS_PER_INTERVAL[subscription.recurringInterval] ?? 1) *
@@ -246,13 +235,9 @@ export const monthlyPolarFee = (subscription: SubscriptionLike): number => {
 };
 
 export interface CurrencyRevenue {
-  /** Paying now: active, including those canceling at period end. */
   mrr: number;
-  /** Past due, unpaid, or canceling at period end. */
   mrrAtRisk: number;
-  /** MRR minus the estimated Polar fees. */
   netMrr: number;
-  /** What trials would add if every one converted. */
   trialMrr: number;
 }
 
@@ -271,11 +256,6 @@ export const revenueStatus = (status: string): RevenueStatus => {
   return "other";
 };
 
-/**
- * Subscription counts by status and plan, with monthly recurring revenue
- * split into what is collected, what is at risk, and what trials could add.
- * Past-due and trialing subscriptions are not counted as MRR.
- */
 export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
   const byStatus: Record<string, number> = {};
   const revenue: Record<string, CurrencyRevenue> = {};
@@ -362,16 +342,12 @@ export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
   };
 }
 
-/* Growth ------------------------------------------------------------------ */
-
-/** Week-over-week change as a percentage, or null without a base. */
 export const growthPercent = (
   current: number,
   previous: number
 ): number | null =>
   previous > 0 ? ((current - previous) / previous) * 100 : null;
 
-/** Monday 00:00 UTC of the week containing `timestamp`. */
 export const startOfUtcWeek = (timestamp: number) => {
   const day = startOfUtcDay(timestamp);
   const weekday = (new Date(day).getUTCDay() + 6) % 7;
@@ -379,23 +355,16 @@ export const startOfUtcWeek = (timestamp: number) => {
 };
 
 export interface CohortMember {
-  /** Week offsets from the signup week in which the account saved a card. */
   activeWeeks: number[];
   signedUpAt: number;
 }
 
 export interface RetentionCohort {
-  /** Share of the cohort active in each week since signup (index 0 = week 0). */
   retention: Array<number | null>;
   size: number;
-  /** Monday of the signup week, YYYY-MM-DD. */
   week: string;
 }
 
-/**
- * Weekly signup cohorts with the share of each cohort that saved a card in
- * every later week. Weeks that have not finished yet are null.
- */
 export function buildRetentionCohorts(
   members: CohortMember[],
   { now, weeks }: { now: number; weeks: number }
@@ -430,13 +399,11 @@ export function buildRetentionCohorts(
 
 export interface FunnelMember {
   activated: boolean;
-  /** Saved a card in days 7-13 after signup. */
   returnedWeek2: boolean | null;
   savedFirstCard: boolean;
   subscribed: boolean;
 }
 
-/** Counts for signup -> first card -> activated -> came back -> paid. */
 export function summarizeFunnel(members: FunnelMember[]) {
   const eligibleWeek2 = members.filter(
     (member) => member.returnedWeek2 !== null
@@ -452,10 +419,6 @@ export function summarizeFunnel(members: FunnelMember[]) {
   };
 }
 
-/* Health ----------------------------------------------------------------- */
-
-// Common throwaway-inbox domains. Not exhaustive: a spike from any one
-// domain is flagged too.
 export const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "10minutemail.com",
   "dispostable.com",
@@ -474,7 +437,6 @@ export const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "yopmail.com",
 ]);
 
-// Domains that host many unrelated people; volume from them is normal.
 const SHARED_EMAIL_DOMAINS = new Set([
   "gmail.com",
   "googlemail.com",
@@ -500,10 +462,6 @@ export interface SignupDomain {
   total: number;
 }
 
-/**
- * Signups per email domain, flagging throwaway domains and any non-shared
- * domain with a burst of signups in the last 24 hours.
- */
 export function summarizeSignupDomains(
   signups: Array<{ createdAt: number; email: string }>,
   now: number
@@ -541,10 +499,6 @@ export function summarizeSignupDomains(
 
 export type CronHealth = "ok" | "late" | "failing" | "running" | "never_ran";
 
-/**
- * A cron is late when it has not succeeded within twice its schedule, and
- * failing when its latest run failed.
- */
 export function cronHealth(
   heartbeat:
     | {

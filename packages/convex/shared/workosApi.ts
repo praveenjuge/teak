@@ -1,7 +1,3 @@
-// Where this deployment reaches the WorkOS API. Production always uses
-// api.workos.com. A local stack may point at the WorkOS emulator on a loopback
-// origin; a hosted deployment cannot reach one, so a misconfigured base fails
-// closed instead of trusting emulator tokens.
 const PRODUCTION_ORIGIN = "https://api.workos.com";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -33,7 +29,6 @@ export const parseWorkosApiBase = (value: string | undefined): URL => {
   return url;
 };
 
-// A local Convex backend serves on a loopback origin; hosted ones never do.
 export const isLoopbackOrigin = (value: string | undefined) => {
   if (!value) {
     return false;

@@ -12,12 +12,9 @@ export const normalizeUrlHost = (
   if (!trimmed) {
     return null;
   }
-  // A scheme without "//" (mailto:, tel:) is not a site; "host:8080" is.
   if (/^[a-z][a-z\d+.-]*:(?!\/\/)(?!\d)/i.test(trimmed)) {
     return null;
   }
-  // A bare host or a host with a path ("github.com/teak") parses once it
-  // has a scheme.
   const withScheme = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed)
     ? trimmed
     : `http://${trimmed}`;
@@ -76,7 +73,6 @@ const digitValue = (code: number): number => {
   return PUNYCODE_BASE;
 };
 
-/** Decodes one punycode label (without `xn--`), or null when invalid. */
 const decodePunycodeLabel = (input: string): string | null => {
   const output: number[] = [];
   const basicEnd = input.lastIndexOf("-");

@@ -174,7 +174,6 @@ export function discoverAuthServer(
   const entry = { expiresAt: Date.now() + 60_000, pending };
   cache.set(cacheKey, entry);
   void pending.catch(() => {
-    // A failed older request must not evict a newer forced refresh.
     if (cache.get(cacheKey) === entry) {
       cache.delete(cacheKey);
     }

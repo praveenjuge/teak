@@ -1,10 +1,9 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { getFunctionName } from "convex/server";
+import { CRONS } from "../../cronSchedules";
+import crons from "../../crons";
 import {
-  CRON_MONITORS,
   cleanupExpiredIdempotency,
   cleanupOldDeletedCards,
 } from "../../telemetry/crons";
@@ -68,20 +67,24 @@ describe("cron monitoring", () => {
   });
 
   test("names every scheduled job once", () => {
-    const slugs = Object.values(CRON_MONITORS);
+    const slugs = Object.values(CRONS).map(({ name }) => name);
     expect(slugs).toHaveLength(11);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  test("routes all eleven schedules through monitored Node actions", () => {
-    const source = readFileSync(
-      resolve(import.meta.dir, "../../crons.ts"),
-      "utf8"
+  test("routes every schedule to its monitored Node action", () => {
+    expect(crons.crons).toEqual(
+      Object.fromEntries(
+        Object.entries(CRONS).map(([handler, { name, schedule }]) => [
+          name,
+          {
+            name: `telemetry/crons:${handler}`,
+            args: [{}],
+            schedule: { cron: schedule, type: "cron" },
+          },
+        ])
+      )
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
-    expect(source).not.toContain("crons.daily(");
-    expect(source).not.toContain("crons.interval(");
   });
 
   test("records a heartbeat when a job starts and when it finishes", async () => {

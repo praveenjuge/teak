@@ -3,12 +3,12 @@ import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { scheduleCardSearchSync } from "../card/searchDocumentHelpers";
 import { recordCardTombstone } from "../publicApiTombstones";
+import { TRASH_RETENTION_MS } from "../shared/constants";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const BATCH_SIZE = 10;
 const WORKFLOW_LOG_PREFIX = "[workflow/cardCleanup]";
 
@@ -103,7 +103,7 @@ export const cardCleanupWorkflow = workflow.define({
     hasMore: v.boolean(),
   }),
   handler: async (step) => {
-    const cutoff = Date.now() - THIRTY_DAYS_MS;
+    const cutoff = Date.now() - TRASH_RETENTION_MS;
 
     const candidates = await step.runQuery(
       internalWorkflow["workflows/cardCleanup"].getCardsPendingCleanup,

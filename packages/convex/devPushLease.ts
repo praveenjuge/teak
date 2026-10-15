@@ -8,11 +8,6 @@ import {
 } from "./_generated/server";
 import { readIsDevDeployment } from "./env";
 
-// Every checkout and cloud session pushes to the one shared dev deployment, so
-// only one of them may run `convex dev` at a time. `bun run dev` holds this
-// lease while it pushes (scripts/convex-push-lease.ts) and renews it with a
-// heartbeat; a holder that stops renewing loses it after LEASE_TTL_MS.
-
 export const LEASE_TTL_MS = 2 * 60 * 1000;
 const LEASE_NAME = "push";
 
@@ -75,7 +70,6 @@ const writeLease = async (
   }
 };
 
-/** Take the lease when it is free, expired or already ours; `force` takes it over. */
 export const acquire = internalMutation({
   args: { holder, force: v.boolean() },
   returns: v.object({ granted: v.boolean(), state: leaseState }),
@@ -96,7 +90,6 @@ export const acquire = internalMutation({
   },
 });
 
-/** Renew the lease. Not granted once another checkout took it or it expired. */
 export const heartbeat = internalMutation({
   args: { holderId: v.string() },
   returns: v.object({ granted: v.boolean(), state: leaseState }),
@@ -131,7 +124,6 @@ export const release = internalMutation({
   },
 });
 
-/** Record what the holder last pushed, so others can see which code is live. */
 export const recordPush = internalMutation({
   args: { holderId: v.string(), label: v.string(), commit: v.string() },
   returns: v.boolean(),

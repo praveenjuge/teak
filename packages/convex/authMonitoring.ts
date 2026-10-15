@@ -1,12 +1,7 @@
-/**
- * Auth monitoring signals for WorkOS sign-in and the public API boundary.
- *
- * Every signal is a structured log line or an existing telemetry metric. None
- * carries an email, raw user ID, token, URL, request body or profile field;
- * WorkOS subjects are hashed here before anything is logged. Monitoring must
- * never change an authentication result, so every emitter swallows its own
- * failures and nothing here writes to the database.
- */
+import { swallowTelemetryErrors } from "./shared/telemetry";
+
+// No signal carries an email, raw user ID, token, URL, request body or
+// profile field; WorkOS subjects are hashed here before anything is logged.
 
 const REASON_PATTERN = /[^a-z0-9_]+/gu;
 
@@ -22,8 +17,6 @@ const normalizeMonitoringReason = (value: unknown): string => {
   return reason || "unknown";
 };
 
-// The same `s_` + 16 hex digest the private observer applies to WorkOS event
-// user IDs, so denials and sign-ins correlate without either side logging IDs.
 export const hashMonitoringSubject = async (
   subject: string
 ): Promise<string> => {
@@ -45,23 +38,19 @@ export const logResolverDenial = async (input: {
   reason: string;
   verification: ResolverVerification;
   workosUserId: string;
-}): Promise<void> => {
-  try {
+}): Promise<void> =>
+  swallowTelemetryErrors(async () => {
     console.warn("identity_resolver_denial", {
       provider: "workos",
       reason: normalizeMonitoringReason(input.reason),
       verification: input.verification.kind,
-      // The session claim the resolver was given; Connect tokens carry none.
       emailVerified:
         input.verification.kind === "session"
           ? input.verification.emailVerified === true
           : null,
       subject: await hashMonitoringSubject(input.workosUserId),
     });
-  } catch {
-    // Monitoring must never alter identity resolution.
-  }
-};
+  });
 
 export type BearerCredentialClass =
   | "missing"
@@ -88,7 +77,6 @@ export type PublicApiAuthReason =
   | `owner_${string}`;
 
 export interface PublicApiAuthOutcome {
-  // `gate` is the MCP transport check; `request` is the per-operation check.
   check: "gate" | "request";
   credential: BearerCredentialClass;
   reason: PublicApiAuthReason;
@@ -96,10 +84,8 @@ export interface PublicApiAuthOutcome {
   surface: "rest" | "mcp";
 }
 
-export const logPublicApiAuthOutcome = (
-  outcome: PublicApiAuthOutcome
-): void => {
-  try {
+export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
+  swallowTelemetryErrors(() => {
     console.log("public_api_auth_outcome", {
       surface: outcome.surface,
       check: outcome.check,
@@ -107,13 +93,8 @@ export const logPublicApiAuthOutcome = (
       credential: outcome.credential,
       reason: normalizeMonitoringReason(outcome.reason),
     });
-  } catch {
-    // Monitoring must never alter the API response.
-  }
-};
+  });
 
-// Labels a Connect token the verifier has already rejected. The payload is not
-// trusted for anything else; an unreadable token is simply not "expired".
 export const isExpiredJwt = (token: string, nowMs = Date.now()): boolean => {
   try {
     const segment = token.split(".")[1] ?? "";

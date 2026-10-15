@@ -1,6 +1,3 @@
-// The files Teak imports, shared by the upload check, the Files Worker and
-// the web import panel so they agree on names, extensions and size limits.
-
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
 /** Files read whole into memory (everything but a ZIP) stop here. */
@@ -107,10 +104,6 @@ export const IMPORT_SOURCES: Record<ImportMode, ImportSource> = {
   },
 };
 
-/**
- * Failure classes an import job can end with that describeImportFailure
- * words for people.
- */
 export const IMPORT_FAILURE = {
   INVALID_SOURCE: "invalid_source",
   TOO_MANY_ITEMS: "too_many_items",
@@ -143,7 +136,6 @@ export const isImportMode = (value: unknown): value is ImportMode =>
   typeof value === "string" &&
   (IMPORT_MODES as readonly string[]).includes(value);
 
-/** Whether `fileName` has one of the source's extensions. */
 export const importFileMatches = (mode: ImportMode, fileName: string) => {
   const lower = fileName.trim().toLowerCase();
   return IMPORT_SOURCES[mode].extensions.some((extension) =>
@@ -162,7 +154,6 @@ export const importMaxBytes = (mode: ImportMode, fileName: string): number => {
     : Math.min(maxBytes, TEXT_MAX_BYTES);
 };
 
-/** The upload's content type, from its extension. */
 export const importContentType = (fileName: string): string => {
   const lower = fileName.trim().toLowerCase();
   if (lower.endsWith(".zip")) {

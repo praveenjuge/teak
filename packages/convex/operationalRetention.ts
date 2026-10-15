@@ -6,8 +6,6 @@ const MAX_BATCHES = 20;
 export const RETENTION_SCAN_LEASE_MS = 15 * 60 * 1000;
 const kindValidator = v.literal("idempotency");
 
-// A frozen cutoff and indexed cursor keep pending rows from blocking later
-// expired completed rows. Every batch rechecks current state transactionally.
 export const cleanupExpiredRecords = internalMutation({
   args: {
     kind: kindValidator,
@@ -53,8 +51,6 @@ export const cleanupExpiredRecords = internalMutation({
         .query("operationalRetentionStates")
         .withIndex("by_kind", (q) => q.eq("kind", args.kind))
         .unique();
-      // Run IDs fence old scheduled work after recovery. Only one transactional
-      // cursor owner may scan each table; cron/manual requests never overlap it.
       if (
         (runId && state?._id !== runId) ||
         (!runId &&
@@ -112,8 +108,6 @@ export const cleanupExpiredRecords = internalMutation({
       }
     }
     const { isDone, continueCursor } = result;
-    // Yield between bounded bursts while retaining the cursor. Restarting at the
-    // first page would let expired pending reservations starve later responses.
     if (runId && !dryRun) {
       if (isDone) {
         await ctx.db.delete("operationalRetentionStates", runId);

@@ -10,8 +10,6 @@ const STEPS_AFTER_PERSON_DELETED = new Set([
   "publish_clickhouse_tombstone",
 ]);
 
-// Every error message starts with this prefix so the workflow can record a
-// distinct failure code. Messages never carry the API key or response bodies.
 export const POSTHOG_DELETION_ERROR_PREFIX = "deletion_posthog_";
 
 const fail = (code: string): never => {
@@ -30,8 +28,6 @@ const fail = (code: string): never => {
 export const deletePostHogPerson = async (
   distinctId: string
 ): Promise<"deleted" | "skipped"> => {
-  // Only production sends analytics (POSTHOG_PROJECT_TOKEN). Elsewhere
-  // PostHog holds nothing for this owner.
   if (!env.POSTHOG_PROJECT_TOKEN?.trim()) {
     return "skipped";
   }

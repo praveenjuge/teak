@@ -2,7 +2,11 @@ import { paginationOptsValidator } from "convex/server";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalMutation, query } from "./_generated/server";
-import { limitApiRequests, rateLimitResultValidator } from "./publicApi";
+import {
+  limitApiRequests,
+  rateLimitResultValidator,
+  type ValidatedRateLimitKey,
+} from "./publicApi";
 import { readWorkosConnectClients } from "./publicApiMeta";
 import { getSessionUser } from "./securitySessions";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
@@ -56,8 +60,6 @@ export const authorizeConnectConsent = internalMutation({
     if (owner.status !== "ok") {
       return owner;
     }
-    // A disconnect the previous flow left unfinished keeps the app denied until
-    // a new disconnect confirms the grant is gone at WorkOS.
     const fences = await ctx.db
       .query("workosApplicationDisconnects")
       .withIndex("by_workosUserId_and_clientId", (q) =>
@@ -107,7 +109,7 @@ export const authorizeConnectConsent = internalMutation({
       teakUserId: owner.teakUserId,
       rateLimit: await limitApiRequests(
         ctx,
-        `key:workos:${args.clientId}:${owner.teakUserId}`
+        `key:workos:${args.clientId}:${owner.teakUserId}` as ValidatedRateLimitKey
       ),
     };
   },
@@ -191,7 +193,6 @@ export const listConnections = query({
   },
 });
 
-// Settings and signed-token logout share the same durable provider operation.
 export const disconnectConnection = action({
   args: { consentId: v.string() },
   returns: v.null(),

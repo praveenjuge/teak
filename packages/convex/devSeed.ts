@@ -32,13 +32,6 @@ import {
 import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
-// Seed data for development accounts (`bun run dev`). It runs only on the
-// shared dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to
-// the WorkOS emulator; any other deployment refuses it. Card types that need
-// stored files (image, video, audio, document) are left out. Link cards start
-// pending and run through the real processing workflow, so their previews come
-// from the page itself; every other card is inserted already processed.
-
 const link = (
   url: string,
   extra: Partial<DefaultCardDef> = {}
@@ -191,11 +184,6 @@ export const DEV_SEED_CARDS: DefaultCardDef[] = [
   }),
 ];
 
-/**
- * Fill a dev account's empty vault. The account is linked first by its
- * user.created webhook. Safe to re-run: a vault that holds anything beyond the
- * onboarding cards is left alone.
- */
 export const seed = internalMutation({
   args: { workosUserId: v.string() },
   returns: v.object({
@@ -343,8 +331,6 @@ const ORDERING_START = Date.UTC(2016, 0, 1);
 const ORDERING_SPAN = Date.UTC(2026, 0, 1) - ORDERING_START;
 const ORDERING_TYPES = ["text", "quote", "link", "palette"] as const;
 
-// A fixed permutation of 0..n-1 (multiplication by a unit mod n), so the
-// pack is the same on every run.
 const orderingIndexAt = (position: number) =>
   (position * 389) % ORDERING_SCENARIO_SIZE;
 
@@ -552,13 +538,11 @@ export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
 // same folder rather than breaking the one-name-per-folder rule. Folders stop
 // at the account's cap. The cards' marker URL makes them seed once.
 export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
-  /** Places in the pack's folder list. */
   folders: number[];
 }
 
 export interface FolderScenarioPack {
   cards: FolderScenarioCard[];
-  /** `query` makes a smart folder with that search. */
   folders: { color?: FolderColor; name: string; query?: string }[];
 }
 
@@ -588,7 +572,6 @@ const folderScenarioCard = (
     folders,
     ...extra,
   };
-  // The first card of every pack is a link, so its marker URL is found.
   if (index === 0) {
     const url = `https://example.com/${scenario}#${SCENARIO_MARKER}-${scenario}`;
     return { ...base, type: "link", content: url, url, metadataTitle: label };
@@ -692,7 +675,6 @@ const cardIn50FoldersPack = (): FolderScenarioPack => {
 const longName = (word: string) =>
   `${word} `.repeat(MAX_FOLDER_NAME_LENGTH).slice(0, MAX_FOLDER_NAME_LENGTH);
 
-/** Names that are awkward to show, sort, truncate or compare. */
 export const UGLY_FOLDER_NAMES = [
   "🎨 Moodboard ✨",
   "👩‍👩‍👧‍👦",
@@ -710,7 +692,6 @@ export const UGLY_FOLDER_NAMES = [
   "Zürich",
 ];
 
-// The Arabic folder's card is archived and the Hebrew one's is in Trash.
 const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
   2: { isArchived: true },
   3: { isDeleted: true },
@@ -939,7 +920,6 @@ const smartFoldersPack = (): FolderScenarioPack => {
   };
 };
 
-/** Folder names that break naive CSV, HTML and spreadsheet writers. */
 export const EXPORT_UGLY_FOLDER_NAMES = [
   'Quotes "and", commas',
   "Line one\nline two",
@@ -1060,10 +1040,6 @@ export const folderScenarioPack = (
 const isFolderScenario = (scenario: string): scenario is FolderScenario =>
   (FOLDER_SCENARIOS as readonly string[]).includes(scenario);
 
-/**
- * Seeds a folder pack: the folders it names that are not there yet (up to
- * the cap), then its cards in those folders unless they are there already.
- */
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
@@ -1088,7 +1064,6 @@ const seedFolderScenario = async (
     const key = folderNameKey(folder.name);
     let folderId = byKey.get(key);
     if (!folderId && total < MAX_FOLDERS_PER_USER) {
-      // Spaced a millisecond apart so creation order is stable.
       folderId = await insertFolder(
         ctx,
         userId,
@@ -1271,7 +1246,6 @@ export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
   const base = {
     createdAt: SHUFFLE_PARTIAL_START + index * 86_400_000,
     tags: ["scenario-shuffle-partial"],
-    // null: inserted without a key, like a card from before Shuffle.
     shuffleKey: keyed ? undefined : null,
   };
   if (index % SHUFFLE_PARTIAL_PAGE_SIZE === 0) {
@@ -1360,13 +1334,11 @@ export const seedScenario = internalMutation({
       v.literal("keyboard-mixed"),
       v.literal("shuffle-partial")
     ),
-    /** Large packs seed in pages: run with page 0, 1, 2… until done. */
     page: v.optional(v.number()),
   },
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
-    /** Folder packs only: the folders added. */
     folders: v.optional(v.number()),
   }),
   handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
@@ -1389,8 +1361,6 @@ export const seedScenario = internalMutation({
     if (cards.length === 0) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    // Each page has a link card with a marker URL; finding it (in or out of
-    // Trash) means this page was seeded already.
     const marker = cards.find((card) => card.url)?.url;
     const existing = marker
       ? await ctx.db
@@ -1403,19 +1373,12 @@ export const seedScenario = internalMutation({
     if (existing) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    // Volume packs deliberately pass the free plan's card limit.
     await insertCompletedCards(ctx, owner.teakUserId, cards, {
       ignoreCardLimit: true,
     });
     return { status: "seeded" as const, cards: cards.length };
   },
 });
-
-// Every Claude Code cloud session gets its own dev account, and nothing else
-// removes them once the session ends. `bun run dev` in a cloud session prunes
-// the stale ones through the full account deletion workflow, which also
-// deletes the WorkOS user. Unlike seeding, pruning runs only on the shared dev
-// deployment, and only for cloud session accounts.
 
 const assertPrunableDeployment = () => {
   if (!readIsDevDeployment()) {
@@ -1427,10 +1390,6 @@ const assertPrunableDeployment = () => {
 
 const CLOUD_ACCOUNT_PAGE_SIZE = 100;
 
-/**
- * One page of live cloud session accounts. Deleted owners keep their address,
- * so the range is paged rather than read in one bounded batch.
- */
 export const listCloudAccounts = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   returns: v.object({
@@ -1470,10 +1429,6 @@ export const listCloudAccounts = internalQuery({
   },
 });
 
-/**
- * Delete a finished cloud session's dev account: its cards, files and WorkOS
- * user. Refuses every other account.
- */
 export const pruneCloudAccount = internalMutation({
   args: { workosUserId: v.string() },
   returns: v.union(v.literal("deleting"), v.literal("already_deleted")),

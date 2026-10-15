@@ -522,12 +522,6 @@ function errorData(error: unknown) {
   return { message: error instanceof Error ? error.message : "Import failed" };
 }
 
-/**
- * The title an imported card keeps: the name a user gave a bookmark
- * (bookmarks HTML or Raindrop), or an archive card's own title. The bookmark
- * parsers fall back to the URL when a bookmark has no name, which is not a
- * title.
- */
 export function importedBookmarkTitle(
   mode: Doc<"importJobs">["mode"],
   item: Pick<
@@ -535,7 +529,6 @@ export function importedBookmarkTitle(
     "content" | "metadataTitle" | "type" | "url"
   >
 ): string | undefined {
-  // A Teak archive (schema v2) carries the card's title as it was.
   if (mode === "archive") {
     return item.metadataTitle;
   }
@@ -572,8 +565,6 @@ export const createPendingBatch = internalMutation({
     }
     const userId = await resolveStoredUserId(ctx, job.userId);
     if (!userId) {
-      // Keep the job active until the workflow finishes object cleanup and
-      // stores its report. A retry must not delete this job during finalization.
       return {
         limitReached: false,
         failureClass: "identity_mapping_unavailable" as const,

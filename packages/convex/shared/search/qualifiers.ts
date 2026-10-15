@@ -67,18 +67,11 @@ const FAVORITE_WORDS = new Set([
 const ARCHIVED_WORDS = new Set(["archived", "archive"]);
 
 interface RawToken {
-  /** The text before the first quote ("folder:" in `folder:"Reading"`). */
   prefix: string;
   quoted: boolean;
-  /** The token with its quotes removed. */
   text: string;
 }
 
-/**
- * Splits on whitespace outside quotes. A quote runs to the next quote (or
- * the end, when unbalanced); inside quotes, a backslash makes the next quote
- * or backslash literal.
- */
 const tokenize = (input: string): RawToken[] => {
   const tokens: RawToken[] = [];
   let index = 0;
@@ -132,7 +125,6 @@ const tokenize = (input: string): RawToken[] => {
   return tokens;
 };
 
-/** Trims edge punctuation, except the characters in `keep`. */
 const trimEdgePunctuation = (value: string, keep = ""): string => {
   const trims = (character: string) =>
     SEARCH_TOKEN_TRIM_CHARACTERS.includes(character) &&
@@ -202,21 +194,14 @@ const qualifierIdentity = (qualifier: SearchQualifier): string =>
     qualifier.key === "folder" ? qualifier.value.toLowerCase() : qualifier.value
   }`;
 
-// Quotes keep spaces, quote characters, backslashes, and the edge
-// punctuation an unquoted value loses (`Ideas!`, `.net`).
 const needsQuotes = (value: string) =>
   /[\s"“”\\]/.test(value) ||
   SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[0] ?? "") ||
   SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[value.length - 1] ?? "");
 
-/**
- * A value in quotes, escaped so the tokenizer reads it back exactly:
- * backslashes and every quote character get a backslash.
- */
 export const quoteSearchValue = (value: string) =>
   `"${value.replace(/[\\"“”]/g, (character) => `\\${character}`)}"`;
 
-/** A qualifier written as it is typed, quoting values with spaces. */
 export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
   const value =
     qualifier.key === "site"
@@ -262,13 +247,11 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
         key,
         token.quoted
           ? rawValue
-          : // An IPv6 host keeps its brackets: `site:[::1]`.
-            trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
+          : trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
       );
       if (qualifier) {
         addQualifier(qualifier);
       } else if (rawValue.trim()) {
-        // A value the key cannot use ("type:banana") is searched as text.
         terms.push(token.text);
       }
       continue;
@@ -278,7 +261,6 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       const value = token.quoted
         ? token.text.slice(1)
         : trimEdgePunctuation(token.text.slice(1));
-      // A hex color wins: `#fff` is a color, `tag:fff` the tag.
       if (!token.quoted && value && normalizeHexColor(`#${value}`)) {
         terms.push(token.text);
         continue;
@@ -381,7 +363,6 @@ export const combineSearchQueries = (
     ...types.map((value) => ({ key: "type" as const, value })),
     ...sites.map((value) => ({ key: "site" as const, value })),
   ];
-  // Read back once more so a qualifier in both is written once.
   return parseSearchQuery(
     [
       ...qualifiers.map(formatSearchQualifier),

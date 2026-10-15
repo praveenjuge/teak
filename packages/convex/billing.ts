@@ -12,7 +12,6 @@ import {
   captureBackendException,
 } from "./telemetry/posthog";
 
-// User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
@@ -211,7 +210,6 @@ interface PolarSubscriptionEvent {
   };
 }
 
-// Customers carry the Teak user id in metadata (see polarCustomerIdentity).
 const subscriptionOwner = (
   event: PolarSubscriptionEvent
 ): string | undefined => {
@@ -222,7 +220,6 @@ const subscriptionOwner = (
     : (customer.externalId ?? undefined);
 };
 
-/** Polar webhooks that move a person's plan in product analytics. */
 export const polarWebhookEvents: WebhookEventHandlers = {
   "subscription.created": (_ctx, event) =>
     captureBackendEvent(

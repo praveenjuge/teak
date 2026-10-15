@@ -4,11 +4,8 @@ import type { DataModel } from "./_generated/dataModel";
 import { readSignupsPaused } from "./adminAccess";
 import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
 
-// User lifecycle events go through Teak's own signed webhook (workosWebhook.ts),
-// so the component only needs the registration Action.
 const authFunctions: AuthFunctions = internal.workosAuthKit;
 
-// A deployment with a WorkOS environment gets the AuthKit routes.
 export const authKit = process.env.WORKOS_ENVIRONMENT_ID
   ? new AuthKit<DataModel>(components.workOSAuthKit, {
       authFunctions,
@@ -18,8 +15,6 @@ export const authKit = process.env.WORKOS_ENVIRONMENT_ID
   : undefined;
 
 export const authKitAction = authKit?.actions({
-  // This guard also covers native provider flows that bypass sign-up options.
-  // The console's signup switch is read here too (adminAccess.ts).
   userRegistration: async (ctx, _action, response) =>
     (await readSignupsPaused(ctx))
       ? response.deny(SIGNUPS_PAUSED_MESSAGE)

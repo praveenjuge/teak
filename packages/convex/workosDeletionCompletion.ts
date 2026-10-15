@@ -27,8 +27,6 @@ export interface WorkosDeletionTarget {
   issuer: string;
 }
 
-// Binds stored provider work to the API key that started it without keeping
-// the key: the hex SHA-256 of WORKOS_API_KEY.
 export const workosCredentialFingerprint = (apiKey: string): Promise<string> =>
   sha256(apiKey);
 
@@ -63,8 +61,6 @@ export function sameWorkosDeletionTarget(
   );
 }
 
-// Completed cleanup alone is insufficient: the exact permanent owner and
-// provider mapping must remain unique, and receipt time/target must correlate.
 export async function expectedWorkosDeletionResolution(
   ctx: QueryCtx | MutationCtx,
   receipt: Pick<

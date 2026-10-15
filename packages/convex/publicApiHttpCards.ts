@@ -1,8 +1,3 @@
-/**
- * Public API route handlers: every /v1 endpoint implementation.
- * Split out of `publicApiHttp.ts`, kept behavior-identical.
- */
-
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -12,7 +7,7 @@ import {
   completeIdempotencyResponse,
   type IdempotencyState,
   maybeHandleIdempotency,
-  releaseIdempotencyResponse,
+  releaseReservationKeepingOriginalError,
   withAuthorizedUser,
 } from "./publicApiHttpAuth";
 import {
@@ -41,7 +36,6 @@ import {
 } from "./publicApiHttpValidation";
 import { combineSearchQueries } from "./shared/search/qualifiers";
 
-// A shuffled page reads at most this many times to fill up.
 const MAX_SHUFFLE_READS = 4;
 
 import type { WorkosResource } from "./workosTokens";
@@ -141,15 +135,11 @@ const handleCreateCardRequest = async (
     return json(200, responseBody);
   } catch (error) {
     if (idempotencyState?.reserved && !operationCommitted) {
-      try {
-        await releaseIdempotencyResponse(ctx, {
-          keyHash: idempotencyState.keyHash,
-          requestHash: idempotencyState.requestHash,
-          userId: auth.validated.userId,
-        });
-      } catch {
-        // Preserve the original mutation error when reservation cleanup fails.
-      }
+      await releaseReservationKeepingOriginalError(ctx, {
+        keyHash: idempotencyState.keyHash,
+        requestHash: idempotencyState.requestHash,
+        userId: auth.validated.userId,
+      });
     }
     return mapConvexErrorToResponse(error, "Failed to save card");
   }
@@ -232,8 +222,6 @@ const handleCardsListRequest = async (
         return errorResponse(404, "NOT_FOUND", "Folder not found");
       }
       if (folder.kind === "smart") {
-        // A smart folder lists what its search matches: its search joins
-        // `q` (both must match) and the folder drops out of the request.
         const url = new URL(request.url);
         const combined = combineSearchQueries(
           folder.query ?? "",
@@ -256,8 +244,6 @@ const handleCardsListRequest = async (
         folderId = folder._id;
       }
     }
-    // After the folder check, so an unknown folder is a 404 whatever else
-    // the request asks for.
     if (options.matchesNothing) {
       return json(200, {
         items: [],
@@ -287,8 +273,6 @@ const handleCardsListRequest = async (
     };
 
     if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
-      // A shuffled page can end early (where the walk wraps, or after rows
-      // a filter skipped); read on until it is full or the order ends.
       const items: any[] = [];
       let cursor = options.cursor;
       let hasMore = true;
@@ -371,13 +355,10 @@ const handleCardsListRequest = async (
         }
 
         if (items.length === options.limit) {
-          // Every matching card in this physical page was consumed, so the
-          // public cursor can advance past its remaining non-matching rows.
           nextCursor = cursor;
         }
 
         if (rowsRead === 0) {
-          // A non-advancing split should never spin the HTTP action forever.
           hasMore = true;
           nextCursor = cursor;
           break;
@@ -460,7 +441,6 @@ const cardContentResponse = async (
         cardId,
         message: error instanceof Error ? error.message : String(error),
       });
-      // A short document's prefix is all of its text.
       truncated ||= Array.from(text).length < source.charCount;
     }
   }
@@ -691,9 +671,6 @@ const handleTagsRequest = async (
     if (tags.isComplete) {
       return json(200, { items: tags.items, isComplete: true });
     }
-    // Too many tags to count live: answer from the background tag summary,
-    // which catches up a few seconds after tags change, and build it first
-    // if the account has none yet.
     const summary = await ctx.runQuery(
       internal.tag.tagSummary.getTagSummaryForUser,
       { userId }
@@ -873,15 +850,11 @@ const handleBulkCardsRequest = async (
     return json(200, result);
   } catch (error) {
     if (idempotencyState?.reserved && !operationCommitted) {
-      try {
-        await releaseIdempotencyResponse(ctx, {
-          keyHash: idempotencyState.keyHash,
-          requestHash: idempotencyState.requestHash,
-          userId: auth.validated.userId,
-        });
-      } catch {
-        // Preserve the original mutation error when reservation cleanup fails.
-      }
+      await releaseReservationKeepingOriginalError(ctx, {
+        keyHash: idempotencyState.keyHash,
+        requestHash: idempotencyState.requestHash,
+        userId: auth.validated.userId,
+      });
     }
     return mapConvexErrorToResponse(error, "Failed to execute bulk operation");
   }

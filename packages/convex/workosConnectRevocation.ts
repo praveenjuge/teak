@@ -2,7 +2,7 @@ import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { findWorkosConnectIssuer, findWorkosResources } from "./env";
 import { PUBLIC_API_CORS_HEADERS } from "./publicApiMeta";
-import { verifyWorkosConnectToken } from "./workosTokens";
+import { verifyWorkosConnectTokenForRevocation } from "./workosTokens";
 
 export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
   const headers = { ...PUBLIC_API_CORS_HEADERS, "Cache-Control": "no-store" };
@@ -18,10 +18,9 @@ export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
     return response(503);
   }
   let unavailable = false;
-  const principal = await verifyWorkosConnectToken(match[1], {
+  const principal = await verifyWorkosConnectTokenForRevocation(match[1], {
     issuer,
     audience: resources.api,
-    revocationOnly: true,
     onUnavailable: () => {
       unavailable = true;
     },

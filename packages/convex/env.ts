@@ -6,12 +6,6 @@ import {
   workosResourcesFor,
 } from "./shared/workosResources";
 
-/**
- * Typed backend environment resolvers. Variables are declared in
- * convex.config.ts (`defineApp({ env })`) and read here through the
- * generated typed `env` object.
- */
-
 export const readSignupsDisabled = (): boolean => {
   const value = env.SIGNUPS_DISABLED;
   if (value === undefined || value === "false") {
@@ -34,7 +28,6 @@ export const readAccountChangesPaused = (): boolean => {
   throw new Error("ACCOUNT_CHANGES_PAUSED must be true or false.");
 };
 
-/** True only on the shared cloud dev deployment (TEAK_DEV_DEPLOYMENT=true). */
 export const readIsDevDeployment = (): boolean =>
   env.TEAK_DEV_DEPLOYMENT === "true";
 
@@ -58,8 +51,6 @@ export const readWorkosConnectIssuer = (): string => {
   return value;
 };
 
-// For callers that answer "unavailable" rather than throw: the validated
-// Connect issuer, or undefined when it is missing or malformed.
 export const findWorkosConnectIssuer = (): string | undefined => {
   try {
     return readWorkosConnectIssuer();
@@ -79,9 +70,7 @@ export const readWorkosResources = (): WorkosResources => {
   let origin: string | undefined;
   try {
     origin = validateOAuthUrl(value, true).origin;
-  } catch {
-    // Reported below with the variable's name.
-  }
+  } catch {}
   if (origin !== value) {
     throw new Error(
       "WORKOS_RESOURCE_ORIGIN must be an HTTPS (or loopback) origin without a path or trailing slash."
@@ -90,7 +79,6 @@ export const readWorkosResources = (): WorkosResources => {
   return workosResourcesFor(value);
 };
 
-// For callers that answer "unavailable" rather than throw.
 export const findWorkosResources = (): WorkosResources | undefined => {
   try {
     return readWorkosResources();

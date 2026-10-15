@@ -1,22 +1,3 @@
-import { getSessionUser, type TeakUserId } from "./securitySessions";
-/**
- * Export feature Convex functions.
- *
- * Public surface (all derive the authenticated user server-side):
- *   - getLatestExport      query    latest job summary + quota state
- *   - startExport          mutation create + kick off a background export
- *   - cancelExport         mutation request cancellation of the active job
- *   - getExportDownloadUrl action   short-lived signed download URL
- *
- * Public API surface (owner ID from the bearer middleware, see
- * `publicApiExports.ts`): getLatestExportForUser, startExportForUser.
- *
- * Internal surface (used by the workflow / cleanup cron):
- *   - getJob, getExportCardsPage, recordSnapshotPage
- *   - markRunning, completeExport, failExport, isCancelRequested
- *   - findExpiredReadyJobs, expireJob, deleteJobItemsPage
- */
-
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -43,16 +24,13 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
+import { getSessionUser, type TeakUserId } from "./securitySessions";
 import { MAX_FOLDERS_PER_USER } from "./shared/folders";
 import { getR2Url } from "./storage/fileUrls";
 
 const internalAny = internal as Record<string, any>;
 
 const RECENT_JOBS_SCAN = 50;
-
-// ---------------------------------------------------------------------------
-// Validators
-// ---------------------------------------------------------------------------
 
 const exportSummaryValidator = v.object({
   id: v.id("exportJobs"),
@@ -68,7 +46,6 @@ const exportSummaryValidator = v.object({
   filesIncluded: v.optional(v.number()),
   filesOmitted: v.optional(v.number()),
   artifactBytes: v.optional(v.number()),
-  // Coarse in-flight progress (only meaningful while pending/running).
   processedCount: v.optional(v.number()),
   stage: v.optional(v.union(v.literal("snapshotting"), v.literal("archiving"))),
   failureClass: v.optional(v.string()),
@@ -76,7 +53,6 @@ const exportSummaryValidator = v.object({
   updatedAt: v.number(),
   completedAt: v.optional(v.number()),
   expiresAt: v.optional(v.number()),
-  /** True when the artifact is ready and not yet expired. */
   downloadAvailable: v.boolean(),
 });
 
@@ -88,10 +64,6 @@ const startResultValidator = v.object({
   quotaResetMs: v.optional(v.number()),
   job: v.optional(exportSummaryValidator),
 });
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<TeakUserId> {
   const user = await getSessionUser(ctx);
@@ -179,10 +151,6 @@ function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
   return latest;
 }
 
-// ---------------------------------------------------------------------------
-// Public functions
-// ---------------------------------------------------------------------------
-
 const latestExportValidator = v.object({
   job: v.union(v.null(), exportSummaryValidator),
   canStartNew: v.boolean(),
@@ -265,7 +233,6 @@ export const startExport = mutation({
     await startExportJob(ctx, await requireUserId(ctx)),
 });
 
-// Public API callers: the bearer middleware supplies the owner ID.
 export const getLatestExportForUser = internalQuery({
   args: { userId: v.string() },
   returns: latestExportValidator,
@@ -296,8 +263,6 @@ export const cancelExport = mutation({
 
     await ctx.db.patch(jobId, {
       cancelRequested: true,
-      // Pending jobs can be canceled immediately; running jobs flip to canceled
-      // cooperatively but we mark intent now so the UI reflects it.
       status: EXPORT_STATUS.CANCELED,
       failureClass: EXPORT_FAILURE_CLASS.CANCELED,
       completedAt: now,
@@ -351,10 +316,6 @@ export const getExportDownloadUrl = action({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Internal functions (workflow + cleanup)
-// ---------------------------------------------------------------------------
-
 export const getJob = internalQuery({
   args: { jobId: v.id("exportJobs") },
   returns: v.any(),
@@ -382,12 +343,6 @@ export const markRunning = internalMutation({
   },
 });
 
-/**
- * Record coarse in-flight progress for the running job. During phase 1 the
- * workflow reports the running snapshot count (`processedCount`) with
- * `stage: "snapshotting"`; when phase 2 begins it flips `stage` to
- * "archiving" (no further numeric updates during archive build).
- */
 export const recordExportProgress = internalMutation({
   args: {
     jobId: v.id("exportJobs"),
@@ -414,11 +369,6 @@ export const recordExportProgress = internalMutation({
   },
 });
 
-/**
- * Snapshot one page of the user's active cards into exportJobItems. Returns the
- * pagination cursor and running totals so the workflow can enforce caps without
- * loading the whole library at once.
- */
 export const recordSnapshotPage = internalMutation({
   args: {
     jobId: v.id("exportJobs"),
@@ -474,7 +424,6 @@ export const recordSnapshotPage = internalMutation({
   },
 });
 
-/** Page through snapshot items, joining each to its (active) card document. */
 export const getExportCardsPage = internalQuery({
   args: {
     jobId: v.id("exportJobs"),
@@ -527,10 +476,6 @@ export const getExportCardsPage = internalQuery({
   },
 });
 
-/**
- * Names of the job owner's folders by id, read once per export so each
- * card's `folderIds` serialize as names. Folders being deleted are left out.
- */
 export const getExportFolderNames = internalQuery({
   args: { jobId: v.id("exportJobs") },
   returns: v.array(v.object({ id: v.id("folders"), name: v.string() })),
@@ -566,9 +511,6 @@ export const completeExport = internalMutation({
     if (!job) {
       return null;
     }
-    // If the job was canceled while the archive was being built/uploaded, do not
-    // resurrect it as "ready". Discard the just-written artifact instead so it
-    // doesn't linger in R2, and leave the canceled state (and quota) untouched.
     if (job.status === EXPORT_STATUS.CANCELED || job.cancelRequested === true) {
       await ctx.scheduler.runAfter(
         0,
@@ -637,7 +579,6 @@ export const isCancelRequested = internalQuery({
   },
 });
 
-/** Find ready jobs whose artifact has expired, for cleanup. */
 export const findExpiredReadyJobs = internalQuery({
   args: { nowMs: v.number(), limit: v.number() },
   returns: v.array(
@@ -657,7 +598,6 @@ export const findExpiredReadyJobs = internalQuery({
   },
 });
 
-/** Mark a job expired (artifact deletion handled by the caller action). */
 export const expireJob = internalMutation({
   args: { jobId: v.id("exportJobs") },
   returns: v.null(),
@@ -672,7 +612,6 @@ export const expireJob = internalMutation({
   },
 });
 
-/** Delete a page of snapshot items for a job. Returns whether more remain. */
 export const deleteJobItemsPage = internalMutation({
   args: { jobId: v.id("exportJobs"), numItems: v.number() },
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
