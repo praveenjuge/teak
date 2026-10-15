@@ -33,6 +33,9 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "capture-screenshot": 90_000,
   "delete-objects": 90_000,
   "extract-video-frame": 90_000,
+  // The fetcher's redirect hops and cold start (as store-remote-asset), then
+  // possibly a Browser Run render.
+  "fetch-link-page": 300_000,
   "freeze-object": 90_000,
   "generate-link-metadata": 90_000,
   "generate-text-metadata": 90_000,

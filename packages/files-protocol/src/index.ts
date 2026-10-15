@@ -68,6 +68,9 @@ export const FILES_OPS = [
   // Downloads a remote preview asset through the fetcher Container straight
   // into R2; see ./remoteAsset.
   "store-remote-asset",
+  // Fetches and scrapes a link's page through the fetcher Container, with a
+  // Browser Run fallback; see ./linkPage.
+  "fetch-link-page",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -309,6 +312,7 @@ export type FilesImportMarkdownResult =
     };
 
 export * from "./edgeIdentity";
+export * from "./linkPage";
 export * from "./metadata";
 export * from "./remoteAsset";
 export * from "./rendering";

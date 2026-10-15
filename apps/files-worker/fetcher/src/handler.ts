@@ -3,9 +3,11 @@ import {
   fetchRemoteAsset,
   parseFetcherRequest,
 } from "./fetchAsset";
+import { fetchLinkPage, parseFetcherPageRequest } from "./fetchPage";
 import {
   FETCHER_HEADERS,
   FETCHER_MAX_IN_FLIGHT,
+  FETCHER_PAGE_PATH,
   FETCHER_PATH,
   FETCHER_PROTOCOL,
 } from "./protocol";
@@ -16,7 +18,7 @@ const json = (status: number, body: unknown): Response =>
   Response.json(body, { status });
 
 /**
- * One Container serves a few downloads at once. Only the Files Worker reaches
+ * One Container serves a few downloads and page fetches at once. Only the Files Worker reaches
  * it, through its Durable Object; nothing else can connect to the port.
  */
 export const createFetcherHandler = (deps: FetchAssetDeps) => {
@@ -26,7 +28,10 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
     if (request.method === "GET" && pathname === "/health") {
       return json(200, { inFlight, ok: true, protocol: FETCHER_PROTOCOL });
     }
-    if (request.method !== "POST" || pathname !== FETCHER_PATH) {
+    if (
+      request.method !== "POST" ||
+      !(pathname === FETCHER_PATH || pathname === FETCHER_PAGE_PATH)
+    ) {
       return json(404, { error: "not_found" });
     }
     const body = await request.text();
@@ -38,6 +43,24 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
       parsed = JSON.parse(body);
     } catch {
       return json(400, { error: "invalid_request" });
+    }
+    if (pathname === FETCHER_PAGE_PATH) {
+      const pageRequest = parseFetcherPageRequest(parsed);
+      if (!pageRequest) {
+        return json(400, { error: "invalid_request" });
+      }
+      if (inFlight >= FETCHER_MAX_IN_FLIGHT) {
+        return json(503, { error: "busy" });
+      }
+      inFlight += 1;
+      try {
+        const { ok, ...outcome } = await fetchLinkPage(pageRequest, deps);
+        return ok
+          ? json(200, outcome)
+          : json(422, { error: "skipped", ...outcome });
+      } finally {
+        inFlight -= 1;
+      }
     }
     const fetcherRequest = parseFetcherRequest(parsed);
     if (!fetcherRequest) {

@@ -83,7 +83,9 @@ export const parseRemoteAssetParams = (
   };
 };
 
-const poolSize = (env: RemoteAssetEnv): number => {
+const poolSize = (
+  env: Pick<RemoteAssetEnv, "LINK_FETCHER_INSTANCES">
+): number => {
   const parsed = Number(env.LINK_FETCHER_INSTANCES);
   return Number.isSafeInteger(parsed) && parsed > 0
     ? Math.min(parsed, MAX_POOL_SIZE)
@@ -131,30 +133,28 @@ const readSkip = async (
   };
 };
 
-export const storeRemoteAsset = async (
-  env: RemoteAssetEnv,
-  params: FilesRemoteAssetParams,
+/**
+ * POST a JSON request to the first fetcher instance that is not busy (503)
+ * and return its response. Throws RendererUnavailable when the binding is
+ * missing, a request fails or times out, or every instance is busy.
+ */
+export const postToFetcher = async (
+  env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
+  path: string,
+  body: unknown,
   random: () => number = Math.random
-): Promise<FilesRemoteAssetResult> => {
+): Promise<Response> => {
   const namespace = env.LINK_FETCHER;
   if (!namespace) {
     throw new RendererUnavailable("fetcher_binding_missing");
   }
-  const request: FetcherRequest = {
-    kind: params.kind,
-    url: params.url,
-    ...(params.fallbackContentType
-      ? { fallbackContentType: params.fallbackContentType }
-      : {}),
-    ...(params.pageUrl ? { pageUrl: params.pageUrl } : {}),
-  };
   let lastReason = "busy";
   for (const name of rendererInstanceOrder(poolSize(env), random, "fetcher")) {
     let response: Response;
     try {
       response = await namespace.get(namespace.idFromName(name)).fetch(
-        new Request(`http://fetcher${FETCHER_PATH}`, {
-          body: JSON.stringify(request),
+        new Request(`http://fetcher${path}`, {
+          body: JSON.stringify(body),
           headers: { "content-type": "application/json" },
           method: "POST",
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -172,54 +172,67 @@ export const storeRemoteAsset = async (
       await response.body?.cancel().catch(() => undefined);
       continue;
     }
-    if (response.status === 422) {
-      return await readSkip(response);
-    }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RendererUnavailable(`fetcher_status_${response.status}`);
-    }
-    const contentType = response.headers.get(FETCHER_HEADERS.contentType);
-    if (
-      !(
-        contentType && isRemoteAssetContentTypeAllowed(params.kind, contentType)
-      )
-    ) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RendererUnavailable("fetcher_bad_response");
-    }
-    // Stream the body into R2 rather than holding up to 50 MiB in the
-    // isolate; the fetcher always sends the exact length.
-    const length = Number(response.headers.get("content-length"));
-    const width = positiveDimension(
-      response.headers.get(FETCHER_HEADERS.width)
-    );
-    const height = positiveDimension(
-      response.headers.get(FETCHER_HEADERS.height)
-    );
-    if (
-      !(
-        response.body &&
-        Number.isSafeInteger(length) &&
-        length > 0 &&
-        length <= FILES_REMOTE_ASSET_MAX_BYTES[params.kind]
-      ) ||
-      (params.kind === "image" && !(width && height))
-    ) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new RendererUnavailable("fetcher_bad_response");
-    }
-    await env.BUCKET.put(
-      params.destinationKey,
-      withLength(response.body, length),
-      { httpMetadata: { contentType } }
-    );
-    return {
-      contentType,
-      size: length,
-      stored: true,
-      ...(width && height ? { height, width } : {}),
-    };
+    return response;
   }
   throw new RendererUnavailable(lastReason);
+};
+
+export const storeRemoteAsset = async (
+  env: RemoteAssetEnv,
+  params: FilesRemoteAssetParams,
+  random: () => number = Math.random
+): Promise<FilesRemoteAssetResult> => {
+  const request: FetcherRequest = {
+    kind: params.kind,
+    url: params.url,
+    ...(params.fallbackContentType
+      ? { fallbackContentType: params.fallbackContentType }
+      : {}),
+    ...(params.pageUrl ? { pageUrl: params.pageUrl } : {}),
+  };
+  const response = await postToFetcher(env, FETCHER_PATH, request, random);
+  if (response.status === 422) {
+    return await readSkip(response);
+  }
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new RendererUnavailable(`fetcher_status_${response.status}`);
+  }
+  const contentType = response.headers.get(FETCHER_HEADERS.contentType);
+  if (
+    !(contentType && isRemoteAssetContentTypeAllowed(params.kind, contentType))
+  ) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new RendererUnavailable("fetcher_bad_response");
+  }
+  // Stream the body into R2 rather than holding up to 50 MiB in the
+  // isolate; the fetcher always sends the exact length.
+  const length = Number(response.headers.get("content-length"));
+  const width = positiveDimension(response.headers.get(FETCHER_HEADERS.width));
+  const height = positiveDimension(
+    response.headers.get(FETCHER_HEADERS.height)
+  );
+  if (
+    !(
+      response.body &&
+      Number.isSafeInteger(length) &&
+      length > 0 &&
+      length <= FILES_REMOTE_ASSET_MAX_BYTES[params.kind]
+    ) ||
+    (params.kind === "image" && !(width && height))
+  ) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new RendererUnavailable("fetcher_bad_response");
+  }
+  await env.BUCKET.put(
+    params.destinationKey,
+    withLength(response.body, length),
+    { httpMetadata: { contentType } }
+  );
+  return {
+    contentType,
+    size: length,
+    stored: true,
+    ...(width && height ? { height, width } : {}),
+  };
 };
