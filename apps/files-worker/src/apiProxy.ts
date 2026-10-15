@@ -11,6 +11,8 @@
  */
 
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
+import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
+import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
 
 export interface ApiProxyEnv {
   /** Host whose API paths this Worker proxies (`teakvault.com`). Unset disables the proxy. */
@@ -55,10 +57,15 @@ const SECURITY_HEADERS: Record<string, string> = {
 /** Restores the upstream Cache-Control on a response served from the edge cache. */
 const CLIENT_CACHE_CONTROL_HEADER = "X-Teak-Client-Cache-Control";
 
-/** Headers set by Cloudflare or a previous proxy; the upstream request gets fresh ones. */
+/**
+ * Headers set by Cloudflare or a previous proxy, and the edge rate-limit
+ * attestation, which only this Worker may set: the upstream request gets
+ * fresh ones.
+ */
 const isHopHeader = (name: string): boolean =>
   name === "host" ||
   name === "x-real-ip" ||
+  name === EDGE_RATE_LIMIT_HEADER ||
   name.startsWith("cf-") ||
   name.startsWith("x-forwarded-");
 
@@ -119,7 +126,11 @@ const withSecurityHeaders = (response: Response): Response => {
   });
 };
 
-const upstreamHeaders = (request: Request, publicHost: string): Headers => {
+const upstreamHeaders = (
+  request: Request,
+  publicHost: string,
+  attestation: string | null
+): Headers => {
   const headers = new Headers();
   for (const [name, value] of request.headers) {
     if (!isHopHeader(name.toLowerCase())) {
@@ -133,6 +144,9 @@ const upstreamHeaders = (request: Request, publicHost: string): Headers => {
   }
   headers.set("X-Forwarded-Host", publicHost);
   headers.set("X-Forwarded-Proto", "https");
+  if (attestation) {
+    headers.set(EDGE_RATE_LIMIT_HEADER, attestation);
+  }
   return headers;
 };
 
@@ -167,7 +181,12 @@ export const handleApiProxyRequest = async (
   request: Request,
   env: ApiProxyEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
-  options: { cache?: Cache | null; fetcher?: typeof fetch } = {}
+  options: {
+    cache?: Cache | null;
+    fetcher?: typeof fetch;
+    /** Charges the request to its edge rate limit before it is answered. */
+    rateLimit?: (request: Request) => Promise<EdgeRateLimitOutcome>;
+  } = {}
 ): Promise<Response | null> => {
   const publicHost = env.API_PUBLIC_HOST;
   const upstreamOrigin = env.API_UPSTREAM_ORIGIN;
@@ -185,6 +204,15 @@ export const handleApiProxyRequest = async (
 
   if (declaredBodyTooLarge(request)) {
     return errorResponse(413, "CONTENT_TOO_LARGE", "Request body is too large");
+  }
+
+  let attestation: string | null = null;
+  if (options.rateLimit) {
+    const outcome = await options.rateLimit(request);
+    if ("response" in outcome) {
+      return withSecurityHeaders(outcome.response);
+    }
+    attestation = outcome.attestation;
   }
 
   const fetcher = options.fetcher ?? fetch;
@@ -217,7 +245,7 @@ export const handleApiProxyRequest = async (
   try {
     upstream = await fetcher(upstreamUrl.toString(), {
       method: request.method,
-      headers: upstreamHeaders(request, publicHost),
+      headers: upstreamHeaders(request, publicHost, attestation),
       body: hasBody ? request.body : undefined,
       redirect: "manual",
     });

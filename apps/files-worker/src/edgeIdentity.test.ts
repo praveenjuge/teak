@@ -137,7 +137,7 @@ describe("API keys", () => {
     expect(call?.headers.get("x-teak-signature")).toBe(expected);
   });
 
-  test("answer from KV for an hour once Convex names the owner", async () => {
+  test("answer from KV for five minutes once Convex names the owner", async () => {
     const keyHash = await sha256Hex(API_KEY);
     const { calls, fetcher } = convex({ [keyHash]: "teak-user-1" });
     const shared = env();
@@ -152,6 +152,7 @@ describe("API keys", () => {
     expect(shared.kv.ttls.get(`key:${keyHash}`)).toBe(
       EDGE_IDENTITY_KNOWN_TTL_SECONDS
     );
+    expect(EDGE_IDENTITY_KNOWN_TTL_SECONDS).toBe(300);
   });
 
   test("an unknown key falls back to the address, remembered for a minute", async () => {
@@ -190,6 +191,21 @@ describe("API keys", () => {
       expect(calls).toHaveLength(2);
     }
   );
+});
+
+test("a failed KV read counts as a cache miss", async () => {
+  const keyHash = await sha256Hex(API_KEY);
+  const { calls, fetcher } = convex({ [keyHash]: "teak-user-1" });
+  const kv = new FakeKv();
+  kv.get = () => Promise.reject(new Error("KV unavailable"));
+  const identity = await resolveEdgeIdentity(
+    request("/api/v1/cards", `Bearer ${API_KEY}`),
+    env(kv),
+    ctx,
+    { fetcher }
+  );
+  expect(identity).toEqual({ key: "user:teak-user-1", source: "api_key" });
+  expect(calls).toHaveLength(1);
 });
 
 describe("WorkOS access tokens", () => {
