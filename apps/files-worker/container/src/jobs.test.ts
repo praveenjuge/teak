@@ -53,7 +53,7 @@ describe("describeProbe", () => {
         hasVideo: true,
         hasAudio: true,
       },
-      video: { index: 0, width: 1920, height: 1080 },
+      video: { codedHeight: 1080, codedWidth: 1920, index: 0 },
       audio: { index: 1 },
     });
   });

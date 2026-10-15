@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import type { ToolCommand } from "./args";
 import { ADDRESS_SPACE_BYTES, limitedCommand, run } from "./exec";
+
+const shell = (script: string) =>
+  ["sh", "-c", script] as unknown as ToolCommand;
 
 describe("limitedCommand", () => {
   test("wraps the command in prlimit on Linux", () => {
@@ -28,12 +32,9 @@ describe("limitedCommand", () => {
 
 describe("run", () => {
   test("captures exit code, stdout and stderr", async () => {
-    const result = await run(
-      ["sh", "-c", "printf out; printf err >&2; exit 3"],
-      {
-        deadline: Date.now() + 5000,
-      }
-    );
+    const result = await run(shell("printf out; printf err >&2; exit 3"), {
+      deadlineEpochMs: Date.now() + 5000,
+    });
     expect(result.exitCode).toBe(3);
     expect(new TextDecoder().decode(result.stdout)).toBe("out");
     expect(result.stderr).toBe("err");
@@ -44,8 +45,8 @@ describe("run", () => {
     const started = Date.now();
     // The background sleep holds stdout open: if only sh died, run would
     // wait for it for 30 seconds.
-    const result = await run(["sh", "-c", "sleep 30 & sleep 30"], {
-      deadline: Date.now() + 300,
+    const result = await run(shell("sleep 30 & sleep 30"), {
+      deadlineEpochMs: Date.now() + 300,
     });
     expect(result.timedOut).toBe(true);
     expect(result.exitCode).toBeNull();
@@ -53,16 +54,16 @@ describe("run", () => {
   });
 
   test("does not start a process once the deadline has passed", async () => {
-    const result = await run(["sh", "-c", "exit 0"], {
-      deadline: Date.now() - 1,
+    const result = await run(shell("exit 0"), {
+      deadlineEpochMs: Date.now() - 1,
     });
     expect(result.timedOut).toBe(true);
   });
 
   test("keeps only the first maxStdoutBytes of output", async () => {
-    const result = await run(["sh", "-c", "printf 0123456789"], {
-      deadline: Date.now() + 5000,
-      maxStdoutBytes: 4,
+    const result = await run(shell("printf 0123456789"), {
+      deadlineEpochMs: Date.now() + 5000,
+      stdout: { kind: "buffer", maxBytes: 4, stopAtLimit: false },
     });
     expect(new TextDecoder().decode(result.stdout)).toBe("0123");
     expect(result.stdoutTruncated).toBe(true);
@@ -71,10 +72,9 @@ describe("run", () => {
 
   test("stops an endless writer once its output is full", async () => {
     const started = Date.now();
-    const result = await run(["yes"], {
-      deadline: Date.now() + 10_000,
-      maxStdoutBytes: 1024,
-      stopAtStdoutLimit: true,
+    const result = await run(shell("yes"), {
+      deadlineEpochMs: Date.now() + 10_000,
+      stdout: { kind: "buffer", maxBytes: 1024, stopAtLimit: true },
     });
     expect(result.stdout.byteLength).toBe(1024);
     expect(result.stdoutTruncated).toBe(true);
@@ -84,10 +84,13 @@ describe("run", () => {
 
   test("streams stdout to a callback instead of buffering it", async () => {
     let total = 0;
-    const result = await run(["sh", "-c", "head -c 100000 /dev/zero"], {
-      deadline: Date.now() + 5000,
-      onStdout: (chunk) => {
-        total += chunk.byteLength;
+    const result = await run(shell("head -c 100000 /dev/zero"), {
+      deadlineEpochMs: Date.now() + 5000,
+      stdout: {
+        kind: "stream",
+        onChunk: (chunk) => {
+          total += chunk.byteLength;
+        },
       },
     });
     expect(total).toBe(100_000);

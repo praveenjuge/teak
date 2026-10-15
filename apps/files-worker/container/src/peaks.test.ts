@@ -18,7 +18,7 @@ describe("PeakWindows", () => {
     samples[SAMPLES_PER_WINDOW * 2 + 1] = -32_768;
     const windows = new PeakWindows();
     windows.push(pcm(samples));
-    expect(windows.finish()).toEqual([1200, 900, 32_768]);
+    expect(windows.windows).toEqual([1200, 900, 32_768]);
   });
 
   test("gives the same windows however the stream is chunked, even mid-sample", () => {
@@ -37,11 +37,11 @@ describe("PeakWindows", () => {
       offset += size;
     }
     split.push(bytes.subarray(offset));
-    expect(split.finish()).toEqual(whole.finish());
+    expect(split.windows).toEqual(whole.windows);
   });
 
   test("an empty stream has no windows", () => {
-    expect(new PeakWindows().finish()).toEqual([]);
+    expect(new PeakWindows().windows).toEqual([]);
   });
 });
 

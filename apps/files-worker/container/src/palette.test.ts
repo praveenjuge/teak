@@ -155,4 +155,14 @@ describe("extractPalette", () => {
     );
     expect(palette).toHaveLength(3);
   });
+
+  test("gives the same palette whatever order the pixels come in", () => {
+    const runs = Array.from({ length: 40 }, (_, index): [Rgba, number] => [
+      [(index * 53) % 256, (index * 97) % 256, (index * 151) % 256, 255],
+      10,
+    ]);
+    expect(extractPalette(image(...runs.toReversed()))).toEqual(
+      extractPalette(image(...runs))
+    );
+  });
 });
