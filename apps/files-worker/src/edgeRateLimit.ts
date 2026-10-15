@@ -76,69 +76,99 @@ const isMcpPath = (request: Request): boolean => {
   return pathname === "/mcp" || pathname.startsWith("/mcp/");
 };
 
-/** The request's JSON-RPC body, or undefined when it is not one. */
-const readJsonRpcBody = async (request: Request): Promise<unknown> => {
+/**
+ * Reads a cloned POST body chunk by chunk, for at most MCP_BODY_READ_TIMEOUT_MS
+ * and MAX_MCP_BODY_BYTES: the edge only peeks at bodies, so a stalled or huge
+ * one is never worth waiting for or buffering. `onChunk` returns a result to
+ * stop early; the stream ending, the cap or the timeout give `fallback`.
+ */
+const peekBody = async <T>(
+  request: Request,
+  fallback: T,
+  onChunk: (chunk: Uint8Array, done: boolean) => T | undefined
+): Promise<T> => {
   const reader =
     request.method === "POST" ? request.clone().body?.getReader() : undefined;
   if (!reader) {
-    return;
+    return fallback;
   }
-  // Read at most the cap, for at most the timeout: a refused client's body
-  // is not worth buffering or waiting for.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => resolve("timeout"), MCP_BODY_READ_TIMEOUT_MS);
   });
-  const chunks: Uint8Array[] = [];
   let size = 0;
   try {
     for (;;) {
       const read = await Promise.race([reader.read(), timedOut]);
       if (read === "timeout") {
-        return;
+        return fallback;
       }
-      const { done, value } = read;
-      if (done) {
-        break;
-      }
-      size += value.byteLength;
+      const chunk = read.value ?? new Uint8Array();
+      size += chunk.byteLength;
       if (size > MAX_MCP_BODY_BYTES) {
-        return;
+        return fallback;
       }
-      chunks.push(value);
+      const result = onChunk(chunk, read.done);
+      if (result !== undefined) {
+        return result;
+      }
+      if (read.done) {
+        return fallback;
+      }
     }
-    return JSON.parse(await new Blob(chunks).text());
   } catch {
+    return fallback;
   } finally {
     clearTimeout(timer);
     reader.cancel().catch(() => undefined);
   }
 };
 
-/** True when a POST body is a JSON array (a JSON-RPC batch), at any size. */
-const isJsonArrayBody = async (request: Request): Promise<boolean> => {
-  if (request.method !== "POST" || !request.body) {
-    return false;
+/** The request's JSON-RPC body, or undefined when it is not one. */
+const readJsonRpcBody = (request: Request): Promise<unknown> => {
+  const chunks: Uint8Array[] = [];
+  return peekBody<unknown>(request, undefined, (chunk, done) => {
+    chunks.push(chunk);
+    if (!done) {
+      return;
+    }
+    try {
+      return JSON.parse(new TextDecoder().decode(concat(chunks)));
+    } catch {
+      return null;
+    }
+  });
+};
+
+const concat = (chunks: Uint8Array[]): Uint8Array => {
+  const out = new Uint8Array(
+    chunks.reduce((total, chunk) => total + chunk.byteLength, 0)
+  );
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
   }
-  const reader = request.clone().body?.getReader();
-  if (!reader) {
-    return false;
+  return out;
+};
+
+/**
+ * True when a POST body may be a JSON array (a JSON-RPC batch). A body whose
+ * first character the edge cannot see in time counts as one, so it goes
+ * through unattested and Convex charges each call itself.
+ */
+const mayBeJsonArrayBody = (request: Request): Promise<boolean> => {
+  if (request.method !== "POST" || !request.body) {
+    return Promise.resolve(false);
   }
   const decoder = new TextDecoder();
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) {
-        return false;
-      }
-      const text = decoder.decode(value, { stream: true }).trimStart();
-      if (text) {
-        return text.startsWith("[");
-      }
+  return peekBody(request, true, (chunk, done) => {
+    const text = decoder.decode(chunk, { stream: !done }).trimStart();
+    if (text) {
+      return text.startsWith("[");
     }
-  } finally {
-    reader.cancel().catch(() => undefined);
-  }
+    return done ? false : undefined;
+  });
 };
 
 /** A JSON-RPC notification: a method call without an id, owed no reply. */
@@ -313,7 +343,7 @@ export const applyEdgeRateLimit = async (
     return { attestation: null };
   }
   // Convex charges each call of a JSON-RPC batch; one edge charge covers one.
-  if (isMcpPath(request) && (await isJsonArrayBody(request))) {
+  if (isMcpPath(request) && (await mayBeJsonArrayBody(request))) {
     return { attestation: null };
   }
   return {

@@ -286,6 +286,52 @@ describe("a known user", () => {
       expect(outcome).toEqual({ attestation: null });
     }
   );
+
+  test("attests a single MCP request after peeking past leading whitespace", async () => {
+    const outcome = await limit(
+      env(),
+      request("/mcp", {
+        key: KEY_A,
+        body: `  \n${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" })}`,
+      })
+    );
+    expect("attestation" in outcome && outcome.attestation).toBeTruthy();
+  });
+
+  test("sends an MCP body it cannot classify within the read cap through unattested", async () => {
+    const outcome = await limit(
+      env(),
+      request("/mcp", {
+        key: KEY_A,
+        body: `${" ".repeat(70 * 1024)}{"jsonrpc":"2.0","id":1,"method":"ping"}`,
+      })
+    );
+    expect(outcome).toEqual({ attestation: null });
+  });
+
+  test(
+    "sends a stalled MCP body through unattested once the peek times out",
+    async () => {
+      // Whitespace, then nothing, and the stream never closes.
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("   "));
+        },
+      });
+      const outcome = await limit(
+        env(),
+        new Request("https://teakvault.com/mcp", {
+          method: "POST",
+          body,
+          headers: { Authorization: `Bearer ${KEY_A}` },
+          // @ts-expect-error Bun needs duplex for a streamed request body.
+          duplex: "half",
+        })
+      );
+      expect(outcome).toEqual({ attestation: null });
+    },
+    MCP_BODY_READ_TIMEOUT_MS + 1000
+  );
 });
 
 describe("requests without a known user", () => {
