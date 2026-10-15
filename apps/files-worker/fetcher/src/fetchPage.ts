@@ -27,6 +27,8 @@ const MAX_SELECTORS = 128;
 const MAX_SELECTOR_CHARS = 512;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
+const REDIRECT_FAILURES = new Set(["invalid_redirect", "too_many_redirects"]);
+
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -137,7 +139,13 @@ export const fetchLinkPage = async (
       pinnedFetch
     );
   } catch (error) {
-    return fail(error instanceof SsrfError ? "blocked_url" : "fetch_failed");
+    // safeFetch also throws SsrfError for a broken redirect chain, which is
+    // the page failing, not the policy refusing it.
+    return fail(
+      error instanceof SsrfError && !REDIRECT_FAILURES.has(error.reason)
+        ? "blocked_url"
+        : "fetch_failed"
+    );
   }
 
   if (!response.ok) {

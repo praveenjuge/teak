@@ -203,6 +203,12 @@ describe("fetching", () => {
       { reason: "too_large" },
     ],
     [
+      "a redirect loop",
+      () => Response.redirect(PAGE, 302),
+      undefined,
+      { reason: "fetch_failed" },
+    ],
+    [
       "a network failure",
       () => Promise.reject(new TypeError("connect ECONNREFUSED")),
       undefined,
