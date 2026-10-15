@@ -174,6 +174,30 @@ describe("a known user", () => {
     });
   });
 
+  test("stops reading a refused MCP body after the id lookup's cap", async () => {
+    // 70 KiB, then a stream that never ends: reading it all would hang.
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(`{"id":1,"pad":"${"x".repeat(70 * 1024)}`)
+        );
+      },
+    });
+    const outcome = await limit(
+      env({ api: new FakeLimiter(0) }),
+      new Request("https://teakvault.com/mcp", {
+        method: "POST",
+        body,
+        headers: { Authorization: `Bearer ${KEY_A}` },
+        // @ts-expect-error Bun needs duplex for a streamed request body.
+        duplex: "half",
+      })
+    );
+    const response = "response" in outcome ? outcome.response : null;
+    expect(response?.status).toBe(429);
+    expect(await response?.json()).not.toHaveProperty("id");
+  }, 2000);
+
   test.each([
     ["a small batch", 2],
     ["a batch larger than the id lookup reads", 2000],

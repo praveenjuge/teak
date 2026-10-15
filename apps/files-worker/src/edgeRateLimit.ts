@@ -75,13 +75,31 @@ const isMcpPath = (request: Request): boolean => {
 
 /** The request's JSON-RPC body, or undefined when it is not one. */
 const readJsonRpcBody = async (request: Request): Promise<unknown> => {
-  if (request.method !== "POST") {
+  const reader =
+    request.method === "POST" ? request.clone().body?.getReader() : undefined;
+  if (!reader) {
     return;
   }
+  // Read at most the cap: a refused client's body is not worth buffering.
+  const chunks: Uint8Array[] = [];
+  let size = 0;
   try {
-    const text = await request.clone().text();
-    return text.length > MAX_MCP_BODY_BYTES ? undefined : JSON.parse(text);
-  } catch {}
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      size += value.byteLength;
+      if (size > MAX_MCP_BODY_BYTES) {
+        return;
+      }
+      chunks.push(value);
+    }
+    return JSON.parse(await new Blob(chunks).text());
+  } catch {
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
 };
 
 /** True when a POST body is a JSON array (a JSON-RPC batch), at any size. */
