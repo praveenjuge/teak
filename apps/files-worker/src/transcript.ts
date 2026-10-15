@@ -5,11 +5,7 @@ import {
   type FilesTranscriptParams,
   type FilesTranscriptResult,
 } from "@teak/files-protocol";
-import {
-  type AiGatewayEnv,
-  aiRunOptions,
-  type WorkersAiBinding,
-} from "./aiGateway";
+import type { WorkersAiBinding } from "./aiGateway";
 import { isValidUploadKey } from "./upload";
 
 // Workers AI rejects audio it cannot decode (truncated or mislabeled
@@ -30,7 +26,7 @@ export const isAudioDecodeError = (error: unknown): boolean => {
 };
 
 export async function transcribeAudio(
-  env: AiGatewayEnv & {
+  env: {
     BUCKET: R2Bucket;
     AI?: WorkersAiBinding;
   },
@@ -67,13 +63,12 @@ export async function transcribeAudio(
   }
   // The first-class AI binding streams the R2 body with its content type.
   // This preserves the 100 MiB upload limit without a base64 copy in memory.
+  // AI Gateway does not accept a streamed body, so Whisper skips it.
   let result: { text?: unknown };
   try {
-    result = (await env.AI.run(
-      FILES_TRANSCRIPTION_MODEL,
-      { audio: { body: source.body, contentType: mimeType } },
-      aiRunOptions(env)
-    )) as { text?: unknown };
+    result = (await env.AI.run(FILES_TRANSCRIPTION_MODEL, {
+      audio: { body: source.body, contentType: mimeType },
+    })) as { text?: unknown };
   } catch (error) {
     if (isAudioDecodeError(error)) {
       throw new Error("audio_decode_failed");

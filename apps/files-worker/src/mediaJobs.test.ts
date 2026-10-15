@@ -540,6 +540,32 @@ describe("process-audio", () => {
     ]);
   });
 
+  test("transcribes even when an AI Gateway is configured", async () => {
+    const { env } = await setup(audioAnswer("converted"), audio);
+    // AI Gateway rejects the streamed audio body Whisper needs.
+    const ai = {
+      run: (
+        _model: string,
+        _args: Record<string, unknown>,
+        options?: { gateway?: unknown }
+      ) =>
+        options?.gateway
+          ? Promise.reject(
+              new Error("AI Gateway does not support ReadableStreams yet.")
+            )
+          : Promise.resolve({ text: "hello there" }),
+    };
+    const { body } = await callOp(
+      { ...env, AI: ai, AI_GATEWAY_ID: "teak-files" },
+      "process-audio",
+      { mimeType: "audio/ogg", sourceKey: audio, transcribe: true }
+    );
+    expect(body.data?.transcript).toEqual({
+      status: "completed",
+      text: "hello there",
+    });
+  });
+
   test("labels native audio with its stored type when no hint is given", async () => {
     const { bucket, env } = await setup(audioAnswer("native"), audio);
     await bucket.put(audio, SOURCE_BYTES, {
