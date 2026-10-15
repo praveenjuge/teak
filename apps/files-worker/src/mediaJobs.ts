@@ -14,6 +14,11 @@ import {
   type FilesVideoScrub,
 } from "@teak/files-protocol";
 import {
+  type AiGatewayEnv,
+  aiRunOptions,
+  type WorkersAiBinding,
+} from "./aiGateway";
+import {
   MAX_AI_TEXT_CHARACTERS,
   MAX_PDF_TEXT_PAGES,
   textFacts,
@@ -33,10 +38,8 @@ import { InspectSourceMissing } from "./zip";
  * and stores every output; the Container only ever sees the bytes it is sent.
  */
 
-export interface MediaJobsEnv extends RendererEnv {
-  AI?: {
-    run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
-  };
+export interface MediaJobsEnv extends RendererEnv, AiGatewayEnv {
+  AI?: WorkersAiBinding;
   BUCKET: R2Bucket;
 }
 
@@ -327,13 +330,16 @@ export const readWaveform = (
 type AiBinding = NonNullable<MediaJobsEnv["AI"]>;
 
 const runWhisper = async (
+  env: MediaJobsEnv,
   ai: AiBinding,
   body: ReadableStream,
   contentType: string
 ): Promise<FilesAudioTranscript> => {
-  const result = (await ai.run(FILES_TRANSCRIPTION_MODEL, {
-    audio: { body, contentType },
-  })) as { text?: unknown } | null;
+  const result = (await ai.run(
+    FILES_TRANSCRIPTION_MODEL,
+    { audio: { body, contentType } },
+    aiRunOptions(env)
+  )) as { text?: unknown } | null;
   const text = result?.text ?? "";
   if (typeof text !== "string") {
     return { reason: "transcription_invalid_response", status: "failed" };
@@ -378,11 +384,12 @@ const transcribe = async (
   const mp3 = (bytes: Uint8Array) => new Blob([bytes]).stream();
   try {
     if (input.converted) {
-      return await runWhisper(ai, mp3(input.converted), "audio/mpeg");
+      return await runWhisper(env, ai, mp3(input.converted), "audio/mpeg");
     }
     const source = await r2SourceOpener(env.BUCKET, input.sourceKey)();
     try {
       return await runWhisper(
+        env,
         ai,
         source.body,
         input.mimeType || source.contentType || "audio/mpeg"
@@ -397,7 +404,7 @@ const transcribe = async (
     if (!converted) {
       return { reason: "audio_decode_failed", status: "failed" };
     }
-    return await runWhisper(ai, mp3(converted), "audio/mpeg");
+    return await runWhisper(env, ai, mp3(converted), "audio/mpeg");
   } catch (error) {
     if (isAudioDecodeError(error)) {
       return { reason: "audio_decode_failed", status: "failed" };

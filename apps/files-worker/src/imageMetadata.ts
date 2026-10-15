@@ -1,3 +1,4 @@
+import { aiRunOptions } from "./aiGateway";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
@@ -31,10 +32,6 @@ Guidelines:
 
 Respond with a single JSON object using exactly this shape and no other keys:
 {"tags": ["word", "word"], "summary": "..."}`;
-
-interface ImageMetadataAi {
-  run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
-}
 
 export interface ImageMetadataResult {
   summary: string;
@@ -167,7 +164,7 @@ export const generateImageMetadataForOp = async (
     throw new Error("image_transform_failed");
   }
 
-  const ai = (env as { AI?: ImageMetadataAi }).AI;
+  const ai = env.AI;
   if (!ai) {
     throw new Error("workers_ai_not_configured");
   }
@@ -183,29 +180,33 @@ export const generateImageMetadataForOp = async (
   let validationAttempt = 0;
   while (true) {
     try {
-      const response = await ai.run(IMAGE_METADATA_MODEL_ID, {
-        max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
-        messages: [
-          {
-            content: IMAGE_ANALYSIS_SYSTEM_PROMPT,
-            role: "system",
-          },
-          {
-            content: [
-              {
-                text: validationRetryPrompt(basePrompt, validationAttempt),
-                type: "text",
-              },
-              {
-                image_url: { url: imageDataUrl },
-                type: "image_url",
-              },
-            ],
-            role: "user",
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+      const response = await ai.run(
+        IMAGE_METADATA_MODEL_ID,
+        {
+          max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
+          messages: [
+            {
+              content: IMAGE_ANALYSIS_SYSTEM_PROMPT,
+              role: "system",
+            },
+            {
+              content: [
+                {
+                  text: validationRetryPrompt(basePrompt, validationAttempt),
+                  type: "text",
+                },
+                {
+                  image_url: { url: imageDataUrl },
+                  type: "image_url",
+                },
+              ],
+              role: "user",
+            },
+          ],
+          response_format: { type: "json_object" },
+        },
+        aiRunOptions(env)
+      );
       const text = extractMessageText(response);
       if (text === null) {
         throw new Error("malformed_workers_ai_response");

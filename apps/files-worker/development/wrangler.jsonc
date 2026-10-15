@@ -64,6 +64,9 @@
     "subrequests": 20000
   },
   "vars": {
+    // Its own AI Gateway, so development traffic stays out of production's
+    // analytics. Create it in the dashboard before deploying.
+    "AI_GATEWAY_ID": "teak-files-development",
     // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "2"
   },

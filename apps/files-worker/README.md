@@ -27,7 +27,13 @@ liveness probe for uptime monitors.
 The worker also owns the Images (`IMAGES`) and Workers AI (`AI`) bindings:
 only unique transformed variants (`tiny`, `compact`, `grid`, `detail`) consume
 Image Transformations, and image understanding runs on Workers AI inside the
-worker. Eligible sources (≤20 MB) are transformed directly from R2 through
+worker. Every Workers AI call (text, link and image metadata, transcription)
+goes through the AI Gateway named by the `AI_GATEWAY_ID` var
+(`src/aiGateway.ts`) for request, token, cost and error analytics. Calls set
+`collectLog: false`, so prompts and replies, which hold card content, are never
+stored, and `skipCache: true`, because refreshing a card resends the same prompt
+and must get a fresh answer. The gateway must exist before a deploy that names
+it. Eligible sources (≤20 MB) are transformed directly from R2 through
 the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
 users, owns card state, validates uploads, and orchestrates workflows —

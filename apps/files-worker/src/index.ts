@@ -15,6 +15,7 @@ import {
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
+import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
   FILES_CACHE_CONTROL,
@@ -28,11 +29,9 @@ import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env {
-  /** Workers AI binding; used for image understanding in generate-image-metadata. */
-  AI?: {
-    run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
-  };
+export interface Env extends AiGatewayEnv {
+  /** Workers AI binding: metadata, image understanding and transcription. */
+  AI?: WorkersAiBinding;
   /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;

@@ -82,6 +82,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "Workers AI binding for image analysis and transcripts.",
   }),
+  spec("AI_GATEWAY_ID", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["preview", "production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    note: "AI Gateway that every Workers AI call goes through, set as a Wrangler var per Worker. Unset calls Workers AI directly.",
+  }),
   spec("IMAGES", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],

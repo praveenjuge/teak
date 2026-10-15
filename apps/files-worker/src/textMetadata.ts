@@ -10,6 +10,7 @@ import {
   TEXT_METADATA_MODEL_ID,
   validationRetryPrompt,
 } from "@teak/files-protocol";
+import { aiRunOptions } from "./aiGateway";
 import type { FilesOpsEnv } from "./ops";
 
 export class MetadataCapacityError extends Error {
@@ -114,14 +115,18 @@ export const generateTextMetadataForOp = async (
     facts.validationRetryCount = attempt;
     let response: unknown;
     try {
-      response = await env.AI.run(TEXT_METADATA_MODEL_ID, {
-        max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: validationRetryPrompt(prompt, attempt) },
-        ],
-        response_format: { type: "json_object" },
-      });
+      response = await env.AI.run(
+        TEXT_METADATA_MODEL_ID,
+        {
+          max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: validationRetryPrompt(prompt, attempt) },
+          ],
+          response_format: { type: "json_object" },
+        },
+        aiRunOptions(env)
+      );
     } catch (error) {
       if (isCapacityError(error)) {
         throw new MetadataCapacityError(facts);

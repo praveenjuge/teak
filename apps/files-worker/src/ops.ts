@@ -14,6 +14,7 @@ import {
   isFilesInspectMode,
   isFilesOp,
 } from "@teak/files-protocol";
+import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -80,10 +81,8 @@ export const getFilesOpObjectKey = (params: unknown): string => {
     : "";
 };
 
-export interface FilesOpsEnv {
-  AI?: {
-    run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
-  };
+export interface FilesOpsEnv extends AiGatewayEnv {
+  AI?: WorkersAiBinding;
   /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;

@@ -64,6 +64,9 @@
     "subrequests": 20000
   },
   "vars": {
+    // AI Gateway for every Workers AI call (src/aiGateway.ts). Create it in
+    // the dashboard before deploying: a named gateway must exist first.
+    "AI_GATEWAY_ID": "teak-files",
     // Public PostHog project token for error reports (production only).
     "POSTHOG_PROJECT_TOKEN": "phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn",
     // Matches containers[0].max_instances.
