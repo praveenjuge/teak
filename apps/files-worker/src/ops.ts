@@ -94,6 +94,8 @@ export interface FilesOpsEnv extends AiGatewayEnv {
   /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
   LINK_FETCHER?: DurableObjectNamespace;
   LINK_FETCHER_INSTANCES?: string;
+  /** fetch-link-page results for a day; see linkPage.ts. */
+  LINK_PAGE_CACHE?: KVNamespace;
   /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
   MEDIA_RENDERER?: DurableObjectNamespace;
   MEDIA_RENDERER_INSTANCES?: string;

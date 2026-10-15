@@ -45,6 +45,8 @@ export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeRateLimitEnv {
   LINK_FETCHER?: DurableObjectNamespace;
   /** Fetcher pool size; matches the fetcher Container's max_instances. */
   LINK_FETCHER_INSTANCES?: string;
+  /** fetch-link-page results for a day; see linkPage.ts. */
+  LINK_PAGE_CACHE?: KVNamespace;
   /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
   MEDIA_RENDERER?: DurableObjectNamespace;
   /** Renderer pool size; matches the Container's max_instances. */
