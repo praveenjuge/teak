@@ -1,6 +1,5 @@
 import Foundation
 
-/// The filter menu: favorites, Trash, types and one color, like the iPhone app.
 public struct LibraryFilters: Hashable, Sendable {
     public var favoritesOnly = false
     public var trashOnly = false
@@ -24,7 +23,6 @@ public struct LibraryFilters: Hashable, Sendable {
         return next
     }
 
-    /// The large title names the view: "Trash", "Favorites", "Links", "Favorite Links".
     public var title: String {
         if trashOnly { return "Trash" }
         let typeTitle = types.count == 1 ? types[0].plural : nil
@@ -35,7 +33,6 @@ public struct LibraryFilters: Hashable, Sendable {
     }
 }
 
-/// A committed search token: the Mac app's search syntax, now on every platform.
 public struct SearchToken: Identifiable, Hashable, Sendable {
     public enum Kind: String, Sendable { case keyword, date, type, tag, style, hue, hex, favorites, trash }
 
@@ -68,11 +65,8 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Port of the Mac app's `LibrarySearchTokens`.
 public enum SearchTokens {
-    /// An exact tag filter, from a card's tag.
     public static func tag(_ name: String) -> SearchToken {
-        // The token draws its own "#" symbol, so the label is just the name.
         SearchToken(kind: .tag, value: name, label: name)
     }
 
@@ -137,7 +131,6 @@ public enum SearchTokens {
         return tokens.filter { !$0.value.isEmpty }
     }
 
-    /// Tokens worth suggesting while someone types, so search syntax is discoverable.
     public static func suggestions(for text: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -150,7 +143,6 @@ public enum SearchTokens {
     }
 }
 
-/// Everything the library shows: typed text, committed tokens and the filter menu.
 public struct LibraryQuery: Hashable, Sendable {
     public var text: String
     public var tokens: [SearchToken]
@@ -162,7 +154,6 @@ public struct LibraryQuery: Hashable, Sendable {
         self.filters = filters
     }
 
-    /// The menu filters with the tokens folded in.
     public var effectiveFilters: LibraryFilters {
         var result = filters
         for token in tokens {
@@ -181,7 +172,6 @@ public struct LibraryQuery: Hashable, Sendable {
 
     public var isTrash: Bool { effectiveFilters.trashOnly }
 
-    /// A date typed but not committed ("last week") filters by date, as on iPhone.
     public func timeFilter(now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {
         TimeSearch.parse(text, now: now, timeZone: timeZone)
     }
@@ -234,7 +224,6 @@ public struct LibraryQuery: Hashable, Sendable {
         return args
     }
 
-    /// The empty state for a query that matched nothing.
     public func emptyState(now: Date = Date(), timeZone: TimeZone = .current) -> (title: String, message: String, symbol: String) {
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if typed.isEmpty, tokens.isEmpty, effectiveFilters.trashOnly {

@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.card
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.Card
@@ -13,7 +14,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,6 @@ data class EditAlert(val title: String, val message: String)
 data class CardEditUiState(
     val isLoading: Boolean = true,
     val card: Card? = null,
-    /** Seeded once from the card as it was when the screen opened. */
     val draft: CardEditDraft? = null,
     val newTag: String = "",
     val isSaving: Boolean = false,
@@ -49,7 +48,6 @@ class CardEditViewModel @AssistedInject constructor(
     val uiState: StateFlow<CardEditUiState> = _uiState.asStateFlow()
 
     private val _done = Channel<Unit>(Channel.CONFLATED)
-    /** Emits once the edits are saved. */
     val done: Flow<Unit> = _done.receiveAsFlow()
 
     init {
@@ -89,7 +87,6 @@ class CardEditViewModel @AssistedInject constructor(
 
     fun dismissAlert() = _uiState.update { it.copy(alert = null) }
 
-    @Suppress("TooGenericExceptionCaught") // Any failure becomes an alert instead of a crash.
     fun save() {
         val state = _uiState.value
         val card = state.card ?: return
@@ -101,17 +98,13 @@ class CardEditViewModel @AssistedInject constructor(
         val changes = state.changes
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            try {
-                repository.apply(card.id, changes)
-                _done.send(Unit)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                val message = (error as? TeakException)?.message ?: "Please try again."
-                _uiState.update { it.copy(alert = EditAlert("Couldn't save changes", message)) }
-            } finally {
-                _uiState.update { it.copy(isSaving = false) }
-            }
+            catchingFailures { repository.apply(card.id, changes) }
+                .onSuccess { _done.send(Unit) }
+                .onFailure { error ->
+                    val message = (error as? TeakException)?.message ?: "Please try again."
+                    _uiState.update { it.copy(alert = EditAlert("Couldn't save changes", message)) }
+                }
+            _uiState.update { it.copy(isSaving = false) }
         }
     }
 

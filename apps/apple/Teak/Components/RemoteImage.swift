@@ -15,8 +15,6 @@ extension Image {
 }
 #endif
 
-/// Loads remote images through a disk `URLCache`, decodes them at display
-/// size with ImageIO, and keeps recent ones in memory.
 actor ImagePipeline {
     static let shared = ImagePipeline()
 
@@ -35,9 +33,8 @@ actor ImagePipeline {
         memory.totalCostLimit = 128 * 1024 * 1024
     }
 
-    /// The image decoded to fit `maxPixelSize` on its longest side.
     func image(for url: URL, maxPixelSize: Int) async -> CGImage? {
-        let key = "\(cacheKey(url))#\(maxPixelSize)"
+        let key = "\(cacheKeyIgnoringSignature(url))#\(maxPixelSize)"
         if let cached = memory.object(forKey: key as NSString) { return cached.image }
         if let task = inFlight[key] { return await task.value }
         let task = Task<CGImage?, Never> { [session] in
@@ -53,14 +50,12 @@ actor ImagePipeline {
         return image
     }
 
-    /// Raw bytes, for GIFs and files.
     func data(for url: URL) async throws -> Data {
         let (data, _) = try await session.data(from: url)
         return data
     }
 
-    /// Signed URLs change their query on every signing; the path names the file.
-    private func cacheKey(_ url: URL) -> String {
+    private func cacheKeyIgnoringSignature(_ url: URL) -> String {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         components?.query = nil
         return components?.string ?? url.absoluteString
@@ -84,8 +79,6 @@ final class CGImageBox: @unchecked Sendable {
     init(_ image: CGImage) { self.image = image }
 }
 
-/// A remote image that fills its frame, with a quiet placeholder while it
-/// loads and when it fails. Tries each URL in order.
 struct RemoteImage: View {
     let urls: [URL]
     var placeholder: URL?

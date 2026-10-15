@@ -44,7 +44,7 @@ final class ShareViewController: UIViewController {
     }
 
     /// Share extensions can't open URLs directly, so ask the hosting app's
-    /// `UIApplication` through the responder chain, as the old app did.
+    /// `UIApplication` through the responder chain.
     private func openTeak() {
         let url = URL(string: "teak://connect")!
         var responder: UIResponder? = self

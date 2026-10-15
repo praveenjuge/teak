@@ -10,12 +10,12 @@ import kotlin.test.assertNull
 
 class TimeSearchTest {
     private val zone = ZoneId.of("America/New_York")
-    private val now = ZonedDateTime.of(2026, 2, 3, 12, 0, 0, 0, zone) // Tuesday, Feb 3, 2026
+    private val tuesdayNoon = ZonedDateTime.of(2026, 2, 3, 12, 0, 0, 0, zone)
 
     private fun day(millis: Long) = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
 
     private fun assertRange(query: String, label: String, start: LocalDate, end: LocalDate) {
-        val result = TimeSearch.parse(query, now)!!
+        val result = TimeSearch.parse(query, tuesdayNoon)!!
         assertEquals(label, result.label, query)
         assertEquals(start, day(result.range.start), query)
         assertEquals(end, day(result.range.end), query)
@@ -51,8 +51,8 @@ class TimeSearchTest {
 
     @Test
     fun `leaves other text and impossible dates to full-text search`() {
-        assertNull(TimeSearch.parse("design inspiration", now))
-        assertNull(TimeSearch.parse("2024-02-30", now))
-        assertNull(TimeSearch.parse("July 2025 to June 2024", now))
+        assertNull(TimeSearch.parse("design inspiration", tuesdayNoon))
+        assertNull(TimeSearch.parse("2024-02-30", tuesdayNoon))
+        assertNull(TimeSearch.parse("July 2025 to June 2024", tuesdayNoon))
     }
 }

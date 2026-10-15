@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import java.io.File
 
-/** Uploads one staged file with a progress notification, then deletes the staged copy. */
 @HiltWorker
 class UploadWorker @AssistedInject constructor(
     @Assisted context: Context,
@@ -49,25 +48,33 @@ class UploadWorker @AssistedInject constructor(
                 val percent = (progress * 100).toInt()
                 if (percent != lastReported) {
                     lastReported = percent
-                    setProgressAsync(workDataOf(OUT_NAME to name, KEY_PROGRESS to progress))
+                    setProgressAsync(workDataOf(Output.NAME to name, KEY_PROGRESS to progress))
                     notifications.notify(NOTIFICATION_ID, notification(name, progress))
                 }
             }
             cleanUp(path)
-            Result.success(workDataOf(OUT_NAME to name, OUT_CARD_ID to cardId))
+            Result.success(workDataOf(Output.NAME to name, Output.OUTCOME to UploadOutcome.Saved.name, Output.CARD_ID to cardId))
         } catch (e: TeakException) {
             if (e.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
             cleanUp(path)
-            val output = workDataOf(OUT_NAME to name, OUT_ERROR to e.message, OUT_ERROR_CODE to e.code)
-            // A full vault stops the rest of the queue, like iOS; any other failure lets the next file go.
-            if (e.code == TeakException.CARD_LIMIT_REACHED) {
-                cleanUpQueuedBehind()
-                Result.failure(output)
-            } else {
-                Result.success(output)
-            }
+            if (e.code == TeakException.CARD_LIMIT_REACHED) stopQueue(name, e) else continueQueue(name, e)
         }
     }
+
+    private suspend fun stopQueue(name: String, error: TeakException): Result {
+        cleanUpQueuedBehind()
+        return Result.failure(failureOutput(name, UploadOutcome.LimitReached, error))
+    }
+
+    private fun continueQueue(name: String, error: TeakException): Result =
+        Result.success(failureOutput(name, UploadOutcome.Failed, error))
+
+    private fun failureOutput(name: String, outcome: UploadOutcome, error: TeakException) = workDataOf(
+        Output.NAME to name,
+        Output.OUTCOME to outcome.name,
+        Output.ERROR to error.message,
+        Output.ERROR_CODE to error.code,
+    )
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
         foregroundInfo(inputData.getString(KEY_NAME) ?: "File", 0f)
@@ -85,7 +92,7 @@ class UploadWorker @AssistedInject constructor(
     }
 
     private fun cleanUp(path: String) {
-        File(path).parentFile?.takeIf { it.parentFile?.name == "uploads" }?.deleteRecursively()
+        StagingArea.slotOf(path)?.deleteRecursively()
     }
 
     private fun foregroundInfo(name: String, progress: Float): ForegroundInfo {
@@ -124,21 +131,23 @@ class UploadWorker @AssistedInject constructor(
         const val KEY_SIZE = "size"
         const val KEY_METADATA = "metadata"
         const val KEY_PROGRESS = "progress"
-
-        // Uploads run as a chain, and WorkManager merges each finished upload's output into the next
-        // one's input. Output keys must never match input keys, or the next file takes this one's name.
-        const val OUT_NAME = "result.name"
-        const val OUT_CARD_ID = "result.cardId"
-        const val OUT_ERROR = "result.error"
-        const val OUT_ERROR_CODE = "result.errorCode"
-
-        /** Tags each upload with its file name, so waiting uploads can show it. */
         const val NAME_TAG_PREFIX = "teak-upload-name:"
 
-        /** Tags each upload with its staged copy, so uploads that never run can still delete it. */
         const val PATH_TAG_PREFIX = "teak-upload-path:"
         private const val CHANNEL_ID = "uploads"
         private const val NOTIFICATION_ID = 4101
         private const val MAX_RETRIES = 3
     }
+
+    /** WorkManager merges each upload's output into the next one's input, so no key here may match an input key. */
+    object Output {
+        const val NAME = "result.name"
+        const val OUTCOME = "result.outcome"
+        const val CARD_ID = "result.cardId"
+        const val ERROR = "result.error"
+        const val ERROR_CODE = "result.errorCode"
+    }
 }
+
+/** How one upload ended. [Skipped] uploads never ran: one before them hit the card limit. */
+enum class UploadOutcome { Saved, Failed, LimitReached, Skipped }

@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shown while the session and sign-in configuration load.
 struct LoadingView: View {
     var body: some View {
         ProgressView()
@@ -10,7 +9,6 @@ struct LoadingView: View {
     }
 }
 
-/// No connection: the iPhone app's offline screen.
 struct OfflineView: View {
     let retry: () -> Void
 
@@ -27,7 +25,6 @@ struct OfflineView: View {
     }
 }
 
-/// The configuration couldn't load.
 struct FailedView: View {
     let message: String
     let retry: () -> Void

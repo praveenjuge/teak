@@ -4,8 +4,8 @@ import android.net.Uri
 import android.util.Log
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.repository.AccountRepository
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,31 +40,29 @@ class SignInController @Inject constructor(
         }
     }
 
-    /** Handles the redirect from AuthKit. */
-    @Suppress("TooGenericExceptionCaught") // Any failure is shown on the sign-in screen.
     suspend fun handleCallback(uri: Uri) {
         val method = _progress.value.pending
         completing = true
         _progress.value = SignInProgress(pending = method ?: SignInMethod.EmailSignIn)
         _progress.value = try {
-            account.completeSignIn(
-                code = uri.getQueryParameter("code"),
-                state = uri.getQueryParameter("state"),
-                error = uri.getQueryParameter("error"),
+            catchingFailures {
+                account.completeSignIn(
+                    code = uri.getQueryParameter("code"),
+                    state = uri.getQueryParameter("state"),
+                    error = uri.getQueryParameter("error"),
+                )
+            }.fold(
+                onSuccess = { SignInProgress() },
+                onFailure = { e ->
+                    Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}")
+                    SignInProgress(error = e.message ?: "Unable to complete sign-in. Please try again.")
+                },
             )
-            SignInProgress()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Never log tokens; the exception chain carries only WorkOS's error code and message.
-            Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}: ${e.message}; cause: ${e.cause}")
-            SignInProgress(error = e.message ?: "Unable to complete sign-in. Please try again.")
         } finally {
             completing = false
         }
     }
 
-    /** The browser was closed without finishing. */
     fun cancel() {
         if (!completing && _progress.value.pending != null) _progress.value = SignInProgress()
     }

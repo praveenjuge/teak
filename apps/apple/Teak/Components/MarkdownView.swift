@@ -1,7 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// A note's Markdown, block by block like the web, with inline emphasis and links.
 struct MarkdownView: View {
     let markdown: String
     var baseFont: Font = .body

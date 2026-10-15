@@ -34,7 +34,6 @@ class CardDetailViewModelTest {
         files = CardFiles(RuntimeEnvironment.getApplication(), OkHttpClient()),
     )
 
-    /** Holds favorite writes until the test lets them through, like a slow network. */
     private class SlowFavorites(private val fake: FakeCardsRepository) : CardsRepository by fake {
         val release = CompletableDeferred<Unit>()
         override suspend fun setFavorite(id: String, favorite: Boolean) {

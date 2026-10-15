@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 
-/** The expressive loading indicator, centered in the available space. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TeakLoading(modifier: Modifier = Modifier) {

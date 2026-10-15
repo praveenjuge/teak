@@ -9,8 +9,6 @@ import TeakCore
 import TeakSync
 import UniformTypeIdentifiers
 
-/// Saves what people capture: notes and links, and files uploaded one at a
-/// time with a summary at the end, like the iPhone and Mac apps.
 @MainActor @Observable
 final class CaptureModel {
     struct Alert: Identifiable, Equatable {
@@ -23,7 +21,6 @@ final class CaptureModel {
     private(set) var isSavingText = false
     private(set) var upload: (done: Int, total: Int)?
     var alert: Alert?
-    /// Bumps on every save, for haptics and the Mac HUD.
     private(set) var savedCount = 0
     private(set) var lastSaved: String?
 
@@ -35,9 +32,6 @@ final class CaptureModel {
 
     var isUploading: Bool { upload != nil }
 
-    // MARK: Text
-
-    /// Saves a note, or a link when the text is a URL. Returns the card ID.
     @discardableResult
     func saveText(_ raw: String) async -> String? {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -60,9 +54,6 @@ final class CaptureModel {
         return nil
     }
 
-    // MARK: Files
-
-    /// Uploads up to `TeakLimits.maxFilesPerUpload` files one at a time. The card limit stops the rest.
     func upload(_ items: [UploadItem]) async {
         guard !items.isEmpty, upload == nil else { return }
         let files = Array(items.prefix(TeakLimits.maxFilesPerUpload))
@@ -94,7 +85,6 @@ final class CaptureModel {
         if saved > 0 { self.saved(saved == 1 ? "Saved to Teak" : "Saved \(saved) items") }
     }
 
-    /// Files from a picker: unsupported formats are skipped with a message.
     func uploadPicked(_ urls: [URL]) async {
         var items: [UploadItem] = []
         var skipped = 0
@@ -112,7 +102,6 @@ final class CaptureModel {
         await upload(items)
     }
 
-    /// Photos and videos, in the order picked, with their size and duration.
     func uploadPhotos(_ selection: [PhotosPickerItem]) async {
         var items: [UploadItem] = []
         for (index, picked) in selection.prefix(TeakLimits.maxFilesPerUpload).enumerated() {
@@ -130,7 +119,6 @@ final class CaptureModel {
         await upload(items)
     }
 
-    /// Text, links, images and files that were pasted, dropped or shared.
     func save(_ items: [SharedItem]) async {
         var files: [UploadItem] = []
         for item in items {
@@ -151,7 +139,6 @@ final class CaptureModel {
         savedCount += 1
     }
 
-    /// Adds pixel size and duration to a local file, like the picker metadata the iPhone app sent.
     static func describe(_ url: URL, mimeType: String? = nil) async -> UploadItem {
         var item = ItemProviders.item(for: url)
         if let mimeType { item.mimeType = mimeType }
@@ -177,7 +164,6 @@ final class CaptureModel {
     }
 }
 
-/// A photo or video from the picker, copied out under its own name.
 struct PickedFile: Transferable {
     let url: URL
 

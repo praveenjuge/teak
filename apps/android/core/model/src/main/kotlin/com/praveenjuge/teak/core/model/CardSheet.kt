@@ -10,14 +10,12 @@ import kotlin.math.roundToLong
 
 data class DetailRow(val label: String, val value: String)
 
-/** What sharing a card sends: text, a file to download first, or nothing. */
 sealed interface ShareTarget {
     data object None : ShareTarget
     data class Text(val text: String, val subject: String? = null) : ShareTarget
     data class File(val url: String, val fileName: String, val mimeType: String?) : ShareTarget
 }
 
-/** The detail screen's formatting rules, ported from the Expo iPhone app. */
 object CardSheet {
     private val sizeUnits = listOf("B", "KB", "MB", "GB")
 
@@ -63,7 +61,6 @@ object CardSheet {
         return "download-$now${extension?.let { ".$it" }.orEmpty()}"
     }
 
-    /** "PDF · 12 slides"-style facts about a file, without the card type itself. */
     fun fileFacts(card: Card): List<String> {
         val file = card.fileMetadata ?: return emptyList()
         val preview = file.preview
@@ -111,8 +108,6 @@ object CardSheet {
             ?.let { ShareTarget.Text(it) } ?: ShareTarget.None
         CardType.Palette -> copyText(card)?.let { ShareTarget.Text(it) } ?: ShareTarget.None
         CardType.Image -> {
-            // A thumbnail is still an image, so it's a fine share when the original is missing.
-            // Fallback renditions are named from their own URL, not the original file name.
             val url = card.fileUrl ?: card.thumbnailUrl ?: card.screenshotUrl
             when {
                 url == null -> ShareTarget.None
@@ -120,13 +115,11 @@ object CardSheet {
                 else -> ShareTarget.File(url, downloadFileName(url, null), null)
             }
         }
-        // Video, audio and documents share only the original file.
         else -> card.fileUrl?.let {
             ShareTarget.File(it, downloadFileName(it, card.fileMetadata?.fileName), card.fileMetadata?.mimeType)
         } ?: ShareTarget.None
     }
 
-    /** The detail title: the saved title, the file name, or the card's type ("Palette", "Image"). */
     fun title(card: Card, fallback: String? = null): String = when (card.type) {
         CardType.Text -> "Note"
         CardType.Quote -> "Quote"
@@ -136,7 +129,6 @@ object CardSheet {
             ?: card.type.label
     }
 
-    /** Images: the best rendition first; the original only when the device can decode it. */
     fun imagePrimaryUrl(card: Card): String? {
         val name = card.fileMetadata?.fileName?.lowercase().orEmpty()
         val needsRendition = name.endsWith(".heic") || name.endsWith(".heif") || name.endsWith(".svg")

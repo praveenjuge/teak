@@ -27,21 +27,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Which icon an empty grid shows next to its copy. */
 enum class EmptyKind { Search, Trash, Filters }
 
 data class EmptyCopy(val title: String, val message: String, val kind: EmptyKind)
 
-/** How many cards a bulk action couldn't change. */
 data class BulkFailure(val failed: Int, val total: Int) {
     val message: String get() = "$failed of $total failed. Please try again."
 }
 
 data class LibraryUiState(
     val filters: LibraryFilters = LibraryFilters.Empty,
-    /** The debounced, trimmed search the grid is showing. */
     val search: String = "",
-    /** Set when [search] reads as a date, like "last week"; the grid then filters by that range. */
     val timeFilter: TimeFilter? = null,
     val paged: PagedCards = PagedCards(),
     /** Null when not selecting. Keeps the order cards were picked in. */
@@ -76,7 +72,6 @@ data class LibraryUiState(
         }
 }
 
-/** The library grid: search, filter chips, infinite scroll, and multi-select actions. */
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -88,7 +83,6 @@ class LibraryViewModel @Inject constructor(
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
 
     init {
-        // Clearing the search shows everything right away; typing waits for a pause, like iOS.
         val search = searchText
             .debounce { if (it.isBlank()) 0L else SEARCH_DEBOUNCE_MS }
             .map(String::trim)
@@ -97,7 +91,6 @@ class LibraryViewModel @Inject constructor(
         combine(search, filters) { text, chips ->
             val time = TimeSearch.parse(text)
             _state.update { it.copy(search = text, timeFilter = time) }
-            // A date search filters by when cards were saved, without searching their text.
             if (time != null) CardQuery(range = time.range, filters = chips) else CardQuery(search = text, filters = chips)
         }
             .distinctUntilChanged()
@@ -116,7 +109,6 @@ class LibraryViewModel @Inject constructor(
 
     fun toggleType(type: CardType) = updateFilters { it.toggleType(type) }
 
-    /** Picking the current color again clears it. */
     fun selectHue(hue: ColorHue) = updateFilters { it.copy(hue = if (it.hue == hue) null else hue) }
 
     fun clearFilters() = updateFilters { LibraryFilters.Empty }
@@ -132,7 +124,6 @@ class LibraryViewModel @Inject constructor(
 
     fun refresh() = pager.refresh()
 
-    /** Starts selecting, optionally with the card that was long-pressed. */
     fun beginSelection(cardId: String? = null) =
         _state.update { it.copy(selection = setOfNotNull(cardId)) }
 

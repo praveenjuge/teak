@@ -1,6 +1,5 @@
 package com.praveenjuge.teak.core.model
 
-/** The library's filters, matching the iPhone app's favorites, Trash, type and color chips. */
 data class LibraryFilters(
     val favoritesOnly: Boolean = false,
     val trashOnly: Boolean = false,
@@ -13,7 +12,6 @@ data class LibraryFilters(
     fun toggleType(type: CardType): LibraryFilters =
         copy(types = if (type in types) types - type else types + type)
 
-    /** The large title names the view: "Trash", "Favorites", "Links", "Favorite Links". */
     val title: String
         get() {
             if (trashOnly) return "Trash"

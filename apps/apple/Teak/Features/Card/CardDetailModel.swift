@@ -3,7 +3,6 @@ import Observation
 import TeakCore
 import TeakSync
 
-/// One card, live, with the detail page's actions.
 @MainActor @Observable
 final class CardDetailModel {
     let id: String
@@ -78,7 +77,6 @@ final class CardDetailModel {
         }
     }
 
-    /// Saves edits one field at a time, in order, sending only what changed.
     func save(_ changes: [CardFieldChange]) async throws {
         isSaving = true
         defer { isSaving = false }

@@ -3,7 +3,6 @@ import SwiftUI
 import TeakCore
 import UniformTypeIdentifiers
 
-/// A card's text, loaded in full only when someone shares it.
 struct CardText: Transferable, Sendable {
     let preview: String
     let load: @Sendable () async throws -> String
@@ -15,7 +14,6 @@ struct CardText: Transferable, Sendable {
     }
 }
 
-/// What a tile's context menu asks its library to do.
 struct CardMenuActions {
     var open: (CardSummary) -> Void
     var edit: (CardSummary) -> Void
@@ -24,7 +22,6 @@ struct CardMenuActions {
     var confirmDeleteForever: (CardSummary) -> Void
 }
 
-/// The tile's context menu: the iPhone and Mac menus combined.
 struct CardContextMenu: View {
     let card: CardSummary
     let library: LibraryModel
@@ -140,8 +137,6 @@ struct CardContextMenu: View {
     }
 }
 
-/// iOS and macOS 27 let grid tiles take swipe actions: favorite from the
-/// leading edge, delete (or restore in Trash) from the trailing edge.
 struct CardSwipeActions: ViewModifier {
     let card: CardSummary
     let library: LibraryModel
@@ -178,7 +173,6 @@ struct CardSwipeActions: ViewModifier {
 }
 
 extension View {
-    /// Lets the tiles inside this scroll view reveal their swipe actions, one at a time.
     @ViewBuilder func cardSwipeContainer() -> some View {
         if #available(iOS 27, macOS 27, *) {
             swipeActionsContainer()

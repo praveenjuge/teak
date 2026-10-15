@@ -2,7 +2,6 @@ import PhotosUI
 import SwiftUI
 import TeakCore
 
-/// Loading, offline, sign-in or the app, depending on the session.
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
@@ -26,7 +25,6 @@ struct RootView: View {
         }
         .animation(.smooth, value: app.phase)
         #if os(macOS)
-        // A small, fixed welcome window like other Mac apps; the library resizes freely.
         .frame(minWidth: isSignedIn ? 760 : 420, maxWidth: isSignedIn ? .infinity : 420,
                minHeight: isSignedIn ? 520 : 560, maxHeight: isSignedIn ? .infinity : 560)
         .onChange(of: isSignedIn) { _, signedIn in
@@ -50,14 +48,12 @@ struct RootView: View {
     }
 }
 
-/// Home, Add and Settings tabs on iPhone and iPad; the library sidebar on the Mac.
 struct MainView: View {
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
 
     #if os(iOS)
-    /// Add stands apart from the other tabs where the system supports it.
     private var addRole: TabRole? {
         if #available(iOS 27, *) { .prominent } else { nil }
     }
@@ -129,7 +125,6 @@ struct MainView: View {
     }
 }
 
-/// One library in a navigation stack, opening cards with a zoom.
 struct LibraryTab: View {
     let library: LibraryModel
     @Binding var path: [CardRoute]
@@ -183,7 +178,6 @@ struct LibraryTab: View {
     }
 }
 
-/// `teak://save?text=…` from Shortcuts and other automation apps.
 struct SaveRequestView: View {
     let text: String
     @Environment(AppModel.self) private var app

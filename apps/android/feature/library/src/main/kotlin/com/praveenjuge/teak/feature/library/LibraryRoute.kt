@@ -71,10 +71,8 @@ import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-/** Loads the next page once one of the last few tiles is on screen, like iOS. */
 private const val LOAD_MORE_THRESHOLD = 5
 
-/** The library grid, Teak's home screen. */
 @Composable
 fun LibraryRoute(
     searchRequest: String?,
@@ -87,7 +85,6 @@ fun LibraryRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchState = rememberTextFieldState()
 
-    // A tag tapped on a card arrives here and searches for it.
     LaunchedEffect(searchRequest) {
         if (searchRequest == null) return@LaunchedEffect
         if (searchRequest.isNotBlank()) searchState.setTextAndPlaceCursorAtEnd(searchRequest)
@@ -122,7 +119,6 @@ fun LibraryRoute(
     )
 }
 
-/** Everything the library screen can ask for. */
 internal data class LibraryActions(
     val onOpenCard: (String) -> Unit = {},
     val onWriteNote: () -> Unit = {},
@@ -285,7 +281,6 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
     val haptics = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
 
-    // Scrolling or acting on cards puts the search keyboard away, like the system search bars.
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.isScrollInProgress }.collect { scrolling -> if (scrolling) focusManager.clearFocus() }
     }
@@ -304,7 +299,6 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                 start = CardGrid.EDGE_DP.dp,
                 end = CardGrid.EDGE_DP.dp,
                 top = 8.dp,
-                // Leaves room for the floating selection toolbar.
                 bottom = if (state.isSelecting) 96.dp else 24.dp,
             ),
             verticalItemSpacing = CardGrid.GAP_DP.dp,

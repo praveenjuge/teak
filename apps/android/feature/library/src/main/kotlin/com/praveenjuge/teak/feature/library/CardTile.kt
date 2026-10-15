@@ -61,15 +61,14 @@ import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.MarkdownBlocks
+import com.praveenjuge.teak.core.model.parseHexArgb
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TilePadding = 14.dp
 
-/** The first non-blank value, else [fallback]. */
 private fun firstText(vararg values: String?, fallback: String): String =
     values.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback
 
-/** The name a tile shows or is read out by, with the iPhone's fallbacks. */
 internal fun tileTitle(card: CardSummary): String = when (card.type) {
     CardType.Link -> firstText(card.title, card.url, fallback = "Link")
     CardType.Document -> firstText(card.title, card.fileName, fallback = "Attachment")
@@ -79,19 +78,6 @@ internal fun tileTitle(card: CardSummary): String = when (card.type) {
     CardType.Palette -> firstText(card.title, fallback = "Palette")
     CardType.Quote -> firstText(card.previewText, fallback = "Quote")
     CardType.Text -> firstText(card.previewText, card.title, fallback = "Note")
-}
-
-/** Parses "#RGB", "#RRGGBB" or "#RRGGBBAA" (CSS order). */
-internal fun parseHexColor(value: String): Color? {
-    val hex = value.trim().removePrefix("#")
-    val full = when (hex.length) {
-        3 -> hex.map { "$it$it" }.joinToString("")
-        6, 8 -> hex
-        else -> return null
-    }
-    val bits = full.toLongOrNull(16) ?: return null
-    val argb = if (full.length == 6) 0xFF000000 or bits else ((bits and 0xFF) shl 24) or (bits shr 8)
-    return Color(argb)
 }
 
 /**
@@ -109,7 +95,6 @@ internal fun CardTile(
     modifier: Modifier = Modifier,
 ) {
     val title = tileTitle(card)
-    // Notes are Markdown; TalkBack should read the words, not the syntax.
     val spokenTitle = if (card.type == CardType.Text) remember(title) { MarkdownBlocks.toPlainText(title) } else title
     val favorite = card.isFavorited == true
     val description = buildString {
@@ -180,7 +165,7 @@ private fun TileContent(card: CardSummary, title: String) {
             TileFooter(title)
         }
         CardType.Palette -> {
-            val colors = card.colors.orEmpty().take(12).mapNotNull(::parseHexColor)
+            val colors = card.colors.orEmpty().take(12).mapNotNull { parseHexArgb(it)?.let(::Color) }
             if (colors.isEmpty()) TileText(title) else PaletteStrip(colors)
         }
         CardType.Quote -> QuoteText(title)
@@ -243,7 +228,6 @@ private fun TileFooter(title: String, subtitle: String? = null, icon: ImageVecto
     }
 }
 
-/** Remote media at the tile's ratio, over a blurred low-res preview until it loads. */
 @Composable
 private fun TileImage(card: CardSummary, url: String?, contentScale: ContentScale = ContentScale.Crop) {
     var failed by remember(url) { mutableStateOf(false) }
@@ -293,7 +277,6 @@ private fun PaletteStrip(colors: List<Color>) {
     }
 }
 
-/** The web's deterministic waveform, so a recording looks the same on every device. */
 @Composable
 private fun Waveform(seed: String) {
     val heights = remember(seed) { CardGrid.waveformHeights(seed) }
@@ -314,7 +297,6 @@ private fun Waveform(seed: String) {
     }
 }
 
-/** The Photos-style check shown on each tile while selecting. */
 @Composable
 private fun SelectionMark(selected: Boolean, modifier: Modifier = Modifier) {
     Surface(modifier = modifier, shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {

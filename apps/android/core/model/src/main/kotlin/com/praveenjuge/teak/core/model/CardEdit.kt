@@ -17,10 +17,8 @@ data class CardEditDraft(
 )
 
 object CardEdit {
-    /** Tags are stored trimmed and lowercase, like the web's tag manager. */
     fun normalizeTag(value: String): String = value.trim().lowercase()
 
-    /** Only text and quote cards let you rewrite their content. */
     fun canEditContent(type: CardType): Boolean = type == CardType.Text || type == CardType.Quote
 
     fun draftFor(card: Card): CardEditDraft = CardEditDraft(

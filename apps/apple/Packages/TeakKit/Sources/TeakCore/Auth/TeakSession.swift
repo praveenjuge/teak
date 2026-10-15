@@ -1,9 +1,5 @@
 import Foundation
 
-/// Owns the WorkOS session: sign-in, shared storage and access tokens.
-/// Ported from the Expo iPhone app's WorkOS session, plus Teak for Mac's
-/// cross-process lock so the app and its extensions never replay a rotated
-/// refresh token.
 public actor TeakSession {
     public enum State: Equatable, Sendable {
         case loading
@@ -95,7 +91,6 @@ public actor TeakSession {
             let stored = try JSONDecoder().decode(StoredSession.self, from: data)
             session = try SessionParser.parse(stored, clientId: stored.clientId)
         } catch {
-            // A corrupt or foreign record can never become valid; forget it.
             session = nil
             try? storage.clear()
         }
@@ -146,7 +141,6 @@ public actor TeakSession {
     }
 
     #if DEBUG
-    /// UI tests sign in with a session they created against the WorkOS emulator.
     public func adoptForTesting(_ response: Data, clientId: String) async throws {
         let next = try SessionParser.parseResponse(response, clientId: clientId)
         try await bootstrap?(next.accessToken)
@@ -165,7 +159,7 @@ public actor TeakSession {
         case superseded
     }
 
-    /// A valid access token, refreshed first when it expires within 30 seconds
+    /// A valid access token, refreshed first when it expires within `refreshMargin`
     /// or `forceRefresh` is set. Nil when signed out. Throws on a transport
     /// failure, keeping the session for a retry.
     public func accessToken(forceRefresh: Bool = false) async throws -> String? {
@@ -206,10 +200,7 @@ public actor TeakSession {
                 return .signedOut
             }
             let next = try SessionParser.parseResponse(response, clientId: latest.clientId)
-            // A refresh must never switch accounts underneath the open vault.
-            guard next.user.id == latest.user.id, next.sessionId == latest.sessionId,
-                  latest.user.teakUserId == nil || next.user.teakUserId == latest.user.teakUserId
-            else {
+            guard latest.isSameAccount(as: next) else {
                 try? storage.clear()
                 return .signedOut
             }

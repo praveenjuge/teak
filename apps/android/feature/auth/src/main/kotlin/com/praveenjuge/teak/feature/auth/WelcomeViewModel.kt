@@ -36,7 +36,6 @@ class WelcomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WelcomeUiState())
 
     private val _openUrl = Channel<String>(Channel.BUFFERED)
-    /** AuthKit URLs to open in a Custom Tab. */
     val openUrl = _openUrl.receiveAsFlow()
 
     fun signIn(method: SignInMethod) {
@@ -46,7 +45,6 @@ class WelcomeViewModel @Inject constructor(
         }
     }
 
-    /** Back in the app with no redirect: the person closed the browser. */
     fun onReturnedWithoutRedirect() = controller.cancel()
 
     fun dismissError() = controller.dismissError()

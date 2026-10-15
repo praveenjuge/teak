@@ -18,16 +18,13 @@ import java.io.IOException
 import java.net.URI
 import javax.inject.Inject
 
-/** Same cap as the web's and iPhone's file text preview. */
 internal const val TEXT_PREVIEW_LIMIT = 512 * 1024
 
 private val markdownExtensions = setOf("md", "mdx", "markdown")
 private val textExtensions = setOf("json", "yaml", "yml", "toml", "csv", "xml", "txt")
 
-/** How a document's own text is shown inline, if at all. */
 internal enum class TextPreviewKind { Markdown, Code }
 
-/** Markdown files render as notes; other small text files show as monospaced text. */
 internal fun textPreviewKind(card: Card): TextPreviewKind? {
     val file = card.fileMetadata ?: return null
     if ((file.fileSize ?: 0.0) > TEXT_PREVIEW_LIMIT) return null
@@ -48,7 +45,6 @@ internal fun safeExternalUrl(value: String?): String? {
     return trimmed.takeIf { (scheme == "http" || scheme == "https") && !uri.host.isNullOrEmpty() }
 }
 
-/** Downloads a card's files: inline text previews, files to share, and saves to Downloads. */
 class CardFiles @Inject constructor(
     @ApplicationContext private val context: Context,
     private val client: OkHttpClient,
@@ -64,10 +60,8 @@ class CardFiles @Inject constructor(
         }.getOrNull()
     }
 
-    /** Downloads the file into the cache and returns a content URI other apps can read. */
     suspend fun shareableUri(url: String, fileName: String): Uri = withContext(Dispatchers.IO) {
         val directory = File(context.cacheDir, SHARED_DIRECTORY)
-        // Only the latest shared file is kept; older ones were already handed off.
         directory.deleteRecursively()
         directory.mkdirs()
         val file = File(directory, fileName)
@@ -78,8 +72,6 @@ class CardFiles @Inject constructor(
         FileProvider.getUriForFile(context, "${context.packageName}.files", file)
     }
 
-    /** Saves the file to the public Downloads folder. */
-    @Suppress("TooGenericExceptionCaught") // Removes the half-written download on any failure, then rethrows.
     suspend fun saveToDownloads(url: String, fileName: String, mimeType: String?) = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
@@ -89,6 +81,7 @@ class CardFiles @Inject constructor(
         }
         val item = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw IOException("Couldn't create the download")
+        var committed = false
         try {
             open(url).use { response ->
                 val body = response.body ?: throw IOException("Empty response")
@@ -96,9 +89,9 @@ class CardFiles @Inject constructor(
                 output.use { body.byteStream().copyTo(it) }
             }
             resolver.update(item, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
-        } catch (error: Exception) {
-            resolver.delete(item, null, null)
-            throw error
+            committed = true
+        } finally {
+            if (!committed) resolver.delete(item, null, null)
         }
     }
 
@@ -116,7 +109,6 @@ class CardFiles @Inject constructor(
     }
 }
 
-/** The MIME type for a file name's extension, or a generic binary type. */
 internal fun mimeTypeFor(fileName: String): String {
     val extension = fileName.substringAfterLast('.', "").lowercase()
     return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"

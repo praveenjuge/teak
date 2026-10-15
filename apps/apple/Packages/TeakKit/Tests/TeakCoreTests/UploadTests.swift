@@ -10,7 +10,6 @@ private func file(_ name: String, bytes: Int = 1024) -> URL {
     return url
 }
 
-/// A backend that prepares, accepts the PUT and finalizes, recording each step.
 private func backend(putStatuses: [Int] = [200], finalize: [String: Any] = ["success": true, "cardId": "card_1"])
     -> ScriptedTransport {
     let puts = Counter()

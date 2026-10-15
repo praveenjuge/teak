@@ -41,7 +41,6 @@ public struct SharedConstants: Decodable, Sendable {
     }()
 }
 
-/// Shorthands for the constants the UI uses most.
 public enum TeakLimits {
     public static var freeTierCards: Int { SharedConstants.shared.limits.freeTierCards }
     public static var maxFileSize: Int { SharedConstants.shared.limits.maxFileSize }

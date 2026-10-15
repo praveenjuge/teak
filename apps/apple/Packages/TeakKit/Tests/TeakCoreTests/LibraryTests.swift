@@ -2,12 +2,8 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Ported from the Expo iPhone app's library-filters and card-grid tests,
-// apps/android TimeSearchTest and Teak for Mac's search tokens.
-
 private let newYork = TimeZone(identifier: "America/New_York")!
-/// Tuesday, Feb 3, 2026, noon in New York.
-private let now: Date = {
+private let tuesdayNoon: Date = {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = newYork
     return calendar.date(from: DateComponents(year: 2026, month: 2, day: 3, hour: 12))!
@@ -38,7 +34,7 @@ private func day(_ milliseconds: Double) -> String {
         ("march", "Mar 2026", "2026-03-01", "2026-04-01"),
     ])
     func parsesDatePhrases(query: String, label: String, start: String, end: String) throws {
-        let result = try #require(TimeSearch.parse(query, now: now, timeZone: newYork))
+        let result = try #require(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork))
         #expect(result.label == label)
         #expect(day(result.range.start) == start)
         #expect(day(result.range.end) == end)
@@ -46,15 +42,15 @@ private func day(_ milliseconds: Double) -> String {
 
     @Test(arguments: ["design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", ""])
     func leavesOtherTextToFullTextSearch(query: String) {
-        #expect(TimeSearch.parse(query, now: now, timeZone: newYork) == nil)
+        #expect(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork) == nil)
     }
 }
 
 @Suite struct LibraryFilterTests {
     @Test func sendsOnlyTheFiltersThatAreOn() {
-        #expect(LibraryQuery().searchArgs(now: now) == [:])
+        #expect(LibraryQuery().searchArgs(now: tuesdayNoon) == [:])
         let filters = LibraryFilters(favoritesOnly: true, trashOnly: true, types: [.image, .link], hue: ColorHue("blue"))
-        #expect(LibraryQuery(filters: filters).searchArgs(now: now) == [
+        #expect(LibraryQuery(filters: filters).searchArgs(now: tuesdayNoon) == [
             "favoritesOnly": true, "showTrashOnly": true, "types": ["image", "link"], "hueFilters": ["blue"],
         ])
     }
@@ -97,13 +93,13 @@ private func day(_ milliseconds: Double) -> String {
         ("typography", .keyword, "typography"),
     ])
     func classifiesTypedWords(input: String, kind: SearchToken.Kind, value: String) {
-        let token = SearchTokens.classify(input, now: now, timeZone: newYork)
+        let token = SearchTokens.classify(input, now: tuesdayNoon, timeZone: newYork)
         #expect(token.kind == kind)
         #expect(token.value == value)
     }
 
     @Test func keepsMultiWordDatesTogether() {
-        let tokens = SearchTokens.parse("blue posters from June 5 2024 to July 6 2025, favs", now: now, timeZone: newYork)
+        let tokens = SearchTokens.parse("blue posters from June 5 2024 to July 6 2025, favs", now: tuesdayNoon, timeZone: newYork)
         #expect(tokens.map(\.kind) == [.hue, .keyword, .date, .favorites])
         #expect(tokens[2].label == "Jun 5, 2024 – Jul 6, 2025")
     }
@@ -113,9 +109,9 @@ private func day(_ milliseconds: Double) -> String {
             text: "poster",
             tokens: [SearchTokens.classify("violet"), SearchTokens.classify("retro"), SearchTokens.classify("#fff"),
                      SearchTokens.tag("travel"), SearchTokens.classify("trash"), SearchTokens.classify("video"),
-                     SearchTokens.classify("last week", now: now, timeZone: newYork)],
+                     SearchTokens.classify("last week", now: tuesdayNoon, timeZone: newYork)],
             filters: LibraryFilters(hue: ColorHue("red")))
-        let args = query.searchArgs(now: now, timeZone: newYork)
+        let args = query.searchArgs(now: tuesdayNoon, timeZone: newYork)
         #expect(args["hueFilters"] == ["red", "purple"])
         #expect(args["styleFilters"] == ["retro"])
         #expect(args["hexFilters"] == ["#FFFFFF"])
@@ -130,7 +126,7 @@ private func day(_ milliseconds: Double) -> String {
     }
 
     @Test func aTypedDateFiltersByDateInsteadOfText() {
-        let args = LibraryQuery(text: "last week").searchArgs(now: now, timeZone: newYork)
+        let args = LibraryQuery(text: "last week").searchArgs(now: tuesdayNoon, timeZone: newYork)
         #expect(args["searchQuery"] == nil)
         #expect(args["createdAtRange"] != nil)
     }
@@ -140,7 +136,7 @@ private func day(_ milliseconds: Double) -> String {
         #expect(LibraryQuery(tokens: [SearchTokens.classify("favs")]).title == "Favorites")
         #expect(LibraryQuery(filters: LibraryFilters(trashOnly: true)).emptyState().title == "Trash Is Empty")
         #expect(LibraryQuery(text: "zebra").emptyState().title == "No Results for \u{201C}zebra\u{201D}")
-        #expect(LibraryQuery(text: "yesterday").emptyState(now: now, timeZone: newYork).message == "No cards from Yesterday.")
+        #expect(LibraryQuery(text: "yesterday").emptyState(now: tuesdayNoon, timeZone: newYork).message == "No cards from Yesterday.")
     }
 }
 
@@ -159,8 +155,8 @@ private func day(_ milliseconds: Double) -> String {
 
     @Test func placesEachTileInTheShortestColumn() {
         #expect(CardGrid.distribute([300.0, 100, 100, 100], columns: 2, gap: 0) { $0 } == [[300], [100, 100, 100]])
-        // A composer at the top of the first column pushes the first card right.
-        #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reserved: [150]) { $0 } == [[], [100, 100]])
+        #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reserved: [150]) { $0 } == [[], [100, 100]],
+                "a composer at the top of the first column pushes the first card right")
         #expect(CardGrid.distribute([100.0, 100, 100], columns: 2, gap: 0, reserved: [150]) { $0 }.map(\.count) == [1, 2])
     }
 

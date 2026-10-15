@@ -34,8 +34,8 @@ class ConvexCardsRepositoryTest {
             numItems = 20,
         ).first()
         val args = convex.calls.single().args
-        assertEquals(mapOf("numItems" to 20.0, "cursor" to null), args["paginationOpts"])
-        assertEquals(mapOf("start" to 10.0, "end" to 20.0), args["createdAtRange"])
+        assertEquals(mapOf("numItems" to 20, "cursor" to null), args["paginationOpts"])
+        assertEquals(mapOf("start" to 10L, "end" to 20L), args["createdAtRange"])
         assertFalse("searchQuery" in args)
         assertEquals(true, args["favoritesOnly"])
     }

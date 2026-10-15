@@ -53,7 +53,6 @@ import com.praveenjuge.teak.core.designsystem.component.TeakLoading
 import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardType
 
-/** What the edit screen asks of its ViewModel and navigation. */
 internal class CardEditCallbacks(
     val onClose: () -> Unit,
     val onSave: () -> Unit,
@@ -66,10 +65,6 @@ internal class CardEditCallbacks(
     val onDismissAlert: () -> Unit,
 )
 
-/**
- * Edit a card the way the web does: rewrite text and quote cards, change notes and tags,
- * and remove tags Teak added.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks) {

@@ -1,7 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// The masonry grid of cards with search, filters and selection.
 struct LibraryView: View {
     @Bindable var library: LibraryModel
     let namespace: Namespace.ID
@@ -91,7 +90,6 @@ struct LibraryView: View {
 
     private var suggestions: [SearchToken] { SearchTokens.suggestions(for: library.text) }
 
-    /// iPad keeps a composer at the top of the grid; the Mac has ⌘N and the Add menu.
     private var showsComposer: Bool {
         #if os(macOS)
         false
@@ -154,8 +152,6 @@ struct LibraryView: View {
         }
     }
 
-    /// Arrow keys move between tiles: up and down within a column, left and
-    /// right to the nearest row of the next column.
     private func moveFocus(_ direction: KeyEquivalent) -> KeyPress.Result {
         let columns = layout(library.cards).filter { !$0.isEmpty }
         guard !columns.isEmpty else { return .ignored }
@@ -303,7 +299,6 @@ struct LibraryView: View {
     }
 }
 
-/// The filter menu: Favorites, Trash, types, one color, and Clear.
 struct FilterMenu: View {
     @Bindable var library: LibraryModel
 
@@ -347,7 +342,6 @@ struct FilterMenu: View {
     }
 }
 
-/// The floating bulk-action bar while selecting.
 struct SelectionBar: View {
     let library: LibraryModel
     let confirmDeleteForever: () -> Void
@@ -379,7 +373,6 @@ struct SelectionBar: View {
     }
 }
 
-/// A short message about the last action.
 struct StatusToast: View {
     let status: LibraryModel.StatusMessage
     @Environment(\.openURL) private var openURL
@@ -406,7 +399,6 @@ struct StatusToast: View {
     }
 }
 
-/// The first-run state: the wordmark, a prompt, and one action.
 struct FirstCardView: View {
     @Environment(AppRouter.self) private var router
 

@@ -1,7 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// The objects every scene, menu and system integration shares.
 @MainActor
 final class AppServices {
     static let shared = AppServices()

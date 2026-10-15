@@ -1,8 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// Edits a card's content (notes and quotes), notes and tags. Saves one field
-/// update per change.
 struct CardEditView: View {
     let cardId: String
     @Environment(AppModel.self) private var app

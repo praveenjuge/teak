@@ -24,13 +24,11 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A file copied into app storage, ready to upload. */
 data class StagedFile(
     val path: String,
     val fileName: String,
     val mimeType: String,
     val size: Long,
-    /** Extra facts the server keeps, like a video's duration. Numbers must be Doubles. */
     val metadata: Map<String, Double> = emptyMap(),
 )
 
@@ -54,7 +52,7 @@ class FileUploader @Inject constructor(
             buildMap {
                 put("fileName", file.fileName)
                 put("fileType", file.mimeType)
-                put("fileSize", file.size.toDouble())
+                put("fileSize", file.size)
                 metadata?.let { put("additionalMetadata", it) }
             },
         ).jsonObject
@@ -70,7 +68,7 @@ class FileUploader @Inject constructor(
             buildMap {
                 put("fileKey", uploadKey)
                 put("fileName", file.fileName)
-                put("fileSize", file.size.toDouble())
+                put("fileSize", file.size)
                 put("fileType", file.mimeType)
                 put("source", CARD_SOURCE)
                 etag?.let { put("fileEtag", it) }
@@ -82,12 +80,9 @@ class FileUploader @Inject constructor(
         return finalized.string("cardId") ?: throw TeakException(null, "Failed to create card")
     }
 
-    /** PUTs the raw bytes, retrying twice on timeouts, rate limits, server errors and dropped connections. */
     private suspend fun put(url: String, file: File, mimeType: String, onProgress: (Float) -> Unit): String? =
         withContext(Dispatchers.IO) {
-            var attempt = 0
-            while (true) {
-                attempt += 1
+            for (attempt in 1..MAX_ATTEMPTS) {
                 val request = Request.Builder()
                     .url(url)
                     .header("Content-Type", mimeType)
@@ -105,8 +100,7 @@ class FileUploader @Inject constructor(
                 }
                 delay(RETRY_DELAYS_MS[attempt - 1])
             }
-            @Suppress("UNREACHABLE_CODE")
-            null
+            error("Every attempt either returns or throws")
         }
 
     private fun JsonObject.requireSuccess(fallback: String) {

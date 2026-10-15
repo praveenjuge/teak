@@ -8,7 +8,6 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import com.praveenjuge.teak.core.designsystem.R
 
-/** SN Pro, Teak's rounded typeface, as one variable font covering weights 200 to 900. */
 val SnPro = FontFamily(
     listOf(200, 300, 400, 500, 600, 700, 800, 900).map { weight ->
         Font(

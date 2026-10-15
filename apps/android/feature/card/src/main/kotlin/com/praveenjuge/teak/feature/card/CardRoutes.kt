@@ -19,7 +19,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import kotlinx.coroutines.launch
 
-/** A card's full detail: its preview, notes, tags, summary and info, with every card action. */
 @Composable
 fun CardDetailRoute(cardId: String, onBack: () -> Unit, onEdit: () -> Unit, onSearchTag: (String) -> Unit) {
     val viewModel = hiltViewModel<CardDetailViewModel, CardDetailViewModel.Factory>(
@@ -59,7 +58,6 @@ fun CardDetailRoute(cardId: String, onBack: () -> Unit, onEdit: () -> Unit, onSe
     )
 }
 
-/** Edits a card's content, notes and tags. [onDone] runs after saving or closing. */
 @Composable
 fun CardEditRoute(cardId: String, onDone: () -> Unit) {
     val viewModel = hiltViewModel<CardEditViewModel, CardEditViewModel.Factory>(
@@ -89,7 +87,6 @@ fun CardEditRoute(cardId: String, onDone: () -> Unit) {
     )
 }
 
-/** The detail pane on wide windows before a card is open. */
 @Composable
 fun CardDetailPlaceholder() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
