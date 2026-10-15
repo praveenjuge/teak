@@ -1,22 +1,12 @@
+import { FILES_IMPORT_MODES, type FilesImportMode } from "@teak/files-protocol";
+
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
 /** Files read whole into memory (everything but a ZIP) stop here. */
 const TEXT_MAX_BYTES = 20 * MIB;
 
-export const IMPORT_MODES = [
-  "bookmarks",
-  "pocket",
-  "raindrop",
-  "instapaper",
-  "readwise",
-  "omnivore",
-  "linkwarden",
-  "mymind",
-  "onetab",
-  "archive",
-] as const;
-
-export type ImportMode = (typeof IMPORT_MODES)[number];
+export { FILES_IMPORT_MODES as IMPORT_MODES } from "@teak/files-protocol";
+export type ImportMode = FilesImportMode;
 
 export interface ImportSource {
   /** File extensions the picker accepts, lowercase with the dot. */
@@ -134,7 +124,7 @@ export const describeImportFailure = (
 
 export const isImportMode = (value: unknown): value is ImportMode =>
   typeof value === "string" &&
-  (IMPORT_MODES as readonly string[]).includes(value);
+  (FILES_IMPORT_MODES as readonly string[]).includes(value);
 
 export const importFileMatches = (mode: ImportMode, fileName: string) => {
   const lower = fileName.trim().toLowerCase();

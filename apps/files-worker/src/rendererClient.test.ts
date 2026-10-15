@@ -5,7 +5,7 @@ import {
   rendererInstanceOrder,
   rendererPoolSize,
 } from "./rendererClient";
-import { JPEG_BYTES, rendererResponse } from "./testsupport";
+import { JPEG_BYTES, rendererResponse } from "./test/testsupport";
 
 const frameSpec = {
   frame: { kind: "jpeg" as const, maxBytes: 100, required: true },

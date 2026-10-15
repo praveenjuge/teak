@@ -2,7 +2,27 @@ import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { unstable_readConfig } from "wrangler";
+import rootPackageJson from "../../../package.json";
 import packageJson from "../package.json";
+
+const baseImages = async (dockerfile: string): Promise<string[]> =>
+  Array.from(
+    (await Bun.file(resolve(import.meta.dir, dockerfile)).text()).matchAll(
+      /^FROM\s+(?:--\S+\s+)*(\S+)/gm
+    ),
+    (match) => match[1] ?? ""
+  );
+
+test("the container images build with the repo's pinned Bun and Node", async () => {
+  const bun = rootPackageJson.packageManager.replace(/^bun@/, "");
+  expect(await baseImages("../container/Dockerfile")).toContain(
+    `oven/bun:${bun}-alpine`
+  );
+  expect(await baseImages("../fetcher/Dockerfile")).toEqual([
+    `oven/bun:${bun}-alpine`,
+    `node:${rootPackageJson.engines.node}-alpine`,
+  ]);
+});
 
 test("only the production worker reports errors to PostHog", () => {
   const config = unstable_readConfig({

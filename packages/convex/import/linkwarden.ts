@@ -1,6 +1,7 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
 import {
   folderPath,
+  ImportLimitExceeded,
   linkItem,
   notAnExport,
   parseSourceDate,
@@ -89,7 +90,7 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
     const folder = pathOf(collection);
     for (const link of collection.links as LinkwardenLink[]) {
       if (output.length >= 10_000) {
-        throw new Error("Linkwarden backup exceeds 10,000 links");
+        throw new ImportLimitExceeded("Linkwarden backup exceeds 10,000 links");
       }
       const tags = Array.isArray(link?.tags)
         ? (link.tags as Array<{ name?: unknown }>).map((tag) => text(tag?.name))

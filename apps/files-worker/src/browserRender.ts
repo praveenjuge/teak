@@ -6,6 +6,7 @@ import {
   SCREENSHOT_CLEANUP_CSS,
 } from "@teak/files-protocol";
 import type { AcquireBrowser } from "./browserSessions";
+import { OpFailure } from "./opFailure";
 
 export const MAX_RENDER_HTML_BYTES = 2 * 1024 * 1024;
 const PAGE_TIMEOUT_MS = 30_000;
@@ -74,12 +75,12 @@ export const decodeHtmlParam = async (value: unknown): Promise<string> => {
       total += chunk.byteLength;
       if (total > MAX_RENDER_HTML_BYTES) {
         await reader.cancel();
-        throw new Error("source_too_large");
+        throw new OpFailure("source_too_large");
       }
       chunks.push(chunk);
     }
   } catch (error) {
-    if (error instanceof Error && error.message === "source_too_large") {
+    if (error instanceof OpFailure && error.code === "source_too_large") {
       throw error;
     }
     throw new Error("invalid_html");

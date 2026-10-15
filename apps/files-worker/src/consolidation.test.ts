@@ -3,7 +3,7 @@ import { buildFilesOpSigningPayload, type FilesOp } from "@teak/files-protocol";
 import { strToU8, zipSync } from "fflate";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket } from "./test/testsupport";
 
 async function request(op: FilesOp, params: Record<string, unknown>) {
   const body = JSON.stringify({ version: 1, op, params });

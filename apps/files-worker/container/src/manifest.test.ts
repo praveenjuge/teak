@@ -73,6 +73,21 @@ describe("manifest", () => {
     });
   });
 
+  test("leaves empty parts out of the body and the manifest", () => {
+    const response = jobResponse({
+      facts: null,
+      parts: [
+        { name: "text", type: "text/plain", bytes: new Uint8Array() },
+        { name: "page", type: "image/png", bytes: new Uint8Array([1, 2]) },
+      ],
+      extra: {},
+    });
+    expect(response.headers.get("content-length")).toBe("2");
+    expect(
+      JSON.parse(response.headers.get("x-teak-manifest") ?? "").parts
+    ).toEqual([{ name: "page", type: "image/png", length: 2 }]);
+  });
+
   test("a job with no parts has an empty body", async () => {
     const response = jobResponse({ facts, parts: [], extra: {} });
     expect(response.headers.get("content-length")).toBe("0");

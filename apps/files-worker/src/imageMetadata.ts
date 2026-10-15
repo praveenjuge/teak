@@ -1,9 +1,11 @@
+import { parseTextMetadata } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
 } from "./imageTransform";
 import type { Env } from "./index";
+import { OpFailure } from "./opFailure";
 
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 768;
@@ -48,36 +50,12 @@ const stripJsonFences = (text: string): string => {
   return fenced?.[1]?.trim() ?? trimmed;
 };
 
-/**
- * Bounded validation equivalent to the zod schema in
- * packages/convex/workflows/aiMetadata/schemas.ts: unknown keys are ignored,
- * tags must be strings, summary must be a string.
- */
 export const parseImageMetadata = (raw: string): ImageMetadataResult | null => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripJsonFences(raw));
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null) {
-    return null;
-  }
-  const record = parsed as Record<string, unknown>;
-  if (!Array.isArray(record.tags) || typeof record.summary !== "string") {
-    return null;
-  }
-  const tags = record.tags.filter(
-    (tag): tag is string => typeof tag === "string"
-  );
-  if (tags.length === 0 || record.tags.length !== tags.length) {
-    return null;
-  }
-  const summary = record.summary.trim();
-  if (!summary) {
-    return null;
-  }
-  return { summary, tags };
+  const metadata = parseTextMetadata(stripJsonFences(raw));
+  const summary = metadata?.summary.trim();
+  return metadata?.tags.length && summary
+    ? { summary, tags: metadata.tags }
+    : null;
 };
 
 const extractMessageText = (response: unknown): string | null => {
@@ -143,17 +121,17 @@ export const generateImageMetadataForOp = async (
     now
   );
   if (!renditionResponse.ok) {
-    throw new Error("image_transform_failed");
+    throw new OpFailure("image_transform_failed");
   }
   const contentType =
     renditionResponse.headers.get("content-type")?.split(";")[0]?.trim() ??
     "image/jpeg";
   if (!contentType.startsWith("image/")) {
-    throw new Error("image_transform_failed");
+    throw new OpFailure("image_transform_failed");
   }
   const bytes = new Uint8Array(await renditionResponse.arrayBuffer());
   if (bytes.byteLength === 0) {
-    throw new Error("image_transform_failed");
+    throw new OpFailure("image_transform_failed");
   }
 
   const ai = env.AI;

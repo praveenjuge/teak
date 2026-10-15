@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { finalizeImageUpload, normalizeDecodedFormat } from "./finalizeImage";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng } from "./test/testsupport";
 
 const SECRET = "finalize-test-secret";
 const NOW = 1_800_000_000;

@@ -1,4 +1,5 @@
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
+import { workosResourcesFor } from "@teak/convex/shared/workosResources";
 import { verifyWorkosConnectToken } from "@teak/convex/workosTokens";
 import {
   buildEdgeIdentitySigningPayload,
@@ -6,16 +7,12 @@ import {
   EDGE_IDENTITY_PATH,
   type EdgeIdentityLookup,
 } from "@teak/files-protocol";
+import type { ApiProxyEnv } from "./apiProxy";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 
-export interface EdgeIdentityEnv {
-  /** Host whose API paths the Worker proxies; token audiences derive from it. */
-  API_PUBLIC_HOST?: string;
-  /** Convex HTTP origin that answers identity lookups. */
-  API_UPSTREAM_ORIGIN?: string;
+export interface EdgeIdentityEnv extends ApiProxyEnv {
   /** WorkOS AuthKit issuer (HTTPS origin) of the access tokens Teak accepts. */
   API_WORKOS_ISSUER?: string;
-  /** Identity answers by credential. */
   EDGE_IDENTITY?: KVNamespace;
   FILES_SIGNING_SECRET: string;
 }
@@ -75,11 +72,12 @@ const bearerToken = (request: Request): string | null => {
 const looksLikeJwt = (token: string): boolean =>
   token.length <= MAX_JWT_LENGTH && token.split(".").length === 3;
 
-/** The token audience for the path: Convex checks the same two resources. */
-const audienceFor = (request: Request, host: string): string =>
-  new URL(request.url).pathname.startsWith("/mcp")
-    ? `https://${host}/mcp`
-    : `https://${host}/api`;
+const audienceFor = (request: Request, host: string): string => {
+  const resources = workosResourcesFor(`https://${host}`);
+  return new URL(request.url).pathname.startsWith("/mcp")
+    ? resources.mcp
+    : resources.api;
+};
 
 type OwnerLookup =
   | { kind: "owner"; userId: string }

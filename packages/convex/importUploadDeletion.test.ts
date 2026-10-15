@@ -17,9 +17,13 @@ const workerPath = new URL(
   import.meta.url
 ).pathname;
 const supportPath = new URL(
-  "../../apps/files-worker/src/testsupport.ts",
+  "../../apps/files-worker/src/test/testsupport.ts",
   import.meta.url
 ).pathname;
+await import(
+  new URL("../../apps/files-worker/src/test/workersRuntime.ts", import.meta.url)
+    .pathname
+);
 const worker = (await import(workerPath)).default;
 const { FakeBucket, withObjectGates } = await import(supportPath);
 const modules = import.meta.glob("./**/*.ts");

@@ -1,7 +1,6 @@
 import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_PDF_TEXT_MAX_PAGES,
-  type FilesInspectMode,
 } from "@teak/files-protocol";
 import {
   InspectSourceMissing,
@@ -36,7 +35,10 @@ const XML_ENTITIES: Record<string, string> = {
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
-export type InspectMode = FilesInspectMode;
+export type InspectRequest =
+  | { formatId: string; mode: "zip" }
+  | { maxBytes: number; mode: "css" }
+  | { maxBytes: number; mode: "text"; rtf: boolean };
 
 export interface InspectResult {
   facts?: Record<string, number>;
@@ -173,31 +175,19 @@ export const inspectZipRanged = async (
   };
 };
 
-/**
- * Dispatch one inspect request.
- *
- * @param formatId file-format id (zip/word/powerpoint/css tokens/etc.) so
- *   structured modes know what they are looking at
- * @param rtf when true, text mode applies the RTF control-word stripper
- */
 export const runInspect = async (
   bucket: R2Bucket,
   key: string,
-  mode: InspectMode,
-  formatId: string,
-  maxBytes: number,
-  rtf: boolean
+  request: InspectRequest
 ): Promise<InspectResult> => {
-  if (mode === "zip") {
-    // Ranged path never buffers the archive; maxBytes no longer bounds it.
-    return await inspectZipRanged(bucket, key, formatId);
+  if (request.mode === "zip") {
+    return await inspectZipRanged(bucket, key, request.formatId);
   }
-
-  if (mode === "css") {
-    const bytes = await boundedRead(bucket, key, maxBytes);
-    if (!bytes) {
-      throw new InspectSourceMissing();
-    }
+  const bytes = await boundedRead(bucket, key, request.maxBytes);
+  if (!bytes) {
+    throw new InspectSourceMissing();
+  }
+  if (request.mode === "css") {
     const text = new TextDecoder().decode(bytes);
     return {
       facts: {
@@ -207,16 +197,7 @@ export const runInspect = async (
       },
     };
   }
-
-  if (mode === "text") {
-    const bytes = await boundedRead(bucket, key, maxBytes);
-    if (!bytes) {
-      throw new InspectSourceMissing();
-    }
-    const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
-    const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
-    return { facts: textFacts(text), text };
-  }
-
-  throw new Error(`invalid_mode:${mode}`);
+  const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
+  const text = request.rtf ? extractRtfText(decoded).trim() : decoded.trim();
+  return { facts: textFacts(text), text };
 };

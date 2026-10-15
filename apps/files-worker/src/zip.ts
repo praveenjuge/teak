@@ -1,5 +1,6 @@
 import { isSafeArchivePath } from "@teak/convex/import/validate";
 import { Inflate } from "fflate";
+import { OpFailure } from "./opFailure";
 import { isValidUploadKey } from "./upload";
 
 // ZIP names without the UTF-8 flag use the standard DOS code page.
@@ -58,7 +59,7 @@ const u64 = (b: Uint8Array, i: number) => {
     new DataView(b.buffer, b.byteOffset, b.byteLength).getBigUint64(i, true)
   );
   if (!Number.isSafeInteger(n)) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   return n;
 };
@@ -75,7 +76,7 @@ export async function rangeRead(
     length < 0 ||
     length > MAX_DIRECTORY
   ) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   if (!length) {
     return new Uint8Array();
@@ -86,11 +87,11 @@ export async function rangeRead(
   }
   if (etag && etag !== object.httpEtag) {
     await object.body.cancel();
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   const bytes = new Uint8Array(await object.arrayBuffer());
   if (bytes.length !== length) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   return bytes;
 }
@@ -111,7 +112,7 @@ export function findEocd(tail: Uint8Array): EocdRecord | null {
       u16(tail, i + 6) !== 0 ||
       u16(tail, i + 8) !== u16(tail, i + 10)
     ) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     return {
       entryCount: u16(tail, i + 10),
@@ -133,14 +134,14 @@ export function parseCentralDirectory(
   let offset = 0;
   for (let i = 0; i < count; i++) {
     if (offset + 46 > bytes.length || u32(bytes, offset) !== 0x02_01_4b_50) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     const nl = u16(bytes, offset + 28),
       el = u16(bytes, offset + 30),
       cl = u16(bytes, offset + 32);
     const end = offset + 46 + nl + el + cl;
     if (end > bytes.length) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     const flags = u16(bytes, offset + 8);
     const entry: ZipCentralEntry = {
@@ -154,13 +155,13 @@ export function parseCentralDirectory(
     let disk = u16(bytes, offset + 34);
     for (let x = offset + 46 + nl; x < offset + 46 + nl + el; ) {
       if (x + 4 > offset + 46 + nl + el) {
-        throw new Error("archive_parse_failed");
+        throw new OpFailure("archive_parse_failed");
       }
       const tag = u16(bytes, x),
         len = u16(bytes, x + 2),
         next = x + 4 + len;
       if (next > offset + 46 + nl + el) {
-        throw new Error("archive_parse_failed");
+        throw new OpFailure("archive_parse_failed");
       }
       if (tag === 1) {
         let z = x + 4;
@@ -171,7 +172,7 @@ export function parseCentralDirectory(
         ] as const) {
           if (entry[field] === 0xff_ff_ff_ff) {
             if (z + 8 > next) {
-              throw new Error("archive_parse_failed");
+              throw new OpFailure("archive_parse_failed");
             }
             entry[field] = u64(bytes, z);
             z += 8;
@@ -179,7 +180,7 @@ export function parseCentralDirectory(
         }
         if (disk === 0xff_ff) {
           if (z + 4 > next) {
-            throw new Error("archive_parse_failed");
+            throw new OpFailure("archive_parse_failed");
           }
           disk = u32(bytes, z);
         }
@@ -194,13 +195,13 @@ export function parseCentralDirectory(
         entry.localHeaderOffset,
       ].includes(0xff_ff_ff_ff)
     ) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     entries.push(entry);
     offset = end;
   }
   if (offset !== bytes.length) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   return entries;
 }
@@ -220,17 +221,17 @@ export async function readZipDirectory(
     throw new InspectSourceMissing();
   }
   if (expectedEtag && meta.httpEtag !== expectedEtag) {
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   if (meta.size < 22 || meta.size > MAX_ARCHIVE_BYTES) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   const len = Math.min(meta.size, EOCD_WINDOW),
     start = meta.size - len;
   const tail = await rangeRead(bucket, key, start, len, meta.httpEtag);
   const eocd = findEocd(tail);
   if (!eocd) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   let { cdOffset, cdSize, entryCount } = eocd;
   if (
@@ -250,7 +251,7 @@ export async function readZipDirectory(
       u32(locator, 4) !== 0 ||
       u32(locator, 16) !== 1
     ) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     const zip64 = await rangeRead(
       bucket,
@@ -266,7 +267,7 @@ export async function readZipDirectory(
       u32(zip64, 20) !== 0 ||
       u64(zip64, 24) !== u64(zip64, 32)
     ) {
-      throw new Error("archive_parse_failed");
+      throw new OpFailure("archive_parse_failed");
     }
     entryCount = u64(zip64, 32);
     cdSize = u64(zip64, 40);
@@ -277,7 +278,7 @@ export async function readZipDirectory(
     cdOffset + cdSize > start + eocd.offset ||
     entryCount > MAX_ENTRIES
   ) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   const entries = parseCentralDirectory(
     await rangeRead(bucket, key, cdOffset, cdSize, meta.httpEtag),
@@ -339,13 +340,13 @@ export async function consumeZipEntry(
     u16(header, 8) !== entry.compressionMethod ||
     u16(header, 6) !== entry.flags
   ) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   const nl = u16(header, 26),
     extra = u16(header, 28),
     start = entry.localHeaderOffset + 30 + nl + extra;
   if (start + entry.compressedSize > directory.cdOffset) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   const name = decodeZipName(
     await rangeRead(
@@ -358,7 +359,7 @@ export async function consumeZipEntry(
     entry.flags ?? 0
   );
   if (name !== entry.name) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   let total = 0;
   const accept = (chunk: Uint8Array) => {
@@ -380,7 +381,7 @@ export async function consumeZipEntry(
         "code" in error &&
         typeof error.code === "number"
       ) {
-        throw new Error("archive_parse_failed", { cause: error });
+        throw new OpFailure("archive_parse_failed", { cause: error });
       }
       throw error;
     }
@@ -397,7 +398,7 @@ export async function consumeZipEntry(
   }
   if (object && object.httpEtag !== directory.sourceEtag) {
     await object.body.cancel();
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   let read = 0;
   if (object) {
@@ -410,7 +411,7 @@ export async function consumeZipEntry(
         }
         read += value.length;
         if (read > entry.compressedSize) {
-          throw new Error("archive_parse_failed");
+          throw new OpFailure("archive_parse_failed");
         }
         for (let i = 0; i < value.length; i += 1024) {
           const chunk = value.subarray(i, i + 1024);
@@ -430,7 +431,7 @@ export async function consumeZipEntry(
     inflate(new Uint8Array(), true);
   }
   if (read !== entry.compressedSize || total !== entry.uncompressedSize) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
 }
 export async function readZipEntry(

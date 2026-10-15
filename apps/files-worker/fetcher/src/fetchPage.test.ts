@@ -127,12 +127,7 @@ describe("fetching", () => {
           status: 301,
         });
       }
-      const response = new Response("<title>Final</title>", {
-        headers: html(),
-      });
-      // undici sets this on a real response; safeFetch passes it through.
-      Object.defineProperty(response, "url", { value: url });
-      return response;
+      return new Response("<title>Final</title>", { headers: html() });
     });
     const body = (await (
       await fetchPage({ selectors: SELECTORS, url: PAGE })

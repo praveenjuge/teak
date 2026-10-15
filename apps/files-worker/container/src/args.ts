@@ -1,10 +1,11 @@
-// Pure command-line builders. Every ffmpeg and ffprobe call goes through
-// these so the hardening flags can't be forgotten: local files and pipes
-// only, real container demuxers only (no playlists, concat lists, image
-// sequences, lavfi or tee), one thread, and a per-allocation cap. Inputs
-// and outputs must sit inside the job directory.
-
 import { isAbsolute, relative, resolve } from "node:path";
+
+declare const builtHere: unique symbol;
+/** An argv only this module builds, so `run` never gets one without the hardening flags. */
+export type ToolCommand = string[] & { readonly [builtHere]: true };
+
+const toolCommand = (argv: string[]): ToolCommand =>
+  argv as unknown as ToolCommand;
 
 export const FORMAT_WHITELIST = [
   "mov",
@@ -53,8 +54,7 @@ export function jobPath(jobDir: string, path: string): string {
 }
 
 export interface FfmpegInput {
-  /** Input options placed before `-i` (seeking, decoder flags). */
-  options?: string[];
+  inputOptions?: string[];
   path: string;
 }
 
@@ -64,8 +64,8 @@ export interface FfmpegOutput {
   target: string;
 }
 
-export function ffprobeCommand(jobDir: string, input: string): string[] {
-  return [
+export function ffprobeCommand(jobDir: string, input: string): ToolCommand {
+  return toolCommand([
     "ffprobe",
     ...QUIET_FLAGS,
     "-max_alloc",
@@ -76,7 +76,7 @@ export function ffprobeCommand(jobDir: string, input: string): string[] {
     "-show_format",
     "-show_streams",
     `file:${jobPath(jobDir, input)}`,
-  ];
+  ]);
 }
 
 export function ffmpegCommand(
@@ -84,7 +84,7 @@ export function ffmpegCommand(
   inputs: FfmpegInput[],
   outputs: FfmpegOutput[],
   globalOptions: string[] = []
-): string[] {
+): ToolCommand {
   const argv = [
     "ffmpeg",
     "-nostdin",
@@ -100,7 +100,7 @@ export function ffmpegCommand(
   ];
   for (const input of inputs) {
     argv.push(
-      ...(input.options ?? []),
+      ...(input.inputOptions ?? []),
       ...INPUT_FLAGS,
       "-i",
       `file:${jobPath(jobDir, input.path)}`
@@ -120,7 +120,7 @@ export function ffmpegCommand(
       target
     );
   }
-  return argv;
+  return toolCommand(argv);
 }
 
 export interface SampleSize {
@@ -175,10 +175,10 @@ function sampleOutput(
   ];
 }
 
-export function frameCommand(job: FrameJob): string[] {
+export function frameCommand(job: FrameJob): ToolCommand {
   return ffmpegCommand(
     job.jobDir,
-    [{ path: job.input, options: ["-ss", String(job.timeSeconds)] }],
+    [{ path: job.input, inputOptions: ["-ss", String(job.timeSeconds)] }],
     [
       {
         target: job.output,
@@ -197,14 +197,13 @@ export function frameCommand(job: FrameJob): string[] {
   );
 }
 
-/** The keyframe at or before `timeSeconds`, found with a fast input seek. */
-export function tileCommand(job: FrameJob): string[] {
+export function keyframeTileCommand(job: FrameJob): ToolCommand {
   return ffmpegCommand(
     job.jobDir,
     [
       {
         path: job.input,
-        options: [
+        inputOptions: [
           "-skip_frame",
           "nokey",
           "-ss",
@@ -246,7 +245,7 @@ export interface AnimationSampleJob extends SampleSize {
   streamIndex: number;
 }
 
-export function animationSampleCommand(job: AnimationSampleJob): string[] {
+export function animationSampleCommand(job: AnimationSampleJob): ToolCommand {
   const filters = [
     ...(job.framesPerSecond === null
       ? []
@@ -279,7 +278,7 @@ export function spriteCommand(
   jobDir: string,
   tiles: string[],
   output: string
-): string[] {
+): ToolCommand {
   const filter =
     tiles.length === 1
       ? "[0:v]null[out]"
@@ -302,7 +301,7 @@ export function audioCommand(
   input: string,
   streamIndex: number,
   whisperOutput: string | null
-): string[] {
+): ToolCommand {
   const map = ["-map", `0:${streamIndex}`, "-ac", "1"];
   const outputs: FfmpegOutput[] = [
     {
@@ -333,8 +332,8 @@ export function audioCommand(
   return ffmpegCommand(jobDir, [{ path: input }], outputs);
 }
 
-export function pdfInfoCommand(jobDir: string, input: string): string[] {
-  return ["pdfinfo", jobPath(jobDir, input)];
+export function pdfInfoCommand(jobDir: string, input: string): ToolCommand {
+  return toolCommand(["pdfinfo", jobPath(jobDir, input)]);
 }
 
 export function pdfPageCommand(
@@ -342,8 +341,8 @@ export function pdfPageCommand(
   input: string,
   max: number,
   outputPrefix: string
-): string[] {
-  return [
+): ToolCommand {
+  return toolCommand([
     "pdftoppm",
     "-f",
     "1",
@@ -355,15 +354,15 @@ export function pdfPageCommand(
     String(max),
     jobPath(jobDir, input),
     jobPath(jobDir, outputPrefix),
-  ];
+  ]);
 }
 
 export function pdfTextCommand(
   jobDir: string,
   input: string,
   maxPages: number
-): string[] {
-  return [
+): ToolCommand {
+  return toolCommand([
     "pdftotext",
     "-f",
     "1",
@@ -374,5 +373,5 @@ export function pdfTextCommand(
     "-q",
     jobPath(jobDir, input),
     "-",
-  ];
+  ]);
 }

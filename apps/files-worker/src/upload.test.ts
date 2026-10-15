@@ -7,7 +7,7 @@ import {
 import { freezeObject } from "./deletionGate";
 import worker, { type Env } from "./index";
 import { hmacSha256Hex, sha256Hex } from "./lib";
-import { FakeBucket, withObjectGates } from "./testsupport";
+import { FakeBucket, withObjectGates } from "./test/testsupport";
 
 const SECRET = "test-secret";
 
