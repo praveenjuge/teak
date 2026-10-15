@@ -72,9 +72,6 @@ describe("web core journey", { serial: true }, () => {
     await gotoApp(browser, "/settings");
     await expect(screen.getByText(email, { exact: false })).toBeVisible();
     await expect(screen.getByText("Free Plan", { exact: false })).toBeVisible();
-    // Settings loads the device list on every visit, and the page must not
-    // be left while that read is in flight. Seeing this device in Security
-    // shows it finished before generateApiKey reloads Settings.
     const security = await openSecurityDialog(surface);
     await expect(
       security.getByText("This device", { exact: false })

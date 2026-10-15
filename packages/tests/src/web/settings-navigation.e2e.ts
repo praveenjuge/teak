@@ -2,27 +2,39 @@ import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 import { observeNavigation } from "./navigation-observer";
 
-test("preserves home through ten warm settings round trips", async ({
+test("keeps home, not a rebuilt copy, through settings round trips from sign-in", async ({
   browser,
+  library,
   screen,
-  webAccount: _signedIn,
 }) => {
-  // Right after sign-in, the first trip to settings remounts the composer.
-  // Make that trip before typing, so every trip below takes the warm path,
-  // where Next.js keeps home hidden in <Activity> and shows it again.
-  await screen.getByRole("link", "Settings").click();
-  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
-  await screen.getByRole("link", /back/i).click();
   const draft = browser
     .locator('form[data-card-creation-status="ready"]')
     .getByRole("textbox", "Markdown content", { exact: false });
   await draft.fill("Navigation draft — do not save");
   await expect(draft).toHaveText("Navigation draft — do not save");
+  await browser.evaluate(() => {
+    const composer = document.querySelector<HTMLElement>(
+      "form[data-card-creation-status]"
+    );
+    if (!composer) {
+      throw new Error("composer is missing");
+    }
+    composer.dataset.navigationProbe = "";
+    return null;
+  });
+  const sameComposer = browser.locator(
+    "form[data-card-creation-status][data-navigation-probe]"
+  );
   await screen.getByRole("link", "Settings").click();
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
   await expect(screen.getByRole("button", /@/i).first()).toBeVisible();
   await expect(browser.locator('[data-slot="page-loading"]')).toHaveCount(0);
+  await library.create("Saved while settings was open");
   await screen.getByRole("link", /back/i).click();
+  await expect(
+    screen.getByText("Saved while settings was open").first()
+  ).toBeVisible();
+  await expect(sameComposer).toHaveCount(1);
   await expect(draft).toHaveText("Navigation draft — do not save");
 
   for (let index = 0; index < 10; index++) {
