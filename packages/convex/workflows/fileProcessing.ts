@@ -84,8 +84,6 @@ export const extractFileTextForKey = async (
     mode = "zip";
     maxBytes = MAX_ARCHIVE_INSPECTION_BYTES;
   } else if (pdf) {
-    // The renderer reads PDFs of any upload size; a busy renderer throws, so
-    // the metadata step retries.
     mode = "pdf";
     maxBytes = FILES_UPLOAD_MAX_BYTES;
   }

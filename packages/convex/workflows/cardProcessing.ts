@@ -1,19 +1,8 @@
-/**
- * Card Processing Workflow
- *
- * Main workflow that orchestrates the complete card processing pipeline:
- * 1. Classification - Determine card type
- * 2. Categorization - For links, classify and enrich with provider data
- * 3. Metadata Generation - Generate AI tags and summary
- * 4. Renderables - Generate thumbnails and visual assets
- */
-
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { workflow } from "./manager";
 
-// Helper to get properly typed internal references
 const internalWorkflow = internal as any;
 
 const METADATA_STEP_RETRY: RetryBehavior = {
@@ -31,7 +20,6 @@ const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
   initialBackoffMs: 1200,
   base: 1.6,
 };
-// Covers a renderer cold start or a busy pool: 5 s, 10 s, 20 s between tries.
 export const RENDERABLES_STEP_RETRY: RetryBehavior = {
   maxAttempts: 4,
   initialBackoffMs: 5000,
@@ -68,12 +56,6 @@ export const createMissingCardWorkflowResult = () => ({
   reason: "card_missing" as const,
 });
 
-/**
- * Main Card Processing Workflow
- *
- * Orchestrates all AI processing steps for a card in sequence.
- * Each step can be retried independently via workflow retry configuration.
- */
 export const cardProcessingWorkflow: any = workflow.define({
   args: {
     cardId: v.id("cards"),
@@ -126,8 +108,6 @@ export const cardProcessingWorkflow: any = workflow.define({
         ? { workflowId: step.workflowId }
         : {};
 
-    // Step 1: Classification
-    // If already classified (client-provided type), reuse it; otherwise run classifier
     const existingClassifyStatus = initialCard?.processingStatus?.classify;
     const classification =
       existingClassifyStatus?.status === "completed" && initialCard
@@ -153,7 +133,6 @@ export const cardProcessingWorkflow: any = workflow.define({
       return createMissingCardWorkflowResult();
     }
 
-    // Ensure link metadata is ready before proceeding with downstream AI steps.
     if (classification.type === "link") {
       const linkMetadataCard = await step.runQuery(
         internalWorkflow.linkMetadata.getCardForMetadata,
@@ -173,8 +152,6 @@ export const cardProcessingWorkflow: any = workflow.define({
       }
     }
 
-    // Step 2: Categorization (conditional - only for links)
-    // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
       const categorizationOutcome = await (async () => {
@@ -234,9 +211,6 @@ export const cardProcessingWorkflow: any = workflow.define({
       categorization = categorizationOutcome;
     }
 
-    // Step 3 & 4: Metadata generation and renderables can run in parallel when needed.
-    // Images and videos generate renderables first so bounded thumbnails power
-    // palette extraction and vision metadata.
     let metadataResult: any = null;
     let renderablesResult: any = null;
     const runRenderablesStep = async () => {

@@ -19,7 +19,6 @@ import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
-import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
 import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
 
@@ -43,6 +42,31 @@ export const getAccountDeletionState = async (
   }
   const state = await indexedQuery.unique();
   return state && typeof state.startedAt === "number" ? state : null;
+};
+
+/**
+ * While an account deletion runs, its batches own every row the user has.
+ * Background writers stand down instead of writing: Convex conflicts on rows
+ * read or written, so a racing write makes the deletion batches retry until
+ * the whole deletion fails.
+ */
+export const accountDeletionOwnsRows = async (
+  ctx: DatabaseReaderCtx,
+  userId: string | undefined
+): Promise<boolean> =>
+  userId !== undefined && Boolean(await getAccountDeletionState(ctx, userId));
+
+/** `accountDeletionOwnsRows`, read once per user for a batch of many cards. */
+export const createAccountDeletionGate = (ctx: DatabaseReaderCtx) => {
+  const owned = new Map<string, Promise<boolean>>();
+  return (userId: string): Promise<boolean> => {
+    let result = owned.get(userId);
+    if (!result) {
+      result = accountDeletionOwnsRows(ctx, userId);
+      owned.set(userId, result);
+    }
+    return result;
+  };
 };
 
 export const assertAccountNotDeleting = async (
@@ -94,20 +118,11 @@ export const drainStorageWithinBudget = async (
   return true;
 };
 
-export interface AccountImportDeletionObject {
-  reportKey?: string;
-  sourceKey: string;
-  uploadId?: string;
-}
-
 interface AccountDataDeletionOptions {
-  boundedDeletion?: {
+  boundedDeletion: {
     stateId: Id<"accountDeletionStates">;
     generation: number;
   };
-  deleteImportObjects: (
-    objects: AccountImportDeletionObject[]
-  ) => Promise<unknown>;
   observe: <T>(
     input: {
       name: string;
@@ -122,7 +137,7 @@ interface AccountDataDeletionOptions {
 export const runAccountDataDeletion = (
   ctx: ActionCtx,
   userId: string,
-  { deleteImportObjects, observe, boundedDeletion }: AccountDataDeletionOptions
+  { observe, boundedDeletion }: AccountDataDeletionOptions
 ) =>
   observe(
     {
@@ -135,135 +150,46 @@ export const runAccountDataDeletion = (
       await ctx.runMutation(internal.accountDeletion.beginAccountDataDeletion, {
         userId,
       });
-      if (boundedDeletion) {
-        if (
-          !(await drainStorageWithinBudget(ctx, boundedDeletion, [
-            "cards",
-            "imports",
-          ]))
-        ) {
-          return {
-            done: false,
-            deletedCards: 0,
-            deletedStorageObjectCount: 0,
-          };
-        }
-        await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
-          userId,
-        });
-        return { done: true, deletedCards: 0, deletedStorageObjectCount: 0 };
-      }
-      let deletedCards = 0;
-      let deletedStorageObjectCount = 0;
-      while (true) {
-        const batch = await ctx.runQuery(
-          internal.accountDeletion.getAccountCardDeletionBatch,
-          { userId }
-        );
-        if (batch.cardIds.length === 0) {
-          break;
-        }
-        if (batch.objectKeys.length > 0) {
-          await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-            keys: batch.objectKeys,
-          });
-        }
-        deletedCards += await ctx.runMutation(
-          internal.accountDeletion.deleteAccountDataBatch,
-          { cardIds: batch.cardIds, userId }
-        );
-        deletedStorageObjectCount += batch.objectKeys.length;
-      }
-      while (true) {
-        const batch = await ctx.runQuery(
-          internal.accountDeletion.getAccountImportDeletionBatch,
-          { userId }
-        );
-        if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
-          break;
-        }
-        if (batch.objects.length > 0) {
-          await deleteImportObjects(batch.objects);
-        }
-        await ctx.runMutation(
-          internal.accountDeletion.deleteAccountImportRows,
-          {
-            itemIds: batch.itemIds,
-            jobIds: batch.jobIds,
-            userId,
-          }
-        );
-      }
-      const finalCards = await ctx.runQuery(
-        internal.accountDeletion.getAccountCardDeletionBatch,
-        { userId }
-      );
-      const finalImports = await ctx.runQuery(
-        internal.accountDeletion.getAccountImportDeletionBatch,
-        { userId }
-      );
       if (
-        finalCards.cardIds.length > 0 ||
-        finalImports.jobIds.length > 0 ||
-        finalImports.itemIds.length > 0
+        !(await drainStorageWithinBudget(ctx, boundedDeletion, [
+          "cards",
+          "imports",
+        ]))
       ) {
-        throw new Error("Account data changed during deletion");
+        return false;
       }
       await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
         userId,
       });
-      return { deletedCards, deletedStorageObjectCount };
+      return true;
     }
   );
 
-export const getAccountCardDeletionBatchHandler = async (
-  ctx: QueryCtx,
-  userId: string
+declare const ownerIndexBrand: unique symbol;
+
+/** Card ids read from one owner's `by_user_deleted` index. */
+export type OwnedCardIds = Id<"cards">[] & {
+  readonly [ownerIndexBrand]: true;
+};
+
+export const takeOwnedCards = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  limit: number
 ) => {
   const cards = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .take(20);
-  const readyCards: typeof cards = [];
-  for (const card of cards) {
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      readyCards.push(card);
-    }
-  }
-  return {
-    cardIds: cards.map((card) => card._id),
-    objectKeys: Array.from(
-      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
-    ),
-  };
+    .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
+    .take(limit);
+  return { cards, cardIds: cards.map((card) => card._id) as OwnedCardIds };
 };
-
-export const getAccountCardDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    cardIds: v.array(v.id("cards")),
-    objectKeys: v.array(v.string()),
-  }),
-  handler: (ctx, { userId }) => getAccountCardDeletionBatchHandler(ctx, userId),
-});
 
 export const deleteAccountDataHandler = async (
   ctx: MutationCtx,
-  _userId: string,
-  cardIds: Id<"cards">[]
+  cardIds: OwnedCardIds
 ) => {
   let deletedCards = 0;
   for (const cardId of cardIds) {
-    // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
-    // card ownership is immutable (no code path patches cards.userId) and
-    // the caller derives these IDs from the by_user_deleted index for this
-    // user, so the extra read only widened the mutation's conflict surface.
-    // The writers that raced these batches are fenced off during account
-    // deletion in patchCardWithSearchSync.
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
       .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -323,76 +249,6 @@ export const deleteAccountDataHandler = async (
   }
   return deletedCards;
 };
-
-export const deleteAccountDataBatch = internalMutation({
-  args: { cardIds: v.array(v.id("cards")), userId: v.string() },
-  returns: v.number(),
-  handler: async (ctx, { cardIds, userId }) =>
-    deleteAccountDataHandler(ctx, userId, cardIds),
-});
-
-export const getAccountImportDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    objects: v.array(
-      v.object({
-        reportKey: v.optional(v.string()),
-        sourceKey: v.string(),
-        uploadId: v.optional(v.string()),
-      })
-    ),
-  }),
-  handler: async (ctx, { userId }) => {
-    const jobs = await ctx.db
-      .query("importJobs")
-      .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .take(100);
-    const items = await ctx.db
-      .query("importJobItems")
-      .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .take(100);
-    return {
-      itemIds: items.map((item) => item._id),
-      jobIds: jobs.map((job) => job._id),
-      objects: [
-        ...jobs.map((job) => ({
-          sourceKey: job.sourceKey,
-          reportKey: job.reportKey,
-          uploadId: job.uploadId,
-        })),
-        ...items.flatMap((item) =>
-          item.extractedFileKey ? [{ sourceKey: item.extractedFileKey }] : []
-        ),
-      ],
-    };
-  },
-});
-
-export const deleteAccountImportRows = internalMutation({
-  args: {
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    userId: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { itemIds, jobIds, userId }) => {
-    for (const itemId of itemIds) {
-      const item = await ctx.db.get("importJobItems", itemId);
-      if (item?.userId === userId) {
-        await ctx.db.delete("importJobItems", itemId);
-      }
-    }
-    for (const jobId of jobIds) {
-      const job = await ctx.db.get("importJobs", jobId);
-      if (job?.userId === userId) {
-        await ctx.db.delete("importJobs", jobId);
-      }
-    }
-    return null;
-  },
-});
 
 export const beginAccountDataDeletion = internalMutation({
   args: { userId: v.string() },

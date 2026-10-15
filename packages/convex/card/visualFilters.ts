@@ -44,9 +44,6 @@ export const normalizeVisualFilterArgs = (args: {
     throw new Error("Invalid hexFilters");
   }
 
-  // Cap each dimension so an authenticated caller cannot fan out an unbounded
-  // number of concurrent facet queries via Promise.all in runVisualFacetQueries.
-  // Style/hue are already bounded by their enums; hex values are caller-supplied.
   const cappedStyleFilters = styleFilters.slice(
     0,
     SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
@@ -141,7 +138,6 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-/** Only images carry styles; COLOR_CARD_TYPES carry colors. */
 const VISUAL_STYLE_TYPES: readonly CardType[] = ["image"];
 
 /**

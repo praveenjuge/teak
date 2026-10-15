@@ -12,12 +12,6 @@
  *     public, routable IP (loopback / private / link-local / metadata /
  *     reserved ranges are blocked for both IPv4 and IPv6)
  *   - automatic redirects are disabled; each redirect hop is re-validated
- *
- * This module is intentionally free of Node.js built-ins so it can be bundled
- * for any Convex runtime (the V8 isolate as well as Node). DNS resolution is
- * the only host capability it needs, and that is injected by the caller via a
- * {@link DnsResolver}. The `"use node"` action files that call into this module
- * supply `dnsLookup` (a thin wrapper over `node:dns/promises`).
  */
 
 /**
@@ -55,7 +49,6 @@ export class RedirectError extends SsrfError {
 }
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
-// Standard web ports only. An empty port means the protocol default (80/443).
 const ALLOWED_PORTS = new Set(["", "80", "443"]);
 const MAX_REDIRECTS = 5;
 export const SAFE_FETCH_TIMEOUT_MS = 30_000;
@@ -88,13 +81,9 @@ const parseIpv4ToBytes = (ip: string): Bytes | null => {
   return bytes;
 };
 
-// Returns a 16-byte representation of an IPv6 address (with any IPv4 tail
-// embedded in the final 4 bytes), or null when the literal is malformed.
 const parseIpv6ToBytes = (ip: string): Bytes | null => {
-  // Strip a zone id (e.g. fe80::1%eth0) before parsing.
   const withoutZone = ip.split("%")[0];
 
-  // Handle IPv4-mapped / IPv4-embedded forms (e.g. ::ffff:192.168.0.1).
   const lastColon = withoutZone.lastIndexOf(":");
   let head = withoutZone;
   let embeddedIpv4: Bytes | null = null;
@@ -153,8 +142,6 @@ const cidr = (base: string, bits: number, version: 4 | 6): Cidr => {
   return { base: baseValue, bits };
 };
 
-// Disallowed IPv4 ranges: loopback, private, link-local, CGN, metadata,
-// documentation, benchmarking, multicast, reserved, broadcast, unspecified.
 const BLOCKED_IPV4: Cidr[] = [
   cidr("0.0.0.0", 8, 4), // "this" network / unspecified
   cidr("10.0.0.0", 8, 4), // private
@@ -173,8 +160,6 @@ const BLOCKED_IPV4: Cidr[] = [
   cidr("240.0.0.0", 4, 4), // reserved
 ];
 
-// Disallowed IPv6 ranges. IPv4-mapped/translated addresses are decoded to their
-// embedded IPv4 and checked against BLOCKED_IPV4 separately.
 const BLOCKED_IPV6: Cidr[] = [
   cidr("::", 128, 6), // unspecified
   cidr("::1", 128, 6), // loopback
@@ -188,8 +173,6 @@ const BLOCKED_IPV6: Cidr[] = [
 const IPV4_MAPPED_PREFIX = cidr("::ffff:0:0", 96, 6); // ::ffff:0:0/96
 const IPV4_TRANSLATED_PREFIX = cidr("64:ff9b::", 96, 6); // 64:ff9b::/96
 
-// Bitwise CIDR membership test over byte arrays. `value` and `range.base` must
-// share the same byte length (4 for IPv4, 16 for IPv6).
 const inRange = (value: Bytes, range: Cidr): boolean => {
   if (value.length !== range.base.length) {
     return false;
@@ -212,7 +195,6 @@ const inRange = (value: Bytes, range: Cidr): boolean => {
   return true;
 };
 
-// The embedded IPv4 of a mapped/translated IPv6 is the final 4 bytes.
 const ipv4FromMapped = (value: Bytes): Bytes => value.slice(12, 16);
 
 /**
@@ -225,7 +207,6 @@ export const detectIpVersion = (host: string): 0 | 4 | 6 => {
   if (!host) {
     return 0;
   }
-  // IPv6 literals always contain a colon; IPv4 literals never do.
   if (host.includes(":")) {
     return parseIpv6ToBytes(host) === null ? 0 : 6;
   }
@@ -241,7 +222,7 @@ export const isBlockedIp = (ip: string): boolean => {
   if (version === 4) {
     const value = parseIpv4ToBytes(ip);
     if (value === null) {
-      return true; // unparseable -> treat as unsafe
+      return true;
     }
     return BLOCKED_IPV4.some((range) => inRange(value, range));
   }
@@ -250,8 +231,6 @@ export const isBlockedIp = (ip: string): boolean => {
     if (value === null) {
       return true;
     }
-    // Decode IPv4-mapped (::ffff:a.b.c.d) and NAT64 (64:ff9b::a.b.c.d) forms
-    // and validate the embedded IPv4 against the IPv4 policy.
     if (
       inRange(value, IPV4_MAPPED_PREFIX) ||
       inRange(value, IPV4_TRANSLATED_PREFIX)
@@ -263,7 +242,6 @@ export const isBlockedIp = (ip: string): boolean => {
     }
     return BLOCKED_IPV6.some((range) => inRange(value, range));
   }
-  // Not a valid IP literal.
   return true;
 };
 
@@ -303,8 +281,6 @@ export const assertUrlStructureSafe = (rawUrl: string): URL => {
     throw new SsrfError("empty_host", "URL is missing a hostname");
   }
 
-  // If the host is already an IP literal, validate it immediately so we never
-  // even issue a DNS lookup for an obviously private destination.
   if (detectIpVersion(hostname) !== 0 && isBlockedIp(hostname)) {
     throw new SsrfError(
       "blocked_address",
@@ -327,7 +303,6 @@ export const resolveSafeUrl = async (
   const parsed = assertUrlStructureSafe(rawUrl);
   const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
 
-  // Literal IPs were already validated in assertUrlStructureSafe.
   if (detectIpVersion(hostname) !== 0) {
     return { addresses: [hostname], url: parsed };
   }
@@ -422,10 +397,7 @@ export const safeFetch = async (
         `Invalid redirect target: ${location}`
       );
     }
-    // Drain the redirect body so the connection can be reused/closed cleanly.
-    await response.body?.cancel().catch(() => {
-      // ignore
-    });
+    await response.body?.cancel().catch(() => undefined);
     currentUrl = nextUrl.toString();
   }
 

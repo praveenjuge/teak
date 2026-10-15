@@ -1,6 +1,5 @@
 "use node";
 
-import { lookup } from "node:dns/promises";
 import { gzipSync } from "node:zlib";
 import type { FilesCaptureScreenshotResult } from "@teak/files-protocol";
 import { v } from "convex/values";
@@ -8,7 +7,6 @@ import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import {
-  type DnsResolver,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
@@ -19,18 +17,11 @@ import {
 } from "../../../storage/filesWorkerRendering";
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
-import { pinnedFetch } from "../pinnedFetch";
+import { nodeDnsResolver, pinnedFetch } from "../pinnedFetch";
 import {
   SCREENSHOT_RETRYABLE_PREFIX,
   type ScreenshotRetryableError,
 } from "./retryable";
-
-// Node runtime DNS resolver injected into the SSRF guard (keeps the guard free
-// of Node built-ins so it bundles for any Convex runtime).
-const resolveDns: DnsResolver = async (hostname) => {
-  const records = await lookup(hostname, { all: true, verbatim: true });
-  return records.map((record) => record.address);
-};
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -43,7 +34,6 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
-/** HTML travels gzip-compressed so pages up to 2 MiB fit in an op body. */
 const gzipBase64 = (html: string): string =>
   gzipSync(Buffer.from(html, "utf8")).toString("base64");
 
@@ -90,7 +80,7 @@ export const captureScreenshot = internalAction({
     try {
       const { response } = await safeFetch(
         normalizedUrl,
-        resolveDns,
+        nodeDnsResolver,
         {
           headers: {
             accept: "text/html,application/xhtml+xml",
@@ -135,7 +125,6 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
-    // Registered before the Worker writes it.
     const screenshotKey = buildR2ObjectKey({
       userId: card.userId,
       cardId,

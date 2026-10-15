@@ -53,7 +53,6 @@ const largestBySize = (values: unknown): Sized | undefined => {
   return best;
 };
 
-/** Port of the old browser evaluator's relay mapping: carousel, largest image, largest video. */
 const relayItemToMedia = (
   item: Record<string, unknown>,
   output: RawMedia[],
@@ -102,7 +101,6 @@ const relayItemToMedia = (
   }
 };
 
-/** Find the post item under the relay key, walking at most MAX_JSON_NODES nodes. */
 const findRelayItem = (
   root: unknown,
   shortcode: string
@@ -191,7 +189,6 @@ const resolveUrl = (pageUrl: string, value: string | undefined) => {
   } catch {}
 };
 
-/** Pick the widest srcset candidate (or the last one when it has no widths). */
 const pickFromSrcset = (
   srcset: string | undefined
 ): { url: string; width: number } | undefined => {
@@ -353,7 +350,6 @@ export const extractInstagramMediaFromHtml = (
         }
         scriptChars += text.length;
         if (scriptChars > MAX_SCRIPT_CHARS) {
-          // Oversized body: stop buffering and skip this script.
           scriptChunks = undefined;
           return;
         }

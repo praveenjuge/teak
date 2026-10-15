@@ -16,6 +16,10 @@
         "!**/packages/convex/securitySessions.ts",
         "!**/packages/convex/ensureUser.ts"
       ]
+    },
+    {
+      "path": "./scripts/lint/no-remove-child.grit",
+      "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
     }
   ],
   "javascript": {
@@ -121,6 +125,39 @@
       }
     },
     {
+      // Pure modules, unit tested and bundled for any runtime.
+      "includes": [
+        "packages/convex/export/bookmarks.ts",
+        "packages/convex/export/constants.ts",
+        "packages/convex/export/csv.ts",
+        "packages/convex/export/serialize.ts",
+        "packages/convex/linkMetadata/ssrf.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "convex",
+                      "convex/**",
+                      "**/_generated/**",
+                      "node:*",
+                      "node:*/**"
+                    ],
+                    "message": "This module stays free of Convex and Node imports."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       // next/image is unavailable here: shared UI package (consumed outside
       // Next.js), browser extension, and OG-image generation via ImageResponse.
       "includes": [
@@ -171,6 +208,36 @@
       "includes": ["apps/raycast/**"],
       "formatter": {
         "enabled": false
+      }
+    },
+    {
+      // The extension's OAuth module keeps sign-in state for the background
+      // worker. Only the worker and the save modules it calls may import it,
+      // so the popup and content script never bundle it.
+      "includes": [
+        "apps/extension/**",
+        "!apps/extension/entrypoints/background.ts",
+        "!apps/extension/lib/oauthAuth.ts",
+        "!apps/extension/lib/saveToTeak.ts",
+        "!apps/extension/lib/saveFileToTeak.ts",
+        "!apps/extension/__tests__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/oauthAuth", "**/oauthAuth.ts"],
+                    "message": "lib/oauthAuth is background-worker only. Read the capture owner from lib/captureOwner instead."
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     }
   ],

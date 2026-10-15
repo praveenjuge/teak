@@ -10,7 +10,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { cardTypeValidator, colorValidator } from "../schema";
+import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import {
   getSessionUser,
   requireTeakUserId,
@@ -23,7 +23,7 @@ import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { startWorkflow } from "../workflows/manager";
-import { recordActiveCardCreated } from "./cardUsage";
+import { insertCountedCard } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -32,7 +32,7 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
 import { extractUrlFromContent } from "./validationUtils";
 
@@ -46,7 +46,7 @@ export const clientCardSourceValidator = v.union(
 
 const createCardArgs = {
   content: v.string(),
-  type: v.optional(cardTypeValidator), // Make type optional for auto-detection
+  type: v.optional(cardTypeValidator),
   url: v.optional(v.string()),
   fileKey: v.optional(v.string()),
   thumbnailKey: v.optional(v.string()),
@@ -56,7 +56,7 @@ const createCardArgs = {
   colors: v.optional(v.array(colorValidator)), // For palette cards
 } as const;
 
-const PIPELINE_METADATA_FIELDS = ["linkCategory", "linkPreview"] as const;
+const PIPELINE_OWNED_METADATA_FIELDS = ["linkCategory", "linkPreview"] as const;
 
 const sessionCreateCardArgs = {
   ...createCardArgs,
@@ -90,14 +90,36 @@ interface CreateCardArgs {
 
 interface ImportedVisibleFields {
   createdAt?: number;
-  /** The card was archived where it came from (a Teak archive). */
   isArchived?: boolean;
   isFavorited?: boolean;
-  /** A title the user chose (e.g. a bookmark's name), kept over fetched page titles. */
   metadataTitle?: string;
 }
 
 const MAX_IMPORTED_TITLE_LENGTH = 512;
+
+/**
+ * An explicit type is always kept, so a note a client saves as text stays
+ * text even when it mentions a URL. Otherwise quoted text is a quote and a URL
+ * makes a link, as the classifier would decide, so a link never shows as text
+ * before classification runs.
+ */
+export const resolveCreatedCardType = ({
+  providedType,
+  hasUrl,
+  isQuoted,
+}: {
+  providedType: CardType | undefined;
+  hasUrl: boolean;
+  isQuoted: boolean;
+}): CardType => {
+  if (providedType) {
+    return providedType;
+  }
+  if (isQuoted) {
+    return "quote";
+  }
+  return hasUrl ? "link" : "text";
+};
 
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
@@ -108,7 +130,6 @@ export const createCardForUserHandler = async (
     source?: CardCreationSource;
   } = {}
 ): Promise<Id<"cards">> => {
-  // Check rate limit and card count limit
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
   // Client-supplied storage keys must live in the caller's namespace so a
@@ -130,7 +151,6 @@ export const createCardForUserHandler = async (
 
   const providedType = args.type;
   const explicitText = providedType === "text";
-  let cardType = providedType ?? "text";
   let finalContent = args.content;
   let finalUrl = assertSafeExternalUrl(args.url);
   const originalMetadata = args.metadata || {};
@@ -140,10 +160,8 @@ export const createCardForUserHandler = async (
     ? stagePending()
     : stageCompleted(now, 1);
 
-  // Separate file-related metadata from other metadata
   const processedMetadata = { ...originalMetadata } as Record<string, unknown>;
 
-  // Move file-related fields to fileMetadata if present
   const fileRelatedFields = [
     "fileName",
     "fileSize",
@@ -162,11 +180,7 @@ export const createCardForUserHandler = async (
     }
   }
 
-  // Link previews and categories, and the storage keys inside them, are
-  // written only by the link pipeline. A caller's copy is dropped, so a card
-  // can never be pointed at objects it did not create, which deleting or
-  // refreshing the card would otherwise delete.
-  for (const field of PIPELINE_METADATA_FIELDS) {
+  for (const field of PIPELINE_OWNED_METADATA_FIELDS) {
     delete processedMetadata[field];
   }
 
@@ -187,23 +201,12 @@ export const createCardForUserHandler = async (
     }
   }
 
-  // When the client does not specify a type, let the backend decide: a resolved
-  // URL upgrades the card to "link". This mirrors the deterministic classifier
-  // (which always upgrades URL-bearing cards) and prevents links from sticking
-  // as "text" before async classification runs. An explicit type is always
-  // honored, so a note like "I read this at https://example.com" that a client
-  // deliberately saves as text stays a text card.
-  if (finalUrl && !providedType && cardType === "text") {
-    cardType = "link";
-  }
-
   const quoteNormalization = normalizeQuoteContent(finalContent);
-  const shouldDefaultToQuote =
-    !providedType && quoteNormalization.removedQuotes;
-
-  if (shouldDefaultToQuote) {
-    cardType = "quote";
-  }
+  const cardType = resolveCreatedCardType({
+    providedType,
+    hasUrl: Boolean(finalUrl),
+    isQuoted: quoteNormalization.removedQuotes,
+  });
 
   if (cardType === "quote" && quoteNormalization.removedQuotes) {
     finalContent = quoteNormalization.text;
@@ -213,7 +216,6 @@ export const createCardForUserHandler = async (
     finalContent = validateTextCardContent(finalContent);
   }
 
-  // Pre-populate palette colours when explicitly creating a palette card without provided colours
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
     const paletteText = [
@@ -233,7 +235,6 @@ export const createCardForUserHandler = async (
     ?.trim()
     .slice(0, MAX_IMPORTED_TITLE_LENGTH);
 
-  // Set initial metadataStatus for link cards
   const cardData = {
     userId,
     content: finalContent,
@@ -262,29 +263,15 @@ export const createCardForUserHandler = async (
     ...(options.importedVisibleFields?.isArchived
       ? { isArchived: true as const, archivedAt: now }
       : {}),
-    // An edited title survives link-preview refreshes (linkMetadata.ts).
     ...(importedTitle
       ? { metadataTitle: importedTitle, metadataTitleEdited: true }
       : {}),
-    // Set pending status for link cards that need metadata extraction
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };
 
-  const cardId = await ctx.db.insert("cards", cardData);
-  try {
-    // The usage shards enforce the free-tier limit, and the shard slot is
-    // keyed by the new card id, so the count is taken right after the insert.
-    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
-  } catch (error) {
-    // Convex has no savepoints: bulk create and import catch a per-item
-    // CARD_LIMIT_REACHED and keep going, which would otherwise commit this
-    // uncounted card. Remove it so a failed create leaves nothing behind.
-    await ctx.db.delete("cards", cardId);
-    throw error;
-  }
-  await scheduleCardSearchSync(ctx, cardId, userId);
+  const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
+  await syncCardSearch(ctx, cardId, userId);
 
-  // Start the card processing workflow
   await startWorkflow(
     ctx,
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,

@@ -41,16 +41,18 @@ export const smartFolderMembership = () =>
     message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_MEMBERSHIP,
   });
 
+/**
+ * No card is ever in a smart folder, so moving cards out of one (from its
+ * view) only adds them to the target.
+ */
+export const onlyAddsToTarget = (fromFolder: Doc<"folders"> | undefined) =>
+  fromFolder?.kind === "smart";
+
 const sameFolders = (
   a: readonly Id<"folders">[],
   b: readonly Id<"folders">[]
 ) => a.length === b.length && a.every((id, index) => id === b[index]);
 
-/**
- * Writes a card's folder list through the card sync, so its folder rows,
- * folder counts and `updatedAt` (read by /v1/cards/changes) move together.
- * An unchanged list writes nothing.
- */
 const writeCardFolders = async (
   ctx: MutationCtx,
   card: Doc<"cards">,
@@ -68,7 +70,6 @@ const writeCardFolders = async (
   });
 };
 
-/** The folders in `folderIds` that are being deleted but can still be restored. */
 const foldersBeingDeleted = async (
   ctx: MutationCtx,
   folderIds: readonly Id<"folders">[]
@@ -104,8 +105,6 @@ export const setCardFoldersForUser = async (
       next.push(folder._id);
     }
   }
-  // A folder deleted moments ago is hidden from the caller but can still be
-  // restored; keep the card in it so Undo brings the folder back whole.
   for (const id of await foldersBeingDeleted(ctx, card.folderIds ?? [])) {
     if (!next.includes(id)) {
       next.push(id);
@@ -150,8 +149,6 @@ export const applyFolderMembership = async (
       next = current.filter((id) => id !== args.folderId);
       break;
     case "move": {
-      // Without a source, the card leaves every folder except ones still in
-      // their Undo window, so Undo brings those back whole.
       const kept = args.fromFolderId
         ? current.filter((id) => id !== args.fromFolderId)
         : await foldersBeingDeleted(ctx, current);
@@ -206,10 +203,8 @@ export const applyFolderMembershipToCards = async (
     args.action === "move" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
-  // No card is ever in a smart folder, so moving out of one (from its view)
-  // only adds the cards to the target.
   const action =
-    args.action === "move" && fromFolder?.kind === "smart"
+    args.action === "move" && onlyAddsToTarget(fromFolder)
       ? "add"
       : args.action;
 

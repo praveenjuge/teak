@@ -12,7 +12,7 @@ const mockFetch = mock();
 global.fetch = mockFetch as any;
 
 import { validate } from "convex-helpers/validators";
-import { aiMetadataWorkflowReturns } from "../../../../convex/workflows/aiMetadata/index";
+import { aiMetadataResultValidator } from "../../../../convex/workflows/aiMetadata/schemas";
 import {
   buildLinkContentParts,
   generateHandler,
@@ -399,8 +399,8 @@ describe("metadata handler", () => {
       });
 
       expect(completed.mode).toBe("completed");
-      expect(validate(aiMetadataWorkflowReturns, completed)).toBe(true);
-      expect(validate(aiMetadataWorkflowReturns, skipped)).toBe(true);
+      expect(validate(aiMetadataResultValidator, completed)).toBe(true);
+      expect(validate(aiMetadataResultValidator, skipped)).toBe(true);
     });
   });
 

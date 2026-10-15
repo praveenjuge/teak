@@ -1,11 +1,3 @@
-/**
- * Classification Step
- *
- * Workflow step that classifies a card's type using deterministic heuristics
- * (mime type, file metadata, URL clues, color extraction, quotes).
- * Determines if the card is: text, link, image, video, audio, document, palette, or quote.
- */
-
 "use node";
 
 import {
@@ -14,7 +6,7 @@ import {
 } from "@teak/convex/shared/utils/colorUtils";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
+import { type ActionCtx, internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
 import { inferFileFormat } from "../../shared/fileFormats";
@@ -100,9 +92,6 @@ const colorsMatch = (
   });
 };
 
-/**
- * Build palette analysis text for AI extraction
- */
 const buildPaletteAnalysisText = (card: any): string => {
   const sections: string[] = [];
 
@@ -143,12 +132,10 @@ const isProbablyPalette = (card: any): boolean => {
   const colors = extractPaletteColors(text);
   const hint = hasPaletteHint(card);
 
-  // Palette if multiple colors present.
   if (colors.length >= 2) {
     return true;
   }
 
-  // Single colour counts as palette when the card is otherwise plain text (no url/file) or an explicit hint exists.
   if (colors.length === 1 && !card.url && !card.fileKey) {
     return true;
   }
@@ -166,9 +153,7 @@ const fileNameFromUrl = (url?: string): string | undefined => {
   try {
     const pathname = new URL(url).pathname;
     return pathname.split("/").filter(Boolean).pop();
-  } catch {
-    // Malformed URLs are treated as missing rather than failing classification.
-  }
+  } catch {}
 };
 
 const classifyFile = (
@@ -200,7 +185,6 @@ const classifyByFileMetadata = (
   }
 
   if (typeof metadata.duration === "number" && metadata.duration > 0) {
-    // Prefer video when dimensions exist, otherwise audio.
     if (metadata.width || metadata.height) {
       return { type: "video", confidence: MEDIUM_CONFIDENCE };
     }
@@ -211,20 +195,17 @@ const classifyByFileMetadata = (
     return { type: "image", confidence: MEDIUM_CONFIDENCE };
   }
 
-  // Any other uploaded file defaults to document
   return { type: "document", confidence: MEDIUM_CONFIDENCE };
 };
 
 const deterministicClassify = (
   card: any
 ): { type: CardType; confidence: number } => {
-  // 1) File metadata (strongest signal)
   const fileMetaResult = classifyByFileMetadata(card.fileMetadata);
   if (fileMetaResult) {
     return fileMetaResult;
   }
 
-  // 2) URL extension cues
   const extensionResult = classifyFile(
     fileNameFromUrl(card.url),
     undefined,
@@ -234,28 +215,21 @@ const deterministicClassify = (
     return extensionResult;
   }
 
-  // 2b) If a file exists but metadata/extension gave no match, treat as document
   if (card.fileKey) {
     return { type: "document", confidence: MEDIUM_CONFIDENCE };
   }
 
-  // 3) Link fallback if a URL exists
   if (card.url) {
     return { type: "link", confidence: MEDIUM_CONFIDENCE };
   }
 
-  // 4) Palette detection (text-driven, only when no link)
   if (isProbablyPalette(card)) {
     return { type: "palette", confidence: PALETTE_CONFIDENCE };
   }
 
-  // 5) Default to text
   return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
 
-/**
- * Update palette colors if card is a palette type
- */
 const maybeUpdatePaletteColors = async (
   ctx: any,
   card: any,
@@ -286,11 +260,15 @@ const maybeUpdatePaletteColors = async (
   }
 };
 
-/**
- * Workflow Step: Classify card type using deterministic heuristics
- *
- * @returns Classification result with type and confidence
- */
+const recordClassification = (
+  ctx: Pick<ActionCtx, "runMutation">,
+  args: { cardId: Id<"cards">; confidence: number; type?: CardType }
+) =>
+  ctx.runMutation(
+    internal.workflows.steps.classificationMutations.recordClassification,
+    args
+  );
+
 export const classify = internalAction({
   args: {
     cardId: v.id("cards"),
@@ -327,22 +305,12 @@ export const classify = internalAction({
           return { mode: "skipped" };
         }
 
-        // If previously classified as quote and no conflicting signals, keep it sticky
         if (card.type === "quote" && !card.url && !card.fileKey) {
           const confidence =
             card.processingStatus?.classify?.confidence ?? 0.95;
 
           if (card.processingStatus?.classify?.status !== "completed") {
-            // A card update (for example removing a quote's URL) can reset
-            // the classify stage to pending while this sticky branch returns
-            // before updateClassification. Record completion so steps gated
-            // on processingStatus.classify do not retry until they fail
-            // permanently.
-            await ctx.runMutation(
-              (internal as any)["workflows/steps/classificationMutations"]
-                .markClassificationCompleted,
-              { cardId, confidence }
-            );
+            await recordClassification(ctx, { cardId, confidence });
           }
 
           const stickyResult: ClassificationWorkflowResult = {
@@ -363,15 +331,11 @@ export const classify = internalAction({
           quoteNormalization.removedQuotes && !card.url && !card.fileKey;
 
         if (heuristicQuote) {
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .updateClassification,
-            {
-              cardId,
-              type: "quote",
-              confidence: 0.95,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            type: "quote",
+            confidence: 0.95,
+          });
 
           const heuristicResult: ClassificationWorkflowResult = {
             mode: "completed",
@@ -386,11 +350,9 @@ export const classify = internalAction({
           return heuristicResult;
         }
 
-        // Deterministic classification (no external AI call)
         const { type: resultType, confidence: resultConfidence } =
           deterministicClassify(card);
 
-        // Normalize type for URL-only cards
         const trimmedContent =
           typeof card.content === "string" ? card.content.trim() : "";
         const urlOnlyCard =
@@ -402,49 +364,32 @@ export const classify = internalAction({
           urlOnlyCard && resultType !== "link" ? "link" : resultType;
         const normalizedConfidence = Math.max(0, Math.min(resultConfidence, 1));
 
-        // Determine if type should be updated
         const shouldForceLink = urlOnlyCard && card.type !== "link";
         const shouldUpdateType =
           shouldForceLink ||
           (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
         if (shouldUpdateType) {
-          // Update card type via mutation
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .updateClassification,
-            {
-              cardId,
-              type: normalizedType,
-              confidence: normalizedConfidence,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            type: normalizedType,
+            confidence: normalizedConfidence,
+          });
 
-          // Update palette colors if needed
           await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
         } else if (card.processingStatus?.classify?.status !== "completed") {
-          // Re-classification confirmed the existing type, so
-          // updateClassification does not run. Still record stage completion:
-          // link metadata fetching gates on processingStatus.classify and
-          // would otherwise retry until it fails permanently (e.g. after a
-          // URL edit resets the classify stage to pending on a link card).
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .markClassificationCompleted,
-            {
-              cardId,
-              confidence: normalizedConfidence,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            confidence: normalizedConfidence,
+          });
         }
 
         const needsLinkMetadata =
           normalizedType === "link" &&
           card.metadata?.linkPreview?.status !== "success";
 
-        // Determine which stages need to run next
         const shouldCategorize = normalizedType === "link";
-        const shouldGenerateMetadata = true; // Always generate metadata
+        const shouldGenerateMetadata = true;
         const shouldGenerateRenderables = [
           "image",
           "video",

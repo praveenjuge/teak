@@ -4,11 +4,6 @@ import { isEmptyRow, parseCsvRows } from "./csv";
 import { cleanTags, folderPath } from "./sourceItems";
 import { parseImportedTimestamp } from "./validate";
 
-/**
- * Parses a Raindrop `created` value. Raindrop exports an ISO 8601 timestamp,
- * but an all-digits value is treated as unix seconds (mirroring the `add_date`
- * handling in `bookmarks.ts`).
- */
 function parseRaindropCreated(raw: string): number | undefined {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -39,7 +34,6 @@ function isTruthyFavorite(raw: string): boolean {
  * ignored. The `folder` column becomes a Teak folder.
  */
 export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
-  // Strip a leading UTF-8 BOM if present.
   const normalized = csv.charCodeAt(0) === 0xfe_ff ? csv.slice(1) : csv;
   const rows = parseCsvRows(normalized);
   if (rows.length === 0) {
@@ -103,6 +97,3 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
   }
   return output;
 }
-
-/** The shared CSV reader, kept here for existing callers. */
-export { parseCsvRows } from "./csv";

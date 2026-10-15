@@ -59,8 +59,6 @@ export const markCardForEmbedding = async (
       dueAt,
       lastError: undefined,
     });
-    // A job already waiting finds the later dueAt and waits for it; one
-    // already running hands it to a new job when it records (handOffStaleJob).
     if (row.dueAt !== undefined) {
       return;
     }
@@ -85,8 +83,6 @@ export const tombstoneCardEmbedding = async (
     return;
   }
   if (row.shard === undefined) {
-    // Never embedded. A first embed still in flight finds no row and deletes
-    // what it wrote (recordEmbedded).
     await ctx.db.delete("cardEmbeddings", row._id);
     return;
   }
@@ -203,8 +199,6 @@ export const recordEmbedded = internalMutation({
       ctx.db.get("cards", args.cardId),
     ]);
     if (!(row && card) || row.pendingVectorDeleteAt !== undefined) {
-      // The card went away while this job embedded it. Delete what it wrote,
-      // and tombstone a row that no delete path has reached yet.
       if (row && !card && row.pendingVectorDeleteAt === undefined) {
         await ctx.db.patch("cardEmbeddings", row._id, {
           dueAt: undefined,

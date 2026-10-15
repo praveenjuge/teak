@@ -33,7 +33,6 @@ export const extractPaletteFromImage = internalAction({
           return;
         }
 
-        // If palette already exists, skip recomputation
         if (Array.isArray(card.colors) && card.colors.length > 0) {
           return card.colors as any;
         }

@@ -338,17 +338,20 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
   return value;
 };
 
-export function swallowTelemetryErrors(callback: () => void): void;
-export function swallowTelemetryErrors(
-  callback: () => Promise<void>
-): Promise<void>;
-export function swallowTelemetryErrors(
-  callback: () => void | Promise<void>
-): void | Promise<void> {
+export const ignoreTelemetryError = (record: () => void): void => {
   try {
-    const result = callback();
-    if (result instanceof Promise) {
-      return result.catch(() => undefined);
-    }
-  } catch {}
-}
+    record();
+  } catch {
+    // Telemetry must never alter product behavior.
+  }
+};
+
+export const ignoreTelemetryErrorAsync = async (
+  record: () => Promise<unknown>
+): Promise<void> => {
+  try {
+    await record();
+  } catch {
+    // Telemetry must never alter product behavior.
+  }
+};

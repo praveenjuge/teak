@@ -86,7 +86,6 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
           const rawUrl = anchor.attributes.href;
           const url = sanitizeExternalUrl(rawUrl);
           const seconds = Number(anchor.attributes.add_date);
-          // Nested folders become one Teak folder, "Parent / Child".
           const folder = folderPath(lists[lists.length - 1]?.folders ?? []);
           // Firefox and Teak write tags as a comma-separated TAGS attribute.
           const tags = cleanTags((anchor.attributes.tags ?? "").split(","));

@@ -1,8 +1,14 @@
 import {
+  ignoreTelemetryError,
   scrubTelemetryString,
   scrubTelemetryValue,
-  swallowTelemetryErrors,
 } from "./telemetry";
+
+/**
+ * Dependency-free PostHog capture for surfaces that must not load an SDK:
+ * Convex functions, the files worker, the browser extension, and Next.js
+ * server hooks. Pure on purpose: no Node, DOM, or Convex runtime imports.
+ */
 
 export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
@@ -230,7 +236,7 @@ export const createPostHogBatch = (
     if (!token) {
       return;
     }
-    swallowTelemetryErrors(() => {
+    ignoreTelemetryError(() => {
       const distinctId = input.distinctId || ANONYMOUS_DISTINCT_ID;
       queue.push({
         distinct_id: distinctId,
@@ -254,7 +260,7 @@ export const createPostHogBatch = (
       if (!token) {
         return;
       }
-      swallowTelemetryErrors(() => {
+      ignoreTelemetryError(() =>
         enqueue(
           { distinctId: input.distinctId, event: "$exception" },
           buildExceptionProperties(error, {
@@ -262,8 +268,8 @@ export const createPostHogBatch = (
             platform,
             properties: input.properties,
           })
-        );
-      });
+        )
+      );
     },
     get enabled() {
       return Boolean(token);

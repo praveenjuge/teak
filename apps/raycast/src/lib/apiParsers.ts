@@ -3,7 +3,6 @@ import { RaycastApiError } from "./apiErrors";
 export interface RaycastCard {
   aiSummary: string | null;
   aiTags: string[];
-  /** Present when the request includes processing fields. */
   aiTranscript?: string | null;
   appUrl: string | null;
   colors?: Array<{ hex: string; name?: string }>;

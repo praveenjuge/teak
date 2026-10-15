@@ -10,11 +10,12 @@ import {
   SITE_NAME_SOURCES,
   TITLE_SOURCES,
 } from "./selectors";
-import type {
-  LinkPreviewMetadata,
-  ScrapeResultItem,
-  ScrapeSelectorResult,
-  SelectorSource,
+import {
+  type LinkPreviewMetadata,
+  type ScrapeResultItem,
+  type ScrapeSelectorResult,
+  type SelectorSource,
+  TEAK_SCRAPER_SOURCE,
 } from "./types";
 
 export const toSelectorMap = (
@@ -142,7 +143,6 @@ export const sanitizeImageUrl = (
   }
   const trimmed = value.trim();
   if (/^data:/i.test(trimmed)) {
-    // Inline previews must be images; storage only accepts image/* bodies.
     return /^data:image\//i.test(trimmed) ? trimmed : undefined;
   }
   return sanitizeUrl(baseUrl, trimmed, { allowData: true });
@@ -226,9 +226,7 @@ export const buildSuccessPreview = (
   url: string,
   parsed: Omit<LinkPreviewMetadata, "fetchedAt" | "source" | "status" | "url">
 ): LinkPreviewMetadata => ({
-  // A stored label from the original renderer; clients and stored previews
-  // read it as "Teak's own scraper", so it stays.
-  source: "kernel_playwright",
+  source: TEAK_SCRAPER_SOURCE,
   status: "success",
   fetchedAt: Date.now(),
   url,
@@ -247,7 +245,7 @@ export const buildErrorPreview = (
     "screenshotStorageKey" | "screenshotUpdatedAt"
   >
 ): LinkPreviewMetadata => ({
-  source: "kernel_playwright",
+  source: TEAK_SCRAPER_SOURCE,
   status: "error",
   fetchedAt: Date.now(),
   url,

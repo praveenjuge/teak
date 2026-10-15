@@ -33,8 +33,7 @@ export default async function tool(input: Input = {}) {
       tag: input.tag,
       type: input.type,
     },
-    // AI tools run headless — never open the browser sign-in overlay.
-    { interactive: false },
+    "stored",
   );
 
   return result.items.map((card) => ({

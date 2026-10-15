@@ -13,7 +13,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000/cards?view=grid" });
 
 mock.module("server-only", () => ({}));
-// WorkOS AuthKit is the external session provider; everything below it is real.
 const session = { user: { id: "user_A" }, sessionId: "session_A" };
 const accessToken: { error?: Error; refresh?: () => Promise<string> } = {};
 mock.module("@workos-inc/authkit-nextjs/components", () => ({
@@ -55,8 +54,6 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// Stable across renders, like the app's memoized fetcher, so a re-render
-// doesn't make Convex set auth again.
 const fetchAccessToken = async () => "token";
 const useSignedIn = () => ({
   isLoading: false,
@@ -65,8 +62,6 @@ const useSignedIn = () => ({
 });
 
 async function mount(useAuth = useSignedIn, { backendAnswers = true } = {}) {
-  // The backend accepts the session token as soon as auth is set, unless the
-  // test holds its answer back to give it later through answerAuth.
   transport.client.setAuth = (_fetchToken, onChange) => {
     answerAuth = onChange;
     if (backendAnswers) {
@@ -170,6 +165,31 @@ test.each([
   }
 );
 
+test("runs ensureUser again from Try again after it fails", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", null);
+  let attempts = 0;
+  transport.onCall((call) => {
+    if (call.path !== "workosBootstrap:ensureUser") {
+      return Promise.resolve(null);
+    }
+    attempts += 1;
+    if (attempts === 1) {
+      return Promise.reject(new Error("Backend unavailable"));
+    }
+    transport.reply("auth:getAuthUser", profile);
+    return Promise.resolve({ status: "ok", teakUserId: profile._id });
+  });
+  await mount();
+  await act(async () => {});
+  expect(text()).toContain("We couldn't check your session.");
+
+  await act(async () => button("Try again").click());
+
+  expect(ensureCalls()).toHaveLength(2);
+  expect(text()).toContain("Vault open");
+});
+
 test("asks to sign in again when the open vault's owner disappears", async () => {
   transport = createConvexTransport();
   transport.seed("auth:getAuthUser", profile);
@@ -247,7 +267,6 @@ test("opens the vault once a token arrives after a failed retry", async () => {
   await act(() => button("Try again").click());
   expect(text()).toContain("We couldn't check your session.");
 
-  // The automatic retry gets a token once the connection is back.
   accessToken.error = undefined;
   await act(() => answerAuth?.(true));
 

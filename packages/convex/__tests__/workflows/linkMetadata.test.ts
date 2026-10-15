@@ -3,7 +3,7 @@ import { parseLinkMetadataRetryableError } from "../../../convex/workflows/linkM
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
-} from "../../../convex/workflows/steps/linkMetadata/fetchMetadata";
+} from "../../../convex/workflows/steps/linkMetadata/retryable";
 
 describe("linkMetadata workflow retryable error parsing", () => {
   test("parses encoded error payload", () => {

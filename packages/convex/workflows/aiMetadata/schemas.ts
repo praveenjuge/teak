@@ -1,6 +1,15 @@
+import { v } from "convex/values";
 import { z } from "zod";
 
-// AI generation result schema scoped to metadata workflow helpers
+/** What the metadata step returns: facts about what it stored, not the text. */
+export const aiMetadataResultValidator = v.object({
+  aiTagsCount: v.number(),
+  hasSummary: v.boolean(),
+  hasTranscript: v.boolean(),
+  confidence: v.number(),
+  mode: v.union(v.literal("completed"), v.literal("skipped")),
+});
+
 export const aiMetadataSchema = z.object({
   tags: z
     .array(z.string())

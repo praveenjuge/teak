@@ -10,7 +10,6 @@ mock.module("../storage/r2", r2MockModuleFactory);
 let ensureCardCreationAllowed: any;
 let deleteAccountDataHandler: any;
 let runAccountDataDeletion: any;
-let getAccountCardDeletionBatchHandler: any;
 let removeAccountCardUsageHandler: any;
 let polar: any;
 let rateLimiter: any;
@@ -55,8 +54,6 @@ describe("auth", () => {
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
     deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
     runAccountDataDeletion = accountDeletionModule.runAccountDataDeletion;
-    getAccountCardDeletionBatchHandler =
-      accountDeletionModule.getAccountCardDeletionBatchHandler;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;
 
@@ -363,7 +360,7 @@ describe("auth", () => {
         },
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+      const result = await deleteAccountDataHandler(ctx, ["c1", "c2"]);
 
       expect(result).toBe(2);
       expect(ctx.db.delete).toHaveBeenCalledTimes(12);
@@ -422,7 +419,7 @@ describe("auth", () => {
         },
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+      const result = await deleteAccountDataHandler(ctx, ["c1", "c2"]);
 
       expect(result).toBe(2);
       expect(ctx.db.get).not.toHaveBeenCalledWith("cards", "c1");
@@ -470,7 +467,7 @@ describe("auth", () => {
         },
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+      const result = await deleteAccountDataHandler(ctx, ["c1", "c2"]);
 
       expect(result).toBe(1);
       expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
@@ -517,7 +514,7 @@ describe("auth", () => {
         },
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+      const result = await deleteAccountDataHandler(ctx, ["c1", "c2"]);
 
       expect(result).toBe(1);
       expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
@@ -554,34 +551,8 @@ describe("auth", () => {
         },
       } as any;
 
-      await expect(deleteAccountDataHandler(ctx, "u1", ["c1"])).rejects.toThrow(
+      await expect(deleteAccountDataHandler(ctx, ["c1"])).rejects.toThrow(
         "Connection lost to backend"
-      );
-    });
-
-    it("collects storage keys before deleting their owning rows", async () => {
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({ eq: () => undefined });
-              }
-              return {
-                take: async () => [
-                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
-                  { _id: "c2" },
-                ],
-              };
-            },
-          }),
-        },
-      } as any;
-
-      const result = await getAccountCardDeletionBatchHandler(ctx, "u1");
-      expect(result.cardIds).toEqual(["c1", "c2"]);
-      expect(new Set(result.objectKeys)).toEqual(
-        new Set(["f1", "f1.processing.json", "t1"])
       );
     });
 
@@ -632,73 +603,38 @@ describe("auth", () => {
       ]);
     });
 
-    it("awaits private object cleanup before deleting owning rows", async () => {
+    it("drains card then import storage before removing card usage", async () => {
       const events: string[] = [];
-      let mutationCount = 0;
-      let queryCount = 0;
       const ctx = {
         runAction: mock((_ref: unknown, args: any) => {
-          events.push(
-            args.keys ? "delete-card-objects" : "delete-import-objects"
-          );
-          return args.keys ? { deleted: args.keys.length } : null;
+          events.push(`drain-${args.kind}`);
+          return true;
         }),
         runMutation: mock((_ref: unknown, args: any) => {
-          mutationCount += 1;
-          if (mutationCount === 1) {
-            events.push("begin-lock");
-            return null;
-          }
-          if (args.cardIds) {
-            events.push("delete-card-rows");
-            return args.cardIds.length;
-          }
-          if (args.jobIds) {
-            events.push("delete-import-rows");
-          } else {
-            events.push("delete-usage");
-            return { deletedEntries: 0, hasMore: false };
-          }
+          events.push(events.length === 0 ? "begin-lock" : "delete-usage");
+          expect(args).toEqual({ userId: "u1" });
           return null;
-        }),
-        runQuery: mock((_ref: unknown, _args: any) => {
-          queryCount += 1;
-          if (queryCount === 1) {
-            return { cardIds: ["c1"], objectKeys: ["users/u1/file"] };
-          }
-          if (queryCount === 2 || queryCount === 5) {
-            return { cardIds: [], objectKeys: [] };
-          }
-          if (queryCount === 3) {
-            return {
-              itemIds: ["item1"],
-              jobIds: ["job1"],
-              objects: [{ sourceKey: "users/u1/import" }],
-            };
-          }
-          return { itemIds: [], jobIds: [], objects: [] };
         }),
       } as any;
 
       await expect(
         runAccountDataDeletion(ctx, "u1", {
-          deleteImportObjects: (objects: unknown[]) =>
-            ctx.runAction("delete-import-objects", { objects }),
+          boundedDeletion: { stateId: "state1", generation: 2 },
           observe: (_input: unknown, callback: () => Promise<unknown>) =>
             callback(),
         })
-      ).resolves.toEqual({
-        deletedCards: 1,
-        deletedStorageObjectCount: 1,
-      });
+      ).resolves.toBe(true);
       expect(events).toEqual([
         "begin-lock",
-        "delete-card-objects",
-        "delete-card-rows",
-        "delete-import-objects",
-        "delete-import-rows",
+        "drain-cards",
+        "drain-imports",
         "delete-usage",
       ]);
+      expect(ctx.runAction).toHaveBeenCalledWith(expect.anything(), {
+        stateId: "state1",
+        generation: 2,
+        kind: "cards",
+      });
     });
 
     it("propagates deletion failures", async () => {
@@ -716,7 +652,7 @@ describe("auth", () => {
 
       await expect(
         runAccountDataDeletion(ctx, "u1", {
-          deleteImportObjects: mock(),
+          boundedDeletion: { stateId: "state1", generation: 1 },
           observe,
         })
       ).rejects.toThrow("begin lock failed");

@@ -1,8 +1,4 @@
-/* Teak brand tokens — shared by Blume docs chrome and marketing pages.
-   Docs fonts come from theme.fonts in blume.config.ts. */
-
 :root {
-  /* Keep in sync with theme.accent / theme.radius in blume.config.ts */
   --blume-accent: oklch(0.58 0.22 27);
   --blume-radius: 1rem;
 }
@@ -16,7 +12,6 @@ blume-prompt a {
   border-radius: 9999px !important;
 }
 
-/* Content screenshots share the corner radius of the cards and tables around them. */
 article.prose img[data-image-component] {
   border-radius: var(--blume-radius);
 }

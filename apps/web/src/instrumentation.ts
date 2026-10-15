@@ -3,7 +3,6 @@ import type { Instrumentation } from "next";
 import packageJson from "../package.json";
 import { resolvePostHogToken } from "./lib/posthog-config";
 
-/** Reports server render, route, and action errors to PostHog. */
 export const onRequestError: Instrumentation.onRequestError = async (
   error,
   request,

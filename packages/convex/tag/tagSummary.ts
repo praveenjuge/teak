@@ -15,7 +15,6 @@ import { getSessionUser, requireTeakUserId } from "../securitySessions";
 
 /** How long after a tag change the snapshot is recomputed. */
 export const TAG_SUMMARY_DEBOUNCE_MS = 15_000;
-/** A scheduled recompute this far past due is treated as lost. */
 const TAG_SUMMARY_STALE_MS = 5 * 60_000;
 /** Tag index rows one snapshot page reads. */
 export const TAG_SUMMARY_PAGE_ROWS = 4000;
@@ -71,8 +70,6 @@ export const markTagSummaryDirty = async (
   }
   const now = Date.now();
   const pending = await pendingRefresh(ctx, userId);
-  // A pending recompute covers this change unless it was lost, or this
-  // asks for one sooner (a first visit to the Tags page).
   if (
     pending &&
     pending.dueAt + TAG_SUMMARY_STALE_MS > now &&
@@ -132,8 +129,6 @@ export const countTagSummaryPage = internalQuery({
     let tagsLeft = TAG_SUMMARY_PAGE_TAGS;
     const counts: TagCount[] = [];
 
-    // A tag's active rows after a position, in index order. Rows that share
-    // the position's date come first, ordered by card id.
     async function* activeRows(tag: string, after?: Position) {
       const active = (q: any) =>
         q
@@ -157,8 +152,6 @@ export const countTagSummaryPage = internalQuery({
         );
     }
 
-    // Counts one tag's active rows while the budget lasts. Returns where to
-    // resume when the budget runs out part way through.
     const countTag = async (tag: string, start: number, after?: Position) => {
       let count = start;
       let position = after;
@@ -191,7 +184,6 @@ export const countTagSummaryPage = internalQuery({
 
     while (budget > 0 && tagsLeft > 0) {
       tagsLeft -= 1;
-      // Seek to the next distinct tag name, active or not.
       const seekAfter = afterTag;
       const next = await ctx.db
         .query("cardSearchTags")
@@ -207,7 +199,6 @@ export const countTagSummaryPage = internalQuery({
       budget -= 1;
       const result = await countTag(next.tag, 0);
       if (result.cutOff) {
-        // Nothing counted yet: the next page starts this tag over.
         return {
           counts,
           next: result.position
@@ -314,8 +305,6 @@ export const recomputeTagSummary = internalAction({
       for (const { name, count } of page.counts) {
         totals.set(name, count);
       }
-      // A tag cut off mid-count carries its running count into the next
-      // page, which reports the final total.
       state = page.next;
       pages += 1;
     }

@@ -1,13 +1,5 @@
 #!/usr/bin/env bun
-/**
- * WebMCP gold-scenario eval. Deterministic multi-tool flows against an
- * in-memory card store (no backend, no browser): registration shape,
- * search/get round-trips, the create -> tag -> favorite lifecycle,
- * invalid-input rejections, event wiring, and description/data isolation.
- *
- * Run: bun run test:webmcp-eval (from apps/web)
- */
-
+import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   registerTeakWebMcpTools,
   subscribeWebMcpToolEvents,
@@ -48,17 +40,20 @@ const scenario = async (
   }
 };
 
-const cardFixture = (
-  overrides: Partial<WebMcpCardInput> & { _id: string }
-): WebMcpCardInput => ({
+const cardFixture = ({
+  _id,
+  ...overrides
+}: Omit<Partial<WebMcpCardInput>, "_id"> & {
+  _id: string;
+}): WebMcpCardInput => ({
   content: "eval fixture",
   createdAt: 1_700_000_000_000,
   type: "text",
   updatedAt: 1_700_000_000_000,
   ...overrides,
+  _id: _id as Id<"cards">,
 });
 
-/** In-memory store mirroring the Convex query/mutation semantics. */
 const createStore = () => {
   const cards = new Map<string, WebMcpCardInput>([
     [
@@ -102,7 +97,7 @@ const createStore = () => {
           url: args.url,
         })
       );
-      return Promise.resolve(id);
+      return Promise.resolve(id as Id<"cards">);
     },
     getCard: (cardId) => Promise.resolve(cards.get(cardId) ?? null),
     searchCards: (args) =>
@@ -119,22 +114,30 @@ const createStore = () => {
             args.types ? args.types.includes(card.type as "text") : true
           )
           .filter((card) => (args.favoritesOnly ? card.isFavorited : true))
-          // Mirror the production query: newest first, then take the limit.
           .sort((a, b) => b.createdAt - a.createdAt)
           .slice(0, args.limit ?? 20)
       ),
-    updateCardField: ({ cardId, field, value }) => {
+    editCardTags: ({ action, cardId, tags }) => {
+      const card = cards.get(cardId);
+      if (!card) {
+        return Promise.resolve({ failedIds: [cardId] });
+      }
+      const current = card.tags ?? [];
+      const has = (list: readonly string[], tag: string) =>
+        list.some((item) => item.toLowerCase() === tag.toLowerCase());
+      const next =
+        action === "addTags"
+          ? [...current, ...tags.filter((tag) => !has(current, tag))]
+          : current.filter((tag) => !has(tags, tag));
+      card.tags = next.length > 0 ? next : undefined;
+      return Promise.resolve({ failedIds: [] });
+    },
+    setCardFavorite: ({ cardId, favorited }) => {
       const card = cards.get(cardId);
       if (!card) {
         return Promise.reject(new Error("card not found"));
       }
-      if (field === "tags") {
-        card.tags =
-          Array.isArray(value) && value.length > 0 ? value : undefined;
-      } else {
-        card.isFavorited =
-          typeof value === "boolean" ? value : !card.isFavorited;
-      }
+      card.isFavorited = favorited;
       return Promise.resolve(null);
     },
   };

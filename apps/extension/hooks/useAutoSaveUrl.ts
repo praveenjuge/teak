@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { ContextMenuSaveState } from "../types/contextMenu";
+import {
+  type ContextMenuSaveState,
+  RECENT_CONTEXT_MENU_SAVE_MS,
+} from "../types/contextMenu";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../types/messages";
 
 export type AutoSaveState =
@@ -45,14 +48,12 @@ export const isValidUrl = (url: string): boolean => {
     return false;
   }
 
-  // Check against invalid patterns
   for (const pattern of INVALID_URL_PATTERNS) {
     if (pattern.test(url)) {
       return false;
     }
   }
 
-  // Must be http or https
   return url.startsWith("http://") || url.startsWith("https://");
 };
 
@@ -67,22 +68,19 @@ export const useAutoSaveUrl = (
     null
   );
 
-  // Step 1: Get the current tab URL
   useEffect(() => {
     if (!isAuthenticated || hasCheckedRef.current) {
       return;
     }
 
     const getCurrentTab = async () => {
-      // Double-check for context menu state before saving
       const { contextMenuSave } = await chrome.storage.local.get<{
         contextMenuSave?: ContextMenuSaveState;
       }>("contextMenuSave");
 
       if (contextMenuSave?.timestamp) {
         const timeSinceContextMenu = Date.now() - contextMenuSave.timestamp;
-        if (timeSinceContextMenu < 5000) {
-          // Within 5 seconds of context menu action
+        if (timeSinceContextMenu < RECENT_CONTEXT_MENU_SAVE_MS) {
           setState("idle");
           hasCheckedRef.current = true;
           return;
@@ -90,7 +88,6 @@ export const useAutoSaveUrl = (
       }
 
       try {
-        // Get current tab
         const tabs = await chrome.tabs.query({
           active: true,
           currentWindow: true,
@@ -106,7 +103,6 @@ export const useAutoSaveUrl = (
 
         setCurrentUrl(currentTab.url);
 
-        // Check if URL is valid for saving
         if (!isValidUrl(currentTab.url)) {
           setState("invalid-url");
           hasCheckedRef.current = true;

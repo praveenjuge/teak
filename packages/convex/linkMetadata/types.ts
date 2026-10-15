@@ -22,6 +22,12 @@ export interface ScrapeResponse {
   success: boolean;
 }
 
+/**
+ * The stored source of every preview Teak scrapes itself, named after a
+ * retired renderer. Clients and stored previews read it as Teak's own scraper.
+ */
+export const TEAK_SCRAPER_SOURCE = "kernel_playwright";
+
 export interface LinkPreviewMetadata {
   author?: string;
   canonicalUrl?: string;
@@ -50,7 +56,7 @@ export interface LinkPreviewMetadata {
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
   siteName?: string;
-  source: "kernel_playwright";
+  source: typeof TEAK_SCRAPER_SOURCE;
   status: "success" | "error";
   title?: string;
   url: string;

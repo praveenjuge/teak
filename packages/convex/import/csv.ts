@@ -1,8 +1,3 @@
-/**
- * The CSV reader every CSV import source shares (Raindrop, Pocket,
- * Instapaper, Readwise Reader, mymind).
- */
-
 import { ImportLimitExceeded } from "./sourceItems";
 
 const MAX_CSV_ROWS = 10_000;

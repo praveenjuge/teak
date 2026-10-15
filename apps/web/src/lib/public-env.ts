@@ -1,11 +1,3 @@
-/**
- * Single runtime accessor for the web workspace's public Convex origins.
- *
- * Application code reads the generated NEXT_PUBLIC_CONVEX_* aliases through
- * here; nothing else touches them directly (enforced by `bun run audit:env`).
- * Values are returned raw so callers keep their own normalization.
- */
-
 const missing = (name: string, local: string): Error =>
   new Error(
     `Missing ${name} environment variable (run: bun run setup, expected ${local} locally)`

@@ -299,7 +299,6 @@ function AuthenticatedPopup({
   });
   const autoClose = Boolean(status?.autoClose);
 
-  // Close shortly after a save finishes so the user can keep browsing.
   useEffect(() => {
     if (!autoClose) {
       return;

@@ -9,7 +9,7 @@ export default function FavoritesCommand() {
       emptyIcon={Icon.Star}
       emptyTitle="No favorites found"
       latestSectionTitle="Latest Favorites"
-      loadCards={(input) => getFavoriteCards({ ...input, limit: 50 })}
+      loadCards={(input) => getFavoriteCards({ ...input, limit: 50 }, "prompt")}
       navigationTitle="Teak Favorites"
       removeUnfavoritedFromList
       searchBarPlaceholder="Search favorites, or filter with type:, tag:, hue:, after:"

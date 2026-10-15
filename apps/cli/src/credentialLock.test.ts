@@ -11,14 +11,14 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withCredentialLock } from "./credentialLock";
+import { credentialLockPath, withCredentialLock } from "./credentialLock";
 
 const base = mkdtempSync(join(tmpdir(), "teak-lock-test-"));
 const modulePath = new URL("./credentialLock.ts", import.meta.url).pathname;
 afterAll(() => rmSync(base, { recursive: true, force: true }));
 let count = 0;
 function fixture() {
-  return join(base, `lock-${count++}`);
+  return credentialLockPath(base, `${count++}`);
 }
 function child(path: string, body: string, journal = "") {
   return Bun.spawn(
@@ -48,10 +48,6 @@ async function successful(process: ReturnType<typeof child>) {
   expect(status).toBe(0);
 }
 
-// Failure modes: competing processes overlap, thrown work leaves a lock,
-// crashed/live/unknown owners are confused, unsafe paths are followed, and a
-// former owner releases a replacement's lock. Processes exercise real PID and
-// filesystem semantics; no mocked sibling or fake process-liveness boundary.
 test("separate processes serialize critical sections with private metadata", async () => {
   const path = fixture();
   const journal = join(base, "journal");
@@ -350,8 +346,6 @@ test("a stale contender cannot republish metadata between dead-owner removal and
   const previous = JSON.parse(readFileSync(join(path, "owner.json"), "utf8"));
   const gate = fixture();
   const attempted = fixture();
-  // Pause the contender after it has read the old owner, then let the winner
-  // reach rmdir. Filesystem/process barriers force the formerly failing order.
   const contender = Bun.spawn(
     [
       process.execPath,
@@ -456,7 +450,6 @@ test("contenders never parse partial owner metadata during publication", async (
   const publish = spyOn(fs, "writeFileSync").mockImplementation(
     (file, data, options) => {
       if (String(file).startsWith(join(path, "owner"))) {
-        // The OS boundary pauses after a partial write, before publication.
         originalWrite(file, '{"pid":', options);
         contender = Bun.spawn(
           [
@@ -484,7 +477,6 @@ test("contenders never parse partial owner metadata during publication", async (
         }
         expect(fs.existsSync(result)).toBe(true);
         expect(readFileSync(result, "utf8")).toContain("Timed out");
-        // Finish the same private file; the canonical code publishes afterward.
         return originalWrite(file, data, { ...(options as object), flag: "w" });
       }
       return originalWrite(file, data, options);

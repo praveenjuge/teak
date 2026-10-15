@@ -1,11 +1,5 @@
 import { buildPostHogOptions } from "./posthog-config";
 
-/**
- * Loads posthog-js only after the page is idle, so it never joins the initial
- * bundle or competes with first paint. Calls made before it loads wait in a
- * small queue, and early page errors are kept until the SDK takes over.
- */
-
 type PostHog = typeof import("posthog-js")["default"];
 type PendingCall = (posthog: PostHog) => void;
 
@@ -16,14 +10,11 @@ let client: PostHog | undefined;
 let enabled = false;
 const pending: PendingCall[] = [];
 
-/** Runs `call` now if PostHog is loaded, or once it loads. */
 export const withPostHog = (call: PendingCall): void => {
   if (client) {
     try {
       call(client);
-    } catch {
-      // Analytics must never alter product behavior.
-    }
+    } catch {}
     return;
   }
   if (enabled && pending.length < MAX_PENDING) {
@@ -46,7 +37,6 @@ export const startPostHog = (token: string | undefined): void => {
   }
   enabled = true;
 
-  // Errors thrown before the SDK loads; its own capture handles later ones.
   const onError = (event: ErrorEvent) => {
     const error = event.error ?? event.message;
     withPostHog((posthog) => posthog.captureException(error));
@@ -70,14 +60,12 @@ export const startPostHog = (token: string | undefined): void => {
         }
       })
       .catch(() => {
-        // A blocked or failed download leaves analytics off for this page.
         enabled = false;
         pending.length = 0;
       });
   });
 };
 
-// The last identity sent from this browser, so page loads don't resend it.
 const IDENTITY_KEY = "teak_posthog_identity";
 
 const readSentIdentity = (): string | null => {
@@ -88,7 +76,6 @@ const readSentIdentity = (): string | null => {
   }
 };
 
-/** Links this browser to the signed-in Teak account. */
 export const identifyPostHogUser = (
   userId: string,
   email: string | undefined
@@ -105,18 +92,13 @@ export const identifyPostHogUser = (
     }
     try {
       localStorage.setItem(IDENTITY_KEY, identity);
-    } catch {
-      // Without storage the identity is simply sent again next load.
-    }
+    } catch {}
   });
 
-/** Starts a fresh anonymous identity after sign-out. */
 export const resetPostHogUser = (): void =>
   withPostHog((posthog) => {
     posthog.reset();
     try {
       localStorage.removeItem(IDENTITY_KEY);
-    } catch {
-      // Nothing to clear.
-    }
+    } catch {}
   });

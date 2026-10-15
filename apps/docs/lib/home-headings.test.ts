@@ -10,15 +10,13 @@ const headingLevels = (source: string) =>
 const SHOWCASE_TAG = "<HomeFeatureShowcase />";
 const homepageSource = read("../pages/index.astro");
 
-/** Homepage markup in document order, with the showcase expanded in place. */
 const homepage = homepageSource.replace(
   SHOWCASE_TAG,
   read("../components/HomeFeatureShowcase.astro")
 );
 
 describe("homepage heading hierarchy", () => {
-  test("renders the showcase on the homepage", () => {
-    // Without this, the checks below could pass without covering the showcase.
+  test("renders the showcase on the homepage, so the heading checks cover it", () => {
     expect(homepageSource).toContain(SHOWCASE_TAG);
   });
 

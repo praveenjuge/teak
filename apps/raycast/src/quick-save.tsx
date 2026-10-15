@@ -59,19 +59,16 @@ export default function QuickSaveCommand() {
     refresh: refreshAuth,
   } = useTeakAuth();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: prefill clipboard only once on mount; re-running would clobber user input
   useEffect(() => {
     let isMounted = true;
 
     const loadClipboardText = async () => {
       try {
         const clipboardText = await Clipboard.readText();
-        if (isMounted && !content.trim() && clipboardText?.trim()) {
-          setContent(clipboardText);
+        if (isMounted && clipboardText?.trim()) {
+          setContent((current) => (current.trim() ? current : clipboardText));
         }
-      } catch {
-        // Ignore clipboard prefill failures and keep the form usable.
-      }
+      } catch {}
     };
 
     void loadClipboardText();
@@ -98,10 +95,13 @@ export default function QuickSaveCommand() {
     });
 
     try {
-      const result = await quickSaveCard({
-        content: values.content,
-        source: "raycast_quick_save",
-      });
+      const result = await quickSaveCard(
+        {
+          content: values.content,
+          source: "raycast_quick_save",
+        },
+        "prompt",
+      );
       addSuccessActions(toast, result);
       toast.style = Toast.Style.Success;
       toast.title = "Saved to Teak";

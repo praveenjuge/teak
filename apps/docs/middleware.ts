@@ -11,7 +11,6 @@ export const config = {
   ],
 };
 
-/** HEAD request without a Markdown Accept header, so it skips this middleware. */
 async function probeStatus(url: URL): Promise<number | null> {
   try {
     const response = await fetch(url, {

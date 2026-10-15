@@ -6,7 +6,6 @@ import {
 import { scrubTelemetryValue } from "@teak/convex/shared/telemetry";
 import type { CaptureResult, PostHogConfig } from "posthog-js";
 
-/** Same-origin reverse proxy to PostHog (src/proxy.ts). */
 export const POSTHOG_PROXY_PATH = "/ingest";
 
 /**
@@ -26,11 +25,6 @@ export const resolveAnalyticsProxyTarget = (url: URL): URL | null => {
   return new URL(`${path}${url.search}`, host);
 };
 
-/**
- * Only production deployments report. Developers often pull Vercel env vars
- * into .env.local, and a production token there must not turn local crashes
- * and clicks into production data, so the Vercel environment decides.
- */
 export const resolvePostHogToken = (env: {
   token?: string;
   vercelEnvironment?: string;
@@ -59,7 +53,6 @@ const INJECTED_FRAME_PREFIXES = [
   "safari-web-extension://",
 ];
 
-// Globals that in-app browsers and video downloaders inject into the page.
 const INJECTED_GLOBAL_PATTERN = /\bwindow\.videoSniffer\b/u;
 
 const REMOVE_CHILD_MESSAGE =
@@ -82,10 +75,9 @@ const isReactOrBundledFrame = ({ filename }: ExceptionFrame) =>
         filename.includes("/_next/static/immutable/chunks/"))
   );
 
-// Frames arrive before symbolication, so production React frames look like
-// bundled Next chunks. Teak's only manual removeChild is a download link it
-// just appended (useCardModal), so a removeChild NotFoundError raised only
-// from framework frames comes from an extension mutating the DOM.
+// Frames arrive before symbolication, so React's frames look like Next
+// chunks. Teak code never calls removeChild (scripts/lint/no-remove-child.grit),
+// so this error comes from an extension editing the DOM React owns.
 const isExternalDomMutation = (entry: ExceptionEntry) =>
   entry.type === "NotFoundError" &&
   entry.value === REMOVE_CHILD_MESSAGE &&
@@ -152,7 +144,6 @@ const maskUrlProperties = (
   return changed ?? properties;
 };
 
-/** Masks search text in an event's page and referrer URLs. */
 export const maskSearchText = (event: CaptureResult): CaptureResult => {
   const properties = maskUrlProperties(event.properties);
   const $set = maskUrlProperties(event.$set);
@@ -172,10 +163,6 @@ export const maskSearchText = (event: CaptureResult): CaptureResult => {
   };
 };
 
-/**
- * Masks search text, drops extension and injected-script noise, and scrubs
- * exception text.
- */
 export const filterPostHogEvent = (
   captured: CaptureResult | null
 ): CaptureResult | null => {

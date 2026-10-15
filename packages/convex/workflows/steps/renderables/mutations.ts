@@ -1,7 +1,10 @@
 import { FILES_WAVEFORM_BARS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
-import { stageFailed } from "../../../card/processingStatus";
+import {
+  mergeProcessingStages,
+  stageFailed,
+} from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
 import { scheduleCardProcessingFailed } from "../../../telemetry/schedule";
@@ -16,14 +19,13 @@ export const markCardRenderablesFailed = internalMutation({
     }
     const now = Date.now();
     await patchCardWithSearchSync(ctx, args.cardId, {
-      processingStatus: {
-        ...(card.processingStatus ?? {}),
+      processingStatus: mergeProcessingStages(card.processingStatus, {
         renderables: stageFailed(
           now,
           args.error,
           card.processingStatus?.renderables
         ),
-      },
+      }),
       updatedAt: now,
     });
     await scheduleCardProcessingFailed(ctx, {
@@ -159,11 +161,8 @@ export const updateCardThumbnail = internalMutation({
   args: {
     cardId: v.id("cards"),
     thumbnailKey: v.string(),
-    // Original image dimensions to store for aspect ratio calculations
-    // even when thumbnail generation is skipped (small files)
     originalWidth: v.optional(v.number()),
     originalHeight: v.optional(v.number()),
-    // Video only: the hover scrub sprite and the duration from the same pass.
     scrubKey: v.optional(v.string()),
     scrub: v.optional(
       v.object({
@@ -195,8 +194,6 @@ export const updateCardThumbnail = internalMutation({
       updatedAt: Date.now(),
     };
 
-    // Also store original dimensions in fileMetadata for aspect ratio
-    // This ensures dimensions are available even when thumbnail isn't generated
     const hasFacts =
       args.originalWidth !== undefined ||
       args.originalHeight !== undefined ||
@@ -211,7 +208,6 @@ export const updateCardThumbnail = internalMutation({
           height: args.originalHeight,
         }),
         ...(args.scrub !== undefined && { scrub: args.scrub }),
-        // An upload-time duration wins, as in updateCardMediaFacts.
         ...(args.duration !== undefined &&
           card.fileMetadata?.duration === undefined && {
             duration: args.duration,

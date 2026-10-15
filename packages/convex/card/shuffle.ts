@@ -31,7 +31,6 @@ export interface ShuffleWalkPosition {
   segment: number;
 }
 
-// The archive states a read covers, each walked in two segments.
 const archiveStates = (options: ShuffleWalkOptions): (true | undefined)[] => {
   const match = archivedFilterMatch(options.archived, options.trash);
   return match === "any" ? [undefined, true] : [match];
@@ -57,7 +56,6 @@ export const buildShuffleSegmentQuery = (
   const start = shuffleStart(options.seed);
   const descends = shuffleDescends(options.seed);
   const firstHalf = segment % 2 === 0;
-  // Up: start..top, then bottom..start. Down: start..bottom, then top..start.
   const fromStart = firstHalf;
   const upperRange = descends ? !fromStart : fromStart;
   const query = ctx.db

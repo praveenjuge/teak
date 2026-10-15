@@ -5,9 +5,6 @@ import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, spawn } from "bun";
 
-// Real CLI process and HTTP server: provider metadata omits revocation as
-// WorkOS does. Confirmed disconnect clears credentials; any other response
-// preserves them. Expired saved access is presented without interactive login.
 const directory = mkdtempSync(join(tmpdir(), "teak-connect-logout-"));
 mkdirSync(join(directory, "teak"));
 writeFileSync(join(directory, "security"), "#!/bin/sh\nexit 1\n", {
