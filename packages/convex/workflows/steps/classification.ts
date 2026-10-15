@@ -142,7 +142,8 @@ const hasPaletteHint = (card: any): boolean => {
 const COLOR_CODE_PATTERN =
   /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\)/gi;
 const COLOR_LABEL_PATTERN = /^(?:--)?[a-z][\w\s-]{0,32}?\s*[:=\-–]\s*(.+)$/iu;
-const COLOR_LIST_DELIMITER_PATTERN = /[,;\n\r]+/;
+// Commas inside rgb()/hsl() belong to the value, not the list.
+const COLOR_LIST_DELIMITER_PATTERN = /[;\n\r]+|,(?![^()]*\))/;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
 
 const countColorCodes = (text: string): number => {
@@ -200,12 +201,17 @@ const isProbablyPalette = (card: any): boolean => {
   }
 
   // Colour names in prose are ordinary words, so outside a colour list only
-  // explicit colour codes (hex, rgb, hsl) count.
-  const codeCount = countColorCodes(buildPaletteAnalysisText(card));
+  // explicit colour codes (hex, rgb, hsl) count, unless the card says it is
+  // a palette.
+  const text = buildPaletteAnalysisText(card);
+  const codeCount = countColorCodes(text);
   if (codeCount >= 2) {
     return true;
   }
-  return codeCount === 1 && hasPaletteHint(card);
+  if (!hasPaletteHint(card)) {
+    return false;
+  }
+  return codeCount === 1 || extractPaletteColors(text).length > 0;
 };
 
 const fileNameFromUrl = (url?: string): string | undefined => {

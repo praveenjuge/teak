@@ -444,6 +444,30 @@ describe("classification step", () => {
       expect(result.type).toBe("palette");
     });
 
+    test.each([
+      "rgb(255, 87, 51)",
+      "hsl(120, 100%, 50%)",
+      "--accent: rgb(1, 2, 3);",
+    ])("detects a lone functional colour %p as palette", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content });
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+    });
+
+    test("detects named colours with a palette hint as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Brand colors: navy and gold",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+    });
+
     test("detects prose with several colour codes as palette", async () => {
       const card = {
         _id: "c1",
