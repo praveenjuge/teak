@@ -130,6 +130,11 @@ interface CardsScreenProps {
   /** Shows another card in the open dialog, for previous and next. */
   onSwitchCard?: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
+  /**
+   * Set after a failed card read is retried (CardsReadBoundary), so the
+   * grid subscribes afresh instead of reading the cached failure.
+   */
+  queryRetryKey?: string;
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
@@ -150,6 +155,7 @@ export function CardsScreen({
   onCloseCard,
   onOpenFolder,
   onUpgrade,
+  queryRetryKey,
   headerLeading,
   onNavigateView,
   view,
@@ -290,7 +296,9 @@ export function CardsScreen({
     loadMore,
   } = usePaginatedQuery(
     api.cards.searchCardsPaginated,
-    isFolderView && !folder ? "skip" : queryArgs,
+    isFolderView && !folder
+      ? "skip"
+      : { ...queryArgs, ...(queryRetryKey ? { retryKey: queryRetryKey } : {}) },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
 

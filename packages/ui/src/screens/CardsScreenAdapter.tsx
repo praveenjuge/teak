@@ -5,6 +5,7 @@ import type { AddCardFormProps } from "../components/forms";
 import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
 import type { LibraryView } from "../lib/libraryViews";
 import type { SearchUrlState } from "../lib/searchUrlState";
+import { CardsReadBoundary } from "./CardsReadBoundary";
 import { CardsScreen, type SearchUrlChange } from "./CardsScreen";
 
 interface CardsScreenAdapterProps {
@@ -59,26 +60,35 @@ export function CardsScreenAdapter({
     });
 
   return (
-    <CardsScreen
-      addToFolderId={addToFolderId}
+    <CardsReadBoundary
       contentContainerClassName={contentContainerClassName}
-      folderId={folderId}
       headerLeading={headerLeading}
-      onAddCardsToFolder={onAddCardsToFolder}
-      onAddToFolderDone={onAddToFolderDone}
-      onCloseCard={closeCard}
-      onNavigateView={onNavigateView}
-      onOpenCard={openCard}
-      onOpenFolder={onOpenFolder}
-      onSearchUrlStateChange={onSearchUrlStateChange}
-      onSwitchCard={switchCard}
-      onUpgrade={onUpgrade}
-      searchUrlState={searchUrlState}
-      selectedCardId={selectedCardId}
-      toastIdPrefix={toastIdPrefix}
-      UpgradeLinkComponent={UpgradeLinkComponent}
-      upgradeUrl={upgradeUrl}
-      view={view}
-    />
+      resetKey={JSON.stringify([folderId, view, addToFolderId, searchUrlState])}
+    >
+      {(retryKey) => (
+        <CardsScreen
+          addToFolderId={addToFolderId}
+          contentContainerClassName={contentContainerClassName}
+          folderId={folderId}
+          headerLeading={headerLeading}
+          onAddCardsToFolder={onAddCardsToFolder}
+          onAddToFolderDone={onAddToFolderDone}
+          onCloseCard={closeCard}
+          onNavigateView={onNavigateView}
+          onOpenCard={openCard}
+          onOpenFolder={onOpenFolder}
+          onSearchUrlStateChange={onSearchUrlStateChange}
+          onSwitchCard={switchCard}
+          onUpgrade={onUpgrade}
+          queryRetryKey={retryKey}
+          searchUrlState={searchUrlState}
+          selectedCardId={selectedCardId}
+          toastIdPrefix={toastIdPrefix}
+          UpgradeLinkComponent={UpgradeLinkComponent}
+          upgradeUrl={upgradeUrl}
+          view={view}
+        />
+      )}
+    </CardsReadBoundary>
   );
 }
