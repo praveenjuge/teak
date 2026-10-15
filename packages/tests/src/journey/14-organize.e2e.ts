@@ -92,15 +92,19 @@ test("organize a library across the web, API, CLI and MCP", {
     await save.getByRole("button", "Save smart folder").click();
     await screen.getByRole("link", "Inspiration").click();
     await expect(screen.getByPlaceholder("Search Inspiration")).toBeVisible();
-    await expect(screen.getByText(first, { exact: false })).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(screen.getByText(second, { exact: false })).not.toBeVisible();
+    // The search results stay mounted but hidden behind the smart folder,
+    // with the same cards, so each query is for the copy on screen.
+    await expect(
+      screen.getByText(first, { exact: false, visible: true })
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      screen.getByText(second, { exact: false, visible: true })
+    ).not.toBeVisible();
     const later = `${marker} saved later`;
     await runCli(["add", later, "--tags", "inspiration"], apiKey);
-    await expect(screen.getByText(later, { exact: false })).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(
+      screen.getByText(later, { exact: false, visible: true })
+    ).toBeVisible({ timeout: 30_000 });
     const smart = (await api.folders.list()).items.find(
       (item) => item.name === "Inspiration"
     );
@@ -115,7 +119,9 @@ test("organize a library across the web, API, CLI and MCP", {
 
     await api.cards.setArchived(firstCard.cardId, true);
     await screen.getByRole("link", "Organize").click();
-    await expect(screen.getByText("1 card")).toBeVisible({ timeout: 30_000 });
+    await expect(screen.getByText("1 card", { visible: true })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(screen.getByText(first, { exact: false })).not.toBeVisible();
     await expect
       .poll(async () => (await api.folders.get(folderId)).cardCount, {
@@ -141,9 +147,9 @@ test("organize a library across the web, API, CLI and MCP", {
       )
     ).toEqual([first]);
     await screen.getByRole("link", "Archive").click();
-    await expect(screen.getByText(first, { exact: false })).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(
+      screen.getByText(first, { exact: false, visible: true })
+    ).toBeVisible({ timeout: 30_000 });
   } finally {
     await mcp.close();
   }

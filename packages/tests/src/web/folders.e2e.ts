@@ -49,8 +49,13 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     "page"
   );
   await expect(screen.getByText("2 cards")).toBeVisible();
-  await expect(screen.getByText(FIRST_CARD, { exact: false })).toBeVisible();
-  await expect(screen.getByText(SECOND_CARD, { exact: false })).toBeVisible();
+  // Home stays mounted but hidden behind the folder, with the same cards.
+  await expect(
+    screen.getByText(FIRST_CARD, { exact: false, visible: true })
+  ).toBeVisible();
+  await expect(
+    screen.getByText(SECOND_CARD, { exact: false, visible: true })
+  ).toBeVisible();
 
   await screen.getByRole("button", "More for Reading").click();
   await screen.getByRole("menuitem", "Rename…").click();
@@ -167,20 +172,28 @@ test("save a search as a smart folder; a card saved later shows up live", async 
   await screen.getByRole("link", "Smart picks").click();
   await expect(screen.getByPlaceholder("Search Smart picks")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
+  // The search results stay mounted but hidden behind the folder, with the
+  // same cards, so each query is for the copy on screen.
   await expect(
-    screen.getByText("Smart folder first match", { exact: false })
+    screen.getByText("Smart folder first match", {
+      exact: false,
+      visible: true,
+    })
   ).toBeVisible({ timeout: 30_000 });
   await expect(
-    screen.getByText("Smart folder other card", { exact: false })
+    screen.getByText("Smart folder other card", { exact: false, visible: true })
   ).not.toBeVisible();
 
   await create("Smart folder live match", ["smartfolder"]);
   await expect(
-    screen.getByText("Smart folder live match", { exact: false })
+    screen.getByText("Smart folder live match", {
+      exact: false,
+      visible: true,
+    })
   ).toBeVisible({ timeout: 30_000 });
 
   await screen
-    .getByText("Smart folder live match", { exact: false })
+    .getByText("Smart folder live match", { exact: false, visible: true })
     .secondaryTap();
   await screen.getByRole("menuitem", "Select", { exact: false }).click();
   await screen.getByRole("button", "More actions").click();
