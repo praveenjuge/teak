@@ -14,6 +14,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api } from "./_generated/api";
 import schema from "./schema";
+import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
 import { hmacSha256Hex } from "./storage/r2Keys";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -85,21 +86,18 @@ const exhaustedKey = async () => {
       headers: { Authorization: authorization, ...headers },
     });
 
-  // Spend the key's bucket the way a client would. It has 12 shards and
-  // each request samples two at random, so a refusal can come while another
-  // shard still holds tokens. After 60 refusals in a row, the odds that a
-  // shard with tokens was never sampled are below one in a billion (20 was
-  // not enough and failed CI).
-  const refusalsToTrust = 60;
-  let refusedInARow = 0;
-  for (
-    let attempt = 0;
-    attempt < 1000 && refusedInARow < refusalsToTrust;
-    attempt += 1
-  ) {
-    refusedInARow = (await me()).status === 429 ? refusedInARow + 1 : 0;
+  // Spend the key's bucket the way a client would. The clock is frozen, so
+  // it never refills: once `capacity` requests have been granted, every
+  // shard is empty, even though a sharded refusal can come earlier.
+  const { capacity } = RATE_LIMIT_CONFIG.publicApiRequests;
+  let granted = 0;
+  for (let attempt = 0; attempt < 5000 && granted < capacity; attempt += 1) {
+    if ((await me()).status !== 429) {
+      granted += 1;
+    }
   }
-  expect(refusedInARow).toBe(refusalsToTrust);
+  expect(granted).toBe(capacity);
+  expect((await me()).status).toBe(429);
   return { authorization, me, otherAuthorization: `Bearer ${second.key}`, t };
 };
 
