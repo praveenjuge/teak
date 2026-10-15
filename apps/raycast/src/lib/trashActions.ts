@@ -19,10 +19,6 @@ const failureMessage = (error: unknown): string => {
 const isGone = (error: unknown) =>
   error instanceof RaycastApiError && error.code === "NOT_FOUND";
 
-/**
- * Moves a card to Trash and offers Undo, like the web's delete. Returns
- * whether the card left the list.
- */
 export const moveCardToTrash = async (
   card: RaycastCard,
   handlers: {
@@ -36,7 +32,7 @@ export const moveCardToTrash = async (
     title: "Moving to Trash…",
   });
   try {
-    await softDeleteCard(card.id);
+    await softDeleteCard(card.id, "prompt");
   } catch (error) {
     if (isGone(error)) {
       toast.style = Toast.Style.Success;
@@ -57,7 +53,7 @@ export const moveCardToTrash = async (
     onAction: async (current) => {
       current.hide();
       try {
-        await restoreCard(card.id);
+        await restoreCard(card.id, "prompt");
         handlers.onRestored(card);
         await showToast({ style: Toast.Style.Success, title: "Restored" });
       } catch (error) {
@@ -81,7 +77,7 @@ export const restoreFromTrash = async (
     title: "Restoring…",
   });
   try {
-    await restoreCard(card.id);
+    await restoreCard(card.id, "prompt");
     onRestored(card.id);
     toast.style = Toast.Style.Success;
     toast.title = "Restored";
@@ -112,7 +108,7 @@ export const deleteCardForever = async (
     title: "Deleting…",
   });
   try {
-    await permanentlyDeleteCard(card.id);
+    await permanentlyDeleteCard(card.id, "prompt");
   } catch (error) {
     if (!isGone(error)) {
       toast.style = Toast.Style.Failure;

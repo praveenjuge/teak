@@ -27,7 +27,7 @@ import {
   reauthorizeTeak,
   TeakDiscoveryError,
 } from "./oauth";
-import { getPreferences } from "./preferences";
+import { grandfatheredApiKey } from "./preferences";
 import type { RaycastCardType, RaycastSort } from "./searchFilters";
 
 export {
@@ -61,8 +61,6 @@ export interface CardSearchInput {
   type?: RaycastCardType;
 }
 
-// List responses include the fields the detail view shows: content, file and
-// link metadata, palette colors, and transcripts.
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
 export interface CreateCardInput {
@@ -82,7 +80,6 @@ export interface CreateCardInput {
 export interface UpdateCardInput {
   content?: string;
   notes?: string | null;
-  /** Tags Teak added that should be dropped. */
   removeAiTags?: string[];
   tags?: string[];
   url?: string;
@@ -172,28 +169,19 @@ interface ResolvedBearer {
   token: string;
 }
 
-// When `interactive` is false (background / no-view commands), auth is resolved
-// only from an API key or an existing/refreshable OAuth session — the browser
-// sign-in overlay is never opened.
-export interface RequestAuthOptions {
-  interactive?: boolean;
-}
+// "prompt" may open the browser sign-in overlay; "stored" uses only a saved,
+// refreshable session, for commands and AI tools that run without a view.
+export type AuthMode = "prompt" | "stored";
 
-// Grandfathered API keys take precedence over browser sign-in. When no key is
-// configured, fall back to OAuth. Interactive callers may open the browser
-// sign-in overlay; non-interactive callers resolve from a stored/refreshable
-// session only and fail (rather than prompting) when none is available.
-const resolveBearerToken = async (
-  options?: RequestAuthOptions,
-): Promise<ResolvedBearer> => {
-  const apiKey = getPreferences().apiKey?.trim();
+const resolveBearerToken = async (auth: AuthMode): Promise<ResolvedBearer> => {
+  const apiKey = grandfatheredApiKey();
   if (apiKey) {
     return { source: "apiKey", token: apiKey };
   }
 
   try {
     const accessToken =
-      options?.interactive === false
+      auth === "stored"
         ? await getStoredTeakAccessToken()
         : await authorizeTeak();
     if (!accessToken) {
@@ -268,24 +256,20 @@ const executeHttpRequest = async (
 export const request = async <T>(
   path: string,
   parseResponse: (payload: unknown) => T,
-  init?: RequestInit,
-  options?: RequestAuthOptions,
+  init: RequestInit,
+  auth: AuthMode,
 ): Promise<T> => {
-  const bearer = await resolveBearerToken(options);
+  const bearer = await resolveBearerToken(auth);
   let { requestUrl, response } = await executeHttpRequest(
     path,
     bearer.token,
     init,
   );
 
-  // An OAuth access token can be revoked or rotated server-side. Interactive
-  // callers drop the cached tokens, re-authorize once, and retry. Non-interactive
-  // callers (no-view commands) must not open the sign-in overlay, so they
-  // surface the error instead of re-authorizing.
   if (
     response.status === 401 &&
     bearer.source === "oauth" &&
-    options?.interactive !== false
+    auth === "prompt"
   ) {
     let refreshedToken: string;
     try {
@@ -329,7 +313,7 @@ export const request = async <T>(
 
 export const createCard = (
   input: CreateCardInput,
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<QuickSaveResponse> =>
   request<QuickSaveResponse>(
     "/cards",
@@ -338,11 +322,12 @@ export const createCard = (
       body: JSON.stringify(input),
       method: "POST",
     },
-    options,
+    auth,
   );
 
 export const quickSaveCard = (
   input: string | CreateCardInput,
+  auth: AuthMode,
 ): Promise<QuickSaveResponse> =>
   createCard(
     typeof input === "string"
@@ -350,11 +335,12 @@ export const quickSaveCard = (
           content: input,
         }
       : input,
+    auth,
   );
 
 export const searchCards = (
-  input: CardSearchInput = {},
-  options?: RequestAuthOptions,
+  input: CardSearchInput,
+  auth: AuthMode,
 ): Promise<CardsResponse> =>
   request<CardsResponse>(
     `/cards?${buildCardsSearchParams({
@@ -366,11 +352,12 @@ export const searchCards = (
     {
       method: "GET",
     },
-    options,
+    auth,
   );
 
 export const getFavoriteCards = (
-  input: CardSearchInput = {},
+  input: CardSearchInput,
+  auth: AuthMode,
 ): Promise<CardsResponse> =>
   request<CardsResponse>(
     `/cards?${buildCardsSearchParams({
@@ -383,11 +370,12 @@ export const getFavoriteCards = (
     {
       method: "GET",
     },
+    auth,
   );
 
 export const getCardById = (
   cardId: string,
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -400,14 +388,14 @@ export const getCardById = (
     {
       method: "GET",
     },
-    options,
+    auth,
   );
 };
 
 export const updateCard = (
   cardId: string,
   input: UpdateCardInput,
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -421,14 +409,14 @@ export const updateCard = (
       body: JSON.stringify(input),
       method: "PATCH",
     },
-    options,
+    auth,
   );
 };
 
 export const setCardFavorite = (
   cardId: string,
   isFavorited: boolean,
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -442,11 +430,14 @@ export const setCardFavorite = (
       body: JSON.stringify({ isFavorited }),
       method: "PATCH",
     },
-    options,
+    auth,
   );
 };
 
-export const softDeleteCard = async (cardId: string): Promise<void> => {
+export const softDeleteCard = async (
+  cardId: string,
+  auth: AuthMode,
+): Promise<void> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
     throw new RaycastApiError("INVALID_INPUT");
@@ -458,6 +449,7 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
     {
       method: "DELETE",
     },
+    auth,
   );
 };
 
@@ -469,28 +461,39 @@ const cardPath = (cardId: string): string => {
   return `/cards/${encodeURIComponent(normalizedCardId)}`;
 };
 
-export const restoreCard = async (cardId: string): Promise<void> => {
-  await request<void>(`${cardPath(cardId)}/restore`, () => undefined, {
-    method: "POST",
-  });
+export const restoreCard = async (
+  cardId: string,
+  auth: AuthMode,
+): Promise<void> => {
+  await request<void>(
+    `${cardPath(cardId)}/restore`,
+    () => undefined,
+    { method: "POST" },
+    auth,
+  );
 };
 
-export const permanentlyDeleteCard = async (cardId: string): Promise<void> => {
-  await request<void>(`${cardPath(cardId)}?permanent=true`, () => undefined, {
-    method: "DELETE",
-  });
+export const permanentlyDeleteCard = async (
+  cardId: string,
+  auth: AuthMode,
+): Promise<void> => {
+  await request<void>(
+    `${cardPath(cardId)}?permanent=true`,
+    () => undefined,
+    { method: "DELETE" },
+    auth,
+  );
 };
 
-/** The ID of a saved card with exactly this URL, or null. */
 export const findSavedCardId = (
   url: string,
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<string | null> =>
   request(
     `/cards/duplicate?${new URLSearchParams({ url }).toString()}`,
     parseDuplicateResponse,
     { method: "GET" },
-    options,
+    auth,
   );
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -514,8 +517,6 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   zip: "application/zip",
 };
 
-// Teak infers the card type from the file name, so unknown extensions can go
-// up as generic bytes and still land as the right kind of card.
 export const mimeTypeForFile = (filePath: string): string => {
   const extension = filePath.split(".").pop()?.toLowerCase() ?? "";
   return MIME_BY_EXTENSION[extension] ?? "application/octet-stream";
@@ -531,9 +532,7 @@ const uploadUrl = (url: string): URL => {
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
-  } catch {
-    // Not a URL; rejected below.
-  }
+  } catch {}
   if (
     parsed?.protocol === "https:" ||
     (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
@@ -543,11 +542,10 @@ const uploadUrl = (url: string): URL => {
   throw new RaycastApiError("REQUEST_FAILED");
 };
 
-/** Uploads a local file and saves it as a card, like a web drag and drop. */
 export const saveFileCard = async (
   filePath: string,
   input: { source: string; tags?: string[] },
-  options?: RequestAuthOptions,
+  auth: AuthMode,
 ): Promise<QuickSaveResponse> => {
   const fileName = basename(filePath);
   const { size: fileSize } = await stat(filePath);
@@ -562,7 +560,7 @@ export const saveFileCard = async (
       body: JSON.stringify({ fileName, fileSize, mimeType }),
       method: "POST",
     },
-    options,
+    auth,
   );
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const uploaded = await fetch(uploadUrl(upload.uploadUrl), {
@@ -586,16 +584,16 @@ export const saveFileCard = async (
       source: input.source,
       tags: input.tags,
     },
-    options,
+    auth,
   );
 };
 
-export const listTags = (options?: RequestAuthOptions): Promise<TagsResponse> =>
+export const listTags = (auth: AuthMode): Promise<TagsResponse> =>
   request<TagsResponse>(
     "/tags",
     parseTagsResponse,
     {
       method: "GET",
     },
-    options,
+    auth,
   );

@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import {
+  COLOR_HUE_BUCKETS,
+  VISUAL_STYLE_TAXONOMY,
+} from "@teak/convex/shared/constants";
 
 import {
   applyHueFilter,
@@ -7,8 +11,15 @@ import {
   applyTypeFilter,
   buildSearchText,
   clearSearchFilters,
+  HUE_OPTIONS,
   parseSearchFilters,
+  STYLE_OPTIONS,
 } from "../lib/searchFilters";
+
+test("offers the same hue and style filters as Teak's search", () => {
+  expect(HUE_OPTIONS).toEqual(COLOR_HUE_BUCKETS);
+  expect(STYLE_OPTIONS).toEqual(VISUAL_STYLE_TAXONOMY);
+});
 
 describe("parseSearchFilters", () => {
   test("parses a simple single-word tag", () => {

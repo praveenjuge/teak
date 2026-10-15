@@ -1,17 +1,7 @@
-export const CARD_TYPES = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
+import { CARD_TYPES } from "teak-sdk";
 
 export const SORT_OPTIONS = ["newest", "oldest"] as const;
 
-// Same vocabularies as Teak's web search chips.
 export const HUE_OPTIONS = [
   "red",
   "orange",
@@ -45,9 +35,7 @@ export type RaycastCardType = (typeof CARD_TYPES)[number];
 export type RaycastSort = (typeof SORT_OPTIONS)[number];
 
 export interface ParsedSearchFilters {
-  /** `after:2026-09`: saved on or after this Unix ms timestamp. */
   createdAfter?: number;
-  /** `before:2026-09`: saved before this Unix ms timestamp. */
   createdBefore?: number;
   favorited?: boolean;
   hasExplicitFilters: boolean;
@@ -65,7 +53,6 @@ export interface ParsedSearchFilters {
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const DATE_VALUE = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/;
 
-/** Parses `2026`, `2026-09`, or `2026-09-14` as the start of that period. */
 export const parseDateFilter = (value: string): number | undefined => {
   const match = DATE_VALUE.exec(value.trim());
   if (!match) {
@@ -123,9 +110,6 @@ const normalizeFavorited = (value?: string): boolean | undefined => {
 const WHITESPACE = /\s/;
 const NEEDS_QUOTING = /[\s":\\]/;
 
-// Tokenizes the raw search text while keeping double-quoted spans intact so a
-// value such as `tag:"design systems"` survives as a single token. Quotes are
-// stripped from the emitted token and `\"`/`\\` escapes are unwrapped.
 const tokenizeSearchText = (rawQuery: string): string[] => {
   const tokens: string[] = [];
   let current = "";

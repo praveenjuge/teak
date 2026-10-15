@@ -143,7 +143,11 @@ export function CardDetail({
         const desiredValue = mutationState.desired;
 
         try {
-          const updated = await setCardFavorite(current.id, desiredValue);
+          const updated = await setCardFavorite(
+            current.id,
+            desiredValue,
+            "prompt",
+          );
           mutationState.lastServer = updated.isFavorited;
           emitCardUpdate(updated);
         } catch (error) {

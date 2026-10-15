@@ -13,7 +13,6 @@ export default async function SaveClipboardCommand() {
     return;
   }
 
-  // A copied file or image saves as a file card, like pasting on the web.
   const clipboard = await Clipboard.read();
   const copiedFile = clipboard.file ? toLocalPath(clipboard.file) : null;
   if (copiedFile && isUploadableFile(copiedFile)) {
