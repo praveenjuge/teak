@@ -240,7 +240,7 @@ describe("selected anonymous backend shutdown recovery", () => {
    */
   const lingeringBackend = (
     exitsAt: number,
-    options: { answer?: () => Response } = {}
+    options: { answer?: () => Response; probeMs?: number } = {}
   ) => {
     const counts = { portChecks: 0, probes: 0, runs: 0 };
     let now = 0;
@@ -264,6 +264,7 @@ describe("selected anonymous backend shutdown recovery", () => {
       fetch: Object.assign(
         (input: RequestInfo | URL, init?: RequestInit) => {
           counts.probes++;
+          now += options.probeMs ?? 0;
           expect(String(input)).toBe("http://127.0.0.1:3210/instance_name");
           expect(init?.redirect).toBe("error");
           if (!up()) {
@@ -275,6 +276,7 @@ describe("selected anonymous backend shutdown recovery", () => {
         },
         { preconnect: fetch.preconnect }
       ),
+      now: () => now,
       portInUse: (port: number) => {
         counts.portChecks++;
         expect(port).toBe(3210);
@@ -325,6 +327,19 @@ describe("selected anonymous backend shutdown recovery", () => {
       expect(result.detail).toContain("still running on port 3210");
       expect(world.counts.runs).toBe(1);
       expect(world.elapsed()).toBe(5300 + 30_000);
+    });
+  });
+
+  test("counts slow probes against the 30-second budget", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(Number.POSITIVE_INFINITY, {
+        answer: () => new Response("shutting down", { status: 503 }),
+        probeMs: 1000,
+      });
+      const result = await convexDevOnce(cwd, world);
+      expect(result.ok).toBe(false);
+      expect(world.counts.runs).toBe(1);
+      expect(world.elapsed()).toBeLessThanOrEqual(5300 + 30_000 + 1000);
     });
   });
 

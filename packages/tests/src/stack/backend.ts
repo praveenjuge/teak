@@ -141,6 +141,8 @@ const BACKEND_EXIT_TIMEOUT_MS = 30_000;
 export interface BackendExitOptions {
   /** Local backend identity HTTP boundary; defaults to fetch. */
   fetch?: typeof fetch;
+  /** Clock in milliseconds; defaults to Date.now. */
+  now?: () => number;
   /** Port probe; defaults to isPortInUse. */
   portInUse?: (port: number) => Promise<boolean>;
   /** Poll sleeper; defaults to Bun.sleep. */
@@ -165,11 +167,10 @@ export const waitForBackendExit = async (
   const fetchImpl = opts?.fetch ?? fetch;
   const portInUse = opts?.portInUse ?? isPortInUse;
   const sleepMs = opts?.sleepMs ?? Bun.sleep;
-  for (
-    let waited = 0;
-    waited < BACKEND_EXIT_TIMEOUT_MS;
-    waited += BACKEND_EXIT_POLL_MS
-  ) {
+  const now = opts?.now ?? Date.now;
+  // A wall-clock deadline: slow probes count against the budget too.
+  const deadline = now() + BACKEND_EXIT_TIMEOUT_MS;
+  while (now() < deadline) {
     if (!(await portInUse(port))) {
       return "stopped";
     }
@@ -179,7 +180,9 @@ export const waitForBackendExit = async (
         {
           redirect: "error",
           credentials: "omit",
-          signal: AbortSignal.timeout(1000),
+          signal: AbortSignal.timeout(
+            Math.max(1, Math.min(1000, deadline - now()))
+          ),
         }
       );
       // A backend mid-shutdown can answer with an error status; keep waiting.
