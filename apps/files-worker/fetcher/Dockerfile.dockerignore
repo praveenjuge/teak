@@ -6,5 +6,7 @@
 apps/files-worker/fetcher/src/**/*.test.ts
 !packages/files-protocol/src/remoteAsset.ts
 !packages/convex/linkMetadata/ssrf.ts
+!packages/convex/linkMetadata/staticHtml.ts
+!packages/convex/linkMetadata/types.ts
 !packages/convex/workflows/steps/pinnedFetch.ts
 !packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts

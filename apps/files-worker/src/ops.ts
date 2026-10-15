@@ -34,6 +34,7 @@ import { generateImageMetadataForOp } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { fetchLinkPage, parseLinkPageParams } from "./linkPage";
 import {
   extractAnimationPalette,
   extractPdfTextViaRenderer,
@@ -646,6 +647,20 @@ const dispatch = async (
       return success(
         requestId,
         await storeRemoteAsset(env, parseRemoteAssetParams(params))
+      );
+    case "fetch-link-page":
+      return success(
+        requestId,
+        await fetchLinkPage(env, parseLinkPageParams(params), {
+          // Without a browser the static result stands, as when Browser Run
+          // declines.
+          ...(env.BROWSER
+            ? {
+                scrape: (html: string, selectors: string[]) =>
+                  scrapeHtml(browserAcquirer(env), html, selectors),
+              }
+            : {}),
+        })
       );
     case "scrape-html": {
       const selectors = validScrapeSelectors(params.selectors);

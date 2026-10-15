@@ -374,8 +374,32 @@ repository root (`image_build_context`) so it can bundle those files;
 `fetcher/Dockerfile.dockerignore` sends only them and the fetcher's own
 `package.json` and `bun.lock`.
 
-Page HTML is still fetched by Convex, with the same pinned policy, because
-Convex parses it; it is at most 2 MiB.
+### Link pages: `fetch-link-page`
+
+`fetch-link-page` fetches a saved link's page through the same Container
+(`POST /fetch-page`, `fetcher/src/fetchPage.ts`) and returns its preview
+metadata. Convex names the URL and the scrape selectors; the Container fetches
+the page with Convex's policy, the browser user agent and a 2 MiB limit,
+decodes it, and matches the selectors with Convex's own parser
+(`packages/convex/linkMetadata/staticHtml.ts`, also bundled by path), so the
+selector results are the ones Convex computed itself. Unlike Convex, it
+decodes the page with the charset the page declares (a byte order mark, then
+the `Content-Type` charset, then a `<meta>` charset in the first 1024 bytes,
+else UTF-8), so non-UTF-8 sites no longer get garbled titles.
+
+When the static HTML matches nothing, as on pages that build their tags in
+script, the Worker renders the same HTML offline on Browser Run
+(`src/linkPage.ts`), as Convex did with a second `scrape-html` call; a failed
+or unavailable browser keeps the static result. The result carries the
+selectors, the page's URL after redirects, the charset, which pass produced
+them (`static` or `browser`), and the decoded page as gzipped UTF-8 for
+parsers that need the whole page (Instagram media). A page the Container
+refuses comes back as a result, not an error: `blocked_url`, `http_error`
+(with its status), `unsupported_type` (with the type), `too_large` or
+`fetch_failed`.
+
+Convex does not call `fetch-link-page` yet; until it does, it still fetches
+page HTML itself with the same pinned policy.
 
 ### Verification and deployment boundary
 
