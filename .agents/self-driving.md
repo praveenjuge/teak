@@ -24,3 +24,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Product health: 13 `card_created` events, 17 `card_processing_completed`, zero failures. `source` is populated for web, android and raycast; still `unknown` on a few text/video cards (older app versions).
 - Tip: `inbox-reports-list` returns an empty list when nothing is flagged; check `$lib` and `distinct_id` on error events before counting "users", since crash loops on one device inflate it.
 - Check tomorrow: whether the Android crash recurs from other devices; first non-zero failure events.
+
+### 2026-10-15
+- Inbox empty. No Android crash recurrence in 24h (the 2026-10-13 crash looks like a one-device event). One burst of 3 `$exception` events from `teak-files-worker` (`get: We encountered an internal error. Please try again. (10001)`, anonymous, within 300 ms): Cloudflare R2 internal error on `get`, transient and single-burst, not fixed. Watch for repeats before adding a retry.
+- Product health: 14 `card_created`, 18 `card_processing_completed`, zero failure events. `source` still `unknown` on some image/text/link cards (older app versions).
+- Nothing merged earlier, so no fixes to measure. No PRs this run besides this log.
+- Check tomorrow: recurrence of R2 10001 errors (if more than one burst, add a bounded retry in the files worker); first non-zero failure events.
