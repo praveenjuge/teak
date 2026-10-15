@@ -23,6 +23,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/constants";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
@@ -90,17 +91,12 @@ export const parseConvexEnvOutput = (
 };
 
 export const PRODUCTION_STORAGE_BUCKET = "teak-files-prod";
-export const PRODUCTION_FILES_BASE = "https://files.teakvault.com";
+export const PRODUCTION_FILES_BASE = TEAK_FILES_ORIGINS.production;
 export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
 export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
-/**
- * workers.dev origin of the dedicated `teak-files-development` Worker on the
- * Teak account's `praveenjuge` subdomain. Web and shared UI trust
- * exactly this origin for the dev deployment; keep them in step.
- */
-export const DEVELOPMENT_FILES_ORIGIN =
-  "https://teak-files-development.praveenjuge.workers.dev";
+/** workers.dev origin of the dedicated `teak-files-development` Worker. */
+export const DEVELOPMENT_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 
 export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>
   value === DEVELOPMENT_FILES_ORIGIN;
