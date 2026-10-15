@@ -142,8 +142,6 @@ const hasPaletteHint = (card: any): boolean => {
 const COLOR_CODE_PATTERN =
   /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\)/gi;
 const COLOR_LABEL_PATTERN = /^(?:--)?[a-z][\w\s-]{0,32}?\s*[:=\-–]\s*(.+)$/iu;
-// Commas inside rgb()/hsl() belong to the value, not the list.
-const COLOR_LIST_DELIMITER_PATTERN = /[;\n\r]+|,(?![^()]*\))/;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
 
 const countColorCodes = (text: string): number => {
@@ -155,6 +153,32 @@ const countColorCodes = (text: string): number => {
     }
   }
   return hexes.size;
+};
+
+// Splits on commas, semicolons and line breaks in one pass. Commas inside
+// rgb()/hsl() belong to the value, not the list.
+const splitColorList = (content: string): string[] => {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index];
+    if (char === "(") {
+      depth++;
+    } else if (char === ")") {
+      depth = Math.max(0, depth - 1);
+    } else if (
+      char === ";" ||
+      char === "\n" ||
+      char === "\r" ||
+      (char === "," && depth === 0)
+    ) {
+      parts.push(content.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(content.slice(start));
+  return parts;
 };
 
 const isColorValue = (value: string): boolean => {
@@ -178,8 +202,7 @@ const isColorList = (content: unknown): boolean => {
   if (typeof content !== "string") {
     return false;
   }
-  const parts = content
-    .split(COLOR_LIST_DELIMITER_PATTERN)
+  const parts = splitColorList(content)
     .map((part) => part.trim())
     .filter(Boolean);
 

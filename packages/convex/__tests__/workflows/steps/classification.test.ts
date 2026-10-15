@@ -456,6 +456,21 @@ describe("classification step", () => {
       expect(result.type).toBe("palette");
     });
 
+    test("classifies a long comma-separated note without stalling", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "a,".repeat(100_000),
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const startedAt = performance.now();
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+      expect(performance.now() - startedAt).toBeLessThan(1000);
+    });
+
     test("detects named colours with a palette hint as palette", async () => {
       const card = {
         _id: "c1",
