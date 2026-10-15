@@ -289,6 +289,32 @@ callers; reverting to a schema that rejects stored ETags requires a separate,
 explicitly approved data migration. Keep the compatible worker deployed while
 rolling back backend callers.
 
+## Export archive lifecycle
+
+Export archives, their `.checkpoint.json` and `.result.json` sidecars and the
+transient `.manifest.json` live under the top-level `exports/<userHash>/`
+prefix (`dev/exports/` for development), not under `users/`. Convex still
+deletes a ready export when it expires after 7 days (`cleanupExpiredExports`)
+and with the account, but an R2 lifecycle rule is the backstop for anything
+that path misses: artifacts of failed or canceled jobs, manifests whose
+best-effort delete failed, and deletes that errored. Download links are already
+refused after expiry, so the extra day costs nothing.
+
+The rules are bucket configuration, not part of `wrangler.jsonc`; add them
+once per bucket and confirm with `lifecycle list`:
+
+```bash
+bunx wrangler r2 bucket lifecycle add teak-files-prod expire-exports exports/ --expire-days 8
+bunx wrangler r2 bucket lifecycle add teak-files-prod expire-dev-exports dev/exports/ --expire-days 8
+bunx wrangler r2 bucket lifecycle list teak-files-prod
+```
+
+The isolated development bucket needs the `dev/exports/` rule too. Exports
+written before the move keep their `users/<hash>/exports/` keys; the daily
+cleanup still deletes them, and both roots stay inside the storage namespace
+(`isR2KeyInNamespace` in Convex, `isValidUploadKey` here) so account deletion
+reaches either.
+
 ## Single-file signed uploads
 
 `PUT /__upload/v1/<key>?exp&sig&ct[&sz]` accepts small user uploads,

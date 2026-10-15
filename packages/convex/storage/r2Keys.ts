@@ -30,8 +30,16 @@ export const getR2KeyPrefix = (): string => {
 
 export const buildR2ListPrefix = (): string => `${getR2KeyPrefix()}users/`;
 
+/**
+ * Export archives live outside `users/` under their own top-level prefix, so
+ * an R2 lifecycle rule on `exports/` (and `dev/exports/`) can expire every
+ * artifact, sidecar and leftover manifest without per-user prefixes.
+ */
+export const buildR2ExportPrefix = (): string => `${getR2KeyPrefix()}exports/`;
+
 export const isR2KeyInNamespace = (key: string): boolean =>
-  key.startsWith(`${getR2KeyPrefix()}users/`);
+  key.startsWith(`${getR2KeyPrefix()}users/`) ||
+  key.startsWith(buildR2ExportPrefix());
 
 export const assertR2KeyInNamespace = (key: string): void => {
   if (!isR2KeyInNamespace(key)) {

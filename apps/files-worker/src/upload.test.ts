@@ -232,6 +232,21 @@ describe("signed single-file uploads", () => {
     expect(response.status).toBe(403);
   });
 
+  test("stores an export manifest under the exports prefix", async () => {
+    const bucket = new FakeBucket();
+    const request = await signedUploadRequest(new TextEncoder().encode("{}"), {
+      contentType: "application/json",
+      key: "exports/h1/job.zip.manifest.json",
+    });
+    const response = await worker.fetch(
+      request,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(bucket.objects.has("exports/h1/job.zip.manifest.json")).toBe(true);
+  });
+
   test("rejects path traversal keys", async () => {
     for (const key of [
       "users/../secrets/x.txt",
@@ -395,6 +410,35 @@ describe("additive files ops", () => {
     expect(payload.ok).toBe(true);
     expect(payload.data.deleted).toBe(2);
     expect(bucket.objects.has("users/u1/a.txt")).toBe(false);
+  });
+
+  test("delete-objects removes export archives under the exports prefix", async () => {
+    const bucket = new FakeBucket();
+    for (const key of ["exports/h1/job.zip", "dev/exports/h1/job.zip"]) {
+      bucket.objects.set(key, { bytes: new TextEncoder().encode("zip") });
+    }
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: ["exports/h1/job.zip", "dev/exports/h1/job.zip"],
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  test.each([
+    "exportsx/h1/job.zip",
+    "export/h1/job.zip",
+    "exports/../users/u1/a.txt",
+  ])("delete-objects rejects %s", async (key) => {
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", { keys: [key] }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
   });
 
   test("delete-objects rejects oversized and malformed batches", async () => {

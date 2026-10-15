@@ -21,8 +21,8 @@ import {
   type FilesWorkerBuildExportResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { buildR2ObjectKey, storeObject } from "../storage/r2";
-import { getR2KeyPrefix } from "../storage/r2Keys";
+import { storeObject } from "../storage/r2";
+import { buildR2ExportPrefix } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
 import { buildBookmarksHtml } from "./bookmarks";
 import {
@@ -79,12 +79,7 @@ export function buildArtifactKey(userId: string, jobId: string): string {
     .digest("hex")
     .slice(0, 16);
   const stamp = new Date().toISOString().slice(0, 10);
-  return [
-    `${getR2KeyPrefix()}users`,
-    hashUserId,
-    "exports",
-    `${jobId}-${stamp}.zip`,
-  ].join("/");
+  return `${buildR2ExportPrefix()}${hashUserId}/${jobId}-${stamp}.zip`;
 }
 
 const EXPORT_MANIFEST_VERSION = 1;
@@ -217,10 +212,9 @@ async function runExportArchiveViaFilesWorker(
         ],
       });
 
-      const manifestKey = buildR2ObjectKey({
-        userId,
-        role: "export-manifest",
-      });
+      // Beside the artifact, so the exports lifecycle rule also expires a
+      // manifest whose best-effort delete below fails.
+      const manifestKey = `${artifactKey}.manifest.json`;
       await storeObject(ctx, new Blob([manifestJson]), {
         userId,
         key: manifestKey,
