@@ -108,12 +108,12 @@ export const fetchRemoteAsset = async (
   };
   let response: Response;
   try {
-    response = await safeFetch(
+    ({ response } = await safeFetch(
       request.url,
       resolveDns,
       { headers: { "user-agent": USER_AGENT } },
       fetchHop
-    );
+    ));
   } catch (error) {
     if (error instanceof SsrfError) {
       return skip("blocked_url");

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { freezeObject, gatedBucket, ObjectDeletionGate } from "./deletionGate";
-import { FakeBucket, withObjectGates } from "./testsupport";
+import { FakeBucket, withObjectGates } from "./test/testsupport";
 
 const fixture = (put: () => Promise<unknown> = () => Promise.resolve(null)) => {
   const values = new Map<string, unknown>();

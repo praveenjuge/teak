@@ -28,6 +28,8 @@ export const rendererUnavailable = (message: string): Response =>
 
 export class MediaRenderer {
   protected readonly enableInternet: boolean = false;
+  protected readonly port: number = RENDERER_PORT;
+  protected readonly protocol: number = RENDERER_PROTOCOL;
   private readonly state: RendererState;
   private ready: Promise<void> | null = null;
 
@@ -62,7 +64,7 @@ export class MediaRenderer {
       request
     );
     try {
-      return await container.getTcpPort(RENDERER_PORT).fetch(forwarded);
+      return await container.getTcpPort(this.port).fetch(forwarded);
     } catch (error) {
       this.ready = null;
       return rendererUnavailable(
@@ -93,7 +95,7 @@ export class MediaRenderer {
         });
     }
     await container.setInactivityTimeout(RENDERER_INACTIVITY_TIMEOUT_MS);
-    const port = container.getTcpPort(RENDERER_PORT);
+    const port = container.getTcpPort(this.port);
     const deadline = Date.now() + READY_TIMEOUT_MS;
     while (Date.now() < deadline) {
       try {
@@ -105,7 +107,7 @@ export class MediaRenderer {
         const health = (await response.json().catch(() => null)) as {
           protocol?: unknown;
         } | null;
-        if (response.ok && health?.protocol === RENDERER_PROTOCOL) {
+        if (response.ok && health?.protocol === this.protocol) {
           return;
         }
       } catch {}

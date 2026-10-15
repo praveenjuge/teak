@@ -88,7 +88,7 @@ export const captureScreenshot = internalAction({
     const normalizedUrl = normalizeUrl(card.url);
     let html: string;
     try {
-      const response = await safeFetch(
+      const { response } = await safeFetch(
         normalizedUrl,
         resolveDns,
         {

@@ -1,7 +1,12 @@
 import { Parser } from "htmlparser2";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { readCsvTable } from "./csv";
-import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
+import {
+  ImportLimitExceeded,
+  linkItem,
+  notAnExport,
+  parseSourceDate,
+} from "./sourceItems";
 
 const SOURCE = "Pocket";
 
@@ -62,7 +67,7 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
         }
         if (name === "a" && anchor) {
           if (output.length >= 10_000) {
-            throw new Error("Pocket export exceeds 10,000 items");
+            throw new ImportLimitExceeded("Pocket export exceeds 10,000 items");
           }
           output.push(
             linkItem(SOURCE, {

@@ -4,6 +4,7 @@ import {
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexItem,
 } from "@teak/files-protocol";
+import { OpFailure } from "./opFailure";
 import {
   consumeZipEntry,
   type ZipCentralEntry,
@@ -51,7 +52,7 @@ export async function readImportJson(
       if (error.message.startsWith("invalid_archive")) {
         throw error;
       }
-      throw new Error("archive_parse_failed", { cause: error });
+      throw new OpFailure("archive_parse_failed", { cause: error });
     };
     parser.onToken = ({ token, value, partial }) => {
       if (typeof value === "string" && value.length > 1024 * 1024) {
@@ -153,7 +154,7 @@ export async function readImportJson(
     Number.POSITIVE_INFINITY
   );
   if (!parser) {
-    throw new Error("archive_parse_failed");
+    throw new OpFailure("archive_parse_failed");
   }
   if (!parser.isEnded) {
     parser.end();

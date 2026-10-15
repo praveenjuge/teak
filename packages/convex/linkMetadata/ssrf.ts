@@ -43,11 +43,25 @@ export class SsrfError extends Error {
   }
 }
 
+/** A redirect chain that cannot be followed: the page failing, not the policy refusing it. */
+export class RedirectError extends SsrfError {
+  constructor(
+    reason: "invalid_redirect" | "too_many_redirects",
+    message: string
+  ) {
+    super(reason, message);
+    this.name = "RedirectError";
+  }
+}
+
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 // Standard web ports only. An empty port means the protocol default (80/443).
 const ALLOWED_PORTS = new Set(["", "80", "443"]);
 const MAX_REDIRECTS = 5;
 export const SAFE_FETCH_TIMEOUT_MS = 30_000;
+/** The longest a safeFetch can take: every hop it may follow, each to its timeout. */
+export const SAFE_FETCH_MAX_DURATION_MS =
+  (MAX_REDIRECTS + 1) * SAFE_FETCH_TIMEOUT_MS;
 
 type Bytes = number[];
 interface Cidr {
@@ -357,19 +371,20 @@ export const assertUrlIsSafe = async (
  * redirect hop) against the outbound policy before issuing each request.
  * Redirects are followed manually so that intermediate hops cannot bounce the
  * request to an internal address. The caller supplies a {@link DnsResolver}.
+ * `finalUrl` is the URL of the hop that answered without a redirect.
  */
 export const safeFetch = async (
   rawUrl: string,
   resolveDns: DnsResolver,
   init: RequestInit = {},
   pinnedFetch?: PinnedFetch
-): Promise<Response> => {
+): Promise<{ finalUrl: string; response: Response }> => {
   const request: PinnedFetch =
     pinnedFetch ?? ((url, _addresses, requestInit) => fetch(url, requestInit));
   let currentUrl = rawUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const { addresses } = await resolveSafeUrl(currentUrl, resolveDns);
+    const { addresses, url } = await resolveSafeUrl(currentUrl, resolveDns);
     const timeoutSignal = AbortSignal.timeout(SAFE_FETCH_TIMEOUT_MS);
     const signal = init.signal
       ? AbortSignal.any([init.signal, timeoutSignal])
@@ -387,11 +402,11 @@ export const safeFetch = async (
       response.headers.has("location");
 
     if (!isRedirect) {
-      return response;
+      return { finalUrl: url.href, response };
     }
 
     if (hop === MAX_REDIRECTS) {
-      throw new SsrfError(
+      throw new RedirectError(
         "too_many_redirects",
         `Exceeded ${MAX_REDIRECTS} redirects starting from ${rawUrl}`
       );
@@ -402,7 +417,7 @@ export const safeFetch = async (
     try {
       nextUrl = new URL(location, currentUrl);
     } catch {
-      throw new SsrfError(
+      throw new RedirectError(
         "invalid_redirect",
         `Invalid redirect target: ${location}`
       );
@@ -415,7 +430,7 @@ export const safeFetch = async (
   }
 
   // Unreachable, but keeps the type checker satisfied.
-  throw new SsrfError("too_many_redirects", "Exceeded redirect limit");
+  throw new RedirectError("too_many_redirects", "Exceeded redirect limit");
 };
 
 export const readBodyWithLimit = async (

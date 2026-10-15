@@ -17,7 +17,7 @@ import {
   type RendererCall,
   rendererError,
   rendererResponse,
-} from "./testsupport";
+} from "./test/testsupport";
 
 const SECRET = "test-secret";
 const SOURCE = "users/u/cards/c/file/clip.mp4";

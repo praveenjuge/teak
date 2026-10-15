@@ -1,8 +1,5 @@
-// Test-only helpers. Never imported by src/index.ts, so none of this ships in
-// the deployed worker bundle.
-
 import { crc32, deflateSync } from "node:zlib";
-import { ObjectDeletionGate } from "./deletionGate";
+import { ObjectDeletionGate } from "../deletionGate";
 
 const pngChunk = (type: string, data: Uint8Array): Uint8Array => {
   const out = new Uint8Array(12 + data.length);

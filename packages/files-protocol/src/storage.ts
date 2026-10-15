@@ -3,6 +3,9 @@
  * validated and served by the Files Worker.
  */
 
+/** Largest object an upload may store; the media renderer reads any of them. */
+export const FILES_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+
 /** Shortest remaining validity of a signed file URL when Convex mints it. */
 export const FILES_SIGNED_URL_MIN_VALIDITY_SECONDS = 7 * 24 * 60 * 60;
 

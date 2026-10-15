@@ -72,7 +72,6 @@ ${content}
 ${url ? `URL: ${url}` : ""}
 
 Generate tags and summary that will help the user rediscover and understand the value of this content.`);
-/** Same output contract as the existing Zod object: strip unknown fields. */
 export const validateTextMetadata = (
   value: unknown
 ): FilesTextMetadataResult | null => {

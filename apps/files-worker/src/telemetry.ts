@@ -1,5 +1,5 @@
 import { createPostHogBatch } from "@teak/convex/shared/posthog";
-import { parseCardObjectKey } from "@teak/files-protocol";
+import { FILES_OP_PATH, parseCardObjectKey } from "@teak/files-protocol";
 import packageJson from "../package.json";
 
 export interface TelemetryEnvVars {
@@ -43,12 +43,6 @@ const sendException = async (
   await sent;
 };
 
-export interface FilesOpFailureContext {
-  httpMethod: string;
-  httpPath: string;
-  objectKey: string;
-}
-
 const MAX_CONTEXT_STRING_LENGTH = 256;
 
 const bounded = (value: string): string =>
@@ -56,24 +50,19 @@ const bounded = (value: string): string =>
     ? value
     : value.slice(0, MAX_CONTEXT_STRING_LENGTH);
 
-/**
- * Explicit capture for op failures that handleOp already converted into 500
- * responses. They never escape fetch(), so the unhandled-error capture in
- * index.ts cannot see them.
- */
-export const reportFilesOpFailure = (
+export const reportInternalOpError = (
   env: TelemetryEnvVars,
   ctx: WaitUntil | undefined,
   op: string,
   error: unknown,
-  { httpMethod, httpPath, objectKey }: FilesOpFailureContext
+  objectKey: string
 ): Promise<void> => {
   const { cardId, role } = parseCardObjectKey(objectKey);
   return sendException(env, ctx, error, {
     ...(cardId ? { "card.id": cardId } : {}),
     "files.op": op,
-    "http.method": httpMethod.toUpperCase(),
-    "http.path": bounded(httpPath),
+    "http.method": "POST",
+    "http.path": FILES_OP_PATH,
     ...(objectKey ? { "object.key": bounded(objectKey) } : {}),
     ...(role ? { "object.role": role } : {}),
   });

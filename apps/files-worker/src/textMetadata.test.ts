@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import {
   buildFilesOpSigningPayload,
   buildLinkMetadataPrompt,
@@ -8,7 +8,7 @@ import {
 } from "@teak/files-protocol";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket } from "./test/testsupport";
 
 const result = { tags: ["design", "systems"], summary: "A useful resource." };
 const signedRequest = async (op: string, params: unknown) => {
@@ -207,6 +207,30 @@ describe("signed text/link metadata", () => {
       expect(run).toHaveBeenCalledTimes(1);
     }
   );
+  test("a provider failure keeps the prompt out of the response and the logs", async () => {
+    const prompt = "Private diary entry 7c1d";
+    const run = mock(() =>
+      Promise.reject(new Error(`Bad request: {"content":"${prompt}"}`))
+    );
+    const logged: unknown[] = [];
+    const consoleError = spyOn(console, "error").mockImplementation(
+      (...args: unknown[]) => {
+        logged.push(args);
+      }
+    );
+    try {
+      const response = await handleInternalOp(
+        await signedRequest("generate-text-metadata", { prompt }),
+        env(run)
+      );
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain(prompt);
+      expect(logged.length).toBeGreaterThan(0);
+      expect(JSON.stringify(logged)).not.toContain(prompt);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
   test("bounds text and link prompts while retaining beginning and end", () => {
     const content = `beginning${"x".repeat(10_000)}ending`;
     for (const prompt of [

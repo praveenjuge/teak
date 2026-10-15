@@ -348,7 +348,7 @@ const scrapeWithFetch = async (
   selectors: { selector: string }[]
 ): Promise<PageScrape> => {
   try {
-    const response = await safeFetch(
+    const { finalUrl, response } = await safeFetch(
       url,
       resolveDns,
       {
@@ -393,9 +393,7 @@ const scrapeWithFetch = async (
     );
     return {
       html: () => html,
-      // safeFetch requests each redirect hop itself, so the response's URL
-      // is the last one.
-      pageUrl: response.url || url,
+      pageUrl: finalUrl,
       payload: {
         success: true,
         result: { selectors: buildSelectorResultsFromHtml(html, selectors) },

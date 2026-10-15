@@ -20,6 +20,12 @@ export class MetadataCapacityError extends Error {
     this.aiFacts = aiFacts;
   }
 }
+/** Provider errors can echo the request, so this one carries none of theirs. */
+export class WorkersAiProviderFailed extends Error {
+  constructor() {
+    super("workers_ai_provider_failed");
+  }
+}
 export class MetadataValidationError extends Error {
   readonly aiFacts: FilesAiGenerationFacts;
   constructor(aiFacts: FilesAiGenerationFacts) {
@@ -137,9 +143,7 @@ export const generateTextMetadataForOp = async (
         }
         continue;
       }
-      // Provider exceptions can contain request bodies. Never propagate prompts
-      // into operation logs or error envelopes.
-      throw new Error("workers_ai_provider_failed");
+      throw new WorkersAiProviderFailed();
     }
     if (response && typeof response === "object" && "usage" in response) {
       const usage = (

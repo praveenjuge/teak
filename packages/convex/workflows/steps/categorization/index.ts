@@ -218,7 +218,7 @@ const fetchStructuredData = async (
   url: string
 ): Promise<StructuredDataResult | null> => {
   try {
-    const response = await safeFetch(
+    const { response } = await safeFetch(
       url,
       resolveDns,
       {

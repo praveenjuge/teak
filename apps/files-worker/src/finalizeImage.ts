@@ -7,6 +7,7 @@ import { inspectImageContainer } from "./imageContainer";
 import { throughImagesBinding } from "./imagesBinding";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
+import { OpFailure } from "./opFailure";
 import { renderSvgToPng } from "./wasm";
 
 const MAX_CONTAINER_FALLBACK_BYTES = 1024 * 1024;
@@ -67,7 +68,7 @@ const assertUnchanged = (
   expected: { httpEtag: string; size: number }
 ): void => {
   if (object.httpEtag !== expected.httpEtag || object.size !== expected.size) {
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
 };
 
@@ -83,7 +84,7 @@ const factsFromBindingInfo = async (
     async () => {
       const object = await bucket.get(sourceKey);
       if (!object) {
-        throw new Error("source_not_found");
+        throw new OpFailure("source_not_found");
       }
       return object;
     },
@@ -104,7 +105,7 @@ const factsFromBindingInfo = async (
     }
   );
   if (facts === "not_an_image") {
-    throw new Error("not_an_image");
+    throw new OpFailure("not_an_image");
   }
   return facts;
 };
@@ -116,12 +117,12 @@ const factsFromSvg = async (
 ): Promise<FinalizeImageFacts> => {
   const object = await bucket.get(sourceKey);
   if (!object) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   assertUnchanged(object, expected);
   if (object.size > 10 * 1024 * 1024) {
     await object.body.cancel();
-    throw new Error("source_too_large");
+    throw new OpFailure("source_too_large");
   }
   const rendered = await renderSvgToPng(await object.text(), 64);
   return {
@@ -147,14 +148,14 @@ const factsFromUrlProbe = async (
     now
   );
   if (!response.ok) {
-    throw new Error("not_an_image");
+    throw new OpFailure("not_an_image");
   }
   const info = (await response.json()) as CloudflareImageInfo;
   const decodedFormat = normalizeDecodedFormat(info.format ?? "", sourceKey);
   const width = positiveDimension(info.original?.width ?? info.width);
   const height = positiveDimension(info.original?.height ?? info.height);
   if (!(decodedFormat && width && height)) {
-    throw new Error("not_an_image");
+    throw new OpFailure("not_an_image");
   }
   return { decodedFormat, height, width };
 };
@@ -165,28 +166,22 @@ const factsFromValidatedContainer = async (
   expected: { httpEtag: string; size: number }
 ): Promise<FinalizeImageFacts> => {
   if (expected.size > MAX_CONTAINER_FALLBACK_BYTES) {
-    throw new Error("not_an_image");
+    throw new OpFailure("not_an_image");
   }
   const object = await bucket.get(sourceKey);
   if (!object) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   assertUnchanged(object, expected);
   const facts = inspectImageContainer(
     new Uint8Array(await object.arrayBuffer())
   );
   if (!facts) {
-    throw new Error("not_an_image");
+    throw new OpFailure("not_an_image");
   }
   return facts;
 };
 
-/**
- * Decode-verify the pending upload and stream it into its permanent key.
- * Throws typed error messages that ops.ts maps onto protocol error codes:
- * source_not_found / source_changed / source_too_large /
- * invalid_storage_key / not_an_image / image_dimensions_too_large.
- */
 export const finalizeImageUpload = async (
   env: Env,
   params: FilesFinalizeImageParams,
@@ -198,7 +193,7 @@ export const finalizeImageUpload = async (
   const destinationKey = params.destinationKey;
   const metadata = await env.BUCKET.head(sourceKey);
   if (!metadata) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   const expectedEtag =
     typeof params.expectedEtag === "string" && params.expectedEtag
@@ -210,7 +205,7 @@ export const finalizeImageUpload = async (
     (expectedEtag && metadata.httpEtag !== expectedEtag) ||
     (expectedSize !== null && metadata.size !== expectedSize)
   ) {
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
 
   let facts: FinalizeImageFacts | null = null;
@@ -228,7 +223,7 @@ export const finalizeImageUpload = async (
           now
         );
       } catch (error) {
-        if (error instanceof Error && error.message === "not_an_image") {
+        if (error instanceof OpFailure && error.code === "not_an_image") {
           // Cloudflare can reject a small browser-compatible image as
           // incomplete. Accept that edge case only after validating the
           // complete, bounded container and reading trusted dimensions.
@@ -248,18 +243,18 @@ export const finalizeImageUpload = async (
     (facts.width !== null && facts.width > MAX_IMAGE_DIMENSION) ||
     (facts.height !== null && facts.height > MAX_IMAGE_DIMENSION)
   ) {
-    throw new Error("image_dimensions_too_large");
+    throw new OpFailure("image_dimensions_too_large");
   }
 
   const source = await env.BUCKET.get(sourceKey);
   if (!source) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   if (source.httpEtag !== metadata.httpEtag || source.size !== metadata.size) {
     try {
       await source.body.cancel();
     } catch {}
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {
     httpMetadata: {

@@ -212,7 +212,7 @@ const assetsFor = async (
     }
     return { assets, page: status ? "x status" : "x status unavailable" };
   }
-  const response = await safeFetch(url, resolveDns, {
+  const { finalUrl: pageUrl, response } = await safeFetch(url, resolveDns, {
     headers: {
       accept: "text/html,application/xhtml+xml",
       "user-agent": USER_AGENT,
@@ -223,7 +223,6 @@ const assetsFor = async (
     await response.body?.cancel().catch(() => undefined);
     return { assets: [], page: `page ${response.status} ${contentType}` };
   }
-  const pageUrl = response.url || url;
   const html = new TextDecoder().decode(
     await readBodyWithLimit(response, MAX_HTML_BYTES)
   );
