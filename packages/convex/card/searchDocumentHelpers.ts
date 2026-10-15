@@ -668,8 +668,9 @@ export const searchCardsByExactTag = async (
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
-    // Trash, or archived and not: the one index without isArchived, with
-    // type and favorites checked while reading (a tag's Trash is small).
+    // Trash, or archived and not: the one index without isArchived. The loop
+    // below checks type and favorites, so every row read counts against the
+    // scan budget.
     tagQuery = tags
       .withIndex("by_user_tag_deleted_created", (range) =>
         createdBetween(
@@ -679,15 +680,6 @@ export const searchCardsByExactTag = async (
             .eq("isDeleted", args.isDeleted)
         )
       )
-      .filter((q) => {
-        const checks = [
-          ...(type === undefined ? [] : [q.eq(q.field("type"), type)]),
-          ...(isFavorited === undefined
-            ? []
-            : [q.eq(q.field("isFavorited"), favorited)]),
-        ];
-        return checks.length === 0 ? true : q.and(...checks);
-      })
       .order(order);
   } else {
     const base = (range: any) =>
@@ -734,6 +726,14 @@ export const searchCardsByExactTag = async (
       });
     }
     scanBudget.remaining -= 1;
+    if (
+      archived === "any" &&
+      ((type !== undefined && document.type !== type) ||
+        (isFavorited !== undefined &&
+          (document.isFavorited === true) !== isFavorited))
+    ) {
+      continue;
+    }
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);

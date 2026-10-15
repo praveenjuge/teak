@@ -507,6 +507,36 @@ describe("Search scan budget", () => {
       await expect(search()).rejects.toThrow("Search is too broad");
     }
   );
+
+  test("tag search across archive states counts rows of other types", async () => {
+    const { t, cardId } = await setup();
+    await t.run(async (ctx) => {
+      const second = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Original second",
+        tags: ["original"],
+        createdAt: 2,
+        updatedAt: 2,
+      });
+      await syncCardSearchTagsBatchHandler(ctx, cardId);
+      await syncCardSearchTagsBatchHandler(ctx, second);
+    });
+    const search = (remaining: number) =>
+      t.run((ctx) =>
+        searchCardsByExactTag(ctx, {
+          userId: "owner",
+          tag: "original",
+          archived: "include",
+          type: "image",
+          limit: 10,
+          sort: "newest",
+          scanBudget: { remaining },
+        })
+      );
+    expect(await search(2)).toEqual([]);
+    await expect(search(1)).rejects.toThrow("Search is too broad");
+  });
 });
 
 describe("Public API AI tag removal", () => {
