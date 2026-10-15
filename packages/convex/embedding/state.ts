@@ -103,32 +103,28 @@ export const tombstoneCardEmbedding = async (
 /**
  * A job finished after the row moved on. An edit made while it ran set a
  * later `dueAt` that no job is waiting for (`markCardForEmbedding` schedules
- * only when none is due), so schedule one. If instead a newer job already
- * completed and this job wrote a vector, that vector may have landed on top
- * of the newer one: forget the hash so the current text is embedded again.
+ * only when none is due), so schedule one. If this job wrote a vector, the
+ * stored hash no longer says what the index holds (the vector may have
+ * landed on top of a newer one, or the text may since have been reverted to
+ * the hashed text): forget it so the next job embeds for real.
  */
 const handOffStaleJob = async (
   ctx: MutationCtx,
   row: Doc<"cardEmbeddings">,
   wroteVector: boolean
 ) => {
-  if (row.dueAt !== undefined) {
-    await ctx.scheduler.runAfter(
-      Math.max(0, row.dueAt - Date.now()),
-      embedRef().embedDue,
-      { cardIds: [row.cardId] }
-    );
+  if (row.dueAt === undefined && !wroteVector) {
     return;
   }
+  const dueAt = row.dueAt ?? Date.now();
   if (wroteVector) {
-    await ctx.db.patch("cardEmbeddings", row._id, {
-      dueAt: Date.now(),
-      hash: undefined,
-    });
-    await ctx.scheduler.runAfter(0, embedRef().embedDue, {
-      cardIds: [row.cardId],
-    });
+    await ctx.db.patch("cardEmbeddings", row._id, { dueAt, hash: undefined });
   }
+  await ctx.scheduler.runAfter(
+    Math.max(0, dueAt - Date.now()),
+    embedRef().embedDue,
+    { cardIds: [row.cardId] }
+  );
 };
 
 const embeddingRowValidator = v.object({

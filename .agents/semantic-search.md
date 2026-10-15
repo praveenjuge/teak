@@ -87,8 +87,9 @@ or is due for, a vector (`packages/convex/embedding/`).
   text. An unchanged hash records the row without a Workers AI call.
 - **Fencing.** A job records its result only if `dueAt` still holds the value
   it read. An older job never marks a newer edit done: an edit made while a
-  job ran is handed to a new job, and a job whose vector may have overwritten
-  a newer one clears the hash so the current text is embedded again.
+  job ran is handed to a new job. A stale job that wrote a vector clears the
+  hash, because the index may no longer hold the hashed text, so the current
+  text is embedded again.
 - **Failures.** A failed embed retries with backoff (30 s doubling) five
   times, then keeps `attempts` and `lastError` for the backfill.
 - **Empty text.** A card cleared of every field has its vector deleted.

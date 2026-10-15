@@ -395,6 +395,34 @@ describe("stale writes", () => {
     expect(await rowOf(t, cardId)).not.toHaveProperty("dueAt");
   });
 
+  test("text reverted while an embed is in flight is embedded again", async () => {
+    let reverted = false;
+    const t = setup();
+    const calls = stubWorker({
+      onCall: async (call) => {
+        if (
+          call.op === "embed-upsert" &&
+          call.params.items[0].text === "B" &&
+          !reverted
+        ) {
+          reverted = true;
+          await editCard(t, call.params.items[0].id, { content: "A" });
+        }
+      },
+    });
+    const cardId = await createCard(t, "A");
+    await runScheduled(t);
+    await editCard(t, cardId, { content: "B" });
+
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items[0].text)).toEqual([
+      "A",
+      "B",
+      "A",
+    ]);
+  });
+
   test("a failed re-embed of an overtaken card is retried, not skipped", async () => {
     const t = setup();
     const calls = stubWorker();
