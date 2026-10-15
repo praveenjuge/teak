@@ -7,7 +7,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
 // Exact keys, never inferred from the 32-bit legacy owner prefix.
@@ -27,7 +27,7 @@ export const registerOwnedObject = async (
   // legacy diagnostic jobs. Terminal deletion remains an unconditional fence.
   if (
     owner?.deletedAt !== undefined ||
-    (await getAccountDeletionState(ctx, userId))
+    (await accountDeletionOwnsRows(ctx, userId))
   ) {
     return false;
   }

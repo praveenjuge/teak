@@ -113,8 +113,6 @@ export const addCard = async (
       tags,
     });
   }
-  // With an explicit --url, any text is kept as the card's content; a bare URL
-  // argument is the link itself.
   const urlArgument = !options.url && /^https?:\/\//i.test(raw);
   const url = options.url || (urlArgument ? raw : undefined);
   const content = urlArgument ? undefined : raw || undefined;
@@ -123,8 +121,6 @@ export const addCard = async (
       "provide text, a URL, a file path, --url, --file, or stdin"
     );
   }
-  // Like the web composer, let Teak detect links, quotes, and palettes unless
-  // the caller picked a type. Structured Markdown always stays a text card.
   return api.cards.create({
     cardType,
     content,

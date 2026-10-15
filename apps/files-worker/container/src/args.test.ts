@@ -7,12 +7,12 @@ import {
   ffprobeCommand,
   frameCommand,
   jobPath,
+  keyframeTileCommand,
   MAX_ALLOC_BYTES,
   pdfInfoCommand,
   pdfPageCommand,
   pdfTextCommand,
   spriteCommand,
-  tileCommand,
 } from "./args";
 
 const DIR = "/work/job-1";
@@ -42,10 +42,10 @@ const ffmpegCommands: [string, string[]][] = [
   ["frame+sample", frameCommand({ ...frameJob, sample })],
   [
     "tile+sample",
-    tileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv`, sample }),
+    keyframeTileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv`, sample }),
   ],
   ["animation sample", animationSampleCommand(animationJob)],
-  ["tile", tileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv` })],
+  ["tile", keyframeTileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv` })],
   [
     "sprite",
     spriteCommand(
@@ -179,7 +179,7 @@ describe("job commands", () => {
   });
 
   test("tiles use a keyframe-only fast seek", () => {
-    const argv = tileCommand({ ...frameJob, timeSeconds: 2.5 });
+    const argv = keyframeTileCommand({ ...frameJob, timeSeconds: 2.5 });
     const input = argv.indexOf("-i");
     expect(valueAfter(argv, "-skip_frame")).toBe("nokey");
     expect(argv.indexOf("-skip_frame")).toBeLessThan(input);
@@ -190,7 +190,7 @@ describe("job commands", () => {
 
   test.each([
     ["thumbnail", frameCommand({ ...frameJob, sample })],
-    ["tile", tileCommand({ ...frameJob, sample })],
+    ["tile", keyframeTileCommand({ ...frameJob, sample })],
   ])(
     "the %s also writes a small raw RGBA copy of its frame to stdout",
     (_, argv) => {
@@ -262,8 +262,8 @@ describe("job commands", () => {
   });
 
   test("poppler commands read the spooled file and write inside the job", () => {
-    expect(pdfInfoCommand(DIR, INPUT)).toEqual(["pdfinfo", INPUT]);
-    expect(pdfPageCommand(DIR, INPUT, 1600, `${DIR}/page`)).toEqual([
+    expect<string[]>(pdfInfoCommand(DIR, INPUT)).toEqual(["pdfinfo", INPUT]);
+    expect<string[]>(pdfPageCommand(DIR, INPUT, 1600, `${DIR}/page`)).toEqual([
       "pdftoppm",
       "-f",
       "1",
@@ -276,7 +276,7 @@ describe("job commands", () => {
       INPUT,
       `${DIR}/page`,
     ]);
-    expect(pdfTextCommand(DIR, INPUT, 50)).toEqual([
+    expect<string[]>(pdfTextCommand(DIR, INPUT, 50)).toEqual([
       "pdftotext",
       "-f",
       "1",

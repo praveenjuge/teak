@@ -307,7 +307,7 @@ const scrapeWithFetch = async (
   selectors: { selector: string }[]
 ): Promise<PageScrape> => {
   try {
-    const response = await safeFetch(
+    const { finalUrl, response } = await safeFetch(
       url,
       nodeDnsResolver,
       {
@@ -352,7 +352,7 @@ const scrapeWithFetch = async (
     );
     return {
       html: () => html,
-      pageUrl: response.url || url,
+      pageUrl: finalUrl,
       payload: {
         success: true,
         result: { selectors: buildSelectorResultsFromHtml(html, selectors) },

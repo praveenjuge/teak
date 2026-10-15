@@ -1,11 +1,3 @@
-/**
- * Single runtime accessor for the extension workspace's public Convex origin.
- *
- * Application code reads the generated VITE_PUBLIC_CONVEX_SITE_URL alias
- * through here; nothing else touches it directly (enforced by
- * `bun run audit:env`).
- */
-
 export const getConvexSiteUrl = (): string => {
   const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;
   if (!url) {
@@ -14,10 +6,6 @@ export const getConvexSiteUrl = (): string => {
   return url;
 };
 
-/**
- * Build-time check for `wxt build`: without the Convex site URL the bundle
- * builds but can't reach Teak. Returns the error to show, or null when set.
- */
 export const missingBuildEnvError = (
   env: Record<string, string | undefined>
 ): string | null =>
@@ -25,9 +13,5 @@ export const missingBuildEnvError = (
     ? null
     : "VITE_PUBLIC_CONVEX_SITE_URL is not set, so this extension build couldn't reach Teak. Run 'bun run setup --target extension' (or export the variable), then build again.";
 
-/**
- * PostHog project token for error reports and save events. Only the store
- * release build sets WXT_POSTHOG_PROJECT_TOKEN, so dev builds send nothing.
- */
 export const getPostHogProjectToken = (): string | undefined =>
   import.meta.env.WXT_POSTHOG_PROJECT_TOKEN?.trim() || undefined;

@@ -369,7 +369,7 @@ export const checkpointStorageBatch = internalMutation({
       });
       return false;
     }
-    await commitDeletionBatch(ctx, kind, state.userId, batch.rows);
+    await commitDeletionBatch(ctx, batch);
     await ctx.db.patch(state._id, { storageProgress: undefined });
     return true;
   },

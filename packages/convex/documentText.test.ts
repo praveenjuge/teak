@@ -7,10 +7,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  deleteAccountDataHandler,
-  getAccountCardDeletionBatchHandler,
-} from "./accountDeletion";
+import { deleteAccountDataHandler, type OwnedCardIds } from "./accountDeletion";
+import { captureDeletionBatch } from "./accountDeletionBatch";
 import { documentTextKey } from "./card/documentText";
 import {
   FILE_TEXT_SEARCH_LIMIT,
@@ -308,10 +306,10 @@ row ${i}`
     const pdf = await insert();
     await save(pdf, PDF_TEXT);
     const batch = await t.run((ctx) =>
-      getAccountCardDeletionBatchHandler(ctx, "owner")
+      captureDeletionBatch(ctx, "owner", "cards")
     );
-    expect(batch.objectKeys).toContain(await keyFor(pdf));
-    await t.run((ctx) => deleteAccountDataHandler(ctx, "owner", [pdf]));
+    expect(batch.keys).toContain(await keyFor(pdf));
+    await t.run((ctx) => deleteAccountDataHandler(ctx, [pdf] as OwnedCardIds));
     expect(await textRow(pdf)).toBeNull();
   });
 });

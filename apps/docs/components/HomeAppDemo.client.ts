@@ -1,8 +1,5 @@
-import {
-  DEMO_CARD_TYPES,
-  type DemoCard,
-  type DemoCardType,
-} from "../lib/home-demo-cards";
+import type { CardType } from "@teak/convex/shared/constants";
+import { DEMO_CARD_TYPES, type DemoCard } from "../lib/home-demo-cards";
 
 const badgeClass =
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border bg-background px-3 py-1 text-sm font-medium whitespace-nowrap text-foreground hover:bg-accent dark:bg-input/30 [&_svg]:size-3.5";
@@ -14,7 +11,7 @@ interface FilterState {
   keywords: string[];
   query: string;
   trash: boolean;
-  types: DemoCardType[];
+  types: CardType[];
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -113,7 +110,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
       chip.append(icon(iconKey));
     }
     chip.append(el("span", undefined, label));
-    // Keep the search input focused, like the app's preventBlur.
     chip.addEventListener("mousedown", (event) => event.preventDefault());
     chip.addEventListener("click", onClick);
     activeChips.append(chip);
@@ -151,7 +147,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
     for (const chip of root.querySelectorAll<HTMLButtonElement>(
       "[data-chip-type]"
     )) {
-      chip.hidden = state.types.includes(chip.dataset.chipType as DemoCardType);
+      chip.hidden = state.types.includes(chip.dataset.chipType as CardType);
     }
     $<HTMLButtonElement>("[data-chip-favorites]").hidden = state.favorites;
     $<HTMLButtonElement>("[data-chip-trash]").hidden = state.trash;
@@ -180,7 +176,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
     render();
   };
 
-  // Search
   const searchForm = $<HTMLFormElement>("[data-demo-search]");
   searchForm.addEventListener("submit", (event) => event.preventDefault());
   queryInput.addEventListener("input", () => {
@@ -209,7 +204,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
     "[data-chip-type]"
   )) {
     chip.addEventListener("click", () => {
-      state.types = [...state.types, chip.dataset.chipType as DemoCardType];
+      state.types = [...state.types, chip.dataset.chipType as CardType];
       render();
     });
   }
@@ -227,7 +222,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
   clearChip.addEventListener("click", clearAll);
   $<HTMLButtonElement>("[data-demo-clear]").addEventListener("click", clearAll);
 
-  // Quick note
   const noteForm = $<HTMLFormElement>("[data-demo-note]");
   const noteInput = $<HTMLTextAreaElement>("[data-demo-note-input]");
   const noteActions = $<HTMLElement>("[data-demo-note-actions]");
@@ -284,7 +278,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
     saveNote();
   });
 
-  // Card detail
   const modalTitle = $<HTMLElement>("[data-demo-modal-title]");
   const modalPreview = $<HTMLElement>("[data-demo-modal-preview]");
   const modalSummary = $<HTMLElement>("[data-demo-modal-summary]");
@@ -306,7 +299,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
         card.type === "document") &&
       image
     ) {
-      // Fit the preview area like object-contain, keeping the rounded frame on the image.
       const frame = el("span", "relative block overflow-hidden rounded-2xl");
       frame.style.aspectRatio = `${image.width} / ${image.height}`;
       frame.style.width = `min(100cqw, 100cqh * ${image.width / image.height})`;
@@ -544,7 +536,6 @@ export function mountHomeAppDemo(root: HTMLElement) {
     if (event.key !== "Tab") {
       return;
     }
-    // Keep focus inside the open card, like the app's dialog.
     const focusable = [
       ...modal.querySelectorAll<HTMLElement>("button, a[href]"),
     ].filter((node) => !node.hidden && node.offsetParent !== null);

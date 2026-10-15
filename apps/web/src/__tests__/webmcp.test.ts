@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   getModelContext,
-  mergeCardTags,
   normalizeCreateToolInput,
   normalizeFavoriteToolInput,
   normalizeGetToolInput,
@@ -26,15 +26,18 @@ import {
   type WebMcpToolEventType,
 } from "../lib/webmcp";
 
-const cardFixture = (
-  overrides: Partial<WebMcpCardInput> = {}
-): WebMcpCardInput => ({
-  _id: "jd7abc123",
+const cardId = (value: string) => value as Id<"cards">;
+
+const cardFixture = ({
+  _id = "jd7abc123",
+  ...overrides
+}: Omit<Partial<WebMcpCardInput>, "_id"> & { _id?: string } = {}) => ({
   content: "A note about mechanical keyboards.",
   type: "text",
   createdAt: 1_700_000_000_000,
   updatedAt: 1_700_000_100_000,
   ...overrides,
+  _id: cardId(_id),
 });
 
 describe("webmcp modelContext detection", () => {
@@ -156,6 +159,9 @@ describe("webmcp tags input normalization", () => {
     expect(() =>
       normalizeTagsToolInput({ add: ["a"], cardId: "abc", remove: ["a"] })
     ).toThrow(/both/i);
+    expect(() =>
+      normalizeTagsToolInput({ add: ["Work"], cardId: "abc", remove: ["work"] })
+    ).toThrow(/both/i);
     expect(() => normalizeTagsToolInput({ add: ["a"] })).toThrow(/"cardId"/);
   });
 });
@@ -194,21 +200,6 @@ describe("webmcp recent input normalization", () => {
     );
     expect(() => normalizeRecentToolInput({ limit: 2.5 })).toThrow(/"limit"/);
     expect(() => normalizeRecentToolInput("recent")).toThrow(/object/);
-  });
-});
-
-describe("webmcp tag merging", () => {
-  test("adds, removes, and keeps tags with exact matching", () => {
-    expect(mergeCardTags(["keep", "drop"], ["new"], ["drop"])).toEqual([
-      "keep",
-      "new",
-    ]);
-  });
-
-  test("handles missing lists and dedupes additions", () => {
-    expect(mergeCardTags(undefined, ["a"], [])).toEqual(["a"]);
-    expect(mergeCardTags(["a"], ["a", "b"], [])).toEqual(["a", "b"]);
-    expect(mergeCardTags(["a"], [], ["missing"])).toEqual(["a"]);
   });
 });
 
@@ -268,9 +259,10 @@ describe("webmcp tool registration", () => {
     };
     const unusedDeps: WebMcpQueryDeps = {
       createCard: () => Promise.reject(new Error("unexpected createCard")),
+      editCardTags: () => Promise.reject(new Error("unexpected tag edit")),
       getCard: () => Promise.resolve(null),
       searchCards: () => Promise.resolve([]),
-      updateCardField: () => Promise.reject(new Error("unexpected update")),
+      setCardFavorite: () => Promise.reject(new Error("unexpected favorite")),
     };
     return { modelContext, registered, signals, unusedDeps };
   };
@@ -293,7 +285,7 @@ describe("webmcp tool registration", () => {
       "teak_set_favorite",
       "teak_recent_cards",
     ]);
-    expect(registered.map((tool) => tool.name)).toEqual(names);
+    expect(registered.map((tool) => tool.name)).toEqual([...names]);
     expect(registered[0].inputSchema).toBe(WEBMCP_SEARCH_INPUT_SCHEMA);
     expect(registered[1].inputSchema).toBe(WEBMCP_GET_INPUT_SCHEMA);
     expect(registered[2].inputSchema).toBe(WEBMCP_CREATE_INPUT_SCHEMA);
@@ -365,16 +357,16 @@ describe("webmcp tool registration", () => {
   test("get execute returns the detail or null", async () => {
     const { modelContext, registered, unusedDeps } = setup();
     const fakeSignal = new AbortController().signal;
-    let requestedId: string | null = null;
+    let requestedId = null as string | null;
 
     await registerTeakWebMcpTools(
       modelContext,
       {
         ...unusedDeps,
-        getCard: (cardId) => {
-          requestedId = cardId;
+        getCard: (id) => {
+          requestedId = id;
           return Promise.resolve(
-            cardId === "exists" ? cardFixture({ _id: "exists" }) : null
+            id === "exists" ? cardFixture({ _id: "exists" }) : null
           );
         },
       },
@@ -395,7 +387,7 @@ describe("webmcp tool registration", () => {
     expect(missing).toBeNull();
   });
 
-  test("create execute creates the card and reads it back", async () => {
+  test("create execute reports the stored card, not the request", async () => {
     const { modelContext, registered, unusedDeps } = setup();
     const fakeSignal = new AbortController().signal;
     const seen: unknown[] = [];
@@ -407,15 +399,13 @@ describe("webmcp tool registration", () => {
         ...unusedDeps,
         createCard: (args) => {
           seen.push(args);
-          return Promise.resolve("new-id");
+          return Promise.resolve(cardId("new-id"));
         },
-        getCard: (cardId) => {
-          readBackIds.push(cardId);
-          // Stored values deliberately differ from the request so the
-          // assertions below prove the result came from the read-back.
+        getCard: (id) => {
+          readBackIds.push(id);
           return Promise.resolve(
             cardFixture({
-              _id: cardId,
+              _id: id,
               tags: ["server-tag"],
               url: "https://server.example.com",
             })
@@ -462,7 +452,7 @@ describe("webmcp tool registration", () => {
       modelContext,
       {
         ...unusedDeps,
-        createCard: () => Promise.resolve("new-id"),
+        createCard: () => Promise.resolve(cardId("new-id")),
         getCard: () => Promise.resolve(null),
       },
       { logger: () => {} }
@@ -510,7 +500,7 @@ describe("webmcp tool registration", () => {
         ...unusedDeps,
         createCard: () => {
           creates += 1;
-          return Promise.resolve("new-id");
+          return Promise.resolve(cardId("new-id"));
         },
         searchCards: () => {
           searches += 1;
@@ -532,42 +522,83 @@ describe("webmcp tool registration", () => {
     expect(creates).toBe(0);
   });
 
-  test("tags execute merges against the stored tags", async () => {
-    const { modelContext, registered, unusedDeps } = setup();
-    const fakeSignal = new AbortController().signal;
-    const seen: unknown[] = [];
+  const tagServer = (tagsAfterEdit: string[], failedIds: string[] = []) => {
+    const edits: unknown[] = [];
+    const deps: Pick<WebMcpQueryDeps, "editCardTags" | "getCard"> = {
+      editCardTags: (args) => {
+        edits.push(args);
+        return Promise.resolve({
+          failedIds: failedIds.includes(args.cardId) ? [args.cardId] : [],
+        });
+      },
+      getCard: (id) =>
+        Promise.resolve(
+          id === "missing"
+            ? null
+            : cardFixture({
+                _id: id,
+                tags: edits.length > 0 ? tagsAfterEdit : ["before-edit"],
+              })
+        ),
+    };
+    return { deps, edits };
+  };
 
+  test("tags execute sends adds and removes as server tag edits and returns the tags stored after them", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    const { deps, edits } = tagServer(["keep", "new"]);
     await registerTeakWebMcpTools(
       modelContext,
-      {
-        ...unusedDeps,
-        getCard: (cardId) =>
-          Promise.resolve(
-            cardId === "exists"
-              ? cardFixture({ _id: "exists", tags: ["keep", "drop"] })
-              : null
-          ),
-        updateCardField: (args) => {
-          seen.push(args);
-          return Promise.resolve(null);
-        },
-      },
+      { ...unusedDeps, ...deps },
       { logger: () => {} }
     );
 
     const result = await registered[3].execute(
-      { add: ["new"], cardId: "exists", remove: ["drop"] },
-      { signal: fakeSignal }
+      { add: ["new"], cardId: " exists ", remove: ["drop"] },
+      { signal: new AbortController().signal }
     );
-    expect(seen).toEqual([
-      { cardId: "exists", field: "tags", value: ["keep", "new"] },
+    expect(edits).toEqual([
+      { action: "addTags", cardId: "exists", tags: ["new"] },
+      { action: "removeTags", cardId: "exists", tags: ["drop"] },
     ]);
     expect(result).toEqual({ id: "exists", tags: ["keep", "new"] });
+  });
+
+  test("tags execute sends only the edit kinds the input names", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    const { deps, edits } = tagServer([]);
+    await registerTeakWebMcpTools(
+      modelContext,
+      { ...unusedDeps, ...deps },
+      { logger: () => {} }
+    );
+
+    const result = await registered[3].execute(
+      { cardId: "exists", remove: ["keep"] },
+      { signal: new AbortController().signal }
+    );
+    expect(edits).toEqual([
+      { action: "removeTags", cardId: "exists", tags: ["keep"] },
+    ]);
+    expect(result).toEqual({ id: "exists", tags: [] });
+  });
+
+  test("tags execute rejects a missing card or one the server refuses", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    const { deps, edits } = tagServer([], ["refused"]);
+    await registerTeakWebMcpTools(
+      modelContext,
+      { ...unusedDeps, ...deps },
+      { logger: () => {} }
+    );
+    const signal = new AbortController().signal;
+
     await expect(
-      registered[3].execute(
-        { add: ["x"], cardId: "nope" },
-        { signal: fakeSignal }
-      )
+      registered[3].execute({ add: ["x"], cardId: "missing" }, { signal })
+    ).rejects.toThrow(/not found/);
+    expect(edits).toEqual([]);
+    await expect(
+      registered[3].execute({ add: ["x"], cardId: "refused" }, { signal })
     ).rejects.toThrow(/not found/);
   });
 
@@ -580,11 +611,11 @@ describe("webmcp tool registration", () => {
       modelContext,
       {
         ...unusedDeps,
-        getCard: (cardId) =>
+        getCard: (id) =>
           Promise.resolve(
-            cardId === "exists" ? cardFixture({ _id: "exists" }) : null
+            id === "exists" ? cardFixture({ _id: "exists" }) : null
           ),
-        updateCardField: (args) => {
+        setCardFavorite: (args) => {
           seen.push(args);
           return Promise.resolve(null);
         },
@@ -596,9 +627,7 @@ describe("webmcp tool registration", () => {
       { cardId: "exists", favorited: true },
       { signal: fakeSignal }
     );
-    expect(seen).toEqual([
-      { cardId: "exists", field: "isFavorited", value: true },
-    ]);
+    expect(seen).toEqual([{ cardId: "exists", favorited: true }]);
     expect(result).toEqual({ id: "exists", isFavorited: true });
     await expect(
       registered[4].execute(
@@ -608,7 +637,7 @@ describe("webmcp tool registration", () => {
     ).rejects.toThrow(/not found/);
   });
 
-  test("recent execute sorts newest first and applies the limit", async () => {
+  test("recent execute asks for the newest cards and keeps that order", async () => {
     const { modelContext, registered, unusedDeps } = setup();
     const fakeSignal = new AbortController().signal;
     const seen: unknown[] = [];
@@ -620,7 +649,6 @@ describe("webmcp tool registration", () => {
         searchCards: (args) => {
           seen.push(args);
           return Promise.resolve([
-            cardFixture({ _id: "old", createdAt: 100 }),
             cardFixture({ _id: "new", createdAt: 300 }),
             cardFixture({ _id: "mid", createdAt: 200 }),
           ]);
@@ -630,10 +658,10 @@ describe("webmcp tool registration", () => {
     );
 
     const result = (await registered[5].execute(
-      { limit: 2 },
+      { limit: 2, type: "link" },
       { signal: fakeSignal }
     )) as { items: { id: string }[]; total: number };
-    expect(seen).toEqual([{ limit: 2 }]);
+    expect(seen).toEqual([{ limit: 2, sort: "newest", types: ["link"] }]);
     expect(result.items.map((item) => item.id)).toEqual(["new", "mid"]);
     expect(result.total).toBe(2);
   });

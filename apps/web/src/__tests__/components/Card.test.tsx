@@ -1,28 +1,34 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Doc } from "@teak/convex/_generated/dataModel";
-import { Card } from "@teak/ui/cards";
-import React from "react";
+import { Card, type CardProps } from "@teak/ui/cards";
+import React, { type ReactNode } from "react";
 
-// Mock Ant Design Image component
+interface MockProps {
+  alt?: string;
+  checked?: boolean;
+  children?: ReactNode;
+  className?: string;
+  disabled?: boolean;
+  onClick?: () => void;
+  src?: string;
+}
+
 mock.module("antd", () => ({
-  Image: ({ src, alt, className, ...props }: any) =>
+  Image: ({ src, alt, className, ...props }: MockProps) =>
     React.createElement("img", { src, alt, className, ...props }),
 }));
 
-// Mock UI components
 mock.module("@teak/ui/components/ui/context-menu", () => ({
-  ContextMenu: ({ children }: any) =>
+  ContextMenu: ({ children }: MockProps) =>
     React.createElement("div", { className: "context-menu" }, children),
-  ContextMenuTrigger: ({ children, disabled }: any) =>
+  ContextMenuTrigger: ({ children, disabled }: MockProps) =>
     React.createElement(
       "div",
       { disabled, className: "context-trigger" },
       children
     ),
-  ContextMenuContent: ({ children }: any) =>
+  ContextMenuContent: ({ children }: MockProps) =>
     React.createElement("div", { className: "context-content" }, children),
-  ContextMenuItem: ({ children, onClick }: any) =>
+  ContextMenuItem: ({ children, onClick }: MockProps) =>
     React.createElement(
       "div",
       { onClick, className: "context-item" },
@@ -30,19 +36,19 @@ mock.module("@teak/ui/components/ui/context-menu", () => ({
     ),
   ContextMenuSeparator: () =>
     React.createElement("div", { className: "context-separator" }),
-  ContextMenuShortcut: ({ children }: any) =>
+  ContextMenuShortcut: ({ children }: MockProps) =>
     React.createElement("kbd", null, children),
 }));
 
 mock.module("@teak/ui/components/ui/card", () => ({
-  Card: ({ children, className }: any) =>
+  Card: ({ children, className }: MockProps) =>
     React.createElement("div", { className, "data-card": "" }, children),
-  CardContent: ({ children }: any) =>
+  CardContent: ({ children }: MockProps) =>
     React.createElement("div", { className: "card-content" }, children),
 }));
 
 mock.module("@teak/ui/components/ui/checkbox", () => ({
-  Checkbox: ({ checked, className }: any) =>
+  Checkbox: ({ checked, className }: MockProps) =>
     React.createElement("input", {
       type: "checkbox",
       checked,
@@ -51,16 +57,18 @@ mock.module("@teak/ui/components/ui/checkbox", () => ({
     }),
 }));
 
+type CardFixture = CardProps["card"];
+
 describe("Card Component", () => {
-  let mockOnClick: any;
-  let mockOnDelete: any;
-  let mockOnRestore: any;
-  let mockOnPermanentDelete: any;
-  let mockOnToggleFavorite: any;
-  let mockOnAddTags: any;
-  let mockOnCopyImage: any;
-  let mockOnEnterSelectionMode: any;
-  let mockOnToggleSelection: any;
+  let mockOnClick: ReturnType<typeof mock>;
+  let mockOnDelete: ReturnType<typeof mock>;
+  let mockOnRestore: ReturnType<typeof mock>;
+  let mockOnPermanentDelete: ReturnType<typeof mock>;
+  let mockOnToggleFavorite: ReturnType<typeof mock>;
+  let mockOnAddTags: ReturnType<typeof mock>;
+  let mockOnCopyImage: ReturnType<typeof mock>;
+  let mockOnEnterSelectionMode: ReturnType<typeof mock>;
+  let mockOnToggleSelection: ReturnType<typeof mock>;
 
   beforeEach(() => {
     mockOnClick = mock();
@@ -74,10 +82,10 @@ describe("Card Component", () => {
     mockOnToggleSelection = mock();
   });
 
-  const createMockCard = (overrides?: Partial<Doc<"cards">>): Doc<"cards"> => ({
+  const createMockCard = (overrides?: Partial<CardFixture>): CardFixture => ({
     _id: "test-card-id",
     _creationTime: Date.now(),
-    userId: "user-123" as any,
+    userId: "user-123",
     content: "Test card content",
     type: "text",
     createdAt: Date.now(),
@@ -88,7 +96,6 @@ describe("Card Component", () => {
   describe("Rendering", () => {
     test("renders text card with content", () => {
       const card = createMockCard({ type: "text", content: "Test content" });
-      // Card should render without throwing
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
       }).not.toThrow();
@@ -109,7 +116,7 @@ describe("Card Component", () => {
       const card = createMockCard({
         type: "image",
         thumbnailUrl: "https://example.com/image.jpg",
-        fileMetadata: { width: 800, height: 600 } as any,
+        fileMetadata: { width: 800, height: 600 },
       });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
@@ -136,7 +143,7 @@ describe("Card Component", () => {
     test("renders document card with file metadata", () => {
       const card = createMockCard({
         type: "document",
-        fileMetadata: { fileName: "document.pdf" } as any,
+        fileMetadata: { fileName: "document.pdf" },
       });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
@@ -165,7 +172,7 @@ describe("Card Component", () => {
 
     test("renders card without type", () => {
       const card = createMockCard({
-        type: undefined as any,
+        type: undefined,
         content: "No type content",
       });
       expect(() => {
@@ -189,7 +196,7 @@ describe("Card Component", () => {
 
     test("renders optimistic card with loading indicator", () => {
       const card = createMockCard({
-        _id: "12345678-1234-4123-9123-123456789abc" as any,
+        _id: "12345678-1234-4123-9123-123456789abc",
       });
       expect(() => {
         React.createElement(Card, { card });
@@ -237,7 +244,7 @@ describe("Card Component", () => {
 
   describe("User Interactions", () => {
     test("does not call onClick for optimistic cards", () => {
-      const card = createMockCard({ _id: crypto.randomUUID() as any });
+      const card = createMockCard({ _id: crypto.randomUUID() });
       const element = React.createElement(Card, {
         card,
         onClick: mockOnClick,
@@ -342,7 +349,7 @@ describe("Card Component", () => {
           },
         },
         linkPreviewImageUrl: "https://example.com/image.jpg",
-      } as any);
+      });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
       }).not.toThrow();
@@ -353,7 +360,7 @@ describe("Card Component", () => {
         type: "link",
         url: "https://example.com",
         screenshotUrl: "https://example.com/screenshot.jpg",
-      } as any);
+      });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
       }).not.toThrow();
@@ -367,7 +374,7 @@ describe("Card Component", () => {
           width: 1920,
           height: 1080,
           mimeType: "image/jpeg",
-        } as any,
+        },
       });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
@@ -427,7 +434,7 @@ describe("Card Component", () => {
         type: "image",
         fileUrl: undefined,
         thumbnailUrl: undefined,
-      } as any);
+      });
       expect(() => {
         React.createElement(Card, { card, onClick: mockOnClick });
       }).not.toThrow();
@@ -471,7 +478,7 @@ describe("Card Component", () => {
     test("provides copy image option for non-SVG images", () => {
       const card = createMockCard({
         type: "image",
-        fileMetadata: { mimeType: "image/png" } as any,
+        fileMetadata: { mimeType: "image/png" },
       });
       expect(() => {
         React.createElement(Card, {
@@ -484,7 +491,7 @@ describe("Card Component", () => {
     test("does not provide copy option for SVG images", () => {
       const card = createMockCard({
         type: "image",
-        fileMetadata: { mimeType: "image/svg+xml" } as any,
+        fileMetadata: { mimeType: "image/svg+xml" },
       });
       expect(() => {
         React.createElement(Card, {

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { deleteAccountDataHandler } from "./accountDeletion";
+import { deleteAccountDataHandler, type OwnedCardIds } from "./accountDeletion";
 import {
   searchCardsByDocument,
   syncCardSearchDocumentHandler,
@@ -834,7 +834,7 @@ test("account deletion leaves no folders or folder rows", async () => {
       generation: 1,
     })
   );
-  await t.run((ctx) => deleteAccountDataHandler(ctx, "owner", ids));
+  await t.run((ctx) => deleteAccountDataHandler(ctx, ids as OwnedCardIds));
   expect(await t.run((ctx) => ctx.db.query("folderCards").collect())).toEqual(
     []
   );

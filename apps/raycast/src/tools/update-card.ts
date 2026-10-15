@@ -18,9 +18,6 @@ const clean = (tags: string | undefined) =>
     .map((tag) => tag.trim())
     .filter(Boolean);
 
-/**
- * Add or remove a Teak card's tags, or replace its notes.
- */
 export default async function tool(input: Input) {
   const cardId = input.cardId?.trim();
   if (!cardId) {
@@ -33,7 +30,7 @@ export default async function tool(input: Input) {
     throw new Error("Provide tags to add or remove, or new notes");
   }
 
-  const card = await getCardById(cardId, { interactive: false });
+  const card = await getCardById(cardId, "stored");
   const tags = Array.from(new Set([...card.tags, ...addTags])).filter(
     (tag) => !isRemoved(tag),
   );
@@ -47,7 +44,7 @@ export default async function tool(input: Input) {
         ? {}
         : { notes: input.notes.trim() ? input.notes.trim() : null }),
     },
-    { interactive: false },
+    "stored",
   );
 
   return {

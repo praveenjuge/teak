@@ -59,8 +59,10 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
     }
     return bytes;
   },
-  safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
-    globalThis.fetch(url, init),
+  safeFetch: async (url: string, _resolveDns: unknown, init?: RequestInit) => ({
+    finalUrl: url,
+    response: await globalThis.fetch(url, init),
+  }),
 }));
 
 import { gzipSync } from "node:zlib";

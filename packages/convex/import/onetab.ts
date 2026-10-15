@@ -1,5 +1,5 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { linkItem, notAnExport } from "./sourceItems";
+import { ImportLimitExceeded, linkItem, notAnExport } from "./sourceItems";
 
 const SOURCE = "OneTab";
 
@@ -18,7 +18,7 @@ export function parseOneTabText(text: string): ParsedBookmarkItem[] {
       continue;
     }
     if (output.length >= 10_000) {
-      throw new Error("OneTab export exceeds 10,000 links");
+      throw new ImportLimitExceeded("OneTab export exceeds 10,000 links");
     }
     output.push(
       linkItem(SOURCE, {

@@ -3,14 +3,8 @@ import type {
   ClientEventName,
 } from "@teak/convex/shared/analytics";
 import { createPostHogBatch } from "@teak/convex/shared/posthog";
+import { getCaptureOwner } from "./captureOwner";
 import { getPostHogProjectToken } from "./env";
-import { getCaptureOwner } from "./oauthAuth";
-
-/**
- * Extension telemetry without an SDK: no remote code, nothing in the content
- * script. Each call sends one request with the shared fetch helper, owned by
- * the signed-in Teak account when there is one.
- */
 
 const send = async (
   record: (
@@ -32,9 +26,7 @@ const send = async (
     const owner = await getCaptureOwner().catch(() => undefined);
     record(batch, owner);
     await batch.flush();
-  } catch {
-    // Telemetry must never alter a save or a sign-in.
-  }
+  } catch {}
 };
 
 export const captureExtensionEvent = <Name extends ClientEventName>(
@@ -61,7 +53,6 @@ export const captureExtensionException = (
     })
   );
 
-/** Reports uncaught errors and rejections in this extension page or worker. */
 export const reportUncaughtErrors = (
   scope: EventTarget,
   context: string

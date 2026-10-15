@@ -4,9 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { logout } from "./runtime";
 
-// Exercise the real credential store and logout. Network and native Keychain
-// commands are isolated boundaries; credentials that predate WorkOS must be
-// cleared on this device without any request.
 test.each([
   ["unbound production", undefined],
   [

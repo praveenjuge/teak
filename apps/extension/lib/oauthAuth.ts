@@ -1,3 +1,9 @@
+import {
+  isRefreshTokenDead,
+  isWorkosCredential,
+  matchesBinding,
+  refreshAndSave,
+} from "@teak/convex/client/oauthCredentials";
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import {
   type AuthDiscovery,
@@ -11,25 +17,17 @@ import {
   validateOAuthUrl,
 } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
-import { getConvexSiteUrl } from "./env";
+import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
 import { captureExtensionEvent } from "./telemetry";
 
-// Background-worker only. Never import this module from popup/content scripts.
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
 const SURFACE = IS_FIREFOX ? "firefox" : "chrome";
 const LOCAL = Boolean(import.meta.env.DEV);
-let selectedSite: string | undefined;
-const site = () => {
-  selectedSite ??= validateOAuthUrl(getConvexSiteUrl(), LOCAL).origin;
-  return selectedSite;
-};
-const storageSuffix = () => (import.meta.env.DEV ? `:${site()}` : "");
-const tokenKey = () => `teakOAuthCredentials${storageSuffix()}`;
-const ownerKey = () => `teakOAuthOwner${storageSuffix()}`;
+const tokenKey = () => siteStorageKey("teakOAuthCredentials");
 const discovery = (forceRefresh = false) => {
-  site();
+  teakSite();
   return discoverAuthServer(
-    import.meta.env.DEV ? site() : "https://teakvault.com",
+    import.meta.env.DEV ? teakSite() : "https://teakvault.com",
     {
       forceRefresh,
       ...(import.meta.env.DEV
@@ -39,15 +37,21 @@ const discovery = (forceRefresh = false) => {
   );
 };
 const binding = (auth: AuthDiscovery) => ({
-  siteUrl: site(),
+  siteUrl: teakSite(),
   issuer: auth.issuer,
   clientId: auth.clients[SURFACE],
 });
-// Unbound credentials predate WorkOS and never match the current provider.
+const savedBinding = (credentials: Credentials) => ({
+  origin: credentials.siteUrl,
+  issuer: credentials.issuer,
+  clientId: credentials.clientId,
+});
 const matches = (credentials: Credentials, auth: AuthDiscovery) =>
-  credentials.siteUrl === site() &&
-  credentials.issuer === auth.issuer &&
-  credentials.clientId === auth.clients[SURFACE];
+  matchesBinding(savedBinding(credentials), {
+    origin: teakSite(),
+    issuer: auth.issuer,
+    clientId: auth.clients[SURFACE],
+  });
 async function readJson(response: Response) {
   const text = await readResponseTextWithinLimit(response, 64 * 1024);
   if (text === null) {
@@ -65,13 +69,11 @@ function fetchAuth(url: string, init: RequestInit) {
     signal: AbortSignal.timeout(10_000),
   });
 }
-async function refreshDiscoveryAfterFailure() {
-  try {
-    await discovery(true);
-  } catch {
-    /* Preserve the original authentication error. */
-  }
-}
+const refreshDiscoveryAfterFailure = () =>
+  discovery(true).then(
+    () => undefined,
+    () => undefined
+  );
 export const AUTH_STATE_KEY = "teakOAuthState";
 interface Credentials {
   accessToken: string;
@@ -147,7 +149,9 @@ async function writeCredentials(credentials: Credentials | null) {
     }
     await chrome.storage.local.set({
       ...(IS_FIREFOX ? {} : { [tokenKey()]: credentials }),
-      ...(credentials.userId ? { [ownerKey()]: credentials.userId } : {}),
+      ...(credentials.userId
+        ? { [captureOwnerKey()]: credentials.userId }
+        : {}),
     });
   } else if (IS_FIREFOX) {
     await firefoxCredentials("readwrite", (store) => store.delete(tokenKey()));
@@ -180,7 +184,7 @@ async function tokenRequest(
     const rejected =
       result.reason === "rejected" || result.reason === "client_rejected";
     if (
-      result.reason === "refresh_token_rejected" ||
+      isRefreshTokenDead(result) ||
       (rejected && params.grant_type !== "refresh_token")
     ) {
       await refreshDiscoveryAfterFailure();
@@ -200,41 +204,36 @@ async function tokenRequest(
   }
 }
 
+const refreshCredentials = (credentials: Credentials, auth: AuthDiscovery) =>
+  refreshAndSave(async () => {
+    const renewed = await tokenRequest(auth, {
+      grant_type: "refresh_token",
+      refresh_token: credentials.refreshToken,
+    });
+    return renewed && { ...renewed, userId: credentials.userId };
+  }, writeCredentials);
+
 async function revokeCredentials(
   credentials: Credentials,
   auth: AuthDiscovery,
   refreshSaved = false
 ) {
-  if (
-    !(
-      credentials.siteUrl === site() &&
-      credentials.clientId?.startsWith("client_") &&
-      credentials.issuer
-    )
-  ) {
-    // Credentials that predate WorkOS cannot authenticate with any Teak
-    // service, so callers clear them locally.
+  const saved = savedBinding(credentials);
+  if (!isWorkosCredential(saved) || saved.origin !== teakSite()) {
     return;
   }
-  const result = await disconnectConnectGrant(site(), credentials.accessToken, {
-    local: LOCAL,
-    refreshAccessToken:
-      refreshSaved && matches(credentials, auth)
-        ? async () => {
-            const renewed = await tokenRequest(auth, {
-              grant_type: "refresh_token",
-              refresh_token: credentials.refreshToken,
-            });
-            if (!renewed) {
-              return null;
-            }
-            renewed.userId = credentials.userId;
-            // signOutOAuth holds the same lock as request refreshes.
-            await writeCredentials(renewed);
-            return renewed.accessToken;
-          }
-        : undefined,
-  });
+  const result = await disconnectConnectGrant(
+    teakSite(),
+    credentials.accessToken,
+    {
+      local: LOCAL,
+      refreshAccessToken:
+        refreshSaved && matches(credentials, auth)
+          ? async () =>
+              (await refreshCredentials(credentials, auth))?.accessToken ?? null
+          : undefined,
+    }
+  );
   if (result === "refresh_rejected") {
     return "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
   }
@@ -302,7 +301,7 @@ export function beginOAuthSignIn(): Promise<void> {
         throw new Error("Sign-in expired. Please try again.");
       }
       const userId = await fetchConnectOwnerId(
-        site(),
+        teakSite(),
         credentials.accessToken,
         { local: LOCAL }
       );
@@ -348,15 +347,8 @@ function credentialsForRequest() {
     if (credentials.expiresAt > Date.now() + 30_000) {
       return attempt === generation ? credentials : null;
     }
-    const renewed = await tokenRequest(auth, {
-      grant_type: "refresh_token",
-      refresh_token: credentials.refreshToken,
-    });
+    const renewed = await refreshCredentials(credentials, auth);
     if (renewed) {
-      renewed.userId = credentials.userId;
-      // Rotation invalidates the previous refresh token. Persist its replacement
-      // before any further network operation; discovery outages must retain it.
-      await writeCredentials(renewed);
       const current = await discovery();
       if (attempt !== generation && matches(renewed, current)) {
         await revokeCredentials(renewed, current);
@@ -377,9 +369,9 @@ export async function oauthRequest(
   init: RequestInit = {},
   expectedUserId?: string
 ): Promise<Response | null> {
-  const requestUrl = new URL(path, site());
+  const requestUrl = new URL(path, teakSite());
   if (
-    requestUrl.origin !== site() ||
+    requestUrl.origin !== teakSite() ||
     !path.startsWith("/") ||
     path.startsWith("//")
   ) {
@@ -403,7 +395,6 @@ export async function oauthRequest(
     redirect: "error",
   });
   if (response.status === 401) {
-    // A response for an older token must not clear a newly refreshed login.
     await navigator.locks.request("teak-oauth-credentials", async () => {
       if ((await readCredentials())?.accessToken === credentials.accessToken) {
         await writeCredentials(null);
@@ -460,7 +451,7 @@ export async function signOutOAuth() {
       ? await revokeCredentials(credentials, await discovery(true), true)
       : undefined;
     await writeCredentials(null);
-    await chrome.storage.local.remove(ownerKey());
+    await chrome.storage.local.remove(captureOwnerKey());
     if (notice) {
       await chrome.storage.local.set({
         [AUTH_STATE_KEY]: { pending: false, changedAt: Date.now(), notice },
@@ -468,10 +459,4 @@ export async function signOutOAuth() {
     }
     return notice;
   });
-}
-
-export async function getCaptureOwner(): Promise<string | undefined> {
-  await initializeAuth();
-  const owner = (await chrome.storage.local.get(ownerKey()))[ownerKey()];
-  return typeof owner === "string" ? owner : undefined;
 }

@@ -10,7 +10,6 @@ COPY packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts packa
 COPY apps/files-worker/fetcher/src apps/files-worker/fetcher/src
 RUN bun build apps/files-worker/fetcher/src/server.ts --target=node --minify --outfile /build/fetcher.mjs
 
-# Matches the repo's pinned Node (root package.json engines).
 FROM --platform=linux/amd64 node:24.21.0-alpine
 RUN addgroup -S -g 10001 fetcher \
   && adduser -S -D -H -u 10001 -G fetcher fetcher

@@ -6,10 +6,17 @@ import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import { useQuery } from "@teak/ui/convex-query-hooks";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Loading from "@/app/loading";
 import { signOut } from "@/lib/sign-out-client";
 import { AuthUnavailable } from "./AuthUnavailable";
+import { PostHogIdentify } from "./PostHogIdentify";
 import { StatusScreen } from "./StatusScreen";
 
 type Bootstrap =
@@ -23,22 +30,17 @@ const blockedMessages = {
   quarantined: "Your account isn't ready yet. Try again or contact support.",
 };
 
-// Both targets are same-origin; only the current page becomes `next`.
 const signInHere = () =>
   window.location.replace(
     `/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
   );
 const signIn = () => window.location.replace("/sign-in");
 
-// A linked owner opens the vault from getAuthUser alone. Only an identity
-// without a Teak owner yet runs the ensureUser bootstrap, which links or
-// creates the owner and reports why the vault stays closed.
 export function WorkosAuthBoundary({
   children,
   loading: loadingState = <Loading />,
 }: {
   children: ReactNode;
-  /** Shown while the session and vault load (the app frame, on the web). */
   loading?: ReactNode;
 }) {
   const { user, sessionId, loading } = useAuth();
@@ -56,8 +58,6 @@ export function WorkosAuthBoundary({
     established.current !== identity;
   const signedIn = auth.isAuthenticated && identity !== null && !changed;
   const profile = useQuery(api.auth.getAuthUser, signedIn ? {} : "skip");
-  // The first Teak owner this identity opened. A later profile for anyone
-  // else, or none at all, means the session changed under the open vault.
   const [owner, setOwner] = useState<{
     identity: string;
     teakUserId: string;
@@ -71,7 +71,6 @@ export function WorkosAuthBoundary({
     result: Bootstrap;
   } | null>(null);
   const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
   const needsBootstrap = signedIn && profile === null && ownerId === null;
   const blocked =
@@ -96,44 +95,54 @@ export function WorkosAuthBoundary({
       window.location.reload();
     }
   }, [changed]);
-  // Retrying repeats the mutation even when the authenticated identity is unchanged.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt is the explicit retry trigger.
+  const runBootstrap = useCallback(
+    (forIdentity: string, isCurrent: () => boolean) => {
+      void ensure({})
+        .then((result) => {
+          if (isCurrent()) {
+            setBootstrap({ identity: forIdentity, result });
+            if (result.status === "ok") {
+              setOwner({
+                identity: forIdentity,
+                teakUserId: result.teakUserId,
+              });
+            }
+            setFailed(false);
+          }
+        })
+        .catch(() => {
+          if (isCurrent()) {
+            setFailed(true);
+          }
+        });
+    },
+    [ensure]
+  );
   useEffect(() => {
     if (!(needsBootstrap && identity)) {
       return;
     }
     let cancelled = false;
-    void ensure({})
-      .then((result) => {
-        if (!cancelled) {
-          setBootstrap({ identity, result });
-          if (result.status === "ok") {
-            setOwner({ identity, teakUserId: result.teakUserId });
-          }
-          setFailed(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFailed(true);
-        }
-      });
+    runBootstrap(identity, () => !cancelled);
     return () => {
       cancelled = true;
     };
-  }, [needsBootstrap, identity, ensure, attempt]);
+  }, [needsBootstrap, identity, runBootstrap]);
+  const retryBootstrap = () => {
+    if (needsBootstrap && identity) {
+      runBootstrap(identity, () => true);
+    }
+  };
   // A refresh can fail while Convex still holds a valid token, for example on
   // a dropped connection. Convex keeps retrying, so an open vault stays open.
   if (failed || (tokenError && !auth.isAuthenticated)) {
     return (
       <AuthUnavailable
         retry={() => {
-          // A refresh that fails again shows up as tokenError, which clears
-          // once a later refresh succeeds; it isn't a bootstrap failure.
           void refresh()
             .then(() => {
               setFailed(false);
-              setAttempt((n) => n + 1);
+              retryBootstrap();
             })
             .catch(() => undefined);
         }}
@@ -170,6 +179,10 @@ export function WorkosAuthBoundary({
   if (profile) {
     return (
       <ConvexQueryCacheProvider key={profile._id}>
+        <PostHogIdentify
+          email={profile.email ?? undefined}
+          teakUserId={profile._id}
+        />
         {children}
       </ConvexQueryCacheProvider>
     );
@@ -181,7 +194,7 @@ export function WorkosAuthBoundary({
     <StatusScreen
       action="Try again"
       message={blockedMessages[blocked]}
-      onAction={() => setAttempt((n) => n + 1)}
+      onAction={retryBootstrap}
       role="status"
     >
       <Button onClick={() => void signOut()} variant="ghost">

@@ -19,29 +19,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback } from "react";
 import { rememberHomeScroll } from "@/lib/homeScroll";
 
-/**
- * The signed-in app frame: the sidebar (views, folders, the New menu,
- * settings) and the content column every app page renders into.
- */
 export function AppShell({
   children,
   defaultOpen,
   defaultWidth,
 }: {
   children: ReactNode;
-  /** The remembered desktop state, read from the cookie on the server. */
   defaultOpen: boolean;
-  /** The remembered desktop width in pixels, read from the cookie. */
   defaultWidth: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const view = libraryViewForPath(pathname);
   const folderId = folderIdForPath(pathname);
-  // Library views and folders list cards; Settings does not.
   const isCardsPage = view !== null || folderId !== null;
 
-  // `g` then a letter opens a view, like its sidebar link.
   const handleGoToView = useCallback(
     (target: LibraryView) => {
       if (isCardsPage) {
@@ -52,8 +44,6 @@ export function AppShell({
     [isCardsPage, router]
   );
 
-  // New > Note or link, like `N`: only Everything has the composer, so
-  // elsewhere it opens Everything and the composer takes focus there.
   const handleNewNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
       requestNewNoteComposerFocus();

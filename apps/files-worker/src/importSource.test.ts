@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 import { indexImportSource, readImportMarkdown } from "./importSource";
-import { FakeBucket, fakeHttpEtag } from "./testsupport";
+import { FakeBucket, fakeHttpEtag } from "./test/testsupport";
 import {
   ArchiveEntryTooLargeError,
   extractZipEntries,

@@ -114,7 +114,7 @@ describe("markdownMirrorPath", () => {
     );
   });
 
-  test("ignores pages without a mirror", () => {
+  test("keeps serving HTML for pages built without a Markdown mirror", () => {
     expect(markdownMirrorPath("/apps")).toBeNull();
     expect(markdownMirrorPath("/pricing")).toBeNull();
     expect(markdownMirrorPath("/changelog")).toBeNull();

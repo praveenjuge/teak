@@ -14,13 +14,10 @@ const environment = {
   NODE_ENV: "development",
 };
 
-// Failure modes: callbacks for another client; missing/weak seal; malformed
-// client IDs; unsafe callback origin/path; mismatched JWT issuer.
 describe("AuthKit web configuration", () => {
   test("accepts callbacks only for sign-ins started with this client", () => {
     const state = workosCallbackState(clientId);
     expect(() => assertWorkosCallbackBinding(state, clientId)).not.toThrow();
-    // Sign-ins started before the provider switch was removed still complete.
     expect(() =>
       assertWorkosCallbackBinding(
         JSON.stringify({ primary: "workos", clientId }),

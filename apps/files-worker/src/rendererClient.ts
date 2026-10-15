@@ -1,5 +1,6 @@
-import { FILES_RENDER_MAX_SOURCE_BYTES } from "@teak/files-protocol";
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import { RENDERER_PROTOCOL } from "./mediaRenderer";
+import { OpFailure } from "./opFailure";
 
 /**
  * Calls the media renderer Container pool. The source is opened once per
@@ -206,19 +207,13 @@ export const readRendererOutputs = async (
   return { manifest, parts };
 };
 
-// A Workers runtime global; Bun tests run without it.
-const { FixedLengthStream: FixedLength } = globalThis as {
-  FixedLengthStream?: new (
-    length: number
-  ) => { readable: ReadableStream; writable: WritableStream };
+const { FixedLengthStream: FixedLength } = globalThis as unknown as {
+  FixedLengthStream: typeof FixedLengthStream;
 };
 
 const withFixedLength = (source: RendererSource): ReadableStream => {
   // Workers send a stream with an unknown length as chunked; FixedLengthStream
   // gives the Container a Content-Length to check against its cap up front.
-  if (!FixedLength) {
-    return source.body;
-  }
   const { readable, writable } = new FixedLength(source.size);
   source.body.pipeTo(writable).catch(() => undefined);
   return readable;
@@ -241,9 +236,9 @@ export const callRenderer = async (
   let lastReason = "busy";
   for (const name of rendererInstanceOrder(rendererPoolSize(env), random)) {
     const source = await job.openSource();
-    if (source.size > FILES_RENDER_MAX_SOURCE_BYTES) {
+    if (source.size > FILES_UPLOAD_MAX_BYTES) {
       await source.body.cancel().catch(() => undefined);
-      throw new Error("source_too_large");
+      throw new OpFailure("source_too_large");
     }
     let response: Response;
     try {
@@ -272,7 +267,7 @@ export const callRenderer = async (
         lastReason = reason || "unavailable";
         continue;
       case 413:
-        throw new Error("source_too_large");
+        throw new OpFailure("source_too_large");
       case 415:
         throw new RendererDeclined(reason || "unsupported");
       case 422:

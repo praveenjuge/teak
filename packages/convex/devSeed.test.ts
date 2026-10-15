@@ -311,6 +311,26 @@ describe("devSeed.seedScenario", () => {
     );
     expect(scenario.filter((card) => card.isDeleted)).toHaveLength(1);
   });
+
+  test("an unknown scenario lists every pack with what it seeds", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const error = await t
+      .mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "toString",
+      })
+      .then(
+        () => null,
+        (rejection: Error) => rejection.message
+      );
+    expect(error).toContain("Unknown scenario");
+    expect(error).toContain(
+      "  card-in-50-folders: One card in 50 folders, one in 49"
+    );
+    expect(error).toContain("  shuffle-partial: 400 cards");
+    expect(await cardsOf(t)).toHaveLength(0);
+  });
 });
 
 describe("devSeed ordering pack", () => {

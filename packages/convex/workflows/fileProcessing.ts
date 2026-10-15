@@ -1,7 +1,7 @@
 "use node";
 
 import {
-  FILES_RENDER_MAX_SOURCE_BYTES,
+  FILES_UPLOAD_MAX_BYTES,
   type FilesInspectMode,
 } from "@teak/files-protocol";
 import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
@@ -85,7 +85,7 @@ export const extractFileTextForKey = async (
     maxBytes = MAX_ARCHIVE_INSPECTION_BYTES;
   } else if (pdf) {
     mode = "pdf";
-    maxBytes = FILES_RENDER_MAX_SOURCE_BYTES;
+    maxBytes = FILES_UPLOAD_MAX_BYTES;
   }
   let outcome: FilesWorkerOutcome<FilesWorkerInspectResult>;
   try {

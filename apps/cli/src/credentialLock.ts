@@ -76,11 +76,80 @@ function sameOwner(a: Owner, b: Owner) {
 function sameDirectory(a: Stats, b: Stats) {
   return a.dev === b.dev && a.ino === b.ino;
 }
+const isTransientMissing = (error: unknown) => code(error) === "ENOENT";
 
-// A caller supplies a trusted local path derived from account identity, never
-// tokens. Interactive login stays outside this bounded storage critical section.
+declare const lockPathBrand: unique symbol;
+export type CredentialLockPath = string & { [lockPathBrand]: true };
+export const credentialLockPath = (directory: string, account: string) =>
+  join(directory, `credentials-${account}.lock`) as CredentialLockPath;
+
+function publishOwner(path: CredentialLockPath, owner: Owner) {
+  const temporary = join(path, `owner-${owner.nonce}.tmp`);
+  writeFileSync(temporary, JSON.stringify(owner), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  renameSync(temporary, join(path, "owner.json"));
+}
+
+async function tryReclaimDeadOwner(
+  path: CredentialLockPath,
+  before: Stats,
+  previous: Owner,
+  owner: Owner,
+  deadline: number
+) {
+  const marker = `${path}.reclaim-${previous.nonce}`;
+  try {
+    lstatSync(join(path, "reclaim.json"));
+    throw uncertain();
+  } catch (error) {
+    if (code(error) !== "ENOENT") {
+      throw error;
+    }
+  }
+  try {
+    writeFileSync(marker, JSON.stringify(owner), {
+      flag: "wx",
+      mode: 0o600,
+    });
+  } catch (error) {
+    if (code(error) !== "EEXIST" && code(error) !== "ENOENT") {
+      throw error;
+    }
+    if (performance.now() >= deadline) {
+      throw uncertain();
+    }
+    await setTimeout(25);
+    return;
+  }
+  const claimStat = inspect(marker, false);
+  const releaseClaim = () => {
+    if (!sameDirectory(claimStat, inspect(marker, false))) {
+      throw uncertain();
+    }
+    const claim = JSON.parse(readFileSync(marker, "utf8")) as Owner;
+    if (!sameOwner(owner, claim)) {
+      throw uncertain();
+    }
+    unlinkSync(marker);
+  };
+  try {
+    if (
+      sameDirectory(before, inspect(path, true)) &&
+      sameOwner(previous, ownerAt(path)) &&
+      dead(previous.pid)
+    ) {
+      unlinkSync(join(path, "owner.json"));
+      rmdirSync(path);
+    }
+  } finally {
+    releaseClaim();
+  }
+}
+
 export async function withCredentialLock<T>(
-  path: string,
+  path: CredentialLockPath,
   work: () => Promise<T>,
   timeoutMs = 30_000
 ): Promise<T> {
@@ -94,14 +163,7 @@ export async function withCredentialLock<T>(
     try {
       mkdirSync(path, { mode: 0o700 });
       acquired = inspect(path, true);
-      // Contenders may observe mkdir immediately. Publish only complete JSON;
-      // a crash before publication remains uncertain and is never age-stolen.
-      const temporary = join(path, `owner-${owner.nonce}.tmp`);
-      writeFileSync(temporary, JSON.stringify(owner), {
-        flag: "wx",
-        mode: 0o600,
-      });
-      renameSync(temporary, join(path, "owner.json"));
+      publishOwner(path, owner);
       break;
     } catch (error) {
       if (code(error) !== "EEXIST") {
@@ -117,61 +179,11 @@ export async function withCredentialLock<T>(
       const before = inspect(path, true);
       const previous = ownerAt(path);
       if (dead(previous.pid)) {
-        // Claim this exact dead generation outside the lock directory. A stale
-        // contender must never add metadata to a replacement owner's directory.
-        const marker = `${path}.reclaim-${previous.nonce}`;
-        try {
-          lstatSync(join(path, "reclaim.json"));
-          throw uncertain();
-        } catch (error) {
-          if (code(error) !== "ENOENT") {
-            throw error;
-          }
-        }
-        try {
-          writeFileSync(marker, JSON.stringify(owner), {
-            flag: "wx",
-            mode: 0o600,
-          });
-        } catch (error) {
-          if (code(error) !== "EEXIST" && code(error) !== "ENOENT") {
-            throw error;
-          }
-          if (performance.now() >= deadline) {
-            throw uncertain();
-          }
-          await setTimeout(25);
-          continue;
-        }
-        const claimStat = inspect(marker, false);
-        const releaseClaim = () => {
-          if (!sameDirectory(claimStat, inspect(marker, false))) {
-            throw uncertain();
-          }
-          const claim = JSON.parse(readFileSync(marker, "utf8")) as Owner;
-          if (!sameOwner(owner, claim)) {
-            throw uncertain();
-          }
-          unlinkSync(marker);
-        };
-        try {
-          if (
-            sameDirectory(before, inspect(path, true)) &&
-            sameOwner(previous, ownerAt(path)) &&
-            dead(previous.pid)
-          ) {
-            unlinkSync(join(path, "owner.json"));
-            rmdirSync(path);
-          }
-        } finally {
-          releaseClaim();
-        }
+        await tryReclaimDeadOwner(path, before, previous, owner, deadline);
         continue;
       }
     } catch (error) {
-      // A creator can be between mkdir and owner publication, or a dead-owner
-      // reclaim can be finishing. Never infer death from missing metadata.
-      if (code(error) !== "ENOENT") {
+      if (!isTransientMissing(error)) {
         throw error;
       }
     }

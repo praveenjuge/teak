@@ -28,9 +28,9 @@ process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
 const { default: proxy } = await import("../proxy");
-const { GET: callback } = await import("../app/callback/route");
+const { serveRoute } = await import("./helpers/serveRoute");
+const callback = serveRoute(await import("../app/callback/route"), "/callback");
 
-// Signed-out requests and failed callbacks must never reach WorkOS.
 const offline = ((input: RequestInfo | URL) => {
   throw new Error(`Must not reach ${String(input)}`);
 }) as typeof fetch;
@@ -39,10 +39,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-// Failure modes: a protected page served without a session, entry pages that
-// render instead of handing off to AuthKit, open redirects through `next`,
-// forged SDK headers, foreign request origins, missing configuration, and
-// callbacks that redeem a code they cannot bind.
 describe("web sign-in routing", () => {
   test("sends signed-out visitors to sign-in with their destination", async () => {
     globalThis.fetch = offline;
@@ -159,9 +155,7 @@ describe("web sign-in routing", () => {
   });
   test("denies callback origins outside the configured deployment", async () => {
     globalThis.fetch = offline;
-    const response = await callback(
-      new NextRequest("https://evil.example/callback?code=old")
-    );
+    const response = await callback("https://evil.example/callback?code=old");
     expect(response.status).toBe(400);
   });
   // Production 2026-10-07: a password reset email returned `code` without
@@ -209,9 +203,8 @@ describe("web sign-in routing", () => {
       );
       try {
         const response = await callback(
-          new NextRequest(`http://localhost:3142/callback${query}`, {
-            headers: cookie ? { cookie } : {},
-          })
+          `http://localhost:3142/callback${query}`,
+          cookie ? { cookie } : {}
         );
         expect(reached).toEqual([]);
         expect(response.status).toBe(303);
@@ -240,8 +233,6 @@ describe("web sign-in routing", () => {
   );
 });
 
-// A signed-in session the proxy accepts: an access token signed with a key
-// this test serves as the WorkOS JWKS, sealed into the session cookie.
 const base64url = (bytes: ArrayBuffer | Uint8Array | string) =>
   Buffer.from(
     typeof bytes === "string" ? bytes : new Uint8Array(bytes)
@@ -284,7 +275,6 @@ async function signedInSession() {
     },
     { password: process.env.WORKOS_COOKIE_PASSWORD as string }
   );
-  // Only the JWKS may be fetched: a valid token needs no refresh.
   const jwks = ((input: RequestInfo | URL) => {
     if (String(input).includes("/jwks/")) {
       return Promise.resolve(
@@ -298,8 +288,6 @@ async function signedInSession() {
   return { accessToken, cookie: `wos-session=${cookie}`, jwks };
 }
 
-// Failure mode: Convex waits on a token round trip after every page load
-// because the page load never handed the browser its access token.
 describe("signed-in page loads", () => {
   test("hand the browser its access token in a short-lived cookie", async () => {
     const session = await signedInSession();

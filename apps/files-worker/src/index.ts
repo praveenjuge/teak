@@ -8,7 +8,6 @@ export { ObjectDeletionGate } from "./deletionGate";
 export { MediaRenderer } from "./mediaRenderer";
 export { LinkFetcher } from "./remoteAsset";
 
-import type { BrowserWorker } from "@cloudflare/puppeteer";
 import {
   buildMultipartPartSigningPayload,
   FILES_EDGE_CACHE_CONTROL,
@@ -18,8 +17,7 @@ import {
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
-import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
-import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
+import { handleApiProxyRequest } from "./apiProxy";
 import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
@@ -27,36 +25,12 @@ import {
   verifyHmacPayload,
   verifySignedFileRequest,
 } from "./lib";
-import { handleInternalOp } from "./ops";
+import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeRateLimitEnv {
-  /** Workers AI binding: metadata, image understanding and transcription. */
-  AI?: WorkersAiBinding;
-  /** Browser Run binding; screenshots and scrapes offline HTML. */
-  BROWSER?: BrowserWorker;
-  BUCKET: R2Bucket;
-  /** Card embeddings for semantic search, shard 0; see files-protocol embeddings.ts. */
-  CARD_VECTORS_0?: Vectorize;
-  FILES_SIGNING_SECRET: string;
-  /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
-  IMAGES?: ImagesBinding;
-  /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
-  LINK_FETCHER?: DurableObjectNamespace;
-  /** Fetcher pool size; matches the fetcher Container's max_instances. */
-  LINK_FETCHER_INSTANCES?: string;
-  /** fetch-link-page results for a day; see linkPage.ts. */
-  LINK_PAGE_CACHE?: KVNamespace;
-  /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
-  MEDIA_RENDERER?: DurableObjectNamespace;
-  /** Renderer pool size; matches the Container's max_instances. */
-  MEDIA_RENDERER_INSTANCES?: string;
-  OBJECT_GATES?: DurableObjectNamespace;
-  /** PostHog project token for error reports; set in production only. */
-  POSTHOG_PROJECT_TOKEN?: string;
-}
+export type Env = FilesOpsEnv & EdgeRateLimitEnv;
 
 const decodeObjectKey = (pathname: string): string => {
   try {
@@ -90,7 +64,7 @@ const multipartError = (
     },
     status
   );
-  withCorsHeaders(response.headers);
+  allowAnyOriginForSignedUrl(response.headers);
   return response;
 };
 
@@ -108,12 +82,7 @@ const methodNotAllowed = (
   return response;
 };
 
-/**
- * Signed URLs act as bearer credentials, so permissive CORS cannot leak
- * anything that isn't already in the URL; it lets the web app fetch files
- * with progress/streaming instead of navigating.
- */
-const withCorsHeaders = (headers: Headers): void => {
+const allowAnyOriginForSignedUrl = (headers: Headers): void => {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET, HEAD, PUT, OPTIONS");
   headers.set(
@@ -129,7 +98,7 @@ const withCorsHeaders = (headers: Headers): void => {
 
 const corsPreflight = (): Response => {
   const headers = new Headers();
-  withCorsHeaders(headers);
+  allowAnyOriginForSignedUrl(headers);
   return new Response(null, { status: 204, headers });
 };
 
@@ -235,7 +204,7 @@ const handleMultipartPart = async (
       uploadId
     ).uploadPart(partNumber, request.body);
     const headers = new Headers({ ETag: uploaded.etag });
-    withCorsHeaders(headers);
+    allowAnyOriginForSignedUrl(headers);
     return new Response(null, { status: 204, headers });
   } catch (error) {
     if (error instanceof ObjectWriteBlockedError) {
@@ -296,17 +265,15 @@ const applyObjectHeaders = (
   request: Request,
   objectHttpMetadata: R2HTTPMetadata | undefined,
   httpEtag: string,
-  objectSize?: number
+  contentLength: number | null
 ): void => {
   const url = new URL(request.url);
   headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
   headers.set("ETag", httpEtag);
   headers.set("Accept-Ranges", "bytes");
   headers.set("X-Content-Type-Options", "nosniff");
-  if (objectSize !== undefined && request.method !== "HEAD") {
-    // Explicit length enables client-side progress; for HEAD responses the
-    // length is set by the caller alongside the emulated status.
-    headers.set("Content-Length", String(objectSize));
+  if (contentLength !== null) {
+    headers.set("Content-Length", String(contentLength));
   }
   headers.set(
     "Content-Type",
@@ -319,12 +286,8 @@ const applyObjectHeaders = (
   if (contentDisposition) {
     headers.set("Content-Disposition", contentDisposition);
   }
-  withCorsHeaders(headers);
+  allowAnyOriginForSignedUrl(headers);
 };
-
-/** Edge Cache API; absent in unit-test runtimes, always present on Workers. */
-const edgeCache: Cache | null =
-  typeof caches === "undefined" ? null : caches.default;
 
 const handler = {
   async fetch(request, bindings, ctx): Promise<Response> {
@@ -332,7 +295,7 @@ const handler = {
     const url = new URL(request.url);
 
     const apiResponse = await handleApiProxyRequest(request, bindings, ctx, {
-      cache: edgeCache,
+      cache: caches.default,
       rateLimit: (apiRequest) => applyEdgeRateLimit(apiRequest, bindings, ctx),
     });
     if (apiResponse) {
@@ -436,7 +399,7 @@ const handler = {
       const cacheKey = buildCacheKey(request);
 
       if (!isHead) {
-        const cached = edgeCache ? await edgeCache.match(cacheKey) : null;
+        const cached = await caches.default.match(cacheKey);
         if (cached) {
           const cachedEtag = cached.headers.get("ETag");
           if (
@@ -447,7 +410,7 @@ const handler = {
               "Cache-Control",
               FILES_PRIVATE_CACHE_CONTROL
             );
-            withCorsHeaders(notModifiedHeaders);
+            allowAnyOriginForSignedUrl(notModifiedHeaders);
             return new Response(null, {
               status: 304,
               headers: notModifiedHeaders,
@@ -476,9 +439,8 @@ const handler = {
           request,
           object.httpMetadata,
           object.httpEtag,
-          object.size
+          null
         );
-        notModifiedHeaders.delete("Content-Length");
         return new Response(null, { status: 304, headers: notModifiedHeaders });
       }
 
@@ -493,7 +455,6 @@ const handler = {
 
       if (isHead) {
         await object.body.cancel();
-        headers.set("Content-Length", String(object.size));
         return new Response(null, { status: 200, headers });
       }
 
@@ -502,14 +463,12 @@ const handler = {
 
       const edgeHeaders = new Headers(headers);
       edgeHeaders.set("Cache-Control", FILES_EDGE_CACHE_CONTROL);
-      if (edgeCache) {
-        ctx.waitUntil(
-          edgeCache.put(
-            cacheKey,
-            new Response(edgeBody, { status: 200, headers: edgeHeaders })
-          )
-        );
-      }
+      ctx.waitUntil(
+        caches.default.put(
+          cacheKey,
+          new Response(edgeBody, { status: 200, headers: edgeHeaders })
+        )
+      );
       return response;
     }
 
@@ -556,8 +515,13 @@ const handler = {
     }
 
     const headers = new Headers();
-    applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
-    headers.set("Content-Length", String(length));
+    applyObjectHeaders(
+      headers,
+      request,
+      object.httpMetadata,
+      object.httpEtag,
+      length
+    );
     headers.set(
       "Content-Range",
       `bytes ${start}-${start + length - 1}/${size}`

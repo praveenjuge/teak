@@ -79,13 +79,11 @@ export default defineConfig({
     root: "content",
   },
   deployment: {
-    // Keep static hosting (Ask AI needs server output).
     site: "https://teakvault.com",
   },
   lastModified: "git",
   theme: {
     accent: "oklch(0.58 0.22 27)",
-    // Local files also give the generated Open Graph cards the brand font.
     fonts: {
       display: SN_PRO,
       body: SN_PRO,
@@ -146,9 +144,6 @@ export default defineConfig({
       sameAs: ORGANIZATION_SAME_AS,
     },
   },
-  // Mirrored in vercel.json for Vercel Git HTTP redirects; Astro also emits
-  // these as soft redirects for non-Vercel previews and link audits.
-  // Blume moves a page's .md and .mdx mirrors with each page redirect.
   redirects: [
     { from: "/docs/desktop", to: "/docs/mac", status: 301 },
     { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
@@ -164,7 +159,6 @@ export default defineConfig({
     openInChat: ["claude", "chatgpt", "cursor"],
   },
   agents: {
-    // Public skills copied by scripts/generate-skills.ts.
     skills: "./.generated/agent-skills",
     llmsTxt: {
       details: [

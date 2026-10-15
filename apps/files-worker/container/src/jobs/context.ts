@@ -1,6 +1,5 @@
 export interface JobContext {
-  /** Epoch milliseconds when the job's wall clock runs out. */
-  deadline: number;
+  deadlineEpochMs: number;
   dir: string;
   input: string;
 }

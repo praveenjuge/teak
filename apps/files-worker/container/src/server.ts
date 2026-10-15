@@ -153,8 +153,8 @@ async function runJob(
     await mkdir(dir, { recursive: true, mode: 0o700 });
     const input = join(dir, "input");
     await spool(request, input);
-    const deadline = Date.now() + route.wallClockMs * TIMEOUT_SCALE;
-    return jobResponse(await job({ dir, input, deadline }));
+    const deadlineEpochMs = Date.now() + route.wallClockMs * TIMEOUT_SCALE;
+    return jobResponse(await job({ dir, input, deadlineEpochMs }));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

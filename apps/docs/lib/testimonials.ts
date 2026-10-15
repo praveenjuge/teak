@@ -1,4 +1,3 @@
-/** Quotes from Teak users, shown on the homepage and the pricing page. */
 export const testimonials = [
   {
     quote:

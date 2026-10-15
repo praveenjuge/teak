@@ -6,9 +6,6 @@
  * rendered, so Convex records the stage as failed without retrying.
  */
 
-/** Largest source the media renderer reads; Teak uploads are capped at this. */
-export const FILES_RENDER_MAX_SOURCE_BYTES = 100 * 1024 * 1024;
-
 /** Audio waveform bar counts: grid cards and the detail player. */
 export const FILES_WAVEFORM_BARS = { detail: 200, grid: 45 } as const;
 

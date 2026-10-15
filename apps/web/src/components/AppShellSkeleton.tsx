@@ -15,11 +15,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SettingsHeader } from "./SettingsBackLink";
 
-/**
- * The app frame while the session and vault load: the real sidebar (in its
- * remembered state) and the page's header over placeholder content, laid out
- * as AppShell lays out the loaded page, so it swaps in without a jump.
- */
 export function AppShellSkeleton({
   defaultOpen,
   defaultWidth,
