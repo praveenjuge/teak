@@ -265,6 +265,24 @@ describe("forwarding", () => {
   });
 });
 
+describe("upstream origin pinning", () => {
+  // A path that starts with "//" after the prefix is dropped must not be read
+  // as a protocol-relative URL that points the proxy at another host.
+  test.each([
+    "/api//evil.example/x",
+    "/api/\\evil.example/x",
+    "/api///evil.example",
+    "/mcp//evil.example/x",
+  ])("%s still goes to the Convex origin", async (path) => {
+    const { calls, fetcher } = upstream();
+    await proxy(new Request(`https://teakvault.com${path}`), { fetcher });
+    expect(calls).toHaveLength(1);
+    expect(new URL(calls[0]?.url ?? "").origin).toBe(
+      "https://upstream.example.convex.site"
+    );
+  });
+});
+
 describe("requests the proxy leaves alone", () => {
   test.each([
     ["the files host", "https://files.teakvault.com/api/v1/cards"],

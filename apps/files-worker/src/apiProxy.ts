@@ -185,7 +185,14 @@ export const handleApiProxyRequest = async (
     }
   }
 
-  const upstreamUrl = new URL(upstreamPath, upstreamOrigin);
+  // Append the path to the origin rather than resolving it against the
+  // origin: resolved, a path like "//evil.example/x" (from "/api//evil...")
+  // is protocol-relative and would point the proxy at another host.
+  const pinnedOrigin = new URL(upstreamOrigin).origin;
+  const upstreamUrl = new URL(`${pinnedOrigin}${upstreamPath}`);
+  if (upstreamUrl.origin !== pinnedOrigin) {
+    return errorResponse(404, "NOT_FOUND", "Not found");
+  }
   upstreamUrl.search = url.search;
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
 
