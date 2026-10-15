@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
@@ -128,8 +129,7 @@ class WorkManagerUploadRepository @Inject constructor(
 
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
-        val outcome = output.getString(UploadWorker.Output.OUTCOME)?.let(UploadOutcome::valueOf)
-            ?: UploadOutcome.Skipped.takeIf { info.state == WorkInfo.State.FAILED }
+        val outcome = uploadOutcome(info.state, output)
         val skipped = outcome == UploadOutcome.Skipped
         val state = when {
             info.state == WorkInfo.State.CANCELLED -> UploadStatus.State.Failed
@@ -189,5 +189,20 @@ class WorkManagerUploadRepository @Inject constructor(
     private companion object {
         const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
+    }
+}
+
+/**
+ * Rows a worker wrote before [UploadWorker.Output.OUTCOME] existed can outlive an app update,
+ * so their outcome is read from the error they carry and the state the old worker ended in.
+ */
+internal fun uploadOutcome(state: WorkInfo.State, output: Data): UploadOutcome? {
+    output.getString(UploadWorker.Output.OUTCOME)?.let { return UploadOutcome.valueOf(it) }
+    val hasError = output.getString(UploadWorker.Output.ERROR) != null
+    return when {
+        state == WorkInfo.State.FAILED && hasError -> UploadOutcome.LimitReached
+        state == WorkInfo.State.FAILED -> UploadOutcome.Skipped
+        state.isFinished && hasError -> UploadOutcome.Failed
+        else -> null
     }
 }
