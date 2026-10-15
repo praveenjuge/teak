@@ -18,6 +18,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  CARD_LIMIT_TOAST_MESSAGE,
   TOAST_IDS,
   UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
   UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
@@ -151,19 +152,14 @@ export function GlobalFileDropProvider({
           failure.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED
       );
       if (limitFailure) {
-        toast.error(
-          withSkippedNote(
-            "You've reached your free tier limit. Upgrade to Pro for unlimited cards."
-          ),
-          {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-            id: TOAST_IDS.uploadQueue,
-            action: {
-              label: "Upgrade",
-              onClick: handleUpgrade,
-            },
-          }
-        );
+        toast.error(withSkippedNote(CARD_LIMIT_TOAST_MESSAGE), {
+          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+          action: {
+            label: "Upgrade",
+            onClick: handleUpgrade,
+          },
+        });
         return;
       }
 

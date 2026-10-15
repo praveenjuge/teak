@@ -12,6 +12,9 @@ export const TOAST_IDS = {
   uploadQueue: "upload-queue",
 } as const;
 
+/** One line beside the toast's Upgrade button, which says the rest. */
+export const CARD_LIMIT_TOAST_MESSAGE = "Free card limit reached";
+
 export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
   duration: Number.POSITIVE_INFINITY,
   closeButton: true,
