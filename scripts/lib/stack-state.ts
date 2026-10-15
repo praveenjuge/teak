@@ -4,10 +4,8 @@
  * (packages/tests/src/stack) share them, so each refuses to start on the
  * other's ports and either can be stopped after a crash.
  *
- * Playwright loads this file under Node through the E2E suite, so it uses only
- * `node:` modules and no `import.meta` (which would make Node load it as an
- * ES module beside Playwright's CommonJS transform); callers pass the
- * repository root.
+ * The e2e CLI loads this file under Node (packages/tests/src/helpers/env.ts),
+ * so it uses only `node:` modules, no Bun APIs.
  */
 
 import { type ChildProcess, execFileSync } from "node:child_process";

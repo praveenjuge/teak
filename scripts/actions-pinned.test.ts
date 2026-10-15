@@ -3,11 +3,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
-const USES_RE = /uses:\s*([^\s#]+)/g;
+const USES_RE = /uses:\s*([^\s#]+)[^\S\n]*(?:#[^\S\n]*(\S+))?/g;
 const PINNED_RE = /^[^@]+@[0-9a-f]{40}$/;
+const EXACT_VERSION_RE = /^v\d+\.\d+\.\d+$/;
 
 interface ActionUse {
   file: string;
+  label?: string;
   ref: string;
 }
 
@@ -25,7 +27,7 @@ export const listThirdPartyUses = (
       if (ref.startsWith("./") || ref.startsWith("docker://")) {
         continue;
       }
-      uses.push({ file, ref });
+      uses.push({ file, ref, label: match[2] });
     }
   }
   return uses;
@@ -37,6 +39,18 @@ describe("actions pinned", () => {
     expect(uses.length).toBeGreaterThan(0);
     for (const use of uses) {
       expect(use.ref, `${use.file}: ${use.ref}`).toMatch(PINNED_RE);
+    }
+  });
+
+  test("every pin names its exact release, the same one wherever it appears", () => {
+    const labels = new Map<string, string>();
+    for (const use of listThirdPartyUses()) {
+      expect(use.label ?? "", `${use.file}: ${use.ref}`).toMatch(
+        EXACT_VERSION_RE
+      );
+      const seen = labels.get(use.ref);
+      expect(seen ?? use.label, `${use.file}: ${use.ref}`).toBe(use.label);
+      labels.set(use.ref, use.label ?? "");
     }
   });
 });
