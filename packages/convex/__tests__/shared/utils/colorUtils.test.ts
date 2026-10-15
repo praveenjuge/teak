@@ -347,6 +347,33 @@ describe("extractPaletteColors", () => {
     ]);
   });
 
+  it("reads multi-word colour names as one colour", () => {
+    const colors = extractPaletteColors(
+      "light blue, dark slate gray\nlight goldenrod yellow"
+    );
+    expect(colors.map((color) => color.name)).toEqual([
+      "lightblue",
+      "darkslategray",
+      "lightgoldenrodyellow",
+    ]);
+  });
+
+  it("keeps space-separated single colour names apart", () => {
+    const colors = extractPaletteColors("red green blue");
+    expect(colors.map((color) => color.name)).toEqual(["red", "green", "blue"]);
+  });
+
+  it("does not join colour names across a sentence break", () => {
+    const colors = extractPaletteColors(
+      "Walls in blue. Violet trim, light blue."
+    );
+    expect(colors.map((color) => color.name)).toEqual([
+      "blue",
+      "violet",
+      "lightblue",
+    ]);
+  });
+
   it("caps the palette at 12 colors by default", () => {
     const hexes = Array.from(
       { length: 15 },
