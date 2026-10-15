@@ -2,7 +2,12 @@
 
 import { lookup } from "node:dns/promises";
 import { gzipSync } from "node:zlib";
-import type { FilesScrapeResult } from "@teak/files-protocol";
+import {
+  type FilesRemoteAssetKind,
+  type FilesRemoteAssetResult,
+  type FilesScrapeResult,
+  guessImageContentType,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -36,11 +41,12 @@ import {
   type XStatusMedia,
 } from "../../../linkMetadata/x";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
+import { callFilesWorkerJson } from "../../../storage/filesWorkerClient";
 import { runFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
-import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import { ensureObjectOwnership } from "../../../storage/ownership";
+import { buildR2ObjectKey } from "../../../storage/r2";
 import { withBackendErrorCapture } from "../../../telemetry/posthog";
 import { pinnedFetch } from "../pinnedFetch";
-import { readRemoteImageDimensions } from "./remoteImageDimensions";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
@@ -55,13 +61,9 @@ const resolveDns: DnsResolver = async (hostname) => {
 };
 
 // Top-level regex patterns for performance
-const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
-const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|m4v)(?:[?#]|$)/;
 const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
 const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
-const MAX_REMOTE_IMAGE_BYTES = 20 * 1024 * 1024;
-const MAX_REMOTE_VIDEO_BYTES = 50 * 1024 * 1024;
 const MAX_REMOTE_HTML_BYTES = 2 * 1024 * 1024;
 
 type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
@@ -92,180 +94,66 @@ interface StoredLinkImage {
 }
 
 interface StoredRemoteAsset {
-  bytes: Uint8Array;
   contentType: string;
+  height?: number;
   storageKey: string;
   updatedAt: number;
+  width?: number;
 }
 
-const guessImageContentType = (imageUrl: string): string | null => {
-  const match = imageUrl.toLowerCase().match(IMAGE_EXTENSION_REGEX);
-  if (!match) {
-    return null;
-  }
-  switch (match[1]) {
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "webp":
-      return "image/webp";
-    case "gif":
-      return "image/gif";
-    case "avif":
-      return "image/avif";
-    case "svg":
-      return "image/svg+xml";
-    default:
-      return null;
-  }
-};
-
-const guessVideoContentType = (assetUrl: string): string | null => {
-  const match = assetUrl.toLowerCase().match(VIDEO_EXTENSION_REGEX);
-  if (!match) {
-    return null;
-  }
-  switch (match[1]) {
-    case "mp4":
-      return "video/mp4";
-    case "mov":
-      return "video/quicktime";
-    case "m4v":
-      return "video/x-m4v";
-    default:
-      return null;
-  }
-};
-
-const resolveImageContentType = (
-  headerValue: string | null,
-  imageUrl: string
-): string | null => {
-  if (headerValue?.toLowerCase().startsWith("image/")) {
-    return headerValue.split(";")[0]?.trim() || headerValue;
-  }
-  if (imageUrl.startsWith("data:")) {
-    const commaIndex = imageUrl.indexOf(",");
-    if (commaIndex === -1) {
-      return null;
-    }
-    const metadata = imageUrl.slice(5, commaIndex);
-    const dataType = metadata.split(";")[0];
-    return dataType || null;
-  }
-  return guessImageContentType(imageUrl);
-};
-
-const resolveAssetContentType = (
-  headerValue: string | null,
-  assetUrl: string,
-  fallbackContentType?: string
-): string | null => {
-  const normalizedHeader = headerValue?.split(";")[0]?.trim();
-  if (normalizedHeader) {
-    return normalizedHeader;
-  }
-
-  if (fallbackContentType) {
-    return fallbackContentType;
-  }
-
-  return guessImageContentType(assetUrl) ?? guessVideoContentType(assetUrl);
-};
-
-const hasAllowedContentType = (
-  contentType: string,
-  allowedPrefixes: readonly string[]
-): boolean => allowedPrefixes.some((prefix) => contentType.startsWith(prefix));
-
+/**
+ * Download a remote asset straight into R2 through the Files Worker's link
+ * fetcher Container, which applies the same SSRF policy, address pinning,
+ * size and type limits, and image check this action used to. The bytes never
+ * pass through Convex. Any failure leaves the preview without the asset.
+ */
 const storeRemoteAsset = async (
   ctx: any,
   assetUrl: string,
   {
-    allowedContentTypePrefixes,
     fallbackContentType,
     key,
+    kind,
     userId,
-    maxBytes,
-    validateBytes,
   }: {
-    allowedContentTypePrefixes: readonly string[];
     fallbackContentType?: string;
     key: string;
+    kind: FilesRemoteAssetKind;
     userId: string;
-    maxBytes: number;
-    validateBytes?: (bytes: Uint8Array) => boolean;
   }
 ): Promise<StoredRemoteAsset | null> => {
   try {
-    const response = await safeFetch(assetUrl, resolveDns, {}, pinnedFetch);
-    if (!response.ok) {
+    await ensureObjectOwnership(ctx, userId, key);
+    const outcome = await callFilesWorkerJson<FilesRemoteAssetResult>({
+      op: "store-remote-asset",
+      params: {
+        destinationKey: key,
+        kind,
+        url: assetUrl,
+        ...(fallbackContentType ? { fallbackContentType } : {}),
+      },
+    });
+    if (outcome.kind !== "ok") {
       console.warn(
-        `[linkMetadata] Remote asset fetch failed (${response.status}) for ${assetUrl}`
+        `[linkMetadata] Remote asset fetch unavailable for ${assetUrl}`
       );
       return null;
     }
-
-    const contentLengthHeader = response.headers.get("content-length");
-    if (contentLengthHeader) {
-      const contentLength = Number(contentLengthHeader);
-      if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-        console.warn(
-          `[linkMetadata] Remote asset skipped due to size (${contentLength}) for ${assetUrl}`
-        );
-        return null;
-      }
-    }
-
-    const contentType = resolveAssetContentType(
-      response.headers.get("content-type"),
-      assetUrl,
-      fallbackContentType
-    );
-    if (
-      !(
-        contentType &&
-        hasAllowedContentType(contentType, allowedContentTypePrefixes)
-      )
-    ) {
+    if (!outcome.data.stored) {
       console.warn(
-        `[linkMetadata] Remote asset skipped due to unsupported content type for ${assetUrl}`
+        `[linkMetadata] Remote asset skipped (${outcome.data.reason}${
+          outcome.data.status ? ` ${outcome.data.status}` : ""
+        }) for ${assetUrl}`
       );
       return null;
     }
-
-    const bytes = await readBodyWithLimit(response, maxBytes);
-    if (!bytes.byteLength) {
-      console.warn(
-        `[linkMetadata] Remote asset skipped because it is empty for ${assetUrl}`
-      );
-      return null;
-    }
-
-    if (validateBytes && !validateBytes(bytes)) {
-      console.warn(
-        `[linkMetadata] Remote asset skipped because validation failed for ${assetUrl}`
-      );
-      return null;
-    }
-
-    const storageKey = await storeObject(
-      ctx,
-      new Blob([Uint8Array.from(bytes)]),
-      {
-        key,
-        userId,
-        type: contentType,
-      }
-    );
-
     return {
-      bytes,
-      contentType,
-      storageKey,
+      contentType: outcome.data.contentType,
+      storageKey: key,
       updatedAt: Date.now(),
+      ...(outcome.data.width && outcome.data.height
+        ? { height: outcome.data.height, width: outcome.data.width }
+        : {}),
     };
   } catch (error) {
     console.warn("[linkMetadata] Remote asset fetch error", error);
@@ -280,27 +168,21 @@ const storeLinkPreviewImage = async (
 ): Promise<StoredLinkImage | null> => {
   const storedAsset = await storeRemoteAsset(ctx, imageUrl, {
     userId: keyBase.userId,
-    allowedContentTypePrefixes: ["image/"],
-    fallbackContentType: resolveImageContentType(null, imageUrl) ?? undefined,
+    fallbackContentType: guessImageContentType(imageUrl) ?? undefined,
     key: buildR2ObjectKey({ ...keyBase, role: "link-preview-image" }),
-    maxBytes: MAX_REMOTE_IMAGE_BYTES,
-    validateBytes: (bytes) => readRemoteImageDimensions(bytes) !== null,
+    kind: "image",
   });
 
-  if (!storedAsset) {
-    return null;
-  }
-
-  const dimensions = readRemoteImageDimensions(storedAsset.bytes);
-  if (!dimensions) {
+  // The fetcher stores an image only once it has read its dimensions.
+  if (!(storedAsset?.width && storedAsset.height)) {
     return null;
   }
 
   return {
     imageStorageKey: storedAsset.storageKey,
     imageUpdatedAt: storedAsset.updatedAt,
-    imageWidth: dimensions.width,
-    imageHeight: dimensions.height,
+    imageWidth: storedAsset.width,
+    imageHeight: storedAsset.height,
   };
 };
 
@@ -311,16 +193,9 @@ const storeLinkPreviewMediaItem = async (
 ): Promise<LinkPreviewMediaItem | null> => {
   const storedMedia = await storeRemoteAsset(ctx, media.url, {
     userId: keyBase.userId,
-    allowedContentTypePrefixes:
-      media.type === "image" ? ["image/"] : ["video/"],
     fallbackContentType: media.contentType,
     key: buildR2ObjectKey({ ...keyBase, role: `link-media-${media.type}` }),
-    maxBytes:
-      media.type === "image" ? MAX_REMOTE_IMAGE_BYTES : MAX_REMOTE_VIDEO_BYTES,
-    validateBytes:
-      media.type === "image"
-        ? (bytes) => readRemoteImageDimensions(bytes) !== null
-        : undefined,
+    kind: media.type,
   });
 
   if (!storedMedia) {
@@ -336,20 +211,17 @@ const storeLinkPreviewMediaItem = async (
   if (media.type === "video" && media.posterUrl) {
     const storedPoster = await storeRemoteAsset(ctx, media.posterUrl, {
       userId: keyBase.userId,
-      allowedContentTypePrefixes: ["image/"],
       fallbackContentType: media.posterContentType,
       key: buildR2ObjectKey({ ...keyBase, role: "link-media-poster" }),
-      maxBytes: MAX_REMOTE_IMAGE_BYTES,
-      validateBytes: (bytes) => readRemoteImageDimensions(bytes) !== null,
+      kind: "image",
     });
 
     if (storedPoster) {
-      const posterDimensions = readRemoteImageDimensions(storedPoster.bytes);
       posterStorageKey = storedPoster.storageKey;
       posterUpdatedAt = storedPoster.updatedAt;
       posterContentType = storedPoster.contentType;
-      posterWidth = posterDimensions?.width ?? posterWidth;
-      posterHeight = posterDimensions?.height ?? posterHeight;
+      posterWidth = storedPoster.width ?? posterWidth;
+      posterHeight = storedPoster.height ?? posterHeight;
     }
   }
 

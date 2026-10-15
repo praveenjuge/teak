@@ -36,6 +36,8 @@ export const rendererUnavailable = (message: string): Response =>
   Response.json({ error: "unavailable", message }, { status: 503 });
 
 export class MediaRenderer {
+  /** The renderer works only on bytes the Worker sends it. */
+  protected readonly enableInternet: boolean = false;
   private readonly state: RendererState;
   private ready: Promise<void> | null = null;
 
@@ -93,7 +95,7 @@ export class MediaRenderer {
 
   private async start(container: RendererContainer): Promise<void> {
     if (!container.running) {
-      container.start({ enableInternet: false });
+      container.start({ enableInternet: this.enableInternet });
       // Forget readiness once the Container exits, whatever the reason.
       container
         .monitor()

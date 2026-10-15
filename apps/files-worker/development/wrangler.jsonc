@@ -22,7 +22,8 @@
   "durable_objects": {
     "bindings": [
       { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
-      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" }
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" },
+      { "name": "LINK_FETCHER", "class_name": "LinkFetcher" }
     ]
   },
   "migrations": [
@@ -33,6 +34,10 @@
     {
       "tag": "development-media-renderer-v1",
       "new_sqlite_classes": ["MediaRenderer"]
+    },
+    {
+      "tag": "development-link-fetcher-v1",
+      "new_sqlite_classes": ["LinkFetcher"]
     }
   ],
   // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
@@ -42,6 +47,14 @@
     {
       "class_name": "MediaRenderer",
       "image": "../container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 2
+    },
+    // Link fetcher; see the production config.
+    {
+      "class_name": "LinkFetcher",
+      "image": "../fetcher/Dockerfile",
+      "image_build_context": "../../..",
       "instance_type": "basic",
       "max_instances": 2
     }
@@ -68,7 +81,9 @@
     // analytics. Create it in the dashboard before deploying.
     "AI_GATEWAY_ID": "teak-files-development",
     // Matches containers[0].max_instances.
-    "MEDIA_RENDERER_INSTANCES": "2"
+    "MEDIA_RENDERER_INSTANCES": "2",
+    // Matches containers[1].max_instances.
+    "LINK_FETCHER_INSTANCES": "2"
   },
   "observability": {
     "enabled": true,

@@ -6,6 +6,7 @@ import {
 
 export { ObjectDeletionGate } from "./deletionGate";
 export { MediaRenderer } from "./mediaRenderer";
+export { LinkFetcher } from "./remoteAsset";
 
 import type { BrowserWorker } from "@cloudflare/puppeteer";
 import {
@@ -38,6 +39,10 @@ export interface Env extends AiGatewayEnv {
   FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
   IMAGES?: ImagesBinding;
+  /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
+  LINK_FETCHER?: DurableObjectNamespace;
+  /** Fetcher pool size; matches the fetcher Container's max_instances. */
+  LINK_FETCHER_INSTANCES?: string;
   /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
   MEDIA_RENDERER?: DurableObjectNamespace;
   /** Renderer pool size; matches the Container's max_instances. */

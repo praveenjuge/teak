@@ -1,0 +1,10 @@
+# The build context is the repository root; send only what the image needs.
+*
+!apps/files-worker/fetcher/package.json
+!apps/files-worker/fetcher/bun.lock
+!apps/files-worker/fetcher/src
+apps/files-worker/fetcher/src/**/*.test.ts
+!packages/files-protocol/src/remoteAsset.ts
+!packages/convex/linkMetadata/ssrf.ts
+!packages/convex/workflows/steps/pinnedFetch.ts
+!packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts

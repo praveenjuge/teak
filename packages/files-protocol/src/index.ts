@@ -65,6 +65,9 @@ export const FILES_OPS = [
   // Waveform, media facts and transcript in one pass; supersedes
   // transcribe-audio, which stays for Convex deployments that predate it.
   "process-audio",
+  // Downloads a remote preview asset through the fetcher Container straight
+  // into R2; see ./remoteAsset.
+  "store-remote-asset",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -306,4 +309,5 @@ export type FilesImportMarkdownResult =
     };
 
 export * from "./metadata";
+export * from "./remoteAsset";
 export * from "./rendering";

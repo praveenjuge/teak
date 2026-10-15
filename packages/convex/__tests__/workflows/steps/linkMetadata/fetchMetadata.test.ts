@@ -74,13 +74,6 @@ mock.module("../../../../../convex/storage/r2", r2MockModuleFactory);
 import { internal } from "../../../../../convex/_generated/api";
 import { fetchMetadataHandler } from "../../../../../convex/workflows/steps/linkMetadata/fetchMetadata";
 
-const VALID_PNG_BYTES = new Uint8Array([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,
-  0, 0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218,
-  99, 252, 255, 31, 0, 3, 3, 2, 0, 239, 154, 15, 219, 0, 0, 0, 0, 73, 69, 78,
-  68, 174, 66, 96, 130,
-]);
-
 describe("fetchMetadata", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
@@ -354,9 +347,75 @@ describe("fetchMetadata", () => {
     ]);
   });
 
-  test("stores instagram post media in link preview metadata", async () => {
+  // Remote assets download on the Files Worker's link fetcher, which stores
+  // them in R2; Convex only names the URL and the destination key.
+  const withAssetWorker = async (
+    pageHtml: string,
+    stored: Record<string, Record<string, unknown>>,
+    run: (ops: Record<string, any>[]) => Promise<void>
+  ) => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    // registerObject accepts every key.
+    mockRunMutation.mockResolvedValue(true);
+    const ops: Record<string, any>[] = [];
+    mockFetch.mockImplementation((input: string | URL | Request, init) => {
+      const url = toUrlString(input);
+      if (url.startsWith("https://files.teakvault.com/__ops/v1")) {
+        const body = JSON.parse(String(init?.body));
+        // Pages without static metadata also go to the browser scrape.
+        if (body.op === "scrape-html") {
+          return Promise.resolve(
+            Response.json({
+              ok: true,
+              version: 1,
+              requestId: "r1",
+              data: { selectors: [] },
+            })
+          );
+        }
+        ops.push(body);
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r1",
+            data: stored[body.params.url] ?? {
+              stored: false,
+              reason: "http_error",
+              status: 404,
+            },
+          })
+        );
+      }
+      if (new URL(url).hostname === "www.instagram.com") {
+        return Promise.resolve(
+          new Response(pageHtml, {
+            headers: { "content-type": "text/html" },
+            status: 200,
+          })
+        );
+      }
+      throw new Error(`Convex fetched ${url} itself`);
+    });
+    try {
+      await run(ops);
+    } finally {
+      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+      if (previous[0] === undefined) {
+        delete process.env.FILES_BASE;
+      }
+      if (previous[1] === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      }
+    }
+  };
+
+  test("stores instagram post media through the Files Worker's link fetcher", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
+      userId: "u1",
       type: "link",
       url: "https://www.instagram.com/p/DBY4WfSxA0a/",
       metadata: { linkCategory: { status: "completed" } },
@@ -378,65 +437,84 @@ describe("fetchMetadata", () => {
         height: 1280,
         posterUrl: "https://cdninstagram.com/media/two.jpg",
         posterContentType: "image/jpeg",
-        posterWidth: 720,
-        posterHeight: 1280,
       },
     ]);
-    let storageCounter = 0;
-    r2Mocks.storeObject.mockImplementation(
-      async () => `stored-${++storageCounter}`
-    );
-    mockFetch.mockImplementation((input: string | URL | Request) => {
-      const url = toUrlString(input);
 
-      if (typeof url === "string") {
-        const hostname = new URL(url).hostname;
-        if (hostname === "www.instagram.com") {
-          return new Response("<html></html>", {
-            headers: { "content-type": "text/html" },
-            status: 200,
-          });
-        }
-        if (hostname === "cdninstagram.com") {
-          const contentType = url.endsWith(".mp4") ? "video/mp4" : "image/jpeg";
-          return {
-            ok: true,
-            status: 200,
-            headers: {
-              get: (header: string) =>
-                header === "content-type" ? contentType : null,
-            },
-            arrayBuffer: async () =>
-              contentType === "video/mp4"
-                ? new Uint8Array([1, 2, 3, 4]).buffer
-                : VALID_PNG_BYTES.buffer,
-          };
-        }
+    await withAssetWorker(
+      "<html></html>",
+      {
+        "https://cdninstagram.com/media/one.jpg": {
+          stored: true,
+          contentType: "image/jpeg",
+          size: 10,
+          width: 1080,
+          height: 1350,
+        },
+        "https://cdninstagram.com/media/two.mp4": {
+          stored: true,
+          contentType: "video/mp4",
+          size: 20,
+        },
+        "https://cdninstagram.com/media/two.jpg": {
+          stored: true,
+          contentType: "image/jpeg",
+          size: 5,
+          width: 640,
+          height: 1138,
+        },
+      },
+      async (ops) => {
+        const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+        expect(result.status).toBe("success");
+        // Media items are stored concurrently, so compare by URL.
+        expect(
+          ops
+            .map(({ op, params }) => [op, params.kind, params.url])
+            .sort((left, right) => left[2].localeCompare(right[2]))
+        ).toEqual([
+          [
+            "store-remote-asset",
+            "image",
+            "https://cdninstagram.com/media/one.jpg",
+          ],
+          [
+            "store-remote-asset",
+            "image",
+            "https://cdninstagram.com/media/two.jpg",
+          ],
+          [
+            "store-remote-asset",
+            "video",
+            "https://cdninstagram.com/media/two.mp4",
+          ],
+        ]);
+        const keyFor = (url: string) =>
+          ops.find(({ params }) => params.url === url)?.params.destinationKey;
+        expect(r2Mocks.storeObject).not.toHaveBeenCalled();
+        expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
+          "https://www.instagram.com/p/DBY4WfSxA0a/",
+          expect.objectContaining({
+            title: "Instagram post",
+            media: [
+              expect.objectContaining({
+                type: "image",
+                storageKey: keyFor("https://cdninstagram.com/media/one.jpg"),
+                contentType: "image/jpeg",
+              }),
+              expect.objectContaining({
+                type: "video",
+                storageKey: keyFor("https://cdninstagram.com/media/two.mp4"),
+                posterStorageKey: keyFor(
+                  "https://cdninstagram.com/media/two.jpg"
+                ),
+                posterWidth: 640,
+                posterHeight: 1138,
+              }),
+            ],
+          })
+        );
       }
-
-      throw new Error(`Unexpected fetch URL: ${String(url)}`);
-    });
-
-    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-
-    expect(result.status).toBe("success");
-    expect(mockExtractInstagramMedia).toHaveBeenCalled();
-    expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
-      "https://www.instagram.com/p/DBY4WfSxA0a/",
-      expect.objectContaining({
-        title: "Instagram post",
-        media: [
-          expect.objectContaining({
-            type: "image",
-            storageKey: "stored-1",
-          }),
-          expect.objectContaining({
-            type: "video",
-            storageKey: "stored-2",
-            posterStorageKey: "stored-3",
-          }),
-        ],
-      })
     );
   });
 
@@ -488,6 +566,7 @@ describe("fetchMetadata", () => {
   test("stores a preview image when instagram media cannot be persisted", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
+      userId: "u1",
       type: "link",
       url: "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
       metadata: { linkCategory: { status: "completed" } },
@@ -505,49 +584,74 @@ describe("fetchMetadata", () => {
         posterContentType: "image/png",
       },
     ]);
-    mockFetch.mockImplementation((input: string | URL | Request) => {
-      const url = toUrlString(input);
 
-      if (url === "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/") {
-        return new Response("<html></html>", {
-          headers: { "content-type": "text/html" },
-          status: 200,
-        });
-      }
-
-      if (url === "https://cdninstagram.com/media/reel.mp4") {
-        return {
-          ok: false,
+    await withAssetWorker(
+      "<html></html>",
+      {
+        "https://cdninstagram.com/media/reel.mp4": {
+          stored: false,
+          reason: "http_error",
           status: 403,
-          headers: { get: () => null },
-        };
-      }
+        },
+        "https://cdninstagram.com/media/poster.png": {
+          stored: true,
+          contentType: "image/png",
+          size: 67,
+          width: 1,
+          height: 1,
+        },
+      },
+      async (ops) => {
+        const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
-      if (url === "https://cdninstagram.com/media/poster.png") {
-        return {
-          ok: true,
-          status: 200,
-          headers: {
-            get: (header: string) =>
-              header === "content-type" ? "image/png" : null,
-          },
-          arrayBuffer: async () => VALID_PNG_BYTES.buffer,
-        };
+        expect(result.status).toBe("success");
+        expect(ops.map(({ params }) => [params.kind, params.url])).toEqual([
+          ["video", "https://cdninstagram.com/media/reel.mp4"],
+          ["image", "https://cdninstagram.com/media/poster.png"],
+        ]);
+        expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
+          "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
+          expect.objectContaining({
+            title: "Instagram reel",
+            imageUrl: "https://cdninstagram.com/media/poster.png",
+            imageStorageKey: ops[1]?.params.destinationKey,
+            imageWidth: 1,
+            imageHeight: 1,
+          })
+        );
       }
+    );
+  });
 
-      throw new Error(`Unexpected fetch URL: ${String(url)}`);
+  test("keeps the preview without its image when the fetcher skips it", async () => {
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      userId: "u1",
+      type: "link",
+      url: "https://www.instagram.com/p/DBY4WfSxA0a/",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    mockParseLinkPreview.mockReturnValue({
+      title: "Post",
+      imageUrl: "https://cdninstagram.com/media/huge.jpg",
     });
 
-    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+    await withAssetWorker(
+      "<html></html>",
+      {
+        "https://cdninstagram.com/media/huge.jpg": {
+          stored: false,
+          reason: "too_large",
+        },
+      },
+      async () => {
+        const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
-    expect(result.status).toBe("success");
-    expect(r2Mocks.storeObject).toHaveBeenCalledTimes(1);
-    expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
-      "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
-      expect.objectContaining({
-        title: "Instagram reel",
-        imageUrl: "https://cdninstagram.com/media/poster.png",
-      })
+        expect(result.status).toBe("success");
+        const preview = mockBuildSuccessPreview.mock.calls[0]?.[1];
+        expect(preview).toMatchObject({ title: "Post" });
+        expect(preview).not.toHaveProperty("imageStorageKey");
+      }
     );
   });
 
