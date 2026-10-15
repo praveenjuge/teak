@@ -69,6 +69,30 @@ Worker proxies nothing, and the development Worker sets neither.
 - The Vercel rewrites in `apps/docs/vercel.json` stay as the fallback: deleting
   the zone routes sends the traffic back through them. `src/apiProxy.test.ts`
   checks that every rewrite reaches the same Convex URL through a route here.
+- Errors the Worker answers itself carry the API's CORS headers, an
+  `X-Request-Id` and `no-store`, like Convex's own API errors.
+
+### Edge identity
+
+`src/edgeIdentity.ts` resolves each API and MCP request to one rate-limit
+bucket, so limits follow the user across their API keys and OAuth apps:
+`user:<teakUserId>` for a known Teak API key or a WorkOS access token that
+verifies at the edge (`verifyWorkosConnectToken` from `@teak/convex`, against
+`API_WORKOS_ISSUER` and the `/api` or `/mcp` audience on `API_PUBLIC_HOST`);
+`workos:<id>` for a verified token Convex cannot map or cannot be reached
+about; and `ip:<address>` for everything else, so made-up credentials never
+choose their own bucket. It is identity for limiting only: Convex still
+authenticates every request.
+
+Convex answers at `POST /edge/v1/identity` (`packages/convex/edgeIdentity.ts`),
+a read-only lookup signed with the shared files signing secret over its own
+`edge-identity` payload (`@teak/files-protocol`). The Worker sends a key's
+SHA-256 digest, never the key; Convex knows a key by the digest its validation
+caches in `apiKeyAuthCache`. Answers are cached in the `EDGE_IDENTITY` KV
+namespace for an hour, or a minute for an unknown credential, so a new key is
+recognized within a minute. A failed lookup is not cached. The edge rate
+limits that use these buckets come in a later change.
+
 
 ## Internal ops
 

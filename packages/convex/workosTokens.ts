@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
-import { validateOAuthUrl } from "./client/authDiscovery";
+import { validateOAuthUrl } from "./shared/oauthUrl";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 
 export type WorkosResource = "api" | "mcp";

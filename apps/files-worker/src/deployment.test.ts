@@ -55,6 +55,8 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   // It never proxies the public API to the production Convex deployment.
   expect(config.vars.API_PUBLIC_HOST).toBeUndefined();
   expect(config.vars.API_UPSTREAM_ORIGIN).toBeUndefined();
+  expect(config.vars.API_WORKOS_ISSUER).toBeUndefined();
+  expect(config.kv_namespaces).toEqual([]);
 });
 
 // wrangler dev reads the production vars, so local runs must blank the token.

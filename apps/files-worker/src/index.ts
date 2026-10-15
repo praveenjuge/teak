@@ -18,6 +18,7 @@ import {
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
 import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
+import type { EdgeIdentityEnv } from "./edgeIdentity";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
   FILES_CACHE_CONTROL,
@@ -31,7 +32,7 @@ import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env extends AiGatewayEnv, ApiProxyEnv {
+export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeIdentityEnv {
   /** Workers AI binding: metadata, image understanding and transcription. */
   AI?: WorkersAiBinding;
   /** Browser Run binding; screenshots and scrapes offline HTML. */

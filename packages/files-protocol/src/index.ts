@@ -308,6 +308,7 @@ export type FilesImportMarkdownResult =
       failureReason: string;
     };
 
+export * from "./edgeIdentity";
 export * from "./metadata";
 export * from "./remoteAsset";
 export * from "./rendering";

@@ -76,6 +76,7 @@ import type * as dataImport from "../dataImport.js";
 import type * as devPushLease from "../devPushLease.js";
 import type * as devSeed from "../devSeed.js";
 import type * as devUrls from "../devUrls.js";
+import type * as edgeIdentity from "../edgeIdentity.js";
 import type * as env from "../env.js";
 import type * as export_bookmarks from "../export/bookmarks.js";
 import type * as export_constants from "../export/constants.js";
@@ -117,6 +118,7 @@ import type * as linkMetadata_instagramHtml from "../linkMetadata/instagramHtml.
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
 import type * as linkMetadata_ssrf from "../linkMetadata/ssrf.js";
+import type * as linkMetadata_staticHtml from "../linkMetadata/staticHtml.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
@@ -345,6 +347,7 @@ declare const fullApi: ApiFromModules<{
   devPushLease: typeof devPushLease;
   devSeed: typeof devSeed;
   devUrls: typeof devUrls;
+  edgeIdentity: typeof edgeIdentity;
   env: typeof env;
   "export/bookmarks": typeof export_bookmarks;
   "export/constants": typeof export_constants;
@@ -386,6 +389,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/parsing": typeof linkMetadata_parsing;
   "linkMetadata/selectors": typeof linkMetadata_selectors;
   "linkMetadata/ssrf": typeof linkMetadata_ssrf;
+  "linkMetadata/staticHtml": typeof linkMetadata_staticHtml;
   "linkMetadata/types": typeof linkMetadata_types;
   "linkMetadata/url": typeof linkMetadata_url;
   "linkMetadata/x": typeof linkMetadata_x;

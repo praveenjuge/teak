@@ -265,6 +265,45 @@ describe("forwarding", () => {
   });
 });
 
+describe("errors the Worker answers itself", () => {
+  // Browsers on other origins must be able to read them, and support needs a
+  // request ID, exactly as with Convex's own API errors.
+  test.each([
+    [
+      "413",
+      () =>
+        proxy(
+          new Request("https://teakvault.com/api/v1/cards", {
+            method: "POST",
+            body: "{}",
+            headers: {
+              "Content-Length": String(API_PROXY_MAX_BODY_BYTES + 1),
+            },
+          })
+        ),
+    ],
+    [
+      "502",
+      () =>
+        proxy(new Request("https://teakvault.com/api/v1/cards"), {
+          fetcher: (() =>
+            Promise.reject(new TypeError("down"))) as unknown as typeof fetch,
+        }),
+    ],
+  ])(
+    "%s carries the API's CORS headers, a request ID and no-store",
+    async (_status, send) => {
+      const response = await send();
+      expect(response?.headers.get("access-control-allow-origin")).toBe("*");
+      expect(response?.headers.get("access-control-expose-headers")).toContain(
+        "X-Request-Id"
+      );
+      expect(response?.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(response?.headers.get("cache-control")).toBe("no-store");
+    }
+  );
+});
+
 describe("upstream origin pinning", () => {
   // A path that starts with "//" after the prefix is dropped must not be read
   // as a protocol-relative URL that points the proxy at another host.

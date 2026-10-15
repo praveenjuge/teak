@@ -30,6 +30,14 @@
       "bucket_name": "teak-files-prod"
     }
   ],
+  // src/edgeIdentity.ts: which user each API key hash or WorkOS user belongs
+  // to, cached for edge rate limits.
+  "kv_namespaces": [
+    {
+      "binding": "EDGE_IDENTITY",
+      "id": "d53e5a8c82194effbbb281eab9875615"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
@@ -107,7 +115,10 @@
     // src/apiProxy.ts: requests to this host's API paths go to the
     // production Convex deployment's HTTP origin.
     "API_PUBLIC_HOST": "teakvault.com",
-    "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site"
+    "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site",
+    // src/edgeIdentity.ts: issuer of the WorkOS access tokens the API accepts,
+    // the production deployment's WORKOS_AUTHKIT_DOMAIN.
+    "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app"
   },
   "observability": {
     "enabled": true,
