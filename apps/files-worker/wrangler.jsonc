@@ -8,6 +8,20 @@
     {
       "pattern": "files.teakvault.com",
       "custom_domain": true
+    },
+    // The public API, MCP server and their OAuth discovery documents on the
+    // marketing site, proxied to Convex by src/apiProxy.ts. The rest of
+    // teakvault.com stays on its own origin. Patterns end in "*" so query
+    // strings match; paths Convex does not serve fall through to the origin.
+    { "pattern": "teakvault.com/api*", "zone_name": "teakvault.com" },
+    { "pattern": "teakvault.com/mcp*", "zone_name": "teakvault.com" },
+    {
+      "pattern": "teakvault.com/.well-known/oauth-protected-resource*",
+      "zone_name": "teakvault.com"
+    },
+    {
+      "pattern": "teakvault.com/.well-known/teak-oauth-clients.json*",
+      "zone_name": "teakvault.com"
     }
   ],
   "r2_buckets": [
@@ -89,7 +103,11 @@
     // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "4",
     // Matches containers[1].max_instances.
-    "LINK_FETCHER_INSTANCES": "4"
+    "LINK_FETCHER_INSTANCES": "4",
+    // src/apiProxy.ts: requests to this host's API paths go to the
+    // production Convex deployment's HTTP origin.
+    "API_PUBLIC_HOST": "teakvault.com",
+    "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site"
   },
   "observability": {
     "enabled": true,

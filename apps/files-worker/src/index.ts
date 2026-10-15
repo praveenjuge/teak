@@ -17,6 +17,7 @@ import {
   type FilesErrorCode,
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
+import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
   FILES_CACHE_CONTROL,
@@ -30,7 +31,7 @@ import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env extends AiGatewayEnv {
+export interface Env extends AiGatewayEnv, ApiProxyEnv {
   /** Workers AI binding: metadata, image understanding and transcription. */
   AI?: WorkersAiBinding;
   /** Browser Run binding; screenshots and scrapes offline HTML. */
@@ -331,6 +332,19 @@ const handler = {
   async fetch(request, bindings, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
     const url = new URL(request.url);
+
+    // The public API and MCP paths on the marketing host; see apiProxy.ts.
+    const apiResponse = await handleApiProxyRequest(request, bindings, ctx, {
+      cache: edgeCache,
+    });
+    if (apiResponse) {
+      return apiResponse;
+    }
+    if (bindings.API_PUBLIC_HOST && url.hostname === bindings.API_PUBLIC_HOST) {
+      // A route caught a path by prefix that Convex does not serve: let the
+      // site's own origin answer it.
+      return await fetch(request);
+    }
 
     if (requestMethod === "OPTIONS") {
       return corsPreflight();
