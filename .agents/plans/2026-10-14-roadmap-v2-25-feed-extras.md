@@ -4,7 +4,7 @@ Make adding feeds forgiving and portable. A YouTube channel URL finds that chann
 
 ## Depends on
 
-- [v1 phase 17](2026-10-12-roadmap-17-rss-feeds.md) (RSS feeds: `feeds` and `feedItems`, `feeds/parse.ts`, `feeds/fetchFeed.ts`, `FeedsDialog.tsx`, `/v1/feeds`, `teak feeds`).
+- v1 phase 17 (RSS feeds: `feeds` and `feedItems`, `feeds/parse.ts`, `feeds/fetchFeed.ts`, `FeedsDialog.tsx`, `/v1/feeds`, `teak feeds`). It was dropped and never built, so this phase is blocked until feeds exist; build them first or rescope it.
 
 ## Success Criteria
 
@@ -24,9 +24,9 @@ Make adding feeds forgiving and portable. A YouTube channel URL finds that chann
 
 ## Context And Current Facts
 
-- **v1 phase 17 isn't built yet.**
-  - Local `main` (`cbc71d2`) is at v1 phase 10. There is no `packages/convex/feeds/` directory, no `FeedsDialog.tsx` and no `/v1/feeds` route.
-  - This phase extends the files that plan defines. Re-verify their real names when phase 17 merges.
+- **v1 phase 17 was dropped.**
+  - There is no `packages/convex/feeds/` directory, no `FeedsDialog.tsx` and no `/v1/feeds` route.
+  - This phase extends the files that plan would have defined. Its plan is in git history (`.agents/plans/2026-10-12-roadmap-17-rss-feeds.md`).
   - v1 phase 17 explicitly leaves out OPML ("no OPML import in this phase").
 - **Fetching rules.** Outbound fetches stay in Convex with pinned DNS:
   - `safeFetch` and `readBodyWithLimit` (`linkMetadata/ssrf.ts`, `SAFE_FETCH_TIMEOUT_MS` = 30 s)

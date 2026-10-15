@@ -152,13 +152,9 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   app then runs this branch's frontend against the other branch's backend.
   Check with `bunx convex run devPushLease:status` in `packages/convex`
   (`lastPush.label` names the branch and commit that is live) and read the
-  log before trusting a backend result. Seen on 2026-10-13: PR 644 had
-  written `isArchived` into `cardSearchDocuments`, so `main` could not push,
-  the live code still demanded the retired Safari Connect client, and
-  "Connected apps" in Settings, `/.well-known/teak-oauth-clients.json` and
-  `teak login` all failed with "Missing or invalid WorkOS Connect client for
-  safari". Fix by merging that PR, by deleting the offending documents in the
-  Convex dashboard, or by carrying the same optional field on your branch.
+  log before trusting a backend result. A field another branch wrote is the
+  usual cause: merge that branch, carry the same optional field on yours, or
+  delete the offending documents in the Convex dashboard.
 - **File uploads from the `e2e` MCP server:** the "Upload files" button
   creates its file input on the fly, so e2e's `upload` tool finds no input
   node, and it refuses files outside `packages/tests` or under a dotted

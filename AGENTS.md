@@ -9,6 +9,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - To run the app, run `bun run dev --detach` (it returns once the app is ready and keeps running in the background). It sets up this checkout and starts the web app on this worktree's own port against the shared cloud dev deployment, signed in through WorkOS staging as a seeded account. It needs a Convex login on a Mac or `CONVEX_DEPLOY_KEY` (a dev deploy key) in a cloud session. `bun run dev --status` prints the URLs and sign-in; `bun run dev --stop` stops it. Read `.agents/development.md` for the push lease, worktrees and cloud VMs. Never bind production credentials locally.
 - Environment sources, precedence, and ownership live in `.agents/environment.md`; read it before adding env vars or debugging config.
 - Product analytics and error reporting (PostHog) live in `.agents/analytics.md`; read it before adding an event or touching telemetry.
+- `.agents/README.md` lists every guide, plan and skill in `.agents`. Plans in `.agents/plans` are for unshipped work; delete a plan in the PR that finishes it.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
 
@@ -25,6 +26,8 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 ## Convex work
 
 Read `packages/convex/AGENTS.md` before editing backend code.
+
+Read `.agents/feature-conventions.md` before adding a field, table, index, public API operation, backfill or workflow step. It covers shipping a feature on the API, MCP, SDK and CLI together (`scripts/public-parity.ts`), search sync, account deletion coverage, index replacement and deploy order.
 
 ## Verification
 
