@@ -1,17 +1,29 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { classify as classifyAction } from "../../../../convex/workflows/steps/classification";
+import type { ActionCtx } from "../../../_generated/server";
+import {
+  handlerOf,
+  mockActionCtx,
+  testId,
+} from "../../helpers/convex.test-utils";
 
-// Mock AI module
+const classify = handlerOf(classifyAction);
 
-import { classify } from "../../../../convex/workflows/steps/classification";
+const classifyCompleted = async (ctx: ActionCtx) => {
+  const result = await classify(ctx, { cardId: testId("cards", "c1") });
+  if (result.mode !== "completed") {
+    throw new Error(`expected a completed classification, got ${result.mode}`);
+  }
+  return result;
+};
 
 describe("classification step", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
-  const mockCtx = {
+  const mockCtx = mockActionCtx({
     runQuery: mockRunQuery,
     runMutation: mockRunMutation,
-  } as any;
+  });
 
   beforeEach(() => {
     mockRunQuery.mockReset();
@@ -22,7 +34,9 @@ describe("classification step", () => {
     test("skips when card was deleted before classification", async () => {
       mockRunQuery.mockResolvedValue(null);
 
-      await expect(classify(mockCtx, { cardId: "c1" })).resolves.toEqual({
+      await expect(
+        classify(mockCtx, { cardId: testId("cards", "c1") })
+      ).resolves.toEqual({
         mode: "skipped",
       });
       expect(mockRunMutation).not.toHaveBeenCalled();
@@ -31,7 +45,9 @@ describe("classification step", () => {
     test("treats an undefined card as the same deletion race", async () => {
       mockRunQuery.mockResolvedValue(undefined);
 
-      await expect(classify(mockCtx, { cardId: "c2" })).resolves.toEqual({
+      await expect(
+        classify(mockCtx, { cardId: testId("cards", "c2") })
+      ).resolves.toEqual({
         mode: "skipped",
       });
       expect(mockRunMutation).not.toHaveBeenCalled();
@@ -50,7 +66,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.mode).toBe("completed");
       expect(result.type).toBe("quote");
@@ -70,7 +86,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("quote");
       expect(result.confidence).toBe(0.95);
@@ -85,7 +101,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.mode).toBe("completed");
       expect(result.type).toBe("quote");
@@ -104,7 +120,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      await classify(mockCtx, { cardId: "c1" });
+      await classify(mockCtx, { cardId: testId("cards", "c1") });
 
       expect(mockRunMutation).toHaveBeenCalled();
     });
@@ -117,7 +133,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      await classify(mockCtx, { cardId: "c1" });
+      await classify(mockCtx, { cardId: testId("cards", "c1") });
 
       expect(mockRunMutation).toHaveBeenCalled();
     });
@@ -132,7 +148,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("quote");
       expect(result.confidence).toBe(0.95);
@@ -147,7 +163,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("quote");
     });
@@ -160,7 +176,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       // normalizeQuoteContent checks for surrounding quotes like "...", not markdown blockquotes
       // So this content is classified as text, not quote
@@ -176,7 +192,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).not.toBe("quote");
     });
@@ -190,7 +206,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("image");
       expect(mockRunMutation).toHaveBeenCalled();
@@ -203,7 +219,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("video");
     });
@@ -215,7 +231,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("audio");
     });
@@ -227,7 +243,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("document");
     });
@@ -242,7 +258,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("document");
     });
@@ -256,7 +272,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("video");
     });
@@ -268,7 +284,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("audio");
     });
@@ -280,7 +296,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("image");
     });
@@ -294,7 +310,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -306,7 +322,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -318,7 +334,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -330,7 +346,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -344,7 +360,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("palette");
       expect(result.confidence).toBe(0.88);
@@ -357,7 +373,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("palette");
       expect(result.confidence).toBe(0.88);
@@ -370,7 +386,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("palette");
     });
@@ -383,7 +399,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("palette");
     });
@@ -395,7 +411,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       // extractPaletteColors requires actual hex codes - just "palette" keyword isn't enough
       // unless there's at least 1 color code. Since this text has no colors, it's classified as text.
@@ -410,7 +426,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -426,7 +442,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
       expect(mockRunMutation).toHaveBeenCalled();
@@ -441,7 +457,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
     });
@@ -456,7 +472,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("link");
       expect(result.shouldCategorize).toBe(true);
@@ -471,7 +487,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       // The .png extension causes classifyByExtension to return "image"
       // Since there's additional content beyond just the URL, it's not a URL-only card
@@ -489,7 +505,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("text");
       expect(result.shouldGenerateRenderables).toBe(false);
@@ -503,7 +519,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.type).toBe("palette");
       expect(result.confidence).toBe(0.88);
@@ -518,7 +534,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldCategorize).toBe(true);
     });
@@ -530,7 +546,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldCategorize).toBe(false);
     });
@@ -542,7 +558,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldGenerateMetadata).toBe(true);
     });
@@ -554,7 +570,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldGenerateRenderables).toBe(true);
     });
@@ -566,7 +582,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldGenerateRenderables).toBe(true);
     });
@@ -578,7 +594,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldGenerateRenderables).toBe(true);
     });
@@ -590,7 +606,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.shouldGenerateRenderables).toBe(false);
     });
@@ -602,7 +618,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.needsLinkMetadata).toBe(true);
     });
@@ -615,7 +631,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.needsLinkMetadata).toBe(false);
     });
@@ -629,7 +645,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.confidence).toBeLessThanOrEqual(1.0);
     });
@@ -641,7 +657,7 @@ describe("classification step", () => {
       };
       mockRunQuery.mockResolvedValue(card);
 
-      const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classifyCompleted(mockCtx);
 
       expect(result.confidence).toBeGreaterThanOrEqual(0.0);
     });
@@ -651,10 +667,10 @@ describe("classification step", () => {
 describe("classification stage completion", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
-  const mockCtx = {
+  const mockCtx = mockActionCtx({
     runQuery: mockRunQuery,
     runMutation: mockRunMutation,
-  } as any;
+  });
 
   beforeEach(() => {
     mockRunQuery.mockReset();
@@ -671,7 +687,7 @@ describe("classification stage completion", () => {
     };
     mockRunQuery.mockResolvedValue(card);
 
-    const result = await classify(mockCtx, { cardId: "c1" });
+    const result = await classifyCompleted(mockCtx);
 
     expect(result.mode).toBe("completed");
     expect(result.type).toBe("link");
@@ -694,7 +710,7 @@ describe("classification stage completion", () => {
     };
     mockRunQuery.mockResolvedValue(card);
 
-    const result = await classify(mockCtx, { cardId: "c1" });
+    const result = await classifyCompleted(mockCtx);
 
     expect(result.mode).toBe("completed");
     expect(result.type).toBe("link");

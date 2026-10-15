@@ -12,7 +12,7 @@ import { validateFileFormat } from "../../shared/fileFormats";
 
 describe("getting-started cards", () => {
   test("cover every card type once", () => {
-    expect(ONBOARDING_CARDS.map((card) => card.type).sort()).toEqual(
+    expect(ONBOARDING_CARDS.map((card): string => card.type).sort()).toEqual(
       [
         "audio",
         "document",
@@ -48,7 +48,7 @@ describe("getting-started cards", () => {
             fileName: original.name,
             mimeType: original.mimeType,
           }).cardType
-        ).toBe(card.type);
+        ).toBe<string>(card.type);
       }
     }
   );

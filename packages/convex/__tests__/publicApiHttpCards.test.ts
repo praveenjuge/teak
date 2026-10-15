@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import {
@@ -10,6 +8,7 @@ import {
   listCardsV1,
   tagsV1,
 } from "../publicApiHttp";
+import { mockActionCtx } from "./helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
   buildAuthorizedMutationMockWithIdempotencySkip,
@@ -23,10 +22,12 @@ describe("publicApiHttp card endpoints", () => {
 
     for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
       const response = await executePublicApiOperation(
-        withMappedOwner({
-          runMutation: buildAuthorizedMutationMock(),
-          runQuery: mock().mockResolvedValue(null),
-        } as any),
+        mockActionCtx(
+          withMappedOwner({
+            runMutation: buildAuthorizedMutationMock(),
+            runQuery: mock().mockResolvedValue(null),
+          } as any)
+        ),
         {
           method: "GET",
           path,
@@ -46,17 +47,19 @@ describe("publicApiHttp card endpoints", () => {
     "dispatches restore for a card with deleted=%s",
     async (isDeleted) => {
       const response = await executePublicApiOperation(
-        withMappedOwner({
-          runMutation:
-            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
-          runQuery: mock()
-            .mockResolvedValueOnce("card_1")
-            .mockResolvedValueOnce({
-              _id: "card_1",
-              userId: "user_1",
-              isDeleted,
-            }),
-        }),
+        mockActionCtx(
+          withMappedOwner({
+            runMutation:
+              buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+            runQuery: mock()
+              .mockResolvedValueOnce("card_1")
+              .mockResolvedValueOnce({
+                _id: "card_1",
+                userId: "user_1",
+                isDeleted,
+              }),
+          })
+        ),
         {
           method: "POST",
           path: "/v1/cards/card_1/restore",
@@ -1108,15 +1111,17 @@ describe("publicApiHttp card endpoints", () => {
 
   test("refresh is reachable through executePublicApiOperation", async () => {
     const response = await executePublicApiOperation(
-      withMappedOwner({
-        runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
-          cardId: "card_1",
-          requestedAt: 1,
-        }),
-        runQuery: mock()
-          .mockResolvedValueOnce("card_1")
-          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
-      }),
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+            cardId: "card_1",
+            requestedAt: 1,
+          }),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+        })
+      ),
       {
         method: "POST",
         path: "/v1/cards/card_1/refresh",

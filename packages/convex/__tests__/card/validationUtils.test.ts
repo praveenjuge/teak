@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { extractUrlFromContent } from "../../../convex/card/validationUtils";
 

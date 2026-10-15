@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { ConvexError } from "convex/values";
 import {

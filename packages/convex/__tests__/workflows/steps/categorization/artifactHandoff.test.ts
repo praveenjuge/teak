@@ -6,6 +6,7 @@ import {
   fetchStructuredDataHandler,
   mergeAndSaveHandler,
 } from "../../../../workflows/steps/categorization/index";
+import { asFetch } from "../../../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
 const originalEnv = {
@@ -71,8 +72,8 @@ beforeEach(() => {
       },
     },
   };
-  globalThis.fetch = mock(
-    (input: string | URL | Request, init?: RequestInit) => {
+  globalThis.fetch = asFetch(
+    mock((input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
       if (url.origin === new URL(sourceUrl).origin) {
         return Promise.resolve(
@@ -97,8 +98,8 @@ beforeEach(() => {
           status: bytes ? 200 : 404,
         })
       );
-    }
-  ) as typeof fetch;
+    })
+  );
 });
 
 afterEach(() => {

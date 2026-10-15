@@ -1,21 +1,21 @@
-// @ts-nocheck
 import { describe, expect, it, test } from "bun:test";
 import {
   applyQuoteDisplayFormatting,
   normalizeQuoteContent,
   stripSurroundingQuotes,
 } from "../../card/quoteFormatting";
+import { testDoc } from "../helpers/convex.test-utils";
 
 describe("applyQuoteDisplayFormatting", () => {
   describe("applyQuoteDisplayFormatting", () => {
     test("normalizes non-quote cards when quotes are removed", () => {
-      const card = { type: "text", content: "'Hello'" };
+      const card = testDoc("cards", { type: "text", content: "'Hello'" });
       const result = applyQuoteDisplayFormatting(card);
       expect(result.content).toBe("Hello");
     });
 
     test("returns same card when no formatting is needed", () => {
-      const card = { type: "text", content: "Hello" };
+      const card = testDoc("cards", { type: "text", content: "Hello" });
       const result = applyQuoteDisplayFormatting(card);
       expect(result).toBe(card);
     });
@@ -47,7 +47,10 @@ describe("applyQuoteDisplayFormatting", () => {
     });
 
     test("formats quote-typed cards even when quotes were already stripped", () => {
-      const card = { type: "quote", content: '"Still wrapped"' };
+      const card = testDoc("cards", {
+        type: "quote",
+        content: '"Still wrapped"',
+      });
       expect(applyQuoteDisplayFormatting(card).content).toBe("Still wrapped");
     });
   });

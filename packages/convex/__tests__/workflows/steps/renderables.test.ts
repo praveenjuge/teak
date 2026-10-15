@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 

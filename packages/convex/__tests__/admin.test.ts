@@ -1,6 +1,5 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { handlerOf } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
 import {
   inlineSearchSyncDb,
@@ -34,7 +33,7 @@ describe("admin.ts", () => {
     getAccess = module.getAccess;
     getOverview = module.getOverview;
     const registeredReset = module.resetCardProcessingState;
-    const resetHandler = registeredReset.handler ?? registeredReset;
+    const resetHandler = handlerOf(registeredReset);
     resetCardProcessingState = {
       handler: (ctx: any, args: any) => {
         ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };

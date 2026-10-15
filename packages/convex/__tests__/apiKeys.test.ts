@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
@@ -199,9 +198,9 @@ describe("apiKeys", () => {
     });
 
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
-    expect(ctx.runMutation.mock.calls.map((call) => call[1])).toEqual([
-      { keyId: "component_key", ownerId: "user_1" },
-    ]);
+    expect(
+      ctx.runMutation.mock.calls.map((call: unknown[]) => call[1])
+    ).toEqual([{ keyId: "component_key", ownerId: "user_1" }]);
   });
 
   test("revoke-all drains an active page and schedules the next page", async () => {
@@ -341,9 +340,10 @@ describe("apiKeys", () => {
         type: "secret",
         valid: true,
       }),
-      runQuery: mock().mockImplementation(
-        (ref, args) => answerIdentityQuery(ref, args, {}).value
-      ),
+      runQuery: mock().mockImplementation((ref, args) => {
+        const answer = answerIdentityQuery(ref, args, {});
+        return answer.handled ? answer.value : undefined;
+      }),
     } as any);
 
     const result = await runHandler(validateUserApiKey, ctx, { token });
@@ -369,9 +369,10 @@ describe("apiKeys", () => {
         type: "secret",
         valid: true,
       }),
-      runQuery: mock().mockImplementation(
-        (ref, args) => answerIdentityQuery(ref, args, {}).value
-      ),
+      runQuery: mock().mockImplementation((ref, args) => {
+        const answer = answerIdentityQuery(ref, args, {});
+        return answer.handled ? answer.value : undefined;
+      }),
     } as any);
     const limit = mock().mockResolvedValue({ ok: false, retryAfter: 1000 });
     rateLimiter.limit = limit as any;

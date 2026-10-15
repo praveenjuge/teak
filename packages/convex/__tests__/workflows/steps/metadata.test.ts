@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { asFetch, testId } from "../../helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "../../helpers/r2Mock.test-utils";
 
 mock.module("../../../../convex/storage/r2", r2MockModuleFactory);
@@ -9,7 +9,7 @@ import { internal } from "../../../../convex/_generated/api";
 
 const originalFetch = global.fetch;
 const mockFetch = mock();
-global.fetch = mockFetch as any;
+global.fetch = asFetch(mockFetch);
 
 import { validate } from "convex-helpers/validators";
 import { aiMetadataResultValidator } from "../../../../convex/workflows/aiMetadata/schemas";
@@ -33,6 +33,7 @@ afterAll(() => {
   }
 });
 
+const CARD_ID = testId("cards", "c1");
 const originalFilesBase = process.env.FILES_BASE;
 const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
 
@@ -258,7 +259,7 @@ describe("metadata handler", () => {
   const expectSaved = (aiTags: string[], aiSummary: string) => {
     expect(mockRunMutation).toHaveBeenCalledWith(
       internal.workflows.aiMetadata.mutations.updateCardAI,
-      expect.objectContaining({ cardId: "c1", aiTags, aiSummary })
+      expect.objectContaining({ cardId: CARD_ID, aiTags, aiSummary })
     );
   };
 
@@ -287,7 +288,7 @@ describe("metadata handler", () => {
     test("skips if card was deleted before metadata generation", async () => {
       mockRunQuery.mockResolvedValue(null);
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
       expect(result.mode).toBe("skipped");
@@ -297,7 +298,7 @@ describe("metadata handler", () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "" });
       aiResult = { tags: [], summary: "" };
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
       expect(result.mode).toBe("skipped");
@@ -311,7 +312,7 @@ describe("metadata handler", () => {
         metadata: {},
       });
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "link",
       });
       expect(result.mode).toBe("completed");
@@ -323,7 +324,7 @@ describe("metadata handler", () => {
       aiError = "AI_CAPACITY";
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -336,7 +337,7 @@ describe("metadata handler", () => {
       aiError = "AI_INVALID_OUTPUT";
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -353,7 +354,7 @@ describe("metadata handler", () => {
         delete process.env[name];
 
         const result = await generateHandler(ctx, {
-          cardId: "c1",
+          cardId: CARD_ID,
           cardType: "text",
         });
 
@@ -376,7 +377,7 @@ describe("metadata handler", () => {
       enableWorkerOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -389,12 +390,12 @@ describe("metadata handler", () => {
     test("the workflow accepts what the step returns, so backfill runs are not recorded as failed", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "hello" });
       const completed = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
       mockRunQuery.mockResolvedValue(null);
       const skipped = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -410,7 +411,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["greeting"], summary: "A greeting" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -428,7 +429,7 @@ describe("metadata handler", () => {
       };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -441,7 +442,7 @@ describe("metadata handler", () => {
       aiResult = { tags: [], summary: "" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
       expect(result.mode).toBe("skipped");
@@ -459,7 +460,7 @@ describe("metadata handler", () => {
       enableWorkerOp({ summary: "A photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -479,7 +480,7 @@ describe("metadata handler", () => {
       });
       enableWorkerOp({ summary: "A photo", tags: ["Photo", "photo", "sky"] });
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "image" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
 
       expectSaved(["photo", "sky"], "A photo");
     });
@@ -494,7 +495,7 @@ describe("metadata handler", () => {
       enableWorkerOp({ summary: "SVG image", tags: ["svg"] });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -511,7 +512,7 @@ describe("metadata handler", () => {
       enableWorkerOp({ summary: "A large photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -529,7 +530,7 @@ describe("metadata handler", () => {
       enableWorkerOp({ summary: "A diagram", tags: ["diagram"] });
 
       await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -545,7 +546,7 @@ describe("metadata handler", () => {
       });
       enableWorkerOp({ summary: "A diagram", tags: ["diagram"] });
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "image" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
 
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
@@ -558,7 +559,7 @@ describe("metadata handler", () => {
       r2Mocks.resolveObjectUrl.mockResolvedValue(null);
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
       expect(result.mode).toBe("skipped");
@@ -573,7 +574,7 @@ describe("metadata handler", () => {
       });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "image",
       });
 
@@ -592,7 +593,7 @@ describe("metadata handler", () => {
       enableWorkerOp({ summary: "Video content", tags: ["video"] });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "video",
       });
 
@@ -610,7 +611,7 @@ describe("metadata handler", () => {
       });
       enableWorkerOp({ summary: "A movie", tags: ["movie"] });
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "video" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "video" });
 
       expect(String(lastWorkerOpRequest().params.title)).toContain("movie.mp4");
     });
@@ -627,7 +628,7 @@ describe("metadata handler", () => {
       enableWorkerOp(processedAudio(transcript));
       aiResult = { tags: ["speech"], summary: "Audio content" };
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
       expect(mockRunMutation.mock.calls.at(-1)?.[1]).toMatchObject({
@@ -658,7 +659,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["speech"], summary: "Audio content" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
 
@@ -692,7 +693,7 @@ describe("metadata handler", () => {
         enableWorkerOp(processedAudio(text));
 
         const result = await generateHandler(ctx, {
-          cardId: "c1",
+          cardId: CARD_ID,
           cardType: "audio",
         });
 
@@ -720,7 +721,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["talk"], summary: "Closing remarks" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
 
@@ -740,7 +741,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["talk"], summary: "Closing remarks" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
 
@@ -762,7 +763,7 @@ describe("metadata handler", () => {
       });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
 
@@ -771,7 +772,7 @@ describe("metadata handler", () => {
         mockRunMutation.mock.calls.find(
           (call) => call[1]?.waveform !== undefined
         )?.[1]
-      ).toEqual({ cardId: "c1", duration: 12, waveform: WAVEFORM });
+      ).toEqual({ cardId: CARD_ID, duration: 12, waveform: WAVEFORM });
     });
 
     test("handles missing audio file", async () => {
@@ -783,7 +784,7 @@ describe("metadata handler", () => {
       enableWorkerOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "audio",
       });
       expect(result.mode).toBe("skipped");
@@ -806,7 +807,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["website"], summary: "Web content" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "link",
       });
 
@@ -823,12 +824,12 @@ describe("metadata handler", () => {
       });
       aiResult = { tags: ["link"], summary: "link sum" };
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "link" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "link" });
 
       expect(mockScheduler.runAfter).toHaveBeenCalledWith(
         0,
         internal.workflows.screenshot.startScreenshotWorkflow,
-        { cardId: "c1" }
+        { cardId: CARD_ID }
       );
     });
 
@@ -841,7 +842,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["link"], summary: "Link summary" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "link",
       });
 
@@ -859,7 +860,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["report"], summary: "A report" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "document",
       });
 
@@ -875,7 +876,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["doc"], summary: "Document summary" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "document",
       });
 
@@ -964,13 +965,13 @@ describe("metadata handler", () => {
         },
       });
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "document",
       });
       expect(putUrls()).toHaveLength(1);
       expect(putUrls()[0]).toMatch(/\/c1\/document-text\/[a-f0-9]{64}\.txt/);
       expect(savedText()).toMatchObject({
-        cardId: "c1",
+        cardId: CARD_ID,
         text: "Kestrel Freight agreed to net 30 days.",
         charCount: 38,
         truncated: false,
@@ -983,7 +984,7 @@ describe("metadata handler", () => {
       routeWorker({
         inspect: { data: { facts: { pageCount: 900 }, text: "First pages" } },
       });
-      await generateHandler(ctx, { cardId: "c1", cardType: "document" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "document" });
       expect(savedText()).toMatchObject({ truncated: true });
     });
 
@@ -991,7 +992,7 @@ describe("metadata handler", () => {
       mockRunQuery.mockResolvedValue(pdfCard);
       routeWorker({ inspect: { data: { facts: { pageCount: 2 }, text: "" } } });
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "document",
       });
       expect(putUrls()).toEqual([]);
@@ -1007,7 +1008,7 @@ describe("metadata handler", () => {
         { putStatus: 503 }
       );
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "document",
       });
       expect(savedText()).toBeUndefined();
@@ -1032,7 +1033,7 @@ describe("metadata handler", () => {
         "process-audio": { data: processedAudio("welcome to the launch", 12) },
       });
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "video",
       });
       const processAudioCall = mockFetch.mock.calls.find((call) =>
@@ -1071,7 +1072,7 @@ describe("metadata handler", () => {
           "process-audio": answer,
         });
         const result = await generateHandler(ctx, {
-          cardId: "c1",
+          cardId: CARD_ID,
           cardType: "video",
         });
         expect(result).toMatchObject({
@@ -1089,7 +1090,7 @@ describe("metadata handler", () => {
         "process-audio": { data: processedAudio("welcome to the launch", 12) },
       });
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "video",
       });
       expectSaved(["launch"], "A launch talk");
@@ -1106,7 +1107,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["shakespeare"], summary: "Famous quote" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "quote",
       });
 
@@ -1122,7 +1123,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["quote"], summary: "Quote summary" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "quote",
       });
 
@@ -1143,7 +1144,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["colors"], summary: "Color palette" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "palette",
       });
 
@@ -1159,7 +1160,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["palette"], summary: "Palette" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "palette",
       });
 
@@ -1174,7 +1175,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["palette"], summary: "Summary" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "palette",
       });
 
@@ -1188,7 +1189,7 @@ describe("metadata handler", () => {
       mockRunMutation.mockResolvedValue(false);
       aiResult = { tags: ["link"], summary: "Summary" };
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "link",
       });
       expect(result).toEqual({
@@ -1209,12 +1210,12 @@ describe("metadata handler", () => {
       });
       aiResult = { tags: ["test"], summary: "Test summary" };
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "text" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "text" });
 
       expect(mockRunMutation).toHaveBeenCalledWith(
         internal.workflows.aiMetadata.mutations.updateCardAI,
         expect.objectContaining({
-          cardId: "c1",
+          cardId: CARD_ID,
           processingStatus: expect.objectContaining({
             metadata: expect.objectContaining({
               status: "completed",
@@ -1235,7 +1236,7 @@ describe("metadata handler", () => {
       });
       aiResult = { tags: ["test"], summary: "Summary" };
 
-      await generateHandler(ctx, { cardId: "c1", cardType: "text" });
+      await generateHandler(ctx, { cardId: CARD_ID, cardType: "text" });
 
       const sent = mockRunMutation.mock.calls.at(-1)?.[1].processingStatus;
       expect(Object.keys(sent)).toEqual(["metadata"]);
@@ -1249,7 +1250,7 @@ describe("metadata handler", () => {
       aiResult = { tags: ["tag1"], summary: "" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 
@@ -1267,7 +1268,7 @@ describe("metadata handler", () => {
       aiResult = { tags: [], summary: "Summary only" };
 
       const result = await generateHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         cardType: "text",
       });
 

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const startWorkflow = mock(
-  async (_ctx: unknown, _ref: unknown, _args: unknown) => "workflow-id"
+  async (
+    _ctx: unknown,
+    _ref: unknown,
+    _args: unknown,
+    _options?: { startAsync?: boolean }
+  ): Promise<unknown> => "workflow-id"
 );
 
 mock.module("../../workflows/manager", () => ({
@@ -86,7 +91,9 @@ describe("workflows/aiBackfill", () => {
 
   describe("per-card attempts", () => {
     const ctxFor = (card: unknown) => {
-      const patch = mock(async () => undefined);
+      const patch = mock(
+        async (_table: string, _id: string, _value: unknown) => undefined
+      );
       return {
         patch,
         ctx: {
@@ -132,7 +139,7 @@ describe("workflows/aiBackfill", () => {
       expect(outcome).toBe("exhausted");
       expect(startWorkflow).not.toHaveBeenCalled();
       const written = patch.mock.calls.find(
-        (call: any[]) => call[0] === "cards"
+        (call) => call[0] === "cards"
       )?.[2] as any;
       expect(written.aiTags).toEqual([]);
       expect(written.processingStatus.classify).toEqual({

@@ -17,7 +17,7 @@ describe("workflows/screenshot parseScreenshotRetryableError", () => {
       type: "http_error",
       message: "Service unavailable",
       details: { statusCode: 503 },
-    };
+    } as const;
 
     expect(parseScreenshotRetryableError(retryableError(payload))).toEqual(
       payload

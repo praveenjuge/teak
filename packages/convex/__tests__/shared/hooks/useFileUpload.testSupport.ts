@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { afterAll, beforeAll, mock } from "bun:test";
+import { asFetch } from "../../helpers/convex.test-utils";
 
 export const mockSetState = mock();
 export const mockUseEffectCleanups: Array<() => void> = [];
@@ -65,7 +65,7 @@ class MockVideo {
 }
 
 beforeAll(() => {
-  global.fetch = mockFetch;
+  global.fetch = asFetch(mockFetch);
   global.window = {} as any;
   global.document = {
     createElement: (tag: string) => (tag === "video" ? new MockVideo() : {}),

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, it } from "bun:test";
 import { enrichAmazon } from "../../../../../workflows/steps/categorization/providers/amazon";
 import type { RawSelectorMap } from "../../../../../workflows/steps/categorization/providers/common";
@@ -590,18 +589,18 @@ describe("enrichAmazon", () => {
       ],
     ]);
     const result = enrichAmazon(map);
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "Price",
       value: "$10.00 USD",
     });
-    expect(result.raw.price).toBe("$10.00");
-    expect(result.raw.currency).toBe("USD");
+    expect(result!.raw!.price).toBe("$10.00");
+    expect(result!.raw!.currency).toBe("USD");
   });
 
   it("handles price only", () => {
     const map = new Map([[".a-price .a-offscreen", { text: "$10.00" }]]);
     const result = enrichAmazon(map);
-    expect(result.facts).toContainEqual({ label: "Price", value: "$10.00" });
+    expect(result!.facts).toContainEqual({ label: "Price", value: "$10.00" });
   });
 
   it("returns null if no price or currency", () => {
@@ -619,12 +618,12 @@ describe("enrichGithub", () => {
     ]);
     const result = enrichGithub(map);
     // Note: formatCountString("1.2k") should be "1,200"
-    expect(result.facts).toContainEqual({ label: "Stars", value: "1,200" });
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({ label: "Stars", value: "1,200" });
+    expect(result!.facts).toContainEqual({
       label: "Language",
       value: "TypeScript",
     });
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "Updated",
       value: "Oct 10, 2023",
     });
@@ -648,11 +647,11 @@ describe("enrichGoodreads", () => {
       ],
     ]);
     const result = enrichGoodreads(map);
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "Average rating",
       value: "4.20 / 5",
     });
-    expect(result.facts).toContainEqual({ label: "Ratings", value: "100" });
+    expect(result!.facts).toContainEqual({ label: "Ratings", value: "100" });
   });
 
   it("returns null if no facts", () => {
@@ -673,11 +672,11 @@ describe("enrichImdb", () => {
       ],
     ]);
     const result = enrichImdb(map);
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "IMDb rating",
       value: "8.50 / 10",
     });
-    expect(result.facts).toContainEqual({ label: "Votes", value: "100,000" });
+    expect(result!.facts).toContainEqual({ label: "Votes", value: "100,000" });
   });
 
   it("extracts runtime and released", () => {
@@ -689,8 +688,8 @@ describe("enrichImdb", () => {
       ],
     ]);
     const result = enrichImdb(map);
-    expect(result.facts).toContainEqual({ label: "Runtime", value: "2h 30m" });
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({ label: "Runtime", value: "2h 30m" });
+    expect(result!.facts).toContainEqual({
       label: "Released",
       value: "Dec 21, 2023",
     });
@@ -715,16 +714,16 @@ describe("enrichDribbble", () => {
       ],
     ]);
     const result = enrichDribbble(map);
-    expect(result.facts).toContainEqual({ label: "Likes", value: "50" });
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({ label: "Likes", value: "50" });
+    expect(result!.facts).toContainEqual({
       label: "Designer",
       value: "Designer Name",
     });
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "Tags",
       value: "design, ui, ux",
     });
-    expect(result.raw.keywords).toContain("ui");
+    expect(result!.raw!.keywords).toContain("ui");
   });
 
   it("extracts stats from twitter meta", () => {
@@ -747,8 +746,8 @@ describe("enrichDribbble", () => {
       ],
     ]);
     const result = enrichDribbble(map);
-    expect(result.facts).toContainEqual({ label: "Likes", value: "100" });
-    expect(result.facts).toContainEqual({ label: "Views", value: "1,000" });
+    expect(result!.facts).toContainEqual({ label: "Likes", value: "100" });
+    expect(result!.facts).toContainEqual({ label: "Views", value: "1,000" });
   });
 
   it("extracts designer from og:title", () => {
@@ -763,7 +762,7 @@ describe("enrichDribbble", () => {
       ],
     ]);
     const result = enrichDribbble(map);
-    expect(result.facts).toContainEqual({
+    expect(result!.facts).toContainEqual({
       label: "Designer",
       value: "John Doe",
     });

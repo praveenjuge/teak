@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import * as r2Storage from "../../storage/r2";
 import { withTestSession } from "../helpers/session.test-utils";

@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createCardActions } from "../../../client/hooks/useCardActions.client";
 import {
   configureClientTelemetry,
   resetClientTelemetry,
 } from "../../../shared/client_telemetry";
+import { testId } from "../../helpers/convex.test-utils";
 
 describe("defaults", () => {
   test("uses the default no-op error capture without error", async () => {
@@ -181,8 +181,8 @@ describe("createCardActions", () => {
     test("returns summary for full success", async () => {
       mockUpdateCardField.mockResolvedValue(undefined);
       const result = await actions.handleBulkDeleteCards([
-        "c1" as any,
-        "c2" as any,
+        testId("cards", "c1"),
+        testId("cards", "c2"),
       ]);
 
       expect(result).toEqual({
@@ -200,15 +200,15 @@ describe("createCardActions", () => {
         .mockRejectedValueOnce(new Error("fail c3"));
 
       const result = await actions.handleBulkDeleteCards([
-        "c1" as any,
-        "c2" as any,
-        "c3" as any,
+        testId("cards", "c1"),
+        testId("cards", "c2"),
+        testId("cards", "c3"),
       ]);
 
       expect(result).toEqual({
         requestedCount: 3,
         deletedCount: 1,
-        failedIds: ["c2", "c3"],
+        failedIds: [testId("cards", "c2"), testId("cards", "c3")],
       });
       expect(mockOnError).not.toHaveBeenCalled();
       expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
@@ -218,14 +218,14 @@ describe("createCardActions", () => {
       mockUpdateCardField.mockRejectedValue(new Error("always fail"));
 
       const result = await actions.handleBulkDeleteCards([
-        "c1" as any,
-        "c2" as any,
+        testId("cards", "c1"),
+        testId("cards", "c2"),
       ]);
 
       expect(result).toEqual({
         requestedCount: 2,
         deletedCount: 0,
-        failedIds: ["c1", "c2"],
+        failedIds: [testId("cards", "c1"), testId("cards", "c2")],
       });
     });
   });

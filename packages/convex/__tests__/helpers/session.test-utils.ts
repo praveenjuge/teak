@@ -22,6 +22,7 @@ interface TestContext {
   auth?: { getUserIdentity: () => Promise<Identity | null> };
   db?: any;
   runQuery?: (...args: any[]) => any;
+  [member: string]: unknown;
 }
 interface Mapping {
   deletedAt?: number;
@@ -238,9 +239,7 @@ export function withTestSession<T extends TestContext>(
 
 // A persisted mapping fixture for bearer and internal-job business-logic tests.
 // Missing/tombstoned mappings are exercised against the database in edge tests.
-export function withMappedOwner<
-  T extends { db?: any; runQuery?: (...args: any[]) => any },
->(ctx: T): T {
+export function withMappedOwner<T extends TestContext>(ctx: T): T {
   const sourceRunQuery = ctx.runQuery;
   return {
     ...ctx,

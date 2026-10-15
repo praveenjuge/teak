@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared harness for the public API HTTP tests: R2 env fixtures plus the
  * authorized-mutation mock builders every split test file uses.

@@ -421,7 +421,7 @@ describe("parseCardRoute", () => {
       "/v1/cards/card_1/favorite",
       { cardId: "card_1", operation: "favorite" },
     ],
-  ])("routes %s %s", (method: string, path: string, expected: unknown) => {
+  ] as const)("routes %s %s", (method, path, expected) => {
     expect(parseCardRoute(new Request(`${API}${path}`, { method }))).toEqual(
       expected
     );

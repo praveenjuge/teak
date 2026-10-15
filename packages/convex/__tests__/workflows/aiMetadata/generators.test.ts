@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { asFetch } from "../../helpers/convex.test-utils";
 
 // Every model call reports one $ai_generation event to PostHog's batch API.
-const aiEventsFrom = (url: string, request: RequestInit) =>
+const aiEventsFrom = (url: string | URL | Request, request?: RequestInit) =>
   String(url).endsWith("/batch/")
-    ? JSON.parse(request.body as string).batch.map(
+    ? JSON.parse(String(request?.body)).batch.map(
         (event: { properties: Record<string, unknown> }) => event.properties
       )
     : null;
@@ -73,8 +73,8 @@ describe("aiMetadata generators", () => {
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-secret";
     const ops: string[] = [];
-    global.fetch = (_url, request) => {
-      ops.push(JSON.parse(request.body as string).op);
+    global.fetch = asFetch((_url, request) => {
+      ops.push(JSON.parse(String(request?.body)).op);
       return Promise.resolve(
         Response.json(
           {
@@ -90,7 +90,7 @@ describe("aiMetadata generators", () => {
           { status: 501 }
         )
       );
-    };
+    });
     try {
       let failure: unknown;
       try {
@@ -126,16 +126,18 @@ describe("aiMetadata generators", () => {
     const aiEvents: Record<string, unknown>[] = [];
     const calls: string[] = [];
     const fetchBefore = global.fetch;
-    global.fetch = (url, request) => {
+    global.fetch = asFetch((url, request) => {
       const reported = aiEventsFrom(url, request);
       if (reported) {
         aiEvents.push(...reported);
         return Promise.resolve(Response.json({ status: 1 }));
       }
-      const body = JSON.parse(request.body as string);
+      const body = JSON.parse(String(request?.body));
       calls.push(body.op);
       expect(body.params.prompt.length).toBe(maxInputChars);
-      expect(request.headers["x-teak-signature"]).toMatch(/^[a-f0-9]{64}$/);
+      expect(new Headers(request?.headers).get("x-teak-signature")).toMatch(
+        /^[a-f0-9]{64}$/
+      );
       return Promise.resolve(
         Response.json({
           ok: true,
@@ -149,7 +151,7 @@ describe("aiMetadata generators", () => {
           },
         })
       );
-    };
+    });
     try {
       const oversized = "x".repeat(maxInputChars * 2);
       expect(await generateTextMetadata(oversized, "Title")).toEqual({
@@ -207,7 +209,7 @@ describe("aiMetadata generators", () => {
       process.env.FILES_BASE = "https://files.teakvault.com";
       process.env.FILES_SIGNING_SECRET = "test-secret";
       process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
-      global.fetch = (url, request) => {
+      global.fetch = asFetch((url, request) => {
         const reported = aiEventsFrom(url, request);
         if (reported) {
           aiEvents.push(...reported);
@@ -238,7 +240,7 @@ describe("aiMetadata generators", () => {
             { status: httpStatus }
           )
         );
-      };
+      });
       try {
         let failure: unknown;
         try {

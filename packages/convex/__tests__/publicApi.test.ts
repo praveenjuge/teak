@@ -1,7 +1,7 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
+import type { ValidatedRateLimitKey } from "../publicApi";
+import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
 import {
   inlineSearchSyncDb,
@@ -92,7 +92,7 @@ describe("publicApi", () => {
     const bulk = module.executeBulkCardsForUser;
     executeBulkCardsForUser = {
       handler: (ctx: any, args: any) =>
-        (bulk.handler ?? bulk)(withMappedOwner(ctx), args),
+        handlerOf(bulk)(withMappedOwner(ctx), args),
     };
     scanCardsPageForUser = module.scanCardsPageForUser;
   });
@@ -574,13 +574,17 @@ describe("publicApi", () => {
 });
 
 describe("public API rate limits", () => {
-  const runHandler = async (name: string, ctx: any, args: any) => {
-    const fn = (await import("../publicApi"))[name];
-    return (fn.handler ?? fn)(ctx, args);
-  };
+  const consumeInvalidAuth = async (runMutation: unknown) =>
+    handlerOf((await import("../publicApi")).consumeInvalidApiAuthLimit)(
+      mockMutationCtx({ runMutation }),
+      {}
+    );
 
-  const limit = async (ctx: any, rateLimitKey: string) =>
-    (await import("../publicApi")).limitApiRequests(ctx, rateLimitKey);
+  const limit = async (runMutation: unknown, rateLimitKey: string) =>
+    (await import("../publicApi")).limitApiRequests(
+      mockMutationCtx({ runMutation }),
+      rateLimitKey as ValidatedRateLimitKey
+    );
 
   test("limitApiRequests returns rate-limited result on contention errors", async () => {
     const runMutation = mock().mockRejectedValue(
@@ -589,7 +593,7 @@ describe("public API rate limits", () => {
       )
     );
 
-    const result = await limit({ runMutation }, "key:key_1");
+    const result = await limit(runMutation, "key:key_1");
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");
@@ -598,7 +602,7 @@ describe("public API rate limits", () => {
   test("limitApiRequests rejects an empty rate limit key without calling the limiter", async () => {
     const runMutation = mock();
 
-    const result = await limit({ runMutation }, "   ");
+    const result = await limit(runMutation, "   ");
 
     expect(result.ok).toBe(false);
     expect(runMutation).not.toHaveBeenCalled();
@@ -607,7 +611,7 @@ describe("public API rate limits", () => {
   test("limitApiRequests keys the limiter on the provided identity", async () => {
     const runMutation = mock().mockResolvedValue({ ok: true });
 
-    const result = await limit({ runMutation }, "key:key_42");
+    const result = await limit(runMutation, "key:key_42");
 
     expect(result.ok).toBe(true);
     expect(runMutation).toHaveBeenCalledTimes(1);
@@ -620,11 +624,7 @@ describe("public API rate limits", () => {
   test("consumeInvalidApiAuthLimit uses a single shared bucket key", async () => {
     const runMutation = mock().mockResolvedValue({ ok: true });
 
-    const result = await runHandler(
-      "consumeInvalidApiAuthLimit",
-      { runMutation } as any,
-      {}
-    );
+    const result = await consumeInvalidAuth(runMutation);
 
     expect(result.ok).toBe(true);
     expect(runMutation).toHaveBeenCalledTimes(1);
@@ -641,11 +641,7 @@ describe("public API rate limits", () => {
       )
     );
 
-    const result = await runHandler(
-      "consumeInvalidApiAuthLimit",
-      { runMutation } as any,
-      {}
-    );
+    const result = await consumeInvalidAuth(runMutation);
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");

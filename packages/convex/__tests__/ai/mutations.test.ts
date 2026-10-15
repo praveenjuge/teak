@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { handlerOf } from "../helpers/convex.test-utils";
 import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("ai/mutations.ts", () => {
@@ -8,7 +8,7 @@ describe("ai/mutations.ts", () => {
   beforeEach(async () => {
     const registered = (await import("../../ai/mutations"))
       .updateCardProcessing;
-    const handler = registered.handler ?? registered;
+    const handler = handlerOf(registered);
     updateCardProcessing = {
       handler: (ctx: any, args: any) => {
         ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };

@@ -51,7 +51,7 @@ describe("product analytics catalog", () => {
     [1024 * 1024, "1-10MB"],
     [50 * 1024 * 1024, "10-100MB"],
     [200 * 1024 * 1024, ">100MB"],
-  ] as const)("buckets %d bytes as %s", (bytes: number, bucket: string) => {
+  ] as const)("buckets %d bytes as %s", (bytes, bucket) => {
     expect(resolveSizeBucket(bytes)).toBe(bucket);
   });
 });

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import {
   afterEach,
   beforeEach,
@@ -9,12 +7,13 @@ import {
   spyOn,
   test,
 } from "bun:test";
-import { getFunctionName } from "convex/server";
+import { type FunctionReference, getFunctionName } from "convex/server";
 import { listCardsV1 } from "../publicApiHttp";
 import {
   validatePublicApiBearer,
   withAuthorizedUser,
 } from "../publicApiHttpAuth";
+import { asFetch, mockActionCtx } from "./helpers/convex.test-utils";
 import { runHandler } from "./helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "./helpers/session.test-utils";
 
@@ -45,27 +44,36 @@ const request = (token?: string, path = "/v1/cards") =>
 
 // Dispatch by function name, so the test states which boundary call answers what.
 const backend = (answers: Record<string, unknown>) =>
-  withMappedOwner({
-    runMutation: mock((ref) => {
-      const name = getFunctionName(ref);
-      if (!(name in answers)) {
-        return Promise.reject(new Error(`unexpected mutation ${name}`));
-      }
-      const answer = answers[name];
-      // An Error answer is a rejection, created only when the call happens.
-      return answer instanceof Error
-        ? Promise.reject(answer)
-        : Promise.resolve(answer);
-    }),
-    runQuery: mock(async () => null),
-  });
+  mockActionCtx(
+    withMappedOwner({
+      runMutation: mock((ref: FunctionReference<"mutation">) => {
+        const name = getFunctionName(ref);
+        if (!(name in answers)) {
+          return Promise.reject(new Error(`unexpected mutation ${name}`));
+        }
+        const answer = answers[name];
+        // An Error answer is a rejection, created only when the call happens.
+        return answer instanceof Error
+          ? Promise.reject(answer)
+          : Promise.resolve(answer);
+      }),
+      runQuery: mock(async () => null),
+    })
+  );
+
+const rejection = (auth: Awaited<ReturnType<typeof withAuthorizedUser>>) => {
+  if (!("error" in auth)) {
+    throw new Error("expected the request to be refused");
+  }
+  return auth.error;
+};
 
 const env = { ...process.env };
 let log: ReturnType<typeof spyOn>;
 const outcomes = () =>
   log.mock.calls
-    .filter((call) => call[0] === "public_api_auth_outcome")
-    .map((call) => call[1]);
+    .filter((call: unknown[]) => call[0] === "public_api_auth_outcome")
+    .map((call: unknown[]) => call[1]);
 
 beforeEach(() => {
   log = spyOn(console, "log").mockImplementation(() => undefined);
@@ -84,8 +92,8 @@ afterEach(() => {
 describe("public API auth outcomes", () => {
   test("missing bearer is logged as missing with the unchanged 401", async () => {
     const auth = await withAuthorizedUser(backend({}), request());
-    expect(auth.error.status).toBe(401);
-    expect((await auth.error.json()).code).toBe("UNAUTHORIZED");
+    expect(rejection(auth).status).toBe(401);
+    expect((await rejection(auth).json()).code).toBe("UNAUTHORIZED");
     expect(outcomes()).toEqual([
       {
         surface: "rest",
@@ -102,7 +110,7 @@ describe("public API auth outcomes", () => {
       "publicApi:consumeInvalidApiAuthLimit": { ok: true },
     });
     const auth = await withAuthorizedUser(ctx, request("garbage"));
-    expect(auth.error.status).toBe(401);
+    expect(rejection(auth).status).toBe(401);
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
     expect(outcomes()[0]).toMatchObject({
       credential: "malformed",
@@ -116,8 +124,8 @@ describe("public API auth outcomes", () => {
       request(LEGACY_TOKEN),
       { resource: "mcp" }
     );
-    expect(auth.error.status).toBe(401);
-    expect((await auth.error.json()).code).toBe("INVALID_API_KEY");
+    expect(rejection(auth).status).toBe(401);
+    expect((await rejection(auth).json()).code).toBe("INVALID_API_KEY");
     expect(outcomes()).toEqual([
       {
         surface: "mcp",
@@ -137,7 +145,7 @@ describe("public API auth outcomes", () => {
       }),
       request(API_KEY)
     );
-    expect(auth.error.status).toBe(401);
+    expect(rejection(auth).status).toBe(401);
     expect(outcomes()[0]).toMatchObject({
       credential: "api_key",
       reason: "invalid_credential",
@@ -155,7 +163,7 @@ describe("public API auth outcomes", () => {
       }),
       request(API_KEY)
     );
-    expect(auth.error.status).toBe(429);
+    expect(rejection(auth).status).toBe(429);
     expect(outcomes()[0]).toMatchObject({
       status: 429,
       reason: "invalid_auth_rate_limited",
@@ -172,7 +180,7 @@ describe("public API auth outcomes", () => {
       }),
       request(API_KEY)
     );
-    expect(auth.error.status).toBe(429);
+    expect(rejection(auth).status).toBe(429);
     expect(outcomes()[0]).toMatchObject({
       status: 429,
       reason: "rate_limited",
@@ -220,14 +228,16 @@ describe("public API auth outcomes", () => {
     "a Connect token rejected for %s keeps the same 401",
     async (_name, fetchImpl, exp, reason) => {
       process.env.WORKOS_AUTHKIT_DOMAIN = `https://${reason.replace(/_/gu, "-")}.auth.example.com`;
-      const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(fetchImpl);
+      const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+        asFetch(fetchImpl)
+      );
       try {
         const auth = await withAuthorizedUser(
           backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
           request(connectToken(Math.floor(exp)))
         );
-        expect(auth.error.status).toBe(401);
-        expect((await auth.error.json()).error).toBe(
+        expect(rejection(auth).status).toBe(401);
+        expect((await rejection(auth).json()).error).toBe(
           "Invalid or expired access token"
         );
         expect(outcomes()[0]).toMatchObject({
@@ -278,7 +288,7 @@ describe("public API auth outcomes", () => {
     async (_name, setup, answers, token, status, reason) => {
       setup();
       const auth = await withAuthorizedUser(backend(answers), request(token));
-      expect(auth.error.status).toBe(status);
+      expect(rejection(auth).status).toBe(status);
       expect(outcomes()[0]).toMatchObject({ status, reason });
     }
   );
@@ -321,6 +331,8 @@ describe("public API auth outcomes", () => {
       }),
       request(API_KEY)
     );
-    expect(auth.validated).toMatchObject({ keyId: "key_1", userId: "user_1" });
+    expect(auth).toMatchObject({
+      validated: { keyId: "key_1", userId: "user_1" },
+    });
   });
 });

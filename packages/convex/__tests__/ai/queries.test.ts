@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("ai/queries.ts", () => {

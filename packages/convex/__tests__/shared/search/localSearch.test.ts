@@ -42,7 +42,7 @@ describe("shared search helpers", () => {
       makeCard({ _id: "twin-b", _creationTime: 5, createdAt: 2000 }),
     ];
     const ids = (sort?: "newest" | "oldest") =>
-      filterLocalCards([...cards], { sort }).map((card) => card._id);
+      filterLocalCards([...cards], { sort }).map((card): string => card._id);
 
     expect(ids()).toEqual(["added-first", "twin-b", "twin-a", "imported"]);
     expect(ids("oldest")).toEqual([
@@ -64,7 +64,7 @@ describe("shared search helpers", () => {
     ];
     const ids = (sort: "newest" | "oldest") =>
       mergeLocalAndRemoteSearchResults(remote, local, true, sort).map(
-        (card) => card._id
+        (card): string => card._id
       );
     expect(ids("newest")).toEqual(["remote-new", "both", "cached-old"]);
     expect(ids("oldest")).toEqual(["cached-old", "both", "remote-new"]);
@@ -86,12 +86,12 @@ describe("shared search helpers", () => {
         local,
         hasActiveSearch,
         "shuffle"
-      ).map((card) => card._id);
+      ).map((card): string => card._id);
     expect(ids(true)).toEqual(["b", "c", "a", "cached"]);
     expect(ids(false)).toEqual(["b", "c", "a"]);
     expect(
       filterLocalCards(remote, { searchTerms: "", sort: "shuffle" }).map(
-        (card) => card._id
+        (card): string => card._id
       )
     ).toEqual(["b", "c", "a"]);
   });
@@ -104,7 +104,7 @@ describe("shared search helpers", () => {
     ];
     expect(
       mergeLocalAndRemoteSearchResults(shown, [], false, "oldest").map(
-        (card) => card._id
+        (card): string => card._id
       )
     ).toEqual(["old", "new"]);
   });
@@ -181,7 +181,7 @@ describe("shared search helpers", () => {
     ];
 
     const results = filterLocalCards(cards, { searchTerms: "beta" });
-    expect(results.map((card) => card._id)).toEqual(["1"]);
+    expect(results.map((card): string => card._id)).toEqual(["1"]);
   });
 
   it("respects type, favorites, and trash filters", () => {
@@ -214,12 +214,12 @@ describe("shared search helpers", () => {
       favoritesOnly: true,
       showTrashOnly: false,
     });
-    expect(results.map((card) => card._id)).toEqual(["1"]);
+    expect(results.map((card): string => card._id)).toEqual(["1"]);
 
     const trashResults = filterLocalCards(cards, {
       showTrashOnly: true,
     });
-    expect(trashResults.map((card) => card._id)).toEqual(["3"]);
+    expect(trashResults.map((card): string => card._id)).toEqual(["3"]);
   });
 
   it("sorts results by createdAt descending", () => {
@@ -230,7 +230,7 @@ describe("shared search helpers", () => {
     ];
 
     const results = filterLocalCards(cards, { searchTerms: "alpha" });
-    expect(results.map((card) => card._id)).toEqual(["2", "3", "1"]);
+    expect(results.map((card): string => card._id)).toEqual(["2", "3", "1"]);
   });
 
   it("filters by normalized visual style on image cards", () => {
@@ -254,7 +254,7 @@ describe("shared search helpers", () => {
     const results = filterLocalCards(cards, {
       styleFilters: ["  Vintage  "],
     });
-    expect(results.map((card) => card._id)).toEqual(["1"]);
+    expect(results.map((card): string => card._id)).toEqual(["1"]);
   });
 
   it("filters by normalized hue and hex on image, palette and video cards", () => {
@@ -297,7 +297,7 @@ describe("shared search helpers", () => {
       hueFilters: ["violet"],
       hexFilters: ["663399"],
     });
-    expect(results.map((card) => card._id)).toEqual(["1", "2", "4"]);
+    expect(results.map((card): string => card._id)).toEqual(["1", "2", "4"]);
   });
 
   it("merges local and remote search results without duplicates", () => {
@@ -329,7 +329,7 @@ describe("shared search helpers", () => {
       localResults,
       true
     );
-    expect(merged.map((card) => card._id)).toEqual(["1", "2"]);
+    expect(merged.map((card): string => card._id)).toEqual(["1", "2"]);
   });
 
   it("returns an empty list when neither local nor remote matches", () => {
@@ -393,7 +393,7 @@ describe("shared search helpers", () => {
       searchTerms: "prod",
       showTrashOnly: true,
     });
-    expect(results.map((card) => card._id)).toEqual(["trashed-link"]);
+    expect(results.map((card): string => card._id)).toEqual(["trashed-link"]);
   });
 
   it("updates local cache by id+updatedAt and enforces max size", () => {
@@ -423,7 +423,7 @@ describe("shared search helpers", () => {
     ];
 
     const next = mergeCardsIntoLocalSearchCache(current, incoming, 2);
-    expect(next.map((card) => card._id)).toEqual(["1", "2"]);
+    expect(next.map((card): string => card._id)).toEqual(["1", "2"]);
     expect(next.find((card) => card._id === "2")?.updatedAt).toBe(4);
   });
 
@@ -442,9 +442,14 @@ describe("shared search helpers", () => {
       nextRemote
     );
 
-    expect(next.map((card) => card._id)).toEqual(["kept", "other-query"]);
+    expect(next.map((card): string => card._id)).toEqual([
+      "kept",
+      "other-query",
+    ]);
     expect(
-      filterLocalCards(next, { searchTerms: "design" }).map((card) => card._id)
+      filterLocalCards(next, { searchTerms: "design" }).map(
+        (card): string => card._id
+      )
     ).not.toContain("deleted");
   });
 
@@ -494,7 +499,7 @@ describe("filterLocalCards qualifiers", () => {
   ];
   const ids = (searchTerms: string, showTrashOnly = false) =>
     filterLocalCards([...cards], { searchTerms, showTrashOnly }).map(
-      (card) => card._id
+      (card): string => card._id
     );
 
   it.each([
@@ -530,7 +535,8 @@ describe("filterLocalCards textMatchedByServer", () => {
       isArchived: true,
       createdAt: 1,
     });
-    const ids = (cards: Doc<"cards">[]) => cards.map((card) => card._id);
+    const ids = (cards: Doc<"cards">[]) =>
+      cards.map((card): string => card._id);
     expect(
       ids(filterLocalCards([pdf, archived], { searchTerms: "kestrel" }))
     ).toEqual([]);
@@ -560,7 +566,7 @@ describe("filterLocalCards textMatchedByServer", () => {
       filterLocalCards([note], {
         searchTerms: "matrix-17-missing",
         textMatchedByServer: true,
-      }).map((card) => card._id)
+      }).map((card): string => card._id)
     ).toEqual([]);
   });
 });

@@ -25,7 +25,7 @@ describe("LINK_CATEGORIES", () => {
       "software",
       "design_portfolio",
       "other",
-    ];
+    ] as const;
     expect(LINK_CATEGORIES).toEqual(expected);
   });
 

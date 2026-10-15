@@ -3,6 +3,7 @@ import type { UserIdentity } from "convex/server";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { readWorkosSessionIdentity } from "../securitySessions";
 import { verifyWorkosConnectToken } from "../workosTokens";
+import { asFetch } from "./helpers/convex.test-utils";
 
 // Failure modes: forged/expired JWTs, issuer/audience confusion, M2M or session
 // tokens, missing scopes/consent, malformed owner claims, and unsafe JWKS origins.
@@ -22,7 +23,7 @@ beforeAll(async () => {
   keys = await generateKeyPair("RS256", { extractable: true });
   wrongKeys = await generateKeyPair("RS256");
   const publicKey = await exportJWK(keys.publicKey);
-  globalThis.fetch = (input: string | URL | Request) => {
+  globalThis.fetch = asFetch((input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
     requests.push(url);
     if (url !== `${issuer}/oauth2/jwks`) {
@@ -33,7 +34,7 @@ beforeAll(async () => {
         keys: [{ ...publicKey, kid: "test-key", alg: "RS256" }],
       })
     );
-  };
+  });
 });
 
 afterAll(() => {

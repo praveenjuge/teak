@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   afterAll,
   beforeAll,
@@ -8,6 +7,7 @@ import {
   mock,
   test,
 } from "bun:test";
+import { asFetch } from "../../../helpers/convex.test-utils";
 
 const toUrlString = (input: string | URL | Request) => {
   if (input instanceof Request) {
@@ -26,12 +26,12 @@ const mockExtractInstagramMedia = mock();
 const mockScrapeElements: { selector: string }[] = [];
 
 mock.module("../../../../../convex/linkMetadata", () => ({
-  normalizeUrl: (url) => url,
+  normalizeUrl: (url: string) => url,
   parseLinkPreview: mockParseLinkPreview,
   buildSuccessPreview: mockBuildSuccessPreview,
   buildErrorPreview: mockBuildErrorPreview,
-  isInstagramPostUrl: (url) => /instagram\.com\/(p|reel)\//.test(url),
-  isInstagramUrl: (url) => /instagram\.com/.test(url),
+  isInstagramPostUrl: (url: string) => /instagram\.com\/(p|reel)\//.test(url),
+  isInstagramUrl: (url: string) => /instagram\.com/.test(url),
   extractInstagramMediaFromHtml: mockExtractInstagramMedia,
   SCRAPE_ELEMENTS: mockScrapeElements,
 }));
@@ -86,7 +86,7 @@ describe("fetchMetadata", () => {
   const mockFetch = mock();
 
   beforeAll(() => {
-    global.fetch = mockFetch;
+    global.fetch = asFetch(mockFetch);
   });
 
   afterAll(() => {
@@ -258,12 +258,15 @@ describe("fetchMetadata", () => {
   /** Run with a Files Worker configured; `answer` handles its ops. */
   const withFilesWorker = async (
     answer: (body: { op: string; params: Record<string, any> }) => Response,
-    run: (ops: { op: string; params: Record<string, any> }[]) => Promise<void>
+    run: (
+      ops: { op: string; params: Record<string, any>; version: number }[]
+    ) => Promise<void>
   ) => {
     const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-    const ops: { op: string; params: Record<string, any> }[] = [];
+    const ops: { op: string; params: Record<string, any>; version: number }[] =
+      [];
     mockFetch.mockImplementation((input: string | URL | Request, init) => {
       const url = toUrlString(input);
       if (url.startsWith("https://files.teakvault.com/__ops/v1")) {

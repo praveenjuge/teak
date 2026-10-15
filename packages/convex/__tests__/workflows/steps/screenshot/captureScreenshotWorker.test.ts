@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { gunzipSync } from "node:zlib";
 import { getFunctionName } from "convex/server";

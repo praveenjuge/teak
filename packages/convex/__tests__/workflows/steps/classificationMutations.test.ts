@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { recordClassification } from "../../../../convex/workflows/steps/classificationMutations";
 import { inlineSearchSyncDb } from "../../helpers/session.test-utils";

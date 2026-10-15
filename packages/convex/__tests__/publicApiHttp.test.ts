@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { createCardV1, createUploadV1 } from "../publicApiHttp";

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
 
