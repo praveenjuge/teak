@@ -2,9 +2,9 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
-import { ensureObjectOwnership } from "./storage/ownership";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { ensureObjectOwnership } from "./storage/ownership";
 
 const modules = import.meta.glob("./**/*.ts");
 const setup = async (keyCount = 7) => {
