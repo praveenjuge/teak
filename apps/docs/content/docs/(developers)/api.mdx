@@ -241,6 +241,10 @@ these query parameters:
   Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
+<ParamField query="mode" type="string">
+  How `q` finds cards: `hybrid` (the default) matches words and meaning, so `cozy reading nook` also finds a photo of an armchair by a window; `keyword` matches words only; `semantic` matches meaning only. Filters, qualifiers and `sort` apply in every mode. Any other value returns `400 INVALID_INPUT`.
+</ParamField>
+
 <ParamField query="type" type="string">
   Card type filter. Repeat for an OR filter.
 </ParamField>
@@ -325,6 +329,11 @@ deleted while you page don't cause repeats or gaps. A cursor that wasn't
 returned by the same listing returns `400 INVALID_INPUT`. Search (`q`) pages
 through its 400 best matches, sorted by date, and then ends; for a search that
 matches more, add a type or date filter to see the rest.
+
+A response to a search also has `searchMode`: the mode that ran. It is
+`keyword` when meaning search was not used: with `mode=keyword`, when `q` has
+only qualifiers, or when meaning search was slow, unavailable or over its limit
+of 60 new searches a minute. Those searches still return every keyword match.
 
 ### Search qualifiers
 

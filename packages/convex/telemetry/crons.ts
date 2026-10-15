@@ -22,6 +22,7 @@ export const CRON_MONITORS = {
   redriveAccountDeletion: "redrive-account-deletion",
   workosEventCatchUp: "workos-event-catch-up",
   adminDailySnapshot: "admin-daily-snapshot",
+  cleanupSemanticSearchCache: "cleanup-semantic-search-cache",
 } as const;
 
 export const cleanupExpiredIdempotency = internalAction({
@@ -197,6 +198,15 @@ export const workosEventCatchUp = internalAction({
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRON_MONITORS.workosEventCatchUp, async () => {
       await catchUpHandler(ctx);
+    }),
+});
+
+export const cleanupSemanticSearchCache = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRON_MONITORS.cleanupSemanticSearchCache, async () => {
+      await ctx.runMutation(internal.search.semanticCache.cleanupExpired, {});
     }),
 });
 

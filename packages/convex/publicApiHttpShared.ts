@@ -90,6 +90,8 @@ interface CardsQueryOptions {
   limit: number;
   /** Qualifiers in `q` that contradict the other parameters. */
   matchesNothing?: boolean;
+  /** How `q` finds cards; `hybrid` unless the request says otherwise. */
+  mode: import("./shared/search/semantic").SearchMode;
   /** Qualifiers from `q` beyond what the plain parameters carry. */
   qualifiers?: {
     archivedInTrash?: boolean;
@@ -99,6 +101,8 @@ interface CardsQueryOptions {
     tags?: string[];
   };
   searchQuery?: string;
+  /** The words in `q` to search by meaning; empty when there are none. */
+  semanticText: string;
   showTrashOnly?: boolean;
   /** Shuffle's seed; required with `sort=shuffle`. */
   shuffleSeed?: number;

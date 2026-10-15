@@ -276,15 +276,18 @@ export const callFilesWorkerJson = async <T>(spec: {
   params: Record<string, unknown>;
   /** More error codes to return as a fallback instead of throwing. */
   fallbackCodes?: readonly FilesErrorCode[];
+  /** Overrides the op's own timeout, for a caller someone is waiting on. */
+  timeoutMs?: number;
 }): Promise<FilesWorkerOutcome<T>> => {
   const signed = await buildSignedWorkerOpRequest(spec);
   let response: Response;
   try {
     // PDF text runs on the renderer; other inspect modes read R2 only.
     const timeoutMs =
-      spec.op === "inspect" && spec.params.mode === "pdf"
+      spec.timeoutMs ??
+      (spec.op === "inspect" && spec.params.mode === "pdf"
         ? 90_000
-        : OP_TIMEOUT_MS[spec.op];
+        : OP_TIMEOUT_MS[spec.op]);
     response = await fetch(signed.url, {
       ...signed,
       ...(timeoutMs

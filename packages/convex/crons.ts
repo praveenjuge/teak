@@ -91,4 +91,12 @@ crons.cron(
   {}
 );
 
+// Removes search meaning matches past their ten minutes.
+crons.cron(
+  "cleanup-semantic-search-cache",
+  "40 * * * *",
+  internal.telemetry.crons.cleanupSemanticSearchCache,
+  {}
+);
+
 export default crons;

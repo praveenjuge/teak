@@ -154,6 +154,7 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 | `--hex <color>` | Exact color, such as `#112233`. Repeatable. |
 | `--date <phrase>` | When it was saved: `today`, `last week`, `march 2026`, `2026-01-01 to 2026-02-01` |
 | `--created-after` / `--created-before` | Millisecond timestamps |
+| `--mode hybrid\|keyword\|semantic` | How the search text finds cards: words and meaning (the default), words only, or meaning only. When meaning search is unavailable, the CLI prints `mode: keyword` to stderr (`searchMode` with `--json`). |
 | `--sort newest\|oldest\|shuffle`, `--limit`, `--cursor` | Order and paging |
 | `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). |
 | `--include content,metadata,processing` | Extra fields (`content` by default) |
@@ -169,6 +170,7 @@ The search text takes the same qualifiers as the search box on the web: `tag:` (
 ```bash
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
+teak search "cozy reading nook" --mode semantic
 ```
 
 ### Export

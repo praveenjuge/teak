@@ -17,12 +17,14 @@ import {
   getUploadFileInfo,
   listingJson,
   mimeFor,
+  parseMode,
   parseSeed,
   parseSort,
   program,
   queryOptions,
 } from ".";
 import { resolveAddInput } from "./files";
+import { collectPages } from "./library";
 import { VERSION } from "./runtime";
 
 const fixtureDirectory = mkdtempSync(join(tmpdir(), "teak-cli-files-"));
@@ -126,6 +128,39 @@ describe("teak cli formatting", () => {
     expect(() => parseSort("newestt")).toThrow(
       "sort must be newest, oldest or shuffle"
     );
+  });
+
+  test("passes a search mode, and only a known one", () => {
+    expect(parseMode("semantic")).toBe("semantic");
+    expect(() => parseMode("meaning")).toThrow(
+      "mode must be hybrid, keyword or semantic"
+    );
+    expect(queryOptions({ query: "nook", mode: "keyword" })).toMatchObject({
+      mode: "keyword",
+    });
+  });
+
+  test("--all reports keyword mode when any page fell back", async () => {
+    const pages = [
+      {
+        items: [{ id: "a" }],
+        pageInfo: { hasMore: true, nextCursor: "c1" },
+        searchMode: "hybrid" as const,
+      },
+      {
+        items: [{ id: "b" }],
+        pageInfo: { hasMore: false, nextCursor: null },
+        searchMode: "keyword" as const,
+      },
+    ];
+    const page = await collectPages(
+      async (cursor) => (cursor ? pages[1] : pages[0]) as never,
+      true
+    );
+    expect(page).toMatchObject({
+      items: [{ id: "a" }, { id: "b" }],
+      searchMode: "keyword",
+    });
   });
 
   test("a shuffled listing's JSON carries its seed", () => {

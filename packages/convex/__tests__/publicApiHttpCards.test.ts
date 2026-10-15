@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { describe, expect, mock, test } from "bun:test";
+import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import {
   bulkCardsV1,
@@ -1288,5 +1289,180 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
     expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listCardsV1 search modes", () => {
+  const authorizedRequest = (query: string) =>
+    new Request(`https://example.com/v1/cards?${query}`, {
+      headers: {
+        Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+      },
+    });
+  const emptyPage = {
+    items: [],
+    pageInfo: { hasMore: false, nextCursor: null },
+  };
+  const ranking = [{ cardId: "card_meaning", score: 0.5 }];
+
+  // The worker answers `vector-query` with `answer`, or fails.
+  const withWorker = async (
+    answer: "ok" | "fail",
+    run: (calls: string[]) => Promise<void>
+  ) => {
+    const previous = {
+      base: process.env.FILES_BASE,
+      secret: process.env.FILES_SIGNING_SECRET,
+      fetch: globalThis.fetch,
+    };
+    const calls: string[] = [];
+    process.env.FILES_BASE = "https://files.test";
+    process.env.FILES_SIGNING_SECRET = "mode-test-secret";
+    globalThis.fetch = mock((_url: string, init: RequestInit) => {
+      calls.push(JSON.parse(String(init.body)).params.text);
+      return Promise.resolve(
+        answer === "ok"
+          ? Response.json({
+              ok: true,
+              version: 1,
+              requestId: "r",
+              data: { matches: [{ id: "card_meaning", score: 0.5 }] },
+            })
+          : Response.json(
+              {
+                ok: false,
+                error: { code: "INTERNAL", message: "boom", requestId: "r" },
+              },
+              { status: 500 }
+            )
+      );
+    }) as any;
+    try {
+      await run(calls);
+    } finally {
+      process.env.FILES_BASE = previous.base;
+      process.env.FILES_SIGNING_SECRET = previous.secret;
+      globalThis.fetch = previous.fetch;
+    }
+  };
+
+  // Dispatches by function: the shard and cache lookups, then the page.
+  const ctxFor = () => {
+    const pageArgs: any[] = [];
+    const runQuery = mock((ref: any, args: any) => {
+      const name = getFunctionName(ref);
+      if (name.endsWith("getUserShard")) {
+        return Promise.resolve(0);
+      }
+      if (name.endsWith("getCachedRanking")) {
+        return Promise.resolve(null);
+      }
+      pageArgs.push(args);
+      return Promise.resolve(emptyPage);
+    });
+    const authorize = buildAuthorizedMutationMock();
+    let authorized = false;
+    const runMutation = mock((ref: any, args: any) => {
+      if (!authorized) {
+        authorized = true;
+        return authorize(ref, args);
+      }
+      // The rate limiter's component function has no plain name.
+      let name = "";
+      try {
+        name = getFunctionName(ref);
+      } catch {}
+      return Promise.resolve(
+        name.endsWith("storeRanking")
+          ? ranking
+          : { ok: true, retryAfter: undefined }
+      );
+    });
+    return { ctx: { runQuery, runMutation }, pageArgs };
+  };
+
+  test("rejects an unknown mode", async () => {
+    const { ctx } = ctxFor();
+    const response = await runHandler(
+      listCardsV1,
+      ctx,
+      authorizedRequest("q=chair&mode=bogus")
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  test("blends by default and says so", async () => {
+    await withWorker("ok", async (calls) => {
+      const { ctx, pageArgs } = ctxFor();
+      const response = await runHandler(
+        listCardsV1,
+        ctx,
+        authorizedRequest(`q=${encodeURIComponent("Cozy nook tag:home")}`)
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ searchMode: "hybrid" });
+      expect(calls).toEqual(["cozy nook"]);
+      expect(pageArgs[0]).toMatchObject({
+        mode: "hybrid",
+        semanticRanking: ranking,
+      });
+    });
+  });
+
+  test("passes semantic mode through", async () => {
+    await withWorker("ok", async () => {
+      const { ctx, pageArgs } = ctxFor();
+      const response = await runHandler(
+        listCardsV1,
+        ctx,
+        authorizedRequest("q=chair&mode=semantic")
+      );
+      expect(await response.json()).toMatchObject({ searchMode: "semantic" });
+      expect(pageArgs[0]).toMatchObject({ mode: "semantic" });
+    });
+  });
+
+  test("falls back to keyword results when the vector service fails", async () => {
+    await withWorker("fail", async (calls) => {
+      const { ctx, pageArgs } = ctxFor();
+      const response = await runHandler(
+        listCardsV1,
+        ctx,
+        authorizedRequest("q=chair")
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ searchMode: "keyword" });
+      expect(calls).toHaveLength(1);
+      expect(pageArgs[0]).not.toHaveProperty("semanticRanking");
+    });
+  });
+
+  test("keyword mode and qualifier-only searches never call the vector service", async () => {
+    await withWorker("ok", async (calls) => {
+      for (const query of ["q=chair&mode=keyword", "q=tag%3Adesign"]) {
+        const { ctx, pageArgs } = ctxFor();
+        const response = await runHandler(
+          listCardsV1,
+          ctx,
+          authorizedRequest(query)
+        );
+        expect(response.status).toBe(200);
+        expect(pageArgs[0]).not.toHaveProperty("semanticRanking");
+      }
+      expect(calls).toEqual([]);
+    });
+  });
+
+  test("a listing without q carries no searchMode", async () => {
+    const { ctx } = ctxFor();
+    ctx.runQuery.mockImplementation(async () => ({
+      items: [],
+      itemCursors: [],
+      nextCursor: null,
+      scannedRows: 0,
+    }));
+    const response = await runHandler(listCardsV1, ctx, authorizedRequest(""));
+    expect(await response.json()).not.toHaveProperty("searchMode");
   });
 });
