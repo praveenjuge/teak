@@ -95,6 +95,22 @@ describe("signed file operations", () => {
     expect(result.data).not.toHaveProperty("segments");
     expect(run.mock.calls[0][0]).toBe(FILES_TRANSCRIPTION_MODEL);
   });
+  test("sends transcription through the configured AI Gateway without logs", async () => {
+    const run = mock(async () => ({ text: "Hello world" }));
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u/audio.wav", {
+      bytes: new Uint8Array([1, 2, 3]),
+      httpMetadata: { contentType: "audio/wav" },
+    });
+    const response = await handleInternalOp(
+      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
+      { ...envFor(bucket), AI: { run }, AI_GATEWAY_ID: "teak-files" }
+    );
+    expect(response.status).toBe(200);
+    expect(run.mock.calls[0][2]).toEqual({
+      gateway: { collectLog: false, id: "teak-files", skipCache: true },
+    });
+  });
   test("rejects oversized audio before inference and bounds model output", async () => {
     const run = mock(async () => ({
       text: "x".repeat(FILES_TRANSCRIPT_MAX_BYTES + 1),

@@ -31,9 +31,7 @@ const signedRequest = async (op: string, params: unknown) => {
     },
   });
 };
-const env = (
-  run: (model: string, args: Record<string, unknown>) => Promise<unknown>
-): FilesOpsEnv => ({
+const env = (run: NonNullable<FilesOpsEnv["AI"]>["run"]): FilesOpsEnv => ({
   BUCKET: new FakeBucket() as never,
   FILES_SIGNING_SECRET: "test-secret",
   AI: { run },
@@ -69,6 +67,34 @@ describe("signed text/link metadata", () => {
       expect(run).toHaveBeenCalledTimes(1);
     }
   );
+  test("routes Workers AI through the configured gateway without logs or cache", async () => {
+    const run = mock(() =>
+      Promise.resolve({
+        choices: [{ message: { content: JSON.stringify(result) } }],
+      })
+    );
+    const response = await handleInternalOp(
+      await signedRequest("generate-text-metadata", { prompt: "A note" }),
+      { ...env(run), AI_GATEWAY_ID: "teak-files" }
+    );
+    expect(response.status).toBe(200);
+    expect(run.mock.calls[0][2]).toEqual({
+      gateway: { collectLog: false, id: "teak-files", skipCache: true },
+    });
+  });
+  test("calls Workers AI directly when no gateway is configured", async () => {
+    const run = mock(() =>
+      Promise.resolve({
+        choices: [{ message: { content: JSON.stringify(result) } }],
+      })
+    );
+    const response = await handleInternalOp(
+      await signedRequest("generate-link-metadata", { prompt: "A link" }),
+      { ...env(run), AI_GATEWAY_ID: " " }
+    );
+    expect(response.status).toBe(200);
+    expect(run.mock.calls[0][2]).toBeUndefined();
+  });
   test("does not run AI for unsigned requests", async () => {
     const run = mock(async () => result);
     const response = await handleInternalOp(
