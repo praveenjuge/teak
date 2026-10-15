@@ -196,7 +196,6 @@ export function useFileUploadCore(
       const bucket = fileBucket(file.type);
 
       try {
-        // Validate file size
         if (file.size > MAX_FILE_SIZE) {
           const errorInfo: FileUploadError = {
             message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
@@ -207,13 +206,11 @@ export function useFileUploadCore(
           throw codedError;
         }
 
-        // Attach image/video dimensions when possible to avoid layout shifts in grids
         const mergedAdditionalMetadata = await buildAdditionalFileMetadata(
           file,
           options.additionalMetadata
         );
 
-        // Step 1: Get upload URL from Convex
         const fileFormat = inferFileFormat({
           fileName: file.name,
           mimeType: file.type,
@@ -308,7 +305,6 @@ export function useFileUploadCore(
         config.onProgress?.(75);
         setProgress(75);
 
-        // Step 3: Finalize card creation
         const finalizeResult = await finalizeUploadedCard({
           fileKey: uploadKey,
           fileName: file.name,
@@ -590,7 +586,6 @@ export function useFileUploadCore(
         additionalMetadata?: any;
       } = {}
     ): Promise<UploadMultipleFilesResultItem[]> => {
-      // Validate file count
       if (files.length > MAX_FILES_PER_UPLOAD) {
         const errorInfo: FileUploadError = {
           message: CARD_ERROR_MESSAGES.TOO_MANY_FILES,
@@ -611,11 +606,6 @@ export function useFileUploadCore(
       for (const file of files) {
         const result = await uploadFile(file, options);
         results.push({ file: file.name, ...result });
-
-        // Small delay between uploads to avoid overwhelming the system
-        if (files.length > 1) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
       }
 
       return results;
@@ -635,7 +625,6 @@ export function useFileUploadCore(
     uploadFileFromUri,
     uploadMultipleFiles,
     state,
-    // Convenience getters
     isUploading,
     progress,
     error: error?.message ?? null,

@@ -30,7 +30,6 @@ export async function resolveOwner(
 ): Promise<ResolvedOwner> {
   const result = await resolve(ctx, args);
   if (result.status === "denied") {
-    // One hashed line per denial; the decision above is never changed by it.
     await logResolverDenial({
       reason: result.reason,
       verification: args.verification,
@@ -146,10 +145,8 @@ const resolve = async (
       reason: "external_id_mismatch" as const,
     };
   }
-  // The deletion ledger was checked above, so read the component copy directly.
   const user = await readComponentUser(ctx, args.workosUserId);
   const profile = user ? toProviderProfile(args.workosUserId, user) : null;
-  // A provider profile bound to a different Teak owner never opens this vault.
   if (
     profile?.externalId !== undefined &&
     profile.externalId !== null &&
@@ -160,8 +157,6 @@ const resolve = async (
       reason: "external_id_mismatch" as const,
     };
   }
-  // The provider profile must exist and be verified; a session token must
-  // also carry its own verified claim. Connect tokens carry none.
   if (
     !profile?.emailVerified ||
     (args.verification.kind === "session" &&

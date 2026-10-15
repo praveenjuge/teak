@@ -337,3 +337,18 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
   }
   return value;
 };
+
+export function swallowTelemetryErrors(callback: () => void): void;
+export function swallowTelemetryErrors(
+  callback: () => Promise<void>
+): Promise<void>;
+export function swallowTelemetryErrors(
+  callback: () => void | Promise<void>
+): void | Promise<void> {
+  try {
+    const result = callback();
+    if (result instanceof Promise) {
+      return result.catch(() => undefined);
+    }
+  } catch {}
+}

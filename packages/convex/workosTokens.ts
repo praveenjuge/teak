@@ -12,7 +12,18 @@ interface WorkosPrincipal {
 export interface WorkosConnectPrincipal extends WorkosPrincipal {
   clientId: string;
   consentId: string;
-  tokenExpiresAt?: number;
+}
+
+// An expired token still proves which grant it was issued for, which is
+// enough to revoke that grant and nothing more.
+export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
+  tokenExpiresAt: number;
+}
+
+interface ConnectTokenConfig {
+  audience: string;
+  issuer: string;
+  onUnavailable?: () => void;
 }
 
 const CLIENT_ID = /^client_[A-Za-z0-9]+$/;
@@ -56,22 +67,38 @@ function validClientId(value: unknown): value is string {
   }
 }
 
-// Seconds a token may be issued ahead of this deployment's clock. Expiry gets
-// no grace: an expired token never authorizes vault access.
 const CLOCK_TOLERANCE_SECONDS = 60;
 
 // Configuration must come from the server, never from request/token claims.
 // This verifies credentials only: callers must also check consent revocation,
 // canonical owner mapping, verified email, deletion state and authorization.
-export async function verifyWorkosConnectToken(
+export const verifyWorkosConnectToken = (
   token: string,
-  config: {
-    issuer: string;
-    audience: string;
-    revocationOnly?: boolean;
-    onUnavailable?: () => void;
-  }
-): Promise<WorkosConnectPrincipal | null> {
+  config: ConnectTokenConfig
+): Promise<WorkosConnectPrincipal | null> =>
+  verifyConnectToken(token, config, false);
+
+export const verifyWorkosConnectTokenForRevocation = (
+  token: string,
+  config: ConnectTokenConfig
+): Promise<WorkosRevocationPrincipal | null> =>
+  verifyConnectToken(token, config, true);
+
+async function verifyConnectToken(
+  token: string,
+  config: ConnectTokenConfig,
+  allowExpired: false
+): Promise<WorkosConnectPrincipal | null>;
+async function verifyConnectToken(
+  token: string,
+  config: ConnectTokenConfig,
+  allowExpired: true
+): Promise<WorkosRevocationPrincipal | null>;
+async function verifyConnectToken(
+  token: string,
+  config: ConnectTokenConfig,
+  allowExpired: boolean
+): Promise<WorkosConnectPrincipal | WorkosRevocationPrincipal | null> {
   try {
     const issuer = validateOAuthUrl(config.issuer);
     if (
@@ -123,11 +150,9 @@ export async function verifyWorkosConnectToken(
     try {
       verified = await jwtVerify(token, cachedJwks.keys, options);
     } catch (error) {
-      if (!(config.revocationOnly && error instanceof errors.JWTExpired)) {
+      if (!(allowExpired && error instanceof errors.JWTExpired)) {
         throw error;
       }
-      // Reverify every claim and the signature at the expiry boundary. This is
-      // permitted only for permanent revocation, never for vault authorization.
       const expiry = error.payload.exp;
       if (typeof expiry !== "number" || !Number.isFinite(expiry)) {
         return null;
@@ -159,7 +184,7 @@ export async function verifyWorkosConnectToken(
       return null;
     }
     return {
-      ...(config.revocationOnly ? { tokenExpiresAt: payload.exp } : {}),
+      ...(allowExpired ? { tokenExpiresAt: payload.exp } : {}),
       workosUserId: payload.sub,
       consentId: payload.sid,
       clientId: payload.client_id,
@@ -174,7 +199,6 @@ export async function verifyWorkosConnectToken(
     ) {
       config.onUnavailable?.();
     }
-    // Invalid signatures, claims, configuration and unavailable JWKS fail closed.
     return null;
   }
 }

@@ -2,11 +2,6 @@ import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 import { workosResourcesFor } from "../shared/workosResources";
 import { type AuthDiscovery, validateOAuthUrl } from "./authDiscovery";
 
-// WorkOS Connect (OAuth 2.0 authorization code + PKCE) protocol steps shared by
-// Teak's public clients. Storage, locking, callbacks and copy stay per client.
-// `local` permits loopback http endpoints for local development, as in
-// validateOAuthUrl; discovery decides which loopback servers are approved.
-
 export const WORKOS_CONNECT_SCOPE = "openid profile email offline_access";
 
 const MAX_RESPONSE_BYTES = 64 * 1024;

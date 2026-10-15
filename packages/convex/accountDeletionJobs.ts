@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
+import {
+  ACCOUNT_DELETION_STAGES_DONE,
+  accountDeletionStage,
+} from "./accountDeletionStages";
 import { workflow } from "./workflows/manager";
 import {
   expectedWorkosDeletionResolution,
@@ -103,7 +107,7 @@ export const saveSessionCursor = internalMutation({
     if (
       !state ||
       state.generation !== generation ||
-      state.stage !== 1 ||
+      state.stage !== accountDeletionStage("providerSessions") ||
       (state.providerSessionCursor ?? null) !== previous
     ) {
       throw new Error("stale_deletion_session_page");
@@ -119,7 +123,11 @@ export const finalize = internalMutation({
   returns: v.null(),
   handler: async (ctx, { stateId, generation }) => {
     const state = await ctx.db.get("accountDeletionStates", stateId);
-    if (!state || state.generation !== generation || state.stage !== 6) {
+    if (
+      !state ||
+      state.generation !== generation ||
+      state.stage !== ACCOUNT_DELETION_STAGES_DONE
+    ) {
       throw new Error("stale_deletion_stage");
     }
     const owners = await ctx.db
@@ -139,9 +147,6 @@ export const finalize = internalMutation({
       throw new Error("deletion_completion_invalid");
     }
     const owner = owners[0];
-    // Owners from before WorkOS keep their address on the owner row; the
-    // tombstone must not leave it readable. WorkOS-created owners are
-    // unchanged.
     const redaction =
       owner.identityOrigin === "workos"
         ? {}
@@ -173,9 +178,9 @@ export const finalize = internalMutation({
       ) {
         throw new Error("deletion_completion_conflict");
       }
-      // Stage six durably confirms storage and both providers finished under
-      // the state's pinned target. Credential rotation cannot undo completion;
-      // current target pins are checked separately before settling any receipt.
+      // Every stage finished under the state's pinned target, so credential
+      // rotation cannot undo completion; current target pins are checked
+      // separately before settling any receipt.
       // Commit the retained proof with the owner tombstone, before bounded
       // receipt settlement; retries cannot mint a different completion.
       const completedAt = previous?.completedAt ?? Date.now();
@@ -255,7 +260,7 @@ export const revokeConsentPage = internalMutation({
       internal.accountDeletionJobs.getState,
       binding
     );
-    if (state.stage !== 0) {
+    if (state.stage !== accountDeletionStage("accessAndBilling")) {
       throw new Error("stale_deletion_stage");
     }
     const page = await ctx.db
@@ -271,8 +276,6 @@ export const revokeConsentPage = internalMutation({
         });
       }
     }
-    // The revocations and cursor commit together. A lost action response resumes
-    // from this durable page without revisiting all earlier grants.
     await ctx.db.patch("accountDeletionStates", state._id, {
       localConsentCursor: page.continueCursor,
     });
@@ -293,10 +296,7 @@ export const redrive = internalMutation({
       if (!state.workflowId || state.generation === undefined) {
         continue;
       }
-      if (state.stage === 6) {
-        // Cleanup is already terminal; receipt pagination runs outside the
-        // original workflow. Resume its fenced transaction even if that
-        // workflow completed or its retained journal was later cleaned up.
+      if (state.stage === ACCOUNT_DELETION_STAGES_DONE) {
         await ctx.scheduler.runAfter(0, internal.accountDeletionJobs.finalize, {
           stateId: state._id,
           generation: state.generation,

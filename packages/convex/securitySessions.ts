@@ -61,7 +61,6 @@ export function readWorkosSessionIdentity(
     : null;
 }
 
-// Bootstrap can return verify_email before a mapping exists. It never grants vault access.
 export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
   let identity: UserIdentity | null;
   try {
@@ -141,14 +140,11 @@ export const identityMapping = internalQuery({
       .unique(),
 });
 
-// Provider profile reads stay at the same boundary as provider identities.
 export const readWorkosProfile = (
   ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
 ) => ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
 
-// The WorkOS AuthKit component's copy of a provider user, looked up by the
-// WorkOS user ID Teak already mapped. It is never a session identity.
 export const readComponentUser = (
   ctx: Pick<QueryCtx, "runQuery">,
   workosUserId: string
@@ -181,8 +177,6 @@ export async function resolveStoredUserId(
   return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
 }
 
-// Internal/API jobs carry the permanent ID across a serialization boundary.
-// Revalidate and brand it here before invoking ownership helpers.
 export async function requireTeakUserId(
   ctx: SessionCtx,
   ownerId: string
@@ -196,7 +190,6 @@ export async function requireTeakUserId(
 
 interface SessionUser {
   identity: UserIdentity;
-  // Present when the owner was resolved in the caller's own transaction.
   profile?: ProviderProfile;
   sessionId: string;
   teakUserId: TeakUserId;
@@ -385,7 +378,6 @@ export const revokeAuthkitSession = action({
     }
     const client = workosSessionClient();
     if (sessionId === user.sessionId) {
-      // The exact verified AuthKit sid proves ownership even after active-only listing omits it.
       try {
         await client.revokeSession({ sessionId });
       } catch (error) {
@@ -411,7 +403,6 @@ export const revokeAuthkitSession = action({
           target.status !== "active" ||
           Date.parse(target.expiresAt) <= Date.now()
         ) {
-          // Ownership is proven above. A retry after a lost response must finish sign-out.
           return null;
         }
         await client.revokeSession({ sessionId });

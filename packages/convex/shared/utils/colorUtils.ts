@@ -1,4 +1,3 @@
-// Color utility functions for parsing and working with colors
 import type { ColorHueBucket } from "../constants";
 
 export interface Color {
@@ -16,7 +15,6 @@ export interface Color {
   };
 }
 
-// CSS color names mapping
 const COLOR_NAMES: Record<string, string> = {
   aliceblue: "#F0F8FF",
   antiquewhite: "#FAEBD7",
@@ -167,7 +165,6 @@ const COLOR_NAMES: Record<string, string> = {
   yellowgreen: "#9ACD32",
 };
 
-// Convert hex to RGB
 export function hexToRgb(
   hex: string
 ): { r: number; g: number; b: number } | null {
@@ -198,7 +195,6 @@ export function hexToRgb(
     : null;
 }
 
-// Convert RGB to HSL
 function rgbToHsl(
   red: number,
   green: number,
@@ -216,24 +212,17 @@ function rgbToHsl(
 
   if (max === min) {
     h = 0;
-    s = 0; // achromatic
+    s = 0;
   } else {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
 
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      case b:
-        h = (r - g) / d + 4;
-        break;
-      default:
-        // max should always be r, g, or b
-        break;
+    if (max === r) {
+      h = (g - b) / d + (g < b ? 6 : 0);
+    } else if (max === g) {
+      h = (b - r) / d + 2;
+    } else {
+      h = (r - g) / d + 4;
     }
     h /= 6;
   }
@@ -245,7 +234,6 @@ function rgbToHsl(
   };
 }
 
-// Convert HSL to RGB
 function hslToRgb(
   h: number,
   s: number,
@@ -280,7 +268,7 @@ function hslToRgb(
   if (sNorm === 0) {
     red = lNorm;
     green = lNorm;
-    blue = lNorm; // achromatic
+    blue = lNorm;
   } else {
     const q = lNorm < 0.5 ? lNorm * (1 + sNorm) : lNorm + sNorm - lNorm * sNorm;
     const p = 2 * lNorm - q;
@@ -296,7 +284,6 @@ function hslToRgb(
   };
 }
 
-// Convert RGB to hex
 function rgbToHex(red: number, green: number, blue: number): string {
   return `#${((1 << 24) + (red << 16) + (green << 8) + blue).toString(16).slice(1).toUpperCase()}`;
 }
@@ -477,9 +464,11 @@ export type PaletteCopyFormat =
   | "newline-separated"
   | "css-variables";
 
+const MAX_REGEX_INPUT_LENGTH = 100;
+
 const toCssVariableName = (color: Color, index: number): string => {
-  // Limit input length to prevent ReDoS attacks
-  const name = color.name?.trim().toLowerCase().slice(0, 100) || "";
+  const name =
+    color.name?.trim().toLowerCase().slice(0, MAX_REGEX_INPUT_LENGTH) || "";
   const base =
     name.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ||
     `color-${index + 1}`;
@@ -524,11 +513,9 @@ export function formatPaletteForCopy(
   return [":root {", ...cssLines, "}"].join("\n");
 }
 
-// Parse a single color from text
 export function parseColorString(colorText: string): Color | null {
   const text = colorText.trim().toLowerCase();
 
-  // Try hex format (#FF5733, #f53, #abcd, #97f9f9ff)
   const hexMatch = text.match(/^#([a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})$/i);
   if (hexMatch) {
     let raw = hexMatch[1];
@@ -555,7 +542,6 @@ export function parseColorString(colorText: string): Color | null {
     };
   }
 
-  // Try RGB format
   const rgbMatch = text.match(
     /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/
   );
@@ -583,7 +569,6 @@ export function parseColorString(colorText: string): Color | null {
     }
   }
 
-  // Try HSL format
   const hslMatch = text.match(
     /hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*[\d.]+\s*)?\)/
   );
@@ -604,7 +589,6 @@ export function parseColorString(colorText: string): Color | null {
     }
   }
 
-  // Try color name
   const colorName = text.replace(/[^a-z]/g, "");
   if (COLOR_NAMES[colorName]) {
     const hex = COLOR_NAMES[colorName];
@@ -622,12 +606,10 @@ export function parseColorString(colorText: string): Color | null {
   return null;
 }
 
-// Parse multiple colors from text input
 export function parseColorsFromText(text: string): Color[] {
   const colors: Color[] = [];
   const seenHex = new Set<string>();
 
-  // Split by common delimiters, newlines, and spaces
   const parts = text.split(/[,;\n\r\t\s]+/);
 
   for (const part of parts) {
@@ -646,7 +628,6 @@ export function parseColorsFromText(text: string): Color[] {
     }
   }
 
-  // Also try to extract colors from within longer text
   const allMatches = [
     ...text.matchAll(/#([a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b/gi),
     ...text.matchAll(
@@ -680,7 +661,6 @@ function formatPaletteName(slug: string): string | undefined {
 }
 
 export function extractPaletteColors(text: string, maxColors = 12): Color[] {
-  // Normalize common escaped delimiters to better handle pasted strings containing literal "\n" etc.
   const normalizedText = text
     .replace(/\\n/gi, "\n")
     .replace(/\\r/gi, "\n")
@@ -712,7 +692,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
     });
   };
 
-  // CSS custom properties: infer name from the variable slug
   for (const match of normalizedText.matchAll(
     /--([a-z0-9_-]+)\s*:\s*([^;{}\n]+)[;}]?/gi
   )) {
@@ -721,7 +700,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
     addColor(parsed, formatPaletteName(slug));
   }
 
-  // Labeled pairs like "Primary: #0F4C81" or "Accent - rgb(255, 0, 128)"
   for (const match of normalizedText.matchAll(
     /\b([A-Za-z][\w\s-]{0,32}?)\s*[:\-–]\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\))/gi
   )) {
@@ -730,7 +708,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
     addColor(parsed, label);
   }
 
-  // CSS property declarations (color, background-color, border-color, fill, stroke, etc.)
   for (const match of normalizedText.matchAll(
     /\b(?:color|background-color|border-color|fill|stroke|outline-color)\s*:\s*([^;{}\n]+)/gi
   )) {
@@ -739,7 +716,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
     addColor(parsed);
   }
 
-  // Tailwind arbitrary values like bg-[#0fa] or text-[rgba(0,0,0,0.5)]
   for (const match of normalizedText.matchAll(
     /\[\s*(#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})|rgba?\([^)]*\)|hsla?\([^)]*\))\s*\]/gi
   )) {
@@ -748,7 +724,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
     addColor(parsed);
   }
 
-  // General free-form parsing + inline hex/rgb/hsl matches
   for (const color of parseColorsFromText(normalizedText)) {
     addColor(color, color.name);
   }
@@ -756,7 +731,6 @@ export function extractPaletteColors(text: string, maxColors = 12): Color[] {
   return Array.from(result.values()).slice(0, limit);
 }
 
-// Get color name from hex if it matches a known color
 export function getColorName(hex: string): string | undefined {
   const normalizedHex = hex.toUpperCase();
   for (const [name, value] of Object.entries(COLOR_NAMES)) {
@@ -767,7 +741,6 @@ export function getColorName(hex: string): string | undefined {
   return undefined;
 }
 
-// Calculate contrast ratio between two colors (for accessibility)
 export function getContrastRatio(color1: Color, color2: Color): number {
   if (!(color1.rgb && color2.rgb)) {
     return 0;

@@ -11,9 +11,6 @@ import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { authKit } from "./workosAuthKit";
 import { INVALID_WORKOS_EVENT, parseWorkosEvent } from "./workosLifecycle";
 
-// One transaction: the component stores the provider profile and Teak links
-// owners and records deletions. Either both commit or neither does, so WorkOS
-// (or the Events API catch-up) can safely retry.
 export const syncVerifiedEvent = internalMutation({
   args: {
     id: v.string(),
@@ -75,15 +72,12 @@ const envelopeProblem = (event: {
   if (!isRecord(event.data)) {
     return "Invalid WorkOS event data";
   }
-  // Only a truthy context is forwarded to the mutation.
   if (event.context && !isRecord(event.context)) {
     return "Invalid WorkOS event context";
   }
   return undefined;
 };
 
-// Dead letters are unique per provider event. An ID that can't be stored as is
-// (too long, or not a string) is keyed by its SHA-256 instead of truncated.
 const deadLetterKey = async (id: unknown) => {
   if (typeof id === "string" && id.length > 0 && id.length <= 256) {
     return id;
@@ -98,9 +92,6 @@ const deadLetterKey = async (id: unknown) => {
   return `sha256:${hex}`;
 };
 
-// The one way a verified provider event reaches Teak, used by the webhook and
-// the Events API catch-up. A payload Teak can never apply is dead-lettered and
-// reported as "rejected"; any other failure throws and stays retryable.
 export const ingestWorkosEvent = async (
   ctx: Pick<ActionCtx, "runMutation">,
   event: {
@@ -196,8 +187,6 @@ export const workosWebhook = httpAction(async (ctx, request) => {
       status: 200,
     });
   } catch {
-    // Neither store committed, so WorkOS retries. Never expose provider data,
-    // signing material or mutation error details.
     return new Response("Webhook processing failed", { status: 500 });
   }
 });
@@ -215,8 +204,6 @@ export const recordDeadLetter = internalMutation({
         ...args,
         receivedAt: Date.now(),
       });
-      // The event is acknowledged and the catch-up moves past it, so this line
-      // is the only signal that an operator needs to look.
       console.error("workos_event_dead_lettered", {
         event: args.event,
         reason: args.reason,

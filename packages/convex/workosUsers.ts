@@ -28,8 +28,6 @@ const reasonValidator = v.union(
 );
 type LinkReason = typeof reasonValidator.type;
 
-// One open receipt per WorkOS user and reason. Resolution matches on that pair,
-// so repeated denials (a client retrying ensureUser) add nothing new.
 export const recordQuarantine = async (
   ctx: MutationCtx,
   row: {
@@ -57,8 +55,6 @@ export const recordQuarantine = async (
   }
 };
 
-// A successful link answers the earlier "not yet" receipts for this WorkOS user.
-// Conflict receipts stay open for an operator.
 const PENDING_REASONS = [
   "missing_mapping",
   "signups_frozen",
@@ -194,8 +190,6 @@ export const linkWorkosUser = internalMutation({
         ) {
           throw new Error("Invalid WorkOS creation input");
         }
-        // A new owner needs the component's current, verified profile for this
-        // exact address, not yet bound to another owner.
         const provider = await readComponentUser(ctx, args.workosUserId);
         const currentVerifiedProfile =
           provider !== null &&
@@ -228,9 +222,6 @@ export const linkWorkosUser = internalMutation({
               : "profile_pending"
           );
         }
-        // Allocate the permanent key from Convex's unique document identifier.
-        // The placeholder and final key commit atomically; no caller can observe
-        // or authorize against the placeholder between these writes.
         const ownerId = await ctx.db.insert("users", {
           teakUserId: "",
           identityOrigin: "workos",
@@ -261,8 +252,6 @@ export const linkWorkosUser = internalMutation({
         await resolvePendingReceipts(ctx, args.workosUserId);
         return { status: "linked" as const, teakUserId, changed: true };
       }
-      // A verified provider address must not claim a pre-existing unverified
-      // legacy vault with surviving Better Auth credentials.
       if (!candidate.emailVerified) {
         return quarantine("email_unverified", candidate.teakUserId);
       }
@@ -297,7 +286,6 @@ export const linkWorkosUser = internalMutation({
     }
     const changed = candidate.workosUserId !== args.workosUserId;
     if (changed) {
-      // The WorkOS component holds the profile; linking only binds the owner.
       await ctx.db.patch("users", candidate._id, {
         workosUserId: args.workosUserId,
       });

@@ -15,7 +15,7 @@ import { isApprovedActiveSubscription } from "./shared/polarPlans";
 // sign-out the browser still holds a briefly valid token, so the subscription
 // re-runs against a cleared session. Returning null instead of throwing keeps
 // that from crashing React; redirects stay with the boundary's auth state.
-export const getAuthUserHandler = async (ctx: any) => {
+export const getAuthUserHandler = async (ctx: QueryCtx) => {
   try {
     return (await getSessionProfile(ctx))?.user ?? null;
   } catch {
@@ -54,7 +54,6 @@ export const getAuthMode = query({
   }),
 });
 
-// A Polar read failure counts as no subscription rather than failing the query.
 export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   try {
     const subscription = await polar.getCurrentSubscription(ctx, { userId });
@@ -64,10 +63,7 @@ export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   }
 };
 
-// Get the current user
 export const getCurrentUserHandler = async (ctx: any) => {
-  // After sign-out the client may still briefly call this query; treat missing
-  // session as a non-error so we don't spam Convex logs with "Unauthenticated".
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;
@@ -93,8 +89,6 @@ export const getCurrentUser = query({
 });
 
 export const getCardCreationStatusHandler = async (ctx: any) => {
-  // After sign-out the client may still briefly call this query; treat missing
-  // session as a non-error so we don't spam Convex logs with "Unauthenticated".
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;

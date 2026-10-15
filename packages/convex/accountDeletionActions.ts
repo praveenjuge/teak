@@ -2,10 +2,14 @@
 import { NotFoundException } from "@workos-inc/node";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
-import { internalAction } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { type ActionCtx, internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
 import { deletePostHogPerson } from "./accountDeletionAnalytics";
+import {
+  ACCOUNT_DELETION_STAGES,
+  type AccountDeletionStage,
+} from "./accountDeletionStages";
 import { closeBillingCustomer } from "./billing";
 import {
   deleteLegacyBetterAuthRows,
@@ -24,7 +28,6 @@ import {
   sameWorkosDeletionTarget,
 } from "./workosDeletionCompletion";
 
-// Keep even a page of slow revocations within the action time limit.
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 
 const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
@@ -70,6 +73,173 @@ async function authorizedApps(state: Doc<"accountDeletionStates">) {
   }
   return page.apps.length > 0;
 }
+interface StageBinding {
+  generation: number;
+  stateId: Id<"accountDeletionStates">;
+}
+
+type StageHandler = (
+  ctx: ActionCtx,
+  state: Doc<"accountDeletionStates">,
+  binding: StageBinding
+) => Promise<boolean>;
+
+const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
+  accessAndBilling: async (ctx, state, binding) => {
+    const moreKeys: boolean = await ctx.runMutation(
+      internal.accountDeletionJobs.revokeLocalPage,
+      binding
+    );
+    if (moreKeys) {
+      return false;
+    }
+    const consentsDone: boolean = await ctx.runMutation(
+      internal.accountDeletionJobs.revokeConsentPage,
+      binding
+    );
+    if (!consentsDone) {
+      return false;
+    }
+    await closeBillingCustomer(ctx, state.userId);
+    return true;
+  },
+  providerSessions: async (ctx, state, binding) => {
+    if (state.workosUserId) {
+      const client = await boundWorkos(state);
+      const previous = state.providerSessionCursor ?? null;
+      let sessions: Awaited<ReturnType<typeof client.listSessions>> | undefined;
+      try {
+        sessions = await client.listSessions(state.workosUserId, {
+          limit: PROVIDER_DELETE_PAGE_SIZE,
+          after: previous,
+          order: "desc",
+        });
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) {
+          throw error;
+        }
+        let confirmedAbsent = false;
+        try {
+          await client.getUser(state.workosUserId);
+        } catch (userError) {
+          if (!(userError instanceof NotFoundException)) {
+            throw userError;
+          }
+          confirmedAbsent = true;
+        }
+        if (!confirmedAbsent) {
+          throw error;
+        }
+      }
+      if (sessions) {
+        if (sessions.data.length > PROVIDER_DELETE_PAGE_SIZE) {
+          throw new Error("deletion_session_page_invalid");
+        }
+        for (const session of sessions.data) {
+          if (
+            session.userId !== state.workosUserId ||
+            !WORKOS_SESSION_ID.test(session.id) ||
+            !["active", "expired", "revoked"].includes(session.status)
+          ) {
+            throw new Error("deletion_session_owner_mismatch");
+          }
+          if (session.status !== "active") {
+            continue;
+          }
+          try {
+            await client.revokeSession({ sessionId: session.id });
+          } catch (error) {
+            if (!(error instanceof NotFoundException)) {
+              throw error;
+            }
+          }
+        }
+        const next = sessions.listMetadata.after;
+        if (next) {
+          if (!WORKOS_SESSION_ID.test(next) || next === previous) {
+            throw new Error("deletion_session_cursor_invalid");
+          }
+          await ctx.runMutation(
+            internal.accountDeletionJobs.saveSessionCursor,
+            {
+              ...binding,
+              previous,
+              next,
+            }
+          );
+          return false;
+        }
+      }
+    }
+    if (state.betterAuthUserId) {
+      await deleteLegacyBetterAuthSessions(ctx, state.betterAuthUserId);
+    }
+    return true;
+  },
+  authorizedApps: async (_ctx, state) =>
+    !(state.workosUserId && (await authorizedApps(state))),
+  accountData: async (ctx, state, binding) => {
+    if (
+      !(await ctx.runAction(
+        internal.accountDeletionData.prepareWriters,
+        binding
+      ))
+    ) {
+      return false;
+    }
+    const data = await runAccountDataDeletion(ctx, state.userId, {
+      boundedDeletion: binding,
+      observe: withBackendErrorCapture,
+      deleteImportObjects: async (objects) => {
+        for (const object of objects) {
+          if (object.uploadId) {
+            const abort = await callFilesWorkerJson({
+              op: "abort-multipart",
+              params: { key: object.sourceKey, uploadId: object.uploadId },
+            });
+            if (abort.kind !== "ok") {
+              throw new Error("deletion_import_abort_failed");
+            }
+          }
+          await ctx.runAction(internal.accountDeletionData.deleteKeys, {
+            keys: [
+              object.sourceKey,
+              ...(object.reportKey ? [object.reportKey] : []),
+            ],
+          });
+        }
+      },
+    });
+    if (!("done" in data && data.done)) {
+      return false;
+    }
+    return await ctx.runAction(
+      internal.accountDeletionData.deleteRemainingData,
+      binding
+    );
+  },
+  workosUser: async (_ctx, state) => {
+    if (state.workosUserId) {
+      try {
+        const users = await boundWorkos(state);
+        await users.deleteUser(state.workosUserId);
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) {
+          throw error;
+        }
+      }
+    }
+    return true;
+  },
+  retainedRecordsAndAnalytics: async (ctx, state) => {
+    if (state.betterAuthUserId) {
+      await deleteLegacyBetterAuthRows(ctx, state.betterAuthUserId);
+    }
+    await deletePostHogPerson(state.userId);
+    return true;
+  },
+};
+
 export const runStage = internalAction({
   args: {
     stateId: v.id("accountDeletionStates"),
@@ -85,160 +255,10 @@ export const runStage = internalAction({
     if (state.stage !== stage) {
       throw new Error("stale_deletion_stage");
     }
-    if (stage === 0) {
-      const moreKeys: boolean = await ctx.runMutation(
-        internal.accountDeletionJobs.revokeLocalPage,
-        binding
-      );
-      if (moreKeys) {
-        return false;
-      }
-      const consentsDone: boolean = await ctx.runMutation(
-        internal.accountDeletionJobs.revokeConsentPage,
-        binding
-      );
-      if (!consentsDone) {
-        return false;
-      }
-      // Stop billing before slower cleanup so a stalled stage never charges
-      // a deleted owner.
-      await closeBillingCustomer(ctx, state.userId);
-      return true;
-    }
-    if (stage === 1) {
-      if (state.workosUserId) {
-        const client = await boundWorkos(state);
-        const previous = state.providerSessionCursor ?? null;
-        let sessions:
-          | Awaited<ReturnType<typeof client.listSessions>>
-          | undefined;
-        try {
-          sessions = await client.listSessions(state.workosUserId, {
-            limit: PROVIDER_DELETE_PAGE_SIZE,
-            after: previous,
-            order: "desc",
-          });
-        } catch (error) {
-          if (!(error instanceof NotFoundException)) {
-            throw error;
-          }
-          let confirmedAbsent = false;
-          try {
-            await client.getUser(state.workosUserId);
-          } catch (userError) {
-            if (!(userError instanceof NotFoundException)) {
-              throw userError;
-            }
-            confirmedAbsent = true;
-          }
-          if (!confirmedAbsent) {
-            throw error;
-          }
-        }
-        if (sessions) {
-          if (sessions.data.length > PROVIDER_DELETE_PAGE_SIZE) {
-            throw new Error("deletion_session_page_invalid");
-          }
-          for (const session of sessions.data) {
-            if (
-              session.userId !== state.workosUserId ||
-              !WORKOS_SESSION_ID.test(session.id) ||
-              !["active", "expired", "revoked"].includes(session.status)
-            ) {
-              throw new Error("deletion_session_owner_mismatch");
-            }
-            if (session.status !== "active") {
-              continue;
-            }
-            try {
-              await client.revokeSession({ sessionId: session.id });
-            } catch (error) {
-              if (!(error instanceof NotFoundException)) {
-                throw error;
-              }
-            }
-          }
-          const next = sessions.listMetadata.after;
-          if (next) {
-            if (!WORKOS_SESSION_ID.test(next) || next === previous) {
-              throw new Error("deletion_session_cursor_invalid");
-            }
-            await ctx.runMutation(
-              internal.accountDeletionJobs.saveSessionCursor,
-              { ...binding, previous, next }
-            );
-            return false;
-          }
-        }
-      }
-      if (state.betterAuthUserId) {
-        await deleteLegacyBetterAuthSessions(ctx, state.betterAuthUserId);
-      }
-    } else if (stage === 2) {
-      if (state.workosUserId && (await authorizedApps(state))) {
-        return false;
-      }
-    } else if (stage === 3) {
-      if (
-        !(await ctx.runAction(
-          internal.accountDeletionData.prepareWriters,
-          binding
-        ))
-      ) {
-        return false;
-      }
-      const data = await runAccountDataDeletion(ctx, state.userId, {
-        boundedDeletion: binding,
-        observe: withBackendErrorCapture,
-        deleteImportObjects: async (objects) => {
-          for (const object of objects) {
-            if (object.uploadId) {
-              const abort = await callFilesWorkerJson({
-                op: "abort-multipart",
-                params: { key: object.sourceKey, uploadId: object.uploadId },
-              });
-              if (abort.kind !== "ok") {
-                throw new Error("deletion_import_abort_failed");
-              }
-            }
-            await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-              keys: [
-                object.sourceKey,
-                ...(object.reportKey ? [object.reportKey] : []),
-              ],
-            });
-          }
-        },
-      });
-      if (!("done" in data && data.done)) {
-        return false;
-      }
-      return await ctx.runAction(
-        internal.accountDeletionData.deleteRemainingData,
-        binding
-      );
-    } else if (stage === 4) {
-      if (state.workosUserId) {
-        try {
-          const users = await boundWorkos(state);
-          await users.deleteUser(state.workosUserId);
-        } catch (error) {
-          if (!(error instanceof NotFoundException)) {
-            throw error;
-          }
-        }
-      }
-    } else if (stage === 5) {
-      if (state.betterAuthUserId) {
-        await deleteLegacyBetterAuthRows(ctx, state.betterAuthUserId);
-      }
-      // Last, so no earlier stage can capture another event for this owner.
-      // Lives in the final stage rather than a new one so in-flight states
-      // keep their stage numbers.
-      await deletePostHogPerson(state.userId);
-    } else {
+    const name = ACCOUNT_DELETION_STAGES[stage];
+    if (!name) {
       throw new Error("invalid_deletion_stage");
     }
-    return true;
+    return await STAGE_HANDLERS[name](ctx, state, binding);
   },
 });

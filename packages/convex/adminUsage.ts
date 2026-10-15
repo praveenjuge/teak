@@ -2,9 +2,6 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { DAY_MS, utcDay } from "./adminStats";
 
-// AI spend per account per UTC day. Written once per AI metadata step; read
-// by the console's money and account views.
-
 export const recordAiUsage = internalMutation({
   args: {
     userId: v.string(),
@@ -41,7 +38,6 @@ export const recordAiUsage = internalMutation({
   },
 });
 
-// Rows are one per active account per day; this bounds a 30-day read.
 const USAGE_READ_LIMIT = 20_000;
 
 export interface UsageByUser {
@@ -50,7 +46,6 @@ export interface UsageByUser {
   userId: string;
 }
 
-/** AI spend per account from `sinceDate` (inclusive, YYYY-MM-DD). */
 export const usageByUserSince = internalQuery({
   args: { sinceDate: v.string() },
   handler: async (ctx, { sinceDate }) => {
@@ -76,7 +71,6 @@ export const usageByUserSince = internalQuery({
   },
 });
 
-/** One UTC day's AI spend across every account. */
 export const usageForDay = internalQuery({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {

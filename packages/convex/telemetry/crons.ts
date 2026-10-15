@@ -3,32 +3,18 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, env, internalAction } from "../_generated/server";
+import { CRONS } from "../cronSchedules";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { catchUpHandler } from "../workosEventCatchUp";
 import { captureBackendException } from "./posthog";
 
 const internalAny = internal as Record<string, any>;
 
-// Stable job names, sent with every cron failure report.
-export const CRON_MONITORS = {
-  cleanupExpiredIdempotency: "cleanup-expired-idempotency",
-  aiMetadataBackfill: "ai-metadata-backfill",
-  cleanupAbandonedImportUploads: "cleanup-abandoned-import-uploads",
-  cleanupExpiredExports: "cleanup-expired-exports",
-  cleanupOldDeletedCards: "cleanup-old-deleted-cards",
-  cleanupStalePendingCardUploads: "cleanup-stale-pending-card-uploads",
-  sweepOrphanedObjects: "sweep-orphaned-objects",
-  reapStuckWorkflows: "reap-stuck-workflows",
-  redriveAccountDeletion: "redrive-account-deletion",
-  workosEventCatchUp: "workos-event-catch-up",
-  adminDailySnapshot: "admin-daily-snapshot",
-} as const;
-
 export const cleanupExpiredIdempotency = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupExpiredIdempotency, async () => {
+    monitored(ctx, CRONS.cleanupExpiredIdempotency.name, async () => {
       if (env.OPERATIONAL_RETENTION_ENABLED !== "true") {
         return;
       }
@@ -87,7 +73,7 @@ export const cleanupOldDeletedCards = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupOldDeletedCards, async () => {
+    monitored(ctx, CRONS.cleanupOldDeletedCards.name, async () => {
       await ctx.runMutation(
         internalAny.workflows.cardCleanup.startCardCleanupWorkflow,
         {}
@@ -104,7 +90,7 @@ export const cleanupAbandonedImportUploads = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupAbandonedImportUploads, () =>
+    monitored(ctx, CRONS.cleanupAbandonedImportUploads.name, () =>
       ctx.runAction(internalAny["import/runImport"].cleanupExpiredUploads, {})
     ),
 });
@@ -113,7 +99,7 @@ export const cleanupStalePendingCardUploads = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupStalePendingCardUploads, async () => {
+    monitored(ctx, CRONS.cleanupStalePendingCardUploads.name, async () => {
       await sweepStalePendingUploadsHandler(ctx);
       await ctx.runAction(
         internalAny.fileUploads.cleanupExpiredMultipartUploads,
@@ -126,7 +112,7 @@ export const sweepOrphanedObjects = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.sweepOrphanedObjects, async () => {
+    monitored(ctx, CRONS.sweepOrphanedObjects.name, async () => {
       await ctx.runAction(
         internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
         {}
@@ -139,7 +125,7 @@ export const aiMetadataBackfill = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.aiMetadataBackfill, () =>
+    monitored(ctx, CRONS.aiMetadataBackfill.name, () =>
       ctx.runMutation(
         internalAny.workflows.aiBackfill.startAiBackfillWorkflow,
         {}
@@ -151,7 +137,7 @@ export const reapStuckWorkflows = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.reapStuckWorkflows, async () => {
+    monitored(ctx, CRONS.reapStuckWorkflows.name, async () => {
       await ctx.runAction(
         internalAny["workflows/manager"].reapStuckWorkflows,
         {}
@@ -164,7 +150,7 @@ export const cleanupExpiredExports = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupExpiredExports, () =>
+    monitored(ctx, CRONS.cleanupExpiredExports.name, () =>
       ctx.runMutation(
         internalAny.workflows.exportCleanup.startExportCleanupWorkflow,
         {}
@@ -176,7 +162,7 @@ export const redriveAccountDeletion = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.redriveAccountDeletion, () =>
+    monitored(ctx, CRONS.redriveAccountDeletion.name, () =>
       ctx.runMutation(internal.accountDeletionJobs.redrive, {})
     ),
 });
@@ -185,7 +171,7 @@ export const workosEventCatchUp = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.workosEventCatchUp, async () => {
+    monitored(ctx, CRONS.workosEventCatchUp.name, async () => {
       await catchUpHandler(ctx);
     }),
 });
@@ -194,7 +180,7 @@ export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.adminDailySnapshot, () =>
+    monitored(ctx, CRONS.adminDailySnapshot.name, () =>
       ctx.runAction(internal.adminMetrics.captureDailySnapshot, {})
     ),
 });

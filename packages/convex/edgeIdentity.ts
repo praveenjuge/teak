@@ -13,13 +13,6 @@ import { internal } from "./_generated/api";
 import { env, httpAction, internalQuery } from "./_generated/server";
 import { hmacSha256Hex } from "./storage/r2Keys";
 
-/**
- * Which Teak user a credential belongs to, for the Files Worker's edge rate
- * limits (see `@teak/files-protocol` edgeIdentity). Read-only: an API key is
- * known by the hash its validation cached in `apiKeyAuthCache`, and a WorkOS
- * user by the user row it maps to. Authorization stays where it was; every
- * request is still authenticated by the public API itself.
- */
 export const lookup = internalQuery({
   // Exactly one of the two; parseEdgeIdentityLookup guarantees it.
   args: {
@@ -66,7 +59,6 @@ const json = (status: number, body: unknown): Response =>
     },
   });
 
-/** True when `expiresAt` is a canonical epoch second in [now, now + maxTtl]. */
 const isCurrentExpiry = (expiresAt: string, maxTtlSeconds: number): boolean => {
   const expiry = Number(expiresAt);
   const now = Math.floor(Date.now() / 1000);
@@ -78,11 +70,6 @@ const isCurrentExpiry = (expiresAt: string, maxTtlSeconds: number): boolean => {
   );
 };
 
-/**
- * True when `signature` is the HMAC of `payload`. Compares keyed digests of
- * both values, so the comparison's timing reveals nothing about the expected
- * signature.
- */
 const signatureMatches = async (
   secret: string,
   signature: string,
@@ -96,7 +83,6 @@ const signatureMatches = async (
   return given === wanted;
 };
 
-/** True when the request carries a current signature over its exact body. */
 const hasValidSignature = async (
   request: Request,
   body: ArrayBuffer,
@@ -122,13 +108,6 @@ const hasValidSignature = async (
   );
 };
 
-/**
- * True when the Files Worker has already charged this request to its user's
- * edge rate limit (`@teak/files-protocol` EDGE_RATE_LIMIT_HEADER): a current
- * attestation signed over this request's own `Authorization` value. The
- * public API then skips its own per-request charge. Anything else, including
- * every request that reaches Convex without the Worker, is charged as before.
- */
 export const hasEdgeRateLimitAttestation = async (
   request: Request
 ): Promise<boolean> => {

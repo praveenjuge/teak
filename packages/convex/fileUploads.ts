@@ -92,8 +92,6 @@ export const insertSession = internalMutation({
   returns: v.id("fileUploadSessions"),
   handler: async (ctx, args): Promise<Id<"fileUploadSessions">> => {
     const identity = await requireIdentity(ctx);
-    // Quota only: the creation rate-limit token is charged once, when the
-    // uploaded file becomes a card.
     await ensureCardQuotaAvailable(ctx, identity.teakUserId);
     const now = Date.now();
     return await ctx.db.insert("fileUploadSessions", {
@@ -391,11 +389,6 @@ export const findExpiredSessions = internalQuery({
       .take(Math.min(limit, 50)),
 });
 
-/**
- * After finalize copied the upload to its stored key: closes the session and
- * queues the pending source object for durable deletion, in one round trip so
- * the upload response doesn't wait on the files worker.
- */
 export const consumeSessionBySourceKey = internalMutation({
   args: { sourceKey: v.string() },
   returns: v.null(),

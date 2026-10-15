@@ -13,12 +13,24 @@ export interface AuthorizedApp {
   id: string;
 }
 
-const appsUrl = (workosUserId: string) =>
+const appsUrl = (workosUserId: string, appId?: string) =>
   workosApiUrl(
-    `/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications`
+    `/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications${appId ? `/${encodeURIComponent(appId)}` : ""}`
   );
 
-// One page of a user's authorized applications, or null when WorkOS answers 404.
+const requestApps = (
+  url: URL,
+  apiKey: string,
+  options: { method?: "DELETE"; timeoutMs: number }
+) =>
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  fetch(url, {
+    method: options.method,
+    headers: { Authorization: `Bearer ${apiKey}` },
+    redirect: "error",
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+
 export async function listAuthorizedAppsPage(
   workosUserId: string,
   apiKey: string,
@@ -29,12 +41,7 @@ export async function listAuthorizedAppsPage(
   if (options.after) {
     url.searchParams.set("after", options.after);
   }
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    redirect: "error",
-    signal: AbortSignal.timeout(options.timeoutMs),
-  });
+  const response = await requestApps(url, apiKey, options);
   if (response.status === 404) {
     return null;
   }
@@ -78,7 +85,6 @@ export async function listAuthorizedAppsPage(
   return { apps, after: next };
 }
 
-// Revokes one authorized application. A 404 means it is already gone.
 export async function deleteAuthorizedApp(
   workosUserId: string,
   appId: string,
@@ -88,16 +94,10 @@ export async function deleteAuthorizedApp(
   if (!APP_ID.test(appId)) {
     throw new Error("workos_authorized_apps_invalid");
   }
-  const response = await fetch(
-    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-    `${appsUrl(workosUserId).href}/${encodeURIComponent(appId)}`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      redirect: "error",
-      signal: AbortSignal.timeout(timeoutMs),
-    }
-  );
+  const response = await requestApps(appsUrl(workosUserId, appId), apiKey, {
+    method: "DELETE",
+    timeoutMs,
+  });
   if (!response.ok && response.status !== 404) {
     throw new Error(`workos_authorized_apps_${response.status}`);
   }

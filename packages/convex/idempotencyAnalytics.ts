@@ -36,7 +36,7 @@ export const trackIdempotencyOutcome = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const date = new Date().toISOString().slice(0, 10); // "2026-05-05"
+    const date = new Date().toISOString().slice(0, 10);
     const shard = analyticsShardForRequest(args.requestKey);
 
     const existing = await ctx.db

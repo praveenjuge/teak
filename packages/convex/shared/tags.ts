@@ -1,7 +1,3 @@
-// Tag limits and library-wide tag changes (rename, merge, delete), shared by
-// the backend, the public API and the apps so they agree on what the server
-// accepts and how a change rewrites a card's tags.
-
 /** Longest tag, in UTF-16 units after trimming, like card tag edits. */
 export const MAX_TAG_NAME_LENGTH = 64;
 
@@ -58,7 +54,6 @@ export const explainInvalidTagSource = (name: string): string | null => {
     : null;
 };
 
-/** The message for renaming a tag onto one that already exists. */
 export const tagExistsMessage = (name: string): string =>
   `A tag named "${name.trim()}" already exists. Merge into it instead.`;
 

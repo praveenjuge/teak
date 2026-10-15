@@ -30,8 +30,6 @@ import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
 
-// Signed by the Files Worker: which user a credential belongs to, for edge
-// rate limits. See edgeIdentity.ts.
 http.route({
   path: EDGE_IDENTITY_PATH,
   method: "POST",
@@ -51,10 +49,8 @@ http.route({
 
 registerWorkosRoutes(http);
 
-// Register the webhook handler at /polar/events
 polar.registerRoutes(http as any, { events: polarWebhookEvents });
 
-// Register public API v1 routes.
 http.route({ path: "/v1/me", method: "GET", handler: meV1 });
 http.route({
   path: "/healthz",

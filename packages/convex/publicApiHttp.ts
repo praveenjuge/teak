@@ -1,10 +1,3 @@
-/**
- * Public API HTTP router: route dispatch plus the registered /v1 httpActions.
- * Endpoint implementations live in `publicApiHttpCards.ts`, auth in
- * `publicApiHttpAuth.ts`, validation/serialization in
- * `publicApiHttpValidation.ts`, and shared primitives in
- * `publicApiHttpShared.ts`.
- */
 import { type ActionCtx, httpAction } from "./_generated/server";
 import { handleDuplicateCardRequest } from "./publicApiDuplicate";
 import {

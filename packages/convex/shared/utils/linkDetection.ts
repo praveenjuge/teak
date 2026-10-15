@@ -20,7 +20,6 @@ const MARKDOWN_ESCAPE_PATTERN = /\\([!-/:-@[-`{-~])/g;
 const HTML_ENTITY_PATTERN = /&(amp|lt|gt);/g;
 const HTML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">" };
 
-// One pass per pattern, so `&amp;lt;` decodes to `&lt;` and `\\_` to `\_`.
 function unescapeMarkdownUrl(candidate: string): string {
   return candidate
     .replace(MARKDOWN_ESCAPE_PATTERN, "$1")
@@ -39,9 +38,6 @@ function isValidHttpUrl(candidate: string): boolean {
   }
 }
 
-// Shared by the backend (createCard) and clients (mobile) so both classify
-// pasted text the same way. URL-only content becomes the unescaped URL; text
-// around an inline URL is kept as written.
 export function extractUrlFromContent(content: string): LinkExtractionResult {
   const trimmedContent = content.trim();
 

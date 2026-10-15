@@ -79,8 +79,6 @@ export const generateUploadUrlForUser = internalMutation({
   }),
   handler: async (ctx, args) => {
     const { fileName } = validateUploadRequest(args);
-    // Quota only: the creation rate-limit token is charged once, when the
-    // uploaded file becomes a card.
     await ensureCardQuotaAvailable(ctx, args.userId);
     const key = buildR2ObjectKey({
       userId: await requireTeakUserId(ctx, args.userId),

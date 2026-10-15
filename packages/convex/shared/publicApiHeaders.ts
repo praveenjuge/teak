@@ -1,7 +1,3 @@
-/**
- * CORS headers on every public API and MCP response. Shared with the Files
- * Worker, whose own error responses on those paths must carry them too.
- */
 export const PUBLIC_API_CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",

@@ -50,6 +50,29 @@
       "assist": { "enabled": false }
     },
     {
+      "includes": [
+        "packages/convex/index.ts",
+        "packages/convex/shared/index.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/_generated/server", "**/client/**"],
+                    "message": "Client barrels must not export Convex function implementations or React hooks."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/raycast/raycast-env.d.ts"],
       "linter": {
         "rules": {
