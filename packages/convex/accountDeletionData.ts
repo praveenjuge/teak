@@ -9,10 +9,7 @@ import {
 } from "./accountDeletionBatch";
 import { purgeAccountVectorsPage } from "./embedding/embedCard";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
-import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "./storage/filesWorkerClient";
+import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { assertR2KeyInNamespace } from "./storage/r2Keys";
 import { workflow } from "./workflows/manager";
 
@@ -29,14 +26,6 @@ export const deleteKeys = internalAction({
     }
     for (const key of keys) {
       assertR2KeyInNamespace(key);
-    }
-    // Every object write goes through the Files Worker, so a deployment
-    // without one holds no stored objects and no write can be in flight: the
-    // freeze fence and the worker delete are moot, and ownership rows left
-    // behind by stores that never happened (e.g. a link preview whose fetch
-    // needed the worker) must not block account deletion.
-    if (!isFilesWorkerConfigured()) {
-      return null;
     }
     for (const key of new Set(keys)) {
       const frozen = await callFilesWorkerJson<{ frozen: boolean }>({
