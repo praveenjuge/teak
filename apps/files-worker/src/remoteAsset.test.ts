@@ -115,6 +115,24 @@ describe("store-remote-asset", () => {
     ]);
   });
 
+  test("passes the page URL on to the fetcher", async () => {
+    const pageUrl = "https://www.figma.com/community/file/1234/kit";
+    const { body, calls } = await storeAsset(imageResponse, {
+      destinationKey: KEY,
+      kind: "image",
+      pageUrl,
+      url: "https://s3-alpha.figma.com/hub/file/1234/cover.png",
+    });
+    expect(body.data).toMatchObject({ stored: true });
+    expect(calls.map((call) => call.body)).toEqual([
+      {
+        kind: "image",
+        pageUrl,
+        url: "https://s3-alpha.figma.com/hub/file/1234/cover.png",
+      },
+    ]);
+  });
+
   test("keeps an SVG's fractional dimensions", async () => {
     const svg = new TextEncoder().encode("<svg/>");
     const { body, bucket } = await storeAsset(
@@ -218,6 +236,25 @@ describe("store-remote-asset", () => {
     { destinationKey: "other/u1/a", kind: "image", url: "https://a/b" },
     { destinationKey: KEY, kind: "zip", url: "https://a/b" },
     { destinationKey: KEY, kind: "image", url: "" },
+    {
+      destinationKey: KEY,
+      kind: "image",
+      pageUrl: "file:///etc",
+      url: "https://a/b",
+    },
+    { destinationKey: KEY, kind: "image", pageUrl: "", url: "https://a/b" },
+    {
+      destinationKey: KEY,
+      kind: "image",
+      pageUrl: ["https://a"],
+      url: "https://a/b",
+    },
+    {
+      destinationKey: KEY,
+      kind: "image",
+      pageUrl: `https://a/${"a".repeat(5000)}`,
+      url: "https://a/b",
+    },
   ])("rejects invalid parameters %#", async (params) => {
     const { calls, status } = await storeAsset(imageResponse, params);
     expect(status).toBe(400);

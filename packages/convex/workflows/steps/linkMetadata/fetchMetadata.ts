@@ -7,6 +7,7 @@ import {
   type FilesRemoteAssetResult,
   type FilesScrapeResult,
   guessImageContentType,
+  isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
@@ -109,11 +110,14 @@ const storeRemoteAsset = async (
     fallbackContentType,
     key,
     kind,
+    pageUrl,
     userId,
   }: {
     fallbackContentType?: string;
     key: string;
     kind: FilesRemoteAssetKind;
+    /** The page the asset came from; its origin goes out as the Referer. */
+    pageUrl: string;
     userId: string;
   }
 ): Promise<StoredRemoteAsset | null> => {
@@ -126,6 +130,8 @@ const storeRemoteAsset = async (
         kind,
         url: assetUrl,
         ...(fallbackContentType ? { fallbackContentType } : {}),
+        // An overlong page URL just goes without a Referer.
+        ...(isRemoteAssetPageUrl(pageUrl) ? { pageUrl } : {}),
       },
     });
     if (outcome.kind !== "ok") {
@@ -159,9 +165,11 @@ const storeRemoteAsset = async (
 const storeLinkPreviewImage = async (
   ctx: any,
   imageUrl: string,
-  keyBase: { cardId: string; userId: string }
+  keyBase: { cardId: string; userId: string },
+  pageUrl: string
 ): Promise<StoredLinkImage | null> => {
   const storedAsset = await storeRemoteAsset(ctx, imageUrl, {
+    pageUrl,
     userId: keyBase.userId,
     fallbackContentType: guessImageContentType(imageUrl) ?? undefined,
     key: buildR2ObjectKey({ ...keyBase, role: "link-preview-image" }),
@@ -184,9 +192,11 @@ const storeLinkPreviewImage = async (
 const storeLinkPreviewMediaItem = async (
   ctx: any,
   media: PersistableLinkMedia,
-  keyBase: { cardId: string; userId: string }
+  keyBase: { cardId: string; userId: string },
+  pageUrl: string
 ): Promise<LinkPreviewMediaItem | null> => {
   const storedMedia = await storeRemoteAsset(ctx, media.url, {
+    pageUrl,
     userId: keyBase.userId,
     fallbackContentType: media.contentType,
     key: buildR2ObjectKey({ ...keyBase, role: `link-media-${media.type}` }),
@@ -205,6 +215,7 @@ const storeLinkPreviewMediaItem = async (
 
   if (media.type === "video" && media.posterUrl) {
     const storedPoster = await storeRemoteAsset(ctx, media.posterUrl, {
+      pageUrl,
       userId: keyBase.userId,
       fallbackContentType: media.posterContentType,
       key: buildR2ObjectKey({ ...keyBase, role: "link-media-poster" }),
@@ -242,14 +253,15 @@ const storeLinkPreviewMediaItem = async (
 const storeLinkPreviewMedia = async (
   ctx: any,
   media: PersistableLinkMedia[] | undefined,
-  keyBase: { cardId: string; userId: string }
+  keyBase: { cardId: string; userId: string },
+  pageUrl: string
 ): Promise<LinkPreviewMediaItem[] | undefined> => {
   if (!media?.length) {
     return;
   }
 
   const storedMedia = await Promise.all(
-    media.map((item) => storeLinkPreviewMediaItem(ctx, item, keyBase))
+    media.map((item) => storeLinkPreviewMediaItem(ctx, item, keyBase, pageUrl))
   );
   const persistedMedia = storedMedia.filter(
     (item): item is LinkPreviewMediaItem => Boolean(item)
@@ -261,7 +273,12 @@ const storeLinkPreviewMedia = async (
 const scrapeWithFetch = async (
   url: string,
   selectors: { selector: string }[]
-): Promise<{ html: string | null; payload: ScrapeResponse }> => {
+): Promise<{
+  html: string | null;
+  /** The page's URL after redirects. */
+  pageUrl: string;
+  payload: ScrapeResponse;
+}> => {
   try {
     const response = await safeFetch(
       url,
@@ -280,6 +297,7 @@ const scrapeWithFetch = async (
       await response.body?.cancel().catch(() => undefined);
       return {
         html: null,
+        pageUrl: url,
         payload: {
           success: false,
           errors: [
@@ -294,6 +312,7 @@ const scrapeWithFetch = async (
       await response.body?.cancel().catch(() => undefined);
       return {
         html: null,
+        pageUrl: url,
         payload: {
           success: false,
           errors: [{ message: `Unsupported content-type: ${contentType}` }],
@@ -306,6 +325,9 @@ const scrapeWithFetch = async (
     );
     return {
       html,
+      // safeFetch requests each redirect hop itself, so the response's URL
+      // is the last one.
+      pageUrl: response.url || url,
       payload: {
         success: true,
         result: { selectors: buildSelectorResultsFromHtml(html, selectors) },
@@ -314,6 +336,7 @@ const scrapeWithFetch = async (
   } catch (error) {
     return {
       html: null,
+      pageUrl: url,
       payload: {
         success: false,
         errors: [{ message: (error as Error)?.message || "fetch_failed" }],
@@ -479,7 +502,8 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         const storedMedia = await storeLinkPreviewMedia(
           ctx,
           xStatusMetadata.media,
-          keyBase
+          keyBase,
+          xStatusMetadata.finalUrl
         );
         const linkPreview = buildSuccessPreview(normalizedUrl, {
           ...xStatusMetadata,
@@ -500,10 +524,11 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       }
     }
 
-    const { html, payload: staticPayload } = await scrapeWithFetch(
-      normalizedUrl,
-      SCRAPE_ELEMENTS
-    );
+    const {
+      html,
+      pageUrl,
+      payload: staticPayload,
+    } = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
     let payload = staticPayload;
 
     // A dead or forbidden link (404, 410, 401, 403, ...) will not recover on
@@ -561,7 +586,12 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         ? extractInstagramMediaFromHtml(normalizedUrl, html)
         : undefined;
     const storedInstagramMedia = extractedInstagramMedia?.length
-      ? await storeLinkPreviewMedia(ctx, extractedInstagramMedia, keyBase)
+      ? await storeLinkPreviewMedia(
+          ctx,
+          extractedInstagramMedia,
+          keyBase,
+          pageUrl
+        )
       : undefined;
     const attachedPreviewImageUrl =
       extractedInstagramMedia?.find((item) => item.type === "image")?.url ??
@@ -584,7 +614,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
         !hasStoredAttachedPreview);
     const storedImage =
       shouldStorePreviewImage && resolvedImageUrl
-        ? await storeLinkPreviewImage(ctx, resolvedImageUrl, keyBase)
+        ? await storeLinkPreviewImage(ctx, resolvedImageUrl, keyBase, pageUrl)
         : null;
     const linkPreview = buildSuccessPreview(normalizedUrl, {
       ...parsedWithPrimary,

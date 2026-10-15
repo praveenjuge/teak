@@ -51,6 +51,7 @@ const resolveDns = async (hostname: string) =>
 interface Asset {
   fallbackContentType?: string;
   kind: "image" | "video";
+  pageUrl?: string;
   role: string;
   url: string;
 }
@@ -148,6 +149,7 @@ const sendToFetcher = async (asset: Asset): Promise<string> => {
         ...(asset.fallbackContentType
           ? { fallbackContentType: asset.fallbackContentType }
           : {}),
+        ...(asset.pageUrl ? { pageUrl: asset.pageUrl } : {}),
       }),
       method: "POST",
     });
@@ -186,6 +188,7 @@ const assetsFor = async (
       assets.push({
         fallbackContentType: media.contentType,
         kind: media.type,
+        pageUrl: status?.finalUrl,
         role: `x ${media.type}`,
         url: media.url,
       });
@@ -193,13 +196,19 @@ const assetsFor = async (
         assets.push({
           fallbackContentType: media.posterContentType,
           kind: "image",
+          pageUrl: status?.finalUrl,
           role: "x poster",
           url: media.posterUrl,
         });
       }
     }
     if (!assets.length && status?.imageUrl) {
-      assets.push({ kind: "image", role: "preview", url: status.imageUrl });
+      assets.push({
+        kind: "image",
+        pageUrl: status.finalUrl,
+        role: "preview",
+        url: status.imageUrl,
+      });
     }
     return { assets, page: status ? "x status" : "x status unavailable" };
   }
@@ -214,6 +223,9 @@ const assetsFor = async (
     await response.body?.cancel().catch(() => undefined);
     return { assets: [], page: `page ${response.status} ${contentType}` };
   }
+  // As production does: the page's URL after redirects goes along as the
+  // asset's page, for the fetcher's Referer.
+  const pageUrl = response.url || url;
   const html = new TextDecoder().decode(
     await readBodyWithLimit(response, MAX_HTML_BYTES)
   );
@@ -229,12 +241,18 @@ const assetsFor = async (
     assets.push({
       fallbackContentType: media.contentType,
       kind: media.type,
+      pageUrl,
       role: `instagram ${media.type}`,
       url: media.url,
     });
   }
   if (parsed.imageUrl) {
-    assets.push({ kind: "image", role: "preview", url: parsed.imageUrl });
+    assets.push({
+      kind: "image",
+      pageUrl,
+      role: "preview",
+      url: parsed.imageUrl,
+    });
   }
   return {
     assets,

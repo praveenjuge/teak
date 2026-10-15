@@ -25,6 +25,12 @@ export interface FilesRemoteAssetParams {
   /** Used when the response has no Content-Type header. */
   fallbackContentType?: string;
   kind: FilesRemoteAssetKind;
+  /**
+   * The page the asset belongs to (its URL after redirects). The fetcher sends
+   * its origin as the Referer, as a browser would, because some image hosts
+   * refuse hotlinks without one. It never changes which hosts are allowed.
+   */
+  pageUrl?: string;
   url: string;
 }
 
@@ -55,6 +61,23 @@ export type FilesRemoteAssetResult =
       status?: number;
       stored: false;
     };
+
+/** An http(s) URL no longer than an asset URL may be. */
+export const isRemoteAssetPageUrl = (value: unknown): value is string => {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.length > FILES_REMOTE_ASSET_MAX_URL_LENGTH
+  ) {
+    return false;
+  }
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+};
 
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
 const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|m4v)(?:[?#]|$)/;

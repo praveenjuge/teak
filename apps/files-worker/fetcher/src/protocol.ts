@@ -16,6 +16,8 @@ export const FETCHER_MAX_IN_FLIGHT = 4;
 export interface FetcherRequest {
   fallbackContentType?: string;
   kind: FilesRemoteAssetKind;
+  /** Its origin is sent as the Referer on every request for the asset. */
+  pageUrl?: string;
   url: string;
 }
 
