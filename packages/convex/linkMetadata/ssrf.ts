@@ -12,12 +12,6 @@
  *     public, routable IP (loopback / private / link-local / metadata /
  *     reserved ranges are blocked for both IPv4 and IPv6)
  *   - automatic redirects are disabled; each redirect hop is re-validated
- *
- * This module is intentionally free of Node.js built-ins so it can be bundled
- * for any Convex runtime (the V8 isolate as well as Node). DNS resolution is
- * the only host capability it needs, and that is injected by the caller via a
- * {@link DnsResolver}. The `"use node"` action files that call into this module
- * supply `dnsLookup` (a thin wrapper over `node:dns/promises`).
  */
 
 /**

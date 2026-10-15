@@ -1,11 +1,3 @@
-/**
- * Export feature constants.
- *
- * Pure, dependency-free values shared by the export serializer, archive
- * builder, Convex functions, workflow, and cleanup cron. Keep this module free
- * of Convex/server imports so it can be unit tested directly.
- */
-
 export const APP_NAME = "Teak";
 
 /**

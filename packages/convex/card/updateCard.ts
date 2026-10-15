@@ -139,12 +139,25 @@ const reserveEditReprocess = async (
   return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
 };
 
-const consumeCardReprocessLimit = async (
+/** Checks both limits before spending either, so one's refusal never spends the other. */
+const spendCardReprocessLimits = async (
   ctx: MutationCtx,
   userId: string,
   cardId: Id<"cards">,
   messages: Record<ReprocessLimitName, string> = REPROCESS_LIMIT_MESSAGES
 ): Promise<void> => {
+  assertReprocessAllowed(
+    "cardReprocessPerCard",
+    await rateLimiter.check(ctx, "cardReprocessPerCard", {
+      key: String(cardId),
+    }),
+    messages
+  );
+  assertReprocessAllowed(
+    "cardReprocess",
+    await rateLimiter.check(ctx, "cardReprocess", { key: userId }),
+    messages
+  );
   assertReprocessAllowed(
     "cardReprocessPerCard",
     await rateLimiter.limit(ctx, "cardReprocessPerCard", {
@@ -648,21 +661,7 @@ export const reprocessCardForUserHandler = async (
     });
   }
 
-  // Check both limits before spending either token, so a refusal by the
-  // account-wide limit doesn't use up this card's minute.
-  assertReprocessAllowed(
-    "cardReprocessPerCard",
-    await rateLimiter.check(ctx, "cardReprocessPerCard", {
-      key: String(cardId),
-    }),
-    RERUN_AI_LIMIT_MESSAGES
-  );
-  assertReprocessAllowed(
-    "cardReprocess",
-    await rateLimiter.check(ctx, "cardReprocess", { key: userId }),
-    RERUN_AI_LIMIT_MESSAGES
-  );
-  await consumeCardReprocessLimit(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
+  await spendCardReprocessLimits(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
 
   await ctx.scheduler.runAfter(
     0,

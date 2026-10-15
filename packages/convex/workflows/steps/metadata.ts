@@ -19,6 +19,7 @@ import {
   generateTextMetadata,
   isAiMetadataDeferredError,
 } from "../aiMetadata/generators";
+import { aiMetadataResultValidator } from "../aiMetadata/schemas";
 import { extractFileTextForKey } from "../fileProcessing";
 import {
   hasKnownTinyImageDimensions,
@@ -107,18 +108,26 @@ export const buildLinkContentParts = (
   return contentParts;
 };
 
+/**
+ * Leaves metadata incomplete for the bounded periodic backfill to retry. A
+ * workflow retry would multiply one recoverable failure across its retry
+ * budget and crowd every other workflow, account deletion included, out of
+ * the shared workpool.
+ */
+const deferToBackfill = () => ({
+  aiTagsCount: 0,
+  hasSummary: false,
+  hasTranscript: false,
+  confidence: 0,
+  mode: "skipped" as const,
+});
+
 export const generate: any = internalAction({
   args: {
     cardId: v.id("cards"),
     cardType: v.string(),
   },
-  returns: v.object({
-    aiTagsCount: v.number(),
-    hasSummary: v.boolean(),
-    hasTranscript: v.boolean(),
-    confidence: v.number(),
-    mode: v.union(v.literal("completed"), v.literal("skipped")),
-  }),
+  returns: aiMetadataResultValidator,
   handler: (ctx: any, args: { cardId: Id<"cards">; cardType: string }) =>
     withBackendErrorCapture(
       {
@@ -239,13 +248,7 @@ async function generateForCard(
     console.warn("[workflow/metadata] AI paused from the console; deferring", {
       cardId,
     });
-    return {
-      aiTagsCount: 0,
-      hasSummary: false,
-      hasTranscript: false,
-      confidence: 0,
-      mode: "skipped" as const,
-    };
+    return deferToBackfill();
   }
 
   let aiTags: string[] = [];
@@ -405,19 +408,7 @@ async function generateForCard(
         ? { reason: FILES_WORKER_NOT_CONFIGURED }
         : {}),
     });
-    // Provider capacity, malformed output, not-yet-rasterized image inputs and
-    // an unconfigured Files Worker are recoverable. Leave metadata incomplete
-    // so the bounded periodic backfill can retry without multiplying one
-    // failure across the workflow retry budget, whose attempts would
-    // otherwise crowd every other workflow, account deletion included, out of
-    // the shared workpool.
-    return {
-      aiTagsCount: 0,
-      hasSummary: false,
-      hasTranscript: false,
-      confidence: 0,
-      mode: "skipped" as const,
-    };
+    return deferToBackfill();
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {

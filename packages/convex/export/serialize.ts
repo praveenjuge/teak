@@ -1,16 +1,8 @@
 /**
- * Pure export serialization logic.
- *
- * This module is intentionally free of Convex/server imports so it can be unit
- * tested directly and reused by the workflow. It is responsible for:
- *   - deciding which cards are included (active only)
- *   - producing the user-facing card JSON with the correct field allow-list:
- *     the visible AI tags and summary, the title and folder names are in
- *     (schema v2); transcripts, scraped link metadata, account data, source
- *     metadata and thumbnails/screenshots/preview media stay out
- *   - building the manifest
- *   - sanitizing original filenames for archive paths
- *   - quota / cap / expiry predicates
+ * The exported card JSON keeps only active cards and an allow-list of fields:
+ * the visible AI tags and summary, the title and folder names are in (schema
+ * v2); transcripts, scraped link metadata, account data, source metadata and
+ * thumbnails/screenshots/preview media stay out.
  */
 
 import {

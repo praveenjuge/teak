@@ -2,11 +2,10 @@
  * `cards.csv` for the export ZIP: one row per card (RFC 4180), safe to open
  * in Excel, Numbers and Google Sheets.
  *
- * Pure (no Convex imports) so it can be fuzz-tested. Every cell is quoted,
- * rows end in CRLF, and the file starts with a UTF-8 byte order mark so
- * Excel reads emoji, RTL and CJK text correctly. A cell a spreadsheet would
- * run as a formula gets a leading apostrophe. List cells (tags, folders)
- * are joined with ", "; `cards.json` keeps the exact values.
+ * Every cell is quoted, rows end in CRLF, and the file starts with a UTF-8
+ * byte order mark so Excel reads emoji, RTL and CJK text correctly. A cell a
+ * spreadsheet would run as a formula gets a leading apostrophe. List cells
+ * (tags, folders) are joined with ", "; `cards.json` keeps the exact values.
  */
 
 import type { SerializedCard } from "./serialize";
