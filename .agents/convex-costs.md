@@ -63,10 +63,11 @@ and one-off maintenance themselves consume I/O.
 Remote preview images and media (up to 50 MiB) download on the Files Worker's
 link fetcher Container straight into R2 (`store-remote-asset`), with the same
 SSRF policy and pinned connections Convex used, bundled from Convex's own
-files; they no longer pass through Convex. Page HTML (at most 2 MiB) is still
-fetched by Convex because Convex parses it. Never fetch a user-supplied URL
-anywhere without that policy and pinning. Raw metadata archival calls only the
-configured signed Files Worker.
+files; they no longer pass through Convex. Link pages are fetched and scraped
+there too (`fetch-link-page`); Convex gets back the selector results, and the
+page itself only as a gzipped copy for the Instagram media parser. Never fetch
+a user-supplied URL anywhere without that policy and pinning. Raw metadata
+archival calls only the configured signed Files Worker.
 
 ## Operational cost rollout
 

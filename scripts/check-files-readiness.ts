@@ -15,6 +15,7 @@ const required = [
   "abort-multipart",
   "delete-objects",
   "freeze-object",
+  "fetch-link-page",
   "store-remote-asset",
 ];
 

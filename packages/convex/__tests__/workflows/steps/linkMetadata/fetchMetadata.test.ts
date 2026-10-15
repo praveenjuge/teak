@@ -63,7 +63,7 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
     globalThis.fetch(url, init),
 }));
 
-import { gunzipSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 import {
   r2MockModuleFactory,
   r2Mocks,
@@ -187,69 +187,6 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("scrapes the fetched HTML on the Files Worker browser when it has no static metadata", async () => {
-    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
-    process.env.FILES_BASE = "https://files.teakvault.com";
-    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-    mockScrapeElements.push({ selector: "head > title" });
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } },
-    });
-    const workerOps: Array<{ op: string; params: Record<string, unknown> }> =
-      [];
-    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
-      if (String(url).startsWith("https://files.teakvault.com/__ops/v1")) {
-        workerOps.push(JSON.parse(String(init?.body)));
-        return Promise.resolve(
-          Response.json({
-            ok: true,
-            version: 1,
-            requestId: "r1",
-            data: {
-              selectors: [
-                { selector: "head > title", results: [{ text: "Rendered" }] },
-              ],
-            },
-          })
-        );
-      }
-      return Promise.resolve(
-        new Response("<html><body>no metadata</body></html>", {
-          headers: { "content-type": "text/html" },
-          status: 200,
-        })
-      );
-    });
-    try {
-      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-
-      expect(result.status).toBe("success");
-      expect(workerOps.map(({ op }) => op)).toEqual(["scrape-html"]);
-      const sent = workerOps[0]?.params as {
-        htmlGzipBase64: string;
-        selectors: string[];
-      };
-      expect(sent.selectors).toEqual(["head > title"]);
-      expect(
-        gunzipSync(Buffer.from(sent.htmlGzipBase64, "base64")).toString()
-      ).toBe("<html><body>no metadata</body></html>");
-      expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
-        { selector: "head > title", results: [{ text: "Rendered" }] },
-      ]);
-    } finally {
-      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
-      if (previous[0] === undefined) {
-        delete process.env.FILES_BASE;
-      }
-      if (previous[1] === undefined) {
-        delete process.env.FILES_SIGNING_SECRET;
-      }
-    }
-  });
-
   test("reads Instagram post media from the HTML it already fetched", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
@@ -276,58 +213,7 @@ describe("fetchMetadata", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  test("keeps the static result when the Files Worker browser is unavailable", async () => {
-    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
-    process.env.FILES_BASE = "https://files.teakvault.com";
-    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-    mockScrapeElements.push({ selector: "head > title" });
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } },
-    });
-    mockFetch.mockImplementation((url: string) =>
-      Promise.resolve(
-        String(url).startsWith("https://files.teakvault.com/__ops/v1")
-          ? Response.json(
-              {
-                ok: false,
-                version: 1,
-                error: {
-                  code: "RENDERER_UNAVAILABLE",
-                  message: "browser_unavailable",
-                  requestId: "r1",
-                  retryable: true,
-                },
-              },
-              { status: 503 }
-            )
-          : new Response("<html><body>no metadata</body></html>", {
-              headers: { "content-type": "text/html" },
-              status: 200,
-            })
-      )
-    );
-    try {
-      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-
-      expect(result.status).toBe("success");
-      expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
-        { selector: "head > title", results: [] },
-      ]);
-    } finally {
-      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
-      if (previous[0] === undefined) {
-        delete process.env.FILES_BASE;
-      }
-      if (previous[1] === undefined) {
-        delete process.env.FILES_SIGNING_SECRET;
-      }
-    }
-  });
-
-  test("uses static metadata without allocating a browser", async () => {
+  test("without a Files Worker, scrapes the static HTML it fetched itself", async () => {
     mockScrapeElements.push({ selector: "head > title" });
     mockRunQuery.mockResolvedValue({
       _id: "c1",
@@ -347,6 +233,285 @@ describe("fetchMetadata", () => {
     ]);
   });
 
+  const workerOk = (data: unknown) =>
+    Response.json({ ok: true, version: 1, requestId: "r1", data });
+
+  const linkPage = ({
+    html = "<html></html>",
+    pageUrl = "https://example.com/",
+    selectors = [],
+    source = "static",
+  }: {
+    html?: string;
+    pageUrl?: string;
+    selectors?: unknown[];
+    source?: string;
+  } = {}) => ({
+    charset: "utf-8",
+    fetched: true,
+    htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString("base64"),
+    pageUrl,
+    selectors,
+    source,
+  });
+
+  /** Run with a Files Worker configured; `answer` handles its ops. */
+  const withFilesWorker = async (
+    answer: (body: { op: string; params: Record<string, any> }) => Response,
+    run: (ops: { op: string; params: Record<string, any> }[]) => Promise<void>
+  ) => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    const ops: { op: string; params: Record<string, any> }[] = [];
+    mockFetch.mockImplementation((input: string | URL | Request, init) => {
+      const url = toUrlString(input);
+      if (url.startsWith("https://files.teakvault.com/__ops/v1")) {
+        const body = JSON.parse(String(init?.body));
+        ops.push(body);
+        return Promise.resolve(answer(body));
+      }
+      throw new Error(`Convex fetched ${url} itself`);
+    });
+    try {
+      await run(ops);
+    } finally {
+      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+      if (previous[0] === undefined) {
+        delete process.env.FILES_BASE;
+      }
+      if (previous[1] === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      }
+    }
+  };
+
+  const linkCard = (url = "https://example.com") => ({
+    _id: "c1",
+    userId: "u1",
+    type: "link",
+    url,
+    metadata: { linkCategory: { status: "completed" } },
+  });
+
+  describe("with a Files Worker", () => {
+    test("fetches and scrapes the page there instead of in Convex", async () => {
+      mockScrapeElements.push(
+        { selector: "head > title" },
+        { selector: "meta[property='og:title']" }
+      );
+      mockRunQuery.mockResolvedValue(linkCard());
+      const selectors = [
+        { selector: "head > title", results: [{ text: "Rendered" }] },
+        { selector: "meta[property='og:title']", results: [] },
+      ];
+
+      await withFilesWorker(
+        () => workerOk(linkPage({ selectors, source: "browser" })),
+        async (ops) => {
+          const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+          expect(result.status).toBe("success");
+          expect(ops).toEqual([
+            {
+              op: "fetch-link-page",
+              params: {
+                selectors: ["head > title", "meta[property='og:title']"],
+                url: "https://example.com",
+              },
+              version: 1,
+            },
+          ]);
+          expect(mockParseLinkPreview).toHaveBeenCalledWith(
+            "https://example.com",
+            selectors
+          );
+        }
+      );
+    });
+
+    test("reads Instagram media from the page it returns, with the final URL as Referer", async () => {
+      mockRunQuery.mockResolvedValue(
+        linkCard("https://www.instagram.com/p/DBY4WfSxA0a/")
+      );
+      mockRunMutation.mockResolvedValue(true);
+      const html = '<html><script type="application/json">{"é":1}</script>';
+      mockExtractInstagramMedia.mockReturnValue([
+        {
+          type: "image",
+          url: "https://cdninstagram.com/media/one.jpg",
+          contentType: "image/jpeg",
+        },
+      ]);
+
+      await withFilesWorker(
+        ({ op }) =>
+          op === "fetch-link-page"
+            ? workerOk(
+                linkPage({
+                  html,
+                  pageUrl: "https://www.instagram.com/p/DBY4WfSxA0a/?hl=en",
+                })
+              )
+            : workerOk({ stored: false, reason: "http_error", status: 404 }),
+        async (ops) => {
+          await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+          expect(mockExtractInstagramMedia).toHaveBeenCalledWith(
+            "https://www.instagram.com/p/DBY4WfSxA0a/",
+            html
+          );
+          // The media item, then the same image again as the preview image.
+          expect(
+            ops
+              .filter(({ op }) => op === "store-remote-asset")
+              .map(({ params }) => params.pageUrl)
+          ).toEqual(
+            new Array(2).fill("https://www.instagram.com/p/DBY4WfSxA0a/?hl=en")
+          );
+        }
+      );
+    });
+
+    test.each([
+      [404, "http_error"],
+      [410, "http_error"],
+    ])("stores a failed preview for HTTP %d", async (status, errorType) => {
+      mockRunQuery.mockResolvedValue(linkCard());
+      await withFilesWorker(
+        () => workerOk({ fetched: false, reason: "http_error", status }),
+        async () => {
+          const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+          expect(result).toMatchObject({
+            status: "failed",
+            errorType,
+            errorMessage: `HTTP ${status}`,
+          });
+        }
+      );
+    });
+
+    test("stores a failed preview when a redirect reaches a disallowed destination", async () => {
+      mockRunQuery.mockResolvedValue(linkCard());
+      await withFilesWorker(
+        () => workerOk({ fetched: false, reason: "blocked_url" }),
+        async () => {
+          const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+          expect(result).toMatchObject({
+            status: "failed",
+            errorType: "blocked_url",
+          });
+          expect(mockRunMutation).toHaveBeenCalledWith(
+            internal.linkMetadata.updateCardMetadata,
+            expect.objectContaining({
+              status: "failed",
+              linkPreview: expect.objectContaining({
+                error: expect.objectContaining({ type: "blocked_url" }),
+              }),
+            })
+          );
+        }
+      );
+    });
+
+    test.each([
+      [
+        "a 429",
+        { fetched: false, reason: "http_error", status: 429 },
+        /"type":"rate_limit"/,
+      ],
+      [
+        "a 503",
+        { fetched: false, reason: "http_error", status: 503 },
+        /"type":"scrape_error".*HTTP 503/,
+      ],
+      [
+        "a non-HTML page",
+        {
+          fetched: false,
+          reason: "unsupported_type",
+          contentType: "application/pdf",
+        },
+        /unsupported_type: application\/pdf/,
+      ],
+      [
+        "a page over 2 MiB",
+        { fetched: false, reason: "too_large" },
+        /too_large/,
+      ],
+      [
+        "a failed connection",
+        { fetched: false, reason: "fetch_failed" },
+        /fetch_failed/,
+      ],
+    ])(
+      "retries %s, as when Convex fetched it",
+      async (_label, data, message) => {
+        mockRunQuery.mockResolvedValue(linkCard());
+        await withFilesWorker(
+          () => workerOk(data),
+          async () => {
+            await expect(
+              fetchMetadataHandler(ctx, { cardId: "c1" })
+            ).rejects.toThrow(message);
+            expect(mockRunMutation).not.toHaveBeenCalled();
+          }
+        );
+      }
+    );
+
+    test.each([
+      [
+        "busy",
+        () =>
+          Response.json(
+            {
+              ok: false,
+              version: 1,
+              error: {
+                code: "RENDERER_UNAVAILABLE",
+                message: "all_fetchers_busy",
+                requestId: "r1",
+                retryable: true,
+              },
+            },
+            { status: 503 }
+          ),
+      ],
+      [
+        "unreachable",
+        () => {
+          throw new TypeError("connect ECONNREFUSED");
+        },
+      ],
+      [
+        "missing the op",
+        () =>
+          Response.json(
+            {
+              ok: false,
+              version: 1,
+              error: {
+                code: "UNSUPPORTED",
+                message: "unknown_op",
+                requestId: "r1",
+                retryable: false,
+              },
+            },
+            { status: 415 }
+          ),
+      ],
+    ])("retries the step when the Worker is %s", async (_label, answer) => {
+      mockRunQuery.mockResolvedValue(linkCard());
+      await withFilesWorker(answer, async () => {
+        await expect(
+          fetchMetadataHandler(ctx, { cardId: "c1" })
+        ).rejects.toThrow(/"type":"scrape_error".*Link page fetch unavailable/);
+        expect(mockRunMutation).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   // Remote assets download on the Files Worker's link fetcher, which stores
   // them in R2; Convex only names the URL and the destination key.
   const withAssetWorker = async (
@@ -364,37 +529,20 @@ describe("fetchMetadata", () => {
       const url = toUrlString(input);
       if (url.startsWith("https://files.teakvault.com/__ops/v1")) {
         const body = JSON.parse(String(init?.body));
-        // Pages without static metadata also go to the browser scrape.
-        if (body.op === "scrape-html") {
+        if (body.op === "fetch-link-page") {
           return Promise.resolve(
-            Response.json({
-              ok: true,
-              version: 1,
-              requestId: "r1",
-              data: { selectors: [] },
-            })
+            workerOk(linkPage({ html: pageHtml, pageUrl: body.params.url }))
           );
         }
         ops.push(body);
         return Promise.resolve(
-          Response.json({
-            ok: true,
-            version: 1,
-            requestId: "r1",
-            data: stored[body.params.url] ?? {
+          workerOk(
+            stored[body.params.url] ?? {
               stored: false,
               reason: "http_error",
               status: 404,
-            },
-          })
-        );
-      }
-      if (new URL(url).hostname === "www.instagram.com") {
-        return Promise.resolve(
-          new Response(pageHtml, {
-            headers: { "content-type": "text/html" },
-            status: 200,
-          })
+            }
+          )
         );
       }
       throw new Error(`Convex fetched ${url} itself`);
