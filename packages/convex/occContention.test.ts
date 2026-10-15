@@ -12,8 +12,10 @@ import {
   assertAccountNotDeleting,
   beginAccountDeletion,
   deleteAccountDataHandler,
-  getAccountCardDeletionBatchHandler,
+  type OwnedCardIds,
+  takeOwnedCards,
 } from "./accountDeletion";
+import { captureDeletionBatch } from "./accountDeletionBatch";
 import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,
@@ -812,14 +814,9 @@ describe("OCC contention behavior", () => {
         await syncCardSearchDocumentHandler(ctx, cardId);
         await drainCardSearchTagSync(ctx, cardId);
       }
-      const firstBatch = await getAccountCardDeletionBatchHandler(
-        ctx,
-        "user-delete"
-      );
+      const firstBatch = await takeOwnedCards(ctx, "user-delete", 20);
       expect(firstBatch.cardIds).toHaveLength(20);
-      expect(
-        await deleteAccountDataHandler(ctx, "user-delete", firstBatch.cardIds)
-      ).toBe(20);
+      expect(await deleteAccountDataHandler(ctx, firstBatch.cardIds)).toBe(20);
       expect(
         await ctx.db
           .query("cards")
@@ -833,14 +830,9 @@ describe("OCC contention behavior", () => {
       );
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
 
-      const secondBatch = await getAccountCardDeletionBatchHandler(
-        ctx,
-        "user-delete"
-      );
+      const secondBatch = await takeOwnedCards(ctx, "user-delete", 20);
       expect(secondBatch.cardIds).toHaveLength(1);
-      expect(
-        await deleteAccountDataHandler(ctx, "user-delete", secondBatch.cardIds)
-      ).toBe(1);
+      expect(await deleteAccountDataHandler(ctx, secondBatch.cardIds)).toBe(1);
       expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
         0
       );
@@ -863,27 +855,24 @@ describe("OCC contention behavior", () => {
       await drainCardSearchTagSync(ctx, cardId);
 
       expect(
-        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
-          .objectKeys
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
       ).toHaveLength(0);
       expect(
-        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
       ).toBe(0);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(25);
       expect(
-        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
-          .objectKeys
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
       ).toHaveLength(0);
       expect(
-        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
       ).toBe(0);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(5);
       expect(
-        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
-          .objectKeys
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
       ).toEqual(["object-key", "object-key.processing.json"]);
       expect(
-        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
       ).toBe(1);
       expect(await ctx.db.get("cards", cardId)).toBeNull();
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
@@ -904,7 +893,7 @@ describe("OCC contention behavior", () => {
       // (concurrent batch won the race): the handler skips it instead of
       // failing the whole account deletion.
       expect(
-        await deleteAccountDataHandler(ctx, "user-race-delete", [cardId])
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
       ).toBe(0);
       expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
         0
@@ -1012,9 +1001,9 @@ describe("OCC contention behavior", () => {
       await drainCardSearchTagSync(ctx, cardId);
 
       await beginAccountDeletion(ctx, "user-queued");
-      expect(await deleteAccountDataHandler(ctx, "user-queued", [cardId])).toBe(
-        1
-      );
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(1);
 
       const tagResult = await syncCardSearchTagsBatchHandler(
         ctx,
@@ -1063,7 +1052,7 @@ describe("OCC contention behavior", () => {
         cardId,
         card!.updatedAt,
         "user-fencing",
-        card
+        { kind: "record", card: card! }
       );
 
       const before = await ctx.db.query("cardSearchTags").collect();
@@ -1232,13 +1221,9 @@ describe("OCC contention behavior", () => {
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
 
       await ctx.db.delete("cards", cardId);
-      await restartCardSearchTagSync(
-        ctx,
-        cardId,
-        undefined,
-        "user-deleted",
-        null
-      );
+      await restartCardSearchTagSync(ctx, cardId, undefined, "user-deleted", {
+        kind: "clear",
+      });
 
       // Snapshot cleared: the batch takes the deleted-card path and prunes.
       await drainCardSearchTagSync(ctx, cardId);

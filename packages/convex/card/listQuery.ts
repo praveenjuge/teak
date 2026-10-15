@@ -1,3 +1,4 @@
+import type { IndexRange } from "convex/server";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
@@ -68,22 +69,36 @@ export interface CardListQueryOptions {
   userId: string;
 }
 
-// The index range builders are generic per index; the createdAt bounds apply
-// the same way to every index below because createdAt is its last field.
-type RangeBuilder = any;
+interface UpperBoundRange<Field extends string> extends IndexRange {
+  lt: (field: Field, value: number) => IndexRange;
+  lte: (field: Field, value: number) => IndexRange;
+}
 
-const withCreatedAt = (range: RangeBuilder, bounds?: CreatedAtBounds) => {
-  let next = range;
-  if (bounds?.gte !== undefined) {
-    next = next.gte("createdAt", bounds.gte);
-  }
+interface DateBoundRange<Field extends string> extends UpperBoundRange<Field> {
+  gte: (field: Field, value: number) => UpperBoundRange<Field>;
+}
+
+/** Bounds an index range on its date field, the field after its equalities. */
+const withDateBounds = <Field extends string>(
+  range: DateBoundRange<Field>,
+  field: Field,
+  bounds?: CreatedAtBounds
+): IndexRange => {
+  const lower =
+    bounds?.gte === undefined ? range : range.gte(field, bounds.gte);
   if (bounds?.lte !== undefined) {
-    next = next.lte("createdAt", bounds.lte);
-  } else if (bounds?.lt !== undefined) {
-    next = next.lt("createdAt", bounds.lt);
+    return lower.lte(field, bounds.lte);
   }
-  return next;
+  if (bounds?.lt !== undefined) {
+    return lower.lt(field, bounds.lt);
+  }
+  return lower;
 };
+
+const withCreatedAt = (
+  range: DateBoundRange<"createdAt">,
+  bounds?: CreatedAtBounds
+) => withDateBounds(range, "createdAt", bounds);
 
 /**
  * The one query behind every library listing (web grid, mobile summaries,
@@ -222,18 +237,8 @@ export const buildFolderCardListQuery = (
   const types = options.types?.length ? options.types : undefined;
   const archived = archivedFilterMatch(options.archived, options.trash);
   const bounds = options.createdAt;
-  const withDates = (range: RangeBuilder): RangeBuilder => {
-    let next = range;
-    if (bounds?.gte !== undefined) {
-      next = next.gte("cardCreatedAt", bounds.gte);
-    }
-    if (bounds?.lte !== undefined) {
-      next = next.lte("cardCreatedAt", bounds.lte);
-    } else if (bounds?.lt !== undefined) {
-      next = next.lt("cardCreatedAt", bounds.lt);
-    }
-    return next;
-  };
+  const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
+    withDateBounds(range, "cardCreatedAt", bounds);
   const isDeleted = options.trash ? (true as const) : undefined;
   const dated =
     archived === "any"
@@ -285,42 +290,72 @@ export const buildTagCardListQuery = (
   const types = options.types?.length ? options.types : undefined;
   const archived = archivedFilterMatch(options.archived, options.trash);
   const bounds = options.createdAt;
-  const withDates = (range: RangeBuilder): RangeBuilder => {
-    let next = range;
-    if (bounds?.gte !== undefined) {
-      next = next.gte("cardCreatedAt", bounds.gte);
-    }
-    if (bounds?.lte !== undefined) {
-      next = next.lte("cardCreatedAt", bounds.lte);
-    } else if (bounds?.lt !== undefined) {
-      next = next.lt("cardCreatedAt", bounds.lt);
-    }
-    return next;
-  };
+  const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
+    withDateBounds(range, "cardCreatedAt", bounds);
   const isDeleted = options.trash ? (true as const) : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const favorited = options.favoritesOnly === true;
   const anyArchived = archived === "any";
-  const range = (q: RangeBuilder): RangeBuilder => {
-    let next = q
-      .eq("userId", options.userId)
-      .eq("tag", options.tag)
-      .eq("isDeleted", isDeleted);
+  const { userId, tag } = options;
+  const tagRows = () => {
+    const rows = ctx.db.query("cardSearchTags");
     if (anyArchived) {
-      return withDates(next);
+      return rows.withIndex("by_user_tag_deleted_created", (q) =>
+        withDates(
+          q.eq("userId", userId).eq("tag", tag).eq("isDeleted", isDeleted)
+        )
+      );
     }
-    next = next.eq("isArchived", archived);
+    if (singleType && favorited) {
+      return rows.withIndex(
+        "by_user_tag_deleted_archived_type_favorited_v2",
+        (q) =>
+          withDates(
+            q
+              .eq("userId", userId)
+              .eq("tag", tag)
+              .eq("isDeleted", isDeleted)
+              .eq("isArchived", archived)
+              .eq("type", singleType)
+              .eq("isFavorited", true)
+          )
+      );
+    }
     if (singleType) {
-      next = next.eq("type", singleType);
+      return rows.withIndex("by_user_tag_deleted_archived_type_v2", (q) =>
+        withDates(
+          q
+            .eq("userId", userId)
+            .eq("tag", tag)
+            .eq("isDeleted", isDeleted)
+            .eq("isArchived", archived)
+            .eq("type", singleType)
+        )
+      );
     }
     if (favorited) {
-      next = next.eq("isFavorited", true);
+      return rows.withIndex("by_user_tag_deleted_archived_favorited_v2", (q) =>
+        withDates(
+          q
+            .eq("userId", userId)
+            .eq("tag", tag)
+            .eq("isDeleted", isDeleted)
+            .eq("isArchived", archived)
+            .eq("isFavorited", true)
+        )
+      );
     }
-    return withDates(next);
+    return rows.withIndex("by_user_tag_deleted_archived_created_v2", (q) =>
+      withDates(
+        q
+          .eq("userId", userId)
+          .eq("tag", tag)
+          .eq("isDeleted", isDeleted)
+          .eq("isArchived", archived)
+      )
+    );
   };
-  const dated = ctx.db
-    .query("cardSearchTags")
-    .withIndex(tagListIndex(anyArchived, singleType, favorited), range);
+  const dated = tagRows();
   const typeFiltered = anyArchived || !singleType ? types : undefined;
   if (!(typeFiltered || (anyArchived && favorited))) {
     return dated;
@@ -338,22 +373,4 @@ export const buildTagCardListQuery = (
     ];
     return checks.length === 1 ? checks[0] : q.and(...checks);
   });
-};
-
-const tagListIndex = (
-  anyArchived: boolean,
-  singleType: CardType | undefined,
-  favorited: boolean
-) => {
-  if (anyArchived) {
-    return "by_user_tag_deleted_created";
-  }
-  if (singleType) {
-    return favorited
-      ? "by_user_tag_deleted_archived_type_favorited_v2"
-      : "by_user_tag_deleted_archived_type_v2";
-  }
-  return favorited
-    ? "by_user_tag_deleted_archived_favorited_v2"
-    : "by_user_tag_deleted_archived_created_v2";
 };

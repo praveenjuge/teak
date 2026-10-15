@@ -17,7 +17,6 @@ import {
 } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
 import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
-import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendErrorCapture } from "./telemetry/posthog";
 import {
   deleteAuthorizedApp,
@@ -187,30 +186,12 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
     ) {
       return false;
     }
-    const data = await runAccountDataDeletion(ctx, state.userId, {
-      boundedDeletion: binding,
-      observe: withBackendErrorCapture,
-      deleteImportObjects: async (objects) => {
-        for (const object of objects) {
-          if (object.uploadId) {
-            const abort = await callFilesWorkerJson({
-              op: "abort-multipart",
-              params: { key: object.sourceKey, uploadId: object.uploadId },
-            });
-            if (abort.kind !== "ok") {
-              throw new Error("deletion_import_abort_failed");
-            }
-          }
-          await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-            keys: [
-              object.sourceKey,
-              ...(object.reportKey ? [object.reportKey] : []),
-            ],
-          });
-        }
-      },
-    });
-    if (!("done" in data && data.done)) {
+    if (
+      !(await runAccountDataDeletion(ctx, state.userId, {
+        boundedDeletion: binding,
+        observe: withBackendErrorCapture,
+      }))
+    ) {
       return false;
     }
     return await ctx.runAction(

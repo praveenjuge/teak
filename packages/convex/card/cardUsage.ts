@@ -424,6 +424,17 @@ export const insertCountedCard = async (
   return cardId;
 };
 
+/** Restores a deleted card and counts it toward the card limit; at the limit nothing is written. */
+export const restoreCountedCard = async (
+  ctx: MutationCtx,
+  card: Doc<"cards">,
+  patch: Partial<Doc<"cards">>,
+  options: { hasPremium?: boolean } = {}
+) => {
+  await recordActiveCardCreated(ctx, card.userId, card._id, options);
+  await ctx.db.patch("cards", card._id, patch);
+};
+
 export const recordActiveCardRemoved = async (
   ctx: MutationCtx,
   userId: string,
