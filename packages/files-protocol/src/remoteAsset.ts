@@ -1,0 +1,102 @@
+/**
+ * Remote preview assets: a link preview's image, and the images, videos and
+ * posters of social posts. The Files Worker downloads each one through its
+ * internet-enabled fetcher Container (SSRF-checked, with the connection pinned
+ * to the checked addresses) and stores it in R2, so the bytes never pass
+ * through Convex.
+ *
+ * This module has no imports: the fetcher Container bundles it by path.
+ */
+
+export type FilesRemoteAssetKind = "image" | "video";
+
+export const FILES_REMOTE_ASSET_MAX_BYTES: Record<
+  FilesRemoteAssetKind,
+  number
+> = {
+  image: 20 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+};
+
+export const FILES_REMOTE_ASSET_MAX_URL_LENGTH = 4096;
+
+export interface FilesRemoteAssetParams {
+  destinationKey: string;
+  /** Used when the response has no Content-Type header. */
+  fallbackContentType?: string;
+  kind: FilesRemoteAssetKind;
+  url: string;
+}
+
+/**
+ * Why an asset was not stored. The link keeps its preview without it, as it
+ * did when Convex downloaded assets itself; only `fetch_failed` (a network
+ * error or timeout) might have gone differently on another try.
+ */
+export type FilesRemoteAssetSkipReason =
+  | "blocked_url"
+  | "empty"
+  | "fetch_failed"
+  | "http_error"
+  | "invalid_image"
+  | "too_large"
+  | "unsupported_type";
+
+export type FilesRemoteAssetResult =
+  | {
+      contentType: string;
+      height?: number;
+      size: number;
+      stored: true;
+      width?: number;
+    }
+  | {
+      reason: FilesRemoteAssetSkipReason;
+      status?: number;
+      stored: false;
+    };
+
+const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
+const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|m4v)(?:[?#]|$)/;
+
+const IMAGE_TYPES: Record<string, string> = {
+  avif: "image/avif",
+  gif: "image/gif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+};
+
+const VIDEO_TYPES: Record<string, string> = {
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+};
+
+export const guessImageContentType = (url: string): string | null => {
+  const extension = url.toLowerCase().match(IMAGE_EXTENSION_REGEX)?.[1];
+  return extension ? (IMAGE_TYPES[extension] ?? null) : null;
+};
+
+export const guessVideoContentType = (url: string): string | null => {
+  const extension = url.toLowerCase().match(VIDEO_EXTENSION_REGEX)?.[1];
+  return extension ? (VIDEO_TYPES[extension] ?? null) : null;
+};
+
+/** The response's type, else the caller's fallback, else the URL's extension. */
+export const resolveRemoteAssetContentType = (
+  headerValue: string | null,
+  url: string,
+  fallbackContentType?: string
+): string | null =>
+  headerValue?.split(";")[0]?.trim().toLowerCase() ||
+  fallbackContentType ||
+  guessImageContentType(url) ||
+  guessVideoContentType(url);
+
+export const isRemoteAssetContentTypeAllowed = (
+  kind: FilesRemoteAssetKind,
+  contentType: string
+): boolean => contentType.startsWith(kind === "image" ? "image/" : "video/");

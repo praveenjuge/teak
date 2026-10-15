@@ -41,6 +41,8 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "process-audio": 300_000,
   "render-pdf-thumbnail": 90_000,
   "scrape-html": 90_000,
+  // Up to six redirect hops of 30 s each in the fetcher, plus a cold start.
+  "store-remote-asset": 240_000,
 };
 
 export const isFilesWorkerConfigured = (): boolean =>

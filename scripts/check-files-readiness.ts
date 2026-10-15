@@ -15,6 +15,7 @@ const required = [
   "abort-multipart",
   "delete-objects",
   "freeze-object",
+  "store-remote-asset",
 ];
 
 async function productionEnv(name: string): Promise<string> {
@@ -64,6 +65,7 @@ for (;;) {
       data?: {
         ai?: boolean;
         browser?: boolean;
+        fetcher?: boolean;
         images?: boolean;
         importModes?: string[];
         operations?: string[];
@@ -77,6 +79,7 @@ for (;;) {
       result.data?.ai === true &&
       result.data.images === true &&
       result.data.browser === true &&
+      result.data.fetcher === true &&
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
@@ -86,7 +89,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, and signing verified."
     );
     break;
   }

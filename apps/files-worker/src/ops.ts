@@ -43,6 +43,7 @@ import {
   renderPdfPage,
 } from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
 import {
   checkRendererHealth,
   RendererDeclined,
@@ -89,6 +90,9 @@ export interface FilesOpsEnv extends AiGatewayEnv {
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
+  /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
+  LINK_FETCHER?: DurableObjectNamespace;
+  LINK_FETCHER_INSTANCES?: string;
   /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
   MEDIA_RENDERER?: DurableObjectNamespace;
   MEDIA_RENDERER_INSTANCES?: string;
@@ -319,6 +323,7 @@ const dispatch = async (
         browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),
         renderer: Boolean(env.MEDIA_RENDERER),
+        fetcher: Boolean(env.LINK_FETCHER),
         // Starts a renderer when none is warm, so only deploy gates ask.
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
@@ -637,6 +642,11 @@ const dispatch = async (
         storedContentType: "image/jpeg",
       });
     }
+    case "store-remote-asset":
+      return success(
+        requestId,
+        await storeRemoteAsset(env, parseRemoteAssetParams(params))
+      );
     case "scrape-html": {
       const selectors = validScrapeSelectors(params.selectors);
       const acquire = browserAcquirer(env);

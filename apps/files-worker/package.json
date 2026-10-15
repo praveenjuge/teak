@@ -10,8 +10,9 @@
     "dev": "wrangler dev --remote --var POSTHOG_PROJECT_TOKEN:",
     "dev:development": "bun --no-env-file run ../../scripts/files-worker-dev.ts",
     "dev:local": "wrangler dev --var POSTHOG_PROJECT_TOKEN:",
-    "test": "bun test src container/src",
-    "typecheck": "tsc --noEmit && tsc -p container --noEmit"
+    "fetcher:live-check": "bun fetcher/scripts/live-check.ts",
+    "test": "bun test src container/src fetcher/src",
+    "typecheck": "tsc --noEmit && tsc -p container --noEmit && tsc -p fetcher --noEmit"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",

@@ -32,6 +32,7 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.durable_objects.bindings).toEqual([
     { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
     { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
+    { name: "LINK_FETCHER", class_name: "LinkFetcher" },
   ]);
   expect(config.containers).toEqual([
     expect.objectContaining({
@@ -39,8 +40,14 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
       instance_type: "basic",
       max_instances: 2,
     }),
+    expect.objectContaining({
+      class_name: "LinkFetcher",
+      instance_type: "basic",
+      max_instances: 2,
+    }),
   ]);
   expect(config.vars.MEDIA_RENDERER_INSTANCES).toBe("2");
+  expect(config.vars.LINK_FETCHER_INSTANCES).toBe("2");
   expect(config.ai?.binding).toBe("AI");
   expect(config.images?.binding).toBe("IMAGES");
   // Development errors stay out of the production PostHog project.

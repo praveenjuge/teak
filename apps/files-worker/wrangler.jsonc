@@ -19,7 +19,8 @@
   "durable_objects": {
     "bindings": [
       { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
-      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" }
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" },
+      { "name": "LINK_FETCHER", "class_name": "LinkFetcher" }
     ]
   },
   "migrations": [
@@ -30,6 +31,10 @@
     {
       "tag": "media-renderer-v1",
       "new_sqlite_classes": ["MediaRenderer"]
+    },
+    {
+      "tag": "link-fetcher-v1",
+      "new_sqlite_classes": ["LinkFetcher"]
     }
   ],
   // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
@@ -39,6 +44,18 @@
     {
       "class_name": "MediaRenderer",
       "image": "./container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 4
+    },
+    // Link fetcher: the only Container with internet access. It downloads
+    // remote preview images and media under Convex's SSRF policy, pinned to
+    // the addresses it checked, and the Worker stores them in R2; see
+    // fetcher/Dockerfile. Its build context is the repository root so it can
+    // bundle that policy by path.
+    {
+      "class_name": "LinkFetcher",
+      "image": "./fetcher/Dockerfile",
+      "image_build_context": "../..",
       "instance_type": "basic",
       "max_instances": 4
     }
@@ -70,7 +87,9 @@
     // Public PostHog project token for error reports (production only).
     "POSTHOG_PROJECT_TOKEN": "phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn",
     // Matches containers[0].max_instances.
-    "MEDIA_RENDERER_INSTANCES": "4"
+    "MEDIA_RENDERER_INSTANCES": "4",
+    // Matches containers[1].max_instances.
+    "LINK_FETCHER_INSTANCES": "4"
   },
   "observability": {
     "enabled": true,

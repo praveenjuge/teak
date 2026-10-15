@@ -89,12 +89,13 @@ export const rendererPoolSize = (env: RendererEnv): number => {
 /** Instance names to try, starting at a random one so load spreads. */
 export const rendererInstanceOrder = (
   size: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  prefix = "renderer"
 ): string[] => {
   const start = Math.floor(random() * size) % size;
   return Array.from(
     { length: size },
-    (_, index) => `renderer-${(start + index) % size}`
+    (_, index) => `${prefix}-${(start + index) % size}`
   );
 };
 

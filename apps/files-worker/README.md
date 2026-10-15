@@ -39,7 +39,7 @@ the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
 users, owns card state, validates uploads, and orchestrates workflows —
 while stored-file processing and storage transfers flow through this worker.
-Remote preview fetching retains its DNS-pinned Convex implementation (see below).
+Remote preview images and media download on the link fetcher Container (see below).
 Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
 "Rendering and media" and "Media renderer Container").
@@ -238,24 +238,41 @@ stores every output.
   object-deletion workflow before import rows are removed. Multipart abort is
   idempotent only for R2 `NoSuchUpload` (10024); other errors propagate.
 
-### Remote preview ingestion: retained security boundary
+### Remote preview assets: the link fetcher Container
 
-`workflows/steps/linkMetadata/fetchMetadata.ts` still downloads remote preview
-assets using the existing DNS validation, pinned address set, redirect checks,
-byte/type limits, and dimensions checks, then uploads through the worker.
-Moving this fetch without equivalent connection pinning would permit DNS
-rebinding between validation and connection.
+`store-remote-asset` downloads a link preview's image, and the images, videos
+and posters of social posts, and stores them in R2, so their bytes no longer
+pass through Convex. Convex names the URL, the kind (`image` or `video`) and the
+destination key; the Worker forwards the download to the link fetcher
+Container (`LINK_FETCHER`, `src/remoteAsset.ts`) and writes what comes back.
 
-The [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
-does not implement `lookup` or `createConnection`.
-[`resolveOverride`](https://developers.cloudflare.com/workers/runtime-apis/request/#requestinitcfproperties)
-is restricted to hosts in the zone and cannot pin arbitrary external preview
-hosts. A local workerd probe using the existing Undici Agent with a custom
-lookup failed before calling lookup with
-`ERR_OPTION_NOT_IMPLEMENTED: The options.ALPNProtocols option is not implemented`.
-This was reproduced on 2026-09-12 with both repository Wrangler 4.125.0 and
-latest Wrangler 4.131.1. Replacing the transport with custom TLS/HTTP shims
-is outside this consolidation. The protected Convex path remains canonical.
+The fetcher (`fetcher/`) is the only Container with internet access. It runs
+Node, because the policy depends on a pinned connection that the Workers
+runtime cannot make: the [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
+implements neither `lookup` nor `createConnection`, `resolveOverride` only
+reaches hosts in the zone, and Undici's Agent fails in workerd
+(`ERR_OPTION_NOT_IMPLEMENTED` for `ALPNProtocols`). Inside the Container the
+same code Convex used runs unchanged, bundled by path rather than copied:
+
+- `packages/convex/linkMetadata/ssrf.ts`: http(s) only, standard ports, no
+  credentials, every resolved address public, every redirect hop rechecked;
+- `packages/convex/workflows/steps/pinnedFetch.ts`: the connection goes to the
+  addresses that were checked, so DNS rebinding between the check and the
+  connection cannot redirect it;
+- `packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts`:
+  images must have readable dimensions within the pixel cap.
+
+Limits come from `@teak/files-protocol` (`FILES_REMOTE_ASSET_MAX_BYTES`: 20 MiB
+images, 50 MiB videos). Each instance runs four downloads at once and answers
+503 `busy` beyond that; the Worker tries the next instance. A skipped asset
+(blocked, HTTP error, wrong type, too large, unreadable image, network failure)
+leaves the preview without it, as before. The image builds from the
+repository root (`image_build_context`) so it can bundle those files;
+`fetcher/Dockerfile.dockerignore` sends only them and the fetcher's own
+`package.json` and `bun.lock`.
+
+Page HTML is still fetched by Convex, with the same pinned policy, because
+Convex parses it; it is at most 2 MiB.
 
 ### Verification and deployment boundary
 

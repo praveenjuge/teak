@@ -60,10 +60,13 @@ not send development warning emails. Revisit monthly thresholds after reset.
 Monitor database I/O, egress, storage, and function calls separately; backfills
 and one-off maintenance themselves consume I/O.
 
-Arbitrary-domain preview downloads remain on Convex. Its canonical downloader
-pins validated DNS results across redirects; the current Workers fetch surface
-cannot preserve that guarantee. Do not move this path without equivalent SSRF
-protection. Raw metadata archival calls only the configured signed Files Worker.
+Remote preview images and media (up to 50 MiB) download on the Files Worker's
+link fetcher Container straight into R2 (`store-remote-asset`), with the same
+SSRF policy and pinned connections Convex used, bundled from Convex's own
+files; they no longer pass through Convex. Page HTML (at most 2 MiB) is still
+fetched by Convex because Convex parses it. Never fetch a user-supplied URL
+anywhere without that policy and pinning. Raw metadata archival calls only the
+configured signed Files Worker.
 
 ## Operational cost rollout
 
