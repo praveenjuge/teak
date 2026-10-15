@@ -337,6 +337,11 @@ export const searchCardsPaginatedArgsValidator = v.object({
   folderQuery: v.optional(v.string()),
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
+  /**
+   * Ignored. A client retrying a failed read sends a new one, so its cached
+   * query hooks subscribe afresh instead of returning the cached error.
+   */
+  retryKey: v.optional(v.string()),
 });
 
 type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;

@@ -3,6 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { Root } from "react-dom/client";
 import type { SearchUrlState } from "../../lib/searchUrlState";
+import type { CardsVisualFilters } from "../useCardsSearchController";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -17,16 +18,35 @@ type Controller = ReturnType<typeof useCardsSearchController>;
 let root: Root | undefined;
 let controller: Controller;
 
-function Harness({ initialUrlState }: { initialUrlState?: SearchUrlState }) {
-  controller = useCardsSearchController({ initialUrlState });
+function Harness({
+  initialUrlState,
+  initialVisualFilters,
+}: {
+  initialUrlState?: SearchUrlState;
+  initialVisualFilters?: CardsVisualFilters;
+}) {
+  controller = useCardsSearchController({
+    initialUrlState,
+    initialVisualFilters,
+  });
   return null;
 }
 
-const mount = async (initialUrlState?: SearchUrlState) => {
+const mount = async (
+  initialUrlState?: SearchUrlState,
+  initialVisualFilters?: CardsVisualFilters
+) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<Harness initialUrlState={initialUrlState} />));
+  await act(() =>
+    root?.render(
+      <Harness
+        initialUrlState={initialUrlState}
+        initialVisualFilters={initialVisualFilters}
+      />
+    )
+  );
 };
 
 const card = (id: string, createdAt: number): Doc<"cards"> =>
@@ -63,6 +83,26 @@ test("starts from the search in the URL without waiting for the debounce", async
     sort: "oldest",
     tag: "",
     types: [],
+  });
+});
+
+test("a remounted screen keeps the filters the URL doesn't hold", async () => {
+  const range = { end: 2000, start: 1000 };
+  await mount(
+    { q: "design", sort: "newest", types: [] },
+    {
+      hexFilters: ["#ff0000"],
+      hueFilters: ["red"],
+      styleFilters: ["minimal"],
+      timeFilter: { kind: "range", label: "Last week", range },
+    }
+  );
+  expect(controller.queryArgs).toMatchObject({
+    createdAtRange: range,
+    hexFilters: ["#ff0000"],
+    hueFilters: ["red"],
+    searchQuery: "design",
+    styleFilters: ["minimal"],
   });
 });
 

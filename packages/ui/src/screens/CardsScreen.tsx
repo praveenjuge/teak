@@ -12,6 +12,7 @@ import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
 import { MasonryGrid } from "@teak/ui/grids";
 import {
+  type CardsVisualFilters,
   useBulkCardActions,
   useCardActions,
   useCardClipboard,
@@ -110,6 +111,8 @@ interface CardsScreenProps {
   folderId?: string;
   /** Shown before the search box, such as the sidebar toggle. */
   headerLeading?: ReactNode;
+  /** Filters to start with, kept from before a failed read was retried. */
+  initialVisualFilters?: CardsVisualFilters;
   /** Starts choosing cards to add to an (empty) folder. */
   onAddCardsToFolder?: (folderId: string) => void;
   /** Leaves "choose cards for a folder", after adding or on Cancel. */
@@ -130,6 +133,13 @@ interface CardsScreenProps {
   /** Shows another card in the open dialog, for previous and next. */
   onSwitchCard?: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
+  /** Called when the in-memory filters change, so a retry can keep them. */
+  onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
+  /**
+   * Set after a failed card read is retried (CardsReadBoundary), so the
+   * grid subscribes afresh instead of reading the cached failure.
+   */
+  queryRetryKey?: string;
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
@@ -143,6 +153,7 @@ interface CardsScreenProps {
 export function CardsScreen({
   addToFolderId,
   folderId,
+  initialVisualFilters,
   onAddCardsToFolder,
   onAddToFolderDone,
   selectedCardId,
@@ -150,6 +161,7 @@ export function CardsScreen({
   onCloseCard,
   onOpenFolder,
   onUpgrade,
+  queryRetryKey,
   headerLeading,
   onNavigateView,
   view,
@@ -160,6 +172,7 @@ export function CardsScreen({
   searchUrlState,
   onSearchUrlStateChange,
   onSwitchCard,
+  onVisualFiltersChange,
 }: CardsScreenProps) {
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
@@ -184,6 +197,7 @@ export function CardsScreen({
     folderId: folder?._id,
     folderQuery: isSmartFolder ? (folder?.query ?? "") : undefined,
     initialUrlState: searchUrlState,
+    initialVisualFilters,
     onNavigateView,
     view,
   });
@@ -290,7 +304,9 @@ export function CardsScreen({
     loadMore,
   } = usePaginatedQuery(
     api.cards.searchCardsPaginated,
-    isFolderView && !folder ? "skip" : queryArgs,
+    isFolderView && !folder
+      ? "skip"
+      : { ...queryArgs, ...(queryRetryKey ? { retryKey: queryRetryKey } : {}) },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
 
@@ -315,6 +331,15 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
+  // The URL keeps the rest of the search; these live only in memory.
+  useEffect(() => {
+    onVisualFiltersChange?.({
+      hexFilters,
+      hueFilters,
+      styleFilters,
+      timeFilter,
+    });
+  }, [hexFilters, hueFilters, onVisualFiltersChange, styleFilters, timeFilter]);
   // A new account's library shows its vault being set up, for a moment
   // even after the cards land (see useVaultSetup).
   const showVaultSetup =
