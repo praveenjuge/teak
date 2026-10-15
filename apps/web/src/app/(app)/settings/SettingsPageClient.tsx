@@ -11,14 +11,12 @@ import { SettingsContent, SubscriptionDialog } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { openCheckoutInNewTab } from "@/lib/checkout-tab";
+import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { signOut } from "@/lib/sign-out-client";
 
 export function SettingsPageClient() {
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  // Checkout runs in another tab, so success shows up here as the plan
-  // turning Pro once Polar's webhook lands.
   const checkoutOpenedRef = useRef(false);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
@@ -60,6 +58,10 @@ export function SettingsPageClient() {
   }, [settings.hasPremium]);
 
   const handleCheckout = async (planId: string) => {
+    const checkoutTab = reserveCheckoutTab({
+      assign: (url) => window.location.assign(url),
+      openWindow: (url, target) => window.open(url, target),
+    });
     captureEvent("checkout_started");
     setLoadingPlanId(planId);
     const toastId = toast.loading("Opening checkout...", {
@@ -67,12 +69,9 @@ export function SettingsPageClient() {
     });
 
     try {
-      // Runs synchronously up to its first await, inside the click.
-      const openedIn = await openCheckoutInNewTab({
-        assign: (url) => window.location.assign(url),
-        createCheckoutUrl: () => createCheckoutLink({ productId: planId }),
-        openWindow: (url, target) => window.open(url, target),
-      });
+      const openedIn = await checkoutTab.navigate(() =>
+        createCheckoutLink({ productId: planId })
+      );
       captureEvent("checkout_opened");
       checkoutOpenedRef.current = true;
       setSubscriptionOpen(false);

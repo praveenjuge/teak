@@ -26,7 +26,6 @@ const failingOnce = (error: () => Error, afterFailure?: () => void) => {
   };
 };
 
-// Skips the wait before the next attempt.
 const backOnline = () =>
   setTimeout(() => window.dispatchEvent(new Event("online")), 0);
 

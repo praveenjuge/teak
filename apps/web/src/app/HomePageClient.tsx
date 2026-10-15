@@ -22,7 +22,6 @@ export function HomePageClient({
   folderId,
   view = "all",
 }: {
-  /** A folder view (`/f/:folderId`). */
   folderId?: string;
   view?: LibraryView;
 }) {
@@ -30,7 +29,6 @@ export function HomePageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
-  // `?addTo=<folderId>` on the library: choosing cards for an empty folder.
   const addToFolderId = folderId
     ? undefined
     : (searchParams.get("addTo") ?? undefined);
@@ -50,12 +48,8 @@ export function HomePageClient({
     return parseSearchUrlState({ get: (name) => params[name] ?? null });
   }, [searchQueryParam, seedParam, sortParam, tagParam, typeParam]);
 
-  // The search lives in `?q=`, `?sort=` (with Shuffle's `?seed=`), `?type=`
-  // and `?tag=`. Native history calls update the URL (and useSearchParams)
-  // synchronously, so a fast typist's older search can never land after a
-  // newer one. Typing replaces the entry; changing the sort (a reshuffle
-  // included), the card types or the tag adds one, so Back returns to the
-  // previous order or filters.
+  // Native history updates the URL synchronously, unlike the router, so an
+  // older search can never land after a newer one.
   const handleSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
       const query = serializeSearchUrlState(state, window.location.search);
@@ -72,10 +66,6 @@ export function HomePageClient({
     []
   );
 
-  // `fav`, `trash` and `archive` typed in search open that view. The command
-  // was search text, so drop it from this page's entry first: Back then shows
-  // this page without it, and clearing the box has nothing left to write
-  // (a write after the push would replace the navigation).
   const handleNavigateView = useCallback(
     (nextView: LibraryView) => {
       const params = new URLSearchParams(window.location.search);
@@ -105,8 +95,6 @@ export function HomePageClient({
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
 
-    // Opening/closing the card modal only toggles a query param; keep the
-    // masonry scroll position instead of letting the router jump to the top.
     if (replace) {
       router.replace(nextUrl, { scroll: false });
       return;
@@ -115,7 +103,6 @@ export function HomePageClient({
     router.push(nextUrl, { scroll: false });
   };
 
-  // "Add cards" in an empty folder picks cards from the whole library.
   const handleAddCardsToFolder = useCallback(
     (targetFolderId: string) => {
       router.push(`/?addTo=${encodeURIComponent(targetFolderId)}`);
@@ -123,7 +110,6 @@ export function HomePageClient({
     [router]
   );
 
-  // Back to the folder once the cards are in; Cancel just leaves the mode.
   const handleAddToFolderDone = useCallback(
     (targetFolderId: string, added: boolean) => {
       if (added) {
@@ -147,7 +133,6 @@ export function HomePageClient({
     [router]
   );
 
-  // Stable, so the composer (which takes it) isn't remounted on renders.
   const handleUpgrade = useCallback(() => {
     rememberHomeScroll();
     router.push("/settings");

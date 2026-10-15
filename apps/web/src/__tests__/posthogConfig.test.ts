@@ -17,7 +17,7 @@ const frame = (filename: string) => ({
 });
 
 describe("web PostHog configuration", () => {
-  test("reports only from production deployments", () => {
+  test("reports only from production deployments, even with a production token in a local env file", () => {
     expect(
       resolvePostHogToken({ token: " phc_1 ", vercelEnvironment: "production" })
     ).toBe("phc_1");
@@ -76,6 +76,24 @@ describe("web PostHog configuration", () => {
     ],
   ])("drops exceptions from %s", (_name, entries) => {
     expect(filterPostHogEvent(exception(entries))).toBeNull();
+  });
+
+  test.each([
+    ["no stack", []],
+    [
+      "a frame outside React and Next chunks",
+      [{ filename: "https://app.teakvault.com/sw.js" }],
+    ],
+  ])("keeps a removeChild NotFoundError with %s", (_name, frames) => {
+    const entries = [
+      {
+        stacktrace: { frames },
+        type: "NotFoundError",
+        value:
+          "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+      },
+    ];
+    expect(filterPostHogEvent(exception(entries))).not.toBeNull();
   });
 
   test("keeps app exceptions and scrubs their messages", () => {

@@ -29,41 +29,14 @@ process.env.WORKOS_COOKIE_PASSWORD = cookiePassword;
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
 process.env.NEXT_PUBLIC_CONVEX_URL = "https://sign-up-tests.convex.cloud";
-const { NextRequest } = await import("next/server");
-const { AppRouteRouteModule } = await import(
-  "next/dist/server/route-modules/app-route/module.js"
-);
+const { serveRoute } = await import("./helpers/serveRoute");
 const signInRoute = await import("../app/sign-in/route");
 const signUpRoute = await import("../app/sign-up/route");
 const { assertWorkosCallbackBinding } = await import("@/lib/workos-config");
 
-// Serves the route the way Next does, so `cookies()` writes reach the response.
-// Needs Next's AsyncLocalStorage global, preloaded by the `test` script.
-function serveRoute(userland: unknown, pathname: string) {
-  const module = new AppRouteRouteModule({
-    userland: () => userland,
-    definition: {
-      kind: "APP_ROUTE",
-      page: `${pathname}/route`,
-      pathname,
-      filename: "route",
-      bundlePath: `app${pathname}/route`,
-    },
-    distDir: ".next",
-    relativeProjectDir: "",
-    resolvedPagePath: "",
-    nextConfigOutput: undefined,
-  } as never);
-  return (url: string, headers?: HeadersInit) =>
-    module.handle(new NextRequest(url, { headers }), {
-      renderOpts: { experimental: {}, supportsDynamicResponse: true },
-      sharedContext: { buildId: "test" },
-    } as never);
-}
 const signIn = serveRoute(signInRoute, "/sign-in");
 const signUp = serveRoute(signUpRoute, "/sign-up");
 
-// Starting sign-in is local: any upstream request fails the test.
 const offline = ((input: RequestInfo | URL) => {
   throw new Error(`Sign-in must not reach ${String(input)}`);
 }) as typeof fetch;
@@ -89,9 +62,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-// Failure modes: an email-originated sign-in the callback cannot redeem (no
-// PKCE cookie, or state not bound to it or to this client), open redirects
-// through `next`, and starting WorkOS sign-in for another origin.
 describe("WorkOS Initiate login URI", () => {
   test.each([
     ["/settings?tab=account", "/settings?tab=account"],
@@ -118,7 +88,6 @@ describe("WorkOS Initiate login URI", () => {
       code_challenge_method: "S256",
     });
 
-    // The callback requires the cookie value to equal the returned state.
     const state = authorize.searchParams.get("state");
     const [cookie] = pkceCookies(response);
     expect(cookie).toContain("HttpOnly");
@@ -167,7 +136,6 @@ describe("WorkOS Initiate login URI", () => {
   });
 });
 
-// Answers only the Convex auth-mode query; any other upstream fails the test.
 const authMode = (signupsDisabled: boolean) =>
   ((input: RequestInfo | URL) =>
     String(input) === "https://sign-up-tests.convex.cloud/api/query"
@@ -208,8 +176,6 @@ describe("WorkOS sign-up route", () => {
   });
 });
 
-// A failed callback returns here with `reauth`. Forcing fresh credentials
-// stops an existing AuthKit session from bouncing straight back into it.
 describe("sign-in after a failed callback", () => {
   test("asks for credentials again", async () => {
     const response = await signIn("http://localhost:3142/sign-in?reauth=1");

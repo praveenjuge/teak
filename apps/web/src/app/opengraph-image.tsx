@@ -43,9 +43,9 @@ export default async function Image() {
         backgroundColor: "#000000",
       }}
     >
-      {/** biome-ignore lint/correctness/useImageSize: <exp> */}
       <img
         alt=""
+        height={size.height}
         src={backgroundImage}
         style={{
           position: "absolute",
@@ -55,6 +55,7 @@ export default async function Image() {
           objectFit: "cover",
           objectPosition: "center",
         }}
+        width={size.width}
       />
       <div
         style={{

@@ -11,9 +11,7 @@ const applySavedTheme = () => {
   let saved: string | null = null;
   try {
     saved = localStorage.getItem("theme");
-  } catch {
-    // Storage can be blocked; the system theme still applies.
-  }
+  } catch {}
   const dark =
     saved === "dark" ||
     (saved !== "light" &&

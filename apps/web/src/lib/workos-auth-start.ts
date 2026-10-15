@@ -2,13 +2,11 @@ import "server-only";
 import { api } from "@teak/convex";
 import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
 import { ConvexHttpClient } from "convex/browser";
-import { type NextRequest, NextResponse } from "next/server";
+import { connection, type NextRequest, NextResponse } from "next/server";
 import { getConvexUrl } from "./public-env";
 import { getSafeNextPath } from "./safe-next-path";
 import { readWorkosWebConfig, workosCallbackState } from "./workos-config";
 
-// While sign-ups are paused, sign-up opens the sign-in screen instead of a
-// form the backend would reject. If the flag can't be read, sign-in is safe.
 const signupsOpen = async (): Promise<boolean> => {
   try {
     const mode = await new ConvexHttpClient(getConvexUrl()).query(
@@ -27,8 +25,7 @@ export async function startWorkosAuth(
   request: NextRequest,
   screen: "sign-in" | "sign-up"
 ): Promise<Response> {
-  // Reading the request first keeps these handlers per-request: Next would
-  // otherwise prerender them at build time, before runtime config exists.
+  await connection();
   const { origin } = request.nextUrl;
   const config = readWorkosWebConfig();
   if (origin !== config.origin) {

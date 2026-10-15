@@ -482,7 +482,7 @@ export function useCardModal(
       link.rel = "noopener";
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove();
     } catch (error) {
       console.error("Failed to download file:", error);
       notifyError(error as Error, "download file");
