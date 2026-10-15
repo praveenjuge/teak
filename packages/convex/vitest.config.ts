@@ -59,6 +59,7 @@ export default defineConfig({
       "./folders.test.ts",
       "./colorSearch.test.ts",
       "./mediaColorsBackfill.test.ts",
+      "./linkCategoriesBackfill.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
       "./adminConsole.test.ts",

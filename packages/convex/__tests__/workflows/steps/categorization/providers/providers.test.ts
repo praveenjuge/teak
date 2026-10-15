@@ -14,6 +14,7 @@ import { enrichDribbble } from "../../../../../workflows/steps/categorization/pr
 import { enrichGithub } from "../../../../../workflows/steps/categorization/providers/github";
 import { enrichGoodreads } from "../../../../../workflows/steps/categorization/providers/goodreads";
 import { enrichImdb } from "../../../../../workflows/steps/categorization/providers/imdb";
+import { enrichProvider } from "../../../../../workflows/steps/categorization/providers/index";
 
 // Helper function to create a raw selector map
 const createMap = (
@@ -771,5 +772,22 @@ describe("enrichDribbble", () => {
 
   it("returns null if no enrichment", () => {
     expect(enrichDribbble(new Map())).toBeNull();
+  });
+});
+
+describe("enrichProvider", () => {
+  const stars = createMap([["a[href$='/stargazers']", { text: "1,234" }]]);
+
+  it.each(["software", "repo"] as const)(
+    "adds GitHub's facts to a %s link",
+    (category) => {
+      expect(enrichProvider("github", category, stars)?.facts).toEqual([
+        { label: "Stars", value: "1,234" },
+      ]);
+    }
+  );
+
+  it("skips GitHub's facts for a confident category it doesn't serve", () => {
+    expect(enrichProvider("github", "article", stars)).toBeNull();
   });
 });

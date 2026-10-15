@@ -13,7 +13,7 @@ interface ProviderHandler {
 
 const handlers: Record<string, ProviderHandler> = {
   github: {
-    categories: ["software"],
+    categories: ["software", "repo"],
     enrich: enrichGithub,
   },
   goodreads: {

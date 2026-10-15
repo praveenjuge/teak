@@ -13,10 +13,19 @@ export const LINK_CATEGORIES = [
   "event",
   "software",
   "design_portfolio",
+  "place",
+  "typeface",
+  "social_post",
+  "app",
+  "game",
+  "repo",
   "other",
 ] as const;
 
 export type LinkCategory = (typeof LINK_CATEGORIES)[number];
+
+export const isLinkCategory = (value: string): value is LinkCategory =>
+  (LINK_CATEGORIES as readonly string[]).includes(value);
 
 export const LINK_CATEGORY_LABELS: Record<LinkCategory, string> = {
   book: "Book / eBook",
@@ -31,8 +40,14 @@ export const LINK_CATEGORY_LABELS: Record<LinkCategory, string> = {
   course: "Course / Tutorial / Learning Resource",
   research: "Research Paper / Academic Publication",
   event: "Event / Webinar / Meetup",
-  software: "Software / App / GitHub Project",
+  software: "Software / Developer Tool",
   design_portfolio: "Design Portfolio",
+  place: "Place / Restaurant / Venue / Real Estate",
+  typeface: "Typeface / Font",
+  social_post: "Social Post",
+  app: "App / Mobile or Desktop App",
+  game: "Game / Video Game",
+  repo: "Code Repository",
   other: "Other / Miscellaneous",
 };
 
@@ -51,8 +66,29 @@ export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
   event: "CalendarDays",
   software: "Code",
   design_portfolio: "Palette",
+  place: "MapPin",
+  typeface: "Type",
+  social_post: "MessageSquare",
+  app: "AppWindow",
+  game: "Gamepad2",
+  repo: "FolderGit2",
   other: "Link",
 };
+
+/**
+ * Mastodon instances whose `/@user/<id>` paths the URL rules trust as posts.
+ * The path alone is not enough (any blog can use it); other instances are
+ * confirmed through their status API when the link's metadata is fetched.
+ */
+export const MASTODON_HOSTS = [
+  "mastodon.social",
+  "mastodon.online",
+  "mas.to",
+  "fosstodon.org",
+  "hachyderm.io",
+  "infosec.exchange",
+  "mstdn.social",
+] as const;
 
 export interface LinkCategoryDetail {
   icon?: string;

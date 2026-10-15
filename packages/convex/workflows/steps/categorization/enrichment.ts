@@ -31,6 +31,35 @@ const STRUCTURED_DATA_FIELDS = [
   "duration",
   "performer",
   "byArtist",
+  "address",
+  "servesCuisine",
+  "priceRange",
+  "operatingSystem",
+  "applicationCategory",
+  "gamePlatform",
+];
+
+const PLACE_TYPES = [
+  "Restaurant",
+  "LocalBusiness",
+  "Place",
+  "LodgingBusiness",
+  "Residence",
+  "SingleFamilyResidence",
+  "Apartment",
+  "RealEstateListing",
+];
+const APP_TYPES = [
+  "SoftwareApplication",
+  "MobileApplication",
+  "WebApplication",
+];
+const ADDRESS_PARTS = [
+  "streetAddress",
+  "addressLocality",
+  "addressRegion",
+  "postalCode",
+  "addressCountry",
 ];
 
 const toArray = <T>(value: T | T[] | undefined): T[] => {
@@ -119,6 +148,26 @@ const normalizeImage = (value: any): string | undefined => {
     return value.url;
   }
 };
+
+/** A schema.org address as one line: "1 Main St, Springfield, IL 62701, US". */
+const formatAddress = (value: any): string | undefined => {
+  if (typeof value === "string") {
+    return value.trim() || undefined;
+  }
+  if (Array.isArray(value)) {
+    return formatAddress(value[0]);
+  }
+  if (!value || typeof value !== "object") {
+    return;
+  }
+  const parts = ADDRESS_PARTS.map((part) => valueToText(value[part])?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
+  return parts || undefined;
+};
+
+const formatRating = (entity: any): string | undefined =>
+  entity.aggregateRating?.ratingValue?.toString();
 
 const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
   hostname === domain || hostname.endsWith(`.${domain}`);
@@ -514,6 +563,51 @@ export const enrichWithStructuredData = (
         valueToText(creative.author) || valueToText(creative.creator)
       );
       raw = pickFields(creative, STRUCTURED_DATA_FIELDS);
+      break;
+    }
+    case "place": {
+      const place = findByType(entities, PLACE_TYPES);
+      if (!place) {
+        break;
+      }
+      applyImage(place);
+      // A listing usually describes the home it offers rather than itself.
+      const subject = [place, place.about, place.mainEntity, place.itemOffered]
+        .filter(Boolean)
+        .find((candidate) => candidate.address);
+      addFact("Address", formatAddress(subject?.address));
+      addFact("Cuisine", stringArray(place.servesCuisine).join(", "));
+      addFact("Price range", valueToText(place.priceRange));
+      addFact("Rating", formatRating(place));
+      raw = pickFields(place, STRUCTURED_DATA_FIELDS);
+      break;
+    }
+    case "app": {
+      const app = findByType(entities, APP_TYPES);
+      if (!app) {
+        break;
+      }
+      applyImage(app);
+      addFact("Platform", stringArray(app.operatingSystem).join(", "));
+      addFact("Category", valueToText(app.applicationCategory));
+      addFact("Rating", formatRating(app));
+      raw = pickFields(app, STRUCTURED_DATA_FIELDS);
+      break;
+    }
+    case "game": {
+      const game = findByType(entities, ["VideoGame"]);
+      if (!game) {
+        break;
+      }
+      applyImage(game);
+      addFact(
+        "Platform",
+        stringArray(game.gamePlatform || game.operatingSystem).join(", ")
+      );
+      addFact("Genre", stringArray(game.genre).join(", "));
+      addFact("Rating", formatRating(game));
+      addFact("Released", formatDate(game.datePublished));
+      raw = pickFields(game, STRUCTURED_DATA_FIELDS);
       break;
     }
     default:

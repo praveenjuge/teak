@@ -218,6 +218,9 @@ export const metadataValidator = v.optional(
         raw: v.optional(v.any()),
         rawStorageKey: v.optional(v.string()),
         rawSha256: v.optional(v.string()),
+        // Set when a site's own API confirmed what the link is (a social
+        // post); categorization prefers it to the URL rules.
+        categoryHint: v.optional(linkCategoryValidator),
       })
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),

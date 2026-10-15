@@ -401,4 +401,29 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain("Standup.m4a");
     expect(markup).toContain("1:24");
   });
+
+  test("shows a text-only social post with its author", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            url: "https://mastodon.social/@Gargron/109311046116149744",
+            metadata: {
+              linkPreview: {
+                status: "success",
+                title: "It was the butler and the cook.",
+                description:
+                  "Eugen Rochko (@Gargron@mastodon.social) on Mastodon · November 9, 2022",
+                author: "Eugen Rochko",
+                siteName: "Mastodon",
+                categoryHint: "social_post",
+              },
+            },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">It was the butler and the cook.<");
+    expect(markup).toContain("Eugen Rochko (@Gargron@mastodon.social)");
+  });
 });

@@ -1,4 +1,8 @@
-import { LINK_CATEGORIES, type LinkCategory } from "../linkCategories";
+import {
+  LINK_CATEGORIES,
+  type LinkCategory,
+  MASTODON_HOSTS,
+} from "../linkCategories";
 
 export type LinkCategoryResolutionReason =
   | "domain_rule"
@@ -20,6 +24,8 @@ interface DomainRule {
   confidence?: number;
   description?: string;
   domain: string;
+  /** Match the domain itself (or its `www.`) only, never other subdomains. */
+  exactHost?: boolean;
   pathIncludes?: RegExp[];
   provider?: string;
 }
@@ -37,7 +43,205 @@ const PROVIDER_CONFIDENCE = 0.72;
 const HEURISTIC_CONFIDENCE = 0.58;
 const FALLBACK_CONFIDENCE = 0.35;
 
+// First path segments on code hosts that are site pages, not owners.
+const CODE_HOST_RESERVED_SEGMENTS = [
+  "-",
+  "about",
+  "account",
+  "apps",
+  "collections",
+  "contact",
+  "customer-stories",
+  "dashboard",
+  "enterprise",
+  "events",
+  "explore",
+  "features",
+  "groups",
+  "help",
+  "login",
+  "marketplace",
+  "new",
+  "notifications",
+  "org",
+  "orgs",
+  "pricing",
+  "readme",
+  "repo",
+  "search",
+  "security",
+  "settings",
+  "site",
+  "solutions",
+  "sponsors",
+  "team",
+  "topics",
+  "trending",
+  "user",
+  "users",
+];
+
+// `/<owner>/<repo>` and anything deeper, unless the owner is a site page.
+const REPO_PATH = new RegExp(
+  `^/(?!(?:${CODE_HOST_RESERVED_SEGMENTS.join("|")})(?:/|$))[^/]+/[^/]+`,
+  "i"
+);
+// sourcehut owners start with `~`.
+const SOURCEHUT_REPO_PATH = /^\/~[^/]+\/[^/]+/;
+const MASTODON_STATUS_PATH = /^\/@[^/]+\/\d+\/?$/;
+const X_STATUS_PATH = /\/status(?:es)?\/\d+/i;
+const THREADS_POST_PATH = /^\/@[^/]+\/post\/[^/]+/i;
+
+const repoRule = (domain: string, provider?: string): DomainRule => ({
+  domain,
+  category: "repo",
+  exactHost: true,
+  pathIncludes: [domain.endsWith("sr.ht") ? SOURCEHUT_REPO_PATH : REPO_PATH],
+  description: `${domain} repository`,
+  ...(provider ? { provider } : {}),
+});
+
 const DOMAIN_RULES: DomainRule[] = [
+  repoRule("github.com", "github"),
+  repoRule("gitlab.com"),
+  repoRule("bitbucket.org"),
+  repoRule("codeberg.org"),
+  repoRule("git.sr.ht"),
+  repoRule("hg.sr.ht"),
+  // Social posts. Substack Notes sits before Substack's article rule.
+  { domain: "x.com", category: "social_post", pathIncludes: [X_STATUS_PATH] },
+  {
+    domain: "twitter.com",
+    category: "social_post",
+    pathIncludes: [X_STATUS_PATH],
+  },
+  {
+    domain: "instagram.com",
+    category: "social_post",
+    pathIncludes: [/^\/(?:[^/]+\/)?(?:p|reel)\/[^/]+/i],
+  },
+  {
+    domain: "bsky.app",
+    category: "social_post",
+    pathIncludes: [/^\/profile\/[^/]+\/post\/[^/]+/i],
+  },
+  {
+    domain: "threads.net",
+    category: "social_post",
+    pathIncludes: [THREADS_POST_PATH],
+  },
+  {
+    domain: "threads.com",
+    category: "social_post",
+    pathIncludes: [THREADS_POST_PATH],
+  },
+  {
+    domain: "tiktok.com",
+    category: "social_post",
+    pathIncludes: [/^\/@[^/]+\/video\/\d+/i],
+  },
+  {
+    domain: "reddit.com",
+    category: "social_post",
+    pathIncludes: [/\/comments\/[a-z0-9]+/i],
+  },
+  {
+    domain: "linkedin.com",
+    category: "social_post",
+    pathIncludes: [/^\/posts\/[^/]+/i, /^\/feed\/update\/[^/]+/i],
+  },
+  {
+    domain: "substack.com",
+    category: "social_post",
+    pathIncludes: [/\/note\/[^/]+/i],
+  },
+  ...MASTODON_HOSTS.map(
+    (domain): DomainRule => ({
+      domain,
+      category: "social_post",
+      exactHost: true,
+      pathIncludes: [MASTODON_STATUS_PATH],
+      description: `${domain} status`,
+    })
+  ),
+  // Apps
+  { domain: "apps.apple.com", category: "app", pathIncludes: [/\/app\//i] },
+  {
+    domain: "play.google.com",
+    category: "app",
+    pathIncludes: [/^\/store\/apps\//i],
+  },
+  {
+    domain: "chromewebstore.google.com",
+    category: "app",
+    pathIncludes: [/^\/detail\//i],
+  },
+  {
+    domain: "chrome.google.com",
+    category: "app",
+    pathIncludes: [/^\/webstore\/detail\//i],
+  },
+  {
+    domain: "apps.microsoft.com",
+    category: "app",
+    pathIncludes: [/\/detail\//i],
+  },
+  // Games
+  {
+    domain: "store.steampowered.com",
+    category: "game",
+    pathIncludes: [/^\/app\//i],
+  },
+  { domain: "itch.io", category: "game" },
+  { domain: "store.epicgames.com", category: "game" },
+  { domain: "gog.com", category: "game", pathIncludes: [/\/game\//i] },
+  {
+    domain: "boardgamegeek.com",
+    category: "game",
+    pathIncludes: [/^\/boardgame\//i],
+  },
+  // Places: maps, food and travel, real estate
+  {
+    domain: "google.com",
+    category: "place",
+    pathIncludes: [/^\/maps(?:\/|$)/i],
+  },
+  { domain: "maps.google.com", category: "place" },
+  { domain: "maps.app.goo.gl", category: "place" },
+  { domain: "goo.gl", category: "place", pathIncludes: [/^\/maps\//i] },
+  { domain: "maps.apple.com", category: "place" },
+  { domain: "yelp.com", category: "place", pathIncludes: [/^\/biz\//i] },
+  { domain: "tripadvisor.com", category: "place" },
+  { domain: "opentable.com", category: "place" },
+  { domain: "resy.com", category: "place" },
+  { domain: "airbnb.com", category: "place", pathIncludes: [/^\/rooms\//i] },
+  { domain: "booking.com", category: "place", pathIncludes: [/^\/hotel\//i] },
+  {
+    domain: "zillow.com",
+    category: "place",
+    pathIncludes: [/^\/homedetails\//i],
+  },
+  { domain: "redfin.com", category: "place" },
+  {
+    domain: "rightmove.co.uk",
+    category: "place",
+    pathIncludes: [/^\/properties\//i],
+  },
+  { domain: "realtor.com", category: "place" },
+  // Typefaces
+  {
+    domain: "fonts.google.com",
+    category: "typeface",
+    pathIncludes: [/^\/specimen\//i],
+  },
+  {
+    domain: "fonts.adobe.com",
+    category: "typeface",
+    pathIncludes: [/^\/fonts\//i],
+  },
+  { domain: "myfonts.com", category: "typeface" },
+  { domain: "fontshare.com", category: "typeface" },
+  { domain: "futurefonts.xyz", category: "typeface" },
   { domain: "github.com", category: "software", provider: "github" },
   { domain: "gitlab.com", category: "software" },
   { domain: "bitbucket.org", category: "software" },
@@ -78,7 +282,6 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "music.apple.com", category: "music", provider: "apple" },
   { domain: "netflix.com", category: "tv" },
   { domain: "hulu.com", category: "tv" },
-  { domain: "itch.io", category: "software" },
   { domain: "eventbrite.com", category: "event" },
   { domain: "lu.ma", category: "event" },
   { domain: "arxiv.org", category: "research" },
@@ -155,12 +358,11 @@ const pickDomainRule = (parsed: URL | null): DomainRule | null => {
   const apex = stripSubdomains(hostname);
 
   for (const rule of DOMAIN_RULES) {
-    if (
-      !(
-        hostnameMatches(hostname, rule.domain) ||
-        hostnameMatches(apex, rule.domain)
-      )
-    ) {
+    const hostMatches = rule.exactHost
+      ? hostname === rule.domain || hostname === `www.${rule.domain}`
+      : hostnameMatches(hostname, rule.domain) ||
+        hostnameMatches(apex, rule.domain);
+    if (!hostMatches) {
       continue;
     }
 
