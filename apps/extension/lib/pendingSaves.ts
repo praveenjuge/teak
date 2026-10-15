@@ -45,7 +45,6 @@ async function transaction<T>(
 
 export const listPendingSaveIds = () =>
   transaction("readonly", (store) => store.getAllKeys()) as Promise<string[]>;
-/** Saves still waiting for the user; a save that is running is not one. */
 export const waitingSaveIds = (
   ids: readonly string[],
   running: { has: (id: string) => boolean }
