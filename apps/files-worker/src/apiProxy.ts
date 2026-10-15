@@ -21,8 +21,13 @@ export interface ApiProxyEnv {
   API_UPSTREAM_ORIGIN?: string;
 }
 
-/** Convex HTTP actions refuse request bodies over 20 MiB; refuse them here first. */
-export const API_PROXY_MAX_BODY_BYTES = 20 * 1024 * 1024;
+/**
+ * Convex documents a 20 MB limit on HTTP action requests; refuse larger
+ * bodies here first. Measured against a deployment, Convex accepts bodies up
+ * to about 20,480,000 bytes and answers a bare 502 past that, so 20 MiB
+ * (20,971,520) let some oversized bodies through to that 502.
+ */
+export const API_PROXY_MAX_BODY_BYTES = 20_000_000;
 
 /** How long the edge keeps public discovery documents before asking Convex again. */
 export const API_PROXY_DOCUMENT_TTL_SECONDS = 300;

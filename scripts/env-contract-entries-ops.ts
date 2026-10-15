@@ -328,6 +328,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: true,
     requiredIn: ["production"],
   }),
+  spec("CLOUDFLARE_API_TOKEN", {
+    owners: ["teak-repo"],
+    targets: ["repo"],
+    profiles: ["local"],
+    secret: true,
+    validation: "string",
+    providers: ["shell"],
+    required: false,
+    note: "Cloudflare API token for `bun run waf` (scripts/cloudflare-waf.ts): Zone Read and Zone WAF Edit on teakvault.com, or Zone WAF Read for a dry run. Exported in the shell of whoever applies the rules; never committed.",
+  }),
   spec("STORE_ASSETS_BROWSER", {
     owners: ["teak-repo"],
     targets: ["repo"],

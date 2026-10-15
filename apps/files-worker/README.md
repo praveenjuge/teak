@@ -58,7 +58,7 @@ and response bodies, does not follow redirects, and adds the site's security
 headers. `API_PUBLIC_HOST` and `API_UPSTREAM_ORIGIN` configure it; unset, the
 Worker proxies nothing, and the development Worker sets neither.
 
-- Bodies whose `Content-Length` is over Convex's 20 MiB HTTP action limit get
+- Bodies whose `Content-Length` is over Convex's 20 MB HTTP action limit get
   413 `CONTENT_TOO_LARGE` without reaching Convex; an unreachable Convex is
   502 `SERVICE_UNAVAILABLE`, in the API's `{ code, error }` shape.
 - The OpenAPI spec and the three discovery documents are identical for every
@@ -71,6 +71,26 @@ Worker proxies nothing, and the development Worker sets neither.
   checks that every rewrite reaches the same Convex URL through a route here.
 - Errors the Worker answers itself carry the API's CORS headers, an
   `X-Request-Id` and `no-store`, like Convex's own API errors.
+
+### WAF rules
+
+`waf/rules.ts` holds WAF custom rules for the `teakvault.com` zone; they run
+before this Worker, so a request they block never invokes it. Today there is
+one: `teakvault.com/api` and `/mcp` requests whose declared `Content-Length`
+exceeds `API_PROXY_MAX_BODY_BYTES` are blocked. They get Cloudflare's 403
+page, not the proxy's 413 JSON: a custom block response needs a plan this zone
+is not on, and it could not carry the API's CORS headers anyway, so a
+cross-origin browser sees a network error. The exact body size field needs an
+Enterprise plan, so the rule compares the header's digits, leaving zero-padded
+lengths to the Worker. Chunked bodies without the header still reach the
+Worker's and Convex's own limits.
+
+`bun run waf` (`scripts/cloudflare-waf.ts`) shows what would change, `--check`
+exits 1 when the zone has drifted, and `--apply` makes the changes through the
+Rulesets API. It only creates, updates and deletes rules whose `ref` starts
+with `teak-api-`; other custom rules in the zone are never touched. It needs
+`CLOUDFLARE_API_TOKEN` with Zone: Read and Zone WAF: Edit on the zone (Zone
+WAF: Read for a dry run or `--check`).
 
 ### Edge identity
 

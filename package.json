@@ -30,7 +30,8 @@
     "test": "turbo run test && bun --no-env-file test scripts/ apps/apple/tests/",
     "typecheck": "turbo run typecheck",
     "verify": "turbo run typecheck lint test --affected",
-    "verify:all": "turbo run typecheck lint test"
+    "verify:all": "turbo run typecheck lint test",
+    "waf": "bun --no-env-file run scripts/cloudflare-waf.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "bun run pre-commit"
