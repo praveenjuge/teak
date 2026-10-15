@@ -9,7 +9,7 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
+  "include": ["src/**/*.ts", "waf/**/*.ts", "worker-configuration.d.ts"],
   "exclude": [
     "src/**/*.test.ts",
     "src/testsupport.ts",

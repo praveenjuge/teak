@@ -72,6 +72,23 @@ Worker proxies nothing, and the development Worker sets neither.
 - Errors the Worker answers itself carry the API's CORS headers, an
   `X-Request-Id` and `no-store`, like Convex's own API errors.
 
+### WAF rules
+
+`waf/rules.ts` holds WAF custom rules for the `teakvault.com` zone; they run
+before this Worker, so a request they block never invokes it. Today there is
+one: `/api` and `/mcp` requests whose declared `Content-Length` exceeds
+`API_PROXY_MAX_BODY_BYTES` are blocked, the same limit the proxy answers 413
+for. The exact body size field needs an Enterprise plan, so the rule compares
+the header's digits. Chunked bodies without the header still reach the Worker
+and Convex's own limit.
+
+`bun run waf` (`scripts/cloudflare-waf.ts`) shows what would change, `--check`
+exits 1 when the zone has drifted, and `--apply` makes the changes through the
+Rulesets API. It only creates, updates and deletes rules whose `ref` starts
+with `teak-api-`; other custom rules in the zone are never touched. It needs
+`CLOUDFLARE_API_TOKEN` with Zone: Read and Zone WAF: Edit on the zone (Zone
+WAF: Read for a dry run or `--check`).
+
 ### Edge identity
 
 `src/edgeIdentity.ts` resolves each API and MCP request to one rate-limit
