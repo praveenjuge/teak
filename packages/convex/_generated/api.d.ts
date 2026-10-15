@@ -119,6 +119,7 @@ import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_backfillMediaColors from "../migration/backfillMediaColors.js";
 import type * as migration_backfillShuffleKey from "../migration/backfillShuffleKey.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
@@ -382,6 +383,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/x": typeof linkMetadata_x;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
+  "migration/backfillMediaColors": typeof migration_backfillMediaColors;
   "migration/backfillShuffleKey": typeof migration_backfillShuffleKey;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
