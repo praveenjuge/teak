@@ -8,8 +8,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const realConvexReact = await import("convex/react");
 const realSonner = await import("sonner");
 
-// Convex is the network boundary: preparing an upload hands back a URL and
-// finalizing it creates the card, or reports why it couldn't.
 let finalizeResult: Record<string, unknown>;
 mock.module("convex/react", () => ({
   ...realConvexReact,
@@ -67,7 +65,6 @@ const resultToasts = () => [
 
 async function enqueueAndWaitForResult(count: number) {
   await act(async () => drop?.enqueueFiles(files(count)));
-  // Uploads run one after another with a short pause between them.
   for (let step = 0; step < 100 && resultToasts().length === 0; step += 1) {
     await act(async () => jest.advanceTimersByTime(100));
   }

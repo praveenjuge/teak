@@ -13,7 +13,6 @@ export function cardMatchesSearchQuery(
   card: Doc<"cards">,
   args: SearchFilterArgs
 ): boolean {
-  // A folder view only keeps the folder's cards.
   if (args.folderId && !(card.folderIds ?? []).includes(args.folderId)) {
     return false;
   }

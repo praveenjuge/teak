@@ -39,7 +39,6 @@ interface CardMetadataPanelProps {
   tags: CardTagsControl;
 }
 
-// A summary longer than this starts folded, with "Show more".
 const SUMMARY_FOLD_LENGTH = 280;
 
 async function copyText(text: string, message: string) {
@@ -98,8 +97,6 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
   ));
 }
 
-// With a mouse, a tag's remove button is a badge on its corner that shows
-// on hover, so it takes no room; on touch it sits inside the tag.
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
 
@@ -124,7 +121,6 @@ export function CardMetadataPanel({
     () => (card.folderIds ?? []) as string[],
     [card.folderIds]
   );
-  // The card's folders by name, in the sidebar's order.
   const cardFolders = useMemo(
     () =>
       (folders ?? []).filter((folder) => cardFolderIds.includes(folder._id)),
@@ -201,7 +197,6 @@ export function CardMetadataPanel({
             ref={notesRef}
             value={getCurrentValue("notes") ?? ""}
           />
-          {/* N writes a note from anywhere in the open card. */}
           {!(card.isDeleted || getCurrentValue("notes")) && (
             <ShortcutKeys
               className="pointer-events-none absolute top-2 right-0 peer-focus:hidden max-sm:hidden"
@@ -305,7 +300,6 @@ export function CardMetadataPanel({
                 value={tags.tagInput}
               />
             )}
-            {/* T adds a tag from anywhere in the open card. */}
             {!(card.isDeleted || tags.tagInput) && (
               <ShortcutKeys
                 className="pointer-events-none peer-focus:hidden max-sm:hidden"

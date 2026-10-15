@@ -4,12 +4,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "../lib/utils";
 
 interface PageHeaderProps {
-  /** Controls at the end of the bar, such as the View menu. */
   actions?: ReactNode;
-  /** The middle of the bar, such as the search field. */
   children?: ReactNode;
   className?: string;
-  /** Before the title, such as the sidebar toggle. */
   leading?: ReactNode;
   /** The page's name (an h1), with its count or controls. */
   title?: ReactNode;

@@ -158,10 +158,8 @@ const suggestionIcon = (suggestion: SearchSuggestion) => {
   return QUALIFIER_ICONS[suggestion.key];
 };
 
-/** How many filter chips sit in the field before the rest fold into "+N". */
 const MAX_INLINE_CHIPS = 3;
 
-/** The search box: a soft, rounded field that lifts a little on focus. */
 export const searchFieldClassName =
   "group/search flex h-9 w-full min-w-0 items-center gap-1.5 rounded-lg bg-muted/60 pr-1.5 pl-2.5 ring-1 ring-transparent transition-[background-color,box-shadow] duration-150 hover:bg-muted focus-within:bg-background focus-within:shadow-sm focus-within:ring-border dark:bg-muted/40";
 
@@ -177,7 +175,6 @@ interface FilterChip {
   prefix?: string;
 }
 
-/** One filter in the field: click to remove it. */
 function FilterChipButton({ chip }: { chip: FilterChip }) {
   return (
     <button
@@ -257,8 +254,6 @@ export function SearchBar({
   onToggleFilter,
   title,
 }: SearchBarProps) {
-  // Views live in the sidebar and card types in the View menu; whatever is
-  // narrowing the results shows as removable chips inside the field.
   const hasAnyFilters =
     qualifierChips.length > 0 ||
     keywordTags.length > 0 ||
@@ -274,7 +269,6 @@ export function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Both reset by typing: they belong to the text they were set for.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ index: number; query: string }>({
     index: -1,
@@ -290,7 +284,6 @@ export function SearchBar({
   );
   const open =
     focused && dismissedFor !== searchQuery && suggestions.length > 0;
-  // A value being completed starts on its first match so Enter picks it.
   let active = completingValue ? 0 : -1;
   if (picked.query === searchQuery) {
     active = picked.index;
@@ -344,8 +337,6 @@ export function SearchBar({
       }
     }
     if (open && e.key === "Escape") {
-      // Closes the list only: the input keeps its text and the page
-      // ignores this Escape.
       e.preventDefault();
       e.stopPropagation();
       setDismissedFor(searchQuery);
@@ -375,8 +366,6 @@ export function SearchBar({
     }
   };
 
-  // Every filter narrowing the results, as one list of removable chips:
-  // the first few sit inside the field, the rest behind "+N".
   const chips: FilterChip[] = [];
   if (tagFilter) {
     chips.push({
@@ -480,8 +469,6 @@ export function SearchBar({
   const inlineChips = chips.slice(0, MAX_INLINE_CHIPS);
   const overflowChips = chips.slice(MAX_INLINE_CHIPS);
   const canClear = hasAnyFilters || searchQuery.length > 0;
-  // On phones the field hides behind a search button until it is opened
-  // or already holds a search.
   const fieldShown = mobileOpen || canClear;
 
   const clearAll = () => {
@@ -556,7 +543,6 @@ export function SearchBar({
       }
       title={
         title ? (
-          // On phones the open field takes the title's room.
           <div className={cn("contents", fieldShown && "max-sm:hidden")}>
             {title}
           </div>
@@ -572,7 +558,6 @@ export function SearchBar({
         onSubmit={handleSubmit}
         {...webMcpSearchAttributes}
       >
-        {/* A label, so a click anywhere on the field puts the cursor in it. */}
         <label
           className={searchFieldClassName}
           data-search-field=""
@@ -632,7 +617,6 @@ export function SearchBar({
             aria-controls={open ? listId : undefined}
             aria-expanded={open}
             aria-keyshortcuts="/"
-            // Named for the page, not by the chips the field also holds.
             aria-label={placeholder}
             autoCapitalize="off"
             autoComplete="off"

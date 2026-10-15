@@ -159,13 +159,11 @@ describe("Cards/Card", () => {
     }
     expect(markup).toMatch(/Copy Link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
     expect(markup).toMatch(/Delete<kbd>(⌫|Del)<\/kbd>/);
-    // No key opens a link or refreshes details, so those show none.
     expect(markup).toContain("Open Link</div>");
     expect(markup).toContain("Refresh details</div>");
   });
 
   test("in selection mode, its menu shows only keys that act on this card", () => {
-    // F, T, E and Delete act on the whole selection there, not on this card.
     const markup = renderToStaticMarkup(
       <Card
         card={createLinkCard() as any}

@@ -7,7 +7,6 @@ import { Component, type ReactNode } from "react";
 interface CardsReadBoundaryProps {
   children: (retryKey: string | undefined) => ReactNode;
   contentContainerClassName?: string;
-  /** Shown above the message, such as the sidebar toggle. */
   headerLeading?: ReactNode;
   /** The view being read; a new view clears the failure. */
   resetKey: string;
@@ -52,7 +51,6 @@ export class CardsReadBoundary extends Component<
     return { error, failed: true };
   }
 
-  // A card read failure never reaches global-error now, so report it here.
   componentDidCatch(error: Error): void {
     if (isCardsReadError(error)) {
       captureClientException(error, { "ui.boundary": "cards" });
@@ -77,7 +75,6 @@ export class CardsReadBoundary extends Component<
     if (!this.state.failed) {
       return this.props.children(this.state.retryKey);
     }
-    // A new retry key can't recover other errors; leave them to the app.
     if (!isCardsReadError(this.state.error)) {
       throw this.state.error;
     }

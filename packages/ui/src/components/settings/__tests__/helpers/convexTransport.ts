@@ -14,7 +14,6 @@ interface Call {
   path: string;
 }
 
-// Substitute only the external Convex transport. The provider and cached hooks stay real.
 export function createConvexTransport() {
   const client = new ConvexReactClient("https://fixture.convex.cloud", {
     logger: false,

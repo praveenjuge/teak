@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-/** Cmd+K (Ctrl+K) edits the selection's link. */
 const EDIT_LINK_KEYS = ["Mod", "K"] as const;
 
 export function EditorFormatting({ editor }: { editor: Editor }) {
@@ -64,7 +63,6 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
     {
       name: "Inline code",
       icon: Code,
-      // Cmd+E opens the composer full screen there, so no key shows.
       keys: undefined,
       active: active.code,
       run: () => editor.chain().focus().toggleCode().run(),

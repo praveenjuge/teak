@@ -8,8 +8,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// The side panel reads tags and folders from Convex; the dialog's own
-// closing is what these tests cover.
 const realPanel = await import("../CardMetadataPanel");
 mock.module("../CardMetadataPanel", () => ({
   ...realPanel,

@@ -101,7 +101,6 @@ export function GlobalFileDropProvider({
   const dragDepthRef = useRef(0);
   const uploadingRef = useRef(false);
   const batchAggregateRef = useRef<UploadMultipleFilesResultItem[]>([]);
-  // Files over the per-upload cap, reported in the queue's result toast.
   const skippedCountRef = useRef(0);
 
   const handleUpgrade = useCallback(() => {
@@ -144,8 +143,6 @@ export function GlobalFileDropProvider({
         return;
       }
 
-      // Card limit wins over every other failure reason so users always see
-      // the upgrade CTA.
       const limitFailure = summary.failures.find(
         (failure) =>
           !failure.success &&
@@ -292,7 +289,6 @@ export function GlobalFileDropProvider({
     [drainQueue]
   );
 
-  // Document-level drag/drop wiring.
   useEffect(() => {
     if (typeof window === "undefined") {
       return;

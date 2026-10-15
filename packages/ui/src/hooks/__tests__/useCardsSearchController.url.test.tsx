@@ -180,7 +180,6 @@ test("shuffle without a seed in the URL picks one", async () => {
   const seed = controller.queryArgs.shuffleSeed;
   expect(typeof seed).toBe("number");
   expect(controller.urlState.seed).toBe(seed);
-  // Keeps it when the URL comes back without one (a sidebar link).
   await act(() =>
     controller.applyUrlState({ q: "", sort: "shuffle", types: ["link"] })
   );
@@ -200,7 +199,6 @@ test("choosing Shuffle picks a seed and reshuffle picks another", async () => {
   expect(controller.urlState.seed).toBe(controller.queryArgs.shuffleSeed);
   expect(controller.resetKey).not.toBe(resetKey);
 
-  // Back to the previous order, then to a date order without a seed.
   await act(() =>
     controller.applyUrlState({ q: "", seed: first, sort: "shuffle", types: [] })
   );
@@ -248,7 +246,6 @@ test("back and forward apply at once, without the typing pause", async () => {
   await act(() =>
     controller.applyUrlState({ q: "colors", sort: "newest", types: [] })
   );
-  // No timers advanced: a URL change must never report the old search back.
   expect(controller.queryArgs.searchQuery).toBe("colors");
   expect(controller.urlState).toEqual({
     q: "colors",

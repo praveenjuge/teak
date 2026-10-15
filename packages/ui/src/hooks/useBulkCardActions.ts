@@ -17,7 +17,6 @@ import {
 import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 export interface BulkActionOptions {
-  /** The folder a folder action targets. */
   folder?: BulkFolderTarget;
   /**
    * For folder actions: the folders each card was in before, by card ID, so
@@ -26,7 +25,6 @@ export interface BulkActionOptions {
   priorFolderIds?: ReadonlyMap<string, readonly string[]>;
   /** Skip the progress and success toasts (errors still show). */
   silent?: boolean;
-  /** The tags Add tags or Remove tags applies. */
   tags?: string[];
 }
 
@@ -54,8 +52,6 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
     }
   );
 
-  // Each run gets its own toast, so an Undo started from one result never
-  // overwrites another run's progress.
   const runCount = useRef(0);
 
   const run = useCallback(

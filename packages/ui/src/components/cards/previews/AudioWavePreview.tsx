@@ -35,11 +35,6 @@ function isWaveformBars(values: unknown, count: number): values is number[] {
   );
 }
 
-/**
- * Bar heights (CSS percentages). Uses the real waveform when it is exactly
- * `count` finite 0-100 values; otherwise falls back to the card-seeded
- * `AUDIO_WAVE_BARS` placeholder bars, so older cards look as they always did.
- */
 function getWaveformBarHeights(
   cardId: string,
   values?: unknown,
@@ -60,7 +55,6 @@ interface AudioWavePreviewProps {
   cardId: string;
   /** How long the recording runs, such as `1:24`. */
   durationLabel?: string;
-  /** The recording's name, shown under the waveform. */
   title?: string;
   /** Real 45-value waveform; hash-based bars are drawn when absent or invalid. */
   waveformGrid?: number[];

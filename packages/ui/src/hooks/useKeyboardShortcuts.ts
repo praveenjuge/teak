@@ -54,7 +54,6 @@ export function isOverlayOpen(root: ParentNode = document): boolean {
   return root.querySelector(OVERLAY_SELECTOR) !== null;
 }
 
-/** The key as shortcuts name it: letters in lowercase, symbols as typed. */
 const shortcutKey = (event: KeyboardEvent): string | null => {
   if (event.ctrlKey || event.metaKey || event.altKey) {
     return null;
@@ -64,7 +63,6 @@ const shortcutKey = (event: KeyboardEvent): string | null => {
     return null;
   }
   const lower = key.toLowerCase();
-  // Shift+letter is not a shortcut (Shift is only for symbols such as `?`).
   if (event.shiftKey && lower !== key.toUpperCase()) {
     return null;
   }

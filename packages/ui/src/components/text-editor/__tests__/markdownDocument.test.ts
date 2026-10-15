@@ -7,9 +7,6 @@ import {
   prepareNoteCapture,
 } from "../markdownDocument";
 
-// Failure modes: dropped text/formatting, reordered blocks, broken nesting,
-// changed task state/link titles, unsafe URLs, lost unknown syntax, and limits
-// counted in characters instead of UTF-8 bytes.
 const fixtures = [
   ["headings", "# Title\n\n## Section\n\n### Detail"],
   ["paragraph boundaries", "First paragraph\n\nSecond paragraph"],
@@ -113,7 +110,6 @@ describe("Markdown compatibility", () => {
     "https://example.com/search?q=teak&page=2",
     "https://en.wikipedia.org/wiki/Teak_(disambiguation)",
   ])("captures a pasted URL as that bare URL: %s", (url) => {
-    // A paste goes through the same parse and serialize as the editor.
     const pasted = markdownManager.serialize(
       prepareMarkdownDocument(url).document
     );

@@ -34,7 +34,6 @@ export interface UseTagOperationsResult {
 
 const toastId = (operationId: string) => `tag-operation-${operationId}`;
 
-/** A running change that has stopped making progress reads as failed. */
 const asStalled = <T extends TagOperationView | null | undefined>(
   operation: T,
   now: number
@@ -54,9 +53,6 @@ export function useTagOperations(): UseTagOperationsResult {
     api.tags.getLatestTagOperation,
     {}
   );
-  // The last change this tab started or saw running (from another tab, or
-  // before a reload). It stays followed after it finishes, so its toast
-  // shows the result instead of spinning forever.
   const [followedId, setFollowedId] = useState<string | null>(null);
   const runningId = latest?.status === "running" ? latest._id : undefined;
   useEffect(() => {
@@ -68,7 +64,6 @@ export function useTagOperations(): UseTagOperationsResult {
     api.tags.getTagOperation,
     followedId ? { operationId: followedId } : "skip"
   );
-  // A finished change shows its result once, even if the query re-renders.
   const settledRef = useRef(new Set<string>());
 
   const start = useCallback(
@@ -80,9 +75,6 @@ export function useTagOperations(): UseTagOperationsResult {
     [startMutation]
   );
 
-  // Retry runs the change again on the cards it did not reach. A rename that
-  // got part way has already put the new name on some cards, so the rest are
-  // merged into it, which writes the same name.
   const retry = useCallback(
     async (operation: TagOperationView) => {
       const input = {

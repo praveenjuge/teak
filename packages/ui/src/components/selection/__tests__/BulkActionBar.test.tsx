@@ -67,7 +67,6 @@ async function openMoreMenu() {
   });
 }
 
-/** A menu item's name, without the key shown beside it. */
 function itemName(element: Element) {
   const key = element.querySelector('[data-slot="dropdown-menu-shortcut"]');
   return element.textContent?.replace(key?.textContent ?? "", "").trim();
@@ -97,7 +96,6 @@ describe("BulkActionBar", () => {
     expect(onAction).toHaveBeenCalledWith("archive");
 
     await openMoreMenu();
-    // Each item's name, and the key that does the same to the selection.
     const items = [...document.querySelectorAll('[role="menuitem"]')].map(
       (element) => [
         itemName(element),

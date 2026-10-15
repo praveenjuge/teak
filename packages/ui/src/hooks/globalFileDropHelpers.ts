@@ -1,12 +1,6 @@
 import type { UploadMultipleFilesResultItem } from "@teak/convex/shared";
 import { CARD_DRAG_TYPE } from "../lib/folders";
 
-/**
- * Shared pure helpers used by the global drag-and-drop provider and its tests.
- *
- * Keep these pure so they can be unit-tested without a DOM or React renderer.
- */
-
 export type DropRejectionReason = "folder" | "offline" | "empty" | "over-limit";
 
 export interface ExtractFilesResult {
@@ -57,7 +51,6 @@ export function isDataTransferItemFolder(item: DataTransferItem): boolean {
     return false;
   }
 
-  // Fallback: no directory API → assume file.
   return false;
 }
 
@@ -118,8 +111,6 @@ export function dataTransferHasFiles(
     return false;
   }
 
-  // A card dragged to a sidebar folder can carry its image as a file too;
-  // it is a move within the app, not an upload.
   if (
     dataTransfer.types &&
     typeof dataTransfer.types !== "string" &&
@@ -261,11 +252,6 @@ export function summarizeBatchResults(
   };
 }
 
-/**
- * Human-readable partial-failure copy per the rework spec.
- *
- * Example: "Uploaded 3 of 5 files. First failure: video.mov is too large."
- */
 export function formatPartialFailureMessage(summary: BatchSummary): string {
   const { total, successCount, firstFailure } = summary;
   const base = `Uploaded ${successCount} of ${total} files.`;

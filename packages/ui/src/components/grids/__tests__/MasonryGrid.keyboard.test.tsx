@@ -5,8 +5,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Convex is the external boundary: cards and the folder dialogs only need
-// hooks that these tests never call.
 const realConvexReact = await import("convex/react");
 const mutation = () =>
   Object.assign(mock(), { withOptimisticUpdate: () => mock() });
@@ -21,7 +19,9 @@ mock.module("convex-helpers/react/cache/hooks", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { createRef } = await import("react");
 const { MasonryGrid } = await import("../MasonryGrid");
+type MasonryGridHandle = import("../MasonryGrid").MasonryGridHandle;
 
 let root: Root | undefined;
 
@@ -71,7 +71,6 @@ async function renderGrid(props: Record<string, unknown>) {
   return { cardElement, handlers };
 }
 
-/** Lets React and timers run until `done` holds, for up to about a second. */
 const waitFor = async (done: () => boolean) => {
   for (let attempt = 0; attempt < 100 && !done(); attempt++) {
     await act(async () => {
@@ -141,7 +140,6 @@ describe("MasonryGrid keyboard actions", () => {
     const { cardElement, handlers } = await renderGrid({});
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
-    // The selection checkboxes are decoration, not extra Tab stops.
     const checkboxes = document.querySelectorAll<HTMLElement>(
       "[data-card-shell] [role='checkbox']"
     );
@@ -173,7 +171,6 @@ describe("MasonryGrid keyboard actions", () => {
     expect(handlers.onToggleArchive).not.toHaveBeenCalled();
     expect(handlers.onDeleteCard).not.toHaveBeenCalled();
     expect(handlers.onBulkAction).not.toHaveBeenCalled();
-    // X still picks cards.
     await press(first, "x");
     expect(first.getAttribute("aria-pressed")).toBe("true");
   });
@@ -194,5 +191,28 @@ describe("MasonryGrid keyboard actions", () => {
     await press(cardElement("card_b"), "Delete");
     expect(asksToDeleteForever()).toBe(false);
     expect(handlers.onBulkAction).not.toHaveBeenCalled();
+  });
+
+  test("a dialog opened from the grid returns focus to the card it showed last", async () => {
+    const ref = createRef<MasonryGridHandle>();
+    const { cardElement, handlers } = await renderGrid({ ref });
+    await press(cardElement("card_a"), "Enter");
+    expect(handlers.onCardClick).toHaveBeenCalledTimes(1);
+
+    let returned = false;
+    await act(() => {
+      returned = ref.current?.returnFocusTo("card_b") ?? false;
+    });
+    expect(returned).toBe(true);
+    expect(document.activeElement).toBe(cardElement("card_b"));
+    expect(cardElement("card_b").tabIndex).toBe(0);
+    expect(ref.current?.returnFocusTo("card_b")).toBe(false);
+  });
+
+  test("leaves focus to a dialog the grid did not open", async () => {
+    const ref = createRef<MasonryGridHandle>();
+    await renderGrid({ ref });
+    expect(ref.current?.returnFocusTo("card_a")).toBe(false);
+    expect(document.activeElement).toBe(document.body);
   });
 });

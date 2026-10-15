@@ -82,7 +82,6 @@ export function MarkdownStandIn({
     if (!(event.metaKey || event.ctrlKey) || disabled) {
       return;
     }
-    // The rich editor's Cmd/Ctrl+Enter (save) and Cmd/Ctrl+E (full screen).
     const key = event.key.toLowerCase();
     let shortcut: (() => void) | undefined;
     if (key === "enter") {

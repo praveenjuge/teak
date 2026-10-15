@@ -16,7 +16,6 @@ mock.module("../../../convexQueryHooks", () => ({
     results: [],
     status: "Exhausted",
   }),
-  // getImportFailureSamples is the only import query that takes a job id.
   useQuery: (_query: unknown, args?: unknown) =>
     args && typeof args === "object" && "jobId" in args
       ? failureSamplesResult
@@ -99,9 +98,7 @@ describe("ImportPanel", () => {
       const markup = renderImportPanel();
       expect(markup).toContain("Upload interrupted");
       expect(markup).toContain("Resume upload");
-      // The interrupted upload can also be discarded.
       expect(markup).toContain("Cancel import");
-      // The resting last-import row and mode picker stay hidden while resuming.
       expect(markup).not.toContain("No imports yet.");
     } finally {
       importQueryResult = null;

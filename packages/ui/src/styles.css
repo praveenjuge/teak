@@ -88,7 +88,6 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  /* The sidebar shares the page background; a hairline separates them. */
   --sidebar: var(--background);
   --sidebar-foreground: oklch(0.13 0.028 261.692);
   --sidebar-primary: oklch(0.21 0.034 264.665);
@@ -154,7 +153,6 @@
   --teak-toaster-center: calc(50% + var(--teak-content-left) / 2);
 }
 
-/* A dialog covers the sidebar too, so toasts center on the window. */
 :root:has([data-slot="dialog-content"][data-state="open"]) {
   --teak-toaster-center: 50%;
 }
@@ -172,8 +170,6 @@
   }
 }
 
-/* Toasts are dark pills in both themes: inverted on the light page, raised
-   with a hairline on the dark one. */
 :root {
   --teak-toast-bg: var(--foreground);
   --teak-toast-text: var(--background);
@@ -220,9 +216,8 @@
   padding-right: 0.5rem;
 }
 
-/* Two lines of text read better in a softer pill than in a stadium. */
 [data-sonner-toaster][data-sonner-toaster]
-[data-sonner-toast][data-styled="true"]:has([data-description]) {
+  [data-sonner-toast][data-styled="true"]:has([data-description]) {
   border-radius: 1.25rem;
 }
 

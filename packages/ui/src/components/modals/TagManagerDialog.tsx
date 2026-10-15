@@ -12,7 +12,8 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { Check, Search, Tag } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { useSingleFlight } from "../../hooks/useSingleFlight";
 import type { StartTagOperationInput } from "../../hooks/useTagOperations";
 import {
   explainTagNameInput,
@@ -26,7 +27,6 @@ import { cn } from "../../lib/utils";
 
 export type TagManagerMode = "rename" | "merge" | "delete";
 
-/** Merge targets listed at once; typing narrows a longer list. */
 const MERGE_LIST_LIMIT = 200;
 
 interface TagManagerDialogProps {
@@ -39,9 +39,7 @@ interface TagManagerDialogProps {
   /** Starts the change; rejects with the server's error when refused. */
   onStart: (input: StartTagOperationInput) => Promise<unknown>;
   open: boolean;
-  /** The tag being changed. */
   tag: TagSummaryItem | null;
-  /** Every tag, for merge targets and name checks. */
   tags: readonly TagSummaryItem[];
 }
 
@@ -71,9 +69,21 @@ export function TagManagerDialog({
     code?: string;
     message: string;
   } | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  // Blocks a second submit before the disabled button has rendered.
-  const savingRef = useRef(false);
+
+  const [startChange, isSaving] = useSingleFlight(
+    async (input: StartTagOperationInput) => {
+      setServerError(null);
+      try {
+        await onStart(input);
+        onOpenChange(false);
+      } catch (caught) {
+        setServerError({
+          code: tagErrorCode(caught),
+          message: tagErrorMessage(caught, "Couldn't start the tag change"),
+        });
+      }
+    }
+  );
 
   // Each open, and each switch between modes, starts fresh.
   useEffect(() => {
@@ -82,8 +92,6 @@ export function TagManagerDialog({
       setQuery("");
       setTarget(initialTarget ?? null);
       setServerError(null);
-      setIsSaving(false);
-      savingRef.current = false;
     }
   }, [initialTarget, open, tag?.name, mode]);
 
@@ -118,35 +126,6 @@ export function TagManagerDialog({
       (mode === "rename" && Boolean(trimmed) && trimmed !== tag.name) ||
       (mode === "merge" && target !== null));
 
-  const submit = async () => {
-    if (!canSubmit || savingRef.current) {
-      return;
-    }
-    savingRef.current = true;
-    setIsSaving(true);
-    setServerError(null);
-    try {
-      await onStart(
-        mode === "delete"
-          ? { kind: "delete", from: tag.name }
-          : {
-              kind: mode,
-              from: tag.name,
-              to: mode === "merge" ? (target ?? "") : trimmed,
-            }
-      );
-      onOpenChange(false);
-    } catch (caught) {
-      setServerError({
-        code: tagErrorCode(caught),
-        message: tagErrorMessage(caught, "Couldn't start the tag change"),
-      });
-      savingRef.current = false;
-      setIsSaving(false);
-    }
-  };
-
-  // Renaming onto a tag that exists is a merge: offer it in one click.
   const mergeSuggestion =
     existing?.name ??
     (serverError?.code === "TAG_EXISTS" ? tagKey(trimmed) : undefined);
@@ -186,11 +165,20 @@ export function TagManagerDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          // min-w-0 lets a long tag truncate instead of widening the dialog.
           className={cn("min-w-0", mode !== "merge" && "space-y-5")}
           onSubmit={(event) => {
             event.preventDefault();
-            submit().catch(() => undefined);
+            if (canSubmit) {
+              startChange(
+                mode === "delete"
+                  ? { kind: "delete", from: tag.name }
+                  : {
+                      kind: mode,
+                      from: tag.name,
+                      to: mode === "merge" ? (target ?? "") : trimmed,
+                    }
+              ).catch(() => undefined);
+            }
           }}
         >
           {mode === "rename" && (

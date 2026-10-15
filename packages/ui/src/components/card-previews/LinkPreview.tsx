@@ -9,9 +9,6 @@ import { formatLinkByline } from "../../lib/linkByline";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 
-// Format long whole numbers (e.g. review counts) with thousands separators for
-// readability. Values with 5+ digits are formatted so years like "2024" and
-// short counts stay untouched.
 function formatFactValue(value: string) {
   const trimmed = value.trim();
   if (/^\d{5,}$/.test(trimmed)) {
@@ -134,8 +131,6 @@ export function LinkPreview({
     publisher: linkPreview?.publisher,
   });
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
-  // Fall back to the screenshot, then to no image, when a stored preview
-  // fails to load, so the modal never shows a broken image.
   const previewImages = [
     {
       alt: "Open Graph preview",

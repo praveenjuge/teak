@@ -21,8 +21,6 @@ const { parseSearchUrlState, serializeSearchUrlState } = await import(
 
 const FIRST_SEED = 1;
 const firstEntry = `/?sort=shuffle&seed=${FIRST_SEED}`;
-// The URL state the router reports. It stays on the first seed throughout:
-// the reshuffle's URL write and Back reach the router together.
 const routerUrlState = parseSearchUrlState(
   new URLSearchParams(`sort=shuffle&seed=${FIRST_SEED}`)
 );
@@ -37,7 +35,6 @@ function SignedInLibrary() {
       onCloseCard={() => undefined}
       onOpenCard={() => undefined}
       onSearchUrlStateChange={(state) => {
-        // As the web app does: a new order adds a history entry.
         const query = serializeSearchUrlState(state, window.location.search);
         window.history.pushState(null, "", `/?${query}`);
       }}
@@ -77,9 +74,6 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// Failure mode: Back right after Reshuffle restored the first seed in the
-// address bar, but the grid kept the reshuffled order, because the router
-// never reported a change.
 test("Back right after a reshuffle shows the earlier order again", async () => {
   window.history.replaceState(null, "", firstEntry);
   const transport = createConvexTransport();
@@ -94,7 +88,6 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
     isAuthenticated: true,
     isLoading: false,
   });
-  // Each seed's page, in that seed's order.
   const page = (ids: string[]) => ({
     continueCursor: "end",
     isDone: true,
@@ -139,7 +132,6 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
   expect(shownOrder(container)).toEqual(["card_b", "card_a"]);
   expect(window.location.search).not.toBe(`?sort=shuffle&seed=${FIRST_SEED}`);
 
-  // Back lands on the first entry.
   await act(() => {
     window.history.replaceState(null, "", firstEntry);
     window.dispatchEvent(new PopStateEvent("popstate"));

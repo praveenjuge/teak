@@ -20,6 +20,7 @@ import { Check, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { updateCardsInSearchQueries } from "../../hooks/cardQueryOptimisticUpdates";
 import { useFolders } from "../../hooks/useFolders";
+import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,
@@ -69,8 +70,6 @@ export function CardFoldersDialog({
     setCheckedState(next);
   };
   const [error, setError] = useState<string | null>(null);
-  // One create at a time, even when Enter repeats before a render.
-  const creatingRef = useRef(false);
 
   // Reset only when the dialog opens, not when the card updates while open.
   const wasOpen = useRef(false);
@@ -85,7 +84,6 @@ export function CardFoldersDialog({
   }, [folderIds, open]);
 
   const visible = useMemo(
-    // Cards can't be put in a smart folder, so it is never listed.
     () => filterFolders(manualFolders(folders ?? []), query),
     [folders, query]
   );
@@ -129,25 +127,22 @@ export function CardFoldersDialog({
     save([...current, folderId]).catch(() => undefined);
   };
 
-  const create = async () => {
-    if (!canCreate || creatingRef.current) {
+  const [create] = useSingleFlight(async () => {
+    if (!canCreate) {
       return;
     }
     if (checkedRef.current.length >= MAX_FOLDERS_PER_CARD) {
       setError(FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS_ON_CARD);
       return;
     }
-    creatingRef.current = true;
     try {
       const folder = await createFolder({ name: trimmed });
       setQuery("");
       await save([...checkedRef.current, folder._id]);
     } catch (caught) {
       setError(folderErrorMessage(caught, "Couldn't create the folder"));
-    } finally {
-      creatingRef.current = false;
     }
-  };
+  });
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>

@@ -1,8 +1,3 @@
-/**
- * Shared, framework-free formatting helpers for the import/export settings UI.
- * Kept pure so they can be unit tested directly and reused by both dialogs.
- */
-
 const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
 
 export function formatBytes(bytes?: number): string {

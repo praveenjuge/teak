@@ -187,7 +187,6 @@ describe("useCardsSearchController helpers", () => {
     expect(buildCardsSearchQueryArgs(tagged).tag).toBe("design");
     expect(buildCardsSearchResetKey(tagged)).toContain("::design::");
 
-    // Types go first, then the tag, then the time filter and keywords.
     const withType = { ...tagged, filterTags: ["link" as const] };
     const afterType = applyBackspaceToCardsSearchState(withType);
     expect(afterType.filterTags).toEqual([]);

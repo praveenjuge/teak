@@ -56,7 +56,6 @@ export function Wordmark({
   );
 }
 
-/** Teak red, as on the app icon. */
 const MARK_RED = "#E7000B";
 
 interface LogoMarkProps extends Omit<SVGProps<SVGSVGElement>, "color"> {

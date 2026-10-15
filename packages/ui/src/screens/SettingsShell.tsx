@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 interface SettingsShellProps {
   children: ReactNode;
   contentClassName?: string;
-  /** The page header (a PageHeader with the Settings title). */
   header?: ReactNode;
   sectionClassName?: string;
   withMain?: boolean;

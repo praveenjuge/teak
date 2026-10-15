@@ -1,7 +1,3 @@
-// Warm the browser cache with the URLs a card's modal view will request, so
-// opening the modal feels instant. Called from grid cards on pointer enter;
-// each URL is fetched at most once per page session.
-
 const prefetchedUrls = new Set<string>();
 
 const warmImage = (url: string | null | undefined): void => {

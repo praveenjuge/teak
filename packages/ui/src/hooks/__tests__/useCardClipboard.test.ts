@@ -33,9 +33,7 @@ describe("copyCardContentToClipboard", () => {
     toastLoading.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
-    console.error = mock(() => {
-      // ignore: silence expected error logs
-    });
+    console.error = mock(() => {});
   });
 
   afterEach(() => {

@@ -57,7 +57,6 @@ export function SubscriptionSection({
           <PlanOption
             key={plan.planId}
             {...plan}
-            // Locked while checkout opens, so the card shown is the plan bought.
             disabled={disabled}
             onSelect={onSelect}
             selected={selectedPlanId === plan.planId}

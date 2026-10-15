@@ -34,7 +34,6 @@ describe("ShortcutKeys", () => {
   });
 
   test("renders Ctrl on the server, then ⌘ once a Mac hydrates it", async () => {
-    // The server can't know the platform; matching it avoids a mismatch.
     const html = renderToString(<ShortcutKeys keys={["Mod", "B"]} />);
     expect(html).toContain("Ctrl");
     const container = document.createElement("div");

@@ -59,7 +59,6 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
-/** The sidebar's New button, with its tooltip. */
 const NEW_MENU_TRIGGER_CLASS =
   "size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4";
 
@@ -453,8 +452,6 @@ export function AddCardActions({
       return true;
     });
   }, [isUploading, variant]);
-  // An item that moves focus (the composer, the file picker) keeps it; only
-  // Escape or a click away hands focus back to the New button.
   const keepFocusRef = useRef(false);
 
   const triggers =

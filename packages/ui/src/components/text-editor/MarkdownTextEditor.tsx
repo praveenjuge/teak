@@ -16,8 +16,6 @@ const LoadedMarkdownTextEditor = lazyWithPreload(() =>
 export const preloadMarkdownTextEditor = LoadedMarkdownTextEditor.preload;
 
 export function MarkdownTextEditor(props: MarkdownTextEditorProps) {
-  // Whether the stand-in has focus, read when the rich editor mounts so it
-  // takes over the caret instead of dropping it mid-sentence.
   const standInFocus = useRef(false);
   // Kept for this editor's life: switching from the lazy component to the
   // loaded one later would remount the editor under the cursor.

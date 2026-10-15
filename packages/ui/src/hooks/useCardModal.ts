@@ -72,8 +72,6 @@ export function getUnsavedUpdates(
     .filter(
       (update): update is { field: TextField; value: string } =>
         update.value !== undefined &&
-        // A title someone is still clearing is never saved blank; that
-        // would drop the name they gave the link.
         !(update.field === "metadataTitle" && !update.value.trim()) &&
         update.value !== (card[update.field] ?? "") &&
         update.value !== saved[update.field]
@@ -87,9 +85,6 @@ export function useCardModal(
   const { card: cardData = null, ...config } = options;
   const [tagInput, setTagInput] = useState("");
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
-  // Values already written to the server, by field. An edit stays in
-  // `pendingChanges` until the card catches up, so the editor never flashes
-  // back to the old text while a save is in flight.
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,7 +92,6 @@ export function useCardModal(
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
 
-  // Edits belong to one card: opening another starts clean.
   if (editsCardId !== cardId) {
     setEditsCardId(cardId);
     setPendingChanges({});
@@ -175,7 +169,6 @@ export function useCardModal(
           ...card,
           [field]:
             typeof value === "string" ? value.trim() || undefined : value,
-          // As the server does, so a renamed link shows its new title at once.
           ...(field === "metadataTitle" ? { metadataTitleEdited: true } : {}),
           updatedAt: now,
         });
@@ -198,8 +191,6 @@ export function useCardModal(
 
   const hasUnsavedChanges = unsavedUpdates.length > 0;
 
-  // Once the card shows a saved value, neither the edit nor the record of
-  // saving it has anything left to hold.
   useEffect(() => {
     if (!card) {
       return;
@@ -455,7 +446,6 @@ export function useCardModal(
         "This link can't be opened because it uses an unsafe address"
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.url, config.onOpenLink]);
 
   const hasFileObject = Boolean(card?.fileKey);
@@ -521,7 +511,6 @@ export function useCardModal(
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tagInput, addTag, config.onClose]
   );
 
@@ -529,7 +518,6 @@ export function useCardModal(
     if (card?.type) {
       config.onCardTypeClick?.(card.type);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.type, config.onCardTypeClick]);
 
   const getCurrentValue = useCallback(

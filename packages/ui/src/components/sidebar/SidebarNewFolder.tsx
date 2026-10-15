@@ -92,8 +92,6 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
           className="min-w-0 flex-1 bg-transparent text-[13px] text-sidebar-foreground outline-none placeholder:text-sidebar-foreground/40"
           maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
           onBlur={() => {
-            // Leaving an empty or unchanged row is a cancel; a valid name
-            // is kept, as if Enter were pressed.
             if (!trimmed || error) {
               if (!trimmed) {
                 onDone();

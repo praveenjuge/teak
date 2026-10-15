@@ -53,9 +53,9 @@ import { toast } from "sonner";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
+import { focusedCardShortcuts } from "../../lib/gridKeys";
 import {
   ariaKeyShortcut,
-  cardMenuShortcuts,
   type MenuShortcut,
 } from "../../lib/keyboardShortcuts";
 import { resolveLinkTitle } from "../../lib/linkTitle";
@@ -190,19 +190,14 @@ export const Card = memo(function Card({
     void prefetchFileTextPreview({
       cacheKey: card.fileKey,
       fileUrl: card.fileUrl,
-    }).catch(() => {
-      // The modal retries and keeps file facts visible if intent prefetch fails.
-    });
+    }).catch(() => {});
   };
 
   const handlePrefetch = () => {
     if (isOptimistic) {
       return;
     }
-    // Usually loaded at idle already; this covers a click that beats it.
-    preloadCardModal().catch(() => {
-      // Opening the card retries the load.
-    });
+    preloadCardModal().catch(() => {});
     prefetchDocumentPreview();
     prefetchCardModalMedia(card);
   };
@@ -460,13 +455,8 @@ export const Card = memo(function Card({
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  // Text-only cards keep their first line clear of the favorite mark. The
-  // selection checkbox sits on the card's corner instead, so selecting never
-  // rewraps text or moves the grid.
   const textInsets = showFavoriteMark ? "pr-11" : "";
 
-  // A link is named by its favicon and title; the site's name would only
-  // repeat what the favicon already says.
   const linkTitleRow = (
     <div className="flex min-w-0 items-center gap-2">
       {hostname && <SiteFavicon className="size-4" hostname={hostname} />}
@@ -728,14 +718,7 @@ export const Card = memo(function Card({
   const copyMenuLabel =
     card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
 
-  // The keys a focused card takes for the same actions (see MasonryGrid).
-  // In selection mode F, T, E and Delete act on every selected card (or do
-  // nothing while choosing cards for a folder), not on this one, so only
-  // the keys that still act on this card show.
-  const allShortcuts = cardMenuShortcuts();
-  const shortcuts: Partial<typeof allShortcuts> = isSelectionMode
-    ? { copy: allShortcuts.copy, select: allShortcuts.select }
-    : allShortcuts;
+  const shortcuts = focusedCardShortcuts(Boolean(isSelectionMode));
   const menuItems: CardMenuEntry[] = [
     ...(card.url
       ? [{ icon: ExternalLink, label: "Open Link", onSelect: openLink }]
@@ -999,7 +982,6 @@ type MenuItemComponent = ComponentType<{
   variant?: "default" | "destructive";
 }>;
 
-/** The card's actions, as its context menu and its More menu both list them. */
 function CardMenuEntries({
   entries,
   Item,
