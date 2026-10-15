@@ -6,8 +6,6 @@ import {
 
 const binding = { stateId: "state" as never, generation: 1 };
 
-// Each page answers whether its kind is now empty; `pages` lists, per kind,
-// how many non-empty pages come before it reports empty.
 const drainCtx = (pages: Record<string, number>, msPerPage: number) => {
   let clock = 0;
   const calls: string[] = [];
@@ -40,7 +38,6 @@ describe("drainStorageWithinBudget", () => {
         drain.now
       )
     ).toBe(true);
-    // 40 card pages and the empty proof, then 2 import pages and the proof.
     expect(drain.calls).toEqual([
       ...Array.from({ length: 41 }, () => "cards"),
       "imports",

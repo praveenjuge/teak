@@ -59,8 +59,6 @@ const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
       .take(100)
   );
 
-// Seeding stops at the committed mutation. Hold the scheduled workflow runs
-// so link processing never reaches the network or outlives the test.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   vi.clearAllTimers();
@@ -447,7 +445,6 @@ describe("devSeed keyboard-mixed pack", () => {
         (card) =>
           (card.fileMetadata?.height ?? 0) / (card.fileMetadata?.width ?? 1)
       );
-    // Blocks three times taller than wide, and wider than tall.
     expect(Math.max(...ratios)).toBeGreaterThanOrEqual(3);
     expect(Math.min(...ratios)).toBeLessThan(1);
     expect(pack.filter((card) => card.type === "text").length).toBeGreaterThan(
@@ -670,7 +667,6 @@ describe("devSeed folder packs", () => {
       "xn--r8jz45g.jp": 2,
       "xn--bcher-kva.example": 1,
       "192.168.1.20": 1,
-      // The pack's marker card, www.example.com and example.com.
       "example.com": 3,
     });
   });

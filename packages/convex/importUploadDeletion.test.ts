@@ -55,10 +55,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-// Failure modes: already admitted completion overlaps deletion; a lost R2
-// completion remains unknown; newly signed/resumed parts outlive the session;
-// creation completes before its job can attach the upload ID. Production gate
-// markers must prevent cleanup from being certified for every admitted write.
 test("deletion retains its source and state while an authenticated import completion is in flight", async () => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);

@@ -172,10 +172,7 @@ describe("token requests", () => {
     [302, "", refreshGrant, "failed"],
   ] as const)(
     "classifies HTTP%i %s for %o as %s",
-    async (status: number, body: string, grant: Record<
-      string,
-      string
-    >, reason: string) => {
+    async (status, body, grant, reason) => {
       transport(() => new Response(body, { status }));
       expect(
         await requestConnectTokens(auth, { clientId: "client_CLI", grant })
@@ -330,7 +327,7 @@ describe("disconnect", () => {
     [401, "unconfirmed"],
   ] as const)(
     "refreshes once after a 401 and retries with the renewed token (retry HTTP%i)",
-    async (retryStatus: number, outcome: string) => {
+    async (retryStatus, outcome) => {
       let refreshes = 0;
       const calls = transport((_url, init) =>
         new Headers(init.headers).get("Authorization") === "Bearer access"

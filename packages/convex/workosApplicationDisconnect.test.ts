@@ -269,7 +269,6 @@ test("retrying the previous flow's revoked trigger consent settles its fence", a
     (await t.run((ctx) => ctx.db.query("workosApplicationDisconnects").first()))
       ?.state;
 
-  // An expired copy may sign itself out locally but never reaches WorkOS.
   const expired = {
     ...principal,
     tokenExpiresAt: Math.floor(Date.now() / 1000) - 10,
@@ -278,8 +277,6 @@ test("retrying the previous flow's revoked trigger consent settles its fence", a
   expect(fetcher).not.toHaveBeenCalled();
   expect(await fenceState()).toBe("unknown");
 
-  // A live retry deletes the grant and settles the fence, so the app can
-  // connect again.
   expect(await run(t)).toBe(204);
   expect(deletes(fetcher)).toHaveLength(1);
   expect(await fenceState()).toBe("completed");

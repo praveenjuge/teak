@@ -138,9 +138,6 @@ describe("raw metadata archival", () => {
       )
     ).toBe(false);
     const result = await t.run((ctx) => ctx.db.get("cards", cardId));
-    // The card keeps its inline raw payload: no archive commit raced the
-    // deletion batches, and account deletion removes the card and its
-    // storage objects together.
     expect(result?.metadata?.linkPreview?.raw).toEqual(
       card.metadata?.linkPreview?.raw
     );
@@ -198,9 +195,8 @@ describe("raw metadata archival", () => {
       internal.storage.rawMetadataMaintenance.commitArchive,
       args
     );
-    expect(fetchMock).toHaveBeenCalledTimes(4); // both kinds uploaded/verified once, no recopy
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(ctx.runMutation).toHaveBeenCalledTimes(4);
-    // The durable retry carries the key even after the owning card disappears.
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(
       await t.mutation(
@@ -229,7 +225,6 @@ describe("raw metadata archival", () => {
         },
       })
     );
-    // Invalid hash/key arguments must not delete anything.
     expect(
       await t.mutation(internal.storage.rawMetadataMaintenance.commitArchive, {
         ...args,
@@ -261,8 +256,6 @@ describe("raw metadata archival", () => {
         ctx.db.system.query("_scheduled_functions").collect()
       )
     ).toHaveLength(0);
-    // Restoring the original payload can safely reference the same key:
-    // stale cleanup has retained it, not queued a future deletion.
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { metadata: card.metadata })
     );
@@ -281,7 +274,6 @@ describe("raw metadata archival", () => {
         ctx.db.system.query("_scheduled_functions").collect()
       )
     ).toHaveLength(0);
-    // A stale copy still referenced anywhere on this card must be retained.
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, {
         metadata: {
@@ -319,8 +311,6 @@ describe("raw metadata archival", () => {
     const pending = await t.run((ctx) =>
       ctx.db.system.query("_scheduled_functions").collect()
     );
-    // The copied archive is unreferenced with the card gone, so its
-    // deletion is scheduled rather than leaked.
     expect(pending).toHaveLength(1);
     expect(pending[0].args).toEqual([{ keys: [args.key] }]);
   });

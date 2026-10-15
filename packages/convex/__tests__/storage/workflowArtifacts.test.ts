@@ -243,8 +243,6 @@ test("artifact writes stand down during account deletion", async () => {
     runQuery: ctx.runQuery,
     scheduler: { runAfter },
   } as any;
-  // Registration stands down and removes the unreferenced copy instead of
-  // racing the deletion batches.
   expect(await registerArtifactHandler(registerCtx, ref)).toBe(false);
   expect(data.workflowArtifactKeys).toEqual(["existing_key"]);
   expect(patch).not.toHaveBeenCalled();
@@ -253,10 +251,6 @@ test("artifact writes stand down during account deletion", async () => {
     internal["workflows/objectCleanup"].startObjectDeletion,
     { keys: [ref.key] }
   );
-  // Retained-artifact cleanup stands down entirely: account deletion
-  // removes the card and its artifact objects together. references carries
-  // a real artifact so removing the fence would schedule its deletion and
-  // fail the runAfter assertion.
   runAfter.mockClear();
   expect(
     await deleteRetainedArtifactsHandler(registerCtx, {
@@ -470,7 +464,6 @@ test("retained raw archives do not consume workflow slots, but real artifacts st
   expect(await registerArtifactHandler(registerCtx, ref)).toBe(true);
   expect(data.workflowArtifactKeys).toHaveLength(200);
   expect(runAfter).not.toHaveBeenCalled();
-  // Re-registering an existing artifact at the quota remains idempotent.
   expect(await registerArtifactHandler(registerCtx, ref)).toBe(true);
   const next = { ...ref, digest: await hashRawMetadata("new payload") };
   next.key = workflowArtifactKey(next);

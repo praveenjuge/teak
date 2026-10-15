@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { parseTimeSearchQuery } from "../../../shared/utils/timeSearch";
 
@@ -13,7 +12,7 @@ const getRangeParts = (range: { start: number; end: number }) => ({
 });
 
 describe("parseTimeSearchQuery", () => {
-  const now = new Date(2026, 1, 3, 12, 0, 0); // Feb 3, 2026
+  const now = new Date(2026, 1, 3, 12, 0, 0);
 
   test("parses today", () => {
     const result = parseTimeSearchQuery("today", { now, weekStart: 0 });

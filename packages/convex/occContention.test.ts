@@ -66,8 +66,6 @@ const insertCard = async (
     ...overrides,
   });
 
-// Ends a deletion that beginAccountDeletion started, as the workflow's
-// finalization does once the account is gone.
 const endAccountDeletion = async (ctx: MutationCtx, userId: string) => {
   const states = await ctx.db
     .query("accountDeletionStates")
@@ -636,8 +634,6 @@ describe("OCC contention behavior", () => {
         content: "after",
         updatedAt: 20,
       });
-      // The document write is inline with the patch: it is visible before
-      // any scheduled tag-sync work runs.
       const document = await ctx.db
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -671,8 +667,6 @@ describe("OCC contention behavior", () => {
         .query("cardSearchTagSyncStates")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
         .unique();
-      // A patch that touches neither the searchable fields nor updatedAt
-      // must not rewrite the document or restart the tag sync.
       await patchCardWithSearchSync(ctx, cardId, {
         url: "https://example.com/unchanged-search",
       });
@@ -737,9 +731,6 @@ describe("OCC contention behavior", () => {
       return { cardId: id, a: await folder("A"), b: await folder("B") };
     });
     const userId = "user-folders" as TeakUserId;
-    // Two writers race on the same card: each adds a different folder, and a
-    // third removes one again. Every interleaving must leave rows and counts
-    // that match the card's final folder list.
     await Promise.all([
       t.run((ctx) =>
         applyFolderMembership(ctx, {
@@ -889,9 +880,6 @@ describe("OCC contention behavior", () => {
       await drainCardSearchTagSync(ctx, cardId);
       await ctx.db.delete("cards", cardId);
 
-      // The card vanished between the batch query and the batch mutation
-      // (concurrent batch won the race): the handler skips it instead of
-      // failing the whole account deletion.
       expect(
         await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
       ).toBe(0);
@@ -913,10 +901,6 @@ describe("OCC contention behavior", () => {
       await syncCardSearchDocumentHandler(ctx, cardId);
 
       await beginAccountDeletion(ctx, "user-fence-patch");
-      // Background writers (AI metadata, link metadata, classification, ...)
-      // all patch cards through this seam. During deletion their writes only
-      // race the deletion batches with OCC conflicts, so the seam stands
-      // down: no patch, no search sync.
       const fenced = await patchCardWithSearchSync(ctx, cardId, {
         content: "after",
         updatedAt: 999,
@@ -1036,7 +1020,6 @@ describe("OCC contention behavior", () => {
       });
       await syncCardSearchDocumentHandler(ctx, cardId);
 
-      // First batch step processes one page and leaves the chain mid-flight.
       const first = await syncCardSearchTagsBatchHandler(
         ctx,
         cardId,
@@ -1045,7 +1028,6 @@ describe("OCC contention behavior", () => {
       );
       expect(first).toEqual({ complete: false, processed: 32, writes: 32 });
 
-      // A newer restart lands before the next scheduled step runs.
       const card = await ctx.db.get("cards", cardId);
       await restartCardSearchTagSync(
         ctx,
@@ -1064,7 +1046,6 @@ describe("OCC contention behavior", () => {
       );
       expect(stale).toEqual({ complete: true, processed: 0, writes: 0 });
 
-      // The fenced invocation wrote nothing: tag rows and state are untouched.
       expect(await ctx.db.query("cardSearchTags").collect()).toEqual(before);
       const state = await ctx.db
         .query("cardSearchTagSyncStates")
@@ -1073,7 +1054,6 @@ describe("OCC contention behavior", () => {
       expect(state?.generation).toBe(2);
       expect(state?.offset).toBe(0);
 
-      // The current generation still drives the chain to completion.
       for (let attempt = 0; attempt < 10; attempt += 1) {
         const step = await syncCardSearchTagsBatchHandler(
           ctx,
@@ -1106,8 +1086,6 @@ describe("OCC contention behavior", () => {
       });
       await syncCardSearchDocumentHandler(ctx, cardId);
 
-      // A chain step is scheduled for generation 1, but the state row is
-      // pruned (deleted card or account deletion) before the step runs.
       const state = await ctx.db
         .query("cardSearchTagSyncStates")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -1123,8 +1101,6 @@ describe("OCC contention behavior", () => {
       );
       expect(result).toEqual({ complete: true, processed: 0, writes: 0 });
 
-      // The stale invocation recreates nothing, so no self-fencing row
-      // appears that could never make progress again.
       expect(
         await ctx.db.query("cardSearchTagSyncStates").collect()
       ).toHaveLength(0);
@@ -1140,7 +1116,6 @@ describe("OCC contention behavior", () => {
       });
       await syncCardSearchDocumentHandler(ctx, cardId);
 
-      // Change the card without a restart; the snapshot keeps the old view.
       await ctx.db.patch("cards", cardId, {
         tags: ["gamma"],
         updatedAt: 12_345,
@@ -1162,7 +1137,6 @@ describe("OCC contention behavior", () => {
       );
       expect(snapshotTags.sort()).toEqual(["alpha", "beta"]);
 
-      // The next document sync restarts with a fresh snapshot.
       await syncCardSearchDocumentHandler(ctx, cardId);
       for (let attempt = 0; attempt < 10; attempt += 1) {
         const step = await syncCardSearchTagsBatchHandler(
@@ -1188,7 +1162,6 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-legacy", {
         tags: ["delta"],
       });
-      // State row as written before snapshots existed.
       await ctx.db.insert("cardSearchTagSyncStates", {
         cardId,
         generation: 1,
@@ -1225,7 +1198,6 @@ describe("OCC contention behavior", () => {
         kind: "clear",
       });
 
-      // Snapshot cleared: the batch takes the deleted-card path and prunes.
       await drainCardSearchTagSync(ctx, cardId);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
       expect(

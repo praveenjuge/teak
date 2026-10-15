@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 
@@ -172,7 +171,6 @@ describe("renderables step", () => {
       await generateHandler(mockCtx, { cardId: "svg1", cardType: "image" });
 
       expect(runAction.calls.length).toBe(1);
-      // The first argument is the function reference, second is { cardId }
       expect(runAction.calls[0]?.[1]).toEqual({ cardId: "svg1" });
     });
 
@@ -382,7 +380,6 @@ describe("renderables step", () => {
         ).rejects.toThrow(
           "renderables_retryable:files_worker_error:RENDERER_UNAVAILABLE"
         );
-        // The stage stays as it was until the workflow runs out of retries.
         expect(runMutation.calls).toEqual([]);
       }
     );

@@ -358,7 +358,6 @@ describe("buildInitialProcessingStatus", () => {
 
     expect(result.categorize?.confidence).toBe(1);
     expect(result.renderables?.confidence).toBe(1);
-    // metadata is pending by default (metadataStageNeeded = true)
     expect(result.metadata?.confidence).toBeUndefined();
   });
 
@@ -367,7 +366,6 @@ describe("buildInitialProcessingStatus", () => {
 
     expect(result.categorize?.completedAt).toBe(now);
     expect(result.renderables?.completedAt).toBe(now);
-    // metadata is pending by default (metadataStageNeeded = true)
     expect(result.metadata?.completedAt).toBeUndefined();
   });
 });

@@ -5,10 +5,13 @@ import {
   POSTHOG_INGEST_HOST,
   parseStackFrames,
 } from "../../shared/posthog";
+import { asFetch } from "../helpers/convex.test-utils";
 
 const okFetch = () =>
-  mock(async (_url: string | URL | Request, _init?: RequestInit) =>
-    Response.json({ status: 1 })
+  asFetch(
+    mock(async (_url: string | URL | Request, _init?: RequestInit) =>
+      Response.json({ status: 1 })
+    )
   );
 
 const sentBody = (fetch: ReturnType<typeof okFetch>) =>
@@ -52,8 +55,10 @@ describe("PostHog batch", () => {
         card_type: "link",
       },
     });
-    // Ownerless events must not create a person.
-    expect(body.batch[1].properties.$process_person_profile).toBe(false);
+    expect(
+      body.batch[1].properties.$process_person_profile,
+      "ownerless events must not create a person"
+    ).toBe(false);
     expect(batch.size).toBe(0);
     expect(await batch.flush()).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -78,7 +83,7 @@ describe("PostHog batch", () => {
 
   test("never throws when the network fails or hangs", async () => {
     const failing = createPostHogBatch({
-      fetch: mock(() => Promise.reject(new Error("offline"))),
+      fetch: asFetch(mock(() => Promise.reject(new Error("offline")))),
       lib: "test",
       token: "phc",
     });
@@ -86,13 +91,15 @@ describe("PostHog batch", () => {
     expect(await failing.flush()).toBe(false);
 
     const hanging = createPostHogBatch({
-      fetch: mock(
-        (_url: string | URL | Request, init?: RequestInit) =>
-          new Promise<Response>((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () =>
-              reject(new Error("aborted"))
-            );
-          })
+      fetch: asFetch(
+        mock(
+          (_url: string | URL | Request, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () =>
+                reject(new Error("aborted"))
+              );
+            })
+        )
       ),
       lib: "test",
       timeoutMs: 10,

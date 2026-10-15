@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 
@@ -104,7 +103,6 @@ describe("generateVideoThumbnail", () => {
         },
       },
     ]);
-    // Both keys belong to the user before the Worker writes them.
     expect(owned).toEqual([
       "users/u/cards/c/thumbnail/generated",
       "users/u/cards/c/scrub/generated",

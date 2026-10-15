@@ -1,17 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { buildFileSigningPayload } from "@teak/files-protocol";
+import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
 import {
   hmacSha256Hex,
   parseSingleByteRange,
   verifySignedFileRequest,
 } from "./lib";
 
-const SECRET = "test-signing-secret";
-const KEY = "users/abc/cards/file/x.png";
-const EXP = "1700000000";
-
-const VECTOR_DIGEST =
-  "f5791c418001f789e1507cfbb9b2be726feef0b7250c29849f5b5e88a6d1a9ce";
+const {
+  secret: SECRET,
+  key: KEY,
+  exp: EXP,
+  digest: VECTOR_DIGEST,
+} = FILE_SIGNING_TEST_VECTOR;
 
 describe("files proxy signing", () => {
   test("signs the same digest as Convex's Node HMAC for the shared test vector", async () => {

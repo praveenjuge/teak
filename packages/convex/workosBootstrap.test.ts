@@ -26,7 +26,6 @@ const setup = () => {
 type Backend = ReturnType<typeof setup>;
 const signed = (t: Backend, overrides: Partial<UserIdentity> = {}) =>
   t.withIdentity({ ...claims, ...overrides });
-// The WorkOS component's provider profile for the signed-in user.
 const profile = (
   t: Backend,
   overrides: {
@@ -41,7 +40,6 @@ const profile = (
     externalId: null,
     ...overrides,
   });
-// A later provider update as the component applies it: newest updatedAt wins.
 const updateProfile = (
   t: Backend,
   id: string,
@@ -98,9 +96,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
 });
-// Failures: unsigned/wrong-provider/malformed sessions; missing raw
-// email_verified; missing/false component proof; conflicting external IDs; freeze;
-// deletion resurrection; stale provider snapshots and duplicate sign-up seeds.
 describe("signed WorkOS bootstrap", () => {
   test("fresh verified user gets a permanent owner from provider data and retries do not seed", async () => {
     const t = setup();

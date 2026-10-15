@@ -37,7 +37,8 @@
     "test": "bun run test:unit && bun run test:edge",
     "test:edge": "SITE_URL=http://localhost:3000 vitest run --config vitest.config.ts",
     "test:unit": "SITE_URL=http://localhost:3000 bun test __tests__ --coverage --dots --isolate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && bun run typecheck:tests",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
+    "@types/bun": "^1.4.0",
     "@types/probe-image-size": "^7.2.5",
     "@types/react": "^19.3.0",
     "@types/yauzl": "^3.4.0",

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared R2 storage module mock for tests. Bun's `mock.module` is registered
  * globally, so any test file that mocks `storage/r2` will affect every other

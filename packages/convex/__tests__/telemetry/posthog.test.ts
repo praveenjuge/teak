@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   captureBackendEvent,
   withBackendErrorCapture,
 } from "../../telemetry/posthog";
+import { asFetch } from "../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
 const originalToken = process.env.POSTHOG_PROJECT_TOKEN;
@@ -23,7 +23,7 @@ const input = {
 
 beforeEach(() => {
   fetchMock = mock(async () => Response.json({ status: 1 }));
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = asFetch(fetchMock);
   process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
 });
 
@@ -105,7 +105,9 @@ describe("backend PostHog capture", () => {
   });
 
   test("never lets a telemetry outage change the action result", async () => {
-    globalThis.fetch = mock(() => Promise.reject(new Error("offline")));
+    globalThis.fetch = asFetch(
+      mock(() => Promise.reject(new Error("offline")))
+    );
     await expect(
       withBackendErrorCapture(input, async () => {
         await captureBackendEvent("billing_portal_opened", "teak_user_1", {});

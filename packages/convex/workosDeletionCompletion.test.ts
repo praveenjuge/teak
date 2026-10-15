@@ -46,7 +46,6 @@ async function fixture(stage = 6) {
     });
     return { ownerId, stateId };
   });
-  // The component's row can outlive Teak's tombstone; it must never revive.
   await seedComponentUser(t, {
     id: "user_DELETE",
     email: "owner@example.com",

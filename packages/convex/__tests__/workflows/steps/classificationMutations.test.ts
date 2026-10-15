@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { recordClassification } from "../../../../convex/workflows/steps/classificationMutations";
-import { inlineSearchSyncDb } from "../../helpers/session.test-utils";
+import { withSearchSyncDb } from "../../helpers/session.test-utils";
 
 const withScheduler = (registered: any) => {
   const handler = registered.handler ?? registered._handler ?? registered;
@@ -26,13 +25,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -64,13 +62,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -100,13 +97,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -137,13 +133,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -173,13 +168,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -209,13 +203,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -245,13 +238,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -281,13 +273,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -317,13 +308,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -353,13 +343,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -390,13 +379,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -427,13 +415,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -464,13 +451,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -489,10 +475,7 @@ describe("recordClassification with a type", () => {
     const mutation = withScheduler(recordClassification);
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
-        get: async () => null,
-      },
+      db: withSearchSyncDb({ get: async () => null }),
     };
 
     await expect(
@@ -521,13 +504,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -557,13 +539,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -593,13 +574,12 @@ describe("recordClassification with a type", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -632,14 +612,13 @@ describe("recordClassification without a type", () => {
     };
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async (_table: string, _id: string) => cardState,
         patch: (_table: string, _id: string, updates: any) => {
           patchCount += 1;
           Object.assign(cardState, updates);
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, { cardId: "card_123", confidence: 0.8 });
@@ -665,13 +644,12 @@ describe("recordClassification without a type", () => {
     };
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async (_table: string, _id: string) => cardState,
         patch: () => {
           patchCount += 1;
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, { cardId: "card_123", confidence: 0.9 });
@@ -684,13 +662,12 @@ describe("recordClassification without a type", () => {
     const mutation = withScheduler(recordClassification);
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => null,
         patch: () => {
           throw new Error("should not patch");
         },
-      },
+      }),
     };
 
     await expect(

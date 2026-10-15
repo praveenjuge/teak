@@ -1,11 +1,11 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
+import type { ValidatedRateLimitKey } from "../publicApi";
+import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
 import {
-  inlineSearchSyncDb,
   withMappedOwner,
+  withSearchSyncDb,
 } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
@@ -92,7 +92,7 @@ describe("publicApi", () => {
     const bulk = module.executeBulkCardsForUser;
     executeBulkCardsForUser = {
       handler: (ctx: any, args: any) =>
-        (bulk.handler ?? bulk)(withMappedOwner(ctx), args),
+        handlerOf(bulk)(withMappedOwner(ctx), args),
     };
     scanCardsPageForUser = module.scanCardsPageForUser;
   });
@@ -168,8 +168,7 @@ describe("publicApi", () => {
       },
     };
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
@@ -186,7 +185,7 @@ describe("publicApi", () => {
             }),
           }),
         })),
-      },
+      }),
     } as any;
     const handler =
       (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
@@ -255,8 +254,7 @@ describe("publicApi", () => {
     };
     const searchedTypes: string[] = [];
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: mock((_table: string, id: keyof typeof cards) => cards[id]),
         query: mock(() => ({
           withSearchIndex: mock(
@@ -283,7 +281,7 @@ describe("publicApi", () => {
             }
           ),
         })),
-      },
+      }),
     } as any;
     const args = {
       limit: 1,
@@ -309,12 +307,10 @@ describe("publicApi", () => {
       (module.listCardChangesForUser as any).handler ??
       module.listCardChangesForUser;
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
-              // No permanently deleted cards.
               async *[Symbol.asyncIterator]() {},
               paginate: mock().mockResolvedValue({
                 continueCursor: "",
@@ -335,7 +331,7 @@ describe("publicApi", () => {
             }),
           }),
         })),
-      },
+      }),
     } as any;
 
     const result = await handler(withMappedOwner(ctx), {
@@ -376,7 +372,6 @@ describe("publicApi", () => {
 
     expect(thrown).toBeInstanceOf(ConvexError);
     expect((thrown as any).data?.code).toBe("INVALID_INPUT");
-    // Guard runs before any per-item work, so no card lookups happen.
     expect(normalizeId).not.toHaveBeenCalled();
   });
 
@@ -386,10 +381,7 @@ describe("publicApi", () => {
 
     const result = await handler(
       {
-        db: {
-          ...inlineSearchSyncDb(),
-          normalizeId: mock(),
-        },
+        db: withSearchSyncDb({ normalizeId: mock() }),
       },
       {
         items: [{}],
@@ -428,8 +420,7 @@ describe("publicApi", () => {
       const result = await handler(
         {
           runMutation: mock().mockResolvedValue({ ok: true }),
-          db: {
-            ...inlineSearchSyncDb(),
+          db: withSearchSyncDb({
             insert,
             patch: mock().mockResolvedValue(null),
             query: (table: string) => ({
@@ -463,7 +454,7 @@ describe("publicApi", () => {
                 };
               },
             }),
-          },
+          }),
           scheduler: { runAfter: mock().mockResolvedValue(null) },
         },
         {
@@ -501,10 +492,7 @@ describe("publicApi", () => {
 
     const result = await handler(
       {
-        db: {
-          ...inlineSearchSyncDb(),
-          normalizeId: mock().mockReturnValue("card_1"),
-        },
+        db: withSearchSyncDb({ normalizeId: mock().mockReturnValue("card_1") }),
       },
       {
         items: [{ cardId: "card_1", isFavorited: "yes" }],
@@ -534,8 +522,7 @@ describe("publicApi", () => {
 
     const result = await handler(
       {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(
             buildBaseCard({
               _id: "card_1",
@@ -547,7 +534,7 @@ describe("publicApi", () => {
           ),
           normalizeId: mock().mockReturnValue("card_1"),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
         runMutation: mock().mockResolvedValue({ ok: true }),
         runQuery: mock().mockResolvedValue({ ok: true }),
         scheduler,
@@ -574,13 +561,17 @@ describe("publicApi", () => {
 });
 
 describe("public API rate limits", () => {
-  const runHandler = async (name: string, ctx: any, args: any) => {
-    const fn = (await import("../publicApi"))[name];
-    return (fn.handler ?? fn)(ctx, args);
-  };
+  const consumeInvalidAuth = async (runMutation: unknown) =>
+    handlerOf((await import("../publicApi")).consumeInvalidApiAuthLimit)(
+      mockMutationCtx({ runMutation }),
+      {}
+    );
 
-  const limit = async (ctx: any, rateLimitKey: string) =>
-    (await import("../publicApi")).limitApiRequests(ctx, rateLimitKey);
+  const limit = async (runMutation: unknown, rateLimitKey: string) =>
+    (await import("../publicApi")).limitApiRequests(
+      mockMutationCtx({ runMutation }),
+      rateLimitKey as ValidatedRateLimitKey
+    );
 
   test("limitApiRequests returns rate-limited result on contention errors", async () => {
     const runMutation = mock().mockRejectedValue(
@@ -589,7 +580,7 @@ describe("public API rate limits", () => {
       )
     );
 
-    const result = await limit({ runMutation }, "key:key_1");
+    const result = await limit(runMutation, "key:key_1");
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");
@@ -598,7 +589,7 @@ describe("public API rate limits", () => {
   test("limitApiRequests rejects an empty rate limit key without calling the limiter", async () => {
     const runMutation = mock();
 
-    const result = await limit({ runMutation }, "   ");
+    const result = await limit(runMutation, "   ");
 
     expect(result.ok).toBe(false);
     expect(runMutation).not.toHaveBeenCalled();
@@ -607,7 +598,7 @@ describe("public API rate limits", () => {
   test("limitApiRequests keys the limiter on the provided identity", async () => {
     const runMutation = mock().mockResolvedValue({ ok: true });
 
-    const result = await limit({ runMutation }, "key:key_42");
+    const result = await limit(runMutation, "key:key_42");
 
     expect(result.ok).toBe(true);
     expect(runMutation).toHaveBeenCalledTimes(1);
@@ -620,11 +611,7 @@ describe("public API rate limits", () => {
   test("consumeInvalidApiAuthLimit uses a single shared bucket key", async () => {
     const runMutation = mock().mockResolvedValue({ ok: true });
 
-    const result = await runHandler(
-      "consumeInvalidApiAuthLimit",
-      { runMutation } as any,
-      {}
-    );
+    const result = await consumeInvalidAuth(runMutation);
 
     expect(result.ok).toBe(true);
     expect(runMutation).toHaveBeenCalledTimes(1);
@@ -641,11 +628,7 @@ describe("public API rate limits", () => {
       )
     );
 
-    const result = await runHandler(
-      "consumeInvalidApiAuthLimit",
-      { runMutation } as any,
-      {}
-    );
+    const result = await consumeInvalidAuth(runMutation);
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");

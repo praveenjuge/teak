@@ -10,7 +10,6 @@ type TestBackend = ReturnType<typeof setup>;
 const rows = (t: TestBackend) =>
   t.run((ctx) => ctx.db.query("users").take(200));
 
-// Failure mode: admin role granted to the wrong or no account.
 describe("identity table", () => {
   test("admin seeding grants the role to exactly one active account", async () => {
     const t = setup();

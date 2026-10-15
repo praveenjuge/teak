@@ -68,7 +68,6 @@ const setup = async () => {
   };
   const runScheduled = () => t.finishAllScheduledFunctions(vi.runAllTimers);
 
-  // Every page of the grid's query, `numItems` at a time.
   const readAll = async (args: Record<string, unknown>, numItems = 7) => {
     const ids: string[] = [];
     let cursor: string | null = null;
@@ -93,7 +92,6 @@ const setup = async () => {
   return { t, owner, insert, readAll, runScheduled };
 };
 
-/** Fixed keys spread over [0, 1), with a few cards saved before Shuffle. */
 const seedLibrary = async (
   insert: Awaited<ReturnType<typeof setup>>["insert"],
   count = 40
@@ -102,7 +100,6 @@ const seedLibrary = async (
   for (let index = 0; index < count; index += 1) {
     ids.push(
       await insert({
-        // Every fifth card has no key (saved before Shuffle).
         ...(index % 5 === 0 ? {} : { shuffleKey: ((index * 37) % 101) / 101 }),
         isFavorited: index % 3 === 0 || undefined,
       })
@@ -122,7 +119,6 @@ describe("Shuffle walks the library", () => {
       const first = await readAll({ sort: "shuffle", shuffleSeed: seed });
       expect(first).toHaveLength(ids.length);
       expect(new Set(first)).toEqual(new Set(ids));
-      // The same seed, other page sizes: the same order.
       expect(await readAll({ sort: "shuffle", shuffleSeed: seed }, 3)).toEqual(
         first
       );
@@ -147,8 +143,6 @@ describe("Shuffle walks the library", () => {
     const { insert, readAll } = await setup();
     const keyed = await insert({ shuffleKey: 0.5 });
     const unkeyed = await insert({});
-    // Seed 0 walks up from its start point: keys at or above it first, then
-    // the rest from the bottom, where cards without a key sort first.
     const order = await readAll({ sort: "shuffle", shuffleSeed: 0 }, 1);
     expect(new Set(order)).toEqual(new Set([keyed, unkeyed]));
     expect(order).toHaveLength(2);
@@ -336,7 +330,6 @@ describe("Shuffle of a large tag in the grid", () => {
 });
 
 describe("GET /v1/cards?sort=shuffle", () => {
-  // Every page the API serves for a seed, `limit` at a time.
   const readApi = async (
     t: Awaited<ReturnType<typeof setup>>["t"],
     args: Record<string, unknown>,
@@ -421,7 +414,6 @@ describe("GET /v1/cards?sort=shuffle", () => {
         cursor: page.pageInfo.nextCursor ?? undefined,
       })
     ).rejects.toThrow("`cursor` is invalid");
-    // Nor does a cursor from a date-ordered listing.
     await expect(
       t.query(internal.publicApi.shuffleCardsPageForUser, {
         userId: "owner",
@@ -493,7 +485,6 @@ describe("backfillShuffleKey", () => {
       expect(key).toBeGreaterThanOrEqual(0);
       expect(key).toBeLessThan(1);
     }
-    // The card that had a key keeps it.
     expect(first[4]).toBe(0.25);
     const rerun = await t.mutation(
       internal.migration.backfillShuffleKey.backfillShuffleKey,

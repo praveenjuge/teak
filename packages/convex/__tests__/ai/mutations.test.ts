@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { inlineSearchSyncDb } from "../helpers/session.test-utils";
+import { handlerOf } from "../helpers/convex.test-utils";
+import { withSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("ai/mutations.ts", () => {
   let updateCardProcessing: any;
@@ -8,7 +8,7 @@ describe("ai/mutations.ts", () => {
   beforeEach(async () => {
     const registered = (await import("../../ai/mutations"))
       .updateCardProcessing;
-    const handler = registered.handler ?? registered;
+    const handler = handlerOf(registered);
     updateCardProcessing = {
       handler: (ctx: any, args: any) => {
         ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
@@ -19,11 +19,10 @@ describe("ai/mutations.ts", () => {
 
   test("updates processing fields", async () => {
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: mock().mockResolvedValue({ _id: "c1" }),
         patch: mock().mockResolvedValue(undefined),
-      },
+      }),
     } as any;
     const handler =
       (updateCardProcessing as any).handler ?? updateCardProcessing;
@@ -50,8 +49,7 @@ describe("ai/mutations.ts", () => {
 
   test("keeps a metadata stage completed by a parallel step when saving renderables", async () => {
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: mock().mockResolvedValue({
           _id: "c1",
           processingStatus: {
@@ -60,7 +58,7 @@ describe("ai/mutations.ts", () => {
           },
         }),
         patch: mock().mockResolvedValue(undefined),
-      },
+      }),
     } as any;
     const handler =
       (updateCardProcessing as any).handler ?? updateCardProcessing;

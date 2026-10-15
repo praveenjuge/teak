@@ -15,12 +15,9 @@ import {
   importMaxBytes,
 } from "../../shared/importSources";
 
-// Fixtures follow each service's real export: the column names, list
-// syntax and file layout their exports use.
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
-/** Every card a parser produces must pass the importer's own validation. */
 const expectValidCards = (items: ReturnType<typeof parsePocketExport>) => {
   for (const item of items) {
     if (item.card) {
@@ -84,7 +81,6 @@ describe("Instapaper", () => {
     expect(items[2]?.card?.folders).toEqual(["Reading list"]);
     expect(items[3]?.card?.folders).toBeUndefined();
     expect(items[3]?.card?.isArchived).toBeUndefined();
-    // Private Instapaper items have no web link to save.
     expect(items[4]?.error).toContain("unsafe");
     expectValidCards(items);
   });
@@ -113,7 +109,6 @@ describe("Readwise Reader", () => {
     expect(items[1]?.card?.isFavorited).toBe(true);
     expect(items[2]?.card?.tags).toEqual(["later"]);
     expect(items[2]?.card?.isFavorited).toBeUndefined();
-    // Reader's Shortlist workflow tags documents instead of moving them.
     expect(items[3]?.card?.isFavorited).toBe(true);
     expectValidCards(items);
   });
@@ -197,8 +192,6 @@ describe("Linkwarden", () => {
 
   test("links the exporting user pinned become favorites", () => {
     const items = parseLinkwardenJson(fixture("linkwarden.json"));
-    // Pinned through pinnedBy, through the user's pinnedLinks, and only by
-    // someone else.
     expect(items.map((item) => item.card?.isFavorited)).toEqual([
       true,
       true,

@@ -1,17 +1,30 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
-import { getFunctionName } from "convex/server";
+import { type FunctionReference, getFunctionName } from "convex/server";
 import { CRONS } from "../../cronSchedules";
 import crons from "../../crons";
 import {
   cleanupExpiredIdempotency,
   cleanupOldDeletedCards,
 } from "../../telemetry/crons";
+import { handlerOf, mockActionCtx } from "../helpers/convex.test-utils";
 
 const HEARTBEAT = "adminHealth:recordCronRun";
 
-// Every monitored cron also writes heartbeats; these tests look at the job.
-const jobCalls = (runMutation) =>
+const recordMutations = (
+  impl: (
+    reference: FunctionReference<"mutation", "internal">,
+    args?: unknown
+  ) => Promise<unknown> = async () => null
+) => mock(impl);
+
+type RecordedMutations = ReturnType<typeof recordMutations>;
+
+const runCron = (
+  action: typeof cleanupOldDeletedCards,
+  runMutation: RecordedMutations
+) => handlerOf(action)(mockActionCtx({ runMutation }), {});
+
+const jobCalls = (runMutation: RecordedMutations) =>
   runMutation.mock.calls.filter(
     ([reference]) => getFunctionName(reference) !== HEARTBEAT
   );
@@ -21,7 +34,7 @@ describe("cron monitoring", () => {
     "retention cron %s runs only with explicit activation",
     async (kind, action) => {
       const previous = process.env.OPERATIONAL_RETENTION_ENABLED;
-      const runMutation = mock(async () => null);
+      const runMutation = recordMutations();
       try {
         for (const flag of [undefined, "false", "TRUE"]) {
           if (flag === undefined) {
@@ -29,11 +42,11 @@ describe("cron monitoring", () => {
           } else {
             process.env.OPERATIONAL_RETENTION_ENABLED = flag;
           }
-          expect(await action._handler({ runMutation }, {})).toBeNull();
+          expect(await runCron(action, runMutation)).toBeNull();
           expect(jobCalls(runMutation)).toHaveLength(0);
         }
         process.env.OPERATIONAL_RETENTION_ENABLED = "true";
-        expect(await action._handler({ runMutation }, {})).toBeNull();
+        expect(await runCron(action, runMutation)).toBeNull();
         expect(jobCalls(runMutation)).toHaveLength(1);
         const [reference, args] = jobCalls(runMutation)[0];
         expect(getFunctionName(reference)).toBe(
@@ -51,10 +64,8 @@ describe("cron monitoring", () => {
   );
 
   test("the daily deleted-card cleanup also prunes expired card tombstones", async () => {
-    const runMutation = mock(async () => null);
-    expect(
-      await cleanupOldDeletedCards._handler({ runMutation }, {})
-    ).toBeNull();
+    const runMutation = recordMutations();
+    expect(await runCron(cleanupOldDeletedCards, runMutation)).toBeNull();
     expect(
       jobCalls(runMutation).map(([reference, args]) => [
         getFunctionName(reference),
@@ -88,8 +99,8 @@ describe("cron monitoring", () => {
   });
 
   test("records a heartbeat when a job starts and when it finishes", async () => {
-    const runMutation = mock(async () => null);
-    await cleanupOldDeletedCards._handler({ runMutation }, {});
+    const runMutation = recordMutations();
+    await runCron(cleanupOldDeletedCards, runMutation);
     expect(
       runMutation.mock.calls
         .filter(([reference]) => getFunctionName(reference) === HEARTBEAT)
@@ -102,16 +113,16 @@ describe("cron monitoring", () => {
 
   test("records the error of a failed job and still rethrows it", async () => {
     const heartbeats: unknown[] = [];
-    const runMutation = mock((reference, args) => {
+    const runMutation = recordMutations((reference, args) => {
       if (getFunctionName(reference) === HEARTBEAT) {
         heartbeats.push(args);
         return Promise.resolve(null);
       }
       return Promise.reject(new Error("workflow start failed"));
     });
-    await expect(
-      cleanupOldDeletedCards._handler({ runMutation }, {})
-    ).rejects.toThrow("workflow start failed");
+    await expect(runCron(cleanupOldDeletedCards, runMutation)).rejects.toThrow(
+      "workflow start failed"
+    );
     expect(heartbeats.at(-1)).toEqual({
       name: "cleanup-old-deleted-cards",
       phase: "failed",
@@ -120,13 +131,11 @@ describe("cron monitoring", () => {
   });
 
   test("a failed heartbeat write never fails the job", async () => {
-    const runMutation = mock((reference) =>
+    const runMutation = recordMutations((reference) =>
       getFunctionName(reference) === HEARTBEAT
         ? Promise.reject(new Error("heartbeat table unavailable"))
         : Promise.resolve(null)
     );
-    expect(
-      await cleanupOldDeletedCards._handler({ runMutation }, {})
-    ).toBeNull();
+    expect(await runCron(cleanupOldDeletedCards, runMutation)).toBeNull();
   });
 });

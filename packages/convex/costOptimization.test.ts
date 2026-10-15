@@ -72,7 +72,6 @@ test("operational card updates preserve search rows and customer content", async
       tags: ["alpha"],
       updatedAt: 20,
     });
-    // Old already-scheduled invocations must also remain no-ops.
     await syncCardSearchDocumentHandler(ctx, id);
     expect(await searchState(ctx, id)).toEqual(before);
   });
@@ -266,7 +265,6 @@ test("field updates avoid tag progress reads and still repair a missing state on
     });
     expect((await ctx.db.get("cards", id))?.notes).toBe("a note");
     expect((await searchState(ctx, id)).sync?.generation).toBe(1);
-    // Existing document with a missing state row: a direct sync repairs it.
     const state = await searchState(ctx, id);
     await ctx.db.delete("cardSearchTagSyncStates", state.sync!._id);
     await syncCardSearchDocumentHandler(ctx, id);

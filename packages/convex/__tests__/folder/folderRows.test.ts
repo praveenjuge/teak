@@ -57,7 +57,6 @@ describe("cardFolderRowsMayChange", () => {
         card({ folderIds: [folder], content: "Edited", notes: "New" })
       )
     ).toBe(false);
-    // Favorites are not stored on folder rows.
     expect(cardFolderRowsMayChange(card(), card({ isFavorited: true }))).toBe(
       false
     );

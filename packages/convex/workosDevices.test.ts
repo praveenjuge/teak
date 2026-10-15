@@ -55,7 +55,6 @@ beforeEach(() => {
   loseRevokeResponse = false;
   omitRevoked = false;
   revokeStatus = null;
-  // Only the external WorkOS HTTP boundary is replaced. SDK deserialization and actions run normally.
   vi.stubGlobal(
     "fetch",
     async (input: Request | URL | string, init?: RequestInit) => {
@@ -140,8 +139,6 @@ async function setup(overrides = {}, owner = {}) {
   return { t, row, user: t.withIdentity({ ...claims, ...overrides }) };
 }
 const paginationOpts = { cursor: null, numItems: 25 };
-// Failure modes: provider/owner confusion; invalid/inactive data; foreign target; late-page ownership;
-// unbounded pagination; transport/revoke outage; bootstrap verification and legacy regression.
 describe("owned WorkOS devices", () => {
   test("lists active owned sessions with safe labels and follows provider pagination", async () => {
     const f = await setup();

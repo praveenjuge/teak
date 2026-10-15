@@ -1,19 +1,24 @@
-// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { getFunctionName } from "convex/server";
+import { type FunctionReference, getFunctionName } from "convex/server";
+import { inferFileFormat } from "../../shared/fileFormats";
 import { extractFileTextForAiForKey } from "../../workflows/fileProcessing";
 import { processAudioCard, recordMediaFacts } from "../../workflows/mediaFacts";
+import { asFetch, mockActionCtx } from "../helpers/convex.test-utils";
 
 const NAMES = ["FILES_BASE", "FILES_SIGNING_SECRET"] as const;
 const previous = NAMES.map((name) => process.env[name]);
 const originalFetch = global.fetch;
-let ops: Array<{ op: string; params: Record<string, unknown> }> = [];
+let ops: Array<{
+  op: string;
+  params: Record<string, unknown>;
+  version: number;
+}> = [];
 
 const answer = (envelope: unknown, status = 200) => {
-  global.fetch = (_url, init) => {
+  global.fetch = asFetch((_url, init) => {
     ops.push(JSON.parse(String(init?.body)));
     return Promise.resolve(Response.json(envelope, { status }));
-  };
+  });
 };
 const ok = (data: unknown) => ({ ok: true, version: 1, requestId: "r", data });
 
@@ -38,12 +43,12 @@ const recordingCtx = () => {
   const calls: Array<{ name: string; args: unknown }> = [];
   return {
     calls,
-    ctx: {
-      runMutation: (ref, args) => {
+    ctx: mockActionCtx({
+      runMutation: (ref: FunctionReference<"mutation">, args: unknown) => {
         calls.push({ name: getFunctionName(ref), args });
         return Promise.resolve(null);
       },
-    },
+    }),
   };
 };
 
@@ -161,7 +166,7 @@ describe("recordMediaFacts", () => {
 });
 
 describe("extractFileTextForAiForKey for PDFs", () => {
-  const pdf = { id: "pdf", kind: "pdf" };
+  const pdf = inferFileFormat({ fileName: "a.pdf" })!;
 
   test("returns the Worker's PDF text layer", async () => {
     answer(ok({ facts: { pageCount: 2 }, text: "Quarterly plan" }));

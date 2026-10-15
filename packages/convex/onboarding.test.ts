@@ -53,7 +53,6 @@ const createDefaults = (t: Backend) =>
     userId: USER_ID,
   });
 
-/** A new account whose cards are on their way, as sign-up leaves it. */
 const signedUp = () => {
   const t = setup();
   return t.run((ctx) => startVaultSetup(ctx, USER_ID)).then(() => t);
@@ -67,7 +66,6 @@ const keyFor = (slot: string, name: string) =>
     fileName: name,
   });
 
-/** What addOnboardingCards hands over once every file is stored. */
 const storedEverything = () =>
   UPLOAD_CARDS.map((card) => ({
     onboarding: card.onboarding,
@@ -80,8 +78,6 @@ const storedEverything = () =>
     ),
   }));
 
-// Card creation stops at the committed mutation. Hold scheduled work so a
-// processed link never reaches the network or outlives the test.
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("FILES_BASE", "https://files.example.test");
@@ -101,7 +97,6 @@ describe("getting-started cards", () => {
 
     const [job] = await scheduled(t, "card/onboardingFiles:addOnboardingCards");
     expect(job?.args[0]).toMatchObject({ userId: USER_ID });
-    // A backstop follows, in case the upload action never inserts.
     const [backstop] = await scheduled(
       t,
       "card/defaultCards:insertOnboardingCards"
@@ -146,7 +141,6 @@ describe("getting-started cards", () => {
     for (const card of cards) {
       expect(card.tags).toEqual([ONBOARDING_TAG]);
       expect(card.folderIds).toEqual([startHere?._id]);
-      // Nothing is left to process, so nothing reflows the grid later.
       expect(card.metadataStatus).toBe("completed");
       expect(
         Object.values(card.processingStatus ?? {}).every(
@@ -175,7 +169,6 @@ describe("getting-started cards", () => {
     expect(cards.find((card) => card.type === "audio")?.aiTranscript).toContain(
       "serif"
     );
-    // The ready-made PDF skips processing, so its text is read on its own.
     const pdf = cards.find((card) => card.type === "document");
     expect(
       (
@@ -194,7 +187,6 @@ describe("getting-started cards", () => {
     expect(cards.map((card) => card.onboarding).sort()).toEqual(
       ["link", "palette", "quote", "welcome"].sort()
     );
-    // The link has no stored preview, so it is processed like a saved link.
     expect(cards.find((card) => card.type === "link")?.metadataStatus).toBe(
       "pending"
     );
@@ -213,7 +205,6 @@ describe("getting-started cards", () => {
       });
 
     expect(await insert([])).toBe(4);
-    // A late upload, or the backstop firing again, adds nothing.
     expect(await insert(storedEverything())).toBe(0);
     expect(await insert([])).toBe(0);
 
@@ -294,7 +285,6 @@ describe("getting-started cards", () => {
   });
 
   describe("Setting up your vault", () => {
-    /** The signed-in owner's view of the setup, through the real query. */
     const signedIn = async () => {
       const t = setup();
       workosTest.register(t);
@@ -317,7 +307,6 @@ describe("getting-started cards", () => {
       expect(await setupState()).toEqual({ startedAt: expect.any(Number) });
 
       await createDefaults(t);
-      // The files are still being stored: still setting up, still no cards.
       expect(await setupState()).not.toBeNull();
       expect(await cardsOf(t)).toHaveLength(0);
 

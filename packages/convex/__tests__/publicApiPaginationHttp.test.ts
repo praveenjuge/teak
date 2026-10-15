@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { listCardsV1 } from "../publicApiHttp";
 import { withMappedOwner } from "./helpers/session.test-utils";
@@ -55,7 +53,7 @@ const requestPage = async (
 
 describe("public API card-list pagination", () => {
   test("fills limit=1 across sparse scans without duplicates or skips", async () => {
-    const scans = {
+    const scans: Record<string, unknown> = {
       start: {
         itemCursors: [],
         items: [],
@@ -94,10 +92,12 @@ describe("public API card-list pagination", () => {
       },
     };
     const requestedCursors: Array<string | undefined> = [];
-    const runQuery = mock((_reference, args) => {
-      requestedCursors.push(args.cursor);
-      return Promise.resolve(scans[args.cursor ?? "start"]);
-    });
+    const runQuery = mock(
+      (_reference: unknown, args: { cursor?: string; scanLimit?: number }) => {
+        requestedCursors.push(args.cursor);
+        return Promise.resolve(scans[args.cursor ?? "start"]);
+      }
+    );
 
     const first = await requestPage(runQuery);
     const second = await requestPage(runQuery, first.pageInfo.nextCursor);
@@ -134,25 +134,27 @@ describe("public API card-list pagination", () => {
     const firstPageItems = Array.from({ length: 100 }, (_, index) =>
       card(`card_${index + 1}`, index + 1)
     );
-    const runQuery = mock((_reference, args) => {
-      if (!args.cursor) {
+    const runQuery = mock(
+      (_reference: unknown, args: { cursor?: string; scanLimit?: number }) => {
+        if (!args.cursor) {
+          return Promise.resolve({
+            itemCursors: firstPageItems.map(
+              (_, index) => `after-card-${index + 1}`
+            ),
+            items: firstPageItems,
+            nextCursor: "page-2",
+            scannedRows: 100,
+          });
+        }
+
         return Promise.resolve({
-          itemCursors: firstPageItems.map(
-            (_, index) => `after-card-${index + 1}`
-          ),
-          items: firstPageItems,
-          nextCursor: "page-2",
-          scannedRows: 100,
+          itemCursors: ["after-card-101"],
+          items: [card("card_101", 101)],
+          nextCursor: null,
+          scannedRows: 1,
         });
       }
-
-      return Promise.resolve({
-        itemCursors: ["after-card-101"],
-        items: [card("card_101", 101)],
-        nextCursor: null,
-        scannedRows: 1,
-      });
-    });
+    );
 
     const result = await requestPage(runQuery, undefined, 999);
 
@@ -167,15 +169,17 @@ describe("public API card-list pagination", () => {
   });
 
   test("stops scanning after 400 rows and returns a continuation", async () => {
-    const runQuery = mock((_reference, args) => {
-      const page = args.cursor ? Number(args.cursor.slice(5)) : 0;
-      return Promise.resolve({
-        itemCursors: [],
-        items: [],
-        nextCursor: `page-${page + 1}`,
-        scannedRows: 100,
-      });
-    });
+    const runQuery = mock(
+      (_reference: unknown, args: { cursor?: string; scanLimit?: number }) => {
+        const page = args.cursor ? Number(args.cursor.slice(5)) : 0;
+        return Promise.resolve({
+          itemCursors: [],
+          items: [],
+          nextCursor: `page-${page + 1}`,
+          scannedRows: 100,
+        });
+      }
+    );
 
     const result = await requestPage(runQuery, undefined, 10);
 
@@ -188,22 +192,24 @@ describe("public API card-list pagination", () => {
   });
 
   test("assembled pages never surface soft-deleted card ids", async () => {
-    const runQuery = mock((_reference, args) => {
-      if (!args.cursor) {
+    const runQuery = mock(
+      (_reference: unknown, args: { cursor?: string; scanLimit?: number }) => {
+        if (!args.cursor) {
+          return Promise.resolve({
+            itemCursors: ["after-active"],
+            items: [card("card_active", 1)],
+            nextCursor: null,
+            scannedRows: 2,
+          });
+        }
         return Promise.resolve({
-          itemCursors: ["after-active"],
-          items: [card("card_active", 1)],
+          itemCursors: [],
+          items: [],
           nextCursor: null,
-          scannedRows: 2,
+          scannedRows: 0,
         });
       }
-      return Promise.resolve({
-        itemCursors: [],
-        items: [],
-        nextCursor: null,
-        scannedRows: 0,
-      });
-    });
+    );
 
     const result = await requestPage(runQuery, undefined, 10);
 

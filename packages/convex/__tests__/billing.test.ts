@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 

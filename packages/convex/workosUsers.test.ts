@@ -1,29 +1,20 @@
 /// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
-import {
-  type ApiFromModules,
-  type FunctionArgs,
-  type FunctionReturnType,
-  makeFunctionReference,
-} from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
-import type { linkWorkosUser } from "./workosUsers";
 
 const modules = import.meta.glob("./**/*.ts");
-// The new module is not wired to runtime. Generated API changes are deferred to
-// main integration; this typed reference invokes the real registered mutation.
-type Link = ApiFromModules<{
-  workosUsers: { linkWorkosUser: typeof linkWorkosUser };
-}>["workosUsers"]["linkWorkosUser"];
-const link = makeFunctionReference<
-  "mutation",
-  FunctionArgs<Link>,
-  FunctionReturnType<Link>
->("workosUsers:linkWorkosUser");
+const link = internal.workosUsers.linkWorkosUser;
+interface LinkResult {
+  changed?: boolean;
+  reason?: string;
+  status: "linked" | "quarantined";
+  teakUserId?: string;
+}
 const setup = () => {
   const t = convexTest(schema, modules);
   workosTest.register(t);
@@ -36,7 +27,6 @@ const input = {
   emailVerified: true,
   source: "webhook" as const,
 };
-// A well-formed WorkOS ID, so linking reaches the creation checks.
 const unmapped = { ...input, workosUserId: "user_UNMAPPED" };
 const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
@@ -54,10 +44,6 @@ const snapshot = (t: Backend) =>
     cards: await ctx.db.query("cards").take(20),
   }));
 
-// Failure modes: external-ID fallback stealing another vault; unverified or
-// ambiguous email claims; conflicting/duplicate provider and permanent IDs;
-// deletion resurrection; retry profile/role/card changes; concurrent duplicate
-// linking; quarantine writes rolled back by throws; malformed provider inputs.
 describe("transactional WorkOS identity linking", () => {
   test("external ID links an unverified legacy user without rewriting their vault or profile", async () => {
     const t = setup();
@@ -374,11 +360,13 @@ describe("transactional WorkOS identity linking", () => {
       )
     );
     expect(
-      results.filter((result) => result.status === "linked" && result.changed)
+      results.filter(
+        (result: LinkResult) => result.status === "linked" && result.changed
+      )
     ).toHaveLength(1);
     expect(
       results.every(
-        (result) =>
+        (result: LinkResult) =>
           result.status === "linked" && result.teakUserId === "owner-a"
       )
     ).toBe(true);
@@ -396,12 +384,12 @@ describe("transactional WorkOS identity linking", () => {
         t.mutation(link, { ...input, externalId: "owner-a", workosUserId })
       )
     );
-    expect(results.filter((result) => result.status === "linked")).toHaveLength(
-      1
-    );
-    expect(results.filter((result) => result.status === "quarantined")).toEqual(
-      [{ status: "quarantined", reason: "link_conflict" }]
-    );
+    expect(
+      results.filter((result: LinkResult) => result.status === "linked")
+    ).toHaveLength(1);
+    expect(
+      results.filter((result: LinkResult) => result.status === "quarantined")
+    ).toEqual([{ status: "quarantined", reason: "link_conflict" }]);
     const result = await snapshot(t);
     expect(result.users).toHaveLength(1);
     expect(result.quarantine).toHaveLength(1);
@@ -419,12 +407,12 @@ describe("transactional WorkOS identity linking", () => {
         t.mutation(link, { ...input, externalId })
       )
     );
-    expect(results.filter((result) => result.status === "linked")).toHaveLength(
-      1
-    );
-    expect(results.filter((result) => result.status === "quarantined")).toEqual(
-      [{ status: "quarantined", reason: "external_id_mismatch" }]
-    );
+    expect(
+      results.filter((result: LinkResult) => result.status === "linked")
+    ).toHaveLength(1);
+    expect(
+      results.filter((result: LinkResult) => result.status === "quarantined")
+    ).toEqual([{ status: "quarantined", reason: "external_id_mismatch" }]);
     expect(
       (await snapshot(t)).users.filter(
         (row) => row.workosUserId === input.workosUserId
@@ -452,9 +440,6 @@ describe("transactional WorkOS identity linking", () => {
   );
 });
 
-// Creation failures: disabled primary/freeze, callers without creation
-// permission, external-ID conflicts, unverified or mismatched component
-// profiles, deleted provider, collisions and retry seeding.
 describe("trusted new WorkOS owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -470,7 +455,6 @@ describe("trusted new WorkOS owners", () => {
     workosUserId: "user_NEW",
     source: "ensureUser" as const,
   };
-  // The WorkOS component's profile is the provider evidence creation requires.
   const seedProvider = (
     t: Backend,
     fields: Partial<Parameters<typeof seedComponentUser>[1]> = {}

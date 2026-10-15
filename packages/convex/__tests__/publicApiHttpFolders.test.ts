@@ -1,8 +1,8 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { executePublicApiOperation } from "../publicApiHttp";
+import type { PublicApiOperation } from "../publicApiHttpShared";
+import { mockActionCtx } from "./helpers/convex.test-utils";
 import { buildAuthorizedMutationMock } from "./helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "./helpers/session.test-utils";
 
@@ -21,7 +21,7 @@ const folder = {
 };
 
 const run = (
-  operation: Record<string, unknown>,
+  operation: PublicApiOperation,
   {
     query = mock().mockResolvedValue(null),
     mutation = mock().mockResolvedValue(null),
@@ -35,7 +35,10 @@ const run = (
   const ctx = withMappedOwner({ runMutation, runQuery: query });
   return {
     ctx,
-    response: executePublicApiOperation(ctx, { headers: AUTH, ...operation }),
+    response: executePublicApiOperation(mockActionCtx(ctx), {
+      headers: AUTH,
+      ...operation,
+    }),
   };
 };
 
@@ -203,7 +206,7 @@ describe("public API folders", () => {
 
   test("requires a valid key", async () => {
     const response = await executePublicApiOperation(
-      withMappedOwner({ runMutation: mock(), runQuery: mock() }),
+      mockActionCtx(withMappedOwner({ runMutation: mock(), runQuery: mock() })),
       { method: "GET", path: "/v1/folders" }
     );
     expect(response.status).toBe(401);
@@ -291,7 +294,7 @@ describe("public API folders", () => {
       ["POST", "/v1/folders", { name: "A", kind: "magic", query: "x" }],
       ["POST", "/v1/folders", { name: "A", kind: "smart", query: 5 }],
       ["PATCH", "/v1/folders/folder_2", { kind: "manual" }],
-    ]) {
+    ] as [PublicApiOperation["method"], string, unknown][]) {
       const refused = mock();
       const response = await run({ method, path, body }, { mutation: refused })
         .response;
@@ -350,7 +353,6 @@ describe("public API folders", () => {
     });
     expect(searchArgs.folderId).toBeUndefined();
 
-    // Searches that cannot both match list nothing without reading cards.
     const none = mock((_ref, args) =>
       Promise.resolve(args.folderId === "folder_2" ? smart : null)
     );

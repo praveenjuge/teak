@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeAll, describe, expect, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { MAX_FILE_SIZE } from "../shared/fileFormats";

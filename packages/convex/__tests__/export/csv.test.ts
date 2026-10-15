@@ -18,7 +18,6 @@ const card = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   ...overrides,
 });
 
-/** The cell as written: an apostrophe before a formula start. */
 const guarded = (value: string) =>
   /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 
@@ -27,7 +26,6 @@ const parse = (csv: string) => {
   return parseCsvRows(csv.slice(1));
 };
 
-// A small seeded generator so the fuzz cases are the same on every run.
 const seeded = (seed: number) => {
   let state = seed;
   return () => {

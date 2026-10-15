@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   afterAll,
   beforeAll,
@@ -8,6 +7,8 @@ import {
   mock,
   test,
 } from "bun:test";
+import { asFetch } from "../../../helpers/convex.test-utils";
+import { mockSafeFetchPassthrough } from "../../../helpers/ssrf.test-utils";
 
 const toUrlString = (input: string | URL | Request) => {
   if (input instanceof Request) {
@@ -26,44 +27,17 @@ const mockExtractInstagramMedia = mock();
 const mockScrapeElements: { selector: string }[] = [];
 
 mock.module("../../../../../convex/linkMetadata", () => ({
-  normalizeUrl: (url) => url,
+  normalizeUrl: (url: string) => url,
   parseLinkPreview: mockParseLinkPreview,
   buildSuccessPreview: mockBuildSuccessPreview,
   buildErrorPreview: mockBuildErrorPreview,
-  isInstagramPostUrl: (url) => /instagram\.com\/(p|reel)\//.test(url),
-  isInstagramUrl: (url) => /instagram\.com/.test(url),
+  isInstagramPostUrl: (url: string) => /instagram\.com\/(p|reel)\//.test(url),
+  isInstagramUrl: (url: string) => /instagram\.com/.test(url),
   extractInstagramMediaFromHtml: mockExtractInstagramMedia,
   SCRAPE_ELEMENTS: mockScrapeElements,
 }));
 
-// Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
-// global fetch and treat every URL as safe. The real outbound URL policy is
-// exercised in linkMetadata/ssrf.test.ts.
-mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
-  SsrfError: class SsrfError extends Error {
-    reason: string;
-    constructor(reason: string, message?: string) {
-      super(message ?? reason);
-      this.name = "SsrfError";
-      this.reason = reason;
-    }
-  },
-  isBlockedIp: () => false,
-  detectIpVersion: () => 0,
-  assertUrlStructureSafe: (url: string) => new URL(url),
-  assertUrlIsSafe: async (url: string) => new URL(url),
-  readBodyWithLimit: async (response: Response, maxBytes: number) => {
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > maxBytes) {
-      throw new Error("body_too_large");
-    }
-    return bytes;
-  },
-  safeFetch: async (url: string, _resolveDns: unknown, init?: RequestInit) => ({
-    finalUrl: url,
-    response: await globalThis.fetch(url, init),
-  }),
-}));
+mockSafeFetchPassthrough();
 
 import { gzipSync } from "node:zlib";
 import {
@@ -88,7 +62,7 @@ describe("fetchMetadata", () => {
   const mockFetch = mock();
 
   beforeAll(() => {
-    global.fetch = mockFetch;
+    global.fetch = asFetch(mockFetch);
   });
 
   afterAll(() => {
@@ -106,7 +80,6 @@ describe("fetchMetadata", () => {
     mockScrapeElements.splice(0);
     r2Mocks.storeObject.mockReset();
 
-    // Standard mock resolutions
     mockParseLinkPreview.mockReturnValue({});
     mockBuildSuccessPreview.mockReturnValue({});
     mockBuildErrorPreview.mockImplementation((url, error) => ({ url, error }));
@@ -211,7 +184,6 @@ describe("fetchMetadata", () => {
       "https://www.instagram.com/p/DBY4WfSxA0a/",
       html
     );
-    // One page fetch: the parser and the browser reuse the same HTML.
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -257,15 +229,17 @@ describe("fetchMetadata", () => {
     source,
   });
 
-  /** Run with a Files Worker configured; `answer` handles its ops. */
   const withFilesWorker = async (
     answer: (body: { op: string; params: Record<string, any> }) => Response,
-    run: (ops: { op: string; params: Record<string, any> }[]) => Promise<void>
+    run: (
+      ops: { op: string; params: Record<string, any>; version: number }[]
+    ) => Promise<void>
   ) => {
     const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-    const ops: { op: string; params: Record<string, any> }[] = [];
+    const ops: { op: string; params: Record<string, any>; version: number }[] =
+      [];
     mockFetch.mockImplementation((input: string | URL | Request, init) => {
       const url = toUrlString(input);
       if (url.startsWith("https://files.teakvault.com/__ops/v1")) {
@@ -363,7 +337,6 @@ describe("fetchMetadata", () => {
             "https://www.instagram.com/p/DBY4WfSxA0a/",
             html
           );
-          // The media item, then the same image again as the preview image.
           expect(
             ops
               .filter(({ op }) => op === "store-remote-asset")
@@ -514,8 +487,6 @@ describe("fetchMetadata", () => {
     });
   });
 
-  // Remote assets download on the Files Worker's link fetcher, which stores
-  // them in R2; Convex only names the URL and the destination key.
   const withAssetWorker = async (
     pageHtml: string,
     stored: Record<string, Record<string, unknown>>,
@@ -524,7 +495,6 @@ describe("fetchMetadata", () => {
     const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-    // registerObject accepts every key.
     mockRunMutation.mockResolvedValue(true);
     const ops: Record<string, any>[] = [];
     mockFetch.mockImplementation((input: string | URL | Request, init) => {
@@ -617,7 +587,6 @@ describe("fetchMetadata", () => {
         const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
         expect(result.status).toBe("success");
-        // Media items are stored concurrently, so compare by URL.
         expect(
           ops
             .map(({ op, params }) => [op, params.kind, params.url])
@@ -639,7 +608,6 @@ describe("fetchMetadata", () => {
             "https://cdninstagram.com/media/two.mp4",
           ],
         ]);
-        // The page goes along so the fetcher can send it as the Referer.
         expect(ops.map(({ params }) => params.pageUrl)).toEqual(
           new Array(3).fill("https://www.instagram.com/p/DBY4WfSxA0a/")
         );
@@ -939,7 +907,7 @@ describe("fetchMetadata", () => {
   test("throws retryable if non-link card is still being classified", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
-      type: "text", // not a link
+      type: "text",
       url: "https://example.com",
       processingStatus: { classify: { status: "pending" } },
     });
@@ -957,7 +925,6 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "completed" } },
     });
 
-    // Make parsing throw AbortError
     const abortError = new Error("Abort");
     abortError.name = "AbortError";
     mockParseLinkPreview.mockImplementation(() => {
@@ -977,7 +944,6 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "completed" } },
     });
 
-    // Make parsing throw TypeError with fetch
     const typeError = new TypeError("Failed to fetch");
     mockParseLinkPreview.mockImplementation(() => {
       throw typeError;

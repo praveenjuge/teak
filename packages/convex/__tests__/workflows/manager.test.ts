@@ -1,7 +1,6 @@
-// @ts-nocheck
-
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { getFunctionName } from "convex/server";
+import type { WorkflowId } from "@convex-dev/workflow";
+import { type FunctionReference, getFunctionName } from "convex/server";
 import {
   cleanupCompletedWorkflowHandler,
   cleanupWorkflowHistoryBatchHandler,
@@ -18,7 +17,8 @@ import {
   workflow,
 } from "../../../convex/workflows/manager";
 import { workflowArtifactKey } from "../../storage/workflowArtifacts";
-import { inlineSearchSyncDb } from "../helpers/session.test-utils";
+import { testId } from "../helpers/convex.test-utils";
+import { withSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("workflow manager", () => {
   test("limits workflow step parallelism to ten", () => {
@@ -29,7 +29,7 @@ describe("workflow manager", () => {
     const mockDbGet = mock();
     const mockDbPatch = mock();
     const ctx = {
-      db: { ...inlineSearchSyncDb(), get: mockDbGet, patch: mockDbPatch },
+      db: withSearchSyncDb({ get: mockDbGet, patch: mockDbPatch }),
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
@@ -101,7 +101,6 @@ describe("workflow manager", () => {
     const mockRunMutation = mock();
     const ctx = { runMutation: mockRunMutation } as any;
 
-    // Mock workflow instance method
     workflow.start = mockWorkflowStart;
 
     beforeEach(() => {
@@ -112,7 +111,7 @@ describe("workflow manager", () => {
     test("starts workflow and initializes state", async () => {
       mockWorkflowStart.mockResolvedValue("wf_123");
       const result = await startCardProcessingWorkflowHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
       });
 
       expect(mockWorkflowStart).toHaveBeenCalledWith(
@@ -129,7 +128,7 @@ describe("workflow manager", () => {
         }
       );
       expect(mockRunMutation).toHaveBeenCalled();
-      expect(result).toEqual({ workflowId: "wf_123" });
+      expect(result).toEqual({ workflowId: "wf_123" as WorkflowId });
     });
   });
 
@@ -140,11 +139,7 @@ describe("workflow manager", () => {
       return {
         patch,
         ctx: {
-          db: {
-            ...inlineSearchSyncDb(),
-            get: mock().mockResolvedValue(card),
-            patch,
-          },
+          db: withSearchSyncDb({ get: mock().mockResolvedValue(card), patch }),
           runQuery: mock().mockResolvedValue({
             workflow: { generationNumber: 1, runResult: { kind: "failed" } },
           }),
@@ -188,12 +183,14 @@ describe("workflow manager", () => {
         status: "failed",
         error: "workflow_failed",
       });
-      // Retention cleanup, plus one card_processing_failed event.
       expect(
-        ctx.scheduler.runAfter.mock.calls.map(([, reference, args]) => [
-          getFunctionName(reference),
-          args,
-        ])
+        ctx.scheduler.runAfter.mock.calls.map(
+          ([, reference, args]: [
+            number,
+            FunctionReference<"action">,
+            unknown,
+          ]) => [getFunctionName(reference), args]
+        )
       ).toEqual([
         [
           "telemetry/events:emitCardProcessingFailed",
@@ -550,7 +547,10 @@ describe("workflow manager", () => {
       const ctx = {
         runQuery,
         scheduler: { runAfter: mock() },
-        runMutation: (_ref, args) =>
+        runMutation: (
+          _ref: unknown,
+          args: { generationNumber: number; workflowId: WorkflowId }
+        ) =>
           cleanupCompletedWorkflowHandler(
             ctx,
             args.workflowId,

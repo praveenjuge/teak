@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
-import { inlineSearchSyncDb } from "../helpers/session.test-utils";
+import { withSearchSyncDb } from "../helpers/session.test-utils";
 
 mock.module("../../storage/r2", r2MockModuleFactory);
 
@@ -75,11 +74,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { imageStorageKey: "new_image" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -113,8 +111,7 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { screenshotStorageKey: "new_shot" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           query: mock().mockImplementation((table: string) => ({
             withIndex: mock().mockReturnValue({
@@ -125,7 +122,7 @@ describe("linkMetadata.ts", () => {
               ),
             }),
           })),
-        },
+        }),
       } as any;
 
       const result = await updateCardMetadataHandler(ctx, {
@@ -134,9 +131,6 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      // The fenced patch leaves the card unchanged, so the replaced
-      // screenshot must survive - but the freshly uploaded screenshot the
-      // card never referenced is removed instead of orphaned.
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
       expect(r2Mocks.deleteObject).toHaveBeenCalledTimes(1);
@@ -167,8 +161,7 @@ describe("linkMetadata.ts", () => {
         ],
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           query: mock().mockImplementation((table: string) => ({
             withIndex: mock().mockReturnValue({
@@ -179,7 +172,7 @@ describe("linkMetadata.ts", () => {
               ),
             }),
           })),
-        },
+        }),
       } as any;
 
       const result = await updateCardMetadataHandler(ctx, {
@@ -190,9 +183,6 @@ describe("linkMetadata.ts", () => {
 
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      // Only the objects this call introduced are removed; everything the
-      // unchanged card references (including the replaced OG image)
-      // survives.
       const deleted = r2Mocks.deleteObject.mock.calls
         .map((call: any[]) => call[1])
         .sort();
@@ -214,11 +204,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { title: "New Title" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -259,11 +248,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { imageStorageKey: "same_image" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -297,11 +285,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -339,11 +326,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { title: "New Title" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -383,11 +369,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { screenshotStorageKey: "same_screenshot" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -421,11 +406,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { title: "New Title" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -455,11 +439,10 @@ describe("linkMetadata.ts", () => {
       };
       const newLinkPreview = { title: "New Title" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -486,11 +469,10 @@ describe("linkMetadata.ts", () => {
         description: "Test Description",
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -520,11 +502,10 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { imageStorageKey: "new_image" };
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -547,11 +528,10 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -566,11 +546,10 @@ describe("linkMetadata.ts", () => {
     test("sets metadataStatus", async () => {
       const existingCard = { _id: "c1", type: "link" };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardMetadataHandler(ctx, {
@@ -605,11 +584,10 @@ describe("linkMetadata.ts", () => {
 
     test("returns early for non-link card", async () => {
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue({ _id: "c1", type: "image" }),
           patch: mock(),
-        },
+        }),
       } as any;
       const result = await updateCardScreenshotHandler(ctx, {
         cardId: "c1",
@@ -627,11 +605,10 @@ describe("linkMetadata.ts", () => {
         metadata: { linkPreview: {} },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
@@ -665,11 +642,10 @@ describe("linkMetadata.ts", () => {
         metadata: { linkPreview: { screenshotStorageKey: "old_screenshot" } },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
@@ -689,11 +665,10 @@ describe("linkMetadata.ts", () => {
       };
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
@@ -719,11 +694,10 @@ describe("linkMetadata.ts", () => {
         },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardScreenshotHandler(ctx, {
@@ -749,11 +723,10 @@ describe("linkMetadata.ts", () => {
     test("creates new metadata when none exists", async () => {
       const existingCard = { _id: "c1", type: "link", metadata: undefined };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
 
       await updateCardScreenshotHandler(ctx, {

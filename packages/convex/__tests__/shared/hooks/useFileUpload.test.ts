@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   type FileUploadDependencies,
@@ -663,7 +662,6 @@ describe("useFileUploadCore", () => {
         cardId: "card_1",
       });
 
-      // Wait for async image load simulation
       await hook.uploadFile(file);
 
       expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
@@ -730,7 +728,6 @@ describe("useFileUploadCore", () => {
     test("handles image load failure gracefully", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
 
-      // Mock createObjectURL to return something triggering onerror in MockImage
       (global.URL.createObjectURL as any).mockReturnValueOnce("blob:fail");
 
       mockUploadAndCreateCard.mockResolvedValue({
@@ -749,7 +746,6 @@ describe("useFileUploadCore", () => {
 
       await hook.uploadFile(file);
 
-      // Should proceed without dimensions
       expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
         expect.objectContaining({
           additionalMetadata: undefined,
@@ -881,8 +877,10 @@ describe("useFileUploadCore", () => {
         type: "image/png",
       }) as any;
       const results = await hook.uploadMultipleFiles(files);
-      expect(results[0].success).toBe(false);
-      expect(results[0].errorCode).toBe(CARD_ERROR_CODES.TOO_MANY_FILES);
+      expect(results[0]).toMatchObject({
+        success: false,
+        errorCode: CARD_ERROR_CODES.TOO_MANY_FILES,
+      });
     });
 
     test("uploads multiple files sequentially", async () => {

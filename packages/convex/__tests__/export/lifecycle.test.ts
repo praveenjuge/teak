@@ -1,15 +1,12 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 
 describe("export module wiring", () => {
   test("export.ts exposes the public + internal surface", async () => {
     const mod = await import("../../dataExport");
-    // Public functions
     expect(mod.getLatestExport).toBeDefined();
     expect(mod.startExport).toBeDefined();
     expect(mod.cancelExport).toBeDefined();
     expect(mod.getExportDownloadUrl).toBeDefined();
-    // Internal functions used by the workflow / cleanup
     expect(mod.getJob).toBeDefined();
     expect(mod.markRunning).toBeDefined();
     expect(mod.recordSnapshotPage).toBeDefined();
