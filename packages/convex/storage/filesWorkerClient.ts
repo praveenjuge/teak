@@ -49,6 +49,7 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "vector-delete": 30_000,
   "vector-get": 30_000,
   "vector-query": 30_000,
+  "vector-similar": 30_000,
   // Up to six redirect hops of 30 s each in the fetcher, plus a cold start.
   "store-remote-asset": 240_000,
 };

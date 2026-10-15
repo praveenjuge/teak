@@ -58,6 +58,7 @@ import type * as card_searchDocumentHelpers from "../card/searchDocumentHelpers.
 import type * as card_searchDocuments from "../card/searchDocuments.js";
 import type * as card_searchPlanner from "../card/searchPlanner.js";
 import type * as card_shuffle from "../card/shuffle.js";
+import type * as card_similarSearch from "../card/similarSearch.js";
 import type * as card_textContents from "../card/textContents.js";
 import type * as card_topSites from "../card/topSites.js";
 import type * as card_updateCard from "../card/updateCard.js";
@@ -341,6 +342,7 @@ declare const fullApi: ApiFromModules<{
   "card/searchDocuments": typeof card_searchDocuments;
   "card/searchPlanner": typeof card_searchPlanner;
   "card/shuffle": typeof card_shuffle;
+  "card/similarSearch": typeof card_similarSearch;
   "card/textContents": typeof card_textContents;
   "card/topSites": typeof card_topSites;
   "card/updateCard": typeof card_updateCard;

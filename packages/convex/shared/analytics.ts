@@ -51,6 +51,7 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   search_performed: { zero_result: boolean };
   signed_in: NoProperties;
+  similar_search_opened: { source: "panel" };
 }
 
 export interface ServerEventCatalog {

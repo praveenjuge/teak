@@ -32,6 +32,8 @@ interface CardMetadataPanelProps {
   onCardTypeClick: () => void;
   /** Saves edits now, as a field loses focus. */
   onCommit: () => void;
+  /** Lists the cards closest in meaning to this one. */
+  onMoreLikeThis?: () => void;
   onNotesChange: (notes: string) => void;
   onPermanentDelete: () => void;
   onRestore: () => void;
@@ -111,6 +113,7 @@ export function CardMetadataPanel({
   onCardTypeClick,
   onCommit,
   onNotesChange,
+  onMoreLikeThis,
   onPermanentDelete,
   onRestore,
   onTagClick,
@@ -407,6 +410,17 @@ export function CardMetadataPanel({
             </div>
           )}
         </dl>
+        {onMoreLikeThis && !card.isDeleted && (
+          <Button
+            className="mt-2 w-full justify-start gap-2 px-2 text-muted-foreground hover:text-foreground"
+            onClick={onMoreLikeThis}
+            size="sm"
+            variant="ghost"
+          >
+            <Sparkles aria-hidden="true" className="size-3.5" />
+            More like this
+          </Button>
+        )}
       </PanelSection>
 
       <CardFoldersDialog

@@ -171,7 +171,10 @@ The search text takes the same qualifiers as the search box on the web: `tag:` (
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
 teak search "cozy reading nook" --mode semantic
+teak similar <card-id> --type link
 ```
+
+`teak similar <id>` (or `teak cards similar <id>`, or `--similar-to <id>` on any listing) lists the cards closest in meaning to a card, with the same filters. The search text also takes `like:<card id>` and `mood:"…"`.
 
 ### Export
 

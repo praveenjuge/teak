@@ -18,6 +18,29 @@ describe("@teak/convex/sdk", () => {
     ).toBe("q=hi&tag=ux&sort=oldest&limit=100");
   });
 
+  test("asks for a card's similar cards", async () => {
+    const urls: string[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      fetch: ((input: unknown) => {
+        urls.push(String(input));
+        return Promise.resolve(
+          Response.json({
+            items: [],
+            pageInfo: { hasMore: false, nextCursor: null },
+            similarity: "pending",
+          })
+        );
+      }) as typeof fetch,
+      tokenProvider: { getAccessToken: () => "token" },
+    });
+    const page = await client.cards.similar("card_1", { type: "image" });
+    expect(page.similarity).toBe("pending");
+    expect(urls[0]).toBe(
+      "https://api.example/v1/cards?type=image&include=content%2Cmetadata&similarTo=card_1&limit=50"
+    );
+  });
+
   test("sends a search mode other than the API's hybrid default", () => {
     expect(buildCardsSearchParams({ query: "nook", mode: "semantic" })).toBe(
       "q=nook&mode=semantic&limit=50"

@@ -421,6 +421,12 @@ const components = {
           type: "array",
         },
         pageInfo: { $ref: "#/components/schemas/CardPageInfo" },
+        similarity: {
+          description:
+            "With `similarTo`, `like:` or `mood:`: `pending` while the card is still being read (try again in a moment), `unavailable` for a card in Trash or not found.",
+          enum: ["ok", "pending", "unavailable"],
+          type: "string",
+        },
         searchMode: {
           description:
             "With `q`: how the search found cards. `keyword` when meaning search was not used: `mode=keyword`, no words to search by meaning, or the meaning service was slow, down or rate-limited.",
@@ -899,7 +905,14 @@ export const openApiSpec = {
             in: "query",
             name: "q",
             description:
-              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and `"quoted phrases"`. Qualifiers combine with the other parameters.',
+              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood) and `"quoted phrases"`. Qualifiers combine with the other parameters.',
+            schema: { type: "string" },
+          },
+          {
+            in: "query",
+            name: "similarTo",
+            description:
+              'A card id: only the cards closest to it in meaning, of any type, never the card itself (the same as `like:<id>` in `q`). Other parameters narrow them and `sort` orders them. A malformed id returns `400 INVALID_INPUT`; a card in Trash or not found returns no items with `similarity: "unavailable"`.',
             schema: { type: "string" },
           },
           {

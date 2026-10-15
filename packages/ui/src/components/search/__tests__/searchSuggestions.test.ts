@@ -135,8 +135,19 @@ describe("describeQualifierChip", () => {
     ["type:link", "Type", "Link"],
     ["is:fav", "Show", "Favorites"],
     ['folder:"Reading list"', "Folder", "Reading list"],
+    ["like:j979t50bv7gjxz2mazwwf5tes18gbvnt", "Similar to", "a card"],
+    ['mood:"moody brutalist"', "Mood", "“moody brutalist”"],
   ])("%s", (chip: string, title: string, label: string) => {
     expect(describeQualifierChip(chip)).toMatchObject({ title, label });
+  });
+
+  test("a like: chip reads its card's title", () => {
+    expect(
+      describeQualifierChip(
+        "like:j979t50bv7gjxz2mazwwf5tes18gbvnt",
+        "Concrete tower"
+      )
+    ).toMatchObject({ title: "Similar to", label: "Concrete tower" });
   });
 
   test("text that is not a qualifier has no chip", () => {

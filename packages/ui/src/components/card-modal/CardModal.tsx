@@ -165,6 +165,8 @@ interface CardModalProps {
   isReprocessing?: boolean;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  /** Lists the cards closest in meaning to a card (`like:<id>`). */
+  onMoreLikeThis?: (cardId: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
   /** Shows the previous card in the grid; absent on the first card. */
@@ -193,6 +195,7 @@ export function CardModal({
   onNext,
   onPrevious,
   onTagClick,
+  onMoreLikeThis,
   hasUnsavedChanges,
   getCurrentValue,
   updateContent,
@@ -716,6 +719,11 @@ export function CardModal({
                     notesRef={notesRef}
                     onCardTypeClick={() => onCardTypeClick?.(card.type)}
                     onCommit={commit}
+                    onMoreLikeThis={
+                      onMoreLikeThis
+                        ? () => onMoreLikeThis(card._id)
+                        : undefined
+                    }
                     onNotesChange={editNotes}
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)

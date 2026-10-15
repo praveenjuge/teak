@@ -41,6 +41,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_delete_card",
   "teak_v1_delete_folder",
   "teak_v1_delete_tag",
+  "teak_v1_find_similar_cards",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_card_content",
@@ -522,6 +523,35 @@ describe("Convex MCP endpoint", () => {
       q: "design",
       limit: 10,
       include: "content,metadata",
+    });
+  });
+
+  test("finds similar cards through similarTo", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_2" }],
+          pageInfo: { hasMore: false, nextCursor: null },
+          similarity: "ok",
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_find_similar_cards",
+      { cardId: "card_1", type: "image", limit: 5 },
+      mcpRequest({ jsonrpc: "2.0", id: 53, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards",
+      query: { similarTo: "card_1", type: "image", limit: 5 },
+    });
+    expect(result.structuredContent).toMatchObject({
+      total: 1,
+      similarity: "ok",
     });
   });
 

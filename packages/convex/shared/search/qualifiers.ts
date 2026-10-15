@@ -11,6 +11,8 @@ export const SEARCH_QUALIFIER_KEYS = [
   "is",
   "site",
   "folder",
+  "like",
+  "mood",
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
@@ -26,7 +28,21 @@ export type SearchQualifier =
   | { key: "type"; value: CardType }
   | { key: "is"; value: SearchIsValue }
   | { key: "site"; value: string }
-  | { key: "folder"; value: string };
+  | { key: "folder"; value: string }
+  /** The cards closest in meaning to this card (its id). */
+  | { key: "like"; value: string }
+  /** Images whose description matches this text by meaning. */
+  | { key: "mood"; value: string };
+
+/** What a search finds by meaning instead of by its words (one at most). */
+export type SearchSimilarity =
+  | { kind: "like"; cardId: string }
+  | { kind: "mood"; text: string };
+
+/** Longest `mood:` text kept. */
+const MAX_MOOD_LENGTH = 200;
+/** A Convex document id: lowercase letters and digits. */
+const CARD_ID_PATTERN = /^[0-9a-z]{31,37}$/;
 
 export interface ParsedSearchQuery {
   /** True with `is:archived`: archived cards (or archived cards in Trash). */
@@ -41,6 +57,8 @@ export interface ParsedSearchQuery {
   phrases: string[];
   /** Every qualifier, deduplicated, in the order typed. */
   qualifiers: SearchQualifier[];
+  /** `like:` or `mood:`, when the search has one. */
+  similarity?: SearchSimilarity | null;
   /** `site:` hosts, normalized. */
   sites: string[];
   /** `tag:` and `#tag` values, lowercased. */
@@ -192,10 +210,19 @@ const parseQualifier = (
     }
     case "folder":
       return { key, value };
+    case "like":
+      return CARD_ID_PATTERN.test(value) ? { key, value } : null;
+    case "mood": {
+      const text = value.replace(/\s+/g, " ").slice(0, MAX_MOOD_LENGTH).trim();
+      return text ? { key, value: text } : null;
+    }
     default:
       return null;
   }
 };
+
+const isSimilarityKey = (key: SearchQualifierKey) =>
+  key === "like" || key === "mood";
 
 const qualifierIdentity = (qualifier: SearchQualifier): string =>
   `${qualifier.key}:${
@@ -227,7 +254,8 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
 
 /**
  * Reads a search: qualifiers (`tag:`, `#tag`, `type:`, `is:fav`,
- * `is:archived`, `site:`, `folder:`), quoted phrases and plain words. Keys
+ * `is:archived`, `site:`, `folder:`, `like:<card id>`, `mood:"…"`), quoted
+ * phrases and plain words. Keys
  * ignore case and take quoted values (`folder:"Reading list"`). A value a
  * key cannot use, an unknown key and a valid hex color after `#` stay plain
  * words. Every surface reads searches with this one parser.
@@ -265,7 +293,18 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
           : // An IPv6 host keeps its brackets: `site:[::1]`.
             trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
       );
-      if (qualifier) {
+      if (
+        qualifier &&
+        isSimilarityKey(qualifier.key) &&
+        qualifiers.some(
+          (other) =>
+            isSimilarityKey(other.key) &&
+            qualifierIdentity(other) !== qualifierIdentity(qualifier)
+        )
+      ) {
+        // One anchor per search: a second one is just text.
+        terms.push(token.text);
+      } else if (qualifier) {
         addQualifier(qualifier);
       } else if (rawValue.trim()) {
         // A value the key cannot use ("type:banana") is searched as text.
@@ -308,6 +347,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   const sites: string[] = [];
   const folders: string[] = [];
   const is = new Set<SearchIsValue>();
+  let similarity: SearchSimilarity | null = null;
   for (const qualifier of qualifiers) {
     if (qualifier.key === "tag") {
       tags.push(qualifier.value);
@@ -317,6 +357,10 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       sites.push(qualifier.value);
     } else if (qualifier.key === "folder") {
       folders.push(qualifier.value.trim().toLowerCase());
+    } else if (qualifier.key === "like") {
+      similarity = { kind: "like", cardId: qualifier.value };
+    } else if (qualifier.key === "mood") {
+      similarity = { kind: "mood", text: qualifier.value };
     } else {
       is.add(qualifier.value);
     }
@@ -339,6 +383,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     archived: is.has("archived"),
     sites,
     folders,
+    similarity,
     canonical,
   };
 };
@@ -356,6 +401,14 @@ export const combineSearchQueries = (
 ): string | null => {
   const outer = parseSearchQuery(scope);
   const inner = parseSearchQuery(typed);
+  // One anchor per search: two different ones can never both match.
+  if (
+    outer.similarity &&
+    inner.similarity &&
+    JSON.stringify(outer.similarity) !== JSON.stringify(inner.similarity)
+  ) {
+    return null;
+  }
   const intersect = <T>(left: T[], right: T[]) => {
     if (left.length === 0) {
       return right;

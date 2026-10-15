@@ -791,6 +791,11 @@ export default defineSchema({
   semanticSearchResults: defineTable({
     userId: v.string(),
     key: v.string(),
+    /**
+     * `pending`: a `like:` card with no vector yet, kept briefly so retries
+     * stay cheap. Missing means `ok`.
+     */
+    status: v.optional(v.literal("pending")),
     ranking: v.array(v.object({ cardId: v.id("cards"), score: v.number() })),
     createdAt: v.number(),
     expiresAt: v.number(),

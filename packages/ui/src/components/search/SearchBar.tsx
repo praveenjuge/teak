@@ -19,6 +19,7 @@ import { Input } from "@teak/ui/components/ui/input";
 import { Kbd } from "@teak/ui/components/ui/kbd";
 import { cn } from "@teak/ui/lib/utils";
 import {
+  Aperture,
   Archive,
   CircleSlash,
   Clock,
@@ -105,6 +106,8 @@ export interface SearchBarProps {
   /** Accepted qualifiers, each a removable chip. */
   qualifierChips?: string[];
   searchQuery: string;
+  /** The title on a `like:` chip: its card's, or why it can't be shown. */
+  similarAnchorTitle?: string;
   sort?: CardListSort;
   styleFilters: VisualStyle[];
   /**
@@ -146,6 +149,8 @@ export const QUALIFIER_ICONS = {
   folder: Folder,
   type: ListFilter,
   is: Star,
+  like: Sparkles,
+  mood: Aperture,
 } as const;
 
 const suggestionIcon = (suggestion: SearchSuggestion) => {
@@ -241,6 +246,7 @@ export function SearchBar({
   onRemoveTagFilter,
   tagFilter,
   qualifierChips = [],
+  similarAnchorTitle,
   onActivate,
   onAddQualifier,
   onRemoveQualifier,
@@ -388,7 +394,7 @@ export function SearchBar({
     });
   }
   for (const chip of qualifierChips) {
-    const described = describeQualifierChip(chip);
+    const described = describeQualifierChip(chip, similarAnchorTitle);
     if (!described) {
       continue;
     }

@@ -798,12 +798,15 @@ export function useCardsSearchController(
 
   // `folder:` names resolve on the server only, so those searches wait for
   // remote results instead of showing local hits from other folders.
-  const hasFolderQualifier = useMemo(
-    () =>
-      localSearchTerms === null ||
-      parseSearchQuery(localSearchTerms).folders.length > 0,
-    [localSearchTerms]
-  );
+  // `like:` and `mood:` match by meaning, which only the server knows, so
+  // they wait for remote results too.
+  const hasFolderQualifier = useMemo(() => {
+    if (localSearchTerms === null) {
+      return true;
+    }
+    const parsed = parseSearchQuery(localSearchTerms);
+    return parsed.folders.length > 0 || Boolean(parsed.similarity);
+  }, [localSearchTerms]);
 
   // Instant local hits come from every card this screen has seen, so a
   // manual folder's view keeps only the folder's own.

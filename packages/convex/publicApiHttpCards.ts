@@ -266,15 +266,40 @@ const handleCardsListRequest = async (
       });
     }
     // The meaning side first: queries cannot call the vector service. Down,
-    // slow or rate-limited, the search is keyword-only and says so.
+    // slow or rate-limited, a search is keyword-only and says so; a
+    // `like:` or `mood:` search has no keyword side, so it says why it is
+    // empty instead.
+    const { similarity } = options;
     const semantic =
-      options.searchQuery && options.mode !== "keyword"
+      similarity || (options.searchQuery && options.mode !== "keyword")
         ? await fetchSemanticRanking(
             ctx,
             auth.validated.userId,
-            options.semanticText
+            options.semantic
           )
         : null;
+    if (similarity && semantic?.outcome === "rate_limited") {
+      return errorResponse(
+        429,
+        "RATE_LIMITED",
+        "Too many searches. Try again in a minute."
+      );
+    }
+    if (similarity && semantic?.outcome === "unavailable") {
+      return errorResponse(
+        503,
+        "SERVICE_UNAVAILABLE",
+        "Similar search is unavailable right now. Try again later."
+      );
+    }
+    if (similarity && !semantic?.ranking) {
+      return json(200, {
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+        searchMode: "semantic",
+        similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
+      });
+    }
     const semanticRanking = semantic?.ranking ?? undefined;
     const queryArgs = {
       archived: options.archived,
@@ -293,6 +318,7 @@ const handleCardsListRequest = async (
       userId: auth.validated.userId,
       ...options.qualifiers,
       ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
+      ...(similarity ? { similarity } : {}),
     };
     let cardsPage: {
       items: any[];
@@ -330,7 +356,7 @@ const handleCardsListRequest = async (
         items,
         pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
       };
-    } else if (options.searchQuery || options.tag) {
+    } else if (options.searchQuery || options.tag || similarity) {
       cardsPage = await ctx.runQuery(
         (internal as any).publicApi.searchCardsPageForUser,
         {
@@ -416,7 +442,8 @@ const handleCardsListRequest = async (
         serializeListCard(card, request.url, include)
       ),
       pageInfo: cardsPage.pageInfo,
-      ...(options.searchQuery
+      ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
+      ...(options.hasQuery && !similarity
         ? { searchMode: semanticRanking ? options.mode : "keyword" }
         : {}),
     });

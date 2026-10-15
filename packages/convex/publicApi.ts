@@ -39,6 +39,10 @@ import {
   shuffleSegmentCount,
 } from "./card/shuffle";
 import {
+  isSimilarAnchorAvailable,
+  loadSimilarCards,
+} from "./card/similarSearch";
+import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
@@ -61,6 +65,7 @@ import {
 } from "./search/semanticCache";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
+import type { SearchSimilarity } from "./shared/search/qualifiers";
 import { matchesSearchPhrases } from "./shared/search/qualifiers";
 import {
   fuseRankings,
@@ -153,6 +158,8 @@ interface SearchOptions {
   /** Meaning matches to fuse with the keyword ones, and how. */
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
+  /** `like:` or `mood:`: list only these meaning matches. */
+  similarity?: { similarity: SearchSimilarity; ranking: SemanticRanking };
   /** Normalized hosts (`site:`); a card on any of them matches. */
   sites?: string[];
   sort?: ApiCardSort;
@@ -462,6 +469,29 @@ const searchCardsByQuery = async (
   userId: TeakUserId,
   options: SearchOptions
 ): Promise<{ cards: Doc<"cards">[]; hitScanBudget: boolean }> => {
+  if (options.similarity) {
+    const { similarity, ranking } = options.similarity;
+    if (
+      similarity.kind === "like" &&
+      !(await isSimilarAnchorAvailable(ctx, userId, similarity.cardId))
+    ) {
+      return { cards: [], hitScanBudget: false };
+    }
+    const cards = await loadSimilarCards(ctx, {
+      userId,
+      similarity,
+      ranking,
+      keep: (card) => matchesStructuredFilters(card, options),
+      words: (options.searchQuery ?? "")
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean),
+    });
+    return {
+      cards: sortCards(cards, normalizeSort(options.sort)),
+      hitScanBudget: false,
+    };
+  }
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
     return { cards: [], hitScanBudget: false };
@@ -893,14 +923,30 @@ const normalizeCardsQueryOptions = (args: {
 const semanticSearchArgs = {
   semanticRanking: v.optional(semanticRankingValidator),
   mode: v.optional(searchModeValidator),
+  /** With `semanticRanking`, a `like:` or `mood:` search: list only those. */
+  similarity: v.optional(
+    v.union(
+      v.object({ kind: v.literal("like"), cardId: v.string() }),
+      v.object({ kind: v.literal("mood"), text: v.string() })
+    )
+  ),
 };
 
 const semanticOption = (args: {
   semanticRanking?: SemanticRanking;
   mode?: SearchMode;
+  similarity?: SearchSimilarity;
 }): SearchOptions["semantic"] =>
-  args.semanticRanking && args.mode !== "keyword"
+  args.semanticRanking && args.mode !== "keyword" && !args.similarity
     ? { mode: args.mode ?? "hybrid", ranking: args.semanticRanking }
+    : undefined;
+
+const similarityOption = (args: {
+  semanticRanking?: SemanticRanking;
+  similarity?: SearchSimilarity;
+}): SearchOptions["similarity"] =>
+  args.similarity
+    ? { similarity: args.similarity, ranking: args.semanticRanking ?? [] }
     : undefined;
 
 export const searchCardsPageForUser = internalQuery({
@@ -944,6 +990,7 @@ export const searchCardsPageForUser = internalQuery({
     const options = {
       ...normalizeCardsQueryOptions({ ...args, folderIds }),
       semantic: semanticOption(args),
+      similarity: similarityOption(args),
     };
     const limit = normalizeLimit(options.limit);
     const sort = normalizeSort(options.sort);
@@ -956,7 +1003,7 @@ export const searchCardsPageForUser = internalQuery({
     let pageItems: Doc<"cards">[];
     let hasMore: boolean;
 
-    if (options.searchQuery) {
+    if (options.searchQuery || options.similarity) {
       const result = await searchCardsByQuery(ctx, userId, options);
       let remaining = result.cards;
       if (decodedCursor.mode === "offset") {
@@ -1145,6 +1192,7 @@ export const shuffleCardsPageForUser = internalQuery({
     const options = {
       ...normalizeCardsQueryOptions({ ...args, folderIds, sort: "newest" }),
       semantic: semanticOption(args),
+      similarity: similarityOption(args),
     };
     const limit = normalizeLimit(options.limit);
     const cursor = decodeShuffleCursor(seed, args.cursor);
@@ -1226,7 +1274,7 @@ export const shuffleCardsPageForUser = internalQuery({
     };
     const types = options.type ? [options.type] : options.types;
 
-    if (options.searchQuery) {
+    if (options.searchQuery || options.similarity) {
       return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
     }
     const tag = normalizeTag(options.tag);

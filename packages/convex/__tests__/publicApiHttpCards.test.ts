@@ -1326,7 +1326,10 @@ describe("listCardsV1 search modes", () => {
               ok: true,
               version: 1,
               requestId: "r",
-              data: { matches: [{ id: "card_meaning", score: 0.5 }] },
+              data: {
+                found: true,
+                matches: [{ id: "card_meaning", score: 0.5 }],
+              },
             })
           : Response.json(
               {
@@ -1356,6 +1359,9 @@ describe("listCardsV1 search modes", () => {
       }
       if (name.endsWith("getCachedRanking")) {
         return Promise.resolve(null);
+      }
+      if (name.endsWith("checkSimilarAnchor")) {
+        return Promise.resolve(true);
       }
       pageArgs.push(args);
       return Promise.resolve(emptyPage);
@@ -1452,6 +1458,82 @@ describe("listCardsV1 search modes", () => {
       }
       expect(calls).toEqual([]);
     });
+  });
+
+  test("a qualifier-only search reports keyword mode", async () => {
+    const { ctx } = ctxFor();
+    const response = await runHandler(
+      listCardsV1,
+      ctx,
+      authorizedRequest("q=tag%3Adesign")
+    );
+    expect(await response.json()).toMatchObject({ searchMode: "keyword" });
+  });
+
+  test("similarTo needs a card id", async () => {
+    const { ctx } = ctxFor();
+    const response = await runHandler(
+      listCardsV1,
+      ctx,
+      authorizedRequest("similarTo=not-a-card")
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  test("similarTo lists a card's neighbors, or says why it can't", async () => {
+    const anchor = "j979t50bv7gjxz2mazwwf5tes18gbvnt";
+    await withWorker("ok", async () => {
+      const { ctx, pageArgs } = ctxFor();
+      const answer = await runHandler(
+        listCardsV1,
+        ctx,
+        authorizedRequest(`similarTo=${anchor}&type=image`)
+      );
+      expect(answer.status).toBe(200);
+      expect(await answer.json()).toMatchObject({
+        searchMode: "semantic",
+        similarity: "ok",
+      });
+      expect(pageArgs[0]).toMatchObject({
+        similarity: { kind: "like", cardId: anchor },
+        semanticRanking: ranking,
+        type: "image",
+      });
+
+      // The anchor check says no: nothing is read.
+      const missing = ctxFor();
+      missing.ctx.runQuery.mockImplementation((ref: any) =>
+        Promise.resolve(
+          getFunctionName(ref).endsWith("checkSimilarAnchor") ? false : 0
+        )
+      );
+      const gone = await runHandler(
+        listCardsV1,
+        missing.ctx,
+        authorizedRequest(`similarTo=${anchor}`)
+      );
+      expect(await gone.json()).toEqual({
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+        searchMode: "semantic",
+        similarity: "unavailable",
+      });
+      expect(missing.pageArgs).toEqual([]);
+    });
+  });
+
+  test("a different like: in q than similarTo matches nothing", async () => {
+    const { ctx, pageArgs } = ctxFor();
+    const response = await runHandler(
+      listCardsV1,
+      ctx,
+      authorizedRequest(
+        "similarTo=j979t50bv7gjxz2mazwwf5tes18gbvnt&q=like%3Aj97a1vaafgzkxkzag6rb6wt0gs8gbq0x"
+      )
+    );
+    expect(await response.json()).toMatchObject({ items: [] });
+    expect(pageArgs).toEqual([]);
   });
 
   test("a listing without q carries no searchMode", async () => {

@@ -187,6 +187,27 @@ default; `keyword` and `semantic` for one side). The pure parts are in
   uncached searches a minute per user (`semanticSearch` rate limit) leaves the
   search keyword-only, logged as `[search/semantic]`.
 
+## Similar cards and mood
+
+`like:<card id>` (the card panel's **More like this**, the API's `similarTo`)
+and `mood:"…"` list meaning matches only (`card/similarSearch.ts`), with no
+keyword side:
+
+- `like:` asks the Files Worker's `vector-similar` op, which searches with the
+  card's stored vector. The card is checked (the user's, outside Trash) on every
+  read and request, so a cached ranking never outlives it. A card with no
+  vector yet is cached as `pending` for 15 seconds. Every neighbor counts,
+  however close; the card itself is left out.
+- `mood:` embeds its text through `vector-query`, reads images only and keeps
+  matches above `SEMANTIC_MIN_SCORE`.
+- One anchor per search: a second `like:` or `mood:` is plain text, and a
+  smart folder and a typed search with different anchors match nothing.
+- The other qualifiers, the view and the search's words (all must appear)
+  narrow the list, then the sort orders it, at most 100 cards.
+- Rankings share `semanticSearchResults`, keyed by `like\n<id>` or
+  `mood\n<text>`. Vectorize has no metadata filters here, so a `mood:` keeps
+  the images among its 100 closest cards.
+
 ## Checking search by meaning
 
 `embedding/inspect:searchByMeaning` queries one user's vectors from the Convex

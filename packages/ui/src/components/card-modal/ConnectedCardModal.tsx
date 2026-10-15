@@ -16,6 +16,8 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
+  /** Lists the cards closest in meaning to a card. */
+  onMoreLikeThis?: (cardId: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
   /** Shows the previous card in the grid; absent on the first card. */
@@ -35,6 +37,7 @@ export function ConnectedCardModal({
   onNext,
   onPrevious,
   onTagClick,
+  onMoreLikeThis,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
@@ -125,6 +128,7 @@ export function ConnectedCardModal({
       isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
+      onMoreLikeThis={onMoreLikeThis}
       onNext={onNext}
       onPrevious={onPrevious}
       onReprocess={

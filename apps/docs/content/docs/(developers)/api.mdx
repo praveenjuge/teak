@@ -238,7 +238,11 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+</ParamField>
+
+<ParamField query="similarTo" type="string">
+  A card ID. Lists only the cards closest to it in meaning, of any type and never the card itself; the same as `like:<id>` in `q`. The other parameters narrow the list and `sort` orders it (at most 100 cards). A malformed ID returns `400 INVALID_INPUT`. The response's `similarity` is `pending` while Teak is still reading a card saved moments ago, and `unavailable` for a card in Trash or not found, both with no items.
 </ParamField>
 
 <ParamField query="mode" type="string">

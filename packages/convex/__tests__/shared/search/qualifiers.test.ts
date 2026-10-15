@@ -211,3 +211,46 @@ describe("renameFolderInSearchQuery", () => {
     expect(renameFolderInSearchQuery(query, "reading", "Later")).toBe(query);
   });
 });
+
+describe("like: and mood:", () => {
+  const ID = "j979t50bv7gjxz2mazwwf5tes18gbvnt";
+  const OTHER = "j97a1vaafgzkxkzag6rb6wt0gs8gbq0x";
+
+  test("reads a card id and a mood, written the canonical way", () => {
+    const like = parseSearchQuery(`like:${ID} type:link`);
+    expect(like.similarity).toEqual({ kind: "like", cardId: ID });
+    expect(like.terms).toEqual([]);
+    expect(like.canonical).toBe(`like:${ID} type:link`);
+    const mood = parseSearchQuery('MOOD:"moody   brutalist" #design');
+    expect(mood.similarity).toEqual({ kind: "mood", text: "moody brutalist" });
+    expect(mood.canonical).toBe('mood:"moody brutalist" tag:design');
+  });
+
+  test("keeps a malformed id as plain text", () => {
+    const parsed = parseSearchQuery("like:not-a-card");
+    expect(parsed.similarity).toBeNull();
+    expect(parsed.terms).toEqual(["like:not-a-card"]);
+  });
+
+  test("keeps one anchor; a second one is plain text", () => {
+    const parsed = parseSearchQuery(`like:${ID} like:${OTHER}`);
+    expect(parsed.similarity).toEqual({ kind: "like", cardId: ID });
+    expect(parsed.terms).toEqual([`like:${OTHER}`]);
+    expect(parseSearchQuery(`like:${ID} mood:calm`).terms).toEqual([
+      "mood:calm",
+    ]);
+    // The same anchor twice is one anchor.
+    expect(parseSearchQuery(`like:${ID} like:${ID}`).terms).toEqual([]);
+  });
+
+  test("a smart folder and a typed search can't name two anchors", () => {
+    expect(combineSearchQueries(`like:${ID}`, `like:${OTHER}`)).toBeNull();
+    expect(combineSearchQueries(`like:${ID}`, "mood:calm")).toBeNull();
+    expect(combineSearchQueries(`like:${ID}`, "chair")).toBe(
+      `like:${ID} chair`
+    );
+    expect(combineSearchQueries("type:link", `like:${ID}`)).toBe(
+      `like:${ID} type:link`
+    );
+  });
+});

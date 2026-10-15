@@ -50,6 +50,7 @@ export const collectPages = async (
     items,
     pageInfo: { hasMore: false, nextCursor: null },
     ...(searchMode ? { searchMode } : {}),
+    ...(first.similarity ? { similarity: first.similarity } : {}),
   };
 };
 

@@ -45,6 +45,8 @@ export interface ResolvedSearch {
    */
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
   phrases: string[];
+  /** `like:` or `mood:`: the search lists meaning matches only. */
+  similarity: ParsedSearchQuery["similarity"];
   /** Normalized hosts; a card on any of them matches. */
   sites: string[];
   /** Lowercase tags a card must all carry; the first can drive the read. */
@@ -154,6 +156,14 @@ export const resolveSearch = async (
     }
   }
 
+  // `mood:` reads images only.
+  if (parsed.similarity?.kind === "mood") {
+    types = types ? types.filter((type) => type === "image") : ["image"];
+    if (types.length === 0) {
+      return null;
+    }
+  }
+
   // In Trash, `is:archived` keeps the trashed cards that were archived.
   const archivedInTrash = trash && parsed.archived;
   const archived: ArchivedFilter =
@@ -230,6 +240,7 @@ export const resolveSearch = async (
       phrases.length > 0,
     matches,
     phrases,
+    similarity: parsed.similarity ?? null,
     sites,
     tags,
     text: parsed.text,

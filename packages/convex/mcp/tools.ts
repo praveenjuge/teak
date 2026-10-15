@@ -69,6 +69,7 @@ const cardFiltersShape = {
   folder: nonEmptyString.optional(),
   tag: nonEmptyString.optional(),
   mode: z.enum(SEARCH_MODES).optional(),
+  similarTo: nonEmptyString.optional(),
   sort: cardSortSchema.optional(),
   shuffleSeed: z.number().int().min(0).max(2_147_483_647).optional(),
   createdAfter: z.number().optional(),
@@ -82,6 +83,15 @@ const cardFiltersShape = {
   include: z.array(includeSchema).optional(),
 };
 const listCardsInputSchema = z.object(cardFiltersShape);
+const findSimilarInputSchema = z.object({
+  cardId: nonEmptyString,
+  limit: cardFiltersShape.limit,
+  cursor: cardFiltersShape.cursor,
+  type: cardFiltersShape.type,
+  sort: cardFiltersShape.sort,
+  shuffleSeed: cardFiltersShape.shuffleSeed,
+  include: cardFiltersShape.include,
+});
 const queryInputSchema = listCardsInputSchema;
 const duplicateInputSchema = z.object({ url: nonEmptyString });
 
@@ -306,7 +316,13 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), and "quoted phrases". Qualifiers combine with the other filters.',
+  },
+  similarTo: {
+    type: "string",
+    minLength: 1,
+    description:
+      "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)",
   },
   mode: {
     enum: SEARCH_MODES,
@@ -598,6 +614,28 @@ export const TEAK_V1_TOOLS = [
       'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
+  },
+  {
+    name: "teak_v1_find_similar_cards",
+    description:
+      "List the cards closest in meaning to one card, of any type unless type narrows them; the card itself is never listed. Ordered newest first unless sort says otherwise. Returns { items, total, pageInfo, similarity }; similarity is pending while the card is still being read, and unavailable for a card in Trash or not found.",
+    annotations: { title: "Find similar cards", ...READ_ONLY },
+    inputSchema: inputSchema(
+      {
+        cardId: {
+          type: "string",
+          minLength: 1,
+          description: "The card to find similar cards for",
+        },
+        limit: cardFilterProperties.limit,
+        cursor: cardFilterProperties.cursor,
+        type: cardFilterProperties.type,
+        sort: cardFilterProperties.sort,
+        shuffleSeed: cardFilterProperties.shuffleSeed,
+        include: cardFilterProperties.include,
+      },
+      ["cardId"]
+    ),
   },
   {
     name: "teak_v1_list_favorite_cards",
@@ -1077,6 +1115,23 @@ const toolConfigs: Record<string, ToolConfig> = {
       `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
   },
   teak_v1_search_cards: queryTool({}),
+  teak_v1_find_similar_cards: {
+    schema: findSimilarInputSchema,
+    operation: ({ cardId, ...input }) => ({
+      method: "GET",
+      path: "/v1/cards",
+      query: queryParams({
+        ...cardsQuery(input),
+        similarTo: cardId as QueryValue,
+      }),
+    }),
+    transform: (payload) => ({
+      ...pageToCardResults(payload),
+      pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
+      ...(payload.similarity ? { similarity: payload.similarity } : {}),
+    }),
+    summary: (payload) => `Found ${Number(payload.total) || 0} similar cards`,
+  },
   teak_v1_list_favorite_cards: {
     ...queryTool({ favorited: true }),
     summary: (payload) =>

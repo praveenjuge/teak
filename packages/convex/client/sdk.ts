@@ -161,6 +161,11 @@ export interface CardsPage {
   pageInfo: PageInfo;
   /** With a query: the mode that ran (`keyword` when meaning search could not). */
   searchMode?: SearchMode;
+  /**
+   * For similar cards: `pending` while the card is still being read, and
+   * `unavailable` for a card in Trash or not found.
+   */
+  similarity?: "ok" | "pending" | "unavailable";
 }
 export interface CardChangesResponse {
   deletedIds: string[];
@@ -441,6 +446,8 @@ export const buildCardsSearchParams = (input: {
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
   shuffleSeed?: number;
+  /** A card id: only the cards closest to it in meaning. */
+  similarTo?: string;
   sort?: CardSort;
   style?: string | readonly string[];
   tag?: string;
@@ -478,6 +485,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.archived === "only" || input.archived === "include") {
     search.set("archived", input.archived);
+  }
+  if (input.similarTo?.trim()) {
+    search.set("similarTo", input.similarTo.trim());
   }
   if (input.mode === "keyword" || input.mode === "semantic") {
     search.set("mode", input.mode);
@@ -821,6 +831,13 @@ export const createTeakClient = (options: {
         request(`${cardPath(id)}/refresh`, { method: "POST" }, asRefresh),
       restore: (id: string) =>
         request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
+      /** The cards closest in meaning to one card; never the card itself. */
+      similar: (id: string, input: Parameters<typeof qs>[0] = {}) =>
+        request(
+          `/v1/cards?${qs({ include: "content,metadata", ...input, similarTo: id })}`,
+          { method: "GET" },
+          asPage
+        ),
       search: (input: Parameters<typeof qs>[0] = {}) =>
         request(
           `/v1/cards?${qs({ include: "content,metadata", ...input })}`,

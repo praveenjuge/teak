@@ -43,10 +43,11 @@ import {
 } from "./shared/folders";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import {
+  combineSearchQueries,
   hasSearchQualifiers,
   parseSearchQuery,
 } from "./shared/search/qualifiers";
-import { isSearchMode, semanticQueryText } from "./shared/search/semantic";
+import { isSearchMode, semanticRequestFor } from "./shared/search/semantic";
 import { parseShuffleSeed } from "./shared/search/shuffle";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -402,7 +403,24 @@ const parseCardsQueryOptions = (
   request: Request
 ): CardsQueryOptions | Response => {
   const { searchParams } = new URL(request.url);
-  const query = parseOptionalString(searchParams.get("q"));
+  const similarTo = parseOptionalString(searchParams.get("similarTo"));
+  if (
+    searchParams.has("similarTo") &&
+    !(similarTo && parseSearchQuery(`like:${similarTo}`).similarity)
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `similarTo` must be a card id"
+    );
+  }
+  const typedQuery = parseOptionalString(searchParams.get("q"));
+  // `similarTo=<id>` is `like:<id>` in `q`; another anchor there matches
+  // nothing.
+  const combinedQuery = similarTo
+    ? combineSearchQueries(`like:${similarTo}`, typedQuery ?? "")
+    : typedQuery;
+  const query = combinedQuery ?? undefined;
   const types = searchParams
     .getAll("type")
     .map((value) => value.trim())
@@ -563,6 +581,14 @@ const parseCardsQueryOptions = (
       : parsed.types;
     matchesNothing = resolvedTypes.length === 0;
   }
+  // `mood:` reads images only.
+  if (parsed.similarity?.kind === "mood") {
+    resolvedTypes = resolvedTypes.length
+      ? resolvedTypes.filter((type) => type === "image")
+      : ["image"];
+    matchesNothing ||= resolvedTypes.length === 0;
+  }
+  matchesNothing ||= combinedQuery === null;
   let resolvedArchived = archived as CardsQueryOptions["archived"];
   if (parsed.archived && trashed !== true) {
     matchesNothing ||= archived === "exclude";
@@ -600,9 +626,11 @@ const parseCardsQueryOptions = (
     hueFilters: visualFilters.hueFilters,
     hexFilters: visualFilters.hexFilters,
     limit: parseLimit(searchParams.get("limit")),
+    hasQuery: Boolean(query),
     mode,
     searchQuery: parsed.text || undefined,
-    semanticText: semanticQueryText(parsed),
+    semantic: semanticRequestFor(parsed),
+    similarity: parsed.similarity ?? null,
     sort: sort as CardsQueryOptions["sort"] | undefined,
     ...(sort === "shuffle" ? { shuffleSeed } : {}),
     tag: tags[0],

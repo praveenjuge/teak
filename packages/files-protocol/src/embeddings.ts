@@ -103,6 +103,22 @@ export interface FilesVectorQueryResult {
   matches: Array<{ id: string; score: number }>;
 }
 
+export interface FilesVectorSimilarParams {
+  /** The card whose vector to search with. */
+  id: string;
+  /** Its owner's namespace; a vector in any other namespace is not found. */
+  namespace: string;
+  shard: number;
+  topK: number;
+}
+
+export interface FilesVectorSimilarResult {
+  /** False when the card has no vector in `namespace` (yet). */
+  found: boolean;
+  /** Closest first, without the card itself. */
+  matches: Array<{ id: string; score: number }>;
+}
+
 /** Vectorize namespace names are at most 64 bytes. */
 export const VECTOR_NAMESPACE_MAX_BYTES = 64;
 /** The shard new users are placed on. */

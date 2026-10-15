@@ -85,6 +85,8 @@ interface CardsQueryOptions {
   favoritesOnly: boolean;
   /** A folder id from `?folder=`; the handler checks it is the user's. */
   folder?: string;
+  /** Whether the request searched (`q` or `similarTo`). */
+  hasQuery: boolean;
   hexFilters?: string[];
   hueFilters?: string[];
   limit: number;
@@ -101,11 +103,13 @@ interface CardsQueryOptions {
     tags?: string[];
   };
   searchQuery?: string;
-  /** The words in `q` to search by meaning; empty when there are none. */
-  semanticText: string;
+  /** What `q` asks the vector service for; null when nothing. */
+  semantic: import("./shared/search/semantic").SemanticRequest | null;
   showTrashOnly?: boolean;
   /** Shuffle's seed; required with `sort=shuffle`. */
   shuffleSeed?: number;
+  /** `like:` (or `similarTo`) or `mood:`: the search lists meaning matches only. */
+  similarity: import("./shared/search/qualifiers").SearchSimilarity | null;
   sort?: "newest" | "oldest" | "shuffle";
   styleFilters?: string[];
   tag?: string;

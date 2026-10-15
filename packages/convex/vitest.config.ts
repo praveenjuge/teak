@@ -19,6 +19,7 @@ export default defineConfig({
       "./vectorShards.test.ts",
       "./embeddings.test.ts",
       "./hybridSearch.test.ts",
+      "./similarSearch.test.ts",
       "./importConsolidation.test.ts",
       "./importUploadDeletion.test.ts",
       "./mediaFacts.test.ts",

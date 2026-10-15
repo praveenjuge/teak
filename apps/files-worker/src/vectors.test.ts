@@ -26,6 +26,7 @@ const fakes = ({
   const queries: { options: unknown; vector: number[] }[] = [];
   const stored = new Map<string, { namespace: string }>([
     ["card_1", { namespace: NAMESPACE }],
+    ["card_other", { namespace: "teak_user_b" }],
   ]);
   const env = {
     AI: {
@@ -51,7 +52,11 @@ const fakes = ({
         Promise.resolve(
           ids
             .filter((id) => stored.has(id))
-            .map((id) => ({ id, namespace: stored.get(id)?.namespace }))
+            .map((id) => ({
+              id,
+              namespace: stored.get(id)?.namespace,
+              values: new Float32Array(vector(3)),
+            }))
         ),
       query: (values: number[], options: unknown) => {
         queries.push({ options, vector: values });
@@ -272,6 +277,50 @@ describe("vector-delete, vector-get and vector-query", () => {
     });
   });
 
+  test("searches with a card's own vector, leaving the card out", async () => {
+    const { aiCalls, env, queries } = fakes();
+    const { body } = await runOp(env, "vector-similar", {
+      id: "card_1",
+      namespace: NAMESPACE,
+      shard: 0,
+      topK: 1,
+    });
+    expect(aiCalls).toEqual([]);
+    expect(queries).toEqual([
+      {
+        options: {
+          namespace: NAMESPACE,
+          returnMetadata: "none",
+          returnValues: false,
+          topK: 2,
+        },
+        vector: vector(3),
+      },
+    ]);
+    expect(body.data).toEqual({
+      found: true,
+      matches: [{ id: "card_2", score: 0.81 }],
+    });
+  });
+
+  test.each([
+    ["card_9", NAMESPACE],
+    ["card_other", NAMESPACE],
+  ])(
+    "finds nothing for %s without a vector in the namespace",
+    async (id, namespace) => {
+      const { env, queries } = fakes();
+      const { body } = await runOp(env, "vector-similar", {
+        id,
+        namespace,
+        shard: 0,
+        topK: 10,
+      });
+      expect(body.data).toEqual({ found: false, matches: [] });
+      expect(queries).toEqual([]);
+    }
+  );
+
   test.each([
     [
       "vector-delete",
@@ -287,6 +336,11 @@ describe("vector-delete, vector-get and vector-query", () => {
     [
       "vector-query",
       { namespace: NAMESPACE, shard: 0, text: "a".repeat(501), topK: 10 },
+    ],
+    ["vector-similar", { namespace: NAMESPACE, shard: 0, topK: 10 }],
+    [
+      "vector-similar",
+      { id: "card_1", namespace: NAMESPACE, shard: 0, topK: 101 },
     ],
   ])("%s refuses out-of-range params %#", async (op, params) => {
     const { env } = fakes();

@@ -21,6 +21,7 @@ const required = [
   "vector-delete",
   "vector-get",
   "vector-query",
+  "vector-similar",
 ];
 
 async function productionEnv(name: string): Promise<string> {

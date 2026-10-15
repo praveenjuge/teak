@@ -31,6 +31,7 @@ Client events (`captureEvent`):
 
 - `card_create_submitted` {card_type, source, via}
 - `search_performed` {zero_result}
+- `similar_search_opened` {source}: "More like this" in a card's details
 - `file_upload_completed` {bucket, size_bucket} and `file_upload_failed` {bucket, size_bucket, error_class}
 - `import_started`, `import_completed`, `import_failed` {error_class}
 - `export_started`, `export_completed` (download), `export_failed` {error_class}
