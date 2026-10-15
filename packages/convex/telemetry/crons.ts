@@ -127,6 +127,9 @@ export const sweepOrphanedObjects = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRON_MONITORS.sweepOrphanedObjects, async () => {
+      // First: it needs no Files Worker, so a storage sweep that fails on one
+      // never hides it.
+      await ctx.runAction(internal.embedding.sweep.sweepVectorLedger, {});
       await ctx.runAction(
         internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
         {}

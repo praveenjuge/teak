@@ -103,5 +103,51 @@ or is due for, a vector (`packages/convex/embedding/`).
 - **No Files Worker.** Without `FILES_BASE` (the local E2E stack) nothing is
   marked or written.
 
-Cards saved before embeddings shipped, and cards whose retries ran out, are
-left to the backfill.
+## Backfill
+
+`migration/backfillEmbeddings.ts` queues every card that has text and no
+current vector:
+- cards saved before embeddings shipped
+- cards whose retries ran out
+- cards whose job was lost (due over an hour ago)
+
+It pages `cards` 100 at a time, skips accounts being deleted, and spaces the
+embeds 200 ms apart (about 300 a minute). It's a dry run by default:
+
+```bash
+npx convex run migration/backfillEmbeddings:backfillEmbeddings
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"userId":"teak_…"}'
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false}'
+```
+
+`userId` limits a run to one account, as a canary. Don't run the whole table
+on the dev deployment: it shares the production index, and every dev account
+it embeds takes one of the index's 50,000 namespaces.
+
+The last batch logs `backfillEmbeddings finished` with the totals. `once` and
+`cursor` run one batch at a time. After bumping `CARD_EMBEDDING_VERSION`, add
+`"reembed": true` to queue embedded cards too. A card whose text is
+unchanged costs no Workers AI call.
+
+## Weekly ledger sweep
+
+The Monday `sweep-orphaned-objects` cron first runs
+`embedding/sweep:sweepVectorLedger`. It reports, and never changes:
+- vector deletes still pending after 24 hours
+- rows whose card is gone without a tombstone
+- embeds that ran out of retries
+- embeds due over an hour ago with no job
+
+It logs `vectors.ledger_clean` or `vectors.ledger_problems_detected` with the
+counts and up to 10 card ids. The backfill re-queues the last two kinds.
+
+## Checking search by meaning
+
+Until search uses the vectors, `embedding/inspect:searchByMeaning` queries one
+user's vectors from the Convex dashboard or CLI. It returns card ids, scores
+and a short preview of each match the user owns:
+
+```bash
+npx convex run embedding/inspect:searchByMeaning \
+  '{"userId":"teak_…","text":"furniture wood that survives rain"}'
+```
