@@ -24,6 +24,14 @@ const uncertain = () =>
 
 function inspect(path: string, directory: boolean) {
   const stat = lstatSync(path);
+  // lstat can resolve a file just before a concurrent unlink (an owner
+  // releasing) and then report the inode with no links left. The path is gone,
+  // so report it as missing and let callers retry; hard links stay unsafe.
+  if (!directory && stat.nlink === 0) {
+    throw Object.assign(new Error(`Credential lock entry vanished: ${path}`), {
+      code: "ENOENT",
+    });
+  }
   if (
     stat.isSymbolicLink() ||
     (directory ? !stat.isDirectory() : !stat.isFile()) ||

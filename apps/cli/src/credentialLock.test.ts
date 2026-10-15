@@ -207,6 +207,59 @@ test("rejects owner metadata symlinks", async () => {
   expect(readFileSync(target, "utf8")).toBe("must not be read");
 });
 
+test("rejects hard-linked owner metadata", async () => {
+  const path = fixture();
+  mkdirSync(path, { mode: 0o700 });
+  const owner = JSON.stringify({
+    pid: process.pid,
+    nonce: "00000000-0000-0000-0000-000000000000",
+  });
+  writeFileSync(join(path, "owner.json"), owner, { mode: 0o600 });
+  fs.linkSync(join(path, "owner.json"), join(base, "foreign-hard-link"));
+  await expect(
+    withCredentialLock(path, async () => "must not execute", 30)
+  ).rejects.toThrow("Unsafe");
+  expect(readFileSync(join(path, "owner.json"), "utf8")).toBe(owner);
+});
+
+test("a contender inspecting metadata as its owner releases waits instead of failing", async () => {
+  const path = fixture();
+  mkdirSync(path, { mode: 0o700 });
+  writeFileSync(
+    join(path, "owner.json"),
+    JSON.stringify({
+      pid: process.pid,
+      nonce: "00000000-0000-0000-0000-000000000000",
+    }),
+    { mode: 0o600 }
+  );
+  // Linux lstat can resolve owner.json just before the owner's release unlinks
+  // it, then report the inode with no links. Reproduce that kernel interleaving.
+  const originalLstat = fs.lstatSync;
+  let released = false;
+  const probe = spyOn(fs, "lstatSync").mockImplementation(((
+    file: fs.PathLike,
+    options?: fs.StatOptions
+  ) => {
+    const stat = originalLstat(file, options);
+    if (String(file) === join(path, "owner.json") && !released) {
+      released = true;
+      fs.unlinkSync(join(path, "owner.json"));
+      fs.rmdirSync(path);
+      return Object.defineProperty(stat, "nlink", { value: 0 });
+    }
+    return stat;
+  }) as typeof fs.lstatSync);
+  try {
+    expect(
+      await withCredentialLock(path, async () => "after release", 1000)
+    ).toBe("after release");
+  } finally {
+    probe.mockRestore();
+  }
+  expect(released).toBe(true);
+});
+
 test("waits through owner metadata publication without inferring death", async () => {
   const path = fixture();
   const publisher = Bun.spawn(
