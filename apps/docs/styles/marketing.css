@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Scan marketing Astro sources so utilities land in the marketing CSS chunk. */
 @source "../components/**/*.{astro,ts,tsx,js,jsx}";
 @source "../layouts/**/*.{astro,ts,tsx,js,jsx}";
 @source "../pages/**/*.{astro,ts,tsx,js,jsx}";
@@ -120,7 +119,6 @@
   }
 }
 
-/* The meadow wallpaper, shared with the App Store and Play images. */
 .meadow {
   --meadow-image: url("/backgrounds/meadow-1000.webp");
   --meadow-tint: rgb(248 250 242 / 0.06);
@@ -140,7 +138,6 @@
   --meadow-tint: rgb(9 13 11 / 0.52);
 }
 
-/* A soft strip of meadow that fades into the page, at the top and in the footer. */
 .meadow-band {
   position: absolute;
   inset-inline: 0;
