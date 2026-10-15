@@ -292,3 +292,174 @@ describe("Browser Run fallback", () => {
     expect(result).toMatchObject({ source: "static" });
   });
 });
+
+describe("link page cache", () => {
+  /** KV stand-in that records each write's options. */
+  class MemoryKv {
+    readonly values = new Map<string, string>();
+    readonly puts: { key: string; options: unknown }[] = [];
+    failing = false;
+
+    get(key: string, type?: "json") {
+      if (this.failing) {
+        return Promise.reject(new Error("kv_unavailable"));
+      }
+      const value = this.values.get(key) ?? null;
+      return Promise.resolve(
+        value !== null && type === "json" ? JSON.parse(value) : value
+      );
+    }
+
+    put(key: string, value: string, options?: unknown) {
+      if (this.failing) {
+        return Promise.reject(new Error("kv_unavailable"));
+      }
+      this.puts.push({ key, options });
+      this.values.set(key, value);
+      return Promise.resolve();
+    }
+  }
+
+  const setup = (answer: () => Response) => {
+    const kv = new MemoryKv();
+    const pool = fetcherPool(answer);
+    const env = {
+      LINK_FETCHER: pool.namespace,
+      LINK_FETCHER_INSTANCES: "1",
+      LINK_PAGE_CACHE: kv as unknown as KVNamespace,
+    };
+    return { calls: pool.calls, env, kv };
+  };
+
+  test("fetches a page once and serves it from the cache for a day", async () => {
+    const { calls, env, kv } = setup(() =>
+      Response.json(page({ cacheable: true }))
+    );
+    const params = { selectors: SELECTORS, url: URL_ };
+
+    const first = await fetchLinkPage(env, params);
+    const second = await fetchLinkPage(env, params);
+
+    expect(calls).toHaveLength(1);
+    expect(second).toEqual(first);
+    expect(
+      await decodeHtmlParam(
+        (second as { htmlGzipBase64: string }).htmlGzipBase64
+      )
+    ).toBe(HTML);
+    expect(kv.puts).toEqual([
+      {
+        key: expect.stringMatching(/^link-page:v1:[0-9a-f]{64}$/),
+        options: { expirationTtl: 24 * 60 * 60 },
+      },
+    ]);
+  });
+
+  test.each([
+    ["another URL", { selectors: SELECTORS, url: `${URL_}?page=2` }],
+    ["other selectors", { selectors: ["head > title"], url: URL_ }],
+  ])("does not reuse a page for %s", async (_label, other) => {
+    const { calls, env } = setup(() =>
+      Response.json(page({ cacheable: true }))
+    );
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
+    await fetchLinkPage(env, other);
+    expect(calls).toHaveLength(2);
+  });
+
+  test.each([
+    ["marked no-store or private", page({ cacheable: false })],
+    ["from a fetcher that does not say", page()],
+  ])("never keeps a page %s", async (_label, answer) => {
+    const { calls, env, kv } = setup(() => Response.json(answer));
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
+    expect(calls).toHaveLength(2);
+    expect(kv.puts).toEqual([]);
+  });
+
+  test("never keeps a refusal", async () => {
+    const { calls, env, kv } = setup(() =>
+      Response.json(
+        { error: "skipped", reason: "http_error", status: 503 },
+        { status: 422 }
+      )
+    );
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
+    expect(calls).toHaveLength(2);
+    expect(kv.puts).toEqual([]);
+  });
+
+  test("keeps the browser's result, so a cached page is not rendered again", async () => {
+    let renders = 0;
+    const { env } = setup(() =>
+      Response.json(page({ cacheable: true, selectors: EMPTY_SELECTORS }))
+    );
+    const scrape = () => {
+      renders += 1;
+      return Promise.resolve({
+        selectors: [
+          { results: [{ text: "From JS" }], selector: SELECTORS[0] as string },
+        ],
+      });
+    };
+    await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ }, { scrape });
+    const second = await fetchLinkPage(
+      env,
+      { selectors: SELECTORS, url: URL_ },
+      { scrape }
+    );
+    expect(renders).toBe(1);
+    expect(second).toMatchObject({ source: "browser" });
+  });
+
+  test("does not keep a page whose render failed, so the next save renders it", async () => {
+    let attempts = 0;
+    const { calls, env, kv } = setup(() =>
+      Response.json(page({ cacheable: true, selectors: EMPTY_SELECTORS }))
+    );
+    const scrape = () => {
+      attempts += 1;
+      return attempts === 1
+        ? Promise.reject(new Error("browser_busy"))
+        : Promise.resolve({
+            selectors: [
+              {
+                results: [{ text: "From JS" }],
+                selector: SELECTORS[0] as string,
+              },
+            ],
+          });
+    };
+    const first = await fetchLinkPage(
+      env,
+      { selectors: SELECTORS, url: URL_ },
+      { scrape }
+    );
+    expect(first).toMatchObject({ source: "static" });
+    expect(kv.puts).toEqual([]);
+
+    const second = await fetchLinkPage(
+      env,
+      { selectors: SELECTORS, url: URL_ },
+      { scrape }
+    );
+    expect(calls).toHaveLength(2);
+    expect(second).toMatchObject({ source: "browser" });
+    expect(kv.puts).toHaveLength(1);
+  });
+
+  test("fetches as usual when the cache cannot be read or written", async () => {
+    const { calls, env, kv } = setup(() =>
+      Response.json(page({ cacheable: true }))
+    );
+    kv.failing = true;
+    const result = await fetchLinkPage(env, {
+      selectors: SELECTORS,
+      url: URL_,
+    });
+    expect(result).toMatchObject({ fetched: true, source: "static" });
+    expect(calls).toHaveLength(1);
+  });
+});

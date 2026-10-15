@@ -176,6 +176,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "KV namespace caching which Teak user an API key hash or WorkOS user belongs to, for edge rate limits.",
   }),
+  spec("LINK_PAGE_CACHE", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    kind: "binding",
+    note: "KV namespace keeping fetch-link-page results for a day, so a link many people save is fetched and rendered once.",
+  }),
   spec("IMAGES", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],

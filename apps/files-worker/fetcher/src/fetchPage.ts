@@ -28,6 +28,8 @@ const MAX_SELECTOR_CHARS = 512;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
 const REDIRECT_FAILURES = new Set(["invalid_redirect", "too_many_redirects"]);
+// A page that asks not to be stored, or only by the one browser that asked.
+const UNCACHEABLE = /(?:^|[\s,])(?:no-store|private)(?:$|[\s,=])/i;
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -178,6 +180,7 @@ export const fetchLinkPage = async (
 
   const { charset, html } = decodeHtml(bytes, contentType);
   return {
+    cacheable: !UNCACHEABLE.test(response.headers.get("cache-control") ?? ""),
     charset,
     html,
     ok: true,

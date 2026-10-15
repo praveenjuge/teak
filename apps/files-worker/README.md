@@ -406,6 +406,17 @@ Worker, retries the step. Only a stack without a Files Worker (the local E2E
 stack) still fetches the page in Convex, with the same pinned policy and
 static HTML only.
 
+Fetched pages are kept for 24 hours in the `LINK_PAGE_CACHE` KV namespace,
+keyed by a hash of the URL and the selectors, so a link many people save is
+fetched and rendered once a day. Every fetch is anonymous (no cookies or
+credentials), so the cached page is what anyone requesting that exact URL
+would get. A page whose `Cache-Control` says `no-store` or `private` is never
+kept, nor is any refusal, nor a page whose Browser Run render failed (the
+next save renders it again); a page from an older fetcher image, which does
+not report its `Cache-Control`, is not kept either. A KV read or write that fails
+falls back to fetching. Without the binding (development, tests) nothing is
+cached.
+
 ### Verification and deployment boundary
 
 Deterministic tests cover signed routes, pagination, source replacement, ZIP64

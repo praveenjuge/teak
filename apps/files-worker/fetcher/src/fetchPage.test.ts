@@ -329,3 +329,27 @@ describe("decoding", () => {
     });
   });
 });
+
+describe("cacheability", () => {
+  test.each([
+    [undefined, true],
+    ["public, max-age=600", true],
+    ["no-cache", true],
+    ["no-store", false],
+    ["private", false],
+    ["Private, max-age=0", false],
+    ['private="set-cookie", max-age=60', false],
+    ["max-age=0, no-store, must-revalidate", false],
+  ])("Cache-Control %p: cacheable %p", async (cacheControl, cacheable) => {
+    const { fetchPage } = setup(
+      () =>
+        new Response("<title>x</title>", {
+          headers: html(cacheControl ? { "cache-control": cacheControl } : {}),
+        })
+    );
+    const body = (await (
+      await fetchPage({ selectors: SELECTORS, url: PAGE })
+    ).json()) as FetcherPageResponse;
+    expect(body.cacheable).toBe(cacheable);
+  });
+});

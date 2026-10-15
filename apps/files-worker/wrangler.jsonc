@@ -52,6 +52,11 @@
     {
       "binding": "EDGE_IDENTITY",
       "id": "d53e5a8c82194effbbb281eab9875615"
+    },
+    {
+      // fetch-link-page results for a day (src/linkPage.ts).
+      "binding": "LINK_PAGE_CACHE",
+      "id": "bdda56e1f09b4ff68fbec54123fb1d4d"
     }
   ],
   "durable_objects": {

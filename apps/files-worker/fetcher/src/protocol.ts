@@ -44,6 +44,11 @@ export type FetcherPageFailureReason =
 
 /** A 200 from FETCHER_PAGE_PATH. Failures are 422 `{error, reason, ...}`. */
 export interface FetcherPageResponse {
+  /**
+   * False when the page's Cache-Control says `no-store` or `private`, so the
+   * Worker must not keep it for other requests.
+   */
+  cacheable: boolean;
   charset: string;
   html: string;
   pageUrl: string;
