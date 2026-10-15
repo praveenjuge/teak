@@ -211,6 +211,8 @@ export const fetchLinkPage = async (
 
   let { selectors } = page;
   let source: "browser" | "static" = "static";
+  // A render that failed is retried by the next save, so it is not kept.
+  let renderFailed = false;
   // As Convex did: a browser result replaces the static one even when it is
   // also empty, and a failed or unavailable browser keeps the static one.
   if (page.html && !hasResults(selectors) && deps.scrape) {
@@ -218,6 +220,7 @@ export const fetchLinkPage = async (
       selectors = (await deps.scrape(page.html, params.selectors)).selectors;
       source = "browser";
     } catch (error) {
+      renderFailed = true;
       console.warn("fetch-link-page: browser scrape failed; keeping static", {
         message: error instanceof Error ? error.message : String(error),
       });
@@ -233,7 +236,7 @@ export const fetchLinkPage = async (
     source,
   };
   // An older fetcher image does not say, so its pages are not kept.
-  if (cache && page.cacheable === true) {
+  if (cache && page.cacheable === true && !renderFailed) {
     await writeCached(cache, key, result);
   }
   return result;

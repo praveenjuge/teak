@@ -414,6 +414,42 @@ describe("link page cache", () => {
     expect(second).toMatchObject({ source: "browser" });
   });
 
+  test("does not keep a page whose render failed, so the next save renders it", async () => {
+    let attempts = 0;
+    const { calls, env, kv } = setup(() =>
+      Response.json(page({ cacheable: true, selectors: EMPTY_SELECTORS }))
+    );
+    const scrape = () => {
+      attempts += 1;
+      return attempts === 1
+        ? Promise.reject(new Error("browser_busy"))
+        : Promise.resolve({
+            selectors: [
+              {
+                results: [{ text: "From JS" }],
+                selector: SELECTORS[0] as string,
+              },
+            ],
+          });
+    };
+    const first = await fetchLinkPage(
+      env,
+      { selectors: SELECTORS, url: URL_ },
+      { scrape }
+    );
+    expect(first).toMatchObject({ source: "static" });
+    expect(kv.puts).toEqual([]);
+
+    const second = await fetchLinkPage(
+      env,
+      { selectors: SELECTORS, url: URL_ },
+      { scrape }
+    );
+    expect(calls).toHaveLength(2);
+    expect(second).toMatchObject({ source: "browser" });
+    expect(kv.puts).toHaveLength(1);
+  });
+
   test("fetches as usual when the cache cannot be read or written", async () => {
     const { calls, env, kv } = setup(() =>
       Response.json(page({ cacheable: true }))

@@ -411,8 +411,9 @@ keyed by a hash of the URL and the selectors, so a link many people save is
 fetched and rendered once a day. Every fetch is anonymous (no cookies or
 credentials), so the cached page is what anyone requesting that exact URL
 would get. A page whose `Cache-Control` says `no-store` or `private` is never
-kept, nor is any refusal; a page from an older fetcher image, which does not
-report its `Cache-Control`, is not kept either. A KV read or write that fails
+kept, nor is any refusal, nor a page whose Browser Run render failed (the
+next save renders it again); a page from an older fetcher image, which does
+not report its `Cache-Control`, is not kept either. A KV read or write that fails
 falls back to fetching. Without the binding (development, tests) nothing is
 cached.
 
