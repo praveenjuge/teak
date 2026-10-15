@@ -600,6 +600,33 @@ describe("backfill", () => {
     }
   });
 
+  test("an edit whose re-embed ran out of retries is reported and queued again", async () => {
+    stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "first text");
+    await runScheduled(t);
+    stubWorker({ fail: ["embed-upsert"] });
+    await editCard(t, cardId, { content: "edited text" });
+    await runScheduled(t);
+    // The old vector and hash stay; the edit is never embedded.
+    expect(await rowOf(t, cardId)).toMatchObject({
+      hash: expect.any(String),
+      lastError: expect.any(String),
+    });
+
+    expect(
+      await t.action(internal.embedding.sweep.sweepVectorLedger, {})
+    ).toMatchObject({ failedEmbeds: 1 });
+    const calls = stubWorker();
+    const result = await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({ embedded: 0, failed: 1, queued: 1 });
+    expect(upserts(calls).map((call) => call.params.items[0].text)).toEqual([
+      "edited text",
+    ]);
+  });
+
   test("reembed queues embedded cards, and unchanged text costs no AI call", async () => {
     const calls = stubWorker();
     const t = setup();
@@ -710,6 +737,7 @@ describe("ledger sweep", () => {
       cardMissing: 0,
       failedEmbeds: 0,
       lostJobs: 0,
+      complete: true,
     });
   });
 
@@ -752,6 +780,7 @@ describe("ledger sweep", () => {
       cardMissing: 1,
       failedEmbeds: 1,
       lostJobs: 1,
+      complete: true,
     });
   });
 });

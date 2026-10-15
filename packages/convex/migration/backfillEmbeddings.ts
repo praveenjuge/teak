@@ -135,13 +135,15 @@ export const backfillEmbeddings = internalMutation({
         batch.pending += 1;
         continue;
       }
-      if (row?.hash !== undefined && row.dueAt === undefined) {
+      // A failed re-embed keeps the old hash (and vector): check the error
+      // first, or it would pass for embedded.
+      if (row?.lastError !== undefined && row.dueAt === undefined) {
+        batch.failed += 1;
+      } else if (row?.hash !== undefined && row.dueAt === undefined) {
         batch.embedded += 1;
         if (!args.reembed) {
           continue;
         }
-      } else if (row?.lastError !== undefined && row.dueAt === undefined) {
-        batch.failed += 1;
       } else {
         batch.missing += 1;
       }

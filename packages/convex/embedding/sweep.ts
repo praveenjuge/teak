@@ -11,9 +11,10 @@ import { internalAction, internalQuery } from "../_generated/server";
  * whether to look closer or run the backfill.
  */
 
-const PAGE_SIZE = 500;
+/** Each row reads its card too: keep a page well inside the read limit. */
+const PAGE_SIZE = 100;
 /** Hard cap so a pathological ledger cannot spin the cron forever. */
-const MAX_PAGES = 2000;
+const MAX_PAGES = 5000;
 /** A vector delete still pending after this has failed for good. */
 const STALE_TOMBSTONE_MS = 24 * 60 * 60 * 1000;
 /** An embed due this long ago has lost its job. */
@@ -26,7 +27,7 @@ const countsValidator = v.object({
   staleTombstones: v.number(),
   /** Rows of cards that are gone and were never tombstoned. */
   cardMissing: v.number(),
-  /** Embeds that ran out of retries. */
+  /** Embeds that ran out of retries, re-embeds of edited cards included. */
   failedEmbeds: v.number(),
   /** Embeds due long ago with no job left to run them. */
   lostJobs: v.number(),
@@ -68,10 +69,12 @@ export const sweepPage = internalQuery({
       } else if (row.dueAt !== undefined) {
         problem = row.dueAt < now - LOST_JOB_MS;
         counts.lostJobs += problem ? 1 : 0;
-      } else if (row.lastError !== undefined && row.hash === undefined) {
-        counts.failedEmbeds += 1;
-      } else {
+      } else if (row.lastError === undefined) {
         problem = false;
+      } else {
+        // With or without an old hash: a failed re-embed keeps the vector of
+        // the card's old text.
+        counts.failedEmbeds += 1;
       }
       if (problem && samples.length < SAMPLE_SIZE) {
         samples.push(row.cardId);
@@ -88,7 +91,7 @@ export const sweepPage = internalQuery({
 
 export const sweepVectorLedger = internalAction({
   args: {},
-  returns: countsValidator,
+  returns: v.object({ ...countsValidator.fields, complete: v.boolean() }),
   handler: async (ctx) => {
     const now = Date.now();
     const totals: Counts = {
@@ -100,6 +103,7 @@ export const sweepVectorLedger = internalAction({
     };
     const samples: string[] = [];
     let cursor: string | null = null;
+    let complete = false;
     for (let pages = 0; pages < MAX_PAGES; pages += 1) {
       const page: {
         counts: Counts;
@@ -115,20 +119,22 @@ export const sweepVectorLedger = internalAction({
       }
       samples.push(...page.samples.slice(0, SAMPLE_SIZE - samples.length));
       if (page.isDone) {
+        complete = true;
         break;
       }
       cursor = page.continueCursor;
     }
     const problems = sumProblems(totals);
+    let message = "vectors.ledger_clean";
+    if (problems > 0) {
+      message = "vectors.ledger_problems_detected";
+    } else if (!complete) {
+      // The page cap stopped it: the rows it never read are unknown.
+      message = "vectors.ledger_sweep_incomplete";
+    }
     // Durable, dashboard-visible log of every sweep. Card ids only.
-    console.log(
-      "[embedding/sweep]",
-      problems > 0
-        ? "vectors.ledger_problems_detected"
-        : "vectors.ledger_clean",
-      { ...totals, samples }
-    );
-    return totals;
+    console.log("[embedding/sweep]", message, { ...totals, complete, samples });
+    return { ...totals, complete };
   },
 });
 

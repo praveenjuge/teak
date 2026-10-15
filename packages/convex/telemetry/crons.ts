@@ -127,13 +127,20 @@ export const sweepOrphanedObjects = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRON_MONITORS.sweepOrphanedObjects, async () => {
-      // First: it needs no Files Worker, so a storage sweep that fails on one
-      // never hides it.
-      await ctx.runAction(internal.embedding.sweep.sweepVectorLedger, {});
-      await ctx.runAction(
-        internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
-        {}
-      );
+      // Two independent reports: a failure in either still runs the other,
+      // then fails the cron.
+      const results = await Promise.allSettled([
+        ctx.runAction(internal.embedding.sweep.sweepVectorLedger, {}),
+        ctx.runAction(
+          internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
+          {}
+        ),
+      ]);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          throw result.reason;
+        }
+      }
       return null;
     }),
 });

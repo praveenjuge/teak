@@ -83,7 +83,12 @@ export const searchByMeaning = internalAction({
     }
     const outcome = await callFilesWorkerJson<FilesVectorQueryResult>({
       op: "vector-query",
-      params: { namespace, shard, text, topK: topK ?? 10 },
+      params: {
+        namespace,
+        shard,
+        text,
+        topK: Math.min(Math.max(Math.trunc(topK ?? 10), 1), 100),
+      },
     });
     if (outcome.kind !== "ok") {
       throw new Error(`vector_query_${outcome.code}`);

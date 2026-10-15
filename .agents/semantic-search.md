@@ -141,8 +141,12 @@ The Monday `sweep-orphaned-objects` cron first runs
 - embeds that ran out of retries
 - embeds due over an hour ago with no job
 
-It logs `vectors.ledger_clean` or `vectors.ledger_problems_detected` with the
-counts and up to 10 card ids. The backfill re-queues the last two kinds.
+It logs `vectors.ledger_clean`, `vectors.ledger_problems_detected`, or
+`vectors.ledger_sweep_incomplete` (when its 500,000-row cap stops it) with the
+counts and up to 10 card ids. A failed re-embed of an edited card counts as a
+failed embed: it keeps the vector of the old text. The backfill re-queues
+failed embeds and lost jobs. The storage sweep in the same cron runs even if
+this one fails.
 
 ## Checking search by meaning
 
