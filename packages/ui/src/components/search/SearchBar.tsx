@@ -20,6 +20,7 @@ import { Kbd } from "@teak/ui/components/ui/kbd";
 import { cn } from "@teak/ui/lib/utils";
 import {
   Archive,
+  Banknote,
   CircleSlash,
   Clock,
   Droplets,
@@ -146,6 +147,7 @@ export const QUALIFIER_ICONS = {
   folder: Folder,
   type: ListFilter,
   is: Star,
+  price: Banknote,
 } as const;
 
 const suggestionIcon = (suggestion: SearchSuggestion) => {

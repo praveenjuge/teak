@@ -62,6 +62,7 @@ export interface CardWithUrls {
     linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
     linkCategory?: {
       facts?: Array<{ label: string; value: string }>;
+      price?: { amount: number; currency?: string };
     };
   };
   metadataDescription?: string;

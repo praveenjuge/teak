@@ -116,6 +116,11 @@ export interface Card {
     posterWidth?: number;
     posterHeight?: number;
   }>;
+  /**
+   * A product link's price: `amount` in the page's currency, `currency` an
+   * ISO 4217 code or null. Null for cards without a price.
+   */
+  linkPrice: { amount: number; currency: string | null } | null;
   linkPublishedAt: string | null;
   linkPublisher: string | null;
   linkSiteName: string | null;
@@ -435,8 +440,8 @@ export const buildCardsSearchParams = (input: {
   mode?: SearchMode;
   /**
    * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
-   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and
-   * `"quoted phrases"`.
+   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`,
+   * `price:<100` (also `>`, `<=`, `>=` and `=`) and `"quoted phrases"`.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */

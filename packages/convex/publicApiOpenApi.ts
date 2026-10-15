@@ -68,6 +68,16 @@ const cardProperties = {
     },
   },
   linkPreviewTitle: { type: ["string", "null"] },
+  linkPrice: {
+    description:
+      "A product link's price, read from the page: `amount` in the page's currency and `currency` as an ISO 4217 code, or null when the page didn't say which. Null for cards without a price. `price:` in `q` compares `amount`.",
+    properties: {
+      amount: { type: "number" },
+      currency: { type: ["string", "null"] },
+    },
+    required: ["amount", "currency"],
+    type: ["object", "null"],
+  },
   linkFaviconUrl: { type: ["string", "null"] },
   fileWidth: { type: ["number", "null"] },
   fileHeight: { type: ["number", "null"] },
@@ -238,6 +248,7 @@ const components = {
         linkFacts: cardProperties.linkFacts,
         linkFaviconUrl: cardProperties.linkFaviconUrl,
         linkPreviewTitle: cardProperties.linkPreviewTitle,
+        linkPrice: cardProperties.linkPrice,
         linkPreviewMedia: cardProperties.linkPreviewMedia,
         linkSiteName: cardProperties.linkSiteName,
         linkAuthor: cardProperties.linkAuthor,
@@ -899,7 +910,7 @@ export const openApiSpec = {
             in: "query",
             name: "q",
             description:
-              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and `"quoted phrases"`. Qualifiers combine with the other parameters.',
+              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match) and `"quoted phrases"`. Qualifiers combine with the other parameters; several `price:` bounds make a range.',
             schema: { type: "string" },
           },
           {

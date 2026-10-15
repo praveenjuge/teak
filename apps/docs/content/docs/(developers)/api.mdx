@@ -238,7 +238,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `price:<100`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
 <ParamField query="mode" type="string">
@@ -311,6 +311,7 @@ these query parameters:
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Qualifiers: `GET /v1/cards?q=site:github.com%20tag:design%20%22design%20system%22`
+- Prices: `GET /v1/cards?q=price:%3E20%20price:%3C100&include=metadata`
 - Tags: `GET /v1/tags` lists the lowercase tags on cards outside Trash,
   including tags Teak added, with how many cards have each. A new tag appears
   a moment after the card is saved. Any listed name
@@ -348,18 +349,23 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
 | `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
+| `price:<100` | Links whose `linkPrice.amount` is under 100. Also `>`, `<=`, `>=` and `=`, with a plain number such as `9.99`. The amount is compared in any currency, links without a price never match, and the search narrows to links |
 | `"design system"` | Cards whose text contains that phrase |
 
-Qualifiers combine with each other and with the other parameters: tags and
-folders must all match, and several types or sites match any of them. `type:`
-narrows `type`, so `?type=link&q=type:image` returns no cards, and so does
-`?archived=exclude&q=is:archived`. `#` followed by a hex color (`#fff`) is a
+Qualifiers combine with each other and with the other parameters: tags,
+folders and price bounds must all match (`price:>20 price:<100` is a range),
+and several types or sites match any of them. `type:` narrows `type`, so
+`?type=link&q=type:image` returns no cards, and so do
+`?archived=exclude&q=is:archived` and `?type=image&q=price:<100`. `#` followed by a hex color (`#fff`) is a
 color, not a tag; use `tag:fff` for that tag. Text a qualifier can't use, such
-as `type:banana` or `foo:bar`, is searched as words.
+as `type:banana`, `foo:bar` or `price:cheap`, is searched as words.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
-date when present. It also adds `audioWaveform` and `videoScrub`, described
+date when present. `linkPrice` is a product link's price, `{ "amount": 24.99,
+"currency": "USD" }`, read from the page: `currency` is an ISO 4217 code, or
+`null` when the page didn't say which, and `linkPrice` is `null` for cards
+without a price. It also adds `audioWaveform` and `videoScrub`, described
 below. `include=processing` adds `aiTranscript`, `metadataStatus`,
 and `processingStatus`; the single-card response includes all of these fields
 without an `include` parameter. Link

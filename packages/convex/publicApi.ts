@@ -61,7 +61,11 @@ import {
 } from "./search/semanticCache";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
-import { matchesSearchPhrases } from "./shared/search/qualifiers";
+import {
+  matchesPriceBounds,
+  matchesSearchPhrases,
+  type PriceBound,
+} from "./shared/search/qualifiers";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
@@ -149,6 +153,8 @@ interface SearchOptions {
   limit?: number;
   /** Quoted phrases a card's text must contain. */
   phrases?: string[];
+  /** `price:` bounds a card's link price must all meet. */
+  prices?: PriceBound[];
   searchQuery?: string;
   /** Meaning matches to fuse with the keyword ones, and how. */
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
@@ -309,6 +315,16 @@ const matchesStructuredFilters = (
     if (!(host && options.sites.includes(host))) {
       return false;
     }
+  }
+
+  if (
+    options.prices?.length &&
+    !matchesPriceBounds(
+      card.metadata?.linkCategory?.price?.amount,
+      options.prices
+    )
+  ) {
+    return false;
   }
 
   if (
@@ -831,6 +847,7 @@ const normalizeCardsQueryOptions = (args: {
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
   phrases?: string[];
+  prices?: PriceBound[];
   sites?: string[];
   tags?: string[];
   showTrashOnly?: boolean;
@@ -856,6 +873,7 @@ const normalizeCardsQueryOptions = (args: {
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
     phrases: args.phrases?.length ? args.phrases : undefined,
+    prices: args.prices?.length ? args.prices : undefined,
     sites: args.sites?.length ? args.sites : undefined,
     tags: tags.length ? tags : undefined,
     showTrashOnly: args.showTrashOnly,
@@ -890,6 +908,18 @@ const normalizeCardsQueryOptions = (args: {
  * cannot call the vector service), and the search mode. Without a ranking a
  * search is keyword-only, whatever the mode.
  */
+/** A `price:` bound from `q` (shared/search/qualifiers.ts). */
+const priceBoundValidator = v.object({
+  op: v.union(
+    v.literal("<"),
+    v.literal(">"),
+    v.literal("<="),
+    v.literal(">="),
+    v.literal("=")
+  ),
+  amount: v.number(),
+});
+
 const semanticSearchArgs = {
   semanticRanking: v.optional(semanticRankingValidator),
   mode: v.optional(searchModeValidator),
@@ -921,6 +951,7 @@ export const searchCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -1114,6 +1145,7 @@ export const shuffleCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -1315,6 +1347,7 @@ export const scanCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
   },

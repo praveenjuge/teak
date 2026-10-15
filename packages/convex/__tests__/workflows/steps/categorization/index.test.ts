@@ -596,6 +596,125 @@ describe("categorization index", () => {
       );
     });
 
+    describe("product price", () => {
+      const amazonCard = (priceText?: string) => ({
+        url: "https://www.amazon.com/dp/B0",
+        metadata: {
+          linkPreview: {
+            status: "success",
+            raw: priceText
+              ? [
+                  {
+                    selector: ".a-price .a-offscreen",
+                    results: [{ text: priceText }],
+                  },
+                ]
+              : [],
+          },
+        },
+      });
+      const product = (offers: unknown) => ({
+        "@type": "Product",
+        name: "Lamp",
+        offers,
+      });
+      const enrich = (card: unknown, entities: unknown[] | null) =>
+        enrichLinkCategory(
+          card,
+          { category: "product", confidence: 0.9 },
+          { structuredData: entities ? { entities } : null }
+        );
+
+      test.each([
+        [
+          "a single offer",
+          { "@type": "Offer", price: "24.99", priceCurrency: "USD" },
+          { amount: 24.99, currency: "USD" },
+        ],
+        [
+          "an offers array, at its lowest price",
+          [
+            { "@type": "Offer", price: 30, priceCurrency: "EUR" },
+            { "@type": "Offer", price: "19.50", priceCurrency: "EUR" },
+            { "@type": "Offer", price: "Contact us" },
+          ],
+          { amount: 19.5, currency: "EUR" },
+        ],
+        [
+          "an AggregateOffer's lowPrice",
+          {
+            "@type": "AggregateOffer",
+            lowPrice: "10",
+            highPrice: "20",
+            priceCurrency: "GBP",
+          },
+          { amount: 10, currency: "GBP" },
+        ],
+        [
+          "a price specification",
+          {
+            "@type": "Offer",
+            priceSpecification: { price: 0, priceCurrency: "USD" },
+          },
+          { amount: 0, currency: "USD" },
+        ],
+      ])("reads JSON-LD %s", async (_name, offers, expected) => {
+        const result = await enrich(amazonCard(), [product(offers)]);
+        expect(result.price).toEqual(expected);
+      });
+
+      test("prefers JSON-LD over the provider's selectors", async () => {
+        const result = await enrich(amazonCard("$99.00"), [
+          product({ "@type": "Offer", price: "89.00", priceCurrency: "CAD" }),
+        ]);
+        expect(result.price).toEqual({ amount: 89, currency: "CAD" });
+        // Both prices stay as facts.
+        expect(
+          result.facts.filter((fact) => fact.label === "Price").length
+        ).toBe(2);
+      });
+
+      test("falls back to the provider's price without JSON-LD", async () => {
+        const result = await enrich(amazonCard("$99.00"), null);
+        expect(result.price).toEqual({ amount: 99, currency: "USD" });
+      });
+
+      test("falls back to the provider when the JSON-LD price is unusable", async () => {
+        const result = await enrich(amazonCard("$99.00"), [
+          product({ "@type": "Offer", price: "-5" }),
+        ]);
+        expect(result.price).toEqual({ amount: 99, currency: "USD" });
+      });
+
+      test("reads JSON-LD stored on an earlier pass", async () => {
+        const card = {
+          url: "https://shop.example/lamp",
+          metadata: {
+            linkCategory: {
+              raw: {
+                structured: product({
+                  "@type": "Offer",
+                  price: "12.00",
+                  priceCurrency: "EUR",
+                }),
+              },
+            },
+          },
+        };
+        const result = await enrichLinkCategory(
+          card,
+          { category: "product", confidence: 0.9 },
+          { structuredData: null }
+        );
+        expect(result.price).toEqual({ amount: 12, currency: "EUR" });
+      });
+
+      test("has no price when no source states one", async () => {
+        const result = await enrich(amazonCard(), [product(undefined)]);
+        expect(result.price).toBeUndefined();
+      });
+    });
+
     test("covers full GitHub enrichment", async () => {
       const card = {
         url: "https://github.com/a/b",

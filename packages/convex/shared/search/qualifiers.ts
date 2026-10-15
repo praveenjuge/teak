@@ -11,10 +11,19 @@ export const SEARCH_QUALIFIER_KEYS = [
   "is",
   "site",
   "folder",
+  "price",
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
 export type SearchIsValue = "fav" | "archived";
+
+export type PriceComparison = "<" | ">" | "<=" | ">=" | "=";
+
+/** A `price:` bound, as in `price:<100`: compared with a card's amount. */
+export interface PriceBound {
+  amount: number;
+  op: PriceComparison;
+}
 
 /**
  * One qualifier in a search. Values are normalized: tags lowercased, sites
@@ -26,7 +35,9 @@ export type SearchQualifier =
   | { key: "type"; value: CardType }
   | { key: "is"; value: SearchIsValue }
   | { key: "site"; value: string }
-  | { key: "folder"; value: string };
+  | { key: "folder"; value: string }
+  /** The bound written the canonical way: `<100`, `>=9.99`. */
+  | { key: "price"; value: string };
 
 export interface ParsedSearchQuery {
   /** True with `is:archived`: archived cards (or archived cards in Trash). */
@@ -39,6 +50,8 @@ export interface ParsedSearchQuery {
   folders: string[];
   /** Quoted phrases, matched as written (ignoring case) in a card's text. */
   phrases: string[];
+  /** `price:` bounds; a card's amount must meet every one. */
+  prices: PriceBound[];
   /** Every qualifier, deduplicated, in the order typed. */
   qualifiers: SearchQualifier[];
   /** `site:` hosts, normalized. */
@@ -160,6 +173,74 @@ const parseType = (value: string): CardType | null => {
   return null;
 };
 
+const PRICE_BOUND_PATTERN = /^(<=|>=|<|>|=)(\d{1,12}(?:\.\d{1,6})?)$/;
+
+/**
+ * A `price:` value: `<N`, `>N`, `<=N`, `>=N` or `=N` with a plain decimal
+ * amount. Null for anything else (`abc`, `<`, `<1e9`, `<-5`).
+ */
+export const parsePriceBound = (value: string): PriceBound | null => {
+  const match = PRICE_BOUND_PATTERN.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  const amount = Number(match[2]);
+  return Number.isFinite(amount)
+    ? { op: match[1] as PriceComparison, amount }
+    : null;
+};
+
+/** A bound written the canonical way: `<100`, `>=9.99`. */
+export const formatPriceBound = (bound: PriceBound): string =>
+  `${bound.op}${bound.amount}`;
+
+/** Whether an amount meets a bound. */
+export const priceMeetsBound = (amount: number, bound: PriceBound) => {
+  switch (bound.op) {
+    case "<":
+      return amount < bound.amount;
+    case ">":
+      return amount > bound.amount;
+    case "<=":
+      return amount <= bound.amount;
+    case ">=":
+      return amount >= bound.amount;
+    default:
+      return amount === bound.amount;
+  }
+};
+
+/**
+ * Whether a card's price meets every bound. A card without a price never
+ * does when there is a bound.
+ */
+export const matchesPriceBounds = (
+  amount: number | null | undefined,
+  bounds: readonly PriceBound[]
+) =>
+  bounds.length === 0 ||
+  (typeof amount === "number" &&
+    bounds.every((bound) => priceMeetsBound(amount, bound)));
+
+/** A bound for people: "Under 100", "20 or more". */
+export const describePriceBound = (bound: PriceBound): string => {
+  const amount = bound.amount.toLocaleString("en-US", {
+    maximumFractionDigits: 6,
+  });
+  switch (bound.op) {
+    case "<":
+      return `Under ${amount}`;
+    case ">":
+      return `Over ${amount}`;
+    case "<=":
+      return `${amount} or less`;
+    case ">=":
+      return `${amount} or more`;
+    default:
+      return `Exactly ${amount}`;
+  }
+};
+
 const parseQualifier = (
   key: SearchQualifierKey,
   rawValue: string
@@ -192,6 +273,10 @@ const parseQualifier = (
     }
     case "folder":
       return { key, value };
+    case "price": {
+      const bound = parsePriceBound(value);
+      return bound ? { key, value: formatPriceBound(bound) } : null;
+    }
     default:
       return null;
   }
@@ -227,7 +312,7 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
 
 /**
  * Reads a search: qualifiers (`tag:`, `#tag`, `type:`, `is:fav`,
- * `is:archived`, `site:`, `folder:`), quoted phrases and plain words. Keys
+ * `is:archived`, `site:`, `folder:`, `price:<100`), quoted phrases and plain words. Keys
  * ignore case and take quoted values (`folder:"Reading list"`). A value a
  * key cannot use, an unknown key and a valid hex color after `#` stay plain
  * words. Every surface reads searches with this one parser.
@@ -307,6 +392,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   const types: CardType[] = [];
   const sites: string[] = [];
   const folders: string[] = [];
+  const prices: PriceBound[] = [];
   const is = new Set<SearchIsValue>();
   for (const qualifier of qualifiers) {
     if (qualifier.key === "tag") {
@@ -317,6 +403,11 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       sites.push(qualifier.value);
     } else if (qualifier.key === "folder") {
       folders.push(qualifier.value.trim().toLowerCase());
+    } else if (qualifier.key === "price") {
+      const bound = parsePriceBound(qualifier.value);
+      if (bound) {
+        prices.push(bound);
+      }
     } else {
       is.add(qualifier.value);
     }
@@ -339,6 +430,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     archived: is.has("archived"),
     sites,
     folders,
+    prices,
     canonical,
   };
 };
@@ -347,8 +439,9 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
  * One search that matches what both `scope` and `typed` match, written the
  * canonical way, or null when nothing can match both. Within one search
  * `type:` and `site:` match any of their values, so across the two they
- * intersect; tags, folders, phrases, words and `is:` add up. A smart
- * folder's stored query is the scope and the search box's text is typed.
+ * intersect; tags, folders, prices, phrases, words and `is:` add up, so
+ * `price:>20` and `price:<100` make a range. A smart folder's stored query
+ * is the scope and the search box's text is typed.
  */
 export const combineSearchQueries = (
   scope: string,

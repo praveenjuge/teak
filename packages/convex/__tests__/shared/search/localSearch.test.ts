@@ -513,6 +513,58 @@ describe("filterLocalCards qualifiers", () => {
   });
 });
 
+describe("filterLocalCards price:", () => {
+  const priced = (
+    _id: string,
+    price: { amount: number; currency?: string } | undefined,
+    createdAt: number,
+    overrides: CardOverrides = {}
+  ) =>
+    makeCard({
+      _id,
+      type: "link",
+      content: `${_id} lamp`,
+      url: `https://shop.example/${_id}`,
+      metadata: {
+        linkCategory: {
+          category: "product",
+          fetchedAt: 1,
+          sourceUrl: `https://shop.example/${_id}`,
+          ...(price ? { price } : {}),
+        },
+      } as Doc<"cards">["metadata"],
+      createdAt,
+      ...overrides,
+    });
+  const cards = [
+    priced("cheap", { amount: 9.99, currency: "USD" }, 6),
+    priced("mid", { amount: 50, currency: "EUR" }, 5),
+    priced("pricey", { amount: 1299, currency: "JPY" }, 4),
+    priced("free", { amount: 0 }, 3),
+    priced("unpriced", undefined, 2),
+    // Not a link: a stray price on another type never matches.
+    priced("note", { amount: 5 }, 1, { type: "text" }),
+  ];
+  const ids = (searchTerms: string) =>
+    filterLocalCards([...cards], { searchTerms }).map((card) => card._id);
+
+  it.each([
+    ["price:<50", ["cheap", "free"]],
+    ["price:<=50", ["cheap", "mid", "free"]],
+    ["price:>50", ["pricey"]],
+    ["price:>=50", ["mid", "pricey"]],
+    ["price:=0", ["free"]],
+    ["price:>5 price:<100", ["cheap", "mid"]],
+    ["price:<100 price:>200", []],
+    ["price:<1 lamp", ["free"]],
+    ["price:<100 type:image", []],
+    // A malformed bound is a word: no card has it.
+    ["price:abc", []],
+  ])("%s", (searchTerms: string, expected: string[]) => {
+    expect(ids(searchTerms)).toEqual(expected);
+  });
+});
+
 describe("filterLocalCards textMatchedByServer", () => {
   it("keeps cards the server matched by text the client lacks; other filters still apply", () => {
     const pdf = makeCard({

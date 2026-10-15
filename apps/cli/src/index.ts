@@ -197,7 +197,7 @@ const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder: and "phrases"'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder:, price:<100 (or >, <=, >=, =) and "phrases"'
     )
     .option(
       "--type <type>",

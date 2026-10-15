@@ -1,6 +1,8 @@
 import {
+  describePriceBound,
   formatSearchQualifier,
   hostForDisplay,
+  parsePriceBound,
   parseSearchQuery,
   type SearchQualifier,
   type SearchQualifierKey,
@@ -61,6 +63,7 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "site", hint: "Links from a website" },
   { key: "folder", hint: "Cards in a folder" },
   { key: "is", hint: "Favorites or archived" },
+  { key: "price", hint: "Price under or over" },
 ];
 
 const IS_OPTIONS = [
@@ -332,6 +335,12 @@ export function describeQualifierChip(chip: string): {
       };
     case "folder":
       return { qualifier, title: "Folder", label: qualifier.value };
+    case "price": {
+      const bound = parsePriceBound(qualifier.value);
+      return bound
+        ? { qualifier, title: "Price", label: describePriceBound(bound) }
+        : null;
+    }
     default:
       return null;
   }

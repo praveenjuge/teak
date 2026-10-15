@@ -1,4 +1,5 @@
 import type { Card } from "@teak/convex/sdk";
+import { formatLinkPrice } from "@teak/convex/shared/price";
 
 const relativeAge = (ms: number) => {
   const minutes = Math.max(1, Math.floor(ms / 60_000));
@@ -84,6 +85,15 @@ export const formatDetail = (card: Card) =>
     card.isFavorited ? "favorite: yes" : null,
     card.isDeleted ? "in trash: yes" : null,
     card.url ? `url: ${card.url}` : null,
+    card.linkPrice
+      ? `price: ${formatLinkPrice(
+          {
+            amount: card.linkPrice.amount,
+            currency: card.linkPrice.currency ?? undefined,
+          },
+          "en-US"
+        )}`
+      : null,
     fileLine(card),
     card.notes ? `notes: ${card.notes}` : null,
     card.tags.length ? `tags: ${card.tags.join(", ")}` : null,

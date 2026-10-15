@@ -60,10 +60,11 @@ Special tokens work automatically:
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
 | **Site** | `site:github.com` | Links from that website |
 | **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
+| **Price** | `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, `price:=0` | Product links whose price is under, over or exactly that amount |
 | **Phrase** | `"design system"` | Those words together, in that order |
 | **Keyword** | anything else | Full-text match |
 
-Mix tokens in one query — all recognized filters apply together. Tags and folders must all match; several types or sites match any of them.
+Mix tokens in one query — all recognized filters apply together. Tags, folders and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them.
 
 ```
 blue button hover state
@@ -78,6 +79,7 @@ As you type, the search box suggests filters, your tags and folders, and the sit
 A few details:
 
 - `site:` matches the website exactly. `www.` and capital letters don't matter, so `site:www.GitHub.com` is the same as `site:github.com`, but `site:example.com` doesn't include `blog.example.com`.
+- `price:` compares the amount only, whatever the currency, so `price:<100` includes both $90 and ¥90. Links without a price never match.
 - `#` followed by a color code, like `#fff` or `#3B82F6`, is a color. Use `tag:fff` for a tag that looks like one.
 - Quoted phrases also match the text inside your documents.
 - Files you saved before Teak kept their text become searchable once Teak catches up on them. For a video saved earlier, use **Refresh details** on the card to get its transcript.
@@ -211,7 +213,7 @@ If a summary or tags miss the mark, or a link's preview looks out of date, open 
 
 ### Card details
 
-Link cards show who wrote the page and when it was published, next to the site name, when the page says so. **Details**, beside an open card, lists the author, publisher, and publish date, and for photos the camera, exposure, aperture, focal length, ISO, and when the photo was taken. Teak never shows a photo's location.
+Link cards show who wrote the page and when it was published, next to the site name, when the page says so. Product links show their price as a tag on the card, such as "$24.99", "€1,299.00" or "Free", when the page states one; **Refresh details** reads it again. **Details**, beside an open card, lists the author, publisher, and publish date, and for photos the camera, exposure, aperture, focal length, ISO, and when the photo was taken. Teak never shows a photo's location.
 
 ## Apps and access
 

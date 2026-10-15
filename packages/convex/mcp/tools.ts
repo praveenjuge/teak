@@ -306,7 +306,7 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", price:<100 (also >, <=, >= and =; links with a price only), and "quoted phrases". Qualifiers combine with the other filters.',
   },
   mode: {
     enum: SEARCH_MODES,
@@ -595,7 +595,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only) and "quoted phrases"; tags, folders and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
