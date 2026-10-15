@@ -456,6 +456,44 @@ describe("classification step", () => {
       expect(result.type).toBe("palette");
     });
 
+    test.each([
+      "Fixed #123 and #456 before the release",
+      "Ticket: #1234",
+      "#123, #456",
+    ])("keeps issue references %p as text", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", type: "text", content });
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+    });
+
+    test.each(["--bg-primary: #FF5733", "#000, #333"])(
+      "detects %p as palette",
+      async (content) => {
+        mockRunQuery.mockResolvedValue({ _id: "c1", content });
+
+        const result = await classify(mockCtx, { cardId: "c1" });
+
+        expect(result.type).toBe("palette");
+      }
+    );
+
+    test("classifies a long note of unclosed rgb( without stalling", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "rgb(".repeat(50_000),
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const startedAt = performance.now();
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+      expect(performance.now() - startedAt).toBeLessThan(1000);
+    });
+
     test("classifies a long comma-separated note without stalling", async () => {
       const card = {
         _id: "c1",

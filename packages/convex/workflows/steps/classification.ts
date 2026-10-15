@@ -139,14 +139,32 @@ const hasPaletteHint = (card: any): boolean => {
   return paletteHints.some((hint) => text.includes(hint)) || tagHints;
 };
 
+// Function arguments are bounded so unclosed "rgb(" text cannot make the
+// scan quadratic.
 const COLOR_CODE_PATTERN =
-  /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\)/gi;
-const COLOR_LABEL_PATTERN = /^(?:--)?[a-z][\w\s-]{0,32}?\s*[:=\-–]\s*(.+)$/iu;
+  /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^()]{0,64}\)|hsla?\([^()]{0,64}\)/gi;
+// "Primary: #0F4C81", "--bg-primary: #FF5733" or "Accent - rgb(…)". A dash
+// separates only when spaced, so hyphenated labels stay whole.
+const COLOR_LABEL_PATTERN =
+  /^(?:--)?[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+)(.+)$/iu;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
+const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
+const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
+
+// "#123" or "#1234" in a note is far more often an issue or ticket number
+// than a colour. Repeated digits ("#000", "#333") stay colours.
+const isNumericReference = (token: string): boolean =>
+  NUMERIC_REFERENCE_PATTERN.test(token) && !REPEATED_DIGIT_PATTERN.test(token);
+
+const isColorToken = (token: string): boolean =>
+  !isNumericReference(token) && parseColorString(token) !== null;
 
 const countColorCodes = (text: string): number => {
   const hexes = new Set<string>();
   for (const match of text.matchAll(COLOR_CODE_PATTERN)) {
+    if (isNumericReference(match[0])) {
+      continue;
+    }
     const color = parseColorString(match[0]);
     if (color) {
       hexes.add(color.hex.toUpperCase());
@@ -186,13 +204,11 @@ const isColorValue = (value: string): boolean => {
   if (!trimmed) {
     return false;
   }
-  if (parseColorString(trimmed)) {
+  if (isColorToken(trimmed)) {
     return true;
   }
   // "red green blue" lists several colours separated by spaces.
-  return trimmed
-    .split(COLOR_WORD_DELIMITER_PATTERN)
-    .every((word) => parseColorString(word) !== null);
+  return trimmed.split(COLOR_WORD_DELIMITER_PATTERN).every(isColorToken);
 };
 
 // True when the content is nothing but colours, optionally labelled
