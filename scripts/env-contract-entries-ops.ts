@@ -486,14 +486,4 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Shell override for the smoke-script target.",
   }),
-  spec("EXPECTED_BASE_URL", {
-    owners: ["teak-repo"],
-    targets: ["repo", "e2e"],
-    profiles: ["preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["shell"],
-    required: false,
-    note: "Shell override for the expected canonical origin in smoke assertions.",
-  }),
 ];

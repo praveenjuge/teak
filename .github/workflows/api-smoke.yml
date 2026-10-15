@@ -1,4 +1,3 @@
-# Passes after the docs deployment has published the apex API/MCP rewrites.
 name: API and MCP Smoke
 
 on:
