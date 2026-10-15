@@ -58,7 +58,7 @@ and response bodies, does not follow redirects, and adds the site's security
 headers. `API_PUBLIC_HOST` and `API_UPSTREAM_ORIGIN` configure it; unset, the
 Worker proxies nothing, and the development Worker sets neither.
 
-- Bodies whose `Content-Length` is over Convex's 20 MiB HTTP action limit get
+- Bodies whose `Content-Length` is over Convex's 20 MB HTTP action limit get
   413 `CONTENT_TOO_LARGE` without reaching Convex; an unreachable Convex is
   502 `SERVICE_UNAVAILABLE`, in the API's `{ code, error }` shape.
 - The OpenAPI spec and the three discovery documents are identical for every
