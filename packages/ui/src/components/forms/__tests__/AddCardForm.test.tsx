@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -72,8 +71,7 @@ mock.module("convex/react", () => ({
   ...realConvexReact,
   useMutation: () => {
     const mutation = mock().mockResolvedValue({});
-    mutation.withOptimisticUpdate = () => mutation;
-    return mutation;
+    return Object.assign(mutation, { withOptimisticUpdate: () => mutation });
   },
 }));
 
@@ -94,7 +92,7 @@ mock.module("@teak/convex/shared/hooks/useFileUpload", () => ({
   }),
 }));
 
-const enqueueFilesMock = mock(() => undefined);
+const enqueueFilesMock = mock((_files: File[]) => undefined);
 mock.module("@teak/ui/hooks", () => ({
   useGlobalFileDrop: () => ({
     queueSize: 0,
@@ -163,16 +161,16 @@ mock.module("@teak/convex/shared", () => ({
   })),
 }));
 
-// Import after mocks so the module picks up the stubbed hook.
-import { AddCardActions } from "../AddCardActions";
-import { AddCardForm } from "../AddCardForm";
+const { AddCardActions } = await import("../AddCardActions");
+const { AddCardForm } = await import("../AddCardForm");
+const { useGlobalFileDrop } = await import("@teak/ui/hooks");
 
 describe("AddCardForm", () => {
   beforeEach(() => {
     cardCreationStatusResult = undefined;
     global.crypto = {
       ...global.crypto,
-      randomUUID: mock(() => "mock-uuid"),
+      randomUUID: mock(() => "mock-uuid" as ReturnType<Crypto["randomUUID"]>),
     };
     enqueueFilesMock.mockReset();
   });
@@ -244,10 +242,7 @@ describe("AddCardForm", () => {
       new Blob(["b"], { type: "image/png" }) as unknown as File,
     ];
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { useGlobalFileDrop } = require("@teak/ui/hooks");
-    const drop = useGlobalFileDrop();
-    drop.enqueueFiles(files);
+    useGlobalFileDrop()?.enqueueFiles(files);
 
     expect(enqueueFilesMock).toHaveBeenCalledTimes(1);
     expect(enqueueFilesMock.mock.calls[0][0]).toEqual(files);

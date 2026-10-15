@@ -8,11 +8,6 @@ export interface ExtractFilesResult {
   rejectedFolder: boolean;
 }
 
-export interface GlobalDropQueueItem {
-  file: File;
-  id: string;
-}
-
 export interface BatchSummary {
   failures: UploadMultipleFilesResultItem[];
   firstFailure?: UploadMultipleFilesResultItem;
@@ -161,48 +156,7 @@ export function isBlockedDropTarget(target: EventTarget | null): boolean {
 
   const element = target as Element;
 
-  for (const selector of BLOCKED_SELECTORS) {
-    try {
-      if (element.closest(selector)) {
-        return true;
-      }
-    } catch {
-      // `closest` throws on malformed selectors in some jsdom envs; ignore.
-    }
-  }
-
-  return false;
-}
-
-let queueCounter = 0;
-
-/**
- * Stable-enough identifier for a queued file.
- *
- * We intentionally do NOT key by filename so duplicate drops (e.g. `a.png`
- * twice in one batch) don't collide. `crypto.randomUUID` is used when
- * available; otherwise we fall back to a monotonic counter + timestamp so
- * ids remain unique per session without any runtime dependencies.
- */
-export function createQueueItemId(): string {
-  queueCounter += 1;
-  const globalCrypto: Crypto | undefined =
-    typeof globalThis === "undefined"
-      ? undefined
-      : (globalThis as { crypto?: Crypto }).crypto;
-
-  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
-    return globalCrypto.randomUUID();
-  }
-
-  return `queue-${Date.now().toString(36)}-${queueCounter.toString(36)}`;
-}
-
-/**
- * Resets the internal queue id counter. Exposed for tests.
- */
-export function _resetQueueItemIdCounter(): void {
-  queueCounter = 0;
+  return BLOCKED_SELECTORS.some((selector) => element.closest(selector));
 }
 
 /**

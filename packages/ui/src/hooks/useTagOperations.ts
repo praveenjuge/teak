@@ -13,6 +13,7 @@ import {
   tagOperationDescription,
   tagOperationTitle,
 } from "../lib/tags";
+import { useNow } from "./useNow";
 
 export interface StartTagOperationInput {
   from: string;
@@ -97,37 +98,17 @@ export function useTagOperations(): UseTagOperationsResult {
     [start]
   );
 
-  // A change that stops making progress (a lost batch) turns into a failure
-  // with Retry instead of a spinner that never ends.
-  const [now, setNow] = useState(() => Date.now());
   const isRunning =
     operation?.status === "running" || latest?.status === "running";
-  useEffect(() => {
-    if (!isRunning) {
-      return;
-    }
-    const timer = setInterval(() => setNow(Date.now()), 15_000);
-    return () => clearInterval(timer);
-  }, [isRunning]);
-  // A finished change adjusts the tag list for a while; the clock moves once
-  // more when that ends, even if the background counts never refresh.
   const overlayEndsAt =
     latest?.status === "completed" && latest.completedAt !== undefined
       ? latest.completedAt + TAG_OPERATION_OVERLAY_MS
       : undefined;
-  useEffect(() => {
-    if (overlayEndsAt === undefined) {
-      return;
-    }
-    const timer = setTimeout(
-      () => setNow(Date.now()),
-      Math.max(0, overlayEndsAt - Date.now()) + 1
-    );
-    return () => clearTimeout(timer);
-  }, [overlayEndsAt]);
+  const now = useNow({
+    every: isRunning ? 15_000 : undefined,
+    until: [overlayEndsAt],
+  });
   const shown = useMemo(() => asStalled(operation, now), [now, operation]);
-  // The tag list stops showing a stalled change as if it had landed, and a
-  // finished one once its time is up.
   const shownLatest = useMemo(
     () =>
       overlayEndsAt !== undefined && now > overlayEndsAt

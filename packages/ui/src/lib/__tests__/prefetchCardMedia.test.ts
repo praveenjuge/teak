@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { prefetchCardModalMedia } from "../prefetchCardMedia";
+import { createMediaPrefetcher } from "../prefetchCardMedia";
 
 class StubImage {
   static created: StubImage[] = [];
@@ -12,13 +12,11 @@ class StubImage {
 }
 
 const originalImage = globalThis.Image;
-let urlSeed = 0;
-// The module remembers every warmed URL for the page session, so each test
-// uses fresh URLs to stay independent of test order.
-const uniqueUrl = (name: string) =>
-  `https://files.example.com/${++urlSeed}-${name}`;
+const url = (name: string) => `https://files.example.com/${name}`;
+let prefetchCardModalMedia = createMediaPrefetcher();
 
 beforeEach(() => {
+  prefetchCardModalMedia = createMediaPrefetcher();
   StubImage.created.length = 0;
   globalThis.Image = StubImage as unknown as typeof Image;
 });
@@ -30,9 +28,9 @@ afterEach(() => {
 describe("lib/prefetchCardMedia", () => {
   test("warms the image modal's detail rendition once per url", () => {
     const card = {
-      detailUrl: uniqueUrl("detail.webp"),
-      fileUrl: uniqueUrl("original.jpg"),
-      thumbnailUrl: uniqueUrl("thumb.webp"),
+      detailUrl: url("detail.webp"),
+      fileUrl: url("original.jpg"),
+      thumbnailUrl: url("thumb.webp"),
       type: "image",
     };
 
@@ -45,10 +43,10 @@ describe("lib/prefetchCardMedia", () => {
   });
 
   test("falls back to the thumbnail when an image has no detail rendition", () => {
-    const thumbnailUrl = uniqueUrl("thumb.webp");
+    const thumbnailUrl = url("thumb.webp");
 
     prefetchCardModalMedia({
-      fileUrl: uniqueUrl("original.jpg"),
+      fileUrl: url("original.jpg"),
       thumbnailUrl,
       type: "image",
     });
@@ -57,10 +55,10 @@ describe("lib/prefetchCardMedia", () => {
   });
 
   test("warms only the poster for video cards and ignores other types", () => {
-    const posterUrl = uniqueUrl("poster.webp");
+    const posterUrl = url("poster.webp");
 
     prefetchCardModalMedia({
-      fileUrl: uniqueUrl("clip.mp4"),
+      fileUrl: url("clip.mp4"),
       thumbnailUrl: posterUrl,
       type: "video",
     });

@@ -4,10 +4,11 @@ import {
   sanitizeExternalUrl,
 } from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { formatLinkByline } from "../../lib/linkByline";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
+import { SiteFavicon } from "../cards/SiteFavicon";
 
 function formatFactValue(value: string) {
   const trimmed = value.trim();
@@ -34,46 +35,6 @@ type CardWithUrls = Doc<"cards"> & {
   }>;
   linkPreviewImageUrl?: string;
 };
-
-function FaviconImage({
-  faviconUrl,
-  fallbackUrl,
-}: {
-  faviconUrl: string;
-  fallbackUrl?: string;
-}) {
-  const imgRef = useRef<HTMLImageElement>(null);
-  const [hasError, setHasError] = useState(false);
-  const usedFallbackRef = useRef(false);
-
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img) {
-      return;
-    }
-
-    const handleError = () => {
-      if (fallbackUrl && !usedFallbackRef.current) {
-        usedFallbackRef.current = true;
-        img.src = fallbackUrl;
-      } else {
-        setHasError(true);
-      }
-    };
-
-    img.addEventListener("error", handleError);
-    return () => img.removeEventListener("error", handleError);
-  }, [fallbackUrl]);
-
-  if (hasError) {
-    return null;
-  }
-
-  return (
-    // biome-ignore lint/correctness/useImageSize: <>
-    <img alt="" className="size-4" ref={imgRef} src={faviconUrl} />
-  );
-}
 
 interface LinkPreviewProps {
   card: CardWithUrls;
@@ -107,17 +68,6 @@ export function LinkPreview({
   const linkImage = card.linkPreviewImageUrl;
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
   const linkMedia = card.linkPreviewMedia ?? [];
-
-  // Only expose the hostname (never the full path/query) to the third-party
-  // favicon service, so private saved URLs don't leak IDs or tokens to Google.
-  const googleFaviconUrl = useMemo(() => {
-    const hostname = getSafeUrlHostname(card.url);
-    return hostname
-      ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}`
-      : undefined;
-  }, [card.url]);
-
-  const faviconUrl = googleFaviconUrl;
 
   const categoryMetadata = card.metadata?.linkCategory;
 
@@ -177,13 +127,8 @@ export function LinkPreview({
 
           {(hostname || byline) && (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
-              {hostname && faviconUrl && (
-                <span className="size-4 shrink-0">
-                  <FaviconImage
-                    fallbackUrl={googleFaviconUrl}
-                    faviconUrl={faviconUrl}
-                  />
-                </span>
+              {hostname && (
+                <SiteFavicon className="size-4" hostname={hostname} />
               )}
               {hostname && (
                 <span className="max-w-[60%] shrink-0 truncate">

@@ -8,7 +8,8 @@ import {
 } from "@teak/convex/shared/folders";
 import { SidebarMenuItem } from "@teak/ui/components/ui/sidebar";
 import { useMutation } from "convex/react";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
+import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
@@ -33,10 +34,14 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   const createFolder = useMutation(api.folders.createFolder);
   const [name, setName] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
-  // State, not just a ref: the folder list gains the new folder before the
-  // create resolves, and that render must not call its own name taken.
-  const [isSaving, setIsSaving] = useState(false);
-  const savingRef = useRef(false);
+  const [create, isSaving] = useSingleFlight(async (folderName: string) => {
+    try {
+      await createFolder({ name: folderName });
+      onDone();
+    } catch (caught) {
+      setServerError(folderErrorMessage(caught, "Couldn't create the folder"));
+    }
+  });
 
   const trimmed = name.trim();
   let problem: string | null = null;
@@ -56,18 +61,8 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
       onDone();
       return;
     }
-    if (problem || savingRef.current) {
-      return;
-    }
-    savingRef.current = true;
-    setIsSaving(true);
-    try {
-      await createFolder({ name: trimmed });
-      onDone();
-    } catch (caught) {
-      savingRef.current = false;
-      setIsSaving(false);
-      setServerError(folderErrorMessage(caught, "Couldn't create the folder"));
+    if (!problem) {
+      await create(trimmed);
     }
   };
 

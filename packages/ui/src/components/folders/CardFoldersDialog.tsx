@@ -17,7 +17,7 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { useMutation } from "convex/react";
 import { Check, Plus, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { updateCardsInSearchQueries } from "../../hooks/cardQueryOptimisticUpdates";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
@@ -50,6 +50,22 @@ export function CardFoldersDialog({
   open,
   onOpenChange,
 }: CardFoldersDialogProps) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="gap-0 p-0 sm:max-w-sm">
+        <CardFoldersChecklist cardId={cardId} initialFolderIds={folderIds} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CardFoldersChecklist({
+  cardId,
+  initialFolderIds,
+}: {
+  cardId: string | null;
+  initialFolderIds: readonly string[];
+}) {
   const folders = useFolders();
   const createFolder = useMutation(api.folders.createFolder);
   const setCardFolders = useMutation(
@@ -62,26 +78,14 @@ export function CardFoldersDialog({
     }));
   });
   const [query, setQuery] = useState("");
-  const [checked, setCheckedState] = useState<string[]>([]);
+  const [checked, setCheckedState] = useState(() => [...initialFolderIds]);
   // Ticks can land faster than renders; each one builds on the latest list.
-  const checkedRef = useRef<string[]>([]);
+  const checkedRef = useRef(checked);
   const setChecked = (next: string[]) => {
     checkedRef.current = next;
     setCheckedState(next);
   };
   const [error, setError] = useState<string | null>(null);
-
-  // Reset only when the dialog opens, not when the card updates while open.
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    if (open && !wasOpen.current) {
-      setQuery("");
-      checkedRef.current = [...folderIds];
-      setCheckedState([...folderIds]);
-      setError(null);
-    }
-    wasOpen.current = open;
-  }, [folderIds, open]);
 
   const visible = useMemo(
     () => filterFolders(manualFolders(folders ?? []), query),
@@ -145,114 +149,109 @@ export function CardFoldersDialog({
   });
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="gap-0 p-0 sm:max-w-sm">
-        <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle>Folders</DialogTitle>
-          <DialogDescription>
-            {checked.length === 0
-              ? "This card isn't in a folder."
-              : `In ${checked.length} ${checked.length === 1 ? "folder" : "folders"}.`}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="relative border-y">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            aria-label="Search folders"
-            autoFocus
-            className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
-            maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setError(null);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") {
-                return;
-              }
-              event.preventDefault();
-              if (visible.length === 1) {
-                toggle(visible[0]._id);
-              } else if (canCreate) {
-                create().catch(() => undefined);
-              }
-            }}
-            placeholder="Find or create a folder"
-            value={query}
-          />
-        </div>
-        <ul aria-label="Folders" className="max-h-72 overflow-y-auto p-1.5">
-          {folders === undefined && (
-            <li className="px-3 py-6 text-center text-muted-foreground text-sm">
-              Loading folders…
-            </li>
-          )}
-          {folders !== undefined && visible.length === 0 && !canCreate && (
-            <li className="px-3 py-6 text-center text-muted-foreground text-sm">
-              {trimmed
-                ? "No folder by that name."
-                : "No folders yet. Type a name to create one."}
-            </li>
-          )}
-          {visible.map((folder) => {
-            const isChecked = checked.includes(folder._id);
-            return (
-              <li key={folder._id}>
-                <button
-                  aria-pressed={isChecked}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
-                  onClick={() => toggle(folder._id)}
-                  type="button"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
-                      isChecked
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-input"
-                    )}
-                  >
-                    {isChecked && <Check className="size-3" />}
-                  </span>
-                  <FolderDot color={folder.color} />
-                  <span className="min-w-0 flex-1 truncate" title={folder.name}>
-                    {folder.name}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-          {canCreate && (
-            <li>
+    <>
+      <DialogHeader className="px-5 pt-5 pb-3">
+        <DialogTitle>Folders</DialogTitle>
+        <DialogDescription>
+          {checked.length === 0
+            ? "This card isn't in a folder."
+            : `In ${checked.length} ${checked.length === 1 ? "folder" : "folders"}.`}
+        </DialogDescription>
+      </DialogHeader>
+      <div className="relative border-y">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          aria-label="Search folders"
+          autoFocus
+          className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
+          maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setError(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") {
+              return;
+            }
+            event.preventDefault();
+            if (visible.length === 1) {
+              toggle(visible[0]._id);
+            } else if (canCreate) {
+              create().catch(() => undefined);
+            }
+          }}
+          placeholder="Find or create a folder"
+          value={query}
+        />
+      </div>
+      <ul aria-label="Folders" className="max-h-72 overflow-y-auto p-1.5">
+        {folders === undefined && (
+          <li className="px-3 py-6 text-center text-muted-foreground text-sm">
+            Loading folders…
+          </li>
+        )}
+        {folders !== undefined && visible.length === 0 && !canCreate && (
+          <li className="px-3 py-6 text-center text-muted-foreground text-sm">
+            {trimmed
+              ? "No folder by that name."
+              : "No folders yet. Type a name to create one."}
+          </li>
+        )}
+        {visible.map((folder) => {
+          const isChecked = checked.includes(folder._id);
+          return (
+            <li key={folder._id}>
               <button
+                aria-pressed={isChecked}
                 className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
-                onClick={() => create().catch(() => undefined)}
+                onClick={() => toggle(folder._id)}
                 type="button"
               >
-                <Plus
+                <span
                   aria-hidden="true"
-                  className="size-4 text-muted-foreground"
-                />
-                <span className="min-w-0 flex-1 truncate">
-                  Create folder “{trimmed}”
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
+                    isChecked
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input"
+                  )}
+                >
+                  {isChecked && <Check className="size-3" />}
+                </span>
+                <FolderDot color={folder.color} />
+                <span className="min-w-0 flex-1 truncate" title={folder.name}>
+                  {folder.name}
                 </span>
               </button>
             </li>
-          )}
-        </ul>
-        {error && (
-          <p
-            className="border-t px-5 py-3 text-destructive text-sm"
-            role="alert"
-          >
-            {error}
-          </p>
+          );
+        })}
+        {canCreate && (
+          <li>
+            <button
+              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+              onClick={() => create().catch(() => undefined)}
+              type="button"
+            >
+              <Plus
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
+              <span className="min-w-0 flex-1 truncate">
+                Create folder “{trimmed}”
+              </span>
+            </button>
+          </li>
         )}
-      </DialogContent>
-    </Dialog>
+      </ul>
+      {error && (
+        <p className="border-t px-5 py-3 text-destructive text-sm" role="alert">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

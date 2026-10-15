@@ -36,7 +36,12 @@ export interface CardDetailsSource {
   url?: string;
 }
 
-const EDITED_AFTER_MS = 60_000;
+const PROCESSING_WINDOW_MS = 60_000;
+
+const editedAfterProcessing = (card: {
+  createdAt: number;
+  updatedAt: number;
+}) => card.updatedAt - card.createdAt > PROCESSING_WINDOW_MS;
 
 export interface CardDetailField {
   label: string;
@@ -60,11 +65,9 @@ export function getCardDetailSections(card: CardDetailsSource) {
       { label: "Added", value: formatCardDate(card.createdAt) },
       {
         label: "Edited",
-        // A card edited within a minute of being added was just processed.
-        value:
-          card.updatedAt - card.createdAt > EDITED_AFTER_MS
-            ? formatCardDate(card.updatedAt)
-            : undefined,
+        value: editedAfterProcessing(card)
+          ? formatCardDate(card.updatedAt)
+          : undefined,
       },
       { label: "File name", value: file?.fileName },
       {

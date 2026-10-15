@@ -132,10 +132,6 @@ interface CardsScreenProps {
   onUpgrade?: AddCardFormProps["onUpgrade"];
   /** Called when the in-memory filters change, so a retry can keep them. */
   onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
-  /**
-   * Set after a failed card read is retried (CardsReadBoundary), so the
-   * grid subscribes afresh instead of reading the cached failure.
-   */
   queryRetryKey?: string;
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;

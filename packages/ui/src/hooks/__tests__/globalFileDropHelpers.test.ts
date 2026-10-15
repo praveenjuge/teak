@@ -1,9 +1,6 @@
-// @ts-nocheck
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-  _resetQueueItemIdCounter,
   capBatchForQueue,
-  createQueueItemId,
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,
@@ -160,18 +157,6 @@ describe("isBlockedDropTarget", () => {
 
   test("returns false for null target", () => {
     expect(isBlockedDropTarget(null)).toBe(false);
-  });
-});
-
-describe("createQueueItemId", () => {
-  beforeEach(() => {
-    _resetQueueItemIdCounter();
-  });
-
-  test("generates unique ids for same filename dropped twice", () => {
-    const a = createQueueItemId();
-    const b = createQueueItemId();
-    expect(a).not.toEqual(b);
   });
 });
 

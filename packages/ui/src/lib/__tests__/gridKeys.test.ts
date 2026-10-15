@@ -27,7 +27,7 @@ describe("gridKeyAction", () => {
     ["ArrowRight", "right"],
     ["j", "next"],
     ["k", "previous"],
-  ])("%p moves %p, even with cards selected", (key, direction) => {
+  ] as const)("%p moves %p, even with cards selected", (key, direction) => {
     expect(gridKeyAction(key, browsing)).toEqual({ type: "move", direction });
     expect(gridKeyAction(key, selecting)).toEqual({ type: "move", direction });
   });
@@ -39,7 +39,7 @@ describe("gridKeyAction", () => {
     ["Delete", "delete"],
     ["Backspace", "delete"],
     ["x", "select"],
-  ])("%p acts on the focused card: %p", (key, action) => {
+  ] as const)("%p acts on the focused card: %p", (key, action) => {
     expect(gridKeyAction(key, browsing)).toEqual({ type: "card", action });
   });
 
@@ -48,12 +48,15 @@ describe("gridKeyAction", () => {
     ["t", "addTags"],
     ["e", "archive"],
     ["Delete", "delete"],
-  ])("with cards selected, %p acts on the selection: %p", (key, action) => {
-    expect(gridKeyAction(key, selecting)).toEqual({
-      type: "selection",
-      action,
-    });
-  });
+  ] as const)(
+    "with cards selected, %p acts on the selection: %p",
+    (key, action) => {
+      expect(gridKeyAction(key, selecting)).toEqual({
+        type: "selection",
+        action,
+      });
+    }
+  );
 
   test("F removes a selection of favorites from favorites", () => {
     expect(

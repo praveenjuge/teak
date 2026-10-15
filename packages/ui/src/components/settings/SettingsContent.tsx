@@ -166,8 +166,6 @@ export function SettingsContent({
         sessionsLoadingMore={sessionsLoadingMore}
       />
 
-      {/* Import is always available; the Export tab uses these handlers, which
-          web always supplies, so the section is not gated on them. */}
       <ImportExportSection
         exportLoading={exportLoading ?? exportState === undefined}
         exportState={exportState}
