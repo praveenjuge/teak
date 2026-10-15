@@ -1,5 +1,13 @@
 // @ts-nocheck
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { gunzipSync } from "node:zlib";
 import { getFunctionName } from "convex/server";
 import { parseScreenshotRetryableError } from "../../../../workflows/screenshot";
@@ -10,7 +18,16 @@ let screenshotAnswer: () => Promise<unknown>;
 let page: () => Response;
 let captureScreenshot: any;
 
+// These tests mock the Files Worker, so declare it configured:
+// ensureObjectOwnership refuses to register objects without one.
+const savedFilesEnv = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+};
+
 beforeAll(async () => {
+  process.env.FILES_BASE = "https://files.test";
+  process.env.FILES_SIGNING_SECRET = "test-secret";
   const ssrfPath = import.meta.resolve("../../../../linkMetadata/ssrf");
   const actualSsrf = await import(ssrfPath);
   mock.module(ssrfPath, () => ({
@@ -42,6 +59,17 @@ beforeAll(async () => {
   captureScreenshot = (
     await import("../../../../workflows/steps/screenshot/captureScreenshot")
   ).captureScreenshot;
+});
+
+afterAll(() => {
+  for (const name of ["FILES_BASE", "FILES_SIGNING_SECRET"] as const) {
+    const original = savedFilesEnv[name];
+    if (original === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = original;
+    }
+  }
 });
 
 beforeEach(() => {
