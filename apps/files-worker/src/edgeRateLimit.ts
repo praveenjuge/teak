@@ -221,8 +221,8 @@ export const applyEdgeRateLimit = async (
   if (request.method === "OPTIONS") {
     return { attestation: null };
   }
-  // Each lookup the identity cache cannot answer is first charged to the
-  // address on the unknown-credential limiter, so made-up credentials cannot
+  // Each API key lookup the identity cache cannot answer is first charged to
+  // the address on the unknown-credential limiter, so made-up keys cannot
   // make the edge ask Convex more often than that limit allows.
   const lookupGate: { state: "unused" | "allowed" | "refused" } = {
     state: "unused",

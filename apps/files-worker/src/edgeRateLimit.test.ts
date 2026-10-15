@@ -290,6 +290,33 @@ describe("requests without a known user", () => {
     ).toEqual(["forwarded", "forwarded", 429, 429, 429]);
   });
 
+  test("a verified OAuth token is looked up even when its address has spent the gate", async () => {
+    const lookups: string[] = [];
+    const shared = env({ unknown: new FakeLimiter(0) });
+    const outcome = await applyEdgeRateLimit(
+      request("/mcp", { key: "header.payload.signature" }),
+      { ...shared, API_WORKOS_ISSUER: "https://auth.example.com" },
+      ctx,
+      {
+        fetcher: ((_url: string, init: RequestInit = {}) => {
+          lookups.push(String(init.body));
+          return Promise.resolve(Response.json({ userId: "teak-user-2" }));
+        }) as typeof fetch,
+        verifyToken: () =>
+          Promise.resolve({
+            clientId: "client_1",
+            consentId: "app_consent_1",
+            workosUserId: "user_01SHARED",
+          }),
+      }
+    );
+
+    expect(lookups).toHaveLength(1);
+    expect(shared.unknown.keys).toEqual([]);
+    expect(shared.api.keys).toEqual(["user:teak-user-2"]);
+    expect("attestation" in outcome && outcome.attestation).toBeTruthy();
+  });
+
   test("no credential is limited per address on the request limiter, unattested", async () => {
     const shared = env();
     const outcome = await limit(shared, request("/api/openapi.json"));

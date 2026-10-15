@@ -85,14 +85,21 @@ const exhaustedKey = async () => {
       headers: { Authorization: authorization, ...headers },
     });
 
-  // Spend the key's bucket the way a client would. It is sharded, so one
-  // refusal can come while other shards still hold tokens: stop only after
-  // a run of refusals.
+  // Spend the key's bucket the way a client would. It has 12 shards and
+  // each request samples two at random, so a refusal can come while another
+  // shard still holds tokens. After 60 refusals in a row, the odds that a
+  // shard with tokens was never sampled are below one in a billion (20 was
+  // not enough and failed CI).
+  const refusalsToTrust = 60;
   let refusedInARow = 0;
-  for (let attempt = 0; attempt < 1000 && refusedInARow < 20; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < 1000 && refusedInARow < refusalsToTrust;
+    attempt += 1
+  ) {
     refusedInARow = (await me()).status === 429 ? refusedInARow + 1 : 0;
   }
-  expect(refusedInARow).toBe(20);
+  expect(refusedInARow).toBe(refusalsToTrust);
   return { authorization, me, otherAuthorization: `Bearer ${second.key}`, t };
 };
 

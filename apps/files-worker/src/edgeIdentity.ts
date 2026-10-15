@@ -55,8 +55,9 @@ const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
   /**
-   * Asked before each lookup the cache cannot answer; false skips the
-   * lookup, so a caller can bound how often one client makes it ask Convex.
+   * Asked before each API key lookup the cache cannot answer; false skips
+   * the lookup, so a caller can bound how often one client makes it ask
+   * Convex. Verified WorkOS tokens are never gated.
    */
   allowLookup?: () => Promise<boolean>;
   fetcher?: typeof fetch;
@@ -208,7 +209,10 @@ export const resolveEdgeIdentity = async (
     ctx,
     `workos:${workosUserId}`,
     { workosUserId },
-    { allowLookup: deps.allowLookup, fetcher }
+    // A verified token is signed by WorkOS, so it cannot be rotated to make
+    // Convex look up new identities; the address gate would only refuse
+    // real users who share a busy address.
+    { fetcher }
   );
   // A verified token names its user even when Convex cannot map it yet.
   return {
