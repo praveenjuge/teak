@@ -164,6 +164,24 @@ describe("Cards/Card", () => {
     expect(markup).toContain("Refresh details</div>");
   });
 
+  test("in selection mode, its menu shows only keys that act on this card", () => {
+    // F, T, E and Delete act on the whole selection there, not on this card.
+    const markup = renderToStaticMarkup(
+      <Card
+        card={createLinkCard() as any}
+        isSelected
+        isSelectionMode
+        onToggleArchive={() => undefined}
+      />
+    );
+    expect(markup).toContain("Deselect<kbd>X</kbd>");
+    expect(markup).toMatch(/Copy Link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
+    for (const label of ["Add Tags", "Favorite", "Archive", "Delete"]) {
+      expect(markup).toContain(`${label}</div>`);
+    }
+    expect(markup).not.toContain('aria-keyshortcuts="F"');
+  });
+
   test("offers Refresh details for an active card but not for one in Trash", () => {
     const active = renderToStaticMarkup(
       <Card card={createLinkCard() as any} />

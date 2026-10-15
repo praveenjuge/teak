@@ -727,7 +727,13 @@ export const Card = memo(function Card({
     card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
 
   // The keys a focused card takes for the same actions (see MasonryGrid).
-  const shortcuts = cardMenuShortcuts();
+  // In selection mode F, T, E and Delete act on every selected card (or do
+  // nothing while choosing cards for a folder), not on this one, so only
+  // the keys that still act on this card show.
+  const allShortcuts = cardMenuShortcuts();
+  const shortcuts: Partial<typeof allShortcuts> = isSelectionMode
+    ? { copy: allShortcuts.copy, select: allShortcuts.select }
+    : allShortcuts;
   const menuItems: CardMenuEntry[] = [
     ...(card.url
       ? [{ icon: ExternalLink, label: "Open Link", onSelect: openLink }]
