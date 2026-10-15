@@ -73,6 +73,55 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
 ];
 
+/**
+ * A key as this platform's keyboard labels it: `Mod` is ⌘ on Apple platforms
+ * and Ctrl elsewhere; Alt, Shift and Enter are ⌥, ⇧ and ↩ on a Mac.
+ */
+export function platformKey(key: string, apple = isApplePlatform()): string {
+  if (key === "Mod") {
+    return apple ? "⌘" : "Ctrl";
+  }
+  if (!apple) {
+    return key;
+  }
+  return MAC_KEY_SYMBOLS[key] ?? key;
+}
+
+const MAC_KEY_SYMBOLS: Record<string, string> = {
+  Alt: "⌥",
+  Enter: "↩",
+  Shift: "⇧",
+};
+
+const ARIA_KEY_NAMES: Record<string, string> = {
+  "←": "ArrowLeft",
+  "→": "ArrowRight",
+  Esc: "Escape",
+};
+
+/**
+ * Keys pressed together as `aria-keyshortcuts` names them, such as
+ * `Meta+Shift+S` for Mod Shift S on a Mac.
+ */
+export function ariaKeyShortcut(
+  keys: readonly string[],
+  apple = isApplePlatform()
+): string {
+  return keys
+    .map((key) => {
+      if (key === "Mod") {
+        return apple ? "Meta" : "Control";
+      }
+      return ARIA_KEY_NAMES[key] ?? key;
+    })
+    .join("+");
+}
+
+/** Cmd+Enter (Ctrl+Enter) saves the note being written. */
+export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
+/** Cmd+E (Ctrl+E) opens the note being written full screen. */
+export const FULL_SCREEN_NOTE_KEYS = ["Mod", "E"] as const;
+
 /** A key shown beside a menu item whose action the key also does. */
 export interface MenuShortcut {
   /** For `aria-keyshortcuts`, such as `Meta+C`. */

@@ -6,6 +6,11 @@ import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { Bold, Code, Italic, Link, Strikethrough } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+
+/** Cmd+K (Ctrl+K) edits the selection's link. */
+const EDIT_LINK_KEYS = ["Mod", "K"] as const;
 
 export function EditorFormatting({ editor }: { editor: Editor }) {
   const [editingLink, setEditingLink] = useState(false);
@@ -38,24 +43,29 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
     {
       name: "Bold",
       icon: Bold,
+      keys: ["Mod", "B"],
       active: active.bold,
       run: () => editor.chain().focus().toggleBold().run(),
     },
     {
       name: "Italic",
       icon: Italic,
+      keys: ["Mod", "I"],
       active: active.italic,
       run: () => editor.chain().focus().toggleItalic().run(),
     },
     {
       name: "Strikethrough",
       icon: Strikethrough,
+      keys: ["Mod", "Shift", "S"],
       active: active.strike,
       run: () => editor.chain().focus().toggleStrike().run(),
     },
     {
       name: "Inline code",
       icon: Code,
+      // Cmd+E opens the composer full screen there, so no key shows.
+      keys: undefined,
       active: active.code,
       run: () => editor.chain().focus().toggleCode().run(),
     },
@@ -84,33 +94,43 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
         role="toolbar"
       >
         {formats.map((format) => (
-          <Button
-            aria-label={format.name}
-            aria-pressed={format.active}
+          <ShortcutTooltip
             key={format.name}
-            onClick={format.run}
+            keys={format.keys}
+            label={format.name}
+            side="top"
+          >
+            <Button
+              aria-keyshortcuts={
+                format.keys ? ariaKeyShortcut(format.keys) : undefined
+              }
+              aria-label={format.name}
+              aria-pressed={format.active}
+              onClick={format.run}
+              onMouseDown={(event) => event.preventDefault()}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <format.icon />
+            </Button>
+          </ShortcutTooltip>
+        ))}
+        <ShortcutTooltip keys={EDIT_LINK_KEYS} label="Edit link" side="top">
+          <Button
+            aria-keyshortcuts={ariaKeyShortcut(EDIT_LINK_KEYS)}
+            aria-label="Edit link"
+            onClick={() => {
+              setEditingLink(!editingLink);
+            }}
             onMouseDown={(event) => event.preventDefault()}
             size="icon"
-            title={format.name}
             type="button"
             variant="ghost"
           >
-            <format.icon />
+            <Link />
           </Button>
-        ))}
-        <Button
-          aria-label="Edit link"
-          onClick={() => {
-            setEditingLink(!editingLink);
-          }}
-          onMouseDown={(event) => event.preventDefault()}
-          size="icon"
-          title="Edit link"
-          type="button"
-          variant="ghost"
-        >
-          <Link />
-        </Button>
+        </ShortcutTooltip>
         {editingLink && (
           <LinkEditor editor={editor} onDone={() => setEditingLink(false)} />
         )}

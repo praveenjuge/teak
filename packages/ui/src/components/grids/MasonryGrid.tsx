@@ -906,6 +906,10 @@ export function MasonryGrid({
     showBulkActions && onBulkAction && isSelectionMode ? (
       <BulkActionBar
         addToFolder={addToFolder}
+        allFavorited={
+          selectedCards.length > 0 &&
+          selectedCards.every((selected) => selected.isFavorited)
+        }
         folder={folder}
         isBusy={isBulkBusy}
         onAction={handleBulkAction}

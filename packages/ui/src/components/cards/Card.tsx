@@ -54,6 +54,7 @@ import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import {
+  ariaKeyShortcut,
   cardMenuShortcuts,
   type MenuShortcut,
 } from "../../lib/keyboardShortcuts";
@@ -63,6 +64,7 @@ import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
   CARD_SURFACE,
   formatDuration,
@@ -896,16 +898,18 @@ export const Card = memo(function Card({
           )}
 
           {showHoverSelect && (
-            <button
-              aria-label="Select"
-              className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
-              onClick={handleSelect}
-              tabIndex={-1}
-              title="Select"
-              type="button"
-            >
-              <Check className="size-3.5" strokeWidth={2.5} />
-            </button>
+            <ShortcutTooltip keys={["X"]} label="Select" side="top">
+              <button
+                aria-keyshortcuts="X"
+                aria-label="Select"
+                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
+                onClick={handleSelect}
+                tabIndex={-1}
+                type="button"
+              >
+                <Check className="size-3.5" strokeWidth={2.5} />
+              </button>
+            </ShortcutTooltip>
           )}
 
           {showFavoriteMark && (
@@ -934,6 +938,7 @@ export const Card = memo(function Card({
                   label={card.isFavorited ? "Unfavorite" : "Favorite"}
                   onClick={handleToggleFavorite}
                   pressed={Boolean(card.isFavorited)}
+                  shortcut={["F"]}
                 >
                   <Heart
                     className={cn(
@@ -1035,23 +1040,34 @@ function QuickActionButton({
   label,
   pressed,
   ref,
+  shortcut,
   ...props
 }: ComponentProps<"button"> & {
   label: string;
   pressed?: boolean;
+  /** Keys that do the same to a focused card, shown in the tooltip. */
+  shortcut?: readonly string[];
 }) {
-  return (
+  const button = (
     <button
+      aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
       aria-label={label}
       aria-pressed={pressed}
       className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground/80 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-colors hover:bg-background hover:text-foreground data-[state=open]:bg-background dark:ring-white/10 [&_svg]:size-3.5"
       ref={ref}
       tabIndex={-1}
-      title={label}
+      title={shortcut ? undefined : label}
       type="button"
       {...props}
     >
       {children}
     </button>
+  );
+  return shortcut ? (
+    <ShortcutTooltip keys={shortcut} label={label}>
+      {button}
+    </ShortcutTooltip>
+  ) : (
+    button
   );
 }

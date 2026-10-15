@@ -17,10 +17,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import {
+  ariaKeyShortcut,
   clearNewNoteComposerFocusRequest,
+  FULL_SCREEN_NOTE_KEYS,
   isNewNoteComposerFocusRequested,
+  SAVE_NOTE_KEYS,
 } from "../../lib/keyboardShortcuts";
 import { FullScreenAddCardDialog } from "../lazyDialogs";
+import {
+  PRIMARY_BUTTON_KEYS_CLASS,
+  ShortcutKeys,
+  ShortcutTooltip,
+} from "../shortcuts/ShortcutTooltip";
 import { prepareNoteCapture } from "../text-editor/noteCapture";
 
 function addCardToSearchQueries(
@@ -295,10 +303,17 @@ export function AddCardForm({
         placeholder={fullScreenPlaceholderText}
       />
       <Card
-        className="min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+        className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
         data-new-note-composer=""
         onFocus={clearNewNoteComposerFocusRequest}
       >
+        {/* N focuses the composer from anywhere, like / for search. */}
+        {!hasContent && (
+          <ShortcutKeys
+            className="pointer-events-none absolute top-3 right-3 group-focus-within/composer:hidden max-sm:hidden"
+            keys={["N"]}
+          />
+        )}
         <CardContent className="h-full p-0">
           <form
             className="relative flex min-h-36 flex-1 flex-col"
@@ -338,20 +353,34 @@ export function AddCardForm({
             <div className="absolute right-3 bottom-3 flex justify-end gap-2">
               {hasContent && (
                 <>
-                  <Button
-                    aria-label="Open full-screen note"
-                    className="w-8 px-0"
-                    disabled={!canCreateCard}
-                    onClick={() => setIsFullScreenOpen(true)}
-                    size="sm"
-                    title="Open full-screen note"
-                    type="button"
-                    variant="outline"
+                  <ShortcutTooltip
+                    keys={FULL_SCREEN_NOTE_KEYS}
+                    label="Open full-screen note"
                   >
-                    <Maximize2 className="size-4" />
-                  </Button>
-                  <Button disabled={!canCreateCard} size="sm" type="submit">
+                    <Button
+                      aria-keyshortcuts={ariaKeyShortcut(FULL_SCREEN_NOTE_KEYS)}
+                      aria-label="Open full-screen note"
+                      className="w-8 px-0"
+                      disabled={!canCreateCard}
+                      onClick={() => setIsFullScreenOpen(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Maximize2 className="size-4" />
+                    </Button>
+                  </ShortcutTooltip>
+                  <Button
+                    aria-keyshortcuts={ariaKeyShortcut(SAVE_NOTE_KEYS)}
+                    disabled={!canCreateCard}
+                    size="sm"
+                    type="submit"
+                  >
                     Save
+                    <ShortcutKeys
+                      className={PRIMARY_BUTTON_KEYS_CLASS}
+                      keys={SAVE_NOTE_KEYS}
+                    />
                   </Button>
                 </>
               )}

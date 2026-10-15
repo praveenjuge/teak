@@ -43,6 +43,7 @@ import {
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import { registerUploadFiles } from "../../lib/keyboardShortcuts";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 interface AddCardActionsProps {
   /** Starts a note (or a pasted link) in the composer; offered in the menu. */
@@ -511,18 +512,20 @@ export function AddCardActions({
       </DropdownMenu>
     ) : (
       <div className="flex items-center gap-1">
-        <Button
-          aria-keyshortcuts="U"
-          aria-label="Upload files"
-          data-upload-files=""
-          disabled={globalFileDrop?.isUploading}
-          onClick={handleFileUpload}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Upload className="size-4" />
-        </Button>
+        <ShortcutTooltip keys={["U"]} label="Upload files">
+          <Button
+            aria-keyshortcuts="U"
+            aria-label="Upload files"
+            data-upload-files=""
+            disabled={globalFileDrop?.isUploading}
+            onClick={handleFileUpload}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Upload className="size-4" />
+          </Button>
+        </ShortcutTooltip>
         <Button
           aria-label="Record audio"
           disabled={isRecording || isSubmitting}

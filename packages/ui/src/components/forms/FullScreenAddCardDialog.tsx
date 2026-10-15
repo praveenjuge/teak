@@ -7,6 +7,11 @@ import {
 } from "@teak/ui/components/ui/dialog";
 import { MarkdownTextEditor } from "@teak/ui/text-editor";
 import { toast } from "sonner";
+import { ariaKeyShortcut, SAVE_NOTE_KEYS } from "../../lib/keyboardShortcuts";
+import {
+  PRIMARY_BUTTON_KEYS_CLASS,
+  ShortcutKeys,
+} from "../shortcuts/ShortcutTooltip";
 
 interface FullScreenAddCardDialogProps {
   canCreateCard: boolean;
@@ -50,20 +55,27 @@ export function FullScreenAddCardDialog({
         <div className="flex h-dvh w-full flex-col">
           <div className="z-20 flex items-center justify-between border-b bg-background/90 px-4 py-2 backdrop-blur sm:px-6">
             <Button
+              aria-keyshortcuts="Escape"
               onClick={() => void onRequestClose()}
               size="sm"
               type="button"
               variant="outline"
             >
               Close
+              <ShortcutKeys className="max-sm:hidden" keys={["Esc"]} />
             </Button>
             <Button
+              aria-keyshortcuts={ariaKeyShortcut(SAVE_NOTE_KEYS)}
               disabled={!canSave}
               onClick={() => void onSave()}
               size="sm"
               type="button"
             >
               Save
+              <ShortcutKeys
+                className={PRIMARY_BUTTON_KEYS_CLASS}
+                keys={SAVE_NOTE_KEYS}
+              />
             </Button>
           </div>
 
