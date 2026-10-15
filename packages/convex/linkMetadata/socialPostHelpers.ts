@@ -105,12 +105,18 @@ export const htmlToText = (html: string | undefined): string | undefined => {
   if (!html) {
     return;
   }
-  const text = decodeHtmlEntities(
-    html
+  // Strip until nothing changes: one pass over `<scr<script>…</script>ipt>`
+  // would leave a tag behind.
+  let stripped = html;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped
       .replace(SCRIPT_OR_STYLE_REGEX, " ")
       .replace(BLOCK_BREAK_REGEX, "\n")
-      .replace(TAG_REGEX, "")
-  ).trim();
+      .replace(TAG_REGEX, "");
+  } while (stripped !== previous);
+  const text = decodeHtmlEntities(stripped).trim();
   return text || undefined;
 };
 
