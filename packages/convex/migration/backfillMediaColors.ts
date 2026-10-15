@@ -34,6 +34,7 @@ const totalsValidator = v.object({
   gif: v.number(),
   video: v.number(),
   skippedInProgress: v.number(),
+  skippedTrashed: v.number(),
   skippedDeletingAccounts: v.number(),
 });
 
@@ -45,6 +46,7 @@ const emptyTotals = (): Totals => ({
   gif: 0,
   video: 0,
   skippedInProgress: 0,
+  skippedTrashed: 0,
   skippedDeletingAccounts: 0,
 });
 
@@ -103,7 +105,8 @@ const scheduleColorsJob = async (
  * Gives existing cards the colors new uploads now get: recolors every image
  * with the sharper palette, and reads colors for GIFs and videos that have
  * none (videos render again into their existing thumbnail and scrub files).
- * Cards still in their first processing are left to that run. A dry run (the
+ * Trashed cards are skipped, and cards still in their first processing are
+ * left to that run. A dry run (the
  * default) schedules nothing and reports what a real run would. Jobs are
  * spaced out by kind, and the next batch starts once this batch's last job
  * is due, so the queue stays short; the last batch logs the totals.
@@ -149,6 +152,12 @@ export const backfillMediaColors = internalMutation({
       batch.examined += 1;
       const kind = mediaColorsKind(card);
       if (!(kind && kinds.has(kind))) {
+        continue;
+      }
+      // Trash purges delete cards and their files; a rerender racing that
+      // would write files back with no card to own them.
+      if (card.isDeleted) {
+        batch.skippedTrashed += 1;
         continue;
       }
       const renderables = card.processingStatus?.renderables?.status;

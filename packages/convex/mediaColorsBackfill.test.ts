@@ -87,6 +87,13 @@ const seedLibrary = async (
     fileMetadata: { fileName: "new.mp4", mimeType: "video/mp4" },
     processingStatus: { renderables: { status: "in_progress" } },
   }),
+  trashedVideo: await insert({
+    type: "video",
+    fileKey: "users/owner/cards/f/file/old.mp4",
+    fileMetadata: { fileName: "old.mp4", mimeType: "video/mp4" },
+    isDeleted: true,
+    deletedAt: 1,
+  }),
   text: await insert({ type: "text", content: "a note" }),
 });
 
@@ -104,11 +111,12 @@ describe("backfillMediaColors", () => {
     const result = await backfill({ batchSize: 10, once: true });
 
     expect(result.totals).toEqual({
-      examined: 6,
+      examined: 7,
       image: 1,
       gif: 1,
       video: 1,
       skippedInProgress: 1,
+      skippedTrashed: 1,
       skippedDeletingAccounts: 0,
     });
     expect(await scheduled()).toEqual([]);
@@ -120,8 +128,8 @@ describe("backfillMediaColors", () => {
 
     await backfill({ dryRun: false, batchSize: 10, once: true });
 
-    // Every image is recolored; the colored and still-processing videos are
-    // left alone; the video renders again over its existing thumbnail.
+    // Every image is recolored; the colored, still-processing and trashed
+    // videos are left alone; the video renders again over its existing thumbnail.
     expect(await scheduled()).toEqual([
       { name: IMAGE_JOB, args: { cardId: cards.image }, delayMs: 0 },
       { name: GIF_JOB, args: { cardId: cards.gif }, delayMs: 200 },
