@@ -1,6 +1,6 @@
-import { signIn } from "../helpers/app";
-import { createEmulatorUser, sessionTokenFor } from "../helpers/emulator";
-import { E2E_PASSWORD, env, uniqueEmail } from "../helpers/env";
+import { signUp } from "../helpers/app";
+import { sessionTokenFor } from "../helpers/emulator";
+import { E2E_PASSWORD, env } from "../helpers/env";
 import { test as base } from "../helpers/test";
 import { EditorLibrary } from "./editor-library";
 
@@ -12,14 +12,7 @@ export { expect } from "../helpers/test";
 export const test = base
   .extend<{ webAccount: string }>({
     webAccount: async ({ browser, screen }, use) => {
-      const email = uniqueEmail("web");
-      await createEmulatorUser({
-        email,
-        emailVerified: true,
-        password: E2E_PASSWORD,
-      });
-      await signIn({ browser, screen }, email);
-      await use(email);
+      await use(await signUp({ browser, screen }, "web"));
     },
   })
   .extend<{ library: EditorLibrary }>({

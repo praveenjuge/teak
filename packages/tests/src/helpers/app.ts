@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
 import { createTeakClient } from "@teak/convex/sdk";
-import { ConvexHttpClient } from "convex/browser";
+import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import {
   createEmulatorUser,
   findEmulatorUser,
@@ -91,23 +91,15 @@ export const fillAndSubmitTextCard = async (
   );
 };
 
-// The vault opens once the backend has the WorkOS webhook for this user. If
-// the first bootstrap ran before the webhook landed, Teak offers a retry. The
-// dev server's error overlay can cover that button after a slow backend call;
-// a reload retries the same bootstrap.
-export const expectVault = async ({ browser, screen }: Surface) => {
-  const composer = composerOf(screen);
-  const tryAgain = screen.getByRole("button", "Try again", { exact: false });
-  await retry(
-    async () => {
-      if (await tryAgain.isVisible().catch(() => false)) {
-        await tryAgain.click({ timeout: 2500 }).catch(() => browser.reload());
-      }
-      await expect(composer).toBeVisible({ timeout: 5000 });
-    },
-    { intervals: [500, 1000, 2000], timeout: 45_000 }
-  );
+export const expectVault = async ({ screen }: Surface) => {
+  await expect(composerOf(screen)).toBeVisible({ timeout: 45_000 });
 };
+
+const waitForAccount = async (email: string, password = E2E_PASSWORD) =>
+  waitForTeakAccount({
+    accessToken: await sessionTokenFor(email, password),
+    convexUrl: env.convexUrl,
+  });
 
 const emulatorOrigin = () => new URL(env.emulatorUrl).origin;
 
@@ -151,14 +143,9 @@ export const signIn = async (
   const verify = screen.getByRole("heading", "Verify your email", {
     exact: false,
   });
-  const landed = await firstVisible(
-    [
-      verify,
-      composerOf(screen),
-      screen.getByRole("button", "Try again", { exact: false }),
-    ],
-    { timeout: 30_000 }
-  );
+  const landed = await firstVisible([verify, composerOf(screen)], {
+    timeout: 30_000,
+  });
   if (landed === 0) {
     const { code } = await waitForEmailedEvent<{ code: string; email: string }>(
       "email_verification.created",
@@ -166,6 +153,7 @@ export const signIn = async (
     );
     await screen.getByLabel("Code").fill(code);
     await submitHostedForm(screen);
+    await waitForAccount(email, password);
   }
   await expectVault(surface);
 };
@@ -285,28 +273,35 @@ export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };
 
-// A new WorkOS user signs in for the first time; the signed user.created
-// webhook is what gives the address a Teak account.
+/** A new WorkOS user signed in to its new vault; returns its email. */
+export const signUp = async (
+  surface: Surface,
+  label: string,
+  options: { emailVerified?: boolean } = {}
+) => {
+  const email = uniqueEmail(label);
+  const emailVerified = options.emailVerified ?? true;
+  await createEmulatorUser({ email, emailVerified, password: E2E_PASSWORD });
+  if (emailVerified) {
+    await waitForAccount(email);
+  }
+  await signIn(surface, email);
+  return email;
+};
+
 export const createAccount = async (
   surface: Surface,
   label = "acct",
   options: { emailVerified?: boolean } = {}
 ): Promise<AccountState> => {
-  const email = uniqueEmail(label);
-  await createEmulatorUser({
-    email,
-    emailVerified: options.emailVerified ?? true,
-    password: E2E_PASSWORD,
-  });
-  await signIn(surface, email);
+  const email = await signUp(surface, label, options);
   return { email, apiKey: await generateApiKey(surface) };
 };
 
 /**
  * An account with an API key and no browser: for the API, CLI and MCP specs.
  * The key comes from the same mutation Settings calls, signed in with the
- * password grant the hosted page uses. The vault exists once the backend has
- * the user.created webhook, so the first calls may land before it.
+ * password grant the hosted page uses.
  */
 export const createApiAccount = async (
   label: string
@@ -317,24 +312,9 @@ export const createApiAccount = async (
     emailVerified: true,
     password: E2E_PASSWORD,
   });
-  const client = new ConvexHttpClient(env.convexUrl);
-  client.setAuth(await sessionTokenFor(email, E2E_PASSWORD));
-  let apiKey = "";
-  await expect
-    .poll(
-      async () => {
-        try {
-          apiKey = (await client.mutation(api.apiKeys.createUserApiKey, {}))
-            .key;
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 45_000, interval: 1000, message: "API key for a new account" }
-    )
-    .toBe(true);
-  return { email, apiKey };
+  const { client } = await waitForAccount(email);
+  const { key } = await client.mutation(api.apiKeys.createUserApiKey, {});
+  return { email, apiKey: key };
 };
 
 export const deleteAccountViaUi = async (

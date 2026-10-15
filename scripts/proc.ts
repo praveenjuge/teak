@@ -53,6 +53,25 @@ const settleGroup = async (pgid: number): Promise<void> => {
   await waitForGroupExit(pgid, 1000);
 };
 
+let exitSignalOwned = false;
+
+/**
+ * Hands SIGINT and SIGTERM to `handler` (a script stopping its own servers).
+ * Until it runs, runCommand forwards a signal to its tree and leaves the exit
+ * to the handler; otherwise it re-raises the signal so exit codes stay standard.
+ */
+export const onExitSignal = (handler: (signal: NodeJS.Signals) => void) => {
+  exitSignalOwned = true;
+  const once = (signal: NodeJS.Signals) => {
+    exitSignalOwned = false;
+    process.removeListener("SIGINT", once);
+    process.removeListener("SIGTERM", once);
+    handler(signal);
+  };
+  process.once("SIGINT", once);
+  process.once("SIGTERM", once);
+};
+
 export interface RunCommandResult {
   exitCode: number;
   pid: number;
@@ -114,24 +133,16 @@ export const runCommand = async (
     }
   };
   // A detached child leaves our process group, so terminal and CI signals
-  // no longer reach it. Forward them to the tree. When nothing else handles
-  // the signal, re-raise it with default handling so exit codes stay
-  // standard. When the script handles it (the dev stack stopping its
-  // servers), leave the exit to that handler: re-raising after its `once`
-  // listener has run would kill the process halfway through. Prepending
-  // runs this first, so the count still includes those `once` listeners.
+  // no longer reach it. Prepending runs this before an onExitSignal handler.
   const forwardSignal = (signal: "SIGINT" | "SIGTERM", own: () => void) => {
-    const handledElsewhere = process.listenerCount(signal) > 1;
     killTree();
     process.removeListener(signal, own);
-    if (handledElsewhere) {
+    if (exitSignalOwned) {
       return;
     }
     try {
       process.kill(process.pid, signal);
-    } catch {
-      // Already exiting.
-    }
+    } catch {}
   };
   const onSigint = () => forwardSignal("SIGINT", onSigint);
   const onSigterm = () => forwardSignal("SIGTERM", onSigterm);

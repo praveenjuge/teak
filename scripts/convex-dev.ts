@@ -18,6 +18,7 @@ import {
   renewLease,
 } from "./convex-push-lease.ts";
 import { isStackRunning, readStackState } from "./lib/stack-state.ts";
+import { onExitSignal } from "./proc.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const idle = () => new Promise(() => undefined);
@@ -83,8 +84,7 @@ const release = () => {
   }
   child.kill("SIGINT");
 };
-process.once("SIGINT", release);
-process.once("SIGTERM", release);
+onExitSignal(release);
 process.exitCode = await child.exited;
 clearInterval(heartbeat);
 if (lost) {

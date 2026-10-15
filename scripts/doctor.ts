@@ -189,14 +189,14 @@ export const checkDotenvHygiene = (): DoctorCheck => {
 export const checkDependencyLock = (): DoctorCheck =>
   isInstallStale(ROOT)
     ? {
-        detail: "node_modules is missing or older than bun.lock",
+        detail: "node_modules was not installed from this bun.lock",
         id: "deps-lock",
         ok: false,
         remediation: ["Run bun run setup (it owns installation)"],
         severity: "error",
       }
     : {
-        detail: "node_modules is present and newer than bun.lock",
+        detail: "node_modules was installed from this bun.lock",
         id: "deps-lock",
         ok: true,
         severity: "error",

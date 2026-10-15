@@ -254,7 +254,7 @@ export const prepareCheckout = async (
       id: "setup-dependencies",
       ok: true,
       severity: "error",
-      detail: "node_modules is present and newer than bun.lock",
+      detail: "node_modules was installed from this bun.lock",
     });
     return { checks, ok: true };
   }

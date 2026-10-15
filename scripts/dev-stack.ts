@@ -12,6 +12,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { WorkOS } from "@workos-inc/node";
 import {
   acquireLease,
   convexRunError,
@@ -39,8 +40,9 @@ import {
   stopGroup,
   waitFor,
 } from "./lib/stack-state.ts";
+import { waitForTeakAccount } from "./lib/teak-account.ts";
 import { describeWorkosError } from "./lib/workos-test-session.ts";
-import { runCommand } from "./proc.ts";
+import { onExitSignal, runCommand } from "./proc.ts";
 import { isPortInUse, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -67,34 +69,50 @@ export interface RunningDevStack {
   stop: () => Promise<void>;
 }
 
-// The account's vault is filled once. Its user.created webhook links it a
-// moment after WorkOS creates it, so an unlinked account is retried.
-const seedAccount = async (workosUserId: string): Promise<string> => {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const result = await runCommand(
-      [
-        "bunx",
-        "convex",
-        "run",
-        "devSeed:seed",
-        JSON.stringify({ workosUserId }),
-      ],
-      { cwd: CONVEX_DIR, timeoutMs: 60_000 }
-    );
-    if (result.exitCode === 0) {
-      return result.stdout.includes('"seeded"')
-        ? "its vault is seeded with sample cards"
-        : "its vault already has cards";
-    }
-    if (!result.stderr.includes("no Teak owner")) {
-      const reason = result.stderr.includes("TEAK_DEV_DEPLOYMENT")
-        ? "TEAK_DEV_DEPLOYMENT=true isn't set on the dev deployment"
-        : convexRunError(result.stderr);
-      return `seeding skipped (${reason})`;
-    }
-    await Bun.sleep(3000);
+const seedAccount = async (
+  account: DevAccount,
+  workos: { apiKey: string; clientId: string }
+): Promise<string> => {
+  let accessToken: string;
+  try {
+    ({ accessToken } = await new WorkOS(workos.apiKey, {
+      clientId: workos.clientId,
+    }).userManagement.authenticateWithPassword({
+      clientId: workos.clientId,
+      email: account.email,
+      password: account.password,
+    }));
+  } catch (error) {
+    return `seeding skipped (${describeWorkosError(error)})`;
   }
-  return "seeding skipped (the account isn't linked yet; it will be on the next start)";
+  try {
+    await waitForTeakAccount({
+      accessToken,
+      convexUrl: DEV_DEPLOYMENT_URLS.convexUrl,
+      timeoutMs: 30_000,
+    });
+  } catch (error) {
+    return `seeding skipped (${(error as Error).message})`;
+  }
+  const result = await runCommand(
+    [
+      "bunx",
+      "convex",
+      "run",
+      "devSeed:seed",
+      JSON.stringify({ workosUserId: account.workosUserId }),
+    ],
+    { cwd: CONVEX_DIR, timeoutMs: 60_000 }
+  );
+  if (result.exitCode === 0) {
+    return result.stdout.includes('"seeded"')
+      ? "its vault is seeded with sample cards"
+      : "its vault already has cards";
+  }
+  const reason = result.stderr.includes("TEAK_DEV_DEPLOYMENT")
+    ? "TEAK_DEV_DEPLOYMENT=true isn't set on the dev deployment"
+    : convexRunError(result.stderr);
+  return `seeding skipped (${reason})`;
 };
 
 class ConvexRunError extends Error {}
@@ -332,11 +350,9 @@ export const startDevStack = async (
     await stopGroup(web);
     rmSync(STATE_PATH, { force: true });
   };
-  const onSignal = (signal: NodeJS.Signals) => {
+  onExitSignal((signal) => {
     stop().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
-  };
-  process.once("SIGINT", onSignal);
-  process.once("SIGTERM", onSignal);
+  });
 
   try {
     await waitFor(state.urls.appOrigin, web, 180_000);
@@ -346,27 +362,25 @@ export const startDevStack = async (
   }
 
   const env = loadTargetEnv("web", "local").values;
+  const workos = {
+    apiKey: env.get("WORKOS_API_KEY") ?? "",
+    clientId: env.get("WORKOS_CLIENT_ID") ?? "",
+  };
   try {
     const account = await ensureDevAccount({
-      apiKey: env.get("WORKOS_API_KEY") ?? "",
-      clientId: env.get("WORKOS_CLIENT_ID") ?? "",
+      ...workos,
       namespace: ports.namespace,
       statePath: ACCOUNT_PATH,
     });
     state.account = { email: account.email, password: account.password };
     notes.push(
-      `Sign in as ${account.email} / ${account.password} (WorkOS staging); ${await seedAccount(account.workosUserId)}.`
+      `Sign in as ${account.email} / ${account.password} (WorkOS staging); ${await seedAccount(account, workos)}.`
     );
     if (isCloudSession()) {
       // Best-effort and off the startup path: the log says how it went. A
       // checkout that pushes waits for its own backend, which has pruning.
       (pusher ? firstPush : Promise.resolve())
-        .then(() =>
-          pruneStaleCloudAccounts(account, {
-            apiKey: env.get("WORKOS_API_KEY") ?? "",
-            clientId: env.get("WORKOS_CLIENT_ID") ?? "",
-          })
-        )
+        .then(() => pruneStaleCloudAccounts(account, workos))
         .then(say, (error) =>
           say(
             `Couldn't prune stale cloud dev accounts (${error instanceof ConvexRunError ? error.message : describeWorkosError(error)}).`

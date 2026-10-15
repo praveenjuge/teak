@@ -1,19 +1,10 @@
-/**
- * Runtime probes and setup capability planning (issue #407, Phase 4).
- *
- * Shared by setup and doctor: pinned runtime versions (Bun and Node share
- * one policy: exact required, patch drift warns), port probes, and the
- * read-only capability report behind `setup --check --json`. Names only,
- * never values.
- */
-
+import { createHash } from "node:crypto";
 import {
   accessSync,
   constants,
   existsSync,
   readFileSync,
-  statSync,
-  utimesSync,
+  writeFileSync,
 } from "node:fs";
 import { connect } from "node:net";
 import { join } from "node:path";
@@ -176,28 +167,25 @@ export const checkNodeVersion = async (
   return versionCheck("node-version", "Node", `v${actual}`, pinned);
 };
 
+const installStampPath = (root: string) =>
+  join(root, "node_modules", ".teak-install");
+
+const lockHash = (root: string) =>
+  createHash("sha256")
+    .update(readFileSync(join(root, "bun.lock")))
+    .digest("hex");
+
+/** Stale unless setup's last install was of exactly this bun.lock. */
 export const isInstallStale = (root: string): boolean => {
-  const modules = join(root, "node_modules");
-  const lock = join(root, "bun.lock");
-  if (!(existsSync(modules) && existsSync(lock))) {
+  const stamp = installStampPath(root);
+  if (!(existsSync(stamp) && existsSync(join(root, "bun.lock")))) {
     return true;
   }
-  return statSync(lock).mtimeMs > statSync(modules).mtimeMs;
+  return readFileSync(stamp, "utf-8") !== lockHash(root);
 };
 
-/**
- * Record a completed install. Bun finishes by writing the lockfile, so a
- * fresh install always leaves the lock newer than the modules directory;
- * without this marker the staleness check above would fail right after its
- * own remediation. Setup calls this after a successful `bun ci`. The stamp
- * is the lockfile's mtime plus one millisecond: strictly newer under any
- * timestamp granularity or clock adjustment (Date mtimes truncate
- * sub-millisecond precision, so copying the stamp exactly can read back
- * older than the lock).
- */
 export const markInstallFresh = (root: string): void => {
-  const stamp = new Date(statSync(join(root, "bun.lock")).mtimeMs + 1);
-  utimesSync(join(root, "node_modules"), stamp, stamp);
+  writeFileSync(installStampPath(root), lockHash(root));
 };
 
 export type ConvexSelectionSource = "env" | "dotenv" | "none";
