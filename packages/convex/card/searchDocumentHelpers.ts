@@ -804,6 +804,47 @@ export const searchCardsByDocument = async (
 };
 
 /**
+ * A search's meaning matches that belong in its results, in ranking order:
+ * the user's cards that pass the keyword side's index filters and `keep`.
+ * `cardsById` holds the keyword matches; a match with a score under
+ * `minScore` counts only when it is one of them, so weak matches are never
+ * read. Cards read here are added to `cardsById`.
+ */
+export const loadSemanticMatches = async (
+  ctx: QueryCtx,
+  args: Pick<
+    Parameters<typeof searchCardsByDocument>[1],
+    "userId" | "isDeleted" | "isFavorited" | "archived" | "type" | "urlHost"
+  >,
+  ranking: readonly { cardId: Id<"cards">; score: number }[],
+  cardsById: Map<Id<"cards">, Doc<"cards">>,
+  options: { minScore: number; keep: (card: Doc<"cards">) => boolean }
+): Promise<{ cardId: Id<"cards">; score: number }[]> => {
+  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const kept: { cardId: Id<"cards">; score: number }[] = [];
+  for (const match of ranking) {
+    if (cardsById.has(match.cardId)) {
+      kept.push(match);
+      continue;
+    }
+    if (match.score < options.minScore) {
+      continue;
+    }
+    const card = await ctx.db.get("cards", match.cardId);
+    if (
+      card &&
+      card.userId === args.userId &&
+      matchesSearchIndexFilters(card, args, archived) &&
+      options.keep(card)
+    ) {
+      cardsById.set(card._id, card);
+      kept.push(match);
+    }
+  }
+  return kept;
+};
+
+/**
  * Text rows one search request reads, across all its calls. A row holds up
  * to 32 KiB, so a search stays far inside a transaction's read limit
  * however many files match; past it, only the closest matches are found.
@@ -855,7 +896,10 @@ const addCardsFoundByFileText = async (
 
 const matchesSearchIndexFilters = (
   card: Doc<"cards">,
-  args: Parameters<typeof searchCardsByDocument>[1],
+  args: Pick<
+    Parameters<typeof searchCardsByDocument>[1],
+    "isDeleted" | "isFavorited" | "type" | "urlHost"
+  >,
   archived: true | undefined | "any"
 ): boolean =>
   card.isDeleted === args.isDeleted &&

@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { mockActionCtx } from "./__tests__/helpers/convex.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { ensureObjectOwnership } from "./storage/ownership";
 
 const modules = import.meta.glob("./**/*.ts");
 const setup = async (keyCount = 7) => {
@@ -420,4 +422,48 @@ test("durable status remains pending until local cleanup finishes and rejects mi
     status: "completed",
     userId: "owner",
   });
+});
+test("a deployment without the Files Worker never registers phantom objects", async () => {
+  // FILES_BASE/FILES_SIGNING_SECRET empty: every store goes through the
+  // Files Worker, so registration must fail before leaving a row that
+  // account deletion would later try to freeze through the absent worker.
+  vi.stubEnv("FILES_BASE", "");
+  vi.stubEnv("FILES_SIGNING_SECRET", "");
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("users", {
+      teakUserId: "owner",
+      email: "owner@example.com",
+      emailVerified: true,
+    });
+  });
+  await expect(
+    ensureObjectOwnership(
+      mockActionCtx({ runMutation: t.mutation }),
+      "owner",
+      "users/owner/link-preview-image-1"
+    )
+  ).rejects.toThrow("files_worker_not_configured");
+  expect(
+    await t.run((ctx) => ctx.db.query("accountStorageObjects").collect())
+  ).toEqual([]);
+  // The e2e scenario behind this: onboarding link-card asset stores fail the
+  // same way, and a stage-3 drain then has nothing to freeze or delete.
+  const stateId = await t.run(
+    async (ctx) =>
+      await ctx.db.insert("accountDeletionStates", {
+        userId: "owner",
+        startedAt: 1,
+        stage: 3,
+        generation: 1,
+        writersPrepared: true,
+      })
+  );
+  expect(
+    await t.action(internal.accountDeletionData.drainStorageBatch, {
+      stateId,
+      generation: 1,
+      kind: "objects",
+    })
+  ).toBe(true);
 });

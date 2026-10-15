@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,9 +25,13 @@ const origin = "https://extension-runtime.test";
 const site = "https://fixture.convex.site";
 const owner = "permanent-teak-owner";
 const surfaces = ["cli", "raycast", "chrome", "firefox"];
-const moduleSource = fileURLToPath(
-  new URL("../../../../apps/extension/lib/oauthAuth.ts", import.meta.url)
-);
+const extensionModule = (name: string) =>
+  fileURLToPath(
+    new URL(`../../../../apps/extension/lib/${name}.ts`, import.meta.url)
+  );
+const moduleEntry = `export * from ${JSON.stringify(extensionModule("oauthAuth"))};
+export { getCaptureOwner } from ${JSON.stringify(extensionModule("captureOwner"))};
+`;
 
 /**
  * Starts the page's clock at `time` and lets it run, like Playwright's
@@ -98,6 +102,8 @@ for (const mode of ["production", "development"] as const) {
     const rotatedRefresh = crypto.randomUUID();
     const outputDir = mkdtempSync(join(tmpdir(), "teak-oauth-runtime-"));
     const bundle = join(outputDir, "auth.mjs");
+    const moduleSource = join(outputDir, "entry.ts");
+    writeFileSync(moduleSource, moduleEntry);
     let source: string;
     try {
       execFileSync(

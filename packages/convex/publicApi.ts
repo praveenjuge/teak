@@ -28,6 +28,7 @@ import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
   buildCardSearchText,
+  loadSemanticMatches,
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
@@ -53,11 +54,20 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { cardTypeValidator } from "./schema";
+import { cardTypeValidator, searchModeValidator } from "./schema";
+import {
+  type SemanticRanking,
+  semanticRankingValidator,
+} from "./search/semanticCache";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { type CardType, cardTypes } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
 import { matchesSearchPhrases } from "./shared/search/qualifiers";
+import {
+  fuseRankings,
+  SEMANTIC_MIN_SCORE,
+  type SearchMode,
+} from "./shared/search/semantic";
 import {
   isShuffleSeed,
   shuffleBySeed,
@@ -136,6 +146,8 @@ interface SearchOptions {
   limit?: number;
   phrases?: string[];
   searchQuery?: string;
+  /** Meaning matches to fuse with the keyword ones, and how. */
+  semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
   sites?: string[];
   sort?: ApiCardSort;
@@ -440,17 +452,23 @@ const searchCardsByQuery = async (
 
   const typeGroups = options.types ?? [options.type];
   const scanBudget = { remaining: 4096, hitSearchLimit: false };
+  const indexFilters = {
+    userId,
+    isDeleted: options.showTrashOnly ? true : undefined,
+    archived: options.archived,
+    isFavorited: options.favorited,
+    urlHost: options.sites?.length === 1 ? options.sites[0] : undefined,
+  };
+  const { semantic } = options;
+  // Semantic mode reads only meaning matches once it has them.
+  const keywordSearch = semantic?.mode !== "semantic";
   const found: Doc<"cards">[][] = [];
-  for (const type of typeGroups) {
+  for (const type of keywordSearch ? typeGroups : []) {
     found.push(
       await searchCardsByDocument(ctx, {
-        userId,
+        ...indexFilters,
         searchQuery,
-        isDeleted: options.showTrashOnly ? true : undefined,
-        archived: options.archived,
-        isFavorited: options.favorited,
         type,
-        urlHost: options.sites?.length === 1 ? options.sites[0] : undefined,
         limit: SEARCH_CANDIDATE_LIMIT,
         scanBudget,
         resultFilter: (card, searchableText) =>
@@ -461,12 +479,45 @@ const searchCardsByQuery = async (
   const unique = Array.from(
     new Map(found.flat().map((card) => [card._id, card] as const)).values()
   );
+  if (!semantic) {
+    return {
+      cards: sortCards(unique, normalizeSort(options.sort)).slice(
+        0,
+        MAX_QUERY_SCAN
+      ),
+      hitScanBudget: scanBudget.hitSearchLimit,
+    };
+  }
 
+  // Fusion picks which cards are in the set; the sort orders it. Each type
+  // group is in relevance order, so they interleave by rank.
+  const keywordOrder: Id<"cards">[] = [];
+  const longest = Math.max(0, ...found.map((group) => group.length));
+  for (let rank = 0; rank < longest; rank += 1) {
+    for (const group of found) {
+      const card = group[rank];
+      if (card) {
+        keywordOrder.push(card._id);
+      }
+    }
+  }
+  const cardsById = new Map(unique.map((card) => [card._id, card] as const));
+  const matches = await loadSemanticMatches(
+    ctx,
+    { ...indexFilters, type: options.type },
+    semantic.ranking,
+    cardsById,
+    {
+      minScore: SEMANTIC_MIN_SCORE,
+      keep: (card) => matchesStructuredFilters(card, options),
+    }
+  );
+  const fused = fuseRankings(keywordOrder, matches, {
+    mode: semantic.mode,
+    limit: MAX_QUERY_SCAN,
+  }).flatMap((cardId) => cardsById.get(cardId) ?? []);
   return {
-    cards: sortCards(unique, normalizeSort(options.sort)).slice(
-      0,
-      MAX_QUERY_SCAN
-    ),
+    cards: sortCards(fused, normalizeSort(options.sort)),
     hitScanBudget: scanBudget.hitSearchLimit,
   };
 };
@@ -796,6 +847,24 @@ const normalizeCardsQueryOptions = (args: {
   return normalized;
 };
 
+/**
+ * A search's meaning matches, which the HTTP handler fetched first (queries
+ * cannot call the vector service), and the search mode. Without a ranking a
+ * search is keyword-only, whatever the mode.
+ */
+const semanticSearchArgs = {
+  semanticRanking: v.optional(semanticRankingValidator),
+  mode: v.optional(searchModeValidator),
+};
+
+const semanticOption = (args: {
+  semanticRanking?: SemanticRanking;
+  mode?: SearchMode;
+}): SearchOptions["semantic"] =>
+  args.semanticRanking && args.mode !== "keyword"
+    ? { mode: args.mode ?? "hybrid", ranking: args.semanticRanking }
+    : undefined;
+
 export const searchCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
@@ -820,6 +889,7 @@ export const searchCardsPageForUser = internalQuery({
     createdBefore: v.optional(v.number()),
     sort: v.optional(apiCardSortValidator),
     limit: v.optional(v.number()),
+    ...semanticSearchArgs,
   },
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
@@ -832,7 +902,10 @@ export const searchCardsPageForUser = internalQuery({
     if (!folderIds) {
       return { items: [], pageInfo: { nextCursor: null, hasMore: false } };
     }
-    const options = normalizeCardsQueryOptions({ ...args, folderIds });
+    const options = {
+      ...normalizeCardsQueryOptions({ ...args, folderIds }),
+      semantic: semanticOption(args),
+    };
     const limit = normalizeLimit(options.limit);
     const sort = normalizeSort(options.sort);
     const decodedCursor = decodeCursor(args.cursor);
@@ -992,6 +1065,7 @@ export const shuffleCardsPageForUser = internalQuery({
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),
     limit: v.optional(v.number()),
+    ...semanticSearchArgs,
   },
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
@@ -1013,11 +1087,10 @@ export const shuffleCardsPageForUser = internalQuery({
     if (!folderIds) {
       return empty;
     }
-    const options = normalizeCardsQueryOptions({
-      ...args,
-      folderIds,
-      sort: "newest",
-    });
+    const options = {
+      ...normalizeCardsQueryOptions({ ...args, folderIds, sort: "newest" }),
+      semantic: semanticOption(args),
+    };
     const limit = normalizeLimit(options.limit);
     const cursor = decodeShuffleCursor(seed, args.cursor);
     const respond = async (

@@ -71,6 +71,29 @@ export const markCardForEmbedding = async (
 };
 
 /**
+ * Mark a card the backfill found without a current vector as due at
+ * `dueAt`. The backfill schedules one `embedDue` per batch of these, since a
+ * row it re-queues may have lost its job.
+ */
+export const queueCardEmbedding = async (
+  ctx: MutationCtx,
+  row: Doc<"cardEmbeddings"> | null,
+  cardId: Id<"cards">,
+  userId: string,
+  dueAt: number
+) => {
+  if (row) {
+    await ctx.db.patch("cardEmbeddings", row._id, {
+      attempts: undefined,
+      dueAt,
+      lastError: undefined,
+    });
+  } else {
+    await ctx.db.insert("cardEmbeddings", { cardId, dueAt, userId });
+  }
+};
+
+/**
  * The card is gone: mark its vector for deletion and schedule the delete.
  * The row stays until the delete succeeds, so a failed delete stays visible.
  */
@@ -232,42 +255,72 @@ export const recordEmbedded = internalMutation({
   },
 });
 
-/** Back off and retry, or leave the card for the backfill after the last try. */
-export const recordEmbedFailure = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    error: v.string(),
-    expectedDueAt: v.optional(v.number()),
-  },
-  returns: v.null(),
-  handler: async (ctx, { cardId, error, expectedDueAt }) => {
-    const row = await rowFor(ctx, cardId);
-    if (!row) {
-      return null;
-    }
-    if (row.dueAt !== expectedDueAt) {
-      await handOffStaleJob(ctx, row, false);
-      return null;
-    }
-    const attempts = (row.attempts ?? 0) + 1;
-    const lastError = error.slice(0, 200);
-    if (attempts >= MAX_EMBED_ATTEMPTS) {
-      await ctx.db.patch("cardEmbeddings", row._id, {
-        attempts,
-        dueAt: undefined,
-        lastError,
-      });
-      return null;
-    }
-    const delay = EMBED_DEBOUNCE_MS * 2 ** attempts;
+/**
+ * Count a failed attempt. Returns the delay before the card's retry, or null
+ * when it gets none: out of retries (left for the backfill) or overtaken by
+ * a newer job.
+ */
+const recordOneFailure = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  error: string,
+  expectedDueAt: number | undefined
+): Promise<number | null> => {
+  const row = await rowFor(ctx, cardId);
+  if (!row) {
+    return null;
+  }
+  if (row.dueAt !== expectedDueAt) {
+    await handOffStaleJob(ctx, row, false);
+    return null;
+  }
+  const attempts = (row.attempts ?? 0) + 1;
+  const lastError = error.slice(0, 200);
+  if (attempts >= MAX_EMBED_ATTEMPTS) {
     await ctx.db.patch("cardEmbeddings", row._id, {
       attempts,
-      dueAt: Date.now() + delay,
+      dueAt: undefined,
       lastError,
     });
-    await ctx.scheduler.runAfter(delay, embedRef().embedDue, {
-      cardIds: [cardId],
-    });
+    return null;
+  }
+  const delay = EMBED_DEBOUNCE_MS * 2 ** attempts;
+  await ctx.db.patch("cardEmbeddings", row._id, {
+    attempts,
+    dueAt: Date.now() + delay,
+    lastError,
+  });
+  return delay;
+};
+
+/**
+ * Back off and retry the cards of one failed attempt, or leave them for the
+ * backfill after the last try. Cards retried after the same delay go out in
+ * one job, so a failed batched write is retried as a batch: one job per card
+ * would be the burst of small writes Vectorize rate-limits.
+ */
+export const recordEmbedFailures = internalMutation({
+  args: {
+    error: v.string(),
+    items: v.array(
+      v.object({
+        cardId: v.id("cards"),
+        expectedDueAt: v.optional(v.number()),
+      })
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { error, items }) => {
+    const retries = new Map<number, Id<"cards">[]>();
+    for (const { cardId, expectedDueAt } of items) {
+      const delay = await recordOneFailure(ctx, cardId, error, expectedDueAt);
+      if (delay !== null) {
+        retries.set(delay, [...(retries.get(delay) ?? []), cardId]);
+      }
+    }
+    for (const [delay, cardIds] of retries) {
+      await ctx.scheduler.runAfter(delay, embedRef().embedDue, { cardIds });
+    }
     return null;
   },
 });

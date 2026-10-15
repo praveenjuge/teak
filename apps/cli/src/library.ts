@@ -35,12 +35,21 @@ export const collectPages = async (
   }
   const items = [...first.items];
   let cursor: string | null = first.pageInfo.nextCursor;
+  let { searchMode } = first;
   while (cursor) {
     const page = await fetchPage(cursor);
     items.push(...page.items);
     cursor = page.pageInfo.nextCursor;
+    // One page that fell back makes the listing a partial blend.
+    if (page.searchMode === "keyword") {
+      searchMode = "keyword";
+    }
   }
-  return { items, pageInfo: { hasMore: false, nextCursor: null } };
+  return {
+    items,
+    pageInfo: { hasMore: false, nextCursor: null },
+    ...(searchMode ? { searchMode } : {}),
+  };
 };
 
 const confirm = async (question: string) => {

@@ -27,8 +27,9 @@ on:
         type: boolean
 concurrency:
   # Both platforms ship to app 6756574989 and take build numbers from its whole
-  # history, so releases never allocate build numbers at the same time.
-  group: apple-app-store-6756574989
+  # history, so releases never allocate build numbers at the same time. The
+  # group name predates this workflow; keep it so queued runs stay serialized.
+  group: mobile-app-store-ios-${{ github.repository }}
   cancel-in-progress: false
 permissions:
   contents: read

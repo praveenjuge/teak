@@ -106,9 +106,9 @@ and changes nothing in App Store Connect.
 
 ## Reliability and recovery
 
-- Every run takes the app-wide `apple-app-store-6756574989` concurrency group,
-  so build-number allocation through upload never overlaps for app
-  `6756574989`.
+- Every run takes the app-wide `mobile-app-store-ios-<repository>` concurrency
+  group (the name predates this workflow; keep it), so build-number allocation
+  through upload never overlaps for app `6756574989`.
 - Reruns reuse an exact `VALID` build only when its manifest proves the build ID,
   number, and artifact digest. A target version already in review or live stays
   read-only and passes after the proof pass.

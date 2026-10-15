@@ -226,8 +226,16 @@ export const ancillaryPage = internalMutation({
     for (const row of vectorShards) {
       await ctx.db.delete(row._id);
     }
+    const semanticResults = await ctx.db
+      .query("semanticSearchResults")
+      .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of semanticResults) {
+      await ctx.db.delete(row._id);
+    }
     return (
       vaultSetups.length > 0 ||
+      semanticResults.length > 0 ||
       vectorShards.length > 0 ||
       idempotency.length > 0 ||
       moreTombstones ||

@@ -60,6 +60,11 @@ export const CRONS = {
     schedule: "*/5 * * * *",
     everyMs: 5 * MINUTE_MS,
   },
+  cleanupSemanticSearchCache: {
+    name: "cleanup-semantic-search-cache",
+    schedule: "40 * * * *",
+    everyMs: HOUR_MS,
+  },
 } as const;
 
 export type CronHandler = keyof typeof CRONS;
