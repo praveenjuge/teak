@@ -40,7 +40,7 @@ describe("ShortcutKeys", () => {
     const container = document.createElement("div");
     container.innerHTML = html;
     document.body.append(container);
-    await act(async () => {
+    await act(() => {
       root = hydrateRoot(container, <ShortcutKeys keys={["Mod", "B"]} />);
     });
     expect(container.textContent).toBe("⌘B");
