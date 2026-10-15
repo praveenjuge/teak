@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   API_PROXY_MAX_BODY_BYTES,
+  handleApiProxyRequest,
   upstreamPathFor,
 } from "../apps/files-worker/src/apiProxy";
 import {
@@ -201,13 +202,38 @@ describe("the managed rules", () => {
     }
   });
 
+  test("a blocked body gets the same 413 the Worker answers", async () => {
+    const [oversized] = WAF_RULES;
+    const worker = await handleApiProxyRequest(
+      new Request("https://teakvault.com/api/v1/cards", {
+        method: "POST",
+        body: "{}",
+        headers: { "Content-Length": String(API_PROXY_MAX_BODY_BYTES + 1) },
+      }),
+      {
+        API_PUBLIC_HOST: "teakvault.com",
+        API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
+      },
+      { waitUntil: () => undefined },
+      {
+        fetcher: (() =>
+          Promise.reject(new Error("no upstream"))) as unknown as typeof fetch,
+      }
+    );
+    const response = oversized?.action_parameters?.response;
+    expect(response?.status_code).toBe(worker?.status);
+    expect(JSON.parse(response?.content ?? "null")).toEqual(
+      await worker?.json()
+    );
+  });
+
   test("the body rule blocks at exactly the Worker's own body limit", () => {
     const [oversized] = WAF_RULES;
     expect(oversized?.expression).toContain(
       declaredLengthOver(API_PROXY_MAX_BODY_BYTES)
     );
     expect(declaredLengthOver(20_971_520)).toBe(
-      '(len(http.request.headers["content-length"][0]) gt 8 or (len(http.request.headers["content-length"][0]) eq 8 and http.request.headers["content-length"][0] gt "20971520"))'
+      '(not starts_with(http.request.headers["content-length"][0], "0") and (len(http.request.headers["content-length"][0]) gt 8 or (len(http.request.headers["content-length"][0]) eq 8 and http.request.headers["content-length"][0] gt "20971520")))'
     );
   });
 });

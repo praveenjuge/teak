@@ -35,8 +35,19 @@ export interface WafPlan {
   update: { id: string; rule: WafRule }[];
 }
 
+const sameResponse = (live: LiveRule, rule: WafRule): boolean => {
+  const a = live.action_parameters?.response;
+  const b = rule.action_parameters?.response;
+  return (
+    a?.status_code === b?.status_code &&
+    a?.content_type === b?.content_type &&
+    a?.content === b?.content
+  );
+};
+
 const sameRule = (live: LiveRule, rule: WafRule): boolean =>
   live.action === rule.action &&
+  sameResponse(live, rule) &&
   live.description === rule.description &&
   live.enabled === rule.enabled &&
   live.expression === rule.expression;
@@ -106,12 +117,14 @@ export const cloudflareClient = (token: string, fetcher: typeof fetch) => {
 
 const ruleBody = ({
   action,
+  action_parameters,
   description,
   enabled,
   expression,
   ref,
 }: WafRule) => ({
   action,
+  action_parameters,
   description,
   enabled,
   expression,
