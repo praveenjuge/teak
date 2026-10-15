@@ -60,6 +60,11 @@ export const ERROR_CODES = [
 ] as const;
 
 export type CardSort = (typeof CARD_SORTS)[number];
+/**
+ * How a search finds cards: `hybrid` (the API's default) matches words and
+ * meaning, `keyword` words only, `semantic` meaning only.
+ */
+export type SearchMode = "hybrid" | "keyword" | "semantic";
 export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
@@ -154,6 +159,8 @@ export interface PageInfo {
 export interface CardsPage {
   items: CardListItem[];
   pageInfo: PageInfo;
+  /** With a query: the mode that ran (`keyword` when meaning search could not). */
+  searchMode?: SearchMode;
 }
 export interface CardChangesResponse {
   deletedIds: string[];
@@ -424,6 +431,8 @@ export const buildCardsSearchParams = (input: {
   hue?: string | readonly string[];
   include?: string;
   limit?: number;
+  /** How `query` finds cards; the API defaults to `hybrid`. */
+  mode?: SearchMode;
   /**
    * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
    * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and
@@ -469,6 +478,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.archived === "only" || input.archived === "include") {
     search.set("archived", input.archived);
+  }
+  if (input.mode === "keyword" || input.mode === "semantic") {
+    search.set("mode", input.mode);
   }
   if (input.sort === "oldest" || input.sort === "shuffle") {
     search.set("sort", input.sort);

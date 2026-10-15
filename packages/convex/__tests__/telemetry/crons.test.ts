@@ -7,6 +7,7 @@ import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
   cleanupOldDeletedCards,
+  cleanupSemanticSearchCache,
   sweepOrphanedObjects,
 } from "../../telemetry/crons";
 
@@ -68,19 +69,29 @@ describe("cron monitoring", () => {
     ]);
   });
 
+  test("the hourly cache cleanup removes expired search meaning matches", async () => {
+    const runMutation = mock(async () => null);
+    expect(
+      await cleanupSemanticSearchCache._handler({ runMutation }, {})
+    ).toBeNull();
+    expect(
+      jobCalls(runMutation).map(([reference]) => getFunctionName(reference))
+    ).toEqual(["search/semanticCache:cleanupExpired"]);
+  });
+
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRON_MONITORS);
-    expect(slugs).toHaveLength(11);
+    expect(slugs).toHaveLength(12);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  test("routes all eleven schedules through monitored Node actions", () => {
+  test("routes all twelve schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(12);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(12);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

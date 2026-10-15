@@ -9,27 +9,14 @@ import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { getR2KeyPrefix } from "../storage/r2Keys";
 
 /**
- * Operator check that a user's vectors answer by meaning, until search uses
- * them. Internal, so only the Convex dashboard or CLI can run it:
+ * Operator check of a user's meaning matches, with each card's title and
+ * score. Internal, so only the Convex dashboard or CLI can run it:
  *
  *   npx convex run embedding/inspect:searchByMeaning \
  *     '{"userId":"teak_…","text":"furniture wood that survives rain"}'
  */
 
 const PREVIEW_CHARS = 80;
-
-/** The user's shard, without placing a user who has none (a typo). */
-export const userShard = internalQuery({
-  args: { userId: v.string() },
-  returns: v.union(v.number(), v.null()),
-  handler: async (ctx, { userId }) => {
-    const row = await ctx.db
-      .query("vectorShards")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
-    return row?.shard ?? null;
-  },
-});
 
 export const describeCards = internalQuery({
   args: { cardIds: v.array(v.string()), userId: v.string() },
@@ -73,7 +60,7 @@ export const searchByMeaning = internalAction({
   ),
   handler: async (ctx, { userId, text, topK }) => {
     const shard: number | null = await ctx.runQuery(
-      internal.embedding.inspect.userShard,
+      internal.vectorShards.getUserShard,
       { userId }
     );
     const namespace = vectorNamespaceForUser(`${getR2KeyPrefix()}${userId}`);

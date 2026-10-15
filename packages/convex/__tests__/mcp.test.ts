@@ -525,6 +525,40 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
+  test("passes the search mode through and reports the one that ran", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_1" }],
+          pageInfo: { hasMore: false, nextCursor: null },
+          searchMode: "keyword",
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const search = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { q: "cozy reading nook", mode: "semantic" },
+      mcpRequest({ jsonrpc: "2.0", id: 51, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]?.query).toMatchObject({
+      q: "cozy reading nook",
+      mode: "semantic",
+    });
+    expect(search.structuredContent).toMatchObject({ searchMode: "keyword" });
+    await expect(
+      callTeakV1Tool(
+        "teak_v1_list_cards",
+        { q: "chair", mode: "bogus" },
+        mcpRequest({ jsonrpc: "2.0", id: 52, method: "tools/call" }),
+        executor
+      )
+    ).resolves.toMatchObject({ isError: true });
+    expect(captured).toHaveLength(1);
+  });
+
   test("forwards search filters, new tools, and idempotency keys to the API", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {

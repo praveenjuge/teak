@@ -46,6 +46,7 @@ import {
   hasSearchQualifiers,
   parseSearchQuery,
 } from "./shared/search/qualifiers";
+import { isSearchMode, semanticQueryText } from "./shared/search/semantic";
 import { parseShuffleSeed } from "./shared/search/shuffle";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -486,6 +487,15 @@ const parseCardsQueryOptions = (
     );
   }
 
+  const mode = parseOptionalString(searchParams.get("mode")) ?? "hybrid";
+  if (!isSearchMode(mode)) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `mode` must be `hybrid`, `keyword` or `semantic`"
+    );
+  }
+
   // Shuffle needs a seed: the same seed gives the same order.
   const shuffleSeed = parseShuffleSeed(searchParams.get("shuffleSeed"));
   if (sort === "shuffle" && shuffleSeed === undefined) {
@@ -590,7 +600,9 @@ const parseCardsQueryOptions = (
     hueFilters: visualFilters.hueFilters,
     hexFilters: visualFilters.hexFilters,
     limit: parseLimit(searchParams.get("limit")),
+    mode,
     searchQuery: parsed.text || undefined,
+    semanticText: semanticQueryText(parsed),
     sort: sort as CardsQueryOptions["sort"] | undefined,
     ...(sort === "shuffle" ? { shuffleSeed } : {}),
     tag: tags[0],

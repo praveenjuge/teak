@@ -54,6 +54,14 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 60,
     shards: 6,
   },
+  // Vector searches a user's searches start, counted only when the meaning
+  // matches are not cached; past it, search is keyword-only for a while.
+  semanticSearch: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 60,
+  },
   apiKeyCreation: {
     kind: "token bucket",
     rate: 5,

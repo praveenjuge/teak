@@ -552,6 +552,21 @@ describe("filterLocalCards textMatchedByServer", () => {
     ).toEqual([]);
   });
 
+  it("keeps a card the server matched by meaning, without its words", () => {
+    const armchair = {
+      ...makeCard({ _id: "armchair", content: "Armchair by a window" }),
+      matchedByMeaning: true as const,
+    };
+    const ids = (textMatchedByServer: boolean) =>
+      filterLocalCards([armchair], {
+        searchTerms: "cozy reading nook",
+        textMatchedByServer,
+      }).map((card) => card._id);
+    expect(ids(true)).toEqual(["armchair"]);
+    // Stale results for earlier words are still narrowed to the new ones.
+    expect(ids(false)).toEqual([]);
+  });
+
   it("still checks every word on cards without file text", () => {
     // The server ranks cards that match only some of the words; a card whose
     // text the client has must still match them all.

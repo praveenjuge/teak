@@ -11,6 +11,7 @@ import {
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { SEARCH_MODES } from "./shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH, TAG_OPERATION_COUNT_LIMIT } from "./shared/tags";
 
 const CARD_TYPES = [
@@ -420,6 +421,12 @@ const components = {
           type: "array",
         },
         pageInfo: { $ref: "#/components/schemas/CardPageInfo" },
+        searchMode: {
+          description:
+            "With `q`: how the search found cards. `keyword` when meaning search was not used: `mode=keyword`, no words to search by meaning, or the meaning service was slow, down or rate-limited.",
+          enum: SEARCH_MODES,
+          type: "string",
+        },
       },
       required: ["items", "pageInfo"],
       type: "object",
@@ -894,6 +901,13 @@ export const openApiSpec = {
             description:
               'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and `"quoted phrases"`. Qualifiers combine with the other parameters.',
             schema: { type: "string" },
+          },
+          {
+            in: "query",
+            name: "mode",
+            description:
+              "How `q` finds cards: `hybrid` (default) matches words and meaning, so `cozy reading nook` also finds a photo of an armchair by a window; `keyword` matches words only; `semantic` matches meaning only. Filters, qualifiers and `sort` apply in every mode. The response's `searchMode` says which ran.",
+            schema: { default: "hybrid", enum: SEARCH_MODES, type: "string" },
           },
           { in: "query", name: "limit", schema: { type: "integer" } },
           { in: "query", name: "cursor", schema: { type: "string" } },

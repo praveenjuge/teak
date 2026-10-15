@@ -28,6 +28,7 @@ export const CRON_SCHEDULES: Record<string, number> = {
   "cleanup-expired-exports": DAY_MS,
   "redrive-account-deletion": 5 * 60 * 1000,
   "admin-daily-snapshot": DAY_MS,
+  "cleanup-semantic-search-cache": HOUR_MS,
 };
 
 export const recordCronRun = internalMutation({

@@ -39,6 +39,7 @@ const buildQuery = (cards: any[] = []) =>
     filter: mock().mockImplementation(() => buildQuery(cards)),
     order: mock().mockImplementation(() => buildQuery(cards)),
     take: mock().mockResolvedValue(cards),
+    first: mock().mockResolvedValue(cards[0] ?? null),
     paginate: mock().mockResolvedValue({
       page: cards,
       isDone: true,
@@ -50,11 +51,13 @@ const buildSearchDb = (cards: any[], cardQuery = buildQuery(cards)) => ({
   get: mock((_table: string, id: string) =>
     Promise.resolve(cards.find((card) => card._id === id) ?? null)
   ),
-  query: mock((table: string) =>
-    table === "cardSearchDocuments"
-      ? buildQuery(cards.map((card) => ({ cardId: card._id })))
-      : cardQuery
-  ),
+  query: mock((table: string) => {
+    if (table === "cardSearchDocuments") {
+      return buildQuery(cards.map((card) => ({ cardId: card._id })));
+    }
+    // No meaning matches cached: keyword search alone.
+    return table === "semanticSearchResults" ? buildQuery([]) : cardQuery;
+  }),
 });
 
 describe("card/getCards.ts", () => {

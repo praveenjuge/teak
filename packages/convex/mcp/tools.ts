@@ -7,6 +7,7 @@ import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
+import { SEARCH_MODES } from "../shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { captureBackendEvent } from "../telemetry/posthog";
 
@@ -67,6 +68,7 @@ const cardFiltersShape = {
   archived: z.enum(["exclude", "only", "include"]).optional(),
   folder: nonEmptyString.optional(),
   tag: nonEmptyString.optional(),
+  mode: z.enum(SEARCH_MODES).optional(),
   sort: cardSortSchema.optional(),
   shuffleSeed: z.number().int().min(0).max(2_147_483_647).optional(),
   createdAfter: z.number().optional(),
@@ -305,6 +307,11 @@ const cardFilterProperties = {
     type: "string",
     description:
       'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", and "quoted phrases". Qualifiers combine with the other filters.',
+  },
+  mode: {
+    enum: SEARCH_MODES,
+    description:
+      "How q finds cards: hybrid (default) matches words and meaning, keyword matches words only, semantic matches meaning only. The response's searchMode says which ran",
   },
   limit: { type: "integer", minimum: 1, maximum: 100 },
   cursor: {
@@ -588,7 +595,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
@@ -990,6 +997,7 @@ const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
   transform: (payload) => ({
     ...pageToCardResults(payload),
     pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
+    ...(payload.searchMode ? { searchMode: payload.searchMode } : {}),
   }),
   summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });

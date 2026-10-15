@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { FOLDER_COLORS } from "./shared/folders";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
+import { SEARCH_MODES } from "./shared/search/semantic";
 import {
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
@@ -33,6 +34,11 @@ export const linkCategoryValidator = v.union(
 // Reusable validators
 export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
+);
+
+/** How a search finds cards (shared/search/semantic.ts). */
+export const searchModeValidator = v.union(
+  ...SEARCH_MODES.map((mode) => v.literal(mode))
 );
 
 export const folderColorValidator = v.union(
@@ -779,6 +785,18 @@ export default defineSchema({
     userId: v.string(),
     shard: v.number(),
   }).index("by_userId", ["userId"]),
+  // A search's meaning matches, briefly (search/semanticCache.ts). Actions
+  // write them; search queries read them, so a reactive grid merges them in
+  // when they land. `key` hashes the embedded text, never stores it.
+  semanticSearchResults: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    ranking: v.array(v.object({ cardId: v.id("cards"), score: v.number() })),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_userId_and_key", ["userId", "key"])
+    .index("by_expiresAt", ["expiresAt"]),
   // Folders group cards by hand ("manual"); "smart" folders save a search.
   folders: defineTable({
     userId: v.string(),

@@ -18,6 +18,15 @@ describe("@teak/convex/sdk", () => {
     ).toBe("q=hi&tag=ux&sort=oldest&limit=100");
   });
 
+  test("sends a search mode other than the API's hybrid default", () => {
+    expect(buildCardsSearchParams({ query: "nook", mode: "semantic" })).toBe(
+      "q=nook&mode=semantic&limit=50"
+    );
+    expect(buildCardsSearchParams({ query: "nook", mode: "hybrid" })).toBe(
+      "q=nook&limit=50"
+    );
+  });
+
   test("encodes selected types as repeated query parameters", () => {
     expect(buildCardsSearchParams({ type: ["image", "link"] })).toBe(
       "type=image&type=link&limit=50"
