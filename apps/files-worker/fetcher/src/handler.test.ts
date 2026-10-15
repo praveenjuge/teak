@@ -152,6 +152,23 @@ describe("link fetcher", () => {
     expect(userAgents).toHaveLength(2);
   });
 
+  test("drops the Referer on a hop from an https page to http", async () => {
+    const { fetchAsset, referers } = setup(
+      { "cdn.example": [PUBLIC], "plain.example": [PUBLIC] },
+      (url) =>
+        url.startsWith("https:")
+          ? Response.redirect("http://plain.example/a.png", 302)
+          : new Response(PNG, { headers: { "content-type": "image/png" } })
+    );
+    const response = await fetchAsset({
+      kind: "image",
+      pageUrl: FIGMA_PAGE,
+      url: "https://cdn.example/a.png",
+    });
+    expect(response.status).toBe(200);
+    expect(referers).toEqual(["https://www.figma.com/", null]);
+  });
+
   test("sends no Referer without a page", async () => {
     const { fetchAsset, referers } = setup(
       { "cdn.example": [PUBLIC] },
