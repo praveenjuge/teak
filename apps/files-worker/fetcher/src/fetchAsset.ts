@@ -57,11 +57,21 @@ export const parseFetcherRequest = (value: unknown): FetcherRequest | null => {
   };
 };
 
-// Only the page's origin, as a browser sends to another site by default
-// (strict-origin-when-cross-origin): enough for hotlink checks such as
-// Figma's s3-alpha.figma.com, without telling the asset host which page.
-const refererFor = (pageUrl: string | undefined): string | undefined =>
-  pageUrl ? `${new URL(pageUrl).origin}/` : undefined;
+// What a browser sends to another site by default
+// (strict-origin-when-cross-origin): only the page's origin, so the asset host
+// never learns which page, and nothing on a hop from an https page to http.
+const refererFor = (
+  pageUrl: string | undefined,
+  targetUrl: string
+): string | undefined => {
+  if (!pageUrl) {
+    return;
+  }
+  const page = new URL(pageUrl);
+  return page.protocol === "https:" && new URL(targetUrl).protocol === "http:"
+    ? undefined
+    : `${page.origin}/`;
+};
 
 export type FetchAssetOutcome =
   | {
@@ -92,21 +102,23 @@ export const fetchRemoteAsset = async (
   { pinnedFetch, resolveDns }: FetchAssetDeps
 ): Promise<FetchAssetOutcome> => {
   const maxBytes = FILES_REMOTE_ASSET_MAX_BYTES[request.kind];
-  const referer = refererFor(request.pageUrl);
+  // safeFetch checks each redirect hop before calling this, so the Referer,
+  // set per hop, never changes which hosts it allows.
+  const fetchHop: PinnedFetch = (url, addresses, init) => {
+    const referer = refererFor(request.pageUrl, url);
+    const headers = new Headers(init.headers);
+    if (referer) {
+      headers.set("referer", referer);
+    }
+    return pinnedFetch(url, addresses, { ...init, headers });
+  };
   let response: Response;
   try {
-    // safeFetch sends these headers on every redirect hop; the Referer never
-    // changes which hosts it allows.
     response = await safeFetch(
       request.url,
       resolveDns,
-      {
-        headers: {
-          "user-agent": USER_AGENT,
-          ...(referer ? { referer } : {}),
-        },
-      },
-      pinnedFetch
+      { headers: { "user-agent": USER_AGENT } },
+      fetchHop
     );
   } catch (error) {
     if (error instanceof SsrfError) {
