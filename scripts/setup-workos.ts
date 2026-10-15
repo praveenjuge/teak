@@ -1,5 +1,5 @@
-import { readDeploymentVar } from "./setup-convex.ts";
 import type { SetupCheck } from "./setup.ts";
+import { readDeploymentVar } from "./setup-convex.ts";
 
 export const WORKOS_CREDENTIAL_NAMES = [
   "WORKOS_CLIENT_ID",
