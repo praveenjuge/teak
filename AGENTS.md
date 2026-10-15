@@ -20,6 +20,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - Shared web and extension UI belongs in `packages/ui` unless the behavior is surface-specific.
 - Card processing is orchestrated by `packages/convex/workflows/cardProcessing.ts`. Preserve workflow retries and `processingStatus` consistency.
 - Supported card types are text, link, image, video, audio, document, palette, and quote.
+- `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.
 
 ## Convex work
 

@@ -66,9 +66,10 @@ Worker proxies nothing, and the development Worker sets neither.
   Clients still see Convex's `Cache-Control: no-store`.
 - Paths the route patterns catch only by prefix (`/apis`) fall through to the
   site's origin.
-- The Vercel rewrites in `apps/docs/vercel.json` stay as the fallback: deleting
-  the zone routes sends the traffic back through them. `src/apiProxy.test.ts`
-  checks that every rewrite reaches the same Convex URL through a route here.
+- This Worker is the only way these paths reach Convex: the docs site's Vercel
+  rewrites are gone, so without the zone routes they would get the site's 404.
+  `src/apiProxy.test.ts` checks that every path the rewrites used to serve
+  still reaches the same Convex URL through a route here.
 - Errors the Worker answers itself carry the API's CORS headers, an
   `X-Request-Id` and `no-store`, like Convex's own API errors.
 

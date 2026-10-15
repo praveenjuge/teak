@@ -1,11 +1,10 @@
 /**
  * Edge proxy for the public API and MCP server on the marketing host.
  *
- * `teakvault.com/api`, `/mcp` and the OAuth discovery documents used to reach
- * Convex through rewrites on the docs site's Vercel project
- * (`apps/docs/vercel.json`). Zone routes in `wrangler.jsonc` now send those
- * paths here first, and this module forwards them to the same Convex HTTP
- * paths, so clients keep their URLs while Vercel leaves the request path.
+ * Zone routes in `wrangler.jsonc` send `teakvault.com/api`, `/mcp` and the
+ * OAuth discovery documents here, and this module forwards them to Convex.
+ * They used to reach Convex through rewrites on the docs site's Vercel
+ * project; the paths still map the same way, so clients keep their URLs.
  * Requests on any other host, or paths the routes catch by prefix but Convex
  * does not serve (`/apis`), are left to the caller.
  */

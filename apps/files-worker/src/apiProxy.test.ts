@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { unstable_readConfig } from "wrangler";
-import docsVercel from "../../docs/vercel.json";
 import {
   API_PROXY_DOCUMENT_TTL_SECONDS,
   API_PROXY_MAX_BODY_BYTES,
@@ -88,17 +87,36 @@ const proxy = (
     fetcher: options.fetcher,
   });
 
+/**
+ * The rewrites `apps/docs/vercel.json` used before this Worker took over these
+ * paths, kept so clients keep reaching the same Convex URLs.
+ */
+const FORMER_DOCS_REWRITES = [
+  { source: "/api", destination: "/v1" },
+  { source: "/api/:path*", destination: "/:path*" },
+  { source: "/mcp", destination: "/mcp" },
+  { source: "/mcp/:path*", destination: "/mcp/:path*" },
+  ...[
+    "/.well-known/teak-oauth-clients.json",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/mcp",
+  ].map((path) => ({ source: path, destination: path })),
+].map(({ source, destination }) => ({
+  source,
+  destination: `https://uncommon-ladybug-882.convex.site${destination}`,
+}));
+
 describe("parity with the docs site's former rewrites", () => {
-  // Each rewrite in apps/docs/vercel.json must reach the same Convex URL
-  // through this Worker, and one of the Worker's routes must catch it.
-  const rewrites = docsVercel.rewrites.map((rewrite) => ({
+  // Each former rewrite must reach the same Convex URL through this Worker,
+  // and one of the Worker's routes must catch it.
+  const rewrites = FORMER_DOCS_REWRITES.map((rewrite) => ({
     source: rewrite.source.replace(":path*", "v1/cards"),
     destination: rewrite.destination.replace(":path*", "v1/cards"),
   }));
 
   test("the production Worker forwards to the origin the rewrites used", () => {
     const origins = new Set(
-      docsVercel.rewrites.map((rewrite) => new URL(rewrite.destination).origin)
+      FORMER_DOCS_REWRITES.map((rewrite) => new URL(rewrite.destination).origin)
     );
     expect([...origins]).toEqual([String(prodConfig.vars.API_UPSTREAM_ORIGIN)]);
     expect(prodConfig.vars.API_PUBLIC_HOST).toBe("teakvault.com");
