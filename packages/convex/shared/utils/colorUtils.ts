@@ -624,7 +624,8 @@ export function parseColorString(colorText: string): Color | null {
 
 // The longest CSS colour names ("light goldenrod yellow") are three words.
 const MAX_COLOR_NAME_WORDS = 3;
-const PLAIN_WORD_PATTERN = /^[a-z]+[.!?]?$/i;
+const PLAIN_WORD_PATTERN = /^[a-z]+$/i;
+const FINAL_WORD_PATTERN = /^[a-z]+[.!?]?$/i;
 
 // Parse multiple colors from text input
 export function parseColorsFromText(text: string): Color[] {
@@ -653,7 +654,14 @@ export function parseColorsFromText(text: string): Color[] {
       const longest = Math.min(MAX_COLOR_NAME_WORDS, words.length - index);
       for (let length = longest; length > 1; length--) {
         const run = words.slice(index, index + length);
-        if (!run.every((word) => PLAIN_WORD_PATTERN.test(word))) {
+        // Punctuation may only end the run, so "blue. violet" stays apart.
+        const isPlainRun = run.every((word, position) =>
+          (position === run.length - 1
+            ? FINAL_WORD_PATTERN
+            : PLAIN_WORD_PATTERN
+          ).test(word)
+        );
+        if (!isPlainRun) {
           continue;
         }
         const color = parseColorString(run.join(""));

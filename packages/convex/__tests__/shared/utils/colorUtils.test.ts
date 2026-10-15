@@ -363,6 +363,17 @@ describe("extractPaletteColors", () => {
     expect(colors.map((color) => color.name)).toEqual(["red", "green", "blue"]);
   });
 
+  it("does not join colour names across a sentence break", () => {
+    const colors = extractPaletteColors(
+      "Walls in blue. Violet trim, light blue."
+    );
+    expect(colors.map((color) => color.name)).toEqual([
+      "blue",
+      "violet",
+      "lightblue",
+    ]);
+  });
+
   it("caps the palette at 12 colors by default", () => {
     const hexes = Array.from(
       { length: 15 },
