@@ -164,8 +164,6 @@ describe("parseSyncArgs", () => {
 });
 
 describe("readDevelopmentFilesRouting", () => {
-  // Every selector that can outrank --deployment-name, as a shell, CI or a
-  // loaded packages/convex/.env.local would supply it.
   const ambient = {
     PATH: "/usr/bin:/bin",
     HOME: "/home/dev",

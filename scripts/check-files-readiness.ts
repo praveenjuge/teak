@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-/** Read-only deployment gate: the worker must support the backend's byte paths. */
 import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
 

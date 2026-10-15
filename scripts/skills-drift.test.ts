@@ -4,7 +4,6 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
 
-/** Nested skill copies outside the canonical root source. */
 const findNestedSkills = (root: string): string[] => {
   const nested: string[] = [];
   for (const area of ["apps", "packages"]) {

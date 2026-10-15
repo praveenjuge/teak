@@ -1,8 +1,6 @@
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// Settings used to show inline spinners that were smaller than the values
-// replacing them, so every row below "Plan" jumped once account data arrived.
 test("settings loads without shifting its layout", async ({
   browser,
   screen,

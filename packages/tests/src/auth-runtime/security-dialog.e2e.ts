@@ -6,8 +6,6 @@ for (const firstClick of ["closes", "no-op"] as const) {
     browser,
     screen,
   }) => {
-    // Every request is intercepted: this exercises the real browser helper,
-    // without a backend or a real account.
     await browser.route("**/*", async (route) => {
       if (new URL(route.request.url).pathname !== "/settings") {
         await route.abort();

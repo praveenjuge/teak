@@ -2,8 +2,6 @@ import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// Search qualifiers: suggestions turn `site:`, `tag:` and `folder:` into
-// chips, the URL keeps the search, and a reload or Back restores it.
 const REPO = "Qualifier repo on the site";
 const NOTES = "Qualifier notes on the www host";
 const ELSEWHERE = "Qualifier link elsewhere";
@@ -58,7 +56,6 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
     folderIds: [folder._id],
   });
 
-  // A card button is named for its type and title ("Link: …").
   const card = (title: string) =>
     screen.getByRole("button", `: ${title}`, { exact: false });
 
@@ -66,7 +63,6 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   const search = screen.getByRole("combobox");
   await expect(card(REPO)).toBeVisible({ timeout: 30_000 });
 
-  // A key, then a site from the list: www. and capitals are the same site.
   await search.fill("si");
   await expect(
     screen.getByRole("option", "site:", { exact: false })
@@ -87,7 +83,6 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(card(ELSEWHERE)).not.toBeVisible();
   await expect(browser).toHaveURL(/q=site%3Aqualifiers\.example/);
 
-  // A typed tag qualifier becomes a chip on Enter; tags ignore case.
   await search.fill("tag:qualified");
   await search.press("Enter");
   await expect(
@@ -96,7 +91,6 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(card(REPO)).toBeVisible();
   await expect(card(NOTES)).not.toBeVisible();
 
-  // Escape closes the suggestions and keeps what was typed.
   await search.fill("tag:qual");
   await expect(screen.getByRole("listbox")).toBeVisible();
   await search.press("Escape");
@@ -104,7 +98,6 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   await expect(search).toHaveValue("tag:qual");
   await search.fill("");
 
-  // The URL holds the search, so a reload shows the same chips.
   await browser.reload();
   await expect(
     screen.getByRole("button", "Remove site qualifiers.example")
@@ -114,13 +107,11 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
   ).toBeVisible();
   await expect(card(REPO)).toBeVisible();
 
-  // Removing a chip widens the search again.
   await screen.getByRole("button", "Remove site qualifiers.example").click();
   await expect(card(ELSEWHERE)).toBeVisible();
   await expect(card(REPO)).toBeVisible();
   await screen.getByRole("button", "Remove tag qualified").click();
 
-  // folder: picks a folder by name; an unknown name matches nothing.
   await search.fill('folder:"qualifier sh');
   await screen.getByRole("option", "Qualifier shelf", { exact: false }).click();
   await expect(

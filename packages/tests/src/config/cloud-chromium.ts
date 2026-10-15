@@ -16,11 +16,7 @@ import type { WebConnectOptions } from "@e2e-dev/web";
 
 let running: Promise<string> | undefined;
 
-// Runs Chromium under a small Node process that kills it once its stdin, a
-// pipe from this process, closes: when the MCP server or test worker exits by
-// any means, signals included, its browser goes with it. Chromium's stderr,
-// which announces the DevTools endpoint, passes through.
-const WATCHDOG = `
+const KILL_CHROMIUM_ON_STDIN_EOF = `
 const [executable, ...args] = process.argv.slice(1);
 const browser = require("node:child_process").spawn(executable, args, {
   stdio: ["ignore", "ignore", "inherit"],
@@ -36,7 +32,7 @@ const launch = (executablePath: string, signal: AbortSignal) => {
       process.execPath,
       [
         "--eval",
-        WATCHDOG,
+        KILL_CHROMIUM_ON_STDIN_EOF,
         executablePath,
         "--headless=new",
         // As Playwright launches it: cloud sessions run as root.
@@ -50,11 +46,7 @@ const launch = (executablePath: string, signal: AbortSignal) => {
       { stdio: ["pipe", "ignore", "pipe"] }
     );
     let output = "";
-    // Only a launch still starting is abandoned; a browser that came up
-    // stays for the rest of the process.
     const abandon = () => fail(new Error("Chromium launch aborted"));
-    // Forgets this launch, and only this one, so the next session starts a
-    // new browser instead of reusing a failed or dead one.
     const forget = () => {
       signal.removeEventListener("abort", abandon);
       if (running === launching) {

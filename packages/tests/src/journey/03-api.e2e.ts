@@ -2,7 +2,6 @@ import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
 import { expect, test } from "../helpers/test";
 
-// The account this file's tests call the API as; no other file uses it.
 let apiKey = "";
 test.beforeAll(async () => {
   ({ apiKey } = await createApiAccount("service-api"));
@@ -81,8 +80,6 @@ test("REST API happy paths and OpenAPI contracts", async () => {
 });
 
 test("saving a URL as content creates a link card, not a text card", async () => {
-  // Regression: a bare URL (e.g. a Goodreads book link) submitted as card
-  // content was stored as a "text" card instead of being recognized as a link.
   const bookUrl =
     "https://www.goodreads.com/book/show/2767052-the-hunger-games";
   const created = await apiFetch("/v1/cards", apiKey, {
@@ -96,11 +93,9 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   expect(created.status).toBe(200);
   const payload = await created.json();
 
-  // The create response should already reflect the link classification.
   expect(payload.card?.type).toBe("link");
   expect(payload.card?.url).toBe(bookUrl);
 
-  // And it should persist as a link when fetched back.
   const fetched = await apiFetch(`/v1/cards/${payload.cardId}`, apiKey);
   expect(fetched.status).toBe(200);
   const fetchedPayload = await fetched.json();
@@ -169,9 +164,6 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
 });
 
 test("saving a color as content creates a palette card, not a text card", async () => {
-  // Regression: saving a color (single hex, or a list of colors/names) as card
-  // content stopped becoming a "palette" card and stuck as "text". Palette
-  // classification runs asynchronously after creation, so poll until it lands.
   const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({

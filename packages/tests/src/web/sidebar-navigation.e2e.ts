@@ -1,9 +1,6 @@
 import { expectVault, gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// Each library view is its own page in the sidebar. A fresh account has only
-// the welcome cards (one of them a favorite), so Archive and Trash also show
-// their empty states.
 const VIEWS = [
   {
     name: "Favorites",
@@ -62,8 +59,6 @@ test("the sidebar opens each view, with back and forward", async ({
   await browser.forward();
   await expect(screen.getByPlaceholder("Search archive")).toBeVisible();
 
-  // A card type, picked in the View menu beside the search, narrows the
-  // open view and lives in the URL.
   await screen.getByRole("button", "View").click();
   await screen.getByRole("menuitemcheckbox", "Image").click();
   await expect(browser).toHaveURL(/\/archive\?type=image$/);
@@ -82,19 +77,16 @@ test("quick commands in search open their view", async ({
   await expectVault({ browser, screen });
   const search = screen.getByRole("combobox");
   await search.fill("fav");
-  // Let the typed text settle into the URL (?q=fav) before the command runs.
   await expect(browser).toHaveURL(/\?q=fav$/);
   await search.press("Enter");
   await expect(screen.getByPlaceholder("Search favorites")).toBeVisible();
   expect(await pathOf(browser.url())).toBe("/favorites");
-  // Back returns to Everything without the command left in the search.
   await browser.back();
   await expect(screen.getByRole("combobox")).toHaveValue("");
   expect(await pathOf(browser.url())).toBe("/");
   await browser.forward();
   await expect(screen.getByPlaceholder("Search favorites")).toBeVisible();
 
-  // The open view's own command goes back to Everything.
   await screen.getByRole("combobox").fill("favorites");
   await screen.getByRole("combobox").press("Enter");
   await expect(screen.getByPlaceholder("Search everything")).toBeVisible();
@@ -110,14 +102,11 @@ test("the collapsed sidebar is remembered across reloads", async ({
   await expectVault({ browser, screen });
   const sidebar = browser.locator('[data-slot="sidebar"][data-state]');
   await expect(sidebar).toHaveAttribute("data-state", "expanded");
-  // The sidebar's own Collapse button; the header's toggle shows only once
-  // it is collapsed.
   await screen.getByRole("button", "Collapse sidebar").click();
   await expect(sidebar).toHaveAttribute("data-state", "collapsed");
   await expect(screen.getByRole("button", "Toggle sidebar")).toBeVisible();
   await browser.reload();
   await expect(sidebar).toHaveAttribute("data-state", "collapsed");
-  // Collapsed items keep their names for screen readers and tooltips.
   await screen.getByRole("link", "Trash").click();
   await expect(screen.getByPlaceholder("Search Trash")).toBeVisible();
 });
@@ -139,8 +128,6 @@ test("on a phone the sidebar is a drawer that closes after navigating", async ({
   await screen.getByRole("button", "Toggle sidebar").click();
   await drawer.getByRole("link", "Archive").click();
   await expect(drawer).toHaveCount(0);
-  // On a phone the search box waits behind its button; the header names
-  // the page.
   await expect(
     screen.getByRole("heading", "Archive", { level: 1 })
   ).toBeVisible();

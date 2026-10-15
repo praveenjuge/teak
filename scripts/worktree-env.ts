@@ -1,13 +1,3 @@
-/**
- * Ports for this checkout: the dev web app, docs and extension, and the E2E
- * suite's local backend and emulator.
- *
- * The main checkout keeps the fixed ports. Each linked worktree leases a slot
- * of ports and keeps it until the worktree is removed. Leases live in the
- * repository's shared git directory, so two worktrees never get the same slot
- * even when one of them isn't running.
- */
-
 import {
   existsSync,
   mkdirSync,
@@ -21,18 +11,14 @@ import { join, resolve } from "node:path";
 import { runCommand } from "./proc.ts";
 
 export interface WorktreePorts {
-  /** The E2E suite's local backend (packages/tests/src/stack). */
   convex: number;
   convexSite: number;
   docs: number;
   /** The E2E suite's WorkOS emulator; its upstream listens on the next port. */
   emulator: number;
-  /** The browser extension's WXT dev server. */
   extension: number;
-  /** "main" for the primary checkout, "wt-<slot>" for a linked worktree. */
   namespace: string;
   namespaced: boolean;
-  /** App origin for this checkout's SITE_URL. */
   siteUrl: string;
   web: number;
 }
@@ -52,7 +38,6 @@ const SLOT_COUNT = 40;
 const SLOT_STRIDE = 100;
 const SLOT_BASE = 4000;
 
-/** Every port a stack binds, including the emulator's upstream. */
 export const stackPorts = (ports: WorktreePorts): number[] => [
   ports.web,
   ports.docs,
@@ -76,7 +61,6 @@ const RESERVED_PORTS = new Set([
   7000,
 ]);
 
-/** FNV-1a 32-bit hash: a worktree's first-choice slot. */
 export const hashPath = (path: string): number => {
   let hash = 0x81_1c_9d_c5;
   for (let i = 0; i < path.length; i++) {
@@ -116,10 +100,6 @@ export const isUsableSlot = (slot: number): boolean =>
   slot < SLOT_COUNT &&
   stackPorts(slotPorts(slot)).every((port) => !RESERVED_PORTS.has(port));
 
-/**
- * Keep an existing lease; otherwise take the first usable slot, starting from
- * the path's hash, that no other worktree leases and whose ports are free.
- */
 export const pickSlot = async (
   root: string,
   leases: Record<string, number>,
@@ -226,8 +206,6 @@ const readLeases = (path: string): Record<string, number> => {
   }
 };
 
-// One writer at a time: mkdir is atomic, and a lock older than 30 seconds is
-// left over from a crashed run.
 const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
   const lock = join(dir, "teak-worktree-slots.lock");
   const deadline = Date.now() + 10_000;
@@ -236,8 +214,6 @@ const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
       mkdirSync(lock);
       break;
     } catch (error) {
-      // Anything but an existing lock (a read-only or missing git
-      // directory) won't clear by waiting.
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         throw error;
       }
@@ -246,9 +222,7 @@ const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
           rmSync(lock, { recursive: true, force: true });
           continue;
         }
-      } catch {
-        // The lock went away between mkdir and stat; retry below.
-      }
+      } catch {}
       if (Date.now() > deadline) {
         throw new Error(`Timed out waiting for ${lock}`);
       }
@@ -262,7 +236,6 @@ const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
   }
 };
 
-/** Lease (or reuse) this worktree's slot, dropping leases of removed worktrees. */
 const leaseSlot = async (root: string, commonDir: string): Promise<number> =>
   await withLock(commonDir, async () => {
     const file = join(commonDir, LEASE_FILE);

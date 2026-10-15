@@ -7,9 +7,6 @@ import { FIXTURE_URLS } from "./src/helpers/env.ts";
 // workers see it too.
 process.env.TEAK_E2E_HERMETIC = "1";
 
-// The hermetic auth checks: the WorkOS consent journey and the Security dialog
-// helpers against fixture pages, and the extension's OAuth module compiled
-// and run in a real browser. No accounts, environment files, or local stack.
 export default suiteConfig("hermetic", {
   targets: [
     {

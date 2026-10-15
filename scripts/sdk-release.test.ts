@@ -16,9 +16,6 @@ import {
   waitForPublished,
 } from "./sdk-release.mjs";
 
-// Release risks: wrong ref/commit/version, off-main tag, non-patch bump,
-// corrupt local bytes, transport failure mistaken for absence, conflicting
-// published metadata, untrusted tarball URL, or corrupt published bytes.
 const bytes = Buffer.from("packed SDK artifact");
 const artifact = {
   name: "teak-sdk",
@@ -564,7 +561,6 @@ test("publication does not transmit inherited credentials to a local registry", 
       });
       expect(output.trim()).toBe("1.0.0");
     };
-    // Prove the poison is active without isolation, then exercise the publisher.
     await invoke(false);
     expect(authorization).toContain("Bearer test-only-never-transmit");
     authorization.length = 0;

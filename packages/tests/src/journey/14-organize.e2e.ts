@@ -3,10 +3,6 @@ import { runCli } from "../helpers/cli";
 import { connectMcp } from "../helpers/mcp";
 import { expect, test } from "../helpers/test";
 
-// One library organized end to end, each step checked on every surface that
-// shows it: a folder filled from a selection, a tag renamed on every card, a
-// smart folder that picks up a card the CLI saves, and an archived card
-// leaving the folder.
 test("organize a library across the web, API, CLI and MCP", {
   timeout: 300_000,
 }, async ({ browser, screen }) => {
@@ -22,7 +18,6 @@ test("organize a library across the web, API, CLI and MCP", {
   });
   await api.cards.create({ content: second, tags: ["elsewhere"] });
 
-  // A folder from the sidebar, filled from a selection.
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
   await screen.getByRole("button", "New folder").first().click();
@@ -45,7 +40,6 @@ test("organize a library across the web, API, CLI and MCP", {
     screen.getByText("Added 2 cards to Organize", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // The API, CLI and MCP agree on the folder.
   const folder = (await api.folders.list()).items.find(
     (item) => item.name === "Organize"
   );
@@ -70,7 +64,6 @@ test("organize a library across the web, API, CLI and MCP", {
       cardCount: 2,
     });
 
-    // Rename the tag on the Tags page; every card follows.
     await screen.getByRole("link", "Tags").click();
     await screen.getByRole("button", "More for inspo").click({
       timeout: 60_000,
@@ -88,8 +81,6 @@ test("organize a library across the web, API, CLI and MCP", {
       })
       .toEqual(["inspiration"]);
 
-    // Save the renamed tag as a smart folder; a card the CLI saves later
-    // shows up in it without a reload, and the API lists it there too.
     await gotoApp(browser, "/?q=tag%3Ainspiration");
     await expect(screen.getByText(first, { exact: false })).toBeVisible({
       timeout: 30_000,
@@ -122,8 +113,6 @@ test("organize a library across the web, API, CLI and MCP", {
       [first, later].sort()
     );
 
-    // Archiving a card takes it out of the folder's listing and count, on
-    // every surface, and Archive shows it.
     await api.cards.setArchived(firstCard.cardId, true);
     await screen.getByRole("link", "Organize").click();
     await expect(screen.getByText("1 card")).toBeVisible({ timeout: 30_000 });

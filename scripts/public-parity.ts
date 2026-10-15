@@ -4,7 +4,6 @@
 // MCP tool and SDK method to prove it reaches the operation listed here.
 // Run this file to print the table: `bun scripts/public-parity.ts`.
 
-/** Why a surface leaves an operation out on purpose. */
 export interface IntentionalGap {
   none: string;
 }
@@ -267,14 +266,12 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   },
 ];
 
-/** CLI commands that never call the public API (or only group others). */
 export const CLI_LOCAL_COMMANDS: Record<string, string> = {
   login: "signs in through the browser and stores the credential",
   auth: "groups `auth status`",
   cards: "groups the card commands",
 };
 
-/** SDK members that are not public API operations. */
 export const SDK_LOCAL_MEMBERS: Record<string, string> = {
   "uploads.putFile": "uploads bytes straight to the signed storage URL",
 };
@@ -284,7 +281,6 @@ const cell = (surface: Surface) =>
     ? surface.map((name) => `\`${name}\``).join(", ")
     : `none: ${(surface as IntentionalGap).none}`;
 
-/** The table as Markdown, for the docs and the PR. */
 export const parityMarkdown = () =>
   [
     "| Feature | API operation | MCP | SDK | CLI |",

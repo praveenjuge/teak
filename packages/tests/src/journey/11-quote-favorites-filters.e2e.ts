@@ -6,8 +6,6 @@ import {
 } from "../helpers/app";
 import { describe, expect, type Screen, test } from "../helpers/test";
 
-// One fresh account for the file, created by the first test and kept for the
-// rest of the group.
 let apiKey = "";
 
 const filtersContext = () => {
@@ -66,7 +64,6 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     const dialog = screen.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(/Quote/i).first()).toBeVisible();
-    // The quote itself, not the side panel's Notes field.
     await expect(browser.locator('[role="dialog"] main textarea')).toHaveValue(
       quoteBody
     );
@@ -75,7 +72,6 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     const search = await focusSearch(screen);
     await search.fill(marker);
     await expect(cardText(screen, quoteBody)).toBeVisible();
-    // Typed text alone shows no chips (so no Clear all); empty the box.
     await search.fill("");
   });
 
@@ -101,7 +97,6 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible({
       timeout: 30_000,
     });
-    // Favorites is its own page in the sidebar.
     await clickVisibleControl(screen.getByRole("link", "Favorites"));
     await expect(screen.getByPlaceholder("Search favorites")).toBeVisible();
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
@@ -161,8 +156,6 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       timeout: 30_000,
     });
 
-    // Card types are picked in the View menu; a picked one also shows as a
-    // chip in the search field.
     const pickType = async (name: string) => {
       await clickVisibleControl(screen.getByRole("button", /^View/));
       await screen.getByRole("menuitemcheckbox", name).click();
@@ -178,8 +171,6 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(screen.getByRole("main")).not.toContainText(
       `${marker} quoted line`
     );
-    // Palette cards may render swatches instead of raw content; assert via
-    // the filter's chip.
     await expect(
       screen.getByRole("button", "Remove type Palette")
     ).toBeVisible();

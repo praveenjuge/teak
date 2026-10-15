@@ -1,10 +1,3 @@
-/**
- * One checkout's E2E stack: the WorkOS emulator, a local Convex backend and
- * the web app, on the checkout's own ports. The backend is pushed once, and
- * the web app gets its emulator settings as process environment, so the dev
- * wiring in apps/web/.env.local stays as it is. `setupBackend` (./backend.ts)
- * wires the local backend first.
- */
 import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -30,13 +23,11 @@ const STATE_PATH = stackStatePath(ROOT);
 export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
 
 export interface StackOptions {
-  /** Also stream the backend and web output to this terminal. */
   echo: boolean;
   ports: WorktreePorts;
 }
 
 export interface RunningStack {
-  /** Resolves when the backend or web process exits on its own. */
   exited: Promise<void>;
   stop: () => Promise<void>;
   urls: StackUrls;
@@ -149,8 +140,6 @@ export const startStack = async (
     await emulator.close();
     rmSync(STATE_PATH, { force: true });
   };
-  // Ctrl-C at any point, starting or running, stops the backend and web app
-  // too; they run in their own process group.
   const onSignal = (signal: NodeJS.Signals) => {
     stop().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
   };

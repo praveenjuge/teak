@@ -41,11 +41,7 @@ describe("Apple release workflows", () => {
   });
 
   test("serializes app-wide Apple mutations across versions", () => {
-    // One App Store app for every platform; the group name predates
-    // apple-release.yml and must stay stable.
-    expect(apple).toContain(
-      `group: mobile-app-store-ios-${expression("github.repository")}`
-    );
+    expect(apple).toContain("group: apple-app-store-6756574989");
     expect(apple).toContain("cancel-in-progress: false");
   });
 

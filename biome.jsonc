@@ -86,8 +86,6 @@
       }
     },
     {
-      // Non-null assertions are idiomatic in tests, where failing loudly on
-      // an unexpected null is the desired behavior.
       "includes": [
         "**/*.test.ts",
         "**/*.test.tsx",
@@ -104,8 +102,6 @@
       }
     },
     {
-      // Intentional bitwise math: hashing, SSRF IP-range checks, color
-      // conversion, and audio waveform rendering.
       "includes": [
         "packages/convex/authNative.ts",
         "packages/convex/linkMetadata/ssrf.ts",
@@ -189,11 +185,8 @@
         "useGenericFontNames": "off"
       },
       "style": {
-        // Would require renaming ~286 files; not worth the churn/blame noise.
         "useFilenamingConvention": "off",
-        // ~165 sites of property access; mechanical churn with marginal gain.
         "useDestructuring": "off",
-        // `x++`/`x--` is idiomatic loop/iterator code across the repo.
         "noIncrementDecrement": "off",
         // Requires ES2022 lib (`Array.at`) in the Convex tsconfig for 2 sites.
         "useAtIndex": "off",
@@ -204,21 +197,14 @@
       "complexity": {
         // ~44 functions over the threshold; refactors tracked separately.
         "noExcessiveCognitiveComplexity": "off",
-        // `void promise` is our intentional fire-and-forget marker.
         "noVoid": "off"
       },
       "performance": {
-        // Inline arrow handlers in JSX props; extracting to useCallback is a
-        // per-component refactor, not a mechanical fix.
         "noJsxPropsBind": "off",
-        // Sequential awaits in loops are often intentional (ordered port
-        // binding, bounded retries); parallelizing is a per-site decision.
         "noAwaitInLoops": "off",
         // Namespace imports are the documented idiom for Radix primitives.
         "noNamespaceImport": "off",
-        // Workspace packages re-export through index barrels by design.
         "noBarrelFile": "off",
-        // ~296 sites, mostly in tests/cold paths; micro-opt not worth it yet.
         "useTopLevelRegex": "off"
       },
       "correctness": {

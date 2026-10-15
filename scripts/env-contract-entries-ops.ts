@@ -1,14 +1,6 @@
-/**
- * Environment contract entries: cli, worker bindings, e2e, release, and repo tooling.
- *
- * One third of ENV_CONTRACT, assembled in ./env-contract.ts. Names and
- * metadata only - never values.
- */
-
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const OPS_ENTRIES: EnvVarSpec[] = [
-  // CLI runtime.
   spec("TEAK_AUTH_URL", {
     owners: ["teak-cli"],
     targets: ["cli"],
@@ -46,7 +38,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "shell"],
     required: false,
   }),
-  // Files Worker bindings (Cloudflare bindings, not plain env).
   spec("BUCKET", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],
@@ -220,7 +211,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "Media Transformations binding for video thumbnails (remote only).",
   }),
-  // E2E suite.
   spec("TEAK_E2E_RUN_STATE_FILE", {
     owners: ["@teak/tests"],
     targets: ["e2e"],
@@ -230,7 +220,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     providers: ["workflow", "dotenv-local", "shell"],
     required: false,
   }),
-  // Release secrets (GitHub-hosted, never local defaults).
   spec("TEAK_SDK_RELEASE_ARTIFACT", {
     owners: ["teak-release"],
     targets: ["release"],
@@ -380,7 +369,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Optional simulator name or UDID for iPhone store captures; defaults to iPhone 17 Pro Max.",
   }),
-  // Native Apple app scripts (apps/apple/scripts).
   spec("TEAK_XCODE_VERSION", {
     owners: ["teak-repo"],
     targets: ["repo"],
@@ -421,7 +409,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Optional xcodebuild derived data path for ui-tests.sh; defaults to apps/apple/build/DerivedData.",
   }),
-  // Repo tooling and smoke scripts.
   spec("TEAK_E2E_HERMETIC", {
     owners: ["teak-repo"],
     targets: ["e2e"],
@@ -485,15 +472,5 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     providers: ["shell"],
     required: false,
     note: "Shell override for the smoke-script target.",
-  }),
-  spec("EXPECTED_BASE_URL", {
-    owners: ["teak-repo"],
-    targets: ["repo", "e2e"],
-    profiles: ["preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["shell"],
-    required: false,
-    note: "Shell override for the expected canonical origin in smoke assertions.",
   }),
 ];

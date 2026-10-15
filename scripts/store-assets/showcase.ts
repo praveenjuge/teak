@@ -25,7 +25,6 @@ export type ShowcaseCard =
   | {
       kind: "text" | "quote" | "palette";
       content: string;
-      /** Shown instead of the content, e.g. a palette's name. */
       title?: string;
       notes?: string;
       tags?: string[];

@@ -2,9 +2,6 @@ import { expect } from "e2e";
 import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../stack/config";
 import { env } from "./env";
 
-// The WorkOS emulator's own API: the suite's stand-in for the WorkOS
-// dashboard and for the inbox that would receive emailed codes.
-
 export interface EmulatorUser {
   email: string;
   email_verified: boolean;
@@ -87,7 +84,6 @@ export const waitForEmailedEvent = async <T extends { email: string }>(
   return found as T;
 };
 
-// The reset email's payload. The token is minted by the emulator per run.
 interface PasswordResetEvent {
   email: string;
   // nosemgrep: codacy.yaml.security.hard-coded-tokens
@@ -116,14 +112,11 @@ export const resetPasswordThroughEmail = async (
   });
 };
 
-// The emulator mints this token per run.
 interface SessionResponse {
   // nosemgrep: codacy.yaml.security.hard-coded-tokens
   access_token: string;
 }
 
-// A session token for direct Convex calls, from the same password grant the
-// hosted login page uses. The backend trusts it exactly like a browser's.
 export const sessionTokenFor = async (email: string, password: string) => {
   const response = await emulatorFetch("/user_management/authenticate", {
     method: "POST",

@@ -6,7 +6,6 @@ import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
 const lint = (source: string) => {
-  // Keep a repeatable fixture artifact without touching backend source files.
   const directory = mkdtempSync(join(tmpdir(), "teak-identity-lint-"));
   const sourceConfig = readFileSync(
     join(root, "biome.jsonc"),

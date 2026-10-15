@@ -1,10 +1,3 @@
-/**
- * Environment contract types and entry builder.
- *
- * Shared by the entry tables in ./env-contract-entries-*.ts. Names and
- * metadata only - never values.
- */
-
 export type EnvTarget =
   | "web"
   | "convex"
@@ -55,11 +48,8 @@ export type EnvExposure = "server" | "public";
 
 export interface EnvVarSpec {
   allowedValues?: string[];
-  /** Explicit classification; otherwise derived by ./env-classify.ts. */
   classification?: EnvClassification;
-  /** Canonical fact or source this value is generated from. */
   derivedFrom?: string;
-  /** Read by an SDK or Convex component without a direct code reference. */
   implicit?: boolean;
   kind?: "env" | "binding";
   name: string;

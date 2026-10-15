@@ -1,8 +1,6 @@
 import { expect, test } from "bun:test";
 import { watchReleaseRun } from "./watch-release-run.mjs";
 
-// Failure modes: eventual-consistency404, permanently missing run, authorization
-// failure, child workflow failure, or unsafe CLI argument identity.
 test("release observation retries only a transient missing run", async () => {
   let observations = 0;
   await watchReleaseRun("praveenjuge/teak", "123", {

@@ -73,7 +73,6 @@ describe("parseSetupArgs", () => {
     expect(() =>
       parseSetupArgs(["bun", "setup.ts", "--convex", "mars"])
     ).toThrow('Unknown --convex "mars"');
-    // Local backends are the E2E suite's own (packages/tests).
     expect(() =>
       parseSetupArgs(["bun", "setup.ts", "--convex", "local"])
     ).toThrow('Unknown --convex "local"');

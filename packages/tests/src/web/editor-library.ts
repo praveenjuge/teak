@@ -9,7 +9,6 @@ import {
   type Surface,
 } from "../helpers/test";
 
-/** Real, authenticated persistence for editor E2E; owns only this run's cards. */
 export class EditorLibrary {
   readonly ids: Id<"cards">[] = [];
   readonly client: ConvexHttpClient;
@@ -38,7 +37,6 @@ export class EditorLibrary {
     return card.content ?? "";
   }
 
-  /** Opens the card modal and returns the dialog. */
   async open(id: Id<"cards">): Promise<Locator> {
     await gotoApp(this.surface.browser, `/?card=${id}`);
     const dialog = this.surface.screen.getByRole("dialog");
@@ -64,11 +62,6 @@ export class EditorLibrary {
   }
 }
 
-/**
- * CSS for the block editor inside the open dialog (the card modal or the
- * full-screen composer). It matches a read-only editor too, which renders
- * `contenteditable="false"`.
- */
 export const DIALOG_EDITOR =
   '[role="dialog"] [role="textbox"][aria-label="Markdown content"]';
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Web session smoke for the running dev stack (issue #407, Phase 5).
+ * Web session smoke for the running dev stack.
  *
  * Proves the WorkOS AuthKit gate of the locally running web app: anonymous
  * requests to `/` redirect to `/sign-in`, and a real WorkOS staging session
@@ -38,7 +38,6 @@ export interface SmokeReport {
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
-/** True when a response redirects to `path` on the app's own origin. */
 export const redirectsTo = (
   status: number,
   location: string | null,
@@ -139,7 +138,6 @@ const authenticatedStep = async (
   return steps;
 };
 
-/** The dev web app's sign-in settings, from apps/web/.env.local. */
 const webSettings = (): ReadonlyMap<string, string> =>
   loadTargetEnv("web", "local").values;
 
@@ -195,7 +193,6 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-  // Defaults to the running web app's origin, the one its callback URL uses.
   const redirectUri = webSettings().get("NEXT_PUBLIC_WORKOS_REDIRECT_URI");
   const fallback = redirectUri
     ? new URL(redirectUri).origin

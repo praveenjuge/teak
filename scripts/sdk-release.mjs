@@ -197,8 +197,6 @@ export async function inspectPublished(
   }
   const tarball = await request(url, signal);
   if (tarball.status === 404) {
-    // Matching metadata exists, so this is never permission to publish again.
-    // Only post-publication visibility polling may wait for its bytes.
     throw new PendingRegistryTarball(
       "Registry tarball download failed: HTTP 404."
     );

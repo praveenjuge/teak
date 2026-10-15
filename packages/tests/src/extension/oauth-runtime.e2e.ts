@@ -69,7 +69,6 @@ const setSystemTime = (browser: Browser, time: number) =>
     return null;
   }, time);
 
-/** Waits for the page's module script to expose the auth module. */
 const waitForAuth = (browser: Browser) =>
   expect.poll(() => browser.evaluate(() => Boolean(window.auth))).toBe(true);
 
@@ -88,7 +87,6 @@ for (const mode of ["production", "development"] as const) {
   }) => {
     const isDevelopment = mode === "development";
     const discoveryOrigin = isDevelopment ? site : "https://teakvault.com";
-    // Chromium only: the suite runs no Firefox target.
     const surface = "chrome";
     const issuer = "https://fixture.workos.test";
     const clientId = `client_${surface}`;
@@ -102,7 +100,6 @@ for (const mode of ["production", "development"] as const) {
     const bundle = join(outputDir, "auth.mjs");
     let source: string;
     try {
-      // Compile the canonical module; only browser APIs and HTTP are boundaries.
       execFileSync(
         "bun",
         [
@@ -200,7 +197,6 @@ for (const mode of ["production", "development"] as const) {
         });
       } else if (url === `${site}/v1/oauth/disconnect`) {
         expect(request.headers.authorization).toBe(`Bearer ${rotatedAccess}`);
-        // Playwright reported a missing body as null; e2e leaves it out.
         expect(request.postData ?? null).toBeNull();
         revoked.push(rotatedAccess);
         await route.fulfill({
@@ -277,7 +273,6 @@ for (const mode of ["production", "development"] as const) {
       defined: true,
       value: owner,
     });
-    // Destroy the module instance while retaining native browser storage.
     await browser.reload();
     await waitForAuth(browser);
     await setSystemTime(browser, start + 40_000);
