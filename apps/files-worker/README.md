@@ -76,12 +76,14 @@ Worker proxies nothing, and the development Worker sets neither.
 
 `waf/rules.ts` holds WAF custom rules for the `teakvault.com` zone; they run
 before this Worker, so a request they block never invokes it. Today there is
-one: `/api` and `/mcp` requests whose declared `Content-Length` exceeds
-`API_PROXY_MAX_BODY_BYTES` are blocked with the same 413 JSON the proxy
-answers for that limit. The exact body size field needs an Enterprise plan, so
-the rule compares the header's digits, leaving zero-padded lengths to the
-Worker. Chunked bodies without the header still reach the Worker and Convex's
-own limit.
+one: `teakvault.com/api` and `/mcp` requests whose declared `Content-Length`
+exceeds `API_PROXY_MAX_BODY_BYTES` are blocked. They get Cloudflare's 403
+page, not the proxy's 413 JSON: a custom block response needs a plan this zone
+is not on, and it could not carry the API's CORS headers anyway, so a
+cross-origin browser sees a network error. The exact body size field needs an
+Enterprise plan, so the rule compares the header's digits, leaving zero-padded
+lengths to the Worker. Chunked bodies without the header still reach the
+Worker's and Convex's own limits.
 
 `bun run waf` (`scripts/cloudflare-waf.ts`) shows what would change, `--check`
 exits 1 when the zone has drifted, and `--apply` makes the changes through the

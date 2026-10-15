@@ -1,14 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
+import { unstable_readConfig } from "wrangler";
 import {
   API_PROXY_MAX_BODY_BYTES,
-  handleApiProxyRequest,
   upstreamPathFor,
 } from "../apps/files-worker/src/apiProxy";
 import {
-  API_PATHS,
+  API_REQUESTS,
   declaredLengthOver,
   WAF_RULE_REF_PREFIX,
   WAF_RULES,
+  WAF_ZONE_NAME,
   type WafRule,
 } from "../apps/files-worker/waf/rules";
 import { type LiveRule, planWafChanges, syncWafRules } from "./cloudflare-waf";
@@ -190,9 +192,14 @@ describe("the managed rules", () => {
     }
   });
 
-  test("the rules cover exactly the paths the Worker proxies, not prefixes of them", () => {
-    expect(API_PATHS).toBe(
-      '(http.request.uri.path in {"/api" "/mcp"} or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/mcp/"))'
+  test("the rules cover exactly the API requests the Worker proxies", () => {
+    expect(API_REQUESTS).toBe(
+      'http.host eq "teakvault.com" and (http.request.uri.path in {"/api" "/mcp"} or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/mcp/"))'
+    );
+    expect(WAF_ZONE_NAME).toBe(
+      unstable_readConfig({
+        config: resolve(import.meta.dir, "../apps/files-worker/wrangler.jsonc"),
+      }).vars.API_PUBLIC_HOST as string
     );
     for (const path of ["/api", "/api/v1/cards", "/mcp", "/mcp/x"]) {
       expect(upstreamPathFor(path)).not.toBeNull();
@@ -200,31 +207,6 @@ describe("the managed rules", () => {
     for (const path of ["/apis", "/mcpfoo"]) {
       expect(upstreamPathFor(path)).toBeNull();
     }
-  });
-
-  test("a blocked body gets the same 413 the Worker answers", async () => {
-    const [oversized] = WAF_RULES;
-    const worker = await handleApiProxyRequest(
-      new Request("https://teakvault.com/api/v1/cards", {
-        method: "POST",
-        body: "{}",
-        headers: { "Content-Length": String(API_PROXY_MAX_BODY_BYTES + 1) },
-      }),
-      {
-        API_PUBLIC_HOST: "teakvault.com",
-        API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
-      },
-      { waitUntil: () => undefined },
-      {
-        fetcher: (() =>
-          Promise.reject(new Error("no upstream"))) as unknown as typeof fetch,
-      }
-    );
-    const response = oversized?.action_parameters?.response;
-    expect(response?.status_code).toBe(worker?.status);
-    expect(JSON.parse(response?.content ?? "null")).toEqual(
-      await worker?.json()
-    );
   });
 
   test("the body rule blocks at exactly the Worker's own body limit", () => {
