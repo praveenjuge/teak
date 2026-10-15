@@ -104,15 +104,14 @@ const peekBody = async <T>(
         return fallback;
       }
       const chunk = read.value ?? new Uint8Array();
-      size += chunk.byteLength;
-      if (size > MAX_MCP_BODY_BYTES) {
-        return fallback;
-      }
+      // Each chunk is looked at before the cap applies, so one large chunk
+      // still shows where the body starts.
       const result = onChunk(chunk, read.done);
       if (result !== undefined) {
         return result;
       }
-      if (read.done) {
+      size += chunk.byteLength;
+      if (read.done || size > MAX_MCP_BODY_BYTES) {
         return fallback;
       }
     }
@@ -127,8 +126,13 @@ const peekBody = async <T>(
 /** The request's JSON-RPC body, or undefined when it is not one. */
 const readJsonRpcBody = (request: Request): Promise<unknown> => {
   const chunks: Uint8Array[] = [];
+  let size = 0;
   return peekBody<unknown>(request, undefined, (chunk, done) => {
     chunks.push(chunk);
+    size += chunk.byteLength;
+    if (size > MAX_MCP_BODY_BYTES) {
+      return null;
+    }
     if (!done) {
       return;
     }

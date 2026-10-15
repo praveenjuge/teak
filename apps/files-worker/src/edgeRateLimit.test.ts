@@ -298,12 +298,59 @@ describe("a known user", () => {
     expect("attestation" in outcome && outcome.attestation).toBeTruthy();
   });
 
-  test("sends an MCP body it cannot classify within the read cap through unattested", async () => {
+  test("attests a single MCP request that arrives as one chunk over the read cap", async () => {
+    const payload = new TextEncoder().encode(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "teak_v1_create_card",
+          arguments: { content: "x".repeat(100 * 1024) },
+        },
+      })
+    );
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(payload);
+        controller.close();
+      },
+    });
     const outcome = await limit(
       env(),
-      request("/mcp", {
-        key: KEY_A,
-        body: `${" ".repeat(70 * 1024)}{"jsonrpc":"2.0","id":1,"method":"ping"}`,
+      new Request("https://teakvault.com/mcp", {
+        method: "POST",
+        body,
+        headers: { Authorization: `Bearer ${KEY_A}` },
+        // @ts-expect-error Bun needs duplex for a streamed request body.
+        duplex: "half",
+      })
+    );
+    expect("attestation" in outcome && outcome.attestation).toBeTruthy();
+  });
+
+  test("sends an MCP body it cannot classify within the read cap through unattested", async () => {
+    // Whitespace in 16 KiB chunks past the cap, then the request.
+    const space = new TextEncoder().encode(" ".repeat(16 * 1024));
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let i = 0; i < 5; i += 1) {
+          controller.enqueue(space);
+        }
+        controller.enqueue(
+          new TextEncoder().encode('{"jsonrpc":"2.0","id":1,"method":"ping"}')
+        );
+        controller.close();
+      },
+    });
+    const outcome = await limit(
+      env(),
+      new Request("https://teakvault.com/mcp", {
+        method: "POST",
+        body,
+        headers: { Authorization: `Bearer ${KEY_A}` },
+        // @ts-expect-error Bun needs duplex for a streamed request body.
+        duplex: "half",
       })
     );
     expect(outcome).toEqual({ attestation: null });
