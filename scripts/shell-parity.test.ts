@@ -23,12 +23,20 @@ const runSetupCheck = (extraEnv: Record<string, string>): string => {
   return result.stdout.toString();
 };
 
+// Each `setup --check` takes a few seconds on a busy runner, and this test runs
+// it twice, which can pass Bun's 5 second default.
+const SETUP_CHECK_TIMEOUT_MS = 30_000;
+
 describe("shell parity", () => {
-  test("setup --check behaves identically with unrelated variables", () => {
-    const clean = runSetupCheck({});
-    const polluted = runSetupCheck(NOISE);
-    expect(polluted).toBe(clean);
-  });
+  test(
+    "setup --check behaves identically with unrelated variables",
+    () => {
+      const clean = runSetupCheck({});
+      const polluted = runSetupCheck(NOISE);
+      expect(polluted).toBe(clean);
+    },
+    SETUP_CHECK_TIMEOUT_MS
+  );
 
   test("dotenv-audit --json behaves identically with unrelated variables", () => {
     const run = (extraEnv: Record<string, string>): string => {
