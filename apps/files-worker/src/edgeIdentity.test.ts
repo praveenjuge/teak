@@ -137,7 +137,7 @@ describe("API keys", () => {
     expect(call?.headers.get("x-teak-signature")).toBe(expected);
   });
 
-  test("answer from KV for an hour once Convex names the owner", async () => {
+  test("answer from KV for five minutes once Convex names the owner", async () => {
     const keyHash = await sha256Hex(API_KEY);
     const { calls, fetcher } = convex({ [keyHash]: "teak-user-1" });
     const shared = env();
@@ -152,6 +152,7 @@ describe("API keys", () => {
     expect(shared.kv.ttls.get(`key:${keyHash}`)).toBe(
       EDGE_IDENTITY_KNOWN_TTL_SECONDS
     );
+    expect(EDGE_IDENTITY_KNOWN_TTL_SECONDS).toBe(300);
   });
 
   test("an unknown key falls back to the address, remembered for a minute", async () => {

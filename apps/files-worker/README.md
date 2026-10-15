@@ -89,8 +89,9 @@ a read-only lookup signed with the shared files signing secret over its own
 `edge-identity` payload (`@teak/files-protocol`). The Worker sends a key's
 SHA-256 digest, never the key; Convex knows a key by the digest its validation
 caches in `apiKeyAuthCache`. Answers are cached in the `EDGE_IDENTITY` KV
-namespace for an hour, or a minute for an unknown credential, so a new key is
-recognized within a minute. A failed lookup, or a failed KV read, is not
+namespace for five minutes, or a minute for an unknown credential, so a new
+key is recognized within a minute and a revoked one stops counting against its
+owner's edge limit within five. A failed lookup, or a failed KV read, is not
 cached.
 
 ### Edge rate limits

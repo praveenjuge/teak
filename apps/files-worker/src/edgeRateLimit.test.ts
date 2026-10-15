@@ -9,6 +9,7 @@ import {
   EDGE_API_REQUEST_LIMIT,
   EDGE_UNKNOWN_CREDENTIAL_LIMIT,
   type EdgeRateLimitEnv,
+  MCP_BODY_READ_TIMEOUT_MS,
   MCP_EDGE_RATE_LIMITED_CODE,
   type RateLimiter,
 } from "./edgeRateLimit";
@@ -214,6 +215,52 @@ describe("a known user", () => {
     // JSON-RPC answers an unreadable id with null.
     expect(await response?.json()).toMatchObject({ jsonrpc: "2.0", id: null });
   }, 2000);
+
+  test(
+    "stops waiting for a refused MCP body that stalls under the cap",
+    async () => {
+      // A few bytes, then nothing, and the stream never closes.
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"id":1,'));
+        },
+      });
+      const outcome = await limit(
+        env({ api: new FakeLimiter(0) }),
+        new Request("https://teakvault.com/mcp", {
+          method: "POST",
+          body,
+          headers: { Authorization: `Bearer ${KEY_A}` },
+          // @ts-expect-error Bun needs duplex for a streamed request body.
+          duplex: "half",
+        })
+      );
+      const response = "response" in outcome ? outcome.response : null;
+      expect(response?.status).toBe(429);
+      expect(await response?.json()).toMatchObject({
+        jsonrpc: "2.0",
+        id: null,
+      });
+    },
+    MCP_BODY_READ_TIMEOUT_MS + 1000
+  );
+
+  test("refuses an over-limit MCP notification with the status alone", async () => {
+    const outcome = await limit(
+      env({ api: new FakeLimiter(0) }),
+      request("/mcp", {
+        key: KEY_A,
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "notifications/initialized",
+        }),
+      })
+    );
+    const response = "response" in outcome ? outcome.response : null;
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("retry-after")).toBe("60");
+    expect(await response?.text()).toBe("");
+  });
 
   test.each([
     ["a small batch", 2],

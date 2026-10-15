@@ -62,6 +62,8 @@ export const MCP_EDGE_RATE_LIMITED_CODE = -31_429;
 
 /** Largest MCP body read to find the JSON-RPC id of a refused request. */
 const MAX_MCP_BODY_BYTES = 64 * 1024;
+/** Longest wait for a refused MCP body before answering without its id. */
+export const MCP_BODY_READ_TIMEOUT_MS = 1000;
 
 export type EdgeRateLimitOutcome =
   /** Refused: answer with this response. */
@@ -81,12 +83,21 @@ const readJsonRpcBody = async (request: Request): Promise<unknown> => {
   if (!reader) {
     return;
   }
-  // Read at most the cap: a refused client's body is not worth buffering.
+  // Read at most the cap, for at most the timeout: a refused client's body
+  // is not worth buffering or waiting for.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), MCP_BODY_READ_TIMEOUT_MS);
+  });
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const read = await Promise.race([reader.read(), timedOut]);
+      if (read === "timeout") {
+        return;
+      }
+      const { done, value } = read;
       if (done) {
         break;
       }
@@ -99,6 +110,7 @@ const readJsonRpcBody = async (request: Request): Promise<unknown> => {
     return JSON.parse(await new Blob(chunks).text());
   } catch {
   } finally {
+    clearTimeout(timer);
     reader.cancel().catch(() => undefined);
   }
 };
@@ -129,6 +141,14 @@ const isJsonArrayBody = async (request: Request): Promise<boolean> => {
   }
 };
 
+/** A JSON-RPC notification: a method call without an id, owed no reply. */
+const isNotification = (body: unknown): boolean =>
+  Boolean(body) &&
+  typeof body === "object" &&
+  !Array.isArray(body) &&
+  typeof (body as { method?: unknown }).method === "string" &&
+  !("id" in (body as object));
+
 const jsonRpcId = (body: unknown): string | number | undefined => {
   if (body && typeof body === "object" && !Array.isArray(body)) {
     const { id } = body as { id?: unknown };
@@ -152,7 +172,13 @@ const rateLimitedResponse = async (
     "X-Request-Id": crypto.randomUUID(),
   };
   if (isMcpPath(request)) {
-    const id = jsonRpcId(await readJsonRpcBody(request));
+    const body = await readJsonRpcBody(request);
+    if (isNotification(body)) {
+      // JSON-RPC never answers a notification; the status is the refusal.
+      const { "Content-Type": _, ...bodyless } = headers;
+      return new Response(null, { status: 429, headers: bodyless });
+    }
+    const id = jsonRpcId(body);
     return new Response(
       JSON.stringify({
         jsonrpc: "2.0",

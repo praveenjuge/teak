@@ -17,8 +17,10 @@
  *
  * Convex answers lookups by credential (`@teak/files-protocol`
  * edgeIdentity); the Worker sends a key's SHA-256 digest, never the key, and
- * caches each answer in KV: an hour for a known owner, the KV minimum of a
- * minute for an unknown one, so a brand-new key is recognized within a minute.
+ * caches each answer in KV: five minutes for a known owner, so a revoked key
+ * stops counting against its owner's limit soon after, and the KV minimum of
+ * a minute for an unknown one, so a brand-new key is recognized within a
+ * minute.
  */
 
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
@@ -48,7 +50,7 @@ export interface EdgeIdentity {
   source: "address" | "api_key" | "oauth";
 }
 
-export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 3600;
+export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 300;
 export const EDGE_IDENTITY_UNKNOWN_TTL_SECONDS = 60;
 const LOOKUP_TIMEOUT_MS = 2000;
 const MAX_JWT_LENGTH = 16_384;
