@@ -6,11 +6,9 @@ export type {
   BatchSummary,
   DropRejectionReason,
   ExtractFilesResult,
-  GlobalDropQueueItem,
 } from "./globalFileDropHelpers";
 export {
   capBatchForQueue,
-  createQueueItemId,
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,

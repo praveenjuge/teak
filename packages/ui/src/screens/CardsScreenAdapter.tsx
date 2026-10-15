@@ -59,8 +59,6 @@ export function CardsScreenAdapter({
       pushCardId,
       replaceCardId,
     });
-  // A retry remounts the screen; its in-memory filters carry over so the
-  // retried read asks for the same cards.
   const visualFiltersRef = useRef<CardsVisualFilters | undefined>(undefined);
   const rememberVisualFilters = useCallback((filters: CardsVisualFilters) => {
     visualFiltersRef.current = filters;

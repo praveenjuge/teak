@@ -15,6 +15,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { toast } from "sonner";
 import {
@@ -26,16 +27,14 @@ import {
   UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
 } from "../constants/toast";
 import {
-  capBatchForQueue,
-  createQueueItemId,
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,
   formatSkippedNote,
-  type GlobalDropQueueItem,
   isBlockedDropTarget,
   summarizeBatchResults,
 } from "./globalFileDropHelpers";
+import { createUploadQueue, type UploadQueueHandlers } from "./uploadQueue";
 import { useFileUpload } from "./useFileUpload";
 import { useNetworkStatus } from "./useNetworkStatus";
 
@@ -86,23 +85,11 @@ export function GlobalFileDropProvider({
   upgradeUrl,
 }: GlobalFileDropProviderProps) {
   const [isDragActive, setIsDragActive] = useState(false);
-  const [queue, setQueue] = useState<GlobalDropQueueItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
   const { isOnline } = useNetworkStatus();
   const { uploadMultipleFiles } = useFileUpload();
 
-  // Ref the queue so the drain loop always sees the latest appended files.
-  const queueRef = useRef(queue);
-  useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
-
   // Track drag depth so nested elements don't make the overlay flicker.
   const dragDepthRef = useRef(0);
-  const uploadingRef = useRef(false);
-  const batchAggregateRef = useRef<UploadMultipleFilesResultItem[]>([]);
-  // Files over the per-upload cap, reported in the queue's result toast.
-  const skippedCountRef = useRef(0);
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {
@@ -144,8 +131,6 @@ export function GlobalFileDropProvider({
         return;
       }
 
-      // Card limit wins over every other failure reason so users always see
-      // the upgrade CTA.
       const limitFailure = summary.failures.find(
         (failure) =>
           !failure.success &&
@@ -207,92 +192,43 @@ export function GlobalFileDropProvider({
     [handleUpgrade]
   );
 
-  const drainQueue = useCallback(async () => {
-    if (uploadingRef.current) {
-      return;
-    }
-    uploadingRef.current = true;
-    setIsUploading(true);
-
-    toast.loading("Uploading…", {
-      ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
-      id: TOAST_IDS.uploadQueue,
-    });
-    batchAggregateRef.current = [];
-
-    try {
-      // Keep draining as long as new files were appended during upload.
-      while (queueRef.current.length > 0) {
-        const snapshot = queueRef.current;
-        const files = snapshot.map((item) => item.file);
-        // The queue is drained one snapshot at a time; each pass must finish
-        // before the next so files appended mid-upload are handled in order.
-        // react-doctor-disable-next-line react-doctor/async-await-in-loop
-        const results = await uploadMultipleFiles(files);
-        batchAggregateRef.current = batchAggregateRef.current.concat(results);
-
-        // Pop the slice we just uploaded; anything appended in-flight stays.
-        setQueue((previous) => previous.slice(snapshot.length));
-        // Update ref eagerly so the next loop iteration sees the new length
-        // before the setState flushes.
-        queueRef.current = queueRef.current.slice(snapshot.length);
-      }
-
-      if (batchAggregateRef.current.length > 0) {
-        resolveResultToast(batchAggregateRef.current, skippedCountRef.current);
-      }
-    } finally {
-      batchAggregateRef.current = [];
-      skippedCountRef.current = 0;
-      uploadingRef.current = false;
-      setIsUploading(false);
-    }
+  const handlersRef = useRef<UploadQueueHandlers | null>(null);
+  useEffect(() => {
+    handlersRef.current = {
+      onFinish: resolveResultToast,
+      onSkipped: (skippedCount) =>
+        toast.warning(formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD), {
+          ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+        }),
+      onStart: () =>
+        toast.loading("Uploading…", {
+          ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+        }),
+      upload: uploadMultipleFiles,
+    };
   }, [resolveResultToast, uploadMultipleFiles]);
-
+  const [queue] = useState(() =>
+    createUploadQueue(MAX_FILES_PER_UPLOAD, () => {
+      if (!handlersRef.current) {
+        throw new Error("The upload queue ran before it mounted");
+      }
+      return handlersRef.current;
+    })
+  );
+  const { isUploading, queueSize } = useSyncExternalStore(
+    queue.subscribe,
+    queue.getSnapshot,
+    queue.getSnapshot
+  );
   const enqueueValidatedFiles = useCallback(
     (files: File[]) => {
-      if (files.length === 0) {
-        return;
-      }
-
-      const currentSize = queueRef.current.length;
-      const { accepted, rejectedCount } = capBatchForQueue(
-        files,
-        currentSize,
-        MAX_FILES_PER_UPLOAD
-      );
-
-      if (rejectedCount > 0) {
-        skippedCountRef.current += rejectedCount;
-      }
-
-      if (accepted.length === 0) {
-        // A full queue is always draining, so its result toast reports these.
-        // Report them now only if nothing is uploading.
-        if (!uploadingRef.current) {
-          toast.warning(
-            formatSkippedNote(skippedCountRef.current, MAX_FILES_PER_UPLOAD),
-            { ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS, id: TOAST_IDS.uploadQueue }
-          );
-          skippedCountRef.current = 0;
-        }
-        return;
-      }
-
-      const newItems: GlobalDropQueueItem[] = accepted.map((file) => ({
-        id: createQueueItemId(),
-        file,
-      }));
-      const nextQueue = queueRef.current.concat(newItems);
-      queueRef.current = nextQueue;
-      setQueue(nextQueue);
-
-      void drainQueue();
+      queue.enqueue(files);
     },
-    [drainQueue]
+    [queue]
   );
 
-  // Document-level drag/drop wiring.
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -432,11 +368,11 @@ export function GlobalFileDropProvider({
 
   const contextValue = useMemo<GlobalFileDropContextValue>(
     () => ({
-      queueSize: queue.length,
+      queueSize,
       isUploading,
       enqueueFiles: enqueueValidatedFiles,
     }),
-    [enqueueValidatedFiles, isUploading, queue.length]
+    [enqueueValidatedFiles, isUploading, queueSize]
   );
 
   return (

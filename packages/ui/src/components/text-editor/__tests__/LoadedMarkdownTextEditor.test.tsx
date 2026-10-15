@@ -19,9 +19,6 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-// Failure mode (seen on a throttled load): someone typing in the stand-in as
-// the editor's code arrives loses a keystroke, because focus falls to the
-// page between the stand-in leaving and the editor taking focus.
 test("hands focus from the stand-in to the editor with no gap", async () => {
   const focusAfterEachChange: string[] = [];
   const observer = new MutationObserver(() => {
@@ -60,7 +57,6 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
 
   expect(container.querySelector("textarea")).toBeNull();
   expect(document.activeElement?.closest(".ProseMirror")).not.toBeNull();
-  // Focus after every DOM change: the stand-in or the editor, never the page.
   expect(focusAfterEachChange.length).toBeGreaterThan(0);
   for (const focused of focusAfterEachChange) {
     expect(["textarea", "editor"]).toContain(focused);

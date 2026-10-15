@@ -39,7 +39,6 @@ export function VaultSetupState() {
         aria-hidden="true"
         className="relative -mt-1 h-0.5 w-30 overflow-hidden rounded-full bg-muted"
       >
-        {/* Without motion, the segment rests in the middle of the track. */}
         <span className="absolute inset-y-0 left-0 w-2/5 animate-progress-slide rounded-full bg-foreground motion-reduce:translate-x-3/4 motion-reduce:animate-none" />
       </div>
       <div className="space-y-1">

@@ -15,8 +15,6 @@ mock.module("../../ui/button", () => ({
     ),
   buttonVariants: () => "",
 }));
-// The modal pulls in Convex-backed panels; the section contract only cares
-// about the settings row + its entry-point button.
 mock.module("../ImportExportDialog", () => ({
   ImportExportDialog: () => null,
 }));
@@ -40,7 +38,6 @@ describe("ImportExportSection", () => {
     );
     expect(markup).toContain("Import/Export Data");
     expect(markup).toContain(">Manage</button>");
-    // No dialog/panel content leaks onto the settings surface.
     expect(markup).not.toContain("Import Bookmarks");
     expect(markup).not.toContain("Start export");
   });

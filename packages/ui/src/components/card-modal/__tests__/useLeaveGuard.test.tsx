@@ -20,14 +20,15 @@ afterEach(async () => {
 
 async function renderGuard(
   saveChanges: (options: { silent: boolean }) => Promise<boolean>,
-  hasUnsavedChanges = true
+  hasUnsavedChanges = true,
+  cardId = "card_a"
 ) {
   let guard = {} as ReturnType<typeof useLeaveGuard>;
   function Harness() {
-    guard = useLeaveGuard({ cardId: "card_a", hasUnsavedChanges, saveChanges });
+    guard = useLeaveGuard({ cardId, hasUnsavedChanges, saveChanges });
     return null;
   }
-  root = createRoot(document.createElement("div"));
+  root ??= createRoot(document.createElement("div"));
   await act(() => root?.render(<Harness />));
   return () => guard;
 }
@@ -55,8 +56,6 @@ test("saves before leaving, and leaves once the save works", async () => {
 });
 
 test("an earlier failed autosave doesn't skip the save on the first close", async () => {
-  // The autosave failed before this; the guard never saw it. The first
-  // close must still try to save, and stay open when that fails too.
   const save = mock(() => Promise.resolve(false));
   const guard = await renderGuard(save);
   expect(await leave(guard)).toBe(false);
@@ -77,5 +76,14 @@ test("editing again after a failed save saves again before leaving", async () =>
   expect(await leave(guard)).toBe(false);
   await act(() => guard().noteEdit());
   expect(await leave(guard)).toBe(false);
+  expect(save).toHaveBeenCalledTimes(2);
+});
+
+test("a failed save on one card doesn't let the next card leave unsaved", async () => {
+  const save = mock(() => Promise.resolve(false));
+  const first = await renderGuard(save, true, "card_a");
+  expect(await leave(first)).toBe(false);
+  const second = await renderGuard(save, true, "card_b");
+  expect(await leave(second)).toBe(false);
   expect(save).toHaveBeenCalledTimes(2);
 });

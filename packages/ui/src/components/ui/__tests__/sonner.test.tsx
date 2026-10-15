@@ -57,7 +57,6 @@ test("floats bottom toasts just above the screen edge", async () => {
   expect(toasterBottomOffset()).toBe("24px");
 });
 
-// The bulk-action bar sits along the top edge, so toasts stay at the bottom.
 test("keeps toasts at the bottom edge while the bulk-action bar is shown", async () => {
   await render(true);
   await showToast();

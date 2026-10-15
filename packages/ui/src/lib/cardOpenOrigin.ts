@@ -1,9 +1,3 @@
-/**
- * Where on screen the card that is opening sat, so the card dialog can grow
- * out of it. The grid records the card's box as it opens it; the dialog reads
- * it as it opens. A card opened any other way (a link, Back) has no
- * origin and the dialog opens from the middle of the screen.
- */
 interface CardOpenOrigin {
   at: number;
   cardId: string;
@@ -11,7 +5,6 @@ interface CardOpenOrigin {
   y: number;
 }
 
-// An origin older than this belongs to some earlier open.
 const ORIGIN_TTL_MS = 2000;
 
 let lastOrigin: CardOpenOrigin | null = null;

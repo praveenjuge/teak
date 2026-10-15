@@ -18,14 +18,12 @@ describe("vaultSetupState", () => {
     expect(vaultSetupState(null, 1000)).toBe("ready");
   });
 
-  // A setup that never finishes must not hide the library forever.
   test("gives up after the longest wait", () => {
     expect(
       vaultSetupState({ startedAt: 1000 }, 1000 + VAULT_SETUP_MAX_MS)
     ).toBe("ready");
   });
 
-  // Cards that land a second after the setup appears don't cut it short.
   test("once shown, stays for the minimum time after the cards land", () => {
     const shownAt = 2000;
     expect(vaultSetupState(null, shownAt + 1000, shownAt)).toBe("settingUp");

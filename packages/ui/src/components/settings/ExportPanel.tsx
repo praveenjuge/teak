@@ -77,8 +77,6 @@ export function ExportPanel({
   const canStartNew = exportState?.canStartNew ?? false;
   const quotaResetMs = exportState?.quotaResetMs ?? 0;
 
-  // Anchor the reset moment when the quota estimate changes, then tick a live
-  // countdown so the blocked button stays accurate without a refresh.
   const resetAt = useMemo(() => Date.now() + quotaResetMs, [quotaResetMs]);
   const remainingMs = Math.max(0, resetAt - now);
   const quotaBlocked = !(isLoading || isActive || canDownload || canStartNew);

@@ -77,7 +77,6 @@ export function SidebarFoldersSkeleton() {
 }
 
 interface SidebarFoldersProps {
-  /** The folder being viewed, highlighted in the list. */
   activeFolderId: string | null;
   LinkComponent: SidebarLinkComponent;
   /** Called when the open folder is deleted, to leave its page. */
@@ -203,7 +202,6 @@ export function SidebarFolders({
   return (
     <SidebarGroup className="pt-3">
       <SidebarGroupLabel>Folders</SidebarGroupLabel>
-      {/* With no folders yet, the empty state below is the one way in. */}
       {folders?.length !== 0 && (
         <SidebarGroupAction
           className="top-3.5"
@@ -218,8 +216,6 @@ export function SidebarFolders({
         {folders === undefined && folderSkeletonRows}
         {folders?.length === 0 && !isCreating && (
           <SidebarMenuItem>
-            {/* A quiet card that says what folders are for and how cards
-                get in, with the one button to start. */}
             <div className="mt-0.5 rounded-lg border border-sidebar-border border-dashed px-3 pt-2.5 pb-3 group-data-[collapsible=icon]:hidden">
               <p className="text-[12px] text-sidebar-foreground/55 leading-snug">
                 Group related cards. Make a folder, then drag cards onto it.
@@ -233,7 +229,6 @@ export function SidebarFolders({
                 New folder
               </button>
             </div>
-            {/* Collapsed to icons, just the button. */}
             <SidebarMenuButton
               aria-label="New folder"
               className="hidden group-data-[collapsible=icon]:flex"
@@ -255,8 +250,6 @@ export function SidebarFolders({
                 event.preventDefault();
                 setMenuFolderId(folder._id);
               }}
-              // Smart folders show what matches their search, so only
-              // manual folders take a dropped card.
               onDragLeave={(event) => {
                 if (
                   !event.currentTarget.contains(event.relatedTarget as Node)

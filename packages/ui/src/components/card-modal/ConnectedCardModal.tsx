@@ -22,6 +22,7 @@ export interface ConnectedCardModalProps {
   onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
+  returnFocus?: (cardId: string) => boolean;
 }
 
 export function ConnectedCardModal({
@@ -35,6 +36,7 @@ export function ConnectedCardModal({
   onNext,
   onPrevious,
   onTagClick,
+  returnFocus,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
@@ -76,8 +78,6 @@ export function ConnectedCardModal({
     onCardUpdate,
   });
 
-  // Archive leaves the current view, so it runs like a one-card bulk action:
-  // the same toast, with Undo.
   const runBulkAction = useBulkCardActions("card-modal");
   const toggleArchive = useCallback(() => {
     if (!card) {
@@ -137,6 +137,7 @@ export function ConnectedCardModal({
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}
+      returnFocus={returnFocus}
       saveChanges={saveChanges}
       saveState={saveState}
       tags={{

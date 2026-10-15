@@ -122,8 +122,6 @@ export function SettingsDialogBody({
   );
 }
 
-// Underline tabs that sit flush under the dialog header; panels scroll on
-// their own so the header and tab bar stay put.
 export const settingsTabsClassName = "min-h-0 flex-1 gap-0";
 export const settingsTabsListClassName =
   "h-auto w-full shrink-0 justify-start gap-5 rounded-none border-b bg-transparent p-0 px-6 dark:bg-transparent";

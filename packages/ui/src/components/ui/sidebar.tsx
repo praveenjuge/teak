@@ -34,7 +34,6 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
-// How long the pointer rests on the collapsed rail before it peeks open.
 const SIDEBAR_PEEK_DELAY_MS = 250;
 
 interface SidebarContextProps {
@@ -68,7 +67,6 @@ function useSidebar() {
   return context;
 }
 
-/** The sidebar context, or null when rendered outside a SidebarProvider. */
 function useOptionalSidebar() {
   return React.useContext(SidebarContext);
 }
@@ -118,8 +116,6 @@ function SidebarProvider({
     };
   }, [width]);
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -140,14 +136,12 @@ function SidebarProvider({
     [setOpenProp, open]
   );
 
-  // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(
     () =>
       isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open),
     [isMobile, setOpen]
   );
 
-  // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Cmd/Ctrl+B is Bold while typing; only toggle outside text fields.
@@ -171,8 +165,6 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -251,8 +243,6 @@ function Sidebar({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const isIconRail = state === "collapsed" && collapsible === "icon";
   const peekTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Opens after a short rest (so passing over the rail doesn't flash it) and
-  // closes at once; null only cancels a pending open.
   const schedulePeek = React.useCallback(
     (peek: boolean | null) => {
       if (peekTimerRef.current) {
@@ -278,11 +268,7 @@ function Sidebar({
     },
     []
   );
-  // Hover only previews the collapsed rail; every item stays reachable
-  // without it, so this is a pointer nicety rather than a control.
   React.useEffect(() => {
-    // The drawer has no rail; the container mounts again when the layout
-    // switches back from it.
     const container = isMobile ? null : containerRef.current;
     if (!container) {
       return;
@@ -293,7 +279,6 @@ function Sidebar({
       }
     };
     const handleLeave = () => {
-      // A menu opened from the rail lives outside it; stay open for it.
       schedulePeek(
         container.querySelector('[data-state="open"]') === null ? false : null
       );
@@ -305,7 +290,6 @@ function Sidebar({
       container.removeEventListener("mouseleave", handleLeave);
     };
   }, [isIconRail, isMobile, schedulePeek]);
-  // A click elsewhere on the page (after a menu kept the rail open) closes it.
   React.useEffect(() => {
     if (!isPeeking) {
       return;
@@ -383,8 +367,6 @@ function Sidebar({
     );
   }
 
-  // Collapsed to icons, the rail shows in full while the pointer rests on
-  // it, over the page rather than pushing it.
   const visuallyCollapsed = state === "collapsed" && !isPeeking;
   let gapWidth = "w-(--sidebar-width)";
   if (state === "collapsed") {
@@ -401,7 +383,6 @@ function Sidebar({
       data-state={state}
       data-variant={variant}
     >
-      {/* This is what handles the sidebar gap on desktop */}
       <div
         className={cn(
           "relative bg-transparent transition-[width] duration-150 ease-out group-data-[resizing]/sidebar-wrapper:transition-none",
@@ -418,7 +399,6 @@ function Sidebar({
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-          // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
@@ -467,10 +447,6 @@ function SidebarTrigger({
   );
 }
 
-/**
- * The sidebar's edge. Expanded, dragging it resizes the sidebar and a
- * double-click restores the default width; collapsed, a click expands it.
- */
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   const { setOpen, setResizing, setWidth, state, width } = useSidebar();
   const dragRef = React.useRef<{
@@ -612,10 +588,6 @@ function SidebarSeparator({
   );
 }
 
-/**
- * The scrolling middle of the sidebar. Its edges fade while there is more
- * to scroll that way, so the pinned header and footer need no borders.
- */
 function SidebarContent({
   className,
   onScroll,
@@ -721,7 +693,6 @@ function SidebarGroupAction({
     <Comp
       className={cn(
         "absolute top-1.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground/50 outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
-        // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 md:after:hidden",
         "group-data-[collapsible=icon]:hidden",
         className
@@ -770,9 +741,6 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  // Quiet by default and clear when current: muted labels and icons, and
-  // the open page gets a soft fill with full-contrast text. Icons sit 9px in
-  // both states, so they stay put as the rail collapses or peeks.
   "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-[9px] py-0 text-left text-[13px] text-sidebar-foreground/75 outline-hidden ring-sidebar-ring transition-[width,height,padding,background-color,color] duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-7! group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:px-[9px]! [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-sidebar-foreground/55 [&>svg]:transition-colors hover:[&>svg]:text-sidebar-foreground/80 data-[active=true]:[&>svg]:text-sidebar-accent-foreground",
   {
     variants: {
@@ -857,7 +825,6 @@ function SidebarMenuAction({
     <Comp
       className={cn(
         "absolute top-1 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground/60 outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-3.5 [&>svg]:shrink-0",
-        // Increases the hit area of the button on mobile.
         "after:absolute after:-inset-2 md:after:hidden",
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1",

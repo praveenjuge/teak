@@ -14,7 +14,6 @@ export type GridDirection =
   | "next"
   | "previous";
 
-// Rounding in layout can leave cards in one column a pixel or so apart.
 const EPSILON = 2;
 
 const centerX = (rect: GridRect) => (rect.left + rect.right) / 2;
@@ -57,8 +56,6 @@ export function nextCardIndex(
     if (index === currentIndex) {
       continue;
     }
-    // How far past the current card's edge this one starts; only cards
-    // wholly (give or take rounding) in the direction count.
     let gap: number;
     if (direction === "down") {
       gap = rect.top - current.bottom;
@@ -75,8 +72,6 @@ export function nextCardIndex(
     const inLine = vertical
       ? overlap(rect.left, rect.right, current.left, current.right)
       : overlap(rect.top, rect.bottom, current.top, current.bottom);
-    // In line beats out of line; then the nearest edge; then the nearest
-    // center across the move (the card most directly beside this one).
     const across = vertical
       ? Math.abs(centerX(rect) - cx)
       : Math.abs(centerY(rect) - cy);

@@ -2,10 +2,6 @@ import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { hexToRgb } from "@teak/convex/shared/utils/colorUtils";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 
-/**
- * The surface every grid card sits on: a hairline border that darkens, and
- * a soft shadow that appears, while the card is hovered.
- */
 export const CARD_SURFACE =
   "rounded-2xl border border-border/80 bg-card transition-[border-color,box-shadow] duration-200 group-hover/card:border-foreground/15 group-hover/card:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.3)]";
 
@@ -54,7 +50,6 @@ export function readableTextOn(hex: string): "black" | "white" {
   };
   const luminance =
     0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
-  // The luminance where black and white text have equal contrast.
   return luminance > 0.179 ? "black" : "white";
 }
 

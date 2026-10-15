@@ -22,7 +22,6 @@ export function CustomerPortalButton({
     try {
       await triggerCustomerPortal(onCreatePortal);
     } catch {
-      // Caller owns error handling/toasts.
     } finally {
       setIsLoading(false);
     }

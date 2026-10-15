@@ -9,11 +9,6 @@ import type { LibraryView } from "../libraryViews";
 import { libraryViewForPath } from "../libraryViews";
 import { parseSearchUrlState } from "../searchUrlState";
 
-// Failure mode: the page subscribes to a different first page of cards than
-// the one warmed as the client started, so the cards wait an extra round
-// trip and the server runs the query twice.
-
-/** The cards query the library itself asks for on its first render. */
 function libraryFirstQuery(url: URL, view: LibraryView) {
   let args: unknown;
   function Probe() {
@@ -64,7 +59,6 @@ describe("first-load queries", () => {
     expect(convexToJson(warmed?.args as never)).toEqual(
       convexToJson(libraryFirstQuery(url, view as LibraryView) as never)
     );
-    // The cached usePaginatedQuery's first page.
     expect(warmed?.paginationOpts).toEqual({
       cursor: null,
       id: 0,

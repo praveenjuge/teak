@@ -23,8 +23,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { type BulkCardAction, cardCountLabel } from "../../lib/bulkCardActions";
-import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
+import { selectionShortcut } from "../../lib/gridKeys";
+import type { MenuShortcut } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 /** Which grid the selection is in; it decides the bar's actions. */
@@ -52,7 +54,6 @@ interface BulkActionBarProps {
   allFavorited?: boolean;
   /** The folder being viewed, which Remove from folder takes cards out of. */
   folder?: BulkBarFolder;
-  /** True while a bulk action runs; the actions wait for it. */
   isBusy?: boolean;
   onAction: (action: BulkBarAction) => void;
   onCancel: () => void;
@@ -88,15 +89,17 @@ export function BulkActionBar({
     : PRIMARY[view];
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
-  // The keys a focused card takes for the whole selection (see MasonryGrid).
-  const shortcuts = cardMenuShortcuts();
-  // E archives (or unarchives) the selection; Restore and Add to folder
-  // have no key.
-  const primaryKeys =
-    addToFolder || view === "trash" ? undefined : [shortcuts.archive.label];
+  const shortcutFor = (action: BulkBarAction) =>
+    selectionShortcut(action, {
+      addToFolder: Boolean(addToFolder),
+      allSelectedFavorited: allFavorited,
+      view,
+    });
+  const primaryShortcut = shortcutFor(primary.action);
+  const primaryKeys = primaryShortcut ? [primaryShortcut.label] : undefined;
   const primaryButton = (
     <Button
-      aria-keyshortcuts={primaryKeys ? shortcuts.archive.keys : undefined}
+      aria-keyshortcuts={primaryShortcut?.keys}
       className="max-w-[55%]"
       disabled={disabled}
       onClick={() => onAction(primary.action)}
@@ -143,45 +146,31 @@ export function BulkActionBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem
-                aria-keyshortcuts={
-                  allFavorited ? undefined : shortcuts.favorite.keys
-                }
-                onSelect={() => onAction("favorite")}
+              <BarMenuItem
+                action="favorite"
+                onAction={onAction}
+                shortcut={shortcutFor("favorite")}
               >
                 <Heart />
                 Add to favorites
-                {!allFavorited && (
-                  <DropdownMenuShortcut aria-hidden>
-                    {shortcuts.favorite.label}
-                  </DropdownMenuShortcut>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                aria-keyshortcuts={
-                  allFavorited ? shortcuts.favorite.keys : undefined
-                }
-                onSelect={() => onAction("unfavorite")}
+              </BarMenuItem>
+              <BarMenuItem
+                action="unfavorite"
+                onAction={onAction}
+                shortcut={shortcutFor("unfavorite")}
               >
                 <HeartOff />
                 Remove from favorites
-                {allFavorited && (
-                  <DropdownMenuShortcut aria-hidden>
-                    {shortcuts.favorite.label}
-                  </DropdownMenuShortcut>
-                )}
-              </DropdownMenuItem>
+              </BarMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                aria-keyshortcuts={shortcuts.addTags.keys}
-                onSelect={() => onAction("addTags")}
+              <BarMenuItem
+                action="addTags"
+                onAction={onAction}
+                shortcut={shortcutFor("addTags")}
               >
                 <Tag />
                 Add tags…
-                <DropdownMenuShortcut aria-hidden>
-                  {shortcuts.addTags.label}
-                </DropdownMenuShortcut>
-              </DropdownMenuItem>
+              </BarMenuItem>
               <DropdownMenuItem onSelect={() => onAction("removeTags")}>
                 <Tags />
                 Remove tags…
@@ -206,17 +195,15 @@ export function BulkActionBar({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                aria-keyshortcuts={shortcuts.delete.keys}
-                onSelect={() => onAction("delete")}
+              <BarMenuItem
+                action="delete"
+                onAction={onAction}
+                shortcut={shortcutFor("delete")}
                 variant="destructive"
               >
                 <Trash2 />
                 Move to Trash
-                <DropdownMenuShortcut aria-hidden>
-                  {shortcuts.delete.label}
-                </DropdownMenuShortcut>
-              </DropdownMenuItem>
+              </BarMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -234,5 +221,34 @@ export function BulkActionBar({
         </ShortcutTooltip>
       </div>
     </div>
+  );
+}
+
+function BarMenuItem({
+  action,
+  children,
+  onAction,
+  shortcut,
+  variant,
+}: {
+  action: BulkBarAction;
+  children: ReactNode;
+  onAction: (action: BulkBarAction) => void;
+  shortcut?: MenuShortcut;
+  variant?: "destructive";
+}) {
+  return (
+    <DropdownMenuItem
+      aria-keyshortcuts={shortcut?.keys}
+      onSelect={() => onAction(action)}
+      variant={variant}
+    >
+      {children}
+      {shortcut && (
+        <DropdownMenuShortcut aria-hidden>
+          {shortcut.label}
+        </DropdownMenuShortcut>
+      )}
+    </DropdownMenuItem>
   );
 }

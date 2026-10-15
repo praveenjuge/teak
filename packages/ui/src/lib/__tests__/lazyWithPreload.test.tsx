@@ -28,10 +28,6 @@ function Dialog({ open }: { open: boolean }) {
   return <p>{open ? "dialog open" : "dialog closed"}</p>;
 }
 
-// Failure modes: a dialog's code downloaded with the page anyway, a dialog
-// that loaded early still flashing its loading state (React holds back
-// content that replaces a fallback for up to 300 ms), and a dialog that
-// unmounts when it closes.
 describe("on-demand dialogs", () => {
   test("load nothing and render nothing until they first open", async () => {
     const load = mock(() => Promise.resolve(Dialog));
@@ -53,8 +49,6 @@ describe("on-demand dialogs", () => {
     );
     await LazyDialog.preload();
     mount();
-    // A synchronous render: a component that suspended would show its
-    // fallback here.
     act(() => root?.render(<LazyDialog open />));
     expect(container.textContent).toBe("dialog open");
   });
@@ -87,8 +81,6 @@ describe("on-demand dialogs", () => {
     expect(container.textContent).toBe("dialog closed");
   });
 
-  // React.lazy keeps a failed load for good; rendered, a failed chunk
-  // (offline, or gone after a deploy) must not throw to an error boundary.
   test("keep their fallback while their code fails to load, then open once it loads", async () => {
     let attempts = 0;
     const LazyDialog = onDemand(

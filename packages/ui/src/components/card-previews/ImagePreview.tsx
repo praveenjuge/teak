@@ -30,8 +30,6 @@ export function ImagePreview({ card }: ImagePreviewProps) {
     );
   }
 
-  // Tall images (screenshots of whole pages) keep their width and scroll;
-  // the rest fit inside the dialog.
   if (isTallImage) {
     return (
       <div className="flex min-h-full w-full max-w-3xl items-start justify-center self-start">

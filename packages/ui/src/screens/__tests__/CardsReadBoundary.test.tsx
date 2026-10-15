@@ -29,7 +29,6 @@ afterEach(() => {
 const CARDS_READ_ERROR =
   "[CONVEX Q(cards:searchCardsPaginated)] [Request ID: 0] Server Error";
 
-/** Stands in for global-error: the app-wide screen above the library. */
 // biome-ignore lint/style/useReactFunctionComponents: React error boundaries require a class lifecycle.
 class AppErrorScreen extends Component<
   { children: ReactNode },
@@ -44,7 +43,6 @@ class AppErrorScreen extends Component<
   }
 }
 
-/** A grid whose read fails while `failing` holds, like a query error. */
 const renderBoundary = async (
   failing: { current: boolean },
   message = CARDS_READ_ERROR

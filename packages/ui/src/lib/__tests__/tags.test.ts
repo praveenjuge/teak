@@ -74,7 +74,6 @@ describe("applyTagOperationToSummary", () => {
     expect(
       applyTagOperationToSummary(items, operation({ status: "failed" }))
     ).toEqual(items);
-    // A change that stopped making progress only changed part of the library.
     expect(
       applyTagOperationToSummary(
         items,
@@ -85,7 +84,6 @@ describe("applyTagOperationToSummary", () => {
     expect(
       applyTagOperationToSummary(items, operation({ from: "missing" }))
     ).toEqual(items);
-    // A case-only rename leaves the lowercase list as it is.
     expect(
       applyTagOperationToSummary(items, operation({ to: "Design" }))
     ).toEqual(items);

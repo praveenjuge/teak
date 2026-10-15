@@ -16,7 +16,6 @@ const { createConvexTransport } = await import(
 );
 const { CardsScreen } = await import("../CardsScreen");
 
-// Like the app's auth boundary: the library mounts once sign-in is confirmed.
 function SignedInLibrary() {
   const { isAuthenticated } = useConvexAuth();
   if (!isAuthenticated) {
@@ -44,16 +43,11 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// Failure mode: as the first page of cards arrived, the library rendered once
-// as if it were empty (the cards reach the grid an effect later). The empty
-// library's composer took focus, then the grid replaced it with another, so
-// anything typed in between was lost.
 test("goes from loading to the cards without showing an empty library", async () => {
   const transport = createConvexTransport();
   transport.seed("card/vaultSetup:getVaultSetup", null);
   transport.seed("folders:listFolders", []);
   transport.seed("auth:getCardCreationStatus", { canCreateCard: true });
-  // A signed-in session the backend has accepted.
   transport.client.setAuth = (_fetchToken, onChange) => onChange?.(true);
   transport.client.clearAuth = () => undefined;
   const fetchAccessToken = async () => "token";
@@ -90,7 +84,6 @@ test("goes from loading to the cards without showing an empty library", async ()
     )
   );
 
-  // The first page of cards arrives once the library is on screen.
   await act(() =>
     transport.reply("cards:searchCardsPaginated", {
       continueCursor: "end",

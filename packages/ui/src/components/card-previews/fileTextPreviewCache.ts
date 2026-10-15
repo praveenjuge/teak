@@ -68,7 +68,6 @@ export const cachedFileTextPreview = (cacheKey: string): string | undefined => {
     dropCacheEntry(cacheKey);
     return;
   }
-  // Refresh recency so the byte-budget eviction stays LRU-ordered.
   previewCache.delete(cacheKey);
   previewCache.set(cacheKey, cached);
   return cached.source;

@@ -23,8 +23,9 @@ import { Label } from "@teak/ui/components/ui/label";
 import { Textarea } from "@teak/ui/components/ui/textarea";
 import { useMutation } from "convex/react";
 import { Check } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useFolders } from "../../hooks/useFolders";
+import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
@@ -78,9 +79,6 @@ export function FolderNameDialog({
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<FolderColor | undefined>(undefined);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  // Blocks a second submit before the disabled button has rendered.
-  const savingRef = useRef(false);
   const isRename = Boolean(folder);
   const isSmart = folder ? folder.kind === "smart" : initialQuery !== undefined;
 
@@ -95,8 +93,6 @@ export function FolderNameDialog({
       setQuery(folder?.query ?? initialQuery ?? "");
       setColor(folder?.color);
       setServerError(null);
-      setIsSaving(false);
-      savingRef.current = false;
     }
   }, [folder, initialQuery, open]);
 
@@ -110,16 +106,11 @@ export function FolderNameDialog({
   } else if (trimmed) {
     problem = explainInvalidFolderName(trimmed);
   }
-  // Like the name, an empty search (or one still being typed, such as
-  // `folder:`) only disables Save; the length limit shows as an error, and
-  // the server checks the folders a `folder:` names.
   const queryIncomplete = isSmart && !canonicalQuery;
   const queryProblem =
     isSmart && canonicalQuery
       ? explainInvalidSmartFolderQuery(canonicalQuery)
       : null;
-  // A server error about the search (a `folder:` it names) shows under the
-  // search; one about the name, under the name.
   const serverErrorIsAboutName =
     serverError !== null &&
     (NAME_ERRORS as readonly string[]).includes(serverError);
@@ -137,15 +128,12 @@ export function FolderNameDialog({
     !problem &&
     !queryProblem &&
     !queryIncomplete &&
-    !isSaving &&
     !unchanged;
 
-  const submit = async () => {
-    if (!canSubmit || savingRef.current) {
+  const [submit, isSaving] = useSingleFlight(async () => {
+    if (!canSubmit) {
       return;
     }
-    savingRef.current = true;
-    setIsSaving(true);
     setServerError(null);
     try {
       const saved = folder
@@ -171,10 +159,8 @@ export function FolderNameDialog({
           isRename ? "Couldn't save the folder" : "Couldn't create the folder"
         )
       );
-      savingRef.current = false;
-      setIsSaving(false);
     }
-  };
+  });
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -238,12 +224,10 @@ export function FolderNameDialog({
                 id={queryId}
                 maxLength={MAX_SMART_FOLDER_QUERY_LENGTH * 2}
                 onChange={(event) => {
-                  // A search is one line: pasted line breaks become spaces.
                   setQuery(event.target.value.replace(/\s*\n\s*/g, " "));
                   setServerError(null);
                 }}
                 onKeyDown={(event) => {
-                  // Enter saves, as in the name field.
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     event.currentTarget.form?.requestSubmit();
@@ -295,7 +279,7 @@ export function FolderNameDialog({
             >
               Cancel
             </Button>
-            <Button disabled={!canSubmit} type="submit">
+            <Button disabled={!canSubmit || isSaving} type="submit">
               {submitLabel(isRename, isSmart)}
             </Button>
           </DialogFooter>

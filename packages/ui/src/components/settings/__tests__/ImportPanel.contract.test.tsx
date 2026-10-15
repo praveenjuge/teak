@@ -16,7 +16,6 @@ mock.module("../../../convexQueryHooks", () => ({
     results: [],
     status: "Exhausted",
   }),
-  // getImportFailureSamples is the only import query that takes a job id.
   useQuery: (_query: unknown, args?: unknown) =>
     args && typeof args === "object" && "jobId" in args
       ? failureSamplesResult
@@ -99,9 +98,7 @@ describe("ImportPanel", () => {
       const markup = renderImportPanel();
       expect(markup).toContain("Upload interrupted");
       expect(markup).toContain("Resume upload");
-      // The interrupted upload can also be discarded.
       expect(markup).toContain("Cancel import");
-      // The resting last-import row and mode picker stay hidden while resuming.
       expect(markup).not.toContain("No imports yet.");
     } finally {
       importQueryResult = null;
@@ -344,6 +341,37 @@ describe("ImportPanel", () => {
         )
       ).rejects.toThrow("Upload part 1 returned no ETag");
       expect(recordPart).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("a resumed upload counts recorded parts and only counts a new part once it is recorded", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(null, { status: 200, headers: { ETag: '"part-2"' } })
+      )
+    ) as unknown as typeof fetch;
+    const onProgress = mock();
+    const recordPart = mock(() => Promise.reject(new Error("offline")));
+
+    try {
+      await expect(
+        putParts(
+          new File([new Uint8Array([1, 2])], "bookmarks.html"),
+          {
+            jobId: "job",
+            partSize: 1,
+            parts: [{ partNumber: 2, url: "https://uploads.example/2" }],
+            uploadedParts: [1],
+          },
+          onProgress,
+          new Set<AbortController>(),
+          recordPart
+        )
+      ).rejects.toThrow("offline");
+      expect(onProgress.mock.calls).toEqual([[50]]);
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -1,21 +1,76 @@
 const MAX_PREVIEW_LENGTH = 500;
 
-// Markdown backslash escapes, e.g. `my\_file` or `2\*3`. The editor writes
-// these for literal punctuation, so they are swapped for private-use
-// placeholders before any stripping (otherwise the emphasis rules would pair
-// the escaped markers) and restored as plain characters at the end.
-const ESCAPED_CHARACTER = /\\([\\`*_{}[\]()#+\-.!~|>])/g;
-const PLACEHOLDER_BASE = "\ue000".charCodeAt(0);
-const PLACEHOLDER = /[\ue000-\ue07f]/g;
-
-function protectEscapes(text: string): string {
-  return text.replace(ESCAPED_CHARACTER, (_match, character: string) =>
-    String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0))
-  );
+interface StripRule {
+  name: string;
+  pattern: RegExp;
+  replacement: string;
 }
 
-function restoreEscapes(text: string): string {
-  return text.replace(PLACEHOLDER, (placeholder) =>
+const BLOCK_RULES: readonly StripRule[] = [
+  { name: "htmlComment", pattern: /<!--[\s\S]*?-->/g, replacement: " " },
+  { name: "codeFence", pattern: /^\s*(?:```|~~~).*$/gm, replacement: " " },
+  {
+    name: "imageKeepingAlt",
+    pattern: /!\[([^\]]*)\]\([^)]*\)/g,
+    replacement: "$1",
+  },
+  {
+    name: "inlineLinkKeepingLabel",
+    pattern: /\[([^\]]*)\]\([^)]*\)/g,
+    replacement: "$1",
+  },
+  {
+    name: "referenceLinkKeepingLabel",
+    pattern: /\[([^\]]*)\]\[[^\]]*\]/g,
+    replacement: "$1",
+  },
+  { name: "htmlTag", pattern: /<\/?[a-zA-Z][^>]*>/g, replacement: " " },
+];
+
+const LINE_MARKER_RULES: readonly StripRule[] = [
+  { name: "headingMarker", pattern: /^#{1,6}\s+/, replacement: "" },
+  { name: "nestedBlockquoteMarker", pattern: /^(?:>\s?)+/, replacement: "" },
+  { name: "taskCheckbox", pattern: /^[-*+]\s+\[[ xX]\]\s+/, replacement: "" },
+  { name: "bulletMarker", pattern: /^[-*+]\s+/, replacement: "" },
+  { name: "orderedListMarker", pattern: /^\d+[.)]\s+/, replacement: "" },
+];
+
+const INLINE_RULES: readonly StripRule[] = [
+  { name: "inlineCodeKeepingText", pattern: /`([^`]+)`/g, replacement: "$1" },
+  { name: "boldPair", pattern: /(\*\*|__)(.+?)\1/g, replacement: "$2" },
+  { name: "italicPair", pattern: /(\*|_)(.+?)\1/g, replacement: "$2" },
+  { name: "strikethroughPair", pattern: /~~(.+?)~~/g, replacement: "$1" },
+  { name: "midLineHeadingRun", pattern: /\s+#{1,6}\s+/g, replacement: " " },
+  { name: "whitespaceRun", pattern: /\s+/g, replacement: " " },
+];
+
+const HORIZONTAL_RULE = /^(?:[-*_]\s*){3,}$/;
+
+const applyRules = (text: string, rules: readonly StripRule[]) =>
+  rules.reduce(
+    (result, rule) => result.replace(rule.pattern, rule.replacement),
+    text
+  );
+
+const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|>])/g;
+const PLACEHOLDER_BASE = "".charCodeAt(0);
+const PLACEHOLDER = /[-]/g;
+
+/**
+ * Runs `strip` with backslash-escaped punctuation (`my\_file`) swapped for
+ * private-use placeholders, so no rule reads an escaped marker as markup,
+ * then puts the punctuation back as plain characters.
+ */
+function withEscapedPunctuation(
+  text: string,
+  strip: (text: string) => string
+): string {
+  const protectedText = text.replace(
+    ESCAPED_PUNCTUATION,
+    (_match, character: string) =>
+      String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0))
+  );
+  return strip(protectedText).replace(PLACEHOLDER, (placeholder) =>
     String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
   );
 }
@@ -34,57 +89,15 @@ export function markdownToPlainText(input?: string | null): string {
   if (!input) {
     return "";
   }
-
-  const withoutBlocks = protectEscapes(input.slice(0, MAX_PREVIEW_LENGTH))
-    // HTML comments, e.g. <!-- vadivam-icon-count:start -->
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    // Fenced code block fences and their language hints
-    .replace(/^\s*(?:```|~~~).*$/gm, " ")
-    // Images: keep the alt text
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-    // Inline and reference links: keep the label
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
-    // Any remaining HTML tags
-    .replace(/<\/?[a-zA-Z][^>]*>/g, " ");
-
-  const lines = withoutBlocks.split(/\r?\n/).map((rawLine) => {
-    const line = rawLine.trim();
-
-    // Horizontal rules -> drop entirely
-    if (/^(?:[-*_]\s*){3,}$/.test(line)) {
-      return "";
-    }
-
-    return (
-      line
-        // Leading heading markers (#, ##, ...)
-        .replace(/^#{1,6}\s+/, "")
-        // Leading blockquote markers, possibly nested
-        .replace(/^(?:>\s?)+/, "")
-        // Task list checkboxes
-        .replace(/^[-*+]\s+\[[ xX]\]\s+/, "")
-        // Unordered list bullets
-        .replace(/^[-*+]\s+/, "")
-        // Ordered list markers (1. or 1))
-        .replace(/^\d+[.)]\s+/, "")
-    );
+  return withEscapedPunctuation(input.slice(0, MAX_PREVIEW_LENGTH), (text) => {
+    const lines = applyRules(text, BLOCK_RULES)
+      .split(/\r?\n/)
+      .map((rawLine) => {
+        const line = rawLine.trim();
+        return HORIZONTAL_RULE.test(line)
+          ? ""
+          : applyRules(line, LINE_MARKER_RULES);
+      });
+    return applyRules(lines.join(" "), INLINE_RULES).trim();
   });
-
-  return restoreEscapes(
-    lines
-      .join(" ")
-      // Inline code -> keep the contents
-      .replace(/`([^`]+)`/g, "$1")
-      // Bold / italic / strikethrough (paired markers)
-      .replace(/(\*\*|__)(.+?)\1/g, "$2")
-      .replace(/(\*|_)(.+?)\1/g, "$2")
-      .replace(/~~(.+?)~~/g, "$1")
-      // Mid-line heading runs left over from single-line markdown, e.g.
-      // "AGENTS.md ## Project Overview" -> "AGENTS.md Project Overview"
-      .replace(/\s+#{1,6}\s+/g, " ")
-      // Collapse remaining whitespace
-      .replace(/\s+/g, " ")
-      .trim()
-  );
 }
