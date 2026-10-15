@@ -2,7 +2,12 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
-import { cardTypeValidator, cardValidator } from "../schema";
+import {
+  cardTypeValidator,
+  cardValidator,
+  searchModeValidator,
+} from "../schema";
+import { readSemanticRanking } from "../search/semanticCache";
 import { getSessionUser } from "../securitySessions";
 import {
   clampPageSize,
@@ -13,6 +18,11 @@ import {
   hasSearchQualifiers,
   parseSearchQuery,
 } from "../shared/search/qualifiers";
+import {
+  fuseRankings,
+  SEMANTIC_MIN_SCORE,
+  semanticQueryText,
+} from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
 import {
   type ArchivedFilter,
@@ -34,7 +44,10 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import { searchCardsByDocument } from "./searchDocumentHelpers";
+import {
+  loadSemanticMatches,
+  searchCardsByDocument,
+} from "./searchDocumentHelpers";
 import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
   decodeShuffleWalkCursor,
@@ -77,6 +90,12 @@ export const cardReturnValidator = v.object({
     )
   ),
   linkPreviewImageUrl: v.optional(v.string()),
+  /**
+   * A search result matched by meaning (shared/search/semantic.ts), which
+   * need not contain the searched words; clients keep it when they narrow
+   * results to the words.
+   */
+  matchedByMeaning: v.optional(v.literal(true)),
 });
 
 const paginationResultValidator = v.object({
@@ -324,6 +343,13 @@ export const searchCardsPaginatedArgsValidator = v.object({
   /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
   /**
+   * How a search finds cards (shared/search/semantic.ts); hybrid when
+   * missing. Meaning matches come from `requestSemanticResults`, which the
+   * client starts with the same search: this query merges them in when they
+   * are cached, and stays keyword-only until then.
+   */
+  mode: v.optional(searchModeValidator),
+  /**
    * Ignored. A client retrying a failed read sends a new one, so its cached
    * query hooks subscribe afresh instead of returning the cached error.
    */
@@ -557,14 +583,23 @@ export const searchCardsPaginatedHandler = async (
       urlHost: sites.length === 1 ? sites[0] : undefined,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
     };
-    let searchResults: Doc<"cards">[];
+    // Semantic mode with no cached meaning matches falls back to keyword.
+    const mode = args.mode ?? "hybrid";
+    const semanticText = mode === "keyword" ? "" : semanticQueryText(parsed);
+    const ranking = semanticText
+      ? await readSemanticRanking(ctx, user.teakUserId, semanticText)
+      : null;
+    const keywordSearch = !(mode === "semantic" && ranking);
+    let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
     try {
-      searchResults = await searchCardsByDocument(ctx, {
-        ...searchArgs,
-        resultFilter: matchesFilters,
-        searchTexts,
-      });
+      if (keywordSearch) {
+        searchResults = await searchCardsByDocument(ctx, {
+          ...searchArgs,
+          resultFilter: matchesFilters,
+          searchTexts,
+        });
+      }
     } catch (error) {
       if (!isSearchTooBroadError(error)) {
         throw error;
@@ -579,12 +614,42 @@ export const searchCardsPaginatedHandler = async (
       .filter((card) => matchesFilters(card, searchTexts.get(card._id)))
       .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
 
-    const filteredResults = uniqueResults;
+    let filteredResults = uniqueResults;
+    const matchedByMeaning = new Set<Id<"cards">>();
+    if (ranking) {
+      // Fusion picks which cards are in the set; the sort below orders it.
+      const cardsById = new Map(
+        uniqueResults.map((card) => [card._id, card] as const)
+      );
+      const semantic = await loadSemanticMatches(
+        ctx,
+        searchArgs,
+        ranking,
+        cardsById,
+        { minScore: SEMANTIC_MIN_SCORE, keep: (card) => matchesFilters(card) }
+      );
+      for (const match of semantic) {
+        if (match.score >= SEMANTIC_MIN_SCORE) {
+          matchedByMeaning.add(match.cardId);
+        }
+      }
+      filteredResults = fuseRankings(
+        uniqueResults.map((card) => card._id),
+        semantic,
+        { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT }
+      ).flatMap((cardId) => cardsById.get(cardId) ?? []);
+    }
 
     const sortedResults = shuffle
       ? shuffleBySeed(filteredResults, seed, (card) => card._id)
       : filteredResults.sort((a, b) => compareCardsByCreatedAt(a, b, sort));
-    const page = sortedResults.slice(offset, offset + pageSize);
+    const page = sortedResults
+      .slice(offset, offset + pageSize)
+      .map((card) =>
+        matchedByMeaning.has(card._id)
+          ? { ...card, matchedByMeaning: true as const }
+          : card
+      );
     const isDone = sortedResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
 

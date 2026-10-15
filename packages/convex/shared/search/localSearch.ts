@@ -30,8 +30,10 @@ export interface LocalSearchFilters {
   /**
    * The server already matched these cards to these words. A card with
    * text inside its file (`hasExtractedText`) matched text the client
-   * doesn't have, so its words and phrases are not checked again; every
-   * other card, and every other filter, still is.
+   * doesn't have, and a card the server marks `matchedByMeaning` matched
+   * the search's meaning rather than its words, so neither has its words
+   * and phrases checked again; every other card, and every other filter,
+   * still is.
    */
   textMatchedByServer?: boolean;
   types?: CardType[];
@@ -190,7 +192,9 @@ export const filterLocalCards = (
       }
 
       if (
-        (textMatchedByServer && card.hasExtractedText === true) ||
+        (textMatchedByServer &&
+          (card.hasExtractedText === true ||
+            (card as { matchedByMeaning?: true }).matchedByMeaning)) ||
         (terms.length === 0 && parsed.phrases.length === 0)
       ) {
         return true;

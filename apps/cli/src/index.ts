@@ -6,6 +6,7 @@ import {
   type CardSort,
   isCardType,
   parseTags,
+  type SearchMode,
   TeakApiError,
 } from "@teak/convex/sdk";
 import {
@@ -130,6 +131,13 @@ export const parseSort = (value: string): CardSort => {
   return value;
 };
 
+export const parseMode = (value: string): SearchMode => {
+  if (!(value === "hybrid" || value === "keyword" || value === "semantic")) {
+    throw new InvalidArgumentError("mode must be hybrid, keyword or semantic");
+  }
+  return value;
+};
+
 export const parseSeed = (value: string): number => {
   const seed = parseShuffleSeed(value.trim());
   if (seed === undefined) {
@@ -166,6 +174,10 @@ export const queryOptions = (options: Record<string, unknown>) => {
     hue: strings(options.hue),
     include: typeof options.include === "string" ? options.include : "content",
     limit: typeof options.limit === "number" ? options.limit : undefined,
+    mode:
+      typeof options.mode === "string"
+        ? (options.mode as SearchMode)
+        : undefined,
     query: typeof options.query === "string" ? options.query : undefined,
     sort,
     ...(sort === "shuffle" && typeof options.seed === "number"
@@ -210,6 +222,11 @@ const withListOptions = (command: Command) =>
       "--date <phrase>",
       'created in a range, such as "last week" or "march 2026"',
       (value) => parseDateRange(value)
+    )
+    .option(
+      "--mode <mode>",
+      "how --query finds cards: hybrid (words and meaning, the default), keyword or semantic",
+      parseMode
     )
     .option("--limit <n>", "result limit", parseLimit)
     .option("--cursor <cursor>", "nextCursor from the previous page")
@@ -278,6 +295,14 @@ const writeCards = async (
   );
   if (!(options.json || page.pageInfo.nextCursor === null)) {
     process.stderr.write(`nextCursor: ${page.pageInfo.nextCursor}\n`);
+  }
+  // Meaning search was asked for but did not run.
+  if (
+    !options.json &&
+    page.searchMode === "keyword" &&
+    options.mode !== "keyword"
+  ) {
+    process.stderr.write("mode: keyword\n");
   }
 };
 

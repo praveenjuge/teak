@@ -217,7 +217,9 @@ export const vectorQuery = async (
   const [vector] = await embed(env, [cardEmbeddingQuery(text)]);
   const result = await index.query(vector as number[], {
     namespace,
-    returnMetadata: false,
+    // The typings accept a boolean, but the production API rejects one
+    // ("returnMetadata: expected value", code 40026).
+    returnMetadata: "none",
     returnValues: false,
     topK,
   });

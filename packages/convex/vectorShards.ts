@@ -3,7 +3,11 @@ import {
   vectorNamespaceForUser,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "./_generated/server";
 import { getR2KeyPrefix } from "./storage/r2Keys";
 
 export const getOrAssignVectorShard = async (
@@ -32,4 +36,17 @@ export const assignVectorShard = internalMutation({
   args: { userId: v.string() },
   returns: v.object({ namespace: v.string(), shard: v.number() }),
   handler: (ctx, { userId }) => getOrAssignVectorShard(ctx, userId),
+});
+
+/** The user's shard, without placing a user who has none yet. */
+export const getUserShard = internalQuery({
+  args: { userId: v.string() },
+  returns: v.union(v.number(), v.null()),
+  handler: async (ctx, { userId }) => {
+    const row = await ctx.db
+      .query("vectorShards")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return row?.shard ?? null;
+  },
 });

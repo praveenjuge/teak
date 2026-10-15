@@ -414,6 +414,159 @@ describe("classification step", () => {
       expect(result.type).toBe("text");
     });
 
+    test("keeps prose that mentions a colour word as text", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "Bathroom ideas: dark green tiles, oak shelves, brass taps.",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("text");
+      expect(mockRunMutation).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ type: "palette" })
+      );
+    });
+
+    test("keeps prose with a single hex-like reference as text", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "Follow up on issue #123 before Friday",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("text");
+    });
+
+    test("detects a labelled colour list as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Primary: #0F4C81\nAccent: dark green",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+    });
+
+    test.each([
+      "rgb(255, 87, 51)",
+      "hsl(120, 100%, 50%)",
+      "--accent: rgb(1, 2, 3);",
+    ])("detects a lone functional colour %p as palette", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content });
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+    });
+
+    test.each([
+      "Fixed #123 and #456 before the release",
+      "Ticket: #1234",
+      "#123, #456",
+      "Use rgb(255, 87, 51) for buttons",
+      "Brand colors are tracked in #123",
+    ])("keeps prose %p as text", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", type: "text", content });
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("text");
+    });
+
+    test.each([
+      "light blue red",
+      "--bg-primary: #FF5733",
+      "--color-component-button-background-primary: #FF5733",
+      "#000, #333",
+    ])("detects %p as palette", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content });
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+    });
+
+    test("classifies a long note of unclosed rgb( without stalling", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "rgb(".repeat(50_000),
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const startedAt = performance.now();
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("text");
+      expect(performance.now() - startedAt).toBeLessThan(1000);
+    });
+
+    test("classifies a long comma-separated note without stalling", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "a,".repeat(100_000),
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const startedAt = performance.now();
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("text");
+      expect(performance.now() - startedAt).toBeLessThan(1000);
+    });
+
+    test("stores multi-word colour names as the colours they name", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "text",
+        content: "light blue, dark green, mint cream",
+      });
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+      const colorUpdate = mockRunMutation.mock.calls.find(
+        ([, args]) => args?.colors
+      );
+      expect(
+        colorUpdate?.[1].colors.map((color: { hex: string }) => color.hex)
+      ).toEqual(["#ADD8E6", "#006400", "#F5FFFA"]);
+    });
+
+    test("detects named colours with a palette hint as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Brand colors: navy and gold",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+    });
+
+    test("detects prose with several colour codes as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Use #0F4C81 for headings and #FF5500 for buttons",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classifyCompleted(mockCtx);
+
+      expect(result.type).toBe("palette");
+    });
+
     test("does not detect palette with URL present", async () => {
       const card = {
         _id: "c1",

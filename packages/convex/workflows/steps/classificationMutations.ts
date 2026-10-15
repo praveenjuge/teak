@@ -58,6 +58,14 @@ export const recordClassification = internalMutation({
       ...(type === "link" ? { metadataStatus: "pending" } : {}),
     };
 
+    // Swatches on a palette came from its text. A card corrected to another
+    // type would keep showing them, so clear them with the type change.
+    if (card.type === "palette" && type !== "palette") {
+      patchData.colors = undefined;
+      patchData.colorHexes = undefined;
+      patchData.colorHues = undefined;
+    }
+
     if (type === "quote") {
       const normalization = normalizeQuoteContent(card.content ?? "");
       if (normalization.removedQuotes && normalization.text !== card.content) {

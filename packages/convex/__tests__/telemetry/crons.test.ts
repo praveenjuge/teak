@@ -5,6 +5,8 @@ import crons from "../../crons";
 import {
   cleanupExpiredIdempotency,
   cleanupOldDeletedCards,
+  cleanupSemanticSearchCache,
+  sweepOrphanedObjects,
 } from "../../telemetry/crons";
 import { handlerOf, mockActionCtx } from "../helpers/convex.test-utils";
 
@@ -77,9 +79,22 @@ describe("cron monitoring", () => {
     ]);
   });
 
+  test("the hourly cache cleanup removes expired search meaning matches", async () => {
+    const runMutation = recordMutations();
+    expect(
+      await handlerOf(cleanupSemanticSearchCache)(
+        mockActionCtx({ runMutation }),
+        {}
+      )
+    ).toBeNull();
+    expect(
+      jobCalls(runMutation).map(([reference]) => getFunctionName(reference))
+    ).toEqual(["search/semanticCache:cleanupExpired"]);
+  });
+
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRONS).map(({ name }) => name);
-    expect(slugs).toHaveLength(11);
+    expect(slugs).toHaveLength(12);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
@@ -128,6 +143,28 @@ describe("cron monitoring", () => {
       phase: "failed",
       error: "workflow start failed",
     });
+  });
+
+  test("the weekly sweep runs both reports even when the first one fails", async () => {
+    const runMutation = recordMutations();
+    const runAction = mock(
+      (reference: FunctionReference<"action", "internal">) =>
+        getFunctionName(reference) === "embedding/sweep:sweepVectorLedger"
+          ? Promise.reject(new Error("ledger read limit"))
+          : Promise.resolve({ orphanCount: 0 })
+    );
+    await expect(
+      handlerOf(sweepOrphanedObjects)(
+        mockActionCtx({ runAction, runMutation }),
+        {}
+      )
+    ).rejects.toThrow("ledger read limit");
+    expect(
+      runAction.mock.calls.map(([reference]) => getFunctionName(reference))
+    ).toEqual([
+      "embedding/sweep:sweepVectorLedger",
+      "workflows/orphanSweep:sweepOrphanedObjects",
+    ]);
   });
 
   test("a failed heartbeat write never fails the job", async () => {

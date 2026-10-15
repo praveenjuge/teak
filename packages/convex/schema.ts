@@ -4,6 +4,7 @@ import { cardTypes } from "./shared/constants";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { FOLDER_COLORS } from "./shared/folders";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
+import { SEARCH_MODES } from "./shared/search/semantic";
 import {
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
@@ -21,6 +22,11 @@ export const linkCategoryValidator = v.union(
 
 export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
+);
+
+/** How a search finds cards (shared/search/semantic.ts). */
+export const searchModeValidator = v.union(
+  ...SEARCH_MODES.map((mode) => v.literal(mode))
 );
 
 export const folderColorValidator = v.union(
@@ -679,6 +685,16 @@ export default defineSchema({
     userId: v.string(),
     shard: v.number(),
   }).index("by_userId", ["userId"]),
+  // `key` hashes the embedded text; the query itself is never stored.
+  semanticSearchResults: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    ranking: v.array(v.object({ cardId: v.id("cards"), score: v.number() })),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_userId_and_key", ["userId", "key"])
+    .index("by_expiresAt", ["expiresAt"]),
   folders: defineTable({
     userId: v.string(),
     name: v.string(),

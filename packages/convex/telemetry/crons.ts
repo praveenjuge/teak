@@ -110,10 +110,20 @@ export const sweepOrphanedObjects = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.sweepOrphanedObjects.name, async () => {
-      await ctx.runAction(
-        internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
-        {}
-      );
+      // Two independent reports: a failure in either still runs the other,
+      // then fails the cron.
+      const results = await Promise.allSettled([
+        ctx.runAction(internal.embedding.sweep.sweepVectorLedger, {}),
+        ctx.runAction(
+          internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
+          {}
+        ),
+      ]);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          throw result.reason;
+        }
+      }
       return null;
     }),
 });
@@ -170,6 +180,15 @@ export const workosEventCatchUp = internalAction({
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.workosEventCatchUp.name, async () => {
       await catchUpHandler(ctx);
+    }),
+});
+
+export const cleanupSemanticSearchCache = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRONS.cleanupSemanticSearchCache.name, async () => {
+      await ctx.runMutation(internal.search.semanticCache.cleanupExpired, {});
     }),
 });
 

@@ -34,6 +34,7 @@ import {
   validatePatchPayload,
   validateUploadPayload,
 } from "./publicApiHttpValidation";
+import { fetchSemanticRanking } from "./search/semanticActions";
 import { combineSearchQueries } from "./shared/search/qualifiers";
 
 const MAX_SHUFFLE_READS = 4;
@@ -250,6 +251,17 @@ const handleCardsListRequest = async (
         pageInfo: { hasMore: false, nextCursor: null },
       });
     }
+    // The meaning side first: queries cannot call the vector service. Down,
+    // slow or rate-limited, the search is keyword-only and says so.
+    const semantic =
+      options.searchQuery && options.mode !== "keyword"
+        ? await fetchSemanticRanking(
+            ctx,
+            auth.validated.userId,
+            options.semanticText
+          )
+        : null;
+    const semanticRanking = semantic?.ranking ?? undefined;
     const queryArgs = {
       archived: options.archived,
       folderId,
@@ -266,6 +278,7 @@ const handleCardsListRequest = async (
       types: options.types,
       userId: auth.validated.userId,
       ...options.qualifiers,
+      ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
     };
     let cardsPage: {
       items: any[];
@@ -384,6 +397,9 @@ const handleCardsListRequest = async (
         serializeListCard(card, request.url, include)
       ),
       pageInfo: cardsPage.pageInfo,
+      ...(options.searchQuery
+        ? { searchMode: semanticRanking ? options.mode : "keyword" }
+        : {}),
     });
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to fetch cards");

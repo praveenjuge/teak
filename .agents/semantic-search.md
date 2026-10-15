@@ -103,5 +103,97 @@ or is due for, a vector (`packages/convex/embedding/`).
 - **No Files Worker.** Without `FILES_BASE` (the local E2E stack) nothing is
   marked or written.
 
-Cards saved before embeddings shipped, and cards whose retries ran out, are
-left to the backfill.
+## Backfill
+
+`migration/backfillEmbeddings.ts` queues every card that has text and no
+current vector:
+- cards saved before embeddings shipped
+- cards whose retries ran out
+- cards whose job was lost (due over an hour ago)
+
+It pages `cards` 100 at a time and skips accounts being deleted. It queues
+cards in jobs of 16, one job every 3.2 s (about 300 a minute), and each job
+embeds its cards in one `embed-upsert`. Vectorize answers many small writes
+with 429 (`VECTOR_UPSERT_ERROR`, code 40041), so batch writes wherever many
+cards change at once. It's a dry run by default:
+
+```bash
+npx convex run migration/backfillEmbeddings:backfillEmbeddings
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"userId":"teak_…"}'
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false}'
+```
+
+`userId` limits a run to one account, as a canary. Don't run the whole table
+on the dev deployment: it shares the production index, and every dev account
+it embeds takes one of the index's 50,000 namespaces.
+
+The last batch logs `backfillEmbeddings finished` with the totals. `once` and
+`cursor` run one batch at a time. After bumping `CARD_EMBEDDING_VERSION`, add
+`"reembed": true` to queue embedded cards too. A card whose text is
+unchanged costs no Workers AI call.
+
+## Weekly ledger sweep
+
+The Monday `sweep-orphaned-objects` cron first runs
+`embedding/sweep:sweepVectorLedger`. It reports, and never changes:
+- vector deletes still pending after 24 hours
+- rows whose card is gone without a tombstone
+- embeds that ran out of retries
+- embeds due over an hour ago with no job
+
+It logs `vectors.ledger_clean`, `vectors.ledger_problems_detected`, or
+`vectors.ledger_sweep_incomplete` (when its 500,000-row cap stops it) with the
+counts and up to 10 card ids. A failed re-embed of an edited card counts as a
+failed embed: it keeps the vector of the old text. The backfill re-queues
+failed embeds and lost jobs. The storage sweep in the same cron runs even if
+this one fails.
+
+## Hybrid search
+
+Every search blends keyword and meaning matches (`mode` `hybrid`, the
+default; `keyword` and `semantic` for one side). The pure parts are in
+`packages/convex/shared/search/semantic.ts`; the Convex parts in
+`packages/convex/search/`.
+
+- **When.** Only a search with free words of 2 or more characters
+  (`semanticQueryText`: words and phrases, lowercased, without qualifiers or
+  `#hex` colors, at most 500 characters). A qualifier-only search makes no
+  vector call.
+- **Cache.** `semanticSearchResults` holds each user's ranking per search
+  (up to 100 `{cardId, score}`) for 10 minutes. `key` is a SHA-256 of
+  `CARD_EMBEDDING_VERSION` and the text, so the search text is never stored.
+  The hourly `cleanup-semantic-search-cache` cron removes expired rows, and
+  account deletion removes the user's rows. Queries read a row until it is
+  removed; the action and the API refetch an expired one.
+- **Grid.** Queries can't call the worker. The web grid calls the
+  `search/semanticActions:requestSemanticResults` action beside its
+  `searchCardsPaginated` query; the action fills the cache and the reactive
+  query merges the ranking in when it lands. Until then the grid is
+  keyword-only, and an empty result waits up to 1.5 s before "No cards found".
+  The native apps' query reads the same cache but nothing fills it for them
+  yet.
+- **API.** `GET /v1/cards` fetches the ranking (cache first, 1.5 s timeout)
+  before it reads a page, and passes it to the page query. Each page fetches
+  it again, and match cursors resume after the last card served, so a ranking
+  that changes between pages can't repeat cards. `searchMode` says which mode
+  ran.
+- **Fusion.** Reciprocal rank fusion (`1 / (60 + rank)` from each side).
+  Meaning-only matches below `SEMANTIC_MIN_SCORE` (0.35) are dropped; real
+  matches score about 0.4 to 0.5. Meaning matches pass the same index
+  filters (Trash, Archive, favorites, type, site) and qualifier checks as
+  keyword matches. Fusion picks the candidate set (401 grid, 400 API); the
+  chosen sort orders it.
+- **Fallback.** No Files Worker, a worker error or timeout, or more than 60
+  uncached searches a minute per user (`semanticSearch` rate limit) leaves the
+  search keyword-only, logged as `[search/semantic]`.
+
+## Checking search by meaning
+
+`embedding/inspect:searchByMeaning` queries one user's vectors from the Convex
+dashboard or CLI. It returns card ids, scores and a short preview of each
+match the user owns:
+
+```bash
+npx convex run embedding/inspect:searchByMeaning \
+  '{"userId":"teak_…","text":"furniture wood that survives rain"}'
+```

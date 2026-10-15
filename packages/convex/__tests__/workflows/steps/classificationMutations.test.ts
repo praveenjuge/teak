@@ -47,6 +47,66 @@ describe("recordClassification with a type", () => {
     }
   });
 
+  test("clears palette swatches when a palette becomes another type", async () => {
+    const mutation = withScheduler(recordClassification);
+    let cardState: any = {
+      _id: "card_123",
+      type: "palette",
+      content: "Bathroom ideas: dark green tiles",
+      colors: [{ hex: "#008000", name: "green" }],
+      colorHexes: ["#008000"],
+      colorHues: ["green"],
+      processingStatus: {},
+    };
+    const mockCtx = {
+      db: withSearchSyncDb({
+        get: async () => cardState,
+        patch: (_table: string, _id: string, updates: any) => {
+          cardState = { ...cardState, ...updates };
+        },
+      }),
+    };
+
+    await mutation(mockCtx, {
+      cardId: "card_123",
+      type: "text",
+      confidence: 0.7,
+    });
+
+    expect(cardState.type).toBe("text");
+    expect(cardState.colors).toBeUndefined();
+    expect(cardState.colorHexes).toBeUndefined();
+    expect(cardState.colorHues).toBeUndefined();
+  });
+
+  test("keeps colours when a non-palette card changes type", async () => {
+    const mutation = withScheduler(recordClassification);
+    let cardState: any = {
+      _id: "card_123",
+      type: "text",
+      colors: [{ hex: "#008000" }],
+      colorHexes: ["#008000"],
+      processingStatus: {},
+    };
+    const mockCtx = {
+      db: withSearchSyncDb({
+        get: async () => cardState,
+        patch: (_table: string, _id: string, updates: any) => {
+          cardState = { ...cardState, ...updates };
+        },
+      }),
+    };
+
+    await mutation(mockCtx, {
+      cardId: "card_123",
+      type: "image",
+      confidence: 0.9,
+    });
+
+    expect(cardState.colors).toEqual([{ hex: "#008000" }]);
+    expect(cardState.colorHexes).toEqual(["#008000"]);
+  });
+
   test("sets categorize to pending for link type", async () => {
     const mutation = withScheduler(recordClassification);
 

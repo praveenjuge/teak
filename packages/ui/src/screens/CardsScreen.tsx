@@ -51,6 +51,7 @@ import {
 } from "../components/lazyDialogs";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
+import { useSemanticSearch } from "../hooks/useSemanticSearch";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
@@ -269,6 +270,11 @@ export function CardsScreen({
       : { ...queryArgs, ...(queryRetryKey ? { retryKey: queryRetryKey } : {}) },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
+  // Meaning matches merge into the query above once they are cached.
+  const semanticSearch = useSemanticSearch({
+    ...queryArgs,
+    enabled: !(isFolderView && !folder),
+  });
 
   const {
     addFilter,
@@ -358,6 +364,7 @@ export function CardsScreen({
       !searchController.hasActiveSearch ||
       cardsStatus === "LoadingFirstPage" ||
       isSeekingFirstMatch ||
+      (cards.length === 0 && semanticSearch.isPending) ||
       reportedSearchKeyRef.current === searchKey
     ) {
       return;
@@ -370,6 +377,7 @@ export function CardsScreen({
     isSeekingFirstMatch,
     searchController.hasActiveSearch,
     searchKey,
+    semanticSearch.isPending,
   ]);
 
   const hasCards = displayCards.length > 0;
@@ -548,7 +556,8 @@ export function CardsScreen({
       (isFolderView && folder === undefined) ||
       cardsStatus === "LoadingFirstPage" ||
       isSeekingFirstMatch ||
-      searchController.isSearchPending
+      searchController.isSearchPending ||
+      (displayCards.length === 0 && semanticSearch.isPending)
     ) {
       return <CardsGridSkeleton />;
     }

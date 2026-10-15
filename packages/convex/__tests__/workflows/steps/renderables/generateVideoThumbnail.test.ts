@@ -1,11 +1,28 @@
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { getFunctionName } from "convex/server";
 
 let workerCalls: Array<{ op: string; params: Record<string, unknown> }> = [];
 let frameAnswer: () => Promise<unknown>;
 let generateVideoThumbnail: any;
 
+// These tests mock the Files Worker, so declare it configured:
+// ensureObjectOwnership refuses to register objects without one.
+const savedFilesEnv = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+};
+
 beforeAll(async () => {
+  process.env.FILES_BASE = "https://files.test";
+  process.env.FILES_SIGNING_SECRET = "test-secret";
   const r2Path = import.meta.resolve("../../../../storage/r2");
   const actualR2 = await import(r2Path);
   mock.module(r2Path, () => ({
@@ -31,6 +48,17 @@ beforeAll(async () => {
       "../../../../workflows/steps/renderables/generateVideoThumbnail"
     )
   ).generateVideoThumbnail;
+});
+
+afterAll(() => {
+  for (const name of ["FILES_BASE", "FILES_SIGNING_SECRET"] as const) {
+    const original = savedFilesEnv[name];
+    if (original === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = original;
+    }
+  }
 });
 
 beforeEach(() => {
