@@ -571,7 +571,6 @@ export declare const components: {
   workOSAuthKit: import("@convex-dev/workos-authkit/_generated/component.js").ComponentApi<"workOSAuthKit">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
-  resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;
 };

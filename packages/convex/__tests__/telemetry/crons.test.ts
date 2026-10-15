@@ -69,17 +69,17 @@ describe("cron monitoring", () => {
 
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRON_MONITORS);
-    expect(slugs).toHaveLength(12);
+    expect(slugs).toHaveLength(11);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  test("routes all twelve schedules through monitored Node actions", () => {
+  test("routes all eleven schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(12);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(12);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

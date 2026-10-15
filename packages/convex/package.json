@@ -44,7 +44,6 @@
     "@convex-dev/better-auth": "0.12.5",
     "@convex-dev/polar": "^0.9.2",
     "@convex-dev/rate-limiter": "0.4.2",
-    "@convex-dev/resend": "0.2.9",
     "@convex-dev/workflow": "0.4.10",
     "@convex-dev/workos-authkit": "0.2.10",
     "@convex-dev/workpool": "0.4.14",

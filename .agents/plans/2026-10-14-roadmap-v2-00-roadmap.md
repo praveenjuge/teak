@@ -43,7 +43,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
   - **Editor:** the rich editor is Tiptap with editorcn (`packages/ui/src/components/text-editor`). Task lists already work, there is no `[[` support, and the slash menu (`SlashMenu.tsx`) is the pattern to copy. Only new notes can open full screen (`forms/FullScreenAddCardDialog.tsx`).
   - **Tags** are strings on `cards.tags` / `cards.aiTags` and are matched case-insensitively through `tagKey` (`shared/tags.ts`). There is no tag that hides a card.
   - **Sort menu:** the header's view menu (`packages/ui/src/components/search/ViewMenu.tsx`) offers Newest first, Oldest first and Shuffle. The URL state lives in `packages/ui/src/lib/searchUrlState.ts`.
-  - **No inbound email.** Resend only sends. `http.ts` checks webhook signatures in `workosWebhook.ts`, which is the template for new inbound routes.
+  - **No email provider.** WorkOS sends sign-in email; Teak sends and receives none itself. `http.ts` checks webhook signatures in `workosWebhook.ts`, which is the template for new inbound routes.
   - **Backfills** are hand-written, self-scheduling paged mutations with `dryRun` defaulting to true, for example `packages/convex/migration/backfillUrlHost.ts`.
 
 ## Decisions (from the Q&A, apply to every phase)

@@ -1,7 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { components, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import { type ActionCtx, env, internalAction } from "../_generated/server";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { catchUpHandler } from "../workosEventCatchUp";
@@ -19,7 +19,6 @@ export const CRON_MONITORS = {
   cleanupStalePendingCardUploads: "cleanup-stale-pending-card-uploads",
   sweepOrphanedObjects: "sweep-orphaned-objects",
   reapStuckWorkflows: "reap-stuck-workflows",
-  cleanupResendEmails: "cleanup-resend-emails",
   redriveAccountDeletion: "redrive-account-deletion",
   workosEventCatchUp: "workos-event-catch-up",
   adminDailySnapshot: "admin-daily-snapshot",
@@ -171,21 +170,6 @@ export const cleanupExpiredExports = internalAction({
         {}
       )
     ),
-});
-
-export const cleanupResendEmails = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRON_MONITORS.cleanupResendEmails, async () => {
-      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-      await ctx.runMutation(components.resend.lib.cleanupOldEmails, {
-        olderThan: oneWeekMs,
-      });
-      await ctx.runMutation(components.resend.lib.cleanupAbandonedEmails, {
-        olderThan: 4 * oneWeekMs,
-      });
-    }),
 });
 
 export const redriveAccountDeletion = internalAction({
