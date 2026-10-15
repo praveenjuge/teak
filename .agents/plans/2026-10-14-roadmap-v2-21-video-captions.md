@@ -4,7 +4,7 @@ Give YouTube and Vimeo link cards a transcript taken from the video's own captio
 
 ## Depends on
 
-- [v1 phase 13](2026-10-12-roadmap-13-stored-text.md) (stored text). It reworks `workflows/steps/metadata.ts` and adds `GET /v1/cards/:id/content`, which already falls back to `aiTranscript`.
+- v1 phase 13 (stored text, shipped in #680) (stored text). It reworks `workflows/steps/metadata.ts` and adds `GET /v1/cards/:id/content`, which already falls back to `aiTranscript`.
 
 ## Success Criteria
 

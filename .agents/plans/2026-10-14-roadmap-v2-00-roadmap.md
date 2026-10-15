@@ -1,6 +1,6 @@
 ## Goal
 
-Make Teak better at saving, finding and rediscovering things, as 31 separate plans. Each phase is one PR (phase 9 may be folded into another), deployed and verified in production on its own before the next one starts. This roadmap is separate from the [v1 roadmap](2026-10-12-roadmap-00-roadmap.md). The v1 phases 11–19 ship first and are not changed.
+Make Teak better at saving, finding and rediscovering things, as 31 separate plans. Each phase is one PR (phase 9 may be folded into another), deployed and verified in production on its own before the next one starts. It follows the v1 roadmap, which finished on 2026-10-15: phases 1–13 and 19 shipped, and phases 14–18 (reader view, stats, rules, RSS feeds, public share links) were dropped. Its plans were deleted; git history keeps them.
 
 ## Success Criteria
 
@@ -50,7 +50,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 
 | Topic | Decision |
 |---|---|
-| Relation to v1 | A separate roadmap. v1 phases 11–19 finish first. v1 phase 14 (Reader view) stays as planned |
+| Relation to v1 | v1 finished on 2026-10-15. Its phases 14–18 (reader view, stats, rules, RSS feeds, public share links) were dropped, not deferred |
 | Surfaces | Backend, web, public API, MCP, SDK and CLI in the same PR. Apple, Raycast and Android come in phases 29–31 |
 | PR size | One feature per PR; a large feature is split into consecutive phases |
 | Feature flags | None. Each feature ships live when it merges |
@@ -65,11 +65,11 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 | Hidden cards | User tags `private`, `nsfw` and `hidden` hide a card from the grid, search, Shuffle and Revisit, folders, smart folders and the API, MCP and CLI. Searching that tag is the only way to show them. AI tags never hide anything |
 | Revisit | A fourth entry in the sort menu: 20 random cards from the current view, ← archives, → keeps |
 | Email-in | Cloudflare Email Routing to an Email Worker. Personal address `save+<token>@in.teakvault.com`. Smart split into cards, every card tagged `email`, emails over the free limit silently dropped |
-| Not doing | A second reader mode beyond v1-14, library chat, X sync, PWA share target, pinned cards strip, rediscover email, privacy-promise pages, offline library, webhooks, achievements, labs page, reader themes, pinned sites, date-grouped list, highlights, new importers, sending page HTML from the extension, "gather dust", tidy-up, Notion sync, GitHub stars, comparison pages, MCP progressive reads, command palette recents |
+| Not doing | A reader mode (v1-14 was dropped too), library chat, X sync, PWA share target, pinned cards strip, rediscover email, privacy-promise pages, offline library, webhooks, achievements, labs page, reader themes, pinned sites, date-grouped list, highlights, new importers, sending page HTML from the extension, "gather dust", tidy-up, Notion sync, GitHub stars, comparison pages, MCP progressive reads, command palette recents |
 
 ## Rules every phase follows
 
-Every v1 rule still applies: see "Rules every phase follows" in the [v1 roadmap](2026-10-12-roadmap-00-roadmap.md). In short:
+The rules in `.agents/feature-conventions.md` apply to every phase. In short:
 - Search-affecting writes go through `patchCardWithSearchSync`.
 - New boolean flags are `v.optional(v.literal(true))`.
 - New indexes are added next to the old ones.
@@ -145,7 +145,7 @@ Each phase file has its own **Scenario seed packs**, **Break-it checklist** and 
 
 ## Phases
 
-Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadmap. Every phase starts only after v1 phase 19 (Hardening) has shipped.
+Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadmap. v1 phase 19 (Hardening) shipped on 2026-10-15, so any phase can start.
 
 | # | Plan | Group | Depends on |
 |---|---|---|---|
@@ -173,7 +173,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 22 | [Podcast transcripts](2026-10-14-roadmap-v2-22-podcast-transcripts.md) | Smarter cards | 21 |
 | 23 | [Save by email](2026-10-14-roadmap-v2-23-email-in.md) | Capture | — |
 | 24 | [Email attachments](2026-10-14-roadmap-v2-24-email-attachments.md) | Capture | 23 |
-| 25 | [More kinds of feeds: YouTube channels, autodiscovery, OPML](2026-10-14-roadmap-v2-25-feed-extras.md) | Capture | v1-17 |
+| 25 | [More kinds of feeds: YouTube channels, autodiscovery, OPML](2026-10-14-roadmap-v2-25-feed-extras.md) | Capture | v1-17 (dropped; see Risks) |
 | 26 | [`[[` links between cards](2026-10-14-roadmap-v2-26-card-links.md) | Writing | — |
 | 27 | [Backlinks panel and links API](2026-10-14-roadmap-v2-27-backlinks-api.md) | Writing | 26 |
 | 28 | [Pages for specific audiences](2026-10-14-roadmap-v2-28-audience-pages.md) | Docs site | 14 |
@@ -188,6 +188,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 
 ## Risks And Open Questions
 
+- **RSS feeds were dropped.** Phase 25 extends v1 phase 17's feeds, and phase 22 reuses its feed parser to find a podcast episode's audio. v1 phase 17 was never built, so phase 25 needs feeds built first (or a new scope), and phase 22 needs its own feed parsing.
 - **Native apps and blended search.** `searchMobileCardSummariesPaginated` is a reactive query and cannot call the worker. So the iPhone, iPad, Mac and Android apps get semantic results only once they call the new search action (phases 29 and 31). Raycast already searches through `GET /v1/cards`, so it gets blending from phase 13.
 - **Phase 9 has mostly shipped.** The docs site already serves `/.well-known/agent-skills/index.json` with its digest, and the API domain redirects to it. Phase 9 is now only checks and a build guard, and can be folded into another PR.
 - **Search speed and cost.** Blended search adds a Workers AI embedding call and a Vectorize query to every search. Measure p95 latency and cost on the dev deployment before phase 13 merges. Keep keyword results reactive, and merge the semantic results in as they arrive.

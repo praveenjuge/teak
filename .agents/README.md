@@ -1,0 +1,50 @@
+# .agents
+
+Guides, plans and skills for agents working in Teak. Root `AGENTS.md` says
+when to read each guide; this is the full list.
+
+## Guides
+
+| File | Read it when you |
+| --- | --- |
+| `development.md` | run the app, push backend code, or work in a worktree |
+| `cloud.md` | work in a cloud session (Claude Code on the web, Codex, Amp) |
+| `environment.md` | add or debug an env var, a credential, or Files storage |
+| `feature-conventions.md` | add a field, table, index, API operation, backfill or workflow step |
+| `testing.md` | add, change or delete a test |
+| `analytics.md` | add an event or touch PostHog telemetry |
+| `pull-requests.md` | open a PR or post on GitHub |
+| `releases.md` | prepare any release |
+| `convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
+| `self-driving.md` | run the daily production check (it holds that routine's log) |
+| `migrations/workos/README.md` | touch the retained Better Auth data or Connect disconnects |
+
+## Plans
+
+`plans/` holds plans for work that hasn't shipped. Each phase plan lists its
+goal, decisions and verification. Delete a plan in the PR that finishes it;
+git history keeps it. Before starting one, check its "facts" against the code,
+since they were true when it was written.
+
+- `2026-10-14-roadmap-v2-00-roadmap.md`: the current roadmap (31 phases), with
+  one file per phase.
+- `2026-10-14-cloudflare-workflows-migration.md`: moving the Convex workflows
+  to Cloudflare Workflows.
+- `2026-10-10-native-apple-app.md`: the native Apple app; removing
+  `apps/mobile` is what remains.
+
+## Skills
+
+`skills/` holds the skills agents load. The vendored ones are installed with
+`npx skills` and pinned in the root `skills-lock.json`
+(`scripts/skills-drift.test.ts` checks them); update those with `npx skills`,
+not by hand. `teak` is Teak's own skill for using the product through its API,
+MCP, SDK and CLI. It is edited here, and the docs build publishes it.
+
+## Other files
+
+- `setup`: prepares a fresh Linux VM (`development.md`, Cloud agents).
+- `resume`: restores the toolchain PATH when Amp resumes a VM.
+- `hooks/session-start.sh`: the Claude Code SessionStart hook.
+- `.state/`: ignored runtime state for the running stack (`stack.json`,
+  `stack.log`, the dev account).

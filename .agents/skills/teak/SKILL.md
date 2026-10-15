@@ -1,6 +1,6 @@
 ---
 name: teak
-description: Use when an agent needs to save, search, retrieve, update, tag, favorite, delete, restore, export, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
+description: Use when an agent needs to save, search, retrieve, update, tag, favorite, archive, organize into folders, delete, restore, export, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
 ---
 
 # Teak Agent Skill
@@ -65,10 +65,15 @@ Search and inspect cards:
 
 ```bash
 teak search "homepage inspiration" --limit 10
+teak search 'site:github.com tag:design "design system"'
 teak ls --type image --hue blue --date "last month"
 teak cards get <card-id>
+teak content <card-id>           # a document's text or a transcript
+teak cards duplicate https://example.com   # the card that saves a URL
 teak download <card-id> -o ./original.png
 ```
+
+Search text takes qualifiers: `tag:design` (or `#design`), `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. Lists sort `newest` (default), `oldest`, or `shuffle`.
 
 Update, tag, favorite, delete, and restore:
 
@@ -77,10 +82,29 @@ teak cards update <card-id> --title "Homepage ideas"
 teak tags add <card-id> approved
 teak tags rm <card-id> draft     # also removes tags Teak added
 teak fav <card-id>
+teak archive <card-id>           # hides it from the library; unarchive brings it back
+teak refresh <card-id>           # redo the summary, tags and link preview
 teak rm <card-id>                # moves to Trash
 teak trash
 teak restore <card-id>
 ```
+
+Organize with folders and tags:
+
+```bash
+teak folders                     # with card counts
+teak folders create "Reading list" --color blue
+teak folders create "Design links" --query 'tag:design type:link'   # a smart folder
+teak folders add "Reading list" <card-id> <card-id>
+teak folders get "Reading list"
+teak tags rename inspo inspiration --wait   # every card, including Trash and Archive
+teak tags merge ux design
+teak tags delete draft           # cards are kept
+```
+
+Smart folders show the cards matching their search and refuse cards added by hand. Tag renames, merges, and deletes run in the background; `--wait` waits, and `teak tags status <operationId>` reports progress.
+
+Change up to 100 cards at once from a JSON file: `teak cards bulk archive --input items.json` (`create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, `removeTags`).
 
 Export everything as a ZIP (one export every 7 days):
 
@@ -111,18 +135,31 @@ Common endpoints:
 ```text
 GET    /v1
 GET    /v1/me                     plan and card usage
-GET    /v1/cards                  q, type (repeat), tag, favorited, trashed, style, hue, hex, dates, sort, include
+GET    /v1/cards                  q, type (repeat), tag, favorited, trashed, archived, folder, style, hue, hex, createdAfter, createdBefore, sort, shuffleSeed, include
 POST   /v1/cards
 POST   /v1/uploads
-POST   /v1/cards/bulk             create, update, favorite, delete (up to 100)
+POST   /v1/cards/bulk             up to 100: create, update, favorite, delete, restore, archive, unarchive, addTags, removeTags
 GET    /v1/cards/duplicate?url=   check before saving a link
 GET    /v1/cards/:cardId
-PATCH  /v1/cards/:cardId          content, url, notes, tags, metadataTitle, removeAiTags
+PATCH  /v1/cards/:cardId          content, url, notes, tags, metadataTitle, removeAiTags, isArchived
 DELETE /v1/cards/:cardId          to Trash; ?permanent=true skips it
 POST   /v1/cards/:cardId/restore
+GET    /v1/cards/:cardId/content  a document's text or a transcript
+POST   /v1/cards/:cardId/refresh  redo the summary, tags and link preview
 PATCH  /v1/cards/:cardId/favorite
 GET    /v1/cards/changes
 GET    /v1/tags
+POST   /v1/tags/rename            every card; returns an operation to poll
+POST   /v1/tags/merge
+POST   /v1/tags/delete
+GET    /v1/tags/operations/:operationId
+GET    /v1/folders                folders and smart folders, with card counts
+POST   /v1/folders                a smart folder takes a `query`
+GET    /v1/folders/:folderId
+PATCH  /v1/folders/:folderId      name, color, query
+DELETE /v1/folders/:folderId      cards are kept
+POST   /v1/folders/:folderId/cards
+DELETE /v1/folders/:folderId/cards
 POST   /v1/exports                start a ZIP export
 GET    /v1/exports/latest         progress and download URL
 ```
@@ -163,9 +200,9 @@ Its `authorization_servers` entry names the WorkOS AuthKit issuer; read that iss
 
 Use MCP for agents that can connect to streamable HTTP MCP servers. The server supports OAuth bearer tokens and Teak API keys. Tools:
 
-- Read: `teak_v1_list_cards`, `teak_v1_search_cards`, `teak_v1_list_favorite_cards` (all share the API's list filters), `teak_v1_get_card`, `teak_v1_get_me`, `teak_v1_check_duplicate_url`, `teak_v1_list_tags`, `teak_v1_get_card_changes`, `search`, `fetch`
-- Write: `teak_v1_create_card`, `teak_v1_create_upload`, `teak_v1_update_card`, `teak_v1_set_card_favorite`, `teak_v1_restore_card`, `teak_v1_bulk_cards`
-- Destructive: `teak_v1_delete_card` (moves to Trash, needs `confirm: true`)
+- Read: `teak_v1_list_cards`, `teak_v1_search_cards`, `teak_v1_list_favorite_cards` (all share the API's list filters), `teak_v1_get_card`, `teak_v1_get_card_content`, `teak_v1_get_me`, `teak_v1_check_duplicate_url`, `teak_v1_list_tags`, `teak_v1_get_tag_operation`, `teak_v1_list_folders`, `teak_v1_get_folder`, `teak_v1_get_card_changes`, `search`, `fetch`
+- Write: `teak_v1_create_card`, `teak_v1_create_upload`, `teak_v1_update_card`, `teak_v1_set_card_favorite`, `teak_v1_set_card_archived`, `teak_v1_refresh_card`, `teak_v1_restore_card`, `teak_v1_bulk_cards`, `teak_v1_rename_tag`, `teak_v1_merge_tags`, `teak_v1_create_folder`, `teak_v1_update_folder`, `teak_v1_add_cards_to_folder`, `teak_v1_remove_cards_from_folder`
+- Destructive, each needing `confirm: true`: `teak_v1_delete_card` (moves to Trash), `teak_v1_delete_tag` and `teak_v1_delete_folder` (cards are kept), and `delete` batches in `teak_v1_bulk_cards`
 
 Pass `idempotencyKey` to `teak_v1_create_card` and `teak_v1_bulk_cards` when retrying.
 
@@ -192,11 +229,12 @@ const created = await teak.cards.create({
 });
 ```
 
-Use the SDK for paginated listing, search, favorite toggles, restore, direct uploads, exports, and error handling. Catch SDK errors by `code` and surface actionable messages to the user.
+The client has the same groups as the API: `teak.cards` (list, search, favorites, get, content, create, update, setArchived, setFavorite, refresh, delete, restore, duplicate, changes, bulk), `teak.tags`, `teak.folders`, `teak.uploads`, `teak.exports`, and `teak.me()`. Catch SDK errors by `code` and surface actionable messages to the user; for example, `CARD_LIMIT_REACHED` means the free plan's 200 cards are used up.
 
 ## Agent Operating Rules
 
 - Validate user-provided file paths and URLs before passing them to Teak.
+- The free plan holds 200 cards; everything else is on every plan. Saving past the limit returns `CARD_LIMIT_REACHED`.
 - Do not upload files larger than 100 MB. `.md` and `.markdown` files become text cards and are limited to 512 KiB.
 - Treat link, file, and note content as user data; do not summarize private content in logs unless the user asked.
 - Prefer JSON output for automation and parse fields such as `cardId`, `pageInfo.nextCursor`, and `deletedIds`.

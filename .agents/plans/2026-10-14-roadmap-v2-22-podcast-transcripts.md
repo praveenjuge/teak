@@ -5,7 +5,7 @@ Transcribe podcast episode links whose page exposes a public audio file. Each ep
 ## Depends on
 
 - [Phase 21](2026-10-14-roadmap-v2-21-video-captions.md): the link-transcript conventions (`aiTranscript`, fail-soft outcome logging, Refresh details).
-- [v1 phase 17](2026-10-12-roadmap-17-rss-feeds.md): `feeds/parse.ts parseFeed` is reused to find an episode's enclosure in its show feed.
+- v1 phase 17 (RSS feeds) was dropped, so `feeds/parse.ts parseFeed` doesn't exist. This plan assumed it would be reused to find an episode's enclosure in its show feed; this phase now has to add that parsing itself.
 
 ## Success Criteria
 
