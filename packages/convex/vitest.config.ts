@@ -12,6 +12,7 @@ export default defineConfig({
     include: [
       "./occContention.test.ts",
       "./edgeIdentity.test.ts",
+      "./edgeRateLimit.test.ts",
       "./accountDeletionRetry.test.ts",
       "./accountDeletionStorage.test.ts",
       "./accountDeletionWorkflow.test.ts",

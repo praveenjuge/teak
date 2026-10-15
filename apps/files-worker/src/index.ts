@@ -18,7 +18,7 @@ import {
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
 import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
-import type { EdgeIdentityEnv } from "./edgeIdentity";
+import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
   FILES_CACHE_CONTROL,
@@ -32,7 +32,7 @@ import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeIdentityEnv {
+export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeRateLimitEnv {
   /** Workers AI binding: metadata, image understanding and transcription. */
   AI?: WorkersAiBinding;
   /** Browser Run binding; screenshots and scrapes offline HTML. */
@@ -337,6 +337,7 @@ const handler = {
     // The public API and MCP paths on the marketing host; see apiProxy.ts.
     const apiResponse = await handleApiProxyRequest(request, bindings, ctx, {
       cache: edgeCache,
+      rateLimit: (apiRequest) => applyEdgeRateLimit(apiRequest, bindings, ctx),
     });
     if (apiResponse) {
       return apiResponse;

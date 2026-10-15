@@ -64,3 +64,34 @@ export const buildEdgeIdentitySigningPayload = ({
   requestId: string;
 }): string =>
   ["edge-identity", "1", requestId, expiresAt, bodySha256].join("\n");
+
+/**
+ * The edge rate-limit attestation: the Worker tells Convex it has already
+ * charged a request to its user's edge limit, so Convex skips its own
+ * per-request charge. It binds to the request's credential (the SHA-256 hex
+ * digest of its `Authorization` header value) and a short expiry, so it
+ * cannot be moved to another credential and goes stale quickly. MCP tool
+ * calls forward it with the same `Authorization` header.
+ */
+export const EDGE_RATE_LIMIT_HEADER = "x-teak-edge-rate-limit" as const;
+
+/** Longest an attestation stays valid, in seconds. */
+export const EDGE_RATE_LIMIT_MAX_TTL_SECONDS = 60;
+
+export const buildEdgeRateLimitSigningPayload = ({
+  credentialSha256,
+  expiresAt,
+}: {
+  credentialSha256: string;
+  expiresAt: string;
+}): string => ["edge-rate-limit", "1", expiresAt, credentialSha256].join("\n");
+
+/** Splits an attestation header value (`<expiresAt>.<signature>`). */
+export const parseEdgeRateLimitAttestation = (
+  value: string | null
+): { expiresAt: string; signature: string } | null => {
+  const match = /^(\d{1,12})\.([0-9a-f]{64})$/u.exec(value ?? "");
+  return match?.[1] && match[2]
+    ? { expiresAt: match[1], signature: match[2] }
+    : null;
+};

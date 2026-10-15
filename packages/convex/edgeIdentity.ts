@@ -1,8 +1,12 @@
 import {
   buildEdgeIdentitySigningPayload,
+  buildEdgeRateLimitSigningPayload,
   EDGE_IDENTITY_MAX_TTL_SECONDS,
+  EDGE_RATE_LIMIT_HEADER,
+  EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
   type EdgeIdentityResult,
   parseEdgeIdentityLookup,
+  parseEdgeRateLimitAttestation,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -42,9 +46,14 @@ export const lookup = internalQuery({
   },
 });
 
-const sha256Hex = async (bytes: ArrayBuffer): Promise<string> =>
+const sha256Hex = async (value: string | ArrayBuffer): Promise<string> =>
   Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        typeof value === "string" ? new TextEncoder().encode(value) : value
+      )
+    ),
     (byte) => byte.toString(16).padStart(2, "0")
   ).join("");
 
@@ -56,6 +65,36 @@ const json = (status: number, body: unknown): Response =>
       "Content-Type": "application/json; charset=utf-8",
     },
   });
+
+/** True when `expiresAt` is a canonical epoch second in [now, now + maxTtl]. */
+const isCurrentExpiry = (expiresAt: string, maxTtlSeconds: number): boolean => {
+  const expiry = Number(expiresAt);
+  const now = Math.floor(Date.now() / 1000);
+  return (
+    Number.isSafeInteger(expiry) &&
+    String(expiry) === expiresAt &&
+    expiry >= now &&
+    expiry <= now + maxTtlSeconds
+  );
+};
+
+/**
+ * True when `signature` is the HMAC of `payload`. Compares keyed digests of
+ * both values, so the comparison's timing reveals nothing about the expected
+ * signature.
+ */
+const signatureMatches = async (
+  secret: string,
+  signature: string,
+  payload: string
+): Promise<boolean> => {
+  const expected = await hmacSha256Hex(secret, payload);
+  const [given, wanted] = await Promise.all([
+    hmacSha256Hex(secret, `compare\n${signature}`),
+    hmacSha256Hex(secret, `compare\n${expected}`),
+  ]);
+  return given === wanted;
+};
 
 /** True when the request carries a current signature over its exact body. */
 const hasValidSignature = async (
@@ -69,31 +108,51 @@ const hasValidSignature = async (
   if (!(requestId && expiresAt && signature)) {
     return false;
   }
-  const expiry = Number(expiresAt);
-  const now = Math.floor(Date.now() / 1000);
-  if (
-    !Number.isSafeInteger(expiry) ||
-    String(expiry) !== expiresAt ||
-    expiry < now ||
-    expiry > now + EDGE_IDENTITY_MAX_TTL_SECONDS
-  ) {
+  if (!isCurrentExpiry(expiresAt, EDGE_IDENTITY_MAX_TTL_SECONDS)) {
     return false;
   }
-  const expected = await hmacSha256Hex(
+  return await signatureMatches(
     secret,
+    signature,
     buildEdgeIdentitySigningPayload({
       bodySha256: await sha256Hex(body),
       expiresAt,
       requestId,
     })
   );
-  // Compare keyed digests of both values, so the comparison's timing reveals
-  // nothing about the expected signature.
-  const [given, wanted] = await Promise.all([
-    hmacSha256Hex(secret, `compare\n${signature}`),
-    hmacSha256Hex(secret, `compare\n${expected}`),
-  ]);
-  return given === wanted;
+};
+
+/**
+ * True when the Files Worker has already charged this request to its user's
+ * edge rate limit (`@teak/files-protocol` EDGE_RATE_LIMIT_HEADER): a current
+ * attestation signed over this request's own `Authorization` value. The
+ * public API then skips its own per-request charge. Anything else, including
+ * every request that reaches Convex without the Worker, is charged as before.
+ */
+export const hasEdgeRateLimitAttestation = async (
+  request: Request
+): Promise<boolean> => {
+  const secret = env.FILES_SIGNING_SECRET;
+  const authorization = request.headers.get("authorization");
+  const attestation = parseEdgeRateLimitAttestation(
+    request.headers.get(EDGE_RATE_LIMIT_HEADER)
+  );
+  if (!(secret && authorization && attestation)) {
+    return false;
+  }
+  if (
+    !isCurrentExpiry(attestation.expiresAt, EDGE_RATE_LIMIT_MAX_TTL_SECONDS)
+  ) {
+    return false;
+  }
+  return await signatureMatches(
+    secret,
+    attestation.signature,
+    buildEdgeRateLimitSigningPayload({
+      credentialSha256: await sha256Hex(authorization),
+      expiresAt: attestation.expiresAt,
+    })
+  );
 };
 
 export const edgeIdentityV1 = httpAction(async (ctx, request) => {

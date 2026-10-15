@@ -304,6 +304,50 @@ describe("errors the Worker answers itself", () => {
   );
 });
 
+describe("edge rate limits", () => {
+  const withLimit = (
+    outcome: { response: Response } | { attestation: string | null },
+    fetcher: typeof fetch
+  ) =>
+    handleApiProxyRequest(
+      new Request("https://teakvault.com/api/v1/me", {
+        headers: {
+          Authorization: "Bearer teak_key",
+          // A client can never attest its own request.
+          "x-teak-edge-rate-limit": "9999999999.forged",
+        },
+      }),
+      ENV,
+      ctx,
+      { fetcher, rateLimit: () => Promise.resolve(outcome) }
+    );
+
+  test("forwards the Worker's attestation and never the client's", async () => {
+    const { calls, fetcher } = upstream();
+    await withLimit({ attestation: "1700000000.signed" }, fetcher);
+    expect(calls[0]?.headers.get("x-teak-edge-rate-limit")).toBe(
+      "1700000000.signed"
+    );
+
+    const unattested = upstream();
+    await withLimit({ attestation: null }, unattested.fetcher);
+    expect(
+      unattested.calls[0]?.headers.get("x-teak-edge-rate-limit")
+    ).toBeNull();
+  });
+
+  test("answers a refused request without reaching Convex", async () => {
+    const { calls, fetcher } = upstream();
+    const response = await withLimit(
+      { response: new Response("{}", { status: 429 }) },
+      fetcher
+    );
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("x-frame-options")).toBe("DENY");
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("upstream origin pinning", () => {
   // A path that starts with "//" after the prefix is dropped must not be read
   // as a protocol-relative URL that points the proxy at another host.

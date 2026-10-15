@@ -17,8 +17,10 @@
  *
  * Convex answers lookups by credential (`@teak/files-protocol`
  * edgeIdentity); the Worker sends a key's SHA-256 digest, never the key, and
- * caches each answer in KV: an hour for a known owner, the KV minimum of a
- * minute for an unknown one, so a brand-new key is recognized within a minute.
+ * caches each answer in KV: five minutes for a known owner, so a revoked key
+ * stops counting against its owner's limit soon after, and the KV minimum of
+ * a minute for an unknown one, so a brand-new key is recognized within a
+ * minute.
  */
 
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
@@ -48,18 +50,28 @@ export interface EdgeIdentity {
   source: "address" | "api_key" | "oauth";
 }
 
-export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 3600;
+export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 300;
 export const EDGE_IDENTITY_UNKNOWN_TTL_SECONDS = 60;
 const LOOKUP_TIMEOUT_MS = 2000;
 const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
+  /**
+   * Asked before each API key lookup the cache cannot answer; false skips
+   * the lookup, so a caller can bound how often one client makes it ask
+   * Convex. Verified WorkOS tokens are never gated.
+   */
+  allowLookup?: () => Promise<boolean>;
   fetcher?: typeof fetch;
   verifyToken?: typeof verifyWorkosConnectToken;
 }
 
+/** The bucket key for the request's client address. */
+export const addressKey = (request: Request): string =>
+  `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`;
+
 const addressIdentity = (request: Request): EdgeIdentity => ({
-  key: `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`,
+  key: addressKey(request),
   source: "address",
 });
 
@@ -125,12 +137,18 @@ const cachedOwner = async (
   ctx: Pick<ExecutionContext, "waitUntil">,
   cacheKey: string,
   lookup: EdgeIdentityLookup,
-  fetcher: typeof fetch
+  deps: Required<Pick<EdgeIdentityDeps, "fetcher">> &
+    Pick<EdgeIdentityDeps, "allowLookup">
 ): Promise<string | null | undefined> => {
-  const cached = await env.EDGE_IDENTITY?.get(cacheKey);
+  // A failed read is a cache miss: ask Convex instead.
+  const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
   if (typeof cached === "string") {
     return cached || null;
   }
+  if (deps.allowLookup && !(await deps.allowLookup())) {
+    return;
+  }
+  const { fetcher } = deps;
   let owner: string | null;
   try {
     owner = await lookupOwner(env, lookup, fetcher);
@@ -170,7 +188,7 @@ export const resolveEdgeIdentity = async (
       ctx,
       `key:${tokenHash}`,
       { tokenHash },
-      fetcher
+      { allowLookup: deps.allowLookup, fetcher }
     );
     return owner
       ? { key: `user:${owner}`, source: "api_key" }
@@ -193,7 +211,10 @@ export const resolveEdgeIdentity = async (
     ctx,
     `workos:${workosUserId}`,
     { workosUserId },
-    fetcher
+    // A verified token is signed by WorkOS, so it cannot be rotated to make
+    // Convex look up new identities; the address gate would only refuse
+    // real users who share a busy address.
+    { fetcher }
   );
   // A verified token names its user even when Convex cannot map it yet.
   return {

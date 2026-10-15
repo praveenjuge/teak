@@ -11,6 +11,7 @@ import {
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
+import { hasEdgeRateLimitAttestation } from "./edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "./env";
 import {
   AUTH_INTERNAL_ERROR,
@@ -333,7 +334,11 @@ const authorizeBearer = async (
   request: Request,
   options: AuthOptions
 ): Promise<Decision> => {
-  const chargeRateLimit = options.chargeRateLimit ?? true;
+  // The Files Worker charges requests that pass through it to the user's
+  // edge limit; only those carrying its attestation skip this charge.
+  const chargeRateLimit =
+    (options.chargeRateLimit ?? true) &&
+    !(await hasEdgeRateLimitAttestation(request));
   const token = parseBearerToken(request);
   if (!token) {
     return decide(

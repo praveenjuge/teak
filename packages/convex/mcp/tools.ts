@@ -1,3 +1,4 @@
+import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import { z } from "zod";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
@@ -901,11 +902,16 @@ const executeToolOperation = async (
     };
   }
 
+  // The Files Worker's rate-limit attestation is bound to this same
+  // Authorization value, so the operation is charged exactly as the MCP
+  // request was.
+  const edgeRateLimit = request.headers.get(EDGE_RATE_LIMIT_HEADER);
   const response = await executor({
     ...operation,
     headers: {
       ...(operation.headers ?? {}),
       Authorization: authorization,
+      ...(edgeRateLimit ? { [EDGE_RATE_LIMIT_HEADER]: edgeRateLimit } : {}),
     },
   });
 
