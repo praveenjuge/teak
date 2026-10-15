@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
@@ -59,7 +59,8 @@ export const markCardForEmbedding = async (
       dueAt,
       lastError: undefined,
     });
-    // A job already waiting finds the later dueAt and waits for it.
+    // A job already waiting finds the later dueAt and waits for it; one
+    // already running hands it to a new job when it records (handOffStaleJob).
     if (row.dueAt !== undefined) {
       return;
     }
@@ -99,10 +100,42 @@ export const tombstoneCardEmbedding = async (
   });
 };
 
+/**
+ * A job finished after the row moved on. An edit made while it ran set a
+ * later `dueAt` that no job is waiting for (`markCardForEmbedding` schedules
+ * only when none is due), so schedule one. If instead a newer job already
+ * completed and this job wrote a vector, that vector may have landed on top
+ * of the newer one: forget the hash so the current text is embedded again.
+ */
+const handOffStaleJob = async (
+  ctx: MutationCtx,
+  row: Doc<"cardEmbeddings">,
+  wroteVector: boolean
+) => {
+  if (row.dueAt !== undefined) {
+    await ctx.scheduler.runAfter(
+      Math.max(0, row.dueAt - Date.now()),
+      embedRef().embedDue,
+      { cardIds: [row.cardId] }
+    );
+    return;
+  }
+  if (wroteVector) {
+    await ctx.db.patch("cardEmbeddings", row._id, {
+      dueAt: Date.now(),
+      hash: undefined,
+    });
+    await ctx.scheduler.runAfter(0, embedRef().embedDue, {
+      cardIds: [row.cardId],
+    });
+  }
+};
+
 const embeddingRowValidator = v.object({
   attempts: v.optional(v.number()),
   cardId: v.id("cards"),
   dueAt: v.optional(v.number()),
+  embeddedAt: v.optional(v.number()),
   hash: v.optional(v.string()),
   namespace: v.optional(v.string()),
   shard: v.optional(v.number()),
@@ -138,6 +171,7 @@ export const loadForEmbedding = internalQuery({
         attempts: row.attempts,
         cardId,
         dueAt: row.dueAt,
+        embeddedAt: row.embeddedAt,
         hash: row.hash,
         namespace: row.namespace,
         shard: row.shard,
@@ -192,14 +226,7 @@ export const recordEmbedded = internalMutation({
       return "card_gone" as const;
     }
     if (row.dueAt !== args.expectedDueAt) {
-      // A newer job completed after this one read the row, and this job's
-      // upsert may have landed on top of it: embed current text again.
-      if (row.dueAt === undefined && args.hash !== undefined) {
-        await ctx.scheduler.runAfter(0, embedRef().embedDue, {
-          cardIds: [args.cardId],
-          force: true,
-        });
-      }
+      await handOffStaleJob(ctx, row, args.hash !== undefined);
       return "stale" as const;
     }
     await ctx.db.patch("cardEmbeddings", row._id, {
@@ -225,7 +252,11 @@ export const recordEmbedFailure = internalMutation({
   returns: v.null(),
   handler: async (ctx, { cardId, error, expectedDueAt }) => {
     const row = await rowFor(ctx, cardId);
-    if (!row || row.dueAt !== expectedDueAt) {
+    if (!row) {
+      return null;
+    }
+    if (row.dueAt !== expectedDueAt) {
+      await handOffStaleJob(ctx, row, false);
       return null;
     }
     const attempts = (row.attempts ?? 0) + 1;

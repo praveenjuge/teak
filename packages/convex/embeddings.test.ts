@@ -15,41 +15,53 @@ interface WorkerCall {
   params: Record<string, any>;
 }
 
-/** The Files Worker's vector ops; `fail` makes the named op answer 500. */
-const stubWorker = (fail: string[] = []) => {
+/**
+ * The Files Worker's vector ops. `fail` makes the named op answer 500 every
+ * time, `failNext` the given number of times; `onCall` runs before answering.
+ */
+const stubWorker = ({
+  fail = [],
+  failNext = {},
+  onCall,
+}: {
+  fail?: string[];
+  failNext?: Record<string, number>;
+  onCall?: (call: WorkerCall) => Promise<void> | void;
+} = {}) => {
   const calls: WorkerCall[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn((input: unknown, init?: RequestInit) => {
+    vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = new URL(input instanceof Request ? input.url : String(input));
       if (url.origin !== "https://files.test") {
         throw new Error(`unexpected_fetch:${url}`);
       }
       const body = JSON.parse(String(init?.body)) as WorkerCall;
       calls.push({ op: body.op, params: body.params });
-      if (fail.includes(body.op)) {
-        return Promise.resolve(
-          Response.json(
-            {
-              ok: false,
-              error: {
-                code: "INTERNAL",
-                message: "boom",
-                requestId: "r",
-                retryable: true,
-              },
+      await onCall?.(body);
+      const failOnce = (failNext[body.op] ?? 0) > 0;
+      if (failOnce) {
+        failNext[body.op] = (failNext[body.op] ?? 0) - 1;
+      }
+      if (failOnce || fail.includes(body.op)) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "INTERNAL",
+              message: "boom",
+              requestId: "r",
+              retryable: true,
             },
-            { status: 500 }
-          )
+          },
+          { status: 500 }
         );
       }
       const data =
         body.op === "embed-upsert"
           ? { mutationId: "m", upserted: body.params.items.length }
           : { mutationId: "m" };
-      return Promise.resolve(
-        Response.json({ ok: true, version: 1, requestId: "r", data })
-      );
+      return Response.json({ ok: true, version: 1, requestId: "r", data });
     })
   );
   return calls;
@@ -183,7 +195,7 @@ describe("embedding cards", () => {
   });
 
   test("a failing Worker is retried with backoff, then left for the backfill", async () => {
-    const calls = stubWorker(["embed-upsert"]);
+    const calls = stubWorker({ fail: ["embed-upsert"] });
     const t = setup();
     const cardId = await createCard(t, "never lands");
 
@@ -258,7 +270,7 @@ describe("deleting vectors", () => {
   });
 
   test("a delete that keeps failing leaves the tombstone in place", async () => {
-    const calls = stubWorker(["vector-delete"]);
+    const calls = stubWorker({ fail: ["vector-delete"] });
     const t = setup();
     const cardId = await createCard(t, "stubborn");
     await runScheduled(t);
@@ -359,5 +371,54 @@ describe("stale writes", () => {
       [{ id: cardId, text: "current text" }],
       [{ id: cardId, text: "current text" }],
     ]);
+  });
+
+  test("an edit made while an embed is in flight is embedded after it", async () => {
+    let edited = false;
+    const t = setup();
+    const calls = stubWorker({
+      onCall: async (call) => {
+        if (call.op === "embed-upsert" && !edited) {
+          edited = true;
+          await editCard(t, call.params.items[0].id, { content: "second" });
+        }
+      },
+    });
+    const cardId = await createCard(t, "first");
+
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "first" }],
+      [{ id: cardId, text: "second" }],
+    ]);
+    expect(await rowOf(t, cardId)).not.toHaveProperty("dueAt");
+  });
+
+  test("a failed re-embed of an overtaken card is retried, not skipped", async () => {
+    const t = setup();
+    const calls = stubWorker();
+    const cardId = await createCard(t, "current text");
+    const pending = await rowOf(t, cardId);
+    await runScheduled(t);
+
+    const retried = stubWorker({ failNext: { "embed-upsert": 1 } });
+    await t.mutation(internal.embedding.state.recordEmbedded, {
+      cardId,
+      expectedDueAt: (pending!.dueAt ?? 0) - 1,
+      hash: "c".repeat(64),
+      namespace: USER,
+      shard: 0,
+    });
+    await runScheduled(t);
+
+    expect(upserts(calls)).toHaveLength(1);
+    expect(upserts(retried).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "current text" }],
+      [{ id: cardId, text: "current text" }],
+    ]);
+    expect(await rowOf(t, cardId)).toMatchObject({
+      hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
   });
 });

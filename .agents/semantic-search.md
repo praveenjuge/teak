@@ -86,8 +86,9 @@ or is due for, a vector (`packages/convex/embedding/`).
 - **Skipping.** The row stores a SHA-256 of `CARD_EMBEDDING_VERSION` and the
   text. An unchanged hash records the row without a Workers AI call.
 - **Fencing.** A job records its result only if `dueAt` still holds the value
-  it read. An older job never marks a newer edit done, and a job overtaken by
-  a newer completed one re-embeds the current text.
+  it read. An older job never marks a newer edit done: an edit made while a
+  job ran is handed to a new job, and a job whose vector may have overwritten
+  a newer one clears the hash so the current text is embedded again.
 - **Failures.** A failed embed retries with backoff (30 s doubling) five
   times, then keeps `attempts` and `lastError` for the backfill.
 - **Empty text.** A card cleared of every field has its vector deleted.

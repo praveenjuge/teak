@@ -42,30 +42,26 @@ const deleteVectorIdsOnWorker = async (shard: number, ids: string[]) => {
 const retryDelayMs = (attempt: number) => 30_000 * 2 ** attempt;
 
 export const embedDue = internalAction({
-  args: {
-    cardIds: v.array(v.id("cards")),
-    force: v.optional(v.boolean()),
-  },
+  args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
-  handler: async (ctx, { cardIds, force }) => {
+  handler: async (ctx, { cardIds }) => {
     if (!isFilesWorkerConfigured()) {
       return null;
     }
     const rows = await ctx.runQuery(state().loadForEmbedding, { cardIds });
     const now = Date.now();
     for (const row of rows) {
-      if (row.dueAt === undefined && !force) {
+      if (row.dueAt === undefined) {
         continue;
       }
-      if (row.dueAt !== undefined && row.dueAt > now + 1000) {
+      if (row.dueAt > now + 1000) {
         // An edit pushed the deadline back: wait for it.
         await ctx.scheduler.runAfter(row.dueAt - now, self().embedDue, {
           cardIds: [row.cardId],
-          ...(force ? { force } : {}),
         });
         continue;
       }
-      await embedOne(ctx, row, force === true);
+      await embedOne(ctx, row);
     }
     return null;
   },
@@ -76,20 +72,20 @@ const embedOne = async (
   row: {
     cardId: Id<"cards">;
     dueAt?: number;
+    embeddedAt?: number;
     hash?: string;
     namespace?: string;
     shard?: number;
     text: string;
     userId: string;
-  },
-  force: boolean
+  }
 ) => {
   const expectedDueAt = row.dueAt;
   try {
     if (!row.text) {
       // Every embeddable field is empty now: a stale vector must not keep
       // matching searches.
-      if (row.hash !== undefined && row.shard !== undefined) {
+      if (row.embeddedAt !== undefined && row.shard !== undefined) {
         await deleteVectorIdsOnWorker(row.shard, [row.cardId]);
       }
       await ctx.runMutation(state().recordEmbedded, {
@@ -99,7 +95,7 @@ const embedOne = async (
       return;
     }
     const hash = await embeddingHash(row.text);
-    if (!force && hash === row.hash) {
+    if (hash === row.hash) {
       // The text the vector came from is unchanged: no Workers AI call.
       await ctx.runMutation(state().recordEmbedded, {
         cardId: row.cardId,
