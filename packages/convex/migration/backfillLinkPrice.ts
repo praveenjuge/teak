@@ -145,6 +145,7 @@ export const writeLinkPrice = internalMutation({
  * the totals.
  *
  *   npx convex run migration/backfillLinkPrice:backfillLinkPrice
+ *   npx convex run migration/backfillLinkPrice:backfillLinkPrice '{"dryRun":false,"userId":"teak_…"}'
  *   npx convex run migration/backfillLinkPrice:backfillLinkPrice '{"dryRun":false}'
  */
 export const backfillLinkPrice = internalMutation({
@@ -154,6 +155,8 @@ export const backfillLinkPrice = internalMutation({
     batchSize: v.optional(v.number()),
     /** Stop after this batch instead of scheduling the next. */
     once: v.optional(v.boolean()),
+    /** Only this account's cards: a canary before the whole table. */
+    userId: v.optional(v.string()),
     totals: v.optional(totalsValidator),
   },
   returns: v.object({
@@ -170,9 +173,16 @@ export const backfillLinkPrice = internalMutation({
       MAX_BATCH_SIZE,
       Math.max(1, Math.floor(args.batchSize ?? DEFAULT_BATCH_SIZE))
     );
-    const page = await ctx.db
-      .query("cards")
-      .paginate({ cursor: args.cursor ?? null, numItems: batchSize });
+    const { userId } = args;
+    const cards = userId
+      ? ctx.db
+          .query("cards")
+          .withIndex("by_created", (q) => q.eq("userId", userId))
+      : ctx.db.query("cards");
+    const page = await cards.paginate({
+      cursor: args.cursor ?? null,
+      numItems: batchSize,
+    });
 
     const batch = emptyTotals();
     const deletingAccounts = new Map<string, boolean>();
@@ -235,6 +245,7 @@ export const backfillLinkPrice = internalMutation({
           cursor: page.continueCursor,
           dryRun,
           batchSize,
+          ...(userId ? { userId } : {}),
           totals,
         }
       );

@@ -60,6 +60,7 @@ const setup = () => {
     batchSize?: number;
     once?: boolean;
     cursor?: string | null;
+    userId?: string;
   }) =>
     t.mutation(
       internal.migration.backfillLinkCategories.backfillLinkCategories,
@@ -120,6 +121,19 @@ describe("backfillLinkCategories", () => {
     });
     expect((await category(cards.repo))?.category).toBe("software");
     expect((await category(cards.place))?.category).toBe("other");
+  });
+
+  test("userId limits a run to one account", async () => {
+    const { backfill, insert, link } = setup();
+    await seedLibrary({ insert, link });
+    expect(
+      (await backfill({ batchSize: 50, once: true, userId: "owner" })).totals
+        .cardsToMove
+    ).toBe(3);
+    expect(
+      (await backfill({ batchSize: 50, once: true, userId: "someone-else" }))
+        .totals.examined
+    ).toBe(0);
   });
 
   test("a real run moves only the category and keeps facts, raw data and confidence", async () => {

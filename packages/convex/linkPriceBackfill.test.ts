@@ -70,6 +70,7 @@ const setup = () => {
     batchSize?: number;
     once?: boolean;
     cursor?: string | null;
+    userId?: string;
   }) =>
     t.mutation(internal.migration.backfillLinkPrice.backfillLinkPrice, args);
   return { t, insert, priceOf, runScheduled, backfill };
@@ -144,6 +145,15 @@ describe("backfillLinkPrice", () => {
       amount: 3,
       currency: "USD",
     });
+  });
+
+  test("userId limits a run to one account", async () => {
+    const env = setup();
+    await seedLibrary(env);
+    expect((await env.backfill({ userId: "owner" })).totals.priced).toBe(4);
+    expect(
+      (await env.backfill({ userId: "someone-else" })).totals.examined
+    ).toBe(0);
   });
 
   test("a real run takes the first source with a price, page by page", async () => {
