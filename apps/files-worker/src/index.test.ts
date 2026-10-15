@@ -696,3 +696,54 @@ describe("files worker handler", () => {
     });
   });
 });
+
+describe("API paths on the marketing host", () => {
+  const originalFetch = globalThis.fetch;
+  const apiEnv = (): Env => ({
+    ...env(),
+    API_PUBLIC_HOST: "teakvault.com",
+    API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
+    // The proxy needs no file storage; a missing gate must not block it.
+    OBJECT_GATES: undefined,
+  });
+  const fetchedUrls: string[] = [];
+  const stubFetch = () => {
+    fetchedUrls.length = 0;
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      fetchedUrls.push(input instanceof Request ? input.url : String(input));
+      return Promise.resolve(new Response("origin", { status: 200 }));
+    }) as typeof fetch;
+  };
+
+  test("go to Convex", async () => {
+    stubFetch();
+    try {
+      const response = await worker.fetch(
+        new Request("https://teakvault.com/api/v1/me"),
+        apiEnv(),
+        {} as ExecutionContext
+      );
+      expect(response.status).toBe(200);
+      expect(fetchedUrls).toEqual([
+        "https://upstream.example.convex.site/v1/me",
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("Convex does not serve fall through to the site's origin", async () => {
+    stubFetch();
+    try {
+      const response = await worker.fetch(
+        new Request("https://teakvault.com/apis"),
+        apiEnv(),
+        {} as ExecutionContext
+      );
+      expect(await response.text()).toBe("origin");
+      expect(fetchedUrls).toEqual(["https://teakvault.com/apis"]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

@@ -52,6 +52,9 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.images?.binding).toBe("IMAGES");
   // Development errors stay out of the production PostHog project.
   expect(config.vars.POSTHOG_PROJECT_TOKEN).toBeUndefined();
+  // It never proxies the public API to the production Convex deployment.
+  expect(config.vars.API_PUBLIC_HOST).toBeUndefined();
+  expect(config.vars.API_UPSTREAM_ORIGIN).toBeUndefined();
 });
 
 // wrangler dev reads the production vars, so local runs must blank the token.

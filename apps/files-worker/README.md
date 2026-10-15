@@ -44,6 +44,32 @@ Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
 "Rendering and media" and "Media renderer Container").
 
+## Public API and MCP proxy
+
+`teakvault.com/api`, `/mcp` and the OAuth discovery documents
+(`/.well-known/oauth-protected-resource`, `/.well-known/oauth-protected-resource/mcp`
+and `/.well-known/teak-oauth-clients.json`) reach Convex through this Worker
+(`src/apiProxy.ts`). Zone routes in `wrangler.jsonc` catch those paths on
+`teakvault.com`, which Cloudflare already proxies, and the rest of the site
+stays on its own origin. The proxy forwards each request to the same Convex
+HTTP path the docs site's Vercel rewrites used (`/api` → `/v1`,
+`/api/<path>` → `/<path>`, MCP and discovery paths unchanged), streams request
+and response bodies, does not follow redirects, and adds the site's security
+headers. `API_PUBLIC_HOST` and `API_UPSTREAM_ORIGIN` configure it; unset, the
+Worker proxies nothing, and the development Worker sets neither.
+
+- Bodies whose `Content-Length` is over Convex's 20 MiB HTTP action limit get
+  413 `CONTENT_TOO_LARGE` without reaching Convex; an unreachable Convex is
+  502 `SERVICE_UNAVAILABLE`, in the API's `{ code, error }` shape.
+- The OpenAPI spec and the three discovery documents are identical for every
+  caller, so the edge cache answers unauthenticated `GET`s for five minutes.
+  Clients still see Convex's `Cache-Control: no-store`.
+- Paths the route patterns catch only by prefix (`/apis`) fall through to the
+  site's origin.
+- The Vercel rewrites in `apps/docs/vercel.json` stay as the fallback: deleting
+  the zone routes sends the traffic back through them. `src/apiProxy.test.ts`
+  checks that every rewrite reaches the same Convex URL through a route here.
+
 ## Internal ops
 
 Besides downloads, the worker accepts body-bound, short-lived signed `POST`
