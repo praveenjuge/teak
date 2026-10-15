@@ -110,9 +110,6 @@ const commands = ():
 };
 
 const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
-// Leaves `group`, the single group older stacks recorded, readable.
-const groupsOf = (state: StackState & { group?: number }): number[] =>
-  state.groups ?? (state.group ? [state.group] : []);
 const STACK_MEMBERS = ["convex", "next"];
 
 /**
@@ -170,7 +167,7 @@ export const stopOrphanedStack = async (root: string): Promise<boolean> => {
   if (!state || isStackRunning(state)) {
     return false;
   }
-  for (const group of groupsOf(state)) {
+  for (const group of state.groups) {
     if (!groupAlive(group)) {
       continue;
     }
