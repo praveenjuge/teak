@@ -66,7 +66,6 @@ const permanentDeleteCardForUserHandler = async (
     await ensureCardUsageShardsForRemoval(ctx, card.userId);
   }
 
-  // Permanently remove from database
   await ctx.db.delete("cards", cardId);
   await recordCardTombstone(ctx, { cardId, userId: card.userId });
   if (!card.isDeleted) {
@@ -82,7 +81,6 @@ export const permanentDeleteCardForUser = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Public API deletes skip Trash only for cards already in it.
     await permanentDeleteCardForUserHandler(
       ctx,
       await requireTeakUserId(ctx, args.userId),
@@ -108,7 +106,6 @@ export const restoreCardForUser = internalMutation({
         message: "Not authorized to restore this card",
       });
     }
-    // A lost response can make clients retry a successful restore.
     if (!card.isDeleted) {
       return null;
     }

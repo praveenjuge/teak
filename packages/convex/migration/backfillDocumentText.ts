@@ -5,7 +5,6 @@ import { getAccountDeletionState } from "../accountDeletion";
 
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BATCH_SIZE = 100;
-/** Time between two extractions, so the Files Worker sees a steady trickle. */
 const DEFAULT_SPACING_MS = 2000;
 const MIN_SPACING_MS = 250;
 

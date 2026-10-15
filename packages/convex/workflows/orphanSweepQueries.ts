@@ -37,7 +37,6 @@ export const pageSweepCards = internalQuery({
       cards: page.page.map((card) => ({
         fileKey: card.fileKey,
         workflowArtifactKeys: card.workflowArtifactKeys,
-        // Both preview assets and archived metadata carry storage keys.
         metadata:
           card.metadata && typeof card.metadata === "object"
             ? {
@@ -93,7 +92,6 @@ export const logOrphanReport = internalMutation({
       args.orphanCount > 0
         ? "storage.orphaned_objects_detected"
         : "storage.orphan_scan_clean";
-    // Durable dashboard-visible log of every sweep.
     console.log("[workflow/orphanSweep]", message, args);
     return null;
   },

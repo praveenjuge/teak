@@ -1,10 +1,3 @@
-/**
- * AI Backfill Workflow
- *
- * Schedules AI metadata generation for cards lacking results.
- * Runs in batches to avoid overwhelming the pipeline and reports failures.
- */
-
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, type MutationCtx } from "../_generated/server";
@@ -101,8 +94,6 @@ export const enqueueAiBackfillCardHandler = async (
   const attempts = card.aiBackfillAttempts ?? 0;
   const now = Date.now();
   if (attempts >= MAX_AI_BACKFILL_ATTEMPTS) {
-    // Empty AI tags take the card out of the backfill index, the same state
-    // a card with nothing to analyze ends in. A manual reprocess resets it.
     await patchCardWithSearchSync(ctx, cardId, {
       aiTags: [],
       processingStatus: {

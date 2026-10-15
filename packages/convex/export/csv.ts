@@ -29,7 +29,6 @@ export const CSV_COLUMNS = [
 
 const BOM = "﻿";
 
-/** First characters that make a spreadsheet read a cell as a formula. */
 const FORMULA_START = /^[=+\-@\t\r]/;
 
 /** The cell as written: formula-guarded, then quoted with `"` doubled. */

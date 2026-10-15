@@ -24,11 +24,6 @@ import {
 } from "../../storage/filesWorkerClient";
 import { normalizeAiTags } from "./tags";
 
-/**
- * All metadata generation runs in the Files Worker on its Workers AI binding
- * (text, link, and image ops). Convex sends prompts or storage keys, never
- * bytes, and keeps telemetry and the workflow's deferral semantics.
- */
 const JSON_VALIDATION_ERROR =
   /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
 const PROVIDER_CAPACITY_ERROR =
@@ -40,9 +35,6 @@ export const isAiProviderCapacityError = (error: unknown): boolean => {
   return PROVIDER_CAPACITY_ERROR.test(message);
 };
 
-// Without FILES_BASE and its signing secret (the local E2E stack, or a
-// deployment missing its Files Worker configuration) every metadata op fails
-// before any request is made, and no retry can change that.
 export const FILES_WORKER_NOT_CONFIGURED = "files_worker_not_configured";
 
 export const isAiMetadataDeferredError = (error: unknown): boolean => {
@@ -56,9 +48,6 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
   );
 };
 
-/**
- * Generate AI metadata for text content
- */
 const generateWorkerMetadata = async (
   op: "generate-text-metadata" | "generate-link-metadata",
   prompt: string
@@ -137,9 +126,6 @@ export const generateImageMetadataForStoredKey = async (
   };
 };
 
-/**
- * Generate AI metadata for link content
- */
 export const generateLinkMetadata = (content: string, url?: string) =>
   generateWorkerMetadata(
     "generate-link-metadata",

@@ -13,7 +13,6 @@ const WWW_PREFIX = /^www\./;
 const mobileCardSummaryValidator = v.object({
   _creationTime: v.number(),
   _id: v.id("cards"),
-  /** Width / height of the tile's media, so grids reserve space before it loads. */
   aspectRatio: v.optional(v.number()),
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
@@ -50,7 +49,6 @@ const compactText = (value?: string | null) => {
 const ratio = (width?: number, height?: number) =>
   width && height && width > 0 && height > 0 ? width / height : undefined;
 
-/** The aspect ratio of the media a grid tile shows for this card, if known. */
 const mediaAspectRatio = (card: CardWithUrls) => {
   if (card.type === "link") {
     const preview = card.metadata?.linkPreview;
@@ -61,7 +59,6 @@ const mediaAspectRatio = (card: CardWithUrls) => {
   return ratio(card.fileMetadata?.width, card.fileMetadata?.height);
 };
 
-/** "example.com" for an untitled link, so its tile names the site. */
 const linkHostname = (url?: string) => {
   if (!url) {
     return;
@@ -84,7 +81,6 @@ export const toMobileCardSummary = (card: CardWithUrls) => {
     linkTitle ||
     card.metadataTitle ||
     fileName ||
-    // A link's content is usually its URL; the site name reads better.
     (card.type === "link" ? linkHostname(card.url) : undefined) ||
     previewText?.split("\n", 1)[0] ||
     (card.type === "palette" ? "Color palette" : "Saved card");

@@ -14,12 +14,6 @@ import {
   type TelemetrySurface,
 } from "../shared/telemetry";
 
-/**
- * Backend product events and error reports, sent to PostHog with one fetch per
- * action. Works in the default Convex runtime and in Node actions. Without
- * POSTHOG_PROJECT_TOKEN (every deployment but production) nothing is sent.
- */
-
 const BACKEND_LIB = "teak-backend";
 const APP_VERSION_LENGTH = 12;
 
@@ -123,7 +117,6 @@ export const captureBackendException = (
   input: { distinctId?: string; properties?: TelemetryAttributes } = {}
 ): Promise<void> => {
   if (error && typeof error === "object") {
-    // Nested wrappers rethrow the same error; report it once.
     if (capturedErrors.has(error)) {
       return Promise.resolve();
     }

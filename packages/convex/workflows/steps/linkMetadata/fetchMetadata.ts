@@ -61,7 +61,6 @@ const resolveDns: DnsResolver = async (hostname) => {
   return records.map((record) => record.address);
 };
 
-// Top-level regex patterns for performance
 const MAX_REMOTE_HTML_BYTES = 2 * 1024 * 1024;
 
 type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
@@ -99,12 +98,6 @@ interface StoredRemoteAsset {
   width?: number;
 }
 
-/**
- * Download a remote asset straight into R2 through the Files Worker's link
- * fetcher Container, which applies the same SSRF policy, address pinning,
- * size and type limits, and image check this action used to. The bytes never
- * pass through Convex. Any failure leaves the preview without the asset.
- */
 const storeRemoteAsset = async (
   ctx: any,
   assetUrl: string,
@@ -118,7 +111,6 @@ const storeRemoteAsset = async (
     fallbackContentType?: string;
     key: string;
     kind: FilesRemoteAssetKind;
-    /** The page the asset came from; its origin goes out as the Referer. */
     pageUrl: string;
     userId: string;
   }
@@ -132,7 +124,6 @@ const storeRemoteAsset = async (
         kind,
         url: assetUrl,
         ...(fallbackContentType ? { fallbackContentType } : {}),
-        // An overlong page URL just goes without a Referer.
         ...(isRemoteAssetPageUrl(pageUrl) ? { pageUrl } : {}),
       },
     });
@@ -178,7 +169,6 @@ const storeLinkPreviewImage = async (
     kind: "image",
   });
 
-  // The fetcher stores an image only once it has read its dimensions.
   if (!(storedAsset?.width && storedAsset.height)) {
     return null;
   }
@@ -272,21 +262,12 @@ const storeLinkPreviewMedia = async (
 };
 
 interface PageScrape {
-  /** The URL, or a redirect, fails the SSRF policy. */
   blocked?: true;
-  /** The decoded page, for parsers that need all of it (Instagram media). */
   html: () => string | null;
-  /** The page's URL after redirects. */
   pageUrl: string;
   payload: ScrapeResponse;
 }
 
-/**
- * Fetch and scrape the page on the Files Worker's link fetcher, under the
- * same SSRF policy and address pinning, falling back there to an offline
- * Browser Run render when the static HTML has no metadata. A busy, failing
- * or slow Worker throws a retryable error so the step runs again.
- */
 const scrapeWithFilesWorker = async (
   url: string,
   selectors: { selector: string }[]
@@ -339,10 +320,6 @@ const scrapeWithFilesWorker = async (
   };
 };
 
-/**
- * Without a Files Worker (a local stack), fetch the page here with the same
- * pinned policy and match the selectors against its static HTML only.
- */
 const scrapeWithFetch = async (
   url: string,
   selectors: { selector: string }[]
@@ -393,8 +370,6 @@ const scrapeWithFetch = async (
     );
     return {
       html: () => html,
-      // safeFetch requests each redirect hop itself, so the response's URL
-      // is the last one.
       pageUrl: response.url || url,
       payload: {
         success: true,
@@ -413,9 +388,6 @@ const scrapeWithFetch = async (
   }
 };
 
-// HTTP statuses that will not change on retry: the page is gone, forbidden,
-// or the request is malformed. Timeouts (408), too-early (425) and rate limits
-// (429) stay retryable alongside 5xx and network errors.
 const RETRYABLE_CLIENT_STATUSES = new Set([408, 425, 429]);
 
 export const isDefinitiveHttpClientError = (status: number | undefined) =>
@@ -482,8 +454,6 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   const normalizedUrl = normalizeUrl(card.url);
   const keyBase = { cardId, userId: card.userId };
 
-  // Kill switch from the superadmin console. The card keeps a failed preview
-  // naming the pause; refreshing it from the console fetches it again.
   if (
     (await ctx.runQuery(internal.adminAccess.isLinkFetchPaused, {})) === true
   ) {
@@ -504,9 +474,6 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     };
   }
 
-  // SSRF guard: validate the destination before any server-side fetch or
-  // headless-browser navigation. A blocked URL is a permanent failure, not a
-  // retryable transient error.
   const failBlocked = async () => {
     const message = "URL points to a disallowed destination";
     await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
@@ -568,13 +535,10 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       : scrapeWithFetch)(normalizedUrl, SCRAPE_ELEMENTS);
     const { pageUrl, payload } = page;
 
-    // A redirect to a disallowed destination fails like the URL itself.
     if (page.blocked) {
       return await failBlocked();
     }
 
-    // A dead or forbidden link (404, 410, 401, 403, ...) will not recover on
-    // retry, so store a failed preview instead of fetching it again.
     const staticStatus = payload.success
       ? undefined
       : scrapeHttpStatus(payload);
@@ -660,10 +624,6 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       linkPreview,
       status: "completed",
     });
-
-    // Note: Do NOT call startCardProcessingWorkflow here.
-    // The main cardProcessingWorkflow already handles link metadata extraction
-    // and will continue with subsequent steps after this completes.
 
     return {
       status: "success" as const,

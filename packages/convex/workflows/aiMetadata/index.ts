@@ -7,7 +7,6 @@ import { cardTypeValidator } from "../../schema";
 import { startWorkflow, workflow } from "../manager";
 import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 
-// Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
 const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
   | Record<string, any>

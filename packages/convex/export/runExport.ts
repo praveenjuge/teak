@@ -1,14 +1,4 @@
 "use node";
-import { ensureObjectOwnership } from "../storage/ownership";
-/**
- * Export orchestration:
- *   1. pages the start-time snapshot (joined to active card docs)
- *   2. serializes cards.json and a manifest of archive entries and storage keys
- *   3. has the Files Worker stream the originals into the ZIP artifact
- *      (`build-export`), so file bytes never transit Convex
- *
- * Runs in the Node runtime for the stable `node:crypto` user-id hash.
- */
 
 import { createHash } from "node:crypto";
 import { v } from "convex/values";
@@ -21,6 +11,7 @@ import {
   type FilesWorkerBuildExportResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
+import { ensureObjectOwnership } from "../storage/ownership";
 import { storeObject } from "../storage/r2";
 import { buildR2ExportPrefix } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
@@ -84,21 +75,6 @@ export function buildArtifactKey(userId: string, jobId: string): string {
 
 const EXPORT_MANIFEST_VERSION = 1;
 
-/**
- * Worker-backed export.
- *
- * Serializes cards and entry paths, then hands the worker a small manifest
- * (inline JSON entries + storage keys); the
- * worker streams object bytes straight through client-zip into a multipart
- * R2 upload without the bytes ever transiting this action.
- *
- * When files turn out to be missing, the worker reports their archive paths
- * and cards.json is rebuilt with those cards' `file` entries dropped, then
- * the op runs once more — matching legacy omission semantics.
- *
- * Returns null when the worker is unavailable, declines the manifest, or an
- * unexpected error occurs.
- */
 async function runExportArchiveViaFilesWorker(
   ctx: ActionCtx,
   args: {
@@ -130,7 +106,6 @@ async function runExportArchiveViaFilesWorker(
     }
     const downloadName = `teak-export-${new Date().toISOString().slice(0, 10)}.zip`;
 
-    // Path of each file entry → card id, so omissions can be attributed.
     const cardIdByPath = new Map<string, string>();
     const omittedCardIds = new Set<string>();
     for (const input of inputs) {
@@ -212,8 +187,6 @@ async function runExportArchiveViaFilesWorker(
         ],
       });
 
-      // Beside the artifact, so the exports lifecycle rule also expires a
-      // manifest whose best-effort delete below fails.
       const manifestKey = `${artifactKey}.manifest.json`;
       await storeObject(ctx, new Blob([manifestJson]), {
         userId,
@@ -234,8 +207,6 @@ async function runExportArchiveViaFilesWorker(
     let filesIncluded = 0;
     let filesOmitted = 0;
 
-    // Two attempts maximum: the second only when files were omitted and
-    // cards.json must be corrected.
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const manifestKey = await buildManifestObject();
       try {
@@ -283,7 +254,6 @@ async function runExportArchiveViaFilesWorker(
       filesOmitted,
     };
   } catch {
-    // Reported by the caller as an archive failure.
     return null;
   }
 }
@@ -302,7 +272,6 @@ export const runExportArchive = internalAction({
   handler: observeExport(
     "export.archive",
     async (ctx, { jobId, userId }: { jobId: string; userId: string }) => {
-      // Bail early if a cancellation was requested before we started.
       const canceledBefore = await ctx.runQuery(
         internalAny.dataExport.isCancelRequested,
         {
@@ -317,7 +286,6 @@ export const runExportArchive = internalAction({
         return { ok: false, failureClass: "storage_failed" };
       }
 
-      // Assemble the start-time card set from the snapshot.
       const inputs: ArchiveCardInput[] = [];
       let cursor: string | null = null;
       for (;;) {

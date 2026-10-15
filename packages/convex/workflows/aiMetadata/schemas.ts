@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// AI generation result schema scoped to metadata workflow helpers
 export const aiMetadataSchema = z.object({
   tags: z
     .array(z.string())

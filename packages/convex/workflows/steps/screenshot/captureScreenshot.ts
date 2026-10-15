@@ -43,7 +43,6 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
-/** HTML travels gzip-compressed so pages up to 2 MiB fit in an op body. */
 const gzipBase64 = (html: string): string =>
   gzipSync(Buffer.from(html, "utf8")).toString("base64");
 
@@ -135,7 +134,6 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
-    // Registered before the Worker writes it.
     const screenshotKey = buildR2ObjectKey({
       userId: card.userId,
       cardId,

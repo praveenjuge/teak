@@ -5,13 +5,11 @@ const AI_BACKFILL_BATCH_SIZE = 50;
 const AI_BACKFILL_INDEX =
   "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt" as const;
 
-// Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => await ctx.db.get("cards", cardId),
 });
 
-// Internal query to find cards missing AI metadata
 export const findCardsMissingAi = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -51,7 +49,6 @@ export const findCardsMissingAi = internalQuery({
   },
 });
 
-// Internal query to get card for verification
 export const getCardForVerification = internalQuery({
   args: { cardId: v.id("cards"), userId: v.string() },
   handler: async (ctx, { cardId, userId }) => {

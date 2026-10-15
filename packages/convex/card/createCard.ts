@@ -46,7 +46,7 @@ export const clientCardSourceValidator = v.union(
 
 const createCardArgs = {
   content: v.string(),
-  type: v.optional(cardTypeValidator), // Make type optional for auto-detection
+  type: v.optional(cardTypeValidator),
   url: v.optional(v.string()),
   fileKey: v.optional(v.string()),
   thumbnailKey: v.optional(v.string()),
@@ -90,10 +90,8 @@ interface CreateCardArgs {
 
 interface ImportedVisibleFields {
   createdAt?: number;
-  /** The card was archived where it came from (a Teak archive). */
   isArchived?: boolean;
   isFavorited?: boolean;
-  /** A title the user chose (e.g. a bookmark's name), kept over fetched page titles. */
   metadataTitle?: string;
 }
 
@@ -108,7 +106,6 @@ export const createCardForUserHandler = async (
     source?: CardCreationSource;
   } = {}
 ): Promise<Id<"cards">> => {
-  // Check rate limit and card count limit
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
   // Client-supplied storage keys must live in the caller's namespace so a
@@ -140,10 +137,8 @@ export const createCardForUserHandler = async (
     ? stagePending()
     : stageCompleted(now, 1);
 
-  // Separate file-related metadata from other metadata
   const processedMetadata = { ...originalMetadata } as Record<string, unknown>;
 
-  // Move file-related fields to fileMetadata if present
   const fileRelatedFields = [
     "fileName",
     "fileSize",
@@ -213,7 +208,6 @@ export const createCardForUserHandler = async (
     finalContent = validateTextCardContent(finalContent);
   }
 
-  // Pre-populate palette colours when explicitly creating a palette card without provided colours
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
     const paletteText = [
@@ -233,7 +227,6 @@ export const createCardForUserHandler = async (
     ?.trim()
     .slice(0, MAX_IMPORTED_TITLE_LENGTH);
 
-  // Set initial metadataStatus for link cards
   const cardData = {
     userId,
     content: finalContent,
@@ -262,11 +255,9 @@ export const createCardForUserHandler = async (
     ...(options.importedVisibleFields?.isArchived
       ? { isArchived: true as const, archivedAt: now }
       : {}),
-    // An edited title survives link-preview refreshes (linkMetadata.ts).
     ...(importedTitle
       ? { metadataTitle: importedTitle, metadataTitleEdited: true }
       : {}),
-    // Set pending status for link cards that need metadata extraction
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };
 
@@ -284,7 +275,6 @@ export const createCardForUserHandler = async (
   }
   await scheduleCardSearchSync(ctx, cardId, userId);
 
-  // Start the card processing workflow
   await startWorkflow(
     ctx,
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,

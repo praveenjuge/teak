@@ -1,10 +1,3 @@
-/**
- * Metadata Generation Step
- *
- * Workflow step that generates AI tags and summary for cards.
- * Handles different card types: text, image, video, audio, link, document, quote, palette.
- */
-
 "use node";
 
 import { v } from "convex/values";
@@ -114,11 +107,6 @@ export const buildLinkContentParts = (
   return contentParts;
 };
 
-/**
- * Workflow Step: Generate AI metadata (tags and summary)
- *
- * @returns Metadata generation result
- */
 export const generate: any = internalAction({
   args: {
     cardId: v.id("cards"),
@@ -166,11 +154,6 @@ export async function generateHandler(
   );
 }
 
-/**
- * A video's spoken words, through the audio pass. A video without sound, one
- * the renderer can't read, or any failure leaves it without a transcript:
- * the transcript is extra, so it never fails the step.
- */
 async function transcribeVideo(
   ctx: any,
   card: any
@@ -191,11 +174,6 @@ async function transcribeVideo(
   }
 }
 
-/**
- * Stores a document's extracted text for search and the content endpoint.
- * Storage failing never fails the step; the document backfill retries cards
- * without stored text.
- */
 async function keepDocumentText(
   ctx: any,
   card: any,
@@ -252,10 +230,6 @@ async function generateForCard(
     };
   };
 
-  // Kill switches from the superadmin console (adminAccess.ts). A global
-  // pause defers like a provider outage, so the periodic backfill picks the
-  // card up once AI is back on. An account with AI turned off completes
-  // without AI; refreshing the card runs it again.
   const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
     userId: card.userId,
   });
@@ -294,8 +268,6 @@ async function generateForCard(
         const imageKey = resolveImageAnalysisKey(card);
 
         if (imageKey) {
-          // Image understanding runs on the Files Worker; no bytes are fetched
-          // into Convex.
           const result = await generateImageMetadataForStoredKey(imageKey);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
@@ -328,8 +300,6 @@ async function generateForCard(
       }
       case "audio": {
         if (card.fileKey) {
-          // Silence, tones and beeps yield no transcript, so they also get no
-          // made-up summary or tags.
           const { transcript: transcriptResult } = await processAudioCard(
             ctx,
             card
@@ -485,7 +455,6 @@ async function generateForCard(
     };
   }
 
-  // Trigger link screenshot generation if it's a link
   if (cardType === "link") {
     await ctx.scheduler.runAfter(
       0,

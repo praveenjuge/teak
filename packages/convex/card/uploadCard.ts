@@ -67,7 +67,6 @@ export const validateDirectUploadRequest = (args: {
   }
 };
 
-// Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
   args: {
     fileName: v.string(),
@@ -104,8 +103,6 @@ export const uploadAndCreateCard = mutation({
         });
       }
 
-      // Quota only: the creation rate-limit token is charged once, when the
-      // uploaded file becomes a card.
       await ensureCardQuotaAvailable(ctx, user.teakUserId);
 
       const key = buildR2ObjectKey({
@@ -125,7 +122,7 @@ export const uploadAndCreateCard = mutation({
         success: true,
         uploadKey: signed.key,
         uploadUrl: signed.url,
-        cardId: undefined, // Will be set after successful upload
+        cardId: undefined,
       };
     } catch (error) {
       if (
@@ -292,9 +289,6 @@ export const createUploadedCardForUser = async (
     throw error;
   }
   await scheduleCardSearchSync(ctx, cardId, args.userId);
-
-  // Object metadata is served by the Files Worker path; the Convex R2
-  // component's metadata sync is no longer part of the upload pipeline.
 
   await ctx.scheduler.runAfter(
     0,

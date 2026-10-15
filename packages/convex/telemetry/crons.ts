@@ -9,7 +9,6 @@ import { captureBackendException } from "./posthog";
 
 const internalAny = internal as Record<string, any>;
 
-// Stable job names, sent with every cron failure report.
 export const CRON_MONITORS = {
   cleanupExpiredIdempotency: "cleanup-expired-idempotency",
   aiMetadataBackfill: "ai-metadata-backfill",
@@ -42,8 +41,6 @@ export const cleanupExpiredIdempotency = internalAction({
     }),
 });
 
-// Heartbeats feed the console's health view; a failed write never fails the
-// job itself.
 const recordHeartbeat = async (
   ctx: ActionCtx,
   args: {
@@ -92,7 +89,6 @@ export const cleanupOldDeletedCards = internalAction({
         internalAny.workflows.cardCleanup.startCardCleanupWorkflow,
         {}
       );
-      // Tombstones of purged cards back /v1/cards/changes for 90 days.
       await ctx.runMutation(
         internalAny.publicApiTombstones.pruneExpiredCardTombstones,
         {}

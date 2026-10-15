@@ -25,8 +25,6 @@ export function deletionFailureReason(
   return undefined;
 }
 
-// Every external operation is idempotent. Completed steps survive process failure;
-// advancing a stage is guarded against stale callbacks and changed generations.
 export const accountDeletionWorkflow = workflow.define({
   args: { stateId: v.id("accountDeletionStates"), generation: v.number() },
   returns: v.null(),

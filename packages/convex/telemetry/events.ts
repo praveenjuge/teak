@@ -2,8 +2,6 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { captureBackendEvent } from "./posthog";
 
-// Mutations schedule exactly one of these per outcome; each sends one request.
-
 export const emitCardOutcome = internalAction({
   args: {
     cardId: v.optional(v.string()),

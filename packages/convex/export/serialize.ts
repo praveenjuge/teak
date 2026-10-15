@@ -123,7 +123,6 @@ export function sanitizeFilename(rawName: string | undefined): string {
   if (!rawName) {
     return fallback;
   }
-  // Drop any directory components.
   const base = rawName.split(/[/\\]/).pop() ?? rawName;
   const cleaned = base
     .normalize("NFKD")
@@ -200,8 +199,6 @@ export function serializeCard(
     serialized.aiSummary = summary;
   }
 
-  // Visible palette colors only: hex + optional human-readable name. Drop rgb/hsl
-  // derived representations to keep the payload to what the user sees.
   if (Array.isArray(card.colors) && card.colors.length > 0) {
     serialized.colors = card.colors.map((color) =>
       color.name ? { hex: color.hex, name: color.name } : { hex: color.hex }
@@ -286,7 +283,7 @@ export interface CapCheckResult {
 export function estimateArtifactSize(
   cards: Array<{ fileMetadata?: { fileSize?: number } }>
 ): number {
-  const PER_CARD_JSON_BYTES = 2 * 1024; // generous allowance for card JSON
+  const PER_CARD_JSON_BYTES = 2 * 1024;
   return cards.reduce((total, card) => {
     const fileSize = card.fileMetadata?.fileSize ?? 0;
     return total + fileSize + PER_CARD_JSON_BYTES;

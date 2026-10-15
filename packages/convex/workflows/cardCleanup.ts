@@ -23,11 +23,6 @@ export const getCardsPendingCleanup = internalQuery({
     })
   ),
   handler: async (ctx, { olderThan, limit }) => {
-    // Bound the scan with the by_isDeleted_deletedAt index: soft-deleted cards
-    // are a small fraction of the table, and the deletedAt range keeps the
-    // read proportional to the cleanup backlog instead of scanning every
-    // card. The gte(0) bound excludes rows with no deletedAt, preserving the
-    // previous undefined guard.
     const candidates = await ctx.db
       .query("cards")
       .withIndex("by_isDeleted_deletedAt", (q) =>
@@ -68,8 +63,6 @@ export const cleanupDeletedCard = internalMutation({
       try {
         await deleteObject(ctx, key);
       } catch (error) {
-        // A single object failure (missing object, namespace violation) must
-        // not block deletion of the card record itself.
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete object`, {
           cardId,
           key,
@@ -81,7 +74,6 @@ export const cleanupDeletedCard = internalMutation({
     let deleted = false;
     try {
       await ctx.db.delete("cards", cardId);
-      // Sync clients learn about purged cards from /v1/cards/changes.
       await recordCardTombstone(ctx, { cardId, userId: card.userId });
       await scheduleCardSearchSync(ctx, cardId, card.userId, card);
       deleted = true;

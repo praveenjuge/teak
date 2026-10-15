@@ -4,7 +4,6 @@ import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
-// Internal mutation to update card with AI metadata
 export const updateCardAI = internalMutation({
   args: {
     cardId: v.id("cards"),

@@ -15,7 +15,6 @@ import {
 
 const internalWorkflow = internal as Record<string, any>;
 
-// A busy Browser Run pool usually clears within minutes.
 export const SCREENSHOT_RENDERER_MAX_RETRIES = 3;
 export const SCREENSHOT_RENDERER_RETRY_DELAY_MS = 30_000;
 export const SCREENSHOT_HTTP_MAX_RETRIES = 1;

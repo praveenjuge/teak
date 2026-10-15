@@ -164,8 +164,6 @@ const finalizeForUser = async (
     throw new Error("files_worker_not_configured");
   }
   const validated = validateFinalizeUpload(userId, args);
-  // Image uploads are committed through a decode-verify op so the card gets
-  // trusted format/dimension facts from the worker instead of client input.
   const isImageUpload =
     inferFileFormat({ fileName: validated.fileName })?.cardType === "image";
   const destinationKey = buildR2ObjectKey({
@@ -256,8 +254,6 @@ const finalizeForUser = async (
       {
         additionalMetadata: {
           ...trustedAdditionalMetadata,
-          // Trusted worker-decoded dimensions win over anything the client
-          // claimed; they land in fileMetadata at creation time.
           ...(trustedImageFacts?.width && trustedImageFacts?.height
             ? {
                 height: trustedImageFacts.height,
@@ -279,8 +275,6 @@ const finalizeForUser = async (
         userId,
       }
     );
-    // Also queues the pending source object for durable deletion, so the
-    // response doesn't wait on a files-worker round trip.
     await ctx
       .runMutation(internal.fileUploads.consumeSessionBySourceKey, {
         sourceKey: args.fileKey,

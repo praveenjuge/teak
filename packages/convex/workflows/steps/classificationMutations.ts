@@ -12,9 +12,6 @@ import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import type { CardType } from "../../schema";
 
-/**
- * Internal mutation to update card classification result
- */
 export const updateClassification = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -25,22 +22,17 @@ export const updateClassification = internalMutation({
   handler: async (ctx, { cardId, type, confidence }) => {
     const now = Date.now();
 
-    // Get current card to update processing status
     const card = await ctx.db.get("cards", cardId);
     if (!card) {
       return null;
     }
 
-    // Update processing status to mark classification as complete
     const processingStatus = card.processingStatus || {};
     const updatedProcessing = {
       ...processingStatus,
       classify: stageCompleted(now, confidence),
-      // Mark categorization as pending only for links
       categorize: type === "link" ? stagePending() : stageCompleted(now, 1),
-      // Always mark metadata as pending
       metadata: stagePending(),
-      // Mark renderables as pending only for image/video/document
       renderables: ["image", "video", "document"].includes(type)
         ? stagePending()
         : stageCompleted(now, 1),

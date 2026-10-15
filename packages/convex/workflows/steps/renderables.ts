@@ -1,17 +1,3 @@
-/**
- * Renderables Generation Step
- *
- * Workflow step that generates thumbnails and other visual assets for cards.
- * Handles thumbnail generation for:
- * - Image cards (dimensions and palette; Cloudflare serves renditions on demand)
- * - Video cards (thumbnail frame, hover scrub sprite and palette)
- * - GIF cards (palette from frames across the animation)
- * - PDF documents (first page)
- * Video and PDF render on the Files Worker's media renderer. A busy or
- * unavailable renderer throws `renderables_retryable:` so the workflow step
- * retries with backoff; once retries run out the stage is marked failed.
- */
-
 "use node";
 
 import { v } from "convex/values";
@@ -23,11 +9,6 @@ import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import { withBackendErrorCapture } from "../../telemetry/posthog";
 import { recordMediaFacts } from "../mediaFacts";
 
-/**
- * Workflow Step: Generate renderables (thumbnails, etc.)
- *
- * @returns Renderables generation result
- */
 export const generate: any = internalAction({
   args: {
     cardId: v.id("cards"),
@@ -121,8 +102,6 @@ export async function generateHandler(
     }
   };
 
-  // The frame op also reports duration and display size; probe only when it
-  // made no frame (an existing thumbnail, or a source it declined).
   if (cardType === "video" && card.fileKey && !isGifFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateVideoThumbnail
@@ -136,7 +115,6 @@ export async function generateHandler(
     handleResult(result);
   }
 
-  // GIFs keep no thumbnail (they play as images); only their colors are read.
   if (cardType === "video" && card.fileKey && isGifFile) {
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.extractAnimationPalette
@@ -155,7 +133,6 @@ export async function generateHandler(
     );
   }
 
-  // Generate thumbnail for PDF documents
   if (
     cardType === "document" &&
     card.fileKey &&

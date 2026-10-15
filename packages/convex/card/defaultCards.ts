@@ -27,7 +27,6 @@ import {
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
 
-// Helper to create a fully completed processing status
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
   classify: stageCompleted(now, 1),
   categorize: stageCompleted(now, 1),
@@ -35,7 +34,6 @@ const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
   renderables: stageCompleted(now, 1),
 });
 
-// Helper to create a color object
 const createColor = (
   hex: string,
   name?: string
@@ -49,7 +47,6 @@ const createColor = (
   ...(name && { name }),
 });
 
-// Type for default card definitions - all properties are optional
 export interface DefaultCardDef {
   aiSummary?: string;
   aiTags?: string[];
@@ -443,7 +440,6 @@ export const insertCompletedCards = async (
       content: cardDef.content,
       url: cardDef.url,
       urlHost: normalizeUrlHost(cardDef.url) ?? undefined,
-      // `null` (dev packs only) leaves the key unset, as on old cards.
       ...(cardDef.shuffleKey === null
         ? {}
         : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
@@ -494,8 +490,6 @@ export const insertCompletedCards = async (
       await recordActiveCardRemoved(ctx, userId, cardId);
     }
     await scheduleCardSearchSync(ctx, cardId, userId);
-    // Ready-made documents skip processing, which is where a document's text
-    // is stored; read it now so search finds words inside them too.
     if (
       cardDef.type === "document" &&
       cardDef.fileKey &&
@@ -518,11 +512,6 @@ export const insertCompletedCards = async (
   }
 };
 
-/**
- * The account's folder by this name, created when it has none. Null when the
- * name is taken by a smart folder or a folder being deleted, which cards
- * can't be added to.
- */
 const ensureFolder = async (
   ctx: MutationCtx,
   userId: string,
@@ -622,7 +611,6 @@ const vaultSetupsOf = (ctx: MutationCtx, userId: string) =>
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .take(10);
 
-/** Clear the mark, in the transaction that gives the account its cards. */
 const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
   const rows = await vaultSetupsOf(ctx, userId);
   for (const row of rows) {
@@ -633,10 +621,7 @@ const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
 /** How long the backstop waits before inserting what needs no files. */
 export const ONBOARDING_BACKSTOP_MS = 5 * 60 * 1000;
 
-/** True once the account has any getting-started card, in Trash or not. */
 const hasOnboardingCards = async (ctx: MutationCtx, userId: string) => {
-  // A new account holds few cards; the getting-started ones are among its
-  // first, so a bounded read of the oldest is enough.
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_created", (q) => q.eq("userId", userId))
@@ -644,11 +629,6 @@ const hasOnboardingCards = async (ctx: MutationCtx, userId: string) => {
   return cards.some((card) => card.onboarding !== undefined);
 };
 
-/**
- * Insert every getting-started card at once, finished, in a Start here
- * folder, beside a Moodboard smart folder. Cards whose files weren't stored
- * are left out (a link is processed instead).
- */
 const insertOnboardingCardSet = async (
   ctx: MutationCtx,
   userId: string,
@@ -670,7 +650,6 @@ const insertOnboardingCardSet = async (
   await ensureFolder(ctx, userId, ONBOARDING_SMART_FOLDER, now + 1);
   const byCard = new Map(stored.map((entry) => [entry.onboarding, entry]));
   const cards: DefaultCardDef[] = [];
-  // Newest first: each card is a second older than the one before it.
   for (const [index, def] of ONBOARDING_CARDS.entries()) {
     const card = finishOnboardingCard(def, byCard.get(def.onboarding), now);
     if (card) {
@@ -699,7 +678,6 @@ export const createDefaultCardsForUser = internalMutation({
     await assertAccountNotDeleting(ctx, userId);
     const usage = await getOrInitializeCardUsage(ctx, userId);
     await initializeCardUsageShards(ctx, usage);
-    // Check if user already has any non-deleted cards
     const existingCard = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>

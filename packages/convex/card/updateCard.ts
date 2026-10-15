@@ -74,8 +74,6 @@ interface UpdateCardFieldForUserOptions {
 }
 
 interface UpdateCardFieldForUserResult {
-  // Milliseconds until the processing workflow should start, or null when
-  // this update doesn't need a new run.
   pipelineDelayMs: number | null;
 }
 
@@ -105,8 +103,6 @@ const assertReprocessAllowed = (
   });
 };
 
-// "Refresh details" is asked for directly, so its limits say so instead of the
-// card-creation wording the edit path shares.
 const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
   cardReprocessPerCard:
     "This card is already refreshing. Try again in a minute.",
@@ -114,14 +110,6 @@ const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
     "You've refreshed a lot of cards. Wait a minute and try again.",
 };
 
-/**
- * Charges the pipeline run a content or URL edit needs. Edits are never
- * refused for being too soon: a run the limits can't allow yet is reserved
- * and returned as a delay, and an edit made while this card already has a
- * reserved run waiting joins that run (it reads the card when it starts), so
- * it returns null. Only a burst past the account-wide reservation cap throws.
- * Callers run it once per update, however many fields change.
- */
 const reserveEditReprocess = async (
   ctx: MutationCtx,
   userId: string,
@@ -183,7 +171,7 @@ export const updateCard = mutation({
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
   },
-  returns: v.null(), // db.patch returns void/null
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await getSessionUser(ctx);
     if (!user) {
@@ -252,7 +240,6 @@ export const updateCard = mutation({
     );
     await scheduleCardSearchSync(ctx, id, card.userId, card);
 
-    // If content was updated, regenerate AI metadata
     if (pipelineDelayMs !== null) {
       await ctx.scheduler.runAfter(
         pipelineDelayMs,
@@ -297,9 +284,6 @@ interface CardEditState {
   updateData: Record<string, unknown>;
 }
 
-// Applies one field edit to the in-memory state. Validation errors throw
-// before anything is written, so a multi-field edit is all-or-nothing.
-// Returns false when the edit leaves the card unchanged.
 const applyCardFieldEdit = (
   state: CardEditState,
   { field, value, tagToRemove }: CardFieldEdit,
@@ -554,9 +538,6 @@ export const updateCardFieldForUserHandler = async (
       updateData.deletedAt = undefined;
       break;
 
-    // Archive hides a card from the library without deleting it, so it
-    // still counts toward the card limit. A card in Trash keeps its archived
-    // state, and restoring it returns it to Archive.
     case "archive":
       if (card.isArchived) {
         return { pipelineDelayMs: null };
@@ -605,7 +586,6 @@ export const updateCardFieldForUserHandler = async (
   return { pipelineDelayMs: null };
 };
 
-// Unified mutation for updating any card field
 export const updateCardField = mutation({
   args: {
     cardId: v.id("cards"),
@@ -698,8 +678,6 @@ const reprocessCardResultValidator = v.object({
   requestedAt: v.number(),
 });
 
-// Refusals the person can act on. Each happens before anything is written,
-// so returning one instead of throwing commits nothing.
 const REPROCESS_REFUSAL_CODES = new Set([
   "CONFLICT",
   "NOT_FOUND",

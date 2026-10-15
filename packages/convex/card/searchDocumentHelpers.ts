@@ -93,10 +93,6 @@ export const scheduleCardSearchTagSync = async (
   );
 };
 
-// Card fields the tag sync needs, snapshotted onto the sync-state row by
-// restarts. Batch invocations sync from the snapshot instead of reading the
-// cards table, which removes the write-conflict window between a running
-// sync chain and concurrent card writes (AI metadata, edits, deletes).
 interface CardSyncSnapshot {
   aiTags?: string[];
   cardCreatedAt: number;
@@ -119,10 +115,6 @@ const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   cardCreatedAt: card.createdAt,
 });
 
-// Whether a restart can change the sidebar's tag counts: they count active
-// cards per tag, so only the tag set and the Trash and Archive state matter.
-// A still-pending chain that could change them keeps that, since this
-// restart supersedes it before it finishes.
 const mayChangeTagCounts = (
   previous: Doc<"cardSearchTagSyncStates">,
   card: Doc<"cards"> | null | undefined
@@ -282,7 +274,6 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    // A pre-delete card without extracted text has no row to read.
     if (!previousCard || previousCard.hasExtractedText) {
       await deleteCardTextContents(ctx, cardId);
     }
@@ -294,14 +285,10 @@ export const syncCardSearchDocumentHandler = async (
     return null;
   }
 
-  // Folder rows follow the card in the same transaction. A pre-patch card
-  // that proves nothing folder-related changed skips the read entirely.
   if (cardFolderRowsMayChange(previousCard, card)) {
     await syncCardFolderRows(ctx, cardId, card);
   }
 
-  // The card's site follows its URL here, the one place every card write
-  // passes through, so `site:` and its index never drift from `url`.
   const urlHost = normalizeUrlHost(card.url) ?? undefined;
   if (card.urlHost !== urlHost) {
     await ctx.db.patch("cards", cardId, { urlHost });
@@ -333,7 +320,6 @@ export const syncCardSearchDocumentHandler = async (
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
   }
-  // New or changed text gets a fresh vector; an unchanged card makes no call.
   if (existing?.searchableText !== value.searchableText) {
     await markCardForEmbedding(ctx, cardId, card.userId);
   }
@@ -388,8 +374,6 @@ export const syncCardSearchDocumentHandler = async (
   return null;
 };
 
-// The view the batch handler syncs from: either the state-row snapshot or a
-// card document, both normalized to the card's field names.
 interface CardSyncSource {
   aiTags?: string[];
   createdAt: number;
@@ -402,8 +386,6 @@ interface CardSyncSource {
   userId: string;
 }
 
-// A state row carries a usable snapshot only when every field the tag writes
-// depend on is present; partial rows fall back to reading the card.
 const cardSyncSourceFromState = (
   state: Doc<"cardSearchTagSyncStates">
 ): CardSyncSource | null => {
@@ -521,7 +503,6 @@ export const syncCardSearchTagsBatchHandler = async (
     return { complete: true, processed: 0, writes: 0 };
   }
 
-  // Steps this chain schedules for itself stay fenced to the same generation.
   const chainGeneration = generation ?? state.generation;
 
   let writes = 0;
@@ -552,8 +533,6 @@ export const syncCardSearchTagsBatchHandler = async (
     } else {
       await ctx.db.delete("cardSearchTagSyncStates", state._id);
     }
-    // The card's tag rows are final: the sidebar's tag counts follow, when
-    // this chain could have changed them.
     if (ownerId && state.tagCountsChanged !== false) {
       await markTagSummaryDirty(ctx, ownerId);
     }
@@ -668,8 +647,6 @@ export const searchCardsByExactTag = async (
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
   const matchLimit = Math.min(4096, Math.max(1, args.limit));
   const order = args.sort === "oldest" ? "asc" : "desc";
-  // Every index below ends in (cardCreatedAt, cardId), so the date bounds
-  // apply the same way whichever one the filters pick.
   const createdBetween = (range: any) =>
     range
       .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
@@ -677,9 +654,6 @@ export const searchCardsByExactTag = async (
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
-    // Trash, or archived and not: the one index without isArchived. The loop
-    // below checks type and favorites, so every row read counts against the
-    // scan budget.
     tagQuery = tags
       .withIndex("by_user_tag_deleted_created", (range) =>
         createdBetween(
@@ -859,12 +833,6 @@ export const searchCardsByDocument = async (
  */
 export const FILE_TEXT_SEARCH_LIMIT = 128;
 
-/**
- * Adds the cards whose file text (card/documentText.ts) matches. That text
- * lives in its own search index, not the card's search document, so each
- * candidate the main search reads stays small. A row only knows its owner,
- * so the main index's filters are checked on the card.
- */
 const addCardsFoundByFileText = async (
   ctx: QueryCtx,
   args: Parameters<typeof searchCardsByDocument>[1],
@@ -872,7 +840,6 @@ const addCardsFoundByFileText = async (
   scanBudget: { textRemaining?: number },
   found: { cardsById: Map<Id<"cards">, Doc<"cards">>; matchLimit: number }
 ) => {
-  // Only documents have file text.
   if (args.type !== undefined && args.type !== "document") {
     return;
   }
@@ -909,7 +876,6 @@ const addCardsFoundByFileText = async (
   }
 };
 
-/** The main search index's equality filters, checked on the card itself. */
 const matchesSearchIndexFilters = (
   card: Doc<"cards">,
   args: Parameters<typeof searchCardsByDocument>[1],

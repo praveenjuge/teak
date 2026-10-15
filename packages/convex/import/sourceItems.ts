@@ -90,7 +90,6 @@ export function parseSourceDate(
   if (!text) {
     return;
   }
-  // "YYYY-MM-DD HH:MM" is common in CSV exports; make it ISO.
   return parseImportedTimestamp(
     text.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/, "$1T$2")
   );

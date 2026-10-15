@@ -22,7 +22,6 @@ const ENTITIES: Record<string, string> = {
 export const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (char) => ENTITIES[char] ?? char);
 
-/** Bookmark names are one line: whitespace runs, newlines included, become one space. */
 const oneLine = (value: string): string => value.replace(/\s+/g, " ").trim();
 
 const seconds = (epochMs: number): number => Math.floor(epochMs / 1000);

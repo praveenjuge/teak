@@ -94,7 +94,6 @@ const tagEdits = (
       ? [{ field: "tags", value: [...current, ...added] }]
       : [];
   }
-  // Remove tags clears a name whether the user or AI tagging added it.
   const edits: CardFieldEdit[] = [];
   const kept = current.filter((tag) => !has(tags, tag));
   if (kept.length !== current.length) {
@@ -235,8 +234,6 @@ export const applyBulkCardAction = async (
   const tags = isTagAction(args.action)
     ? normalizeBulkTags(args.tags)
     : undefined;
-  // Folder actions check the folders once: an unknown or foreign folder
-  // fails the whole call instead of every card.
   const isFolderAction = FOLDER_ACTIONS[args.action] !== undefined;
   if (isFolderAction && !args.folderId) {
     throw new ConvexError({

@@ -1,17 +1,3 @@
-/**
- * Durable export workflow.
- *
- * Orchestration (each step is retried/durable via @convex-dev/workflow):
- *   1. markRunning (honors pre-start cancellation)
- *   2. snapshot the user's active cards into exportJobItems, page by page,
- *      enforcing the V1 caps (10,000 cards / 5 GB estimated)
- *   3. run the Node archive action (reads R2, builds ZIP, writes artifact)
- *   4. complete or fail the job
- *
- * Cancellation is cooperative: the workflow checks the job's cancelRequested
- * flag between phases and the Node action re-checks before persisting.
- */
-
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
@@ -65,7 +51,6 @@ export const exportWorkflow = workflow.define({
       return { status: "canceled" as const };
     }
 
-    // Phase 1: snapshot active cards with cap enforcement.
     let cursor: string | null = null;
     let totalCount = 0;
     let totalBytes = 0;
@@ -93,8 +78,6 @@ export const exportWorkflow = workflow.define({
         return { status: "failed" as const };
       }
 
-      // Report the running snapshot count so the UI can show real progress
-      // during phase 1.
       await step.runMutation(internalWorkflow.dataExport.recordExportProgress, {
         jobId,
         processedCount: totalCount,
@@ -120,7 +103,6 @@ export const exportWorkflow = workflow.define({
       }
     }
 
-    // Phase 2: build + store the archive (Node action).
     await step.runMutation(internalWorkflow.dataExport.recordExportProgress, {
       jobId,
       stage: "archiving",
@@ -153,7 +135,6 @@ export const exportWorkflow = workflow.define({
       filesOmitted: archive.filesOmitted,
     });
 
-    // Snapshot items are temporary; remove them once the artifact exists.
     await cleanupItems(step, jobId);
 
     return { status: "ready" as const };

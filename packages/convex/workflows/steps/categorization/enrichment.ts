@@ -186,9 +186,7 @@ export const detectProvider = (
       return "substack";
     }
     return hostname;
-  } catch {
-    // Invalid URLs fall through to the caller's default handling.
-  }
+  } catch {}
 };
 
 export const buildRawSelectorMap = (

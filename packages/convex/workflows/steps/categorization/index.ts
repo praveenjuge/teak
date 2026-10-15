@@ -44,7 +44,6 @@ const resolveDns: DnsResolver = async (hostname) => {
 const MAX_FETCH_BODY_SIZE = 250_000;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
-// Top-level regex patterns for performance
 const TRAILING_SLASH_REGEX = /\/+$/;
 
 export interface CategorizationContextCard {
@@ -110,7 +109,6 @@ const normalizeUrlForComparison = (
     const url = new URL(value);
     url.hash = "";
     const params = url.searchParams;
-    // Remove tracking parameters to improve cache hits.
     const trackingParams = [
       "utm_source",
       "utm_medium",
@@ -128,7 +126,6 @@ const normalizeUrlForComparison = (
       params.delete(param);
     }
     url.search = params.toString();
-    // Normalize trailing slash.
     url.pathname = url.pathname.replace(TRAILING_SLASH_REGEX, "");
     return url.toString();
   } catch {
@@ -206,9 +203,7 @@ const parseStructuredData = (html: string): StructuredDataResult => {
           }
         }
       }
-    } catch {
-      // Skip invalid JSON-LD blocks
-    }
+    } catch {}
   }
 
   return { entities };
@@ -432,7 +427,7 @@ export async function classifyHandler(
 
   const existingMetadata = contextCard.metadata?.linkCategory ?? undefined;
 
-  const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+  const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;
   const metadataFresh =
     existingMetadata?.fetchedAt &&
     Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;

@@ -11,11 +11,6 @@ const MAX_BATCH_SIZE = 200;
 const MEDIA_KINDS = ["image", "gif", "video"] as const;
 type MediaKind = (typeof MEDIA_KINDS)[number];
 
-/**
- * Gap before the next job of each kind. Images run on the Worker alone; GIFs
- * and videos take one of the media renderer's few Container instances, so
- * they are spread out to leave room for new uploads.
- */
 const SPACING_MS: Record<MediaKind, number> = {
   image: 200,
   gif: 2000,
@@ -92,7 +87,6 @@ const scheduleColorsJob = async (
       { cardId: card._id }
     );
   } else {
-    // Writes over the card's existing thumbnail and scrub sprite.
     await ctx.scheduler.runAfter(
       delayMs,
       renderables.generateVideoThumbnail.generateVideoThumbnail,
