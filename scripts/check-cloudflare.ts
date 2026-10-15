@@ -23,7 +23,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/constants";
+import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/filesOrigins";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");

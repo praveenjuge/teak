@@ -169,6 +169,7 @@ import type * as shared_client_telemetry from "../shared/client_telemetry.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_devAccounts from "../shared/devAccounts.js";
 import type * as shared_fileFormats from "../shared/fileFormats.js";
+import type * as shared_filesOrigins from "../shared/filesOrigins.js";
 import type * as shared_folders from "../shared/folders.js";
 import type * as shared_importSources from "../shared/importSources.js";
 import type * as shared_index from "../shared/index.js";
@@ -454,6 +455,7 @@ declare const fullApi: ApiFromModules<{
   "shared/constants": typeof shared_constants;
   "shared/devAccounts": typeof shared_devAccounts;
   "shared/fileFormats": typeof shared_fileFormats;
+  "shared/filesOrigins": typeof shared_filesOrigins;
   "shared/folders": typeof shared_folders;
   "shared/importSources": typeof shared_importSources;
   "shared/index": typeof shared_index;
