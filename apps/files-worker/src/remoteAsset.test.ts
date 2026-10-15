@@ -114,6 +114,27 @@ describe("store-remote-asset", () => {
     ]);
   });
 
+  test("keeps an SVG's fractional dimensions", async () => {
+    const svg = new TextEncoder().encode("<svg/>");
+    const { body, bucket } = await storeAsset(
+      () =>
+        new Response(svg, {
+          headers: {
+            [FETCHER_HEADERS.contentType]: "image/svg+xml",
+            [FETCHER_HEADERS.height]: "20.46348",
+            [FETCHER_HEADERS.width]: "23",
+          },
+        })
+    );
+    expect(body.data).toMatchObject({
+      contentType: "image/svg+xml",
+      height: 20.463_48,
+      stored: true,
+      width: 23,
+    });
+    expect(bucket.puts.map((put) => put.key)).toEqual([KEY]);
+  });
+
   test("returns the fetcher's skip reason and stores nothing", async () => {
     const { body, bucket } = await storeAsset(() =>
       Response.json(

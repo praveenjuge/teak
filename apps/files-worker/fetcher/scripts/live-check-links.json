@@ -1,0 +1,102 @@
+{
+  "design: tools": [
+    "https://www.figma.com/",
+    "https://www.sketch.com/",
+    "https://www.framer.com/",
+    "https://webflow.com/",
+    "https://spline.design/",
+    "https://rive.app/",
+    "https://www.canva.com/",
+    "https://www.adobe.com/products/photoshop.html",
+    "https://affinity.serif.com/en-us/designer/",
+    "https://penpot.app/"
+  ],
+  "design: inspiration": [
+    "https://godly.website/",
+    "https://www.lapa.ninja/",
+    "https://mobbin.com/",
+    "https://www.pinterest.com/pin/99360735500167749/",
+    "https://savee.com/",
+    "https://cosmos.so/",
+    "https://layers.to/",
+    "https://muz.li/",
+    "https://httpster.net/",
+    "https://www.designspiration.com/",
+    "https://www.typewolf.com/site-of-the-day",
+    "https://onepagelove.com/",
+    "https://saaslandingpage.com/",
+    "https://refero.design/"
+  ],
+  "design: type and color": [
+    "https://fonts.google.com/specimen/Inter",
+    "https://rsms.me/inter/",
+    "https://klim.co.nz/",
+    "https://pangrampangram.com/",
+    "https://www.futurefonts.xyz/",
+    "https://colorhunt.co/",
+    "https://www.pantone.com/color-of-the-year/2025"
+  ],
+  "design: reading": [
+    "https://www.nngroup.com/articles/ten-usability-heuristics/",
+    "https://uxdesign.cc/",
+    "https://tympanus.net/codrops/",
+    "https://www.creativebloq.com/",
+    "https://www.designboom.com/",
+    "https://alistapart.com/",
+    "https://www.awwwards.com/",
+    "https://medium.com/@nngroup"
+  ],
+  "social": [
+    "https://www.instagram.com/p/BsOGulcndj-/",
+    "https://x.com/jack/status/20",
+    "https://x.com/elonmusk/status/1585341984679469056",
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "https://vimeo.com/76979871",
+    "https://www.linkedin.com/company/figma/",
+    "https://www.threads.net/@instagram",
+    "https://bsky.app/profile/bsky.app",
+    "https://www.reddit.com/r/web_design/",
+    "https://news.ycombinator.com/"
+  ],
+  "general": [
+    "https://github.com/vercel/next.js",
+    "https://en.wikipedia.org/wiki/Bauhaus",
+    "https://www.bbc.com/news",
+    "https://www.nytimes.com/",
+    "https://www.theverge.com/",
+    "https://www.apple.com/iphone/",
+    "https://www.amazon.com/dp/B0CHWRXH8B",
+    "https://www.producthunt.com/",
+    "https://stripe.com/",
+    "https://linear.app/",
+    "https://vercel.com/",
+    "https://www.notion.com/",
+    "https://substack.com/",
+    "https://developer.mozilla.org/en-US/docs/Web/CSS/grid",
+    "https://www.npmjs.com/package/react",
+    "https://store.steampowered.com/app/1145360/Hades/",
+    "https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa",
+    "https://www.imdb.com/title/tt0111161/",
+    "https://www.goodreads.com/book/show/5470.1984",
+    "https://www.airbnb.com/"
+  ],
+  "design: assets": [
+    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200",
+    "https://images.pexels.com/photos/1323550/pexels-photo-1323550.jpeg",
+    "https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif",
+    "https://www.gstatic.com/webp/gallery/1.webp",
+    "https://raw.githubusercontent.com/link-u/avif-sample-images/master/kimono.avif",
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+  ],
+  "design: assets and stock": [
+    "https://www.pexels.com/",
+    "https://www.flaticon.com/",
+    "https://www.iconfinder.com/",
+    "https://lucide.dev/",
+    "https://heroicons.com/",
+    "https://www.svgrepo.com/",
+    "https://www.freepik.com/",
+    "https://www.shutterstock.com/"
+  ]
+}

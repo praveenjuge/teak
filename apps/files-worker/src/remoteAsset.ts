@@ -87,9 +87,11 @@ const poolSize = (env: RemoteAssetEnv): number => {
     : DEFAULT_POOL_SIZE;
 };
 
-const positiveInteger = (value: string | null): number | undefined => {
+// SVGs can have fractional dimensions (a 23 x 20.46 icon); keep them as is,
+// as Convex did when it read them itself.
+const positiveDimension = (value: string | null): number | undefined => {
   const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
 const readSkip = async (
@@ -172,8 +174,10 @@ export const storeRemoteAsset = async (
     ) {
       throw new RendererUnavailable("fetcher_bad_response");
     }
-    const width = positiveInteger(response.headers.get(FETCHER_HEADERS.width));
-    const height = positiveInteger(
+    const width = positiveDimension(
+      response.headers.get(FETCHER_HEADERS.width)
+    );
+    const height = positiveDimension(
       response.headers.get(FETCHER_HEADERS.height)
     );
     if (params.kind === "image" && !(width && height)) {
