@@ -1,4 +1,5 @@
 import {
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_RENDER_MAX_SOURCE_BYTES,
   FILES_SCRUB_FRAMES,
   FILES_TRANSCRIPT_MAX_BYTES,
@@ -14,11 +15,7 @@ import {
   type FilesVideoScrub,
 } from "@teak/files-protocol";
 import type { WorkersAiBinding } from "./aiGateway";
-import {
-  MAX_AI_TEXT_CHARACTERS,
-  MAX_PDF_TEXT_PAGES,
-  textFacts,
-} from "./inspect";
+import { MAX_PDF_TEXT_PAGES, textFacts } from "./inspect";
 import {
   callRenderer,
   RendererDeclined,
@@ -40,7 +37,7 @@ const MAX_FRAME_BYTES = 10 * 1024 * 1024;
 const MAX_SCRUB_BYTES = 4 * 1024 * 1024;
 const MAX_PAGE_BYTES = 20 * 1024 * 1024;
 const MAX_WHISPER_BYTES = 32 * 1024 * 1024;
-const MAX_PDF_TEXT_BYTES = MAX_AI_TEXT_CHARACTERS * 4;
+const MAX_PDF_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 const MAX_SCRUB_FRAME_COUNT = 20;
 const MAX_IMAGE_SIDE = 8192;
 
@@ -263,7 +260,7 @@ export const extractPdfTextViaRenderer = async (
       outputs: {
         text: { kind: "text", maxBytes: MAX_PDF_TEXT_BYTES, required: false },
       },
-      path: `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${MAX_AI_TEXT_CHARACTERS}`,
+      path: `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`,
       timeoutMs: JOB_TIMEOUT_MS.pdf,
     });
   } catch (error) {
@@ -278,7 +275,7 @@ export const extractPdfTextViaRenderer = async (
         .decode(bytes)
         // pdftotext ends each page with a form feed.
         .replaceAll("\f", "\n")
-        .slice(0, MAX_AI_TEXT_CHARACTERS)
+        .slice(0, FILES_EXTRACTED_TEXT_MAX_CHARACTERS)
         .trim()
     : "";
   const pageCount = positiveInteger(result.manifest.pages, 1_000_000);

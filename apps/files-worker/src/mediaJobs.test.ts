@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildFilesOpSigningPayload,
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
-import { MAX_AI_TEXT_CHARACTERS, MAX_PDF_TEXT_PAGES } from "./inspect";
+import { MAX_PDF_TEXT_PAGES } from "./inspect";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import {
@@ -377,7 +378,7 @@ describe("inspect pdf", () => {
       text: "Page one\n\nPage two",
     });
     expect(calls[0]?.path).toBe(
-      `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${MAX_AI_TEXT_CHARACTERS}`
+      `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`
     );
   });
 

@@ -16,8 +16,8 @@ storage switch points Convex dev at it; see "Development storage isolation".
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
 verifies the token, reads the object through an R2 binding, and streams it
-with `Cache-Control: private, max-age=518400, immutable` (6 days; keep in
-lockstep with `PRIVATE_FILE_CACHE_CONTROL` in r2.ts). It also handles single
+with `FILES_PRIVATE_CACHE_CONTROL` from `@teak/files-protocol` (6 days, a day
+less than a signed URL stays valid). It also handles single
 HTTP `Range` requests (206 responses) so video/audio seeking works, serves
 full-object responses from the Cloudflare edge cache keyed by object path +
 content-disposition policy, answers conditional GETs with 304s, and supports

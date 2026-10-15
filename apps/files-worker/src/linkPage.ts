@@ -120,9 +120,10 @@ const readFailure = async (
   };
 };
 
-// The version changes whenever the cached result's shape or meaning does.
+const LINK_PAGE_CACHE_VERSION = 1;
+
 const cacheKey = async ({ selectors, url }: FilesLinkPageParams) =>
-  `link-page:v1:${await sha256Hex(JSON.stringify([url, selectors]))}`;
+  `link-page:v${LINK_PAGE_CACHE_VERSION}:${await sha256Hex(JSON.stringify([url, selectors]))}`;
 
 const readCached = async (
   cache: KVNamespace,

@@ -43,12 +43,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 /** Restores the upstream Cache-Control on a response served from the edge cache. */
 const CLIENT_CACHE_CONTROL_HEADER = "X-Teak-Client-Cache-Control";
 
-/**
- * Headers set by Cloudflare or a previous proxy, and the edge rate-limit
- * attestation, which only this Worker may set: the upstream request gets
- * fresh ones.
- */
-const isHopHeader = (name: string): boolean =>
+const isEdgeOwnedHeader = (name: string): boolean =>
   name === "host" ||
   name === "x-real-ip" ||
   name === EDGE_RATE_LIMIT_HEADER ||
@@ -112,7 +107,7 @@ const upstreamHeaders = (
 ): Headers => {
   const headers = new Headers();
   for (const [name, value] of request.headers) {
-    if (!isHopHeader(name.toLowerCase())) {
+    if (!isEdgeOwnedHeader(name.toLowerCase())) {
       headers.set(name, value);
     }
   }
