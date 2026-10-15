@@ -1,11 +1,11 @@
 "use node";
 
 import { lookup } from "node:dns/promises";
-import { gzipSync } from "node:zlib";
+import { gunzipSync } from "node:zlib";
 import {
+  type FilesLinkPageResult,
   type FilesRemoteAssetKind,
   type FilesRemoteAssetResult,
-  type FilesScrapeResult,
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
@@ -40,8 +40,10 @@ import {
   type XStatusMedia,
 } from "../../../linkMetadata/x";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
-import { callFilesWorkerJson } from "../../../storage/filesWorkerClient";
-import { runFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
+import {
+  callFilesWorkerJson,
+  isFilesWorkerConfigured,
+} from "../../../storage/filesWorkerClient";
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { withBackendErrorCapture } from "../../../telemetry/posthog";
@@ -269,16 +271,82 @@ const storeLinkPreviewMedia = async (
   return persistedMedia.length ? persistedMedia : undefined;
 };
 
-/** The page's static metadata, and its HTML for the browser and parsers. */
-const scrapeWithFetch = async (
-  url: string,
-  selectors: { selector: string }[]
-): Promise<{
-  html: string | null;
+interface PageScrape {
+  /** The URL, or a redirect, fails the SSRF policy. */
+  blocked?: true;
+  /** The decoded page, for parsers that need all of it (Instagram media). */
+  html: () => string | null;
   /** The page's URL after redirects. */
   pageUrl: string;
   payload: ScrapeResponse;
-}> => {
+}
+
+/**
+ * Fetch and scrape the page on the Files Worker's link fetcher, under the
+ * same SSRF policy and address pinning, falling back there to an offline
+ * Browser Run render when the static HTML has no metadata. A busy, failing
+ * or slow Worker throws a retryable error so the step runs again.
+ */
+const scrapeWithFilesWorker = async (
+  url: string,
+  selectors: { selector: string }[]
+): Promise<PageScrape> => {
+  let page: FilesLinkPageResult;
+  try {
+    const outcome = await callFilesWorkerJson<FilesLinkPageResult>({
+      op: "fetch-link-page",
+      params: { selectors: selectors.map(({ selector }) => selector), url },
+    });
+    if (outcome.kind !== "ok") {
+      throw new Error(`files_worker_${outcome.code}: ${outcome.message}`);
+    }
+    page = outcome.data;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[linkMetadata] Link page fetch unavailable", { message });
+    return throwRetryable({
+      type: "scrape_error",
+      normalizedUrl: url,
+      message: "Link page fetch unavailable",
+      details: { error: message },
+    });
+  }
+
+  if (!page.fetched) {
+    return {
+      ...(page.reason === "blocked_url" ? { blocked: true as const } : {}),
+      html: () => null,
+      pageUrl: url,
+      payload: {
+        success: false,
+        errors: [
+          page.reason === "http_error" && page.status
+            ? { code: page.status, message: `HTTP ${page.status}` }
+            : {
+                message: page.contentType
+                  ? `${page.reason}: ${page.contentType}`
+                  : page.reason,
+              },
+        ],
+      },
+    };
+  }
+  return {
+    html: () =>
+      gunzipSync(Buffer.from(page.htmlGzipBase64, "base64")).toString("utf8"),
+    pageUrl: page.pageUrl,
+    payload: { success: true, result: { selectors: page.selectors } },
+  };
+};
+
+/**
+ * Without a Files Worker (a local stack), fetch the page here with the same
+ * pinned policy and match the selectors against its static HTML only.
+ */
+const scrapeWithFetch = async (
+  url: string,
+  selectors: { selector: string }[]
+): Promise<PageScrape> => {
   try {
     const response = await safeFetch(
       url,
@@ -296,7 +364,7 @@ const scrapeWithFetch = async (
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined);
       return {
-        html: null,
+        html: () => null,
         pageUrl: url,
         payload: {
           success: false,
@@ -311,7 +379,7 @@ const scrapeWithFetch = async (
     if (!contentType.toLowerCase().includes("text/html")) {
       await response.body?.cancel().catch(() => undefined);
       return {
-        html: null,
+        html: () => null,
         pageUrl: url,
         payload: {
           success: false,
@@ -324,7 +392,7 @@ const scrapeWithFetch = async (
       await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
     );
     return {
-      html,
+      html: () => html,
       // safeFetch requests each redirect hop itself, so the response's URL
       // is the last one.
       pageUrl: response.url || url,
@@ -335,7 +403,7 @@ const scrapeWithFetch = async (
     };
   } catch (error) {
     return {
-      html: null,
+      html: () => null,
       pageUrl: url,
       payload: {
         success: false,
@@ -358,39 +426,6 @@ export const isDefinitiveHttpClientError = (status: number | undefined) =>
 
 const scrapeHttpStatus = (payload: ScrapeResponse): number | undefined =>
   payload.errors?.find((error) => typeof error?.code === "number")?.code;
-
-const hasSelectorResults = (payload: ScrapeResponse) =>
-  payload.success &&
-  payload.result?.selectors?.some((selector) => selector.results.length);
-
-/**
- * Query the selectors on Browser Run, with the page's inline scripts run
- * offline, for pages whose static HTML has no preview metadata. Null keeps
- * the static result: the Worker declined or is unavailable.
- */
-const scrapeWithBrowser = async (
-  html: string,
-  selectors: { selector: string }[]
-): Promise<ScrapeResponse | null> => {
-  try {
-    const outcome = await runFilesWorkerRendering<FilesScrapeResult>(
-      "scrape-html",
-      {
-        htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString("base64"),
-        selectors: selectors.map((selector) => selector.selector),
-      }
-    );
-    if (outcome.kind === "ok") {
-      return { success: true, result: { selectors: outcome.data.selectors } };
-    }
-    console.log(`[linkMetadata] Browser scrape declined: ${outcome.reason}`);
-  } catch (error) {
-    console.warn("[linkMetadata] Browser scrape failed; keeping static HTML", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  return null;
-};
 
 export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   const card = await ctx.runQuery(linkMetadataInternal.getCardForLinkFetch, {
@@ -472,24 +507,28 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
   // SSRF guard: validate the destination before any server-side fetch or
   // headless-browser navigation. A blocked URL is a permanent failure, not a
   // retryable transient error.
+  const failBlocked = async () => {
+    const message = "URL points to a disallowed destination";
+    await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+      cardId,
+      linkPreview: buildErrorPreview(normalizedUrl, {
+        type: "blocked_url",
+        message,
+      }),
+      status: "failed",
+    });
+    return {
+      status: "failed" as const,
+      normalizedUrl,
+      errorType: "blocked_url",
+      errorMessage: message,
+    };
+  };
   try {
     await assertUrlIsSafe(normalizedUrl, resolveDns);
   } catch (error) {
     if (error instanceof SsrfError) {
-      await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
-        cardId,
-        linkPreview: buildErrorPreview(normalizedUrl, {
-          type: "blocked_url",
-          message: "URL points to a disallowed destination",
-        }),
-        status: "failed",
-      });
-      return {
-        status: "failed" as const,
-        normalizedUrl,
-        errorType: "blocked_url",
-        errorMessage: "URL points to a disallowed destination",
-      };
+      return await failBlocked();
     }
     throw error;
   }
@@ -524,18 +563,21 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       }
     }
 
-    const {
-      html,
-      pageUrl,
-      payload: staticPayload,
-    } = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
-    let payload = staticPayload;
+    const page = await (isFilesWorkerConfigured()
+      ? scrapeWithFilesWorker
+      : scrapeWithFetch)(normalizedUrl, SCRAPE_ELEMENTS);
+    const { pageUrl, payload } = page;
+
+    // A redirect to a disallowed destination fails like the URL itself.
+    if (page.blocked) {
+      return await failBlocked();
+    }
 
     // A dead or forbidden link (404, 410, 401, 403, ...) will not recover on
-    // retry, so store a failed preview instead of rerunning the browser scrape.
-    const staticStatus = staticPayload.success
+    // retry, so store a failed preview instead of fetching it again.
+    const staticStatus = payload.success
       ? undefined
-      : scrapeHttpStatus(staticPayload);
+      : scrapeHttpStatus(payload);
     if (isDefinitiveHttpClientError(staticStatus)) {
       const errorMessage = `HTTP ${staticStatus}`;
       await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
@@ -555,36 +597,27 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       };
     }
 
-    if (!staticPayload.success) {
+    if (!payload.success) {
       const errorMessage =
-        staticPayload.errors
+        payload.errors
           ?.map((error) => error?.message)
           .filter(Boolean)
           .join("; ") || "Unknown scrape error";
       throwRetryable({
-        type:
-          scrapeHttpStatus(staticPayload) === 429
-            ? "rate_limit"
-            : "scrape_error",
+        type: scrapeHttpStatus(payload) === 429 ? "rate_limit" : "scrape_error",
         normalizedUrl,
         message: errorMessage,
-        details: { fallback: staticPayload.errors },
+        details: { fallback: payload.errors },
       });
-    }
-
-    // Most pages expose their preview metadata in static HTML. Pages without
-    // it get the same HTML rendered offline, so inline scripts can fill it in.
-    if (html && !hasSelectorResults(payload)) {
-      payload = (await scrapeWithBrowser(html, SCRAPE_ELEMENTS)) ?? payload;
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
     // Instagram posts embed their media in the page's relay JSON; og:image
     // stays the fallback when it is missing (a login wall).
-    const extractedInstagramMedia =
-      html && isInstagramPostUrl(normalizedUrl)
-        ? extractInstagramMediaFromHtml(normalizedUrl, html)
-        : undefined;
+    const html = isInstagramPostUrl(normalizedUrl) ? page.html() : null;
+    const extractedInstagramMedia = html
+      ? extractInstagramMediaFromHtml(normalizedUrl, html)
+      : undefined;
     const storedInstagramMedia = extractedInstagramMedia?.length
       ? await storeLinkPreviewMedia(
           ctx,

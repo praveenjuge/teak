@@ -398,8 +398,13 @@ refuses comes back as a result, not an error: `blocked_url`, `http_error`
 (with its status), `unsupported_type` (with the type), `too_large` or
 `fetch_failed`.
 
-Convex does not call `fetch-link-page` yet; until it does, it still fetches
-page HTML itself with the same pinned policy.
+Convex's link metadata step calls `fetch-link-page` whenever a Files Worker is
+configured, and the deploy readiness gate requires it. A refusal maps to the
+outcome Convex gave the same failure before: `blocked_url` and a definitive
+4xx fail the preview, and everything else, including a busy or unavailable
+Worker, retries the step. Only a stack without a Files Worker (the local E2E
+stack) still fetches the page in Convex, with the same pinned policy and
+static HTML only.
 
 ### Verification and deployment boundary
 
