@@ -13,6 +13,8 @@ import {
   type FilesOpRequest,
   isFilesInspectMode,
   isFilesOp,
+  VECTOR_DELETE_MAX_IDS,
+  VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
 import {
@@ -58,6 +60,15 @@ import {
 } from "./textMetadata";
 import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
+import {
+  embedUpsert,
+  parseEmbedUpsertParams,
+  parseVectorIdsParams,
+  parseVectorQueryParams,
+  vectorDelete,
+  vectorGet,
+  vectorQuery,
+} from "./vectors";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
@@ -652,6 +663,29 @@ const dispatch = async (
       return success(
         requestId,
         await storeRemoteAsset(env, parseRemoteAssetParams(params))
+      );
+    case "embed-upsert":
+      return success(
+        requestId,
+        await embedUpsert(env, parseEmbedUpsertParams(params))
+      );
+    case "vector-delete":
+      return success(
+        requestId,
+        await vectorDelete(
+          env,
+          parseVectorIdsParams(params, VECTOR_DELETE_MAX_IDS)
+        )
+      );
+    case "vector-get":
+      return success(
+        requestId,
+        await vectorGet(env, parseVectorIdsParams(params, VECTOR_GET_MAX_IDS))
+      );
+    case "vector-query":
+      return success(
+        requestId,
+        await vectorQuery(env, parseVectorQueryParams(params))
       );
     case "fetch-link-page":
       return success(

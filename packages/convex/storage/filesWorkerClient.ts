@@ -44,6 +44,11 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "process-audio": 300_000,
   "render-pdf-thumbnail": 90_000,
   "scrape-html": 90_000,
+  // One Workers AI call and a Vectorize write or read.
+  "embed-upsert": 60_000,
+  "vector-delete": 30_000,
+  "vector-get": 30_000,
+  "vector-query": 30_000,
   // Up to six redirect hops of 30 s each in the fetcher, plus a cold start.
   "store-remote-asset": 240_000,
 };

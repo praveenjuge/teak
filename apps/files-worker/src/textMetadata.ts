@@ -42,7 +42,7 @@ const numericErrorFact = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const isCapacityError = (error: unknown): boolean => {
+export const isCapacityError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   if (error && typeof error === "object") {
     const facts = error as {

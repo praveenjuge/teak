@@ -7,6 +7,7 @@ import {
   captureDeletionBatch,
   commitDeletionBatch,
 } from "./accountDeletionBatch";
+import { purgeAccountVectorsPage } from "./embedding/embedCard";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { assertR2KeyInNamespace } from "./storage/r2Keys";
@@ -259,6 +260,11 @@ export const deleteRemainingData = internalAction({
         "objects",
       ]))
     ) {
+      return false;
+    }
+    // Card vectors, by the account's embedding rows, one page per pass; the
+    // rows go only after their vectors are deleted.
+    if (await purgeAccountVectorsPage(ctx, state.userId)) {
       return false;
     }
     return !(await ctx.runMutation(

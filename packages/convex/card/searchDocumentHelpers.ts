@@ -4,6 +4,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import {
+  markCardForEmbedding,
+  tombstoneCardEmbedding,
+} from "../embedding/state";
+import {
   cardFolderRowsMayChange,
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
@@ -286,6 +290,7 @@ export const syncCardSearchDocumentHandler = async (
       await syncCardFolderRows(ctx, cardId, null);
     }
     await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, null);
+    await tombstoneCardEmbedding(ctx, cardId);
     return null;
   }
 
@@ -327,6 +332,10 @@ export const syncCardSearchDocumentHandler = async (
     }
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
+  }
+  // New or changed text gets a fresh vector; an unchanged card makes no call.
+  if (existing?.searchableText !== value.searchableText) {
+    await markCardForEmbedding(ctx, cardId, card.userId);
   }
 
   const currentTags = JSON.stringify(buildCardSearchTags(card));

@@ -657,6 +657,7 @@ describe("durable deletion admission and tombstones", () => {
     const sessions = new Set(["session_ONE", "session_TWO"]);
     const applications = new Set(["conn_app_ONE", "conn_app_TWO"]);
     let providerDeleted = false;
+    const vectorDeletes: { ids: string[]; shard: number }[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn((input: unknown, options?: RequestInit) => {
@@ -672,6 +673,10 @@ describe("durable deletion admission and tombstones", () => {
           };
           if (body.op === "freeze-object") {
             return Response.json({ ok: true, data: { frozen: true } });
+          }
+          if (body.op === "vector-delete") {
+            vectorDeletes.push(body.params as { ids: string[]; shard: number });
+            return Response.json({ ok: true, data: { mutationId: "m" } });
           }
           if (body.op === "delete-objects") {
             for (const key of body.params.keys!) {
@@ -855,6 +860,14 @@ describe("durable deletion admission and tombstones", () => {
         userId: "permanent-owner",
         shard: 0,
       });
+      await ctx.db.insert("cardEmbeddings", {
+        cardId: card,
+        userId: "permanent-owner",
+        shard: 0,
+        namespace: "permanent-owner",
+        hash: "a".repeat(64),
+        embeddedAt: 1,
+      });
     });
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
     const state = await t.run((ctx) =>
@@ -879,6 +892,7 @@ describe("durable deletion admission and tombstones", () => {
     expect(applications.size).toBe(0);
     expect(storage.size).toBe(0);
     expect(providerDeleted).toBe(true);
+    expect(vectorDeletes).toEqual([{ ids: [card], shard: 0 }]);
     expect(await t.run((ctx) => ctx.db.query("cards").take(2))).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("exportJobs").take(2))).toEqual(
       []
@@ -896,6 +910,7 @@ describe("durable deletion admission and tombstones", () => {
       "tagSummaryRefreshes",
       "tagOperations",
       "vectorShards",
+      "cardEmbeddings",
     ] as const) {
       expect({
         table,

@@ -11,6 +11,7 @@ import {
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  truncateForEmbedding,
   vectorNamespaceForUser,
   vectorShardBinding,
 } from "./index";
@@ -136,5 +137,22 @@ describe("card embeddings", () => {
     expect(vectorNamespaceForUser("x".repeat(64))).toBe("x".repeat(64));
     expect(vectorNamespaceForUser("é".repeat(33))).toBeNull();
     expect(vectorNamespaceForUser("")).toBeNull();
+  });
+
+  test("cuts card text to what EmbeddingGemma reads, by its densest scripts", () => {
+    expect(truncateForEmbedding("A short note")).toBe("A short note");
+    // A third of a token per ASCII character: 1,440 characters fit in 480.
+    expect(truncateForEmbedding("a".repeat(5000))).toHaveLength(1440);
+    // 1.2 tokens per other code point: 400 fit.
+    expect(Array.from(truncateForEmbedding("漢".repeat(5000)))).toHaveLength(
+      400
+    );
+    // An emoji is two UTF-16 units and is never split.
+    const emoji = truncateForEmbedding("🌿".repeat(5000));
+    expect(Array.from(emoji)).toHaveLength(400);
+    expect(emoji.length).toBe(800);
+    expect(cardEmbeddingDocument("b".repeat(5000))).toBe(
+      `title: none | text: ${"b".repeat(1440)}`
+    );
   });
 });
