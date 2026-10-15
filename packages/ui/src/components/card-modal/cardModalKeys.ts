@@ -1,4 +1,5 @@
 import { isTypingTarget } from "../../hooks/useKeyboardShortcuts";
+import { isApplePlatform } from "../../lib/platform";
 
 export type CardModalKeyAction =
   | "previous"
@@ -19,24 +20,26 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   t: "focusTags",
   n: "focusNotes",
   Delete: "delete",
-  // The Mac's Delete key, as the grid takes it.
-  Backspace: "delete",
 };
 
 /**
  * What a key pressed in the open card dialog does, or null when it is
  * someone typing, a media control, a held repeat or a modified key.
+ * Backspace deletes only on Apple platforms, where it is the Delete key (⌫).
  */
-export function cardModalKeyAction(event: {
-  altKey: boolean;
-  ctrlKey: boolean;
-  isComposing?: boolean;
-  key: string;
-  metaKey: boolean;
-  repeat?: boolean;
-  shiftKey: boolean;
-  target: EventTarget | null;
-}): CardModalKeyAction | null {
+export function cardModalKeyAction(
+  event: {
+    altKey: boolean;
+    ctrlKey: boolean;
+    isComposing?: boolean;
+    key: string;
+    metaKey: boolean;
+    repeat?: boolean;
+    shiftKey: boolean;
+    target: EventTarget | null;
+  },
+  apple = isApplePlatform()
+): CardModalKeyAction | null {
   if (
     event.altKey ||
     event.ctrlKey ||
@@ -55,7 +58,11 @@ export function cardModalKeyAction(event: {
     return null;
   }
   const action =
-    KEY_ACTIONS[event.key.length === 1 ? event.key.toLowerCase() : event.key];
+    apple && event.key === "Backspace"
+      ? "delete"
+      : KEY_ACTIONS[
+          event.key.length === 1 ? event.key.toLowerCase() : event.key
+        ];
   if (!action) {
     return null;
   }
