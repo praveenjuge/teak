@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { testId } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
-import { inlineSearchSyncDb } from "./helpers/session.test-utils";
+import { withSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -18,11 +18,7 @@ const createMockCtx = () => {
   r2Mocks.deleteObject.mockReset();
   r2Mocks.deleteObject.mockResolvedValue(null);
   return {
-    db: {
-      ...inlineSearchSyncDb(),
-      get: mock(),
-      patch: mock(),
-    },
+    db: withSearchSyncDb({ get: mock(), patch: mock() }),
     scheduler: { runAfter: mock().mockResolvedValue(null) },
   } as any;
 };
@@ -120,7 +116,7 @@ describe("linkMetadata", () => {
       };
       ctx.db.get.mockResolvedValue(card);
 
-      const linkPreview = { title: "Title" }; // No screenshot info
+      const linkPreview = { title: "Title" };
       await updateCardMetadataHandler(ctx, {
         cardId: "card_123",
         linkPreview,
@@ -162,7 +158,6 @@ describe("linkMetadata", () => {
       });
 
       expect(r2Mocks.deleteObject).toHaveBeenCalled();
-      // Should still patch
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 

@@ -25,9 +25,6 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
-// Editing assertions stop at the committed mutation/query boundary. Pipeline
-// execution has its own tests; hold its scheduled timers inside each fixture
-// so they cannot race the next test or the edge VM's teardown.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   vi.clearAllTimers();
@@ -432,8 +429,6 @@ describe("Search scan budget", () => {
     });
     expect(page.items).toHaveLength(100);
     expect(page.pageInfo.hasMore).toBe(true);
-    // Past the 400 best matches, an old offset cursor gets the end of the
-    // search, not an error.
     const past = await t.query(internal.publicApi.searchCardsPageForUser, {
       userId: "owner",
       searchQuery: "deepsearch",
@@ -443,8 +438,6 @@ describe("Search scan budget", () => {
     expect(past.items).toEqual([]);
     expect(past.pageInfo.hasMore).toBe(false);
 
-    // Following nextCursor from the first page ends cleanly after the 400
-    // best matches, with no card twice.
     const seen: string[] = [];
     let cursor: string | undefined;
     for (let pageNumber = 0; pageNumber < 10; pageNumber += 1) {
@@ -584,22 +577,18 @@ describe("Multi-field edits", () => {
   test("rapid edits always save and share one waiting pipeline run", async () => {
     const { t, cardId } = await setup();
     const now = Date.now();
-    // A content and url edit is charged one reprocess, so it runs now.
     await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "Fresh content",
       url: "https://example.org/fresh",
     });
-    // The card's one run a minute is spent: the next edit still saves, and
-    // its run waits until the limit allows it.
     const second = await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "Second edit",
     });
     expect(second?.content).toBe("Second edit");
-    // An edit made while that run waits joins it rather than queueing more.
     const third = await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
       userId: "owner",
@@ -620,8 +609,6 @@ describe("Multi-field edits", () => {
       userId: "owner",
       content: "First edit",
     });
-    // Eleven more cards spend the rest of the account's six tokens and six
-    // reservations.
     for (let index = 0; index < 11; index += 1) {
       const otherId = await t.run((ctx) =>
         ctx.db.insert("cards", {
@@ -648,8 +635,6 @@ describe("Multi-field edits", () => {
     );
     expect(result.summary.failed).toBe(1);
 
-    // Once the account has a token again, the card's next edit gets its own
-    // run: the refused bulk item must not have left a reservation behind.
     vi.advanceTimersByTime(11_000);
     await t.mutation(internal.raycast.patchCardForUser, {
       cardId,
@@ -837,12 +822,9 @@ describe("Refresh details", () => {
       email_verified: true,
       external_id: "owner",
     });
-    // The app's mutation commits its refusal, so it must not have spent the
-    // card's one-a-minute token on the way.
     expect(
       await owner.mutation(api.cards.reprocessCard, { cardId: last })
     ).toMatchObject({ status: "refused", code: "RATE_LIMITED" });
-    // Ten seconds refill one account token; the card's own token is intact.
     vi.advanceTimersByTime(11_000);
     expect(
       await owner.mutation(api.cards.reprocessCard, { cardId: last })
@@ -999,7 +981,6 @@ describe("Stable pagination", () => {
         cardId,
       ]);
       await insertCards(t, ["newest"], 100);
-      // Resume after the second card, as the HTTP layer does for limit=2.
       const next = await t.query(internal.publicApi.scanCardsPageForUser, {
         userId: "owner",
         scanLimit: 50,
@@ -1116,8 +1097,6 @@ describe("Stable pagination", () => {
 describe("Web search pagination", () => {
   test("pages through search results once each, newest first", async () => {
     const { t } = await setup();
-    // Insertion order (and so relevance order for equal matches) differs
-    // from creation-date order.
     const createdAts = [30, 10, 50, 20, 40];
     const ids = await t.run(async (ctx) => {
       const byCreatedAt: Record<number, string> = {};

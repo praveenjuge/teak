@@ -4,7 +4,6 @@ import { r2MockModuleFactory, r2Mocks } from "../../helpers/r2Mock.test-utils";
 
 mock.module("../../../../convex/storage/r2", r2MockModuleFactory);
 
-// Mock internal API
 import { internal } from "../../../../convex/_generated/api";
 
 const originalFetch = global.fetch;
@@ -42,8 +41,6 @@ const TEXT_AI_OPS = new Set([
   "generate-link-metadata",
 ]);
 
-// Fake Files Worker: text/link metadata ops answer with `aiResult` (or the
-// `aiError` code); every other op answers with the `enableWorkerOp` envelope.
 let aiResult: { tags: string[]; summary: string } = {
   tags: ["tag1"],
   summary: "summary",
@@ -103,9 +100,6 @@ const fakeWorker = (_url: unknown, init?: { body?: string }) => {
       );
 };
 
-/**
- * Return the signed Files Worker operation envelope for media processing.
- */
 const enableWorkerOp = (data: unknown, { status = 200 } = {}) => {
   workerOp = { data, status };
 };
@@ -128,7 +122,6 @@ const WAVEFORM = {
   grid: Array.from({ length: 45 }, () => 50),
 };
 
-/** A process-audio answer with a completed transcript. */
 const processedAudio = (text: string, durationSeconds = 3) => ({
   facts: {
     container: "mp3",
@@ -280,7 +273,6 @@ describe("metadata handler", () => {
     workerOp = { data: null, status: 404 };
     mockFetch.mockImplementation(fakeWorker);
 
-    // Set up default mock returns
     mockRunMutation.mockResolvedValue(true);
   });
 
@@ -342,7 +334,6 @@ describe("metadata handler", () => {
       });
 
       expect(result.mode).toBe("skipped");
-      // The Worker spends the bounded validation retries; Convex calls once.
       expect(workerOps()).toEqual(["generate-text-metadata"]);
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
@@ -358,8 +349,6 @@ describe("metadata handler", () => {
           cardType: "text",
         });
 
-        // Returning instead of throwing keeps the step out of the workflow
-        // retry budget; metadata stays pending for the backfill.
         expect(result.mode).toBe("skipped");
         expect(mockFetch).not.toHaveBeenCalled();
         expect(mockRunMutation).not.toHaveBeenCalled();
@@ -373,7 +362,6 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { height: 1722, width: 3006 },
       });
-      // A worker fallback surfaces as the deferred raster-pending condition.
       enableWorkerOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
@@ -891,7 +879,6 @@ describe("metadata handler", () => {
       fileKey: "users/u1/cards/c1/file/report.pdf",
       fileMetadata: { fileName: "report.pdf", mimeType: "application/pdf" },
     };
-    // Routes worker ops by name; a PUT is the text upload.
     const routeWorker = (
       answers: Record<string, unknown>,
       { putStatus = 200 }: { putStatus?: number } = {}

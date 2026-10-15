@@ -151,7 +151,6 @@ describe("Convex MCP endpoint", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
-  // Without WORKOS_RESOURCE_ORIGIN every host keeps the production resource.
   test.each([
     "https://api.teakvault.com",
     "https://uncommon-ladybug-882.convex.site",

@@ -97,7 +97,6 @@ describe("shared search helpers", () => {
   });
 
   it("reorders the shown library at once when the sort changes", () => {
-    // Still the newest-first page while the oldest-first one loads.
     const shown = [
       makeCard({ _id: "new", createdAt: 3000 }),
       makeCard({ _id: "old", createdAt: 1000 }),
@@ -511,7 +510,6 @@ describe("filterLocalCards qualifiers", () => {
     ["is:fav", ["fav"]],
     ["type:links design", ["repo", "fav"]],
     ["foo:bar", []],
-    // Two tags in a row are not a phrase.
     ['"design writing"', []],
   ])("%s", (searchTerms: string, expected: string[]) => {
     expect(ids(searchTerms)).toEqual(expected);
@@ -559,8 +557,6 @@ describe("filterLocalCards textMatchedByServer", () => {
   });
 
   it("still checks every word on cards without file text", () => {
-    // The server ranks cards that match only some of the words; a card whose
-    // text the client has must still match them all.
     const note = makeCard({ _id: "note", content: "matrix-17" });
     expect(
       filterLocalCards([note], {

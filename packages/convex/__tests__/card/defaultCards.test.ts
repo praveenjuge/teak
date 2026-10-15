@@ -29,8 +29,6 @@ describe("getting-started cards", () => {
     );
   });
 
-  // A card whose bytes are missing, or whose original uploads would refuse,
-  // never reaches a new account.
   test.each(
     ONBOARDING_CARDS.filter((card) => card.uploads).map(
       (card): [string, OnboardingCardDef] => [card.onboarding, card]

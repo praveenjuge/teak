@@ -5,6 +5,7 @@ import {
   buildFilesOpSigningPayload,
   buildImageSigningPayload,
 } from "@teak/files-protocol";
+import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
   bucketedSignatureExpiry,
@@ -19,15 +20,13 @@ import {
   cardStorageObjectKeys,
 } from "../../storage/r2";
 
-const SECRET = "test-signing-secret";
 const BASE = "https://files.teakvault.com";
-const KEY = "users/abc/cards/file/x.png";
-const EXP = "1700000000";
-
-// Fixed vector shared with apps/files-worker/src/lib.test.ts — proves the
-// Node/Bun (here) and workerd (worker) HMAC implementations agree.
-const VECTOR_DIGEST =
-  "f5791c418001f789e1507cfbb9b2be726feef0b7250c29849f5b5e88a6d1a9ce";
+const {
+  secret: SECRET,
+  key: KEY,
+  exp: EXP,
+  digest: VECTOR_DIGEST,
+} = FILE_SIGNING_TEST_VECTOR;
 
 const hmacHex = (message: string): string =>
   createHmac("sha256", SECRET).update(message).digest("hex");
@@ -51,11 +50,9 @@ describe("signed worker file urls", () => {
 
     expect(url.origin + url.pathname).toBe(`${BASE}/${KEY}`);
     const exp = Number.parseInt(url.searchParams.get("exp") ?? "", 10);
-    // Default validity is the full 7-day signature lifetime.
     expect(exp).toBeGreaterThanOrEqual(before + 604_800);
     expect(exp).toBeLessThanOrEqual(after + 604_800);
 
-    // No overrides -> no ct/cd params -> worker falls back to stored metadata.
     expect(url.searchParams.get("ct")).toBeNull();
     expect(url.searchParams.get("cd")).toBeNull();
     expect(url.searchParams.get("sig")).toBe(
@@ -82,12 +79,10 @@ describe("signed worker file urls", () => {
     const expiries = inWindow.map((now) => bucketedSignatureExpiry(now));
     expect(new Set(expiries).size).toBe(1);
 
-    // Every minted URL stays valid for at least the full 7-day TTL.
     expect(expiries[0]).toBeGreaterThanOrEqual(
       windowStart + windowSeconds - 1 + 604_800
     );
 
-    // Crossing into the next window mints a new (still valid) expiry.
     const nextWindow = bucketedSignatureExpiry(windowStart + windowSeconds);
     expect(nextWindow).toBe(expiries[0]! + windowSeconds);
   });

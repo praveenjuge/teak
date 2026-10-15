@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { asFetch } from "../../helpers/convex.test-utils";
 
-// Every model call reports one $ai_generation event to PostHog's batch API.
 const aiEventsFrom = (url: string | URL | Request, request?: RequestInit) =>
   String(url).endsWith("/batch/")
     ? JSON.parse(String(request?.body)).batch.map(

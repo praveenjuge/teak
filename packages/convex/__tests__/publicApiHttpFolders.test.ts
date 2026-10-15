@@ -353,7 +353,6 @@ describe("public API folders", () => {
     });
     expect(searchArgs.folderId).toBeUndefined();
 
-    // Searches that cannot both match list nothing without reading cards.
     const none = mock((_ref, args) =>
       Promise.resolve(args.folderId === "folder_2" ? smart : null)
     );

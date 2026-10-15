@@ -199,7 +199,6 @@ describe("summarizeSubscriptions", () => {
     expect(summary.total).toBe(3);
     expect(summary.byStatus).toEqual({ active: 2, trialing: 1 });
     expect(summary.canceling).toBe(1);
-    // Trials are not revenue yet; a canceling subscription still pays.
     expect(summary.revenue.usd.mrr).toBe(1000);
     expect(summary.revenue.usd.mrrAtRisk).toBe(500);
     expect(summary.revenue.usd.trialMrr).toBe(400);
@@ -290,7 +289,6 @@ describe("monthly revenue", () => {
     expect(
       monthlyPolarFee({ ...base, amount: 1000, recurringInterval: "month" })
     ).toBeCloseTo(80);
-    // A yearly plan pays the fixed part once a year.
     expect(
       monthlyPolarFee({ ...base, amount: 12_000, recurringInterval: "year" })
     ).toBeCloseTo(40 + 40 / 12);
@@ -327,7 +325,6 @@ describe("growthPercent", () => {
 });
 
 describe("buildRetentionCohorts", () => {
-  // Wednesday; its week starts Monday 2026-10-12.
   const now = day("2026-10-14");
 
   test("weeks start on Monday UTC", () => {
@@ -351,7 +348,6 @@ describe("buildRetentionCohorts", () => {
       ["2026-10-12", 1],
     ]);
     expect(cohorts[0].retention).toEqual([1, 0.5, 0.5]);
-    // Weeks that have not started yet are null, not zero.
     expect(cohorts[2].retention).toEqual([1, null, null]);
   });
 });
@@ -418,9 +414,7 @@ describe("summarizeSignupDomains", () => {
       disposable: true,
       lastDay: 0,
     });
-    // Shared inbox providers are never a burst.
     expect(byDomain["gmail.com"]).toMatchObject({ spike: false, total: 8 });
-    // Flagged domains sort first.
     expect(
       domains
         .slice(0, 2)

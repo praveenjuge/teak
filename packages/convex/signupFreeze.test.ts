@@ -20,7 +20,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-// Retained Better Auth rows, seeded the way pre-WorkOS sign-ups left them.
 const retainedUser = (t: TestBackend, email: string) =>
   t.run((ctx) =>
     ctx.runMutation(components.betterAuth.adapter.create, {

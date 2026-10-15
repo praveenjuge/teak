@@ -33,7 +33,6 @@ const claims = {
 };
 const setup = () => {
   const t = convexTest(schema, modules);
-  // No Better Auth registration: any accidental read of legacy storage fails.
   workosTest.register(t);
   return t;
 };
@@ -87,8 +86,6 @@ beforeEach(() => {
   vi.stubEnv("CONVEX_SITE_URL", "https://session-tests.convex.site");
 });
 afterEach(() => vi.unstubAllEnvs());
-// Failures: provider/mode mixups, malformed session/verification, missing or
-// duplicate ownership, external ID, deletion boundaries, profile and wrong vault.
 describe("WorkOS Convex sessions", () => {
   test("reads only the permanent owner's vault without writes or legacy session data", async () => {
     const t = setup();
@@ -222,7 +219,6 @@ describe("WorkOS Convex sessions", () => {
     await expect(
       t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).rejects.toThrow();
-    // A verified token claim cannot stand in for the provider profile.
     expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
     await updateComponentUser(t, "user_PROVIDER", { emailVerified: true });
     expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({

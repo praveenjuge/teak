@@ -40,7 +40,6 @@ describe("readRemoteImageDimensions", () => {
       0x00, 0x00, 0x00, 0x08, 0xff, 0xff, 0xff, 0xff,
     ]);
     expect(readRemoteImageDimensions(icns)).toBeNull();
-    // Truncated ICNS header
     expect(
       readRemoteImageDimensions(new Uint8Array([0x69, 0x63, 0x6e, 0x73]))
     ).toBeNull();
@@ -72,12 +71,10 @@ describe("readRemoteImageDimensions", () => {
       `<svg xmlns="http://www.w3.org/2000/svg"></svg>`
     );
     expect(readRemoteImageDimensions(noDimSvg)).toBeNull();
-    // Entity expansion should not hang and should still parse valid dimensions.
     const entitySvg = new TextEncoder().encode(
       `<!DOCTYPE svg [<!ENTITY x "aaaa">]><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">&x;</svg>`
     );
     const result = readRemoteImageDimensions(entitySvg);
-    // Should not throw and should return dimensions if parsed, or null if rejected — but must not hang.
     expect(
       result === null || (result.width === 10 && result.height === 10)
     ).toBe(true);

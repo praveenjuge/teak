@@ -63,7 +63,6 @@ describe("extractFileTextForAiForKey for PDFs", () => {
       op: "inspect",
       params: {
         formatId: "pdf",
-        // Any upload size: the renderer reads PDFs up to Teak's 100 MiB cap.
         maxBytes: 100 * 1024 * 1024,
         mode: "pdf",
         sourceKey: PDF_KEY,

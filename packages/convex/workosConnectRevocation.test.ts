@@ -109,9 +109,6 @@ async function setup(existing = true) {
   const rows = () => t.run((ctx) => ctx.db.query("workosConsents").take(10));
   return { t, disconnect, rows };
 }
-// Failure modes: signature/expiry/audience/session confusion; conflicting subject,
-// client/owner/consent; duplicate/missing ownership; unseen consent; auth rollback;
-// repeated logout or refresh resurrecting credentials; sibling grants and outages.
 test("disconnect survives auth rollback and permanently denies the application", async () => {
   const f = await setup();
   const access = await token();

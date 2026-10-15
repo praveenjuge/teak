@@ -1,7 +1,3 @@
-/**
- * Shared harness for the public API HTTP tests: R2 env fixtures plus the
- * authorized-mutation mock builders every split test file uses.
- */
 import { mock } from "bun:test";
 import { withMappedOwner } from "./session.test-utils";
 
@@ -12,7 +8,6 @@ export const runHandler = (fn: any, ctx: any, request: Request) => {
   return handler(withMappedOwner(ctx), request);
 };
 
-// validateUserApiKey resolves the owner and charges the rate limit in one call.
 export const buildAuthorizedMutationMock = () =>
   mock().mockResolvedValueOnce({
     keyId: "key_1",
@@ -23,6 +18,5 @@ export const buildAuthorizedMutationMock = () =>
     rateLimit: { ok: true, retryAt: undefined },
   });
 
-// Requests without an Idempotency-Key make no further auth-side calls.
 export const buildAuthorizedMutationMockWithIdempotencySkip =
   buildAuthorizedMutationMock;

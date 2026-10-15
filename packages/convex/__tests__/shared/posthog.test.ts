@@ -55,8 +55,10 @@ describe("PostHog batch", () => {
         card_type: "link",
       },
     });
-    // Ownerless events must not create a person.
-    expect(body.batch[1].properties.$process_person_profile).toBe(false);
+    expect(
+      body.batch[1].properties.$process_person_profile,
+      "ownerless events must not create a person"
+    ).toBe(false);
     expect(batch.size).toBe(0);
     expect(await batch.flush()).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);

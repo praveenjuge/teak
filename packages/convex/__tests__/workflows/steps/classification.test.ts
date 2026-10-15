@@ -178,8 +178,6 @@ describe("classification step", () => {
 
       const result = await classifyCompleted(mockCtx);
 
-      // normalizeQuoteContent checks for surrounding quotes like "...", not markdown blockquotes
-      // So this content is classified as text, not quote
       expect(result.type).toBe("text");
     });
 
@@ -413,8 +411,6 @@ describe("classification step", () => {
 
       const result = await classifyCompleted(mockCtx);
 
-      // extractPaletteColors requires actual hex codes - just "palette" keyword isn't enough
-      // unless there's at least 1 color code. Since this text has no colors, it's classified as text.
       expect(result.type).toBe("text");
     });
 
@@ -463,7 +459,6 @@ describe("classification step", () => {
     });
 
     test("classifies content-only bare URL as link when url field is set", async () => {
-      // createCard extracts the URL onto the card before classification runs.
       const card = {
         _id: "c1",
         type: "text",
@@ -489,9 +484,6 @@ describe("classification step", () => {
 
       const result = await classifyCompleted(mockCtx);
 
-      // The .png extension causes classifyByExtension to return "image"
-      // Since there's additional content beyond just the URL, it's not a URL-only card
-      // So the type remains "image" instead of being normalized to "link"
       expect(result.type).toBe("image");
     });
   });

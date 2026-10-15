@@ -12,14 +12,12 @@ describe("defaults", () => {
       updateCardField: mock(),
       permanentDeleteCard: mock(),
     });
-    // Trigger error
     const mockUpdate = mock().mockRejectedValue(new Error("fail"));
     const actions2 = createCardActions({
       updateCardField: mockUpdate,
       permanentDeleteCard: mock(),
     });
     await actions2.handleDeleteCard("c1" as any);
-    // Should catch and call default captureException
   });
 });
 
@@ -55,7 +53,6 @@ describe("createCardActions", () => {
   });
 
   afterEach(() => {
-    // Clear all mocks after each test
     mockPermanentDeleteCard.mockReset();
     mockUpdateCardField.mockReset();
     resetClientTelemetry();

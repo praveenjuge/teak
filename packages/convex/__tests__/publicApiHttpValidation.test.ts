@@ -10,8 +10,6 @@ import {
   validateUploadPayload,
 } from "../publicApiHttpValidation";
 
-// Requests reach the Convex HTTP router at /v1/... (the /api prefix is the
-// public proxy path).
 const API = "https://teak.convex.site";
 const get = (query: string) => new Request(`${API}/v1/cards?${query}`);
 
@@ -204,10 +202,10 @@ describe("validatePatchPayload", () => {
       validatePatchPayload({ metadataTitle: ` ${"x".repeat(600)} ` })
         ?.metadataTitle
     ).toBe("x".repeat(512));
-    // A cut never leaves half of a surrogate pair behind.
     expect(
       validatePatchPayload({ metadataTitle: `${"x".repeat(511)}😀tail` })
-        ?.metadataTitle
+        ?.metadataTitle,
+      "a cut never leaves half of a surrogate pair"
     ).toBe("x".repeat(511));
   });
 
@@ -338,7 +336,6 @@ describe("parseCardsQueryOptions", () => {
       expect(result).toBeInstanceOf(Response);
       expect((result as Response).status).toBe(400);
     }
-    // A seed without shuffle is ignored.
     expect(
       parseCardsQueryOptions(get("sort=newest&shuffleSeed=42"))
     ).not.toHaveProperty("shuffleSeed");

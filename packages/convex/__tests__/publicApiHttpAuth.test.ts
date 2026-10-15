@@ -149,9 +149,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 401 for invalid API key", async () => {
     const runMutation = mock()
-      // validate rejects the (well-formed) key...
       .mockResolvedValueOnce(null)
-      // ...and the shared invalid-auth bucket still has capacity.
       .mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
@@ -295,7 +293,6 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 rejects requests whose idempotency key is already in progress", async () => {
     const runMutation = mock()
-      // validate first...
       .mockResolvedValueOnce({
         access: "full_access",
         keyId: "key_1",
@@ -304,7 +301,6 @@ describe("publicApiHttp auth and validation", () => {
         rateLimitKey: "component:key_1",
         rateLimit: { ok: true, retryAt: undefined },
       })
-      // ...then the idempotency reservation reports in-progress.
       .mockResolvedValueOnce({
         record: {
           _id: "idem_1",
@@ -344,7 +340,6 @@ describe("publicApiHttp auth and validation", () => {
       code: "CONFLICT",
       error: "Idempotency-Key is already being processed",
     });
-    // validate + rateLimit + beginIdempotencyRequest + trackIdempotencyOutcome
     expect(runMutation).toHaveBeenCalledTimes(3);
   });
 });

@@ -28,7 +28,6 @@ const sha256Hex = async (text: string): Promise<string> =>
     (byte) => byte.toString(16).padStart(2, "0")
   ).join("");
 
-/** The header value the Files Worker sends after charging its edge limit. */
 const attestation = async (
   authorization: string,
   options: { expiresInSeconds?: number; secret?: string } = {}
@@ -48,7 +47,6 @@ const attestation = async (
 
 beforeEach(() => {
   vi.stubEnv("FILES_SIGNING_SECRET", SECRET);
-  // The bucket refills continuously; a frozen clock keeps it empty.
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-15T08:00:00Z"));
 });
@@ -57,7 +55,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-/** A key whose per-request limit Convex has already exhausted. */
 const exhaustedKey = async () => {
   const t = convexTest(schema, modules);
   polarTest.register(t);

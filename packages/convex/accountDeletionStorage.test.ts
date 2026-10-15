@@ -82,8 +82,6 @@ const worker = (
   );
   return { freezes, deleted };
 };
-// Fault modes: unbounded metadata keys; lost delete replies; source mutation
-// during external IO; ambiguous write outcome; stale owner/generation admission.
 test("many keys drain at most three per invocation before source deletion", async () => {
   const { t, card, binding, keys } = await setup();
   const proof = worker();
@@ -105,7 +103,6 @@ test("many keys drain at most three per invocation before source deletion", asyn
   ).toBe(true);
 });
 test("one data-deletion step drains every card page instead of yielding per card", async () => {
-  // Six storage keys plus four cards without storage: well past one page.
   const { t, binding, keys } = await setup(6);
   await t.run(async (ctx) => {
     for (let index = 0; index < 4; index++) {

@@ -662,7 +662,6 @@ describe("useFileUploadCore", () => {
         cardId: "card_1",
       });
 
-      // Wait for async image load simulation
       await hook.uploadFile(file);
 
       expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
@@ -729,7 +728,6 @@ describe("useFileUploadCore", () => {
     test("handles image load failure gracefully", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
 
-      // Mock createObjectURL to return something triggering onerror in MockImage
       (global.URL.createObjectURL as any).mockReturnValueOnce("blob:fail");
 
       mockUploadAndCreateCard.mockResolvedValue({
@@ -748,7 +746,6 @@ describe("useFileUploadCore", () => {
 
       await hook.uploadFile(file);
 
-      // Should proceed without dimensions
       expect(mockUploadAndCreateCard).toHaveBeenCalledWith(
         expect.objectContaining({
           additionalMetadata: undefined,

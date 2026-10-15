@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { updateCategorization } from "../../../../../convex/workflows/steps/categorization/mutations";
-import { inlineSearchSyncDb } from "../../../helpers/session.test-utils";
+import { withSearchSyncDb } from "../../../helpers/session.test-utils";
 
 const withScheduler = (registered: any) => {
   const handler = registered.handler ?? registered._handler ?? registered;
@@ -33,13 +33,12 @@ describe("categorization updateCategorization", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       expect(typeof mutation).toBe("function");
@@ -73,10 +72,7 @@ describe("categorization updateCategorization", () => {
     const mutation = withScheduler(updateCategorization);
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
-        get: async () => null,
-      },
+      db: withSearchSyncDb({ get: async () => null }),
     };
 
     await expect(

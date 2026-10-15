@@ -43,9 +43,6 @@ const ownerRow = (teakUserId: string, mapping: Mapping, email?: string) => ({
   ...mapping,
 });
 
-// Queries and mutations resolve the owner in their own transaction, so mocked
-// databases answer the identity tables from the same fixture. Other tables go
-// to the test's own mocks, or read as empty when the test has none.
 const identityRows = (
   table: string,
   filters: Record<string, unknown>,
@@ -105,8 +102,6 @@ function identityQuery(table: string, mapping: Mapping, email?: () => string) {
   };
 }
 
-// The WorkOS owner resolver and profile read, answered from a mapping fixture
-// keyed by the permanent Teak user id. Deletion denies the owner.
 export const answerIdentityQuery = (
   ref: any,
   args: any,
@@ -117,7 +112,6 @@ export const answerIdentityQuery = (
   try {
     name = getFunctionName(ref);
   } catch {
-    // The WorkOS component's profile copy; other components are not identity reads.
     const address = getFunctionAddress(ref) as { reference?: string };
     if (
       address.reference?.endsWith("/workOSAuthKit/lib/getAuthUser") &&
@@ -184,10 +178,6 @@ export const answerIdentityQuery = (
   return { handled: false };
 };
 
-// Business-logic unit tests supply an authenticated identity. This turns it
-// into a verified AuthKit session whose external id is the test's permanent
-// Teak user id. Forged and revoked sessions are covered against the real
-// resolver in the edge tests, without this fixture.
 export function withTestSession<T extends TestContext>(
   ctx: T,
   mapping: Mapping = {}
@@ -237,8 +227,6 @@ export function withTestSession<T extends TestContext>(
   };
 }
 
-// A persisted mapping fixture for bearer and internal-job business-logic tests.
-// Missing/tombstoned mappings are exercised against the database in edge tests.
 export function withMappedOwner<T extends TestContext>(ctx: T): T {
   const sourceRunQuery = ctx.runQuery;
   return {
@@ -251,10 +239,7 @@ export function withMappedOwner<T extends TestContext>(ctx: T): T {
   };
 }
 
-// Minimal db surface for the inline card search sync in mocked mutation
-// contexts. Spread FIRST in a db literal so the test's own mocks override
-// these defaults.
-export const inlineSearchSyncDb = () => ({
+export const withSearchSyncDb = <Db extends object>(db: Db) => ({
   get: mock().mockResolvedValue(null),
   query: mock().mockReturnValue({
     withIndex: mock().mockReturnValue({
@@ -265,4 +250,5 @@ export const inlineSearchSyncDb = () => ({
   patch: mock().mockResolvedValue(null),
   replace: mock().mockResolvedValue(null),
   delete: mock().mockResolvedValue(null),
+  ...db,
 });

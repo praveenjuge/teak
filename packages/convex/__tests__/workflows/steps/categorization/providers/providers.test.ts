@@ -14,7 +14,6 @@ import { enrichGithub } from "../../../../../workflows/steps/categorization/prov
 import { enrichGoodreads } from "../../../../../workflows/steps/categorization/providers/goodreads";
 import { enrichImdb } from "../../../../../workflows/steps/categorization/providers/imdb";
 
-// Helper function to create a raw selector map
 const createMap = (
   entries: [
     string,
@@ -129,7 +128,6 @@ describe("enrichAmazon", () => {
     ]);
     const result = enrichAmazon(map);
 
-    // Should prioritize #priceblock_ourprice first
     expect(result?.facts?.[0]?.value).toBe("$10.00");
   });
 
@@ -444,7 +442,6 @@ describe("enrichImdb", () => {
     ]);
     const result = enrichImdb(map);
 
-    // Should not include released fact for invalid date
     const releasedFact = result?.facts?.find((f) => f.label === "Released");
     expect(releasedFact).toBeUndefined();
   });
@@ -538,7 +535,6 @@ describe("categorization providers common", () => {
     expect(getRawAttribute(map, "meta", "missing")).toBeUndefined();
     expect(getRawAttribute(map, "missing", "content")).toBeUndefined();
 
-    // Test multiple attributes and case sensitivity
     const map2 = new Map([
       [
         "meta",
@@ -552,7 +548,6 @@ describe("categorization providers common", () => {
     ]);
     expect(getRawAttribute(map2, "meta", "content")).toBe("upper");
 
-    // Test entry without attributes
     const map3 = new Map([["meta", { text: "just text" }]]);
     expect(getRawAttribute(map3, "meta", "content")).toBeUndefined();
   });
@@ -572,7 +567,6 @@ describe("categorization providers common", () => {
   });
 
   it("formatDate", () => {
-    // Local noon keeps the calendar day stable in every time zone.
     expect(formatDate("2023-12-21T12:00:00")).toBe("Dec 21, 2023");
     expect(formatDate("invalid date")).toBeUndefined();
     expect(formatDate(undefined)).toBeUndefined();
@@ -617,7 +611,6 @@ describe("enrichGithub", () => {
       ["relative-time", { text: "on Oct 10, 2023" }],
     ]);
     const result = enrichGithub(map);
-    // Note: formatCountString("1.2k") should be "1,200"
     expect(result!.facts).toContainEqual({ label: "Stars", value: "1,200" });
     expect(result!.facts).toContainEqual({
       label: "Language",

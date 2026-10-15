@@ -14,7 +14,6 @@ import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
 const OWNER = "export-owner";
 
-// Hold the scheduled export workflow; these tests cover the HTTP contract.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   vi.clearAllTimers();

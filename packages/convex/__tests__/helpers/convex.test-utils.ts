@@ -20,8 +20,6 @@ export const testDoc = <Table extends TableNames>(
   fields: Partial<Doc<Table>>
 ): Doc<Table> => fields as Doc<Table>;
 
-// A mock may provide any subset of the real context's members, with whatever
-// shape the code under test reads from them.
 type MockOf<Ctx> = { [Key in keyof Ctx]?: unknown };
 
 export const mockQueryCtx = (ctx: MockOf<QueryCtx>): QueryCtx =>
@@ -63,8 +61,7 @@ type FetchImpl = (
   init?: RequestInit
 ) => Promise<Response>;
 
-// Bun's `typeof fetch` also carries `preconnect`; the stub keeps the mock's
-// own call log.
+// Bun's `typeof fetch` also requires `preconnect`.
 export const asFetch = <Impl extends FetchImpl>(
   impl: Impl
 ): Impl & typeof fetch =>

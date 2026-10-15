@@ -36,8 +36,6 @@ describe("publicApiHttp card endpoints", () => {
         }
       );
 
-      // The paths now fall through to the card-by-id handler, where the
-      // trailing segment reads as an unknown card id.
       expect(response.status).toBe(404);
       expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
     }
@@ -201,7 +199,6 @@ describe("publicApiHttp card endpoints", () => {
       )
     );
     expect(response.status).toBe(200);
-    // The text and the first tag route the search; the rest filter it.
     expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
       searchQuery: "design system",
       tag: "brand",
@@ -484,8 +481,6 @@ describe("publicApiHttp card endpoints", () => {
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_INPUT");
     expect(payload.error).toContain("100");
-    // Only the two authorization mutations (validate key + rate limit) run;
-    // neither idempotency reservation nor the bulk fan-out mutation fire.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
@@ -1157,7 +1152,6 @@ describe("publicApiHttp card endpoints", () => {
       code: "NOT_IN_TRASH",
       error: "Move the card to Trash before deleting it permanently",
     });
-    // Only the auth call ran; nothing was deleted.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 

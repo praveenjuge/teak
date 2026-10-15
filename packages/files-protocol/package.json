@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-vectors": "./src/testVectors.ts"
   },
   "scripts": {
     "test": "bun test src",

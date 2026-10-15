@@ -110,7 +110,6 @@ describe("library-wide tag operations", () => {
 
     expect((await card(active))?.tags).toEqual(["Design Systems", "web"]);
     expect((await card(trashed))?.tags).toEqual(["Design Systems"]);
-    // AI tags stay AI tags.
     expect((await card(archived))?.aiTags).toEqual(["Design Systems", "ui"]);
     expect((await card(archived))?.tags).toBeUndefined();
     expect((await card(both))?.tags).toEqual(["Design Systems"]);
@@ -177,7 +176,6 @@ describe("library-wide tag operations", () => {
     const { t, insert, card, start, runScheduled } = await setup();
     await insert({ tags: ["draft"] });
     await runScheduled();
-    // Tagged just before the change starts: its index rows land later.
     const late = await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "owner",
@@ -189,7 +187,6 @@ describe("library-wide tag operations", () => {
       })
     );
     const operation = await start("rename", "draft", "final");
-    // The first pass runs before the late card's index rows exist.
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
     expect((await card(late))?.tags).toEqual(["draft"]);
@@ -216,7 +213,6 @@ describe("library-wide tag operations", () => {
         updatedAt: 1,
       })
     );
-    // The late card's tag sync is still running when the change starts.
     const pendingSync = await t.run((ctx) =>
       ctx.db.insert("cardSearchTagSyncStates", {
         cardId: late,
@@ -231,7 +227,6 @@ describe("library-wide tag operations", () => {
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
     expect((await card(first))?.tags).toEqual(["final"]);
-    // The next pass finds nothing more, but the sync has not landed.
     vi.advanceTimersByTime(TAG_OPERATION_PASS_DELAY_MS + 1);
     await t.finishInProgressScheduledFunctions();
     expect(
@@ -266,7 +261,6 @@ describe("library-wide tag operations", () => {
       ctx.db.get("tagOperations", operation._id)
     );
     expect(done).toMatchObject({ status: "completed" });
-    // Only the user's own syncs (from the rename itself) are waited on.
     expect(done?.syncWaits ?? 0).toBeLessThan(TAG_OPERATION_MAX_SYNC_WAITS);
   });
 
@@ -283,8 +277,6 @@ describe("library-wide tag operations", () => {
     });
     await runScheduled();
     await start("rename", "draft", "final");
-    // The first batch passes the oldest active cards; the restored card then
-    // sorts before the cursor.
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
     await t.run((ctx) =>
@@ -326,7 +318,6 @@ describe("library-wide tag operations", () => {
     const name = "İ".repeat(64);
     const id = await insert({ tags: [name] });
     await runScheduled();
-    // The Tags page passes the key it lists, here 128 code units long.
     await start("rename", name.toLowerCase(), "turkish");
     await runScheduled();
     expect((await card(id))?.tags).toEqual(["turkish"]);
@@ -355,10 +346,8 @@ describe("library-wide tag operations", () => {
     await expect(start("delete", "b")).rejects.toThrow(
       "Another tag change is still running"
     );
-    // Another user is not blocked.
     await start("delete", "mine", undefined, stranger);
 
-    // A running operation that stopped moving no longer blocks.
     await t.run((ctx) =>
       ctx.db.patch("tagOperations", first._id, {
         updatedAt: Date.now() - TAG_OPERATION_STALL_MS - 1,
@@ -377,7 +366,6 @@ describe("library-wide tag operations", () => {
     const id = await insert({ tags: ["draft"], notes: "before" });
     await runScheduled();
     await start("rename", "draft", "final");
-    // The card is edited before the batch reaches it.
     await t.run((ctx) =>
       ctx.db.patch("cards", id, {
         notes: "after",
@@ -405,14 +393,12 @@ describe("library-wide tag operations", () => {
       operationId: operation._id,
     });
     expect((await card(id))?.tags).toEqual(["keep-me"]);
-    // New changes are refused meanwhile.
     await t.run(async (ctx) => {
       await ctx.db.patch("tagOperations", operation._id, {
         status: "completed",
       });
     });
     await expect(start("delete", "keep-me")).rejects.toThrow();
-    // A tag-count refresh leaves no marker that would outlive the sweep.
     await t.run(async (ctx) => {
       for (const row of await ctx.db.query("tagSummaryRefreshes").collect()) {
         await ctx.db.delete("tagSummaryRefreshes", row._id);
@@ -463,7 +449,6 @@ describe("tag summary snapshot", () => {
 
   test("a burst of tag changes schedules one recompute", async () => {
     const { t, insert } = await setup();
-    // Tag syncs finish within the burst; the recompute waits 15 seconds.
     for (let index = 0; index < 5; index += 1) {
       await insert({ tags: [`tag-${index}`] });
     }
@@ -498,7 +483,6 @@ describe("tag summary snapshot", () => {
     const [sooner] = await dueAt();
     expect(sooner).toBeLessThan(later ?? 0);
     expect(sooner).toBeLessThanOrEqual(Date.now());
-    // A later request leaves the sooner deadline alone.
     await t.run((ctx) => markTagSummaryDirty(ctx, "owner"));
     expect(await dueAt()).toEqual([sooner]);
   });
@@ -506,7 +490,6 @@ describe("tag summary snapshot", () => {
   test("only changes that can move the counts schedule a recompute", async () => {
     const { t, insert, runScheduled } = await setup();
     const id = await insert({ tags: ["design"], notes: "before" });
-    // The new card's tags are synced and the snapshot recomputed.
     await runScheduled();
     const refreshes = () =>
       t.run((ctx) => ctx.db.query("tagSummaryRefreshes").collect());
@@ -522,13 +505,11 @@ describe("tag summary snapshot", () => {
     };
     expect(await refreshes()).toHaveLength(0);
 
-    // Favorites and notes restart or skip the tag sync but leave the counts.
     await patch({ isFavorited: true });
     await patch({ notes: "after" });
     await settle();
     expect(await refreshes()).toHaveLength(0);
 
-    // A new tag, or moving the card to Archive, can change them.
     await patch({ tags: ["design", "web"] });
     await settle();
     expect(await refreshes()).toHaveLength(1);
@@ -543,8 +524,6 @@ describe("tag summary snapshot", () => {
     const big = TAG_SUMMARY_PAGE_ROWS + 50;
     await t.run(async (ctx) => {
       for (let index = 0; index < big; index += 1) {
-        // Every card shares one date, so a page boundary falls among rows
-        // with the same date.
         const cardId = await ctx.db.insert("cards", {
           userId: "owner",
           type: "text",
@@ -586,8 +565,6 @@ describe("tag summary snapshot", () => {
       ],
       isComplete: true,
     });
-    // A recompute without a pending marker (swept by account deletion) does
-    // nothing.
     await t.run(async (ctx) => {
       const row = await ctx.db.query("userTagSummaries").first();
       if (row) {
@@ -744,8 +721,6 @@ describe("library tag filter", () => {
     expect(
       await grid({ tag: "design", favoritesOnly: true, types: ["link"] })
     ).toEqual([]);
-    // Trash reads one index for every archive state and checks type and
-    // favorites on each row.
     expect(
       await grid({ tag: "design", showTrashOnly: true, types: ["text"] })
     ).toEqual(["trashed design"]);
@@ -766,7 +741,6 @@ describe("library tag filter", () => {
     expect(await grid({ tag: "design", searchQuery: "alpha" })).toEqual([
       "alpha note",
     ]);
-    // A card changed before its tag rows catch up shows where it now is.
     await t.run(async (ctx) => {
       const rows = await ctx.db.query("cards").collect();
       for (const row of rows) {
@@ -782,7 +756,6 @@ describe("library tag filter", () => {
     expect(await grid({ tag: "design", showArchivedOnly: true })).toEqual([
       "archived design",
     ]);
-    // A quick command word is searched like any other inside a tag.
     expect(await grid({ tag: "design", searchQuery: "trash" })).toEqual([]);
     expect(await grid({ tag: "missing" })).toEqual([]);
   }, 30_000);

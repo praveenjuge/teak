@@ -26,12 +26,9 @@ interface Stored {
 
 let inserts: { createdAt: number; stored: Stored[]; userId: string }[];
 let failUploadOf: string | undefined;
-/** Fails the insert that carries stored files; the fallback still lands. */
 let failInsert: boolean;
-/** What the insert reports, e.g. 0 when the account already has the cards. */
 let insertedCount: number;
 
-// The Files Worker is the boundary: PUTs store bytes, op POSTs delete them.
 const filesWorkerFetch = mock(
   (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
@@ -140,7 +137,6 @@ describe("addOnboardingCards", () => {
         );
       }
     }
-    // The original's size lands on the card.
     const memo = uploads.find((upload) => upload.contentType === "audio/mp4");
     expect(stored.get("audio")?.fileSize).toBe(memo?.bytes);
   });
@@ -153,7 +149,6 @@ describe("addOnboardingCards", () => {
     const onboarding = inserts[0]?.stored.map((entry) => entry.onboarding);
     expect(onboarding).not.toContain("video");
     expect(onboarding).toContain("audio");
-    // The video's original and poster were stored before its scrub failed.
     const videoKeys = uploads
       .filter(
         (upload) =>

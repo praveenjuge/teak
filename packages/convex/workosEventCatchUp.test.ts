@@ -84,7 +84,6 @@ test("a missed sign-up reaches the component and Teak, and the next run continue
   ]);
   expect(owners[0]?.teakUserId).toMatch(/^teak_/);
 
-  // The same event again (a late webhook or an overlapping page) is a no-op.
   pages = [
     [
       userEvent("event_01", {

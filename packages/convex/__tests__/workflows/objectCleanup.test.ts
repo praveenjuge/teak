@@ -24,11 +24,8 @@ describe("storage object deletion", () => {
     }
   });
 
-  // Regression: deleting an account with only text cards failed on a
-  // deployment without file storage, because an empty batch still required
-  // the Files Worker.
   test.each([[[] as string[]], [[""]]])(
-    "deleting no keys needs no Files Worker (%j)",
+    "deleting no keys needs no Files Worker, so text-only accounts delete without file storage (%j)",
     async (keys: string[]) => {
       await expect(deleteStorageObjects(keys)).resolves.toEqual({
         deleted: 0,

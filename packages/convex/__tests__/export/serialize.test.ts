@@ -46,13 +46,11 @@ const baseCard = {
     { hex: "#ffffff", name: "White", rgb: { r: 255, g: 255, b: 255 } },
     { hex: "#000000" },
   ],
-  // Schema v2 fields:
   aiTags: ["ai1"],
   aiSummary: "A short summary",
   metadataTitle: "Card title",
   isArchived: true,
   folderIds: ["folder_b", "folder_gone", "folder_a", "folder_b"],
-  // Excluded fields that must never appear in output:
   aiTranscript: "secret transcript",
   metadata: { source: "ext", linkPreview: { title: "scraped" } },
   thumbnailKey: "users/x/cards/card_1/thumbnail/zzz",
@@ -212,7 +210,6 @@ describe("serializeCard", () => {
     expect(out.colors).toBeUndefined();
     expect(out.tags).toEqual([]);
     expect(out.isFavorited).toBe(false);
-    // Schema v2: lists and flags are always present, strings only when set.
     expect(out.aiTags).toEqual([]);
     expect(out.folders).toEqual([]);
     expect(out.isArchived).toBe(false);
@@ -273,7 +270,6 @@ describe("estimateArtifactSize", () => {
       { fileMetadata: { fileSize: 2000 } },
       {},
     ]);
-    // 3000 file bytes + 3 * 2048 json allowance
     expect(size).toBe(3000 + 3 * 2048);
   });
 });

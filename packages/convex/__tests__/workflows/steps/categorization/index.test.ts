@@ -13,40 +13,10 @@ import {
   mockActionCtx,
   testId,
 } from "../../../helpers/convex.test-utils";
+import { mockSafeFetchPassthrough } from "../../../helpers/ssrf.test-utils";
 
-// Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
-// global fetch and treat every URL as safe. The real outbound URL policy is
-// exercised in linkMetadata/ssrf.test.ts.
-mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
-  SsrfError: class SsrfError extends Error {
-    reason: string;
-    constructor(reason: string, message?: string) {
-      super(message ?? reason);
-      this.name = "SsrfError";
-      this.reason = reason;
-    }
-  },
-  isBlockedIp: () => false,
-  detectIpVersion: () => 0,
-  assertUrlStructureSafe: (url: string) => new URL(url),
-  assertUrlIsSafe: async (url: string) => new URL(url),
-  safeFetch: async (url: string, _resolveDns: unknown, init?: RequestInit) => ({
-    finalUrl: url,
-    response: await global.fetch(url, init),
-  }),
-  readBodyWithLimit: async (
-    response: { text: () => Promise<string> },
-    maxBytes: number
-  ) => {
-    const body = new TextEncoder().encode(await response.text());
-    if (body.byteLength > maxBytes) {
-      throw new Error("Response body exceeds the allowed size");
-    }
-    return body;
-  },
-}));
+mockSafeFetchPassthrough();
 
-// Setup fetch mock that can be restored
 const originalFetch = global.fetch;
 const mockFetch = mock();
 
@@ -365,7 +335,6 @@ describe("categorization index", () => {
     });
 
     test("covers stringArray and valueToText branches", async () => {
-      // Test stringArray with string value
       const entity = {
         "@type": "Recipe",
         name: "R",
@@ -380,7 +349,6 @@ describe("categorization index", () => {
       );
       expect(factValue(result, "Ingredients")).toBe("single ingredient");
 
-      // Test stringArray with object containing name
       const entity2 = {
         "@type": "Recipe",
         name: "R",
@@ -453,7 +421,6 @@ describe("categorization index", () => {
                 selector: ".shot-stats [data-label='Likes']",
                 results: [{ text: "100" }],
               },
-              // Twitter stats to cover mapLabelToStat branches
               {
                 selector: "meta[name='twitter:label1']",
                 results: [
@@ -474,7 +441,6 @@ describe("categorization index", () => {
                 selector: "meta[name='twitter:data2']",
                 results: [{ attributes: [{ name: "content", value: "300" }] }],
               },
-              // designer name from title
               {
                 selector: "meta[property='og:title']",
                 results: [
@@ -488,7 +454,6 @@ describe("categorization index", () => {
                   },
                 ],
               },
-              // keywords
               {
                 selector: "meta[name='keywords']",
                 results: [
@@ -656,7 +621,6 @@ describe("categorization index", () => {
     });
 
     test("covers various edge cases in helpers", async () => {
-      // normalizeUrlForComparison catch
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         type: "link",
@@ -665,14 +629,12 @@ describe("categorization index", () => {
       const res1 = await classifyHandler(ctx, { cardId: CARD_ID });
       expect(res1).toMatchObject({ sourceUrl: "https://[invalid]" });
 
-      // detectProvider catch
       const res2 = await enrichLinkCategory(
         linkCard({ url: "https://[invalid]" }),
         { category: "article", confidence: 0.5 }
       );
       expect(res2).toBeDefined();
 
-      // stringArray with non-name object
       const res3 = await enrichLinkCategory(
         linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
@@ -686,7 +648,6 @@ describe("categorization index", () => {
       );
       expect(res3.facts).toBeUndefined();
 
-      // valueToText with number
       const res4 = await enrichLinkCategory(
         linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },

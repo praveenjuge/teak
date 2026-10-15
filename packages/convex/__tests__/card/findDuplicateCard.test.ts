@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 
-// No `storage/r2` mock: URL hydration resolves through the unmocked
-// `storage/fileUrls` leaf, so these tests assert real signed-URL shapes.
 const FILES_BASE = "https://files.example.com";
 const FILES_SECRET = "test-secret-for-urls";
 const PREVIOUS_ENV = {

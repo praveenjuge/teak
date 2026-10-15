@@ -51,7 +51,6 @@ describe("normalizeUrl", () => {
     });
 
     it("should not change case of existing protocol", () => {
-      // normalizeUrl checks for exact "http://" or "https://" prefix
       expect(normalizeUrl("HTTP://example.com")).toBe(
         "https://HTTP://example.com"
       );
@@ -114,7 +113,6 @@ describe("normalizeUrl", () => {
     });
 
     it("should handle leading/trailing whitespace", () => {
-      // normalizeUrl doesn't trim, it just prepends https:// if needed
       expect(normalizeUrl("  example.com  ")).toBe("https://  example.com  ");
     });
 

@@ -60,7 +60,6 @@ const listActiveKeys = (keys: unknown[]) =>
     return keys;
   });
 
-// The API key auth cache table, empty: these tests cover the component path.
 const authCacheDb = () => {
   const range = {
     first: mock().mockResolvedValue(null),

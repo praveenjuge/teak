@@ -18,7 +18,7 @@ import {
 } from "../../../convex/workflows/manager";
 import { workflowArtifactKey } from "../../storage/workflowArtifacts";
 import { testId } from "../helpers/convex.test-utils";
-import { inlineSearchSyncDb } from "../helpers/session.test-utils";
+import { withSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("workflow manager", () => {
   test("limits workflow step parallelism to ten", () => {
@@ -29,7 +29,7 @@ describe("workflow manager", () => {
     const mockDbGet = mock();
     const mockDbPatch = mock();
     const ctx = {
-      db: { ...inlineSearchSyncDb(), get: mockDbGet, patch: mockDbPatch },
+      db: withSearchSyncDb({ get: mockDbGet, patch: mockDbPatch }),
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
@@ -101,7 +101,6 @@ describe("workflow manager", () => {
     const mockRunMutation = mock();
     const ctx = { runMutation: mockRunMutation } as any;
 
-    // Mock workflow instance method
     workflow.start = mockWorkflowStart;
 
     beforeEach(() => {
@@ -140,11 +139,7 @@ describe("workflow manager", () => {
       return {
         patch,
         ctx: {
-          db: {
-            ...inlineSearchSyncDb(),
-            get: mock().mockResolvedValue(card),
-            patch,
-          },
+          db: withSearchSyncDb({ get: mock().mockResolvedValue(card), patch }),
           runQuery: mock().mockResolvedValue({
             workflow: { generationNumber: 1, runResult: { kind: "failed" } },
           }),
@@ -188,7 +183,6 @@ describe("workflow manager", () => {
         status: "failed",
         error: "workflow_failed",
       });
-      // Retention cleanup, plus one card_processing_failed event.
       expect(
         ctx.scheduler.runAfter.mock.calls.map(
           ([, reference, args]: [

@@ -42,7 +42,6 @@ const request = (token?: string, path = "/v1/cards") =>
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
-// Dispatch by function name, so the test states which boundary call answers what.
 const backend = (answers: Record<string, unknown>) =>
   mockActionCtx(
     withMappedOwner({
@@ -52,7 +51,6 @@ const backend = (answers: Record<string, unknown>) =>
           return Promise.reject(new Error(`unexpected mutation ${name}`));
         }
         const answer = answers[name];
-        // An Error answer is a rejection, created only when the call happens.
         return answer instanceof Error
           ? Promise.reject(answer)
           : Promise.resolve(answer);

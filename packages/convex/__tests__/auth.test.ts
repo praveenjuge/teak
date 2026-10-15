@@ -1,10 +1,9 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
+import { noop } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
 
-// Keep storage helpers isolated from the auth unit suite.
 mock.module("../storage/r2", r2MockModuleFactory);
 
-// We will dynamically import these
 let ensureCardCreationAllowed: any;
 let deleteAccountDataHandler: any;
 let runAccountDataDeletion: any;
@@ -96,9 +95,7 @@ describe("auth", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -121,7 +118,6 @@ describe("auth", () => {
           throw new Error("Polar fail");
         },
       });
-      // Should proceed to check card limit and succeed since count < limit
     });
 
     it("rejects free users at the limit and avoids ctx.runQuery", async () => {
@@ -132,9 +128,7 @@ describe("auth", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -173,9 +167,7 @@ describe("auth", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -240,32 +232,27 @@ describe("auth", () => {
       const queriedTables: string[] = [];
       const ctx = {
         db: {
-          query: () => {
-            return {
-              withIndex: (_name: any, cb: any) => {
-                if (cb) {
-                  cb({
-                    eq: () => ({
-                      eq: () => {
-                        // noop
-                      },
-                    }),
-                  });
-                }
-                return {
-                  collect: async () => [],
-                  take: async () => [],
-                };
-              },
-            };
-          },
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: noop,
+                  }),
+                });
+              }
+              return {
+                collect: async () => [],
+                take: async () => [],
+              };
+            },
+          }),
         },
         runQuery: () => {
           throw new Error("runQuery should not be called");
         },
       } as any;
 
-      // At the free limit, so only the premium check lets this through.
       addUsageRecord(ctx, FREE_TIER_LIMIT);
       const query = ctx.db.query;
       ctx.db.query = (table: string) => {
@@ -373,11 +360,7 @@ describe("auth", () => {
       );
     });
 
-    it("does not read the cards table while deleting", async () => {
-      // Regression: reading each card put the whole batch in the mutation's
-      // optimistic-concurrency read set, so a concurrent card write (e.g.
-      // updateCardAI) invalidated every retry until the batch failed the
-      // account deletion. The handler must not read cards rows.
+    it("does not read the cards table while deleting, so concurrent card writes cannot fail the batch", async () => {
       const ctx = {
         db: {
           get: mock((table: string) => {

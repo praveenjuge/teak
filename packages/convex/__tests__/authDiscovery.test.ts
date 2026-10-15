@@ -2,10 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { discoverAuthServer } from "../client/sdk";
 import { asFetch } from "./helpers/convex.test-utils";
 
-// Failure modes: a non-WorkOS provider, wrong issuer/resource, a registration
-// change between documents, missing clients/PKCE, unsafe URLs, redirects,
-// oversized/bad JSON, failed cache entries, concurrent discovery, expiry, and a
-// stale failure evicting a newer result.
 const surfaces = ["cli", "raycast", "chrome", "firefox"] as const;
 const clientIds = Object.fromEntries(
   surfaces.map((surface) => [surface, `client_01${surface.toUpperCase()}`])

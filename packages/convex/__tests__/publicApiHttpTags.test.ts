@@ -191,7 +191,6 @@ describe("public API tag changes", () => {
       isComplete: true,
     });
 
-    // No summary yet: one is requested, and the partial list comes back.
     const none = mock()
       .mockResolvedValueOnce(partial)
       .mockResolvedValueOnce(null);
@@ -214,7 +213,6 @@ describe("public API tag changes", () => {
     expect(
       (await run({ method: "GET", path: "/v1/tags/operations/" })).status
     ).toBe(404);
-    // An id that isn't valid percent-encoding is not found, not a crash.
     expect(
       (await run({ method: "GET", path: "/v1/tags/operations/%E0" })).status
     ).toBe(404);

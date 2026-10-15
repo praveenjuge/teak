@@ -7,7 +7,6 @@ import {
 } from "../../workflows/screenshot";
 import { SCREENSHOT_RETRYABLE_PREFIX } from "../../workflows/steps/screenshot/retryable";
 
-// Mirrors how captureScreenshot signals a retryable failure to the workflow.
 const retryableError = (payload: unknown) =>
   new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(payload)}`);
 

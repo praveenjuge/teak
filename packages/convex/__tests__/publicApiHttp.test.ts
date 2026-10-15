@@ -40,19 +40,17 @@ describe("publicApiHttp create endpoints", () => {
   });
 
   test("createCardV1 returns 429 when rate limited", async () => {
-    const runMutation = mock()
-      // validate succeeds first...
-      .mockResolvedValueOnce({
-        keyId: "key_1",
-        userId: "user_1",
-        access: "full_access",
-        source: "component",
-        rateLimitKey: "component:key_1",
-        rateLimit: {
-          ok: false,
-          retryAt: Date.now() + 30_000,
-        },
-      });
+    const runMutation = mock().mockResolvedValueOnce({
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+      rateLimit: {
+        ok: false,
+        retryAt: Date.now() + 30_000,
+      },
+    });
 
     const response = await runHandler(
       createCardV1,
@@ -118,7 +116,6 @@ describe("publicApiHttp create endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ cardId: "card_1" });
-    // Retried in place, then handed to the scheduler so the key completes.
     expect(completions).toHaveLength(3);
     expect(runAfter).toHaveBeenCalledTimes(1);
     expect(runAfter.mock.calls[0][2]).toMatchObject({
@@ -197,15 +194,11 @@ describe("publicApiHttp create endpoints", () => {
   });
 
   test("createCardV1 maps rate limit contention errors to 429", async () => {
-    const runMutation = mock()
-      // validate succeeds first...
-
-      // ...then the per-key rate limit hits document contention.
-      .mockRejectedValueOnce(
-        new Error(
-          'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
-        )
-      );
+    const runMutation = mock().mockRejectedValueOnce(
+      new Error(
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
 
     const response = await runHandler(
       createCardV1,
@@ -279,8 +272,6 @@ describe("publicApiHttp create endpoints", () => {
   });
 
   test("createCardV1 returns 401 without consuming a rate limit for malformed keys", async () => {
-    // Malformed tokens must skip key validation entirely and only touch the
-    // shared invalid-auth bucket, so exactly one mutation should run.
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
@@ -289,7 +280,6 @@ describe("publicApiHttp create endpoints", () => {
       new Request("https://example.com/v1/cards", {
         method: "POST",
         headers: {
-          // Missing the secret segment -> structurally invalid.
           Authorization: "Bearer teakapi_abc",
           "Content-Type": "application/json",
         },
@@ -300,14 +290,10 @@ describe("publicApiHttp create endpoints", () => {
     expect(response.status).toBe(401);
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_API_KEY");
-    // Only the invalid-auth bucket consume runs; validation is never reached.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 rejects a retired legacy-shaped bearer token with 401", async () => {
-    // The old `teakapi_<prefix>_<secret>` (3-segment) shape is no longer a
-    // well-formed key, so it is treated as invalid and never reaches
-    // validation.
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
@@ -326,7 +312,6 @@ describe("publicApiHttp create endpoints", () => {
     expect(response.status).toBe(401);
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_API_KEY");
-    // Only the shared invalid-auth bucket is consumed; validation never runs.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
@@ -364,7 +349,6 @@ describe("publicApiHttp create endpoints", () => {
       token,
       chargeRateLimit: true,
     });
-    // Validation charged the rate limit; the next call creates the card.
     expect(runMutation).toHaveBeenCalledTimes(2);
   });
 

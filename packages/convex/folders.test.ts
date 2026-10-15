@@ -142,11 +142,9 @@ describe("folders", () => {
     await expect(create("design ")).rejects.toThrow(
       "A folder with this name already exists"
     );
-    // Another account may use the same name.
     await expect(create("Design", stranger)).resolves.toMatchObject({
       name: "Design",
     });
-    // Changing only the case of a folder's own name is allowed.
     await expect(
       owner.mutation(api.folders.updateFolder, {
         folderId: design._id,
@@ -164,8 +162,6 @@ describe("folders", () => {
 
   test("a name is still taken when older deleted folders share it", async () => {
     const { owner, create } = await setup();
-    // Two folders named X are mid-delete (their rows remain), then a third
-    // X is active: "x" must still clash with it.
     for (let round = 0; round < 2; round += 1) {
       const gone = await create("X");
       await owner.mutation(api.folders.deleteFolder, { folderId: gone._id });
@@ -182,8 +178,10 @@ describe("folders", () => {
     await expect(create("x".repeat(301))).rejects.toThrow(
       "at most 300 characters"
     );
-    // Characters, not UTF-16 units: 300 emoji fit.
-    await expect(create("📁".repeat(300))).resolves.toBeTruthy();
+    await expect(
+      create("📁".repeat(300)),
+      "the limit counts characters, not UTF-16 units"
+    ).resolves.toBeTruthy();
   });
 
   test(`an account can have up to ${MAX_FOLDERS_PER_USER} folders`, async () => {
@@ -271,7 +269,6 @@ describe("membership", () => {
     );
     expect((await folder(inbox._id))?.activeCardCount).toBe(2);
 
-    // Adding again is a no-op that still succeeds.
     vi.setSystemTime(6000);
     const again = await owner.mutation(api.folders.addCardsToFolder, {
       folderId: inbox._id,
@@ -281,7 +278,6 @@ describe("membership", () => {
     expect((await card(first))?.updatedAt).toBe(5000);
     expect((await folder(inbox._id))?.activeCardCount).toBe(2);
 
-    // Move out of the folder being viewed into another.
     await owner.mutation(api.folders.moveCardsToFolder, {
       folderId: done._id,
       fromFolderId: inbox._id,
@@ -299,7 +295,6 @@ describe("membership", () => {
     expect(await rows(inbox._id)).toEqual([]);
     expect((await folder(inbox._id))?.activeCardCount).toBe(0);
 
-    // The stranger's card was never touched.
     expect((await card(theirs))?.folderIds).toBeUndefined();
     await expect(
       stranger.mutation(api.folders.setCardFolders, {
@@ -432,7 +427,6 @@ describe("folder view", () => {
       "Recent",
     ]);
 
-    // Trash and Archive drop a card out of the folder and its count...
     await owner.mutation(api.cards.updateCardField, {
       cardId: recent,
       field: "delete",
@@ -451,7 +445,6 @@ describe("folder view", () => {
     expect(flags).toContainEqual([recent, true, null]);
     expect(flags).toContainEqual([mid, null, true]);
 
-    // ...and restore or unarchive brings it back.
     await owner.mutation(api.cards.updateCardField, {
       cardId: recent,
       field: "restore",
@@ -479,8 +472,6 @@ describe("folder view", () => {
       createdAt: 10,
     });
     const inFolder = [oldRed];
-    // The folder's newest cards are neither red nor favorites, and the
-    // library holds many newer red favorites outside the folder.
     for (let index = 0; index < 5; index += 1) {
       inFolder.push(
         await insert({
@@ -572,7 +563,6 @@ describe("folder view", () => {
       (card.folderIds ?? []).includes(shelf._id)
     ).length;
     expect(reachable).toBeGreaterThan(100);
-    // grid() reads one page of 100; page through to count them all.
     let total = 0;
     let cursor: string | null = null;
     for (;;) {
@@ -598,7 +588,6 @@ describe("folder view", () => {
   test("a color filter pages through a large folder to its oldest match", async () => {
     const { t, owner, create } = await setup();
     const shelf = await create("Shelf");
-    // 450 cards in the folder; only the oldest is red.
     await t.run(async (ctx) => {
       for (let index = 0; index < 450; index += 1) {
         const id = await ctx.db.insert("cards", {
@@ -738,7 +727,6 @@ describe("deleting a folder", () => {
       folderId: other._id,
       cardIds: [ids[0]],
     });
-    // Archived and trashed members are detached too.
     await owner.mutation(api.cards.updateCardField, {
       cardId: ids[1],
       field: "archive",
@@ -777,8 +765,6 @@ describe("deleting a folder", () => {
       folderId: again._id,
       cardIds: [id],
     });
-    // Delete, Undo, then delete again 3 seconds in: the first delete's batch
-    // fires while the second delete can still be undone.
     await owner.mutation(api.folders.deleteFolder, { folderId: again._id });
     await owner.mutation(api.folders.restoreFolder, { folderId: again._id });
     vi.advanceTimersByTime(3000);
@@ -890,9 +876,6 @@ describe("smart folders", () => {
       "folder:reading is:fav"
     );
 
-    // A bare favorites or archive word means that view, also once more is
-    // typed; a bare Trash word is refused (smart folders don't show Trash)
-    // unless quoted.
     expect((await smart(owner, "Favs", " Favorites ")).query).toBe("is:fav");
     expect((await smart(owner, "Arch", "archive")).query).toBe("is:archived");
     await expect(smart(owner, "Bin", "trash")).rejects.toThrow(
@@ -900,7 +883,6 @@ describe("smart folders", () => {
     );
     expect((await smart(owner, "Word", '"trash"')).query).toBe('"trash"');
 
-    // Only smart folders have a search.
     await expect(
       owner.mutation(api.folders.createFolder, {
         name: "Manual",
@@ -952,7 +934,6 @@ describe("smart folders", () => {
       "Design article",
     ]);
 
-    // A card saved later that matches shows up; one edited away drops out.
     const later = await insert({
       content: "Design later",
       type: "text",
@@ -969,7 +950,6 @@ describe("smart folders", () => {
     await runScheduled();
     expect(await grid({ folderId: folder._id })).not.toContain("Design later");
 
-    // The typed search narrows the folder's own; both must match.
     expect(
       await grid({ folderId: folder._id, searchQuery: "type:link" })
     ).toEqual(["Design article"]);
@@ -1004,9 +984,6 @@ describe("smart folders", () => {
     const first = await page(null, "tag:a");
     expect(first.isDone).toBe(false);
 
-    // The search is edited to one read from another index; a page the grid
-    // already holds still sends the search it started with, so its cursor
-    // stays valid instead of failing with InvalidCursor.
     await t.run((ctx) =>
       ctx.db.patch("folders", folder._id, { query: "type:link" })
     );
@@ -1014,7 +991,6 @@ describe("smart folders", () => {
     expect(
       second.page.map((item: { content: string }) => item.content)
     ).toEqual(["tagged 2", "tagged 1"]);
-    // A fresh read without it uses the stored search.
     expect(
       (await page(null)).page.map((item: { content: string }) => item.content)
     ).toEqual(["a link"]);
@@ -1041,8 +1017,6 @@ describe("smart folders", () => {
     await owner.mutation(api.folders.deleteFolder, { folderId: reading._id });
     expect(await grid({ folderId: unread._id })).toEqual([]);
 
-    // The dialog sends the unchanged search with a rename; it is not checked
-    // again, so the folder can still be renamed. A changed search is.
     const renamed = await owner.mutation(api.folders.updateFolder, {
       folderId: unread._id,
       name: "Unread later",
@@ -1087,7 +1061,6 @@ describe("smart folders", () => {
     ).rejects.toThrow(refused);
     expect((await card(id))?.folderIds).toBeUndefined();
 
-    // Moving out of a smart folder's view only adds to the target.
     await owner.mutation(api.folders.addCardsToFolder, {
       folderId: manual._id,
       cardIds: [id],
