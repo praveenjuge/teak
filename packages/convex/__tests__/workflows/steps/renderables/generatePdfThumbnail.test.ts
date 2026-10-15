@@ -14,9 +14,14 @@ let workerCalls: Array<{ op: string; params: Record<string, unknown> }> = [];
 let renderAnswer: () => Promise<unknown>;
 let generatePdfThumbnail: any;
 
+// These tests mock the Files Worker, so declare it configured:
+// ensureObjectOwnership refuses to register objects without one.
+const savedFilesEnv = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+};
+
 beforeAll(async () => {
-  // These tests mock the Files Worker, so declare it configured:
-  // ensureObjectOwnership refuses to register objects without one.
   process.env.FILES_BASE = "https://files.test";
   process.env.FILES_SIGNING_SECRET = "test-secret";
   const r2Path = import.meta.resolve("../../../../storage/r2");
@@ -45,8 +50,14 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-  delete process.env.FILES_BASE;
-  delete process.env.FILES_SIGNING_SECRET;
+  for (const name of ["FILES_BASE", "FILES_SIGNING_SECRET"] as const) {
+    const original = savedFilesEnv[name];
+    if (original === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = original;
+    }
+  }
 });
 
 beforeEach(() => {
