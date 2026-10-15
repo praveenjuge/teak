@@ -19,8 +19,8 @@ import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
-  recordActiveCardCreated,
   recordActiveCardRemoved,
+  restoreCountedCard,
 } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
@@ -571,26 +571,18 @@ export const updateCardFieldForUserHandler = async (
       throw new Error(`Unsupported field: ${field}`);
   }
 
-  if (field === "delete") {
-    await ensureCardUsageShardsForRemoval(ctx, userId);
-  }
-  const hasPremium =
-    field === "restore"
-      ? await getCardQuotaEntitlement(ctx, userId)
-      : undefined;
   if (field === "restore") {
-    await ensureCardUsageShards(ctx, userId, hasPremium ?? false);
-  }
-
-  // Count a restored card before writing it: at the card limit this throws
-  // with nothing written, so a bulk restore that carries on past the refusal
-  // never leaves a restored card uncounted.
-  if (field === "restore" && card.isDeleted) {
-    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
-  }
-  await ctx.db.patch("cards", cardId, updateData);
-  if (field === "delete" && !card.isDeleted) {
-    await recordActiveCardRemoved(ctx, userId, cardId);
+    const hasPremium = await getCardQuotaEntitlement(ctx, userId);
+    await ensureCardUsageShards(ctx, userId, hasPremium);
+    await restoreCountedCard(ctx, card, updateData, { hasPremium });
+  } else {
+    if (field === "delete") {
+      await ensureCardUsageShardsForRemoval(ctx, userId);
+    }
+    await ctx.db.patch("cards", cardId, updateData);
+    if (field === "delete" && !card.isDeleted) {
+      await recordActiveCardRemoved(ctx, userId, cardId);
+    }
   }
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);

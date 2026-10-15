@@ -107,19 +107,25 @@ const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   cardCreatedAt: card.createdAt,
 });
 
+export type TagSyncSnapshotUpdate =
+  | { kind: "record"; card: Doc<"cards"> }
+  | { kind: "clear" }
+  | { kind: "keep" };
+
 const mayChangeTagCounts = (
   previous: Doc<"cardSearchTagSyncStates">,
-  card: Doc<"cards"> | null | undefined
+  snapshot: TagSyncSnapshotUpdate
 ): boolean => {
-  if (card === undefined) {
+  if (snapshot.kind === "keep") {
     return true;
   }
   if (previous.pending && previous.tagCountsChanged !== false) {
     return true;
   }
-  if (card === null || previous.userId === undefined) {
+  if (snapshot.kind === "clear" || previous.userId === undefined) {
     return true;
   }
+  const { card } = snapshot;
   return (
     previous.userId !== card.userId ||
     (previous.isDeleted === true) !== (card.isDeleted === true) ||
@@ -129,18 +135,15 @@ const mayChangeTagCounts = (
   );
 };
 
-// card is the card document at restart time: provided to record a snapshot,
-// null when the card is gone (clears the snapshot so the batch takes the
-// deleted-card path), or omitted to leave any existing snapshot untouched.
 export const restartCardSearchTagSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   sourceUpdatedAt?: number,
   userId?: string,
-  card?: Doc<"cards"> | null
+  snapshotUpdate: TagSyncSnapshotUpdate = { kind: "keep" }
 ) => {
   let snapshot: Partial<CardSyncSnapshot> = {};
-  if (card === null) {
+  if (snapshotUpdate.kind === "clear") {
     snapshot = {
       userId,
       tags: undefined,
@@ -151,8 +154,8 @@ export const restartCardSearchTagSync = async (
       isArchived: undefined,
       cardCreatedAt: undefined,
     };
-  } else if (card !== undefined) {
-    snapshot = cardSyncSnapshotFromCard(card);
+  } else if (snapshotUpdate.kind === "record") {
+    snapshot = cardSyncSnapshotFromCard(snapshotUpdate.card);
   }
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
@@ -167,7 +170,7 @@ export const restartCardSearchTagSync = async (
       phase: "tags",
       sourceUpdatedAt,
       ...snapshot,
-      tagCountsChanged: mayChangeTagCounts(existingState, card),
+      tagCountsChanged: mayChangeTagCounts(existingState, snapshotUpdate),
     });
     await scheduleCardSearchTagSync(ctx, cardId, userId, generation);
   } else {
@@ -259,7 +262,9 @@ export const syncCardSearchDocumentHandler = async (
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
-    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, null);
+    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, {
+      kind: "clear",
+    });
     await tombstoneCardEmbedding(ctx, cardId);
     return null;
   }
@@ -304,14 +309,9 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   const currentTags = JSON.stringify(buildCardSearchTags(card));
-  // A caller-provided pre-patch card proves an ordinary text-only edit
-  // cannot invalidate the exact-tag snapshot. Avoid reading the mutable
-  // batch progress row in that case: even a read-only lookup puts it into
-  // the caller's OCC set and races the running tag chain. A missing search
-  // document, direct sync invocation, or tag/filter change still takes the
-  // repair path below. Invariant: every sync that creates a search document
-  // also writes its tag-sync state, so an existing document implies a state
-  // row; legacy rows are repaired by any direct sync or tag change.
+  // An edit that changes no tag-sync field skips the tag-sync state: even
+  // reading that row puts it in the caller's OCC set and races the running
+  // tag chain.
   if (
     existing &&
     previousCard &&
@@ -342,13 +342,10 @@ export const syncCardSearchDocumentHandler = async (
     tagState.cardCreatedAt !== card.createdAt ||
     JSON.stringify(buildCardSearchTags(tagState)) !== currentTags;
   if (tagsChanged) {
-    await restartCardSearchTagSync(
-      ctx,
-      cardId,
-      card.updatedAt,
-      card.userId,
-      card
-    );
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId, {
+      kind: "record",
+      card,
+    });
   }
   return null;
 };
