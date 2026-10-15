@@ -26,7 +26,7 @@ interface DomainRule {
   domain: string;
   /** Match the domain itself (or its `www.`) only, never other subdomains. */
   exactHost?: boolean;
-  pathIncludes?: RegExp[];
+  pathIncludes?: Pick<RegExp, "test">[];
   provider?: string;
 }
 
@@ -44,7 +44,7 @@ const HEURISTIC_CONFIDENCE = 0.58;
 const FALLBACK_CONFIDENCE = 0.35;
 
 // First path segments on code hosts that are site pages, not owners.
-const CODE_HOST_RESERVED_SEGMENTS = [
+const CODE_HOST_RESERVED_SEGMENTS = new Set([
   "-",
   "about",
   "account",
@@ -79,13 +79,18 @@ const CODE_HOST_RESERVED_SEGMENTS = [
   "trending",
   "user",
   "users",
-];
+]);
 
 // `/<owner>/<repo>` and anything deeper, unless the owner is a site page.
-const REPO_PATH = new RegExp(
-  `^/(?!(?:${CODE_HOST_RESERVED_SEGMENTS.join("|")})(?:/|$))[^/]+/[^/]+`,
-  "i"
-);
+const OWNER_REPO_PATH = /^\/([^/]+)\/[^/]+/;
+const REPO_PATH: Pick<RegExp, "test"> = {
+  test: (path) => {
+    const owner = OWNER_REPO_PATH.exec(path)?.[1];
+    return Boolean(
+      owner && !CODE_HOST_RESERVED_SEGMENTS.has(owner.toLowerCase())
+    );
+  },
+};
 // sourcehut owners start with `~`.
 const SOURCEHUT_REPO_PATH = /^\/~[^/]+\/[^/]+/;
 const MASTODON_STATUS_PATH = /^\/@[^/]+\/\d+\/?$/;

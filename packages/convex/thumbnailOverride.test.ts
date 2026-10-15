@@ -251,10 +251,9 @@ describe("thumbnail upload URL", () => {
       { cardId, fileSize: 5000, mimeType: "image/png" }
     );
     expect(upload.fileKey).toMatch(
-      new RegExp(
-        `/cards/upload-pending-v2/thumbnail-override-pending/[0-9a-f-]{36}-card-${cardId}$`
-      )
+      /\/cards\/upload-pending-v2\/thumbnail-override-pending\/[0-9a-f-]{36}-card-/
     );
+    expect(upload.fileKey.endsWith(`-card-${cardId}`)).toBe(true);
     const url = new URL(upload.uploadUrl);
     expect(url.searchParams.get("ct")).toBe("image/png");
     expect(url.searchParams.get("sz")).toBe("5000");

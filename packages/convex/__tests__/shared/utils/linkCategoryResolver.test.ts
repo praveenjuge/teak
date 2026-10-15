@@ -530,6 +530,7 @@ describe("newer categories", () => {
   test.each([
     // Site pages and owners on code hosts are not repositories
     ["https://github.com/features/actions", "software"],
+    ["https://github.com/Features/actions", "software"],
     ["https://github.com/pricing", "software"],
     ["https://github.com/orgs/vercel/repositories", "software"],
     ["https://github.com/marketplace/actions/checkout", "software"],
