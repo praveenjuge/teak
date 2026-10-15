@@ -44,6 +44,14 @@ describe("buildSearchSuggestions", () => {
     expect(buildSearchSuggestions("si", sources).completingValue).toBe(false);
   });
 
+  test("price: is offered with its hint", () => {
+    expect(buildSearchSuggestions("pr", sources).suggestions[0]).toMatchObject({
+      insert: "price:",
+      detail: "Price under or over",
+      complete: false,
+    });
+  });
+
   test("a word suggests keys, tags, folders and sites that match", () => {
     expect(inserts("de")).toEqual([
       "tag:design",
@@ -137,6 +145,9 @@ describe("describeQualifierChip", () => {
     ['folder:"Reading list"', "Folder", "Reading list"],
     ["like:j979t50bv7gjxz2mazwwf5tes18gbvnt", "Similar to", "a card"],
     ['mood:"moody brutalist"', "Mood", "“moody brutalist”"],
+    ["price:<100", "Price", "Under 100"],
+    ["price:>=1250.5", "Price", "1,250.5 or more"],
+    ["price:=0", "Price", "Exactly 0"],
   ])("%s", (chip: string, title: string, label: string) => {
     expect(describeQualifierChip(chip)).toMatchObject({ title, label });
   });
@@ -152,5 +163,6 @@ describe("describeQualifierChip", () => {
 
   test("text that is not a qualifier has no chip", () => {
     expect(describeQualifierChip("notes")).toBeNull();
+    expect(describeQualifierChip("price:cheap")).toBeNull();
   });
 });

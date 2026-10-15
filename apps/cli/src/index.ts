@@ -199,7 +199,7 @@ const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder:, like:<id>, mood:"…" and "phrases"'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =) and "phrases"'
     )
     .option("--similar-to <id>", "only the cards closest in meaning to a card")
     .option(

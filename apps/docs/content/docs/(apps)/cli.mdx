@@ -113,7 +113,7 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 
 `teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving.
 
-`teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
+`teak cards get` shows the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 
 `teak content` prints a card's full text: the text Teak extracted from its document (PDF, Word, PowerPoint, text or code), its transcript, or a text card's content, so you can pipe it to other tools. When a document is longer than Teak keeps (the first 500 pages and 524,288 characters), or only its start could be read just now, a note goes to standard error. `--json` prints `{ cardId, kind, text, charCount, truncated }`. A card without text exits with the not-found code.
 
@@ -165,11 +165,12 @@ teak ls --type image --type link --hue blue --date "last month"
 teak search "homepage" --tag design --all --json > cards.json
 ```
 
-The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, and `"quoted phrases"`. Quote the whole search for your shell:
+The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. Quote the whole search for your shell:
 
 ```bash
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
+teak search 'lamp price:>20 price:<100'
 teak search "cozy reading nook" --mode semantic
 teak similar <card-id> --type link
 ```

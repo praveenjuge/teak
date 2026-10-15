@@ -99,6 +99,7 @@ interface CardsQueryOptions {
     archivedInTrash?: boolean;
     folderNames?: string[];
     phrases?: string[];
+    prices?: import("./shared/search/qualifiers").PriceBound[];
     sites?: string[];
     tags?: string[];
   };

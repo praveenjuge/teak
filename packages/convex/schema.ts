@@ -85,6 +85,10 @@ export const linkCategoryMetadataValidator = v.object({
   sourceUrl: v.string(),
   imageUrl: v.optional(v.string()),
   facts: v.optional(v.array(linkCategoryFactValidator)),
+  // A product's price, read from the page; `price:` searches match `amount`.
+  price: v.optional(
+    v.object({ amount: v.number(), currency: v.optional(v.string()) })
+  ),
   raw: v.optional(v.any()),
   rawStorageKey: v.optional(v.string()),
   rawSha256: v.optional(v.string()),

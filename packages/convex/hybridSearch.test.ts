@@ -322,6 +322,81 @@ describe("hybrid search in the grid", () => {
   });
 });
 
+describe("hybrid search with price:", () => {
+  // Meaning matches for "desk lamp": a cheap and a pricey lamp, a lamp with
+  // no price and a priced note; only the cheap lamp is under 100.
+  const seedLamps = async (env: Awaited<ReturnType<typeof setup>>) => {
+    const product = (content: string, price?: number) =>
+      env.t.run(async (ctx) => {
+        const url = `https://shop.example/${content.replace(/\s+/g, "-")}`;
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "link",
+          content,
+          url,
+          metadata: {
+            linkCategory: {
+              category: "product",
+              fetchedAt: 1,
+              sourceUrl: url,
+              ...(price === undefined ? {} : { price: { amount: price } }),
+            },
+          },
+          createdAt: 2000 + (price ?? 0),
+          updatedAt: 2000,
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+        return id;
+      });
+    const cheap = await product("Brass task light", 40);
+    const pricey = await product("Designer task light", 400);
+    const unpriced = await product("Task light kit");
+    const keyword = await product("Desk lamp clamp", 25);
+    const note = await env.insert({ content: "Light for my desk" });
+    const ranking = await env.cache("desk lamp", [
+      { id: cheap, score: STRONG },
+      { id: pricey, score: STRONG },
+      { id: unpriced, score: STRONG },
+      { id: note, score: STRONG },
+    ]);
+    return { cheap, pricey, unpriced, keyword, note, ranking };
+  };
+
+  test("embeds only the words, and drops meaning matches outside the bound", async () => {
+    const env = await setup();
+    const lamps = await seedLamps(env);
+    // The cached ranking is keyed by the words alone, so the bound neither
+    // changes what is embedded nor hides the meaning matches.
+    expect(await env.grid({ searchQuery: "desk lamp price:<100" })).toEqual([
+      lamps.cheap,
+      lamps.keyword,
+    ]);
+    expect(
+      await env.grid({ searchQuery: "desk lamp price:<100", mode: "semantic" })
+    ).toEqual([lamps.cheap]);
+    expect(await env.grid({ searchQuery: "desk lamp price:>100" })).toEqual([
+      lamps.pricey,
+    ]);
+  });
+
+  test("the API drops meaning matches outside the bound", async () => {
+    const env = await setup();
+    const lamps = await seedLamps(env);
+    const page = await env.t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      searchQuery: "desk lamp",
+      type: "link",
+      prices: [{ op: "<", amount: 100 }],
+      semanticRanking: lamps.ranking,
+      limit: 10,
+    });
+    expect(page.items.map((card: { _id: string }) => card._id)).toEqual([
+      lamps.cheap,
+      lamps.keyword,
+    ]);
+  });
+});
+
 describe("hybrid search in the API", () => {
   const pageArgs = (
     semanticRanking: { cardId: Id<"cards">; score: number }[] | undefined,

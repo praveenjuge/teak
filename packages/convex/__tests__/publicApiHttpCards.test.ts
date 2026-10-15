@@ -140,6 +140,13 @@ describe("publicApiHttp card endpoints", () => {
               author: "Author",
               raw: { secret: "hidden" },
             },
+            linkCategory: {
+              category: "product",
+              fetchedAt: 1,
+              sourceUrl: "https://example.com",
+              price: { amount: 24.99, currency: "USD" },
+              raw: { secret: "hidden" },
+            },
           },
         },
       ],
@@ -172,6 +179,7 @@ describe("publicApiHttp card endpoints", () => {
     ]);
     expect(item.linkSiteName).toBe("Example");
     expect(item.linkAuthor).toBe("Author");
+    expect(item.linkPrice).toEqual({ amount: 24.99, currency: "USD" });
     expect(JSON.stringify(item)).not.toContain("secret");
     expect(JSON.stringify(item)).not.toContain("storageKey");
   });
@@ -237,9 +245,56 @@ describe("publicApiHttp card endpoints", () => {
     expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
   });
 
+  test("listCardsV1 reads price: bounds in q and narrows to links", async () => {
+    const runQuery = mock().mockResolvedValue({
+      itemCursors: [],
+      items: [],
+      nextCursor: null,
+      scannedRows: 0,
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?q=${encodeURIComponent("price:>20 price:<=100")}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      type: "link",
+      prices: [
+        { op: ">", amount: 20 },
+        { op: "<=", amount: 100 },
+      ],
+      scanLimit: expect.any(Number),
+    });
+    expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
+  });
+
+  test("listCardsV1 searches the words beside a price: bound", async () => {
+    const runQuery = mock().mockResolvedValue({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?mode=keyword&q=${encodeURIComponent("desk lamp price:<50")}`
+      )
+    );
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      searchQuery: "desk lamp",
+      type: "link",
+      prices: [{ op: "<", amount: 50 }],
+    });
+  });
+
   test.each([
     ["type:text", "type=link"],
     ["is:archived", "archived=exclude"],
+    ["price:<50", "type=image"],
+    ["price:<50 type:text", "limit=5"],
   ])("listCardsV1 answers %s with %s with no cards", async (q, param) => {
     const runQuery = mock();
     const response = await runHandler(
@@ -631,6 +686,7 @@ describe("publicApiHttp card endpoints", () => {
     ]);
     expect(card.linkSiteName).toBe("Example");
     expect(card.linkPublishedAt).toBe("2026-09-23");
+    expect(card.linkPrice).toBeNull();
     expect(JSON.stringify(card)).not.toContain("secret");
   });
 

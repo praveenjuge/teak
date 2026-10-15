@@ -149,6 +149,48 @@ describe("enrichAmazon", () => {
       currency: "USD",
     });
   });
+
+  it.each([
+    // [store, price text, og:price:currency, expected]
+    ["amazon.com", "$24.99", undefined, { amount: 24.99, currency: "USD" }],
+    ["amazon.de", "1.299,00 €", "EUR", { amount: 1299, currency: "EUR" }],
+    [
+      "amazon.co.jp",
+      "￥1,299,999",
+      undefined,
+      { amount: 1_299_999, currency: "JPY" },
+    ],
+    ["amazon.in", "₹2,499.00", "INR", { amount: 2499, currency: "INR" }],
+    ["amazon.ca", "$15.00", "CAD", { amount: 15, currency: "CAD" }],
+  ])(
+    "returns the structured price on %s",
+    (_store, text, currency, expected) => {
+      const map = createMap([
+        [".a-price .a-offscreen", { text }],
+        ...(currency
+          ? [
+              [
+                "meta[property='og:price:currency']",
+                { attributes: [{ name: "content", value: currency }] },
+              ] as [string, { attributes: { name: string; value: string }[] }],
+            ]
+          : []),
+      ]);
+      expect(enrichAmazon(map)?.price).toEqual(expected);
+    }
+  );
+
+  it("has no structured price when the text has no amount", () => {
+    const map = createMap([
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+    expect(result?.facts?.[0]?.value).toBe("USD");
+    expect(result?.price).toBeUndefined();
+  });
 });
 
 describe("enrichGithub", () => {

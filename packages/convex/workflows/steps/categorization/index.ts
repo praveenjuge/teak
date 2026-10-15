@@ -6,6 +6,8 @@ import {
   type LinkCategory,
   type LinkCategoryDetail,
   type LinkCategoryMetadata,
+  type LinkPrice,
+  parseStructuredPrice,
   resolveLinkCategory,
 } from "@teak/convex/shared";
 import { v } from "convex/values";
@@ -336,6 +338,7 @@ export const enrichLinkCategory = async (
     ? await fetchStructuredData(sourceUrl)
     : (providedStructured ?? null);
 
+  let structuredPrice: LinkPrice | undefined;
   if (structured?.entities?.length) {
     const enriched = enrichWithStructuredData(
       classification.category,
@@ -346,13 +349,20 @@ export const enrichLinkCategory = async (
         imageUrl = enriched.imageUrl;
       }
       mergeFacts(facts, enriched.facts);
+      structuredPrice = enriched.price;
       raw = {
         ...(raw ?? {}),
         structured: enriched.raw,
         structuredMeta: structured?.meta,
       };
     }
+  } else if (classification.category === "product" && raw?.structured) {
+    // JSON-LD read on an earlier pass and not fetched again.
+    structuredPrice = parseStructuredPrice(raw.structured) ?? undefined;
   }
+
+  // The page's JSON-LD states the price more reliably than its selectors.
+  const price = structuredPrice ?? providerEnrichment?.price;
 
   const metadata: LinkCategoryMetadata = {
     category: classification.category,
@@ -368,6 +378,9 @@ export const enrichLinkCategory = async (
   }
   if (facts.length > 0) {
     metadata.facts = facts;
+  }
+  if (price) {
+    metadata.price = price;
   }
 
   return metadata;

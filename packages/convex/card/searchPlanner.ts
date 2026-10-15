@@ -3,8 +3,10 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
   combineSearchQueries,
+  matchesPriceBounds,
   matchesSearchPhrases,
   type ParsedSearchQuery,
+  type PriceBound,
 } from "../shared/search/qualifiers";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import type { ArchivedFilter } from "./listQuery";
@@ -47,6 +49,8 @@ export interface ResolvedSearch {
   phrases: string[];
   /** `like:` or `mood:`: the search lists meaning matches only. */
   similarity: ParsedSearchQuery["similarity"];
+  /** `price:` bounds a card's link price must all meet. */
+  prices: PriceBound[];
   /** Normalized hosts; a card on any of them matches. */
   sites: string[];
   /** Lowercase tags a card must all carry; the first can drive the read. */
@@ -133,9 +137,9 @@ export const expandFolderSearch = async (
 
 /**
  * Merges a parsed search into a view's filters: `type:` narrows the view's
- * types, `is:fav` turns on favorites, `is:archived` reads Archive (or the
- * archived cards in Trash), and `folder:` names resolve to the user's
- * folders. The server re-reads every search this way and never trusts a
+ * types, `price:` narrows them to links, `is:fav` turns on favorites,
+ * `is:archived` reads Archive (or the archived cards in Trash), and
+ * `folder:` names resolve to the user's folders. The server re-reads every search this way and never trusts a
  * client's chips.
  */
 export const resolveSearch = async (
@@ -154,6 +158,13 @@ export const resolveSearch = async (
     if (types.length === 0) {
       return null;
     }
+  }
+  // Only links have a price.
+  if (parsed.prices.length > 0) {
+    if (types && !types.includes("link")) {
+      return null;
+    }
+    types = ["link"];
   }
 
   // `mood:` reads images only.
@@ -194,7 +205,7 @@ export const resolveSearch = async (
   const tags = Array.from(
     new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
   ).filter(Boolean);
-  const { sites, phrases } = parsed;
+  const { sites, phrases, prices } = parsed;
 
   const matches = (card: Doc<"cards">, searchableText?: string) => {
     if (card.userId !== userId) {
@@ -222,6 +233,11 @@ export const resolveSearch = async (
         return false;
       }
     }
+    if (
+      !matchesPriceBounds(card.metadata?.linkCategory?.price?.amount, prices)
+    ) {
+      return false;
+    }
     return matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
       phrases
@@ -237,10 +253,12 @@ export const resolveSearch = async (
       folderIds.length > 1 ||
       tags.length > 1 ||
       sites.length > 0 ||
-      phrases.length > 0,
+      phrases.length > 0 ||
+      prices.length > 0,
     matches,
     phrases,
     similarity: parsed.similarity ?? null,
+    prices,
     sites,
     tags,
     text: parsed.text,

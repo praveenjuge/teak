@@ -1,3 +1,5 @@
+import type { LinkPrice } from "./price";
+
 export const LINK_CATEGORIES = [
   "book",
   "movie",
@@ -67,6 +69,8 @@ export interface LinkCategoryMetadata {
   facts?: LinkCategoryDetail[];
   fetchedAt: number;
   imageUrl?: string;
+  /** A product's price, from JSON-LD or the provider's page selectors. */
+  price?: LinkPrice;
   raw?: Record<string, unknown>;
   rawHasStructured?: boolean;
   rawSha256?: string;

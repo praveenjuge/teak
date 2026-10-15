@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   combineSearchQueries,
+  describePriceBound,
   formatSearchQualifier,
+  matchesPriceBounds,
   matchesSearchPhrases,
   parseSearchQuery,
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
+import { semanticQueryText } from "../../../shared/search/semantic";
 
 describe("parseSearchQuery", () => {
   test("reads every qualifier, phrases and words", () => {
@@ -128,6 +131,57 @@ describe("parseSearchQuery", () => {
     ).toBe('is:fav site:例え.jp tag:design "a b" notes');
   });
 
+  test.each([
+    // [input, prices, canonical]
+    ["price:<100", [{ op: "<", amount: 100 }], "price:<100"],
+    ["PRICE:>20", [{ op: ">", amount: 20 }], "price:>20"],
+    ["price:<=9.99", [{ op: "<=", amount: 9.99 }], "price:<=9.99"],
+    ["price:>=010.50", [{ op: ">=", amount: 10.5 }], "price:>=10.5"],
+    ["price:=0", [{ op: "=", amount: 0 }], "price:=0"],
+    ['price:"<50"', [{ op: "<", amount: 50 }], "price:<50"],
+    ["price:<50,", [{ op: "<", amount: 50 }], "price:<50"],
+    [
+      "price:>20 price:<100 price:>20",
+      [
+        { op: ">", amount: 20 },
+        { op: "<", amount: 100 },
+      ],
+      "price:>20 price:<100",
+    ],
+  ])(
+    "reads %p as price bounds",
+    (input: string, prices: unknown, canonical: string) => {
+      const parsed = parseSearchQuery(input);
+      expect(parsed.prices).toEqual(prices as typeof parsed.prices);
+      expect(parsed.terms).toEqual([]);
+      expect(parsed.canonical).toBe(canonical);
+      expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
+    }
+  );
+
+  test.each([
+    "price:abc",
+    "price:<",
+    "price:<1e9",
+    "price:<-5",
+    "price:100",
+    "price:<$50",
+    "price:<1,000",
+    "price:=<5",
+  ])("%p stays a plain word", (input: string) => {
+    const parsed = parseSearchQuery(input);
+    expect(parsed.prices).toEqual([]);
+    expect(parsed.qualifiers).toEqual([]);
+    expect(parsed.terms).toEqual([input]);
+  });
+
+  test("a price bound is a filter, not words to search by meaning", () => {
+    const parsed = parseSearchQuery("desk lamp price:<50");
+    expect(parsed.text).toBe("desk lamp");
+    expect(semanticQueryText(parsed)).toBe("desk lamp");
+    expect(semanticQueryText(parseSearchQuery("price:<50"))).toBe("");
+  });
+
   test("an empty search parses to nothing", () => {
     expect(parseSearchQuery("   ")).toMatchObject({
       qualifiers: [],
@@ -169,6 +223,11 @@ describe("combineSearchQueries", () => {
     ["site:a.com site:b.com", "site:B.com", "site:b.com"],
     ["type:link", "site:a.com", "type:link site:a.com"],
     ["tag:x tag:x", "#X", "tag:x"],
+    // Price bounds add up, so a smart folder's bound and a typed one make
+    // a range.
+    ["price:<100", "price:>20", "price:<100 price:>20"],
+    ["price:<100", "price:<100 lamp", "price:<100 lamp"],
+    ["type:link price:<100", "", "price:<100 type:link"],
   ])("%j with %j", (scope: string, typed: string, combined: string) => {
     expect(combineSearchQueries(scope, typed)).toBe(combined);
   });
@@ -189,6 +248,41 @@ describe("combineSearchQueries", () => {
       tags: ["a b"],
       phrases: ['say "hi"'],
     });
+  });
+});
+
+describe("matchesPriceBounds", () => {
+  const bounds = parseSearchQuery("price:>20 price:<=100").prices;
+  test.each([
+    [20, false],
+    [20.01, true],
+    [100, true],
+    [100.01, false],
+    [undefined, false],
+    [null, false],
+  ])(
+    "amount %p in (20, 100]: %p",
+    (amount: number | null | undefined, expected: boolean) => {
+      expect(matchesPriceBounds(amount, bounds)).toBe(expected);
+    }
+  );
+
+  test("= matches the amount exactly, and no bounds match anything", () => {
+    const exact = parseSearchQuery("price:=0").prices;
+    expect(matchesPriceBounds(0, exact)).toBe(true);
+    expect(matchesPriceBounds(0.5, exact)).toBe(false);
+    expect(matchesPriceBounds(undefined, [])).toBe(true);
+  });
+
+  test.each([
+    ["price:<100", "Under 100"],
+    ["price:>1500", "Over 1,500"],
+    ["price:<=9.99", "9.99 or less"],
+    ["price:>=10", "10 or more"],
+    ["price:=0", "Exactly 0"],
+  ])("%p reads as %p", (query: string, label: string) => {
+    const [bound] = parseSearchQuery(query).prices;
+    expect(bound && describePriceBound(bound)).toBe(label);
   });
 });
 

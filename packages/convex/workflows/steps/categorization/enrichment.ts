@@ -1,4 +1,9 @@
-import type { LinkCategory, LinkCategoryDetail } from "@teak/convex/shared";
+import {
+  type LinkCategory,
+  type LinkCategoryDetail,
+  type LinkPrice,
+  parseStructuredPrice,
+} from "@teak/convex/shared";
 import {
   formatDate,
   type ProviderEnrichmentResult,
@@ -256,6 +261,7 @@ export const enrichWithStructuredData = (
   let imageUrl: string | undefined;
   const facts: LinkCategoryDetail[] = [];
   let raw: Record<string, unknown> | undefined;
+  let price: LinkPrice | undefined;
 
   const applyImage = (entity: any) => {
     if (!imageUrl) {
@@ -404,6 +410,7 @@ export const enrichWithStructuredData = (
         addFact("Price", `${product.offers.price} ${currency}`.trim());
       }
       addFact("Brand", valueToText(product.brand));
+      price = parseStructuredPrice(product) ?? undefined;
       raw = pickFields(product, STRUCTURED_DATA_FIELDS);
       break;
     }
@@ -528,6 +535,7 @@ export const enrichWithStructuredData = (
   return {
     imageUrl,
     facts: facts.length > 0 ? facts : undefined,
+    ...(price ? { price } : {}),
     raw,
   };
 };

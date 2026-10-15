@@ -41,6 +41,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "./shared/folders";
+import { isLinkPrice } from "./shared/price";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import {
   combineSearchQueries,
@@ -68,6 +69,11 @@ const getCardAppUrl = (requestUrl: string, cardId: string): string => {
   return appUrl.toString();
 };
 
+const serializeLinkPrice = (price: unknown) =>
+  isLinkPrice(price)
+    ? { amount: price.amount, currency: price.currency ?? null }
+    : null;
+
 const serializeDisplayMetadata = (card: any) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
@@ -80,6 +86,7 @@ const serializeDisplayMetadata = (card: any) => ({
       })
     ) ?? [],
   linkPreviewTitle: card.metadata?.linkPreview?.title ?? null,
+  linkPrice: serializeLinkPrice(card.metadata?.linkCategory?.price),
   linkFaviconUrl: card.metadata?.linkPreview?.faviconUrl ?? null,
   fileWidth: card.fileMetadata?.width ?? null,
   fileHeight: card.fileMetadata?.height ?? null,
@@ -581,6 +588,12 @@ const parseCardsQueryOptions = (
       : parsed.types;
     matchesNothing = resolvedTypes.length === 0;
   }
+  // `price:` narrows to links: only they have a price.
+  if (parsed.prices.length > 0) {
+    matchesNothing ||=
+      resolvedTypes.length > 0 && !resolvedTypes.includes("link");
+    resolvedTypes = ["link"];
+  }
   // `mood:` reads images only.
   if (parsed.similarity?.kind === "mood") {
     resolvedTypes = resolvedTypes.length
@@ -616,6 +629,7 @@ const parseCardsQueryOptions = (
             archivedInTrash: trashed === true && parsed.archived,
             folderNames: parsed.folders,
             phrases: parsed.phrases,
+            prices: parsed.prices,
             sites: parsed.sites,
             tags: tags.slice(1),
           },

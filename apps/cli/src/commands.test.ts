@@ -173,6 +173,35 @@ describe("teak cards", () => {
     expect(result.stdout).toContain("notes: remember this");
     expect(result.stdout).toContain("tags: design, cli");
     expect(result.stdout).toContain("Content of card_a");
+    expect(result.stdout).not.toContain("price:");
+  });
+
+  test("get prints a product's price in its currency, or the bare amount", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", {
+          type: "link",
+          url: "https://www.amazon.de/dp/1",
+          linkPrice: { amount: 1299, currency: "EUR" },
+        })
+      )
+    );
+    routes.set("GET /v1/cards/card_b", () =>
+      json(
+        card("card_b", {
+          type: "link",
+          url: "https://shop.example/thing",
+          linkPrice: { amount: 24.5, currency: null },
+        })
+      )
+    );
+
+    const euro = await teak("cards", "get", "card_a");
+    const bare = await teak("cards", "get", "card_b");
+
+    expect(euro.code).toBe(0);
+    expect(euro.stdout).toContain("price: €1,299.00");
+    expect(bare.stdout).toContain("price: 24.5");
   });
 
   test("delete moves every id to trash and says so", async () => {

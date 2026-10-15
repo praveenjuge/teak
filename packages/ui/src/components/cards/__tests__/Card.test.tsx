@@ -328,6 +328,60 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain(">example.com<");
   });
 
+  const pricedLink = (
+    price: { amount: number; currency?: string } | undefined,
+    withImage = true
+  ) =>
+    linkWithPreview({
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "Desk lamp",
+          ...(withImage ? { imageWidth: 1200, imageHeight: 630 } : {}),
+        },
+        linkCategory: {
+          category: "product",
+          fetchedAt: 1,
+          sourceUrl: "https://www.example.com/story",
+          ...(price ? { price } : {}),
+        },
+      },
+      ...(withImage ? {} : { linkPreviewImageUrl: undefined }),
+    });
+
+  test.each([
+    [{ amount: 24.99, currency: "USD" }, "$24.99"],
+    [{ amount: 1299, currency: "EUR" }, "€1,299.00"],
+    [{ amount: 1_299_999, currency: "JPY" }, "¥1,299,999"],
+    [{ amount: 0, currency: "USD" }, "Free"],
+    [{ amount: 12.5 }, "12.5"],
+    [{ amount: 7, currency: "NOTACODE" }, "7"],
+  ])("tags a product tile's image with its price %#", (price, label) => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(price) as any} />
+    );
+    expect(markup).toContain(`>${label}</span>`);
+  });
+
+  test("shows no price tag on a link without a price", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(undefined) as any} />
+    );
+    expect(markup).toContain("Desk lamp");
+    expect(markup).not.toContain("$");
+    expect(markup).not.toContain("Free");
+  });
+
+  test("puts the price beside the title when the tile has no image", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={pricedLink({ amount: 24.99, currency: "USD" }, false) as any}
+      />
+    );
+    expect(markup).not.toContain("og.jpg");
+    expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
+  });
+
   test("offers open, favorite and more actions on an active card", () => {
     const markup = renderToStaticMarkup(
       <Card

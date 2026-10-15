@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
@@ -457,6 +458,17 @@ export const Card = memo(function Card({
     card.type === "link" ? getDisplayHostname(card.url) : undefined;
   const linkDescription =
     linkPreview?.description || card.metadataDescription || card.aiSummary;
+  const storedPrice = card.metadata?.linkCategory?.price;
+  const priceLabel =
+    card.type === "link" && isLinkPrice(storedPrice)
+      ? formatLinkPrice(storedPrice)
+      : undefined;
+  // Frosted so it reads over light and dark images; long amounts truncate.
+  const pricePill = priceLabel ? (
+    <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
+      {priceLabel}
+    </span>
+  ) : null;
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
@@ -538,7 +550,7 @@ export const Card = memo(function Card({
         return (
           <div className={cn(CARD_SURFACE, "overflow-hidden")}>
             <div
-              className="w-full overflow-hidden border-b bg-muted"
+              className="relative w-full overflow-hidden border-b bg-muted"
               style={{
                 aspectRatio: Math.min(
                   Math.max(
@@ -561,6 +573,7 @@ export const Card = memo(function Card({
                     : undefined
                 }
               />
+              {pricePill}
             </div>
             {linkFooter}
           </div>
@@ -573,7 +586,7 @@ export const Card = memo(function Card({
           : primaryLinkImageKey;
         return (
           <div className={cn(CARD_SURFACE, "overflow-hidden")}>
-            <div className="h-32 min-h-32 overflow-hidden border-b bg-muted">
+            <div className="relative h-32 min-h-32 overflow-hidden border-b bg-muted">
               <ResilientMediaImage
                 alt={linkCardTitle}
                 cardId={card._id}
@@ -584,6 +597,7 @@ export const Card = memo(function Card({
                   typeof legacyKey === "string" ? legacyKey : undefined
                 }
               />
+              {pricePill}
             </div>
             {linkFooter}
           </div>
@@ -600,6 +614,11 @@ export const Card = memo(function Card({
                 ? linkCardTitle.replace(/^https?:\/\/(www\.)?/, "")
                 : linkCardTitle}
             </p>
+            {priceLabel && (
+              <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
+                {priceLabel}
+              </span>
+            )}
           </div>
           {linkDescription && !titleIsUrl && (
             <p

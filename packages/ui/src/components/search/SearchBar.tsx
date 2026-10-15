@@ -21,6 +21,7 @@ import { cn } from "@teak/ui/lib/utils";
 import {
   Aperture,
   Archive,
+  Banknote,
   CircleSlash,
   Clock,
   Droplets,
@@ -151,6 +152,7 @@ export const QUALIFIER_ICONS = {
   is: Star,
   like: Sparkles,
   mood: Aperture,
+  price: Banknote,
 } as const;
 
 const suggestionIcon = (suggestion: SearchSuggestion) => {

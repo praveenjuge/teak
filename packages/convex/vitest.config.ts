@@ -62,6 +62,7 @@ export default defineConfig({
       "./mediaColorsBackfill.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./linkPriceBackfill.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",
       "./importArchiveV2.test.ts",

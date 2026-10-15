@@ -394,6 +394,192 @@ describe("search qualifiers", () => {
   });
 });
 
+const productMetadata = (
+  url: string,
+  price?: { amount: number; currency?: string }
+) => ({
+  linkCategory: {
+    category: "product" as const,
+    fetchedAt: 1,
+    sourceUrl: url,
+    ...(price ? { price } : {}),
+  },
+});
+
+describe("price:", () => {
+  const seedProducts = async (
+    insert: Awaited<ReturnType<typeof setup>>["insert"]
+  ) => {
+    const product = (
+      content: string,
+      price?: { amount: number; currency?: string },
+      extra: Partial<Doc<"cards">> = {}
+    ) => {
+      const url = `https://shop.example/${encodeURIComponent(content)}`;
+      return insert({
+        content,
+        url,
+        metadata: productMetadata(url, price),
+        ...extra,
+      });
+    };
+    await product("Cheap lamp", { amount: 9.99, currency: "USD" });
+    await product("Desk lamp", { amount: 49.5, currency: "EUR" });
+    await product("Floor lamp", { amount: 120, currency: "GBP" });
+    await product("Free lamp sticker", { amount: 0 });
+    await product("Lamp without a price");
+    await product(
+      "Archived lamp",
+      { amount: 10, currency: "USD" },
+      { isArchived: true }
+    );
+    // A text card with a price in its metadata is still not a product.
+    await insert({
+      content: "Lamp shopping note",
+      metadata: productMetadata("https://x.example", { amount: 5 }),
+    });
+  };
+
+  test("bounds compare the amount in any currency and add up to a range", async () => {
+    const { insert, search } = await setup();
+    await seedProducts(insert);
+    expect(await search("price:<50")).toEqual([
+      "Free lamp sticker",
+      "Desk lamp",
+      "Cheap lamp",
+    ]);
+    expect(await search("price:>20 price:<=120")).toEqual([
+      "Floor lamp",
+      "Desk lamp",
+    ]);
+    expect(await search("price:=0")).toEqual(["Free lamp sticker"]);
+    expect(await search("price:<100 price:>200")).toEqual([]);
+    expect(await search("price:<50 is:archived")).toEqual(["Archived lamp"]);
+    expect(await search("price:<50", { sort: "oldest" })).toEqual([
+      "Cheap lamp",
+      "Desk lamp",
+      "Free lamp sticker",
+    ]);
+  });
+
+  test("a card without a price never matches, and words narrow the bound", async () => {
+    const { insert, search } = await setup();
+    await seedProducts(insert);
+    expect(await search("lamp price:>=0")).toEqual([
+      "Free lamp sticker",
+      "Floor lamp",
+      "Desk lamp",
+      "Cheap lamp",
+    ]);
+    expect(await search("desk price:<100")).toEqual(["Desk lamp"]);
+    expect(await search("price:<100", { types: ["text"] })).toEqual([]);
+    expect(await search("price:<100 type:text")).toEqual([]);
+    // A malformed bound is a word no card holds.
+    expect(await search("price:cheap")).toEqual([]);
+  });
+
+  test("a bound pages through more cards than one batch", async () => {
+    const { insert, search } = await setup();
+    const url = "https://shop.example/oldest";
+    await insert({
+      content: "oldest match",
+      url,
+      metadata: productMetadata(url, { amount: 5 }),
+    });
+    for (let index = 0; index < 230; index += 1) {
+      const noiseUrl = `https://noise.example/${index}`;
+      await insert({
+        content: `noise ${index}`,
+        url: noiseUrl,
+        metadata: productMetadata(noiseUrl, { amount: 500 + index }),
+      });
+    }
+    const newestUrl = "https://shop.example/newest";
+    await insert({
+      content: "newest match",
+      url: newestUrl,
+      metadata: productMetadata(newestUrl, { amount: 7 }),
+    });
+    expect(await search("price:<10")).toEqual(["newest match", "oldest match"]);
+  });
+
+  test("a smart folder's bound and a typed one make a range", async () => {
+    const { owner, insert, search } = await setup();
+    await seedProducts(insert);
+    const folder = await owner.mutation(api.folders.createFolder, {
+      name: "Under 100",
+      kind: "smart",
+      query: "price:<100",
+    });
+    expect(await search("", { folderId: folder._id })).toEqual([
+      "Free lamp sticker",
+      "Desk lamp",
+      "Cheap lamp",
+    ]);
+    expect(await search("price:>20", { folderId: folder._id })).toEqual([
+      "Desk lamp",
+    ]);
+  });
+
+  test("another user's priced cards never match", async () => {
+    const { insert, search, stranger } = await setup();
+    const url = "https://shop.example/theirs";
+    await insert(
+      {
+        content: "Their lamp",
+        url,
+        metadata: productMetadata(url, { amount: 1 }),
+      },
+      "stranger"
+    );
+    expect(await search("price:<10")).toEqual([]);
+    expect(await search("price:<10", {}, stranger)).toEqual(["Their lamp"]);
+  });
+
+  test("the API's search and scan pages take the bounds", async () => {
+    const { t, insert, runScheduled } = await setup();
+    await seedProducts(insert);
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    const prices = [
+      { op: ">" as const, amount: 5 },
+      { op: "<" as const, amount: 100 },
+    ];
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "lamp",
+          type: "link",
+          prices,
+        })
+      )
+    ).toEqual(["Desk lamp", "Cheap lamp"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          type: "link",
+          prices,
+        })
+      )
+    ).toEqual(["Desk lamp", "Cheap lamp"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          type: "link",
+          prices,
+        })
+      ).sort()
+    ).toEqual(["Cheap lamp", "Desk lamp"]);
+  });
+});
+
 describe("listTopSites", () => {
   test("counts recent links by host, most saved first", async () => {
     const { owner, stranger, insert } = await setup();

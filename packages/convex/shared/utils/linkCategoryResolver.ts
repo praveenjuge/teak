@@ -51,6 +51,13 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "amazon.com", category: "product", provider: "amazon" },
   { domain: "amazon.co.uk", category: "product", provider: "amazon" },
   { domain: "amazon.in", category: "product", provider: "amazon" },
+  { domain: "amazon.de", category: "product", provider: "amazon" },
+  { domain: "amazon.fr", category: "product", provider: "amazon" },
+  { domain: "amazon.it", category: "product", provider: "amazon" },
+  { domain: "amazon.es", category: "product", provider: "amazon" },
+  { domain: "amazon.ca", category: "product", provider: "amazon" },
+  { domain: "amazon.com.au", category: "product", provider: "amazon" },
+  { domain: "amazon.co.jp", category: "product", provider: "amazon" },
   {
     domain: "dribbble.com",
     category: "design_portfolio",
