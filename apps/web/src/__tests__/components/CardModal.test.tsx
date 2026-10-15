@@ -1,42 +1,42 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import type { CardModalCard } from "@teak/ui/card-modal";
 import { ConnectedCardModal as CardModal } from "@teak/ui/card-modal";
-import React from "react";
+import React, { type ReactNode } from "react";
 
-// Mock Dialog component
+interface MockProps {
+  children?: ReactNode;
+  className?: string;
+  hasUnsavedChanges?: boolean;
+  isSaved?: boolean;
+  open?: boolean;
+}
+
 mock.module("@teak/ui/components/ui/dialog", () => ({
-  Dialog: ({ children, open, onOpenChange: _onOpenChange }: any) =>
+  Dialog: ({ children, open }: MockProps) =>
     React.createElement(
       "div",
       { className: "dialog", open, "data-state": open ? "open" : "closed" },
       children
     ),
-  DialogContent: ({ children, className }: any) =>
+  DialogContent: ({ children, className }: MockProps) =>
     React.createElement(
       "div",
       { className, "data-dialog-content": "" },
       children
     ),
-  DialogTitle: ({ children, className }: any) =>
+  DialogTitle: ({ children, className }: MockProps) =>
     React.createElement("h2", { className }, children),
-  DialogDescription: ({ children, className }: any) =>
+  DialogDescription: ({ children, className }: MockProps) =>
     React.createElement("p", { className }, children),
 }));
 
-// Mock Loading component
 mock.module("../../components/Loading", () => ({
   Loading: () => React.createElement("div", { className: "loading-spinner" }),
 }));
 
-// Mock card modal components
 mock.module("../../components/card-modal/CardModalPreview", () => ({
-  CardModalPreview: ({
-    card: _card,
-    hasUnsavedChanges,
-    isSaved,
-    saveChanges: _saveChanges,
-  }: any) =>
+  CardModalPreview: ({ hasUnsavedChanges, isSaved }: MockProps) =>
     React.createElement("div", {
       "data-preview": "",
       "data-unsaved": hasUnsavedChanges,
@@ -45,16 +45,13 @@ mock.module("../../components/card-modal/CardModalPreview", () => ({
 }));
 
 mock.module("../../components/card-modal/CardMetadataPanel", () => ({
-  CardMetadataPanel: ({ card: _card, actions: _actions }: any) =>
-    React.createElement("div", { "data-metadata": "" }),
+  CardMetadataPanel: () => React.createElement("div", { "data-metadata": "" }),
 }));
 
 mock.module("../../components/card-modal/CardModalOverlays", () => ({
-  CardModalOverlays: ({ card: _card }: any) =>
-    React.createElement("div", { "data-overlays": "" }),
+  CardModalOverlays: () => React.createElement("div", { "data-overlays": "" }),
 }));
 
-// Mock useCardModal hook
 mock.module("../../hooks/useCardModal", () => ({
   useCardModal: mock(() => ({
     card: null,
@@ -74,15 +71,15 @@ mock.module("../../hooks/useCardModal", () => ({
     handleCardTypeClick: mock(),
     saveChanges: mock(),
     hasUnsavedChanges: false,
-    getCurrentValue: mock((field) => `value-${field}`),
+    getCurrentValue: mock((field: string) => `value-${field}`),
     isSaved: false,
   })),
 }));
 
 describe("CardModal Component", () => {
-  let mockOnCancel: any;
-  let mockOnCardTypeClick: any;
-  let mockOnTagClick: any;
+  let mockOnCancel: ReturnType<typeof mock>;
+  let mockOnCardTypeClick: ReturnType<typeof mock>;
+  let mockOnTagClick: ReturnType<typeof mock>;
 
   beforeEach(() => {
     mockOnCancel = mock();
@@ -91,9 +88,9 @@ describe("CardModal Component", () => {
   });
 
   const createMockCard = (): CardModalCard => ({
-    _id: "test-card-id",
+    _id: "test-card-id" as Id<"cards">,
     _creationTime: Date.now(),
-    userId: "user-123" as any,
+    userId: "user-123",
     content: "Test card content",
     type: "text",
     createdAt: Date.now(),
@@ -451,7 +448,7 @@ describe("CardModal Component", () => {
     test("enables download for image cards with fileKey", () => {
       const card = createMockCard();
       card.type = "image";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -465,7 +462,7 @@ describe("CardModal Component", () => {
     test("enables download for video cards with fileKey", () => {
       const card = createMockCard();
       card.type = "video";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -479,7 +476,7 @@ describe("CardModal Component", () => {
     test("enables download for audio cards with fileKey", () => {
       const card = createMockCard();
       card.type = "audio";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -493,7 +490,7 @@ describe("CardModal Component", () => {
     test("enables download for document cards with fileKey", () => {
       const card = createMockCard();
       card.type = "document";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -520,7 +517,7 @@ describe("CardModal Component", () => {
     test("disables download for text cards", () => {
       const card = createMockCard();
       card.type = "text";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",
@@ -534,7 +531,7 @@ describe("CardModal Component", () => {
     test("disables download for link cards", () => {
       const card = createMockCard();
       card.type = "link";
-      card.fileKey = "file-key" as any;
+      card.fileKey = "file-key";
       expect(() => {
         React.createElement(CardModal, {
           cardId: "card-id",

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-// Never server-rendered: the component only reads browser-only APIs.
 export const client = "only";
 
 interface PageTool {

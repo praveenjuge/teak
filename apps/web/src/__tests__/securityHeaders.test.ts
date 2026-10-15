@@ -4,9 +4,6 @@ import {
   staticSecurityHeaders,
 } from "../lib/security-headers";
 
-// Ambient environment, matching what staticSecurityHeaders embeds; the policy
-// is environment-dependent (unsafe-eval in development, http upgrades only in
-// production), so the prod-shaped assertions below pin the non-varying parts.
 const contentSecurityPolicy = buildContentSecurityPolicy();
 
 const headers = new Map(
@@ -35,7 +32,6 @@ describe("web security headers", () => {
     expect(directiveTokens("img-src")).toContain("https://*.gstatic.com");
     expect(directiveTokens("img-src")).not.toContain("https:");
     expect(directiveTokens("script-src")).toContain("'self'");
-    // Analytics and replay load through the same-origin /ingest proxy only.
     for (const directive of ["script-src", "connect-src"]) {
       expect(
         directiveTokens(directive).filter((token) =>
@@ -56,7 +52,6 @@ describe("web security headers", () => {
       "https://*.r2.cloudflarestorage.com"
     );
     expect(directiveTokens("frame-src")).toContain("https://*.r2.dev");
-    // Checkout opens Polar in a new tab, so nothing frames it.
     expect(directiveTokens("frame-src")).not.toContain("https://polar.sh");
     expect(directiveTokens("frame-src")).not.toContain("https://*.polar.sh");
     expect(directiveTokens("img-src")).not.toContain(
@@ -294,7 +289,7 @@ describe("configured local backend security policy", () => {
             .split(" ")
         ).toContain("http://127.0.0.1:8789");
       }
-      expect(connect.split(" ")).not.toContain("http:"); // no scheme-wide permission
+      expect(connect.split(" ")).not.toContain("http:");
     }
   );
   test.each(["production", undefined] as const)(

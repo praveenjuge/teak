@@ -16,6 +16,10 @@
         "!**/packages/convex/securitySessions.ts",
         "!**/packages/convex/ensureUser.ts"
       ]
+    },
+    {
+      "path": "./scripts/lint/no-remove-child.grit",
+      "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
     }
   ],
   "javascript": {

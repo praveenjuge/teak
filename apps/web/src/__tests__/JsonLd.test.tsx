@@ -20,9 +20,6 @@ describe("JsonLd", () => {
   });
 
   test("does not set a nonce (regression: causes SSR/CSR hydration mismatch)", () => {
-    // A JSON-LD data block is not executable, so CSP does not require a nonce.
-    // Browsers blank the nonce attribute in the DOM after load, so rendering it
-    // makes the client tree mismatch the server-rendered HTML on hydration.
     const element = JsonLd({ schema }) as {
       props: Record<string, unknown>;
     };

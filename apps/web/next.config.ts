@@ -14,8 +14,6 @@ const posthogToken = resolvePostHogToken({
   token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   vercelEnvironment: process.env.VERCEL_ENV,
 });
-// Source maps go to PostHog only from production builds with CLI credentials
-// (POSTHOG_CLI_API_KEY and POSTHOG_CLI_PROJECT_ID, read by posthog-cli).
 const uploadSourceMaps = Boolean(
   posthogToken &&
     process.env.POSTHOG_CLI_API_KEY?.trim() &&
@@ -52,7 +50,6 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
-    // Inlined only for production deployments; every other build sends nothing.
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: posthogToken ?? "",
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: releaseSha,
   },
@@ -66,7 +63,6 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
-    // Stable chunk ids that PostHog matches to uploaded source maps.
     debugIds: uploadSourceMaps,
   },
   productionBrowserSourceMaps: uploadSourceMaps,

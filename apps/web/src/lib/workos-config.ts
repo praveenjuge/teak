@@ -51,8 +51,6 @@ export function readWorkosWebConfig(
   };
 }
 
-// Sign-ins carry the client they started with in AuthKit's sealed state, so a
-// callback can't complete against a different WorkOS client.
 export function workosCallbackState(clientId: string): string {
   return JSON.stringify({ clientId });
 }

@@ -1,19 +1,6 @@
-// Sample library for the interactive web app preview on the homepage.
-// Each card mirrors a real Teak card type and renders with the same markup
-// as the web app grid (packages/ui/src/components/cards/Card.tsx).
-
-export type DemoCardType =
-  | "text"
-  | "link"
-  | "image"
-  | "video"
-  | "audio"
-  | "document"
-  | "palette"
-  | "quote";
+import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 
 export interface DemoImage {
-  /** Larger file for the card detail view, like the app's full image. */
   full?: string;
   height: number;
   src: string;
@@ -30,23 +17,22 @@ export interface DemoCard {
   summary?: string;
   tags?: string[];
   title?: string;
-  type: DemoCardType;
+  type: CardType;
   url?: string;
 }
 
-/** Labels and Lucide icon names, matching CARD_TYPE_LABELS in the app. */
 export const DEMO_CARD_TYPES: Record<
-  DemoCardType,
+  CardType,
   { icon: string; label: string }
 > = {
-  text: { icon: "file-text", label: "Text" },
-  link: { icon: "link", label: "Link" },
-  image: { icon: "image", label: "Image" },
-  video: { icon: "video", label: "Video" },
-  audio: { icon: "volume-2", label: "Audio" },
-  document: { icon: "file", label: "Document" },
-  palette: { icon: "palette", label: "Palette" },
-  quote: { icon: "quote", label: "Quote" },
+  text: { icon: "file-text", label: CARD_TYPE_LABELS.text },
+  link: { icon: "link", label: CARD_TYPE_LABELS.link },
+  image: { icon: "image", label: CARD_TYPE_LABELS.image },
+  video: { icon: "video", label: CARD_TYPE_LABELS.video },
+  audio: { icon: "volume-2", label: CARD_TYPE_LABELS.audio },
+  document: { icon: "file", label: CARD_TYPE_LABELS.document },
+  palette: { icon: "palette", label: CARD_TYPE_LABELS.palette },
+  quote: { icon: "quote", label: CARD_TYPE_LABELS.quote },
 };
 
 const img = (name: string, width: number, height: number): DemoImage => ({
@@ -55,16 +41,11 @@ const img = (name: string, width: number, height: number): DemoImage => ({
   height,
 });
 
-/** Photos ship a grid thumbnail plus a larger file for the detail view. */
 const photo = (name: string, width: number, height: number): DemoImage => ({
   ...img(name, width, height),
   full: `/home-demo/${name}-full.webp`,
 });
 
-/**
- * Cards grouped by the five desktop columns. Narrow layouts flow the same
- * order through fewer columns.
- */
 export const DEMO_COLUMNS: DemoCard[][] = [
   [
     {
