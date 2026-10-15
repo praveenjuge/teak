@@ -148,6 +148,9 @@ const COLOR_CODE_PATTERN =
 const COLOR_LABEL_PATTERN =
   /^(?:--[\w-]+\s*[:=]\s*|[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+))(.+)$/iu;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
+// The longest CSS colour names ("light goldenrod yellow") are three words.
+const MAX_COLOR_NAME_WORDS = 3;
+const PLAIN_WORD_PATTERN = /^[a-z]+$/iu;
 const FUNCTIONAL_COLOR_PATTERN = /^(?:rgba?|hsla?)\([^()]{0,64}\)$/iu;
 const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
 const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
@@ -228,8 +231,27 @@ const isColorValue = (value: string): boolean => {
   if (isColorToken(trimmed)) {
     return true;
   }
-  // "red green blue" lists several colours separated by spaces.
-  return trimmed.split(COLOR_WORD_DELIMITER_PATTERN).every(isColorToken);
+  // "red green blue" or "light blue red" lists several colours separated by
+  // spaces. Read multi-word names first, as colour extraction does.
+  const words = trimmed.split(COLOR_WORD_DELIMITER_PATTERN);
+  let index = 0;
+  while (index < words.length) {
+    const longest = Math.min(MAX_COLOR_NAME_WORDS, words.length - index);
+    let length = longest;
+    for (; length > 0; length--) {
+      const run = words.slice(index, index + length);
+      const isNameRun =
+        length === 1 || run.every((word) => PLAIN_WORD_PATTERN.test(word));
+      if (isNameRun && isColorToken(run.join(""))) {
+        break;
+      }
+    }
+    if (length === 0) {
+      return false;
+    }
+    index += length;
+  }
+  return true;
 };
 
 // True when the content is nothing but colours, optionally labelled

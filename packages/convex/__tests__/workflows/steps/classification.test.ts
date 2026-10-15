@@ -471,6 +471,7 @@ describe("classification step", () => {
     });
 
     test.each([
+      "light blue red",
       "--bg-primary: #FF5733",
       "--color-component-button-background-primary: #FF5733",
       "#000, #333",
