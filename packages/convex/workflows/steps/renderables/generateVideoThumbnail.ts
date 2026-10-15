@@ -20,11 +20,14 @@ const roundedSeconds = (value: number | null | undefined) =>
  * Generate a video card's thumbnail and hover scrub sprite on the Files
  * Worker's media renderer, which reads the video from R2 and writes both
  * images there. A source the renderer cannot decode fails without a retry; a
- * busy or unavailable renderer is retryable.
+ * busy or unavailable renderer is retryable. A card that already has a
+ * thumbnail is skipped unless `rerender` is set; then the renderer writes over
+ * the existing thumbnail and scrub keys (the colors backfill uses this).
  */
 export const generateVideoThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),
+    rerender: v.optional(v.boolean()),
   },
   returns: v.object({
     success: v.boolean(),
@@ -48,7 +51,7 @@ export const generateVideoThumbnail = internalAction({
     if (card.type !== "video" || !card.fileKey) {
       return { success: true, generated: false };
     }
-    if (card.thumbnailKey) {
+    if (card.thumbnailKey && !args.rerender) {
       return {
         success: true,
         generated: false,
@@ -57,16 +60,20 @@ export const generateVideoThumbnail = internalAction({
     }
 
     // Both keys are registered before anything writes them.
-    const thumbnailKey = buildR2ObjectKey({
-      userId: card.userId,
-      cardId: args.cardId,
-      role: "thumbnail",
-    });
-    const scrubKey = buildR2ObjectKey({
-      userId: card.userId,
-      cardId: args.cardId,
-      role: "scrub",
-    });
+    const thumbnailKey =
+      card.thumbnailKey ??
+      buildR2ObjectKey({
+        userId: card.userId,
+        cardId: args.cardId,
+        role: "thumbnail",
+      });
+    const scrubKey =
+      card.scrubKey ??
+      buildR2ObjectKey({
+        userId: card.userId,
+        cardId: args.cardId,
+        role: "scrub",
+      });
     await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
     await ensureObjectOwnership(ctx, card.userId, scrubKey);
 
@@ -124,6 +131,13 @@ export const generateVideoThumbnail = internalAction({
         ...(duration !== undefined && { duration }),
       }
     );
+    // Colors from the thumbnail and scrub frames, when the renderer sent them.
+    if (frame.palette?.length) {
+      await ctx.runMutation(
+        internal.workflows.aiMetadata.mutations.updateCardColors,
+        { cardId: args.cardId, colors: frame.palette.map((hex) => ({ hex })) }
+      );
+    }
     return { success: true, generated: true, thumbnailKey };
   },
 });

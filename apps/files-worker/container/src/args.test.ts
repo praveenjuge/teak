@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  animationSampleCommand,
   audioCommand,
   FORMAT_WHITELIST,
   ffmpegCommand,
@@ -26,8 +27,24 @@ const frameJob = {
   output: `${DIR}/frame.jpg`,
 };
 
+const sample = { width: 48, height: 28 };
+const animationJob = {
+  jobDir: DIR,
+  input: INPUT,
+  streamIndex: 0,
+  frames: 8,
+  framesPerSecond: 4,
+  ...sample,
+};
+
 const ffmpegCommands: [string, string[]][] = [
   ["frame", frameCommand(frameJob)],
+  ["frame+sample", frameCommand({ ...frameJob, sample })],
+  [
+    "tile+sample",
+    tileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv`, sample }),
+  ],
+  ["animation sample", animationSampleCommand(animationJob)],
   ["tile", tileCommand({ ...frameJob, output: `${DIR}/tile-0.mkv` })],
   [
     "sprite",
@@ -168,6 +185,48 @@ describe("job commands", () => {
     expect(argv.indexOf("-skip_frame")).toBeLessThan(input);
     expect(argv.indexOf("-ss")).toBeLessThan(input);
     expect(argv.indexOf("-noaccurate_seek")).toBeLessThan(input);
+    expect(valueAfter(argv, "-frames:v")).toBe("1");
+  });
+
+  test.each([
+    ["thumbnail", frameCommand({ ...frameJob, sample })],
+    ["tile", tileCommand({ ...frameJob, sample })],
+  ])(
+    "the %s also writes a small raw RGBA copy of its frame to stdout",
+    (_, argv) => {
+      expect(argv.filter((arg) => arg === "-i")).toHaveLength(1);
+      const tail = argv.slice(argv.lastIndexOf("-map"));
+      expect(tail.at(-1)).toBe("pipe:1");
+      expect(valueAfter(tail, "-frames:v")).toBe("1");
+      expect(valueAfter(tail, "-vf")).toStartWith(
+        "scale=48:28:flags=area,format=rgba"
+      );
+      expect(valueAfter(tail, "-pix_fmt")).toBe("rgba");
+      expect(valueAfter(tail, "-f")).toBe("rawvideo");
+    }
+  );
+
+  test("without a sample size the thumbnail writes only its JPEG", () => {
+    expect(frameCommand(frameJob)).not.toContain("pipe:1");
+  });
+
+  test("an animation sample spreads frames across it from one decode", () => {
+    const argv = animationSampleCommand(animationJob);
+    expect(argv.filter((arg) => arg === "-i")).toHaveLength(1);
+    expect(argv).not.toContain("-ss");
+    expect(valueAfter(argv, "-vf")).toBe(
+      "fps=4:round=down,scale=48:28:flags=area,format=rgba"
+    );
+    expect(valueAfter(argv, "-frames:v")).toBe("8");
+    expect(argv.at(-1)).toBe("pipe:1");
+  });
+
+  test("an animation of unknown length samples its first frame", () => {
+    const argv = animationSampleCommand({
+      ...animationJob,
+      framesPerSecond: null,
+    });
+    expect(valueAfter(argv, "-vf")).toBe("scale=48:28:flags=area,format=rgba");
     expect(valueAfter(argv, "-frames:v")).toBe("1");
   });
 

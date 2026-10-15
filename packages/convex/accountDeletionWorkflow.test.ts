@@ -1049,3 +1049,78 @@ test("legacy deletion removes every retained Better Auth row and redacts the own
     }),
   ]);
 });
+
+describe("analytics deletion", () => {
+  const startFinalStage = async () => {
+    const { t, signed, ownerId } = await fixture();
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("POSTHOG_PERSON_DELETION_API_KEY", "test-posthog-deletion-key");
+    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    const state = await t.run((ctx) =>
+      ctx.db.query("accountDeletionStates").unique()
+    );
+    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 5 }));
+    return { t, ownerId, binding: { stateId: state!._id, generation: 1 } };
+  };
+  const stubPostHog = (status: number) => {
+    const deletedDistinctIds: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, options?: RequestInit) => {
+        const url = new URL(
+          input instanceof Request ? input.url : String(input)
+        );
+        if (url.hostname !== "us.posthog.com") {
+          throw new Error(`unexpected_request:${url.pathname}`);
+        }
+        if (status !== 202) {
+          return new Response(null, { status });
+        }
+        const body = JSON.parse(options!.body as string) as {
+          distinct_ids: string[];
+        };
+        deletedDistinctIds.push(...body.distinct_ids);
+        return Response.json(
+          { persons_found: 1, deletion_errors: [] },
+          { status: 202 }
+        );
+      })
+    );
+    return deletedDistinctIds;
+  };
+
+  test("the final stage deletes the owner's PostHog person", async () => {
+    const deletedDistinctIds = stubPostHog(202);
+    const { t, ownerId, binding } = await startFinalStage();
+    expect(
+      await t.action(internal.accountDeletionActions.runStage, {
+        ...binding,
+        stage: 5,
+      })
+    ).toBe(true);
+    expect(deletedDistinctIds).toEqual([ownerId]);
+  });
+
+  test("a PostHog outage keeps the final stage open and records why", async () => {
+    stubPostHog(503);
+    const { t, binding } = await startFinalStage();
+    await expect(
+      t.action(internal.accountDeletionActions.runStage, {
+        ...binding,
+        stage: 5,
+      })
+    ).rejects.toThrow("deletion_posthog_status_503");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await t.mutation(internal.accountDeletionJobs.recordFailure, {
+      ...binding,
+      stage: 5,
+      reason: "analytics_deletion_failed",
+    });
+    const state = await t.run((ctx) => ctx.db.get(binding.stateId));
+    expect(state).toMatchObject({
+      stage: 5,
+      failureCode: "account_deletion_stage_5_analytics_deletion_failed",
+    });
+    expect(state?.nextAttemptAt).toBeGreaterThan(Date.now());
+  });
+});

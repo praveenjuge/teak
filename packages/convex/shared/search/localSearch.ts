@@ -1,6 +1,10 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { CardType } from "../constants";
-import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
+import {
+  isColorCardType,
+  normalizeHueFilters,
+  normalizeVisualStyleFilters,
+} from "../constants";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { normalizeUrlHost } from "../utils/urlHost";
@@ -71,7 +75,7 @@ const matchesVisualFilters = (
   }
 
   if (filters.hueFilters.length > 0) {
-    if (!(card.type === "image" || card.type === "palette")) {
+    if (!isColorCardType(card.type)) {
       return false;
     }
 
@@ -82,7 +86,7 @@ const matchesVisualFilters = (
   }
 
   if (filters.hexFilters.length > 0) {
-    if (!(card.type === "image" || card.type === "palette")) {
+    if (!isColorCardType(card.type)) {
       return false;
     }
 

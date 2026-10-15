@@ -7,7 +7,7 @@ import {
   DAY_MS,
   summarizeSignupDomains,
 } from "./adminStats";
-import { POSTHOG_UI_HOST } from "./shared/posthog";
+import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
 
 // Operational health for the superadmin console: cron heartbeats, webhooks
 // Teak could not apply, failing imports and exports, and signup abuse.
@@ -188,9 +188,6 @@ export const getHealth = query({
 });
 
 /* PostHog reads ----------------------------------------------------------- */
-
-// Teak's PostHog project (.agents/analytics.md).
-const POSTHOG_PROJECT_ID = "660923";
 
 const runHogQl = async (apiKey: string, hogql: string) => {
   const response = await fetch(

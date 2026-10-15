@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
+import { deletePostHogPerson } from "./accountDeletionAnalytics";
 import { closeBillingCustomer } from "./billing";
 import {
   deleteLegacyBetterAuthRows,
@@ -231,6 +232,10 @@ export const runStage = internalAction({
       if (state.betterAuthUserId) {
         await deleteLegacyBetterAuthRows(ctx, state.betterAuthUserId);
       }
+      // Last, so no earlier stage can capture another event for this owner.
+      // Lives in the final stage rather than a new one so in-flight states
+      // keep their stage numbers.
+      await deletePostHogPerson(state.userId);
     } else {
       throw new Error("invalid_deletion_stage");
     }

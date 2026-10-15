@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { beforeAll, describe, expect, mock, test } from "bun:test";
+import { getFunctionName } from "convex/server";
 
 let generateHandler: any;
 
@@ -271,27 +272,34 @@ describe("renderables step", () => {
       expect(result.thumbnailGenerated).toBe(true);
     });
 
-    test("skips video thumbnail generation for legacy GIF MIME mismatches", async () => {
-      const runAction = createMockFn<[any, any], any>(async () => ({
-        success: true,
-        generated: true,
-      }));
-      const mockCtx = {
-        runQuery: createMockFn<[any, any], any>(async () => ({
-          _id: "legacy-gif",
-          type: "video",
-          fileKey: "legacy-gif-file",
-          fileMetadata: {
-            fileName: "animation.gif",
-            mimeType: "application/pdf",
-          },
-          processingStatus: {},
-        })),
+    const gifContext = (answer: Record<string, unknown>) => {
+      const runAction = createMockFn<[any, any], any>(async () => answer);
+      return {
         runAction,
-        runMutation: createMockFn<[any, any], null>(async () => null),
+        ctx: {
+          runQuery: createMockFn<[any, any], any>(async () => ({
+            _id: "legacy-gif",
+            type: "video",
+            fileKey: "legacy-gif-file",
+            fileMetadata: {
+              fileName: "animation.gif",
+              mimeType: "application/pdf",
+            },
+            processingStatus: {},
+          })),
+          runAction,
+          runMutation: createMockFn<[any, any], null>(async () => null),
+        },
       };
+    };
 
-      const result = await generateHandler(mockCtx, {
+    test("reads only the palette of a GIF, even with a mismatched MIME type", async () => {
+      const { ctx, runAction } = gifContext({
+        success: true,
+        generated: false,
+      });
+
+      const result = await generateHandler(ctx, {
         cardId: "legacy-gif",
         cardType: "video",
       });
@@ -301,7 +309,22 @@ describe("renderables step", () => {
         success: true,
         thumbnailGenerated: false,
       });
-      expect(runAction.calls.length).toBe(0);
+      expect(runAction.calls.map(([ref]) => getFunctionName(ref))).toEqual([
+        "workflows/steps/renderables/extractAnimationPalette:extractAnimationPalette",
+      ]);
+    });
+
+    test("retries a GIF palette when the renderer is busy", async () => {
+      const { ctx } = gifContext({
+        success: false,
+        generated: false,
+        error: "renderer_unavailable:busy",
+        retryable: true,
+      });
+
+      await expect(
+        generateHandler(ctx, { cardId: "legacy-gif", cardType: "video" })
+      ).rejects.toThrow("renderables_retryable:renderer_unavailable:busy");
     });
 
     test("handles video thumbnail generation failure", async () => {

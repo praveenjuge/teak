@@ -46,7 +46,10 @@ const videoCard = {
   fileMetadata: { mimeType: "video/webm" },
 };
 
-const run = async (card: Record<string, unknown> = videoCard) => {
+const run = async (
+  card: Record<string, unknown> = videoCard,
+  options: { rerender?: boolean } = {}
+) => {
   const owned: string[] = [];
   const updates: any[] = [];
   const ctx = {
@@ -60,16 +63,20 @@ const run = async (card: Record<string, unknown> = videoCard) => {
       return Promise.resolve(null);
     },
   };
-  const result = await generateVideoThumbnail(ctx, { cardId: "card-video" });
+  const result = await generateVideoThumbnail(ctx, {
+    cardId: "card-video",
+    ...options,
+  });
   return { owned, result, updates };
 };
 
-const frame = (scrub: unknown) => ({
+const frame = (scrub: unknown, palette?: string[]) => ({
   kind: "ok",
   data: {
     durationSeconds: 12.3456,
     originalHeight: 1080,
     originalWidth: 1920,
+    ...(palette && { palette }),
     scrub,
     storedBytes: 2048,
     storedContentType: "image/jpeg",
@@ -116,6 +123,20 @@ describe("generateVideoThumbnail", () => {
         },
       },
     ]);
+  });
+
+  test("stores the colors the renderer read across the video", async () => {
+    frameAnswer = () => Promise.resolve(frame(null, ["#0EFB0B", "#0806FD"]));
+    const { updates } = await run();
+
+    expect(updates.map((update) => update.name)).toEqual([
+      "workflows/steps/renderables/mutations:updateCardThumbnail",
+      "workflows/aiMetadata/mutations:updateCardColors",
+    ]);
+    expect(updates[1]?.args).toEqual({
+      cardId: "card-video",
+      colors: [{ hex: "#0EFB0B" }, { hex: "#0806FD" }],
+    });
   });
 
   test("keeps the frame without a scrub key when no sprite was made", async () => {
@@ -170,5 +191,39 @@ describe("generateVideoThumbnail", () => {
       thumbnailKey: "existing",
     });
     expect(workerCalls).toEqual([]);
+  });
+
+  test("a rerender writes over the card's existing thumbnail and sprite", async () => {
+    frameAnswer = () =>
+      Promise.resolve(
+        frame({ frameHeight: 180, frameWidth: 320, frames: 10 }, ["#0EFB0B"])
+      );
+    const { owned, result, updates } = await run(
+      {
+        ...videoCard,
+        thumbnailKey: "users/u/cards/c/thumbnail/old",
+        scrubKey: "users/u/cards/c/scrub/old",
+      },
+      { rerender: true }
+    );
+
+    expect(result).toEqual({
+      generated: true,
+      success: true,
+      thumbnailKey: "users/u/cards/c/thumbnail/old",
+    });
+    expect(workerCalls[0]?.params).toEqual({
+      destinationKey: "users/u/cards/c/thumbnail/old",
+      scrubDestinationKey: "users/u/cards/c/scrub/old",
+      sourceKey: videoCard.fileKey,
+    });
+    expect(owned).toEqual([
+      "users/u/cards/c/thumbnail/old",
+      "users/u/cards/c/scrub/old",
+    ]);
+    expect(updates.map((update) => update.name)).toEqual([
+      "workflows/steps/renderables/mutations:updateCardThumbnail",
+      "workflows/aiMetadata/mutations:updateCardColors",
+    ]);
   });
 });

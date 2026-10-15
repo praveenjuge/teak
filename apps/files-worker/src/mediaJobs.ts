@@ -4,6 +4,7 @@ import {
   FILES_TRANSCRIPT_MAX_BYTES,
   FILES_TRANSCRIPTION_MODEL,
   FILES_WAVEFORM_BARS,
+  type FilesAnimationPaletteResult,
   type FilesAudioTranscript,
   type FilesAudioWaveform,
   type FilesMediaProbeResult,
@@ -50,6 +51,7 @@ const MAX_SCRUB_FRAME_COUNT = 20;
 const MAX_IMAGE_SIDE = 8192;
 
 const JOB_TIMEOUT_MS = {
+  animation: 30_000,
   audio: 120_000,
   pdf: 30_000,
   probe: 15_000,
@@ -149,6 +151,18 @@ const readScrub = (value: unknown): FilesVideoScrub | null => {
     : null;
 };
 
+const MAX_PALETTE_COLORS = 8;
+const HEX_COLOR = /^#[0-9A-F]{6}$/;
+
+/** The renderer's palette, or null when it sent none or anything malformed. */
+const readPalette = (value: unknown): string[] | null =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= MAX_PALETTE_COLORS &&
+  value.every((hex) => typeof hex === "string" && HEX_COLOR.test(hex))
+    ? (value as string[])
+    : null;
+
 /** A thumbnail frame and, when asked for, a hover scrub sprite. */
 export const extractVideoFrame = async (
   env: MediaJobsEnv,
@@ -180,17 +194,36 @@ export const extractVideoFrame = async (
       httpMetadata: { contentType: "image/jpeg" },
     });
   }
+  const palette = readPalette(result.manifest.palette);
   return {
     durationSeconds: facts.durationSeconds,
     facts,
     originalHeight: facts.height,
     originalWidth: facts.width,
+    ...(palette ? { palette } : {}),
     ...(keys.scrubDestinationKey
       ? { scrub: sprite && scrub ? scrub : null }
       : {}),
     storedBytes: frame.length,
     storedContentType: "image/jpeg",
   };
+};
+
+/** Frames read across an animation for its palette. */
+const ANIMATION_PALETTE_FRAMES = 8;
+
+/** An animated GIF's palette, from frames across it. Nothing is stored. */
+export const extractAnimationPalette = async (
+  env: MediaJobsEnv,
+  sourceKey: string
+): Promise<FilesAnimationPaletteResult> => {
+  const result = await callRenderer(env, {
+    openSource: r2SourceOpener(env.BUCKET, sourceKey),
+    outputs: {},
+    path: `/animation/palette?frames=${ANIMATION_PALETTE_FRAMES}`,
+    timeoutMs: JOB_TIMEOUT_MS.animation,
+  });
+  return { palette: readPalette(result.manifest.palette) ?? [] };
 };
 
 /** Page 1 of a PDF as a PNG, at most 1600px each way. */

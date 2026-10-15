@@ -281,6 +281,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Personal API key with query:read on PostHog project 660923. Lets the superadmin console read the zero-result search rate and card saves per surface. Those panels stay empty when unset.",
   }),
+  spec("POSTHOG_PERSON_DELETION_API_KEY", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["production"],
+    secret: true,
+    validation: "string",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Personal API key with person:write on PostHog project 660923. Account deletion uses it to delete the owner's PostHog person, events and recordings. Required wherever POSTHOG_PROJECT_TOKEN is set: without it, deletions stop at the last stage and retry until it is set.",
+  }),
   spec("POSTHOG_CLI_API_KEY", {
     owners: ["teak-release", "@teak/web"],
     targets: ["release", "web"],
