@@ -489,6 +489,10 @@ describe("fetchMetadata", () => {
             "https://cdninstagram.com/media/two.mp4",
           ],
         ]);
+        // The page goes along so the fetcher can send it as the Referer.
+        expect(ops.map(({ params }) => params.pageUrl)).toEqual(
+          new Array(3).fill("https://www.instagram.com/p/DBY4WfSxA0a/")
+        );
         const keyFor = (url: string) =>
           ops.find(({ params }) => params.url === url)?.params.destinationKey;
         expect(r2Mocks.storeObject).not.toHaveBeenCalled();

@@ -23,8 +23,13 @@ const setup = (
   respond: (url: string) => Response | Promise<Response>
 ) => {
   const calls: Call[] = [];
-  const pinnedFetch: PinnedFetch = (url, addresses) => {
+  const referers: (string | null)[] = [];
+  const userAgents: (string | null)[] = [];
+  const pinnedFetch: PinnedFetch = (url, addresses, init) => {
     calls.push({ addresses, url });
+    const headers = new Headers(init.headers);
+    referers.push(headers.get("referer"));
+    userAgents.push(headers.get("user-agent"));
     return Promise.resolve(respond(url));
   };
   const handle = createFetcherHandler({
@@ -38,8 +43,11 @@ const setup = (
         method: "POST",
       })
     );
-  return { calls, fetchAsset, handle };
+  return { calls, fetchAsset, handle, referers, userAgents };
 };
+
+const FIGMA_PAGE = "https://www.figma.com/community/file/1234/kit?node-id=1";
+const FIGMA_COVER = "https://s3-alpha.figma.com/hub/file/1234/cover.png";
 
 describe("link fetcher", () => {
   test("returns an image's bytes, type and dimensions, pinned to the checked address", async () => {
@@ -115,6 +123,58 @@ describe("link fetcher", () => {
     ]);
   });
 
+  test("presents as a browser with the page's origin as the Referer on every redirect hop", async () => {
+    // s3-alpha.figma.com's bot control answers 403 to non-browser agents.
+    const { calls, fetchAsset, referers, userAgents } = setup(
+      { "cdn.figma.example": [PUBLIC], "s3-alpha.figma.com": [PUBLIC] },
+      (url) =>
+        url === FIGMA_COVER
+          ? Response.redirect("https://cdn.figma.example/cover.png", 302)
+          : new Response(PNG, { headers: { "content-type": "image/png" } })
+    );
+    const response = await fetchAsset({
+      kind: "image",
+      pageUrl: FIGMA_PAGE,
+      url: FIGMA_COVER,
+    });
+    expect(response.status).toBe(200);
+    expect(calls.map((call) => call.url)).toEqual([
+      FIGMA_COVER,
+      "https://cdn.figma.example/cover.png",
+    ]);
+    expect(referers).toEqual([
+      "https://www.figma.com/",
+      "https://www.figma.com/",
+    ]);
+    for (const userAgent of userAgents) {
+      expect(userAgent).toStartWith("Mozilla/5.0 (Macintosh;");
+    }
+    expect(userAgents).toHaveLength(2);
+  });
+
+  test("sends no Referer without a page", async () => {
+    const { fetchAsset, referers } = setup(
+      { "cdn.example": [PUBLIC] },
+      () => new Response(PNG, { headers: { "content-type": "image/png" } })
+    );
+    await fetchAsset({ kind: "image", url: "https://cdn.example/a.png" });
+    expect(referers).toEqual([null]);
+  });
+
+  test("still refuses a private address when the page is public", async () => {
+    const { calls, fetchAsset } = setup(
+      { "evil.example": ["10.0.0.5"] },
+      () => new Response(PNG)
+    );
+    const response = await fetchAsset({
+      kind: "image",
+      pageUrl: FIGMA_PAGE,
+      url: "https://evil.example/a.png",
+    });
+    expect(await response.json()).toMatchObject({ reason: "blocked_url" });
+    expect(calls).toEqual([]);
+  });
+
   test.each([
     [
       "an HTTP error",
@@ -177,6 +237,14 @@ describe("link fetcher", () => {
     { kind: "zip", url: "https://cdn.example/a" },
     { kind: "image" },
     { kind: "image", url: `https://cdn.example/${"a".repeat(5000)}` },
+    { kind: "image", pageUrl: "javascript:alert(1)", url: "https://a/b.png" },
+    { kind: "image", pageUrl: "not a url", url: "https://a/b.png" },
+    { kind: "image", pageUrl: 42, url: "https://a/b.png" },
+    {
+      kind: "image",
+      pageUrl: `https://www.figma.com/${"a".repeat(5000)}`,
+      url: "https://a/b.png",
+    },
   ])("rejects an invalid request %#", async (body) => {
     const { fetchAsset } = setup({}, () => new Response(PNG));
     expect((await fetchAsset(body)).status).toBe(400);

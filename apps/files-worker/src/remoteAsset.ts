@@ -16,6 +16,7 @@ import {
   type FilesRemoteAssetResult,
   type FilesRemoteAssetSkipReason,
   isRemoteAssetContentTypeAllowed,
+  isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
 import {
   FETCHER_HEADERS,
@@ -58,7 +59,7 @@ const SKIP_REASONS = new Set<FilesRemoteAssetSkipReason>([
 export const parseRemoteAssetParams = (
   params: Record<string, unknown>
 ): FilesRemoteAssetParams => {
-  const { destinationKey, fallbackContentType, kind, url } = params;
+  const { destinationKey, fallbackContentType, kind, pageUrl, url } = params;
   if (
     (kind !== "image" && kind !== "video") ||
     typeof url !== "string" ||
@@ -68,7 +69,8 @@ export const parseRemoteAssetParams = (
     !isValidUploadKey(destinationKey) ||
     (fallbackContentType !== undefined &&
       (typeof fallbackContentType !== "string" ||
-        fallbackContentType.length > MAX_CONTENT_TYPE_LENGTH))
+        fallbackContentType.length > MAX_CONTENT_TYPE_LENGTH)) ||
+    !(pageUrl === undefined || isRemoteAssetPageUrl(pageUrl))
   ) {
     throw new Error("invalid_remote_asset_params");
   }
@@ -77,6 +79,7 @@ export const parseRemoteAssetParams = (
     kind,
     url,
     ...(fallbackContentType ? { fallbackContentType } : {}),
+    ...(pageUrl ? { pageUrl } : {}),
   };
 };
 
@@ -143,6 +146,7 @@ export const storeRemoteAsset = async (
     ...(params.fallbackContentType
       ? { fallbackContentType: params.fallbackContentType }
       : {}),
+    ...(params.pageUrl ? { pageUrl: params.pageUrl } : {}),
   };
   let lastReason = "busy";
   for (const name of rendererInstanceOrder(poolSize(env), random, "fetcher")) {
