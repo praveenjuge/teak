@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { API_PROXY_MAX_BODY_BYTES } from "../apps/files-worker/src/apiProxy";
 import {
+  API_PROXY_MAX_BODY_BYTES,
+  upstreamPathFor,
+} from "../apps/files-worker/src/apiProxy";
+import {
+  API_PATHS,
   declaredLengthOver,
   WAF_RULE_REF_PREFIX,
   WAF_RULES,
@@ -52,7 +56,10 @@ describe("planning", () => {
 });
 
 /** Cloudflare API stand-in recording every call. */
-const cloudflare = (entrypoint: { id: string; rules: LiveRule[] } | null) => {
+const cloudflare = (
+  entrypoint: { id: string; rules: LiveRule[] } | null,
+  options: { missingWrites?: boolean } = {}
+) => {
   const calls: { body: unknown; method: string; path: string }[] = [];
   const fetcher = ((url: string, init: RequestInit = {}) => {
     const path = String(url).replace(
@@ -72,6 +79,14 @@ const cloudflare = (entrypoint: { id: string; rules: LiveRule[] } | null) => {
     }
     if (method === "GET" && path.endsWith("/entrypoint") && !entrypoint) {
       return Promise.resolve(new Response("{}", { status: 404 }));
+    }
+    if (method !== "GET" && options.missingWrites) {
+      return Promise.resolve(
+        Response.json(
+          { success: false, errors: [{ message: "not found" }] },
+          { status: 404 }
+        )
+      );
     }
     return Promise.resolve(
       Response.json({ success: true, result: entrypoint ?? {} })
@@ -149,10 +164,40 @@ describe("syncing a zone", () => {
   });
 });
 
+describe("failed writes", () => {
+  test("an apply whose write finds nothing fails instead of passing", async () => {
+    const { fetcher } = cloudflare(
+      { id: "rs1", rules: [live("r2", rule("changed", "false"))] },
+      { missingWrites: true }
+    );
+    await expect(
+      syncWafRules({
+        apply: true,
+        desired: [rule("changed")],
+        fetcher,
+        log: () => undefined,
+        token: "t",
+      })
+    ).rejects.toThrow("PATCH");
+  });
+});
+
 describe("the managed rules", () => {
   test("every rule carries the managed ref prefix", () => {
     for (const wafRule of WAF_RULES) {
       expect(wafRule.ref.startsWith(WAF_RULE_REF_PREFIX)).toBe(true);
+    }
+  });
+
+  test("the rules cover exactly the paths the Worker proxies, not prefixes of them", () => {
+    expect(API_PATHS).toBe(
+      '(http.request.uri.path in {"/api" "/mcp"} or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/mcp/"))'
+    );
+    for (const path of ["/api", "/api/v1/cards", "/mcp", "/mcp/x"]) {
+      expect(upstreamPathFor(path)).not.toBeNull();
+    }
+    for (const path of ["/apis", "/mcpfoo"]) {
+      expect(upstreamPathFor(path)).toBeNull();
     }
   });
 

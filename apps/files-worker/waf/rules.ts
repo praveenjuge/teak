@@ -21,9 +21,12 @@ export interface WafRule {
   ref: string;
 }
 
-/** The public API and MCP paths the Files Worker proxies. */
-const API_PATHS =
-  '(starts_with(http.request.uri.path, "/api") or starts_with(http.request.uri.path, "/mcp"))';
+/**
+ * The public API and MCP paths the Files Worker proxies, matching
+ * `upstreamPathFor`: `/apis` or `/mcpfoo` belong to the site, not the API.
+ */
+export const API_PATHS =
+  '(http.request.uri.path in {"/api" "/mcp"} or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/mcp/"))';
 
 /**
  * True when the declared Content-Length exceeds `maxBytes`. The exact body

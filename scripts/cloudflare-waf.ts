@@ -79,7 +79,8 @@ export const cloudflareClient = (token: string, fetcher: typeof fetch) => {
   const call = async <T>(
     method: string,
     path: string,
-    body?: unknown
+    body?: unknown,
+    options: { allowMissing?: boolean } = {}
   ): Promise<{ status: number; result: T | null }> => {
     const response = await fetcher(`${API}${path}`, {
       method,
@@ -89,7 +90,8 @@ export const cloudflareClient = (token: string, fetcher: typeof fetch) => {
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (response.status === 404) {
+    // Only a read may find nothing; a write that 404s has not been made.
+    if (response.status === 404 && options.allowMissing) {
       return { status: 404, result: null };
     }
     const payload = (await response.json()) as CloudflareResponse<T>;
@@ -137,9 +139,12 @@ export const syncWafRules = async (options: {
     throw new Error(`Zone ${WAF_ZONE_NAME} is not visible to this token`);
   }
   const entrypointPath = `/zones/${zoneId}/rulesets/phases/${PHASE}/entrypoint`;
+  // Cloudflare answers 404 for a phase entrypoint that has no rules yet.
   const entrypoint = await call<{ id: string; rules?: LiveRule[] }>(
     "GET",
-    entrypointPath
+    entrypointPath,
+    undefined,
+    { allowMissing: true }
   );
   const plan = planWafChanges(entrypoint.result?.rules ?? [], desired);
 
