@@ -98,22 +98,30 @@ const hasArchivedRaw = (linkCategory: LinkCategory) =>
   linkCategory.raw === undefined && Boolean(linkCategory.rawStorageKey);
 
 /**
- * Writes one card's backfilled price. It reads the card again here, so a
- * price a refresh wrote after the batch read it is kept, and the price is
- * merged into the card's metadata as it is now, not into an older copy.
+ * Only product pages get a price. An article or a repo can carry a "Price"
+ * fact or JSON-LD offers too (a course, a sponsor tier), and new saves never
+ * price those.
+ */
+const isProductCategory = (linkCategory: LinkCategory) =>
+  linkCategory.category === "product" ||
+  linkCategory.detectedProvider === "amazon";
+
+/**
+ * Writes one card's backfilled price. It reads the card again here and
+ * works the price out from what the card holds now, so a price a refresh
+ * wrote after the batch read it is kept, a card a refresh moved out of
+ * products is left alone, and the price is merged into the card's metadata
+ * as it is now, not into an older copy.
  */
 export const writeLinkPrice = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    price: v.object({ amount: v.number(), currency: v.optional(v.string()) }),
-  },
+  args: { cardId: v.id("cards") },
   returns: v.union(
     v.literal("written"),
     v.literal("already_priced"),
     v.literal("missing"),
     v.literal("skipped")
   ),
-  handler: async (ctx, { cardId, price }) => {
+  handler: async (ctx, { cardId }) => {
     const card = await ctx.db.get("cards", cardId);
     const linkCategory = card?.metadata?.linkCategory;
     if (!(card && linkCategory) || card.type !== "link") {
@@ -121,6 +129,12 @@ export const writeLinkPrice = internalMutation({
     }
     if (linkCategory.price) {
       return "already_priced";
+    }
+    const { price } = isProductCategory(linkCategory)
+      ? readStoredLinkPrice(linkCategory)
+      : { price: null };
+    if (!price) {
+      return "skipped";
     }
     const written = await patchCardWithSearchSync(ctx, cardId, {
       metadata: {
@@ -135,8 +149,8 @@ export const writeLinkPrice = internalMutation({
 });
 
 /**
- * Sets `metadata.linkCategory.price` on link cards saved before prices
- * were structured, from what each card already stores inline (JSON-LD
+ * Sets `metadata.linkCategory.price` on product link cards saved before
+ * prices were structured, from what each card already stores inline (JSON-LD
  * offers, the provider's price, then the "Price" fact). It never reads raw
  * archived to R2: product cards whose only source is there are counted in
  * `skippedArchivedRaw` and get a price on Refresh details. A dry run (the
@@ -189,15 +203,17 @@ export const backfillLinkPrice = internalMutation({
     for (const card of page.page) {
       batch.examined += 1;
       const linkCategory = card.metadata?.linkCategory;
-      if (card.type !== "link" || !linkCategory || linkCategory.price) {
+      if (
+        card.type !== "link" ||
+        !linkCategory ||
+        linkCategory.price ||
+        !isProductCategory(linkCategory)
+      ) {
         continue;
       }
       const { price, hasSource } = readStoredLinkPrice(linkCategory);
       if (!price) {
-        const isProduct =
-          linkCategory.category === "product" ||
-          linkCategory.detectedProvider === "amazon";
-        if (hasArchivedRaw(linkCategory) && (isProduct || hasSource)) {
+        if (hasArchivedRaw(linkCategory)) {
           batch.skippedArchivedRaw += 1;
         } else if (hasSource) {
           batch.unparsable += 1;
@@ -220,7 +236,7 @@ export const backfillLinkPrice = internalMutation({
         await ctx.scheduler.runAfter(
           0,
           (internal as any)["migration/backfillLinkPrice"].writeLinkPrice,
-          { cardId: card._id, price }
+          { cardId: card._id }
         );
       }
     }

@@ -43,17 +43,22 @@ export function useLinkThumbnail(
   const undoThumbnailChange = useMutation(
     api.card.thumbnailOverride.undoThumbnailChange
   );
-  const [uploadingPreviewUrl, setUploadingPreviewUrl] = useState<string>();
-  const [isBusy, setIsBusy] = useState(false);
+  // The change running now and the card it is for. The dialog can move to
+  // another card while it runs, so it only shows as busy, with its preview,
+  // on its own card.
+  const [active, setActive] = useState<{
+    cardId: string;
+    previewUrl?: string;
+  } | null>(null);
   const busy = useRef(false);
+  const activePreviewUrl = active?.previewUrl;
 
-  // The local preview belongs to this card's dialog only.
   useEffect(() => {
-    if (!uploadingPreviewUrl) {
+    if (!activePreviewUrl) {
       return;
     }
-    return () => URL.revokeObjectURL(uploadingPreviewUrl);
-  }, [uploadingPreviewUrl]);
+    return () => URL.revokeObjectURL(activePreviewUrl);
+  }, [activePreviewUrl]);
 
   const offerUndo = useCallback(
     (
@@ -85,22 +90,27 @@ export function useLinkThumbnail(
     [undoThumbnailChange]
   );
 
-  const run = useCallback(async (work: () => Promise<void>) => {
-    if (busy.current) {
-      return;
-    }
-    busy.current = true;
-    setIsBusy(true);
-    try {
-      await work();
-    } catch (error) {
-      toast.error(linkThumbnailErrorMessage(error));
-    } finally {
-      busy.current = false;
-      setIsBusy(false);
-      setUploadingPreviewUrl(undefined);
-    }
-  }, []);
+  const run = useCallback(
+    async (id: string, work: () => Promise<void>, preview?: File) => {
+      if (busy.current) {
+        return;
+      }
+      busy.current = true;
+      setActive({
+        cardId: id,
+        previewUrl: preview ? URL.createObjectURL(preview) : undefined,
+      });
+      try {
+        await work();
+      } catch (error) {
+        toast.error(linkThumbnailErrorMessage(error));
+      } finally {
+        busy.current = false;
+        setActive(null);
+      }
+    },
+    []
+  );
 
   const replace = useCallback(
     (file: File, source: LinkThumbnailSource) => {
@@ -114,32 +124,35 @@ export function useLinkThumbnail(
       }
       const id = cardId as Id<"cards">;
       const mimeType = toThumbnailMimeType(file.type) ?? file.type;
-      run(async () => {
-        setUploadingPreviewUrl(URL.createObjectURL(file));
-        const upload = await createUploadUrl({
-          cardId: id,
-          fileSize: file.size,
-          mimeType,
-        });
-        const response = await uploadWithTransientRetry(
-          () =>
-            fetch(upload.uploadUrl, {
-              body: file,
-              headers: { "Content-Type": mimeType },
-              method: "PUT",
-            }),
-          new AbortController().signal
-        );
-        if (!response.ok) {
-          throw new Error(`Upload failed with status ${response.status}`);
-        }
-        const change = await setLinkThumbnail({
-          cardId: id,
-          fileKey: upload.fileKey,
-        });
-        captureEvent("card_thumbnail_replaced", { source });
-        offerUndo(id, "Image replaced", change);
-      }).catch(() => undefined);
+      run(
+        id,
+        async () => {
+          const upload = await createUploadUrl({
+            cardId: id,
+            fileSize: file.size,
+            mimeType,
+          });
+          const response = await uploadWithTransientRetry(
+            () =>
+              fetch(upload.uploadUrl, {
+                body: file,
+                headers: { "Content-Type": mimeType },
+                method: "PUT",
+              }),
+            new AbortController().signal
+          );
+          if (!response.ok) {
+            throw new Error(`Upload failed with status ${response.status}`);
+          }
+          const change = await setLinkThumbnail({
+            cardId: id,
+            fileKey: upload.fileKey,
+          });
+          captureEvent("card_thumbnail_replaced", { source });
+          offerUndo(id, "Image replaced", change);
+        },
+        file
+      ).catch(() => undefined);
     },
     [cardId, createUploadUrl, offerUndo, run, setLinkThumbnail]
   );
@@ -149,7 +162,7 @@ export function useLinkThumbnail(
       return;
     }
     const id = cardId as Id<"cards">;
-    run(async () => {
+    run(id, async () => {
       const change = await resetLinkThumbnail({ cardId: id });
       if (change.changeId) {
         captureEvent("card_thumbnail_reset");
@@ -158,5 +171,11 @@ export function useLinkThumbnail(
     }).catch(() => undefined);
   }, [cardId, offerUndo, resetLinkThumbnail, run]);
 
-  return { isBusy, replace, reset, uploadingPreviewUrl };
+  const isActiveCard = Boolean(active && active.cardId === cardId);
+  return {
+    isBusy: isActiveCard,
+    replace,
+    reset,
+    uploadingPreviewUrl: isActiveCard ? activePreviewUrl : undefined,
+  };
 }

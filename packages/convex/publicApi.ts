@@ -498,10 +498,7 @@ const searchCardsByQuery = async (
       similarity,
       ranking,
       keep: (card) => matchesStructuredFilters(card, options),
-      words: (options.searchQuery ?? "")
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(Boolean),
+      text: options.searchQuery ?? "",
     });
     return {
       cards: sortCards(cards, normalizeSort(options.sort)),

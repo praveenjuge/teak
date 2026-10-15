@@ -122,6 +122,12 @@ const seedLibrary = async (env: ReturnType<typeof setup>) => ({
     facts: priceFact("$50.00"),
   }),
   article: await env.insert("An article", { category: "article" }),
+  // Only products get a price, whatever else the page states.
+  course: await env.insert("A course article", {
+    category: "article",
+    facts: priceFact("$20.00"),
+    raw: { structured: { offers: { price: "20.00", priceCurrency: "USD" } } },
+  }),
   plainLink: await env.insert("No category", undefined),
 });
 
@@ -133,7 +139,7 @@ describe("backfillLinkPrice", () => {
     await env.runScheduled();
     expect(result).toMatchObject({ dryRun: true, isDone: true });
     expect(result.totals).toEqual({
-      examined: 9,
+      examined: 10,
       priced: 4,
       skippedArchivedRaw: 1,
       unparsable: 1,
@@ -196,6 +202,7 @@ describe("backfillLinkPrice", () => {
     });
     expect(await env.priceOf(cards.archivedOnly)).toBeUndefined();
     expect(await env.priceOf(cards.unparsable)).toBeUndefined();
+    expect(await env.priceOf(cards.course)).toBeUndefined();
     expect(await env.priceOf(cards.alreadyPriced)).toEqual({
       amount: 3,
       currency: "USD",
@@ -204,7 +211,7 @@ describe("backfillLinkPrice", () => {
     // Running it again finds nothing to add.
     const again = await env.backfill({ once: true });
     expect(again.batch).toEqual({
-      examined: 9,
+      examined: 10,
       priced: 0,
       skippedArchivedRaw: 1,
       unparsable: 1,
@@ -250,6 +257,26 @@ describe("backfillLinkPrice", () => {
     });
     await env.runScheduled();
     expect(await env.priceOf(cardId)).toEqual({ amount: 35 });
+  });
+
+  test("leaves a card a refresh moved out of products before the write", async () => {
+    const env = setup();
+    const cardId = await env.insert("Lamp review", {
+      facts: priceFact("$40.00"),
+    });
+    await env.backfill({ dryRun: false });
+    await env.t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", cardId);
+      const linkCategory = card?.metadata?.linkCategory as LinkCategory;
+      await ctx.db.patch("cards", cardId, {
+        metadata: {
+          ...card?.metadata,
+          linkCategory: { ...linkCategory, category: "article" },
+        },
+      });
+    });
+    await env.runScheduled();
+    expect(await env.priceOf(cardId)).toBeUndefined();
   });
 
   test("merges the price into the card's metadata as it is when written", async () => {

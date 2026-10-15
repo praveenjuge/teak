@@ -188,6 +188,10 @@ describe("like: in the grid", () => {
     expect(await env.grid({ searchQuery: `${like} stairwell` })).toEqual([
       cards.near,
     ]);
+    // Words are split as the keyword search splits them.
+    expect(await env.grid({ searchQuery: `${like} (Stairwell),` })).toEqual([
+      cards.near,
+    ]);
     expect(
       await env.grid({ searchQuery: like, showArchivedOnly: true })
     ).toEqual([cards.archived]);

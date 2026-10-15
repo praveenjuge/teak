@@ -169,6 +169,8 @@ export const backfillLinkCategories = internalMutation({
             ...card.metadata,
             linkCategory: { ...linkCategory, category },
           },
+          // Clients refresh a cached card when its updatedAt moves.
+          updatedAt: Date.now(),
         });
       }
     }

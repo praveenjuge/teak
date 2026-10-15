@@ -137,7 +137,7 @@ describe("backfillLinkCategories", () => {
   });
 
   test("a real run moves only the category and keeps facts, raw data and confidence", async () => {
-    const { backfill, category, insert, link } = setup();
+    const { t, backfill, category, insert, link } = setup();
     const cards = await seedLibrary({ insert, link });
     const before = await category(cards.repo);
 
@@ -150,6 +150,9 @@ describe("backfillLinkCategories", () => {
     });
     expect((await category(cards.game))?.category).toBe("game");
     expect((await category(cards.place))?.category).toBe("place");
+    // Clients refresh a cached card when its updatedAt moves.
+    const moved = await t.run((ctx) => ctx.db.get("cards", cards.repo));
+    expect(moved?.updatedAt).toBe(1_000_000);
     for (const unchanged of [
       ["blog", "news"],
       ["unknown", "article"],

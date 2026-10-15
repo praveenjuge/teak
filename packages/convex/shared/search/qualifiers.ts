@@ -309,10 +309,19 @@ const parseQualifier = (
 const isSimilarityKey = (key: SearchQualifierKey) =>
   key === "like" || key === "mood";
 
+// Folder names and moods match whatever their case: `mood:Calm` and
+// `mood:calm` are one anchor.
 const qualifierIdentity = (qualifier: SearchQualifier): string =>
   `${qualifier.key}:${
-    qualifier.key === "folder" ? qualifier.value.toLowerCase() : qualifier.value
+    qualifier.key === "folder" || qualifier.key === "mood"
+      ? qualifier.value.toLowerCase()
+      : qualifier.value
   }`;
+
+const similarityIdentity = (similarity: SearchSimilarity) =>
+  similarity.kind === "like"
+    ? qualifierIdentity({ key: "like", value: similarity.cardId })
+    : qualifierIdentity({ key: "mood", value: similarity.text });
 
 // Quotes keep spaces, quote characters, backslashes, and the edge
 // punctuation an unquoted value loses (`Ideas!`, `.net`).
@@ -498,7 +507,8 @@ export const combineSearchQueries = (
   if (
     outer.similarity &&
     inner.similarity &&
-    JSON.stringify(outer.similarity) !== JSON.stringify(inner.similarity)
+    similarityIdentity(outer.similarity) !==
+      similarityIdentity(inner.similarity)
   ) {
     return null;
   }

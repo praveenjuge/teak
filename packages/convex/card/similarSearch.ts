@@ -8,6 +8,7 @@ import {
   SEMANTIC_MIN_SCORE,
   SIMILAR_CARDS_LIMIT,
 } from "../shared/search/semantic";
+import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { buildCardSearchText } from "./searchDocumentHelpers";
 
 /**
@@ -35,16 +36,18 @@ export const loadSimilarCards = async (
     similarity,
     ranking,
     keep,
-    words,
+    text,
   }: {
     userId: string;
     similarity: SearchSimilarity;
     ranking: SemanticRanking;
     keep: (card: Doc<"cards">) => boolean;
-    /** Lowercase words a card's text must all contain. */
-    words: readonly string[];
+    /** The search's words, which a card's text must all contain. */
+    text: string;
   }
 ): Promise<Doc<"cards">[]> => {
+  // Split as the keyword search splits, so `chair,` and `(chair)` are `chair`.
+  const words = tokenizeSearchInput(text).map((word) => word.toLowerCase());
   // A card's neighbors are the answer, however close; a mood needs a real
   // match, as free text does.
   const minScore = similarity.kind === "mood" ? SEMANTIC_MIN_SCORE : 0;

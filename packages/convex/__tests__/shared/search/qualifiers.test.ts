@@ -346,5 +346,10 @@ describe("like: and mood:", () => {
     expect(combineSearchQueries("type:link", `like:${ID}`)).toBe(
       `like:${ID} type:link`
     );
+    // The same mood in another case is the same anchor.
+    expect(combineSearchQueries('mood:"Calm  Blue"', 'mood:"calm blue"')).toBe(
+      'mood:"Calm Blue"'
+    );
+    expect(parseSearchQuery("mood:Calm mood:calm").terms).toEqual([]);
   });
 });
