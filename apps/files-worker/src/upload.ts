@@ -2,14 +2,12 @@ import {
   buildUploadSigningPayload,
   FILES_OBJECT_KEY_ROOTS,
   FILES_PROTOCOL_VERSION,
+  FILES_UPLOAD_MAX_BYTES,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   type FilesErrorCode,
 } from "@teak/files-protocol";
 import { ObjectWriteBlockedError } from "./deletionGate";
 import { verifyHmacPayload } from "./lib";
-
-// Matches MAX_FILE_SIZE in packages/convex/shared/fileFormats.ts.
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
@@ -153,7 +151,7 @@ export const handleSignedUpload = async (
       411
     );
   }
-  if (contentLength <= 0 || contentLength > MAX_UPLOAD_BYTES) {
+  if (contentLength <= 0 || contentLength > FILES_UPLOAD_MAX_BYTES) {
     return uploadError(
       requestId,
       "PAYLOAD_TOO_LARGE",

@@ -254,21 +254,23 @@ export const FILES_PDF_TEXT_MAX_PAGES = 500;
 
 export const FILES_IMPORT_PAGE_BYTES = 4 * 1024 * 1024;
 export const FILES_IMPORT_PAGE_ITEMS = 100;
+export const FILES_IMPORT_MODES = [
+  "bookmarks",
+  "pocket",
+  "raindrop",
+  "instapaper",
+  "readwise",
+  "omnivore",
+  "linkwarden",
+  "mymind",
+  "onetab",
+  "archive",
+] as const;
+export type FilesImportMode = (typeof FILES_IMPORT_MODES)[number];
 export interface FilesImportIndexParams {
   cursor?: number;
   expectedSize: number;
-  /** A source in @teak/convex shared/importSources.ts IMPORT_MODES. */
-  mode:
-    | "archive"
-    | "bookmarks"
-    | "raindrop"
-    | "pocket"
-    | "instapaper"
-    | "readwise"
-    | "omnivore"
-    | "linkwarden"
-    | "mymind"
-    | "onetab";
+  mode: FilesImportMode;
   sourceEtag?: string;
   sourceKey: string;
 }

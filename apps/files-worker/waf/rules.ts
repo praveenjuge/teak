@@ -25,11 +25,6 @@ export interface WafRule {
   ref: string;
 }
 
-/**
- * The public API and MCP requests the Files Worker proxies, matching its
- * zone routes and `upstreamPathFor`: only the apex host, and `/apis` or
- * `/mcpfoo` belong to the site, not the API.
- */
 export const API_REQUESTS = `http.host eq "${WAF_ZONE_NAME}" and (http.request.uri.path in {"/api" "/mcp"} or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/mcp/"))`;
 
 /**

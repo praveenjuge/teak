@@ -1,5 +1,3 @@
-# Compile the server into one executable. Bun matches the repo's pinned
-# version (root package.json).
 FROM --platform=linux/amd64 oven/bun:1.4.2-alpine AS build
 WORKDIR /build
 COPY src ./src

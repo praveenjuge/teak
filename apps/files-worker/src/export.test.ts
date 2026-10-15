@@ -7,7 +7,7 @@ import {
   ExportTooLarge,
   parseExportManifest,
 } from "./export";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng } from "./test/testsupport";
 
 const encodeBase64 = (text: string): string =>
   Buffer.from(text, "utf8").toString("base64");

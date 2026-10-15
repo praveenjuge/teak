@@ -43,10 +43,9 @@ interface Bin extends Lab {
 }
 
 interface Cluster extends Lab {
-  /** Weighted sRGB sums; divided by `weight` for the swatch color. */
-  blue: number;
-  green: number;
-  red: number;
+  blueSum: number;
+  greenSum: number;
+  redSum: number;
   weight: number;
 }
 
@@ -118,7 +117,6 @@ const binPixels = (pixels: Uint8Array): { bins: Bin[]; total: number } => {
     }
     total += 1;
   }
-  // Key order keeps the clustering deterministic for a given image.
   const bins = [...sums.entries()]
     .sort(([left], [right]) => left - right)
     .map(([, sum]) => {
@@ -188,9 +186,9 @@ const clusterBins = (bins: Bin[]): Cluster[] => {
       l: 0,
       a: 0,
       b: 0,
-      red: 0,
-      green: 0,
-      blue: 0,
+      redSum: 0,
+      greenSum: 0,
+      blueSum: 0,
       weight: 0,
     }));
     for (const [index, bin] of bins.entries()) {
@@ -198,9 +196,9 @@ const clusterBins = (bins: Bin[]): Cluster[] => {
       cluster.l += bin.l * bin.weight;
       cluster.a += bin.a * bin.weight;
       cluster.b += bin.b * bin.weight;
-      cluster.red += bin.red * bin.weight;
-      cluster.green += bin.green * bin.weight;
-      cluster.blue += bin.blue * bin.weight;
+      cluster.redSum += bin.red * bin.weight;
+      cluster.greenSum += bin.green * bin.weight;
+      cluster.blueSum += bin.blue * bin.weight;
       cluster.weight += bin.weight;
     }
     clusters = clusters.filter((cluster) => cluster.weight > 0);
@@ -247,9 +245,9 @@ const mergeClose = (input: Cluster[]): Cluster[] => {
     keep.l = (keep.l * keep.weight + drop.l * drop.weight) / weight;
     keep.a = (keep.a * keep.weight + drop.a * drop.weight) / weight;
     keep.b = (keep.b * keep.weight + drop.b * drop.weight) / weight;
-    keep.red += drop.red;
-    keep.green += drop.green;
-    keep.blue += drop.blue;
+    keep.redSum += drop.redSum;
+    keep.greenSum += drop.greenSum;
+    keep.blueSum += drop.blueSum;
     keep.weight = weight;
     clusters.splice(pair[1], 1);
   }
@@ -259,13 +257,10 @@ const mergeClose = (input: Cluster[]): Cluster[] => {
 const byWeight = (left: Cluster, right: Cluster): number =>
   right.weight - left.weight || left.l - right.l;
 
-/**
- * Picks the largest colors, discounting each by how close it is to a color
- * already picked so the palette spans the image rather than listing shades
- * of one area; then swaps the most vivid leftover whose hue the other picks
- * lack in for the smallest one. Returned largest first.
- */
-const rank = (clusters: Cluster[], maxColors: number, total: number) => {
+const pickDistinct = (
+  clusters: Cluster[],
+  maxColors: number
+): { leftovers: Cluster[]; picks: Cluster[] } => {
   const remaining = [...clusters].sort(byWeight);
   const picks: Cluster[] = [];
   while (picks.length < maxColors && remaining.length > 0) {
@@ -284,11 +279,16 @@ const rank = (clusters: Cluster[], maxColors: number, total: number) => {
     }
     picks.push(...remaining.splice(bestIndex, 1));
   }
-  picks.sort(byWeight);
-  // Leftovers are mostly shades of a color already kept, so the accent must
-  // add a hue that no vivid pick beside it already has.
+  return { leftovers: remaining, picks: picks.sort(byWeight) };
+};
+
+const swapInAccent = (
+  picks: Cluster[],
+  leftovers: Cluster[],
+  total: number
+): Cluster[] => {
   const kept = picks.slice(0, -1);
-  const accent = remaining
+  const accent = leftovers
     .filter(
       (cluster) =>
         chroma(cluster) >= ACCENT_MIN_CHROMA &&
@@ -302,15 +302,12 @@ const rank = (clusters: Cluster[], maxColors: number, total: number) => {
     .sort((left, right) => chroma(right) - chroma(left))[0];
   const smallest = picks.at(-1);
   if (
-    accent &&
-    smallest &&
-    maxColors > 1 &&
-    chroma(accent) > chroma(smallest)
+    !(accent && smallest && kept.length > 0) ||
+    chroma(accent) <= chroma(smallest)
   ) {
-    picks[picks.length - 1] = accent;
-    picks.sort(byWeight);
+    return picks;
   }
-  return picks;
+  return [...kept, accent].sort(byWeight);
 };
 
 /**
@@ -325,12 +322,14 @@ export const extractPalette = (
   if (bins.length === 0 || maxColors < 1) {
     return [];
   }
-  return rank(mergeClose(clusterBins(bins)), maxColors, total).map(
-    (cluster) => ({
-      hex: `#${toHex(cluster.red / cluster.weight)}${toHex(
-        cluster.green / cluster.weight
-      )}${toHex(cluster.blue / cluster.weight)}`.toUpperCase(),
-      weight: cluster.weight / total,
-    })
+  const { leftovers, picks } = pickDistinct(
+    mergeClose(clusterBins(bins)),
+    maxColors
   );
+  return swapInAccent(picks, leftovers, total).map((cluster) => ({
+    hex: `#${toHex(cluster.redSum / cluster.weight)}${toHex(
+      cluster.greenSum / cluster.weight
+    )}${toHex(cluster.blueSum / cluster.weight)}`.toUpperCase(),
+    weight: cluster.weight / total,
+  }));
 };

@@ -11,10 +11,10 @@ import {
   MAX_RENDER_HTML_BYTES,
   scrapeHtml,
 } from "./browserRender";
-import { launchLocalChrome, localChromeLease } from "./chromeTestSupport";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
-import { FakeBucket } from "./testsupport";
+import { launchLocalChrome, localChromeLease } from "./test/chromeTestSupport";
+import { FakeBucket } from "./test/testsupport";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));

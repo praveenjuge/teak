@@ -1,8 +1,4 @@
-/**
- * The HTTP contract between the Files Worker and its link fetcher Container.
- * The Worker's LinkFetcher Durable Object reuses the media renderer's start-up
- * and health check, so the port and protocol number match the renderer's.
- */
+/** The HTTP contract between the Files Worker and its link fetcher Container. */
 
 import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/src/remoteAsset";
 

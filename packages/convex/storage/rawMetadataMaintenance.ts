@@ -7,7 +7,7 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { ensureObjectOwnership } from "./ownership";
 import { cardStorageObjectKeys, deleteObject } from "./r2";
 import {
@@ -49,12 +49,9 @@ export const commitArchive = internalMutation({
       await deleteObject(ctx, key);
       return false;
     }
-    if (await getAccountDeletionState(ctx, card.userId)) {
-      // Account deletion owns this card's teardown; patching here would
-      // race its batches with OCC conflicts. The copied object is not yet
-      // referenced by the card, so enqueue durable deletion. Let a failed
-      // enqueue reject: archiveCard retains the immutable key in a commit
-      // retry rather than acknowledging cleanup that was never recorded.
+    if (await accountDeletionOwnsRows(ctx, card.userId)) {
+      // Let a failed enqueue reject: archiveCard retains the immutable key in
+      // a commit retry rather than acknowledging cleanup never recorded.
       if (card.metadata?.[kind]?.rawStorageKey !== key) {
         await deleteObject(ctx, key);
       }

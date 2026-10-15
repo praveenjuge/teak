@@ -1,3 +1,4 @@
+import { SAFE_FETCH_MAX_DURATION_MS } from "@teak/convex/linkMetadata/ssrf";
 import {
   FILES_REMOTE_ASSET_MAX_BYTES,
   FILES_REMOTE_ASSET_MAX_URL_LENGTH,
@@ -10,6 +11,8 @@ import {
 import {
   FETCHER_HEADERS,
   FETCHER_PATH,
+  FETCHER_PORT,
+  FETCHER_PROTOCOL,
   type FetcherRequest,
 } from "../fetcher/src/protocol";
 import { MediaRenderer } from "./mediaRenderer";
@@ -18,6 +21,8 @@ import { isValidUploadKey } from "./upload";
 
 export class LinkFetcher extends MediaRenderer {
   protected override readonly enableInternet = true;
+  protected override readonly port = FETCHER_PORT;
+  protected override readonly protocol = FETCHER_PROTOCOL;
 }
 
 export interface RemoteAssetEnv {
@@ -28,9 +33,9 @@ export interface RemoteAssetEnv {
 
 const DEFAULT_POOL_SIZE = 2;
 const MAX_POOL_SIZE = 16;
-// The Container gives each of up to six redirect hops 30 seconds; this also
-// covers a cold start and its health check. Convex waits a little longer.
-const FETCH_TIMEOUT_MS = 210_000;
+const FETCHER_START_ALLOWANCE_MS = 30_000;
+const FETCH_TIMEOUT_MS =
+  SAFE_FETCH_MAX_DURATION_MS + FETCHER_START_ALLOWANCE_MS;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
 const SKIP_REASONS = new Set<FilesRemoteAssetSkipReason>([

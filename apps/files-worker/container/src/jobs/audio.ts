@@ -37,15 +37,18 @@ export async function audioJob(
   const whisperPath =
     whisper === "converted" ? join(ctx.dir, "whisper.mp3") : null;
 
-  const windows = new PeakWindows();
+  const peakWindows = new PeakWindows();
   const result = await run(
     audioCommand(ctx.dir, ctx.input, probe.audio.index, whisperPath),
-    { deadline: ctx.deadline, onStdout: (chunk) => windows.push(chunk) }
+    {
+      deadlineEpochMs: ctx.deadlineEpochMs,
+      stdout: { kind: "stream", onChunk: (chunk) => peakWindows.push(chunk) },
+    }
   );
   if (result.exitCode !== 0) {
     throw toolFailure(result, "Could not decode the audio");
   }
-  const bars = windows.finish();
+  const bars = peakWindows.windows;
   if (bars.length === 0) {
     throw unsupported("The audio stream has no decodable samples");
   }

@@ -25,8 +25,10 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
   detectIpVersion: () => 0,
   assertUrlStructureSafe: (url: string) => new URL(url),
   assertUrlIsSafe: async (url: string) => new URL(url),
-  safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
-    global.fetch(url, init),
+  safeFetch: async (url: string, _resolveDns: unknown, init?: RequestInit) => ({
+    finalUrl: url,
+    response: await global.fetch(url, init),
+  }),
   readBodyWithLimit: async (
     response: { text: () => Promise<string> },
     maxBytes: number

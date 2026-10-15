@@ -12,7 +12,7 @@ import {
   fakeHttpEtag,
   makePng,
   withObjectGates,
-} from "./testsupport";
+} from "./test/testsupport";
 
 const SECRET = "test-secret";
 
@@ -157,13 +157,14 @@ describe("files worker handler", () => {
     expect(options.headers.get("access-control-allow-origin")).toBe("*");
   });
 
-  test("rejects unsigned downloads", async () => {
+  test("rejects unsigned downloads without granting any origin access", async () => {
     const response = await worker.fetch(
       new Request("https://files.teakvault.com/users/u1/cards/f/x.png"),
       env(),
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(401);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   test("serves a correctly signed key containing consecutive dots", async () => {

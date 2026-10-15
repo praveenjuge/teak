@@ -2,9 +2,9 @@ import { join } from "node:path";
 import {
   animationSampleCommand,
   frameCommand,
+  keyframeTileCommand,
   type SampleSize,
   spriteCommand,
-  tileCommand,
 } from "../args";
 import { toolFailure, unsupported } from "../errors";
 import { run } from "../exec";
@@ -79,7 +79,7 @@ async function extractFrame(
         sample,
         ...size,
       }),
-      { deadline: ctx.deadline }
+      { deadlineEpochMs: ctx.deadlineEpochMs }
     );
     const bytes = result.exitCode === 0 ? await readOutput(output) : null;
     return { result, bytes };
@@ -114,7 +114,7 @@ async function buildSprite(
   for (const [index, timeSeconds] of times.entries()) {
     const output = join(ctx.dir, `tile-${index}.mkv`);
     const result = await run(
-      tileCommand({
+      keyframeTileCommand({
         jobDir: ctx.dir,
         input: ctx.input,
         streamIndex,
@@ -123,7 +123,7 @@ async function buildSprite(
         sample,
         ...size,
       }),
-      { deadline: ctx.deadline }
+      { deadlineEpochMs: ctx.deadlineEpochMs }
     );
     if (result.exitCode !== 0 || !(await readOutput(output))) {
       return { samples, sprite: null };
@@ -136,7 +136,7 @@ async function buildSprite(
   }
   const output = join(ctx.dir, "scrub.jpg");
   const result = await run(spriteCommand(ctx.dir, tiles, output), {
-    deadline: ctx.deadline,
+    deadlineEpochMs: ctx.deadlineEpochMs,
   });
   return {
     samples,
@@ -153,9 +153,9 @@ export async function videoJob(
   if (!(video && facts.width && facts.height)) {
     throw unsupported("The file has no video stream");
   }
-  if (exceedsFrameLimits(video.width, video.height)) {
+  if (exceedsFrameLimits(video.codedWidth, video.codedHeight)) {
     throw unsupported(
-      `Video frames of ${video.width}×${video.height} are larger than allowed`
+      `Video frames of ${video.codedWidth}×${video.codedHeight} are larger than allowed`
     );
   }
 
@@ -216,9 +216,9 @@ export async function animationPaletteJob(
   if (!(video && facts.width && facts.height)) {
     throw unsupported("The file has no video stream");
   }
-  if (exceedsFrameLimits(video.width, video.height)) {
+  if (exceedsFrameLimits(video.codedWidth, video.codedHeight)) {
     throw unsupported(
-      `Frames of ${video.width}×${video.height} are larger than allowed`
+      `Frames of ${video.codedWidth}×${video.codedHeight} are larger than allowed`
     );
   }
   const size = paletteSampleSize(facts.width, facts.height);
@@ -232,8 +232,12 @@ export async function animationPaletteJob(
       ...size,
     }),
     {
-      deadline: ctx.deadline,
-      maxStdoutBytes: params.frames * size.width * size.height * 4,
+      deadlineEpochMs: ctx.deadlineEpochMs,
+      stdout: {
+        kind: "buffer",
+        maxBytes: params.frames * size.width * size.height * 4,
+        stopAtLimit: false,
+      },
     }
   );
   const pixels =

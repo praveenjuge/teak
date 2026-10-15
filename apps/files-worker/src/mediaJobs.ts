@@ -1,9 +1,9 @@
 import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
-  FILES_RENDER_MAX_SOURCE_BYTES,
   FILES_SCRUB_FRAMES,
   FILES_TRANSCRIPT_MAX_BYTES,
   FILES_TRANSCRIPTION_MODEL,
+  FILES_UPLOAD_MAX_BYTES,
   FILES_WAVEFORM_BARS,
   type FilesAnimationPaletteResult,
   type FilesAudioTranscript,
@@ -16,6 +16,7 @@ import {
 } from "@teak/files-protocol";
 import type { WorkersAiBinding } from "./aiGateway";
 import { MAX_PDF_TEXT_PAGES, textFacts } from "./inspect";
+import { OpFailure } from "./opFailure";
 import {
   callRenderer,
   RendererDeclined,
@@ -61,10 +62,10 @@ export const r2SourceOpener = (
     }
     if (
       (etag !== null && object.httpEtag !== etag) ||
-      object.size > FILES_RENDER_MAX_SOURCE_BYTES
+      object.size > FILES_UPLOAD_MAX_BYTES
     ) {
       await object.body.cancel();
-      throw new Error(
+      throw new OpFailure(
         etag !== null && object.httpEtag !== etag
           ? "source_changed"
           : "source_too_large"
@@ -250,7 +251,7 @@ export const extractPdfTextViaRenderer = async (
   if (!head) {
     throw new InspectSourceMissing();
   }
-  if (head.size > maxBytes || head.size > FILES_RENDER_MAX_SOURCE_BYTES) {
+  if (head.size > maxBytes || head.size > FILES_UPLOAD_MAX_BYTES) {
     return { facts: textFacts(""), text: "" };
   }
   let result: Awaited<ReturnType<typeof callRenderer>>;

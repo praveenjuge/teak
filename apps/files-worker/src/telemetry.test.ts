@@ -5,7 +5,7 @@ import {
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
 import { hmacSha256Hex, sha256Hex } from "./lib";
-import { withObjectGates } from "./testsupport";
+import { withObjectGates } from "./test/testsupport";
 
 const SECRET = "test-secret";
 

@@ -5,6 +5,7 @@ import {
   type DnsResolver,
   detectIpVersion,
   isBlockedIp,
+  RedirectError,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
@@ -250,9 +251,41 @@ describe("safeFetch", () => {
     globalThis.fetch = (async () =>
       new Response("ok", { status: 200 })) as unknown as typeof fetch;
 
-    const response = await safeFetch("https://8.8.8.8/data", resolveUnused);
+    const { finalUrl, response } = await safeFetch(
+      "https://8.8.8.8/data",
+      resolveUnused
+    );
+    expect(finalUrl).toBe("https://8.8.8.8/data");
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
+  });
+
+  test("reports the URL of the hop that answered after redirects", async () => {
+    globalThis.fetch = ((input: RequestInfo | URL) =>
+      Promise.resolve(
+        String(input) === "https://8.8.8.8/start"
+          ? new Response(null, { headers: { location: "/end" }, status: 301 })
+          : new Response("ok")
+      )) as typeof fetch;
+
+    const { finalUrl } = await safeFetch(
+      "https://8.8.8.8/start",
+      resolveUnused
+    );
+    expect(finalUrl).toBe("https://8.8.8.8/end");
+  });
+
+  test("fails a redirect loop as a redirect error, not a refused URL", async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(null, { headers: { location: "/again" }, status: 302 })
+      )) as unknown as typeof fetch;
+
+    const error = await safeFetch("https://8.8.8.8/start", resolveUnused).catch(
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(RedirectError);
+    expect((error as RedirectError).reason).toBe("too_many_redirects");
   });
 
   test("passes only validated DNS addresses to the connection", async () => {
@@ -264,9 +297,13 @@ describe("safeFetch", () => {
       return Promise.resolve(new Response("ok"));
     };
 
-    await expect(
-      safeFetch("https://example.com/", resolveTo("93.184.216.34"), {}, pinned)
-    ).resolves.toBeInstanceOf(Response);
+    const { response } = await safeFetch(
+      "https://example.com/",
+      resolveTo("93.184.216.34"),
+      {},
+      pinned
+    );
+    expect(await response.text()).toBe("ok");
   });
 });
 
