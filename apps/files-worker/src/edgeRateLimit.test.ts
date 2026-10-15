@@ -67,11 +67,13 @@ const env = (
   limits: { api?: RateLimiter; unknown?: RateLimiter } = {}
 ): EdgeRateLimitEnv & { api: FakeLimiter; unknown: FakeLimiter } => {
   const api = (limits.api as FakeLimiter) ?? new FakeLimiter(2);
-  const unknown = (limits.unknown as FakeLimiter) ?? new FakeLimiter(1);
+  const unknown = (limits.unknown as FakeLimiter) ?? new FakeLimiter(3);
   return {
     API_PUBLIC_HOST: "teakvault.com",
     API_REQUEST_LIMITER: api,
     API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
+    // Answers stay cached, as in production.
+    EDGE_IDENTITY: new MemoryKv() as unknown as KVNamespace,
     FILES_SIGNING_SECRET: SECRET,
     UNKNOWN_CREDENTIAL_LIMITER: unknown,
     api,
@@ -80,6 +82,20 @@ const env = (
 };
 
 const ctx = { waitUntil: () => undefined };
+
+/** KV stand-in that keeps values (TTLs are not needed here). */
+class MemoryKv {
+  private readonly values = new Map<string, string>();
+
+  get(key: string) {
+    return Promise.resolve(this.values.get(key) ?? null);
+  }
+
+  put(key: string, value: string) {
+    this.values.set(key, value);
+    return Promise.resolve();
+  }
+}
 
 const request = (
   path: string,
@@ -195,7 +211,8 @@ describe("a known user", () => {
     );
     const response = "response" in outcome ? outcome.response : null;
     expect(response?.status).toBe(429);
-    expect(await response?.json()).not.toHaveProperty("id");
+    // JSON-RPC answers an unreadable id with null.
+    expect(await response?.json()).toMatchObject({ jsonrpc: "2.0", id: null });
   }, 2000);
 
   test.each([
@@ -226,7 +243,7 @@ describe("a known user", () => {
 
 describe("requests without a known user", () => {
   test("an unknown credential is limited per address on the stricter limiter, unattested", async () => {
-    const shared = env();
+    const shared = env({ unknown: new FakeLimiter(1) });
     const first = await limit(
       shared,
       request("/api/v1/cards", { key: STRANGER_KEY })
@@ -244,6 +261,33 @@ describe("requests without a known user", () => {
     expect(response?.headers.get("ratelimit-limit")).toBe(
       String(EDGE_UNKNOWN_CREDENTIAL_LIMIT)
     );
+  });
+
+  test("rotating made-up keys cannot make the edge ask Convex past the address limit", async () => {
+    const lookups: string[] = [];
+    const shared = env({ unknown: new FakeLimiter(2) });
+    const outcomes: Awaited<ReturnType<typeof applyEdgeRateLimit>>[] = [];
+    for (const suffix of ["1001", "1002", "1003", "1004", "1005"]) {
+      outcomes.push(
+        await applyEdgeRateLimit(
+          request("/api/v1/cards", { key: keyFor(suffix) }),
+          shared,
+          ctx,
+          {
+            fetcher: ((_url: string, init: RequestInit = {}) => {
+              lookups.push(String(init.body));
+              return Promise.resolve(Response.json({ userId: null }));
+            }) as typeof fetch,
+          }
+        )
+      );
+    }
+    expect(lookups).toHaveLength(2);
+    expect(
+      outcomes.map((outcome) =>
+        "response" in outcome ? outcome.response.status : "forwarded"
+      )
+    ).toEqual(["forwarded", "forwarded", 429, 429, 429]);
   });
 
   test("no credential is limited per address on the request limiter, unattested", async () => {

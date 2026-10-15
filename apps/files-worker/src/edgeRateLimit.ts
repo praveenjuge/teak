@@ -29,6 +29,7 @@ import {
   EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
 } from "@teak/files-protocol";
 import {
+  addressKey,
   type EdgeIdentity,
   type EdgeIdentityDeps,
   type EdgeIdentityEnv,
@@ -155,7 +156,8 @@ const rateLimitedResponse = async (
     return new Response(
       JSON.stringify({
         jsonrpc: "2.0",
-        ...(id === undefined ? {} : { id }),
+        // JSON-RPC answers a request whose id cannot be read with null.
+        id: id ?? null,
         error: {
           code: MCP_EDGE_RATE_LIMITED_CODE,
           message: "Too many requests",
@@ -219,9 +221,43 @@ export const applyEdgeRateLimit = async (
   if (request.method === "OPTIONS") {
     return { attestation: null };
   }
-  const identity = await resolveEdgeIdentity(request, env, ctx, deps);
+  // Each lookup the identity cache cannot answer is first charged to the
+  // address on the unknown-credential limiter, so made-up credentials cannot
+  // make the edge ask Convex more often than that limit allows.
+  const lookupGate: { state: "unused" | "allowed" | "refused" } = {
+    state: "unused",
+  };
+  const allowLookup = async (): Promise<boolean> => {
+    const gate = env.UNKNOWN_CREDENTIAL_LIMITER;
+    if (!gate) {
+      return true;
+    }
+    try {
+      const { success } = await gate.limit({ key: addressKey(request) });
+      lookupGate.state = success ? "allowed" : "refused";
+      return success;
+    } catch {
+      return true;
+    }
+  };
+  const identity = await resolveEdgeIdentity(request, env, ctx, {
+    ...deps,
+    allowLookup,
+  });
+  if (lookupGate.state === "refused") {
+    return {
+      response: await rateLimitedResponse(
+        request,
+        EDGE_UNKNOWN_CREDENTIAL_LIMIT
+      ),
+    };
+  }
   const unknownCredential =
     !isKnownUser(identity) && request.headers.has("authorization");
+  // The gate already charged this request to the unknown-credential limit.
+  if (unknownCredential && lookupGate.state === "allowed") {
+    return { attestation: null };
+  }
   const limiter = unknownCredential
     ? env.UNKNOWN_CREDENTIAL_LIMITER
     : env.API_REQUEST_LIMITER;

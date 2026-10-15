@@ -54,12 +54,21 @@ const LOOKUP_TIMEOUT_MS = 2000;
 const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
+  /**
+   * Asked before each lookup the cache cannot answer; false skips the
+   * lookup, so a caller can bound how often one client makes it ask Convex.
+   */
+  allowLookup?: () => Promise<boolean>;
   fetcher?: typeof fetch;
   verifyToken?: typeof verifyWorkosConnectToken;
 }
 
+/** The bucket key for the request's client address. */
+export const addressKey = (request: Request): string =>
+  `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`;
+
 const addressIdentity = (request: Request): EdgeIdentity => ({
-  key: `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`,
+  key: addressKey(request),
   source: "address",
 });
 
@@ -125,13 +134,18 @@ const cachedOwner = async (
   ctx: Pick<ExecutionContext, "waitUntil">,
   cacheKey: string,
   lookup: EdgeIdentityLookup,
-  fetcher: typeof fetch
+  deps: Required<Pick<EdgeIdentityDeps, "fetcher">> &
+    Pick<EdgeIdentityDeps, "allowLookup">
 ): Promise<string | null | undefined> => {
   // A failed read is a cache miss: ask Convex instead.
   const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
   if (typeof cached === "string") {
     return cached || null;
   }
+  if (deps.allowLookup && !(await deps.allowLookup())) {
+    return;
+  }
+  const { fetcher } = deps;
   let owner: string | null;
   try {
     owner = await lookupOwner(env, lookup, fetcher);
@@ -171,7 +185,7 @@ export const resolveEdgeIdentity = async (
       ctx,
       `key:${tokenHash}`,
       { tokenHash },
-      fetcher
+      { allowLookup: deps.allowLookup, fetcher }
     );
     return owner
       ? { key: `user:${owner}`, source: "api_key" }
@@ -194,7 +208,7 @@ export const resolveEdgeIdentity = async (
     ctx,
     `workos:${workosUserId}`,
     { workosUserId },
-    fetcher
+    { allowLookup: deps.allowLookup, fetcher }
   );
   // A verified token names its user even when Convex cannot map it yet.
   return {
