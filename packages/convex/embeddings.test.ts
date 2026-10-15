@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { scheduleCardSearchSync } from "./card/searchDocumentHelpers";
+import { syncCardSearch } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -84,7 +84,7 @@ const createCard = (t: T, content: string) =>
       updatedAt: Date.now(),
       userId: USER,
     });
-    await scheduleCardSearchSync(ctx, cardId, USER);
+    await syncCardSearch(ctx, cardId, USER);
     return cardId;
   });
 
@@ -92,14 +92,14 @@ const editCard = (t: T, cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
   t.run(async (ctx) => {
     const previous = await ctx.db.get("cards", cardId);
     await ctx.db.patch("cards", cardId, { ...value, updatedAt: Date.now() });
-    await scheduleCardSearchSync(ctx, cardId, USER, previous ?? undefined);
+    await syncCardSearch(ctx, cardId, USER, previous ?? undefined);
   });
 
 const deleteCard = (t: T, cardId: Id<"cards">) =>
   t.run(async (ctx) => {
     const previous = await ctx.db.get("cards", cardId);
     await ctx.db.delete("cards", cardId);
-    await scheduleCardSearchSync(ctx, cardId, USER, previous ?? undefined);
+    await syncCardSearch(ctx, cardId, USER, previous ?? undefined);
   });
 
 const rowOf = (t: T, cardId: Id<"cards">) =>

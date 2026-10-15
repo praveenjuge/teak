@@ -8,7 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { folderColorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
@@ -525,9 +525,7 @@ export const deleteFolderBatchHandler = async (
   ) {
     return { done: true };
   }
-  // Account deletion removes every folder and folder row itself; card
-  // writes stand down meanwhile, so a batch here would never finish.
-  if (await getAccountDeletionState(ctx, folder.userId)) {
+  if (await accountDeletionOwnsRows(ctx, folder.userId)) {
     return { done: true };
   }
   const rows = await ctx.db

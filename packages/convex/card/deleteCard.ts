@@ -16,7 +16,7 @@ import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
 } from "./cardUsage";
-import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./updateCard";
 
 export const permanentDeleteCard = mutation({
@@ -71,7 +71,7 @@ const permanentDeleteCardForUserHandler = async (
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);
   }
-  await scheduleCardSearchSync(ctx, cardId, card.userId, card);
+  await syncCardSearch(ctx, cardId, card.userId, card);
   for (const key of cardStorageObjectKeys(card)) {
     await deleteObject(ctx, key);
   }

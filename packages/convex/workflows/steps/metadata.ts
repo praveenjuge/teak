@@ -212,7 +212,6 @@ async function generateForCard(
   }
 
   const completeWithoutAi = async () => {
-    // Write only this stage; the mutation merges it into the fresh status.
     await ctx.runMutation(
       internal.workflows.aiMetadata.mutations.updateCardAI,
       {
@@ -425,9 +424,6 @@ async function generateForCard(
     return await completeWithoutAi();
   }
 
-  // Update card with AI metadata. Only the metadata stage is sent; the
-  // mutation merges it into the status it reads, so a parallel renderables
-  // write is never reset.
   const updatedProcessing = {
     metadata: stageCompleted(Date.now(), confidence),
   };

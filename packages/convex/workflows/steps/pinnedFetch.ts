@@ -1,7 +1,15 @@
 "use node";
 
+import { lookup } from "node:dns/promises";
 import { Agent } from "undici";
-import type { PinnedFetch } from "../../linkMetadata/ssrf";
+import type { DnsResolver, PinnedFetch } from "../../linkMetadata/ssrf";
+
+// The SSRF guard takes its resolver as an argument so it stays free of Node
+// built-ins and bundles for any Convex runtime.
+export const nodeDnsResolver: DnsResolver = async (hostname) => {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+};
 
 interface PinnedAddress {
   address: string;

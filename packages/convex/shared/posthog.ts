@@ -1,4 +1,8 @@
-import { scrubTelemetryString, scrubTelemetryValue } from "./telemetry";
+import {
+  ignoreTelemetryError,
+  scrubTelemetryString,
+  scrubTelemetryValue,
+} from "./telemetry";
 
 /**
  * Dependency-free PostHog capture for surfaces that must not load an SDK:
@@ -235,7 +239,7 @@ export const createPostHogBatch = (
     if (!token) {
       return;
     }
-    try {
+    ignoreTelemetryError(() => {
       const distinctId = input.distinctId || ANONYMOUS_DISTINCT_ID;
       queue.push({
         distinct_id: distinctId,
@@ -250,9 +254,7 @@ export const createPostHogBatch = (
         },
         timestamp: new Date().toISOString(),
       });
-    } catch {
-      // Telemetry must never alter product behavior.
-    }
+    });
   };
 
   return {
@@ -261,7 +263,7 @@ export const createPostHogBatch = (
       if (!token) {
         return;
       }
-      try {
+      ignoreTelemetryError(() =>
         enqueue(
           { distinctId: input.distinctId, event: "$exception" },
           buildExceptionProperties(error, {
@@ -269,10 +271,8 @@ export const createPostHogBatch = (
             platform,
             properties: input.properties,
           })
-        );
-      } catch {
-        // Telemetry must never alter product behavior.
-      }
+        )
+      );
     },
     get enabled() {
       return Boolean(token);

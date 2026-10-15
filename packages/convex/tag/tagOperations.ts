@@ -8,7 +8,10 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import {
+  accountDeletionOwnsRows,
+  getAccountDeletionState,
+} from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { getSessionUser } from "../securitySessions";
 import {
@@ -269,9 +272,7 @@ export const runTagOperationBatchHandler = async (
   if (operation?.status !== "running") {
     return { done: true };
   }
-  // Account deletion removes the user's cards and operations itself, and
-  // card writes stand down meanwhile.
-  if (await getAccountDeletionState(ctx, operation.userId)) {
+  if (await accountDeletionOwnsRows(ctx, operation.userId)) {
     return { done: true };
   }
   const page = await ctx.db

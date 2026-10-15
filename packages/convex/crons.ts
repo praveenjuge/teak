@@ -1,5 +1,6 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
+import { AI_BACKFILL_INTERVAL_HOURS } from "./workflows/aiBackfill";
 
 const crons = cronJobs();
 
@@ -59,10 +60,9 @@ crons.cron(
 );
 
 // Generate AI metadata for cards that don't have it yet
-// Runs every 6 hours to catch any cards that failed generation
 crons.cron(
   "ai-metadata-backfill",
-  "0 */6 * * *",
+  `0 */${AI_BACKFILL_INTERVAL_HOURS} * * *`,
   (internal as any).telemetry.crons.aiMetadataBackfill,
   {}
 );

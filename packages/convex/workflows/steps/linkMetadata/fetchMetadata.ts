@@ -1,6 +1,5 @@
 "use node";
 
-import { lookup } from "node:dns/promises";
 import { gunzipSync } from "node:zlib";
 import {
   type FilesLinkPageResult,
@@ -28,7 +27,6 @@ import {
 import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
   assertUrlIsSafe,
-  type DnsResolver,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
@@ -47,31 +45,15 @@ import {
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { withBackendErrorCapture } from "../../../telemetry/posthog";
-import { pinnedFetch } from "../pinnedFetch";
+import { nodeDnsResolver, pinnedFetch } from "../pinnedFetch";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
 } from "./retryable";
 
-// Resolves hostnames via the Node runtime DNS. Injected into the SSRF guard so
-// that the guard itself stays free of Node built-ins (and bundles for any
-// Convex runtime).
-const resolveDns: DnsResolver = async (hostname) => {
-  const records = await lookup(hostname, { all: true, verbatim: true });
-  return records.map((record) => record.address);
-};
-
 const MAX_REMOTE_HTML_BYTES = 2 * 1024 * 1024;
 
 type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
-
-// Re-exported for backwards compatibility; the source of truth lives in
-// ./retryable so default-runtime workflow files can import it without dragging
-// this "use node" module into the isolate bundle.
-export {
-  LINK_METADATA_RETRYABLE_PREFIX,
-  type LinkMetadataRetryableError,
-} from "./retryable";
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -327,7 +309,7 @@ const scrapeWithFetch = async (
   try {
     const response = await safeFetch(
       url,
-      resolveDns,
+      nodeDnsResolver,
       {
         headers: {
           "user-agent":
@@ -492,7 +474,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     };
   };
   try {
-    await assertUrlIsSafe(normalizedUrl, resolveDns);
+    await assertUrlIsSafe(normalizedUrl, nodeDnsResolver);
   } catch (error) {
     if (error instanceof SsrfError) {
       return await failBlocked();

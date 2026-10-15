@@ -5,6 +5,7 @@ import { requireFolderForUser } from "../folder/folders";
 import {
   applyFolderMembership,
   type FolderMembershipAction,
+  onlyAddsToTarget,
   smartFolderMembership,
 } from "../folder/membership";
 import { explainInvalidTags } from "../publicApiHttpShared";
@@ -252,10 +253,8 @@ export const applyBulkCardAction = async (
     args.action === "moveToFolder" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
-  // No card is ever in a smart folder, so moving out of one (from its view)
-  // only adds the cards to the target.
   const action =
-    args.action === "moveToFolder" && fromFolder?.kind === "smart"
+    args.action === "moveToFolder" && onlyAddsToTarget(fromFolder)
       ? "addToFolder"
       : args.action;
 

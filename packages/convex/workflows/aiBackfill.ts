@@ -6,8 +6,10 @@ import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import type { Id } from "../shared/types";
 import { startWorkflow, workflow } from "./manager";
 
-// The backfill runs every 6 hours, so a card gets about a day of retries.
-export const MAX_AI_BACKFILL_ATTEMPTS = 4;
+export const AI_BACKFILL_INTERVAL_HOURS = 6;
+const AI_BACKFILL_RETRY_WINDOW_HOURS = 24;
+export const MAX_AI_BACKFILL_ATTEMPTS =
+  AI_BACKFILL_RETRY_WINDOW_HOURS / AI_BACKFILL_INTERVAL_HOURS;
 
 const internalWorkflow = internal as Record<string, any>;
 const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as

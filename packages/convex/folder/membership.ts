@@ -41,6 +41,13 @@ export const smartFolderMembership = () =>
     message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_MEMBERSHIP,
   });
 
+/**
+ * No card is ever in a smart folder, so moving cards out of one (from its
+ * view) only adds them to the target.
+ */
+export const onlyAddsToTarget = (fromFolder: Doc<"folders"> | undefined) =>
+  fromFolder?.kind === "smart";
+
 const sameFolders = (
   a: readonly Id<"folders">[],
   b: readonly Id<"folders">[]
@@ -196,10 +203,8 @@ export const applyFolderMembershipToCards = async (
     args.action === "move" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
-  // No card is ever in a smart folder, so moving out of one (from its view)
-  // only adds the cards to the target.
   const action =
-    args.action === "move" && fromFolder?.kind === "smart"
+    args.action === "move" && onlyAddsToTarget(fromFolder)
       ? "add"
       : args.action;
 

@@ -1,7 +1,10 @@
 import { FILES_WAVEFORM_BARS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
-import { stageFailed } from "../../../card/processingStatus";
+import {
+  mergeProcessingStages,
+  stageFailed,
+} from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
 import { scheduleCardProcessingFailed } from "../../../telemetry/schedule";
@@ -16,14 +19,13 @@ export const markCardRenderablesFailed = internalMutation({
     }
     const now = Date.now();
     await patchCardWithSearchSync(ctx, args.cardId, {
-      processingStatus: {
-        ...(card.processingStatus ?? {}),
+      processingStatus: mergeProcessingStages(card.processingStatus, {
         renderables: stageFailed(
           now,
           args.error,
           card.processingStatus?.renderables
         ),
-      },
+      }),
       updatedAt: now,
     });
     await scheduleCardProcessingFailed(ctx, {

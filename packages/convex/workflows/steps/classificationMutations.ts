@@ -1,21 +1,26 @@
-/**
- * Classification Mutations
- *
- * Database mutations for updating classification results.
- * Separated from classification.ts because mutations can't use "use node".
- */
+// Separate from classification.ts because mutations can't use "use node".
 
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
-import { stageCompleted, stagePending } from "../../card/processingStatus";
+import {
+  mergeProcessingStages,
+  stageCompleted,
+  stagePending,
+} from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import type { CardType } from "../../schema";
 
-export const updateClassification = internalMutation({
+/**
+ * Every classify exit records here, because steps gated on
+ * processingStatus.classify (link metadata) retry until they fail while it
+ * stays pending. With a `type` the card takes it and its later stages are
+ * reset; without one only a classify stage not yet completed is marked.
+ */
+export const recordClassification = internalMutation({
   args: {
     cardId: v.id("cards"),
-    type: v.string(),
+    type: v.optional(v.string()),
     confidence: v.number(),
   },
   returns: v.null(),
@@ -27,16 +32,25 @@ export const updateClassification = internalMutation({
       return null;
     }
 
-    const processingStatus = card.processingStatus || {};
-    const updatedProcessing = {
-      ...processingStatus,
+    if (type === undefined) {
+      if (card.processingStatus?.classify?.status !== "completed") {
+        await patchCardWithSearchSync(ctx, cardId, {
+          processingStatus: mergeProcessingStages(card.processingStatus, {
+            classify: stageCompleted(now, confidence),
+          }),
+        });
+      }
+      return null;
+    }
+
+    const updatedProcessing = mergeProcessingStages(card.processingStatus, {
       classify: stageCompleted(now, confidence),
       categorize: type === "link" ? stagePending() : stageCompleted(now, 1),
       metadata: stagePending(),
       renderables: ["image", "video", "document"].includes(type)
         ? stagePending()
         : stageCompleted(now, 1),
-    };
+    });
 
     const patchData: Record<string, unknown> = {
       type: type as CardType,
@@ -52,41 +66,6 @@ export const updateClassification = internalMutation({
     }
 
     await patchCardWithSearchSync(ctx, cardId, patchData);
-
-    return null;
-  },
-});
-
-/**
- * Internal mutation to mark the classification stage as completed without
- * changing the card type. updateClassification only runs when classification
- * changes the type; when re-classification confirms the existing type this
- * records stage completion so downstream steps gated on
- * processingStatus.classify (link metadata fetching) are not stuck retrying
- * until they fail permanently.
- */
-export const markClassificationCompleted = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    confidence: v.number(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { cardId, confidence }) => {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card) {
-      return null;
-    }
-
-    if (card.processingStatus?.classify?.status === "completed") {
-      return null;
-    }
-
-    await patchCardWithSearchSync(ctx, cardId, {
-      processingStatus: {
-        ...(card.processingStatus ?? {}),
-        classify: stageCompleted(Date.now(), confidence),
-      },
-    });
 
     return null;
   },

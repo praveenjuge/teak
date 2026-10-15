@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion";
 
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BATCH_SIZE = 100;
@@ -68,19 +68,13 @@ export const backfillDocumentText = internalMutation({
       cardsToExtract: 0,
       skippedDeletingAccounts: 0,
     };
-    const deletingAccounts = new Map<string, boolean>();
+    const accountDeleting = createAccountDeletionGate(ctx);
     for (const card of page.page) {
       batch.examined += 1;
       if (card.hasExtractedText || card.isDeleted || !card.fileKey) {
         continue;
       }
-      // Account deletion owns these rows while it runs.
-      let deleting = deletingAccounts.get(card.userId);
-      if (deleting === undefined) {
-        deleting = Boolean(await getAccountDeletionState(ctx, card.userId));
-        deletingAccounts.set(card.userId, deleting);
-      }
-      if (deleting) {
+      if (await accountDeleting(card.userId)) {
         batch.skippedDeletingAccounts += 1;
         continue;
       }

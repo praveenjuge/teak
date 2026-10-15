@@ -24,7 +24,7 @@ import {
   type ProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
-import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
 
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
@@ -489,7 +489,7 @@ export const insertCompletedCards = async (
       });
       await recordActiveCardRemoved(ctx, userId, cardId);
     }
-    await scheduleCardSearchSync(ctx, cardId, userId);
+    await syncCardSearch(ctx, cardId, userId);
     if (
       cardDef.type === "document" &&
       cardDef.fileKey &&
@@ -611,11 +611,19 @@ const vaultSetupsOf = (ctx: MutationCtx, userId: string) =>
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .take(10);
 
-const finishVaultSetup = async (ctx: MutationCtx, userId: string) => {
+/**
+ * Clears the account's setup mark. True for the one caller that found it, so
+ * of the upload action and the backstop only the first inserts cards.
+ */
+const claimVaultSetup = async (
+  ctx: MutationCtx,
+  userId: string
+): Promise<boolean> => {
   const rows = await vaultSetupsOf(ctx, userId);
   for (const row of rows) {
     await ctx.db.delete("vaultSetups", row._id);
   }
+  return rows.length > 0;
 };
 
 /** How long the backstop waits before inserting what needs no files. */
@@ -635,7 +643,6 @@ const insertOnboardingCardSet = async (
   createdAt: number,
   stored: OnboardingStored[]
 ) => {
-  await finishVaultSetup(ctx, userId);
   if (await hasOnboardingCards(ctx, userId)) {
     return 0;
   }
@@ -686,13 +693,12 @@ export const createDefaultCardsForUser = internalMutation({
       .first();
 
     if (existingCard) {
-      await finishVaultSetup(ctx, userId);
+      await claimVaultSetup(ctx, userId);
       return { created: false, reason: "cards_exist" as const };
     }
 
     const createdAt = Date.now();
     if (isFilesWorkerConfigured()) {
-      // The mark lets exactly one deferred insert through (see below).
       if ((await vaultSetupsOf(ctx, userId)).length === 0) {
         await startVaultSetup(ctx, userId);
       }
@@ -710,6 +716,7 @@ export const createDefaultCardsForUser = internalMutation({
       );
       return { created: true, deferred: true as const };
     }
+    await claimVaultSetup(ctx, userId);
     const count = await insertOnboardingCardSet(ctx, userId, createdAt, []);
     return { created: true, count };
   },
@@ -745,7 +752,7 @@ export const insertOnboardingCards = internalMutation({
   returns: v.number(),
   handler: async (ctx, { createdAt, stored, userId }) => {
     await assertAccountNotDeleting(ctx, userId);
-    if ((await vaultSetupsOf(ctx, userId)).length === 0) {
+    if (!(await claimVaultSetup(ctx, userId))) {
       return 0;
     }
     return await insertOnboardingCardSet(ctx, userId, createdAt, stored);

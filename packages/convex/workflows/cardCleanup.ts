@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
-import { scheduleCardSearchSync } from "../card/searchDocumentHelpers";
+import { syncCardSearch } from "../card/searchDocumentHelpers";
 import { recordCardTombstone } from "../publicApiTombstones";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import { startWorkflow, workflow } from "./manager";
@@ -75,7 +75,7 @@ export const cleanupDeletedCard = internalMutation({
     try {
       await ctx.db.delete("cards", cardId);
       await recordCardTombstone(ctx, { cardId, userId: card.userId });
-      await scheduleCardSearchSync(ctx, cardId, card.userId, card);
+      await syncCardSearch(ctx, cardId, card.userId, card);
       deleted = true;
     } catch (error) {
       console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete card record`, {

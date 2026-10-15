@@ -6,6 +6,7 @@ import {
   type PostHogProperties,
 } from "../shared/posthog";
 import {
+  ignoreTelemetryErrorAsync,
   normalizeErrorClass,
   normalizeTelemetryAttributes,
   type TelemetryAttributes,
@@ -54,7 +55,7 @@ const enqueue = async (
   if (!readToken()) {
     return;
   }
-  try {
+  await ignoreTelemetryErrorAsync(async () => {
     if (activeScope) {
       record(activeScope.batch);
       return;
@@ -62,9 +63,7 @@ const enqueue = async (
     const batch = createBatch();
     record(batch);
     await batch.flush();
-  } catch {
-    // Telemetry must never alter application outcomes.
-  }
+  });
 };
 
 /** Groups every capture inside `callback` into one request at its end. */

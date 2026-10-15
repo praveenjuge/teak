@@ -8,7 +8,10 @@
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
-import { stageCompleted } from "../../../card/processingStatus";
+import {
+  mergeProcessingStages,
+  stageCompleted,
+} from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { serializeArchivableRaw } from "../../../storage/rawMetadata";
 
@@ -26,11 +29,9 @@ export const updateCategorization = internalMutation({
       return null;
     }
 
-    const processingStatus = card.processingStatus || {};
-    const updatedProcessing = {
-      ...processingStatus,
+    const updatedProcessing = mergeProcessingStages(card.processingStatus, {
       categorize: stageCompleted(now, metadata.confidence),
-    };
+    });
 
     const updatedMetadata = {
       ...(card.metadata || {}),

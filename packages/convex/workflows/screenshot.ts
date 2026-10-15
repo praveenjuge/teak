@@ -64,8 +64,6 @@ export const screenshotWorkflowHandler = async (
   step: ScreenshotStep,
   { cardId }: { cardId: string }
 ): Promise<{ errorType?: string; success: boolean }> => {
-  // The stage lives beside the card's other stages; the mutation merges it
-  // into the status it reads, so a parallel stage is never reset.
   const recordStage = (screenshot: ProcessingStageStatus) =>
     step.runMutation(internalWorkflow.ai.mutations.updateCardProcessing, {
       cardId,

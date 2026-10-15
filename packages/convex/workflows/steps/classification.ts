@@ -6,7 +6,7 @@ import {
 } from "@teak/convex/shared/utils/colorUtils";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
+import { type ActionCtx, internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
 import { inferFileFormat } from "../../shared/fileFormats";
@@ -260,6 +260,15 @@ const maybeUpdatePaletteColors = async (
   }
 };
 
+const recordClassification = (
+  ctx: Pick<ActionCtx, "runMutation">,
+  args: { cardId: Id<"cards">; confidence: number; type?: CardType }
+) =>
+  ctx.runMutation(
+    internal.workflows.steps.classificationMutations.recordClassification,
+    args
+  );
+
 export const classify = internalAction({
   args: {
     cardId: v.id("cards"),
@@ -301,16 +310,7 @@ export const classify = internalAction({
             card.processingStatus?.classify?.confidence ?? 0.95;
 
           if (card.processingStatus?.classify?.status !== "completed") {
-            // A card update (for example removing a quote's URL) can reset
-            // the classify stage to pending while this sticky branch returns
-            // before updateClassification. Record completion so steps gated
-            // on processingStatus.classify do not retry until they fail
-            // permanently.
-            await ctx.runMutation(
-              (internal as any)["workflows/steps/classificationMutations"]
-                .markClassificationCompleted,
-              { cardId, confidence }
-            );
+            await recordClassification(ctx, { cardId, confidence });
           }
 
           const stickyResult: ClassificationWorkflowResult = {
@@ -331,15 +331,11 @@ export const classify = internalAction({
           quoteNormalization.removedQuotes && !card.url && !card.fileKey;
 
         if (heuristicQuote) {
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .updateClassification,
-            {
-              cardId,
-              type: "quote",
-              confidence: 0.95,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            type: "quote",
+            confidence: 0.95,
+          });
 
           const heuristicResult: ClassificationWorkflowResult = {
             mode: "completed",
@@ -374,31 +370,18 @@ export const classify = internalAction({
           (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
         if (shouldUpdateType) {
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .updateClassification,
-            {
-              cardId,
-              type: normalizedType,
-              confidence: normalizedConfidence,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            type: normalizedType,
+            confidence: normalizedConfidence,
+          });
 
           await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
         } else if (card.processingStatus?.classify?.status !== "completed") {
-          // Re-classification confirmed the existing type, so
-          // updateClassification does not run. Still record stage completion:
-          // link metadata fetching gates on processingStatus.classify and
-          // would otherwise retry until it fails permanently (e.g. after a
-          // URL edit resets the classify stage to pending on a link card).
-          await ctx.runMutation(
-            (internal as any)["workflows/steps/classificationMutations"]
-              .markClassificationCompleted,
-            {
-              cardId,
-              confidence: normalizedConfidence,
-            }
-          );
+          await recordClassification(ctx, {
+            cardId,
+            confidence: normalizedConfidence,
+          });
         }
 
         const needsLinkMetadata =

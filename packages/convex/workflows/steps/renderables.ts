@@ -147,9 +147,6 @@ export async function generateHandler(
     handleResult(result);
   }
 
-  // Update processing status to mark renderables as complete
-  // Only the renderables stage is sent; the mutation merges it into the
-  // status it reads, so a parallel metadata write is never reset.
   const now = Date.now();
   const updatedProcessing = {
     renderables: renderablesSucceeded

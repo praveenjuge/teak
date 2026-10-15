@@ -337,3 +337,21 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
   }
   return value;
 };
+
+export const ignoreTelemetryError = (record: () => void): void => {
+  try {
+    record();
+  } catch {
+    // Telemetry must never alter product behavior.
+  }
+};
+
+export const ignoreTelemetryErrorAsync = async (
+  record: () => Promise<unknown>
+): Promise<void> => {
+  try {
+    await record();
+  } catch {
+    // Telemetry must never alter product behavior.
+  }
+};

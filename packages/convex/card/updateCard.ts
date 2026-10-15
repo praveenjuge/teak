@@ -31,7 +31,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { scheduleCardSearchSync, withUrlHost } from "./searchDocumentHelpers";
+import { syncCardSearch, withUrlHost } from "./searchDocumentHelpers";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -238,7 +238,7 @@ export const updateCard = mutation({
         updatedAt: now,
       })
     );
-    await scheduleCardSearchSync(ctx, id, card.userId, card);
+    await syncCardSearch(ctx, id, card.userId, card);
 
     if (pipelineDelayMs !== null) {
       await ctx.scheduler.runAfter(
@@ -473,7 +473,7 @@ export const updateCardFieldsForUserHandler = async (
     })
   );
   if (!options.deferSearchSync) {
-    await scheduleCardSearchSync(ctx, cardId, userId, card);
+    await syncCardSearch(ctx, cardId, userId, card);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {
@@ -580,7 +580,7 @@ export const updateCardFieldForUserHandler = async (
     await recordActiveCardRemoved(ctx, userId, cardId);
   }
   if (!options.deferSearchSync) {
-    await scheduleCardSearchSync(ctx, cardId, userId, card);
+    await syncCardSearch(ctx, cardId, userId, card);
   }
 
   return { pipelineDelayMs: null };

@@ -824,3 +824,30 @@ describe("card/createCard.ts", () => {
     );
   });
 });
+
+describe("resolveCreatedCardType", () => {
+  test.each([
+    [
+      "keeps an explicit text type for a note with a URL",
+      "text",
+      true,
+      false,
+      "text",
+    ],
+    ["keeps an explicit type over quotes", "image", false, true, "image"],
+    [
+      "makes quoted text a quote, even with a URL",
+      undefined,
+      true,
+      true,
+      "quote",
+    ],
+    ["makes a URL without a type a link", undefined, true, false, "link"],
+    ["defaults to text", undefined, false, false, "text"],
+  ])("%s", async (_name, providedType, hasUrl, isQuoted, expected) => {
+    const { resolveCreatedCardType } = await import("../../card/createCard");
+    expect(resolveCreatedCardType({ providedType, hasUrl, isQuoted })).toBe(
+      expected
+    );
+  });
+});

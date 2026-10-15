@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { mergeProcessingStages } from "../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
@@ -20,18 +21,15 @@ export const updateCardAI = internalMutation({
     if (!card) {
       return false;
     }
-    // Merge the caller's stages into the current status read in this
-    // transaction. Steps that run in parallel (metadata and renderables) each
-    // write only their own stage, so neither resets the other's.
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
       ...(processingStatus === undefined
         ? {}
         : {
-            processingStatus: {
-              ...(card.processingStatus ?? {}),
-              ...processingStatus,
-            },
+            processingStatus: mergeProcessingStages(
+              card.processingStatus,
+              processingStatus
+            ),
           }),
       updatedAt: Date.now(),
     });

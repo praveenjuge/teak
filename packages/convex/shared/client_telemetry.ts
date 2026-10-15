@@ -1,5 +1,9 @@
 import type { TelemetryAttributes } from "./telemetry";
-import { normalizeErrorClass, normalizeTelemetryAttributes } from "./telemetry";
+import {
+  ignoreTelemetryError,
+  normalizeErrorClass,
+  normalizeTelemetryAttributes,
+} from "./telemetry";
 
 export interface ClientTelemetryRecorder {
   captureException?: (error: unknown, attributes: TelemetryAttributes) => void;
@@ -15,14 +19,6 @@ export const configureClientTelemetry = (
 
 export const resetClientTelemetry = (): void => {
   activeRecorder = {};
-};
-
-const safeTelemetryCall = (callback: () => void): void => {
-  try {
-    callback();
-  } catch {
-    // Client telemetry must never alter the product flow.
-  }
 };
 
 export interface ClientRequestErrorInput {
@@ -85,7 +81,7 @@ export const captureClientException = (
   if (!activeRecorder.captureException) {
     return;
   }
-  safeTelemetryCall(() => {
+  ignoreTelemetryError(() => {
     activeRecorder.captureException?.(error, {
       ...normalizeTelemetryAttributes({
         ...requestErrorTelemetryAttributes(error),

@@ -32,9 +32,9 @@ import {
   buildCardSearchText,
   patchCardWithSearchSync,
   restartCardSearchTagSync,
-  scheduleCardSearchSync,
   searchCardsByDocument,
   searchCardsByExactTag,
+  syncCardSearch,
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
@@ -663,7 +663,7 @@ describe("OCC contention behavior", () => {
         tags: ["alpha"],
         updatedAt: 10,
       });
-      await scheduleCardSearchSync(ctx, cardId);
+      await syncCardSearch(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       const stateBefore = await ctx.db
         .query("cardSearchTagSyncStates")
@@ -696,10 +696,10 @@ describe("OCC contention behavior", () => {
         tags: ["alpha"],
         updatedAt: 10,
       });
-      await scheduleCardSearchSync(ctx, cardId);
+      await syncCardSearch(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       await ctx.db.delete("cards", cardId);
-      await scheduleCardSearchSync(ctx, cardId, "user-inline-delete");
+      await syncCardSearch(ctx, cardId, "user-inline-delete");
       expect(
         await ctx.db
           .query("cardSearchDocuments")
@@ -721,7 +721,7 @@ describe("OCC contention behavior", () => {
     const t = convexTest(schema, modules);
     const { cardId, a, b } = await t.run(async (ctx) => {
       const id = await insertCard(ctx, "user-folders");
-      await scheduleCardSearchSync(ctx, id);
+      await syncCardSearch(ctx, id);
       const folder = (name: string) =>
         ctx.db.insert("folders", {
           userId: "user-folders",
@@ -792,7 +792,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-folder-text", {
         folderIds: [folderId],
       });
-      await scheduleCardSearchSync(ctx, cardId);
+      await syncCardSearch(ctx, cardId);
       const [row] = await ctx.db.query("folderCards").collect();
       await patchCardWithSearchSync(ctx, cardId, { content: "edited" });
       const [after] = await ctx.db.query("folderCards").collect();

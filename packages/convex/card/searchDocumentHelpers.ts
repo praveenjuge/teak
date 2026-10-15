@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import {
   markCardForEmbedding,
   tombstoneCardEmbedding,
@@ -63,15 +63,7 @@ export const buildCardSearchTags = (
     )
   ).sort();
 
-// Runs the card's search sync inline in the caller's mutation: the search
-// document write (and tag-sync restart when its snapshot changed) is
-// atomic with the card write that triggered it. This replaces the old
-// runAfter(0) fan-out, under which a burst of patches to one card queued
-// duplicate sync invocations that all wrote the same cardSearchDocuments and
-// cardSearchTagSyncStates rows - the syncCardSearchDocument write-conflict
-// retries seen in production. The tag chain itself still runs asynchronously
-// and stays generation-fenced.
-export const scheduleCardSearchSync = async (
+export const syncCardSearch = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   userId?: string,
@@ -208,24 +200,14 @@ export const withUrlHost = <T extends object>(value: T): T => {
   };
 };
 
+/** False when account deletion owns the card's rows and nothing was written. */
 export const patchCardWithSearchSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   value: Partial<Omit<Doc<"cards">, "_creationTime" | "_id">>
 ) => {
-  // While an account deletion runs, its batches delete every card the user
-  // owns, and any concurrent card patch races them: Convex conflicts on
-  // documents read from OR written to, so the deletion batch retries until
-  // it exhausts and fails the whole deletion. Production evidence: a
-  // deleteAccountDataBatch run failed permanently after repeatedly
-  // conflicting with updateCardAI on a cards row. Card writers stand down,
-  // mirroring the search-sync stand-down below; a missing card keeps the
-  // previous behavior of letting db.patch throw.
-  // Returns false so callers can tell the patch was skipped and hold back
-  // follow-up work (for example screenshot scheduling) until deletion
-  // finishes.
   const card = await ctx.db.get("cards", cardId);
-  if (card && (await getAccountDeletionState(ctx, card.userId))) {
+  if (await accountDeletionOwnsRows(ctx, card?.userId)) {
     return false;
   }
   await ctx.db.patch("cards", cardId, withUrlHost(value));
@@ -243,7 +225,7 @@ export const patchCardWithSearchSync = async (
     "url",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
-    await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
+    await syncCardSearch(ctx, cardId, undefined, card ?? undefined);
   }
   return true;
 };
@@ -262,11 +244,8 @@ export const syncCardSearchDocumentHandler = async (
       .unique(),
   ]);
 
-  // While an account deletion is in progress the deletion batches own
-  // cleanup of the search tables for that user's cards. Writing here would
-  // race those batches with optimistic concurrency conflicts, so stand down.
   const ownerId = card?.userId ?? existing?.userId ?? userId;
-  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+  if (await accountDeletionOwnsRows(ctx, ownerId)) {
     return null;
   }
 
@@ -410,6 +389,18 @@ const cardSyncSourceFromState = (
   };
 };
 
+/**
+ * Every restart schedules the tag sync with a new generation, so an invocation
+ * scheduled before the latest restart is stale. So is one whose state row was
+ * pruned after scheduling (deleted card or account deletion): recreating a
+ * generation-1 row would fence its continuation against its own row forever.
+ */
+export const isStaleTagSyncInvocation = (
+  state: Pick<Doc<"cardSearchTagSyncStates">, "generation"> | null,
+  generation: number | undefined
+): boolean =>
+  generation !== undefined && (!state || state.generation !== generation);
+
 export const syncCardSearchTagsBatchHandler = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -421,15 +412,7 @@ export const syncCardSearchTagsBatchHandler = async (
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
 
-  // Generation fencing: every restart schedules the batch with the new
-  // generation, so an invocation scheduled before the latest restart is
-  // stale. A missing state row with a generation argument means the row was
-  // pruned after scheduling (deleted card or account deletion), so that
-  // invocation is stale too - recreating a generation-1 row here would
-  // leave its continuation fenced against its own row forever. Exit after
-  // this single-row read instead of adding more writes to the state row -
-  // the current generation's invocation does the work.
-  if (generation !== undefined && (!state || state.generation !== generation)) {
+  if (isStaleTagSyncInvocation(state, generation)) {
     return { complete: true, processed: 0, writes: 0 };
   }
 
@@ -444,9 +427,6 @@ export const syncCardSearchTagsBatchHandler = async (
     card = await ctx.db.get("cards", cardId);
   }
 
-  // While an account deletion is in progress the deletion batches own
-  // cleanup of the search tables for that user's cards. Writing here would
-  // race those batches with optimistic concurrency conflicts, so stand down.
   // The card row, its sync state, and its tag rows are removed atomically by
   // the deletion batch, so a missing card with leftover rows means the batch
   // has not reached this card yet and the owner can still be resolved.
@@ -468,7 +448,7 @@ export const syncCardSearchTagsBatchHandler = async (
     ownerId = leftoverTag?.userId;
   }
   ownerId = ownerId ?? userId;
-  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+  if (await accountDeletionOwnsRows(ctx, ownerId)) {
     return { complete: true, processed: 0, writes: 0 };
   }
 

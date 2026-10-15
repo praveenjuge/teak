@@ -9,6 +9,8 @@
  * Keep properties low-cardinality and free of user content.
  */
 
+import { ignoreTelemetryError } from "./telemetry";
+
 export type CardCreationSource =
   | "web"
   | "apple"
@@ -117,11 +119,10 @@ export const captureEvent = <Name extends ClientEventName>(
   if (!activeRecorder) {
     return;
   }
-  try {
-    activeRecorder.capture(event, { ...(properties ?? {}) });
-  } catch {
-    // Analytics must never alter product behavior.
-  }
+  const recorder = activeRecorder;
+  ignoreTelemetryError(() =>
+    recorder.capture(event, { ...(properties ?? {}) })
+  );
 };
 
 const MEGABYTE = 1024 * 1024;
