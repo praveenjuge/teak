@@ -581,7 +581,7 @@ describe("backfill", () => {
     ).toEqual([4, 16]);
   });
 
-  test("a failed write retries every card in it", async () => {
+  test("a failed write retries its cards together", async () => {
     const calls = stubWorker({ failNext: { "embed-upsert": 1 } });
     const t = setup();
     const first = await insertOldCard(t, "first");
@@ -590,8 +590,9 @@ describe("backfill", () => {
     await backfill(t, { dryRun: false });
     await runScheduled(t);
 
+    // The retry is one batched write too, not one write per card.
     expect(upserts(calls).map((call) => call.params.items.length)).toEqual([
-      2, 1, 1,
+      2, 2,
     ]);
     for (const cardId of [first, second]) {
       expect(await rowOf(t, cardId)).toMatchObject({

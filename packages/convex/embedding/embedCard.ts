@@ -109,15 +109,22 @@ export const embedDue = internalAction({
   },
 });
 
-const recordFailure = async (ctx: ActionCtx, row: DueRow, error: unknown) => {
+/** One failed attempt for these cards; they are retried together. */
+const recordFailure = async (
+  ctx: ActionCtx,
+  rows: DueRow[],
+  error: unknown
+) => {
   console.warn("[embedding] card embed failed", {
-    cardId: row.cardId,
+    cardIds: rows.map((row) => row.cardId),
     message: errorMessage(error),
   });
-  await ctx.runMutation(state().recordEmbedFailure, {
-    cardId: row.cardId,
+  await ctx.runMutation(state().recordEmbedFailures, {
     error: errorMessage(error),
-    expectedDueAt: row.dueAt,
+    items: rows.map((row) => ({
+      cardId: row.cardId,
+      expectedDueAt: row.dueAt,
+    })),
   });
 };
 
@@ -155,7 +162,7 @@ const settleWithoutEmbedding = async (
       shard: row.shard,
     });
   } catch (error) {
-    await recordFailure(ctx, row, error);
+    await recordFailure(ctx, [row], error);
   }
   return null;
 };
@@ -192,9 +199,11 @@ const embedBatch = async (
       });
     }
   } catch (error) {
-    for (const { row } of items) {
-      await recordFailure(ctx, row, error);
-    }
+    await recordFailure(
+      ctx,
+      items.map(({ row }) => row),
+      error
+    );
   }
 };
 
