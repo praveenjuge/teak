@@ -147,15 +147,12 @@ export interface WranglerConfigShape {
   routes?: unknown[];
 }
 
-// Each Durable Object namespace belongs to this script: the deletion gates,
-// the media renderer Container and the link fetcher Container.
 const DEVELOPMENT_DURABLE_OBJECTS = [
   ["OBJECT_GATES", "ObjectDeletionGate"],
   ["MEDIA_RENDERER", "MediaRenderer"],
   ["LINK_FETCHER", "LinkFetcher"],
 ] as const;
 
-// The Containers this script builds, in order: class and Dockerfile.
 const DEVELOPMENT_CONTAINERS = [
   ["MediaRenderer", "../container/Dockerfile"],
   ["LinkFetcher", "../fetcher/Dockerfile"],
@@ -185,7 +182,6 @@ const ownsDurableObjects = (config: WranglerConfigShape): boolean => {
   );
 };
 
-/** Only the development bucket, no routes, and namespaces of its own. */
 export const assertDevelopmentWorkerConfig = (config: WranglerConfigShape) => {
   const bucket = config.r2_buckets?.[0];
   if (

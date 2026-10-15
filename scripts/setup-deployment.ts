@@ -1,13 +1,3 @@
-/**
- * The Convex half of setup.
- *
- * Every checkout uses the shared cloud dev deployment
- * (scripts/dev-deployment.ts): setup selects it, checks that this machine can
- * reach it, and reads the WorkOS staging credentials the web app needs. It
- * never writes deployment variables and never pushes; `bun run dev` pushes
- * while it holds the push lease.
- */
-
 import { join } from "node:path";
 import { readConvexSelection } from "./capabilities.ts";
 import {
@@ -115,7 +105,6 @@ export const setupDevDeployment = async (
             "Check that CONVEX_DEPLOY_KEY is a current dev deploy key for the dev deployment",
           ];
     const detail = `could not reach ${DEV_DEPLOYMENT}: ${listed.detail}`;
-    // --check only reports what setup would do; a real run needs the access.
     checks.push(
       checkOnly
         ? {

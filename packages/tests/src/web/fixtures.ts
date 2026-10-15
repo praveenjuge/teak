@@ -6,9 +6,6 @@ import { EditorLibrary } from "./editor-library";
 
 export { expect } from "../helpers/test";
 
-// Web surface specs: each test signs up its own WorkOS account and starts
-// signed in, so tests never share state or per-user rate limits (six content
-// edits a minute).
 export const test = base
   .extend<{ webAccount: string }>({
     webAccount: async ({ browser, screen }, use) => {

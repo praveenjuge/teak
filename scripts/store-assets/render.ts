@@ -46,7 +46,6 @@ const run = async (cmd: string[], cwd?: string) => {
   return out;
 };
 
-/** Frames every capture of a simulator store with asc, on a transparent background. */
 const frameCaptures = async (id: StoreId): Promise<Map<string, string>> => {
   const store = STORES[id];
   if (!store.frame) {
@@ -163,7 +162,6 @@ const pageFor = {
     <div class="shot"><img src="${capture}"></div>`,
 };
 
-/** Crops transparent margins from `.trim` images so frames size predictably. */
 const trimImages = (page: Page) =>
   page.$$eval("img.trim", async (images) => {
     for (const image of images as HTMLImageElement[]) {
@@ -243,8 +241,6 @@ for (const id of stores) {
   }
 }
 
-// publish-apple.sh uploads exactly the files each store config lists, so the
-// configs must name the same set as shots.ts.
 const readJSON = (file: string) =>
   JSON.parse(readFileSync(path.join(root, file), "utf8"));
 const native = readJSON("apps/apple/store/store.config.json").screenshots;

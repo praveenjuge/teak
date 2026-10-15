@@ -9,10 +9,6 @@ import {
   writeStagedSnapshot,
 } from "./check-lockfile";
 
-// Sep 24, 2026: a workspace-scoped `bun add` in apps/docs committed a bun.lock
-// whose hoisting a root install disagrees with. Every `bun install
-// --frozen-lockfile` / `bun ci` on main then failed (Backend Deploy, Clean
-// Container Smoke). scripts/check-lockfile.ts now rejects that at pre-commit.
 const ROOT = join(import.meta.dir, "..");
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
 

@@ -153,7 +153,6 @@ const prepare = async (store: StoreId) => {
   console.log(`Clean status bar set for ${store}.`);
 };
 
-/** The window to capture: `--window "<title>"` of `--app "<owner>"`. */
 const macWindow = async (store: StoreId): Promise<number> => {
   const flag = (name: string, fallback: string) => {
     const index = process.argv.indexOf(name);

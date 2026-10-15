@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /**
- * Baseline metrics report for the environment contract (issue #407, Phase 0).
+ * Baseline metrics report for the environment contract.
  *
  * Records total entries, required values, secrets, implicit values, bindings,
  * generated aliases, and per-target/profile manual-supply counts from
@@ -36,7 +36,6 @@ export interface ContractReport {
   version: number;
 }
 
-/** Entries whose required value a human or provider must supply by hand. */
 export const isManuallySupplied = (entry: EnvVarSpec): boolean =>
   !(entry.implicit || isFrameworkAlias(entry.name));
 
@@ -83,7 +82,6 @@ export interface MissingEntry {
   reason: string;
 }
 
-/** Placeholder examples by validation shape. Never real values. */
 export const exampleForValidation = (
   validation: EnvValidation,
   allowedValues?: string[]
@@ -110,7 +108,6 @@ export const exampleForValidation = (
   }
 };
 
-/** Required names for a combo that are absent from `present`. */
 export const missingEntries = (
   target: SupportedTarget,
   profile: string,

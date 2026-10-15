@@ -90,7 +90,6 @@ export interface SetupReport {
   profile: string;
   target: string;
   version: number;
-  /** WorkOS staging, through the dev deployment; null when the target needs no deployment. */
   workos: "staging" | null;
   worktree: WorktreePorts | null;
 }
@@ -183,10 +182,6 @@ const reportWith = (
   ok: !partial.checks.some((check) => !check.ok && check.severity === "error"),
 });
 
-/**
- * Steps 1 and 2: the pinned runtimes, and packages installed with `bun ci`
- * when node_modules is stale. The E2E suite's runner uses them too.
- */
 export const prepareCheckout = async (
   root: string,
   checkOnly: boolean

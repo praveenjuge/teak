@@ -50,7 +50,6 @@ describe("Composer and settings", () => {
     await expect(confirm).toBeEnabled();
     await browser.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    // Closing the dialog deleted nothing: the vault is still open.
     await gotoApp(browser, "/");
     await expect(
       screen.getByRole("textbox", "Markdown content", { exact: false })

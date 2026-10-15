@@ -16,7 +16,6 @@ const isolatedDevVarsPath = join(
   "apps/files-worker/development/.dev.vars"
 );
 
-/** Default: today's shared Worker. `--isolated`: the development Worker. */
 export const parseSyncArgs = (argv: string[]): { isolated: boolean } => {
   const args = argv.filter((arg) => arg !== "--");
   if (args.length === 0) {
@@ -54,7 +53,6 @@ export const mergeDotenvValue = (
 };
 
 const syncIsolated = async () => {
-  // Refuses until Convex dev uses the isolated development Worker and bucket.
   const secret = assertIsolatedDevelopmentFiles(
     await readDevelopmentFilesRouting(root)
   );

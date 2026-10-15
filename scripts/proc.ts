@@ -47,7 +47,6 @@ const settleGroup = async (pgid: number): Promise<void> => {
   try {
     process.kill(-pgid, "SIGKILL");
   } catch {
-    // The group exited within the grace period.
     return;
   }
   await waitForGroupExit(pgid, 1000);
@@ -122,15 +121,10 @@ export const runCommand = async (
   const killTree = () => {
     try {
       process.kill(-proc.pid, 9);
-    } catch {
-      // Group already gone (or negative pids unsupported); fall through to
-      // the direct kill below.
-    }
+    } catch {}
     try {
       proc.kill(9);
-    } catch {
-      // Already exited; reader cancellation below still releases.
-    }
+    } catch {}
   };
   // A detached child leaves our process group, so terminal and CI signals
   // no longer reach it. Prepending runs this before an onExitSignal handler.

@@ -33,9 +33,7 @@ export interface WorkosTestSessionOptions {
   account?: { email: string; password: string };
   apiKey: string;
   clientId: string;
-  /** The web server's WORKOS_COOKIE_PASSWORD (at least 32 characters). */
   cookiePassword: string;
-  /** Short label for the address, e.g. "smoke" -> e2e-smoke-…@example.org. */
   label?: string;
   /** The web's NEXT_PUBLIC_WORKOS_REDIRECT_URI; decides the Secure flag. */
   redirectUri: string;
@@ -68,7 +66,6 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 export const testSessionEmail = (label = "session"): string =>
   `e2e-${label}-${Date.now()}-${randomBytes(4).toString("hex")}@${TEST_SESSION_EMAIL_DOMAIN}`;
 
-/** `Cookie` request header for the session, e.g. for fetch. */
 export const cookieHeader = (cookie: WorkosTestSessionCookie): string =>
   `${cookie.name}=${cookie.value}`;
 
@@ -144,7 +141,6 @@ export const createWorkosTestSession = async (
     };
   }
   const email = testSessionEmail(options.label);
-  // Random per run and never stored: 32 random characters plus every class.
   const password = `${randomBytes(24).toString("base64url")}aA1!`;
   const user = await workos.userManagement.createUser({
     email,

@@ -1,11 +1,3 @@
-/**
- * The WorkOS staging account `bun run dev` signs in with: one per machine and
- * checkout (dev+<host>-<namespace>@example.org), so parallel checkouts on the
- * shared dev deployment never share a vault. Its password is random and kept
- * in the checkout's ignored .agents/.state/dev-account.json; when that file is
- * gone, the password is reset. Nothing here logs the password.
- */
-
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
@@ -35,7 +27,6 @@ const cloudSessionId = (
   return env.CLAUDE_CODE_REMOTE === "true" && session ? session : undefined;
 };
 
-/** A Claude Code cloud session, which signs in with its own dev account. */
 export const isCloudSession = (
   env: Record<string, string | undefined> = process.env
 ): boolean => cloudSessionId(env) !== undefined;
@@ -97,9 +88,7 @@ export const ensureDevAccount = async (options: {
         password: saved.password,
       });
       return saved;
-    } catch {
-      // Deleted or changed in WorkOS; set it up again below.
-    }
+    } catch {}
   }
   const password = `${randomBytes(24).toString("base64url")}aA1!`;
   const existing = (await workos.userManagement.listUsers({ email })).data[0];
@@ -124,11 +113,9 @@ export const ensureDevAccount = async (options: {
   return account;
 };
 
-/** A cloud session account nobody has signed in to for this long is pruned. */
 export const STALE_CLOUD_ACCOUNT_MS = 14 * 24 * 60 * 60 * 1000;
 
 export interface CloudAccountActivity {
-  /** ISO timestamps from WorkOS. */
   createdAt: string;
   email: string;
   lastSignInAt: string | null;

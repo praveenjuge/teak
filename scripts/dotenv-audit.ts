@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Name-only audit of local dotenv state (issue #407, Phase 0).
+ * Name-only audit of local dotenv state.
  *
  * Scans the dotenv files owned by ./env-targets.ts plus legacy root dotenv
  * files. Reports NAMES only: deleted aliases, production selectors in local
@@ -60,7 +60,6 @@ const isReleaseOnly = (name: string): boolean => {
   );
 };
 
-/** Shape-only: non-empty values select production for these names. */
 const selectsProduction = (name: string, value: string): boolean => {
   if (value.trim().length === 0) {
     return false;

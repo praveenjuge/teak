@@ -37,11 +37,6 @@ export interface AuditFinding {
   path: string;
 }
 
-/**
- * Application code reads generated framework aliases only through one
- * accessor per workspace. Tests, scripts, and the E2E harness are exempt:
- * they set up or inject values rather than consume them at runtime.
- */
 const ALIAS_ACCESSOR_FILES = new Set([
   "apps/web/src/lib/public-env.ts",
   "apps/extension/lib/env.ts",
@@ -100,7 +95,6 @@ const SKIP_DIRS = new Set([
   "android",
 ]);
 
-/** Files that meta-reference names (contract, audit, tests) are not evidence. */
 const META_FILES = new Set([
   "scripts/env-contract.ts",
   "scripts/env-audit.ts",
@@ -108,7 +102,6 @@ const META_FILES = new Set([
   "scripts/env-audit.test.ts",
 ]);
 
-/** Docs may name deleted aliases when documenting the migration. */
 const DOC_EXTENSIONS = new Set([".md", ".mdx", ".txt"]);
 
 export const listScannedFiles = (root: string): string[] => {
@@ -155,7 +148,6 @@ const SHELL_VAR_RE =
 const SECRETS_REF_RE = /\$\{\{[^}]*?\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)/g;
 const VARS_REF_RE = /\$\{\{[^}]*?\bvars\.([A-Za-z_][A-Za-z0-9_]*)/g;
 const ENV_BLOCK_KEY_RE = /^\s*env:\s*(?:#.*)?$/;
-/** Convex typed env reads: env.NAME and env?.NAME. */
 const TYPED_ENV_RE = /(?:^|[^\w$.])env\??\.([A-Z][A-Za-z0-9_]*)/g;
 
 export interface NameUse {
@@ -249,14 +241,12 @@ export const extractWorkflowRefs = (
   };
 };
 
-/** Names materialized for later steps via `echo "NAME=..." >> $GITHUB_ENV`. */
 const GITHUB_ENV_WRITE_RE =
   /"([A-Za-z_][A-Za-z0-9_]*)=[^"]*"\s*>>\s*"?\$GITHUB_ENV"?/g;
 
 export const extractGithubEnvWrites = (content: string): NameUse[] =>
   collectMatches(content, GITHUB_ENV_WRITE_RE, makeLineOf(content));
 
-/** Keys declared by `env:` blocks are self-declaring workflow-local or contract names. */
 export const extractWorkflowEnvKeys = (content: string): NameUse[] => {
   const uses: NameUse[] = [];
   const lines = content.split("\n");
@@ -321,7 +311,6 @@ export const extractTurboDecls = (
   return decls;
 };
 
-/** Wrangler bindings (r2_buckets, ai, images) plus declared vars. */
 export const extractWranglerDecls = (content: string): string[] => {
   const names: string[] = [];
   const bindingRe = /"binding"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
@@ -340,7 +329,6 @@ export const extractWranglerDecls = (content: string): string[] => {
 
 const DIAGNOSTIC_FILES = ["scripts/doctor.ts", "scripts/setup.ts"];
 
-/** Platform-provided credentials that must never appear in diagnostics. */
 const PLATFORM_DIAGNOSTIC_SECRETS = ["GH_TOKEN", "GITHUB_TOKEN"];
 
 const readsSecretValue = (fragment: string, name: string): boolean => {
@@ -558,7 +546,6 @@ const main = (): void => {
       `✗ [${finding.kind}] ${finding.path} ${finding.name}: ${finding.detail}`
     );
   }
-  // Name-only local dotenv state: errors fail the audit, warnings inform.
   const dotenvFindings = auditDotenv(ROOT);
   for (const finding of dotenvFindings) {
     console.log(

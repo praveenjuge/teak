@@ -18,7 +18,6 @@ import {
   type Surface,
 } from "./test";
 
-/** A WorkOS emulator user the suite made, with its Teak API key once it has one. */
 export interface AccountState {
   apiKey?: string;
   email: string;
@@ -103,8 +102,6 @@ const waitForAccount = async (email: string, password = E2E_PASSWORD) =>
 
 const emulatorOrigin = () => new URL(env.emulatorUrl).origin;
 
-// Sign-in is hosted by WorkOS (here, the emulator's AuthKit pages), never a
-// Teak page. Teak's /login hands the browser straight to it.
 export const expectHostedSignIn = async ({ browser, screen }: Surface) => {
   await expect(screen.getByLabel("Email")).toBeVisible({ timeout: 30_000 });
   expect(
@@ -139,7 +136,6 @@ export const signIn = async (
 ) => {
   const { screen } = surface;
   await enterCredentials(surface, email, password);
-  // An unverified mailbox gets the code WorkOS would email.
   const verify = screen.getByRole("heading", "Verify your email", {
     exact: false,
   });
@@ -171,8 +167,6 @@ export const expectWrongPassword = async (
   await expect(composerOf(screen)).toHaveCount(0);
 };
 
-// A deleted WorkOS user can't finish sign-in: the callback fails and Teak
-// sends the browser back to hosted sign-in, without vault access.
 export const expectSignInRefused = async (surface: Surface, email: string) => {
   const { browser, screen } = surface;
   await gotoApp(browser, "/login");
@@ -196,7 +190,6 @@ type SecurityTab = "Connections" | "API keys";
 export const securityDialogOf = (screen: Screen) =>
   screen.getByRole("dialog", "Security");
 
-// Opens Security on the Settings page already loaded, without navigating.
 export const openSecurityDialog = async (
   { browser, screen }: Surface,
   tab: SecurityTab = "Connections"
@@ -268,7 +261,6 @@ export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", /^Revoke /).click();
-  // Revoked API keys disappear from the settings table.
   await expect(row).toHaveCount(0);
   await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };
@@ -329,8 +321,6 @@ export const deleteAccountViaUi = async (
   ).toBeVisible();
   await browser.locator("#deleteConfirm").fill("delete account");
   await screen.getByRole("button", "Delete account", { exact: false }).click();
-  // Deletion signs out at admission, then removes the vault and the WorkOS
-  // user in the background.
   await expectHostedSignIn(surface);
   const { apiKey } = account;
   if (apiKey) {

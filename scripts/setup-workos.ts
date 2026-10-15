@@ -1,13 +1,3 @@
-/**
- * WorkOS credentials for setup.
- *
- * WorkOS AuthKit is Teak's only sign-in provider, so the web server needs the
- * same WorkOS client ID and API key as the dev deployment. The deployment is
- * their only source (the owner sets them in the Convex dashboard); setup reads
- * them for apps/web/.env.local and never writes them back. Values are
- * compared but never logged.
- */
-
 import { readDeploymentVar } from "./setup-convex.ts";
 
 export const WORKOS_CREDENTIAL_NAMES = [

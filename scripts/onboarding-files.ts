@@ -21,7 +21,6 @@ const EMBEDDED_EXTENSIONS = new Set([
   ".webp",
 ]);
 
-/** The generated module for the files in `dir`, sorted by name. */
 export const renderOnboardingFiles = (dir: string): string => {
   const names = readdirSync(dir)
     .filter((name) => EMBEDDED_EXTENSIONS.has(extname(name)))

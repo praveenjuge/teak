@@ -42,8 +42,6 @@ function claims(
   const payload = JSON.parse(
     Buffer.from(accessToken.split(".")[1], "base64url").toString()
   ) as Record<string, unknown>;
-  // Decoding only checks the test's expected claims. Real REST/MCP requests
-  // below prove signature and canonical ownership acceptance.
   expect(payload.iss).toBe(provider.issuer);
   expect(payload.aud).toBe(resource);
   expect(payload.sub).toMatch(/^user_[A-Za-z0-9]+$/);
@@ -195,7 +193,6 @@ export async function verifyWorkosConsentJourney(
     new URL(provider.issuer).origin
   );
 
-  // The deployment's resources, as the CLI derives them from discovery.
   const resources = workosResourcesFor(provider.resource);
   const apiGrant = await authorize(
     surface,
@@ -218,8 +215,6 @@ export async function verifyWorkosConsentJourney(
   const mcp = await connectMcp(mcpGrant.accessToken);
   let ownedCardId: string | undefined;
   try {
-    // The browser-created key belongs to the current disposable vault. Reading
-    // its unique card proves canonical ownership, beyond accepting a token.
     const marker = `consent-owner-${randomBytes(24).toString("hex")}`;
     const created = await apiFetch("/v1/cards", expectedApiKey, {
       method: "POST",

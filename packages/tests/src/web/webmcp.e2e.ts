@@ -1,15 +1,3 @@
-/**
- * WebMCP provider coverage.
- *
- * Local verification runbook: the specs below run against a mock
- * `document.modelContext` injected below, so they pass in any Chromium. To
- * verify against the real draft API, use Chrome 149+ with
- * `about:flags#enable-webmcp-testing` enabled (origin trials are the
- * alternative on unflagged builds), sign in to the local dev server, and
- * confirm in DevTools that `document.modelContext.getTools()` lists the
- * imperative tools plus the declarative search form. Secure-context
- * requirements follow spec section 4; plain `http://localhost` qualifies.
- */
 import type { JsonValue } from "e2e";
 import { appPath, gotoApp } from "../helpers/app";
 import type { Browser } from "../helpers/test";
@@ -35,7 +23,6 @@ const WRITE_TOOL_NAMES = [
 
 const IMPERATIVE_TOOL_NAMES = [...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
-/** Wait until every executable imperative tool has registered. */
 const waitForImperativeTools = (browser: Browser) =>
   expect
     .poll(
@@ -106,7 +93,6 @@ const executeTool = async (
   return outcome.result as unknown;
 };
 
-/** The rejection message of a tool call that must fail. */
 const toolError = async (browser: Browser, name: string, input: JsonValue) => {
   const outcome = await settleTool(browser, name, input);
   expect(outcome.ok).toBe(false);
@@ -118,8 +104,6 @@ test.describe("WebMCP", () => {
     browser,
     webAccount: _signedIn,
   }) => {
-    // Signed in, /login hands the session straight to home, the page Teak
-    // itself serves at the end of the redirect chain.
     const home = browser.waitForResponse(appPath("/"));
     await gotoApp(browser, "/login");
     const response = await home;
@@ -160,7 +144,6 @@ test.describe("WebMCP", () => {
           },
         };
       });
-      // The fixture signed in already; reload so the mock is in place.
       await browser.reload();
       await expect(
         screen.getByRole("textbox", "Markdown content", { exact: false })
@@ -243,8 +226,6 @@ test.describe("WebMCP", () => {
       browser,
     }) => {
       await waitForImperativeTools(browser);
-      // Single nonsense token: the query tokenizer splits on punctuation,
-      // so a dashed string could match the seeded welcome card's words.
       const result = await executeTool(browser, "teak_search_cards", {
         q: "qxjklwzmnv",
         limit: 5,

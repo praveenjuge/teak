@@ -283,7 +283,6 @@ export interface Capabilities {
   tooling: ToolingCapability[];
 }
 
-/** Repo-relative paths setup would create or repair, computed read-only. */
 export const plannedWritesFor = (
   target: SupportedTarget,
   convex: ConvexMode,

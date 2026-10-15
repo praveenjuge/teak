@@ -1,9 +1,5 @@
-# End-to-end journeys against a local stack: the WorkOS emulator, a local
-# Convex backend and the web app. Needs no secrets; every credential is a
-# test-only constant in packages/tests/src/stack/config.ts.
 name: E2E
 
-# Daily and on demand only: the suite is too slow to gate every pull request.
 on:
   schedule:
     - cron: "23 4 * * *"
@@ -108,8 +104,6 @@ jobs:
             .agents/.state/stack.log
           retention-days: 7
 
-  # Read-only checks of the published site and Teak's public production
-  # endpoints. Needs no local stack.
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 15

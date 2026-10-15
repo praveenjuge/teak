@@ -27,10 +27,7 @@ case "$PLATFORM" in
 esac
 prefix="$RUNNER_TEMP/$PLATFORM-screenshot"
 
-# Validate every local asset before replacing an existing App Store set.
 asc screenshots validate --path "$directory" --device-type "$device_type" --output json > "$prefix-validation.json"
-# The store config names the exact set, in order; a missing or extra file
-# must never replace a complete App Store set.
 expected_names=()
 while IFS= read -r name; do expected_names+=("$name"); done <<< "$names"
 shopt -s nullglob

@@ -14,7 +14,6 @@ describe("env-targets", () => {
       expect(isSupportedTarget(target)).toBe(true);
     }
     expect(SUPPORTED_TARGETS.length).toBe(5);
-    // The E2E suite sets up its own local backend (packages/tests).
     expect(isSupportedTarget("e2e")).toBe(false);
   });
 

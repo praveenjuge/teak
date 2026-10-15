@@ -9,7 +9,6 @@ import {
 } from "../helpers/test";
 import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
-// The placeholder names the open view, so find the box by its role.
 const enterSearch = async (screen: Screen, query: string) => {
   const search = screen.getByRole("combobox");
   await search.fill(query);
@@ -58,7 +57,6 @@ const clearFilters = async (screen: Screen) => {
     .click();
 };
 
-// Typing `trash` in search opens the Trash page.
 const showTrash = async ({ browser, screen }: Surface) => {
   await gotoApp(browser, "/");
   const search = screen.getByRole("combobox");
@@ -74,8 +72,6 @@ const showTrash = async ({ browser, screen }: Surface) => {
 const markerFor = (scope: string) =>
   `e2e-surface-${scope}-${Date.now().toString(36)}`;
 
-// One fresh account for the file, created by the first test and kept for the
-// rest of the group.
 let apiKey = "";
 
 const surfaceContext = () => {
@@ -194,9 +190,6 @@ https://example.com/editor
       source: "e2e",
       url: "https://example.com",
     });
-    // A link card shows its page's title, or its address until the title
-    // arrives. Without a Files Worker there is no screenshot, but the
-    // fetched page title still lands on the card.
     await searchForVisibleCard(
       surface,
       marker,
@@ -231,7 +224,6 @@ https://example.com/editor
     await expect(
       screen.getByText("2 cards selected", { exact: false })
     ).toBeVisible();
-    // Move to Trash sits in the bulk bar's More menu.
     await screen.getByRole("button", "More actions").click();
     await screen.getByRole("menuitem", "Move to Trash").click();
     await expect(
@@ -252,7 +244,6 @@ https://example.com/editor
     await screen.getByText(`${marker} restore-me`, { exact: false }).click();
     const dialog = screen.getByRole("dialog");
     await dialog.getByRole("button", "Favorite").click();
-    // Tags are added in the dialog's side panel.
     const tagInput = dialog.getByRole("textbox", "Add a tag");
     await tagInput.fill(`${marker}-tag`);
     await tagInput.press("Enter");

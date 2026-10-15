@@ -86,7 +86,6 @@ jobs:
       - name: Start the renderer (Cloudflare basic size)
         run: |
           docker run -d --name renderer --cpus 0.25 --memory 1g -p 8080:8080 teak-renderer
-          # A second instance with a tiny wall clock for the 422 timeout tests.
           docker run -d --name renderer-timeout --cpus 0.25 --memory 1g -p 8081:8080 \
             -e RENDERER_TIMEOUT_SCALE=0.0001 teak-renderer
           for port in 8080 8081; do

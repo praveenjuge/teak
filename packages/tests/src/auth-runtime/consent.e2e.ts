@@ -22,8 +22,6 @@ interface Registration {
   redirect: string;
   resource?: string;
 }
-// Owned helpers and real MCP transport run unchanged; only external HTTP and
-// rendered provider/settings HTML are fixtures. This is not hosted auth proof.
 for (const failure of [
   "none",
   "revocation-ignored",
@@ -48,7 +46,6 @@ for (const failure of [
       let nextClient = 0;
       let cardContent: string | undefined;
       const expectedApiKey = "fixture-browser-owner-key";
-      // A non-production deployment advertises its own resources.
       const resources = workosResourcesFor(env.mcpUrl);
       const json = (body: unknown, status = 200) =>
         new Response(JSON.stringify(body), {

@@ -1,13 +1,3 @@
-/**
- * Explicit dotenv loading for supported commands (issue #407).
- *
- * Bun no longer loads dotenv files implicitly for our scripts
- * (`--no-env-file` in package.json), so every read goes through here: the
- * caller names a target/profile and receives values from ONLY the declared
- * files in ./env-targets.ts. Names and values stay in memory; diagnostics
- * built from this loader must report names only.
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { EnvProfile } from "./env-contract-types.ts";
@@ -22,7 +12,6 @@ export interface ParsedDotenv {
   values: Map<string, string>;
 }
 
-/** First-wins dotenv parser: comments, blanks, and quotes handled. */
 export const parseDotenvContent = (content: string): ParsedDotenv => {
   const values = new Map<string, string>();
   for (const line of content.replace(/\r\n/g, "\n").split("\n")) {
@@ -98,7 +87,6 @@ export const loadTargetEnv = (
   return { target, files, values };
 };
 
-/** Read the Convex CLI deployment pointer without ambient semantics. */
 export const readConvexDotenv = (
   root: string = join(import.meta.dir, "..")
 ): ParsedDotenv | null => readDotenvFile(join(root, CONVEX_DOTENV_FILE));

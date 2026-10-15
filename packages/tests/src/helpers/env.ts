@@ -20,10 +20,6 @@ export const FIXTURE_URLS: E2eUrls = {
   emulatorOrigin: "https://workos.teak-fixture.test",
 };
 
-/**
- * Every other suite runs against this checkout's running E2E stack, never the
- * dev stack: that one writes to the shared cloud dev deployment.
- */
 export const resolveStackUrls = (
   state: StackState | null,
   hermetic: boolean
@@ -56,7 +52,6 @@ const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 export const stackAppUrl = (): string =>
   readStackState(ROOT)?.urls.appOrigin ?? "http://localhost:3000";
 
-/** Which stack this checkout runs, if any: the E2E stack or the dev stack. */
 export const stackMode = () => readStackState(ROOT)?.mode;
 
 let urls: E2eUrls | undefined;
@@ -86,8 +81,6 @@ export const env = {
   },
 };
 
-// The docs checks read the published site and Teak's public production
-// endpoints with unauthenticated GETs, and never the local stack.
 export const published = {
   siteUrl: "https://teakvault.com",
   appUrl: "https://app.teakvault.com",
@@ -95,7 +88,6 @@ export const published = {
   mcpUrl: "https://teakvault.com/mcp",
 };
 
-// Emulator accounts exist only in its memory, so one known password is fine.
 export const E2E_PASSWORD = "teak-e2e-Password-1!";
 
 // RFC 2606 reserves example.org, so no real person owns these addresses.

@@ -6,11 +6,6 @@ import { runCommand } from "./proc.ts";
 
 const PROC_MODULE = join(import.meta.dir, "proc.ts");
 
-/**
- * Runs a script that starts `runCommand(["sleep", ...])`, waits until the
- * script prints "ready", then sends it SIGTERM. Returns its output, how it
- * ended, and the sleeper's pid.
- */
 const signalWhileRunning = async (body: string) => {
   const dir = mkdtempSync(join(tmpdir(), "proc-signal-"));
   try {

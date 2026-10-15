@@ -1,12 +1,3 @@
-/**
- * Supported setup/doctor/dev target matrix for issue #407.
- *
- * One table drives the explicit dotenv loader, setup, doctor, and dev: which
- * (target, profile) combinations are supported, which dotenv files each
- * combination owns, and whether it needs a Convex deployment. No other dotenv
- * file is ever consumed implicitly by a supported command.
- */
-
 import type { EnvProfile } from "./env-contract-types.ts";
 
 export const SUPPORTED_TARGETS = [
@@ -23,7 +14,6 @@ export type ConvexMode = "cloud" | "skip";
 
 export interface TargetSpec {
   defaultConvex: ConvexMode;
-  /** Repo-relative dotenv files this target owns, in load order. */
   dotenvFiles: string[];
   needsConvex: boolean;
   note: string;
@@ -90,7 +80,6 @@ export const isSupportedCombo = (target: string, profile: string): boolean => {
   return (TARGET_SPECS[target].profiles as readonly string[]).includes(profile);
 };
 
-/** Every dotenv file any supported command may read, repo-relative. */
 export const SUPPORTED_DOTENV_FILES: readonly string[] = [
   ...new Set(
     (Object.values(TARGET_SPECS) as TargetSpec[]).flatMap(
@@ -99,5 +88,4 @@ export const SUPPORTED_DOTENV_FILES: readonly string[] = [
   ),
 ];
 
-/** Convex-side deployment pointer read explicitly for local derivation. */
 export const CONVEX_DOTENV_FILE = "packages/convex/.env.local";

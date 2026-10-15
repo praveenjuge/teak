@@ -13,7 +13,6 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
   timeout: 240_000,
 }, async ({ browser, screen }) => {
   const surface = { browser, screen };
-  // Tenant A signs in here and owns a card; tenant B only needs an API key.
   const { apiKey: securityApiKey = "" } = await createAccount(
     surface,
     "security"
@@ -27,7 +26,6 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
     expect(
       (await apiFetch(`/v1/cards/${targetCard}`, second.apiKey)).status
     ).toBe(404);
-    // A key revoked from Settings stops authenticating.
     const revokedKey = await generateApiKey(surface);
     await revokeVisibleKey(surface, revokedKey);
     expect((await apiFetch("/v1/tags", revokedKey)).status).toBe(401);
@@ -38,7 +36,6 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
       tags: ["xss"],
     });
     await gotoApp(browser, "/");
-    // The hostile card has rendered, and its markup did not run.
     await expect(
       screen
         .getByRole("main")
@@ -57,7 +54,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
     // Headers come from plain requests that share the page's cookies:
     // navigating away while the page is still refreshing its session would
     // race the rotated refresh token. A same-origin fetch from the page keeps
-    // any rotated cookie in the browser, as Playwright's context.request did.
+    // any rotated cookie in the browser.
     const responses = await browser.evaluate(
       async (paths) =>
         await Promise.all(
@@ -77,8 +74,6 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
       expect(response.hsts, response.path).toBeTruthy();
       const csp = response.csp ?? "";
       expect(csp, response.path).toBeTruthy();
-      // Regression: images (link previews, PDF thumbnails) are served from R2.
-      // The CSP img-src must allow that origin or they are blocked outright.
       const imgSrc = csp
         .split(";")
         .map((directive) => directive.trim())

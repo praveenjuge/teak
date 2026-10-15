@@ -13,8 +13,6 @@ const redirectTarget = async (path: string) => {
   return `${location.pathname}${location.search}`;
 };
 
-// Signs nobody in and creates no accounts. The outage case closes only the
-// browser's Convex connection.
 describe("Web sign-in entry", () => {
   test("hands every entry page to hosted AuthKit", async ({
     app,
@@ -22,7 +20,6 @@ describe("Web sign-in entry", () => {
     screen,
   }) => {
     const pageErrors = await capturePageErrors(browser);
-    // WorkOS hosts every entry: Teak redirects without a page of its own.
     expect(await redirectTarget("/login?next=%2Fsettings")).toBe(
       "/sign-in?next=%2Fsettings"
     );
@@ -44,7 +41,6 @@ describe("Web sign-in entry", () => {
   }) => {
     await routeConvexSocket(browser, { unreachable: true });
     await gotoApp(browser, "/login");
-    // Sign-in starts server-side, so a browser outage can't stop the hand-off.
     await expect(screen.getByLabel("Email")).toBeVisible();
     expect(new URL(await browser.url()).origin).not.toBe(
       new URL(env.appUrl).origin

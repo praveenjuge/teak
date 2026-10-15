@@ -50,11 +50,7 @@ const launch = (executablePath: string, signal: AbortSignal) => {
       { stdio: ["pipe", "ignore", "pipe"] }
     );
     let output = "";
-    // Only a launch still starting is abandoned; a browser that came up
-    // stays for the rest of the process.
     const abandon = () => fail(new Error("Chromium launch aborted"));
-    // Forgets this launch, and only this one, so the next session starts a
-    // new browser instead of reusing a failed or dead one.
     const forget = () => {
       signal.removeEventListener("abort", abandon);
       if (running === launching) {

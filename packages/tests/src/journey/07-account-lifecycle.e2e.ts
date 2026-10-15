@@ -12,8 +12,6 @@ import { resetPasswordThroughEmail } from "../helpers/emulator";
 import { E2E_PASSWORD, env } from "../helpers/env";
 import { describe, expect, test } from "../helpers/test";
 
-// One account's whole life, in order: it signs up, resets its password,
-// signs out, deletes itself, and its credentials stop working.
 let email = "";
 let apiKey = "";
 let password = E2E_PASSWORD;
@@ -88,9 +86,6 @@ describe("account lifecycle", { serial: true, timeout: 180_000 }, () => {
       return null;
     }, TOAST_HOOK);
 
-    // Regression: signing out here used to crash the page with a client error
-    // ("This page couldn't load") instead of returning the user to login, and
-    // later flashed "Failed to sign out" while it signed out.
     await screen.getByRole("button", "Sign out").click();
 
     await expectHostedSignIn(surface);

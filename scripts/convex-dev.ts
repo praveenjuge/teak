@@ -1,10 +1,4 @@
 #!/usr/bin/env bun
-/**
- * `convex dev` for Turbo targets (`bun run dev extension`, `--all`), against
- * the shared cloud dev deployment. Like the web stack, it pushes only while it
- * holds the push lease (scripts/convex-push-lease.ts); otherwise the surface
- * runs against the live backend code.
- */
 
 import { join } from "node:path";
 import {
@@ -23,8 +17,6 @@ import { onExitSignal } from "./proc.ts";
 const ROOT = join(import.meta.dir, "..");
 const idle = () => new Promise(() => undefined);
 
-// `bun run dev` already runs this checkout's web stack, which pushes the
-// backend when it holds the lease, so a surface started beside it shares it.
 const stack = readStackState(ROOT);
 if (stack && isStackRunning(stack)) {
   console.log(
@@ -79,7 +71,6 @@ const heartbeat = setInterval(async () => {
 const release = () => {
   clearInterval(heartbeat);
   if (lost) {
-    // The watcher already stopped and the lease belongs to someone else.
     process.exit(130);
   }
   child.kill("SIGINT");
@@ -88,7 +79,6 @@ onExitSignal(release);
 process.exitCode = await child.exited;
 clearInterval(heartbeat);
 if (lost) {
-  // Keep the Turbo task alive: the other surfaces still run.
   await idle();
 }
 await releaseLease(ROOT, holder);

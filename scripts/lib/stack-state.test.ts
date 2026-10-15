@@ -34,8 +34,6 @@ describe("stack liveness", () => {
   });
 
   test("a live process that isn't a stack owner is not a running stack", () => {
-    // This test runner is alive but isn't scripts/dev.ts, like a PID reused
-    // after a reboot.
     expect(isStackRunning(state(process.pid))).toBe(false);
   });
 });

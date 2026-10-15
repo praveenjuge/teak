@@ -1,14 +1,3 @@
-/**
- * The dev stack `bun run dev` runs: this checkout's web app on its own port,
- * against the shared cloud dev deployment, signed in through WorkOS staging.
- *
- * Only the push-lease holder runs `convex dev` (scripts/convex-push-lease.ts),
- * so parallel checkouts never overwrite each other's backend. A checkout
- * without the lease runs the web app alone against whatever code is live.
- * `--push` takes the lease over; the previous holder stops pushing at its next
- * heartbeat.
- */
-
 import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -53,17 +42,13 @@ const ACCOUNT_PATH = join(dirname(STATE_PATH), "dev-account.json");
 const PUSHED = /Convex functions ready!/;
 
 export interface DevStackOptions {
-  /** Also stream the web and backend output to this terminal. */
   echo: boolean;
   ports: WorktreePorts;
-  /** Take the push lease even when another checkout holds it. */
   push: boolean;
 }
 
 export interface RunningDevStack {
-  /** Resolves when the web app or the backend watcher exits on its own. */
   exited: Promise<void>;
-  /** What the person should know: pushing or not, sign-in, seeding. */
   notes: string[];
   state: StackState;
   stop: () => Promise<void>;
@@ -138,10 +123,6 @@ interface CloudAccountPage {
   isDone: boolean;
 }
 
-// Each cloud session gets its own dev account, so finished sessions leave
-// theirs behind. Delete the ones nobody has signed in to for two weeks through
-// the backend's account deletion workflow, which removes the cards, files and
-// WorkOS user. The backend refuses anything but cloud session accounts.
 const pruneStaleCloudAccounts = async (
   current: DevAccount,
   workos: { apiKey: string; clientId: string }
@@ -243,7 +224,6 @@ export const startDevStack = async (
   const firstPush = new Promise<void>((resolve) => {
     firstPushDone = resolve;
   });
-  // Pushing without the lease: the deployed code has no lease functions yet.
   let bootstrapping = false;
   const startPusher = () => {
     const child = spawn("bunx", ["convex", "dev", "--typecheck", "disable"], {
@@ -295,7 +275,6 @@ export const startDevStack = async (
     lease.reason === "missing-functions" &&
     options.push
   ) {
-    // The first push of the lease itself: nothing can hold it until then.
     notes.push(
       `Pushing this checkout's backend without the lease (${lease.detail}).`
     );
@@ -320,10 +299,8 @@ export const startDevStack = async (
         return;
       }
       if (taken.reason !== "refused") {
-        // Not deployed yet, or a passing failure: try again next heartbeat.
         return;
       }
-      // The lease exists but the deployment refuses it: stop pushing unfenced.
       const note = `Stopped pushing this checkout's backend: ${taken.detail}.`;
       say(note);
       notes[0] = note;
@@ -377,8 +354,6 @@ export const startDevStack = async (
       `Sign in as ${account.email} / ${account.password} (WorkOS staging); ${await seedAccount(account, workos)}.`
     );
     if (isCloudSession()) {
-      // Best-effort and off the startup path: the log says how it went. A
-      // checkout that pushes waits for its own backend, which has pruning.
       (pusher ? firstPush : Promise.resolve())
         .then(() => pruneStaleCloudAccounts(account, workos))
         .then(say, (error) =>

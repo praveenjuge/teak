@@ -1,10 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Local Files Worker code against the isolated development bucket and AI.
- * Refuses to start until Convex dev uses the isolated development Worker, so
- * it never writes to the new bucket before the approved storage switch.
- * `bun run dev files` keeps today's shared production routing.
- */
 import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -42,7 +36,6 @@ if (
   );
 }
 const env = {
-  // Only development/.dev.vars supplies secrets; the config pins the account.
   ...Object.fromEntries(
     Object.entries(process.env).filter(
       ([name]) => name !== "CLOUDFLARE_ACCOUNT_ID"
