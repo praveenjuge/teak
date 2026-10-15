@@ -14,30 +14,49 @@ interface CardsReadBoundaryProps {
 }
 
 interface CardsReadBoundaryState {
+  error: unknown;
   failed: boolean;
   retryKey: string | undefined;
 }
+
+/**
+ * Whether an error is the card grid's own read failing. The Convex client
+ * prefixes a query's errors with its name, such as
+ * `[CONVEX Q(cards:searchCardsPaginated)] ... Server Error`.
+ */
+export const isCardsReadError = (error: unknown): boolean =>
+  error instanceof Error &&
+  error.message.includes("[CONVEX Q(cards:searchCardsPaginated)]");
 
 /**
  * Keeps a failed card list read (a Convex query error thrown while the grid
  * renders) inside the library instead of replacing the whole app. Each reset
  * hands the screen a new retry key: the cached query hooks keep a failed
  * subscription alive, so reading the same arguments again would only rethrow
- * the cached error.
+ * the cached error. Only the card read gets that key, so any other error
+ * (another query, a render bug) goes on to the app's own error screen.
  */
 export class CardsReadBoundary extends Component<
   CardsReadBoundaryProps,
   CardsReadBoundaryState
 > {
-  state: CardsReadBoundaryState = { failed: false, retryKey: undefined };
+  state: CardsReadBoundaryState = {
+    error: null,
+    failed: false,
+    retryKey: undefined,
+  };
 
-  static getDerivedStateFromError(): Partial<CardsReadBoundaryState> {
-    return { failed: true };
+  static getDerivedStateFromError(
+    error: unknown
+  ): Partial<CardsReadBoundaryState> {
+    return { error, failed: true };
   }
 
-  // The error never reaches global-error now, so report it here.
+  // A card read failure never reaches global-error now, so report it here.
   componentDidCatch(error: Error): void {
-    captureClientException(error, { "ui.boundary": "cards" });
+    if (isCardsReadError(error)) {
+      captureClientException(error, { "ui.boundary": "cards" });
+    }
   }
 
   componentDidUpdate(previous: CardsReadBoundaryProps): void {
@@ -47,12 +66,20 @@ export class CardsReadBoundary extends Component<
   }
 
   retry = (): void => {
-    this.setState({ failed: false, retryKey: crypto.randomUUID() });
+    this.setState({
+      error: null,
+      failed: false,
+      retryKey: crypto.randomUUID(),
+    });
   };
 
   render(): ReactNode {
     if (!this.state.failed) {
       return this.props.children(this.state.retryKey);
+    }
+    // A new retry key can't recover other errors; leave them to the app.
+    if (!isCardsReadError(this.state.error)) {
+      throw this.state.error;
     }
     const { contentContainerClassName, headerLeading } = this.props;
     const content = (
