@@ -462,7 +462,6 @@ describe("classification step", () => {
       "#123, #456",
       "Use rgb(255, 87, 51) for buttons",
       "Brand colors are tracked in #123",
-      "mint cream",
     ])("keeps prose %p as text", async (content) => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "text", content });
 
@@ -471,16 +470,18 @@ describe("classification step", () => {
       expect(result.type).toBe("text");
     });
 
-    test.each(["--bg-primary: #FF5733", "#000, #333"])(
-      "detects %p as palette",
-      async (content) => {
-        mockRunQuery.mockResolvedValue({ _id: "c1", content });
+    test.each([
+      "light blue red",
+      "--bg-primary: #FF5733",
+      "--color-component-button-background-primary: #FF5733",
+      "#000, #333",
+    ])("detects %p as palette", async (content) => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content });
 
-        const result = await classify(mockCtx, { cardId: "c1" });
+      const result = await classify(mockCtx, { cardId: "c1" });
 
-        expect(result.type).toBe("palette");
-      }
-    );
+      expect(result.type).toBe("palette");
+    });
 
     test("classifies a long note of unclosed rgb( without stalling", async () => {
       const card = {
@@ -510,6 +511,26 @@ describe("classification step", () => {
 
       expect(result.type).toBe("text");
       expect(performance.now() - startedAt).toBeLessThan(1000);
+    });
+
+    test("stores multi-word colour names as the colours they name", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "text",
+        content: "light blue, dark green, mint cream",
+      });
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+      const colorUpdate = mockRunMutation.mock.calls.find(
+        ([, args]) => args?.colors
+      );
+      expect(colorUpdate?.[1].colors.map((color) => color.hex)).toEqual([
+        "#ADD8E6",
+        "#006400",
+        "#F5FFFA",
+      ]);
     });
 
     test("detects named colours with a palette hint as palette", async () => {
