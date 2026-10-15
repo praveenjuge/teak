@@ -23,6 +23,14 @@ const KEY_A = keyFor("0001");
 const KEY_B = keyFor("0002");
 const STRANGER_KEY = keyFor("9999");
 
+const streamedMcpPost = (body: ReadableStream<Uint8Array>): Request =>
+  new Request("https://teakvault.com/mcp", {
+    method: "POST",
+    body,
+    headers: { Authorization: `Bearer ${KEY_A}` },
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+
 class FakeLimiter implements RateLimiter {
   readonly keys: string[] = [];
   private readonly counts = new Map<string, number>();
@@ -197,13 +205,7 @@ describe("a known user", () => {
     });
     const outcome = await limit(
       env({ api: new FakeLimiter(0) }),
-      new Request("https://teakvault.com/mcp", {
-        method: "POST",
-        body,
-        headers: { Authorization: `Bearer ${KEY_A}` },
-        // @ts-expect-error Bun needs duplex for a streamed request body.
-        duplex: "half",
-      })
+      streamedMcpPost(body)
     );
     const response = "response" in outcome ? outcome.response : null;
     expect(response?.status).toBe(429);
@@ -220,13 +222,7 @@ describe("a known user", () => {
       });
       const outcome = await limit(
         env({ api: new FakeLimiter(0) }),
-        new Request("https://teakvault.com/mcp", {
-          method: "POST",
-          body,
-          headers: { Authorization: `Bearer ${KEY_A}` },
-          // @ts-expect-error Bun needs duplex for a streamed request body.
-          duplex: "half",
-        })
+        streamedMcpPost(body)
       );
       const response = "response" in outcome ? outcome.response : null;
       expect(response?.status).toBe(429);
@@ -309,16 +305,7 @@ describe("a known user", () => {
         controller.close();
       },
     });
-    const outcome = await limit(
-      env(),
-      new Request("https://teakvault.com/mcp", {
-        method: "POST",
-        body,
-        headers: { Authorization: `Bearer ${KEY_A}` },
-        // @ts-expect-error Bun needs duplex for a streamed request body.
-        duplex: "half",
-      })
-    );
+    const outcome = await limit(env(), streamedMcpPost(body));
     expect("attestation" in outcome && outcome.attestation).toBeTruthy();
   });
 
@@ -335,16 +322,7 @@ describe("a known user", () => {
         controller.close();
       },
     });
-    const outcome = await limit(
-      env(),
-      new Request("https://teakvault.com/mcp", {
-        method: "POST",
-        body,
-        headers: { Authorization: `Bearer ${KEY_A}` },
-        // @ts-expect-error Bun needs duplex for a streamed request body.
-        duplex: "half",
-      })
-    );
+    const outcome = await limit(env(), streamedMcpPost(body));
     expect(outcome).toEqual({ attestation: null });
   });
 
@@ -356,16 +334,7 @@ describe("a known user", () => {
           controller.enqueue(new TextEncoder().encode("   "));
         },
       });
-      const outcome = await limit(
-        env(),
-        new Request("https://teakvault.com/mcp", {
-          method: "POST",
-          body,
-          headers: { Authorization: `Bearer ${KEY_A}` },
-          // @ts-expect-error Bun needs duplex for a streamed request body.
-          duplex: "half",
-        })
-      );
+      const outcome = await limit(env(), streamedMcpPost(body));
       expect(outcome).toEqual({ attestation: null });
     },
     MCP_BODY_READ_TIMEOUT_MS + 1000

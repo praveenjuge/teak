@@ -4,13 +4,11 @@ import {
   type FilesFinalizeImageResult,
 } from "@teak/files-protocol";
 import { inspectImageContainer } from "./imageContainer";
+import { throughImagesBinding } from "./imagesBinding";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
 import { renderSvgToPng } from "./wasm";
 
-// The Images binding accepts raw inputs up to 20 MB; larger images fall back
-// to the URL-transformation JSON metadata probe.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 const MAX_CONTAINER_FALLBACK_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 10_000;
 
@@ -79,39 +77,36 @@ const factsFromBindingInfo = async (
   sourceKey: string,
   expected: { httpEtag: string; size: number }
 ): Promise<FinalizeImageFacts | null> => {
-  if (!(env.IMAGES && expected.size <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
-    return null;
+  const facts = await throughImagesBinding(
+    env.IMAGES,
+    expected.size,
+    async () => {
+      const object = await bucket.get(sourceKey);
+      if (!object) {
+        throw new Error("source_not_found");
+      }
+      return object;
+    },
+    async (images, object) => {
+      assertUnchanged(object, expected);
+      const info = (await images.info(object.body)) as CloudflareImageInfo;
+      if (info.format === "image/svg+xml") {
+        // SVG has no raster dimensions in binding info; the resvg probe below
+        // resolves them.
+        return null;
+      }
+      const format = normalizeDecodedFormat(info.format ?? "", sourceKey);
+      const width = positiveDimension(info.original?.width ?? info.width);
+      const height = positiveDimension(info.original?.height ?? info.height);
+      return format && width && height
+        ? { decodedFormat: format, height, width }
+        : "not_an_image";
+    }
+  );
+  if (facts === "not_an_image") {
+    throw new Error("not_an_image");
   }
-  const object = await bucket.get(sourceKey);
-  if (!object) {
-    throw new Error("source_not_found");
-  }
-  try {
-    assertUnchanged(object, expected);
-    const info = (await env.IMAGES.info(object.body)) as CloudflareImageInfo;
-    if (info.format === "image/svg+xml") {
-      // SVG has no raster dimensions in binding info; the resvg probe below
-      // resolves them.
-      return null;
-    }
-    const format = normalizeDecodedFormat(info.format ?? "", sourceKey);
-    const width = positiveDimension(info.original?.width ?? info.width);
-    const height = positiveDimension(info.original?.height ?? info.height);
-    if (!(format && width && height)) {
-      throw new Error("not_an_image");
-    }
-    return { decodedFormat: format, height, width };
-  } catch (error) {
-    if (error instanceof Error && error.message === "not_an_image") {
-      throw error;
-    }
-    try {
-      await object.body.cancel();
-    } catch {
-      // The binding may already have locked or consumed the stream.
-    }
-    return null;
-  }
+  return facts;
 };
 
 const factsFromSvg = async (
@@ -224,8 +219,6 @@ export const finalizeImageUpload = async (
   } else {
     facts = await factsFromBindingInfo(env, env.BUCKET, sourceKey, metadata);
     if (!facts) {
-      // Binding metadata unavailable (missing binding, unsupported input, or
-      // transient failure): fall back to the remote transformation probe.
       try {
         facts = await factsFromUrlProbe(
           env,

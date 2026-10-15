@@ -1,4 +1,5 @@
 import { type ExifFacts, readExifFacts } from "./exif";
+import { throughImagesBinding } from "./imagesBinding";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
 import { paletteFromPng } from "./palette";
@@ -30,11 +31,6 @@ const readStoredExif = async (
     return null;
   }
 };
-
-// Cloudflare's Images binding accepts raw inputs up to 20 MB. Larger images
-// retain the URL-transformation metadata fallback, whose remote-image limit is
-// higher and already covers Teak's upload ceiling.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 
 const isSvgSource = (key: string, contentType?: string): boolean =>
   contentType === "image/svg+xml" ||
@@ -87,31 +83,23 @@ const analyzeSvg = async (
   };
 };
 
-const dimensionsFromBinding = async (
+const dimensionsFromBinding = (
   env: Env,
   sourceKey: string,
   sourceSize: number
-): Promise<{ height: number; width: number } | null> => {
-  if (!(env.IMAGES && sourceSize <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
-    return null;
-  }
-  const object = await env.BUCKET.get(sourceKey);
-  if (!object) {
-    throw new Error("source_not_found");
-  }
-  try {
-    return parseDimensions(await env.IMAGES.info(object.body));
-  } catch {
-    // Binding metadata is an optimization, not a new failure mode. Preserve
-    // the proven transformation fallback for unsupported or transient cases.
-    try {
-      await object.body.cancel();
-    } catch {
-      // The binding may already have locked or consumed the stream.
-    }
-    return null;
-  }
-};
+): Promise<{ height: number; width: number } | null> =>
+  throughImagesBinding(
+    env.IMAGES,
+    sourceSize,
+    async () => {
+      const object = await env.BUCKET.get(sourceKey);
+      if (!object) {
+        throw new Error("source_not_found");
+      }
+      return object;
+    },
+    async (images, object) => parseDimensions(await images.info(object.body))
+  );
 
 const resolveRasterDimensions = async (
   env: Env,

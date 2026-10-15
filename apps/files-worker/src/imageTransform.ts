@@ -7,6 +7,7 @@ import {
   isFilesImageRendition,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "./deletionGate";
+import { throughImagesBinding } from "./imagesBinding";
 import type { Env } from "./index";
 import { hmacSha256Hex, verifyHmacPayload } from "./lib";
 import { renderSvgToPng } from "./wasm";
@@ -33,11 +34,6 @@ export const IMAGE_RENDITIONS = {
   FilesImageRendition,
   { edge: number; quality: number }
 >;
-
-// The Images binding accepts raw inputs up to 20 MB. Larger sources keep the
-// proven URL-transformation path, whose remote-image limit covers Teak's
-// upload ceiling.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 
 type ImageFetch = (
   input: RequestInfo | URL,
@@ -153,7 +149,7 @@ const bindingOutputFormat = (
   return format === "webp" ? "image/webp" : null;
 };
 
-export const transformViaBinding = async (
+export const transformViaBinding = (
   env: Env,
   key: string,
   rendition: FilesImageRendition,
@@ -161,50 +157,40 @@ export const transformViaBinding = async (
   sourceSize: number,
   bucket: R2Bucket = env.BUCKET
 ): Promise<Response | null> => {
-  const format = preferredFormat(accept);
-  const outputFormat = bindingOutputFormat(format);
-  if (
-    !(env.IMAGES && outputFormat) ||
-    sourceSize > MAX_IMAGES_BINDING_INPUT_BYTES
-  ) {
-    return null;
+  const outputFormat = bindingOutputFormat(preferredFormat(accept));
+  if (!outputFormat) {
+    return Promise.resolve(null);
   }
-  const object = await bucket.get(key);
-  if (!object) {
-    return null;
-  }
-  try {
-    const preset = IMAGE_RENDITIONS[rendition];
-    const result = await env.IMAGES.input(object.body)
-      .transform({
-        fit: "scale-down",
-        height: preset.edge,
-        sharpen: 1,
-        width: preset.edge,
-      })
-      .output({
-        anim: true,
-        format: outputFormat,
-        quality: preset.quality,
+  return throughImagesBinding(
+    env.IMAGES,
+    sourceSize,
+    () => bucket.get(key),
+    async (images, object) => {
+      const preset = IMAGE_RENDITIONS[rendition];
+      const result = await images
+        .input(object.body)
+        .transform({
+          fit: "scale-down",
+          height: preset.edge,
+          sharpen: 1,
+          width: preset.edge,
+        })
+        .output({
+          anim: true,
+          format: outputFormat,
+          quality: preset.quality,
+        });
+      const response = result.response();
+      const headers = new Headers(response.headers);
+      headers.set("Content-Type", result.contentType());
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Vary", "Accept");
+      return new Response(response.body, {
+        headers,
+        status: response.status,
       });
-    const response = result.response();
-    const headers = new Headers(response.headers);
-    headers.set("Content-Type", result.contentType());
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Vary", "Accept");
-    return new Response(response.body, {
-      headers,
-      status: response.status,
-    });
-  } catch {
-    // The binding may have locked or consumed the stream.
-    try {
-      await object.body.cancel();
-    } catch {
-      // Already consumed.
     }
-    return null;
-  }
+  );
 };
 
 export const buildBindingCacheKey = (

@@ -408,12 +408,6 @@ const handler = {
       return new Response(null, { status: 404 });
     }
 
-    // Mutating operations were historically GET query parameters. Refuse the
-    // legacy shape explicitly so HEAD/GET can never trigger storage writes.
-    if (url.searchParams.has("op")) {
-      return json({ error: "legacy_op_removed" }, 410);
-    }
-
     const verification = await verifySignedFileRequest(
       env.FILES_SIGNING_SECRET,
       {

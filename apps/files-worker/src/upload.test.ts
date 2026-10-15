@@ -406,6 +406,20 @@ describe("additive files ops", () => {
     expect(bucket.objects.has("users/u1/a.txt")).toBe(false);
   });
 
+  test("delete-objects deletes a key listed twice once", async () => {
+    const bucket = new FakeBucket();
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: ["users/u1/a.txt", "users/u1/a.txt"],
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: { deleted: 1 } });
+    expect(bucket.deleteBatches).toEqual([["users/u1/a.txt"]]);
+  });
+
   test("delete-objects removes export archives under the exports prefix", async () => {
     const bucket = new FakeBucket();
     for (const key of ["exports/h1/job.zip", "dev/exports/h1/job.zip"]) {

@@ -259,30 +259,25 @@ export const applyEdgeRateLimit = async (
   if (request.method === "OPTIONS") {
     return { attestation: null };
   }
-  // Each API key lookup the identity cache cannot answer is first charged to
-  // the address on the unknown-credential limiter, so made-up keys cannot
-  // make the edge ask Convex more often than that limit allows.
-  const lookupGate: { state: "unused" | "allowed" | "refused" } = {
-    state: "unused",
-  };
-  const allowLookup = async (): Promise<boolean> => {
+  const chargeLookup = async (): Promise<
+    "charged" | "refused" | "uncharged"
+  > => {
     const gate = env.UNKNOWN_CREDENTIAL_LIMITER;
     if (!gate) {
-      return true;
+      return "uncharged";
     }
     try {
       const { success } = await gate.limit({ key: addressKey(request) });
-      lookupGate.state = success ? "allowed" : "refused";
-      return success;
+      return success ? "charged" : "refused";
     } catch {
-      return true;
+      return "uncharged";
     }
   };
   const identity = await resolveEdgeIdentity(request, env, ctx, {
     ...deps,
-    allowLookup,
+    chargeLookup,
   });
-  if (lookupGate.state === "refused") {
+  if (identity.source === "address" && identity.lookup === "refused") {
     return {
       response: await rateLimitedResponse(
         request,
@@ -292,8 +287,7 @@ export const applyEdgeRateLimit = async (
   }
   const unknownCredential =
     !isKnownUser(identity) && request.headers.has("authorization");
-  // The gate already charged this request to the unknown-credential limit.
-  if (unknownCredential && lookupGate.state === "allowed") {
+  if (identity.source === "address" && identity.lookup === "charged") {
     return { attestation: null };
   }
   const limiter = unknownCredential

@@ -192,7 +192,7 @@ describe("files worker handler", () => {
       env_,
       { waitUntil: () => undefined } as never
     );
-    expect(legacyHead.status).toBe(410);
+    expect(legacyHead.status).toBe(401);
     const post = await worker.fetch(
       await signedOpRequest("create-multipart", {
         contentType: "image/png",
