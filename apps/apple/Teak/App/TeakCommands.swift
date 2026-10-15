@@ -1,8 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// Menus and shortcuts for the Mac and iPad with a keyboard. Commands are
-/// dimmed, never hidden, when they don't apply.
 struct TeakCommands: Commands {
     let services: AppServices
 

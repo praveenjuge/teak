@@ -1,6 +1,5 @@
 import Foundation
 
-/// Masonry layout rules shared with the web, iPhone, Android and Mac grids.
 public enum CardGrid {
     public static let gap = 12.0
     public static let edge = 16.0
@@ -11,7 +10,6 @@ public enum CardGrid {
     private static let documentFallbackRatio = 3.0 / 4.0
     private static let footerHeight = 44.0
 
-    /// Two columns on phones, more as the window widens: 3 at 700 pt, 4 at 1000, 5 at 1300.
     public static func columnCount(width: Double) -> Int {
         switch width {
         case 1300...: 5
@@ -25,7 +23,6 @@ public enum CardGrid {
         ((width - edge * 2 - gap * Double(columns - 1)) / Double(max(1, columns))).rounded(.down)
     }
 
-    /// The tile's media URL, matching what the web grid shows for each type.
     public static func tileImageURL(_ card: CardSummary) -> String? {
         switch card.type {
         case .link: card.linkPreviewImageUrl ?? card.screenshotUrl
@@ -35,7 +32,6 @@ public enum CardGrid {
         }
     }
 
-    /// Width / height for a tile's media; extreme panoramas are clamped so tiles stay usable.
     public static func tileImageRatio(_ card: CardSummary) -> Double {
         if let ratio = card.aspectRatio, ratio > 0 { return min(max(ratio, 0.5), 2.5) }
         switch card.type {
@@ -45,7 +41,6 @@ public enum CardGrid {
         }
     }
 
-    /// Approximate tile height, used only to balance the columns.
     public static func estimatedHeight(_ card: CardSummary, columnWidth: Double) -> Double {
         let media = tileImageURL(card) != nil ? columnWidth / tileImageRatio(card) : 0
         switch card.type {
@@ -57,7 +52,6 @@ public enum CardGrid {
         }
     }
 
-    /// Each item goes to the currently shortest column, so reading order runs left to right.
     /// `reserved` is space already taken at the top of each column, such as the composer tile.
     public static func distribute<T>(_ items: [T], columns: Int, gap: Double = gap, reserved: [Double] = [],
                                       estimate: (T) -> Double) -> [[T]] {
@@ -118,9 +112,7 @@ public struct CardEditDraft: Hashable, Sendable {
     }
 }
 
-/// Ported from the Expo iPhone app's card editing rules.
 public enum CardEdit {
-    /// Tags are stored trimmed and lowercase, like the web's tag manager.
     public static func normalizeTag(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
@@ -135,7 +127,6 @@ public enum CardEdit {
         return result
     }
 
-    /// Only text and quote cards let you rewrite their content.
     public static func canEditContent(_ type: CardType) -> Bool { type == .text || type == .quote }
 
     public static func draft(for card: Card) -> CardEditDraft {
@@ -156,7 +147,6 @@ public enum CardEdit {
         return changes
     }
 
-    /// An empty quote can't be saved.
     public static func validationError(for card: Card, draft: CardEditDraft) -> String? {
         if card.type == .quote, (draft.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return "A quote can't be empty."

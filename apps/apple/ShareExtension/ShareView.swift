@@ -3,7 +3,6 @@ import Observation
 import SwiftUI
 import TeakCore
 
-/// Saves what was shared straight to Teak, without opening the app.
 @MainActor @Observable
 final class ShareModel {
     enum Phase: Equatable {

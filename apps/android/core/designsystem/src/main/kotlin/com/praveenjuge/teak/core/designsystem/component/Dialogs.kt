@@ -14,7 +14,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 
-/** A yes-or-cancel dialog. [destructive] colors the confirm button as a warning. */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -40,7 +39,6 @@ fun ConfirmDialog(
     )
 }
 
-/** Asks the person to type [phrase] before a destructive action can go ahead. */
 @Composable
 fun TypedConfirmDialog(
     title: String,

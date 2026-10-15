@@ -2,8 +2,6 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
 
-// Runs the real Safari popup against fake DOM, tab and native-message
-// boundaries. Native feedback must always render as plain text.
 const source = readFileSync(
   new URL("../SafariExtension/Resources/popup.js", import.meta.url),
   "utf8"

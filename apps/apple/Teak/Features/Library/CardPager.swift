@@ -39,21 +39,18 @@ final class CardPager {
         self.backend = backend
     }
 
-    /// Starts over for new search arguments. Same arguments keep the pages.
     func load(_ args: ConvexArgs, force: Bool = false) {
         guard force || args != self.args || slots.isEmpty else { return }
         self.args = args
         restart()
     }
 
-    /// Pull to refresh: subscribe again from the top and wait for the first page.
     func refresh() async {
         restart()
         let generation = generation
         while generation == self.generation, isLoading { try? await Task.sleep(for: .milliseconds(50)) }
     }
 
-    /// Loads the next page once the last one has arrived.
     func loadMore() {
         guard let page = slots.last?.page, !page.isDone, let cursor = page.continueCursor else { return }
         subscribe(Slot(cursor: cursor))
@@ -129,7 +126,6 @@ final class CardPager {
     }
 }
 
-/// The paginated result with Convex's split hints.
 struct PageResult: Decodable, Sendable {
     let page: CardSummaryPage
     let splitCursor: String?

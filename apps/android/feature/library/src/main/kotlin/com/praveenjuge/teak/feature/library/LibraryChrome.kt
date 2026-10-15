@@ -117,7 +117,6 @@ internal fun LibrarySearchField(state: TextFieldState, modifier: Modifier = Modi
     )
 }
 
-/** Favorites, Trash, one chip per type, a color picker, and Clear when anything is on. */
 @Composable
 internal fun LibraryFilterRow(
     filters: LibraryFilters,
@@ -197,7 +196,6 @@ private fun ColorChip(hue: ColorHue?, onSelectHue: (ColorHue) -> Unit) {
     }
 }
 
-/** The floating actions while selecting: Move to Trash, or Restore and Delete Forever in Trash. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SelectionToolbar(

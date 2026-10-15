@@ -16,7 +16,6 @@ import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CardPagerTest {
-    /** Serves page one, then fails page two once with Convex's InvalidCursor, as after a deploy. */
     private class DeployedRepository : CardsRepository {
         val cursors = mutableListOf<String?>()
         private var failedOnce = false

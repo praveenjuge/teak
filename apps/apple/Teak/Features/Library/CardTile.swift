@@ -3,7 +3,6 @@ import SwiftUI
 import TeakCore
 import TeakSync
 
-/// One card in the grid, drawn like the web and iPhone tiles.
 struct CardTile: View {
     let card: CardSummary
     let width: Double
@@ -45,7 +44,6 @@ struct CardTile: View {
         }
     }
 
-    /// Room for the favorite heart so it never covers a text tile's words.
     private var badgeInset: Double { isSelected == nil && card.favorited ? 18 : 0 }
 
     private var mediaHeight: Double { (width / CardGrid.tileImageRatio(card)).rounded() }
@@ -152,7 +150,6 @@ private struct TileFooter: View {
     }
 }
 
-/// The poster with a play badge; with a pointer, hovering plays a muted preview.
 private struct VideoTileMedia: View {
     let card: CardSummary
     let url: URL?
@@ -185,7 +182,6 @@ private struct VideoTileMedia: View {
     }
 }
 
-/// A muted, looping video with no controls.
 struct LoopingVideo: View {
     let url: URL
     @State private var player = AVQueuePlayer()
@@ -235,7 +231,6 @@ private struct PlayerLayer: UIViewRepresentable {
 }
 #endif
 
-/// The web card's deterministic waveform, so a recording looks the same everywhere.
 struct WaveformView: View {
     let seed: String
     var progress: Double?
@@ -258,7 +253,6 @@ struct WaveformView: View {
     }
 }
 
-/// Grid placeholder tiles while the first page loads.
 struct SkeletonGrid: View {
     let columns: Int
     let columnWidth: Double
@@ -283,7 +277,6 @@ struct SkeletonGrid: View {
 }
 
 extension Color {
-    /// `#RRGGBB` or `#RGB`.
     init?(hex: String) {
         var value = hex.trimmingCharacters(in: .whitespaces)
         if value.hasPrefix("#") { value.removeFirst() }

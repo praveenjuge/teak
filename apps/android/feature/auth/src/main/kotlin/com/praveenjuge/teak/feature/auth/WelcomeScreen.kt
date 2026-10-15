@@ -72,7 +72,6 @@ private fun openAuthKit(context: Context, url: String) {
         .launchUrl(context, Uri.parse(url))
 }
 
-/** Sign-in: the wordmark up top, the pitch and the ways in at the bottom, within thumb reach. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun WelcomeScreen(
@@ -138,7 +137,6 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
     fun label(method: SignInMethod, text: String) = if (state.pending == method) "Signing in…" else text
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Neutral pills, like Teak's secondary buttons on the web: the wordmark is the only red here.
         ProviderButton(label(SignInMethod.Google, "Continue with Google"), enabled = !busy, onClick = { onSignIn(SignInMethod.Google) }) {
             Image(painterResource(R.drawable.ic_google_g), contentDescription = null, modifier = Modifier.size(18.dp))
         }

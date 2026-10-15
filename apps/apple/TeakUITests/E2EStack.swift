@@ -1,9 +1,6 @@
 import Foundation
 import XCTest
 
-/// This checkout's local E2E stack (`bun run --cwd packages/tests e2e:stack`):
-/// a local Convex backend and the WorkOS emulator. Every account is a
-/// throwaway emulator user that exists only for the run.
 enum E2EStack {
     static let clientId = "client_01TEAKE2EEMULATOR"
     static let apiKey = "sk_test_default"
@@ -30,7 +27,6 @@ enum E2EStack {
         let launchEnvironment: [String: String]
     }
 
-    /// A verified emulator user with a vault, and a signed-in session for the app.
     static func account(signedIn: Bool = true) async throws -> Account {
         let urls = try urls()
         let suffix = UUID().uuidString.prefix(8).lowercased()
@@ -73,7 +69,6 @@ enum E2EStack {
 }
 
 extension XCUIElement {
-    /// Waits for the element, failing the test with a clear message.
     @discardableResult
     func waitToAppear(_ timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
         XCTAssertTrue(waitForExistence(timeout: timeout), "\(self) never appeared", file: file, line: line)
@@ -86,7 +81,6 @@ extension XCUIElement {
                        file: file, line: line)
     }
 
-    /// Opens the element's context menu: long press on iPhone and iPad, right click on Mac.
     func openContextMenu() {
         #if os(macOS)
         rightClick()

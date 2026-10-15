@@ -13,10 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 
-/**
- * The Convex functions Teak calls, by name. Arguments are plain maps; every number must be a
- * [Double], because the backend's `v.number()` rejects the int64 the SDK sends for Int and Long.
- */
+/** The Convex functions Teak calls, by name. Arguments are plain maps; numbers of any type are sent as Doubles. */
 interface ConvexApi {
     fun subscribe(name: String, args: Map<String, Any?> = emptyMap()): Flow<Result<JsonElement>>
     suspend fun mutation(name: String, args: Map<String, Any?> = emptyMap()): JsonElement
@@ -26,13 +23,14 @@ interface ConvexApi {
 
 class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
     override fun subscribe(name: String, args: Map<String, Any?>): Flow<Result<JsonElement>> =
-        client.subscribe<JsonElement>(name, args).map { result -> result.recoverCatching { throw it.toTeakException() } }
+        client.subscribe<JsonElement>(name, args.withNumbersAsDoubles())
+            .map { result -> result.recoverCatching { throw it.toTeakException() } }
 
     override suspend fun mutation(name: String, args: Map<String, Any?>): JsonElement =
-        convexCall { client.mutation<JsonElement>(name, args) }
+        convexCall { client.mutation<JsonElement>(name, args.withNumbersAsDoubles()) }
 
     override suspend fun action(name: String, args: Map<String, Any?>): JsonElement =
-        convexCall { client.action<JsonElement>(name, args) }
+        convexCall { client.action<JsonElement>(name, args.withNumbersAsDoubles()) }
 
     override val isConnected: Flow<Boolean> =
         client.webSocketStateFlow.map { it == dev.convex.android.WebSocketState.CONNECTED }
@@ -49,7 +47,17 @@ class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
         }
 }
 
-/** A backend failure with the code and message the server sent, when it sent one. */
+/** The SDK sends Int and Long as int64, which the backend's `v.number()` rejects, so every number goes as a Double. */
+internal fun Map<String, Any?>.withNumbersAsDoubles(): Map<String, Any?> = mapValues { (_, value) -> value.numbersAsDoubles() }
+
+private fun Any?.numbersAsDoubles(): Any? = when (this) {
+    is Double -> this
+    is Number -> toDouble()
+    is Map<*, *> -> entries.associate { (key, value) -> key to value.numbersAsDoubles() }
+    is List<*> -> map { it.numbersAsDoubles() }
+    else -> this
+}
+
 class TeakException(val code: String?, message: String, cause: Throwable? = null) : Exception(message, cause) {
     companion object {
         const val CARD_LIMIT_REACHED = "CARD_LIMIT_REACHED"
@@ -66,7 +74,6 @@ internal val teakJson = Json {
     coerceInputValues = true
 }
 
-/** Maps SDK errors to [TeakException], keeping the server's code and message for `ConvexError`s. */
 fun Throwable.toTeakException(): Throwable = when (this) {
     is TeakException -> this
     is ConvexError -> {

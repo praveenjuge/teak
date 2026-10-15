@@ -10,7 +10,6 @@ plugins {
     alias(libs.plugins.posthog)
 }
 
-// Every Teak surface ships the same version: the root package.json, set by `bun run release:prepare`.
 val teakVersion: String = (JsonSlurper().parse(rootDir.resolve("../../package.json")) as Map<*, *>)["version"] as String
 
 /** 1.0.85 -> 1000085. A Play-assigned build number can override it with -Pteak.versionCode=N. */
@@ -19,18 +18,19 @@ fun versionCodeFor(version: String): Int {
     return major * 1_000_000 + minor * 1_000 + patch
 }
 
-// The upload key stays outside the repository: keystore.properties locally, environment variables in CI.
 val signingProperties = Properties().apply {
     rootDir.resolve("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
 fun signingValue(key: String, env: String): String? =
     signingProperties.getProperty(key) ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
-// The PostHog project token is public, but it stays out of the repository so only release builds send events.
 val posthogToken: String = providers.gradleProperty("POSTHOG_ANDROID_TOKEN")
     .orElse(providers.environmentVariable("POSTHOG_ANDROID_TOKEN"))
     .getOrElse("")
     .trim()
+
+val sharedDevConvexUrl = "https://reminiscent-kangaroo-59.convex.cloud"
+val productionConvexUrl = "https://uncommon-ladybug-882.convex.cloud"
 
 android {
     namespace = "com.praveenjuge.teak"
@@ -45,7 +45,6 @@ android {
     signingConfigs {
         val storeFile = signingValue("storeFile", "TEAK_UPLOAD_KEYSTORE")
         val storePassword = signingValue("storePassword", "TEAK_UPLOAD_KEYSTORE_PASSWORD")
-        // Without both, release builds stay unsigned (as in CI) rather than failing.
         if (storeFile != null && storePassword != null) {
             create("upload") {
                 this.storeFile = rootDir.resolve(storeFile)
@@ -61,16 +60,14 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             resValue("string", "app_name", "Teak Dev")
-            // The shared cloud dev deployment, signed in through WorkOS staging.
-            buildConfigField("String", "CONVEX_URL", "\"https://reminiscent-kangaroo-59.convex.cloud\"")
+            buildConfigField("String", "CONVEX_URL", "\"$sharedDevConvexUrl\"")
             buildConfigField("String", "POSTHOG_TOKEN", "\"\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             resValue("string", "app_name", "Teak")
-            buildConfigField("String", "CONVEX_URL", "\"https://uncommon-ladybug-882.convex.cloud\"")
-            // PostHog stays off unless a release build is given the project token, like the iPhone app.
+            buildConfigField("String", "CONVEX_URL", "\"$productionConvexUrl\"")
             buildConfigField("String", "POSTHOG_TOKEN", "\"$posthogToken\"")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("upload")
@@ -84,7 +81,6 @@ android {
 
     testOptions {
         // An Android 17 phone with 16 KB memory pages, like the devices Play now requires support for.
-        // Run with ./gradlew :app:pixel9Api37DebugAndroidTest
         managedDevices.localDevices.create("pixel9Api37") {
             device = "Pixel 9"
             apiLevel = 37

@@ -1,6 +1,5 @@
 import XCTest
 
-/// Signing in, against the local E2E stack's WorkOS emulator.
 final class SignInTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -19,7 +18,6 @@ final class SignInTests: XCTestCase {
     }
 
     #if os(iOS)
-    /// The whole PKCE flow: AuthKit's page, the code exchange, `ensureUser`, then the library.
     @MainActor
     func testEmailSignInThroughAuthKit() async throws {
         let account = try await E2EStack.account(signedIn: false)

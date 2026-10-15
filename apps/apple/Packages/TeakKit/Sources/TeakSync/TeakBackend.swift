@@ -3,8 +3,6 @@ import ConvexMobile
 import Foundation
 import TeakCore
 
-/// The app's connection to Convex: live queries over the WebSocket client,
-/// signed in with the WorkOS session.
 public final class TeakBackend: ConvexCaller, @unchecked Sendable {
     let client: ConvexClientWithAuth<String>
     let session: TeakSession
@@ -15,8 +13,6 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         provider = WorkOSAuthProvider(session: session)
         client = ConvexClientWithAuth(deploymentUrl: convexURL.absoluteString, authProvider: provider)
     }
-
-    // MARK: Authentication
 
     /// Hands the stored session to Convex. Throws on a transport failure so the
     /// caller can retry; returns false when there is no session.
@@ -67,8 +63,6 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         }
     }
 
-    // MARK: Queries
-
     /// A live query: the current result, then every change. Errors end the stream.
     public func subscribe<T: Decodable & Sendable>(_ name: String, _ args: ConvexArgs = [:],
                                                    as type: T.Type = T.self) -> AsyncThrowingStream<T, any Error> {
@@ -109,7 +103,6 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         }
     }
 
-    /// Keeps the server's code and message for `ConvexError`s.
     static func teakError(_ error: any Error) -> any Error {
         guard let error = error as? ClientError else { return error }
         switch error {
@@ -140,13 +133,12 @@ private final class CancellableBox: @unchecked Sendable {
     func cancel() { cancellable.cancel() }
 }
 
-/// Hands WorkOS access tokens to Convex. The session does the signing in; this
-/// passes along the current token, every refreshed one, and nil when the
-/// session ends.
 final class WorkOSAuthProvider: AuthProvider, @unchecked Sendable {
     typealias T = String
 
     private let session: TeakSession
+    static let minForcedRefreshInterval: TimeInterval = 10
+
     private let lock = NSLock()
     private var lastForcedRefresh = Date.distantPast
     private var hasLoggedIn = false
@@ -160,12 +152,12 @@ final class WorkOSAuthProvider: AuthProvider, @unchecked Sendable {
     }
 
     /// The client calls this once to sign in, then again whenever Convex asks
-    /// for a fresh token, so later calls refresh (at most every 10 seconds).
+    /// for a fresh token, so later calls refresh (at most once per `minForcedRefreshInterval`).
     func loginFromCache(onIdToken: @Sendable @escaping (String?) -> Void) async throws -> String {
         await session.setTokenListener(onIdToken)
         let force = lock.withLock { () -> Bool in
             defer { hasLoggedIn = true }
-            guard hasLoggedIn, Date().timeIntervalSince(lastForcedRefresh) > 10 else { return false }
+            guard hasLoggedIn, Date().timeIntervalSince(lastForcedRefresh) > Self.minForcedRefreshInterval else { return false }
             lastForcedRefresh = Date()
             return true
         }

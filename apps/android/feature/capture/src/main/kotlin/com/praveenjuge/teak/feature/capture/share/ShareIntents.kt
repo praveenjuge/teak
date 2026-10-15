@@ -5,13 +5,11 @@ import android.net.Uri
 import androidx.core.content.IntentCompat
 import com.praveenjuge.teak.core.model.SaveLink
 
-/** One thing handed to Teak to save. */
 sealed interface ShareItem {
     data class Text(val text: String) : ShareItem
     data class File(val uri: Uri) : ShareItem
 }
 
-/** Reads what another app shared, selected, or linked into the items Teak saves. */
 object ShareIntents {
     fun items(intent: Intent): List<ShareItem> = when (intent.action) {
         Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> sharedItems(intent)
@@ -36,7 +34,6 @@ object ShareIntents {
 
     private fun sharedItems(intent: Intent): List<ShareItem> {
         val files = streams(intent).map(ShareItem::File)
-        // The subject only stands in when nothing else came with the share.
         val text = sharedText(intent)
             ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)?.takeIf { files.isEmpty() }
         return listOfNotNull(text?.textItem()) + files

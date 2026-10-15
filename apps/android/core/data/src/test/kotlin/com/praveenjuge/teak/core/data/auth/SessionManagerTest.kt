@@ -91,6 +91,24 @@ class SessionManagerTest {
     }
 
     @Test
+    fun `a refresh that links a different Teak account signs out`() = runTest {
+        store.session = Tokens.session(expiresAtMillis = now - 1)
+        api.nextRefresh = { Tokens.session(teakUserId = "teak_2", expiresAtMillis = now + 300_000) }
+        val sessions = manager().apply { restore() }
+        assertNull(sessions.accessToken())
+        assertEquals(SessionState.SignedOut, sessions.state.value)
+    }
+
+    @Test
+    fun `a refresh may link a session that had no Teak account yet`() = runTest {
+        store.session = Tokens.session(teakUserId = null, expiresAtMillis = now - 1)
+        api.nextRefresh = { Tokens.session(refreshToken = "refresh_2", expiresAtMillis = now + 300_000) }
+        val sessions = manager().apply { restore() }
+        assertTrue(sessions.accessToken() != null)
+        assertEquals("refresh_2", store.session?.refreshToken)
+    }
+
+    @Test
     fun `sign-in links the account before saving the session`() = runTest {
         api.exchanged = Tokens.session(expiresAtMillis = now + 300_000)
         val sessions = manager().apply { restore() }

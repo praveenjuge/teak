@@ -2,8 +2,6 @@
 import SwiftUI
 import TeakCore
 
-/// A sidebar row: Add, or a view of the library. Library rows read and write
-/// the library's filters, so the sidebar and the Filter menu always agree.
 enum SidebarItem: Hashable {
     case home, add, favorites, trash, type(CardType)
 
@@ -31,7 +29,6 @@ enum SidebarItem: Hashable {
     }
 }
 
-/// The Mac window: Add, library views and card types in the sidebar, Settings at the bottom.
 struct MacMainView: View {
     let namespace: Namespace.ID
     @Environment(AppRouter.self) private var router

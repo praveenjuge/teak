@@ -8,7 +8,6 @@ enum SafariExtension {
     static let identifier = "com.praveenjuge.teak.safari-extension"
 }
 
-/// Whether the Safari extension is on, and how to turn it on.
 struct SafariExtensionSection: View {
     #if os(macOS)
     @State private var isEnabled: Bool?

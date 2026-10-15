@@ -56,7 +56,6 @@ public enum ItemProviders {
         }
     }
 
-    /// Copies the provider's file under its suggested name.
     @MainActor static func copyFile(_ provider: NSItemProvider, type: UTType) async throws -> UploadItem {
         let folder = try temporaryFolder()
         let suggestedName = provider.suggestedName
@@ -76,7 +75,6 @@ public enum ItemProviders {
         return item(for: copied, type: type)
     }
 
-    /// An upload item for a local file, with its size and MIME type.
     public static func item(for file: URL, type: UTType? = nil) -> UploadItem {
         let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil
         let utType = type ?? UTType(filenameExtension: file.pathExtension)

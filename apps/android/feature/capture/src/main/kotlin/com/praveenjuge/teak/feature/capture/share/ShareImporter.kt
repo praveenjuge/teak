@@ -1,16 +1,15 @@
 package com.praveenjuge.teak.feature.capture.share
 
 import com.praveenjuge.teak.core.data.auth.SessionState
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
-/** How a share went. [detail] is the first failure worth showing, when there is one. */
 sealed interface ShareResult {
     data object Empty : ShareResult
     data object SignInRequired : ShareResult
@@ -30,7 +29,6 @@ class ShareImporter @Inject constructor(
     private val account: AccountRepository,
 ) {
     /** Calls [onSaving] once Teak knows the person is signed in and starts saving. */
-    @Suppress("TooGenericExceptionCaught") // One failed item must not stop the rest of the share.
     suspend fun import(items: List<ShareItem>, onSaving: () -> Unit = {}): ShareResult {
         if (items.isEmpty()) return ShareResult.Empty
         val session = account.session.first { it != SessionState.Loading }
@@ -42,26 +40,16 @@ class ShareImporter @Inject constructor(
         val failures = mutableListOf<String?>()
 
         for (item in processed.filterIsInstance<ShareItem.Text>()) {
-            try {
-                cards.createFromText(item.text)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failures += e.detail()
-            }
+            catchingFailures { cards.createFromText(item.text) }.onFailure { failures += it.detail() }
         }
 
         val files = processed.filterIsInstance<ShareItem.File>()
         if (files.isNotEmpty()) {
-            try {
+            catchingFailures {
                 val staged = uploads.stage(files.map { it.uri })
                 failures += staged.skipped.map { "${it.name}: ${it.reason}" }
                 if (staged.files.isNotEmpty()) uploads.enqueue(staged.files)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                repeat(files.size) { failures += null }
-            }
+            }.onFailure { repeat(files.size) { failures += null } }
         }
 
         val saved = processed.size - failures.size
@@ -73,8 +61,7 @@ class ShareImporter @Inject constructor(
         }
     }
 
-    /** Server messages that explain the failure better than "check your connection". */
-    private fun Exception.detail(): String? =
+    private fun Throwable.detail(): String? =
         (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.message
 
     companion object {

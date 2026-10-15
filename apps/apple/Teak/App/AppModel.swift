@@ -6,7 +6,6 @@ import SwiftUI
 import TeakCore
 import TeakSync
 
-/// What the root view shows.
 enum AppPhase: Equatable {
     case loading
     case offline
@@ -15,9 +14,6 @@ enum AppPhase: Equatable {
     case signedIn
 }
 
-/// Owns the app's connection to Teak: sign-in configuration, the WorkOS
-/// session, Convex and connectivity. Port of the iPhone app's
-/// `ConvexClientProvider`, `MobileAuthProviders` and `useAuthBootstrap`.
 @MainActor @Observable
 final class AppModel {
     let config: TeakConfig
@@ -31,7 +27,6 @@ final class AppModel {
     private(set) var isConnected = false
     private(set) var isConvexAuthenticated = false
     private(set) var configurationError: String?
-    /// Set when the keychain couldn't be read (before the first unlock); retried on foreground.
     private(set) var keychainUnavailable = false
 
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
@@ -180,8 +175,6 @@ final class AppModel {
 
     // MARK: Convex
 
-    /// Hands the session to Convex, retrying transport failures with backoff
-    /// without opening another browser.
     private func authenticateConvex() {
         authenticateTask?.cancel()
         authenticateTask = Task {
@@ -238,7 +231,6 @@ final class AppModel {
         await session.clear()
     }
 
-    /// Deletes the account and everything in it. The server ends every session.
     func deleteAccount() async throws {
         if authMode?.accountChangesPaused == true {
             throw TeakError(message: TeakMessages.accountChangesPaused)
@@ -248,7 +240,6 @@ final class AppModel {
     }
 }
 
-/// Keeps `auth:getAuthMode`'s raw JSON so `AuthMode.parse` validates it.
 struct AuthModeValue: Decodable, Sendable {
     let data: Data
 

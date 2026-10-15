@@ -1,6 +1,5 @@
 package com.praveenjuge.teak.core.model
 
-/** How a note or pasted link is saved: a link card when there is an http(s) URL, otherwise text. */
 data class TextCardInput(val content: String, val type: CardType, val url: String? = null)
 
 /** Port of `resolveTextCardInput` in packages/convex/shared/utils/linkDetection.ts. */
@@ -21,7 +20,6 @@ object LinkDetection {
 
     private fun isHttpUrl(candidate: String): Boolean = httpUrl.containsMatchIn(candidate)
 
-    /** The URL in [content], and the content to save alongside it. */
     fun extractUrl(content: String): Pair<String?, String> {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) return null to ""

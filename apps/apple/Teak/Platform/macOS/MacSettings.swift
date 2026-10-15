@@ -3,8 +3,6 @@ import AppKit
 import SwiftUI
 import TeakCore
 
-/// The Settings window: General, Account and About tabs, each a grouped form
-/// sized to its content.
 struct MacSettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -35,19 +33,16 @@ struct MacSettingsView: View {
         }
         .scrollDisabled(true)
         .task { await account.watch(app.backend) }
-        // Logging out leaves only the welcome window.
         .onChange(of: app.phase == .signedIn) { _, signedIn in
             if !signedIn { dismiss() }
         }
     }
 }
 
-/// The library window ("main"), which opens at welcome size before sign-in.
 @MainActor
 enum MainWindow {
     static let librarySize = NSSize(width: 1100, height: 760)
 
-    /// Grows the window to library size, keeping it on screen, once someone signs in.
     static func growToLibrarySize() {
         guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true }),
               window.frame.width < librarySize.width else { return }
@@ -63,7 +58,6 @@ enum MainWindow {
     }
 }
 
-/// The app icon, name and version, with the same words as About on iPhone.
 private struct MacAboutView: View {
     @Environment(AppModel.self) private var app
 

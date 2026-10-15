@@ -6,10 +6,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Records the classes and methods Teak runs at launch, so ART compiles them ahead of time.
- * Run with `./gradlew :app:generateReleaseBaselineProfile` on a connected device or emulator.
- */
 @RunWith(AndroidJUnit4::class)
 class StartupProfileGenerator {
     @get:Rule

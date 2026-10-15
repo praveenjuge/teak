@@ -17,14 +17,11 @@ let package = Package(
         .package(url: "https://github.com/get-convex/convex-swift", exact: "0.8.1"),
     ],
     targets: [
-        // Foundation only: models, ported logic, sign-in, Convex over HTTPS and
-        // uploads. The app and both extensions link it.
         .target(
             name: "TeakCore",
             resources: [.process("Resources")],
             swiftSettings: strict
         ),
-        // The live Convex client (WebSocket subscriptions). Only the app links it.
         .target(
             name: "TeakSync",
             dependencies: [
@@ -33,7 +30,6 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
-        // SwiftUI pieces the app and extensions share.
         .target(
             name: "TeakUI",
             dependencies: ["TeakCore"],
