@@ -494,6 +494,19 @@ export const insertCompletedCards = async (
       await recordActiveCardRemoved(ctx, userId, cardId);
     }
     await scheduleCardSearchSync(ctx, cardId, userId);
+    // Ready-made documents skip processing, which is where a document's text
+    // is stored; read it now so search finds words inside them too.
+    if (
+      cardDef.type === "document" &&
+      cardDef.fileKey &&
+      !(cardDef.runProcessing || cardDef.isDeleted)
+    ) {
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["migration/extractDocumentText"].extractDocumentText,
+        { cardId }
+      );
+    }
     if (cardDef.runProcessing) {
       await startWorkflow(
         ctx,

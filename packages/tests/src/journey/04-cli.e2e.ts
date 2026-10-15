@@ -12,9 +12,12 @@ test("CLI covers auth, cards, tags, and aliases", async () => {
   expect(
     JSON.parse(await runCli(["--json", "auth", "status"], apiKey)).status
   ).toBe("ok");
+  const content = `cli-${Date.now()}`;
   const created = JSON.parse(
-    await runCli(["--json", "cards", "create", `cli-${Date.now()}`], apiKey)
+    await runCli(["--json", "cards", "create", content], apiKey)
   );
+  // A text card's text is its own content.
+  expect(await runCli(["content", created.cardId], apiKey)).toBe(content);
   for (const args of [
     ["--json", "cards", "list", "--limit", "5"],
     ["--json", "cards", "search", "cli"],

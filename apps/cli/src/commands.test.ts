@@ -725,6 +725,41 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(result.stdout)).toEqual({ queuedIds: ["card_a"] });
   });
 
+  test("content prints a card's text, notes truncation on stderr, and --json the envelope", async () => {
+    const body = {
+      cardId: "card_a",
+      kind: "document",
+      text: "Kestrel Freight agreed to net 30 days.",
+      charCount: 38,
+      truncated: true,
+    };
+    routes.set("GET /v1/cards/card_a/content", () => json(body));
+    routes.set("GET /v1/cards/card_b/content", () =>
+      json({ code: "NO_CONTENT", error: "This card has no stored text" }, 404)
+    );
+
+    const text = await teak("content", "card_a");
+    expect(text.code).toBe(0);
+    expect(text.stdout).toBe("Kestrel Freight agreed to net 30 days.\n");
+    expect(text.stderr).toContain("first 500 pages");
+
+    const result = await teak("--json", "cards", "content", "card_a");
+    expect(JSON.parse(result.stdout)).toEqual(body);
+    expect(result.stderr).toBe("");
+
+    const missing = await teak("content", "card_b");
+    expect(missing.code).toBe(EXIT.notFound);
+    expect(missing.stderr).toContain("This card has no stored text");
+
+    // Only the start of the stored text could be read: a different note.
+    routes.set("GET /v1/cards/card_c/content", () =>
+      json({ ...body, cardId: "card_c", charCount: 90_000 })
+    );
+    const partial = await teak("content", "card_c");
+    expect(partial.code).toBe(0);
+    expect(partial.stderr).toContain("try again later");
+  });
+
   test("archive and unarchive change each card, and ls --archived lists them", async () => {
     routes.set("PATCH /v1/cards/card_a", () =>
       json(card("card_a", { isArchived: true }))

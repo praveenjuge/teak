@@ -38,7 +38,12 @@ export interface ResolvedSearch {
   /** Whether a card read from a driver index still needs `matches`. */
   hasCardFilters: boolean;
   /** Every qualifier and view filter that a card itself can answer. */
-  matches: (card: Doc<"cards">) => boolean;
+  /**
+   * `searchableText` is the card's search document text when the caller has
+   * it: it also holds text extracted from the card's file, which quoted
+   * phrases then match too.
+   */
+  matches: (card: Doc<"cards">, searchableText?: string) => boolean;
   phrases: string[];
   /** Normalized hosts; a card on any of them matches. */
   sites: string[];
@@ -181,7 +186,7 @@ export const resolveSearch = async (
   ).filter(Boolean);
   const { sites, phrases } = parsed;
 
-  const matches = (card: Doc<"cards">) => {
+  const matches = (card: Doc<"cards">, searchableText?: string) => {
     if (card.userId !== userId) {
       return false;
     }
@@ -207,7 +212,10 @@ export const resolveSearch = async (
         return false;
       }
     }
-    return matchesSearchPhrases(buildCardSearchText(card), phrases);
+    return matchesSearchPhrases(
+      searchableText ?? buildCardSearchText(card),
+      phrases
+    );
   };
 
   return {

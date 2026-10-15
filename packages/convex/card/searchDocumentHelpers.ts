@@ -11,6 +11,7 @@ import {
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
+import { deleteCardTextContents } from "./textContents";
 
 const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
@@ -24,11 +25,19 @@ const SEARCH_FIELDS = [
   "metadataDescription",
 ] as const;
 
-export const buildCardSearchText = (card: Doc<"cards">): string =>
+/**
+ * The text a card is found by: its own fields, then, when given, the
+ * searchable prefix of text extracted from its file (card/documentText.ts).
+ */
+export const buildCardSearchText = (
+  card: Doc<"cards">,
+  extractedText?: string
+): string =>
   [
     ...SEARCH_FIELDS.map((field) => card[field]),
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
+    extractedText,
   ]
     .filter(
       (value): value is string =>
@@ -268,6 +277,10 @@ export const syncCardSearchDocumentHandler = async (
   if (!card) {
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
+    }
+    // A pre-delete card without extracted text has no row to read.
+    if (!previousCard || previousCard.hasExtractedText) {
+      await deleteCardTextContents(ctx, cardId);
     }
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
@@ -757,8 +770,19 @@ export const searchCardsByDocument = async (
     /** Only cards on this normalized host (`site:`). */
     urlHost?: string;
     limit: number;
-    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
-    resultFilter?: (card: Doc<"cards">) => boolean;
+    scanBudget?: {
+      remaining: number;
+      hitSearchLimit?: boolean;
+      /** File-text rows left to read (FILE_TEXT_SEARCH_LIMIT to start). */
+      textRemaining?: number;
+    };
+    /**
+     * Keeps a card; gets the card's search text too, with its file text
+     * when that is what matched (quoted phrases check it).
+     */
+    resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
+    /** Filled with each kept card's search text, for filtering later. */
+    searchTexts?: Map<Id<"cards">, string>;
   }
 ): Promise<Doc<"cards">[]> => {
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
@@ -803,8 +827,12 @@ export const searchCardsByDocument = async (
   }
   for (const document of documents) {
     const card = await ctx.db.get("cards", document.cardId);
-    if (card && (!args.resultFilter || args.resultFilter(card))) {
+    if (
+      card &&
+      (!args.resultFilter || args.resultFilter(card, document.searchableText))
+    ) {
       cardsById.set(card._id, card);
+      args.searchTexts?.set(card._id, document.searchableText);
       if (cardsById.size >= matchLimit) {
         break;
       }
@@ -818,5 +846,83 @@ export const searchCardsByDocument = async (
       message: "Search is too broad. Add a type or date filter.",
     });
   }
+  if (cardsById.size < matchLimit) {
+    await addCardsFoundByFileText(ctx, args, archived, scanBudget, {
+      cardsById,
+      matchLimit,
+    });
+  }
   return Array.from(cardsById.values());
 };
+
+/**
+ * Text rows one search request reads, across all its calls. A row holds up
+ * to 32 KiB, so a search stays far inside a transaction's read limit
+ * however many files match; past it, only the closest matches are found.
+ */
+export const FILE_TEXT_SEARCH_LIMIT = 128;
+
+/**
+ * Adds the cards whose file text (card/documentText.ts) matches. That text
+ * lives in its own search index, not the card's search document, so each
+ * candidate the main search reads stays small. A row only knows its owner,
+ * so the main index's filters are checked on the card.
+ */
+const addCardsFoundByFileText = async (
+  ctx: QueryCtx,
+  args: Parameters<typeof searchCardsByDocument>[1],
+  archived: true | undefined | "any",
+  scanBudget: { textRemaining?: number },
+  found: { cardsById: Map<Id<"cards">, Doc<"cards">>; matchLimit: number }
+) => {
+  // Only documents have file text.
+  if (args.type !== undefined && args.type !== "document") {
+    return;
+  }
+  const textLimit = scanBudget.textRemaining ?? FILE_TEXT_SEARCH_LIMIT;
+  if (textLimit <= 0) {
+    return;
+  }
+  const rows = await ctx.db
+    .query("cardTextContents")
+    .withSearchIndex("search_text", (query) =>
+      query.search("text", args.searchQuery).eq("userId", args.userId)
+    )
+    .take(textLimit);
+  scanBudget.textRemaining = textLimit - rows.length;
+  for (const row of rows) {
+    if (found.cardsById.has(row.cardId)) {
+      continue;
+    }
+    const card = await ctx.db.get("cards", row.cardId);
+    if (!(card && card.userId === args.userId)) {
+      continue;
+    }
+    const searchableText = buildCardSearchText(card, row.text);
+    if (
+      matchesSearchIndexFilters(card, args, archived) &&
+      (!args.resultFilter || args.resultFilter(card, searchableText))
+    ) {
+      found.cardsById.set(card._id, card);
+      args.searchTexts?.set(card._id, searchableText);
+      if (found.cardsById.size >= found.matchLimit) {
+        break;
+      }
+    }
+  }
+};
+
+/** The main search index's equality filters, checked on the card itself. */
+const matchesSearchIndexFilters = (
+  card: Doc<"cards">,
+  args: Parameters<typeof searchCardsByDocument>[1],
+  archived: true | undefined | "any"
+): boolean =>
+  card.isDeleted === args.isDeleted &&
+  (archived === "any" ||
+    (card.isArchived === true ? true : undefined) === archived) &&
+  (args.type === undefined || card.type === args.type) &&
+  (args.isFavorited === undefined ||
+    card.isFavorited === (args.isFavorited ? true : undefined)) &&
+  (args.urlHost === undefined ||
+    (normalizeUrlHost(card.url) ?? undefined) === args.urlHost);

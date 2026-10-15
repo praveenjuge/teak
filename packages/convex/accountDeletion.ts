@@ -11,6 +11,7 @@ import {
 } from "./_generated/server";
 import type { DeletionBatchKind } from "./accountDeletionBatch";
 import { removeCardUsage } from "./card/cardUsage";
+import { deleteCardTextContents } from "./card/textContents";
 import { readAccountChangesPaused } from "./env";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
@@ -345,6 +346,8 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
+    // Its R2 object is among the card's object keys, deleted with the batch.
+    await deleteCardTextContents(ctx, cardId);
     // A card is in at most MAX_FOLDERS_PER_CARD folders; any rows past the
     // bound are swept with the user's folders in the ancillary pass.
     const folderRows = await ctx.db

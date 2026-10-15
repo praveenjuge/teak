@@ -40,6 +40,7 @@ export const ERROR_CODES = [
   "METHOD_NOT_ALLOWED",
   "NETWORK_ERROR",
   "NOT_FOUND",
+  "NO_CONTENT",
   "NOT_IN_TRASH",
   "PARSE_ERROR",
   "RATE_LIMITED",
@@ -282,6 +283,20 @@ export interface RefreshCardResponse {
   cardId: string;
   requestedAt: number;
   status: "queued";
+}
+/** A card's full stored text (GET /v1/cards/:id/content). */
+export interface CardContent {
+  cardId: string;
+  /** Characters in the full stored text. */
+  charCount: number;
+  /**
+   * document: extracted from the card's file; transcript: its speech;
+   * content: a text or quote card's written text.
+   */
+  kind: "document" | "transcript" | "content";
+  text: string;
+  /** The document is longer than Teak keeps. */
+  truncated: boolean;
 }
 export type BulkCardsOperation =
   | "create"
@@ -583,6 +598,19 @@ const asRefresh = (value: unknown): RefreshCardResponse => {
   }
   return value as unknown as RefreshCardResponse;
 };
+const asCardContent = (value: unknown): CardContent => {
+  if (
+    !isObject(value) ||
+    typeof value.cardId !== "string" ||
+    typeof value.text !== "string" ||
+    typeof value.charCount !== "number" ||
+    typeof value.truncated !== "boolean" ||
+    !["document", "transcript", "content"].includes(String(value.kind))
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return value as unknown as CardContent;
+};
 const asMe = (value: unknown): Me => {
   if (
     !(isObject(value) && isObject(value.data)) ||
@@ -739,6 +767,12 @@ export const createTeakClient = (options: {
           },
           asCreate
         ),
+      /**
+       * The card's full stored text: document text, transcript, or a text
+       * card's content. Throws NO_CONTENT when the card has none.
+       */
+      content: (id: string) =>
+        request(`${cardPath(id)}/content`, { method: "GET" }, asCardContent),
       /** Moves the card to Trash, or deletes it for good with `permanent`. */
       delete: (id: string, deleteOptions?: { permanent?: boolean }) =>
         request(

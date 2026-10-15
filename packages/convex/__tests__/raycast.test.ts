@@ -51,11 +51,10 @@ describe("raycast", () => {
     });
 
     expect(result).toEqual([]);
-    expect(searchIndexes).toEqual(["search_searchableText"]);
+    // The file-text index only knows a row's owner; its matches are checked
+    // for favorites on the card.
+    expect(searchIndexes).toEqual(["search_searchableText", "search_text"]);
     expect(isFavoritedFilters).toEqual(["search_searchableText"]);
-    for (const indexName of searchIndexes) {
-      expect(isFavoritedFilters).toContain(indexName);
-    }
   });
 
   test("patchCardForUser forwards provided fields and returns updated card", async () => {

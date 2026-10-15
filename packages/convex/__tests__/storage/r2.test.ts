@@ -212,6 +212,7 @@ describe("card storage cleanup", () => {
         previewKey: "preview",
         scrubKey: "scrub",
         thumbnailKey: "thumbnail",
+        documentTextKey: "document-text",
         metadata: {
           linkPreview: {
             imageStorageKey: "image",
@@ -226,6 +227,7 @@ describe("card storage cleanup", () => {
       "thumbnail",
       "scrub",
       "preview",
+      "document-text",
       "image",
       "screenshot",
       "poster",

@@ -15,6 +15,8 @@ export function formatCardDate(timestamp: number) {
 export interface CardDetailsSource {
   content?: string;
   createdAt: number;
+  /** Characters of text Teak extracted from the card's document. */
+  extractedTextCharCount?: number;
   fileMetadata?: {
     exif?: ImageExif;
     fileName?: string;
@@ -70,6 +72,12 @@ export function getCardDetailSections(card: CardDetailsSource) {
         value: file?.fileSize ? formatBytes(file.fileSize) : undefined,
       },
       { label: "File type", value: file?.mimeType },
+      {
+        label: "Text",
+        value: card.extractedTextCharCount
+          ? `${card.extractedTextCharCount.toLocaleString("en-US")} ${card.extractedTextCharCount === 1 ? "character" : "characters"} extracted`
+          : undefined,
+      },
     ]),
     source: present([
       { label: "Author", value: linkPreview?.author },

@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import { getSessionUser } from "../securitySessions";
@@ -401,7 +401,9 @@ export const searchCardsPaginatedHandler = async (
   // The first folder or tag can drive a read; `matches` checks the rest.
   const folderId = resolved.folderIds[0];
   const tag = resolved.tags[0] ?? "";
-  const matchesQualifiers = resolved.matches;
+  // List scans check a card's own fields; the full-text path below passes
+  // the search document's text, which also holds extracted file text.
+  const matchesQualifiers = (card: Doc<"cards">) => resolved.matches(card);
   // Clamp the caller-provided page size so a single request cannot force an
   // arbitrarily large index read / in-memory sort. The cursor is validated
   // separately where it is parsed into an offset.
@@ -567,8 +569,8 @@ export const searchCardsPaginatedHandler = async (
 
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
-    const matchesFilters = (card: Doc<"cards">) =>
-      matchesQualifiers(card) &&
+    const matchesFilters = (card: Doc<"cards">, searchableText?: string) =>
+      resolved.matches(card, searchableText) &&
       isCreatedAtInRange(card.createdAt, createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
       doesCardMatchVisualFilters(card, visualFilters);
@@ -585,10 +587,12 @@ export const searchCardsPaginatedHandler = async (
     // Every page sorts the same candidate set, so offsets never overlap or
     // skip between pages.
     let searchResults: Doc<"cards">[];
+    const searchTexts = new Map<Id<"cards">, string>();
     try {
       searchResults = await searchCardsByDocument(ctx, {
         ...searchArgs,
         resultFilter: matchesFilters,
+        searchTexts,
       });
     } catch (error) {
       if (!isSearchTooBroadError(error)) {
@@ -601,10 +605,11 @@ export const searchCardsPaginatedHandler = async (
       searchResults = await searchCardsByDocument(ctx, {
         ...searchArgs,
         limit: SEARCH_INDEX_RESULT_LIMIT,
+        searchTexts,
       });
     }
     const uniqueResults = searchResults
-      .filter(matchesFilters)
+      .filter((card) => matchesFilters(card, searchTexts.get(card._id)))
       .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
 
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.

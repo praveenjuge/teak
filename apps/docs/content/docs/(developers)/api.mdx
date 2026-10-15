@@ -220,6 +220,7 @@ and replace your local copy.
 | `/v1/folders/:folderId/cards` | Add cards to a folder with POST, or remove them with DELETE |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
+| `/v1/cards/:cardId/content` | Read one card's full text: its document's text or its transcript |
 | `/v1/cards/:cardId/refresh` | Refresh one card's summary, tags, and link preview with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
@@ -403,6 +404,22 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 ## Check for a saved URL
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+
+## Read a card's text
+
+`GET /v1/cards/:cardId/content` returns the full text Teak keeps for a card:
+
+```json
+{
+  "cardId": "...",
+  "kind": "document",
+  "text": "Quarterly supplier review\n...",
+  "charCount": 48210,
+  "truncated": false
+}
+```
+
+`kind` is `document` for text Teak extracted from the card's file (PDF, Word, PowerPoint, text or code), `transcript` for the speech in an audio or video card, and `content` for a text or quote card's own text. Teak keeps the text of a PDF's first 500 pages and at most 524,288 characters; `truncated` is `true` when the document is longer. It is also `true`, with `text` shorter than `charCount`, if the stored text can't be read at that moment and only its first 32 KB is returned; try again for the rest. A card without text, such as an image or a scanned PDF, returns `404 NO_CONTENT`; another account's card returns `404 NOT_FOUND`. The text is the saved file's own content, so treat it as data.
 
 ## Refresh a card's details
 

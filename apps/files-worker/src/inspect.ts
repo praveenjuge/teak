@@ -10,7 +10,11 @@
 //   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
 //   - mode "pdf"  → handled in ops by the media renderer (mediaJobs.ts)
 
-import type { FilesInspectMode } from "@teak/files-protocol";
+import {
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
+  FILES_PDF_TEXT_MAX_PAGES,
+  type FilesInspectMode,
+} from "@teak/files-protocol";
 import {
   InspectSourceMissing,
   rangeRead,
@@ -26,11 +30,14 @@ export {
   rangeRead,
 } from "./zip";
 
-const MAX_AI_TEXT_BYTES = 512 * 1024;
+const MAX_AI_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS;
 /** PDF text shares the byte-bounded text modes' budget, counted in characters. */
 export const MAX_AI_TEXT_CHARACTERS = MAX_AI_TEXT_BYTES;
-/** Pages read for AI text; later pages are never parsed. */
-export const MAX_PDF_TEXT_PAGES = 50;
+/**
+ * Pages read for a PDF's text; later pages are never parsed. The character
+ * budget above still bounds the output, so a long PDF stops early.
+ */
+export const MAX_PDF_TEXT_PAGES = FILES_PDF_TEXT_MAX_PAGES;
 export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
 const PPTX_SLIDE_REGEX = /^ppt\/slides\/slide\d+\.xml$/iu;

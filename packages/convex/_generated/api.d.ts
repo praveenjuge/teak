@@ -10,6 +10,7 @@
 
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as accountDeletionActions from "../accountDeletionActions.js";
+import type * as accountDeletionAnalytics from "../accountDeletionAnalytics.js";
 import type * as accountDeletionBatch from "../accountDeletionBatch.js";
 import type * as accountDeletionData from "../accountDeletionData.js";
 import type * as accountDeletionJobs from "../accountDeletionJobs.js";
@@ -38,6 +39,7 @@ import type * as card_cardUsage from "../card/cardUsage.js";
 import type * as card_createCard from "../card/createCard.js";
 import type * as card_defaultCards from "../card/defaultCards.js";
 import type * as card_deleteCard from "../card/deleteCard.js";
+import type * as card_documentText from "../card/documentText.js";
 import type * as card_findDuplicateCard from "../card/findDuplicateCard.js";
 import type * as card_getCard from "../card/getCard.js";
 import type * as card_getCards from "../card/getCards.js";
@@ -56,6 +58,7 @@ import type * as card_searchDocumentHelpers from "../card/searchDocumentHelpers.
 import type * as card_searchDocuments from "../card/searchDocuments.js";
 import type * as card_searchPlanner from "../card/searchPlanner.js";
 import type * as card_shuffle from "../card/shuffle.js";
+import type * as card_textContents from "../card/textContents.js";
 import type * as card_topSites from "../card/topSites.js";
 import type * as card_updateCard from "../card/updateCard.js";
 import type * as card_uploadCard from "../card/uploadCard.js";
@@ -119,10 +122,12 @@ import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_backfillDocumentText from "../migration/backfillDocumentText.js";
 import type * as migration_backfillMediaColors from "../migration/backfillMediaColors.js";
 import type * as migration_backfillShuffleKey from "../migration/backfillShuffleKey.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
+import type * as migration_extractDocumentText from "../migration/extractDocumentText.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApiDuplicate from "../publicApiDuplicate.js";
@@ -274,6 +279,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
   accountDeletionActions: typeof accountDeletionActions;
+  accountDeletionAnalytics: typeof accountDeletionAnalytics;
   accountDeletionBatch: typeof accountDeletionBatch;
   accountDeletionData: typeof accountDeletionData;
   accountDeletionJobs: typeof accountDeletionJobs;
@@ -302,6 +308,7 @@ declare const fullApi: ApiFromModules<{
   "card/createCard": typeof card_createCard;
   "card/defaultCards": typeof card_defaultCards;
   "card/deleteCard": typeof card_deleteCard;
+  "card/documentText": typeof card_documentText;
   "card/findDuplicateCard": typeof card_findDuplicateCard;
   "card/getCard": typeof card_getCard;
   "card/getCards": typeof card_getCards;
@@ -320,6 +327,7 @@ declare const fullApi: ApiFromModules<{
   "card/searchDocuments": typeof card_searchDocuments;
   "card/searchPlanner": typeof card_searchPlanner;
   "card/shuffle": typeof card_shuffle;
+  "card/textContents": typeof card_textContents;
   "card/topSites": typeof card_topSites;
   "card/updateCard": typeof card_updateCard;
   "card/uploadCard": typeof card_uploadCard;
@@ -383,10 +391,12 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/x": typeof linkMetadata_x;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
+  "migration/backfillDocumentText": typeof migration_backfillDocumentText;
   "migration/backfillMediaColors": typeof migration_backfillMediaColors;
   "migration/backfillShuffleKey": typeof migration_backfillShuffleKey;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
+  "migration/extractDocumentText": typeof migration_extractDocumentText;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;
   publicApiDuplicate: typeof publicApiDuplicate;

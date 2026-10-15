@@ -2,10 +2,12 @@
  * Public API route handlers: every /v1 endpoint implementation.
  * Split out of `publicApiHttp.ts`, kept behavior-identical.
  */
+
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
+import { readDocumentText } from "./card/documentText";
 import {
   completeIdempotencyResponse,
   type IdempotencyState,
@@ -430,6 +432,47 @@ const ensureCardExistsForUser = (
       card?.isDeleted && !includeDeleted ? null : card
     );
 
+/**
+ * A card's full stored text: the document text Teak extracted from its file
+ * (read from R2), else its transcript, else a text or quote card's content.
+ * If the stored document text can't be read, its searchable prefix is
+ * returned rather than failing the request, marked truncated when it is
+ * shorter than the stored text.
+ */
+const cardContentResponse = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+): Promise<Response> => {
+  const source = await ctx.runQuery(
+    (internal as any)["card/documentText"].getCardTextSource,
+    { cardId, userId }
+  );
+  if (!source) {
+    return errorResponse(404, "NO_CONTENT", "This card has no stored text");
+  }
+  let { text, truncated } = source;
+  if (source.sourceKey) {
+    try {
+      text = await readDocumentText(source.sourceKey);
+    } catch (error) {
+      console.warn("[publicApi] stored document text unreadable", {
+        cardId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      // A short document's prefix is all of its text.
+      truncated ||= Array.from(text).length < source.charCount;
+    }
+  }
+  return json(200, {
+    cardId: source.cardId,
+    kind: source.kind,
+    text,
+    charCount: source.charCount,
+    truncated,
+  });
+};
+
 const handleCardsByIdV1Request = async (
   ctx: ActionCtx,
   request: Request,
@@ -476,6 +519,14 @@ const handleCardsByIdV1Request = async (
 
   if (route.operation === "get") {
     return json(200, serializeCard(currentCard, request.url));
+  }
+
+  if (route.operation === "content") {
+    return await cardContentResponse(
+      ctx,
+      auth.validated.userId,
+      normalizedCardId as Id<"cards">
+    );
   }
 
   if (

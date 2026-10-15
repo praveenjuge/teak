@@ -877,6 +877,140 @@ describe("publicApiHttp card endpoints", () => {
     }
   );
 
+  describe("GET /v1/cards/:id/content", () => {
+    const contentRequest = () =>
+      new Request("https://example.com/v1/cards/card_1/content", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      });
+    const fullText = "Kestrel Freight agreed to net 30 days on every invoice.";
+    const sha256 = async (text: string) =>
+      Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+        ),
+        (byte) => byte.toString(16).padStart(2, "0")
+      ).join("");
+    const respond = (source: unknown, card: unknown = { _id: "card_1" }) =>
+      runHandler(
+        cardByIdV1,
+        {
+          runMutation: buildAuthorizedMutationMock(),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce(card && { userId: "user_1", ...card })
+            .mockResolvedValueOnce(source),
+        },
+        contentRequest()
+      );
+    const withStoredText = async (
+      body: string,
+      run: (key: string) => Promise<void>
+    ) => {
+      const originalFetch = global.fetch;
+      const originalBase = process.env.FILES_BASE;
+      const originalSecret = process.env.FILES_SIGNING_SECRET;
+      process.env.FILES_BASE = "https://files.test";
+      process.env.FILES_SIGNING_SECRET = "test-secret";
+      const key = `users/u1/cards/card1/document-text/${await sha256(fullText)}.txt`;
+      global.fetch = mock((url: string) => {
+        expect(new URL(url).pathname).toBe(`/${key}`);
+        return Promise.resolve(new Response(body));
+      }) as any;
+      try {
+        await run(key);
+      } finally {
+        global.fetch = originalFetch;
+        process.env.FILES_BASE = originalBase;
+        process.env.FILES_SIGNING_SECRET = originalSecret;
+      }
+    };
+
+    test("returns the full document text read from storage", async () => {
+      await withStoredText(fullText, async (key) => {
+        const response = await respond({
+          cardId: "card_1",
+          kind: "document",
+          text: "Kestrel Freight",
+          sourceKey: key,
+          charCount: fullText.length,
+          truncated: false,
+        });
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({
+          cardId: "card_1",
+          kind: "document",
+          text: fullText,
+          charCount: fullText.length,
+          truncated: false,
+        });
+      });
+    });
+
+    test("falls back to the searchable prefix, marked truncated, when storage disagrees", async () => {
+      await withStoredText("tampered text", async (key) => {
+        const response = await respond({
+          cardId: "card_1",
+          kind: "document",
+          text: "Kestrel Freight",
+          sourceKey: key,
+          charCount: fullText.length,
+          truncated: false,
+        });
+        expect(await response.json()).toMatchObject({
+          text: "Kestrel Freight",
+          truncated: true,
+        });
+      });
+    });
+
+    test("a fallback prefix that holds all of a short document's text is not truncated", async () => {
+      await withStoredText("tampered text", async (key) => {
+        const response = await respond({
+          cardId: "card_1",
+          kind: "document",
+          text: fullText,
+          sourceKey: key,
+          charCount: fullText.length,
+          truncated: false,
+        });
+        expect(await response.json()).toMatchObject({
+          text: fullText,
+          truncated: false,
+        });
+      });
+    });
+
+    test("a transcript or written content comes from the card itself", async () => {
+      const response = await respond({
+        cardId: "card_1",
+        kind: "transcript",
+        text: "Hello from the clip",
+        charCount: 19,
+        truncated: false,
+      });
+      expect(await response.json()).toEqual({
+        cardId: "card_1",
+        kind: "transcript",
+        text: "Hello from the clip",
+        charCount: 19,
+        truncated: false,
+      });
+    });
+
+    test("NO_CONTENT for a card without text; NOT_FOUND for another user's card", async () => {
+      const empty = await respond(null);
+      expect(empty.status).toBe(404);
+      expect(await empty.json()).toMatchObject({ code: "NO_CONTENT" });
+
+      const stranger = await respond(null, null);
+      expect(stranger.status).toBe(404);
+      expect(await stranger.json()).toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
+
   const refreshRequest = (cardId = "card_1") =>
     new Request(`https://example.com/v1/cards/${cardId}/refresh`, {
       method: "POST",

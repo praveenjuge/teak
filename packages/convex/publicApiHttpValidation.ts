@@ -616,7 +616,14 @@ const parseCardRoute = (
   request: Request
 ): {
   cardId: string;
-  operation: "delete" | "favorite" | "get" | "patch" | "refresh" | "restore";
+  operation:
+    | "content"
+    | "delete"
+    | "favorite"
+    | "get"
+    | "patch"
+    | "refresh"
+    | "restore";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -632,6 +639,14 @@ const parseCardRoute = (
 
   if (request.method === "GET" && segments.length === 3) {
     return { cardId, operation: "get" };
+  }
+
+  if (
+    request.method === "GET" &&
+    segments.length === 4 &&
+    segments[3] === "content"
+  ) {
+    return { cardId, operation: "content" };
   }
 
   if (request.method === "DELETE" && segments.length === 3) {

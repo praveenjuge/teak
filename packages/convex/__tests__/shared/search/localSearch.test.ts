@@ -512,3 +512,55 @@ describe("filterLocalCards qualifiers", () => {
     expect(ids(searchTerms)).toEqual(expected);
   });
 });
+
+describe("filterLocalCards textMatchedByServer", () => {
+  it("keeps cards the server matched by text the client lacks; other filters still apply", () => {
+    const pdf = makeCard({
+      _id: "pdf",
+      type: "document",
+      content: "supplier-review.pdf",
+      hasExtractedText: true,
+      createdAt: 2,
+    });
+    const archived = makeCard({
+      _id: "archived",
+      type: "document",
+      content: "old.pdf",
+      hasExtractedText: true,
+      isArchived: true,
+      createdAt: 1,
+    });
+    const ids = (cards: Doc<"cards">[]) => cards.map((card) => card._id);
+    expect(
+      ids(filterLocalCards([pdf, archived], { searchTerms: "kestrel" }))
+    ).toEqual([]);
+    expect(
+      ids(
+        filterLocalCards([pdf, archived], {
+          searchTerms: '"net 30 days" type:document',
+          textMatchedByServer: true,
+        })
+      )
+    ).toEqual(["pdf"]);
+    expect(
+      ids(
+        filterLocalCards([pdf], {
+          searchTerms: "kestrel type:image",
+          textMatchedByServer: true,
+        })
+      )
+    ).toEqual([]);
+  });
+
+  it("still checks every word on cards without file text", () => {
+    // The server ranks cards that match only some of the words; a card whose
+    // text the client has must still match them all.
+    const note = makeCard({ _id: "note", content: "matrix-17" });
+    expect(
+      filterLocalCards([note], {
+        searchTerms: "matrix-17-missing",
+        textMatchedByServer: true,
+      }).map((card) => card._id)
+    ).toEqual([]);
+  });
+});

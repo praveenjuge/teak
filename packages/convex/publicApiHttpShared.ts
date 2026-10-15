@@ -45,6 +45,7 @@ type ErrorCode =
   | "LIMIT_REACHED"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
+  | "NO_CONTENT"
   | "NOT_IN_TRASH"
   | "TAG_EXISTS"
   | "TAG_OPERATION_RUNNING"

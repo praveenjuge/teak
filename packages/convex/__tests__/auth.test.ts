@@ -345,6 +345,9 @@ describe("auth", () => {
                       take: async () => [{ _id: `tag_${_cardId}` }],
                     }
                   : {}),
+                ...(table === "cardTextContents"
+                  ? { unique: async () => ({ _id: `text_${_cardId}` }) }
+                  : {}),
                 ...(table === "folderCards"
                   ? { take: async () => [{ _id: `folder_row_${_cardId}` }] }
                   : {}),
@@ -363,7 +366,8 @@ describe("auth", () => {
       const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
 
       expect(result).toBe(2);
-      expect(ctx.db.delete).toHaveBeenCalledTimes(10);
+      expect(ctx.db.delete).toHaveBeenCalledTimes(12);
+      expect(ctx.db.delete).toHaveBeenCalledWith("cardTextContents", "text_c1");
       expect(ctx.db.delete).toHaveBeenCalledWith(
         "folderCards",
         "folder_row_c1"
@@ -403,6 +407,9 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags"
                   ? { take: async () => [{ _id: `tag_${_cardId}` }] }
+                  : {}),
+                ...(table === "cardTextContents"
+                  ? { unique: async () => null }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
@@ -445,6 +452,9 @@ describe("auth", () => {
                   ? { unique: async () => null }
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
+                ...(table === "cardTextContents"
+                  ? { unique: async () => null }
+                  : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }
@@ -488,6 +498,9 @@ describe("auth", () => {
                   ? { unique: async () => null }
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
+                ...(table === "cardTextContents"
+                  ? { unique: async () => null }
+                  : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }
@@ -525,6 +538,9 @@ describe("auth", () => {
                   ? { unique: async () => null }
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
+                ...(table === "cardTextContents"
+                  ? { unique: async () => null }
+                  : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }

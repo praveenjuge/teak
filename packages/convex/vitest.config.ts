@@ -17,6 +17,7 @@ export default defineConfig({
       "./importConsolidation.test.ts",
       "./importUploadDeletion.test.ts",
       "./mediaFacts.test.ts",
+      "./documentText.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",

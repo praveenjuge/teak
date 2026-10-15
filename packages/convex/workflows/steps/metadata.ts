@@ -11,6 +11,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { collectAiUsage } from "../../ai/telemetry";
+import { storeDocumentText } from "../../card/documentText";
 import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
@@ -25,7 +26,7 @@ import {
   generateTextMetadata,
   isAiMetadataDeferredError,
 } from "../aiMetadata/generators";
-import { extractFileTextForAiForKey } from "../fileProcessing";
+import { extractFileTextForKey } from "../fileProcessing";
 import {
   hasKnownTinyImageDimensions,
   hasMinimumImageAnalysisDimensions,
@@ -165,6 +166,51 @@ export async function generateHandler(
   );
 }
 
+/**
+ * A video's spoken words, through the audio pass. A video without sound, one
+ * the renderer can't read, or any failure leaves it without a transcript:
+ * the transcript is extra, so it never fails the step.
+ */
+async function transcribeVideo(
+  ctx: any,
+  card: any
+): Promise<string | undefined> {
+  if (!card.fileKey) {
+    return;
+  }
+  try {
+    const { transcript } = await processAudioCard(ctx, card, {
+      recordFacts: false,
+    });
+    return transcript ?? undefined;
+  } catch (error) {
+    console.warn("[workflow/metadata] video transcript unavailable", {
+      cardId: card._id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Stores a document's extracted text for search and the content endpoint.
+ * Storage failing never fails the step; the document backfill retries cards
+ * without stored text.
+ */
+async function keepDocumentText(
+  ctx: any,
+  card: any,
+  extracted: { pageCount?: number; text: string }
+): Promise<void> {
+  try {
+    await storeDocumentText(ctx, card, extracted);
+  } catch (error) {
+    console.warn("[workflow/metadata] document text not stored", {
+      cardId: card._id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function generateForCard(
   ctx: any,
   { cardId, cardType }: { cardId: Id<"cards">; cardType: string },
@@ -271,6 +317,13 @@ async function generateForCard(
           aiSummary = result.aiSummary;
           confidence = 0.88;
         }
+        aiTranscript = await transcribeVideo(ctx, card);
+        if (aiTranscript && !card.thumbnailKey) {
+          const result = await generateTextMetadata(aiTranscript);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.85;
+        }
         break;
       }
       case "audio": {
@@ -317,13 +370,14 @@ async function generateForCard(
             mimeType: card.fileMetadata.mimeType,
           });
           if (format) {
-            const extractedText = await extractFileTextForAiForKey(
+            const extracted = await extractFileTextForKey(
               card.fileKey,
               format,
               card
             );
-            if (extractedText) {
-              contentParts.push(extractedText);
+            if (extracted.text) {
+              contentParts.push(extracted.text);
+              await keepDocumentText(ctx, card, extracted);
             }
           }
         }

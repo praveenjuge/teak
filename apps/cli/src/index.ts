@@ -38,6 +38,7 @@ import {
   resolveFolder,
   restoreCards,
   setCardsArchived,
+  showCardContent,
   startExport,
   startTagOperation,
   tagOperationStatus,
@@ -524,6 +525,11 @@ cards
   .description("Return archived cards to the library")
   .action(async (ids) => setCardsArchived(ids, false, program.opts()));
 cards
+  .command("content")
+  .argument("<id>")
+  .description("Print a card's text: its document's text or its transcript")
+  .action(async (id) => showCardContent(id, program.opts()));
+cards
   .command("open")
   .argument("<id>")
   .description("Open a card in Teak on the web")
@@ -790,6 +796,11 @@ program
   .argument("<ids...>")
   .description("Restore cards from Trash")
   .action(async (ids) => restoreCards(ids, program.opts()));
+program
+  .command("content")
+  .argument("<id>")
+  .description("Print a card's text: its document's text or its transcript")
+  .action(async (id) => showCardContent(id, program.opts()));
 program
   .command("refresh")
   .argument("<ids...>")

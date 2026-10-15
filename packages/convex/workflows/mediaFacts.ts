@@ -107,10 +107,15 @@ class TranscriptUnavailable extends Error {
  * has no speech or could not be transcribed. Audio the renderer cannot decode
  * leaves the card unchanged. A busy or unavailable renderer throws, so the
  * metadata step retries.
+ *
+ * A video's soundtrack goes through the same pass (the renderer reads the
+ * audio stream of mp4, mov and the other containers it accepts); pass
+ * `recordFacts: false` to keep its waveform and duration off the card.
  */
 export const processAudioCard = async (
   ctx: Pick<ActionCtx, "runMutation">,
-  card: MediaCard
+  card: MediaCard,
+  { recordFacts = true }: { recordFacts?: boolean } = {}
 ): Promise<{ durationSeconds?: number; transcript: string | null }> => {
   const known = card.fileMetadata ?? {};
   if (!(card.fileKey && isFilesWorkerConfigured())) {
@@ -176,7 +181,7 @@ export const processAudioCard = async (
   const recordedDuration =
     known.duration ??
     (duration === null ? undefined : Math.round(duration * 1000) / 1000);
-  if (recordedDuration !== known.duration || result.peaks) {
+  if (recordFacts && (recordedDuration !== known.duration || result.peaks)) {
     await ctx.runMutation(
       internal.workflows.steps.renderables.mutations.updateCardMediaFacts,
       {

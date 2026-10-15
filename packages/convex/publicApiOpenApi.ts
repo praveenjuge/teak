@@ -1215,6 +1215,63 @@ export const openApiSpec = {
         summary: "Restore a card from Trash",
       },
     },
+    "/v1/cards/{cardId}/content": {
+      get: {
+        parameters: [
+          {
+            in: "path",
+            name: "cardId",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: {
+                  properties: {
+                    cardId: { type: "string" },
+                    kind: {
+                      description:
+                        "document: text extracted from the card's file (PDF, Word, PowerPoint, text or code). transcript: the speech in its audio or video. content: a text or quote card's written text.",
+                      enum: ["document", "transcript", "content"],
+                      type: "string",
+                    },
+                    text: { type: "string" },
+                    charCount: {
+                      description: "Characters in the full stored text",
+                      type: "number",
+                    },
+                    truncated: {
+                      description:
+                        "True when text is not the document's whole text. Teak keeps the first 500 pages of a PDF and at most 524,288 characters; when the stored text can't be read, its first 32 KiB is returned and text is shorter than charCount",
+                      type: "boolean",
+                    },
+                  },
+                  required: [
+                    "cardId",
+                    "kind",
+                    "text",
+                    "charCount",
+                    "truncated",
+                  ],
+                  type: "object",
+                },
+              },
+            },
+            description: "The card's full stored text",
+          },
+          404: {
+            description:
+              "Card not found, or NO_CONTENT: the card has no stored text",
+          },
+        },
+        security: apiKeySecurity,
+        operationId: "getCardContent",
+        summary: "Get a card's text",
+      },
+    },
     "/v1/cards/{cardId}/refresh": {
       post: {
         parameters: [
