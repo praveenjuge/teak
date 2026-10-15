@@ -102,7 +102,6 @@ const oneOf =
     return normalized;
   };
 
-// Repeatable flags: `--type image --type link` matches either.
 const repeatable =
   <T>(parse: (value: string) => T) =>
   (value: string, previous: T[] = []) => [...previous, parse(value)];
@@ -165,7 +164,6 @@ export const queryOptions = (options: Record<string, unknown>) => {
     favorited: options.favorited === true,
     hex: strings(options.hex),
     hue: strings(options.hue),
-    // List lines show a content snippet, so fetch content unless told otherwise.
     include: typeof options.include === "string" ? options.include : "content",
     limit: typeof options.limit === "number" ? options.limit : undefined,
     query: typeof options.query === "string" ? options.query : undefined,
@@ -244,8 +242,6 @@ const writeCards = async (
   mode: ListMode = "list"
 ) => {
   const api = client(options);
-  // Shuffle without a seed picks one and says which, so the order can be
-  // seen again (and paged with --cursor) by passing --seed.
   const shuffleSeed =
     options.sort === "shuffle" && typeof options.seed !== "number"
       ? randomShuffleSeed()
@@ -325,7 +321,6 @@ const BULK_OPERATIONS: readonly string[] = [
   "removeTags",
 ] satisfies BulkCardsOperation[];
 
-// Accept the API's own request shape as well as a bare array of items.
 export const bulkItems = (input: unknown): unknown[] | null => {
   if (Array.isArray(input)) {
     return input;
@@ -766,14 +761,8 @@ exportCommand
   .description("Save the latest ready export")
   .option("-o, --output <path>", "where to save the ZIP")
   .option("--force", "replace an existing file")
-  // `export` defines the same flags and parses them first, so merge its
-  // options in too.
-  .action(async (options) =>
-    downloadExport({
-      ...program.opts(),
-      ...exportCommand.opts(),
-      ...options,
-    })
+  .action(async (_options, command: Command) =>
+    downloadExport(command.optsWithGlobals())
   );
 
 withListOptions(program.command("ls").description("List cards")).action(

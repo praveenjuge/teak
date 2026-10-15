@@ -25,7 +25,6 @@ import {
 
 type PageFetcher = (cursor?: string) => Promise<CardsPage>;
 
-/** One page, or every page when `all` is set. */
 export const collectPages = async (
   fetchPage: PageFetcher,
   all: boolean
@@ -62,7 +61,6 @@ interface CardFailure {
   id: string;
 }
 
-/** Runs one request per card, so one bad id doesn't stop the rest. */
 const eachCard = async (
   ids: string[],
   run: (id: string) => Promise<unknown>
@@ -129,7 +127,6 @@ export const deleteCards = async (
     }
   }
   const api = client(options);
-  // Only Trash can be emptied; a card that isn't there yet moves first.
   const deleteForever = async (id: string) => {
     try {
       await api.cards.delete(id, { permanent: true });
@@ -177,7 +174,6 @@ export const restoreCards = async (ids: string[], options: GlobalOptions) => {
   );
 };
 
-/** Archives cards (hidden from the library, not deleted) or returns them. */
 export const setCardsArchived = async (
   ids: string[],
   isArchived: boolean,
@@ -222,12 +218,6 @@ export const refreshCards = async (ids: string[], options: GlobalOptions) => {
   );
 };
 
-/**
- * Prints a card's stored text (document text, transcript or a text card's
- * content); `--json` prints the whole response. A note on stderr says when
- * the text isn't whole, so piped text stays clean.
- */
-/** The id of the card that saves this URL; not found when none does. */
 export const findDuplicateCard = async (
   url: string,
   options: GlobalOptions
@@ -239,13 +229,17 @@ export const findDuplicateCard = async (
   write(options.json ? { cardId } : cardId, options);
 };
 
+/**
+ * Prints a card's stored text (document text, transcript or a text card's
+ * content); `--json` prints the whole response. A note on stderr says when
+ * the text isn't whole, so piped text stays clean.
+ */
 export const showCardContent = async (id: string, options: GlobalOptions) => {
   const content = await client(options).cards.content(id);
   write(options.json ? content : content.text, options);
   if (options.json || !content.truncated) {
     return;
   }
-  // Shorter than the stored text: only its start could be read just now.
   process.stderr.write(
     Array.from(content.text).length < content.charCount
       ? "Only the start of this document's text could be read; try again later for all of it.\n"
@@ -281,9 +275,7 @@ const downloadUrl = (url: string) => {
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
-  } catch {
-    // Not a URL; rejected below.
-  }
+  } catch {}
   if (
     parsed?.protocol === "https:" ||
     (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
@@ -413,8 +405,6 @@ const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-// Small exports finish in moments, so poll quickly at first and back off to
-// every few seconds for large ones.
 const FIRST_POLL_MS = 250;
 const MAX_POLL_MS = 3000;
 
@@ -422,7 +412,6 @@ const waitForExport = async (api: TeakClient, intervalMs?: number) => {
   let latest = await api.exports.latest();
   let delay = intervalMs ?? FIRST_POLL_MS;
   while (isActive(latest.job)) {
-    // Progress only helps someone watching; keep piped output quiet.
     if (process.stderr.isTTY && latest.job?.processedCount) {
       process.stderr.write(`\r${latest.job.processedCount} cards processed…`);
     }
@@ -469,8 +458,6 @@ export const startExport = async (
   try {
     await api.exports.start();
   } catch (error) {
-    // A running export is fine to wait on; a weekly limit is not an error
-    // worth hiding, so show when the next one is possible.
     if (!(error instanceof TeakApiError && error.code === "CONFLICT")) {
       if (error instanceof TeakApiError && error.code === "RATE_LIMITED") {
         const latest = await api.exports.latest();
@@ -494,7 +481,6 @@ export const startExport = async (
   write(options.json ? latest : describeExport(latest), options);
 };
 
-/** A folder by id, or by name ignoring case, among the account's folders. */
 export const resolveFolder = async (
   api: TeakClient,
   ref: string
@@ -519,7 +505,6 @@ export const formatFolderLine = (folder: Folder) =>
     ...(folder.kind === "smart" ? [`smart: ${folder.query ?? ""}`] : []),
   ].join("  ");
 
-/** One folder, by name or id, read fresh from the API. */
 export const showFolder = async (ref: string, options: GlobalOptions) => {
   const api = client(options);
   const folder = await api.folders.get((await resolveFolder(api, ref)).id);
@@ -594,7 +579,6 @@ export const deleteFolders = async (refs: string[], options: GlobalOptions) => {
   );
 };
 
-/** Adds cards to a folder or removes them, 100 at a time. */
 export const changeFolderCards = async (
   ref: string,
   cardIds: string[],
@@ -647,7 +631,6 @@ export const changeFolderCards = async (
 
 const cardsLabel = (count: number) => `${count} card${count === 1 ? "" : "s"}`;
 
-/** One line for a tag change: what it does and how far it got. */
 export const describeTagOperation = (operation: TagOperation) => {
   const to = operation.to ?? "";
   if (operation.status === "completed") {
@@ -680,8 +663,6 @@ const waitForTagOperation = async (
   let operation = started;
   let delay = intervalMs ?? FIRST_POLL_MS;
   while (operation.status === "running") {
-    // A change that stopped making progress (a lost batch) won't finish:
-    // report it like a failure instead of waiting forever.
     if (Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS) {
       operation = { ...operation, status: "failed" };
       break;
@@ -711,7 +692,6 @@ const reportTagOperation = (
   }
 };
 
-/** Renames, merges or deletes a tag on every card, optionally waiting. */
 export const startTagOperation = async (
   kind: TagOperation["kind"],
   from: string,
