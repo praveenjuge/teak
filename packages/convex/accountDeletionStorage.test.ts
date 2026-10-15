@@ -424,3 +424,46 @@ test("durable status remains pending until local cleanup finishes and rejects mi
     userId: "owner",
   });
 });
+test("a deployment without the Files Worker forgets never-stored objects", async () => {
+  // FILES_BASE/FILES_SIGNING_SECRET unset: no object was ever stored (every
+  // write goes through the Files Worker), but failed stores still leave
+  // ownership rows behind, e.g. a link preview whose fetch needed the worker.
+  vi.unstubAllEnvs();
+  const t = convexTest(schema, modules);
+  const stateId = await t.run(async (ctx) => {
+    await ctx.db.insert("users", {
+      teakUserId: "owner",
+      email: "owner@example.com",
+      emailVerified: true,
+    });
+    await ctx.db.insert("accountStorageObjects", {
+      userId: "owner",
+      key: "users/owner/link-preview-image-1",
+    });
+    await ctx.db.insert("accountStorageObjects", {
+      userId: "owner",
+      key: "users/owner/link-preview-image-2",
+    });
+    return await ctx.db.insert("accountDeletionStates", {
+      userId: "owner",
+      startedAt: 1,
+      stage: 3,
+      generation: 1,
+      writersPrepared: true,
+    });
+  });
+  const binding = { stateId, generation: 1, kind: "objects" as const };
+  const fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+  // Neither the freeze fence nor the worker delete runs without the worker.
+  expect(
+    await t.action(internal.accountDeletionData.drainStorageBatch, binding)
+  ).toBe(false);
+  expect(
+    await t.action(internal.accountDeletionData.drainStorageBatch, binding)
+  ).toBe(true);
+  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(
+    await t.run((ctx) => ctx.db.query("accountStorageObjects").collect())
+  ).toEqual([]);
+});
