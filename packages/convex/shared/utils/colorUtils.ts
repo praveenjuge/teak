@@ -622,26 +622,51 @@ export function parseColorString(colorText: string): Color | null {
   return null;
 }
 
+// The longest CSS colour names ("light goldenrod yellow") are three words.
+const MAX_COLOR_NAME_WORDS = 3;
+const PLAIN_WORD_PATTERN = /^[a-z]+[.!?]?$/i;
+
 // Parse multiple colors from text input
 export function parseColorsFromText(text: string): Color[] {
   const colors: Color[] = [];
   const seenHex = new Set<string>();
 
-  // Split by common delimiters, newlines, and spaces
-  const parts = text.split(/[,;\n\r\t\s]+/);
-
-  for (const part of parts) {
-    const trimmedPart = part.trim();
-    if (!trimmedPart) {
-      continue;
+  const addParsed = (color: Color | null) => {
+    if (!color) {
+      return;
     }
+    const normalizedHex = color.hex.toUpperCase();
+    if (!seenHex.has(normalizedHex)) {
+      colors.push({ ...color, hex: normalizedHex });
+      seenHex.add(normalizedHex);
+    }
+  };
 
-    const color = parseColorString(trimmedPart);
-    if (color) {
-      const normalizedHex = color.hex.toUpperCase();
-      if (!seenHex.has(normalizedHex)) {
-        colors.push({ ...color, hex: normalizedHex });
-        seenHex.add(normalizedHex);
+  // Split by common delimiters, newlines, and spaces. Within a segment, try
+  // the longest run of plain words first so "light blue" is lightblue, not
+  // blue.
+  for (const segment of text.split(/[,;\n\r\t]+/)) {
+    const words = segment.split(/\s+/).filter(Boolean);
+    let index = 0;
+    while (index < words.length) {
+      let matched = false;
+      const longest = Math.min(MAX_COLOR_NAME_WORDS, words.length - index);
+      for (let length = longest; length > 1; length--) {
+        const run = words.slice(index, index + length);
+        if (!run.every((word) => PLAIN_WORD_PATTERN.test(word))) {
+          continue;
+        }
+        const color = parseColorString(run.join(""));
+        if (color) {
+          addParsed(color);
+          index += length;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        addParsed(parseColorString(words[index] as string));
+        index++;
       }
     }
   }

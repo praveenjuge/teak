@@ -146,7 +146,7 @@ const COLOR_CODE_PATTERN =
 // "Primary: #0F4C81", "--bg-primary: #FF5733" or "Accent - rgb(…)". A dash
 // separates only when spaced, so hyphenated labels stay whole.
 const COLOR_LABEL_PATTERN =
-  /^(?:--)?[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+)(.+)$/iu;
+  /^(?:--[\w-]+\s*[:=]\s*|[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+))(.+)$/iu;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
 const FUNCTIONAL_COLOR_PATTERN = /^(?:rgba?|hsla?)\([^()]{0,64}\)$/iu;
 const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
