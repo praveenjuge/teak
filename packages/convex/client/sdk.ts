@@ -28,13 +28,17 @@ export const CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
 export const ERROR_CODES = [
   "AUTH_REQUIRED",
   "BAD_REQUEST",
+  "CARD_LIMIT_REACHED",
   "CONFIG_ERROR",
   "CONFLICT",
   "CONTENT_TOO_LARGE",
+  "FILE_TOO_LARGE",
   "FOLDER_LIMIT",
+  "FORBIDDEN",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
+  "INVALID_STORAGE_KEY",
   "INVALID_UTF8",
   "LIMIT_REACHED",
   "METHOD_NOT_ALLOWED",
@@ -45,10 +49,14 @@ export const ERROR_CODES = [
   "PARSE_ERROR",
   "RATE_LIMITED",
   "REQUEST_FAILED",
+  "SERVICE_UNAVAILABLE",
+  "SMART_FOLDER",
   "TAG_EXISTS",
   "TAG_OPERATION_RUNNING",
   "TIMEOUT",
+  "TYPE_MISMATCH",
   "UNAUTHORIZED",
+  "UNSUPPORTED_TYPE",
 ] as const;
 
 export type CardSort = (typeof CARD_SORTS)[number];

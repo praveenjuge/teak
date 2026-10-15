@@ -1,14 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import type { Command } from "commander";
 import { program } from "../apps/cli/src/index";
-import { createTeakClient } from "../packages/convex/client/sdk";
+import { createTeakClient, ERROR_CODES } from "../packages/convex/client/sdk";
 import { disconnectConnectGrant } from "../packages/convex/client/workosConnect";
 import {
   callTeakV1Tool,
   type PublicApiToolOperation,
   TEAK_V1_TOOLS,
 } from "../packages/convex/mcp/tools";
+import { PUBLIC_API_ERROR_CODES } from "../packages/convex/publicApiHttpShared";
 import { openApiSpec } from "../packages/convex/publicApiOpenApi";
+import { CARD_ERROR_CODES } from "../packages/convex/shared/constants";
 import {
   CLI_LOCAL_COMMANDS,
   PUBLIC_PARITY,
@@ -264,6 +266,23 @@ describe("public surface parity", () => {
       }
     }
     expect(rowFor("listCards")).toBeDefined();
+  });
+
+  test("the SDK knows every error code the API returns", () => {
+    // The SDK reports a code it doesn't know as REQUEST_FAILED, which would
+    // hide it from SDK and CLI callers.
+    const known = new Set<string>(ERROR_CODES);
+    expect(PUBLIC_API_ERROR_CODES.filter((code) => !known.has(code))).toEqual(
+      []
+    );
+    // Card mutations' codes reach API callers unchanged. Only the web's
+    // multi-file picker raises TOO_MANY_FILES.
+    const api = new Set<string>(PUBLIC_API_ERROR_CODES);
+    expect(
+      Object.values(CARD_ERROR_CODES).filter(
+        (code) => !api.has(code) && code !== "TOO_MANY_FILES"
+      )
+    ).toEqual([]);
   });
 
   test("the card list filters match on the API, MCP and CLI", () => {
