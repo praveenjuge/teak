@@ -147,12 +147,27 @@ export interface WranglerConfigShape {
   routes?: unknown[];
 }
 
-// Each Durable Object namespace belongs to this script: the deletion gates
-// and the media renderer Container.
+// Each Durable Object namespace belongs to this script: the deletion gates,
+// the media renderer Container and the link fetcher Container.
 const DEVELOPMENT_DURABLE_OBJECTS = [
   ["OBJECT_GATES", "ObjectDeletionGate"],
   ["MEDIA_RENDERER", "MediaRenderer"],
+  ["LINK_FETCHER", "LinkFetcher"],
 ] as const;
+
+// The Containers this script builds, in order: class and Dockerfile.
+const DEVELOPMENT_CONTAINERS = [
+  ["MediaRenderer", "../container/Dockerfile"],
+  ["LinkFetcher", "../fetcher/Dockerfile"],
+] as const;
+
+const ownsContainers = (config: WranglerConfigShape): boolean =>
+  config.containers?.length === DEVELOPMENT_CONTAINERS.length &&
+  DEVELOPMENT_CONTAINERS.every(
+    ([className, image], index) =>
+      config.containers?.[index]?.class_name === className &&
+      config.containers?.[index]?.image === image
+  );
 
 const ownsDurableObjects = (config: WranglerConfigShape): boolean => {
   const bindings = config.durable_objects?.bindings ?? [];
@@ -173,7 +188,6 @@ const ownsDurableObjects = (config: WranglerConfigShape): boolean => {
 /** Only the development bucket, no routes, and namespaces of its own. */
 export const assertDevelopmentWorkerConfig = (config: WranglerConfigShape) => {
   const bucket = config.r2_buckets?.[0];
-  const container = config.containers?.[0];
   if (
     config.name !== DEVELOPMENT_FILES_WORKER ||
     config.account_id !== CLOUDFLARE_ACCOUNT_ID ||
@@ -184,9 +198,7 @@ export const assertDevelopmentWorkerConfig = (config: WranglerConfigShape) => {
     bucket.bucket_name !== DEVELOPMENT_STORAGE_BUCKET ||
     bucket.preview_bucket_name !== DEVELOPMENT_STORAGE_BUCKET ||
     !ownsDurableObjects(config) ||
-    config.containers?.length !== 1 ||
-    container?.class_name !== "MediaRenderer" ||
-    container.image !== "../container/Dockerfile"
+    !ownsContainers(config)
   ) {
     throw new Error(
       "development/wrangler.jsonc must bind only the development bucket, no routes, and its own Durable Object namespaces."
