@@ -187,8 +187,6 @@ describe("finalize-image-upload", () => {
           decodeCount += 1;
           void stream.cancel();
           if (decodeCount === 1) {
-            // The verified read; a concurrent writer replaces the key right
-            // after decoding completes.
             bucket.objects.set(SOURCE_KEY, {
               bytes: new TextEncoder().encode("malicious replacement"),
               httpMetadata: { contentType: "text/plain" },

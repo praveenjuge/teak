@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { buildFileSigningPayload } from "@teak/files-protocol";
 import {
-  buildSigningPayload,
   hmacSha256Hex,
   parseSingleByteRange,
   verifySignedFileRequest,
@@ -10,16 +10,14 @@ const SECRET = "test-signing-secret";
 const KEY = "users/abc/cards/file/x.png";
 const EXP = "1700000000";
 
-// Fixed vector shared with packages/convex/storage/r2.test.ts — proves the
-// Node/Bun (Convex) and workerd (this worker) HMAC implementations agree.
 const VECTOR_DIGEST =
   "f5791c418001f789e1507cfbb9b2be726feef0b7250c29849f5b5e88a6d1a9ce";
 
 describe("files proxy signing", () => {
-  test("matches the shared cross-runtime test vector", async () => {
+  test("signs the same digest as Convex's Node HMAC for the shared test vector", async () => {
     const digest = await hmacSha256Hex(
       SECRET,
-      buildSigningPayload({
+      buildFileSigningPayload({
         key: KEY,
         exp: EXP,
         contentType: "image/png",
@@ -32,7 +30,7 @@ describe("files proxy signing", () => {
   test("omitting optional fields signs the empty-string slots", async () => {
     const withFields = await hmacSha256Hex(
       SECRET,
-      buildSigningPayload({
+      buildFileSigningPayload({
         key: KEY,
         exp: EXP,
         contentType: "image/png",
@@ -41,7 +39,7 @@ describe("files proxy signing", () => {
     );
     const withoutFields = await hmacSha256Hex(
       SECRET,
-      buildSigningPayload({ key: KEY, exp: EXP })
+      buildFileSigningPayload({ key: KEY, exp: EXP })
     );
     expect(withoutFields).not.toBe(withFields);
     expect(withoutFields).toHaveLength(64);
@@ -118,7 +116,6 @@ describe("range header parsing", () => {
   test("returns null for absent or ignored headers", () => {
     expect(parseSingleByteRange(null)).toBeNull();
     expect(parseSingleByteRange(undefined)).toBeNull();
-    // Multi-range and non-byte units are ignored, not rejected.
     expect(parseSingleByteRange("bytes=0-1,5-9")).toBeNull();
     expect(parseSingleByteRange("items=0-5")).toBeNull();
     expect(parseSingleByteRange("bytes=")).toBeNull();

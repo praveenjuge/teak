@@ -333,7 +333,6 @@ describe("Cloudflare image transformations", () => {
     expect(outputs).toEqual([
       { anim: true, format: "image/avif", quality: 80 },
     ]);
-    // The internal signed source round-trip never happens on this path.
     expect(fetchCalled).toBe(false);
   });
 

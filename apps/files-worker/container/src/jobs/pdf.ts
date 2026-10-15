@@ -28,7 +28,6 @@ export function pngSize(
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
-/** Trims and caps text at `maxChars` code points without splitting one. */
 export function capText(
   text: string,
   maxChars: number

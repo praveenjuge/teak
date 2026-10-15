@@ -1,7 +1,3 @@
-// Waveform peaks from a stream of 8 kHz mono s16le PCM. The stream is
-// reduced to one max |sample| per 50 ms window as it arrives, so an hour of
-// audio costs 72,000 numbers rather than the decoded samples.
-
 export const SAMPLES_PER_WINDOW = 400;
 
 export class PeakWindows {
@@ -55,10 +51,6 @@ function toInt16(low: number, high: number): number {
   return value >= 32_768 ? value - 65_536 : value;
 }
 
-/**
- * Buckets windows into `count` bars (max per bucket), normalises by the
- * loudest window, applies sqrt and quantises to 0–100. Silence stays zero.
- */
 export function peaksFromWindows(windows: number[], count: number): number[] {
   let loudest = 0;
   for (const value of windows) {

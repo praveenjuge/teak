@@ -1,3 +1,4 @@
+import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
@@ -16,14 +17,12 @@ import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
 // import it without tripping over `storage/r2` mocks (see fileUrls.ts).
 export {
   bucketedSignatureExpiry,
-  buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
   fileDownloadResponsePolicy,
   getR2ReadBase,
   getR2Url,
   isStorageNamespaceError,
-  PRIVATE_FILE_CACHE_CONTROL,
   type R2ObjectKey,
   resolveImageUrl,
   resolveObjectUrl,
@@ -44,33 +43,15 @@ export {
 
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 
-const hashUserId = (userId: string) =>
-  Array.from(new TextEncoder().encode(userId))
-    .reduce((hash, byte) => (hash * 31 + byte) >>> 0, 0)
-    .toString(36);
-
 export const buildR2UserPrefix = (userId: string) =>
-  `${getR2KeyPrefix()}users/${hashUserId(userId)}/cards`;
+  filesCardKeyPrefix(getR2KeyPrefix(), userId);
 
-export const buildR2ObjectKey = ({
-  userId,
-  cardId,
-  role,
-  fileName,
-}: {
+export const buildR2ObjectKey = (args: {
   userId: string;
   cardId?: string;
   role: string;
   fileName?: string;
-}) => {
-  const safeName = fileName?.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
-  return [
-    buildR2UserPrefix(userId),
-    cardId ?? "pending",
-    role,
-    `${crypto.randomUUID()}${safeName ? `-${safeName}` : ""}`,
-  ].join("/");
-};
+}) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
 
 export const cardStorageObjectKeys = (card: {
   documentTextKey?: string;
@@ -116,8 +97,6 @@ export const deleteObject = async (ctx: MutationCtx, key?: string) => {
     return;
   }
   assertR2KeyInNamespace(key);
-  // Durable deletion workflow instead of a synchronous component delete:
-  // the keys are recorded durably and retried by the workflow step.
   await ctx.scheduler.runAfter(
     0,
     (internal as any)["workflows/objectCleanup"].startObjectDeletion,
@@ -141,7 +120,6 @@ export const storeObject = async (
     contentType: opts.type ?? blob.type ?? "application/octet-stream",
     key: opts.key,
   });
-  // Callers expect the storage key back (r2.store returned the key).
   return opts.key;
 };
 

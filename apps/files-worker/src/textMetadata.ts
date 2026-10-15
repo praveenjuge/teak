@@ -84,7 +84,6 @@ const responseText = (response: unknown): string | null => {
   return typeof content === "string" ? content : null;
 };
 
-/** Signed caller supplies bounded text; this operation never fetches URLs. */
 export const generateTextMetadataForOp = async (
   env: FilesOpsEnv,
   op: "generate-text-metadata" | "generate-link-metadata",

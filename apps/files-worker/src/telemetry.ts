@@ -1,12 +1,7 @@
-// Error reporting for the files worker: errors only, no tracing or logs.
-// Events go to PostHog with the shared fetch helper, one request per failure,
-// sent after the response through waitUntil. Without POSTHOG_PROJECT_TOKEN
-// (development, tests) nothing is sent.
-
 import { createPostHogBatch } from "@teak/convex/shared/posthog";
+import { parseCardObjectKey } from "@teak/files-protocol";
 import packageJson from "../package.json";
 
-/** Env vars backing error reporting; set in production only. */
 export interface TelemetryEnvVars {
   POSTHOG_PROJECT_TOKEN?: string;
 }
@@ -23,7 +18,6 @@ const createWorkerBatch = (env: TelemetryEnvVars) =>
     token: env.POSTHOG_PROJECT_TOKEN,
   });
 
-/** Sends one exception, after the response when a context is available. */
 const sendException = async (
   env: TelemetryEnvVars,
   ctx: WaitUntil | undefined,
@@ -47,35 +41,6 @@ const sendException = async (
     return;
   }
   await sent;
-};
-
-export interface FileKeyIdentifiers {
-  cardId?: string;
-  role?: string;
-}
-
-/**
- * Best-effort card/role extraction from an R2 object key. Keys minted by
- * buildR2ObjectKey (packages/convex/storage/r2.ts) look like
- * users/<user-hash>/cards/<cardId|pending>/<role>/<uuid>-<name>; anything
- * else parses to no identifiers instead of guessing.
- */
-export const parseFileKeyIdentifiers = (key: string): FileKeyIdentifiers => {
-  const rawSegments = key.split("/");
-  const segments =
-    rawSegments[0] === "dev" ? rawSegments.slice(1) : rawSegments;
-  if (
-    segments.length < 5 ||
-    segments[0] !== "users" ||
-    segments[2] !== "cards"
-  ) {
-    return {};
-  }
-  const [cardId, role] = [segments[3], segments[4]];
-  return {
-    ...(cardId && cardId !== "pending" ? { cardId } : {}),
-    ...(role ? { role } : {}),
-  };
 };
 
 export interface FilesOpFailureContext {
@@ -103,7 +68,7 @@ export const reportFilesOpFailure = (
   error: unknown,
   { httpMethod, httpPath, objectKey }: FilesOpFailureContext
 ): Promise<void> => {
-  const { cardId, role } = parseFileKeyIdentifiers(objectKey);
+  const { cardId, role } = parseCardObjectKey(objectKey);
   return sendException(env, ctx, error, {
     ...(cardId ? { "card.id": cardId } : {}),
     "files.op": op,
@@ -114,7 +79,6 @@ export const reportFilesOpFailure = (
   });
 };
 
-/** Reports an error that escaped the fetch handler, then lets it propagate. */
 export const reportUnhandledError = (
   env: TelemetryEnvVars,
   ctx: WaitUntil,

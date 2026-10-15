@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
 import {
+  buildFileSigningPayload,
   buildFilesOpSigningPayload,
   buildImageSigningPayload,
 } from "@teak/files-protocol";
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
   bucketedSignatureExpiry,
-  buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
   getR2ReadBase,
@@ -34,7 +34,7 @@ const hmacHex = (message: string): string =>
 
 describe("signed worker file urls", () => {
   test("payload format matches the shared cross-runtime vector", () => {
-    const payload = buildSignedFilePayload({
+    const payload = buildFileSigningPayload({
       key: KEY,
       exp: EXP,
       contentType: "image/png",
@@ -59,7 +59,7 @@ describe("signed worker file urls", () => {
     expect(url.searchParams.get("ct")).toBeNull();
     expect(url.searchParams.get("cd")).toBeNull();
     expect(url.searchParams.get("sig")).toBe(
-      hmacHex(buildSignedFilePayload({ key: KEY, exp: `${exp}` }))
+      hmacHex(buildFileSigningPayload({ key: KEY, exp: `${exp}` }))
     );
   });
 
@@ -104,7 +104,7 @@ describe("signed worker file urls", () => {
     expect(url.searchParams.get("cd")).toBe("attachment");
     expect(url.searchParams.get("sig")).toBe(
       hmacHex(
-        buildSignedFilePayload({
+        buildFileSigningPayload({
           key: KEY,
           exp,
           contentType: "application/pdf",

@@ -117,7 +117,6 @@ describe("fetch-link-page op", () => {
       selectors: page().selectors,
       source: "static",
     });
-    // The encoding scrape-html and capture-screenshot already accept.
     expect(await decodeHtmlParam(htmlGzipBase64)).toBe(HTML);
   });
 
@@ -294,7 +293,6 @@ describe("Browser Run fallback", () => {
 });
 
 describe("link page cache", () => {
-  /** KV stand-in that records each write's options. */
   class MemoryKv {
     readonly values = new Map<string, string>();
     readonly puts: { key: string; options: unknown }[] = [];

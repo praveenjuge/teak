@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildFilesOpSigningPayload,
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
-import { MAX_AI_TEXT_CHARACTERS, MAX_PDF_TEXT_PAGES } from "./inspect";
+import { MAX_PDF_TEXT_PAGES } from "./inspect";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import {
@@ -192,7 +193,6 @@ describe("extract-video-frame", () => {
     expect(status).toBe(200);
     expect(calls).toHaveLength(2);
     expect(calls[0]?.instance).not.toBe(calls[1]?.instance);
-    // Each attempt streams the whole source again.
     expect(calls[1]?.bytes).toBe(SOURCE_BYTES.length);
   });
 
@@ -378,7 +378,7 @@ describe("inspect pdf", () => {
       text: "Page one\n\nPage two",
     });
     expect(calls[0]?.path).toBe(
-      `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${MAX_AI_TEXT_CHARACTERS}`
+      `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`
     );
   });
 
@@ -542,7 +542,6 @@ describe("process-audio", () => {
 
   test("transcribes even when an AI Gateway is configured", async () => {
     const { env } = await setup(audioAnswer("converted"), audio);
-    // AI Gateway rejects the streamed audio body Whisper needs.
     const ai = {
       run: (
         _model: string,

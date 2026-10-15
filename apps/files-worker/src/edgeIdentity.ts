@@ -1,28 +1,3 @@
-/**
- * Who is calling the public API or MCP server, for edge rate limits.
- *
- * Every request resolves to one bucket key, so a user's limits follow the
- * user across all of their API keys and OAuth apps:
- *
- * - `user:<teakUserId>` for a Teak API key Convex has seen, or a WorkOS access
- *   token whose signature, issuer and audience verify at the edge;
- * - `workos:<workosUserId>` for a verified token Convex cannot map to a user,
- *   or cannot be asked about;
- * - `ip:<address>` for everything else: no credential, a malformed or unknown
- *   one, or a token that fails verification. Unverified input never chooses
- *   its own bucket, so spraying made-up keys cannot dodge the address limit.
- *
- * This is identity for limiting only. Convex still authenticates and
- * authorizes every request itself.
- *
- * Convex answers lookups by credential (`@teak/files-protocol`
- * edgeIdentity); the Worker sends a key's SHA-256 digest, never the key, and
- * caches each answer in KV: five minutes for a known owner, so a revoked key
- * stops counting against its owner's limit soon after, and the KV minimum of
- * a minute for an unknown one, so a brand-new key is recognized within a
- * minute.
- */
-
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
 import { verifyWorkosConnectToken } from "@teak/convex/workosTokens";
 import {
@@ -45,32 +20,47 @@ export interface EdgeIdentityEnv {
   FILES_SIGNING_SECRET: string;
 }
 
-export interface EdgeIdentity {
-  key: string;
-  source: "address" | "api_key" | "oauth";
-}
+/**
+ * The rate-limit bucket of a public API or MCP request. A user's limits follow
+ * them across every API key and OAuth app. A verified WorkOS token Convex
+ * cannot map is bucketed by its WorkOS user; anything unverified is bucketed by
+ * address, so made-up credentials never choose their own bucket. Convex still
+ * authenticates and authorizes every request itself.
+ */
+export type EdgeIdentity =
+  | { key: `user:${string}`; source: "api_key" | "oauth" }
+  | { key: `workos:${string}`; source: "oauth" }
+  | {
+      key: `ip:${string}`;
+      /** Set when an API key lookup was charged to, or refused by, the unknown-credential limit. */
+      lookup?: "charged" | "refused";
+      source: "address";
+    };
 
+/** How long a known owner is cached, so a revoked key soon stops counting against its owner. */
 export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 300;
+/** KV's minimum TTL, so a brand-new key is recognized within a minute. */
 export const EDGE_IDENTITY_UNKNOWN_TTL_SECONDS = 60;
 const LOOKUP_TIMEOUT_MS = 2000;
 const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
   /**
-   * Asked before each API key lookup the cache cannot answer; false skips
-   * the lookup, so a caller can bound how often one client makes it ask
-   * Convex. Verified WorkOS tokens are never gated.
+   * Charges each API key lookup the cache cannot answer, so a caller can bound
+   * how often one client makes the edge ask Convex. "uncharged" means no limit
+   * applied. Verified WorkOS tokens are never charged.
    */
-  allowLookup?: () => Promise<boolean>;
+  chargeLookup?: () => Promise<"charged" | "refused" | "uncharged">;
   fetcher?: typeof fetch;
   verifyToken?: typeof verifyWorkosConnectToken;
 }
 
-/** The bucket key for the request's client address. */
-export const addressKey = (request: Request): string =>
+export const addressKey = (request: Request): `ip:${string}` =>
   `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`;
 
-const addressIdentity = (request: Request): EdgeIdentity => ({
+const addressIdentity = (
+  request: Request
+): Extract<EdgeIdentity, { source: "address" }> => ({
   key: addressKey(request),
   source: "address",
 });
@@ -91,12 +81,16 @@ const audienceFor = (request: Request, host: string): string =>
     ? `https://${host}/mcp`
     : `https://${host}/api`;
 
-/** Asks Convex who owns a credential. Null when it does not know; throws when it cannot answer. */
+type OwnerLookup =
+  | { kind: "owner"; userId: string }
+  | { kind: "unknown" }
+  | { kind: "unavailable" };
+
 const lookupOwner = async (
   env: EdgeIdentityEnv,
   lookup: EdgeIdentityLookup,
   fetcher: typeof fetch
-): Promise<string | null> => {
+): Promise<OwnerLookup> => {
   const body = JSON.stringify(lookup);
   const requestId = crypto.randomUUID();
   const expiresAt = String(
@@ -125,49 +119,52 @@ const lookupOwner = async (
     }
   );
   if (!response.ok) {
-    throw new Error(`edge identity lookup failed: ${response.status}`);
+    return { kind: "unavailable" };
   }
   const { userId } = (await response.json()) as { userId?: unknown };
-  return typeof userId === "string" && userId ? userId : null;
+  return typeof userId === "string" && userId
+    ? { kind: "owner", userId }
+    : { kind: "unknown" };
 };
 
-/** The owner from KV, or from Convex (then cached). Undefined when neither can say. */
-const cachedOwner = async (
+const readCachedOwner = async (
+  env: EdgeIdentityEnv,
+  cacheKey: string
+): Promise<OwnerLookup> => {
+  const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
+  if (typeof cached !== "string") {
+    return { kind: "unavailable" };
+  }
+  return cached ? { kind: "owner", userId: cached } : { kind: "unknown" };
+};
+
+const lookupAndCacheOwner = async (
   env: EdgeIdentityEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
   cacheKey: string,
   lookup: EdgeIdentityLookup,
-  deps: Required<Pick<EdgeIdentityDeps, "fetcher">> &
-    Pick<EdgeIdentityDeps, "allowLookup">
-): Promise<string | null | undefined> => {
-  // A failed read is a cache miss: ask Convex instead.
-  const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
-  if (typeof cached === "string") {
-    return cached || null;
-  }
-  if (deps.allowLookup && !(await deps.allowLookup())) {
-    return;
-  }
-  const { fetcher } = deps;
-  let owner: string | null;
-  try {
-    owner = await lookupOwner(env, lookup, fetcher);
-  } catch {
-    return;
-  }
-  if (env.EDGE_IDENTITY) {
+  fetcher: typeof fetch
+): Promise<OwnerLookup> => {
+  const owner = await lookupOwner(env, lookup, fetcher).catch(
+    (): OwnerLookup => ({ kind: "unavailable" })
+  );
+  if (owner.kind !== "unavailable" && env.EDGE_IDENTITY) {
     ctx.waitUntil(
-      env.EDGE_IDENTITY.put(cacheKey, owner ?? "", {
-        expirationTtl: owner
-          ? EDGE_IDENTITY_KNOWN_TTL_SECONDS
-          : EDGE_IDENTITY_UNKNOWN_TTL_SECONDS,
-      }).catch(() => undefined)
+      env.EDGE_IDENTITY.put(
+        cacheKey,
+        owner.kind === "owner" ? owner.userId : "",
+        {
+          expirationTtl:
+            owner.kind === "owner"
+              ? EDGE_IDENTITY_KNOWN_TTL_SECONDS
+              : EDGE_IDENTITY_UNKNOWN_TTL_SECONDS,
+        }
+      ).catch(() => undefined)
     );
   }
   return owner;
 };
 
-/** The rate-limit bucket for a request to the public API or MCP server. */
 export const resolveEdgeIdentity = async (
   request: Request,
   env: EdgeIdentityEnv,
@@ -183,15 +180,27 @@ export const resolveEdgeIdentity = async (
 
   if (getApiKeyFormat(token) === "component") {
     const tokenHash = await sha256Hex(token.trim());
-    const owner = await cachedOwner(
-      env,
-      ctx,
-      `key:${tokenHash}`,
-      { tokenHash },
-      { allowLookup: deps.allowLookup, fetcher }
-    );
-    return owner
-      ? { key: `user:${owner}`, source: "api_key" }
+    const cacheKey = `key:${tokenHash}`;
+    let owner = await readCachedOwner(env, cacheKey);
+    let charge: "charged" | "refused" | "uncharged" = "uncharged";
+    if (owner.kind === "unavailable") {
+      charge = (await deps.chargeLookup?.()) ?? "uncharged";
+      if (charge === "refused") {
+        return { ...addressIdentity(request), lookup: "refused" };
+      }
+      owner = await lookupAndCacheOwner(
+        env,
+        ctx,
+        cacheKey,
+        { tokenHash },
+        fetcher
+      );
+    }
+    if (owner.kind === "owner") {
+      return { key: `user:${owner.userId}`, source: "api_key" };
+    }
+    return charge === "charged"
+      ? { ...addressIdentity(request), lookup: "charged" }
       : addressIdentity(request);
   }
 
@@ -206,19 +215,18 @@ export const resolveEdgeIdentity = async (
     return addressIdentity(request);
   }
   const { workosUserId } = principal;
-  const owner = await cachedOwner(
-    env,
-    ctx,
-    `workos:${workosUserId}`,
-    { workosUserId },
-    // A verified token is signed by WorkOS, so it cannot be rotated to make
-    // Convex look up new identities; the address gate would only refuse
-    // real users who share a busy address.
-    { fetcher }
-  );
-  // A verified token names its user even when Convex cannot map it yet.
-  return {
-    key: owner ? `user:${owner}` : `workos:${workosUserId}`,
-    source: "oauth",
-  };
+  const cacheKey = `workos:${workosUserId}`;
+  let owner = await readCachedOwner(env, cacheKey);
+  if (owner.kind === "unavailable") {
+    owner = await lookupAndCacheOwner(
+      env,
+      ctx,
+      cacheKey,
+      { workosUserId },
+      fetcher
+    );
+  }
+  return owner.kind === "owner"
+    ? { key: `user:${owner.userId}`, source: "oauth" }
+    : { key: `workos:${workosUserId}`, source: "oauth" };
 };

@@ -5,7 +5,6 @@ import {
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
 import { hmacSha256Hex, sha256Hex } from "./lib";
-import { parseFileKeyIdentifiers } from "./telemetry";
 import { withObjectGates } from "./testsupport";
 
 const SECRET = "test-secret";
@@ -36,27 +35,6 @@ const signedOpRequest = async (sourceKey: string): Promise<Request> => {
   });
 };
 
-describe("parseFileKeyIdentifiers", () => {
-  test("extracts card id and role from buildR2ObjectKey-shaped keys", () => {
-    expect(
-      parseFileKeyIdentifiers(
-        "users/9f8a/cards/c123/file/00000000-0000-4000-8000-000000000000-photo.png"
-      )
-    ).toEqual({ cardId: "c123", role: "file" });
-    expect(
-      parseFileKeyIdentifiers("users/9f8a/cards/c123/thumbnail/t.webp")
-    ).toEqual({ cardId: "c123", role: "thumbnail" });
-  });
-
-  test("omits pending-upload and unknown identifiers instead of guessing", () => {
-    expect(
-      parseFileKeyIdentifiers("users/9f8a/cards/pending/file/x.png")
-    ).toEqual({ role: "file" });
-    expect(parseFileKeyIdentifiers("some/other/key.png")).toEqual({});
-    expect(parseFileKeyIdentifiers("")).toEqual({});
-  });
-});
-
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -71,8 +49,6 @@ const failingOp = async (token?: string) => {
   globalThis.fetch = posthog as unknown as typeof fetch;
   const pending: Promise<unknown>[] = [];
   const env_ = withObjectGates({
-    // Image analysis's first R2 read rejects; nothing classifies this error,
-    // so it lands on the console.error + report + 500 path.
     BUCKET: { get: () => Promise.reject(new Error("r2_unavailable")) },
     FILES_SIGNING_SECRET: SECRET,
     // A test fixture value ("phc_test" or none), not a real token.

@@ -43,7 +43,6 @@ function hasDocType(header: Uint8Array, pattern: number[]): boolean {
   return false;
 }
 
-/** A short lowercase container token: mp4, mov, m4a, webm, matroska, … */
 export function formatToken(
   formatName: string,
   majorBrand: string | undefined,
@@ -72,7 +71,6 @@ export function formatToken(
   return names[0] || "unknown";
 }
 
-/** Clockwise display rotation in degrees, 0–359. */
 export function rotationDegrees(stream: FfprobeStream): number {
   const matrix = stream.side_data_list?.find(
     (entry) => entry.side_data_type === "Display Matrix"

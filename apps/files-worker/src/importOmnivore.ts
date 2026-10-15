@@ -24,7 +24,6 @@ const METADATA_LIMIT = 8 * 1024 * 1024;
 const HIGHLIGHTS_LIMIT = 400_000;
 const PARALLEL_READS = 12;
 
-/** Whether the upload starts with a ZIP local file header ("PK"). */
 export async function isZipSource(
   bucket: R2Bucket,
   key: string,
@@ -37,7 +36,6 @@ export async function isZipSource(
 interface MetadataFile {
   end: number;
   entry: ZipCentralEntry;
-  /** The folder the metadata file sits in; its highlights sit beside it. */
   prefix: string;
   start: number;
 }
@@ -164,9 +162,7 @@ export async function indexOmnivoreZip(
       return decode(
         await readZipEntry(bucket, key, directory, entry, HIGHLIGHTS_LIMIT)
       );
-    } catch {
-      // Highlights are extra; the link still imports without them.
-    }
+    } catch {}
   });
 
   const items: FilesImportIndexResult["items"] = [];

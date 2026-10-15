@@ -10,6 +10,7 @@
  * re-exports them for backward compatibility.
  */
 
+import { filesExportKeyRoot, filesUserKeyRoot } from "@teak/files-protocol";
 import { env } from "../_generated/server";
 
 /**
@@ -28,18 +29,19 @@ export const getR2KeyPrefix = (): string => {
   return normalized.endsWith("/") ? normalized : `${normalized}/`;
 };
 
-export const buildR2ListPrefix = (): string => `${getR2KeyPrefix()}users/`;
+export const buildR2ListPrefix = (): string =>
+  filesUserKeyRoot(getR2KeyPrefix());
 
 /**
  * Export archives live outside `users/` under their own top-level prefix, so
  * an R2 lifecycle rule on `exports/` (and `dev/exports/`) can expire every
  * artifact, sidecar and leftover manifest without per-user prefixes.
  */
-export const buildR2ExportPrefix = (): string => `${getR2KeyPrefix()}exports/`;
+export const buildR2ExportPrefix = (): string =>
+  filesExportKeyRoot(getR2KeyPrefix());
 
 export const isR2KeyInNamespace = (key: string): boolean =>
-  key.startsWith(`${getR2KeyPrefix()}users/`) ||
-  key.startsWith(buildR2ExportPrefix());
+  key.startsWith(buildR2ListPrefix()) || key.startsWith(buildR2ExportPrefix());
 
 export const assertR2KeyInNamespace = (key: string): void => {
   if (!isR2KeyInNamespace(key)) {
@@ -52,8 +54,6 @@ const hexEncode = (buffer: ArrayBuffer): string =>
     byte.toString(16).padStart(2, "0")
   ).join("");
 
-// Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
-// vectors prove both runtimes produce identical HMAC output.
 export const hmacSha256Hex = async (
   secret: string,
   message: string

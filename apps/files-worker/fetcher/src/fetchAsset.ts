@@ -1,9 +1,3 @@
-/**
- * Download one remote preview asset with the same SSRF policy, address
- * pinning, limits and checks Convex applied when it downloaded assets itself.
- * The policy code is Convex's own, bundled by path, so there is one copy.
- */
-
 import {
   type DnsResolver,
   type PinnedFetch,

@@ -223,8 +223,6 @@ const assetsFor = async (
     await response.body?.cancel().catch(() => undefined);
     return { assets: [], page: `page ${response.status} ${contentType}` };
   }
-  // As production does: the page's URL after redirects goes along as the
-  // asset's page, for the fetcher's Referer.
   const pageUrl = response.url || url;
   const html = new TextDecoder().decode(
     await readBodyWithLimit(response, MAX_HTML_BYTES)
@@ -303,9 +301,7 @@ const startFetcher = async (): Promise<ChildProcess> => {
       if ((await fetch(`http://127.0.0.1:${PORT}/health`)).ok) {
         return server;
       }
-    } catch {
-      // Not listening yet.
-    }
+    } catch {}
     await Bun.sleep(200);
   }
   server.kill();

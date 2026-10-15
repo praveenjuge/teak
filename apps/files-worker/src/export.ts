@@ -1,25 +1,8 @@
-// Edge export builder for the build-export op: reads a small JSON manifest
-// from R2, streams every referenced object through client-zip, and writes the
-// finished archive back to R2 via a multipart upload — constant memory, no
-// bytes transiting Convex.
-//
-// Manifest contract (minted by packages/convex/export/runExport.ts):
-//   {
-//     "v": 1,
-//     "maxBytes": 5368709120,
-//     "entries": [
-//       { "path": "manifest.json", "contentBase64": "..." },
-//       { "path": "files/x.png",   "storageKey": "users/.../cards/file/..." }
-//     ]
-//   }
-//
-// Missing/unreadable objects are retried once and then omitted; omissions are
-// reported by path so the caller
-// can correct cards.json if needed.
-
+import {
+  FILES_EXPORT_MANIFEST_VERSION,
+  type FilesExportManifest,
+} from "@teak/files-protocol";
 import { downloadZip } from "client-zip";
-
-export const EXPORT_MANIFEST_VERSION = 1;
 
 const MISSING_FILE_MAX_ATTEMPTS = 2;
 
@@ -38,18 +21,6 @@ export class ExportTooLarge extends Error {
   constructor() {
     super("export_too_large");
   }
-}
-
-export interface ExportManifestEntry {
-  contentBase64?: string;
-  path: string;
-  storageKey?: string;
-}
-
-export interface ExportManifest {
-  entries: ExportManifestEntry[];
-  maxBytes: number;
-  v: number;
 }
 
 export interface BuildExportResult {
@@ -74,19 +45,18 @@ const isValidArchivePath = (path: string): boolean =>
   !path.split("/").includes("..") &&
   !path.includes("\0");
 
-/** Parse and structurally validate the manifest JSON body. */
-export const parseExportManifest = (raw: string): ExportManifest => {
+export const parseExportManifest = (raw: string): FilesExportManifest => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
     throw new ExportManifestInvalid();
   }
-  const manifest = parsed as ExportManifest;
+  const manifest = parsed as FilesExportManifest;
   if (
     !manifest ||
     typeof manifest !== "object" ||
-    manifest.v !== EXPORT_MANIFEST_VERSION ||
+    manifest.v !== FILES_EXPORT_MANIFEST_VERSION ||
     !Array.isArray(manifest.entries) ||
     manifest.entries.length === 0 ||
     typeof manifest.maxBytes !== "number" ||
@@ -108,11 +78,6 @@ export const parseExportManifest = (raw: string): ExportManifest => {
   return manifest;
 };
 
-/**
- * Read an object's bytes with one retry; null when both attempts fail.
- * Mirrors readWithRetry in the legacy archive builder so omission semantics
- * stay identical.
- */
 const readWithRetry = async (
   bucket: R2Bucket,
   key: string
@@ -123,9 +88,7 @@ const readWithRetry = async (
       if (object) {
         return object;
       }
-    } catch {
-      // fall through to retry / omission
-    }
+    } catch {}
   }
   return null;
 };
@@ -135,15 +98,9 @@ interface ZipInput {
   name: string;
 }
 
-/**
- * Sequentially materialize zip inputs. Storage-backed entries stream their
- * R2 bodies directly into the zip without full-file buffering; inclusion
- * decisions (retry + omit) happen before an entry is handed to client-zip so
- * the resulting archive never contains placeholders.
- */
 const collectZipInputs = async function* (
   bucket: R2Bucket,
-  manifest: ExportManifest,
+  manifest: FilesExportManifest,
   stats: {
     filesIncluded: number;
     filesOmitted: number;
@@ -180,10 +137,6 @@ const collectZipInputs = async function* (
   }
 };
 
-/**
- * Build the export archive described by `manifestKey` and store it at
- * `artifactKey` inside the bucket.
- */
 export const buildExportIntoBucket = async (
   bucket: R2Bucket,
   manifestKey: string,

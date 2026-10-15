@@ -56,7 +56,6 @@ function timeoutScale(raw: string | undefined): number {
 const TIMEOUT_SCALE = timeoutScale(process.env.RENDERER_TIMEOUT_SCALE);
 
 interface Route {
-  /** Validates the query up front, then returns the job to run. */
   prepare: (query: URLSearchParams) => (ctx: JobContext) => Promise<JobResult>;
   wallClockMs: number;
 }
@@ -114,7 +113,6 @@ async function readWithin<T>(read: Promise<T>, deadline: number): Promise<T> {
   }
 }
 
-/** Writes the body to `path`, refusing anything over the cap. */
 async function spool(request: Request, path: string): Promise<void> {
   const file = await open(path, "wx", 0o600);
   try {

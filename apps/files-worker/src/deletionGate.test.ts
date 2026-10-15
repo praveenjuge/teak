@@ -98,6 +98,11 @@ describe("exact object deletion fence", () => {
     expect(t.values.has("active")).toBe(true);
     expect((await t.request("put", "retry")).status).toBe(409);
   });
+  test("an unknown operation is refused without holding the key busy", async () => {
+    const t = fixture();
+    expect((await t.request("rename")).status).toBe(400);
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: true });
+  });
   test.each(["create", "complete", "part"])(
     "ambiguous multipart %s cannot certify deletion",
     async (operation) => {

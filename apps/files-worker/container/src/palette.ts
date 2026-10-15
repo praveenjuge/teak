@@ -12,7 +12,6 @@
 
 export interface PaletteSwatch {
   hex: string;
-  /** Share of the opaque pixels, 0 to 1. */
   weight: number;
 }
 
@@ -81,7 +80,6 @@ const distanceSquared = (left: Lab, right: Lab): number =>
 
 const chroma = (color: Lab): number => Math.hypot(color.a, color.b);
 
-/** Angle between two colors' hues, 0 to π radians. */
 const hueGap = (left: Lab, right: Lab): number => {
   const gap = Math.abs(
     Math.atan2(left.b, left.a) - Math.atan2(right.b, right.a)
@@ -94,7 +92,6 @@ const toHex = (value: number): string =>
     .toString(16)
     .padStart(2, "0");
 
-/** Opaque pixels grouped into 32 levels per channel, with their mean color. */
 const binPixels = (pixels: Uint8Array): { bins: Bin[]; total: number } => {
   const sums = new Map<
     number,
@@ -133,11 +130,6 @@ const binPixels = (pixels: Uint8Array): { bins: Bin[]; total: number } => {
   return { bins, total };
 };
 
-/**
- * Seeds from the heaviest bin, then repeatedly from the bin that is both
- * heavy and far from every seed so far, stopping once every bin is already
- * close to a seed. Deterministic, unlike k-means++.
- */
 const seedCenters = (bins: Bin[]): Lab[] => {
   let heaviest = bins[0] as Bin;
   for (const bin of bins) {

@@ -6,7 +6,6 @@ import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWork
 const required = [
   "extract-animation-palette",
   "process-audio",
-  "transcribe-audio",
   "generate-text-metadata",
   "generate-link-metadata",
   "index-import-source",

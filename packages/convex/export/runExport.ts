@@ -11,6 +11,10 @@ import { ensureObjectOwnership } from "../storage/ownership";
  */
 
 import { createHash } from "node:crypto";
+import {
+  FILES_EXPORT_MANIFEST_VERSION,
+  type FilesExportManifest,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -81,8 +85,6 @@ export function buildArtifactKey(userId: string, jobId: string): string {
   const stamp = new Date().toISOString().slice(0, 10);
   return `${buildR2ExportPrefix()}${hashUserId}/${jobId}-${stamp}.zip`;
 }
-
-const EXPORT_MANIFEST_VERSION = 1;
 
 /**
  * Worker-backed export.
@@ -164,8 +166,8 @@ async function runExportArchiveViaFilesWorker(
       const filesIncluded = serializedCards.filter(
         (card) => card.file !== undefined
       ).length;
-      const manifestJson = JSON.stringify({
-        v: EXPORT_MANIFEST_VERSION,
+      const manifest: FilesExportManifest = {
+        v: FILES_EXPORT_MANIFEST_VERSION,
         maxBytes: MAX_EXPORT_BYTES,
         entries: [
           {
@@ -210,7 +212,8 @@ async function runExportArchiveViaFilesWorker(
           },
           ...fileEntries,
         ],
-      });
+      };
+      const manifestJson = JSON.stringify(manifest);
 
       // Beside the artifact, so the exports lifecycle rule also expires a
       // manifest whose best-effort delete below fails.

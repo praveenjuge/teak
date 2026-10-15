@@ -1,20 +1,14 @@
-// finalize-image-upload: commit an uploaded image into its permanent key only
-// after the bytes have been decoded server-side. The worker returns trusted
-// image facts (decoded format, dimensions, size) so Convex never has to trust
-// client-provided MIME types or dimensions when creating the card.
 import {
   FILES_PROCESSOR_VERSION,
   type FilesFinalizeImageParams,
   type FilesFinalizeImageResult,
 } from "@teak/files-protocol";
 import { inspectImageContainer } from "./imageContainer";
+import { throughImagesBinding } from "./imagesBinding";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
 import { renderSvgToPng } from "./wasm";
 
-// The Images binding accepts raw inputs up to 20 MB; larger images fall back
-// to the URL-transformation JSON metadata probe.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 const MAX_CONTAINER_FALLBACK_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 10_000;
 
@@ -36,7 +30,6 @@ const positiveDimension = (value: unknown): number | null =>
     ? value
     : null;
 
-/** Normalize a binding/probe format token into an `image/*` MIME type. */
 export const normalizeDecodedFormat = (
   raw: string,
   objectKey: string
@@ -45,7 +38,6 @@ export const normalizeDecodedFormat = (
   if (normalized.includes("/")) {
     return normalized.startsWith("image/") ? normalized : "";
   }
-  // Token forms such as "jpeg" or "png" reported without a media type.
   const tokenMime: Record<string, string> = {
     avif: "image/avif",
     gif: "image/gif",
@@ -85,40 +77,36 @@ const factsFromBindingInfo = async (
   sourceKey: string,
   expected: { httpEtag: string; size: number }
 ): Promise<FinalizeImageFacts | null> => {
-  if (!(env.IMAGES && expected.size <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
-    return null;
+  const facts = await throughImagesBinding(
+    env.IMAGES,
+    expected.size,
+    async () => {
+      const object = await bucket.get(sourceKey);
+      if (!object) {
+        throw new Error("source_not_found");
+      }
+      return object;
+    },
+    async (images, object) => {
+      assertUnchanged(object, expected);
+      const info = (await images.info(object.body)) as CloudflareImageInfo;
+      if (info.format === "image/svg+xml") {
+        // SVG has no raster dimensions in binding info; the resvg probe below
+        // resolves them.
+        return null;
+      }
+      const format = normalizeDecodedFormat(info.format ?? "", sourceKey);
+      const width = positiveDimension(info.original?.width ?? info.width);
+      const height = positiveDimension(info.original?.height ?? info.height);
+      return format && width && height
+        ? { decodedFormat: format, height, width }
+        : "not_an_image";
+    }
+  );
+  if (facts === "not_an_image") {
+    throw new Error("not_an_image");
   }
-  const object = await bucket.get(sourceKey);
-  if (!object) {
-    throw new Error("source_not_found");
-  }
-  try {
-    // Only decode bytes that are still the object we validated above.
-    assertUnchanged(object, expected);
-    const info = (await env.IMAGES.info(object.body)) as CloudflareImageInfo;
-    if (info.format === "image/svg+xml") {
-      // SVG has no raster dimensions in binding info; the resvg probe below
-      // resolves them.
-      return null;
-    }
-    const format = normalizeDecodedFormat(info.format ?? "", sourceKey);
-    const width = positiveDimension(info.original?.width ?? info.width);
-    const height = positiveDimension(info.original?.height ?? info.height);
-    if (!(format && width && height)) {
-      throw new Error("not_an_image");
-    }
-    return { decodedFormat: format, height, width };
-  } catch (error) {
-    if (error instanceof Error && error.message === "not_an_image") {
-      throw error;
-    }
-    try {
-      await object.body.cancel();
-    } catch {
-      // The binding may already have locked or consumed the stream.
-    }
-    return null;
-  }
+  return facts;
 };
 
 const factsFromSvg = async (
@@ -231,8 +219,6 @@ export const finalizeImageUpload = async (
   } else {
     facts = await factsFromBindingInfo(env, env.BUCKET, sourceKey, metadata);
     if (!facts) {
-      // Binding metadata unavailable (missing binding, unsupported input, or
-      // transient failure): fall back to the remote transformation probe.
       try {
         facts = await factsFromUrlProbe(
           env,
@@ -265,10 +251,6 @@ export const finalizeImageUpload = async (
     throw new Error("image_dimensions_too_large");
   }
 
-  // Re-fetch and stream the verified source into its permanent key, pinning
-  // the promotion to the exact bytes that were decoded above: if the pending
-  // key changed between verification and this read, refuse instead of
-  // promoting unverified bytes under stale trusted facts.
   const source = await env.BUCKET.get(sourceKey);
   if (!source) {
     throw new Error("source_not_found");
@@ -276,9 +258,7 @@ export const finalizeImageUpload = async (
   if (source.httpEtag !== metadata.httpEtag || source.size !== metadata.size) {
     try {
       await source.body.cancel();
-    } catch {
-      // Already consumed.
-    }
+    } catch {}
     throw new Error("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {
