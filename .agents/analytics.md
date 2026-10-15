@@ -31,6 +31,7 @@ Client events (`captureEvent`):
 
 - `card_create_submitted` {card_type, source, via}
 - `search_performed` {zero_result}
+- `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog
 - `file_upload_completed` {bucket, size_bucket} and `file_upload_failed` {bucket, size_bucket, error_class}
 - `import_started`, `import_completed`, `import_failed` {error_class}
 - `export_started`, `export_completed` (download), `export_failed` {error_class}
@@ -46,6 +47,7 @@ Server events (`captureBackendEvent`):
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}
 - `billing_portal_opened`
 - `mcp_tool_called` {tool, outcome, status, duration_ms}
+- `card_thumbnail_replaced` {source: `api`} and `card_thumbnail_reset`, when the public API (and so MCP, the SDK and the CLI) replaces or resets a link's image
 - `$ai_generation` with `$ai_model`, `$ai_provider`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_latency` (seconds), `$ai_total_cost_usd`, `$ai_trace_id` (workflow or card id), `$ai_span_name`, `$ai_is_error`. Prompts and outputs are never sent.
 
 Exceptions are `$exception` events built by `buildExceptionProperties` in `packages/convex/shared/posthog.ts` (raw frames, scrubbed with `scrubTelemetryValue`). Backend retryable errors (rate limits, validation retries) are not reported; workflow retries own them.

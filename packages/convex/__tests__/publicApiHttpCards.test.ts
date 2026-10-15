@@ -1466,3 +1466,189 @@ describe("listCardsV1 search modes", () => {
     expect(await response.json()).not.toHaveProperty("searchMode");
   });
 });
+
+describe("link image routes", () => {
+  const AUTH = {
+    Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+  };
+  const linkCard = (overrides = {}) => ({
+    _id: "card_1",
+    content: "https://example.com",
+    type: "link",
+    userId: "user_1",
+    ...overrides,
+  });
+  const call = (
+    method: "DELETE" | "POST" | "PUT",
+    path: string,
+    { body, runAction, runMutation, runQuery } = {}
+  ) =>
+    executePublicApiOperation(
+      withMappedOwner({
+        runAction: runAction ?? mock().mockResolvedValue({}),
+        runMutation: runMutation ?? buildAuthorizedMutationMock(),
+        runQuery:
+          runQuery ??
+          mock().mockResolvedValueOnce("card_1").mockResolvedValue(linkCard()),
+      } as any),
+      { body, headers: AUTH, method, path }
+    );
+
+  test("POST thumbnail/upload signs an upload for the card", async () => {
+    const upload = {
+      expiresIn: 600,
+      fileKey: "users/u/cards/upload-pending-v2/thumbnail-override-pending/k",
+      maxFileSize: 20 * 1024 * 1024,
+      method: "PUT",
+      uploadUrl: "https://files.example.com/__upload/v1/k",
+    };
+    const runMutation =
+      buildAuthorizedMutationMock().mockResolvedValueOnce(upload);
+    const response = await call("POST", "/v1/cards/card_1/thumbnail/upload", {
+      body: { fileSize: 1000, mimeType: "image/png" },
+      runMutation,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(upload);
+    expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
+      "card/thumbnailOverride:createThumbnailUploadUrlForUser"
+    );
+    expect(runMutation.mock.calls[1][1]).toEqual({
+      cardId: "card_1",
+      fileSize: 1000,
+      mimeType: "image/png",
+      userId: "user_1",
+    });
+  });
+
+  test("POST thumbnail/upload refuses a body with other fields", async () => {
+    const response = await call("POST", "/v1/cards/card_1/thumbnail/upload", {
+      body: { fileName: "a.png", fileSize: 1000, mimeType: "image/png" },
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  test("PUT thumbnail applies the upload and returns the card", async () => {
+    const runAction = mock().mockResolvedValue({
+      changeId: "change_1",
+      undoUntil: 1,
+    });
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce(linkCard())
+      .mockResolvedValueOnce(
+        linkCard({
+          linkPreviewImageUrl: "https://files.example.com/chosen",
+          thumbnailOverride: {
+            height: 1,
+            storageKey: "k",
+            updatedAt: 1,
+            width: 1,
+          },
+        })
+      );
+    const response = await call("PUT", "/v1/cards/card_1/thumbnail", {
+      body: { fileKey: "users/u/k" },
+      runAction,
+      runQuery,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      id: "card_1",
+      linkPreviewImageUrl: "https://files.example.com/chosen",
+      thumbnailOverridden: true,
+    });
+    expect(getFunctionName(runAction.mock.calls[0][0])).toBe(
+      "card/thumbnailOverride:setLinkThumbnailForUser"
+    );
+    expect(runAction.mock.calls[0][1]).toEqual({
+      cardId: "card_1",
+      fileKey: "users/u/k",
+      userId: "user_1",
+    });
+  });
+
+  test.each([
+    ["TYPE_MISMATCH", 400],
+    ["UNSUPPORTED_TYPE", 400],
+    ["INVALID_INPUT", 400],
+    ["NOT_FOUND", 404],
+    ["CONFLICT", 409],
+    ["FILE_TOO_LARGE", 413],
+  ])("PUT thumbnail answers %s with %d", async (code, status) => {
+    const response = await call("PUT", "/v1/cards/card_1/thumbnail", {
+      body: { fileKey: "users/u/k" },
+      runAction: mock().mockRejectedValue(
+        new ConvexError({ code, message: "refused" })
+      ),
+    });
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error: "refused" });
+  });
+
+  test("PUT thumbnail maps the rate limit to 429 with Retry-After", async () => {
+    const response = await call("PUT", "/v1/cards/card_1/thumbnail", {
+      body: { fileKey: "users/u/k" },
+      runAction: mock().mockRejectedValue(
+        new ConvexError({
+          code: "RATE_LIMITED",
+          message: "You've changed a lot of images. Try again in a minute.",
+          retryAt: Date.now() + 30_000,
+        })
+      ),
+    });
+    expect(response.status).toBe(429);
+    expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+  });
+
+  test("DELETE thumbnail resets and returns the card", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      changeId: null,
+      undoUntil: null,
+    });
+    const response = await call("DELETE", "/v1/cards/card_1/thumbnail", {
+      runMutation,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      id: "card_1",
+      thumbnailOverridden: false,
+    });
+    expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
+      "card/thumbnailOverride:resetLinkThumbnailForUser"
+    );
+  });
+
+  test("a card in Trash reaches the backend, which answers 409", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({ code: "CONFLICT", message: "In Trash" })
+    );
+    const response = await call("DELETE", "/v1/cards/card_1/thumbnail", {
+      runMutation,
+      runQuery: mock()
+        .mockResolvedValueOnce("card_1")
+        .mockResolvedValue(linkCard({ isDeleted: true })),
+    });
+    expect(response.status).toBe(409);
+  });
+
+  test("the PUT route is served by the card-by-id handler", async () => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runAction: mock().mockResolvedValue({ changeId: "c", undoUntil: 1 }),
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValue(linkCard()),
+      },
+      new Request("https://example.com/v1/cards/card_1/thumbnail", {
+        body: JSON.stringify({ fileKey: "users/u/k" }),
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        method: "PUT",
+      })
+    );
+    expect(response.status).toBe(200);
+  });
+});

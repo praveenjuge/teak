@@ -354,26 +354,33 @@ export const Card = memo(function Card({
     previewTitle: linkPreview?.title,
     url: card.url,
   });
-  const primaryAttachedMedia =
-    card.linkPreviewMedia?.find((item) => item.type === "image") ??
-    card.linkPreviewMedia?.find(
-      (item) => item.type === "video" && typeof item.posterUrl === "string"
-    );
+  // An image someone chose for the link comes before attached media.
+  const thumbnailOverride = card.hasThumbnailOverride
+    ? card.thumbnailOverride
+    : undefined;
+  const primaryAttachedMedia = thumbnailOverride
+    ? undefined
+    : (card.linkPreviewMedia?.find((item) => item.type === "image") ??
+      card.linkPreviewMedia?.find(
+        (item) => item.type === "video" && typeof item.posterUrl === "string"
+      ));
   const linkCardImage =
     primaryAttachedMedia?.type === "image"
       ? primaryAttachedMedia.url
       : (primaryAttachedMedia?.posterUrl ?? card.linkPreviewImageUrl);
-  const primaryStoredMedia =
-    storedLinkMedia.find((item) => item.type === "image") ??
-    storedLinkMedia.find(
-      (item) =>
-        item.type === "video" && typeof item.posterStorageKey === "string"
-    );
+  const primaryStoredMedia = thumbnailOverride
+    ? undefined
+    : (storedLinkMedia.find((item) => item.type === "image") ??
+      storedLinkMedia.find(
+        (item) =>
+          item.type === "video" && typeof item.posterStorageKey === "string"
+      ));
   const primaryLinkImageKey =
-    primaryStoredMedia?.type === "image"
+    thumbnailOverride?.storageKey ??
+    (primaryStoredMedia?.type === "image"
       ? primaryStoredMedia.storageKey
       : (primaryStoredMedia?.posterStorageKey ??
-        card.metadata?.linkPreview?.imageStorageKey);
+        card.metadata?.linkPreview?.imageStorageKey));
   const screenshotStorageKey = card.metadata?.linkPreview?.screenshotStorageKey;
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
@@ -397,11 +404,14 @@ export const Card = memo(function Card({
           height: primaryAttachedMedia.posterHeight,
         }
       : undefined;
-  const linkPreviewImageSize =
+  const scrapedImageSize =
     typeof linkPreview?.imageWidth === "number" &&
     typeof linkPreview?.imageHeight === "number"
       ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
       : undefined;
+  const linkPreviewImageSize = thumbnailOverride
+    ? { width: thumbnailOverride.width, height: thumbnailOverride.height }
+    : scrapedImageSize;
   const primaryImageSize =
     attachedImageSize ?? attachedPosterSize ?? linkPreviewImageSize;
   const fallbackImageSize =

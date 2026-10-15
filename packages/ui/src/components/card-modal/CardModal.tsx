@@ -38,11 +38,13 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import type { CardSaveState } from "../../hooks/useCardModal";
+import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
   cardMenuShortcuts,
 } from "../../lib/keyboardShortcuts";
+import { imageFromClipboard, isTextEntryTarget } from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
@@ -74,11 +76,13 @@ function CardPreview({
   card,
   getCurrentValue,
   saveChanges,
+  thumbnail,
   updateContent,
 }: {
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
   saveChanges: () => void;
+  thumbnail?: LinkThumbnailControl;
   updateContent: (value: string) => void;
 }) {
   switch (card.type) {
@@ -100,7 +104,20 @@ function CardPreview({
         />
       );
     case "link":
-      return <LinkPreview card={card} showScreenshot />;
+      return (
+        <LinkPreview
+          card={card}
+          showScreenshot
+          thumbnail={
+            thumbnail && !card.isDeleted
+              ? {
+                  onFile: (file) => thumbnail.replace(file, "drop"),
+                  uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
+                }
+              : undefined
+          }
+        />
+      );
     case "image":
       return <ImagePreview card={card} />;
     case "video":
@@ -163,6 +180,8 @@ interface CardModalProps {
   hasUnsavedChanges: boolean;
   isDownloading?: boolean;
   isReprocessing?: boolean;
+  /** Replaces or resets a link card's image. */
+  linkThumbnail?: LinkThumbnailControl;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
@@ -210,6 +229,7 @@ export function CardModal({
   tags,
   isDownloading,
   isReprocessing,
+  linkThumbnail,
   onReprocess,
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
@@ -251,6 +271,31 @@ export function CardModal({
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
+
+  // Pasting an image while a link is open replaces its image, unless a text
+  // field has focus. Capture runs before the library's paste-to-save.
+  const canPasteImage = Boolean(
+    open && linkThumbnail && card?.type === "link" && !card.isDeleted
+  );
+  useEffect(() => {
+    if (!(canPasteImage && linkThumbnail)) {
+      return;
+    }
+    const handlePaste = (event: ClipboardEvent) => {
+      if (isTextEntryTarget(event.target)) {
+        return;
+      }
+      const file = imageFromClipboard(event.clipboardData);
+      if (!file) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      linkThumbnail.replace(file, "paste");
+    };
+    document.addEventListener("paste", handlePaste, true);
+    return () => document.removeEventListener("paste", handlePaste, true);
+  }, [canPasteImage, linkThumbnail]);
 
   const commit = () => {
     if (hasUnsavedChanges) {
@@ -701,6 +746,7 @@ export function CardModal({
                       saveChanges={() => {
                         void saveChanges();
                       }}
+                      thumbnail={linkThumbnail}
                       updateContent={editContent}
                     />
                   </div>
@@ -723,6 +769,7 @@ export function CardModal({
                     onRestore={() => void handleRestore(closeAfterAction)}
                     onTagClick={onTagClick}
                     tags={{ ...tags, inputRef: tagInputRef }}
+                    thumbnail={linkThumbnail}
                   />
                 </aside>
               </div>

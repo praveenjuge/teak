@@ -163,6 +163,18 @@ export const fileMetadataValidator = v.optional(
 
 export const r2KeyValidator = v.string();
 
+/**
+ * An image someone chose for a link card in place of its scraped one
+ * (card/thumbnailOverride.ts). Width and height are the decoded image's, so
+ * grids can reserve its aspect ratio.
+ */
+export const thumbnailOverrideValidator = v.object({
+  storageKey: r2KeyValidator,
+  width: v.number(),
+  height: v.number(),
+  updatedAt: v.number(),
+});
+
 export const metadataValidator = v.optional(
   v.object({
     source: v.optional(v.string()),
@@ -511,6 +523,26 @@ export const cardValidator = v.object({
   metadataTitle: v.optional(v.string()),
   // Preserve manual titles, including clears, through link-preview refreshes.
   metadataTitleEdited: v.optional(v.boolean()),
+  /**
+   * A link's chosen image. It lives outside metadata.linkPreview so Refresh
+   * details, screenshots and new link media never replace it.
+   */
+  thumbnailOverride: v.optional(thumbnailOverrideValidator),
+  /**
+   * What the last replace or reset changed from, kept for the undo window:
+   * `override: null` means the card showed its original image. Its object is
+   * deleted after `deleteAfter` unless an undo puts it back.
+   */
+  previousThumbnailOverride: v.optional(
+    v.object({
+      override: v.union(thumbnailOverrideValidator, v.null()),
+      changeId: v.string(),
+      deleteAfter: v.number(),
+      deletionJobId: v.optional(v.id("_scheduled_functions")),
+    })
+  ),
+  /** Minted by every replace or reset; an undo must name the current one. */
+  thumbnailChangeId: v.optional(v.string()),
   metadataDescription: v.optional(v.string()),
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),

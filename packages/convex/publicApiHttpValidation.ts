@@ -136,6 +136,8 @@ const serializeCard = (card: any, requestUrl: string) => ({
   tags: card.tags ?? [],
   placeholderUrl: card.placeholderUrl ?? null,
   thumbnailUrl: card.thumbnailUrl ?? null,
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  thumbnailOverridden: Boolean(card.thumbnailOverride),
   type: card.type,
   updatedAt: card.updatedAt,
   url: card.url ?? null,
@@ -187,6 +189,7 @@ const serializeListCard = (
           linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
           placeholderUrl: card.placeholderUrl ?? null,
           screenshotUrl: card.screenshotUrl ?? null,
+          thumbnailOverridden: Boolean(card.thumbnailOverride),
           thumbnailUrl: card.thumbnailUrl ?? null,
         }
       : {}),
@@ -635,7 +638,10 @@ const parseCardRoute = (
     | "get"
     | "patch"
     | "refresh"
-    | "restore";
+    | "restore"
+    | "thumbnail-reset"
+    | "thumbnail-set"
+    | "thumbnail-upload";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -663,6 +669,25 @@ const parseCardRoute = (
 
   if (request.method === "DELETE" && segments.length === 3) {
     return { cardId, operation: "delete" };
+  }
+
+  if (segments.length === 4 && segments[3] === "thumbnail") {
+    if (request.method === "PUT") {
+      return { cardId, operation: "thumbnail-set" };
+    }
+    if (request.method === "DELETE") {
+      return { cardId, operation: "thumbnail-reset" };
+    }
+    return null;
+  }
+
+  if (
+    request.method === "POST" &&
+    segments.length === 5 &&
+    segments[3] === "thumbnail" &&
+    segments[4] === "upload"
+  ) {
+    return { cardId, operation: "thumbnail-upload" };
   }
 
   if (
@@ -807,6 +832,38 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   return next;
+};
+
+/** `{ mimeType, fileSize }` for a link image upload, or null. */
+const validateThumbnailUploadPayload = (
+  payload: unknown
+): { fileSize: number; mimeType: string } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  if (
+    Object.keys(source).some((key) => key !== "fileSize" && key !== "mimeType")
+  ) {
+    return null;
+  }
+  const mimeType = parseOptionalString(source.mimeType);
+  const fileSize = source.fileSize;
+  return mimeType && typeof fileSize === "number"
+    ? { fileSize, mimeType }
+    : null;
+};
+
+/** `{ fileKey }` naming a finished link image upload, or null. */
+const validateThumbnailSetPayload = (
+  payload: unknown
+): { fileKey: string } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  const fileKey = parseOptionalString(source.fileKey);
+  return Object.keys(source).length === 1 && fileKey ? { fileKey } : null;
 };
 
 const validateFavoritePayload = (
@@ -1004,5 +1061,7 @@ export {
   validateCreatePayload,
   validateFavoritePayload,
   validatePatchPayload,
+  validateThumbnailSetPayload,
+  validateThumbnailUploadPayload,
   validateUploadPayload,
 };

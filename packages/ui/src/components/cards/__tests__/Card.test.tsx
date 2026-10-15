@@ -226,6 +226,38 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("screenshot.jpg");
   });
 
+  test("shows a chosen image before attached X image media", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            hasThumbnailOverride: true,
+            linkPreviewImageUrl: "https://example.com/chosen.jpg",
+            metadata: {
+              linkPreview: { status: "success", title: "Post with images" },
+            },
+            linkPreviewMedia: [
+              {
+                type: "image",
+                url: "https://example.com/attached-image.jpg",
+                width: 1200,
+                height: 900,
+              },
+            ],
+            thumbnailOverride: {
+              height: 900,
+              storageKey: "users/u/cards/c/thumbnail-override/chosen",
+              width: 600,
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain("chosen.jpg");
+    expect(markup).not.toContain("attached-image.jpg");
+  });
+
   test("prefers attached X video poster over screenshot in masonry preview", () => {
     const markup = renderToStaticMarkup(
       <Card

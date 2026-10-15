@@ -700,6 +700,64 @@ describe("teak batch and fallback behavior", () => {
     });
   });
 
+  test("cards thumbnail uploads an image and applies it", async () => {
+    const image = join(workDirectory, "cover.png");
+    writeFileSync(image, new Uint8Array([137, 80, 78, 71, 1, 2, 3]));
+    routes.set("POST /v1/cards/card_a/thumbnail/upload", () =>
+      json({
+        expiresIn: 600,
+        fileKey: "pending/cover",
+        maxFileSize: 20 * 1024 * 1024,
+        method: "PUT",
+        uploadUrl: new URL("/__upload/v1/pending", server.url).toString(),
+      })
+    );
+    routes.set("PUT /__upload/v1/pending", () => new Response(null));
+    routes.set("PUT /v1/cards/card_a/thumbnail", () =>
+      json(card("card_a", { thumbnailOverridden: true, type: "link" }))
+    );
+
+    const result = await teak("cards", "thumbnail", "card_a", image);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("Replaced the image of card_a");
+    expect(
+      requests.map((request) => `${request.method} ${request.path}`)
+    ).toEqual([
+      "POST /v1/cards/card_a/thumbnail/upload",
+      "PUT /__upload/v1/pending",
+      "PUT /v1/cards/card_a/thumbnail",
+    ]);
+    expect(JSON.parse(requests[0]?.body ?? "")).toEqual({
+      fileSize: 7,
+      mimeType: "image/png",
+    });
+    expect(JSON.parse(requests[2]?.body ?? "")).toEqual({
+      fileKey: "pending/cover",
+    });
+  });
+
+  test("cards thumbnail --reset goes back to the link's own image", async () => {
+    routes.set("DELETE /v1/cards/card_a/thumbnail", () =>
+      json(card("card_a", { thumbnailOverridden: false, type: "link" }))
+    );
+    const result = await teak("cards", "thumbnail", "card_a", "--reset");
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("card_a shows its original image");
+    expect(requests.map((request) => request.method)).toEqual(["DELETE"]);
+  });
+
+  test("cards thumbnail refuses an SVG before uploading", async () => {
+    const image = join(workDirectory, "logo.svg");
+    writeFileSync(image, "<svg/>");
+    const result = await teak("cards", "thumbnail", "card_a", image);
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain(
+      "Use a JPEG, PNG, WebP, GIF or AVIF image."
+    );
+    expect(requests).toHaveLength(0);
+  });
+
   test("refresh queues each card and reports rate limits", async () => {
     routes.set("POST /v1/cards/card_a/refresh", () =>
       json({ cardId: "card_a", requestedAt: 1, status: "queued" }, 202)

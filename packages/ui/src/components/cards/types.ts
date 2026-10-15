@@ -53,6 +53,8 @@ export interface CardWithUrls {
     waveform?: WaveformMetadata;
   };
   fileUrl?: string;
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  hasThumbnailOverride?: true;
   isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -78,6 +80,7 @@ export interface CardWithUrls {
   scrubKey?: string;
   scrubUrl?: string;
   thumbnailKey?: string;
+  thumbnailOverride?: { height: number; storageKey: string; width: number };
   thumbnailUrl?: string;
   type?: string;
   url?: string;

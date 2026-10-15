@@ -40,6 +40,7 @@ import {
   resolveFolder,
   restoreCards,
   setCardsArchived,
+  setCardThumbnail,
   showCardContent,
   showFolder,
   startExport,
@@ -541,6 +542,15 @@ cards
   .argument("<ids...>")
   .description("Refresh summaries, tags and link previews for cards")
   .action(async (ids) => refreshCards(ids, program.opts()));
+cards
+  .command("thumbnail")
+  .argument("<id>", "a link card")
+  .argument("[file]", "a JPEG, PNG, WebP, GIF or AVIF image under 20 MB")
+  .description("Replace a link card's image, or reset it with --reset")
+  .option("--reset", "go back to the image Teak found for the link")
+  .action(async (id, file, options) =>
+    setCardThumbnail(id, file, { ...program.opts(), ...options })
+  );
 cards
   .command("archive")
   .argument("<ids...>")
