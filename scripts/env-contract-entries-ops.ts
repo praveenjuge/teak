@@ -176,6 +176,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "KV namespace caching which Teak user an API key hash or WorkOS user belongs to, for edge rate limits.",
   }),
+  spec("CARD_VECTORS_0", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    kind: "binding",
+    note: "Vectorize index teak-cards-0 (768 dimensions, cosine) holding card embeddings for semantic search, one namespace per user.",
+  }),
   spec("LINK_PAGE_CACHE", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],

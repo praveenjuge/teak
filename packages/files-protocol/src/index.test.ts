@@ -5,10 +5,14 @@ import {
   buildImageSourceSigningPayload,
   buildMultipartPartSigningPayload,
   buildUploadSigningPayload,
+  cardEmbeddingDocument,
+  cardEmbeddingQuery,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  vectorNamespaceForUser,
+  vectorShardBinding,
 } from "./index";
 
 describe("files protocol", () => {
@@ -111,5 +115,26 @@ test("copies only numeric AI diagnostics", () => {
   ).toEqual({
     validationRetryCount: 2,
     usage: { inputTokens: 4, outputTokens: 2 },
+  });
+});
+
+describe("card embeddings", () => {
+  test("wraps card text and queries in EmbeddingGemma's retrieval prompts", () => {
+    expect(cardEmbeddingQuery("  wood for furniture ")).toBe(
+      "task: search result | query: wood for furniture"
+    );
+    expect(cardEmbeddingDocument("Teak\nA tropical hardwood\n")).toBe(
+      "title: none | text: Teak\nA tropical hardwood"
+    );
+  });
+
+  test("names shard bindings and keeps namespaces within Vectorize's 64 bytes", () => {
+    expect(vectorShardBinding(0)).toBe("CARD_VECTORS_0");
+    expect(
+      vectorNamespaceForUser("teak_ns767yc5e1fywwsf7adk76q2dd8g905a")
+    ).toBe("teak_ns767yc5e1fywwsf7adk76q2dd8g905a");
+    expect(vectorNamespaceForUser("x".repeat(64))).toBe("x".repeat(64));
+    expect(vectorNamespaceForUser("é".repeat(33))).toBeNull();
+    expect(vectorNamespaceForUser("")).toBeNull();
   });
 });

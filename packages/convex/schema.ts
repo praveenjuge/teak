@@ -751,6 +751,11 @@ export default defineSchema({
     userId: v.string(),
     startedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  // Which Vectorize shard holds a user's card embeddings (vectorShards.ts).
+  vectorShards: defineTable({
+    userId: v.string(),
+    shard: v.number(),
+  }).index("by_userId", ["userId"]),
   // Folders group cards by hand ("manual"); "smart" folders save a search.
   folders: defineTable({
     userId: v.string(),
