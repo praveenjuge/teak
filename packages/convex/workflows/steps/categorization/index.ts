@@ -2,6 +2,7 @@
 
 import { lookup } from "node:dns/promises";
 import {
+  isLinkCategory,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
   type LinkCategoryDetail,
@@ -44,6 +45,7 @@ const resolveDns: DnsResolver = async (hostname) => {
 };
 
 const MAX_FETCH_BODY_SIZE = 250_000;
+const PREVIEW_HINT_CONFIDENCE = 0.95;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 // Top-level regex patterns for performance
@@ -92,6 +94,7 @@ export const projectCategorizationSnapshot = (
             raw: preview.raw,
             rawStorageKey: preview.rawStorageKey,
             rawSha256: preview.rawSha256,
+            categoryHint: preview.categoryHint,
           }
         : undefined,
     },
@@ -158,6 +161,18 @@ export const classifyLinkCategory = (
     siteName: linkPreview?.siteName,
     title: linkPreview?.title || linkPreview?.description,
   });
+
+  // A post confirmed by its site's API (a Mastodon status on any instance,
+  // say) outranks what the URL alone suggests.
+  const hint = linkPreview?.categoryHint;
+  if (typeof hint === "string" && isLinkCategory(hint)) {
+    return {
+      category: hint,
+      confidence: PREVIEW_HINT_CONFIDENCE,
+      providerHint: resolution.provider,
+      reason: "preview_hint",
+    };
+  }
 
   return {
     category: resolution.category,

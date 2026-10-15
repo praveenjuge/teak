@@ -1,3 +1,5 @@
+import type { LinkCategory } from "../shared/linkCategories";
+
 export interface ScrapeAttribute {
   name: string;
   value: string;
@@ -25,6 +27,8 @@ export interface ScrapeResponse {
 export interface LinkPreviewMetadata {
   author?: string;
   canonicalUrl?: string;
+  /** What a site's own API confirmed the link to be; see socialPost.ts. */
+  categoryHint?: LinkCategory;
   description?: string;
   error?: {
     type?: string;

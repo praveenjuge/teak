@@ -82,8 +82,53 @@ describe("categorization index", () => {
         },
       };
       const result = await classifyLinkCategory(card);
-      expect(result.category).toBe("software");
+      expect(result.category).toBe("repo");
       expect(result.providerHint).toBe("github");
+    });
+
+    test("files a status an unlisted Mastodon instance confirmed as a social post", async () => {
+      const result = await classifyLinkCategory({
+        url: "https://social.example.org/@alice/112233445566",
+        metadata: {
+          linkPreview: {
+            status: "success",
+            title: "Hello from my instance",
+            categoryHint: "social_post",
+          },
+        },
+      });
+      expect(result).toMatchObject({
+        category: "social_post",
+        reason: "preview_hint",
+      });
+    });
+
+    test("leaves an unconfirmed Mastodon-like path on a blog as other", async () => {
+      const result = await classifyLinkCategory({
+        url: "https://social.example.org/@alice/112233445566",
+        metadata: {
+          linkPreview: { status: "success", title: "Hello" },
+        },
+      });
+      expect(result.category).toBe("other");
+    });
+
+    test("ignores a hint that is not a category, or on a failed preview", async () => {
+      const url = "https://www.yelp.com/biz/tartine-bakery";
+      const bogus = await classifyLinkCategory({
+        url,
+        metadata: {
+          linkPreview: { status: "success", categoryHint: "toString" },
+        },
+      });
+      const failed = await classifyLinkCategory({
+        url,
+        metadata: {
+          linkPreview: { status: "error", categoryHint: "social_post" },
+        },
+      });
+      expect(bogus.category).toBe("place");
+      expect(failed.category).toBe("place");
     });
 
     test("returns null for missing targetUrl", async () => {
@@ -171,6 +216,24 @@ describe("categorization index", () => {
       const result = await classifyHandler(ctx, { cardId: "c1" });
       expect(result.mode).toBe("classified");
       expect(result.classification).toBeDefined();
+    });
+
+    test("reads the stored preview's category hint", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        url: "https://social.example.org/@alice/112233445566",
+        metadata: {
+          linkPreview: {
+            status: "success",
+            title: "Hello",
+            categoryHint: "social_post",
+          },
+        },
+      });
+
+      const result = await classifyHandler(ctx, { cardId: "c1" });
+      expect(result.classification.category).toBe("social_post");
     });
   });
 
@@ -1032,6 +1095,139 @@ describe("categorization index", () => {
         );
         expect(result.detectedProvider).toBeDefined();
       }
+    });
+
+    test.each([
+      [
+        "place",
+        {
+          "@type": "Restaurant",
+          name: "Tartine",
+          image: "https://example.com/tartine.jpg",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "600 Guerrero St",
+            addressLocality: "San Francisco",
+            addressRegion: "CA",
+            postalCode: "94110",
+            addressCountry: { name: "US" },
+          },
+          servesCuisine: ["Bakery", "Cafe"],
+          priceRange: "$$",
+          aggregateRating: { ratingValue: 4.5 },
+        },
+        {
+          Address: "600 Guerrero St, San Francisco, CA, 94110, US",
+          Cuisine: "Bakery, Cafe",
+          "Price range": "$$",
+          Rating: "4.5",
+        },
+      ],
+      [
+        "place",
+        {
+          "@type": "RealEstateListing",
+          name: "1 Main St",
+          about: {
+            "@type": "SingleFamilyResidence",
+            address: "1 Main St, Springfield",
+          },
+        },
+        { Address: "1 Main St, Springfield" },
+      ],
+      [
+        "app",
+        {
+          "@type": "MobileApplication",
+          name: "Things 3",
+          operatingSystem: "iOS",
+          applicationCategory: "Productivity",
+          aggregateRating: { ratingValue: 4.8 },
+        },
+        { Platform: "iOS", Category: "Productivity", Rating: "4.8" },
+      ],
+      [
+        "game",
+        {
+          "@type": "VideoGame",
+          name: "Hades",
+          gamePlatform: ["PC", "Nintendo Switch"],
+          genre: ["Roguelike", "Action"],
+          aggregateRating: { ratingValue: 9.3 },
+          datePublished: "2020-09-17T12:00:00Z",
+        },
+        {
+          Platform: "PC, Nintendo Switch",
+          Genre: "Roguelike, Action",
+          Rating: "9.3",
+          Released: "Sep 17, 2020",
+        },
+      ],
+    ])("reads %s facts from JSON-LD", async (category, entity, expected) => {
+      const result = await enrichLinkCategory(
+        { url: "https://example.com/page" },
+        { category, confidence: 0.98 },
+        { structuredData: { entities: [{ "@type": "WebSite" }, entity] } }
+      );
+      expect(
+        Object.fromEntries(result.facts.map((fact) => [fact.label, fact.value]))
+      ).toEqual(expected);
+    });
+
+    test("uses the place's image when the preview has none", async () => {
+      const result = await enrichLinkCategory(
+        { url: "https://example.com/page" },
+        { category: "place", confidence: 0.98 },
+        {
+          structuredData: {
+            entities: [
+              {
+                "@type": "LocalBusiness",
+                image: ["https://example.com/venue.jpg"],
+                address: "1 Main St",
+              },
+            ],
+          },
+        }
+      );
+      expect(result.imageUrl).toBe("https://example.com/venue.jpg");
+    });
+
+    test("adds no JSON-LD facts for a game page without VideoGame data", async () => {
+      const result = await enrichLinkCategory(
+        { url: "https://example.com/page" },
+        { category: "game", confidence: 0.98 },
+        {
+          structuredData: {
+            entities: [{ "@type": "Product", name: "Hades" }],
+          },
+        }
+      );
+      expect(result.facts).toBeUndefined();
+    });
+
+    test("keeps GitHub's facts for a repository", async () => {
+      const result = await enrichLinkCategory(
+        {
+          url: "https://github.com/vercel/next.js",
+          metadata: {
+            linkPreview: {
+              status: "success",
+              raw: [
+                {
+                  selector: "a[href$='/stargazers']",
+                  results: [{ text: "1,234" }],
+                },
+              ],
+            },
+          },
+        },
+        { category: "repo", confidence: 0.98, providerHint: "github" },
+        { structuredData: null }
+      );
+      expect(result.facts?.find((f) => f.label === "Stars")?.value).toBe(
+        "1,234"
+      );
     });
 
     test("returns null from enrichWithStructuredData if no data found", async () => {

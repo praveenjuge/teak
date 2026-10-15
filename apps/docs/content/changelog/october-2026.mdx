@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: Find similar cards and search images by mood, search that understands what you mean, prices on product cards and price search, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Find similar cards and search images by mood, search that understands what you mean, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-15"
 changelog:
@@ -37,6 +37,18 @@ changelog:
 - Video cards get a transcript of their speech, like audio already did. For a video saved earlier, use **Refresh details** to get one. Documents saved earlier become searchable as Teak catches up on them.
 - An open document card's details show how much text Teak read from it.
 - **API, CLI, and MCP:** `GET /v1/cards/:cardId/content`, `teak content <card-id>`, and the `teak_v1_get_card_content` tool return a card's full text. See [Read a card's text](/docs/api#read-a-cards-text).
+
+## Save posts from Bluesky, Mastodon, Reddit, TikTok and more
+
+- Saving a post from Bluesky, Mastodon, or Reddit keeps its text, author, and date, and up to 10 of its photos, the way X posts already were. Videos come along when the site offers them as a file, and their cover image otherwise.
+- A TikTok keeps its caption, author, and cover image. Threads, LinkedIn, and Substack Notes posts keep the text and image their page shares.
+- Mastodon posts work from any server, not just the big ones.
+- A private, deleted, or login-only post is saved like any other page, so saving never fails because of it. For a post saved earlier, use **Refresh details** to fetch it again. See [Card details](/docs/features#card-details).
+
+## Teak now recognizes places, fonts, apps, games, code repositories and social posts
+
+- Links to Google Maps, Apple Maps, Yelp, Tripadvisor, OpenTable, Resy, Airbnb, Booking.com, Zillow, Redfin, Rightmove, and Realtor.com are places; Google Fonts, Adobe Fonts, MyFonts, Fontshare, and Future Fonts are typefaces; the App Store, Google Play, the Chrome Web Store, and the Microsoft Store are apps; Steam, itch.io, the Epic Games Store, GOG, and BoardGameGeek are games; and GitHub, GitLab, Bitbucket, Codeberg, and sourcehut projects are code repositories.
+- Places, apps, and games show more in an open card's **Details** when the page lists it: a restaurant's address, cuisine, price range, and rating, an app's platform and rating, or a game's platform, genre, and release date. Repositories keep their GitHub stars and forks. See [Card details](/docs/features#card-details).
 
 ## A calmer card grid and card view
 

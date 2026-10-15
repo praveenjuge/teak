@@ -1,18 +1,18 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 import { resolveLinkCategory } from "../../../shared/utils/linkCategoryResolver";
 
 describe("resolveLinkCategory", () => {
   describe("domain-based resolution", () => {
-    it("should categorize github.com as software", () => {
-      const result = resolveLinkCategory("https://github.com/user/repo");
+    it("should categorize a github.com owner page as software", () => {
+      const result = resolveLinkCategory("https://github.com/microsoft");
       expect(result.category).toBe("software");
       expect(result.reason).toBe("domain_rule");
       expect(result.provider).toBe("github");
       expect(result.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
-    it("should categorize gitlab.com as software", () => {
-      const result = resolveLinkCategory("https://gitlab.com/user/repo");
+    it("should categorize gitlab.com site pages as software", () => {
+      const result = resolveLinkCategory("https://gitlab.com/explore/projects");
       expect(result.category).toBe("software");
       expect(result.reason).toBe("domain_rule");
     });
@@ -342,10 +342,8 @@ describe("resolveLinkCategory", () => {
 
   describe("priority order", () => {
     it("should prioritize domain rule over path rule", () => {
-      // github.com is a domain rule for software, /docs would be a path rule
-      const result = resolveLinkCategory(
-        "https://github.com/user/repo/wiki/docs"
-      );
+      // github.com is a domain rule for software, /recipes would be a path rule
+      const result = resolveLinkCategory("https://github.com/topics/recipes");
       expect(result.category).toBe("software");
       expect(result.reason).toBe("domain_rule");
     });
@@ -402,8 +400,10 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should handle URLs with fragments", () => {
-      const result = resolveLinkCategory("https://github.com/user/repo#readme");
-      expect(result.category).toBe("software");
+      const result = resolveLinkCategory(
+        "https://github.com/vercel/next.js#readme"
+      );
+      expect(result.category).toBe("repo");
     });
 
     it("should handle URLs with ports", () => {
@@ -425,18 +425,143 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should handle URLs with trailing slashes", () => {
-      const result = resolveLinkCategory("https://github.com/user/repo/");
-      expect(result.category).toBe("software");
+      const result = resolveLinkCategory("https://github.com/vercel/next.js/");
+      expect(result.category).toBe("repo");
     });
 
     it("should be case insensitive for domains", () => {
-      const result = resolveLinkCategory("https://GITHUB.COM/user/repo");
-      expect(result.category).toBe("software");
+      const result = resolveLinkCategory("https://GITHUB.COM/Vercel/Next.js");
+      expect(result.category).toBe("repo");
     });
 
     it("should handle international domain names", () => {
       const result = resolveLinkCategory("https://müller.de/blog");
       expect(result.category).toBe("article");
     });
+  });
+});
+
+const NEWER_CATEGORIES = [
+  "place",
+  "typeface",
+  "social_post",
+  "app",
+  "game",
+  "repo",
+];
+
+describe("newer categories", () => {
+  test.each([
+    // Code repositories: owner/repo paths and deeper, on the code hosts
+    ["https://github.com/vercel/next.js", "repo"],
+    ["https://www.github.com/vercel/next.js/tree/canary/packages", "repo"],
+    ["https://github.com/vercel/next.js.git", "repo"],
+    ["https://github.com/vercel/next.js/issues/1", "repo"],
+    ["https://gitlab.com/gitlab-org/gitlab", "repo"],
+    ["https://bitbucket.org/atlassian/python-bitbucket", "repo"],
+    ["https://codeberg.org/forgejo/forgejo", "repo"],
+    ["https://git.sr.ht/~sircmpwn/hare", "repo"],
+    // Apps
+    ["https://apps.apple.com/us/app/things-3/id904237743", "app"],
+    ["https://play.google.com/store/apps/details?id=com.spotify.music", "app"],
+    ["https://chromewebstore.google.com/detail/ublock/cjpalhdlnbpafiam", "app"],
+    ["https://apps.microsoft.com/detail/9nblggh4nns1", "app"],
+    // Games
+    ["https://store.steampowered.com/app/1145360/Hades/", "game"],
+    ["https://supergiant.itch.io/hades", "game"],
+    ["https://store.epicgames.com/en-US/p/hades", "game"],
+    ["https://www.gog.com/en/game/hades", "game"],
+    ["https://boardgamegeek.com/boardgame/13/catan", "game"],
+    // Places
+    ["https://www.google.com/maps/place/Blue+Bottle+Coffee", "place"],
+    ["https://maps.google.com/?q=coffee", "place"],
+    ["https://maps.app.goo.gl/AbCdEf123", "place"],
+    ["https://maps.apple.com/?q=coffee", "place"],
+    ["https://www.yelp.com/biz/tartine-bakery-san-francisco", "place"],
+    ["https://www.tripadvisor.com/Restaurant_Review-g60713", "place"],
+    ["https://www.opentable.com/r/state-bird-provisions", "place"],
+    ["https://resy.com/cities/ny/carbone", "place"],
+    ["https://www.airbnb.com/rooms/12345", "place"],
+    ["https://www.booking.com/hotel/fr/le-meurice.html", "place"],
+    ["https://www.zillow.com/homedetails/1-Main-St/123_zpid/", "place"],
+    ["https://www.redfin.com/CA/San-Francisco/1-Main-St/home/1", "place"],
+    ["https://www.rightmove.co.uk/properties/123456", "place"],
+    ["https://www.realtor.com/realestateandhomes-detail/1-Main-St", "place"],
+    // Typefaces
+    ["https://fonts.google.com/specimen/Inter", "typeface"],
+    ["https://fonts.adobe.com/fonts/source-sans", "typeface"],
+    ["https://www.myfonts.com/collections/helvetica-font-linotype", "typeface"],
+    ["https://www.fontshare.com/fonts/satoshi", "typeface"],
+    ["https://www.futurefonts.xyz/ohno/obviously", "typeface"],
+    // Social posts
+    ["https://x.com/jack/status/20", "social_post"],
+    ["https://mobile.twitter.com/jack/status/20", "social_post"],
+    ["https://www.instagram.com/p/DBY4WfSxA0a/", "social_post"],
+    ["https://www.instagram.com/reel/Cr9Lx2xJ0Ab/", "social_post"],
+    [
+      "https://bsky.app/profile/jay.bsky.team/post/3l6oveex3ii2l",
+      "social_post",
+    ],
+    ["https://www.threads.net/@zuck/post/C8abc123", "social_post"],
+    ["https://www.threads.com/@zuck/post/C8abc123", "social_post"],
+    ["https://www.tiktok.com/@scout/video/6718335390845095173", "social_post"],
+    [
+      "https://www.reddit.com/r/programming/comments/abc123/a_title/",
+      "social_post",
+    ],
+    ["https://old.reddit.com/r/programming/comments/abc123/", "social_post"],
+    [
+      "https://www.linkedin.com/posts/janedoe_activity-7100-abcd",
+      "social_post",
+    ],
+    [
+      "https://www.linkedin.com/feed/update/urn:li:activity:7100/",
+      "social_post",
+    ],
+    ["https://substack.com/@author/note/c-12345678", "social_post"],
+    ["https://mastodon.social/@Gargron/109311046116149744", "social_post"],
+    ["https://hachyderm.io/@nova/110000000000000000/", "social_post"],
+  ] as const)("%s is %s", (url: string, category: string) => {
+    const result = resolveLinkCategory(url);
+    expect(result.category).toBe(category);
+    expect(result.reason).toBe("domain_rule");
+  });
+
+  test.each([
+    // Site pages and owners on code hosts are not repositories
+    ["https://github.com/features/actions", "software"],
+    ["https://github.com/pricing", "software"],
+    ["https://github.com/orgs/vercel/repositories", "software"],
+    ["https://github.com/marketplace/actions/checkout", "software"],
+    ["https://github.com/topics/react", "software"],
+    ["https://github.com/torvalds", "software"],
+    ["https://gist.github.com/torvalds/1234567", "software"],
+    ["https://docs.github.com/en/actions", "software"],
+    // A Substack post stays an article; only notes are posts
+    ["https://example.substack.com/p/a-long-read", "article"],
+  ] as const)("%s stays %s", (url: string, category: string) => {
+    expect(resolveLinkCategory(url).category).toBe(category);
+  });
+
+  test.each([
+    "https://play.google.com/store/movies/details/Dune?id=abc",
+    "https://www.google.com/search?q=maps",
+    "https://www.reddit.com/r/programming/",
+    "https://x.com/jack",
+    "https://bsky.app/profile/jay.bsky.team",
+    "https://www.tiktok.com/@scout2015",
+    "https://apps.apple.com/us/charts/iphone",
+    // A Mastodon-like path on a host that isn't a known instance
+    "https://example.com/@alice/123456",
+    "https://mastodon.social.example.com/@alice/123456",
+    "https://mastodon.social/@Gargron",
+  ])("%s is not one of the newer categories", (url: string) => {
+    expect(NEWER_CATEGORIES).not.toContain(resolveLinkCategory(url).category);
+  });
+
+  it("keeps GitHub as the repo provider so its facts still apply", () => {
+    expect(
+      resolveLinkCategory("https://github.com/vercel/next.js")
+    ).toMatchObject({ category: "repo", provider: "github" });
   });
 });
