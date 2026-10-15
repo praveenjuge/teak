@@ -151,6 +151,7 @@ const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
 const FUNCTIONAL_COLOR_PATTERN = /^(?:rgba?|hsla?)\([^()]{0,64}\)$/iu;
 const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
 const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
+const NUMERIC_REFERENCE_IN_TEXT_PATTERN = /#\d{3,4}\b/gu;
 
 // "#123" or "#1234" in a note is far more often an issue or ticket number
 // than a colour. Repeated digits ("#000", "#333") stay colours.
@@ -159,6 +160,16 @@ const isNumericReference = (token: string): boolean =>
 
 // parseColorString finds rgb()/hsl() anywhere in a string, so a token with
 // parentheses must be exactly one functional colour.
+// extractPaletteColors reads "#123" as #112233, so drop references before
+// extracting swatches.
+const extractCardColors = (text: string, maxColors?: number): Color[] =>
+  extractPaletteColors(
+    text.replace(NUMERIC_REFERENCE_IN_TEXT_PATTERN, (match) =>
+      isNumericReference(match) ? " " : match
+    ),
+    maxColors
+  );
+
 const isColorToken = (token: string): boolean => {
   if (isNumericReference(token)) {
     return false;
@@ -245,7 +256,9 @@ const isColorList = (content: unknown): boolean => {
 };
 
 const isProbablyPalette = (card: any): boolean => {
-  if (isColorList(card.content)) {
+  // A list such as "mint cream" parses as a colour name but yields no
+  // swatches, so a colour list must also produce at least one colour.
+  if (isColorList(card.content) && extractCardColors(card.content).length > 0) {
     return true;
   }
 
@@ -260,7 +273,7 @@ const isProbablyPalette = (card: any): boolean => {
   if (!hasPaletteHint(card)) {
     return false;
   }
-  return codeCount === 1 || extractPaletteColors(text).length > 0;
+  return codeCount === 1 || extractCardColors(text).length > 0;
 };
 
 const fileNameFromUrl = (url?: string): string | undefined => {
@@ -371,7 +384,7 @@ const maybeUpdatePaletteColors = async (
   }
 
   const text = buildPaletteAnalysisText(card);
-  const colors = extractPaletteColors(text, MAX_PALETTE_COLORS);
+  const colors = extractCardColors(text, MAX_PALETTE_COLORS);
 
   if (colors.length === 0) {
     return;

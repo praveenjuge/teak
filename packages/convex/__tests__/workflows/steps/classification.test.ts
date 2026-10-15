@@ -461,6 +461,8 @@ describe("classification step", () => {
       "Ticket: #1234",
       "#123, #456",
       "Use rgb(255, 87, 51) for buttons",
+      "Brand colors are tracked in #123",
+      "mint cream",
     ])("keeps prose %p as text", async (content) => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "text", content });
 
