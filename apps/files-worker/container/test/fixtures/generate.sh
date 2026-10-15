@@ -22,6 +22,11 @@ SVT_LOG=1 ff $video -c:v libsvtav1 -g 10 -pix_fmt yuv420p av1.mp4
 ff $video $tone -c:v libx264 -g 10 -pix_fmt yuv420p -c:a libopus -b:a 16k -ac 1 -shortest video.mkv
 ff $video -c:v mpeg4 -g 10 -q:v 10 video.avi
 
+# A 2 s, 32×32 GIF that is red for its first second and blue for its last,
+# so a palette read from only the first frame misses the blue.
+ff -f lavfi -i "color=c=red:s=32x32:d=1:r=4" -f lavfi -i "color=c=blue:s=32x32:d=1:r=4" \
+  -filter_complex "[0][1]concat=n=2:v=1" animation.gif
+
 # 2 s of a tone that swells and fades, so the peaks aren't flat.
 swell="-f lavfi -i sine=frequency=330:duration=2:sample_rate=8000 -af volume=eval=frame:volume=sin(PI*t/2)"
 ff $swell -ac 1 -c:a libmp3lame -b:a 32k audio.mp3

@@ -73,20 +73,23 @@ const setup = async (
   };
 };
 
-const videoAnswer = (scrub: boolean) => () =>
-  rendererResponse(
-    {
-      facts: mediaFacts({ format: "webm", videoCodec: "vp9" }),
-      frame: { height: 36, timeSeconds: 1, width: 64 },
-      scrub: scrub ? { frameHeight: 18, frameWidth: 32, frames: 10 } : null,
-    },
-    [
-      { bytes: JPEG_BYTES, name: "frame", type: "image/jpeg" },
-      ...(scrub
-        ? [{ bytes: JPEG_BYTES, name: "scrub", type: "image/jpeg" }]
-        : []),
-    ]
-  );
+const videoAnswer =
+  (scrub: boolean, palette: unknown = ["#112233"]) =>
+  () =>
+    rendererResponse(
+      {
+        facts: mediaFacts({ format: "webm", videoCodec: "vp9" }),
+        frame: { height: 36, timeSeconds: 1, width: 64 },
+        palette,
+        scrub: scrub ? { frameHeight: 18, frameWidth: 32, frames: 10 } : null,
+      },
+      [
+        { bytes: JPEG_BYTES, name: "frame", type: "image/jpeg" },
+        ...(scrub
+          ? [{ bytes: JPEG_BYTES, name: "scrub", type: "image/jpeg" }]
+          : []),
+      ]
+    );
 
 describe("extract-video-frame", () => {
   test("stores the frame and the scrub sprite, and returns the media facts", async () => {
@@ -102,6 +105,7 @@ describe("extract-video-frame", () => {
       facts: { container: "webm", videoCodec: "vp9" },
       originalHeight: 36,
       originalWidth: 64,
+      palette: ["#112233"],
       scrub: { frameHeight: 18, frameWidth: 32, frames: 10 },
       storedContentType: "image/jpeg",
     });
@@ -116,6 +120,22 @@ describe("extract-video-frame", () => {
     expect(bucket.objects.get(SCRUB)?.httpMetadata).toEqual({
       contentType: "image/jpeg",
     });
+  });
+
+  test.each([
+    ["null", null],
+    ["empty", []],
+    ["not hex", ["#12345G"]],
+    ["lowercase", ["#aabbcc"]],
+    ["too long", Array.from({ length: 9 }, () => "#000000")],
+  ])("leaves out a %s palette", async (_name, palette) => {
+    const { body, status } = await callOp(
+      (await setup(videoAnswer(false, palette))).env,
+      "extract-video-frame",
+      { destinationKey: FRAME, sourceKey: SOURCE }
+    );
+    expect(status).toBe(200);
+    expect(body.data).not.toHaveProperty("palette");
   });
 
   test("asks for no sprite when Convex passes no scrub key", async () => {
@@ -286,6 +306,48 @@ describe("render-pdf-thumbnail and probe-media", () => {
       height: 1080,
       width: 1920,
     });
+  });
+});
+
+describe("extract-animation-palette", () => {
+  const GIF = "users/u/cards/c/file/loop.gif";
+
+  test("returns the renderer's palette and stores nothing", async () => {
+    const { bucket, calls, env } = await setup(
+      () =>
+        rendererResponse({
+          facts: mediaFacts({ format: "gif", videoCodec: "gif" }),
+          palette: ["#FB0000", "#0000FF"],
+        }),
+      GIF
+    );
+    const { body, status } = await callOp(env, "extract-animation-palette", {
+      sourceKey: GIF,
+    });
+    expect(status).toBe(200);
+    expect(body.data).toEqual({ palette: ["#FB0000", "#0000FF"] });
+    expect(calls[0]?.path).toBe("/animation/palette?frames=8");
+    expect([...bucket.objects.keys()]).toEqual([GIF]);
+  });
+
+  test("returns no colors when the renderer sends a malformed palette", async () => {
+    const { env } = await setup(
+      () => rendererResponse({ facts: mediaFacts(), palette: "red" }),
+      GIF
+    );
+    const { body } = await callOp(env, "extract-animation-palette", {
+      sourceKey: GIF,
+    });
+    expect(body.data).toEqual({ palette: [] });
+  });
+
+  test("refuses a source outside the upload namespace", async () => {
+    const { calls, env } = await setup(() => rendererResponse({}), GIF);
+    const { status } = await callOp(env, "extract-animation-palette", {
+      sourceKey: "../etc/passwd",
+    });
+    expect(status).toBe(400);
+    expect(calls).toEqual([]);
   });
 });
 

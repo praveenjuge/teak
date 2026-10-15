@@ -257,7 +257,7 @@ describe("shared search helpers", () => {
     expect(results.map((card) => card._id)).toEqual(["1"]);
   });
 
-  it("filters by normalized hue and hex on image/palette cards", () => {
+  it("filters by normalized hue and hex on image, palette and video cards", () => {
     const cards = [
       makeCard({
         _id: "1",
@@ -283,13 +283,21 @@ describe("shared search helpers", () => {
         createdAt: 1,
         updatedAt: 1,
       }),
+      makeCard({
+        _id: "4",
+        type: "video",
+        colorHues: ["purple"],
+        colorHexes: ["#663399"],
+        createdAt: 0,
+        updatedAt: 0,
+      }),
     ];
 
     const results = filterLocalCards(cards, {
       hueFilters: ["violet"],
       hexFilters: ["663399"],
     });
-    expect(results.map((card) => card._id)).toEqual(["1", "2"]);
+    expect(results.map((card) => card._id)).toEqual(["1", "2", "4"]);
   });
 
   it("merges local and remote search results without duplicates", () => {

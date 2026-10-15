@@ -69,6 +69,11 @@ export interface FilesVideoFrameResult {
   facts?: FilesMediaProbeResult;
   originalHeight: number | null;
   originalWidth: number | null;
+  /**
+   * Main colors (`#RRGGBB`, largest share first) across the thumbnail and the
+   * scrub frames. Absent from a renderer that predates it.
+   */
+  palette?: string[];
   /** Present when a sprite was requested and stored; best effort. */
   scrub?: FilesVideoScrub | null;
   storedBytes: number;
@@ -102,6 +107,15 @@ export interface FilesScrapeResult {
     }>;
     selector: string;
   }>;
+}
+
+export interface FilesAnimationPaletteParams {
+  sourceKey: string;
+}
+
+/** Main colors (`#RRGGBB`, largest share first) across an animation's frames. */
+export interface FilesAnimationPaletteResult {
+  palette: string[];
 }
 
 export interface FilesMediaProbeResult {

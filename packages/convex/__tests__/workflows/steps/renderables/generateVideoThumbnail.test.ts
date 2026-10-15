@@ -64,12 +64,13 @@ const run = async (card: Record<string, unknown> = videoCard) => {
   return { owned, result, updates };
 };
 
-const frame = (scrub: unknown) => ({
+const frame = (scrub: unknown, palette?: string[]) => ({
   kind: "ok",
   data: {
     durationSeconds: 12.3456,
     originalHeight: 1080,
     originalWidth: 1920,
+    ...(palette && { palette }),
     scrub,
     storedBytes: 2048,
     storedContentType: "image/jpeg",
@@ -116,6 +117,20 @@ describe("generateVideoThumbnail", () => {
         },
       },
     ]);
+  });
+
+  test("stores the colors the renderer read across the video", async () => {
+    frameAnswer = () => Promise.resolve(frame(null, ["#0EFB0B", "#0806FD"]));
+    const { updates } = await run();
+
+    expect(updates.map((update) => update.name)).toEqual([
+      "workflows/steps/renderables/mutations:updateCardThumbnail",
+      "workflows/aiMetadata/mutations:updateCardColors",
+    ]);
+    expect(updates[1]?.args).toEqual({
+      cardId: "card-video",
+      colors: [{ hex: "#0EFB0B" }, { hex: "#0806FD" }],
+    });
   });
 
   test("keeps the frame without a scrub key when no sprite was made", async () => {

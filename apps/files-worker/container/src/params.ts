@@ -71,6 +71,14 @@ export function videoParams(query: URLSearchParams): VideoParams {
   };
 }
 
+export interface AnimationParams {
+  frames: number;
+}
+
+export function animationParams(query: URLSearchParams): AnimationParams {
+  return { frames: intParam(query, "frames", 8, 1, 16) };
+}
+
 export interface AudioParams {
   peaks: number[];
   whisper: WhisperMode;

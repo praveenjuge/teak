@@ -106,20 +106,29 @@ describe("color and style search", () => {
       colorHexes: ["#1E90FF"],
       createdAt: 1000,
     });
+    await insert({
+      content: "Campfire clip",
+      type: "video",
+      colorHues: ["orange", "brown"],
+      colorHexes: ["#E8792B"],
+      createdAt: 750,
+    });
     await insert({ content: "Orange notes", type: "text", createdAt: 500 });
   };
 
-  test("a hue finds the images and palettes that carry it", async () => {
+  test("a hue finds the images, palettes and videos that carry it", async () => {
     const { insert, grid, list } = await setup();
     await seed(insert);
 
     expect(await grid({ hueFilters: ["orange"] })).toEqual([
       "Sunset palette",
       "Coral lily",
+      "Campfire clip",
     ]);
     expect(await list({ hueFilters: ["orange"] })).toEqual([
       "Sunset palette",
       "Coral lily",
+      "Campfire clip",
     ]);
     // Another word for a hue finds it too.
     await insert({
@@ -136,6 +145,7 @@ describe("color and style search", () => {
 
     expect(await grid({ hexFilters: ["1e90ff"] })).toEqual(["Ocean palette"]);
     expect(await list({ hexFilters: ["#1E90FF"] })).toEqual(["Ocean palette"]);
+    expect(await grid({ hexFilters: ["#E8792B"] })).toEqual(["Campfire clip"]);
   });
 
   test("a visual style finds its images", async () => {

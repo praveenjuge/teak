@@ -34,6 +34,7 @@ import { indexImportSource, readImportMarkdown } from "./importSource";
 import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import {
+  extractAnimationPalette,
   extractPdfTextViaRenderer,
   extractVideoFrame,
   probeMediaObject,
@@ -647,6 +648,11 @@ const dispatch = async (
       return success(
         requestId,
         await probeMediaObject(env, validSourceKey(params))
+      );
+    case "extract-animation-palette":
+      return success(
+        requestId,
+        await extractAnimationPalette(env, validSourceKey(params))
       );
     case "process-audio": {
       const mimeType = optionalString(params, "mimeType");

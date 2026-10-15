@@ -4,7 +4,8 @@
  * Workflow step that generates thumbnails and other visual assets for cards.
  * Handles thumbnail generation for:
  * - Image cards (dimensions and palette; Cloudflare serves renditions on demand)
- * - Video cards (thumbnail frame and hover scrub sprite)
+ * - Video cards (thumbnail frame, hover scrub sprite and palette)
+ * - GIF cards (palette from frames across the animation)
  * - PDF documents (first page)
  * Video and PDF render on the Files Worker's media renderer. A busy or
  * unavailable renderer throws `renderables_retryable:` so the workflow step
@@ -132,6 +133,17 @@ export async function generateHandler(
     if (!result.generated) {
       await recordMediaFacts(ctx, card, "video");
     }
+    handleResult(result);
+  }
+
+  // GIFs keep no thumbnail (they play as images); only their colors are read.
+  if (cardType === "video" && card.fileKey && isGifFile) {
+    const result = await ctx.runAction(
+      (internal as any).workflows.steps.renderables.extractAnimationPalette
+        .extractAnimationPalette,
+      { cardId }
+    );
+    throwIfRetryable(result);
     handleResult(result);
   }
 

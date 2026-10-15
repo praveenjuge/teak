@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { toolFailure } from "./errors";
 import { whisperPlan } from "./jobs/audio";
+import {
+  animationFrameRate,
+  paletteFromSamples,
+  sampleFrames,
+} from "./jobs/palette";
 import { capText, parsePageCount, pngSize } from "./jobs/pdf";
 import { describeProbe, type FfprobeOutput, formatToken } from "./jobs/probe";
 import {
@@ -186,6 +191,32 @@ describe("video sizing and timing", () => {
     expect(exceedsFrameLimits(8193, 100)).toBe(true);
     expect(exceedsFrameLimits(100, 8193)).toBe(true);
     expect(exceedsFrameLimits(8000, 5001)).toBe(true);
+  });
+});
+
+describe("palette samples", () => {
+  const size = { width: 2, height: 1 };
+  const red = [255, 0, 0, 255];
+  const blue = [0, 0, 255, 255];
+
+  test("keeps whole frames and drops a cut-off one", () => {
+    const stdout = new Uint8Array([...red, ...red, ...blue, ...blue, 1, 2]);
+    expect(sampleFrames(stdout, size)?.byteLength).toBe(16);
+    expect(sampleFrames(new Uint8Array([...red]), size)).toBeNull();
+  });
+
+  test("reads one palette across every frame", () => {
+    const frame = (color: number[]) => new Uint8Array([...color, ...color]);
+    expect(
+      paletteFromSamples([frame(red), frame(red), frame(red), frame(blue)])
+    ).toEqual(["#FF0000", "#0000FF"]);
+    expect(paletteFromSamples([])).toEqual([]);
+  });
+
+  test("spreads animation frames across the duration", () => {
+    expect(animationFrameRate(2, 8)).toBe(4);
+    expect(animationFrameRate(null, 8)).toBeNull();
+    expect(animationFrameRate(2, 1)).toBeNull();
   });
 });
 

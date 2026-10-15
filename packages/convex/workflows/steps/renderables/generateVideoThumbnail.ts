@@ -124,6 +124,13 @@ export const generateVideoThumbnail = internalAction({
         ...(duration !== undefined && { duration }),
       }
     );
+    // Colors from the thumbnail and scrub frames, when the renderer sent them.
+    if (frame.palette?.length) {
+      await ctx.runMutation(
+        internal.workflows.aiMetadata.mutations.updateCardColors,
+        { cardId: args.cardId, colors: frame.palette.map((hex) => ({ hex })) }
+      );
+    }
     return { success: true, generated: true, thumbnailKey };
   },
 });

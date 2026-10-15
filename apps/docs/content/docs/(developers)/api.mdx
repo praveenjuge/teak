@@ -291,7 +291,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="hue" type="string">
-  Color family, such as `blue` or `neutral`. Repeatable.
+  Color family, such as `blue` or `neutral`. Repeatable. Matches image, palette, and video cards; see [Visual filters](#visual-filters).
 </ParamField>
 
 <ParamField query="hex" type="string">
@@ -369,6 +369,7 @@ parameters to match any value within each filter, combining different filters. E
 Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
 Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
 For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
+`style` matches image cards. `hue` and `hex` match image, palette, and video cards: a video's colors, including a GIF's, come from frames across it, and videos saved before October 2026 have none.
 
 ## Errors
 

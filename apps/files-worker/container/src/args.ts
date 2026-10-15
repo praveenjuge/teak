@@ -24,6 +24,8 @@ export const FORMAT_WHITELIST = [
   "ogg",
   "flac",
   "aac",
+  // Animated GIFs, for their palette. The GIF demuxer reads one file.
+  "gif",
 ].join(",");
 
 export const MAX_ALLOC_BYTES = 268_435_456;
@@ -121,20 +123,58 @@ export function ffmpegCommand(
   return argv;
 }
 
+export interface SampleSize {
+  height: number;
+  width: number;
+}
+
 export interface FrameJob {
   height: number;
   input: string;
   jobDir: string;
   output: string;
+  /** Also write a copy this size to stdout as raw RGBA, for the palette. */
+  sample?: SampleSize;
   streamIndex: number;
   timeSeconds: number;
   width: number;
 }
 
 const JPEG_OPTIONS = ["-pix_fmt", "yuvj420p", "-q:v", "3", "-f", "mjpeg"];
+const RGBA_OPTIONS = ["-pix_fmt", "rgba", "-f", "rawvideo"];
 
 function scaleFilter(width: number, height: number): string {
   return `scale=${width}:${height},setsar=1`;
+}
+
+function sampleFilter(sample: SampleSize): string {
+  return `scale=${sample.width}:${sample.height}:flags=area,format=rgba`;
+}
+
+/** The same frame, scaled down, as raw RGBA on stdout. */
+function sampleOutput(
+  job: FrameJob,
+  options: string[] = [],
+  filterSuffix = ""
+): FfmpegOutput[] {
+  if (!job.sample) {
+    return [];
+  }
+  return [
+    {
+      target: "pipe:1",
+      options: [
+        "-map",
+        `0:${job.streamIndex}`,
+        "-frames:v",
+        "1",
+        ...options,
+        "-vf",
+        `${sampleFilter(job.sample)}${filterSuffix}`,
+        ...RGBA_OPTIONS,
+      ],
+    },
+  ];
 }
 
 /** One accurately seeked frame, autorotated and scaled, as a JPEG. */
@@ -155,6 +195,7 @@ export function frameCommand(job: FrameJob): string[] {
           ...JPEG_OPTIONS,
         ],
       },
+      ...sampleOutput(job),
     ]
   );
 }
@@ -193,6 +234,50 @@ export function tileCommand(job: FrameJob): string[] {
           "ffv1",
           "-f",
           "matroska",
+        ],
+      },
+      ...sampleOutput(job, ["-fps_mode", "passthrough"], ",setpts=0"),
+    ]
+  );
+}
+
+export interface AnimationSampleJob extends SampleSize {
+  /** Frames to keep. */
+  frames: number;
+  /** Frame rate that spreads `frames` across the animation; null takes the first. */
+  framesPerSecond: number | null;
+  input: string;
+  jobDir: string;
+  streamIndex: number;
+}
+
+/**
+ * Evenly spaced frames of a short animation as raw RGBA on stdout, from one
+ * decode from the start. Long videos use keyframe seeks (tileCommand) instead.
+ */
+export function animationSampleCommand(job: AnimationSampleJob): string[] {
+  const filters = [
+    ...(job.framesPerSecond === null
+      ? []
+      : [`fps=${Number(job.framesPerSecond.toFixed(6))}:round=down`]),
+    sampleFilter(job),
+  ];
+  return ffmpegCommand(
+    job.jobDir,
+    [{ path: job.input }],
+    [
+      {
+        target: "pipe:1",
+        options: [
+          "-map",
+          `0:${job.streamIndex}`,
+          "-vf",
+          filters.join(","),
+          "-frames:v",
+          String(job.framesPerSecond === null ? 1 : job.frames),
+          "-fps_mode",
+          "passthrough",
+          ...RGBA_OPTIONS,
         ],
       },
     ]

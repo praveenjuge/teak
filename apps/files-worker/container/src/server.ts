@@ -12,6 +12,7 @@
 //   POST /audio?peaks=45,200&whisper=auto|never|always  [whisper]   (120 s)
 //   POST /pdf/page?max            page                              (30 s)
 //   POST /pdf/text?maxPages&maxChars             text               (30 s)
+//   POST /animation/palette?frames               palette only       (30 s)
 //
 // Success is 200 with an `x-teak-manifest` JSON header ({protocol, facts,
 // parts, …job fields}) and the parts' bytes concatenated as the body.
@@ -32,9 +33,10 @@ import { audioJob } from "./jobs/audio";
 import type { JobContext } from "./jobs/context";
 import { pdfPageJob, pdfTextJob } from "./jobs/pdf";
 import { probeJob } from "./jobs/probe";
-import { videoJob } from "./jobs/video";
+import { animationPaletteJob, videoJob } from "./jobs/video";
 import { type JobResult, jobResponse, PROTOCOL } from "./manifest";
 import {
+  animationParams,
   audioParams,
   pdfPageParams,
   pdfTextParams,
@@ -87,6 +89,13 @@ const ROUTES: Record<string, Route> = {
     prepare: (query) => {
       const params = pdfTextParams(query);
       return (ctx) => pdfTextJob(ctx, params);
+    },
+  },
+  "/animation/palette": {
+    wallClockMs: 30_000,
+    prepare: (query) => {
+      const params = animationParams(query);
+      return (ctx) => animationPaletteJob(ctx, params);
     },
   },
 };

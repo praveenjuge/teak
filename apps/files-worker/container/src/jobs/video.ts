@@ -1,10 +1,21 @@
 import { join } from "node:path";
-import { frameCommand, spriteCommand, tileCommand } from "../args";
+import {
+  animationSampleCommand,
+  frameCommand,
+  type SampleSize,
+  spriteCommand,
+  tileCommand,
+} from "../args";
 import { toolFailure, unsupported } from "../errors";
 import { run } from "../exec";
 import type { JobResult } from "../manifest";
-import type { VideoParams } from "../params";
+import type { AnimationParams, VideoParams } from "../params";
 import { type JobContext, readOutput } from "./context";
+import {
+  animationFrameRate,
+  paletteFromSamples,
+  sampleFrames,
+} from "./palette";
 import { probeMedia } from "./probe";
 
 export const MAX_PIXELS = 40_000_000;
@@ -41,12 +52,24 @@ export function exceedsFrameLimits(width: number, height: number): boolean {
   return width * height > MAX_PIXELS || width > MAX_SIDE || height > MAX_SIDE;
 }
 
+/** Long side of each frame the palette is read from. */
+export const PALETTE_SAMPLE_MAX = 48;
+
+export function paletteSampleSize(width: number, height: number): SampleSize {
+  return fitWithin(width, height, PALETTE_SAMPLE_MAX);
+}
+
 async function extractFrame(
   ctx: JobContext,
   streamIndex: number,
   timeSeconds: number,
-  size: { width: number; height: number }
-): Promise<{ bytes: Uint8Array; timeSeconds: number }> {
+  size: { width: number; height: number },
+  sample: SampleSize
+): Promise<{
+  bytes: Uint8Array;
+  sample: Uint8Array | null;
+  timeSeconds: number;
+}> {
   const output = join(ctx.dir, "frame.jpg");
   const attempt = async (at: number) => {
     const result = await run(
@@ -56,6 +79,7 @@ async function extractFrame(
         streamIndex,
         timeSeconds: at,
         output,
+        sample,
         ...size,
       }),
       { deadline: ctx.deadline }
@@ -74,16 +98,26 @@ async function extractFrame(
   if (!bytes) {
     throw toolFailure(result, "Could not decode a video frame");
   }
-  return { bytes, timeSeconds: usedTime };
+  return {
+    bytes,
+    sample: sampleFrames(result.stdout, sample),
+    timeSeconds: usedTime,
+  };
 }
 
+/**
+ * The scrub sprite, and a palette sample of each tile that decoded (kept even
+ * when a later tile fails and the sprite is dropped).
+ */
 async function buildSprite(
   ctx: JobContext,
   streamIndex: number,
   times: number[],
-  size: { width: number; height: number }
-): Promise<Uint8Array | null> {
+  size: { width: number; height: number },
+  sample: SampleSize
+): Promise<{ samples: Uint8Array[]; sprite: Uint8Array | null }> {
   const tiles: string[] = [];
+  const samples: Uint8Array[] = [];
   for (const [index, timeSeconds] of times.entries()) {
     const output = join(ctx.dir, `tile-${index}.mkv`);
     const result = await run(
@@ -93,12 +127,17 @@ async function buildSprite(
         streamIndex,
         timeSeconds,
         output,
+        sample,
         ...size,
       }),
       { deadline: ctx.deadline }
     );
     if (result.exitCode !== 0 || !(await readOutput(output))) {
-      return null;
+      return { samples, sprite: null };
+    }
+    const pixels = sampleFrames(result.stdout, sample);
+    if (pixels) {
+      samples.push(pixels);
     }
     tiles.push(output);
   }
@@ -106,7 +145,10 @@ async function buildSprite(
   const result = await run(spriteCommand(ctx.dir, tiles, output), {
     deadline: ctx.deadline,
   });
-  return result.exitCode === 0 ? await readOutput(output) : null;
+  return {
+    samples,
+    sprite: result.exitCode === 0 ? await readOutput(output) : null,
+  };
 }
 
 export async function videoJob(
@@ -125,13 +167,17 @@ export async function videoJob(
   }
 
   const frameSize = fitWithin(facts.width, facts.height, params.frameMax);
+  const sampleSize = paletteSampleSize(facts.width, facts.height);
   const frame = await extractFrame(
     ctx,
     video.index,
     frameTimeSeconds(facts.durationSeconds),
-    frameSize
+    frameSize,
+    sampleSize
   );
   const parts = [{ name: "frame", type: "image/jpeg", bytes: frame.bytes }];
+  // The thumbnail and every scrub tile, so the palette spans the whole video.
+  const samples = frame.sample ? [frame.sample] : [];
 
   let scrub: {
     frames: number;
@@ -141,12 +187,14 @@ export async function videoJob(
   const duration = facts.durationSeconds;
   if (params.scrubFrames > 0 && duration !== null && duration >= 1) {
     const tileSize = fitWithin(facts.width, facts.height, params.scrubMax);
-    const sprite = await buildSprite(
+    const { samples: tileSamples, sprite } = await buildSprite(
       ctx,
       video.index,
       scrubTimes(duration, params.scrubFrames),
-      tileSize
+      tileSize,
+      sampleSize
     );
+    samples.push(...tileSamples);
     if (sprite) {
       parts.push({ name: "scrub", type: "image/jpeg", bytes: sprite });
       scrub = {
@@ -162,7 +210,48 @@ export async function videoJob(
     parts,
     extra: {
       frame: { ...frameSize, timeSeconds: frame.timeSeconds },
+      palette: paletteFromSamples(samples),
       scrub,
     },
   };
+}
+
+/**
+ * The palette of a short animation (an animated GIF), read from evenly spaced
+ * frames so colors that only appear later still count. Nothing is stored.
+ */
+export async function animationPaletteJob(
+  ctx: JobContext,
+  params: AnimationParams
+): Promise<JobResult> {
+  const { facts, video } = await probeMedia(ctx);
+  if (!(video && facts.width && facts.height)) {
+    throw unsupported("The file has no video stream");
+  }
+  if (exceedsFrameLimits(video.width, video.height)) {
+    throw unsupported(
+      `Frames of ${video.width}×${video.height} are larger than allowed`
+    );
+  }
+  const size = paletteSampleSize(facts.width, facts.height);
+  const result = await run(
+    animationSampleCommand({
+      jobDir: ctx.dir,
+      input: ctx.input,
+      streamIndex: video.index,
+      frames: params.frames,
+      framesPerSecond: animationFrameRate(facts.durationSeconds, params.frames),
+      ...size,
+    }),
+    {
+      deadline: ctx.deadline,
+      maxStdoutBytes: params.frames * size.width * size.height * 4,
+    }
+  );
+  const pixels =
+    result.exitCode === 0 ? sampleFrames(result.stdout, size) : null;
+  if (!pixels) {
+    throw toolFailure(result, "Could not decode a frame");
+  }
+  return { facts, parts: [], extra: { palette: paletteFromSamples([pixels]) } };
 }

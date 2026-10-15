@@ -229,6 +229,7 @@ import type * as workflows_steps_palette from "../workflows/steps/palette.js";
 import type * as workflows_steps_pinnedFetch from "../workflows/steps/pinnedFetch.js";
 import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
 import type * as workflows_steps_renderables_analyzeImage from "../workflows/steps/renderables/analyzeImage.js";
+import type * as workflows_steps_renderables_extractAnimationPalette from "../workflows/steps/renderables/extractAnimationPalette.js";
 import type * as workflows_steps_renderables_generateFilePreview from "../workflows/steps/renderables/generateFilePreview.js";
 import type * as workflows_steps_renderables_generatePdfThumbnail from "../workflows/steps/renderables/generatePdfThumbnail.js";
 import type * as workflows_steps_renderables_generateVideoThumbnail from "../workflows/steps/renderables/generateVideoThumbnail.js";
@@ -478,6 +479,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/pinnedFetch": typeof workflows_steps_pinnedFetch;
   "workflows/steps/renderables": typeof workflows_steps_renderables;
   "workflows/steps/renderables/analyzeImage": typeof workflows_steps_renderables_analyzeImage;
+  "workflows/steps/renderables/extractAnimationPalette": typeof workflows_steps_renderables_extractAnimationPalette;
   "workflows/steps/renderables/generateFilePreview": typeof workflows_steps_renderables_generateFilePreview;
   "workflows/steps/renderables/generatePdfThumbnail": typeof workflows_steps_renderables_generatePdfThumbnail;
   "workflows/steps/renderables/generateVideoThumbnail": typeof workflows_steps_renderables_generateVideoThumbnail;
