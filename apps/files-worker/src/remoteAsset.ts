@@ -94,6 +94,23 @@ const positiveDimension = (value: string | null): number | undefined => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
+const { FixedLengthStream: FixedLength } = globalThis as {
+  FixedLengthStream?: new (
+    length: number
+  ) => { readable: ReadableStream; writable: WritableStream };
+};
+
+// R2 needs the length of a streamed body up front; FixedLengthStream also
+// fails the put if the fetcher sends more or fewer bytes than it declared.
+const withLength = (body: ReadableStream, length: number): ReadableStream => {
+  if (!FixedLength) {
+    return body;
+  }
+  const { readable, writable } = new FixedLength(length);
+  body.pipeTo(writable).catch(() => undefined);
+  return readable;
+};
+
 const readSkip = async (
   response: Response
 ): Promise<FilesRemoteAssetResult> => {
@@ -167,28 +184,35 @@ export const storeRemoteAsset = async (
       await response.body?.cancel().catch(() => undefined);
       throw new RendererUnavailable("fetcher_bad_response");
     }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (
-      !bytes.byteLength ||
-      bytes.byteLength > FILES_REMOTE_ASSET_MAX_BYTES[params.kind]
-    ) {
-      throw new RendererUnavailable("fetcher_bad_response");
-    }
+    // Stream the body into R2 rather than holding up to 50 MiB in the
+    // isolate; the fetcher always sends the exact length.
+    const length = Number(response.headers.get("content-length"));
     const width = positiveDimension(
       response.headers.get(FETCHER_HEADERS.width)
     );
     const height = positiveDimension(
       response.headers.get(FETCHER_HEADERS.height)
     );
-    if (params.kind === "image" && !(width && height)) {
+    if (
+      !(
+        response.body &&
+        Number.isSafeInteger(length) &&
+        length > 0 &&
+        length <= FILES_REMOTE_ASSET_MAX_BYTES[params.kind]
+      ) ||
+      (params.kind === "image" && !(width && height))
+    ) {
+      await response.body?.cancel().catch(() => undefined);
       throw new RendererUnavailable("fetcher_bad_response");
     }
-    await env.BUCKET.put(params.destinationKey, bytes, {
-      httpMetadata: { contentType },
-    });
+    await env.BUCKET.put(
+      params.destinationKey,
+      withLength(response.body, length),
+      { httpMetadata: { contentType } }
+    );
     return {
       contentType,
-      size: bytes.byteLength,
+      size: length,
       stored: true,
       ...(width && height ? { height, width } : {}),
     };

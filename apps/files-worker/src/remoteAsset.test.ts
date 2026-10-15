@@ -86,6 +86,7 @@ const storeAsset = async (
 const imageResponse = () =>
   new Response(JPEG_BYTES, {
     headers: {
+      "content-length": String(JPEG_BYTES.byteLength),
       [FETCHER_HEADERS.contentType]: "image/jpeg",
       [FETCHER_HEADERS.height]: "1",
       [FETCHER_HEADERS.width]: "2",
@@ -120,6 +121,7 @@ describe("store-remote-asset", () => {
       () =>
         new Response(svg, {
           headers: {
+            "content-length": String(svg.byteLength),
             [FETCHER_HEADERS.contentType]: "image/svg+xml",
             [FETCHER_HEADERS.height]: "20.46348",
             [FETCHER_HEADERS.width]: "23",
@@ -179,8 +181,33 @@ describe("store-remote-asset", () => {
     const { bucket, status } = await storeAsset(
       () =>
         new Response(JPEG_BYTES, {
-          headers: { [FETCHER_HEADERS.contentType]: "image/jpeg" },
+          headers: {
+            "content-length": String(JPEG_BYTES.byteLength),
+            [FETCHER_HEADERS.contentType]: "image/jpeg",
+          },
         })
+    );
+    expect(status).toBe(503);
+    expect(bucket.puts).toEqual([]);
+  });
+
+  test.each([
+    ["no declared length", {}],
+    [
+      "a declared length over the video limit",
+      { "content-length": String(51 * 1024 * 1024) },
+    ],
+  ])("refuses a response with %s and stores nothing", async (_name, extra) => {
+    const { bucket, status } = await storeAsset(
+      () =>
+        new Response(new Uint8Array([0, 0, 0, 24]), {
+          headers: { [FETCHER_HEADERS.contentType]: "video/mp4", ...extra },
+        }),
+      {
+        destinationKey: KEY,
+        kind: "video",
+        url: "https://cdn.example/v.mp4",
+      }
     );
     expect(status).toBe(503);
     expect(bucket.puts).toEqual([]);
