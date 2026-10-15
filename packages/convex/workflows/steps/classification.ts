@@ -148,6 +148,7 @@ const COLOR_CODE_PATTERN =
 const COLOR_LABEL_PATTERN =
   /^(?:--)?[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+)(.+)$/iu;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
+const FUNCTIONAL_COLOR_PATTERN = /^(?:rgba?|hsla?)\([^()]{0,64}\)$/iu;
 const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
 const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
 
@@ -156,8 +157,17 @@ const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
 const isNumericReference = (token: string): boolean =>
   NUMERIC_REFERENCE_PATTERN.test(token) && !REPEATED_DIGIT_PATTERN.test(token);
 
-const isColorToken = (token: string): boolean =>
-  !isNumericReference(token) && parseColorString(token) !== null;
+// parseColorString finds rgb()/hsl() anywhere in a string, so a token with
+// parentheses must be exactly one functional colour.
+const isColorToken = (token: string): boolean => {
+  if (isNumericReference(token)) {
+    return false;
+  }
+  if (token.includes("(") && !FUNCTIONAL_COLOR_PATTERN.test(token)) {
+    return false;
+  }
+  return parseColorString(token) !== null;
+};
 
 const countColorCodes = (text: string): number => {
   const hexes = new Set<string>();

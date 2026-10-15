@@ -460,7 +460,8 @@ describe("classification step", () => {
       "Fixed #123 and #456 before the release",
       "Ticket: #1234",
       "#123, #456",
-    ])("keeps issue references %p as text", async (content) => {
+      "Use rgb(255, 87, 51) for buttons",
+    ])("keeps prose %p as text", async (content) => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "text", content });
 
       const result = await classify(mockCtx, { cardId: "c1" });
