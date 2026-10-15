@@ -71,6 +71,15 @@ async function renderGrid(props: Record<string, unknown>) {
   return { cardElement, handlers };
 }
 
+/** Lets React and timers run until `done` holds, for up to about a second. */
+const waitFor = async (done: () => boolean) => {
+  for (let attempt = 0; attempt < 100 && !done(); attempt++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+};
+
 const press = async (element: HTMLElement, key: string) => {
   await act(() => {
     element.dispatchEvent(
@@ -110,11 +119,11 @@ describe("MasonryGrid keyboard actions", () => {
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
     await press(cardElement("card_b"), "t");
-    // The dialog mounts after the key's render settles.
-    await act(async () => {
-      await Promise.resolve();
-    });
     expect(onAddTags).not.toHaveBeenCalled();
+    // The dialog's portal mounts a few ticks after the key is handled.
+    await waitFor(
+      () => document.body.textContent?.includes("Add tags to 2 cards") ?? false
+    );
     expect(document.body.textContent).toContain("Add tags to 2 cards");
   });
 
