@@ -51,8 +51,6 @@ describe("zip inspection over ranged reads", () => {
   });
 
   test("reads only a bounded number of bytes for large archives", async () => {
-    // A ~4MB archive whose entries are never read; the ranged walker should
-    // touch just the EOCD tail + central directory.
     const bigEntry = new TextEncoder().encode("x".repeat(4 * 1024 * 1024));
     const bytes = zipSync({ "data.bin": bigEntry });
     const bucket = new FakeBucket();

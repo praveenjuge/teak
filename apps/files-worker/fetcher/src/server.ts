@@ -1,9 +1,3 @@
-/**
- * Teak link fetcher: the Files Worker's internet-enabled Container. It
- * downloads remote preview assets (see ./fetchAsset) and returns their bytes;
- * the Worker stores them in R2.
- */
-
 import { lookup } from "node:dns/promises";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
@@ -19,7 +13,6 @@ const handle = createFetcherHandler({
     ),
 });
 
-// Requests are small JSON bodies from the Worker; stop reading past this.
 const MAX_BODY_BYTES = 64 * 1024;
 
 const server = createServer(async (incoming, outgoing) => {

@@ -1,11 +1,3 @@
-/**
- * Card embeddings in Vectorize: one index per shard (`CARD_VECTORS_<shard>`),
- * one namespace per user, one vector per card (id = card id). Convex builds
- * the card text and owns which shard and namespace a user is in; this module
- * embeds with Workers AI and reads and writes the index. See
- * packages/files-protocol/src/embeddings.ts.
- */
-
 import {
   CARD_EMBEDDING_DIMENSIONS,
   CARD_EMBEDDING_MODEL,
@@ -30,7 +22,6 @@ import { aiRunOptions } from "./aiGateway";
 import type { FilesOpsEnv } from "./ops";
 import { isCapacityError, MetadataCapacityError } from "./textMetadata";
 
-/** Longest card text accepted; the model reads far less (see embeddings.ts). */
 const MAX_ITEM_TEXT_CHARS = 20_000;
 
 const byteLength = (value: string) =>
@@ -145,7 +136,6 @@ const indexForShard = (env: FilesOpsEnv, shard: number): Vectorize => {
   return index;
 };
 
-/** Embed texts already wrapped in their prompts, one vector per text. */
 const embed = async (env: FilesOpsEnv, texts: string[]) => {
   if (!env.AI) {
     throw new Error("ai_unavailable");

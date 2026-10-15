@@ -15,9 +15,6 @@ export class ObjectWriteBlockedError extends Error {
   }
 }
 
-// Every container has a wire tag, so arbitrary metadata cannot masquerade as
-// a Date, Headers, or checksum. This contract covers the native R2 option and
-// result values used here; unsupported values fail before dispatch to R2.
 type WireValue =
   | null
   | string

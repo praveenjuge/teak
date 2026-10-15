@@ -38,7 +38,6 @@ const jpegSize = (bytes: Uint8Array) => {
   return null;
 };
 
-// Any request that escapes the offline page lands here.
 let hits: string[] = [];
 let server: ReturnType<typeof Bun.serve>;
 beforeAll(() => {
@@ -144,7 +143,6 @@ describe("browser rendering against a real Chrome", () => {
       expect(result.selectors[0]?.results[0]?.text).toBe("second");
       expect(releases).toBe(2);
       expect(browser.connected).toBe(true);
-      // Each operation closed its context, leaving only the default one.
       expect(browser.browserContexts()).toHaveLength(1);
       expect(hits).toEqual([]);
     } finally {

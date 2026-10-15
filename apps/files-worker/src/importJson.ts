@@ -10,7 +10,6 @@ import {
   type ZipDirectory,
 } from "./zip";
 
-/** Discard completed siblings; retain only this page, never the 64 MiB JSON document. */
 export async function readImportJson(
   bucket: R2Bucket,
   key: string,

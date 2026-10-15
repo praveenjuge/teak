@@ -43,7 +43,6 @@ export const localChromePath = (): string => {
   return found;
 };
 
-/** Launch a fresh Chrome; `browser.close()` ends the process. */
 export const launchLocalChrome = async (): Promise<Browser> => {
   const chrome = Bun.spawn(
     [
@@ -79,7 +78,6 @@ export const launchLocalChrome = async (): Promise<Browser> => {
   return browser;
 };
 
-/** Lease a fresh local Chrome for one operation; releasing it ends Chrome. */
 export const localChromeLease: AcquireBrowser = async () => {
   const browser = await launchLocalChrome();
   return { browser, release: () => browser.close() };

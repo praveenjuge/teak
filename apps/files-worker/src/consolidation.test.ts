@@ -1,16 +1,9 @@
-import { describe, expect, mock, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  FILES_AUDIO_MAX_BYTES,
-  FILES_TRANSCRIPT_MAX_BYTES,
-  FILES_TRANSCRIPTION_MODEL,
-  type FilesOp,
-} from "@teak/files-protocol";
+import { describe, expect, test } from "bun:test";
+import { buildFilesOpSigningPayload, type FilesOp } from "@teak/files-protocol";
 import { strToU8, zipSync } from "fflate";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { FakeBucket } from "./testsupport";
-import { transcribeAudio } from "./transcript";
 
 async function request(op: FilesOp, params: Record<string, unknown>) {
   const body = JSON.stringify({ version: 1, op, params });
@@ -57,133 +50,6 @@ describe("signed file operations", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       error: { code: "INVALID_INPUT", retryable: false },
-    });
-  });
-  test("streams R2 audio through the binding, returning only bounded transcript facts", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("users/u/audio.wav", {
-      bytes: new Uint8Array([1, 2, 3]),
-      httpMetadata: { contentType: "audio/wav" },
-    });
-    const run = mock(
-      async (_model: string, inputs: Record<string, unknown>) => {
-        const audio = inputs.audio as {
-          body: ReadableStream;
-          contentType: string;
-        };
-        expect(audio.contentType).toBe("audio/wav");
-        expect(
-          new Uint8Array(await new Response(audio.body).arrayBuffer())
-        ).toEqual(new Uint8Array([1, 2, 3]));
-        return {
-          text: "Hello world",
-          segments: [{ text: "Do not return segments" }],
-        };
-      }
-    );
-    const response = await handleInternalOp(
-      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
-      { ...envFor(bucket), AI: { run } }
-    );
-    expect(response.status).toBe(200);
-    const result = (await response.json()) as { data: Record<string, unknown> };
-    expect(result.data).toMatchObject({
-      text: "Hello world",
-      byteLength: 3,
-      mimeType: "audio/wav",
-    });
-    expect(result.data).not.toHaveProperty("segments");
-    expect(run.mock.calls[0][0]).toBe(FILES_TRANSCRIPTION_MODEL);
-  });
-  test("transcribes directly even when an AI Gateway is configured", async () => {
-    // AI Gateway rejects the streamed audio body Whisper needs.
-    const run = mock(
-      (_model: string, _args: unknown, options?: { gateway?: unknown }) =>
-        options?.gateway
-          ? Promise.reject(
-              new Error("AI Gateway does not support ReadableStreams yet.")
-            )
-          : Promise.resolve({ text: "Hello world" })
-    );
-    const bucket = new FakeBucket();
-    bucket.objects.set("users/u/audio.wav", {
-      bytes: new Uint8Array([1, 2, 3]),
-      httpMetadata: { contentType: "audio/wav" },
-    });
-    const response = await handleInternalOp(
-      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
-      { ...envFor(bucket), AI: { run }, AI_GATEWAY_ID: "teak-files" }
-    );
-    expect(response.status).toBe(200);
-    const result = (await response.json()) as { data: { text: string } };
-    expect(result.data.text).toBe("Hello world");
-  });
-  test("rejects oversized audio before inference and bounds model output", async () => {
-    const run = mock(async () => ({
-      text: "x".repeat(FILES_TRANSCRIPT_MAX_BYTES + 1),
-    }));
-    const bucket = new FakeBucket();
-    bucket.objects.set("users/u/audio", { bytes: new Uint8Array([1]) });
-    const env = { ...envFor(bucket), AI: { run } };
-    await expect(
-      transcribeAudio(env, { sourceKey: "users/u/audio" })
-    ).rejects.toThrow("source_too_large");
-    const get = bucket.get.bind(bucket);
-    bucket.get = (key, options) => {
-      const object = get(key, options);
-      return object ? { ...object, size: FILES_AUDIO_MAX_BYTES + 1 } : object;
-    };
-    run.mockClear();
-    await expect(
-      transcribeAudio(env, { sourceKey: "users/u/audio" })
-    ).rejects.toThrow("source_too_large");
-    expect(run).not.toHaveBeenCalled();
-  });
-  test("returns retryable failures for unavailable AI, and input errors for malformed requests", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("users/u/audio", { bytes: new Uint8Array([1]) });
-    for (const params of [
-      { sourceKey: 3 },
-      { sourceKey: "users/u/../bad" },
-      { sourceKey: "users/u/audio", mimeType: 5 },
-    ]) {
-      const response = await handleInternalOp(
-        await request("transcribe-audio", params),
-        envFor(bucket)
-      );
-      expect(response.status).toBe(400);
-    }
-    const response = await handleInternalOp(
-      await request("transcribe-audio", { sourceKey: "users/u/audio" }),
-      envFor(bucket)
-    );
-    expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({
-      ok: false,
-      error: { retryable: true },
-    });
-  });
-  test("declines audio the model cannot decode without a retryable failure", async () => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("users/u/audio.webm", { bytes: new Uint8Array([1]) });
-    const run = mock(() =>
-      Promise.reject(
-        Object.assign(
-          new Error(
-            "3030: Failed to decode audio file. Ensure it is a valid audio format."
-          ),
-          { name: "AiError" }
-        )
-      )
-    );
-    const response = await handleInternalOp(
-      await request("transcribe-audio", { sourceKey: "users/u/audio.webm" }),
-      { ...envFor(bucket), AI: { run } }
-    );
-    expect(response.status).toBe(415);
-    expect(await response.json()).toMatchObject({
-      ok: false,
-      error: { code: "UNSUPPORTED", retryable: false },
     });
   });
   test("indexes and extracts through signed routes with source-version and user isolation", async () => {

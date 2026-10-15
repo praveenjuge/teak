@@ -5,14 +5,12 @@ import { paletteFromPng } from "./palette";
 import { renderSvgToPng } from "./wasm";
 
 export interface ImageAnalysisResult {
-  /** Camera facts, when the original carries EXIF. */
   exif?: ExifFacts;
   height: number;
   palette: string[];
   width: number;
 }
 
-// EXIF is optional: a read or parse failure never fails the analysis.
 const readStoredExif = async (
   bucket: R2Bucket,
   sourceKey: string,

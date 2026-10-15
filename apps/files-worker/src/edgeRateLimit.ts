@@ -37,7 +37,6 @@ import {
 } from "./edgeIdentity";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 
-/** The Workers rate limiting binding. */
 export interface RateLimiter {
   limit: (options: { key: string }) => Promise<{ success: boolean }>;
 }
@@ -47,7 +46,6 @@ export interface EdgeRateLimitEnv extends EdgeIdentityEnv {
   UNKNOWN_CREDENTIAL_LIMITER?: RateLimiter;
 }
 
-/** Requests per window for each limiter; matches `wrangler.jsonc`. */
 export const EDGE_API_REQUEST_LIMIT = 120;
 export const EDGE_UNKNOWN_CREDENTIAL_LIMIT = 60;
 /** Window length in seconds; the Workers limiter counts in fixed windows. */
@@ -60,15 +58,11 @@ export const EDGE_RATE_LIMIT_PERIOD_SECONDS = 60;
  */
 export const MCP_EDGE_RATE_LIMITED_CODE = -31_429;
 
-/** Largest MCP body read to find the JSON-RPC id of a refused request. */
 const MAX_MCP_BODY_BYTES = 64 * 1024;
-/** Longest wait for a refused MCP body before answering without its id. */
 export const MCP_BODY_READ_TIMEOUT_MS = 1000;
 
 export type EdgeRateLimitOutcome =
-  /** Refused: answer with this response. */
   | { response: Response }
-  /** Allowed: forward, with this attestation header value when not null. */
   | { attestation: string | null };
 
 const isMcpPath = (request: Request): boolean => {
@@ -76,12 +70,6 @@ const isMcpPath = (request: Request): boolean => {
   return pathname === "/mcp" || pathname.startsWith("/mcp/");
 };
 
-/**
- * Reads a cloned POST body chunk by chunk, for at most MCP_BODY_READ_TIMEOUT_MS
- * and MAX_MCP_BODY_BYTES: the edge only peeks at bodies, so a stalled or huge
- * one is never worth waiting for or buffering. `onChunk` returns a result to
- * stop early; the stream ending, the cap or the timeout give `fallback`.
- */
 const peekBody = async <T>(
   request: Request,
   fallback: T,
@@ -104,8 +92,6 @@ const peekBody = async <T>(
         return fallback;
       }
       const chunk = read.value ?? new Uint8Array();
-      // Each chunk is looked at before the cap applies, so one large chunk
-      // still shows where the body starts.
       const result = onChunk(chunk, read.done);
       if (result !== undefined) {
         return result;
@@ -123,7 +109,6 @@ const peekBody = async <T>(
   }
 };
 
-/** The request's JSON-RPC body, or undefined when it is not one. */
 const readJsonRpcBody = (request: Request): Promise<unknown> => {
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -156,11 +141,6 @@ const concat = (chunks: Uint8Array[]): Uint8Array => {
   return out;
 };
 
-/**
- * True when a POST body may be a JSON array (a JSON-RPC batch). A body whose
- * first character the edge cannot see in time counts as one, so it goes
- * through unattested and Convex charges each call itself.
- */
 const mayBeJsonArrayBody = (request: Request): Promise<boolean> => {
   if (request.method !== "POST" || !request.body) {
     return Promise.resolve(false);
@@ -245,7 +225,6 @@ const rateLimitedResponse = async (
   );
 };
 
-/** Signs that this request was charged at the edge, bound to its credential. */
 const attestationFor = async (
   request: Request,
   secret: string
@@ -270,7 +249,6 @@ const attestationFor = async (
 const isKnownUser = (identity: EdgeIdentity): boolean =>
   identity.source !== "address";
 
-/** Charges a public API or MCP request to its edge limit. */
 export const applyEdgeRateLimit = async (
   request: Request,
   env: EdgeRateLimitEnv,
@@ -329,7 +307,6 @@ export const applyEdgeRateLimit = async (
   try {
     ({ success: allowed } = await limiter.limit({ key: identity.key }));
   } catch {
-    // Convex's own limit still applies to an unattested request.
     return { attestation: null };
   }
   if (!allowed) {
@@ -346,7 +323,6 @@ export const applyEdgeRateLimit = async (
   if (!isKnownUser(identity)) {
     return { attestation: null };
   }
-  // Convex charges each call of a JSON-RPC batch; one edge charge covers one.
   if (isMcpPath(request) && (await mayBeJsonArrayBody(request))) {
     return { attestation: null };
   }

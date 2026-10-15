@@ -1,14 +1,3 @@
-/**
- * Edge proxy for the public API and MCP server on the marketing host.
- *
- * Zone routes in `wrangler.jsonc` send `teakvault.com/api`, `/mcp` and the
- * OAuth discovery documents here, and this module forwards them to Convex.
- * They used to reach Convex through rewrites on the docs site's Vercel
- * project; the paths still map the same way, so clients keep their URLs.
- * Requests on any other host, or paths the routes catch by prefix but Convex
- * does not serve (`/apis`), are left to the caller.
- */
-
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
@@ -28,7 +17,6 @@ export interface ApiProxyEnv {
  */
 export const API_PROXY_MAX_BODY_BYTES = 20_000_000;
 
-/** How long the edge keeps public discovery documents before asking Convex again. */
 export const API_PROXY_DOCUMENT_TTL_SECONDS = 300;
 
 const WELL_KNOWN_PATHS = new Set([
@@ -43,7 +31,6 @@ const WELL_KNOWN_PATHS = new Set([
  */
 const EDGE_CACHED_PATHS = new Set([...WELL_KNOWN_PATHS, "/api/openapi.json"]);
 
-/** Same headers the docs site's Vercel config added to these responses. */
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": "frame-ancestors 'none'",
   "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
@@ -68,12 +55,6 @@ const isHopHeader = (name: string): boolean =>
   name.startsWith("cf-") ||
   name.startsWith("x-forwarded-");
 
-/**
- * The Convex HTTP path for a public path, or null when Convex does not serve
- * it. Mirrors the docs site's former rewrites: `/api` is the v1 discovery
- * document, `/api/<path>` drops the prefix, and MCP and the discovery
- * documents keep their paths.
- */
 export const upstreamPathFor = (pathname: string): string | null => {
   if (pathname === "/api") {
     return "/v1";
@@ -90,7 +71,6 @@ export const upstreamPathFor = (pathname: string): string | null => {
   return null;
 };
 
-/** An error the Worker answers itself, with the headers Convex's API errors carry. */
 const errorResponse = (status: number, code: string, error: string) =>
   withSecurityHeaders(
     new Response(JSON.stringify({ code, error }), {
@@ -172,10 +152,6 @@ const cacheableCopy = (response: Response): Response => {
   return new Response(response.body, { status: response.status, headers });
 };
 
-/**
- * Proxies an API, MCP or OAuth discovery request to Convex. Returns null when
- * the request is not one this Worker proxies, so the caller handles it.
- */
 export const handleApiProxyRequest = async (
   request: Request,
   env: ApiProxyEnv,
@@ -183,7 +159,6 @@ export const handleApiProxyRequest = async (
   options: {
     cache?: Cache | null;
     fetcher?: typeof fetch;
-    /** Charges the request to its edge rate limit before it is answered. */
     rateLimit?: (request: Request) => Promise<EdgeRateLimitOutcome>;
   } = {}
 ): Promise<Response | null> => {
@@ -221,8 +196,6 @@ export const handleApiProxyRequest = async (
   if (cacheable) {
     const cached = await cache.match(cacheKey);
     if (cached) {
-      // Each response carries its own request ID for support; a cached copy
-      // must not repeat the one Convex gave the request that filled it.
       const hit = withSecurityHeaders(cached);
       hit.headers.set("X-Request-Id", crypto.randomUUID());
       return hit;

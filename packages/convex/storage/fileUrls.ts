@@ -15,8 +15,10 @@
  */
 
 import {
+  buildFileSigningPayload,
   buildImageSigningPayload,
   FILES_IMAGE_PATH,
+  FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
   type FilesImageRendition,
 } from "@teak/files-protocol";
 import { env } from "../_generated/server";
@@ -27,15 +29,6 @@ import {
   isR2KeyInNamespace,
 } from "./r2Keys";
 
-// Object keys are content-immutable (every upload writes a fresh UUID key), so
-// signed URLs can live far longer than a single session. Long-lived,
-// time-bucketed URLs keep the URL string identical across reactive query
-// re-runs and page loads, which is what lets the browser HTTP cache actually
-// serve repeat views instead of refetching every card image.
-const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
-// All signatures produced within one bucket window share the same exp (and
-// therefore the exact same URL). Buckets also guarantee a minimum remaining
-// validity of SIGNED_URL_EXPIRES_IN_SECONDS at generation time.
 const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
 
 /**
@@ -47,12 +40,7 @@ export const bucketedSignatureExpiry = (
 ): number =>
   (Math.floor(nowSeconds / SIGNED_URL_BUCKET_SECONDS) + 1) *
     SIGNED_URL_BUCKET_SECONDS +
-  SIGNED_URL_EXPIRES_IN_SECONDS;
-
-// Browser-facing cache directive; keep in lockstep with FILES_CACHE_CONTROL
-// in apps/files-worker/src/lib.ts and below the signed-URL minimum remaining
-// validity so browsers never replay an expired signature.
-export const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
+  FILES_SIGNED_URL_MIN_VALIDITY_SECONDS;
 
 export type R2ObjectKey = string;
 
@@ -126,26 +114,13 @@ export const getR2Url = async (
   );
 };
 
-// Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
-// vector proves both runtimes produce identical HMAC output.
-export const buildSignedFilePayload = ({
-  key,
-  exp,
-  contentType = "",
-  contentDisposition = "",
-}: {
-  key: string;
-  exp: string;
-  contentType?: string | null;
-  contentDisposition?: string | null;
-}): string => [key, exp, contentType, contentDisposition].join("\n");
-
 export const buildSignedWorkerFileUrl = async (
   base: string,
   secret: string,
   key: string,
   response: DownloadResponsePolicy = {},
-  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+  expSeconds = Math.floor(Date.now() / 1000) +
+    FILES_SIGNED_URL_MIN_VALIDITY_SECONDS
 ): Promise<string> => {
   assertR2KeyInNamespace(key);
   return await buildSignedWorkerFileUrlUnchecked(
@@ -162,12 +137,13 @@ const buildSignedWorkerFileUrlUnchecked = async (
   secret: string,
   key: string,
   response: DownloadResponsePolicy = {},
-  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+  expSeconds = Math.floor(Date.now() / 1000) +
+    FILES_SIGNED_URL_MIN_VALIDITY_SECONDS
 ): Promise<string> => {
   const exp = String(expSeconds);
   const signature = await hmacSha256Hex(
     secret,
-    buildSignedFilePayload({ key, exp, ...response })
+    buildFileSigningPayload({ key, exp, ...response })
   );
   const params = new URLSearchParams({ exp, sig: signature });
   if (response.contentType) {
@@ -184,7 +160,8 @@ export const buildSignedWorkerImageUrl = async (
   secret: string,
   key: string,
   rendition: FilesImageRendition,
-  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+  expSeconds = Math.floor(Date.now() / 1000) +
+    FILES_SIGNED_URL_MIN_VALIDITY_SECONDS
 ): Promise<string> => {
   assertR2KeyInNamespace(key);
   return await buildSignedWorkerImageUrlUnchecked(
@@ -201,7 +178,8 @@ const buildSignedWorkerImageUrlUnchecked = async (
   secret: string,
   key: string,
   rendition: FilesImageRendition,
-  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+  expSeconds = Math.floor(Date.now() / 1000) +
+    FILES_SIGNED_URL_MIN_VALIDITY_SECONDS
 ): Promise<string> => {
   const expiresAt = String(expSeconds);
   const signature = await hmacSha256Hex(

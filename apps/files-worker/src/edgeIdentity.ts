@@ -66,7 +66,6 @@ export interface EdgeIdentityDeps {
   verifyToken?: typeof verifyWorkosConnectToken;
 }
 
-/** The bucket key for the request's client address. */
 export const addressKey = (request: Request): string =>
   `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`;
 
@@ -140,7 +139,6 @@ const cachedOwner = async (
   deps: Required<Pick<EdgeIdentityDeps, "fetcher">> &
     Pick<EdgeIdentityDeps, "allowLookup">
 ): Promise<string | null | undefined> => {
-  // A failed read is a cache miss: ask Convex instead.
   const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
   if (typeof cached === "string") {
     return cached || null;
@@ -167,7 +165,6 @@ const cachedOwner = async (
   return owner;
 };
 
-/** The rate-limit bucket for a request to the public API or MCP server. */
 export const resolveEdgeIdentity = async (
   request: Request,
   env: EdgeIdentityEnv,
@@ -216,7 +213,6 @@ export const resolveEdgeIdentity = async (
     // real users who share a busy address.
     { fetcher }
   );
-  // A verified token names its user even when Convex cannot map it yet.
   return {
     key: owner ? `user:${owner}` : `workos:${workosUserId}`,
     source: "oauth",

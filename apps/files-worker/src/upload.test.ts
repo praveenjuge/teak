@@ -133,8 +133,6 @@ describe("signed single-file uploads", () => {
       BUCKET: bucket,
       FILES_SIGNING_SECRET: SECRET,
     }) as Env;
-    // Signature is minted with an empty content type (no ct param); the
-    // request's own validated Content-Type is stored verbatim.
     const key = "users/u1/cards/thumbnail/frame";
     const exp = String(Math.floor(Date.now() / 1000) + 600);
     const sig = await hmacSha256Hex(
@@ -199,7 +197,6 @@ describe("signed single-file uploads", () => {
   });
 
   test("rejects content type mismatch between signature and request", async () => {
-    // Signature is minted for text/plain but the URL ct param says image/png.
     const response = await worker.fetch(
       await signedUploadRequest(
         new TextEncoder().encode("x"),
@@ -215,7 +212,6 @@ describe("signed single-file uploads", () => {
   test("binds the signature to the exact object key", async () => {
     const signed = await signedUploadRequest(new TextEncoder().encode("x"));
     const url = new URL(signed.url);
-    // Same signature, different object key.
     url.pathname = "/__upload/v1/users/u1/cards/file/other.txt";
     const response = await worker.fetch(
       new Request(url.toString(), {
@@ -277,8 +273,6 @@ describe("signed single-file uploads", () => {
       env(),
       { waitUntil: () => undefined } as never
     );
-    // No size binding; content length is small so this passes auth but the
-    // cap check only trips on genuinely large bodies. Verify acceptance path.
     expect(response.status).toBe(200);
   });
 
@@ -488,17 +482,6 @@ describe("additive files ops", () => {
     expect(missingPayload.data.exists).toBe(false);
   });
 
-  test("analyze-image-content behaves like analyze-image", async () => {
-    const response = await worker.fetch(
-      await signedOpRequest("analyze-image-content", {
-        sourceKey: "users/u1/missing.png",
-      }),
-      env(),
-      { waitUntil: () => undefined } as never
-    );
-    expect(response.status).toBe(404);
-  });
-
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
     let capturedImageUrl: unknown;
@@ -512,7 +495,6 @@ describe("additive files ops", () => {
           capturedImageUrl = messages
             .flatMap((message) => message.content ?? [])
             .find((part) => part.type === "image_url")?.image_url;
-          // First call returns invalid JSON, second valid output.
           if (calls === 1) {
             return {
               choices: [{ message: { content: "not json at all" } }],
@@ -536,7 +518,6 @@ describe("additive files ops", () => {
       FILES_SIGNING_SECRET: SECRET,
     }) as unknown as Env;
 
-    // Seed a tiny PNG source so the detail rendition transform can be faked.
     const bucket = aiEnv.BUCKET as unknown as FakeBucket;
     bucket.objects.set("users/u1/pic.png", {
       bytes: new Uint8Array([1]),

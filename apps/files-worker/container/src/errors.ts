@@ -40,7 +40,6 @@ export const timedOut = () =>
 export const tooLarge = () =>
   new JobError("too_large", "The file is larger than 100 MiB");
 
-/** A tool that failed on its input: 422 when it ran out of time, else 415. */
 export function toolFailure(
   result: { timedOut: boolean; stderr: string },
   what: string

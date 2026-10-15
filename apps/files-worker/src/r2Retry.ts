@@ -15,7 +15,6 @@ export const isTransientR2Error = (error: unknown): boolean =>
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Wraps an R2 bucket so get and head retry transient R2 failures. */
 export function retryingReads(bucket: R2Bucket): R2Bucket {
   return new Proxy(bucket, {
     get(target, property) {

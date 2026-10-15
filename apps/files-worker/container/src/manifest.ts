@@ -18,13 +18,11 @@ export interface Part {
 }
 
 export interface JobResult {
-  /** Job-specific manifest fields. */
   extra: Record<string, unknown>;
   facts: MediaFacts | null;
   parts: Part[];
 }
 
-// Anything outside printable ASCII.
 const NON_ASCII = /[^ -~]/g;
 
 /** Compact JSON that is always a valid HTTP header value. */

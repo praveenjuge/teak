@@ -307,7 +307,6 @@ export async function readZipDirectory(
   }
   return { entries, sourceEtag: meta.httpEtag, size: meta.size, cdOffset };
 }
-/** Every consumer uses the same bounded inflater, including JSON streaming. */
 export async function consumeZipEntry(
   bucket: R2Bucket,
   key: string,

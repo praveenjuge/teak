@@ -1,14 +1,3 @@
-/**
- * store-remote-asset: download a link preview's image or a social post's
- * media through the link fetcher Container and store it in R2. Convex used to
- * download these itself and upload them again through this Worker; now the
- * bytes go from the origin to R2 without passing through Convex.
- *
- * The Container is the only part of the Worker with internet access. It
- * applies Convex's SSRF policy and pins each connection to the addresses it
- * checked (fetcher/src/fetchAsset.ts).
- */
-
 import {
   FILES_REMOTE_ASSET_MAX_BYTES,
   FILES_REMOTE_ASSET_MAX_URL_LENGTH,
@@ -27,7 +16,6 @@ import { MediaRenderer } from "./mediaRenderer";
 import { RendererUnavailable, rendererInstanceOrder } from "./rendererClient";
 import { isValidUploadKey } from "./upload";
 
-/** The renderer's Durable Object, starting its Container with internet on. */
 export class LinkFetcher extends MediaRenderer {
   protected override readonly enableInternet = true;
 }
@@ -35,7 +23,6 @@ export class LinkFetcher extends MediaRenderer {
 export interface RemoteAssetEnv {
   BUCKET: R2Bucket;
   LINK_FETCHER?: DurableObjectNamespace;
-  /** Pool size; matches the fetcher Container's max_instances. */
   LINK_FETCHER_INSTANCES?: string;
 }
 
@@ -133,11 +120,6 @@ const readSkip = async (
   };
 };
 
-/**
- * POST a JSON request to the first fetcher instance that is not busy (503)
- * and return its response. Throws RendererUnavailable when the binding is
- * missing, a request fails or times out, or every instance is busy.
- */
 export const postToFetcher = async (
   env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
   path: string,
@@ -205,8 +187,6 @@ export const storeRemoteAsset = async (
     await response.body?.cancel().catch(() => undefined);
     throw new RendererUnavailable("fetcher_bad_response");
   }
-  // Stream the body into R2 rather than holding up to 50 MiB in the
-  // isolate; the fetcher always sends the exact length.
   const length = Number(response.headers.get("content-length"));
   const width = positiveDimension(response.headers.get(FETCHER_HEADERS.width));
   const height = positiveDimension(

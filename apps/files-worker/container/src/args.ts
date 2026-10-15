@@ -133,7 +133,6 @@ export interface FrameJob {
   input: string;
   jobDir: string;
   output: string;
-  /** Also write a copy this size to stdout as raw RGBA, for the palette. */
   sample?: SampleSize;
   streamIndex: number;
   timeSeconds: number;
@@ -151,7 +150,6 @@ function sampleFilter(sample: SampleSize): string {
   return `scale=${sample.width}:${sample.height}:flags=area,format=rgba`;
 }
 
-/** The same frame, scaled down, as raw RGBA on stdout. */
 function sampleOutput(
   job: FrameJob,
   options: string[] = [],
@@ -177,7 +175,6 @@ function sampleOutput(
   ];
 }
 
-/** One accurately seeked frame, autorotated and scaled, as a JPEG. */
 export function frameCommand(job: FrameJob): string[] {
   return ffmpegCommand(
     job.jobDir,
@@ -242,19 +239,13 @@ export function tileCommand(job: FrameJob): string[] {
 }
 
 export interface AnimationSampleJob extends SampleSize {
-  /** Frames to keep. */
   frames: number;
-  /** Frame rate that spreads `frames` across the animation; null takes the first. */
   framesPerSecond: number | null;
   input: string;
   jobDir: string;
   streamIndex: number;
 }
 
-/**
- * Evenly spaced frames of a short animation as raw RGBA on stdout, from one
- * decode from the start. Long videos use keyframe seeks (tileCommand) instead.
- */
 export function animationSampleCommand(job: AnimationSampleJob): string[] {
   const filters = [
     ...(job.framesPerSecond === null
@@ -284,7 +275,6 @@ export function animationSampleCommand(job: AnimationSampleJob): string[] {
   );
 }
 
-/** Joins same-sized tiles left to right into one JPEG. */
 export function spriteCommand(
   jobDir: string,
   tiles: string[],
@@ -307,10 +297,6 @@ export function spriteCommand(
   );
 }
 
-/**
- * One decode, two outputs: 8 kHz mono s16le PCM on stdout for the peaks,
- * and optionally a 16 kHz mono 32 kbps MP3 for transcription.
- */
 export function audioCommand(
   jobDir: string,
   input: string,
@@ -351,7 +337,6 @@ export function pdfInfoCommand(jobDir: string, input: string): string[] {
   return ["pdfinfo", jobPath(jobDir, input)];
 }
 
-/** Renders page 1 as PNG with its long side at `max` pixels. */
 export function pdfPageCommand(
   jobDir: string,
   input: string,

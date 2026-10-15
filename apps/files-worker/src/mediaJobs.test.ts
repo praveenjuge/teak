@@ -192,7 +192,6 @@ describe("extract-video-frame", () => {
     expect(status).toBe(200);
     expect(calls).toHaveLength(2);
     expect(calls[0]?.instance).not.toBe(calls[1]?.instance);
-    // Each attempt streams the whole source again.
     expect(calls[1]?.bytes).toBe(SOURCE_BYTES.length);
   });
 
@@ -542,7 +541,6 @@ describe("process-audio", () => {
 
   test("transcribes even when an AI Gateway is configured", async () => {
     const { env } = await setup(audioAnswer("converted"), audio);
-    // AI Gateway rejects the streamed audio body Whisper needs.
     const ai = {
       run: (
         _model: string,

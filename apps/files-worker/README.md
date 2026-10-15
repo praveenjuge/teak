@@ -154,11 +154,9 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 `@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
 Operation request bodies are limited to 1 MiB before signature verification.
 
-- `op=analyze-image` / `analyze-image-content` — reads intrinsic dimensions
-  and a bounded color sample through Cloudflare transformations; SVG input is
-  rasterized with resvg. Renditions are generated on demand and no image
-  derivative is written to R2. `analyze-image-content` is the additive alias;
-  both are accepted so Worker and Convex deployments overlap safely.
+- `op=analyze-image` — reads intrinsic dimensions and a bounded color sample
+  through Cloudflare transformations; SVG input is rasterized with resvg.
+  Renditions are generated on demand and no image derivative is written to R2.
 - `build-export` — streams a manifest-described set of objects through
   client-zip into a checkpointed multipart ZIP upload that resumes after
   transient failures (`src/export.ts`).
@@ -231,8 +229,8 @@ The ops:
   MP3 or PCM is converted to a 16 kHz mono MP3 for Whisper in the same pass;
   when Whisper cannot decode the original (error 3030), the Worker converts it
   and retries once. An undecodable recording or a failed transcription comes
-  back as a failed `transcript`, so the waveform is still stored.
-  `transcribe-audio` stays for Convex deployments that predate it.
+  back as a failed `transcript`, so the waveform is still stored. A transcript
+  over 512 KiB of UTF-8 also comes back failed.
 - `capabilities` reports `browser` and `renderer`; with `checkRenderer: true`
   it also starts a renderer and reports `rendererHealthy` and
   `rendererProtocol` (used by `scripts/check-files-readiness.ts`).
@@ -302,12 +300,6 @@ stores every output.
 
 ## Import and audio processing
 
-- `transcribe-audio` accepts an authorized R2 source key and optional MIME hint.
-  The AI binding streams the R2 body to `@cf/openai/whisper-large-v3-turbo`.
-  Audio is limited to the existing 100 MiB upload limit; returned UTF-8 text
-  is limited to 512 KiB. Results contain text, byte count, MIME type, and source
-  ETag, never segments or audio bytes. Convex retains AI telemetry and optional
-  enrichment failure semantics; card processing status and retries stay there.
 - `index-import-source` accepts archive/bookmarks/raindrop, expected source size,
   and an offset cursor. It returns at most 100 items and 4 MiB of item JSON;
   continuation requests bind the original ETag. The import action binds

@@ -1,8 +1,3 @@
-// Runs one tool process with hard limits. On Linux every process runs under
-// prlimit (address space, CPU seconds, open files, no core dumps). On every
-// platform it runs in its own process group, and the wall-clock timer kills
-// the whole group so nothing it forked survives the job.
-
 export const ADDRESS_SPACE_BYTES = 1_073_741_824;
 export const MAX_OPEN_FILES = 64;
 const DEFAULT_MAX_STDOUT_BYTES = 4 * 1024 * 1024;
@@ -49,9 +44,7 @@ export interface RunResult {
 function killGroup(pid: number): void {
   try {
     process.kill(-pid, "SIGKILL");
-  } catch {
-    // The group is already gone.
-  }
+  } catch {}
 }
 
 async function readBounded(
@@ -151,7 +144,6 @@ export async function run(
     };
   } finally {
     clearTimeout(timer);
-    // Anything the tool forked and left behind goes with it.
     killGroup(child.pid);
   }
 }

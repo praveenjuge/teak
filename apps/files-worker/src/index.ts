@@ -11,8 +11,10 @@ export { LinkFetcher } from "./remoteAsset";
 import type { BrowserWorker } from "@cloudflare/puppeteer";
 import {
   buildMultipartPartSigningPayload,
+  FILES_EDGE_CACHE_CONTROL,
   FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
+  FILES_PRIVATE_CACHE_CONTROL,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
@@ -21,8 +23,6 @@ import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
 import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
-  FILES_CACHE_CONTROL,
-  FILES_EDGE_CACHE_CONTROL,
   parseSingleByteRange,
   verifyHmacPayload,
   verifySignedFileRequest,
@@ -260,12 +260,6 @@ const handleMultipartPart = async (
   }
 };
 
-/**
- * Edge-cache key for a full-object response. The object key already embeds the
- * owning user's hash prefix, so entries are never shared across users; ct/cd
- * are folded in because they vary per request policy (inline vs attachment)
- * and are echoed back verbatim from the cached headers.
- */
 const buildCacheKey = (request: Request): Request => {
   const url = new URL(request.url);
   const cacheUrl = new URL(url.origin + url.pathname);
@@ -283,7 +277,6 @@ const buildCacheKey = (request: Request): Request => {
   });
 };
 
-/** ETag comparison tolerant of weak validators and quoting styles. */
 const etagMatches = (ifNoneMatch: string | null, httpEtag: string): boolean => {
   if (!ifNoneMatch) {
     return false;
@@ -306,7 +299,7 @@ const applyObjectHeaders = (
   objectSize?: number
 ): void => {
   const url = new URL(request.url);
-  headers.set("Cache-Control", FILES_CACHE_CONTROL);
+  headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
   headers.set("ETag", httpEtag);
   headers.set("Accept-Ranges", "bytes");
   headers.set("X-Content-Type-Options", "nosniff");
@@ -338,7 +331,6 @@ const handler = {
     const requestMethod = request.method.toUpperCase();
     const url = new URL(request.url);
 
-    // The public API and MCP paths on the marketing host; see apiProxy.ts.
     const apiResponse = await handleApiProxyRequest(request, bindings, ctx, {
       cache: edgeCache,
       rateLimit: (apiRequest) => applyEdgeRateLimit(apiRequest, bindings, ctx),
@@ -347,8 +339,6 @@ const handler = {
       return apiResponse;
     }
     if (bindings.API_PUBLIC_HOST && url.hostname === bindings.API_PUBLIC_HOST) {
-      // A route caught a path by prefix that Convex does not serve: let the
-      // site's own origin answer it.
       return await fetch(request);
     }
 
@@ -356,7 +346,6 @@ const handler = {
       return corsPreflight();
     }
 
-    // Unauthenticated liveness probe for uptime monitors.
     if (url.pathname === "/__health") {
       if (requestMethod !== "GET" && requestMethod !== "HEAD") {
         return new Response(null, { status: 405 });
@@ -444,9 +433,6 @@ const handler = {
       return new Response(null, { status: 404 });
     }
 
-    // Only full-object responses are served from (and written to) the edge
-    // cache; ranged video/audio requests always go to R2 so seeking stays
-    // accurate.
     const parsedRange =
       requestMethod === "GET"
         ? parseSingleByteRange(request.headers.get("range"))
@@ -463,18 +449,18 @@ const handler = {
             etagMatches(request.headers.get("if-none-match"), cachedEtag ?? "")
           ) {
             const notModifiedHeaders = new Headers(cached.headers);
-            notModifiedHeaders.set("Cache-Control", FILES_CACHE_CONTROL);
+            notModifiedHeaders.set(
+              "Cache-Control",
+              FILES_PRIVATE_CACHE_CONTROL
+            );
             withCorsHeaders(notModifiedHeaders);
             return new Response(null, {
               status: 304,
               headers: notModifiedHeaders,
             });
           }
-          // The edge copy is stored with a public directive (the Cache API
-          // refuses to store private responses); browsers must still receive
-          // the private variant.
           const headers = new Headers(cached.headers);
-          headers.set("Cache-Control", FILES_CACHE_CONTROL);
+          headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
           return new Response(cached.body, {
             status: cached.status,
             statusText: cached.statusText,

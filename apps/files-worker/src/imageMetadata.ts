@@ -5,14 +5,6 @@ import {
 } from "./imageTransform";
 import type { Env } from "./index";
 
-/**
- * Image understanding on Workers AI.
- *
- * The existing `detail` rendition feeds a multimodal model with bounded
- * validation retries and a fixed JSON output shape. This is the only image
- * metadata implementation; image bytes never leave the worker.
- */
-
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;

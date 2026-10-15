@@ -17,7 +17,6 @@ const API_KEY = `teakapi_secret_live_abcd1234_${"f".repeat(64)}`;
 const JWT = "header.payload.signature";
 const CLIENT_IP = "203.0.113.9";
 
-/** KV stand-in that records each write's TTL. */
 class FakeKv {
   readonly values = new Map<string, string>();
   readonly ttls = new Map<string, number | undefined>();
@@ -43,7 +42,6 @@ interface LookupCall {
   url: string;
 }
 
-/** Convex stand-in: answers lookups from a table, recording each call. */
 const convex = (
   owners: Record<string, string>,
   respond?: () => Response | Promise<Response>
@@ -325,7 +323,6 @@ describe("with the real WorkOS token verifier", () => {
         key: "user:teak-user-real",
         source: "oauth",
       });
-      // A token minted for the API does not verify on the MCP path.
       expect(await resolve("/mcp", "https://teakvault.com/api")).toEqual({
         key: `ip:${CLIENT_IP}`,
         source: "address",

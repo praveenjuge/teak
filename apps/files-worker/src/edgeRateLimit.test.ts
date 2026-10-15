@@ -23,7 +23,6 @@ const KEY_A = keyFor("0001");
 const KEY_B = keyFor("0002");
 const STRANGER_KEY = keyFor("9999");
 
-/** Workers limiter stand-in: a fixed number of calls per key, recording keys. */
 class FakeLimiter implements RateLimiter {
   readonly keys: string[] = [];
   private readonly counts = new Map<string, number>();
@@ -46,7 +45,6 @@ class FakeLimiter implements RateLimiter {
   }
 }
 
-/** Convex answers: both test keys belong to one user; anything else is unknown. */
 const deps = async (): Promise<EdgeIdentityDeps> => {
   const owners: Record<string, string> = {
     [await sha256Hex(KEY_A)]: "teak-user-1",
@@ -73,7 +71,6 @@ const env = (
     API_PUBLIC_HOST: "teakvault.com",
     API_REQUEST_LIMITER: api,
     API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
-    // Answers stay cached, as in production.
     EDGE_IDENTITY: new MemoryKv() as unknown as KVNamespace,
     FILES_SIGNING_SECRET: SECRET,
     UNKNOWN_CREDENTIAL_LIMITER: unknown,
@@ -84,7 +81,6 @@ const env = (
 
 const ctx = { waitUntil: () => undefined };
 
-/** KV stand-in that keeps values (TTLs are not needed here). */
 class MemoryKv {
   private readonly values = new Map<string, string>();
 
@@ -192,7 +188,6 @@ describe("a known user", () => {
   });
 
   test("stops reading a refused MCP body after the id lookup's cap", async () => {
-    // 70 KiB, then a stream that never ends: reading it all would hang.
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
@@ -212,14 +207,12 @@ describe("a known user", () => {
     );
     const response = "response" in outcome ? outcome.response : null;
     expect(response?.status).toBe(429);
-    // JSON-RPC answers an unreadable id with null.
     expect(await response?.json()).toMatchObject({ jsonrpc: "2.0", id: null });
   }, 2000);
 
   test(
     "stops waiting for a refused MCP body that stalls under the cap",
     async () => {
-      // A few bytes, then nothing, and the stream never closes.
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new TextEncoder().encode('{"id":1,'));
@@ -330,7 +323,6 @@ describe("a known user", () => {
   });
 
   test("sends an MCP body it cannot classify within the read cap through unattested", async () => {
-    // Whitespace in 16 KiB chunks past the cap, then the request.
     const space = new TextEncoder().encode(" ".repeat(16 * 1024));
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -359,7 +351,6 @@ describe("a known user", () => {
   test(
     "sends a stalled MCP body through unattested once the peek times out",
     async () => {
-      // Whitespace, then nothing, and the stream never closes.
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new TextEncoder().encode("   "));

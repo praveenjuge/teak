@@ -1,11 +1,3 @@
-/**
- * Fetch a saved link's page and match scrape selectors against its static
- * HTML, as Convex's link metadata step did itself: the same SSRF policy,
- * address pinning, browser user agent, 2 MiB limit and parser, all bundled
- * from Convex by path so there is one copy. Unlike Convex, the page is decoded
- * with the charset it declares rather than always as UTF-8.
- */
-
 import {
   readBodyWithLimit,
   SsrfError,
@@ -61,7 +53,6 @@ export const parseFetcherPageRequest = (
 };
 
 const CHARSET_IN_CONTENT_TYPE = /charset\s*=\s*["']?([^\s"';]+)/i;
-// <meta charset="x"> and <meta http-equiv="Content-Type" content="...; charset=x">.
 const CHARSET_IN_META = /<meta\b[^>]*?charset\s*=\s*["']?\s*([\w.:-]+)/i;
 // Browsers look for a <meta> charset in the first 1024 bytes only.
 const META_PRESCAN_BYTES = 1024;

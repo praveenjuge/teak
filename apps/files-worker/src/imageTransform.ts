@@ -144,7 +144,6 @@ export const preferredFormat = (
   return normalized.includes("image/webp") ? "webp" : undefined;
 };
 
-/** Map a negotiated format onto an Images binding output MIME type. */
 const bindingOutputFormat = (
   format: "avif" | "webp" | undefined
 ): "image/avif" | "image/webp" | null => {
@@ -154,14 +153,6 @@ const bindingOutputFormat = (
   return format === "webp" ? "image/webp" : null;
 };
 
-/**
- * Transform an R2 stream directly through the Images binding. This skips the
- * internal signed source round-trip entirely for eligible objects (≤20 MB)
- * and is cached per source ETag + rendition + negotiated format so a
- * re-uploaded key can never serve a stale variant. Returns null when the
- * binding is unavailable, the source is too large, or the client negotiates
- * no modern format — callers fall back to the URL-based transformation path.
- */
 export const transformViaBinding = async (
   env: Env,
   key: string,
@@ -216,11 +207,6 @@ export const transformViaBinding = async (
   }
 };
 
-/**
- * Edge-cache identity for a binding-transformed rendition: immutable object
- * key + rendition live in the path; the source ETag and negotiated format are
- * folded into the query so re-uploads and Accept differences never collide.
- */
 export const buildBindingCacheKey = (
   url: URL,
   sourceEtag: string,
@@ -410,8 +396,6 @@ export const handleImageRequest = async (
     return new Response(null, { status: 415 });
   }
 
-  // Preferred path: transform the R2 stream directly through the Images
-  // binding for eligible sources, cached per source ETag + rendition + format.
   const accept = request.headers.get("accept");
   const negotiatedFormat = preferredFormat(accept);
   if (env.IMAGES && negotiatedFormat) {
@@ -437,7 +421,6 @@ export const handleImageRequest = async (
     );
     if (bound) {
       bound.headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
-      // Expose the source ETag so reloads can revalidate the rendition.
       bound.headers.set(
         "ETag",
         `W/"${metadata.httpEtag.replace(/"/g, "")}-${parsed.rendition}"`

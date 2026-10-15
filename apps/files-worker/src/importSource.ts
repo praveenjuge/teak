@@ -106,7 +106,6 @@ export async function indexImportSource(
       sourceEtag: meta.httpEtag,
     };
   }
-  // Omnivore exports a ZIP of metadata files; its other sources are text.
   if (
     mode === "omnivore" &&
     (await isZipSource(bucket, sourceKey, meta.httpEtag))

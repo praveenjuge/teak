@@ -29,7 +29,6 @@ export function frameTimeSeconds(durationSeconds: number | null): number {
   return Math.min(5, Math.max(1, Math.floor(durationSeconds * 0.1)));
 }
 
-/** Fits inside max×max without upscaling, with even sides. */
 export function fitWithin(
   width: number,
   height: number,
@@ -41,7 +40,6 @@ export function fitWithin(
   return { width: even(width), height: even(height) };
 }
 
-/** `count` times evenly spaced across the duration, centred in each slot. */
 export function scrubTimes(durationSeconds: number, count: number): number[] {
   return Array.from({ length: count }, (_, index) =>
     Number((((index + 0.5) * durationSeconds) / count).toFixed(3))
@@ -52,7 +50,6 @@ export function exceedsFrameLimits(width: number, height: number): boolean {
   return width * height > MAX_PIXELS || width > MAX_SIDE || height > MAX_SIDE;
 }
 
-/** Long side of each frame the palette is read from. */
 export const PALETTE_SAMPLE_MAX = 48;
 
 export function paletteSampleSize(width: number, height: number): SampleSize {
@@ -105,10 +102,6 @@ async function extractFrame(
   };
 }
 
-/**
- * The scrub sprite, and a palette sample of each tile that decoded (kept even
- * when a later tile fails and the sprite is dropped).
- */
 async function buildSprite(
   ctx: JobContext,
   streamIndex: number,
@@ -176,7 +169,6 @@ export async function videoJob(
     sampleSize
   );
   const parts = [{ name: "frame", type: "image/jpeg", bytes: frame.bytes }];
-  // The thumbnail and every scrub tile, so the palette spans the whole video.
   const samples = frame.sample ? [frame.sample] : [];
 
   let scrub: {
@@ -216,10 +208,6 @@ export async function videoJob(
   };
 }
 
-/**
- * The palette of a short animation (an animated GIF), read from evenly spaced
- * frames so colors that only appear later still count. Nothing is stored.
- */
 export async function animationPaletteJob(
   ctx: JobContext,
   params: AnimationParams

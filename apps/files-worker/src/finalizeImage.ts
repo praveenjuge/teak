@@ -1,7 +1,3 @@
-// finalize-image-upload: commit an uploaded image into its permanent key only
-// after the bytes have been decoded server-side. The worker returns trusted
-// image facts (decoded format, dimensions, size) so Convex never has to trust
-// client-provided MIME types or dimensions when creating the card.
 import {
   FILES_PROCESSOR_VERSION,
   type FilesFinalizeImageParams,
@@ -36,7 +32,6 @@ const positiveDimension = (value: unknown): number | null =>
     ? value
     : null;
 
-/** Normalize a binding/probe format token into an `image/*` MIME type. */
 export const normalizeDecodedFormat = (
   raw: string,
   objectKey: string
@@ -45,7 +40,6 @@ export const normalizeDecodedFormat = (
   if (normalized.includes("/")) {
     return normalized.startsWith("image/") ? normalized : "";
   }
-  // Token forms such as "jpeg" or "png" reported without a media type.
   const tokenMime: Record<string, string> = {
     avif: "image/avif",
     gif: "image/gif",
@@ -93,7 +87,6 @@ const factsFromBindingInfo = async (
     throw new Error("source_not_found");
   }
   try {
-    // Only decode bytes that are still the object we validated above.
     assertUnchanged(object, expected);
     const info = (await env.IMAGES.info(object.body)) as CloudflareImageInfo;
     if (info.format === "image/svg+xml") {
@@ -265,10 +258,6 @@ export const finalizeImageUpload = async (
     throw new Error("image_dimensions_too_large");
   }
 
-  // Re-fetch and stream the verified source into its permanent key, pinning
-  // the promotion to the exact bytes that were decoded above: if the pending
-  // key changed between verification and this read, refuse instead of
-  // promoting unverified bytes under stale trusted facts.
   const source = await env.BUCKET.get(sourceKey);
   if (!source) {
     throw new Error("source_not_found");
@@ -276,9 +265,7 @@ export const finalizeImageUpload = async (
   if (source.httpEtag !== metadata.httpEtag || source.size !== metadata.size) {
     try {
       await source.body.cancel();
-    } catch {
-      // Already consumed.
-    }
+    } catch {}
     throw new Error("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {

@@ -1,8 +1,3 @@
-// Writes a minimal PDF with one line of text per page: "Marker-001." on
-// page 1 through "Marker-NNN." on the last page. With --no-text, each page
-// only paints a filled shape, like a scan without a text layer.
-//   bun make-pdf.ts <pages> <output.pdf> [--no-text]
-
 import { writeFileSync } from "node:fs";
 
 const [pagesArg, output, mode] = process.argv.slice(2);

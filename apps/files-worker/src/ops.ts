@@ -58,7 +58,6 @@ import {
   MetadataCapacityError,
   MetadataValidationError,
 } from "./textMetadata";
-import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
 import {
   embedUpsert,
@@ -232,7 +231,6 @@ const finalizeUpload = async (
   };
 };
 
-/** Source and destination of a derived image, both in one user namespace. */
 const derivedImageKeys = (params: Record<string, unknown>) => {
   const sourceKey = requiredString(params, "sourceKey");
   const destinationKey = requiredString(params, "destinationKey");
@@ -249,7 +247,6 @@ const derivedImageKeys = (params: Record<string, unknown>) => {
   return { destinationKey, sourceKey };
 };
 
-/** An optional second output (a scrub sprite) beside a derived image. */
 const optionalDerivedKey = (
   params: Record<string, unknown>,
   name: string,
@@ -295,7 +292,6 @@ const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
     throw new RendererUnavailable("browser_binding_missing");
   }
   return async () => {
-    // Loaded on first use so other operations never pay its startup cost.
     const { default: puppeteer } = await import("@cloudflare/puppeteer");
     return await createBrowserAcquirer(puppeteer, binding)();
   };
@@ -310,8 +306,6 @@ const validKeyList = (value: unknown): string[] => {
   ) {
     throw new Error("invalid_keys");
   }
-  // Object keys are immutable per-card paths; reject duplicates so a single
-  // batch never double-deletes across namespaces.
   return Array.from(new Set(value as string[]));
 };
 
@@ -332,8 +326,6 @@ const dispatch = async (
     case "capabilities":
       return success(requestId, {
         operations: FILES_OPS,
-        // Import sources index-import-source reads; the deploy gate checks
-        // the backend's are all here before Convex ships a new one.
         importModes: IMPORT_MODES,
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
@@ -341,7 +333,6 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
-        // Starts a renderer when none is warm, so only deploy gates ask.
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
@@ -350,10 +341,7 @@ const dispatch = async (
       return success(requestId, await indexImportSource(env.BUCKET, params));
     case "read-import-markdown":
       return success(requestId, await readImportMarkdown(env.BUCKET, params));
-    case "transcribe-audio":
-      return success(requestId, await transcribeAudio(env, params));
     case "analyze-image":
-    case "analyze-image-content":
       return success(
         requestId,
         await analyzeImage(env, requiredString(params, "sourceKey"), origin)
@@ -691,8 +679,6 @@ const dispatch = async (
       return success(
         requestId,
         await fetchLinkPage(env, parseLinkPageParams(params), {
-          // Without a browser the static result stands, as when Browser Run
-          // declines.
           ...(env.BROWSER
             ? {
                 scrape: (html: string, selectors: string[]) =>

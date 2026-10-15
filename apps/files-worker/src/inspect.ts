@@ -1,15 +1,3 @@
-// Bounded file inspection for the inspect op: extracts preview facts / AI text
-// from an object in the R2 binding without the object ever transiting a
-// Convex action.
-//
-// Ports packages/convex/workflows/fileProcessing.ts:
-//   - mode "zip"  → archive stats (+ DOCX/PPTX body text). Uses R2 ranged
-//     reads (EOCD → central directory → selected local entries) so even
-//     multi-GB archives cost kilobytes of memory instead of being buffered.
-//   - mode "css"  → count of color variable declarations
-//   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
-//   - mode "pdf"  → handled in ops by the media renderer (mediaJobs.ts)
-
 import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_PDF_TEXT_MAX_PAGES,
@@ -33,10 +21,6 @@ export {
 const MAX_AI_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS;
 /** PDF text shares the byte-bounded text modes' budget, counted in characters. */
 export const MAX_AI_TEXT_CHARACTERS = MAX_AI_TEXT_BYTES;
-/**
- * Pages read for a PDF's text; later pages are never parsed. The character
- * budget above still bounds the output, so a long PDF stops early.
- */
 export const MAX_PDF_TEXT_PAGES = FILES_PDF_TEXT_MAX_PAGES;
 export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
@@ -84,12 +68,6 @@ export const extractRtfText = (value: string): string =>
     .replace(/\s+/gu, " ")
     .trim();
 
-/**
- * Read at most maxBytes bytes of an object; null when missing, and objects
- * larger than the cap resolve to exactly maxBytes bytes (callers treat
- * truncation as acceptable — mirrors fetchBoundedBytes' content-length guard
- * plus streaming fallback).
- */
 const boundedRead = async (
   bucket: R2Bucket,
   key: string,
@@ -102,7 +80,6 @@ const boundedRead = async (
   if ((object.size ?? 0) <= maxBytes) {
     return new Uint8Array(await object.arrayBuffer());
   }
-  // Larger than the cap: read only the prefix we would have used anyway.
   await object.body.cancel();
   const partial = await rangeRead(bucket, key, 0, maxBytes);
   return partial;
@@ -121,11 +98,6 @@ export interface ZipInspection {
   text: string;
 }
 
-/**
- * Inspect an archive using only ranged reads: the EOCD tail, the central
- * directory, and the handful of DOCX/PPTX entries that carry preview text.
- * Memory stays flat regardless of archive size.
- */
 export const inspectZipRanged = async (
   bucket: R2Bucket,
   key: string,

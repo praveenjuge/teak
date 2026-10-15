@@ -24,8 +24,6 @@ const MAX_TEXT = 128;
 const ascii = (bytes: Uint8Array, offset: number, length: number): string =>
   String.fromCharCode(...bytes.subarray(offset, offset + length));
 
-// --- TIFF ---------------------------------------------------------------
-
 interface Tiff {
   bytes: Uint8Array;
   little: boolean;
@@ -128,7 +126,6 @@ const takenAt = (
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-/** Decode the TIFF structure that follows an `Exif\0\0` marker. */
 export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   if (bytes.length < 8) {
     return null;
@@ -162,8 +159,6 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   ) as ExifFacts;
   return Object.keys(present).length ? present : null;
 };
-
-// --- Containers ---------------------------------------------------------
 
 const EXIF_MARKER = [0x45, 0x78, 0x69, 0x66, 0, 0];
 
@@ -314,10 +309,6 @@ export const heifExifPayload = (item: Uint8Array): Uint8Array | null => {
   return 4 + skip < item.length ? item.subarray(4 + skip) : null;
 };
 
-/**
- * EXIF facts for a stored image. `read` returns `[offset, offset + length)`
- * of the object; only the leading bytes and, for HEIF, the Exif item are read.
- */
 export const readExifFacts = async (
   read: (offset: number, length: number) => Promise<Uint8Array>,
   size: number

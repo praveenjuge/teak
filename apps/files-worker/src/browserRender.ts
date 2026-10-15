@@ -7,14 +7,6 @@ import {
 } from "@teak/files-protocol";
 import type { AcquireBrowser } from "./browserSessions";
 
-/**
- * Link screenshots and scrapes on Cloudflare Browser Run; PDFs and media go to
- * the renderer Container (mediaJobs.ts). Every page runs offline: request
- * interception aborts all network requests and sockets are disabled, so
- * rendering only ever sees HTML that Convex fetched through its DNS-pinned
- * SSRF guard.
- */
-
 export const MAX_RENDER_HTML_BYTES = 2 * 1024 * 1024;
 const PAGE_TIMEOUT_MS = 30_000;
 
@@ -26,7 +18,6 @@ const withPage = async <T>(
   const { browser, release } = await acquire();
   let context: BrowserContext | null = null;
   try {
-    // A private context per operation: the browser may be shared with others.
     context = await browser.createBrowserContext();
     const page = await context.newPage();
     page.setDefaultTimeout(PAGE_TIMEOUT_MS);
@@ -58,9 +49,6 @@ const withPage = async <T>(
   }
 };
 
-// --- HTML (screenshot and scrape) ----------------------------------------
-
-/** HTML from Convex arrives gzip-compressed so 2 MiB pages fit in an op body. */
 export const decodeHtmlParam = async (value: unknown): Promise<string> => {
   if (typeof value !== "string" || !value) {
     throw new Error("invalid_html");
@@ -135,7 +123,6 @@ export const validScrapeSelectors = (value: unknown): string[] => {
   return value as string[];
 };
 
-/** Query selectors against offline HTML, with inline scripts allowed to run. */
 export const scrapeHtml = async (
   acquire: AcquireBrowser,
   html: string,
