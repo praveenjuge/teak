@@ -337,6 +337,29 @@ describe("edge-cached discovery documents", () => {
     ).toBe(`public, max-age=${API_PROXY_DOCUMENT_TTL_SECONDS}`);
   });
 
+  test("gives each cache hit its own request ID", async () => {
+    const cache = new FakeCache();
+    const { fetcher } = upstream(
+      () =>
+        new Response("{}", {
+          headers: { "Cache-Control": "no-store", "X-Request-Id": "req-miss" },
+        })
+    );
+    const request = () =>
+      new Request("https://teakvault.com/.well-known/oauth-protected-resource");
+    const first = await proxy(request(), { cache, fetcher });
+    await settle();
+    const second = await proxy(request(), { cache, fetcher });
+    const third = await proxy(request(), { cache, fetcher });
+
+    expect(first?.headers.get("x-request-id")).toBe("req-miss");
+    const hitIds = [second, third].map((response) =>
+      response?.headers.get("x-request-id")
+    );
+    expect(hitIds[0]).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(new Set(["req-miss", ...hitIds]).size).toBe(3);
+  });
+
   test.each([
     [
       "an authorized request",

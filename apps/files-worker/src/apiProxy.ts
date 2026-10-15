@@ -181,7 +181,11 @@ export const handleApiProxyRequest = async (
   if (cacheable) {
     const cached = await cache.match(cacheKey);
     if (cached) {
-      return withSecurityHeaders(cached);
+      // Each response carries its own request ID for support; a cached copy
+      // must not repeat the one Convex gave the request that filled it.
+      const hit = withSecurityHeaders(cached);
+      hit.headers.set("X-Request-Id", crypto.randomUUID());
+      return hit;
     }
   }
 
