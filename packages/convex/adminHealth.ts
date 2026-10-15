@@ -26,7 +26,6 @@ export const CRON_SCHEDULES: Record<string, number> = {
   "reap-stuck-workflows": 7 * DAY_MS,
   "ai-metadata-backfill": 6 * HOUR_MS,
   "cleanup-expired-exports": DAY_MS,
-  "cleanup-resend-emails": DAY_MS,
   "redrive-account-deletion": 5 * 60 * 1000,
   "admin-daily-snapshot": DAY_MS,
 };

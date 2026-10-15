@@ -49,12 +49,10 @@ Then roll back archive scheduling. Never replace whole cards from an old backup.
 
 ## Retention and usage
 
-Finalized Resend delivery records expire after seven days; unfinished records
-after 28 days. Daily cleanup is bounded by the Resend component. This never
-deletes cards. PostHog error reports cover the initial bounded deletion batches;
-Resend-owned continuation jobs report failures through Convex scheduled-job
-health/logs. Verify retention counts after manual cleanup. Completed workflow journals older than seven days use the
-existing guarded history cleanup; active/recent/unknown histories are retained.
+Teak sends no email of its own: WorkOS sends every sign-in email, and the
+Resend component and its delivery-record cleanup were removed. Completed
+workflow journals older than seven days use the existing guarded history
+cleanup; active/recent/unknown histories are retained.
 
 Use CLI usage warnings, not deployment-disable caps. Convex supports integer
 thresholds, rejects monthly thresholds below already-incurred usage, and does

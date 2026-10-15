@@ -1,7 +1,5 @@
-import { describe, expect, mock, test } from "bun:test";
-import { type FunctionReference, getFunctionAddress } from "convex/server";
+import { describe, expect, test } from "bun:test";
 import crons from "../crons";
-import { cleanupResendEmails } from "../telemetry/crons";
 
 const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
   "workos-event-catch-up": {
@@ -15,10 +13,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
   "cleanup-expired-idempotency": {
     cron: "10 * * * *",
     handler: "cleanupExpiredIdempotency",
-  },
-  "cleanup-resend-emails": {
-    cron: "0 6 * * *",
-    handler: "cleanupResendEmails",
   },
   "cleanup-old-deleted-cards": {
     cron: "0 2 * * *",
@@ -54,10 +48,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
   },
 };
 
-// Monitored crons also write heartbeats (adminHealth.recordCronRun).
-const isHeartbeat = (ref: FunctionReference<"mutation">) =>
-  getFunctionAddress(ref).name === "adminHealth:recordCronRun";
-
 describe("crons.ts", () => {
   test("registers exactly the expected cron identifiers", () => {
     expect(Object.keys(crons.crons).sort()).toEqual(
@@ -74,57 +64,3 @@ describe("crons.ts", () => {
     });
   }
 });
-
-test("email retention awaits component cleanup with safe horizons", async () => {
-  const calls: {
-    reference: string | undefined;
-    args: { olderThan: number };
-  }[] = [];
-  const runMutation = mock(
-    (ref: FunctionReference<"mutation">, args: { olderThan: number }) => {
-      if (!isHeartbeat(ref)) {
-        calls.push({ reference: getFunctionAddress(ref).reference, args });
-      }
-      return Promise.resolve(null);
-    }
-  );
-  await (
-    cleanupResendEmails as unknown as {
-      _handler: (ctx: unknown, args: object) => Promise<null>;
-    }
-  )._handler({ runMutation }, {});
-  expect(calls).toEqual([
-    {
-      reference: "_reference/childComponent/resend/lib/cleanupOldEmails",
-      args: { olderThan: 7 * 24 * 60 * 60 * 1000 },
-    },
-    {
-      reference: "_reference/childComponent/resend/lib/cleanupAbandonedEmails",
-      args: { olderThan: 28 * 24 * 60 * 60 * 1000 },
-    },
-  ]);
-});
-
-for (const failingBatch of [1, 2]) {
-  test(`email cleanup reports a failure in batch ${failingBatch}`, async () => {
-    let calls = 0;
-    const runMutation = mock((ref: FunctionReference<"mutation">) => {
-      if (isHeartbeat(ref)) {
-        return Promise.resolve(null);
-      }
-      calls += 1;
-      if (calls === failingBatch) {
-        return Promise.reject(new Error("cleanup_failed"));
-      }
-      return Promise.resolve(null);
-    });
-    await expect(
-      (
-        cleanupResendEmails as unknown as {
-          _handler: (ctx: unknown, args: object) => Promise<null>;
-        }
-      )._handler({ runMutation }, {})
-    ).rejects.toThrow("cleanup_failed");
-    expect(calls).toBe(failingBatch);
-  });
-}
