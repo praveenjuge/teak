@@ -668,39 +668,27 @@ export const searchCardsByExactTag = async (
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
-    // Trash, or archived and not: the indexes without isArchived.
-    const base = (range: any) =>
-      range
-        .eq("userId", args.userId)
-        .eq("tag", tag)
-        .eq("isDeleted", args.isDeleted);
-    if (type !== undefined && isFavorited !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_type_favorited", (range) =>
-          createdBetween(
-            base(range).eq("type", type).eq("isFavorited", favorited)
-          )
+    // Trash, or archived and not: the one index without isArchived, with
+    // type and favorites checked while reading (a tag's Trash is small).
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_created", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
         )
-        .order(order);
-    } else if (type !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_type", (range) =>
-          createdBetween(base(range).eq("type", type))
-        )
-        .order(order);
-    } else if (isFavorited === undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_created", (range) =>
-          createdBetween(base(range))
-        )
-        .order(order);
-    } else {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_favorited", (range) =>
-          createdBetween(base(range).eq("isFavorited", favorited))
-        )
-        .order(order);
-    }
+      )
+      .filter((q) => {
+        const checks = [
+          ...(type === undefined ? [] : [q.eq(q.field("type"), type)]),
+          ...(isFavorited === undefined
+            ? []
+            : [q.eq(q.field("isFavorited"), favorited)]),
+        ];
+        return checks.length === 0 ? true : q.and(...checks);
+      })
+      .order(order);
   } else {
     const base = (range: any) =>
       range

@@ -44,6 +44,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_card_content",
+  "teak_v1_get_folder",
   "teak_v1_get_me",
   "teak_v1_get_tag_operation",
   "teak_v1_list_cards",
@@ -718,6 +719,13 @@ describe("Convex MCP endpoint", () => {
     const listed = await call("teak_v1_list_folders", {});
     expect(captured[0]).toMatchObject({ method: "GET", path: "/v1/folders" });
     expect(listed.content?.[0]?.text).toBe("Fetched 1 folder");
+
+    const got = await call("teak_v1_get_folder", { folderId: "folder_1" });
+    expect(captured.pop()).toMatchObject({
+      method: "GET",
+      path: "/v1/folders/folder_1",
+    });
+    expect(got.content?.[0]?.text).toBe("Fetched folder Reading");
 
     await call("teak_v1_create_folder", { name: "Reading", color: "blue" });
     expect(captured[1]).toMatchObject({

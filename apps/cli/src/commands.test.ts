@@ -725,6 +725,30 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(result.stdout)).toEqual({ queuedIds: ["card_a"] });
   });
 
+  test("cards duplicate prints the matching card's id, or exits not found", async () => {
+    routes.set("GET /v1/cards/duplicate", (_request, url) =>
+      json({
+        cardId:
+          url.searchParams.get("url") === "https://example.com/a"
+            ? "card_a"
+            : null,
+      })
+    );
+    const found = await teak("cards", "duplicate", "https://example.com/a");
+    expect(found.code).toBe(0);
+    expect(found.stdout).toBe("card_a\n");
+    const asJson = await teak(
+      "--json",
+      "cards",
+      "duplicate",
+      "https://example.com/a"
+    );
+    expect(JSON.parse(asJson.stdout)).toEqual({ cardId: "card_a" });
+    const none = await teak("cards", "duplicate", "https://example.com/b");
+    expect(none.code).toBe(EXIT.notFound);
+    expect(none.stderr).toContain("No card saves this URL");
+  });
+
   test("content prints a card's text, notes truncation on stderr, and --json the envelope", async () => {
     const body = {
       cardId: "card_a",
@@ -820,6 +844,16 @@ describe("teak batch and fallback behavior", () => {
     const listed = await teak("folders");
     expect(listed.stdout).toContain("folder_1");
     expect(listed.stdout).toContain("Reading (blue)");
+
+    // `get` finds the folder by name, then reads it by id.
+    routes.set("GET /v1/folders/folder_1", () =>
+      json({ ...reading, cardCount: 3 })
+    );
+    const shown = await teak("folders", "get", "reading");
+    expect(shown.code).toBe(0);
+    expect(shown.stdout).toMatch(/^folder_1\s+3\s+Reading \(blue\)/);
+    const missingFolder = await teak("folders", "show", "nope");
+    expect(missingFolder.code).toBe(EXIT.notFound);
 
     const created = await teak(
       "folders",

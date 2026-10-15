@@ -230,6 +230,8 @@ and replace your local copy.
 
 See the OpenAPI document at `https://teakvault.com/api/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
+Every card, tag, folder, and account endpoint is also a tool in the [MCP server](/docs/mcp), a method in the TypeScript SDK, and a command in the [CLI](/docs/cli), with the same filters and error codes. Exports are the exception for MCP: an export is a ZIP of your whole library for you to download, so agents read cards a page at a time instead.
+
 ## Search and favorites
 
 Search and favorites are filtered card listings. `GET /v1/cards` supports
@@ -437,6 +439,7 @@ Folders group cards by hand, and a card can be in up to 50 folders. `GET /v1/fol
 
 - `POST /v1/folders` with `{ "name": "Reading", "color": "blue" }` creates a folder and returns `201`. Names are 1 to 300 characters and unique ignoring case; a taken name returns `409 CONFLICT`, and an account can have up to 500 folders (`409 LIMIT_REACHED`).
 - `POST /v1/folders` with `{ "name": "Design links", "kind": "smart", "query": "tag:design type:link" }` creates a smart folder. The query uses the [search qualifiers](#search-qualifiers), is at most 500 characters, and is stored written the canonical way (`#design` becomes `tag:design`). A `folder:` in it must name one of your manual folders, or the request returns `400`.
+- `GET /v1/folders/:folderId` returns one folder with the same fields; another account's folder, or one that doesn't exist, returns `404`.
 - `PATCH /v1/folders/:folderId` renames or recolors a folder; `"color": null` clears the color. `{ "query": "..." }` changes a smart folder's search.
 - `DELETE /v1/folders/:folderId` deletes a folder and returns `204`. Its cards are kept and leave the folder shortly after.
 - `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). Adding a card that is already in the folder succeeds without change. A smart folder holds no cards of its own, so adding to one, or naming one in a card's `folderIds`, returns `409 SMART_FOLDER`.

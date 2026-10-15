@@ -198,6 +198,9 @@ type CardFilters = {
 - `teak_v1_list_folders`
   - Input: `{}`
   - Output: `{ items: Folder[] }`, sorted by name, each with `id`, `name`, `color`, `kind` (`manual` or `smart`), `query`, and `cardCount` (`null` for a smart folder). List a folder's cards with `folder` in `CardFilters`; a smart folder lists the cards its query matches.
+- `teak_v1_get_folder`
+  - Input: `{ folderId: string }`
+  - Output: the folder, with the same fields as in `teak_v1_list_folders`. Another account's folder, or one that doesn't exist, returns `NOT_FOUND`.
 - `teak_v1_create_folder`
   - Input: `{ name: string, color?: FolderColor, kind?: "manual" | "smart", query?: string }`
   - Names are unique ignoring case; an account can have up to 500 folders.

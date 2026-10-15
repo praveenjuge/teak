@@ -227,6 +227,18 @@ export const refreshCards = async (ids: string[], options: GlobalOptions) => {
  * content); `--json` prints the whole response. A note on stderr says when
  * the text isn't whole, so piped text stays clean.
  */
+/** The id of the card that saves this URL; not found when none does. */
+export const findDuplicateCard = async (
+  url: string,
+  options: GlobalOptions
+) => {
+  const cardId = await client(options).cards.duplicate(url);
+  if (!cardId) {
+    throw new TeakApiError("NOT_FOUND", "No card saves this URL");
+  }
+  write(options.json ? { cardId } : cardId, options);
+};
+
 export const showCardContent = async (id: string, options: GlobalOptions) => {
   const content = await client(options).cards.content(id);
   write(options.json ? content : content.text, options);
@@ -506,6 +518,13 @@ export const formatFolderLine = (folder: Folder) =>
     folder.color ? `${folder.name} (${folder.color})` : folder.name,
     ...(folder.kind === "smart" ? [`smart: ${folder.query ?? ""}`] : []),
   ].join("  ");
+
+/** One folder, by name or id, read fresh from the API. */
+export const showFolder = async (ref: string, options: GlobalOptions) => {
+  const api = client(options);
+  const folder = await api.folders.get((await resolveFolder(api, ref)).id);
+  write(options.json ? folder : formatFolderLine(folder), options);
+};
 
 export const listFolders = async (options: GlobalOptions) => {
   const result = await client(options).folders.list();

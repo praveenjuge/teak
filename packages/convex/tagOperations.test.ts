@@ -692,6 +692,15 @@ describe("library tag filter", () => {
       deletedAt: 5,
       createdAt: 5,
     });
+    await insert({
+      content: "trashed starred link",
+      type: "link",
+      tags: ["design"],
+      isFavorited: true,
+      isDeleted: true,
+      deletedAt: 6,
+      createdAt: 6,
+    });
     await runScheduled();
 
     const grid = async (args: Record<string, unknown>) =>
@@ -716,6 +725,7 @@ describe("library tag filter", () => {
       "archived design",
     ]);
     expect(await grid({ tag: "design", showTrashOnly: true })).toEqual([
+      "trashed starred link",
       "trashed design",
     ]);
     expect(await grid({ tag: "design", types: ["link"] })).toEqual([
@@ -734,9 +744,25 @@ describe("library tag filter", () => {
     expect(
       await grid({ tag: "design", favoritesOnly: true, types: ["link"] })
     ).toEqual([]);
+    // Trash reads one index for every archive state and checks type and
+    // favorites on each row.
     expect(
       await grid({ tag: "design", showTrashOnly: true, types: ["text"] })
     ).toEqual(["trashed design"]);
+    expect(
+      await grid({ tag: "design", showTrashOnly: true, favoritesOnly: true })
+    ).toEqual(["trashed starred link"]);
+    expect(
+      await grid({
+        tag: "design",
+        showTrashOnly: true,
+        favoritesOnly: true,
+        types: ["link"],
+      })
+    ).toEqual(["trashed starred link"]);
+    expect(
+      await grid({ tag: "design", showTrashOnly: true, types: ["quote"] })
+    ).toEqual([]);
     expect(await grid({ tag: "design", searchQuery: "alpha" })).toEqual([
       "alpha note",
     ]);
