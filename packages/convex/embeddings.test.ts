@@ -22,10 +22,13 @@ interface WorkerCall {
 const stubWorker = ({
   fail = [],
   failNext = {},
+  matches = [],
   onCall,
 }: {
   fail?: string[];
   failNext?: Record<string, number>;
+  /** What `vector-query` answers. */
+  matches?: { id: string; score: number }[];
   onCall?: (call: WorkerCall) => Promise<void> | void;
 } = {}) => {
   const calls: WorkerCall[] = [];
@@ -57,10 +60,14 @@ const stubWorker = ({
           { status: 500 }
         );
       }
-      const data =
-        body.op === "embed-upsert"
-          ? { mutationId: "m", upserted: body.params.items.length }
-          : { mutationId: "m" };
+      const answers: Record<string, unknown> = {
+        "embed-upsert": {
+          mutationId: "m",
+          upserted: body.params.items?.length,
+        },
+        "vector-query": { matches },
+      };
+      const data = answers[body.op] ?? { mutationId: "m" };
       return Response.json({ ok: true, version: 1, requestId: "r", data });
     })
   );
@@ -448,5 +455,391 @@ describe("stale writes", () => {
     expect(await rowOf(t, cardId)).toMatchObject({
       hash: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
+  });
+});
+
+/** A card saved before embeddings shipped: no search sync, so no ledger row. */
+const insertOldCard = (
+  t: T,
+  content: string,
+  row?: Partial<Doc<"cardEmbeddings">>
+) =>
+  t.run(async (ctx) => {
+    const cardId = await ctx.db.insert("cards", {
+      content,
+      createdAt: Date.now(),
+      type: "text",
+      updatedAt: Date.now(),
+      userId: USER,
+    });
+    if (row) {
+      await ctx.db.insert("cardEmbeddings", { cardId, userId: USER, ...row });
+    }
+    return cardId;
+  });
+
+const backfill = (t: T, args: Parameters<typeof t.mutation>[1] = {}) =>
+  t.mutation(internal.migration.backfillEmbeddings.backfillEmbeddings, args);
+
+/** One card in every state the backfill tells apart. */
+const seedLedgerStates = async (t: T) => {
+  const embedded = await createCard(t, "already embedded");
+  await runScheduled(t);
+  const now = Date.now();
+  return {
+    embedded,
+    missing: await insertOldCard(t, "saved before embeddings"),
+    noText: await insertOldCard(t, ""),
+    failed: await insertOldCard(t, "ran out of retries", {
+      attempts: 5,
+      lastError: "files_worker_error:INTERNAL:500:r",
+    }),
+    pending: await insertOldCard(t, "waiting for its embed", { dueAt: now }),
+    lost: await insertOldCard(t, "its job was lost", {
+      dueAt: now - 2 * 60 * 60 * 1000,
+    }),
+  };
+};
+
+describe("backfill", () => {
+  test("a dry run counts every state and writes nothing", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cards = await seedLedgerStates(t);
+
+    const result = await backfill(t);
+    await runScheduled(t);
+
+    expect(result).toMatchObject({
+      dryRun: true,
+      isDone: true,
+      totals: {
+        examined: 6,
+        noText: 1,
+        embedded: 1,
+        pending: 1,
+        missing: 2,
+        failed: 1,
+        queued: 3,
+        invalidNamespace: 0,
+        skippedDeletingAccounts: 0,
+      },
+    });
+    expect(upserts(calls)).toHaveLength(1);
+    expect(await rowOf(t, cards.missing)).toBeNull();
+  });
+
+  test("a real run embeds the cards without vectors, in one write", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cards = await seedLedgerStates(t);
+
+    await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    const writes = upserts(calls).slice(1);
+    expect(writes).toHaveLength(1);
+    expect(
+      writes[0]?.params.items.map((item: { text: string }) => item.text).sort()
+    ).toEqual([
+      "its job was lost",
+      "ran out of retries",
+      "saved before embeddings",
+    ]);
+    for (const cardId of [cards.missing, cards.failed, cards.lost]) {
+      const row = await rowOf(t, cardId);
+      expect(row).toMatchObject({ hash: expect.any(String) });
+      expect(row).not.toHaveProperty("lastError");
+    }
+  });
+
+  test("a big page goes out in jobs of 16, about 300 cards a minute", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    for (let i = 0; i < 20; i += 1) {
+      await insertOldCard(t, `old card ${i}`);
+    }
+
+    await backfill(t, { dryRun: false });
+    const starts = await t.run(async (ctx) =>
+      (await ctx.db.system.query("_scheduled_functions").collect())
+        .filter(
+          (job) => job.name.includes("embedDue") && job.state.kind === "pending"
+        )
+        .map((job) => job.scheduledTime)
+        .sort((a, b) => a - b)
+    );
+    expect(starts.slice(1).map((time, i) => time - (starts[i] ?? 0))).toEqual([
+      3200,
+    ]);
+    await runScheduled(t);
+
+    expect(
+      upserts(calls)
+        .map((call) => call.params.items.length)
+        .sort((a, b) => a - b)
+    ).toEqual([4, 16]);
+  });
+
+  test("a failed write retries its cards together", async () => {
+    const calls = stubWorker({ failNext: { "embed-upsert": 1 } });
+    const t = setup();
+    const first = await insertOldCard(t, "first");
+    const second = await insertOldCard(t, "second");
+
+    await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    // The retry is one batched write too, not one write per card.
+    expect(upserts(calls).map((call) => call.params.items.length)).toEqual([
+      2, 2,
+    ]);
+    for (const cardId of [first, second]) {
+      expect(await rowOf(t, cardId)).toMatchObject({
+        hash: expect.any(String),
+      });
+    }
+  });
+
+  test("an edit whose re-embed ran out of retries is reported and queued again", async () => {
+    stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "first text");
+    await runScheduled(t);
+    stubWorker({ fail: ["embed-upsert"] });
+    await editCard(t, cardId, { content: "edited text" });
+    await runScheduled(t);
+    // The old vector and hash stay; the edit is never embedded.
+    expect(await rowOf(t, cardId)).toMatchObject({
+      hash: expect.any(String),
+      lastError: expect.any(String),
+    });
+
+    expect(
+      await t.action(internal.embedding.sweep.sweepVectorLedger, {})
+    ).toMatchObject({ failedEmbeds: 1 });
+    const calls = stubWorker();
+    const result = await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({ embedded: 0, failed: 1, queued: 1 });
+    expect(upserts(calls).map((call) => call.params.items[0].text)).toEqual([
+      "edited text",
+    ]);
+  });
+
+  test("reembed queues embedded cards, and unchanged text costs no AI call", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    await createCard(t, "already embedded");
+    await runScheduled(t);
+
+    const result = await backfill(t, { dryRun: false, reembed: true });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({ embedded: 1, queued: 1 });
+    expect(upserts(calls)).toHaveLength(1);
+  });
+
+  test("pages resume from the cursor", async () => {
+    stubWorker();
+    const t = setup();
+    await insertOldCard(t, "one");
+    await insertOldCard(t, "two");
+
+    const first = await backfill(t, { batchSize: 1, once: true });
+    expect(first).toMatchObject({
+      continuationScheduled: false,
+      isDone: false,
+      totals: { examined: 1, queued: 1 },
+    });
+    const second = await backfill(t, {
+      batchSize: 1,
+      cursor: first.continueCursor,
+      once: true,
+      totals: first.totals,
+    });
+    expect(second.totals).toMatchObject({ examined: 2, queued: 2 });
+  });
+
+  test("userId limits a run to one account", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    await insertOldCard(t, "mine");
+    const theirs = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        content: "someone else's",
+        createdAt: Date.now(),
+        type: "text",
+        updatedAt: Date.now(),
+        userId: "teak_someone_else",
+      })
+    );
+
+    const result = await backfill(t, { dryRun: false, userId: USER });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({ examined: 1, queued: 1 });
+    expect(upserts(calls).map((call) => call.params.items[0].text)).toEqual([
+      "mine",
+    ]);
+    expect(await rowOf(t, theirs)).toBeNull();
+  });
+
+  test("leaves accounts being deleted alone", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await insertOldCard(t, "owner is leaving");
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        startedAt: Date.now(),
+        userId: USER,
+      })
+    );
+
+    const result = await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({
+      missing: 1,
+      queued: 0,
+      skippedDeletingAccounts: 1,
+    });
+    expect(calls).toEqual([]);
+    expect(await rowOf(t, cardId)).toBeNull();
+  });
+
+  test("a real run refuses to start without a Files Worker", async () => {
+    vi.stubEnv("FILES_BASE", "");
+    stubWorker();
+    const t = setup();
+    await insertOldCard(t, "local stack");
+
+    await expect(backfill(t, { dryRun: false })).rejects.toThrow(
+      "files_worker_not_configured"
+    );
+    expect((await backfill(t)).totals.queued).toBe(1);
+  });
+});
+
+describe("ledger sweep", () => {
+  const sweep = (t: T) =>
+    t.action(internal.embedding.sweep.sweepVectorLedger, {});
+
+  test("a healthy ledger reports nothing", async () => {
+    stubWorker();
+    const t = setup();
+    await createCard(t, "fine");
+    await runScheduled(t);
+
+    expect(await sweep(t)).toEqual({
+      rows: 1,
+      staleTombstones: 0,
+      cardMissing: 0,
+      failedEmbeds: 0,
+      lostJobs: 0,
+      complete: true,
+    });
+  });
+
+  test("reports failed deletes, rows of gone cards, failed embeds and lost jobs", async () => {
+    stubWorker();
+    const t = setup();
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    await insertOldCard(t, "failed embed", {
+      attempts: 5,
+      lastError: "boom",
+    });
+    await insertOldCard(t, "lost job", { dueAt: now - 2 * 60 * 60 * 1000 });
+    await insertOldCard(t, "due soon", { dueAt: now + 1000 });
+    await t.run(async (ctx) => {
+      for (const [content, row] of [
+        ["delete failing for days", { pendingVectorDeleteAt: now - 2 * day }],
+        ["delete just started", { pendingVectorDeleteAt: now - 1000 }],
+        ["gone without a tombstone", { hash: "h", shard: 0 }],
+      ] as const) {
+        const cardId = await ctx.db.insert("cards", {
+          content,
+          createdAt: now,
+          type: "text",
+          updatedAt: now,
+          userId: USER,
+        });
+        await ctx.db.insert("cardEmbeddings", {
+          cardId,
+          userId: USER,
+          ...row,
+        });
+        await ctx.db.delete("cards", cardId);
+      }
+    });
+
+    expect(await sweep(t)).toEqual({
+      rows: 6,
+      staleTombstones: 1,
+      cardMissing: 1,
+      failedEmbeds: 1,
+      lostJobs: 1,
+      complete: true,
+    });
+  });
+});
+
+describe("searchByMeaning", () => {
+  test("queries only the user's namespace and describes only their cards", async () => {
+    const t = setup();
+    const placeholder = stubWorker();
+    const cardId = await createCard(t, "Teak decks shrug off rain");
+    await runScheduled(t);
+    expect(upserts(placeholder)).toHaveLength(1);
+    const strangers = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        content: "someone else's card",
+        createdAt: Date.now(),
+        type: "text",
+        updatedAt: Date.now(),
+        userId: "teak_someone_else",
+      })
+    );
+    const calls = stubWorker({
+      matches: [
+        { id: cardId, score: 0.81 },
+        { id: strangers, score: 0.4 },
+      ],
+    });
+
+    const results = await t.action(internal.embedding.inspect.searchByMeaning, {
+      text: "furniture wood that survives rain",
+      userId: USER,
+    });
+
+    expect(calls).toEqual([
+      {
+        op: "vector-query",
+        params: {
+          namespace: USER,
+          shard: 0,
+          text: "furniture wood that survives rain",
+          topK: 10,
+        },
+      },
+    ]);
+    expect(results).toEqual([
+      { cardId, preview: "Teak decks shrug off rain", score: 0.81 },
+      { cardId: strangers, preview: null, score: 0.4 },
+    ]);
+  });
+
+  test("a user with no vectors gets nothing, without a query", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    expect(
+      await t.action(internal.embedding.inspect.searchByMeaning, {
+        text: "anything",
+        userId: "teak_typo",
+      })
+    ).toEqual([]);
+    expect(calls).toEqual([]);
   });
 });

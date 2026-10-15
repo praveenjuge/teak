@@ -7,6 +7,7 @@ import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
   cleanupOldDeletedCards,
+  sweepOrphanedObjects,
 } from "../../telemetry/crons";
 
 const HEARTBEAT = "adminHealth:recordCronRun";
@@ -114,6 +115,24 @@ describe("cron monitoring", () => {
       phase: "failed",
       error: "workflow start failed",
     });
+  });
+
+  test("the weekly sweep runs both reports even when the first one fails", async () => {
+    const runMutation = mock(async () => null);
+    const runAction = mock((reference) =>
+      getFunctionName(reference) === "embedding/sweep:sweepVectorLedger"
+        ? Promise.reject(new Error("ledger read limit"))
+        : Promise.resolve({ orphanCount: 0 })
+    );
+    await expect(
+      sweepOrphanedObjects._handler({ runAction, runMutation }, {})
+    ).rejects.toThrow("ledger read limit");
+    expect(
+      runAction.mock.calls.map(([reference]) => getFunctionName(reference))
+    ).toEqual([
+      "embedding/sweep:sweepVectorLedger",
+      "workflows/orphanSweep:sweepOrphanedObjects",
+    ]);
   });
 
   test("a failed heartbeat write never fails the job", async () => {

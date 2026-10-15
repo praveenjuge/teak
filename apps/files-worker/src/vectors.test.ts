@@ -257,7 +257,7 @@ describe("vector-delete, vector-get and vector-query", () => {
       {
         options: {
           namespace: NAMESPACE,
-          returnMetadata: false,
+          returnMetadata: "none",
           returnValues: false,
           topK: 20,
         },
