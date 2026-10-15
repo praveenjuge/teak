@@ -2,6 +2,7 @@ import { env, httpAction } from "./_generated/server";
 import { OAUTH_SURFACES } from "./client/authDiscovery";
 import { isLocalDevelopmentHostname, resolveTeakDevApiUrl } from "./devUrls";
 import { readWorkosConnectIssuer, readWorkosResources } from "./env";
+import { PUBLIC_API_CORS_HEADERS } from "./shared/publicApiHeaders";
 
 export const API_VERSION = "v1";
 
@@ -40,15 +41,7 @@ export const API_AUTH_HINT =
   "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)";
 export const MCP_TRANSPORT = "streamable-http";
 
-export const PUBLIC_API_CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, Idempotency-Key, X-Request-Id",
-  "Access-Control-Expose-Headers":
-    "X-Request-Id, Idempotency-Key, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
-  "Access-Control-Max-Age": "86400",
-};
+export { PUBLIC_API_CORS_HEADERS } from "./shared/publicApiHeaders";
 
 const PROD_PUBLIC_API_URL = "https://teakvault.com/api";
 const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";

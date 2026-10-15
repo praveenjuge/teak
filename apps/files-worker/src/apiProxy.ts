@@ -10,6 +10,8 @@
  * does not serve (`/apis`), are left to the caller.
  */
 
+import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
+
 export interface ApiProxyEnv {
   /** Host whose API paths this Worker proxies (`teakvault.com`). Unset disables the proxy. */
   API_PUBLIC_HOST?: string;
@@ -77,11 +79,17 @@ export const upstreamPathFor = (pathname: string): string | null => {
   return null;
 };
 
+/** An error the Worker answers itself, with the headers Convex's API errors carry. */
 const errorResponse = (status: number, code: string, error: string) =>
   withSecurityHeaders(
     new Response(JSON.stringify({ code, error }), {
       status,
-      headers: { "Content-Type": "application/json; charset=utf-8" },
+      headers: {
+        ...PUBLIC_API_CORS_HEADERS,
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Request-Id": crypto.randomUUID(),
+      },
     })
   );
 

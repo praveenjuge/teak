@@ -1,9 +1,14 @@
-import { isLocalDevelopmentHostname } from "../devUrls";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
+import {
+  isLoopbackHostname as loopback,
+  validateOAuthUrl,
+} from "../shared/oauthUrl";
 import {
   PRODUCTION_WORKOS_RESOURCES,
   workosResourcesFor,
 } from "../shared/workosResources";
+
+export { validateOAuthUrl } from "../shared/oauthUrl";
 
 export const OAUTH_SURFACES = ["cli", "raycast", "chrome", "firefox"] as const;
 export type OAuthSurface = (typeof OAUTH_SURFACES)[number];
@@ -32,46 +37,6 @@ const object = (value: unknown): Record<string, unknown> => {
   }
   return value as Record<string, unknown>;
 };
-const loopback = (hostname: string) =>
-  isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
-
-const privateHost = (hostname: string) => {
-  const octets = hostname.split(".").map(Number);
-  return (
-    hostname.endsWith(".localhost") ||
-    hostname.endsWith(".local") ||
-    hostname.startsWith("[") ||
-    (octets.length === 4 &&
-      octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) &&
-      (octets[0] === 0 ||
-        octets[0] === 10 ||
-        (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
-        octets[0] === 127 ||
-        (octets[0] === 169 && octets[1] === 254) ||
-        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-        (octets[0] === 192 && octets[1] === 168)))
-  );
-};
-
-export const validateOAuthUrl = (raw: unknown, local = false): URL => {
-  if (typeof raw !== "string") {
-    throw new Error("Missing OAuth discovery URL");
-  }
-  const url = new URL(raw);
-  if (
-    url.username ||
-    url.password ||
-    url.hash ||
-    (url.protocol !== "https:" &&
-      !(local && url.protocol === "http:" && loopback(url.hostname))) ||
-    (!local && loopback(url.hostname)) ||
-    (privateHost(url.hostname) && !(local && loopback(url.hostname)))
-  ) {
-    throw new Error("Unsafe OAuth discovery URL");
-  }
-  return url;
-};
-
 // Cache is scoped to the deployment and transport. Call with forceRefresh after
 // sign-in/refresh failures so a client registration change needs no release.
 export function discoverAuthServer(

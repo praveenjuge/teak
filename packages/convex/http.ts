@@ -1,5 +1,7 @@
+import { EDGE_IDENTITY_PATH } from "@teak/files-protocol";
 import { httpRouter } from "convex/server";
 import { polar, polarWebhookEvents } from "./billing";
+import { edgeIdentityV1 } from "./edgeIdentity";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import { exportsV1 } from "./publicApiExports";
@@ -27,6 +29,14 @@ import { disconnectWorkosConsent } from "./workosConnectRevocation";
 import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
+
+// Signed by the Files Worker: which user a credential belongs to, for edge
+// rate limits. See edgeIdentity.ts.
+http.route({
+  path: EDGE_IDENTITY_PATH,
+  method: "POST",
+  handler: edgeIdentityV1,
+});
 
 http.route({
   path: "/.well-known/teak-oauth-clients.json",

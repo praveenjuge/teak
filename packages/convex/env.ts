@@ -1,5 +1,5 @@
 import { env } from "./_generated/server";
-import { validateOAuthUrl } from "./client/authDiscovery";
+import { validateOAuthUrl } from "./shared/oauthUrl";
 import {
   PRODUCTION_WORKOS_RESOURCES,
   type WorkosResources,

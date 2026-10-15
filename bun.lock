@@ -78,6 +78,7 @@
         "fflate": "^0.8.2",
       },
       "devDependencies": {
+        "jose": "6.2.12",
         "wrangler": "^4.136.1",
       },
     },
