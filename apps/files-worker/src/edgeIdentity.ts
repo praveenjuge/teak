@@ -127,7 +127,8 @@ const cachedOwner = async (
   lookup: EdgeIdentityLookup,
   fetcher: typeof fetch
 ): Promise<string | null | undefined> => {
-  const cached = await env.EDGE_IDENTITY?.get(cacheKey);
+  // A failed read is a cache miss: ask Convex instead.
+  const cached = await env.EDGE_IDENTITY?.get(cacheKey).catch(() => null);
   if (typeof cached === "string") {
     return cached || null;
   }

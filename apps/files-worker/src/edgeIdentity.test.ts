@@ -192,6 +192,21 @@ describe("API keys", () => {
   );
 });
 
+test("a failed KV read counts as a cache miss", async () => {
+  const keyHash = await sha256Hex(API_KEY);
+  const { calls, fetcher } = convex({ [keyHash]: "teak-user-1" });
+  const kv = new FakeKv();
+  kv.get = () => Promise.reject(new Error("KV unavailable"));
+  const identity = await resolveEdgeIdentity(
+    request("/api/v1/cards", `Bearer ${API_KEY}`),
+    env(kv),
+    ctx,
+    { fetcher }
+  );
+  expect(identity).toEqual({ key: "user:teak-user-1", source: "api_key" });
+  expect(calls).toHaveLength(1);
+});
+
 describe("WorkOS access tokens", () => {
   test("bucket by the Teak user the verified token maps to", async () => {
     const { calls, fetcher } = convex({ user_01VERIFIED: "teak-user-2" });

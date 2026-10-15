@@ -32,6 +32,22 @@
   ],
   // src/edgeIdentity.ts: which user each API key hash or WorkOS user belongs
   // to, cached for edge rate limits.
+  // src/edgeRateLimit.ts: per-user (and per-address) limits on the public
+  // API and MCP server. Counted per Cloudflare location in fixed windows; the
+  // limits match EDGE_API_REQUEST_LIMIT and EDGE_UNKNOWN_CREDENTIAL_LIMIT.
+  // namespace_id must be unique across the account.
+  "ratelimits": [
+    {
+      "name": "API_REQUEST_LIMITER",
+      "namespace_id": "6941",
+      "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      "name": "UNKNOWN_CREDENTIAL_LIMITER",
+      "namespace_id": "6942",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "EDGE_IDENTITY",

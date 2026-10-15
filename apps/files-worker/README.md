@@ -90,8 +90,39 @@ a read-only lookup signed with the shared files signing secret over its own
 SHA-256 digest, never the key; Convex knows a key by the digest its validation
 caches in `apiKeyAuthCache`. Answers are cached in the `EDGE_IDENTITY` KV
 namespace for an hour, or a minute for an unknown credential, so a new key is
-recognized within a minute. A failed lookup is not cached. The edge rate
-limits that use these buckets come in a later change.
+recognized within a minute. A failed lookup, or a failed KV read, is not
+cached.
+
+### Edge rate limits
+
+`src/edgeRateLimit.ts` charges every proxied request (not preflights) to its
+bucket before it reaches Convex:
+
+- `API_REQUEST_LIMITER`, 120 a minute, for a known user, and for a request
+  with no credential (by address);
+- `UNKNOWN_CREDENTIAL_LIMITER`, 60 a minute, for a credential the edge cannot
+  tie to a user (by address).
+
+The limits match Convex's `publicApiRequests` and `invalidApiAuth` (a test
+checks), and are counted per Cloudflare location in fixed windows, so they
+are approximate. Over a limit, `/api` gets the public API's 429
+(`RATE_LIMITED`, `Retry-After`, `RateLimit-*`) and `/mcp` gets HTTP 429 with
+`Retry-After` and a JSON-RPC error (code `-31429`, the request's `id`): MCP
+2026-07-28 defines no rate-limit error and leaves intermediaries an HTTP
+status, and reserves -32000 to -32099.
+
+A known user's request within the limit is forwarded with
+`x-teak-edge-rate-limit`: an expiry and an HMAC (files signing secret) over
+the SHA-256 of its `Authorization` value. Convex
+(`hasEdgeRateLimitAttestation` in `packages/convex/edgeIdentity.ts`) then
+skips the `publicApiRequests` charge and its database write; MCP tool calls
+forward the header with the same `Authorization`. Everything else is charged
+by Convex as before: requests without the attestation (including any that
+reach `convex.site` directly), JSON-RPC batches, which Convex charges per
+call, and requests sent while a limiter is unavailable. A client's own
+`x-teak-edge-rate-limit` header is always dropped. Card creation, reprocess
+and API key creation limits stay in Convex: they count cards rather than
+requests, defer edits rather than refusing them, or never pass the edge.
 
 
 ## Internal ops
