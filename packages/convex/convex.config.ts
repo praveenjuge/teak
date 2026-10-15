@@ -39,6 +39,10 @@ const app = defineApp({
     POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
     // Personal API key (query:read) for the superadmin console's PostHog reads.
     POSTHOG_QUERY_API_KEY: v.optional(v.string()),
+    // Personal API key (person:write) that deletes a deleted owner's PostHog
+    // person, events and recordings. Required wherever POSTHOG_PROJECT_TOKEN
+    // is set, or account deletion retries until it is.
+    POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
     // Stamped by Backend Deploy; sent as the backend's $app_version.
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.

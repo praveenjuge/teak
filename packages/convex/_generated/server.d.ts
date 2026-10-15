@@ -39,6 +39,7 @@ type Env = {
   readonly POLAR_SERVER: string | undefined;
   readonly POSTHOG_PROJECT_TOKEN: string | undefined;
   readonly POSTHOG_QUERY_API_KEY: string | undefined;
+  readonly POSTHOG_PERSON_DELETION_API_KEY: string | undefined;
   readonly ADMIN_ALERT_WEBHOOK_URL: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;
   readonly R2_BUCKET: string | undefined;
