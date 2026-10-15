@@ -64,48 +64,58 @@ interface Checked {
 
 const DIRECT_ASSET = /\.(png|jpe?g|gif|webp|avif|svg|mp4|mov|m4v)(?:[?#]|$)/i;
 
-const LISTINGS: [string, string, RegExp][] = [
-  [
-    "dribbble",
-    "https://dribbble.com/shots/popular",
-    /href="(\/shots\/\d+-[^"?#]+)"/g,
-  ],
-  [
-    "behance",
-    "https://www.behance.net/galleries",
-    /href="(https:\/\/www\.behance\.net\/gallery\/\d+\/[^"?#]+)"/g,
-  ],
-  [
-    "awwwards",
-    "https://www.awwwards.com/websites/",
-    /href="(\/sites\/[a-z0-9-]+)"/g,
-  ],
-  ["unsplash", "https://unsplash.com/", /href="(\/photos\/[a-zA-Z0-9-]+)"/g],
-  [
-    "figma community",
-    "https://www.figma.com/community",
-    /href="(\/community\/file\/\d+[^"?#]*)"/g,
-  ],
-  [
-    "codepen",
-    "https://codepen.io/trending",
-    /href="(https:\/\/codepen\.io\/[^/"]+\/pen\/[A-Za-z0-9]+)"/g,
-  ],
-  [
-    "coolors",
-    "https://coolors.co/palettes/trending",
-    /href="(\/palette\/[0-9a-f-]+)"/g,
-  ],
-  [
-    "fonts in use",
-    "https://fontsinuse.com/",
-    /href="(https:\/\/fontsinuse\.com\/uses\/\d+\/[^"?#]+)"/g,
-  ],
-  [
-    "it's nice that",
-    "https://www.itsnicethat.com/",
-    /href="(\/articles\/[a-z0-9-]+-\d+)"/g,
-  ],
+interface Listing {
+  name: string;
+  pattern: RegExp;
+  url: string;
+}
+
+const LISTINGS: Listing[] = [
+  {
+    name: "dribbble",
+    pattern: /href="(\/shots\/\d+-[^"?#]+)"/g,
+    url: "https://dribbble.com/shots/popular",
+  },
+  {
+    name: "behance",
+    pattern: /href="(https:\/\/www\.behance\.net\/gallery\/\d+\/[^"?#]+)"/g,
+    url: "https://www.behance.net/galleries",
+  },
+  {
+    name: "awwwards",
+    pattern: /href="(\/sites\/[a-z0-9-]+)"/g,
+    url: "https://www.awwwards.com/websites/",
+  },
+  {
+    name: "unsplash",
+    pattern: /href="(\/photos\/[a-zA-Z0-9-]+)"/g,
+    url: "https://unsplash.com/",
+  },
+  {
+    name: "figma community",
+    pattern: /href="(\/community\/file\/\d+[^"?#]*)"/g,
+    url: "https://www.figma.com/community",
+  },
+  {
+    name: "codepen",
+    pattern: /href="(https:\/\/codepen\.io\/[^/"]+\/pen\/[A-Za-z0-9]+)"/g,
+    url: "https://codepen.io/trending",
+  },
+  {
+    name: "coolors",
+    pattern: /href="(\/palette\/[0-9a-f-]+)"/g,
+    url: "https://coolors.co/palettes/trending",
+  },
+  {
+    name: "fonts in use",
+    pattern: /href="(https:\/\/fontsinuse\.com\/uses\/\d+\/[^"?#]+)"/g,
+    url: "https://fontsinuse.com/",
+  },
+  {
+    name: "it's nice that",
+    pattern: /href="(\/articles\/[a-z0-9-]+-\d+)"/g,
+    url: "https://www.itsnicethat.com/",
+  },
 ];
 
 const discover = async (
@@ -291,9 +301,9 @@ const main = async () => {
       "utf8"
     )
   ) as Record<string, string[]>;
-  for (const [name, listing, pattern] of LISTINGS) {
-    const found = await discover(listing, pattern);
-    groups[`design: newest on ${name}`] = found.length ? found : [listing];
+  for (const { name, pattern, url } of LISTINGS) {
+    const found = await discover(url, pattern);
+    groups[`design: newest on ${name}`] = found.length ? found : [url];
   }
   const jobs = Object.entries(groups).flatMap(([group, urls]) =>
     urls.map((url) => [group, url] as const)
