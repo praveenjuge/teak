@@ -19,7 +19,10 @@ import { readDotenvFile } from "../../../../scripts/env-loader.ts";
 import { runCommand } from "../../../../scripts/proc.ts";
 import { listDeploymentVars } from "../../../../scripts/setup-convex.ts";
 import { isMachineLocalValue } from "../../../../scripts/setup-derived-env.ts";
-import type { WorktreePorts } from "../../../../scripts/worktree-env.ts";
+import {
+  isPortInUse,
+  type WorktreePorts,
+} from "../../../../scripts/worktree-env.ts";
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
 
@@ -88,17 +91,13 @@ export interface LocalBackendPorts {
   convexSite: number;
 }
 
-export interface ConvexDevOnceOptions {
+export interface ConvexDevOnceOptions extends BackendExitOptions {
   /** Total attempts; transient failures retry with backoff. Defaults to 3. */
   attempts?: number;
-  /** Local backend identity HTTP boundary; defaults to fetch. */
-  fetch?: typeof fetch;
   /** The local backend's ports. */
   ports?: LocalBackendPorts;
   /** Subprocess runner; defaults to runCommand. */
   run?: typeof runCommand;
-  /** Backoff sleeper; defaults to Bun.sleep. */
-  sleepMs?: (ms: number) => Promise<void>;
 }
 
 /**
@@ -116,21 +115,11 @@ export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
       ]
     : [];
 
-// A port collision is not enough to classify shutdown as transient. Confirm
-// the selected anonymous backend's identity before retrying; never stop it.
-async function selectedBackendIsShuttingDown(
-  output: string,
-  cwd: string,
-  fetchImpl: typeof fetch,
-  port: number
-): Promise<boolean> {
-  if (
-    !output.includes(
-      `A local backend is still running on port ${port}. Please stop it and run this command again.`
-    )
-  ) {
-    return false;
-  }
+/**
+ * The anonymous backend this checkout selects, when the declared authority
+ * (anonymous mode, no deploy key) makes it this checkout's own.
+ */
+export const selectedAnonymousInstance = (cwd: string): string | undefined => {
   const dotenvPath = join(cwd, ".env.local");
   const fileValues = readDotenvFile(dotenvPath)?.values;
   const mode =
@@ -140,28 +129,98 @@ async function selectedBackendIsShuttingDown(
     process.env.CONVEX_DEPLOY_KEY?.trim() ||
     fileValues?.get("CONVEX_DEPLOY_KEY")?.trim();
   if (mode !== "anonymous" || deployKey) {
-    return false;
+    return undefined;
   }
   const selected = readConvexSelection(process.env, dotenvPath).deployment;
-  const match = selected?.match(/^anonymous:(anonymous-[A-Za-z0-9_-]+)$/);
-  if (!match) {
-    return false;
-  }
-  try {
-    const response = await fetchImpl(`http://127.0.0.1:${port}/instance_name`, {
-      redirect: "error",
-      credentials: "omit",
-      signal: AbortSignal.timeout(1000),
-    });
-    if (!response.ok) {
-      return false;
-    }
-    const instance = await readResponseTextWithinLimit(response, 128);
-    return instance === match[1];
-  } catch {
-    return false;
-  }
+  return selected?.match(/^anonymous:(anonymous-[A-Za-z0-9_-]+)$/)?.[1];
+};
+
+const BACKEND_EXIT_POLL_MS = 250;
+const BACKEND_EXIT_TIMEOUT_MS = 30_000;
+
+export interface BackendExitOptions {
+  /** Local backend identity HTTP boundary; defaults to fetch. */
+  fetch?: typeof fetch;
+  /** Clock in milliseconds; defaults to Date.now. */
+  now?: () => number;
+  /** Port probe; defaults to isPortInUse. */
+  portInUse?: (port: number) => Promise<boolean>;
+  /** Poll sleeper; defaults to Bun.sleep. */
+  sleepMs?: (ms: number) => Promise<void>;
 }
+
+/**
+ * Waits for this checkout's own local backend to release its port. Every
+ * Convex CLI call against a local deployment starts a backend and, on exit,
+ * only sends it SIGTERM, so it can keep answering for seconds (longer on CI
+ * runners). The next `convex dev` gives such a backend 5 seconds before it
+ * fails with "A local backend is still running on port …", and `convex env`
+ * reuses it mid-shutdown. This never stops anything: it returns "other" as
+ * soon as anything else answers on the port, and "timeout" if the port stays
+ * busy for 30 seconds.
+ */
+export const waitForBackendExit = async (
+  instance: string,
+  port: number,
+  opts?: BackendExitOptions
+): Promise<"stopped" | "other" | "timeout"> => {
+  const fetchImpl = opts?.fetch ?? fetch;
+  const portInUse = opts?.portInUse ?? isPortInUse;
+  const sleepMs = opts?.sleepMs ?? Bun.sleep;
+  const now = opts?.now ?? Date.now;
+  // A wall-clock deadline: slow probes count against the budget too.
+  const deadline = now() + BACKEND_EXIT_TIMEOUT_MS;
+  while (now() < deadline) {
+    if (!(await portInUse(port))) {
+      return "stopped";
+    }
+    try {
+      const response = await fetchImpl(
+        `http://127.0.0.1:${port}/instance_name`,
+        {
+          redirect: "error",
+          credentials: "omit",
+          signal: AbortSignal.timeout(
+            Math.max(1, Math.min(1000, deadline - now()))
+          ),
+        }
+      );
+      // A backend mid-shutdown can answer with an error status; keep waiting.
+      if (
+        response.ok &&
+        (await readResponseTextWithinLimit(response, 128)) !== instance
+      ) {
+        return "other";
+      }
+    } catch {
+      // Not answering while the port is held: it is closing.
+    }
+    await sleepMs(BACKEND_EXIT_POLL_MS);
+  }
+  return (await portInUse(port)) ? "timeout" : "stopped";
+};
+
+// A port collision alone is not transient: retry only once this checkout's
+// selected backend has released the port.
+const collidedWithOwnBackend = async (
+  output: string,
+  cwd: string,
+  port: number,
+  opts?: BackendExitOptions
+): Promise<boolean> => {
+  if (
+    !output.includes(
+      `A local backend is still running on port ${port}. Please stop it and run this command again.`
+    )
+  ) {
+    return false;
+  }
+  const instance = selectedAnonymousInstance(cwd);
+  return (
+    instance !== undefined &&
+    (await waitForBackendExit(instance, port, opts)) === "stopped"
+  );
+};
 
 export const convexDevOnce = async (
   cwd: string,
@@ -184,19 +243,19 @@ export const convexDevOnce = async (
     }
     const output = `${result.stderr}\n${result.stdout}`;
     detail = summarizePushFailure(output);
-    const transient =
-      isTransientPushFailure(output) ||
-      (attempt < attempts &&
-        (await selectedBackendIsShuttingDown(
-          output,
-          cwd,
-          opts?.fetch ?? fetch,
-          opts?.ports?.convex ?? 3210
-        )));
-    if (!(transient && attempt < attempts)) {
+    if (attempt === attempts) {
       break;
     }
-    await sleepMs(2000 * attempt);
+    if (isTransientPushFailure(output)) {
+      await sleepMs(2000 * attempt);
+    } else if (
+      !(await collidedWithOwnBackend(output, cwd, opts?.ports?.convex ?? 3210, {
+        ...opts,
+        sleepMs,
+      }))
+    ) {
+      break;
+    }
   }
   return { detail, ok: false };
 };
@@ -315,11 +374,25 @@ export const setupBackend = async (
   delete process.env.CONVEX_DEPLOY_KEY;
   process.env.CONVEX_AGENT_MODE = "anonymous";
   const ports = { convex: worktree.convex, convexSite: worktree.convexSite };
+  // Each Convex CLI call leaves its backend shutting down. Let it go before
+  // the next call (or the stack) needs the port.
+  const settle = async () => {
+    const instance = selectedAnonymousInstance(convexDir);
+    const exit = instance
+      ? await waitForBackendExit(instance, ports.convex)
+      : "stopped";
+    if (exit !== "stopped") {
+      throw new Error(
+        `Port ${ports.convex} is still in use after the last Convex command. Stop whatever is listening there (\`bun run dev --stop\` if it is this checkout's stack) and re-run.`
+      );
+    }
+  };
 
   // Provision first when nothing is selected: the first push may fail on
   // missing variables, which the next step configures before the stack's push.
   if (!selection.deployment) {
     const provision = await convexDevOnce(convexDir, { ports });
+    await settle();
     done.push(
       provision.ok
         ? `provisioned a local backend (${provision.detail})`
@@ -327,16 +400,20 @@ export const setupBackend = async (
     );
   }
   ensureLocalStateMarker(convexDir);
+  const listed = await listDeploymentVars(convexDir);
+  await settle();
   // auth.config.ts reads the WorkOS values, so they are set before the push.
-  const vars = await ensureDeploymentVars(convexDir, {
-    SITE_URL: worktree.siteUrl,
-    ...emulatorDeploymentVars(worktree),
-  });
+  const vars = await ensureDeploymentVars(
+    convexDir,
+    { SITE_URL: worktree.siteUrl, ...emulatorDeploymentVars(worktree) },
+    listed
+  );
   if (!vars.ok) {
     throw new Error(
       `${vars.detail}. Remove those variables with \`bunx convex env remove <NAME>\` in packages/convex and re-run.`
     );
   }
+  await settle();
   done.push(
     vars.configured.length > 0
       ? `configured ${vars.configured.join(", ")} for the WorkOS emulator`

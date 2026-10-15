@@ -230,38 +230,136 @@ describe("selected anonymous backend shutdown recovery", () => {
       }
     }
   };
-  const boundary = (name: string) =>
-    Object.assign(
-      (input: RequestInfo | URL, init?: RequestInit) => {
-        expect(String(input)).toBe("http://127.0.0.1:3210/instance_name");
-        expect(init?.redirect).toBe("error");
-        return Promise.resolve(new Response(name));
-      },
-      { preconnect: fetch.preconnect }
-    );
-  test("retries only the matching selected anonymous backend until push succeeds", async () => {
-    await withSelection("anonymous:anonymous-agent", async (cwd) => {
-      let calls = 0;
-      const sleeps: number[] = [];
-      const result = await convexDevOnce(cwd, {
-        run: async () => ({
-          exitCode: ++calls === 1 ? 1 : 0,
-          stderr: calls === 1 ? collision : "",
+
+  /**
+   * A virtual clock with the previous Convex command's backend on port 3210,
+   * shutting down until `exitsAt`. The fake CLI behaves like `convex dev`:
+   * it polls the port every 500ms for 5 seconds and fails with the collision
+   * when its last poll (4.5s in) still finds the backend; exiting takes
+   * another 300ms.
+   */
+  const lingeringBackend = (
+    exitsAt: number,
+    options: { answer?: () => Response; probeMs?: number } = {}
+  ) => {
+    const counts = { portChecks: 0, probes: 0, runs: 0 };
+    let now = 0;
+    const up = () => now < exitsAt;
+    return {
+      counts,
+      elapsed: () => now,
+      run: (): Promise<RunCommandResult> => {
+        counts.runs++;
+        const start = now;
+        const freed = exitsAt <= start + 4500;
+        now = freed ? Math.max(start, exitsAt) + 1000 : start + 5300;
+        return Promise.resolve({
+          exitCode: freed ? 0 : 1,
+          pid: counts.runs,
+          stderr: freed ? "" : collision,
           stdout: "",
           timedOut: false,
-          pid: 1,
-        }),
-        fetch: boundary("anonymous-agent"),
-        sleepMs: (ms) => {
-          sleeps.push(ms);
-          return Promise.resolve();
+        });
+      },
+      fetch: Object.assign(
+        (input: RequestInfo | URL, init?: RequestInit) => {
+          counts.probes++;
+          now += options.probeMs ?? 0;
+          expect(String(input)).toBe("http://127.0.0.1:3210/instance_name");
+          expect(init?.redirect).toBe("error");
+          if (!up()) {
+            return Promise.reject(new Error("connect ECONNREFUSED"));
+          }
+          return Promise.resolve(
+            options.answer?.() ?? new Response("anonymous-agent")
+          );
         },
-      });
-      expect(result.ok).toBe(true);
-      expect(calls).toBe(2);
-      expect(sleeps).toEqual([2000]);
+        { preconnect: fetch.preconnect }
+      ),
+      now: () => now,
+      portInUse: (port: number) => {
+        counts.portChecks++;
+        expect(port).toBe(3210);
+        return Promise.resolve(up());
+      },
+      sleepMs: (ms: number) => {
+        now += ms;
+        return Promise.resolve();
+      },
+    };
+  };
+
+  test("retries when the backend exits between the CLI's last poll and the probe", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(5000);
+      const result = await convexDevOnce(cwd, world);
+      expect(result).toEqual({ detail: "pushed", ok: true });
+      expect(world.counts.runs).toBe(2);
     });
   });
+
+  test("waits out a backend that lingers past the CLI's window and the backoff", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(25_000);
+      const result = await convexDevOnce(cwd, world);
+      expect(result).toEqual({ detail: "pushed", ok: true });
+      expect(world.counts.runs).toBe(2);
+      expect(world.elapsed()).toBeLessThan(27_000);
+    });
+  });
+
+  test("keeps waiting through error statuses while the port is held", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(9000, {
+        answer: () => new Response("shutting down", { status: 503 }),
+      });
+      const result = await convexDevOnce(cwd, world);
+      expect(result.ok).toBe(true);
+      expect(world.counts.runs).toBe(2);
+    });
+  });
+
+  test("gives up without retrying when the port stays busy for 30 seconds", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(Number.POSITIVE_INFINITY);
+      const result = await convexDevOnce(cwd, world);
+      expect(result.ok).toBe(false);
+      expect(result.detail).toContain("still running on port 3210");
+      expect(world.counts.runs).toBe(1);
+      expect(world.elapsed()).toBe(5300 + 30_000);
+    });
+  });
+
+  test("counts slow probes against the 30-second budget", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(Number.POSITIVE_INFINITY, {
+        answer: () => new Response("shutting down", { status: 503 }),
+        probeMs: 1000,
+      });
+      const result = await convexDevOnce(cwd, world);
+      expect(result.ok).toBe(false);
+      expect(world.counts.runs).toBe(1);
+      expect(world.elapsed()).toBeLessThanOrEqual(5300 + 30_000 + 1000);
+    });
+  });
+
+  test.each([
+    "other-project",
+    "<html>unrelated service</html>",
+    "x".repeat(129),
+  ])("refuses unrelated occupied process %s", async (instance) => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      const world = lingeringBackend(Number.POSITIVE_INFINITY, {
+        answer: () => new Response(instance),
+      });
+      const result = await convexDevOnce(cwd, world);
+      expect(result.ok).toBe(false);
+      expect(world.counts.runs).toBe(1);
+      expect(world.counts.probes).toBe(1);
+      expect(world.elapsed()).toBe(5300);
+    });
+  });
+
   test.each([
     { name: "file-based anonymous mode", fileMode: "anonymous", retry: true },
     {
@@ -333,95 +431,33 @@ describe("selected anonymous backend shutdown recovery", () => {
       if (authority.shellSelection !== undefined) {
         process.env.CONVEX_DEPLOYMENT = authority.shellSelection;
       }
-      let calls = 0;
-      let probes = 0;
-      const sleeps: number[] = [];
-      const result = await convexDevOnce(cwd, {
-        run: async () => ({
-          exitCode: ++calls === 1 ? 1 : 0,
-          stderr: calls === 1 ? collision : "",
-          stdout: "",
-          timedOut: false,
-          pid: 1,
-        }),
-        fetch: Object.assign(
-          () => {
-            probes++;
-            return Promise.resolve(new Response("anonymous-agent"));
-          },
-          { preconnect: fetch.preconnect }
-        ),
-        sleepMs: (ms) => {
-          sleeps.push(ms);
-          return Promise.resolve();
-        },
-      });
+      const world = lingeringBackend(7000);
+      const result = await convexDevOnce(cwd, world);
       expect(result.ok).toBe(authority.retry);
-      expect(calls).toBe(authority.retry ? 2 : 1);
-      expect(probes).toBe(authority.retry ? 1 : 0);
-      expect(sleeps).toEqual(authority.retry ? [2000] : []);
+      expect(world.counts.runs).toBe(authority.retry ? 2 : 1);
+      if (!authority.retry) {
+        expect(world.counts.portChecks).toBe(0);
+        expect(world.counts.probes).toBe(0);
+      }
     });
   });
-  test.each(["other-project", "<html>unrelated service</html>"])(
-    "refuses unrelated occupied process %s",
-    async (instance) => {
-      await withSelection("anonymous:anonymous-agent", async (cwd) => {
-        let calls = 0;
-        const result = await convexDevOnce(cwd, {
-          run: async () => ({
-            exitCode: 1,
-            stderr: collision,
-            stdout: "",
-            timedOut: false,
-            pid: ++calls,
-          }),
-          fetch: boundary(instance),
-          sleepMs: () => {
-            throw new Error("Unexpected retry");
-          },
-        });
-        expect(result.ok).toBe(false);
-        expect(calls).toBe(1);
-      });
-    }
-  );
+
   test.each(["prod:anonymous-agent", "dev:anonymous-agent"])(
     "refuses nonlocal selection %s",
     async (selection) => {
       await withSelection(selection, async (cwd) => {
-        let calls = 0;
-        let probes = 0;
-        const result = await convexDevOnce(cwd, {
-          run: async () => ({
-            exitCode: 1,
-            stderr: collision,
-            stdout: "",
-            timedOut: false,
-            pid: ++calls,
-          }),
-          fetch: Object.assign(
-            () => {
-              probes++;
-              throw new Error("Unexpected local probe");
-            },
-            { preconnect: fetch.preconnect }
-          ),
-          sleepMs: () => {
-            throw new Error("Unexpected retry");
-          },
-        });
+        const world = lingeringBackend(7000);
+        const result = await convexDevOnce(cwd, world);
         expect(result.ok).toBe(false);
-        expect(calls).toBe(1);
-        expect(probes).toBe(0);
+        expect(world.counts).toEqual({ portChecks: 0, probes: 0, runs: 1 });
       });
     }
   );
+
   test.each(["other-port", "no-agent-mode", "deploy-key", "unselected"])(
     "refuses shutdown recovery with %s authority",
     async (failure) => {
       await withSelection("anonymous:anonymous-agent", async (cwd) => {
-        let calls = 0;
-        let probes = 0;
         if (failure === "no-agent-mode") {
           delete process.env.CONVEX_AGENT_MODE;
         }
@@ -431,94 +467,40 @@ describe("selected anonymous backend shutdown recovery", () => {
         if (failure === "unselected") {
           process.env.CONVEX_DEPLOYMENT = "unselected";
         }
-        const result = await convexDevOnce(cwd, {
-          run: async () => ({
-            exitCode: 1,
-            stderr:
-              failure === "other-port"
-                ? collision.replace("3210", "9999")
-                : collision,
-            stdout: "",
-            timedOut: false,
-            pid: ++calls,
-          }),
-          fetch: Object.assign(
-            () => {
-              probes++;
-              return Promise.resolve(new Response("anonymous-agent"));
-            },
-            { preconnect: fetch.preconnect }
-          ),
-          sleepMs: () => {
-            throw new Error("Unexpected retry");
-          },
-        });
-        expect(result.ok).toBe(false);
-        expect(calls).toBe(1);
-        expect(probes).toBe(0);
-      });
-    }
-  );
-  test.each(["unreachable", "status", "oversized"])(
-    "refuses an uncertain %s instance response",
-    async (failure) => {
-      await withSelection("anonymous:anonymous-agent", async (cwd) => {
-        let calls = 0;
-        let probes = 0;
-        const result = await convexDevOnce(cwd, {
-          run: async () => ({
-            exitCode: 1,
-            stderr: collision,
-            stdout: "",
-            timedOut: false,
-            pid: ++calls,
-          }),
-          fetch: Object.assign(
-            () => {
-              probes++;
-              if (failure === "unreachable") {
-                return Promise.reject(new Error("connection refused"));
+        const world = lingeringBackend(7000);
+        const run =
+          failure === "other-port"
+            ? async () => {
+                const result = await world.run();
+                return {
+                  ...result,
+                  stderr: result.stderr.replace("3210", "9999"),
+                };
               }
-              return Promise.resolve(
-                new Response(
-                  failure === "oversized" ? "x".repeat(129) : "anonymous-agent",
-                  { status: failure === "status" ? 503 : 200 }
-                )
-              );
-            },
-            { preconnect: fetch.preconnect }
-          ),
-          sleepMs: () => {
-            throw new Error("Unexpected retry");
-          },
-        });
+            : world.run;
+        const result = await convexDevOnce(cwd, { ...world, run });
         expect(result.ok).toBe(false);
-        expect(calls).toBe(1);
-        expect(probes).toBe(1);
+        expect(world.counts).toEqual({ portChecks: 0, probes: 0, runs: 1 });
       });
     }
   );
-  test("persistent matching shutdown collisions stop after three attempts", async () => {
+
+  test("persistent collisions stop after three attempts", async () => {
     await withSelection("anonymous:anonymous-agent", async (cwd) => {
-      let calls = 0;
-      const sleeps: number[] = [];
+      const world = lingeringBackend(0);
+      let runs = 0;
       const result = await convexDevOnce(cwd, {
+        ...world,
         run: async () => ({
           exitCode: 1,
+          pid: ++runs,
           stderr: collision,
           stdout: "",
           timedOut: false,
-          pid: ++calls,
         }),
-        fetch: boundary("anonymous-agent"),
-        sleepMs: (ms) => {
-          sleeps.push(ms);
-          return Promise.resolve();
-        },
       });
       expect(result.ok).toBe(false);
-      expect(calls).toBe(3);
-      expect(sleeps).toEqual([2000, 4000]);
+      expect(runs).toBe(3);
     });
   });
 });
