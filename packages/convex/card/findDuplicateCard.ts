@@ -13,7 +13,6 @@ export const findDuplicateCardForUserHandler = async (
   userId: TeakUserId,
   url: string
 ) => {
-  // Find the most recent non-deleted card with the same URL
   const duplicate = await ctx.db
     .query("cards")
     .withIndex("by_user_url_deleted", (q: any) =>
@@ -29,7 +28,6 @@ export const findDuplicateCardForUserHandler = async (
   return (await attachFileUrls(ctx, [duplicate]))[0] ?? null;
 };
 
-// Check if a card with the given URL already exists for the current user
 export const findDuplicateCard = query({
   args: {
     url: v.string(),

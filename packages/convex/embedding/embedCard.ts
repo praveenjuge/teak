@@ -14,13 +14,6 @@ import {
 import { MAX_VECTOR_DELETE_ATTEMPTS } from "./state";
 import { embeddingHash } from "./text";
 
-/**
- * Embedding jobs. Each card's text goes through the Files Worker's
- * `embed-upsert` into its user's namespace; results are recorded through the
- * fenced mutations in ./state. A failure never touches card processing: the
- * card simply has no fresh vector until a retry or the backfill.
- */
-
 const state = () => internal.embedding.state;
 const self = () => internal.embedding.embedCard;
 
@@ -55,7 +48,6 @@ export const embedDue = internalAction({
         continue;
       }
       if (row.dueAt > now + 1000) {
-        // An edit pushed the deadline back: wait for it.
         await ctx.scheduler.runAfter(row.dueAt - now, self().embedDue, {
           cardIds: [row.cardId],
         });
@@ -83,8 +75,6 @@ const embedOne = async (
   const expectedDueAt = row.dueAt;
   try {
     if (!row.text) {
-      // Every embeddable field is empty now: a stale vector must not keep
-      // matching searches.
       if (row.embeddedAt !== undefined && row.shard !== undefined) {
         await deleteVectorIdsOnWorker(row.shard, [row.cardId]);
       }
@@ -96,7 +86,6 @@ const embedOne = async (
     }
     const hash = await embeddingHash(row.text);
     if (hash === row.hash) {
-      // The text the vector came from is unchanged: no Workers AI call.
       await ctx.runMutation(state().recordEmbedded, {
         cardId: row.cardId,
         expectedDueAt,
@@ -168,7 +157,6 @@ export const deleteVectors = internalAction({
         attempt,
         message: errorMessage(error),
       });
-      // The tombstones stay, so a delete that never succeeds stays visible.
       if (attempt < MAX_VECTOR_DELETE_ATTEMPTS) {
         await ctx.scheduler.runAfter(
           retryDelayMs(attempt),

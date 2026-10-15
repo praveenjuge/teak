@@ -14,7 +14,6 @@ const rowFieldsForCard = (card: Doc<"cards">): FolderCardFields => ({
   cardCreatedAt: card.createdAt,
 });
 
-/** A row counts toward its folder's activeCardCount when it is in neither. */
 const isActiveRow = (row: Pick<FolderCardFields, "isArchived" | "isDeleted">) =>
   row.isDeleted !== true && row.isArchived !== true;
 
@@ -70,8 +69,6 @@ export const syncCardFolderRows = async (
   const existingRows = await ctx.db
     .query("folderCards")
     .withIndex("by_cardId_and_folderId", (q) => q.eq("cardId", cardId))
-    // A card holds at most MAX_FOLDERS_PER_CARD folders; the margin covers
-    // rows a previous, larger membership left behind.
     .take(MAX_FOLDERS_PER_CARD * 2);
   const wanted = new Set<Id<"folders">>(card ? (card.folderIds ?? []) : []);
   const countDeltas = new Map<Id<"folders">, number>();

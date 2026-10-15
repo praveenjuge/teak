@@ -188,11 +188,11 @@ export const updateCardMetadataHandler = async (
 
   const previousImageRef = previousLinkPreview?.imageStorageKey;
   const nextImageRef = nextLinkPreview?.imageStorageKey;
-  const pendingStorageDeletes: string[] = [];
+  const replacedRefs: string[] = [];
 
   if (previousImageRef) {
     if (nextImageRef && nextImageRef !== previousImageRef) {
-      pendingStorageDeletes.push(previousImageRef);
+      replacedRefs.push(previousImageRef);
     } else if (nextLinkPreview) {
       if (!nextLinkPreview.imageStorageKey) {
         nextLinkPreview.imageStorageKey = previousLinkPreview.imageStorageKey;
@@ -213,7 +213,7 @@ export const updateCardMetadataHandler = async (
 
   if (previousScreenshotRef) {
     if (nextScreenshotRef && nextScreenshotRef !== previousScreenshotRef) {
-      pendingStorageDeletes.push(previousScreenshotRef);
+      replacedRefs.push(previousScreenshotRef);
     } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageKey) {
       nextLinkPreview.screenshotStorageKey =
         previousLinkPreview.screenshotStorageKey;
@@ -241,7 +241,7 @@ export const updateCardMetadataHandler = async (
 
       for (const storageRef of previousMediaStorageIds) {
         if (!nextMediaStorageIds.has(storageRef)) {
-          pendingStorageDeletes.push(storageRef);
+          replacedRefs.push(storageRef);
         }
       }
     } else if (nextLinkPreview) {
@@ -298,7 +298,7 @@ export const updateCardMetadataHandler = async (
   ].filter((ref): ref is string => Boolean(ref) && !previousRefs.has(ref));
   const result = await commitCardStorageSwap(ctx, cardId, updateFields, {
     introduced: introducedRefs,
-    replaced: pendingStorageDeletes,
+    replaced: replacedRefs,
   });
   if (result && serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
     await ctx.scheduler.runAfter(

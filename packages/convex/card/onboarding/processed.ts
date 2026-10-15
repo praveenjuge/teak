@@ -1,6 +1,3 @@
-// Captured from Teak's own card pipeline (scripts and steps in README.md), so
-// new accounts get finished cards without processing anything at sign-up.
-
 export const AUDIO_WAVEFORM = {
   grid: [
     3, 100, 90, 96, 99, 87, 96, 1, 79, 86, 97, 98, 99, 84, 98, 51, 77, 85, 83,

@@ -5,11 +5,6 @@ import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
 
 const SOURCE = "Pocket";
 
-/**
- * Pocket's CSV export: `title, url, time_added, tags, status`, with tags
- * separated by `|` and status `unread` or `archive`. Some exports add
- * columns (such as `cursor`); columns are matched by name.
- */
 function parsePocketCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);
   if (!(table.has("url") && table.has("time_added"))) {
@@ -26,11 +21,6 @@ function parsePocketCsv(csv: string): ParsedBookmarkItem[] {
   );
 }
 
-/**
- * Pocket's older HTML export (`ril_export.html`): an "Unread" and a
- * "Read Archive" heading, each over a list of links with `time_added` and
- * comma-separated `tags` attributes.
- */
 function parsePocketHtml(html: string): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];
   let heading: string[] | undefined;

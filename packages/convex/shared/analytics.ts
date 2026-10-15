@@ -1,4 +1,4 @@
-import { swallowTelemetryErrors } from "./telemetry";
+import { ignoreTelemetryError } from "./telemetry";
 
 export type CardCreationSource =
   | "web"
@@ -109,9 +109,9 @@ export const captureEvent = <Name extends ClientEventName>(
   if (!recorder) {
     return;
   }
-  swallowTelemetryErrors(() => {
-    recorder.capture(event, { ...(properties ?? {}) });
-  });
+  ignoreTelemetryError(() =>
+    recorder.capture(event, { ...(properties ?? {}) })
+  );
 };
 
 const MEGABYTE = 1024 * 1024;

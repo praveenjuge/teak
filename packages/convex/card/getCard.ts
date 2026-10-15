@@ -95,7 +95,6 @@ export const getDeletedCards = query({
   },
 });
 
-// Internal query to get card details for background tasks (thumbnail generation, etc.)
 export const getCardInternal = internalQuery({
   args: {
     cardId: v.id("cards"),

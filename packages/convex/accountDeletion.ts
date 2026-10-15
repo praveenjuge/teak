@@ -45,6 +45,31 @@ export const getAccountDeletionState = async (
   return state && typeof state.startedAt === "number" ? state : null;
 };
 
+/**
+ * While an account deletion runs, its batches own every row the user has.
+ * Background writers stand down instead of writing: Convex conflicts on rows
+ * read or written, so a racing write makes the deletion batches retry until
+ * the whole deletion fails.
+ */
+export const accountDeletionOwnsRows = async (
+  ctx: DatabaseReaderCtx,
+  userId: string | undefined
+): Promise<boolean> =>
+  userId !== undefined && Boolean(await getAccountDeletionState(ctx, userId));
+
+/** `accountDeletionOwnsRows`, read once per user for a batch of many cards. */
+export const createAccountDeletionGate = (ctx: DatabaseReaderCtx) => {
+  const owned = new Map<string, Promise<boolean>>();
+  return (userId: string): Promise<boolean> => {
+    let result = owned.get(userId);
+    if (!result) {
+      result = accountDeletionOwnsRows(ctx, userId);
+      owned.set(userId, result);
+    }
+    return result;
+  };
+};
+
 export const assertAccountNotDeleting = async (
   ctx: DatabaseReaderCtx,
   userId: string

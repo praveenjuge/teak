@@ -1,8 +1,8 @@
 import type { TelemetryAttributes } from "./telemetry";
 import {
+  ignoreTelemetryError,
   normalizeErrorClass,
   normalizeTelemetryAttributes,
-  swallowTelemetryErrors,
 } from "./telemetry";
 
 export interface ClientTelemetryRecorder {
@@ -81,7 +81,7 @@ export const captureClientException = (
   if (!activeRecorder.captureException) {
     return;
   }
-  swallowTelemetryErrors(() => {
+  ignoreTelemetryError(() => {
     activeRecorder.captureException?.(error, {
       ...normalizeTelemetryAttributes({
         ...requestErrorTelemetryAttributes(error),

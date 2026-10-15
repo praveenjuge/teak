@@ -1,4 +1,7 @@
-import { swallowTelemetryErrors } from "./shared/telemetry";
+import {
+  ignoreTelemetryError,
+  ignoreTelemetryErrorAsync,
+} from "./shared/telemetry";
 
 // No signal carries an email, raw user ID, token, URL, request body or
 // profile field; WorkOS subjects are hashed here before anything is logged.
@@ -39,7 +42,7 @@ export const logResolverDenial = async (input: {
   verification: ResolverVerification;
   workosUserId: string;
 }): Promise<void> =>
-  swallowTelemetryErrors(async () => {
+  ignoreTelemetryErrorAsync(async () => {
     console.warn("identity_resolver_denial", {
       provider: "workos",
       reason: normalizeMonitoringReason(input.reason),
@@ -85,7 +88,7 @@ export interface PublicApiAuthOutcome {
 }
 
 export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
-  swallowTelemetryErrors(() => {
+  ignoreTelemetryError(() => {
     console.log("public_api_auth_outcome", {
       surface: outcome.surface,
       check: outcome.check,

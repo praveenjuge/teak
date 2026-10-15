@@ -103,8 +103,6 @@ export const buildCardListQuery = (
   const archived = archivedFilterMatch(options.archived, options.trash);
 
   if (archived === "any") {
-    // Trash, or the library with archived cards in it: the index without
-    // isArchived covers both.
     const query = cards.withIndex("by_user_deleted_created", (q) =>
       withCreatedAt(
         q
@@ -237,8 +235,6 @@ export const buildFolderCardListQuery = (
     return next;
   };
   const isDeleted = options.trash ? (true as const) : undefined;
-  // Trash, or archived and not: rows of both archive states, ordered by date
-  // across them.
   const dated =
     archived === "any"
       ? ctx.db
@@ -304,9 +300,6 @@ export const buildTagCardListQuery = (
   const isDeleted = options.trash ? (true as const) : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const favorited = options.favoritesOnly === true;
-  // Library and Archive reads narrow the range by one type and favorites.
-  // Trash, or archived and not, reads the one index without isArchived and
-  // checks type and favorites while reading.
   const anyArchived = archived === "any";
   const range = (q: RangeBuilder): RangeBuilder => {
     let next = q
@@ -328,7 +321,6 @@ export const buildTagCardListQuery = (
   const dated = ctx.db
     .query("cardSearchTags")
     .withIndex(tagListIndex(anyArchived, singleType, favorited), range);
-  // Several types always filter; one type filters only where it isn't indexed.
   const typeFiltered = anyArchived || !singleType ? types : undefined;
   if (!(typeFiltered || (anyArchived && favorited))) {
     return dated;
@@ -348,14 +340,12 @@ export const buildTagCardListQuery = (
   });
 };
 
-/** The tag index matching a read's equality fields. */
 const tagListIndex = (
   anyArchived: boolean,
   singleType: CardType | undefined,
   favorited: boolean
 ) => {
   if (anyArchived) {
-    // Type and favorites are checked while reading; see buildTagCardListQuery.
     return "by_user_tag_deleted_created";
   }
   if (singleType) {

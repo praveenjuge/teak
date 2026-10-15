@@ -1,12 +1,3 @@
-/**
- * Export feature constants.
- *
- * Pure, dependency-free values shared by the export serializer, archive
- * builder, Convex functions, workflow, and cleanup cron. Keep this module free
- * of Convex/server imports so it can be unit tested directly.
- */
-
-/** App name embedded in the manifest. */
 export const APP_NAME = "Teak";
 
 /**
@@ -23,24 +14,22 @@ export const EXPORT_VERSION = 1;
 export const SCHEMA_VERSION = 2;
 
 /** Maximum estimated artifact size (uncompressed bytes) for a V1 export. */
-export const MAX_EXPORT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+export const MAX_EXPORT_BYTES = 5 * 1024 * 1024 * 1024;
 
 /** Maximum number of active cards a V1 export may contain. */
 export const MAX_EXPORT_CARDS = 10_000;
 
 /** How long a completed artifact remains downloadable. */
-export const EXPORT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const EXPORT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Rolling window for the weekly quota of one successful export. */
-export const EXPORT_QUOTA_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const EXPORT_QUOTA_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Signed download URL lifetime. */
-export const DOWNLOAD_URL_TTL_SECONDS = 15 * 60; // 15 minutes
+export const DOWNLOAD_URL_TTL_SECONDS = 15 * 60;
 
 /** Number of attempts to read an original file before silently omitting it. */
-export const MISSING_FILE_MAX_ATTEMPTS = 2; // initial try + one retry
+export const MISSING_FILE_MAX_ATTEMPTS = 2;
 
-/** Names of the JSON entries inside the archive. */
 export const MANIFEST_ENTRY_NAME = "manifest.json";
 export const CARDS_ENTRY_NAME = "cards.json";
 
@@ -65,7 +54,6 @@ export const EXPORT_FAILURE_CLASS = {
 export type ExportFailureClass =
   (typeof EXPORT_FAILURE_CLASS)[keyof typeof EXPORT_FAILURE_CLASS];
 
-/** Job lifecycle statuses. */
 export const EXPORT_STATUS = {
   PENDING: "pending",
   RUNNING: "running",

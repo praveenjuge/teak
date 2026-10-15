@@ -4,8 +4,6 @@ import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
 
 const SOURCE = "Readwise Reader";
 const MAX_ITEMS = 10_000;
-// Feed items are skipped, so a library can hold far more rows than it
-// imports; the 10,000 limit applies to what's kept.
 const MAX_ROWS = 100_000;
 
 /**

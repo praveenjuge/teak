@@ -9,7 +9,6 @@ import {
 
 const SOURCE = "Instapaper";
 
-/** Instapaper writes Tags as a JSON list, e.g. `["design","fonts"]`. */
 function parseTags(raw: string): string[] {
   if (!raw) {
     return [];
@@ -19,9 +18,7 @@ function parseTags(raw: string): string[] {
     if (Array.isArray(parsed)) {
       return parsed.map((tag) => String(tag));
     }
-  } catch {
-    // Not JSON: fall back to a comma-separated list.
-  }
+  } catch {}
   return raw.split(",");
 }
 

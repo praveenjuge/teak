@@ -1,10 +1,3 @@
-/**
- * Metadata Generation Step
- *
- * Workflow step that generates AI tags and summary for cards.
- * Handles different card types: text, image, video, audio, link, document, quote, palette.
- */
-
 "use node";
 
 import { v } from "convex/values";
@@ -26,6 +19,7 @@ import {
   generateTextMetadata,
   isAiMetadataDeferredError,
 } from "../aiMetadata/generators";
+import { aiMetadataResultValidator } from "../aiMetadata/schemas";
 import { extractFileTextForKey } from "../fileProcessing";
 import {
   hasKnownTinyImageDimensions,
@@ -115,22 +109,25 @@ export const buildLinkContentParts = (
 };
 
 /**
- * Workflow Step: Generate AI metadata (tags and summary)
- *
- * @returns Metadata generation result
+ * Leaves metadata incomplete for the bounded periodic backfill to retry. A
+ * workflow retry would multiply one recoverable failure across its retry
+ * budget and crowd every other workflow, account deletion included, out of
+ * the shared workpool.
  */
+const deferToBackfill = () => ({
+  aiTagsCount: 0,
+  hasSummary: false,
+  hasTranscript: false,
+  confidence: 0,
+  mode: "skipped" as const,
+});
+
 export const generate: any = internalAction({
   args: {
     cardId: v.id("cards"),
     cardType: v.string(),
   },
-  returns: v.object({
-    aiTagsCount: v.number(),
-    hasSummary: v.boolean(),
-    hasTranscript: v.boolean(),
-    confidence: v.number(),
-    mode: v.union(v.literal("completed"), v.literal("skipped")),
-  }),
+  returns: aiMetadataResultValidator,
   handler: (ctx: any, args: { cardId: Id<"cards">; cardType: string }) =>
     withBackendErrorCapture(
       {
@@ -166,11 +163,6 @@ export async function generateHandler(
   );
 }
 
-/**
- * A video's spoken words, through the audio pass. A video without sound, one
- * the renderer can't read, or any failure leaves it without a transcript:
- * the transcript is extra, so it never fails the step.
- */
 async function transcribeVideo(
   ctx: any,
   card: any
@@ -191,11 +183,6 @@ async function transcribeVideo(
   }
 }
 
-/**
- * Stores a document's extracted text for search and the content endpoint.
- * Storage failing never fails the step; the document backfill retries cards
- * without stored text.
- */
 async function keepDocumentText(
   ctx: any,
   card: any,
@@ -234,7 +221,6 @@ async function generateForCard(
   }
 
   const completeWithoutAi = async () => {
-    // Write only this stage; the mutation merges it into the fresh status.
     await ctx.runMutation(
       internal.workflows.aiMetadata.mutations.updateCardAI,
       {
@@ -252,10 +238,6 @@ async function generateForCard(
     };
   };
 
-  // Kill switches from the superadmin console (adminAccess.ts). A global
-  // pause defers like a provider outage, so the periodic backfill picks the
-  // card up once AI is back on. An account with AI turned off completes
-  // without AI; refreshing the card runs it again.
   const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
     userId: card.userId,
   });
@@ -266,13 +248,7 @@ async function generateForCard(
     console.warn("[workflow/metadata] AI paused from the console; deferring", {
       cardId,
     });
-    return {
-      aiTagsCount: 0,
-      hasSummary: false,
-      hasTranscript: false,
-      confidence: 0,
-      mode: "skipped" as const,
-    };
+    return deferToBackfill();
   }
 
   let aiTags: string[] = [];
@@ -294,8 +270,6 @@ async function generateForCard(
         const imageKey = resolveImageAnalysisKey(card);
 
         if (imageKey) {
-          // Image understanding runs on the Files Worker; no bytes are fetched
-          // into Convex.
           const result = await generateImageMetadataForStoredKey(imageKey);
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
@@ -328,8 +302,6 @@ async function generateForCard(
       }
       case "audio": {
         if (card.fileKey) {
-          // Silence, tones and beeps yield no transcript, so they also get no
-          // made-up summary or tags.
           const { transcript: transcriptResult } = await processAudioCard(
             ctx,
             card
@@ -436,28 +408,13 @@ async function generateForCard(
         ? { reason: FILES_WORKER_NOT_CONFIGURED }
         : {}),
     });
-    // Provider capacity, malformed output, not-yet-rasterized image inputs and
-    // an unconfigured Files Worker are recoverable. Leave metadata incomplete
-    // so the bounded periodic backfill can retry without multiplying one
-    // failure across the workflow retry budget, whose attempts would
-    // otherwise crowd every other workflow, account deletion included, out of
-    // the shared workpool.
-    return {
-      aiTagsCount: 0,
-      hasSummary: false,
-      hasTranscript: false,
-      confidence: 0,
-      mode: "skipped" as const,
-    };
+    return deferToBackfill();
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
     return await completeWithoutAi();
   }
 
-  // Update card with AI metadata. Only the metadata stage is sent; the
-  // mutation merges it into the status it reads, so a parallel renderables
-  // write is never reset.
   const updatedProcessing = {
     metadata: stageCompleted(Date.now(), confidence),
   };
@@ -485,7 +442,6 @@ async function generateForCard(
     };
   }
 
-  // Trigger link screenshot generation if it's a link
   if (cardType === "link") {
     await ctx.scheduler.runAfter(
       0,

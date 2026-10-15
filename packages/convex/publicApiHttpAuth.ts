@@ -26,7 +26,7 @@ import {
 import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
-import { swallowTelemetryErrors } from "./shared/telemetry";
+import { ignoreTelemetryError } from "./shared/telemetry";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
@@ -280,7 +280,7 @@ const recordAuthOutcome = (
   reason: PublicApiAuthReason,
   status: number
 ): void =>
-  swallowTelemetryErrors(() => {
+  ignoreTelemetryError(() => {
     logPublicApiAuthOutcome({
       check: options.chargeRateLimit === false ? "gate" : "request",
       credential: classifyBearerCredential(parseBearerToken(request)),

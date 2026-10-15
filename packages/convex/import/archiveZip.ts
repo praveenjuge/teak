@@ -19,8 +19,6 @@ export async function readImportIndexPage(
   });
   if (outcome.kind !== "ok") {
     if (outcome.code === "INVALID_INPUT") {
-      // The file isn't the source's export, or is too big; the import panel
-      // explains either in words.
       throw new Error(
         /_count$/.test(outcome.message)
           ? IMPORT_FAILURE.TOO_MANY_ITEMS

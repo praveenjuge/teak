@@ -1,9 +1,7 @@
 import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 
-/** Characters taken from the card's body (content, file text or transcript). */
 const BODY_CHARS = 2000;
-/** Longest text sent; the Worker cuts it further to what the model reads. */
 const MAX_TEXT_CHARS = 8000;
 
 export type EmbeddableCard = Pick<
@@ -39,7 +37,6 @@ export const buildEmbeddingText = (
     .map((tag) => tag.trim())
     .filter(Boolean);
   const content = clean(card.content);
-  // A link card's content is usually just its URL, which says nothing.
   const body =
     (content && content !== clean(card.url) ? content : undefined) ??
     clean(extractedText) ??

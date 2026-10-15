@@ -1,9 +1,3 @@
-/**
- * Static preview metadata: the page's <meta>, <link> and <title> tags matched
- * against the scrape selectors, without running the page. Pure, so scripts
- * can reuse exactly what the link metadata step does.
- */
-
 import type {
   ScrapeAttribute,
   ScrapeResultItem,
@@ -14,22 +8,31 @@ const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
 const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
 
-const decodeHtmlEntities = (value: string): string => {
-  // Decode &amp; LAST to prevent double-unescaping vulnerabilities
-  return value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
-      String.fromCharCode(Number.parseInt(hex, 16))
-    )
-    .replace(/&#([0-9]+);/g, (_, num) =>
-      String.fromCharCode(Number.parseInt(num, 10))
-    )
-    .replace(/&amp;/gi, "&");
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  gt: ">",
+  lt: "<",
+  nbsp: " ",
+  quot: '"',
 };
+const ENTITY_REGEX = /&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi;
+const MAX_CODE_POINT = 0x10_ff_ff;
+
+export const decodeHtmlEntities = (value: string): string =>
+  value.replace(
+    ENTITY_REGEX,
+    (entity, hex: string | undefined, decimal: string | undefined, name) => {
+      if (hex !== undefined || decimal !== undefined) {
+        const codePoint = hex
+          ? Number.parseInt(hex, 16)
+          : Number.parseInt(decimal ?? "", 10);
+        return codePoint <= MAX_CODE_POINT
+          ? String.fromCodePoint(codePoint)
+          : entity;
+      }
+      return NAMED_ENTITIES[(name as string).toLowerCase()] ?? entity;
+    }
+  );
 
 const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
   const attributes: ScrapeAttribute[] = [];

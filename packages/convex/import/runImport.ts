@@ -225,7 +225,6 @@ export const indexImportSource = internalAction({
         });
         const items: ReturnType<typeof normalizeIndexItem>[] = [];
         let batchBytes = 0;
-        // Bound both concurrent remote reads and expanded Markdown memory.
         for (let offset = 0; offset < normalized.length; offset += 8) {
           const batch = normalized.slice(offset, offset + 8);
           await Promise.all(
@@ -397,7 +396,6 @@ export const extractImportFiles = internalAction({
   ),
 });
 
-// Failure reports contain a bounded identifying excerpt, never entire card bodies.
 const reportLabel = (text: string) =>
   text.length > 1024 ? `${text.slice(0, 1024)}…` : text;
 
@@ -563,7 +561,6 @@ export const deleteAccountImportObjectsHandler = async (
   for (const object of objects) {
     try {
       await abortImportUpload(object.sourceKey, object.uploadId);
-      // Persist deletion work before the account cleanup removes these rows.
       await queueImportObjectDeletion(ctx, [
         object.sourceKey,
         object.reportKey,

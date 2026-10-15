@@ -28,8 +28,6 @@ export const cleanupExpiredIdempotency = internalAction({
     }),
 });
 
-// Heartbeats feed the console's health view; a failed write never fails the
-// job itself.
 const recordHeartbeat = async (
   ctx: ActionCtx,
   args: {
@@ -78,7 +76,6 @@ export const cleanupOldDeletedCards = internalAction({
         internalAny.workflows.cardCleanup.startCardCleanupWorkflow,
         {}
       );
-      // Tombstones of purged cards back /v1/cards/changes for 90 days.
       await ctx.runMutation(
         internalAny.publicApiTombstones.pruneExpiredCardTombstones,
         {}

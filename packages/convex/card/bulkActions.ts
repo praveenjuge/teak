@@ -5,6 +5,7 @@ import { requireFolderForUser } from "../folder/folders";
 import {
   applyFolderMembership,
   type FolderMembershipAction,
+  onlyAddsToTarget,
   smartFolderMembership,
 } from "../folder/membership";
 import { explainInvalidTags } from "../publicApiHttpShared";
@@ -94,7 +95,6 @@ const tagEdits = (
       ? [{ field: "tags", value: [...current, ...added] }]
       : [];
   }
-  // Remove tags clears a name whether the user or AI tagging added it.
   const edits: CardFieldEdit[] = [];
   const kept = current.filter((tag) => !has(tags, tag));
   if (kept.length !== current.length) {
@@ -235,8 +235,6 @@ export const applyBulkCardAction = async (
   const tags = isTagAction(args.action)
     ? normalizeBulkTags(args.tags)
     : undefined;
-  // Folder actions check the folders once: an unknown or foreign folder
-  // fails the whole call instead of every card.
   const isFolderAction = FOLDER_ACTIONS[args.action] !== undefined;
   if (isFolderAction && !args.folderId) {
     throw new ConvexError({
@@ -255,10 +253,8 @@ export const applyBulkCardAction = async (
     args.action === "moveToFolder" && args.fromFolderId
       ? await requireFolderForUser(ctx, args.userId, args.fromFolderId)
       : undefined;
-  // No card is ever in a smart folder, so moving out of one (from its view)
-  // only adds the cards to the target.
   const action =
-    args.action === "moveToFolder" && fromFolder?.kind === "smart"
+    args.action === "moveToFolder" && onlyAddsToTarget(fromFolder)
       ? "addToFolder"
       : args.action;
 

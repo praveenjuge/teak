@@ -121,6 +121,39 @@
       }
     },
     {
+      // Pure modules, unit tested and bundled for any runtime.
+      "includes": [
+        "packages/convex/export/bookmarks.ts",
+        "packages/convex/export/constants.ts",
+        "packages/convex/export/csv.ts",
+        "packages/convex/export/serialize.ts",
+        "packages/convex/linkMetadata/ssrf.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "convex",
+                      "convex/**",
+                      "**/_generated/**",
+                      "node:*",
+                      "node:*/**"
+                    ],
+                    "message": "This module stays free of Convex and Node imports."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       // next/image is unavailable here: shared UI package (consumed outside
       // Next.js), browser extension, and OG-image generation via ImageResponse.
       "includes": [
