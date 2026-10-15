@@ -6,6 +6,7 @@ import {
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -23,13 +24,18 @@ import {
   Trash2,
 } from "lucide-react";
 import type { ComponentType, MouseEvent, ReactNode } from "react";
-import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
+import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
+import { ariaKeyShortcut, GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
 import {
   LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
   type LibraryView,
 } from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
+import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+
+/** Cmd+B (Ctrl+B) collapses or opens the sidebar (see `SidebarProvider`). */
+const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;
 
 export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
   all: LayoutGrid,
@@ -102,6 +108,8 @@ export function AppSidebar({
   tagsHref = "/tags",
 }: AppSidebarProps) {
   const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
+  // The sidebar renders on the server too, which can't tell ⌘ from Ctrl.
+  const apple = useIsApplePlatform();
 
   // On phones the drawer closes once the user picks where to go.
   const handleNavigate = () => {
@@ -133,6 +141,11 @@ export function AppSidebar({
             <span>{LIBRARY_VIEW_LABELS[view]}</span>
           </LinkComponent>
         </SidebarMenuButton>
+        {/* On hover, the keys that go here; collapsed, the tooltip names
+            them instead. */}
+        <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
+          <ShortcutKeys keys={["G", GO_TO_VIEW_KEYS[view].toUpperCase()]} />
+        </SidebarMenuBadge>
       </SidebarMenuItem>
     );
   };
@@ -162,19 +175,24 @@ export function AppSidebar({
         <span className="flex-1 group-data-[collapsible=icon]:hidden" />
         {/* Shown while the pointer is over the sidebar; peeking, it pins
             the sidebar open instead. */}
-        <button
-          aria-label={
+        <ShortcutTooltip
+          keys={TOGGLE_SIDEBAR_KEYS}
+          label={
             state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
           }
-          className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/55 opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden"
-          onClick={toggleSidebar}
-          title={
-            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
-          }
-          type="button"
         >
-          <PanelLeft className="size-4" />
-        </button>
+          <button
+            aria-keyshortcuts={ariaKeyShortcut(TOGGLE_SIDEBAR_KEYS, apple)}
+            aria-label={
+              state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
+            }
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/55 opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden"
+            onClick={toggleSidebar}
+            type="button"
+          >
+            <PanelLeft className="size-4" />
+          </button>
+        </ShortcutTooltip>
         {addActions}
       </SidebarHeader>
 

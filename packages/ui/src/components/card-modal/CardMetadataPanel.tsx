@@ -11,6 +11,7 @@ import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { cn } from "../../lib/utils";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { FolderDot } from "../folders/FolderDot";
+import { ShortcutKeys } from "../shortcuts/ShortcutTooltip";
 import { type CardDetailField, getCardDetailSections } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
@@ -187,17 +188,27 @@ export function CardMetadataPanel({
       )}
 
       <PanelSection title="Notes">
-        <textarea
-          aria-label="Notes"
-          className="field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
-          dir="auto"
-          onBlur={onCommit}
-          onChange={(event) => onNotesChange(event.target.value)}
-          placeholder={card.isDeleted ? "No notes" : "Add a note…"}
-          readOnly={card.isDeleted}
-          ref={notesRef}
-          value={getCurrentValue("notes") ?? ""}
-        />
+        <div className="relative">
+          <textarea
+            aria-keyshortcuts={card.isDeleted ? undefined : "N"}
+            aria-label="Notes"
+            className="peer field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
+            dir="auto"
+            onBlur={onCommit}
+            onChange={(event) => onNotesChange(event.target.value)}
+            placeholder={card.isDeleted ? "No notes" : "Add a note…"}
+            readOnly={card.isDeleted}
+            ref={notesRef}
+            value={getCurrentValue("notes") ?? ""}
+          />
+          {/* N writes a note from anywhere in the open card. */}
+          {!(card.isDeleted || getCurrentValue("notes")) && (
+            <ShortcutKeys
+              className="pointer-events-none absolute top-2 right-0 peer-focus:hidden max-sm:hidden"
+              keys={["N"]}
+            />
+          )}
+        </div>
       </PanelSection>
 
       {summary && (
@@ -282,8 +293,9 @@ export function CardMetadataPanel({
             ))}
             {!card.isDeleted && (
               <input
+                aria-keyshortcuts="T"
                 aria-label="Add a tag"
-                className="h-6 min-w-20 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
+                className="peer h-6 min-w-20 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
                 enterKeyHint="done"
                 maxLength={100}
                 onChange={(event) => tags.setTagInput(event.target.value)}
@@ -291,6 +303,13 @@ export function CardMetadataPanel({
                 placeholder="Add tag…"
                 ref={tags.inputRef}
                 value={tags.tagInput}
+              />
+            )}
+            {/* T adds a tag from anywhere in the open card. */}
+            {!(card.isDeleted || tags.tagInput) && (
+              <ShortcutKeys
+                className="pointer-events-none peer-focus:hidden max-sm:hidden"
+                keys={["T"]}
               />
             )}
           </div>

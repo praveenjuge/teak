@@ -20,6 +20,7 @@ async function renderBar(
   selectedCount: number,
   options: {
     addToFolder?: { id: string; name: string };
+    allFavorited?: boolean;
     folder?: { id: string; name: string };
     isBusy?: boolean;
     view?: "library" | "archive" | "trash";
@@ -34,6 +35,7 @@ async function renderBar(
     root?.render(
       <BulkActionBar
         addToFolder={options.addToFolder}
+        allFavorited={options.allFavorited}
         folder={options.folder}
         isBusy={options.isBusy}
         onAction={onAction}
@@ -103,7 +105,7 @@ describe("BulkActionBar", () => {
       ]
     );
     expect(items).toEqual([
-      ["Add to favorites", null],
+      ["Add to favorites", "F"],
       ["Remove from favorites", null],
       ["Add tags…", "T"],
       ["Remove tags…", null],
@@ -114,6 +116,22 @@ describe("BulkActionBar", () => {
     ]);
     await act(() => menuItem("Move to Trash").click());
     expect(onAction).toHaveBeenLastCalledWith("delete");
+  });
+
+  test("E archives the selection, as its button says", async () => {
+    await renderBar(3);
+    expect(button("Archive").getAttribute("aria-keyshortcuts")).toBe("E");
+  });
+
+  test("when every selected card is a favorite, F removes them", async () => {
+    await renderBar(2, { allFavorited: true });
+    await openMoreMenu();
+    expect(
+      menuItem("Remove from favorites").getAttribute("aria-keyshortcuts")
+    ).toBe("F");
+    expect(
+      menuItem("Add to favorites").getAttribute("aria-keyshortcuts")
+    ).toBeNull();
   });
 
   test("inside a folder, More can take cards out of it", async () => {

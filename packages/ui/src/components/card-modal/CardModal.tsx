@@ -39,7 +39,10 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
-import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
+import {
+  ariaKeyShortcut,
+  cardMenuShortcuts,
+} from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
@@ -51,6 +54,7 @@ import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
@@ -513,7 +517,7 @@ export function CardModal({
                         disabled={!onPrevious}
                         label="Previous card"
                         onClick={() => void goTo(onPrevious)}
-                        shortcut="←"
+                        shortcut={["←"]}
                       >
                         <ChevronLeft />
                       </HeaderIconButton>
@@ -521,7 +525,7 @@ export function CardModal({
                         disabled={!onNext}
                         label="Next card"
                         onClick={() => void goTo(onNext)}
-                        shortcut="→"
+                        shortcut={["→"]}
                       >
                         <ChevronRight />
                       </HeaderIconButton>
@@ -533,7 +537,7 @@ export function CardModal({
                       label={card.isFavorited ? "Unfavorite" : "Favorite"}
                       onClick={toggleFavorite}
                       pressed={Boolean(card.isFavorited)}
-                      shortcut="F"
+                      shortcut={["F"]}
                     >
                       <Heart
                         className={cn(
@@ -673,7 +677,7 @@ export function CardModal({
                   </DropdownMenu>
 
                   <DialogClose asChild>
-                    <HeaderIconButton label="Close" shortcut="Esc">
+                    <HeaderIconButton label="Close" shortcut={["Esc"]}>
                       <X />
                     </HeaderIconButton>
                   </DialogClose>
@@ -775,19 +779,28 @@ function HeaderIconButton({
   children: ReactNode;
   label: string;
   pressed?: boolean;
-  shortcut?: string;
+  /** Keys that do the same, shown on the right of the button's tooltip. */
+  shortcut?: readonly string[];
 }) {
-  return (
+  const button = (
     <button
+      aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
       aria-label={label}
       aria-pressed={pressed}
       className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4"
       ref={ref}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      title={shortcut ? undefined : label}
       type="button"
       {...props}
     >
       {children}
     </button>
+  );
+  return shortcut ? (
+    <ShortcutTooltip keys={shortcut} label={label}>
+      {button}
+    </ShortcutTooltip>
+  ) : (
+    button
   );
 }

@@ -12,6 +12,7 @@ import { Fragment } from "react";
 import { SHORTCUTS_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import {
   KEYBOARD_SHORTCUT_GROUPS,
+  platformKey,
   type ShortcutRow,
 } from "../../lib/keyboardShortcuts";
 import { isApplePlatform } from "../../lib/platform";
@@ -99,14 +100,6 @@ function ShortcutKeys({ row }: { row: ShortcutRow }) {
   );
 }
 
-/** `Mod` is Cmd on Apple platforms and Ctrl elsewhere; Alt is ⌥ on a Mac. */
-function platformKey(key: string, apple: boolean): string {
-  if (key === "Mod") {
-    return apple ? "⌘" : "Ctrl";
-  }
-  return apple && key === "Alt" ? "⌥" : key;
-}
-
 const KEY_NAMES: Record<string, string> = {
   "←": "Left arrow",
   "↑": "Up arrow",
@@ -116,6 +109,8 @@ const KEY_NAMES: Record<string, string> = {
   "?": "Question mark",
   "⌥": "Option",
   "⌘": "Command",
+  "⇧": "Shift",
+  "↩": "Return",
 };
 
 /** How a screen reader says the keys: "G then F", "J or K", "Alt plus T". */

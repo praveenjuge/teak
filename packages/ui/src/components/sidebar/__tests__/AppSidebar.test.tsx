@@ -73,6 +73,19 @@ const sidebarState = () =>
   document.querySelector('[data-slot="sidebar"]')?.getAttribute("data-state");
 
 describe("AppSidebar", () => {
+  test("shows each view's go-to keys beside it, outside its link", async () => {
+    await renderSidebar();
+    const keysBeside = (name: string) =>
+      [
+        ...(link(name)
+          ?.closest("li")
+          ?.querySelectorAll('[data-sidebar="menu-badge"] kbd') ?? []),
+      ].map((key) => key.textContent);
+    expect(keysBeside("Favorites")).toEqual(["G", "F"]);
+    expect(keysBeside("Trash")).toEqual(["G", "T"]);
+    expect(link("Favorites")?.textContent?.trim()).toBe("Favorites");
+  });
+
   test("marks only the open view as the current page", async () => {
     await renderSidebar({ activeView: "archive" });
     expect(link("Archive")?.getAttribute("aria-current")).toBe("page");
