@@ -221,6 +221,7 @@ const updateFolderInputSchema = z
       path: ["name"],
     }
   );
+const folderIdInputSchema = z.object({ folderId: nonEmptyString });
 const deleteFolderInputSchema = z.object({
   folderId: nonEmptyString,
   confirm: z.literal(true),
@@ -654,6 +655,15 @@ export const TEAK_V1_TOOLS = [
       "List folders by name with their ids, kinds and card counts (null for smart folders, which have a `query`). List a folder's cards with teak_v1_list_cards and `folder`; a smart folder lists what its query matches.",
     annotations: { title: "List folders", ...READ_ONLY },
     inputSchema: inputSchema({}),
+  },
+  {
+    name: "teak_v1_get_folder",
+    description:
+      "Get one folder by id: its name, color, kind, and card count (null for a smart folder, which has a `query`).",
+    annotations: { title: "Get folder", ...READ_ONLY },
+    inputSchema: inputSchema({ folderId: { type: "string", minLength: 1 } }, [
+      "folderId",
+    ]),
   },
   {
     name: "teak_v1_create_folder",
@@ -1126,6 +1136,12 @@ const toolConfigs: Record<string, ToolConfig> = {
       body,
     }),
     summary: (payload) => `Updated folder ${String(payload.name ?? "")}`,
+  },
+  teak_v1_get_folder: {
+    schema: folderIdInputSchema,
+    operation: (input) => ({ method: "GET", path: folderPath(input.folderId) }),
+    summary: (payload, input) =>
+      `Fetched folder ${typeof payload.name === "string" ? payload.name : input.folderId}`,
   },
   teak_v1_delete_folder: {
     schema: deleteFolderInputSchema,

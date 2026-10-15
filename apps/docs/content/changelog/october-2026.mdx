@@ -1,11 +1,16 @@
 ---
 title: "October 2026"
-description: Search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: The API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-15"
 changelog:
   category: Product updates
 ---
+
+## The API, MCP, SDK, and CLI in step
+
+- Every card, tag, folder, and account feature in the API is also in MCP, the SDK, and the CLI. New this time: `teak folders get`, `teak cards duplicate <url>`, and the `teak_v1_get_folder` MCP tool.
+- The SDK and CLI now report every API error by its own code, such as `CARD_LIMIT_REACHED` when a free account reaches its 200 cards, where they used to say `REQUEST_FAILED`.
 
 ## Search inside documents and videos
 

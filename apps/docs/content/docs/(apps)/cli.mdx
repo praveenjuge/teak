@@ -111,6 +111,8 @@ File uploads support the same formats as the web app (source files, Markdown and
 
 Like the web composer, Teak works out the card type from what you add: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Pass `--type text` (or `quote`, `palette`, …) to choose. Structured Markdown always stays a text card and is stored exactly as submitted, including from standard input. Text cards have a 512 KiB UTF-8 limit.
 
+`teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving.
+
 `teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 
 `teak content` prints a card's full text: the text Teak extracted from its document (PDF, Word, PowerPoint, text or code), its transcript, or a text card's content, so you can pipe it to other tools. When a document is longer than Teak keeps (the first 500 pages and 524,288 characters), or only its start could be read just now, a note goes to standard error. `--json` prints `{ cardId, kind, text, charCount, truncated }`. A card without text exits with the not-found code.
@@ -133,7 +135,7 @@ Both commands accept several card IDs and try every one, even if some fail. They
 
 ### Folders
 
-`teak folders` lists your folders with how many cards each holds. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
+`teak folders` lists your folders with how many cards each holds, and `teak folders get <folder>` shows one. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
 
 A smart folder saves a search and lists whatever matches it: `teak folders create "Design links" --query 'tag:design type:link'` makes one, and `teak folders rename "Design links" --query 'tag:design'` changes its search. `teak folders` shows a dash instead of a count for a smart folder, followed by its search. Smart folders don't take cards, so `teak folders add` refuses them.
 

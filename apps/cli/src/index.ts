@@ -32,6 +32,7 @@ import {
   downloadExport,
   editTags,
   exportStatus,
+  findDuplicateCard,
   listFolders,
   openCard,
   refreshCards,
@@ -39,6 +40,7 @@ import {
   restoreCards,
   setCardsArchived,
   showCardContent,
+  showFolder,
   startExport,
   startTagOperation,
   tagOperationStatus,
@@ -525,6 +527,13 @@ cards
   .description("Return archived cards to the library")
   .action(async (ids) => setCardsArchived(ids, false, program.opts()));
 cards
+  .command("duplicate")
+  .argument("<url>")
+  .description(
+    "Print the id of the card that saves this URL; exits not found when none does"
+  )
+  .action(async (url) => findDuplicateCard(url, program.opts()));
+cards
   .command("content")
   .argument("<id>")
   .description("Print a card's text: its document's text or its transcript")
@@ -682,6 +691,12 @@ folders
     "List folders with how many cards each holds; smart folders show their search"
   )
   .action(async () => listFolders(program.opts()));
+folders
+  .command("get")
+  .alias("show")
+  .argument("<folder>", "folder name or id")
+  .description("Show one folder: its id, card count, name and smart search")
+  .action(async (folder) => showFolder(folder, program.opts()));
 folders
   .command("create")
   .argument("<name>")

@@ -668,39 +668,19 @@ export const searchCardsByExactTag = async (
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
-    // Trash, or archived and not: the indexes without isArchived.
-    const base = (range: any) =>
-      range
-        .eq("userId", args.userId)
-        .eq("tag", tag)
-        .eq("isDeleted", args.isDeleted);
-    if (type !== undefined && isFavorited !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_type_favorited", (range) =>
-          createdBetween(
-            base(range).eq("type", type).eq("isFavorited", favorited)
-          )
+    // Trash, or archived and not: the one index without isArchived. The loop
+    // below checks type and favorites, so every row read counts against the
+    // scan budget.
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_created", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
         )
-        .order(order);
-    } else if (type !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_type", (range) =>
-          createdBetween(base(range).eq("type", type))
-        )
-        .order(order);
-    } else if (isFavorited === undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_created", (range) =>
-          createdBetween(base(range))
-        )
-        .order(order);
-    } else {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_favorited", (range) =>
-          createdBetween(base(range).eq("isFavorited", favorited))
-        )
-        .order(order);
-    }
+      )
+      .order(order);
   } else {
     const base = (range: any) =>
       range
@@ -746,6 +726,14 @@ export const searchCardsByExactTag = async (
       });
     }
     scanBudget.remaining -= 1;
+    if (
+      archived === "any" &&
+      ((type !== undefined && document.type !== type) ||
+        (isFavorited !== undefined &&
+          (document.isFavorited === true) !== isFavorited))
+    ) {
+      continue;
+    }
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);

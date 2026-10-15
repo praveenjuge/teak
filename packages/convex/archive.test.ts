@@ -162,6 +162,23 @@ describe("an archived card leaves the library but stays in Archive", () => {
     expect(
       await apiPage({ searchQuery: "moodboard", archived: "include" })
     ).toEqual(["Archived moodboard", "Kept moodboard"]);
+    // Archived and not by tag reads one index and checks type and favorites
+    // on each row.
+    expect(await apiPage({ tag: "moodboard", archived: "include" })).toEqual([
+      "Archived moodboard",
+      "Kept moodboard",
+    ]);
+    expect(
+      await apiPage({
+        tag: "moodboard",
+        archived: "include",
+        type: "image",
+        favorited: true,
+      })
+    ).toEqual(["Archived moodboard", "Kept moodboard"]);
+    expect(
+      await apiPage({ tag: "moodboard", archived: "include", type: "text" })
+    ).toEqual([]);
   });
 
   test("unarchiving returns the card everywhere", async () => {

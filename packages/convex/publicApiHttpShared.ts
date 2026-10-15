@@ -32,28 +32,40 @@ const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
 const MAX_TAG_LENGTH = 64;
 const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
 
-type ErrorCode =
-  | "BAD_REQUEST"
-  | "CONFLICT"
-  | "CONTENT_TOO_LARGE"
-  | "FILE_TOO_LARGE"
-  | "FOLDER_LIMIT"
-  | "INTERNAL_ERROR"
-  | "INVALID_API_KEY"
-  | "INVALID_INPUT"
-  | "INVALID_UTF8"
-  | "LIMIT_REACHED"
-  | "METHOD_NOT_ALLOWED"
-  | "NOT_FOUND"
-  | "NO_CONTENT"
-  | "NOT_IN_TRASH"
-  | "TAG_EXISTS"
-  | "TAG_OPERATION_RUNNING"
-  | "RATE_LIMITED"
-  | "SERVICE_UNAVAILABLE"
-  | "SMART_FOLDER"
-  | "TYPE_MISMATCH"
-  | "UNAUTHORIZED";
+/**
+ * Every `code` an error response can carry, including the ones the card
+ * mutations raise and the API passes through (the SDK must know each one:
+ * scripts/public-parity.test.ts checks).
+ */
+export const PUBLIC_API_ERROR_CODES = [
+  "BAD_REQUEST",
+  "CARD_LIMIT_REACHED",
+  "CONFLICT",
+  "CONTENT_TOO_LARGE",
+  "FILE_TOO_LARGE",
+  "FOLDER_LIMIT",
+  "FORBIDDEN",
+  "INTERNAL_ERROR",
+  "INVALID_API_KEY",
+  "INVALID_INPUT",
+  "INVALID_STORAGE_KEY",
+  "INVALID_UTF8",
+  "LIMIT_REACHED",
+  "METHOD_NOT_ALLOWED",
+  "NOT_FOUND",
+  "NO_CONTENT",
+  "NOT_IN_TRASH",
+  "TAG_EXISTS",
+  "TAG_OPERATION_RUNNING",
+  "RATE_LIMITED",
+  "SERVICE_UNAVAILABLE",
+  "SMART_FOLDER",
+  "TYPE_MISMATCH",
+  "UNAUTHORIZED",
+  "UNSUPPORTED_TYPE",
+] as const;
+
+type ErrorCode = (typeof PUBLIC_API_ERROR_CODES)[number];
 
 interface AuthorizedUser {
   access: "full_access";

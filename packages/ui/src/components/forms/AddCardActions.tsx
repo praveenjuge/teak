@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@teak/ui/components/ui/tooltip";
 import {
+  CARD_LIMIT_TOAST_MESSAGE,
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
@@ -191,17 +192,14 @@ export function AddCardActions({
 
   const showUpgradeToast = useCallback(
     (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(
-        "You've reached your free tier limit. Upgrade to Pro for unlimited cards.",
-        {
-          ...MANUAL_CLOSE_TOAST_OPTIONS,
-          action: {
-            label: "Upgrade",
-            onClick: handleUpgrade,
-          },
-          id: toastId,
-        }
-      );
+      toast.error(CARD_LIMIT_TOAST_MESSAGE, {
+        ...MANUAL_CLOSE_TOAST_OPTIONS,
+        action: {
+          label: "Upgrade",
+          onClick: handleUpgrade,
+        },
+        id: toastId,
+      });
     },
     [handleUpgrade]
   );

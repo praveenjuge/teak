@@ -652,6 +652,7 @@ describe("durable deletion admission and tombstones", () => {
       "exports/exact/export-2.zip",
       "exports/exact/export-2.zip.checkpoint.json",
       "users/exact/unclaimed.pdf",
+      "users/exact/document-text/digest.txt",
     ]);
     const sessions = new Set(["session_ONE", "session_TWO"]);
     const applications = new Set(["conn_app_ONE", "conn_app_TWO"]);
@@ -724,7 +725,90 @@ describe("durable deletion admission and tombstones", () => {
       })
     );
     await t.run(async (ctx) => {
-      await ctx.db.patch(card, { fileKey: "users/exact/file" });
+      await ctx.db.patch(card, {
+        fileKey: "users/exact/file",
+        documentTextKey: "users/exact/document-text/digest.txt",
+        hasExtractedText: true,
+        tags: ["private"],
+        folderIds: [],
+      });
+      // A row in every table the library features keep per account.
+      const folderId = await ctx.db.insert("folders", {
+        userId: "permanent-owner",
+        name: "Private",
+        nameKey: "private",
+        kind: "manual",
+        activeCardCount: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.patch(card, { folderIds: [folderId] });
+      await ctx.db.insert("folders", {
+        userId: "permanent-owner",
+        name: "Smart",
+        nameKey: "smart",
+        kind: "smart",
+        query: "tag:private",
+        activeCardCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("folderCards", {
+        folderId,
+        cardId: card,
+        userId: "permanent-owner",
+        type: "text",
+        cardCreatedAt: 1,
+        addedAt: 1,
+      });
+      await ctx.db.insert("cardSearchDocuments", {
+        cardId: card,
+        userId: "permanent-owner",
+        searchableText: "private",
+        type: "text",
+        sourceUpdatedAt: 1,
+      });
+      await ctx.db.insert("cardSearchTags", {
+        cardId: card,
+        userId: "permanent-owner",
+        tag: "private",
+        type: "text",
+        cardCreatedAt: 1,
+        sourceUpdatedAt: 1,
+        syncGeneration: 1,
+      });
+      await ctx.db.insert("cardTextContents", {
+        cardId: card,
+        userId: "permanent-owner",
+        kind: "document",
+        text: "private",
+        sourceKey: "users/exact/document-text/digest.txt",
+        charCount: 7,
+        truncated: false,
+      });
+      await ctx.db.insert("userTagSummaries", {
+        userId: "permanent-owner",
+        items: [{ name: "private", count: 1 }],
+        isComplete: true,
+        computedAt: 1,
+      });
+      await ctx.db.insert("tagSummaryRefreshes", {
+        userId: "permanent-owner",
+        dueAt: 1,
+      });
+      await ctx.db.insert("tagOperations", {
+        userId: "permanent-owner",
+        kind: "rename",
+        from: "secret",
+        to: "private",
+        status: "completed",
+        total: 1,
+        processed: 1,
+        changed: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        completedAt: 1,
+      });
       await ctx.db.insert("exportJobs", {
         userId: "permanent-owner",
         status: "ready",
@@ -798,6 +882,21 @@ describe("durable deletion admission and tombstones", () => {
     expect(
       await t.run((ctx) => ctx.db.query("importJobItems").take(2))
     ).toEqual([]);
+    for (const table of [
+      "folders",
+      "folderCards",
+      "cardSearchDocuments",
+      "cardSearchTags",
+      "cardTextContents",
+      "userTagSummaries",
+      "tagSummaryRefreshes",
+      "tagOperations",
+    ] as const) {
+      expect({
+        table,
+        rows: await t.run((ctx) => ctx.db.query(table).take(2)),
+      }).toEqual({ table, rows: [] });
+    }
     expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject({
       teakUserId: "permanent-owner",
       deletedAt: expect.any(Number),
