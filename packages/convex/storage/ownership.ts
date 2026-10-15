@@ -8,6 +8,7 @@ import {
   type MutationCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import { isFilesWorkerConfigured } from "./filesWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
 // Exact keys, never inferred from the 32-bit legacy owner prefix.
@@ -88,6 +89,12 @@ export const ensureObjectOwnership = async (
   key: string,
   exportJobId?: Id<"exportJobs">
 ) => {
+  // Every store goes through the Files Worker, so without one no write can
+  // succeed: fail before registering a phantom ownership row that account
+  // deletion would later try to freeze and delete through the absent worker.
+  if (!isFilesWorkerConfigured()) {
+    throw new Error("files_worker_not_configured");
+  }
   if (
     !(await ctx.runMutation(internal.storage.ownership.registerObject, {
       userId,
