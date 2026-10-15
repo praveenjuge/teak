@@ -644,9 +644,13 @@ describe("durable deletion admission and tombstones", () => {
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
+    // Exports written before the move to the top-level exports/ prefix keep
+    // their per-user key; both must be erased.
     const storage = new Set([
       "users/exact/file",
       "users/exact/export.zip",
+      "exports/exact/export-2.zip",
+      "exports/exact/export-2.zip.checkpoint.json",
       "users/exact/unclaimed.pdf",
     ]);
     const sessions = new Set(["session_ONE", "session_TWO"]);
@@ -727,6 +731,13 @@ describe("durable deletion admission and tombstones", () => {
         artifactKey: "users/exact/export.zip",
         createdAt: 1,
         updatedAt: 1,
+      });
+      await ctx.db.insert("exportJobs", {
+        userId: "permanent-owner",
+        status: "ready",
+        artifactKey: "exports/exact/export-2.zip",
+        createdAt: 2,
+        updatedAt: 2,
       });
       const jobId = await ctx.db.insert("importJobs", {
         userId: "permanent-owner",

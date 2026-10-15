@@ -46,12 +46,16 @@ export const uploadError = (
   return response;
 };
 
-/** Object keys live under per-user prefixes; refuse anything that could escape.
- * Production uses `users/...`, development uses `dev/users/...`; the canonical
- * production Worker accepts both so dev traffic can share the prod bucket.
+/** Object keys live under per-user prefixes, or under `exports/` for export
+ * archives, which an R2 lifecycle rule expires; refuse anything that could
+ * escape. Production uses `users/...` and `exports/...`, development adds a
+ * `dev/` prefix; the canonical production Worker accepts both so dev traffic
+ * can share the prod bucket.
  */
+const OBJECT_KEY_ROOTS = ["users/", "dev/users/", "exports/", "dev/exports/"];
+
 export const isValidUploadKey = (key: string): boolean =>
-  (key.startsWith("users/") || key.startsWith("dev/users/")) &&
+  OBJECT_KEY_ROOTS.some((root) => key.startsWith(root)) &&
   !key.includes("\0") &&
   !key.split("/").includes("..") &&
   !key.includes("//") &&
