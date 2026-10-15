@@ -11,6 +11,7 @@
 import {
   type Color,
   extractPaletteColors,
+  parseColorString,
 } from "@teak/convex/shared/utils/colorUtils";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
@@ -138,25 +139,73 @@ const hasPaletteHint = (card: any): boolean => {
   return paletteHints.some((hint) => text.includes(hint)) || tagHints;
 };
 
+const COLOR_CODE_PATTERN =
+  /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^)]*\)|hsla?\([^)]*\)/gi;
+const COLOR_LABEL_PATTERN = /^(?:--)?[a-z][\w\s-]{0,32}?\s*[:=\-–]\s*(.+)$/iu;
+const COLOR_LIST_DELIMITER_PATTERN = /[,;\n\r]+/;
+const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
+
+const countColorCodes = (text: string): number => {
+  const hexes = new Set<string>();
+  for (const match of text.matchAll(COLOR_CODE_PATTERN)) {
+    const color = parseColorString(match[0]);
+    if (color) {
+      hexes.add(color.hex.toUpperCase());
+    }
+  }
+  return hexes.size;
+};
+
+const isColorValue = (value: string): boolean => {
+  const trimmed = value.trim().replace(/[.!]+$/u, "");
+  if (!trimmed) {
+    return false;
+  }
+  if (parseColorString(trimmed)) {
+    return true;
+  }
+  // "red green blue" lists several colours separated by spaces.
+  return trimmed
+    .split(COLOR_WORD_DELIMITER_PATTERN)
+    .every((word) => parseColorString(word) !== null);
+};
+
+// True when the content is nothing but colours, optionally labelled
+// ("Primary: #0F4C81"). Prose that only mentions a colour word, such as
+// "dark green cabinets", is not a colour list.
+const isColorList = (content: unknown): boolean => {
+  if (typeof content !== "string") {
+    return false;
+  }
+  const parts = content
+    .split(COLOR_LIST_DELIMITER_PATTERN)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return (
+    parts.length > 0 &&
+    parts.every((part) => {
+      if (isColorValue(part)) {
+        return true;
+      }
+      const labelled = COLOR_LABEL_PATTERN.exec(part);
+      return labelled ? isColorValue(labelled[1]) : false;
+    })
+  );
+};
+
 const isProbablyPalette = (card: any): boolean => {
-  const text = buildPaletteAnalysisText(card);
-  const colors = extractPaletteColors(text);
-  const hint = hasPaletteHint(card);
-
-  // Palette if multiple colors present.
-  if (colors.length >= 2) {
+  if (isColorList(card.content)) {
     return true;
   }
 
-  // Single colour counts as palette when the card is otherwise plain text (no url/file) or an explicit hint exists.
-  if (colors.length === 1 && !card.url && !card.fileKey) {
+  // Colour names in prose are ordinary words, so outside a colour list only
+  // explicit colour codes (hex, rgb, hsl) count.
+  const codeCount = countColorCodes(buildPaletteAnalysisText(card));
+  if (codeCount >= 2) {
     return true;
   }
-  if (colors.length === 1 && hint) {
-    return true;
-  }
-
-  return false;
+  return codeCount === 1 && hasPaletteHint(card);
 };
 
 const fileNameFromUrl = (url?: string): string | undefined => {

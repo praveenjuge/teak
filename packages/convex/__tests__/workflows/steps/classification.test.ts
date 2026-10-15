@@ -402,6 +402,60 @@ describe("classification step", () => {
       expect(result.type).toBe("text");
     });
 
+    test("keeps prose that mentions a colour word as text", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "Bathroom ideas: dark green tiles, oak shelves, brass taps.",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+      expect(mockRunMutation).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ type: "palette" })
+      );
+    });
+
+    test("keeps prose with a single hex-like reference as text", async () => {
+      const card = {
+        _id: "c1",
+        type: "text",
+        content: "Follow up on issue #123 before Friday",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("text");
+    });
+
+    test("detects a labelled colour list as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Primary: #0F4C81\nAccent: dark green",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+    });
+
+    test("detects prose with several colour codes as palette", async () => {
+      const card = {
+        _id: "c1",
+        content: "Use #0F4C81 for headings and #FF5500 for buttons",
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.type).toBe("palette");
+    });
+
     test("does not detect palette with URL present", async () => {
       const card = {
         _id: "c1",
