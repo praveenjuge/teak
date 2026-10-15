@@ -312,6 +312,7 @@ export type FilesImportMarkdownResult =
     };
 
 export * from "./edgeIdentity";
+export * from "./embeddings";
 export * from "./linkPage";
 export * from "./metadata";
 export * from "./remoteAsset";

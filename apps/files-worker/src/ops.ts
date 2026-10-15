@@ -88,6 +88,8 @@ export interface FilesOpsEnv extends AiGatewayEnv {
   /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
+  /** Card embeddings for semantic search, shard 0; see files-protocol embeddings.ts. */
+  CARD_VECTORS_0?: Vectorize;
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
@@ -327,6 +329,7 @@ const dispatch = async (
         images: Boolean(env.IMAGES),
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
+        vectors: Boolean(env.CARD_VECTORS_0),
         // Starts a renderer when none is warm, so only deploy gates ask.
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)

@@ -38,6 +38,8 @@ export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeRateLimitEnv {
   /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
+  /** Card embeddings for semantic search, shard 0; see files-protocol embeddings.ts. */
+  CARD_VECTORS_0?: Vectorize;
   FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
   IMAGES?: ImagesBinding;

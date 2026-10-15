@@ -449,6 +449,14 @@ callers; reverting to a schema that rejects stored ETags requires a separate,
 explicitly approved data migration. Keep the compatible worker deployed while
 rolling back backend callers.
 
+## Card embeddings (Vectorize)
+
+`CARD_VECTORS_0` binds the `teak-cards-0` Vectorize index (768 dimensions,
+cosine), which will hold card embeddings for semantic search, one namespace per
+user. `capabilities` reports `vectors` when it is bound. The model, prompts and
+shard layout are in `.agents/semantic-search.md`. Nothing writes to the index
+yet.
+
 ## Export archive lifecycle
 
 Export archives, their `.checkpoint.json` and `.result.json` sidecars and the

@@ -115,6 +115,14 @@
   "browser": {
     "binding": "BROWSER"
   },
+  // Card embeddings for semantic search: one 768-dimension cosine index per
+  // shard, one namespace per user (packages/files-protocol/src/embeddings.ts).
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-cards-0"
+    }
+  ],
   // This config deploys the production custom domain. Local dev overrides it.
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
   // single request: CPU for the ZIP's checksums, and one R2 read per file plus

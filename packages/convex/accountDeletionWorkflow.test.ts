@@ -851,6 +851,10 @@ describe("durable deletion admission and tombstones", () => {
         createdAt: 1,
         updatedAt: 1,
       });
+      await ctx.db.insert("vectorShards", {
+        userId: "permanent-owner",
+        shard: 0,
+      });
     });
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
     const state = await t.run((ctx) =>
@@ -891,6 +895,7 @@ describe("durable deletion admission and tombstones", () => {
       "userTagSummaries",
       "tagSummaryRefreshes",
       "tagOperations",
+      "vectorShards",
     ] as const) {
       expect({
         table,
