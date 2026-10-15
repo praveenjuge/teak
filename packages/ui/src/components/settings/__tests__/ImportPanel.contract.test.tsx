@@ -345,4 +345,35 @@ describe("ImportPanel", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("a resumed upload counts recorded parts and only counts a new part once it is recorded", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(null, { status: 200, headers: { ETag: '"part-2"' } })
+      )
+    ) as unknown as typeof fetch;
+    const onProgress = mock();
+    const recordPart = mock(() => Promise.reject(new Error("offline")));
+
+    try {
+      await expect(
+        putParts(
+          new File([new Uint8Array([1, 2])], "bookmarks.html"),
+          {
+            jobId: "job",
+            partSize: 1,
+            parts: [{ partNumber: 2, url: "https://uploads.example/2" }],
+            uploadedParts: [1],
+          },
+          onProgress,
+          new Set<AbortController>(),
+          recordPart
+        )
+      ).rejects.toThrow("offline");
+      expect(onProgress.mock.calls).toEqual([[50]]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

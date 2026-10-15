@@ -155,8 +155,6 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
 /** Marks the new-note composer, which `N` focuses. */
 export const NEW_NOTE_COMPOSER_ATTRIBUTE = "data-new-note-composer";
-/** Marks the Upload files button, which `U` presses. */
-export const UPLOAD_FILES_ATTRIBUTE = "data-upload-files";
 
 const visible = (element: HTMLElement) => element.getClientRects().length > 0;
 
@@ -188,30 +186,25 @@ export function focusNewNoteComposer(): boolean {
   return true;
 }
 
-// The sidebar's New menu keeps Upload files inside a closed menu, so it
-// registers what Upload files does instead of leaving a button to press.
-let uploadFilesHandler: (() => boolean) | null = null;
+const uploadFilesHandlers: Array<() => boolean> = [];
 
-/** Makes `U` run `handler` while no Upload files button is on the page. */
+/**
+ * Makes `U` run `handler`, the latest one registered while several are.
+ * The handler returns false when it can't upload now.
+ */
 export function registerUploadFiles(handler: () => boolean): () => void {
-  uploadFilesHandler = handler;
+  uploadFilesHandlers.push(handler);
   return () => {
-    if (uploadFilesHandler === handler) {
-      uploadFilesHandler = null;
+    const index = uploadFilesHandlers.lastIndexOf(handler);
+    if (index >= 0) {
+      uploadFilesHandlers.splice(index, 1);
     }
   };
 }
 
-/** Presses the Upload files button; false when there is none to press. */
+/** Starts an upload as Upload files does; false when none can start. */
 export function pressUploadFiles(): boolean {
-  const button = Array.from(
-    document.querySelectorAll<HTMLButtonElement>(`[${UPLOAD_FILES_ATTRIBUTE}]`)
-  ).find((candidate) => visible(candidate) && !candidate.disabled);
-  if (button) {
-    button.click();
-    return true;
-  }
-  return uploadFilesHandler?.() ?? false;
+  return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
 }
 
 // `N` away from the composer opens Everything first; the composer then

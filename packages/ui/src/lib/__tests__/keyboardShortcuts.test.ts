@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { ariaKeyShortcut, platformKey } from "../keyboardShortcuts";
+import { describe, expect, mock, test } from "bun:test";
+import {
+  ariaKeyShortcut,
+  platformKey,
+  pressUploadFiles,
+  registerUploadFiles,
+} from "../keyboardShortcuts";
 
 describe("platformKey", () => {
   test.each([
@@ -24,5 +29,31 @@ describe("ariaKeyShortcut", () => {
     expect(ariaKeyShortcut(["Esc"])).toBe("Escape");
     expect(ariaKeyShortcut(["←"])).toBe("ArrowLeft");
     expect(ariaKeyShortcut(["F"])).toBe("F");
+  });
+});
+
+describe("pressUploadFiles", () => {
+  test("runs the latest registered upload, then the one before once it leaves", () => {
+    const toolbar = mock(() => true);
+    const header = mock(() => true);
+    const leaveToolbar = registerUploadFiles(toolbar);
+    const leaveHeader = registerUploadFiles(header);
+
+    expect(pressUploadFiles()).toBe(true);
+    expect(header).toHaveBeenCalledTimes(1);
+    expect(toolbar).not.toHaveBeenCalled();
+
+    leaveHeader();
+    expect(pressUploadFiles()).toBe(true);
+    expect(toolbar).toHaveBeenCalledTimes(1);
+
+    leaveToolbar();
+    expect(pressUploadFiles()).toBe(false);
+  });
+
+  test("reports an upload that can't start now", () => {
+    const leave = registerUploadFiles(() => false);
+    expect(pressUploadFiles()).toBe(false);
+    leave();
   });
 });

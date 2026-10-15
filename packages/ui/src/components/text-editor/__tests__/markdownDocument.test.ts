@@ -60,11 +60,14 @@ describe("Markdown compatibility", () => {
     "[unsafe](data:text/html,hello)",
     "[relative](../private)",
     "Footnote[^a]\n\n[^a]: Preserve this",
-  ])("keeps unsupported content editable as literal text: %s", (source) => {
-    const prepared = prepareMarkdownDocument(source);
-    expect(prepared.literal).toBe(true);
-    expect(markdownManager.serialize(prepared.document)).toBe(source);
-  });
+  ])(
+    "keeps unsupported content, images and raw HTML as inert literal text: %s",
+    (source) => {
+      const prepared = prepareMarkdownDocument(source);
+      expect(prepared.literal).toBe(true);
+      expect(markdownManager.serialize(prepared.document)).toBe(source);
+    }
+  );
 
   test("recognizes equivalent syntax without requiring identical bytes", () => {
     expect(hasSameMarkdownMeaning("__Bold__", "**Bold**")).toBe(true);

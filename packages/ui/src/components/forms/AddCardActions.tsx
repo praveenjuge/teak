@@ -436,22 +436,20 @@ export function AddCardActions({
     ? "Speak naturally. Teak will save this as an audio card."
     : "Starting microphone...";
 
-  // `U` uploads through the New menu, which keeps no button on the page.
   const uploadRef = useRef(handleFileUpload);
   uploadRef.current = handleFileUpload;
   const isUploading = globalFileDrop?.isUploading ?? false;
-  useEffect(() => {
-    if (variant !== "header") {
-      return;
-    }
-    return registerUploadFiles(() => {
-      if (isUploading) {
-        return false;
-      }
-      uploadRef.current();
-      return true;
-    });
-  }, [isUploading, variant]);
+  useEffect(
+    () =>
+      registerUploadFiles(() => {
+        if (isUploading) {
+          return false;
+        }
+        uploadRef.current();
+        return true;
+      }),
+    [isUploading]
+  );
   const keepFocusRef = useRef(false);
 
   const triggers =
@@ -511,7 +509,6 @@ export function AddCardActions({
           <Button
             aria-keyshortcuts="U"
             aria-label="Upload files"
-            data-upload-files=""
             disabled={globalFileDrop?.isUploading}
             onClick={handleFileUpload}
             size="icon"

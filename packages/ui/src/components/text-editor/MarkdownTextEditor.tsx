@@ -5,9 +5,6 @@ import { lazyWithPreload } from "../../lib/lazyWithPreload";
 import { EditorFieldset, MarkdownStandIn } from "./MarkdownStandIn";
 import type { MarkdownTextEditorProps } from "./types";
 
-// The rich editor (Tiptap, ProseMirror, the block editor and its styles) is
-// the largest part of the app's code, so it loads after the page instead of
-// with it. Until it arrives, a plain textarea edits the same Markdown string.
 const LoadedMarkdownTextEditor = lazyWithPreload(() =>
   import("./LoadedMarkdownTextEditor").then((module) => module.default)
 );

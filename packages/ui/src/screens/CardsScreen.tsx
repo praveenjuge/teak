@@ -50,6 +50,7 @@ import {
   TagManagementModal,
 } from "../components/lazyDialogs";
 import { useFolders } from "../hooks/useFolders";
+import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
@@ -64,10 +65,14 @@ import {
   type LibraryView,
 } from "../lib/libraryViews";
 import {
-  isSameSearchUrlState,
   parseSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
+import {
+  createSearchUrlSync,
+  type SearchFromUrl,
+  type SearchUrlChange,
+} from "../lib/searchUrlSync";
 import { PageTitle } from "./PageHeader";
 
 const EMPTY_VIEW_COPY: Record<
@@ -90,13 +95,7 @@ const clipName = (name: string) =>
     ? `${Array.from(name).slice(0, 39).join("")}…`
     : name;
 
-/** A change worth its own history entry: a new sort or new card types. */
-export interface SearchUrlChange {
-  sortChanged: boolean;
-  /** The sidebar tag was picked or cleared. */
-  tagChanged: boolean;
-  typesChanged: boolean;
-}
+export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
   /**
@@ -210,42 +209,20 @@ export function CardsScreen({
   });
   const { applyUrlState, urlState } = searchController;
 
-  // The URL and the search stay in step both ways. What this screen last
-  // wrote (or read) is remembered so its own URL updates never echo back.
-  const syncedUrlStateRef = useRef<SearchUrlState | null>(
-    searchUrlState ?? null
+  const [urlSync] = useState(() => createSearchUrlSync(searchUrlState));
+  const showSearchFromUrl = useCallback(
+    (search: SearchFromUrl | null) => {
+      if (search) {
+        applyUrlState(search.state, { keepSearch: search.keepSearch });
+      }
+    },
+    [applyUrlState]
   );
-  // The URL state this screen last read. Effects re-run without the URL
-  // changing (Activity showing a hidden screen again, Strict Mode), and the
-  // URL can still lag this screen's own write then; only a real URL change
-  // may overwrite the search.
-  const readUrlStateRef = useRef<SearchUrlState | null>(searchUrlState ?? null);
   useEffect(() => {
-    if (!searchUrlState) {
-      return;
+    if (searchUrlState) {
+      showSearchFromUrl(urlSync.urlReported(searchUrlState));
     }
-    const lastRead = readUrlStateRef.current;
-    readUrlStateRef.current = searchUrlState;
-    if (
-      (lastRead && isSameSearchUrlState(lastRead, searchUrlState)) ||
-      (syncedUrlStateRef.current &&
-        isSameSearchUrlState(syncedUrlStateRef.current, searchUrlState))
-    ) {
-      return;
-    }
-    const previous = syncedUrlStateRef.current;
-    syncedUrlStateRef.current = searchUrlState;
-    // When only the types or sort changed (a sidebar type), keep any text
-    // still being typed rather than resetting it to the URL's older query.
-    applyUrlState(searchUrlState, {
-      keepSearch:
-        previous !== null && previous.q.trim() === searchUrlState.q.trim(),
-    });
-  }, [applyUrlState, searchUrlState]);
-  // Back or Forward right after this screen writes the URL can reach the
-  // router together with that write, so the URL state above never changes
-  // and the screen keeps the newer search (a reshuffled order under the old
-  // seed). Read the entry Back lands on, when it is still this page.
+  }, [searchUrlState, showSearchFromUrl, urlSync]);
   const urlDriven = searchUrlState !== undefined;
   const pagePathRef = useRef<string | null>(null);
   useEffect(() => {
@@ -256,51 +233,27 @@ export function CardsScreen({
       return;
     }
     const handlePopState = () => {
-      if (window.location.pathname !== pagePathRef.current) {
-        return;
+      if (window.location.pathname === pagePathRef.current) {
+        showSearchFromUrl(
+          urlSync.historyLanded(
+            parseSearchUrlState(new URLSearchParams(window.location.search))
+          )
+        );
       }
-      const landed = parseSearchUrlState(
-        new URLSearchParams(window.location.search)
-      );
-      const previous = syncedUrlStateRef.current;
-      if (previous && isSameSearchUrlState(previous, landed)) {
-        return;
-      }
-      readUrlStateRef.current = landed;
-      syncedUrlStateRef.current = landed;
-      applyUrlState(landed, {
-        keepSearch: previous !== null && previous.q.trim() === landed.q.trim(),
-      });
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [applyUrlState, urlDriven]);
+  }, [showSearchFromUrl, urlDriven, urlSync]);
   useEffect(() => {
-    const previous = syncedUrlStateRef.current;
-    if (previous && isSameSearchUrlState(previous, urlState)) {
+    const change = urlSync.searchSettled(urlState);
+    if (!change) {
       return;
     }
-    syncedUrlStateRef.current = urlState;
-    // A reshuffle is a new order too, unless the URL only lacked a seed.
-    const sortChanged =
-      previous !== null &&
-      (previous.sort !== urlState.sort ||
-        (previous.seed !== undefined && previous.seed !== urlState.seed));
-    const typesChanged =
-      previous !== null &&
-      (previous.types.length !== urlState.types.length ||
-        previous.types.some((type) => !urlState.types.includes(type)));
-    const tagChanged =
-      previous !== null && (previous.tag ?? "") !== (urlState.tag ?? "");
-    if (sortChanged || typesChanged || tagChanged) {
+    if (change.sortChanged || change.typesChanged || change.tagChanged) {
       window.scrollTo({ top: 0 });
     }
-    onSearchUrlStateChange?.(urlState, {
-      sortChanged,
-      tagChanged,
-      typesChanged,
-    });
-  }, [onSearchUrlStateChange, urlState]);
+    onSearchUrlStateChange?.(urlState, change);
+  }, [onSearchUrlStateChange, urlState, urlSync]);
 
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
@@ -338,7 +291,6 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
-  // The URL keeps the rest of the search; these live only in memory.
   useEffect(() => {
     onVisualFiltersChange?.({
       hexFilters,
@@ -393,28 +345,13 @@ export function CardsScreen({
     setRemoteCards(cards, searchKey);
   }, [cards, searchKey, setRemoteCards]);
 
-  // Some filtered views (colors or favorites inside a folder) can return a
-  // page with no match while more remain. Whenever a requested page adds no
-  // cards, ask for the next one, so the grid neither shows an empty state
-  // nor stalls with matches still further down.
-  const isSeekingFirstMatch =
-    cards.length === 0 &&
-    (cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore");
-  const countAtLoadMoreRef = useRef<number | null>(null);
-  const requestMoreCards = useCallback(() => {
-    countAtLoadMoreRef.current = cards.length;
-    loadMore(SEARCH_DEFAULT_CARD_LIMIT);
-  }, [cards.length, loadMore]);
-  useEffect(() => {
-    if (cardsStatus !== "CanLoadMore") {
-      return;
-    }
-    if (cards.length === 0 || countAtLoadMoreRef.current === cards.length) {
-      requestMoreCards();
-    } else {
-      countAtLoadMoreRef.current = null;
-    }
-  }, [cards.length, cardsStatus, requestMoreCards]);
+  const { isSeekingFirstMatch, requestMore: requestMoreCards } =
+    useLoadUntilMatches({
+      count: cards.length,
+      loadMore,
+      pageSize: SEARCH_DEFAULT_CARD_LIMIT,
+      status: cardsStatus,
+    });
 
   useEffect(() => {
     if (

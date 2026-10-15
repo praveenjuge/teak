@@ -1,8 +1,5 @@
 import { Marked, type Token, type Tokens } from "marked";
 
-// Kept apart from the editor (markdownDocument.ts) so the composer can
-// classify a note as it saves without loading the editor's code, Tiptap
-// included.
 const lexer = new Marked({ gfm: true });
 
 const NAMED_ENTITIES: Record<string, string> = {
