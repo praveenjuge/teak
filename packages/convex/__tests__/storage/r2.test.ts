@@ -233,6 +233,21 @@ describe("card storage cleanup", () => {
       "poster",
     ]);
   });
+  test("includes a link's chosen image and the one kept for undo", () => {
+    expect(
+      cardStorageObjectKeys({
+        metadata: { linkPreview: { imageStorageKey: "image" } },
+        previousThumbnailOverride: { override: { storageKey: "kept" } },
+        thumbnailOverride: { storageKey: "chosen" },
+      })
+    ).toEqual(["image", "chosen", "kept"]);
+    expect(
+      cardStorageObjectKeys({
+        previousThumbnailOverride: { override: null },
+        thumbnailOverride: { storageKey: "chosen" },
+      })
+    ).toEqual(["chosen"]);
+  });
 });
 
 describe("signed worker image urls", () => {

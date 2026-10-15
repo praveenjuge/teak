@@ -67,6 +67,7 @@ export default defineConfig({
       "./adminConsole.test.ts",
       "./onboarding.test.ts",
       "./importArchiveV2.test.ts",
+      "./thumbnailOverride.test.ts",
     ],
   },
 });

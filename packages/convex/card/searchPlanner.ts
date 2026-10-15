@@ -47,10 +47,10 @@ export interface ResolvedSearch {
    */
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
   phrases: string[];
-  /** `like:` or `mood:`: the search lists meaning matches only. */
-  similarity: ParsedSearchQuery["similarity"];
   /** `price:` bounds a card's link price must all meet. */
   prices: PriceBound[];
+  /** `like:` or `mood:`: the search lists meaning matches only. */
+  similarity: ParsedSearchQuery["similarity"];
   /** Normalized hosts; a card on any of them matches. */
   sites: string[];
   /** Lowercase tags a card must all carry; the first can drive the read. */

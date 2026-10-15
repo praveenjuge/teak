@@ -93,6 +93,8 @@ export const cardReturnValidator = v.object({
     )
   ),
   linkPreviewImageUrl: v.optional(v.string()),
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  hasThumbnailOverride: v.optional(v.literal(true)),
   /**
    * A search result matched by meaning (shared/search/semantic.ts), which
    * need not contain the searched words; clients keep it when they narrow

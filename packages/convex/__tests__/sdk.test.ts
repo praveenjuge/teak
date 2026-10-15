@@ -523,3 +523,85 @@ describe("@teak/convex/sdk", () => {
     expect(error.requestId).toBe("req_123");
   });
 });
+
+describe("link images", () => {
+  const recording = () => {
+    const calls: { body: unknown; method: string; url: string }[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        calls.push({
+          body: init?.body,
+          method: init?.method ?? "GET",
+          url: String(url),
+        });
+        const { pathname } = new URL(String(url));
+        if (pathname.endsWith("/thumbnail/upload")) {
+          return Promise.resolve(
+            Response.json({
+              expiresIn: 600,
+              fileKey: "pending/key",
+              maxFileSize: 20 * 1024 * 1024,
+              method: "PUT",
+              uploadUrl: "https://files.example/__upload/v1/pending",
+            })
+          );
+        }
+        if (pathname.startsWith("/__upload")) {
+          return Promise.resolve(new Response(null, { status: 200 }));
+        }
+        return Promise.resolve(
+          Response.json({
+            content: "https://example.com",
+            id: "card_1",
+            thumbnailOverridden: init?.method === "PUT",
+          })
+        );
+      }) as typeof fetch,
+    });
+    return { calls, client };
+  };
+
+  test("setThumbnail uploads the bytes, then applies them", async () => {
+    const { calls, client } = recording();
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const card = await client.cards.setThumbnail("card_1", bytes, "image/png");
+    expect(card.thumbnailOverridden).toBe(true);
+    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      "POST https://api.example/v1/cards/card_1/thumbnail/upload",
+      "PUT https://files.example/__upload/v1/pending",
+      "PUT https://api.example/v1/cards/card_1/thumbnail",
+    ]);
+    expect(JSON.parse(String(calls[0]?.body))).toEqual({
+      fileSize: 4,
+      mimeType: "image/png",
+    });
+    expect(calls[1]?.body).toBe(bytes);
+    expect(JSON.parse(String(calls[2]?.body))).toEqual({
+      fileKey: "pending/key",
+    });
+  });
+
+  test("setThumbnail applies a finished upload by its fileKey", async () => {
+    const { calls, client } = recording();
+    await client.cards.setThumbnail("card_1", { fileKey: "pending/key" });
+    expect(calls.map((call) => call.method)).toEqual(["PUT"]);
+  });
+
+  test("setThumbnail needs a MIME type for bytes", async () => {
+    const { calls, client } = recording();
+    await expect(
+      client.cards.setThumbnail("card_1", new Uint8Array([1]))
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    expect(calls).toEqual([]);
+  });
+
+  test("resetThumbnail deletes the chosen image", async () => {
+    const { calls, client } = recording();
+    await client.cards.resetThumbnail("card_1");
+    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      "DELETE https://api.example/v1/cards/card_1/thumbnail",
+    ]);
+  });
+});

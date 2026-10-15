@@ -13,6 +13,7 @@ import {
 } from "./shared/folders";
 import { SEARCH_MODES } from "./shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH, TAG_OPERATION_COUNT_LIMIT } from "./shared/tags";
+import { THUMBNAIL_MAX_BYTES, THUMBNAIL_MIME_TYPES } from "./shared/thumbnails";
 
 const CARD_TYPES = [
   "text",
@@ -34,6 +35,37 @@ const folderIdParameters = [
     schema: { type: "string" },
   },
 ];
+const cardIdParameter = {
+  in: "path",
+  name: "cardId",
+  required: true,
+  schema: { type: "string" },
+} as const;
+const THUMBNAIL_TYPES_DESCRIPTION =
+  "JPEG, PNG, WebP, GIF (its first frame) or AVIF. SVG and HEIC are refused.";
+const apiErrorContent = {
+  "application/json": { schema: { $ref: "#/components/schemas/ApiError" } },
+} as const;
+const thumbnailErrorResponses = {
+  400: {
+    content: apiErrorContent,
+    description: `TYPE_MISMATCH: not a link card. UNSUPPORTED_TYPE: not an accepted image type (${THUMBNAIL_TYPES_DESCRIPTION}). INVALID_INPUT: the image couldn't be read, or is over 10,000 pixels on a side`,
+  },
+  404: {
+    content: apiErrorContent,
+    description: "The card, or the upload for it, was not found",
+  },
+  409: { content: apiErrorContent, description: "The card is in Trash" },
+  413: {
+    content: apiErrorContent,
+    description: "FILE_TOO_LARGE: images must be under 20 MB",
+  },
+  429: {
+    content: apiErrorContent,
+    description:
+      "RATE_LIMITED: 20 image changes a minute; `retryAt` and Retry-After say when to try again",
+  },
+} as const;
 const tagListSchema = {
   items: { maxLength: MAX_TAG_LENGTH, type: "string" },
   type: "array",
@@ -173,6 +205,11 @@ const cardProperties = {
   },
   screenshotUrl: { type: ["string", "null"] },
   tags: { items: { type: "string" }, type: "array" },
+  thumbnailOverridden: {
+    description:
+      "True when linkPreviewImageUrl is an image chosen for this link (PUT /v1/cards/{cardId}/thumbnail) rather than the one Teak found.",
+    type: "boolean",
+  },
   thumbnailUrl: { type: ["string", "null"] },
   type: { type: "string" },
   updatedAt: { type: "number" },
@@ -266,6 +303,7 @@ const components = {
         processingStatus: cardProperties.processingStatus,
         screenshotUrl: { type: ["string", "null"] },
         tags: { items: { type: "string" }, type: "array" },
+        thumbnailOverridden: cardProperties.thumbnailOverridden,
         thumbnailUrl: { type: ["string", "null"] },
         type: { type: "string" },
         updatedAt: { type: "number" },
@@ -1355,6 +1393,110 @@ export const openApiSpec = {
         summary: "Refresh a card's details",
         description:
           "Clears the card's AI summary, tags and transcript, then runs the whole processing pipeline again: link metadata, previews, summary, tags and transcript.",
+      },
+    },
+    "/v1/cards/{cardId}/thumbnail/upload": {
+      post: {
+        parameters: [cardIdParameter],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                additionalProperties: false,
+                properties: {
+                  fileSize: {
+                    description: `Bytes; at most ${THUMBNAIL_MAX_BYTES} (20 MB).`,
+                    type: "number",
+                  },
+                  mimeType: {
+                    description: THUMBNAIL_TYPES_DESCRIPTION,
+                    enum: [...THUMBNAIL_MIME_TYPES],
+                    type: "string",
+                  },
+                },
+                required: ["mimeType", "fileSize"],
+                type: "object",
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateUploadResponse" },
+              },
+            },
+            description:
+              "A signed URL. PUT the bytes to uploadUrl with the same Content-Type, then pass fileKey to PUT /v1/cards/{cardId}/thumbnail",
+          },
+          ...thumbnailErrorResponses,
+        },
+        security: apiKeySecurity,
+        operationId: "createThumbnailUpload",
+        summary: "Upload a link's image",
+        description:
+          "Starts replacing a link card's image. Works at the free plan's card limit: no card is created.",
+      },
+    },
+    "/v1/cards/{cardId}/thumbnail": {
+      put: {
+        parameters: [cardIdParameter],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                additionalProperties: false,
+                properties: {
+                  fileKey: {
+                    description:
+                      "From POST /v1/cards/{cardId}/thumbnail/upload, for this card",
+                    type: "string",
+                  },
+                },
+                required: ["fileKey"],
+                type: "object",
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Card" },
+              },
+            },
+            description:
+              "The card, showing the new image as linkPreviewImageUrl with thumbnailOverridden true",
+          },
+          ...thumbnailErrorResponses,
+        },
+        security: apiKeySecurity,
+        operationId: "setCardThumbnail",
+        summary: "Replace a link's image",
+        description:
+          "Uses an uploaded image as the link card's image. It stays through Refresh details and new link previews until it is reset.",
+      },
+      delete: {
+        parameters: [cardIdParameter],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Card" },
+              },
+            },
+            description:
+              "The card, back on the image Teak found (or its screenshot). Resetting a card without a chosen image changes nothing",
+          },
+          ...thumbnailErrorResponses,
+        },
+        security: apiKeySecurity,
+        operationId: "resetCardThumbnail",
+        summary: "Reset a link's image",
+        description:
+          "Goes back to the image Teak found for the link and deletes the uploaded one.",
       },
     },
     "/v1/cards/{cardId}/favorite": {

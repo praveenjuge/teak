@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: Find similar cards and search images by mood, search that understands what you mean, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-15"
 changelog:
@@ -12,6 +12,12 @@ changelog:
 - Open a card and choose **More like this** to see the cards closest to it in meaning, from notes and links to images about the same thing. Narrow the list with any filter and save it as a smart folder. See [Find similar](/docs/features#find-similar).
 - `mood:"moody brutalist"` finds images by their look and feel.
 - **API, CLI, and MCP:** `GET /v1/cards?similarTo=<id>`, `teak similar <id>`, and the `teak_v1_find_similar_cards` tool return the same cards.
+
+## Choose your own image for any link
+
+- On the web, give a link the image you want: drop an image on its preview, paste one while the card is open, or choose **Replace image** beside it. A link without an image shows **Add an image**.
+- Your image shows in the grid on the web and in the iPhone, iPad, and Mac apps, and stays when you refresh the card's details. **Undo** puts back the previous image, and **Reset to original image** goes back to the one Teak found. See [Replace a link's image](/docs/features#replace-a-links-image).
+- **API, MCP, SDK, and CLI:** upload with `POST /v1/cards/:cardId/thumbnail/upload`, apply with `PUT /v1/cards/:cardId/thumbnail`, and reset with `DELETE`; `teak cards thumbnail <card-id> <file>` (or `--reset`) does it from the command line. See [Replace a link's image](/docs/api#replace-a-links-image).
 
 ## Search understands what you mean
 
@@ -26,18 +32,6 @@ changelog:
 - Product links you saved earlier get their price as Teak catches up on them.
 - **API, CLI, and MCP:** `q` and `teak search` read `price:` too, and cards include `linkPrice` with `amount` and `currency`. `teak cards get` shows the price. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
 
-## The API, MCP, SDK, and CLI in step
-
-- Every card, tag, folder, and account feature in the API is also in MCP, the SDK, and the CLI. New this time: `teak folders get`, `teak cards duplicate <url>`, and the `teak_v1_get_folder` MCP tool.
-- The SDK and CLI now report every API error by its own code, such as `CARD_LIMIT_REACHED` when a free account reaches its 200 cards, where they used to say `REQUEST_FAILED`.
-
-## Search inside documents and videos
-
-- Search now finds a card by the words inside its file: a sentence in a PDF, a line in a Word or PowerPoint file, a function in a code file, or something someone said in a video. For a long document, search covers its first 32 KB of text (roughly 5,000 words). Quoted phrases match inside documents too.
-- Video cards get a transcript of their speech, like audio already did. For a video saved earlier, use **Refresh details** to get one. Documents saved earlier become searchable as Teak catches up on them.
-- An open document card's details show how much text Teak read from it.
-- **API, CLI, and MCP:** `GET /v1/cards/:cardId/content`, `teak content <card-id>`, and the `teak_v1_get_card_content` tool return a card's full text. See [Read a card's text](/docs/api#read-a-cards-text).
-
 ## Save posts from Bluesky, Mastodon, Reddit, TikTok and more
 
 - Saving a post from Bluesky, Mastodon, or Reddit keeps its text, author, and date, and up to 10 of its photos, the way X posts already were. Videos come along when the site offers them as a file, and their cover image otherwise.
@@ -49,6 +43,18 @@ changelog:
 
 - Links to Google Maps, Apple Maps, Yelp, Tripadvisor, OpenTable, Resy, Airbnb, Booking.com, Zillow, Redfin, Rightmove, and Realtor.com are places; Google Fonts, Adobe Fonts, MyFonts, Fontshare, and Future Fonts are typefaces; the App Store, Google Play, the Chrome Web Store, and the Microsoft Store are apps; Steam, itch.io, the Epic Games Store, GOG, and BoardGameGeek are games; and GitHub, GitLab, Bitbucket, Codeberg, and sourcehut projects are code repositories.
 - Places, apps, and games show more in an open card's **Details** when the page lists it: a restaurant's address, cuisine, price range, and rating, an app's platform and rating, or a game's platform, genre, and release date. Repositories keep their GitHub stars and forks. See [Card details](/docs/features#card-details).
+
+## The API, MCP, SDK, and CLI in step
+
+- Every card, tag, folder, and account feature in the API is also in MCP, the SDK, and the CLI. New this time: `teak folders get`, `teak cards duplicate <url>`, and the `teak_v1_get_folder` MCP tool.
+- The SDK and CLI now report every API error by its own code, such as `CARD_LIMIT_REACHED` when a free account reaches its 200 cards, where they used to say `REQUEST_FAILED`.
+
+## Search inside documents and videos
+
+- Search now finds a card by the words inside its file: a sentence in a PDF, a line in a Word or PowerPoint file, a function in a code file, or something someone said in a video. For a long document, search covers its first 32 KB of text (roughly 5,000 words). Quoted phrases match inside documents too.
+- Video cards get a transcript of their speech, like audio already did. For a video saved earlier, use **Refresh details** to get one. Documents saved earlier become searchable as Teak catches up on them.
+- An open document card's details show how much text Teak read from it.
+- **API, CLI, and MCP:** `GET /v1/cards/:cardId/content`, `teak content <card-id>`, and the `teak_v1_get_card_content` tool return a card's full text. See [Read a card's text](/docs/api#read-a-cards-text).
 
 ## A calmer card grid and card view
 

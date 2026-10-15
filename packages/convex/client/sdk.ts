@@ -133,6 +133,8 @@ export interface Card {
   processingStatus: Record<string, unknown> | null;
   screenshotUrl: string | null;
   tags: string[];
+  /** True when linkPreviewImageUrl is an image chosen for the link. */
+  thumbnailOverridden: boolean;
   thumbnailUrl: string | null;
   type: CardType | string;
   updatedAt: number;
@@ -288,6 +290,11 @@ export interface RequestOptions {
 }
 export interface CreateUploadInput {
   fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
+/** A link image upload: JPEG, PNG, WebP, GIF or AVIF, under 20 MB. */
+export interface CreateThumbnailUploadInput {
   fileSize: number;
   mimeType: string;
 }
@@ -767,6 +774,45 @@ export const createTeakClient = (options: {
       : {};
   const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
   const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
+  const putFile = async (
+    uploadUrl: string,
+    bytes: BodyInit,
+    mimeType: string
+  ) => {
+    const headers = new Headers({ "Content-Type": mimeType });
+    const byteLength = byteLengthForBody(bytes);
+    if (byteLength !== null) {
+      headers.set("Content-Length", String(byteLength));
+    }
+    const response = await fetchImpl(uploadUrl, {
+      body: bytes,
+      headers,
+      method: "PUT",
+    });
+    if (!response.ok) {
+      throw new TeakApiError(
+        "REQUEST_FAILED",
+        `Upload failed with status ${response.status}`,
+        { status: response.status }
+      );
+    }
+    return { fileEtag: response.headers.get("etag") ?? undefined };
+  };
+  const createThumbnailUpload = (
+    id: string,
+    input: CreateThumbnailUploadInput
+  ) =>
+    request(
+      `${cardPath(id)}/thumbnail/upload`,
+      { body: JSON.stringify(input), method: "POST" },
+      asUpload
+    );
+  const applyThumbnail = (id: string, fileKey: string) =>
+    request(
+      `${cardPath(id)}/thumbnail`,
+      { body: JSON.stringify({ fileKey }), method: "PUT" },
+      asCard
+    );
   return {
     cards: {
       bulk: (
@@ -831,9 +877,20 @@ export const createTeakClient = (options: {
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
+      /**
+       * A signed URL for a link card's new image; `setThumbnail` with bytes
+       * does this for you.
+       */
+      createThumbnailUpload,
       /** Refreshes summary, tags and link preview; it finishes in the background. */
       refresh: (id: string) =>
         request(`${cardPath(id)}/refresh`, { method: "POST" }, asRefresh),
+      /**
+       * Goes back to the image Teak found for a link card and deletes the one
+       * that replaced it. Changes nothing when the card has its own image.
+       */
+      resetThumbnail: (id: string) =>
+        request(`${cardPath(id)}/thumbnail`, { method: "DELETE" }, asCard),
       restore: (id: string) =>
         request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
       /** The cards closest in meaning to one card; never the card itself. */
@@ -856,6 +913,34 @@ export const createTeakClient = (options: {
           { body: JSON.stringify({ isArchived }), method: "PATCH" },
           asCard
         ),
+      /**
+       * Replaces a link card's image: uploads `bytes` (JPEG, PNG, WebP, GIF or
+       * AVIF, under 20 MB) and applies them. Pass `{ fileKey }` instead to
+       * apply an upload made with `createThumbnailUpload`.
+       */
+      setThumbnail: async (
+        id: string,
+        image: BodyInit | { fileKey: string },
+        mimeType?: string
+      ): Promise<Card> => {
+        if (
+          isObject(image) &&
+          typeof (image as { fileKey?: unknown }).fileKey === "string"
+        ) {
+          return applyThumbnail(id, (image as { fileKey: string }).fileKey);
+        }
+        const bytes = image as BodyInit;
+        const fileSize = byteLengthForBody(bytes);
+        if (fileSize === null || !mimeType) {
+          throw new TeakApiError(
+            "INVALID_INPUT",
+            "setThumbnail needs the image's bytes and its MIME type."
+          );
+        }
+        const upload = await createThumbnailUpload(id, { fileSize, mimeType });
+        await putFile(upload.uploadUrl, bytes, mimeType);
+        return applyThumbnail(id, upload.fileKey);
+      },
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
           `${cardPath(id)}/favorite`,
@@ -972,26 +1057,7 @@ export const createTeakClient = (options: {
           { body: JSON.stringify(input), method: "POST" },
           asUpload
         ),
-      putFile: async (uploadUrl: string, bytes: BodyInit, mimeType: string) => {
-        const headers = new Headers({ "Content-Type": mimeType });
-        const byteLength = byteLengthForBody(bytes);
-        if (byteLength !== null) {
-          headers.set("Content-Length", String(byteLength));
-        }
-        const response = await fetchImpl(uploadUrl, {
-          body: bytes,
-          headers,
-          method: "PUT",
-        });
-        if (!response.ok) {
-          throw new TeakApiError(
-            "REQUEST_FAILED",
-            `Upload failed with status ${response.status}`,
-            { status: response.status }
-          );
-        }
-        return { fileEtag: response.headers.get("etag") ?? undefined };
-      },
+      putFile,
     },
   };
 };

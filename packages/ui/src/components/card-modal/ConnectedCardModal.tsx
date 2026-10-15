@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardModal } from "../../hooks/useCardModal";
+import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
@@ -79,6 +80,8 @@ export function ConnectedCardModal({
     onCardUpdate,
   });
 
+  const linkThumbnail = useLinkThumbnail(card?._id);
+
   // Archive leaves the current view, so it runs like a one-card bulk action:
   // the same toast, with Undo.
   const runBulkAction = useBulkCardActions("card-modal");
@@ -126,6 +129,7 @@ export function ConnectedCardModal({
       hasUnsavedChanges={hasUnsavedChanges}
       isDownloading={isDownloading}
       isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
+      linkThumbnail={card?.type === "link" ? linkThumbnail : undefined}
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
       onMoreLikeThis={onMoreLikeThis}

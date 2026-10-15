@@ -424,3 +424,35 @@ test("durable status remains pending until local cleanup finishes and rejects mi
     userId: "owner",
   });
 });
+
+test("a link's chosen image and the one kept for undo are deleted with the account", async () => {
+  const { t, card, binding } = await setup(0);
+  const chosen = "users/owner/cards/link/thumbnail-override/chosen";
+  const kept = "users/owner/cards/link/thumbnail-override/kept";
+  await t.run((ctx) =>
+    ctx.db.patch(card, {
+      type: "link",
+      thumbnailOverride: {
+        storageKey: chosen,
+        width: 600,
+        height: 900,
+        updatedAt: 1,
+      },
+      previousThumbnailOverride: {
+        override: { storageKey: kept, width: 1, height: 1, updatedAt: 1 },
+        changeId: "change",
+        deleteAfter: 2,
+      },
+    })
+  );
+  const proof = worker();
+  let done = false;
+  for (let call = 0; call < 5 && !done; call += 1) {
+    done = await t.action(
+      internal.accountDeletionData.drainStorageBatch,
+      binding
+    );
+  }
+  expect(proof.deleted).toEqual([chosen, kept]);
+  expect(await t.run((ctx) => ctx.db.get(card))).toBeNull();
+});

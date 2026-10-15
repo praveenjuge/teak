@@ -20,8 +20,14 @@ export const pageSweepCards = internalQuery({
         fileKey: v.optional(v.string()),
         metadata: v.any(),
         previewKey: v.optional(v.string()),
+        previousThumbnailOverride: v.optional(
+          v.object({
+            override: v.union(v.object({ storageKey: v.string() }), v.null()),
+          })
+        ),
         scrubKey: v.optional(v.string()),
         thumbnailKey: v.optional(v.string()),
+        thumbnailOverride: v.optional(v.object({ storageKey: v.string() })),
         workflowArtifactKeys: v.optional(v.array(v.string())),
       })
     ),
@@ -48,6 +54,26 @@ export const pageSweepCards = internalQuery({
         previewKey: card.previewKey,
         scrubKey: card.scrubKey,
         thumbnailKey: card.thumbnailKey,
+        // A chosen link image, and the one kept for its undo window.
+        ...(card.thumbnailOverride
+          ? {
+              thumbnailOverride: {
+                storageKey: card.thumbnailOverride.storageKey,
+              },
+            }
+          : {}),
+        ...(card.previousThumbnailOverride
+          ? {
+              previousThumbnailOverride: {
+                override: card.previousThumbnailOverride.override
+                  ? {
+                      storageKey:
+                        card.previousThumbnailOverride.override.storageKey,
+                    }
+                  : null,
+              },
+            }
+          : {}),
       })),
     };
   },

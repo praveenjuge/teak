@@ -130,8 +130,11 @@ export const executePublicApiOperation = (
     (request.method === "DELETE" ||
       request.method === "GET" ||
       request.method === "PATCH" ||
+      request.method === "PUT" ||
       (request.method === "POST" &&
-        /^\/v1\/cards\/[^/]+\/(?:restore|refresh)$/.test(pathname)))
+        /^\/v1\/cards\/[^/]+\/(?:restore|refresh|thumbnail\/upload)$/.test(
+          pathname
+        )))
   ) {
     return handleCardsByIdV1Request(ctx, request, resource);
   }
@@ -182,7 +185,8 @@ export const cardByIdV1 = withGatewayHeaders((ctx, request) => {
       request.method === "DELETE" ||
       request.method === "GET" ||
       request.method === "PATCH" ||
-      request.method === "POST"
+      request.method === "POST" ||
+      request.method === "PUT"
     )
   ) {
     return Promise.resolve(

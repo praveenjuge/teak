@@ -23,6 +23,7 @@ export type CardWithUrls = Doc<"cards"> & {
     width?: number;
   }>;
   linkPreviewImageUrl?: string;
+  hasThumbnailOverride?: true;
 };
 
 export type TextField =

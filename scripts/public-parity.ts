@@ -164,6 +164,27 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     cli: ["cards refresh", "refresh"],
   },
   {
+    operationId: "createThumbnailUpload",
+    feature: "Upload a link's new image",
+    mcp: ["teak_v1_create_thumbnail_upload"],
+    sdk: ["cards.createThumbnailUpload"],
+    cli: ["cards thumbnail"],
+  },
+  {
+    operationId: "setCardThumbnail",
+    feature: "Replace a link's image",
+    mcp: ["teak_v1_set_card_thumbnail"],
+    sdk: ["cards.setThumbnail"],
+    cli: ["cards thumbnail"],
+  },
+  {
+    operationId: "resetCardThumbnail",
+    feature: "Reset a link's image",
+    mcp: ["teak_v1_reset_card_thumbnail"],
+    sdk: ["cards.resetThumbnail"],
+    cli: ["cards thumbnail"],
+  },
+  {
     operationId: "setCardFavorite",
     feature: "Favorite a card",
     mcp: ["teak_v1_set_card_favorite"],

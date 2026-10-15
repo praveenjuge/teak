@@ -155,3 +155,50 @@ describe("LinkPreview", () => {
     expect(markup).toContain("poster.jpg");
   });
 });
+
+describe("LinkPreview in the card dialog", () => {
+  const thumbnail = { onFile: () => undefined };
+
+  test("offers a place to drop an image when the link has none", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview card={createLinkCard() as any} thumbnail={thumbnail} />
+    );
+    expect(markup).toContain("Add an image");
+    // Outside the link, so a click never opens the site.
+    expect(markup.indexOf("Add an image")).toBeLessThan(markup.indexOf("<a "));
+  });
+
+  test("shows no drop area where the image can't change, or once there is one", () => {
+    expect(
+      renderToStaticMarkup(<LinkPreview card={createLinkCard() as any} />)
+    ).not.toContain("Add an image");
+    expect(
+      renderToStaticMarkup(
+        <LinkPreview
+          card={
+            createLinkCard({
+              linkPreviewImageUrl: "https://cdn.example.com/og.png",
+            }) as any
+          }
+          thumbnail={thumbnail}
+        />
+      )
+    ).not.toContain("Add an image");
+  });
+
+  test("shows the file being uploaded in place of the image", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({
+            linkPreviewImageUrl: "https://cdn.example.com/og.png",
+          }) as any
+        }
+        thumbnail={{ ...thumbnail, uploadingPreviewUrl: "blob:local-file" }}
+      />
+    );
+    expect(markup).toContain('src="blob:local-file"');
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).not.toContain("og.png");
+  });
+});

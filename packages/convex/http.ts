@@ -223,6 +223,13 @@ http.route({
   handler: cardByIdV1,
 });
 
+// PUT /v1/cards/:cardId/thumbnail
+http.route({
+  pathPrefix: "/v1/cards/",
+  method: "PUT",
+  handler: cardByIdV1,
+});
+
 http.route({
   path: "/v1/cards/duplicate",
   method: "GET",

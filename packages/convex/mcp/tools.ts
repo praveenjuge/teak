@@ -9,6 +9,10 @@ import {
 } from "../shared/folders";
 import { SEARCH_MODES } from "../shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
+import {
+  THUMBNAIL_MAX_BYTES,
+  THUMBNAIL_MIME_TYPES,
+} from "../shared/thumbnails";
 import { captureBackendEvent } from "../telemetry/posthog";
 
 type JsonObject = Record<string, unknown>;
@@ -17,7 +21,7 @@ type QueryValue = boolean | number | string | readonly string[] | undefined;
 export interface PublicApiToolOperation {
   body?: unknown;
   headers?: HeadersInit;
-  method: "DELETE" | "GET" | "PATCH" | "POST";
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   path: string;
   query?: Record<string, QueryValue>;
 }
@@ -188,6 +192,15 @@ const createCardInputSchema = z
     }
   });
 const cardIdInputSchema = z.object({ cardId: nonEmptyString });
+const thumbnailUploadInputSchema = z.object({
+  cardId: nonEmptyString,
+  mimeType: z.enum(THUMBNAIL_MIME_TYPES),
+  fileSize: z.number().int().positive().max(THUMBNAIL_MAX_BYTES),
+});
+const setThumbnailInputSchema = z.object({
+  cardId: nonEmptyString,
+  fileKey: nonEmptyString,
+});
 const deleteCardInputSchema = z.object({
   cardId: nonEmptyString,
   confirm: z.literal(true),
@@ -682,6 +695,42 @@ export const TEAK_V1_TOOLS = [
     ),
   },
   {
+    name: "teak_v1_create_thumbnail_upload",
+    description:
+      "Start replacing a link card's image: returns uploadUrl and fileKey. PUT the image bytes to uploadUrl with the same Content-Type, then call teak_v1_set_card_thumbnail. JPEG, PNG, WebP, GIF or AVIF, under 20 MB.",
+    annotations: { title: "Upload a link's image", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        mimeType: { enum: [...THUMBNAIL_MIME_TYPES] },
+        fileSize: { type: "integer", minimum: 1, maximum: THUMBNAIL_MAX_BYTES },
+      },
+      ["cardId", "mimeType", "fileSize"]
+    ),
+  },
+  {
+    name: "teak_v1_set_card_thumbnail",
+    description:
+      "Use an uploaded image (fileKey from teak_v1_create_thumbnail_upload) as a link card's image. It stays through Refresh details until teak_v1_reset_card_thumbnail.",
+    annotations: { title: "Replace a link's image", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        fileKey: { type: "string", minLength: 1 },
+      },
+      ["cardId", "fileKey"]
+    ),
+  },
+  {
+    name: "teak_v1_reset_card_thumbnail",
+    description:
+      "Go back to the image Teak found for a link card, deleting the one that replaced it. Changes nothing when the card has its own image.",
+    annotations: { title: "Reset a link's image", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
+  },
+  {
     name: "teak_v1_set_card_archived",
     description:
       "Archive a card (hide it from the library without deleting it) or return it to the library. List archived cards with archived: only.",
@@ -1157,6 +1206,34 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
+  },
+  teak_v1_create_thumbnail_upload: {
+    schema: thumbnailUploadInputSchema,
+    operation: ({ cardId, ...body }) => ({
+      method: "POST",
+      path: `${cardPath(cardId)}/thumbnail/upload`,
+      body,
+    }),
+    summary: () =>
+      "Upload URL created. PUT the image to uploadUrl, then call teak_v1_set_card_thumbnail with fileKey.",
+  },
+  teak_v1_set_card_thumbnail: {
+    schema: setThumbnailInputSchema,
+    operation: (input) => ({
+      method: "PUT",
+      path: `${cardPath(input.cardId)}/thumbnail`,
+      body: { fileKey: input.fileKey },
+    }),
+    summary: (_payload, input) => `Replaced the image of card ${input.cardId}`,
+  },
+  teak_v1_reset_card_thumbnail: {
+    schema: cardIdInputSchema,
+    operation: (input) => ({
+      method: "DELETE",
+      path: `${cardPath(input.cardId)}/thumbnail`,
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.cardId} shows its original image`,
   },
   teak_v1_set_card_archived: {
     schema: archivedInputSchema,

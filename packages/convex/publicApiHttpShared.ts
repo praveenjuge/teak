@@ -139,7 +139,7 @@ type QueryValue = boolean | number | string | readonly string[] | undefined;
 export interface PublicApiOperation {
   body?: unknown;
   headers?: HeadersInit;
-  method: "DELETE" | "GET" | "PATCH" | "POST";
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   origin?: string;
   path: string;
   query?: Record<string, QueryValue>;

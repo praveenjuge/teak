@@ -233,6 +233,17 @@ type CardFilters = {
   - Input: `{ cardId: string }`
   - Clears the card's summary, tags Teak added, and transcript and processes it again, including the link preview. Once a card per minute, six cards a minute.
   - Output: `{ status: "queued", cardId: string, requestedAt: number }`
+- `teak_v1_create_thumbnail_upload`
+  - Input: `{ cardId: string, mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "image/avif", fileSize: number }` (under 20 MB)
+  - Output: `{ uploadUrl, fileKey, method: "PUT", maxFileSize, expiresIn }`. PUT the image's bytes to `uploadUrl` with the same `Content-Type`, then call `teak_v1_set_card_thumbnail`.
+- `teak_v1_set_card_thumbnail`
+  - Input: `{ cardId: string, fileKey: string }`
+  - Makes the uploaded image the link card's image. It stays through a refresh of the card's details. Errors: `TYPE_MISMATCH` for a card that isn't a link, `UNSUPPORTED_TYPE` or `INVALID_INPUT` for an image Teak can't use, `FILE_TOO_LARGE`, and `RATE_LIMITED` past 20 image changes a minute.
+  - Output: the card, with `thumbnailOverridden: true`
+- `teak_v1_reset_card_thumbnail`
+  - Input: `{ cardId: string }`
+  - Goes back to the image Teak found for the link and deletes the uploaded one. A card on its own image is left as it is.
+  - Output: the card
 
 ### ChatGPT connector tools
 

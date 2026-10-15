@@ -79,6 +79,34 @@ describe("linkMetadata", () => {
       );
     });
 
+    test("keeps a chosen image when the link preview is refreshed", async () => {
+      const ctx = createMockCtx();
+      const thumbnailOverride = {
+        height: 900,
+        storageKey: "chosen_id",
+        updatedAt: 1,
+        width: 600,
+      };
+      ctx.db.get.mockResolvedValue({
+        _id: "card_123",
+        type: "link",
+        metadata: { linkPreview: { imageStorageKey: "old_og" } },
+        thumbnailOverride,
+      });
+
+      await updateCardMetadataHandler(ctx, {
+        cardId: "card_123",
+        linkPreview: { imageStorageKey: "new_og", title: "Refreshed" },
+        status: "completed",
+      });
+
+      // A patch merges, so a field it leaves out is kept as it was.
+      const [, , patch] = ctx.db.patch.mock.calls[0];
+      expect(patch).not.toHaveProperty("thumbnailOverride");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_og");
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(ctx, "chosen_id");
+    });
+
     test("deletes previous screenshot if replaced", async () => {
       const ctx = createMockCtx();
       const card = {

@@ -107,6 +107,8 @@ export const r2MockModuleFactory = () => ({
     fileKey?: string;
     thumbnailKey?: string;
     previewKey?: string;
+    previousThumbnailOverride?: { override?: { storageKey?: string } | null };
+    thumbnailOverride?: { storageKey?: string };
     metadata?: {
       linkPreview?: {
         imageStorageKey?: string;
@@ -127,6 +129,8 @@ export const r2MockModuleFactory = () => ({
         item.storageKey,
         item.posterStorageKey,
       ]),
+      card.thumbnailOverride?.storageKey,
+      card.previousThumbnailOverride?.override?.storageKey,
     ].filter((key, index, keys): key is string =>
       Boolean(key && keys.indexOf(key) === index)
     );
