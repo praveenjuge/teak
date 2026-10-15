@@ -55,6 +55,15 @@ export interface CardsSearchState {
   timeFilter: TimeFilter | null;
 }
 
+/**
+ * The filters a library keeps only in memory (the URL holds the search,
+ * types, tag and sort), so a remounted screen can start from them again.
+ */
+export type CardsVisualFilters = Pick<
+  CardsSearchState,
+  "hexFilters" | "hueFilters" | "styleFilters" | "timeFilter"
+>;
+
 export interface CardsSearchQueryArgs {
   createdAtRange?: TimeFilter["range"];
   favoritesOnly?: boolean;
@@ -86,6 +95,8 @@ export interface UseCardsSearchControllerOptions {
   folderQuery?: string;
   /** The search to start with, usually read from the page URL. */
   initialUrlState?: SearchUrlState;
+  /** Filters to start with, kept from a screen that was remounted. */
+  initialVisualFilters?: CardsVisualFilters;
   localSearchCacheLimit?: number;
   /**
    * Called when a quick command (`fav`, `trash`, `archive`) is entered in a
@@ -598,13 +609,17 @@ export function useCardsSearchController(
     weekStart = 0,
     localSearchCacheLimit = SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
     initialUrlState,
+    initialVisualFilters,
     onNavigateView,
     view,
     folderId,
     folderQuery,
   } = options;
-  const [storedSearchState, setSearchState] = useState<CardsSearchState>(() =>
-    initialCardsSearchState(initialUrlState)
+  const [storedSearchState, setSearchState] = useState<CardsSearchState>(
+    () => ({
+      ...initialCardsSearchState(initialUrlState),
+      ...initialVisualFilters,
+    })
   );
   // In a routed view the route owns the favorites, archive and trash flags;
   // the stored state keeps them off, so Backspace never clears a view.

@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 import type { AddCardFormProps } from "../components/forms";
 import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
+import type { CardsVisualFilters } from "../hooks/useCardsSearchController";
 import type { LibraryView } from "../lib/libraryViews";
 import type { SearchUrlState } from "../lib/searchUrlState";
 import { CardsReadBoundary } from "./CardsReadBoundary";
@@ -58,6 +59,12 @@ export function CardsScreenAdapter({
       pushCardId,
       replaceCardId,
     });
+  // A retry remounts the screen; its in-memory filters carry over so the
+  // retried read asks for the same cards.
+  const visualFiltersRef = useRef<CardsVisualFilters | undefined>(undefined);
+  const rememberVisualFilters = useCallback((filters: CardsVisualFilters) => {
+    visualFiltersRef.current = filters;
+  }, []);
 
   return (
     <CardsReadBoundary
@@ -71,6 +78,7 @@ export function CardsScreenAdapter({
           contentContainerClassName={contentContainerClassName}
           folderId={folderId}
           headerLeading={headerLeading}
+          initialVisualFilters={retryKey ? visualFiltersRef.current : undefined}
           onAddCardsToFolder={onAddCardsToFolder}
           onAddToFolderDone={onAddToFolderDone}
           onCloseCard={closeCard}
@@ -80,6 +88,7 @@ export function CardsScreenAdapter({
           onSearchUrlStateChange={onSearchUrlStateChange}
           onSwitchCard={switchCard}
           onUpgrade={onUpgrade}
+          onVisualFiltersChange={rememberVisualFilters}
           queryRetryKey={retryKey}
           searchUrlState={searchUrlState}
           selectedCardId={selectedCardId}

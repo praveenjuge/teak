@@ -43,6 +43,7 @@ export {
 export type {
   CardsSearchQueryArgs,
   CardsSearchState,
+  CardsVisualFilters,
   UseCardsSearchControllerOptions,
   UseCardsSearchControllerResult,
 } from "./useCardsSearchController";
