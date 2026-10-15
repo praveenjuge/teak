@@ -56,9 +56,8 @@ test("organize a library across the web, API, CLI and MCP", {
       timeout: 30_000,
     })
     .toBe(2);
-  expect(await runCli(["folders", "get", "organize"], apiKey)).toMatch(
-    new RegExp(`^${folderId}\\s+2\\s+Organize$`)
-  );
+  const shown = await runCli(["folders", "get", "organize"], apiKey);
+  expect(shown.trim().split(/\s+/)).toEqual([folderId, "2", "Organize"]);
   const mcp = await connectMcp(apiKey);
   try {
     const fromMcp: any = await mcp.callTool({

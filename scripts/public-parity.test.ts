@@ -33,18 +33,31 @@ const operations = Object.entries(
     if (!operationId) {
       return [];
     }
-    const pattern = new RegExp(
-      `^${path.replace(/\{[^}]+\}/g, "[^/]+")}$`.replaceAll("/", "\\/")
-    );
-    return [{ method: method.toUpperCase(), operationId, pattern }];
+    return [
+      { method: method.toUpperCase(), operationId, segments: path.split("/") },
+    ];
   })
 );
+
+/** Whether a request path fits an OpenAPI path, where `{param}` is any segment. */
+const pathMatches = (segments: readonly string[], path: string) => {
+  const parts = path.split("/");
+  return (
+    parts.length === segments.length &&
+    segments.every(
+      (segment, index) =>
+        parts[index] === segment ||
+        (segment.startsWith("{") && (parts[index] ?? "") !== "")
+    )
+  );
+};
 
 /** The OpenAPI operation an HTTP call reaches, or undefined. */
 const operationFor = (method: string, path: string) =>
   operations.find(
     (operation) =>
-      operation.method === method.toUpperCase() && operation.pattern.test(path)
+      operation.method === method.toUpperCase() &&
+      pathMatches(operation.segments, path)
   )?.operationId;
 
 const rowFor = (operationId: string): PublicParityRow | undefined =>
@@ -114,40 +127,46 @@ const mcpOperations = async (tool: string) => {
 type SdkCall = (client: ReturnType<typeof createTeakClient>) => unknown;
 
 /** One call per SDK client member, enough to reach its operation. */
-const SDK_SAMPLES: Record<string, SdkCall> = {
-  "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
-  "cards.changes": (c) => c.cards.changes({ since: 1 }),
-  "cards.content": (c) => c.cards.content("card_1"),
-  "cards.create": (c) => c.cards.create({ content: "x" }),
-  "cards.delete": (c) => c.cards.delete("card_1"),
-  "cards.duplicate": (c) => c.cards.duplicate("https://example.com"),
-  "cards.favorites": (c) => c.cards.favorites(),
-  "cards.get": (c) => c.cards.get("card_1"),
-  "cards.list": (c) => c.cards.list(),
-  "cards.refresh": (c) => c.cards.refresh("card_1"),
-  "cards.restore": (c) => c.cards.restore("card_1"),
-  "cards.search": (c) => c.cards.search({ q: "x" }),
-  "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
-  "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
-  "cards.update": (c) => c.cards.update("card_1", { notes: "n" }),
-  "exports.latest": (c) => c.exports.latest(),
-  "exports.start": (c) => c.exports.start(),
-  "folders.addCards": (c) => c.folders.addCards("folder_1", ["card_1"]),
-  "folders.create": (c) => c.folders.create({ name: "Reading" }),
-  "folders.delete": (c) => c.folders.delete("folder_1"),
-  "folders.get": (c) => c.folders.get("folder_1"),
-  "folders.list": (c) => c.folders.list(),
-  "folders.removeCards": (c) => c.folders.removeCards("folder_1", ["card_1"]),
-  "folders.update": (c) => c.folders.update("folder_1", { name: "Later" }),
-  me: (c) => c.me(),
-  "tags.delete": (c) => c.tags.delete("design"),
-  "tags.list": (c) => c.tags.list(),
-  "tags.merge": (c) => c.tags.merge("a", "b"),
-  "tags.operation": (c) => c.tags.operation("op_1"),
-  "tags.rename": (c) => c.tags.rename("a", "b"),
-  "uploads.create": (c) =>
-    c.uploads.create({ fileName: "a.png", mimeType: "image/png", fileSize: 1 }),
-};
+const SDK_SAMPLES = new Map<string, SdkCall>(
+  Object.entries({
+    "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
+    "cards.changes": (c) => c.cards.changes({ since: 1 }),
+    "cards.content": (c) => c.cards.content("card_1"),
+    "cards.create": (c) => c.cards.create({ content: "x" }),
+    "cards.delete": (c) => c.cards.delete("card_1"),
+    "cards.duplicate": (c) => c.cards.duplicate("https://example.com"),
+    "cards.favorites": (c) => c.cards.favorites(),
+    "cards.get": (c) => c.cards.get("card_1"),
+    "cards.list": (c) => c.cards.list(),
+    "cards.refresh": (c) => c.cards.refresh("card_1"),
+    "cards.restore": (c) => c.cards.restore("card_1"),
+    "cards.search": (c) => c.cards.search({ q: "x" }),
+    "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
+    "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
+    "cards.update": (c) => c.cards.update("card_1", { notes: "n" }),
+    "exports.latest": (c) => c.exports.latest(),
+    "exports.start": (c) => c.exports.start(),
+    "folders.addCards": (c) => c.folders.addCards("folder_1", ["card_1"]),
+    "folders.create": (c) => c.folders.create({ name: "Reading" }),
+    "folders.delete": (c) => c.folders.delete("folder_1"),
+    "folders.get": (c) => c.folders.get("folder_1"),
+    "folders.list": (c) => c.folders.list(),
+    "folders.removeCards": (c) => c.folders.removeCards("folder_1", ["card_1"]),
+    "folders.update": (c) => c.folders.update("folder_1", { name: "Later" }),
+    me: (c) => c.me(),
+    "tags.delete": (c) => c.tags.delete("design"),
+    "tags.list": (c) => c.tags.list(),
+    "tags.merge": (c) => c.tags.merge("a", "b"),
+    "tags.operation": (c) => c.tags.operation("op_1"),
+    "tags.rename": (c) => c.tags.rename("a", "b"),
+    "uploads.create": (c) =>
+      c.uploads.create({
+        fileName: "a.png",
+        mimeType: "image/png",
+        fileSize: 1,
+      }),
+  } satisfies Record<string, SdkCall>)
+);
 
 const recordingFetch = (reached: string[]) =>
   ((input: RequestInfo | URL, init?: RequestInit) => {
@@ -179,7 +198,9 @@ const sdkOperations = async (member: string) => {
     fetch: recordingFetch(reached),
     tokenProvider: { getAccessToken: () => "token" },
   });
-  await Promise.resolve(SDK_SAMPLES[member]?.(client)).catch(() => undefined);
+  await Promise.resolve(SDK_SAMPLES.get(member)?.(client)).catch(
+    () => undefined
+  );
   return reached;
 };
 
