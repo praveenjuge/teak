@@ -529,10 +529,36 @@ describe("backfill", () => {
     expect(await rowOf(t, cards.missing)).toBeNull();
   });
 
-  test("a real run embeds the cards without vectors, about 300 a minute", async () => {
+  test("a real run embeds the cards without vectors, in one write", async () => {
     const calls = stubWorker();
     const t = setup();
     const cards = await seedLedgerStates(t);
+
+    await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    const writes = upserts(calls).slice(1);
+    expect(writes).toHaveLength(1);
+    expect(
+      writes[0]?.params.items.map((item: { text: string }) => item.text).sort()
+    ).toEqual([
+      "its job was lost",
+      "ran out of retries",
+      "saved before embeddings",
+    ]);
+    for (const cardId of [cards.missing, cards.failed, cards.lost]) {
+      const row = await rowOf(t, cardId);
+      expect(row).toMatchObject({ hash: expect.any(String) });
+      expect(row).not.toHaveProperty("lastError");
+    }
+  });
+
+  test("a big page goes out in jobs of 16, about 300 cards a minute", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    for (let i = 0; i < 20; i += 1) {
+      await insertOldCard(t, `old card ${i}`);
+    }
 
     await backfill(t, { dryRun: false });
     const starts = await t.run(async (ctx) =>
@@ -544,24 +570,33 @@ describe("backfill", () => {
         .sort((a, b) => a - b)
     );
     expect(starts.slice(1).map((time, i) => time - (starts[i] ?? 0))).toEqual([
-      200, 200,
+      3200,
     ]);
     await runScheduled(t);
 
     expect(
       upserts(calls)
-        .map((call) => call.params.items[0].text)
-        .slice(1)
-        .sort()
-    ).toEqual([
-      "its job was lost",
-      "ran out of retries",
-      "saved before embeddings",
+        .map((call) => call.params.items.length)
+        .sort((a, b) => a - b)
+    ).toEqual([4, 16]);
+  });
+
+  test("a failed write retries every card in it", async () => {
+    const calls = stubWorker({ failNext: { "embed-upsert": 1 } });
+    const t = setup();
+    const first = await insertOldCard(t, "first");
+    const second = await insertOldCard(t, "second");
+
+    await backfill(t, { dryRun: false });
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items.length)).toEqual([
+      2, 1, 1,
     ]);
-    for (const cardId of [cards.missing, cards.failed, cards.lost]) {
-      const row = await rowOf(t, cardId);
-      expect(row).toMatchObject({ hash: expect.any(String) });
-      expect(row).not.toHaveProperty("lastError");
+    for (const cardId of [first, second]) {
+      expect(await rowOf(t, cardId)).toMatchObject({
+        hash: expect.any(String),
+      });
     }
   });
 

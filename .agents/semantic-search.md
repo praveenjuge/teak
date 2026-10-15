@@ -111,8 +111,11 @@ current vector:
 - cards whose retries ran out
 - cards whose job was lost (due over an hour ago)
 
-It pages `cards` 100 at a time, skips accounts being deleted, and spaces the
-embeds 200 ms apart (about 300 a minute). It's a dry run by default:
+It pages `cards` 100 at a time and skips accounts being deleted. It queues
+cards in jobs of 16, one job every 3.2 s (about 300 a minute), and each job
+embeds its cards in one `embed-upsert`. Vectorize answers many small writes
+with 429 (`VECTOR_UPSERT_ERROR`, code 40041), so batch writes wherever many
+cards change at once. It's a dry run by default:
 
 ```bash
 npx convex run migration/backfillEmbeddings:backfillEmbeddings

@@ -73,18 +73,17 @@ export const markCardForEmbedding = async (
 };
 
 /**
- * Queue a card the backfill found without a current vector: due in
- * `delayMs`, with a job of its own. Unlike `markCardForEmbedding` it always
- * schedules, since a row the backfill re-queues may have lost its job.
+ * Mark a card the backfill found without a current vector as due at
+ * `dueAt`. The backfill schedules one `embedDue` per batch of these, since a
+ * row it re-queues may have lost its job.
  */
 export const queueCardEmbedding = async (
   ctx: MutationCtx,
   row: Doc<"cardEmbeddings"> | null,
   cardId: Id<"cards">,
   userId: string,
-  delayMs: number
+  dueAt: number
 ) => {
-  const dueAt = Date.now() + delayMs;
   if (row) {
     await ctx.db.patch("cardEmbeddings", row._id, {
       attempts: undefined,
@@ -94,9 +93,6 @@ export const queueCardEmbedding = async (
   } else {
     await ctx.db.insert("cardEmbeddings", { cardId, dueAt, userId });
   }
-  await ctx.scheduler.runAfter(delayMs, embedRef().embedDue, {
-    cardIds: [cardId],
-  });
 };
 
 /**

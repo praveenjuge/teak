@@ -1,6 +1,7 @@
 import { vectorNamespaceForUser } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import { queueCardEmbedding } from "../embedding/state";
@@ -10,8 +11,13 @@ import { getR2KeyPrefix } from "../storage/r2Keys";
 
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 200;
-/** Queued embeds start this far apart: about 300 cards a minute. */
-const EMBED_SPACING_MS = 200;
+/**
+ * Queued cards are embedded in jobs of this many, one job this far apart:
+ * about 300 cards a minute in few Vectorize writes (many small writes get
+ * 429s). Kept small so one job reads little stored text.
+ */
+const EMBED_JOB_SIZE = 16;
+const EMBED_JOB_SPACING_MS = 3200;
 /** A row due this long ago has lost its job: queue it again. */
 const LOST_JOB_MS = 60 * 60 * 1000;
 
@@ -58,7 +64,8 @@ const emptyTotals = (): Totals => ({
  *
  * A dry run (the default) writes nothing and reports what a real run would
  * queue. Each batch schedules the next until the table is done, and the
- * last one logs the totals. A real run spaces the embeds about 300 a minute.
+ * last one logs the totals. A real run embeds about 300 cards a minute, in
+ * jobs of 16.
  * `userId` limits it to one account, as a canary before the whole table.
  *
  *   npx convex run migration/backfillEmbeddings:backfillEmbeddings
@@ -106,6 +113,7 @@ export const backfillEmbeddings = internalMutation({
 
     const now = Date.now();
     const batch = emptyTotals();
+    const jobs: Id<"cards">[][] = [];
     const deletingAccounts = new Map<string, boolean>();
     for (const card of page.page) {
       batch.examined += 1;
@@ -152,15 +160,28 @@ export const backfillEmbeddings = internalMutation({
         continue;
       }
       if (!dryRun) {
+        const job = jobs[jobs.length - 1];
+        if (job && job.length < EMBED_JOB_SIZE) {
+          job.push(card._id);
+        } else {
+          jobs.push([card._id]);
+        }
         await queueCardEmbedding(
           ctx,
           row,
           card._id,
           card.userId,
-          batch.queued * EMBED_SPACING_MS
+          now + (jobs.length - 1) * EMBED_JOB_SPACING_MS
         );
       }
       batch.queued += 1;
+    }
+    for (const [index, cardIds] of jobs.entries()) {
+      await ctx.scheduler.runAfter(
+        index * EMBED_JOB_SPACING_MS,
+        internal.embedding.embedCard.embedDue,
+        { cardIds }
+      );
     }
 
     const previous = args.totals ?? emptyTotals();
@@ -173,9 +194,9 @@ export const backfillEmbeddings = internalMutation({
     const isDone = page.isDone;
     const continuationScheduled = !(isDone || args.once);
     if (continuationScheduled) {
-      // The next batch starts as this one's embeds finish starting.
+      // The next batch starts as this one's last job is due.
       await ctx.scheduler.runAfter(
-        dryRun ? 0 : batch.queued * EMBED_SPACING_MS,
+        jobs.length * EMBED_JOB_SPACING_MS,
         internal.migration.backfillEmbeddings.backfillEmbeddings,
         {
           cursor: page.continueCursor,

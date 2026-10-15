@@ -2,7 +2,10 @@ import type {
   FilesEmbedUpsertResult,
   FilesVectorDeleteResult,
 } from "@teak/files-protocol";
-import { VECTOR_DELETE_MAX_IDS } from "@teak/files-protocol";
+import {
+  EMBED_UPSERT_MAX_ITEMS,
+  VECTOR_DELETE_MAX_IDS,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -41,6 +44,23 @@ const deleteVectorIdsOnWorker = async (shard: number, ids: string[]) => {
 
 const retryDelayMs = (attempt: number) => 30_000 * 2 ** attempt;
 
+interface DueRow {
+  cardId: Id<"cards">;
+  dueAt?: number;
+  embeddedAt?: number;
+  hash?: string;
+  namespace?: string;
+  shard?: number;
+  text: string;
+  userId: string;
+}
+
+/**
+ * Embed the due cards among `cardIds`. Cards whose text needs a new vector
+ * are embedded together, up to EMBED_UPSERT_MAX_ITEMS per `embed-upsert` and
+ * one call per owner (a call writes one namespace): Vectorize answers many
+ * small writes with 429s, so the backfill queues cards in batches.
+ */
 export const embedDue = internalAction({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
@@ -48,8 +68,11 @@ export const embedDue = internalAction({
     if (!isFilesWorkerConfigured()) {
       return null;
     }
-    const rows = await ctx.runQuery(state().loadForEmbedding, { cardIds });
+    const rows: DueRow[] = await ctx.runQuery(state().loadForEmbedding, {
+      cardIds,
+    });
     const now = Date.now();
+    const toEmbed = new Map<string, { hash: string; row: DueRow }[]>();
     for (const row of rows) {
       if (row.dueAt === undefined) {
         continue;
@@ -61,26 +84,51 @@ export const embedDue = internalAction({
         });
         continue;
       }
-      await embedOne(ctx, row);
+      const hash = await settleWithoutEmbedding(ctx, row);
+      if (hash) {
+        toEmbed.set(row.userId, [
+          ...(toEmbed.get(row.userId) ?? []),
+          { hash, row },
+        ]);
+      }
+    }
+    for (const [userId, items] of toEmbed) {
+      for (
+        let start = 0;
+        start < items.length;
+        start += EMBED_UPSERT_MAX_ITEMS
+      ) {
+        await embedBatch(
+          ctx,
+          userId,
+          items.slice(start, start + EMBED_UPSERT_MAX_ITEMS)
+        );
+      }
     }
     return null;
   },
 });
 
-const embedOne = async (
+const recordFailure = async (ctx: ActionCtx, row: DueRow, error: unknown) => {
+  console.warn("[embedding] card embed failed", {
+    cardId: row.cardId,
+    message: errorMessage(error),
+  });
+  await ctx.runMutation(state().recordEmbedFailure, {
+    cardId: row.cardId,
+    error: errorMessage(error),
+    expectedDueAt: row.dueAt,
+  });
+};
+
+/**
+ * Record a card that needs no new vector: its text is empty (its old vector
+ * is deleted) or unchanged. Returns the text's hash when it does need one.
+ */
+const settleWithoutEmbedding = async (
   ctx: ActionCtx,
-  row: {
-    cardId: Id<"cards">;
-    dueAt?: number;
-    embeddedAt?: number;
-    hash?: string;
-    namespace?: string;
-    shard?: number;
-    text: string;
-    userId: string;
-  }
-) => {
-  const expectedDueAt = row.dueAt;
+  row: DueRow
+): Promise<string | null> => {
   try {
     if (!row.text) {
       // Every embeddable field is empty now: a stale vector must not keep
@@ -90,50 +138,63 @@ const embedOne = async (
       }
       await ctx.runMutation(state().recordEmbedded, {
         cardId: row.cardId,
-        expectedDueAt,
+        expectedDueAt: row.dueAt,
       });
-      return;
+      return null;
     }
     const hash = await embeddingHash(row.text);
-    if (hash === row.hash) {
-      // The text the vector came from is unchanged: no Workers AI call.
-      await ctx.runMutation(state().recordEmbedded, {
-        cardId: row.cardId,
-        expectedDueAt,
-        hash,
-        namespace: row.namespace,
-        shard: row.shard,
-      });
-      return;
+    if (hash !== row.hash) {
+      return hash;
     }
+    // The text the vector came from is unchanged: no Workers AI call.
+    await ctx.runMutation(state().recordEmbedded, {
+      cardId: row.cardId,
+      expectedDueAt: row.dueAt,
+      hash,
+      namespace: row.namespace,
+      shard: row.shard,
+    });
+  } catch (error) {
+    await recordFailure(ctx, row, error);
+  }
+  return null;
+};
+
+/** Embed one owner's cards in one call; a failure retries each card. */
+const embedBatch = async (
+  ctx: ActionCtx,
+  userId: string,
+  items: { hash: string; row: DueRow }[]
+) => {
+  try {
     const { namespace, shard } = await ctx.runMutation(
       internal.vectorShards.assignVectorShard,
-      { userId: row.userId }
+      { userId }
     );
     const outcome = await callFilesWorkerJson<FilesEmbedUpsertResult>({
       op: "embed-upsert",
-      params: { items: [{ id: row.cardId, text: row.text }], namespace, shard },
+      params: {
+        items: items.map(({ row }) => ({ id: row.cardId, text: row.text })),
+        namespace,
+        shard,
+      },
     });
     if (outcome.kind !== "ok") {
       throw new Error(`embed_upsert_${outcome.code}`);
     }
-    await ctx.runMutation(state().recordEmbedded, {
-      cardId: row.cardId,
-      expectedDueAt,
-      hash,
-      namespace,
-      shard,
-    });
+    for (const { hash, row } of items) {
+      await ctx.runMutation(state().recordEmbedded, {
+        cardId: row.cardId,
+        expectedDueAt: row.dueAt,
+        hash,
+        namespace,
+        shard,
+      });
+    }
   } catch (error) {
-    console.warn("[embedding] card embed failed", {
-      cardId: row.cardId,
-      message: errorMessage(error),
-    });
-    await ctx.runMutation(state().recordEmbedFailure, {
-      cardId: row.cardId,
-      error: errorMessage(error),
-      expectedDueAt,
-    });
+    for (const { row } of items) {
+      await recordFailure(ctx, row, error);
+    }
   }
 };
 
