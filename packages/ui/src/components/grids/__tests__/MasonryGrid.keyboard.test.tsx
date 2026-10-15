@@ -97,6 +97,37 @@ describe("MasonryGrid keyboard actions", () => {
     expect(handlers.onDeleteCard).toHaveBeenCalledWith("card_a");
   });
 
+  test("T adds tags to the focused card", async () => {
+    const onAddTags = mock();
+    const { cardElement } = await renderGrid({ onAddTags });
+    await press(cardElement("card_b"), "t");
+    expect(onAddTags).toHaveBeenCalledWith("card_b");
+  });
+
+  test("with cards selected, T adds tags to all of them", async () => {
+    const onAddTags = mock();
+    const { cardElement } = await renderGrid({ onAddTags });
+    await press(cardElement("card_a"), "x");
+    await press(cardElement("card_b"), "x");
+    await press(cardElement("card_b"), "t");
+    // The dialog mounts after the key's render settles.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onAddTags).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Add tags to 2 cards");
+  });
+
+  test("in Trash, T does not add tags", async () => {
+    const onAddTags = mock();
+    const { cardElement } = await renderGrid({
+      onAddTags,
+      showTrashOnly: true,
+    });
+    await press(cardElement("card_a"), "t");
+    expect(onAddTags).not.toHaveBeenCalled();
+  });
+
   test("with cards selected, Delete moves the selection to Trash", async () => {
     const { cardElement, handlers } = await renderGrid({});
     await press(cardElement("card_a"), "x");
@@ -118,15 +149,18 @@ describe("MasonryGrid keyboard actions", () => {
     expect(new Set(cardIds)).toEqual(new Set(["card_a", "card_b"]));
   });
 
-  test("choosing cards for a folder ignores F, E and Delete", async () => {
+  test("choosing cards for a folder ignores F, T, E and Delete", async () => {
+    const onAddTags = mock();
     const { cardElement, handlers } = await renderGrid({
       addToFolder: { id: "folder_1", name: "Reading" },
+      onAddTags,
     });
     const first = cardElement("card_a");
-    for (const key of ["f", "e", "Delete", "Backspace"]) {
+    for (const key of ["f", "t", "e", "Delete", "Backspace"]) {
       await press(first, key);
     }
     expect(handlers.onToggleFavorite).not.toHaveBeenCalled();
+    expect(onAddTags).not.toHaveBeenCalled();
     expect(handlers.onToggleArchive).not.toHaveBeenCalled();
     expect(handlers.onDeleteCard).not.toHaveBeenCalled();
     expect(handlers.onBulkAction).not.toHaveBeenCalled();

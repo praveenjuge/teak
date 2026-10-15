@@ -65,9 +65,15 @@ async function openMoreMenu() {
   });
 }
 
+/** A menu item's name, without the key shown beside it. */
+function itemName(element: Element) {
+  const key = element.querySelector('[data-slot="dropdown-menu-shortcut"]');
+  return element.textContent?.replace(key?.textContent ?? "", "").trim();
+}
+
 function menuItem(name: string) {
   const match = [...document.querySelectorAll('[role="menuitem"]')].find(
-    (element) => element.textContent?.trim() === name
+    (element) => itemName(element) === name
   );
   expect(match).toBeDefined();
   return match as HTMLElement;
@@ -89,18 +95,22 @@ describe("BulkActionBar", () => {
     expect(onAction).toHaveBeenCalledWith("archive");
 
     await openMoreMenu();
+    // Each item's name, and the key that does the same to the selection.
     const items = [...document.querySelectorAll('[role="menuitem"]')].map(
-      (element) => element.textContent?.trim()
+      (element) => [
+        itemName(element),
+        element.getAttribute("aria-keyshortcuts"),
+      ]
     );
     expect(items).toEqual([
-      "Add to favorites",
-      "Remove from favorites",
-      "Add tags…",
-      "Remove tags…",
-      "Copy links",
-      "Add to folder…",
-      "Move to folder…",
-      "Move to Trash",
+      ["Add to favorites", null],
+      ["Remove from favorites", null],
+      ["Add tags…", "T"],
+      ["Remove tags…", null],
+      ["Copy links", null],
+      ["Add to folder…", null],
+      ["Move to folder…", null],
+      ["Move to Trash", expect.stringMatching(/^(Delete|Backspace)$/)],
     ]);
     await act(() => menuItem("Move to Trash").click());
     expect(onAction).toHaveBeenLastCalledWith("delete");

@@ -30,6 +30,8 @@ mock.module("@teak/ui/components/ui/context-menu", () => ({
     ),
   ContextMenuSeparator: () =>
     React.createElement("div", { className: "context-separator" }),
+  ContextMenuShortcut: ({ children }: any) =>
+    React.createElement("kbd", null, children),
 }));
 
 mock.module("@teak/ui/components/ui/card", () => ({

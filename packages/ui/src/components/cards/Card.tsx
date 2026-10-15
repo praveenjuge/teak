@@ -10,6 +10,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@teak/ui/components/ui/context-menu";
 import {
@@ -17,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
 import { useAction } from "convex/react";
@@ -51,6 +53,10 @@ import { toast } from "sonner";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
+import {
+  cardMenuShortcuts,
+  type MenuShortcut,
+} from "../../lib/keyboardShortcuts";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -209,7 +215,16 @@ export const Card = memo(function Card({
     onClick?.(card);
   };
 
+  const canCopy =
+    !card.isDeleted &&
+    (card.type === "text" ||
+      card.type === "link" ||
+      (card.type === "image" &&
+        card.fileMetadata?.mimeType !== "image/svg+xml"));
+
   // Cards act as buttons: Enter or Space opens them (or toggles selection).
+  // Cmd+C (Ctrl+C) copies what Copy in the menu copies, unless some text
+  // on the page is selected: that copy is the browser's.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) {
       return;
@@ -217,6 +232,17 @@ export const Card = memo(function Card({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleClick();
+      return;
+    }
+    if (
+      canCopy &&
+      (event.metaKey || event.ctrlKey) &&
+      !(event.altKey || event.shiftKey || event.repeat) &&
+      event.key.toLowerCase() === "c" &&
+      (window.getSelection()?.isCollapsed ?? true)
+    ) {
+      event.preventDefault();
+      void handleCopyImage();
     }
   };
 
@@ -695,17 +721,13 @@ export const Card = memo(function Card({
     event.dataTransfer.effectAllowed = "copy";
   };
 
-  const canCopy =
-    !card.isDeleted &&
-    (card.type === "text" ||
-      card.type === "link" ||
-      (card.type === "image" &&
-        card.fileMetadata?.mimeType !== "image/svg+xml"));
   const copyLinkOrImageLabel =
     card.type === "link" ? "Copy Link" : "Copy Image";
   const copyMenuLabel =
     card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
 
+  // The keys a focused card takes for the same actions (see MasonryGrid).
+  const shortcuts = cardMenuShortcuts();
   const menuItems: CardMenuEntry[] = [
     ...(card.url
       ? [{ icon: ExternalLink, label: "Open Link", onSelect: openLink }]
@@ -716,6 +738,7 @@ export const Card = memo(function Card({
             icon: Copy,
             label: copyMenuLabel,
             onSelect: () => void handleCopyImage(),
+            shortcut: shortcuts.copy,
           },
         ]
       : []),
@@ -728,6 +751,7 @@ export const Card = memo(function Card({
             icon: Trash,
             label: "Delete Forever",
             onSelect: handlePermanentDelete,
+            shortcut: shortcuts.delete,
           },
         ]
       : [
@@ -736,9 +760,20 @@ export const Card = memo(function Card({
                 icon: CheckSquare,
                 label: isSelected ? "Deselect" : "Select",
                 onSelect: () => onToggleSelection?.(),
+                shortcut: shortcuts.select,
               }
-            : { icon: CheckSquare, label: "Select", onSelect: handleSelect },
-          { icon: Tag, label: "Add Tags", onSelect: handleAddTags },
+            : {
+                icon: CheckSquare,
+                label: "Select",
+                onSelect: handleSelect,
+                shortcut: shortcuts.select,
+              },
+          {
+            icon: Tag,
+            label: "Add Tags",
+            onSelect: handleAddTags,
+            shortcut: shortcuts.addTags,
+          },
           ...(onEditFolders
             ? [
                 {
@@ -759,6 +794,7 @@ export const Card = memo(function Card({
               : undefined,
             label: card.isFavorited ? "Unfavorite" : "Favorite",
             onSelect: handleToggleFavorite,
+            shortcut: shortcuts.favorite,
           },
           {
             disabled: reprocessingCardId === card._id,
@@ -772,11 +808,17 @@ export const Card = memo(function Card({
                   icon: card.isArchived ? ArchiveRestore : Archive,
                   label: card.isArchived ? "Unarchive" : "Archive",
                   onSelect: handleToggleArchive,
+                  shortcut: shortcuts.archive,
                 },
               ]
             : []),
           "separator" as const,
-          { icon: Trash2, label: "Delete", onSelect: handleDelete },
+          {
+            icon: Trash2,
+            label: "Delete",
+            onSelect: handleDelete,
+            shortcut: shortcuts.delete,
+          },
         ]),
   ];
 
@@ -905,6 +947,7 @@ export const Card = memo(function Card({
                     entries={menuItems}
                     Item={DropdownMenuItem}
                     Separator={DropdownMenuSeparator}
+                    Shortcut={DropdownMenuShortcut}
                   />
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -918,6 +961,7 @@ export const Card = memo(function Card({
           entries={menuItems}
           Item={ContextMenuItem}
           Separator={ContextMenuSeparator}
+          Shortcut={ContextMenuShortcut}
         />
       </ContextMenuContent>
     </ContextMenu>
@@ -933,9 +977,11 @@ type CardMenuEntry =
       iconClassName?: string;
       label: string;
       onSelect: () => void;
+      shortcut?: MenuShortcut;
     };
 
 type MenuItemComponent = ComponentType<{
+  "aria-keyshortcuts"?: string;
   children?: ReactNode;
   disabled?: boolean;
   onClick?: () => void;
@@ -947,10 +993,12 @@ function CardMenuEntries({
   entries,
   Item,
   Separator,
+  Shortcut,
 }: {
   entries: CardMenuEntry[];
   Item: MenuItemComponent;
   Separator: ComponentType;
+  Shortcut: ComponentType<{ "aria-hidden"?: boolean; children: ReactNode }>;
 }) {
   return entries.map((entry, index) => {
     if (entry === "separator") {
@@ -960,6 +1008,7 @@ function CardMenuEntries({
     const Icon = entry.icon;
     return (
       <Item
+        aria-keyshortcuts={entry.shortcut?.keys}
         disabled={entry.disabled}
         key={entry.label}
         onClick={entry.onSelect}
@@ -967,6 +1016,9 @@ function CardMenuEntries({
       >
         <Icon className={entry.iconClassName} />
         {entry.label}
+        {entry.shortcut && (
+          <Shortcut aria-hidden>{entry.shortcut.label}</Shortcut>
+        )}
       </Item>
     );
   });

@@ -47,10 +47,20 @@ mock.module("@teak/ui/components/ui/context-menu", () => ({
     ),
   ContextMenuContent: ({ children }: any) =>
     React.createElement("div", { className: "context-content" }, children),
-  ContextMenuItem: ({ children }: any) =>
-    React.createElement("div", { className: "context-item" }, children),
+  ContextMenuItem: ({ children, "aria-keyshortcuts": keys }: any) =>
+    React.createElement(
+      "div",
+      {
+        "aria-keyshortcuts": keys,
+        className: "context-item",
+        role: "menuitem",
+      },
+      children
+    ),
   ContextMenuSeparator: () =>
     React.createElement("div", { className: "context-separator" }),
+  ContextMenuShortcut: ({ children }: any) =>
+    React.createElement("kbd", null, children),
 }));
 
 mock.module("@teak/ui/components/ui/card", () => ({
@@ -132,6 +142,26 @@ describe("Cards/Card", () => {
         refresh: mock().mockRejectedValue(new Error("refresh failed")),
       })
     ).rejects.toThrow("refresh failed");
+  });
+
+  test("its menu shows the key for each action a key also does", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+    );
+    for (const [label, key] of [
+      ["Add Tags", "T"],
+      ["Archive", "E"],
+      ["Favorite", "F"],
+      ["Select", "X"],
+    ]) {
+      expect(markup).toContain(`${label}<kbd>${key}</kbd>`);
+      expect(markup).toContain(`aria-keyshortcuts="${key}"`);
+    }
+    expect(markup).toMatch(/Copy Link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
+    expect(markup).toMatch(/Delete<kbd>(⌫|Del)<\/kbd>/);
+    // No key opens a link or refreshes details, so those show none.
+    expect(markup).toContain("Open Link</div>");
+    expect(markup).toContain("Refresh details</div>");
   });
 
   test("offers Refresh details for an active card but not for one in Trash", () => {

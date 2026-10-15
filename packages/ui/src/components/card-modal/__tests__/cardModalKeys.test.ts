@@ -40,13 +40,14 @@ describe("cardModalKeyAction", () => {
     ["t", "focusTags"],
     ["n", "focusNotes"],
     ["Delete", "delete"],
+    ["Backspace", "delete"],
   ])("%s does %s", (key, action) => {
     expect(press(key, plain)).toBe(action as never);
   });
 
   test("leaves other keys alone", () => {
     expect(press("x", plain)).toBeNull();
-    expect(press("Backspace", plain)).toBeNull();
+    expect(press("Escape", plain)).toBeNull();
   });
 
   test("never fires while someone types", () => {

@@ -19,6 +19,8 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   t: "focusTags",
   n: "focusNotes",
   Delete: "delete",
+  // The Mac's Delete key, as the grid takes it.
+  Backspace: "delete",
 };
 
 /**

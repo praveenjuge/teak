@@ -82,6 +82,60 @@ describe("Card keyboard access", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  const pressCopy = async (element: HTMLElement, modifier: string) => {
+    await act(() => {
+      element.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "c",
+          [modifier]: true,
+        })
+      );
+    });
+  };
+
+  test.each(["metaKey", "ctrlKey"])(
+    "copies the card's text with %s+C",
+    async (modifier) => {
+      const onCopyImage = mock();
+      const card = await renderCard({ onCopyImage });
+      await pressCopy(card, modifier);
+      expect(onCopyImage).toHaveBeenCalledWith(
+        "my\\_file\\_name\\_v2 costs 2\\*3",
+        false
+      );
+    }
+  );
+
+  test("leaves Cmd+C to the browser while text is selected", async () => {
+    const onCopyImage = mock();
+    const card = await renderCard({ onCopyImage });
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Selected words";
+    document.body.append(paragraph);
+    window.getSelection()?.selectAllChildren(paragraph);
+    await pressCopy(card, "metaKey");
+    window.getSelection()?.removeAllRanges();
+    expect(onCopyImage).not.toHaveBeenCalled();
+  });
+
+  test("does not copy a card in Trash", async () => {
+    const onCopyImage = mock();
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() =>
+      root?.render(
+        <Card card={textCard({ isDeleted: true })} onCopyImage={onCopyImage} />
+      )
+    );
+    const card = container.querySelector<HTMLElement>('[role="button"]');
+    expect(card).not.toBeNull();
+    await pressCopy(card as HTMLElement, "metaKey");
+    expect(onCopyImage).not.toHaveBeenCalled();
+  });
+
   test("exposes the selected state in selection mode", async () => {
     const onClick = mock();
     const card = await renderCard({

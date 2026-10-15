@@ -78,9 +78,10 @@ export function KeyboardShortcutsDialog({
 
 function ShortcutKeys({ row }: { row: ShortcutRow }) {
   const apple = isApplePlatform();
-  const shown = apple
-    ? { ...row, keys: row.keys.map((key) => (key === "Alt" ? "⌥" : key)) }
-    : row;
+  const shown = {
+    ...row,
+    keys: row.keys.map((key) => platformKey(key, apple)),
+  };
   return (
     <KbdGroup>
       <span className="sr-only">{shortcutAccessibleLabel(shown)}</span>
@@ -98,6 +99,14 @@ function ShortcutKeys({ row }: { row: ShortcutRow }) {
   );
 }
 
+/** `Mod` is Cmd on Apple platforms and Ctrl elsewhere; Alt is ⌥ on a Mac. */
+function platformKey(key: string, apple: boolean): string {
+  if (key === "Mod") {
+    return apple ? "⌘" : "Ctrl";
+  }
+  return apple && key === "Alt" ? "⌥" : key;
+}
+
 const KEY_NAMES: Record<string, string> = {
   "←": "Left arrow",
   "↑": "Up arrow",
@@ -106,6 +115,7 @@ const KEY_NAMES: Record<string, string> = {
   "/": "Slash",
   "?": "Question mark",
   "⌥": "Option",
+  "⌘": "Command",
 };
 
 /** How a screen reader says the keys: "G then F", "J or K", "Alt plus T". */

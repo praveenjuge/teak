@@ -774,10 +774,10 @@ export function MasonryGrid({
     }
   }, []);
 
-  // Keys on a focused card: arrows and J/K move, F favorites, E archives,
-  // Delete moves to Trash (asks to delete forever in Trash), X selects and
-  // Esc leaves selection; with cards selected, F, E and Delete act on the
-  // selection. Enter and Space are the card's own.
+  // Keys on a focused card: arrows and J/K move, F favorites, T adds tags,
+  // E archives, Delete moves to Trash (asks to delete forever in Trash), X
+  // selects and Esc leaves selection; with cards selected, F, T, E and
+  // Delete act on the selection. Enter, Space and Cmd+C are the card's own.
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const cardId = target.dataset?.cardId;
@@ -832,13 +832,18 @@ export function MasonryGrid({
       return;
     }
     const isActionKey =
-      key === "f" || key === "e" || key === "Delete" || key === "Backspace";
+      key === "f" ||
+      key === "t" ||
+      key === "e" ||
+      key === "Delete" ||
+      key === "Backspace";
     // Choosing cards for a folder only picks them: no other card actions.
     if (addToFolder && isActionKey) {
       event.preventDefault();
       return;
     }
-    // With cards selected, F, E and Delete act on all of them, like the bar.
+    // With cards selected, F, T, E and Delete act on all of them, like the
+    // bar.
     const hasSelection =
       isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction);
     // Trash's bar has no Delete Forever for a selection, so neither do keys.
@@ -862,10 +867,18 @@ export function MasonryGrid({
         runBulk(action).catch(() => undefined);
         return;
       }
+      if (key === "t") {
+        event.preventDefault();
+        handleBulkAction("addTags");
+        return;
+      }
     }
     if (key === "f" && !showTrashOnly && onToggleFavorite) {
       event.preventDefault();
       onToggleFavorite(cardId);
+    } else if (key === "t" && !showTrashOnly && onAddTags) {
+      event.preventDefault();
+      onAddTags(cardId);
     } else if (key === "e" && !showTrashOnly && onToggleArchive) {
       event.preventDefault();
       onToggleArchive(cardId, !card.isArchived);

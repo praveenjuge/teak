@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
 import { Kbd } from "@teak/ui/components/ui/kbd";
@@ -30,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { type BulkCardAction, cardCountLabel } from "../../lib/bulkCardActions";
+import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
 
 /** Which grid the selection is in; it decides the bar's actions. */
 export type BulkBarView = "library" | "archive" | "trash";
@@ -86,6 +88,8 @@ export function BulkActionBar({
     : PRIMARY[view];
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
+  // The keys a focused card takes for the whole selection (see MasonryGrid).
+  const shortcuts = cardMenuShortcuts();
 
   // Takes the page header's place across the top of the content column
   // (beside the sidebar), the same height, so selecting swaps the bar in
@@ -134,9 +138,15 @@ export function BulkActionBar({
                 Remove from favorites
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onAction("addTags")}>
+              <DropdownMenuItem
+                aria-keyshortcuts={shortcuts.addTags.keys}
+                onSelect={() => onAction("addTags")}
+              >
                 <Tag />
                 Add tags…
+                <DropdownMenuShortcut aria-hidden>
+                  {shortcuts.addTags.label}
+                </DropdownMenuShortcut>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onAction("removeTags")}>
                 <Tags />
@@ -163,11 +173,15 @@ export function BulkActionBar({
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                aria-keyshortcuts={shortcuts.delete.keys}
                 onSelect={() => onAction("delete")}
                 variant="destructive"
               >
                 <Trash2 />
                 Move to Trash
+                <DropdownMenuShortcut aria-hidden>
+                  {shortcuts.delete.label}
+                </DropdownMenuShortcut>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
