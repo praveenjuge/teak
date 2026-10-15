@@ -510,7 +510,7 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
-  const AddCardFormWrapper = useCallback(
+  const addCardForm = useMemo(
     () => (
       <AddCardForm
         draftContentRef={draftContentRef}
@@ -725,7 +725,7 @@ export function CardsScreen({
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
-          AddCardFormComponent={AddCardFormWrapper}
+          addCardForm={addCardForm}
           addToFolder={gridAddToFolder}
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}

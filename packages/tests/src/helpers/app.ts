@@ -210,13 +210,6 @@ export const openSecurityDialog = async (
         await clickVisibleControl(manageButton, { timeout: 2500 });
       }
       await expect(dialog).toBeVisible({ timeout: 2500 });
-      // Settings reads the device list with an action on every load, and the
-      // Convex client raises a beforeunload prompt while a request is in
-      // flight. Let the list settle on the Connections tab before switching
-      // away, so the caller's next navigation never races it.
-      await expect(dialog.getByText("Loading devices…")).toHaveCount(0, {
-        timeout: 2500,
-      });
       if ((await tabTrigger.getAttribute("aria-selected")) !== "true") {
         await clickVisibleControl(tabTrigger, { timeout: 2500 });
       }

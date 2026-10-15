@@ -2,7 +2,7 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Card } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
-import { Masonry } from "antd";
+import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
 import {
   useCallback,
@@ -71,6 +71,12 @@ const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 const DEFAULT_ROOT_MARGIN = "200px 0px";
 const PRIORITY_CARD_COUNT = 10;
 
+// antd animates items in and out. Its motion forgets it has mounted while
+// Next.js hides the page in <Activity>, so any re-render there (a card
+// changing while Settings is open) unmounts every item, the composer
+// included. Without motion the items stay mounted.
+const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
+
 export interface MasonryGridHandle {
   /**
    * Focuses the card a dialog opened from the grid showed last, as the
@@ -81,7 +87,7 @@ export interface MasonryGridHandle {
 }
 
 export interface MasonryGridProps {
-  AddCardFormComponent?: React.ComponentType;
+  addCardForm?: ReactNode;
   /**
    * Choosing cards for this folder: the grid opens in selection mode and
    * the bar's one action adds the selection to it.
@@ -140,7 +146,7 @@ export function MasonryGrid({
   showArchivedOnly = false,
   showAddForm = false,
   showBulkActions = true,
-  AddCardFormComponent,
+  addCardForm,
   onCardClick,
   onDeleteCard,
   onBulkAction,
@@ -667,7 +673,7 @@ export function MasonryGrid({
   const masonryItems = useMemo(() => {
     const items: MasonryItem[] = [];
 
-    if (showAddForm && !showTrashOnly && AddCardFormComponent) {
+    if (showAddForm && !showTrashOnly && addCardForm) {
       items.push({ key: "add-form", data: "add-form" });
     }
 
@@ -679,12 +685,12 @@ export function MasonryGrid({
     }
 
     return items;
-  }, [visibleCards, showTrashOnly, showAddForm, AddCardFormComponent]);
+  }, [visibleCards, showTrashOnly, showAddForm, addCardForm]);
 
   const renderItem = useCallback(
     ({ data }: Pick<MasonryItem, "data">) => {
       if (data === "add-form") {
-        return AddCardFormComponent ? <AddCardFormComponent /> : null;
+        return addCardForm;
       }
 
       const { card, isPriority } = data;
@@ -711,7 +717,7 @@ export function MasonryGrid({
       );
     },
     [
-      AddCardFormComponent,
+      addCardForm,
       handleCardClick,
       onDeleteCard,
       onRestoreCard,
@@ -866,14 +872,16 @@ export function MasonryGrid({
         onKeyDown={handleGridKeyDown}
         ref={gridRef}
       >
-        <Masonry
-          className={isSelectionMode ? "select-none" : ""}
-          columns={resolvedColumns}
-          fresh
-          gutter={gutter}
-          itemRender={renderItem}
-          items={masonryItems}
-        />
+        <ConfigProvider theme={STILL_MASONRY_THEME}>
+          <Masonry
+            className={isSelectionMode ? "select-none" : ""}
+            columns={resolvedColumns}
+            fresh
+            gutter={gutter}
+            itemRender={renderItem}
+            items={masonryItems}
+          />
+        </ConfigProvider>
       </div>
       {filteredCards.length > 0 &&
         (visibleCount < filteredCards.length ||

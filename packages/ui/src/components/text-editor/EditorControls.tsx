@@ -69,14 +69,18 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
     },
   ];
   useEffect(() => {
+    if (editor.isDestroyed) {
+      return;
+    }
+    const dom = editor.view.dom;
     const openLink = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setEditingLink(true);
       }
     };
-    editor.view.dom.addEventListener("keydown", openLink);
-    return () => editor.view.dom.removeEventListener("keydown", openLink);
+    dom.addEventListener("keydown", openLink);
+    return () => dom.removeEventListener("keydown", openLink);
   }, [editor]);
   return (
     <BubbleMenu
