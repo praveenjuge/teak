@@ -1,4 +1,5 @@
 import type { LibraryView } from "./libraryViews";
+import { isApplePlatform } from "./platform";
 
 export interface ShortcutRow {
   /** Keys pressed together (Alt+T) rather than alternatives. */
@@ -32,9 +33,11 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["J", "K"], label: "Next or previous card" },
       { keys: ["Enter"], label: "Open the card" },
       { keys: ["F"], label: "Favorite or unfavorite" },
+      { keys: ["T"], label: "Add tags" },
       { keys: ["E"], label: "Archive or unarchive" },
       { keys: ["Delete"], label: "Move to Trash" },
       { keys: ["X"], label: "Select or deselect" },
+      { keys: ["Mod", "C"], label: "Copy text, link, or image", combo: true },
       { keys: ["Esc"], label: "Clear the selection" },
     ],
   },
@@ -69,6 +72,35 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
 ];
+
+/** A key shown beside a menu item whose action the key also does. */
+export interface MenuShortcut {
+  /** For `aria-keyshortcuts`, such as `Meta+C`. */
+  keys: string;
+  /** As the menu shows it, such as `⌘C`. */
+  label: string;
+}
+
+/**
+ * The keys menus show for card actions, as the grid and the open card
+ * take them: Cmd on Apple platforms and Ctrl elsewhere, and the Mac's
+ * Delete key (⌫, which the browser calls Backspace) on a Mac.
+ */
+export function cardMenuShortcuts(apple = isApplePlatform()) {
+  const letter = (key: string): MenuShortcut => ({ keys: key, label: key });
+  return {
+    addTags: letter("T"),
+    archive: letter("E"),
+    copy: apple
+      ? { keys: "Meta+C", label: "⌘C" }
+      : { keys: "Control+C", label: "Ctrl+C" },
+    delete: apple
+      ? { keys: "Backspace", label: "⌫" }
+      : { keys: "Delete", label: "Del" },
+    favorite: letter("F"),
+    select: letter("X"),
+  } satisfies Record<string, MenuShortcut>;
+}
 
 /** Marks the library's search box, which `/` focuses. */
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";

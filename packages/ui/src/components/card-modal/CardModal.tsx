@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@teak/ui/components/ui/dropdown-menu";
 import { Spinner } from "@teak/ui/components/ui/spinner";
@@ -38,6 +39,7 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
+import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
@@ -380,6 +382,7 @@ export function CardModal({
     }
   };
 
+  const menuShortcuts = cardMenuShortcuts();
   const heading = card ? getCardHeading(card) : null;
   const TypeIcon = getCardTypeIconComponent(card?.type as CardType);
   const hostname =
@@ -637,22 +640,32 @@ export function CardModal({
                             </DropdownMenuItem>
                           )}
                           {toggleArchive && (
-                            <DropdownMenuItem onClick={archive}>
+                            <DropdownMenuItem
+                              aria-keyshortcuts={menuShortcuts.archive.keys}
+                              onClick={archive}
+                            >
                               {card.isArchived ? (
                                 <ArchiveRestore />
                               ) : (
                                 <Archive />
                               )}
                               {card.isArchived ? "Unarchive" : "Archive"}
+                              <DropdownMenuShortcut aria-hidden>
+                                {menuShortcuts.archive.label}
+                              </DropdownMenuShortcut>
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
+                            aria-keyshortcuts={menuShortcuts.delete.keys}
                             onClick={() => void handleDelete(closeAfterAction)}
                             variant="destructive"
                           >
                             <Trash2 />
                             Delete
+                            <DropdownMenuShortcut aria-hidden>
+                              {menuShortcuts.delete.label}
+                            </DropdownMenuShortcut>
                           </DropdownMenuItem>
                         </>
                       )}

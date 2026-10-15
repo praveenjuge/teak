@@ -13,17 +13,21 @@ const { cardModalKeyAction } = await import("../cardModalKeys");
 const press = (
   key: string,
   target: Element,
-  extra: Record<string, boolean> = {}
+  extra: Record<string, boolean> = {},
+  apple = false
 ) =>
-  cardModalKeyAction({
-    altKey: false,
-    ctrlKey: false,
-    key,
-    metaKey: false,
-    shiftKey: false,
-    target,
-    ...extra,
-  });
+  cardModalKeyAction(
+    {
+      altKey: false,
+      ctrlKey: false,
+      key,
+      metaKey: false,
+      shiftKey: false,
+      target,
+      ...extra,
+    },
+    apple
+  );
 
 describe("cardModalKeyAction", () => {
   const plain = document.createElement("div");
@@ -44,9 +48,14 @@ describe("cardModalKeyAction", () => {
     expect(press(key, plain)).toBe(action as never);
   });
 
+  test("Backspace deletes only on a Mac, where it is the Delete key", () => {
+    expect(press("Backspace", plain, {}, true)).toBe("delete");
+    expect(press("Backspace", plain, {}, false)).toBeNull();
+  });
+
   test("leaves other keys alone", () => {
     expect(press("x", plain)).toBeNull();
-    expect(press("Backspace", plain)).toBeNull();
+    expect(press("Escape", plain)).toBeNull();
   });
 
   test("never fires while someone types", () => {
