@@ -31,6 +31,7 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly ACCOUNT_CHANGES_PAUSED: string | undefined;
+  readonly ADMIN_ALERT_WEBHOOK_URL: string | undefined;
   readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
   readonly FILES_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
@@ -39,7 +40,6 @@ type Env = {
   readonly POLAR_SERVER: string | undefined;
   readonly POSTHOG_PROJECT_TOKEN: string | undefined;
   readonly POSTHOG_QUERY_API_KEY: string | undefined;
-  readonly ADMIN_ALERT_WEBHOOK_URL: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;
   readonly R2_BUCKET: string | undefined;
   readonly R2_KEY_PREFIX: string | undefined;
