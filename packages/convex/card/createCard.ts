@@ -56,6 +56,8 @@ const createCardArgs = {
   colors: v.optional(v.array(colorValidator)), // For palette cards
 } as const;
 
+const PIPELINE_METADATA_FIELDS = ["linkCategory", "linkPreview"] as const;
+
 const sessionCreateCardArgs = {
   ...createCardArgs,
   source: v.optional(clientCardSourceValidator),
@@ -158,6 +160,14 @@ export const createCardForUserHandler = async (
       extractedFileMetadata[field] = processedMetadata[field];
       delete processedMetadata[field];
     }
+  }
+
+  // Link previews and categories, and the storage keys inside them, are
+  // written only by the link pipeline. A caller's copy is dropped, so a card
+  // can never be pointed at objects it did not create, which deleting or
+  // refreshing the card would otherwise delete.
+  for (const field of PIPELINE_METADATA_FIELDS) {
+    delete processedMetadata[field];
   }
 
   if (args.fileKey) {
