@@ -17,6 +17,10 @@ const required = [
   "freeze-object",
   "fetch-link-page",
   "store-remote-asset",
+  "embed-upsert",
+  "vector-delete",
+  "vector-get",
+  "vector-query",
 ];
 
 async function productionEnv(name: string): Promise<string> {
@@ -72,6 +76,7 @@ for (;;) {
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
+        vectors?: boolean;
       };
     };
     ready =
@@ -83,6 +88,7 @@ for (;;) {
       result.data.fetcher === true &&
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
+      result.data.vectors === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch {
@@ -90,7 +96,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, and signing verified."
     );
     break;
   }

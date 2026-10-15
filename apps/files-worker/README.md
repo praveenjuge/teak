@@ -452,10 +452,24 @@ rolling back backend callers.
 ## Card embeddings (Vectorize)
 
 `CARD_VECTORS_0` binds the `teak-cards-0` Vectorize index (768 dimensions,
-cosine), which will hold card embeddings for semantic search, one namespace per
+cosine), which holds card embeddings for semantic search, one namespace per
 user. `capabilities` reports `vectors` when it is bound. The model, prompts and
-shard layout are in `.agents/semantic-search.md`. Nothing writes to the index
-yet.
+shard layout are in `.agents/semantic-search.md`.
+
+Four signed ops read and write the index (`src/vectors.ts`):
+
+- `embed-upsert` embeds up to 32 card texts with the document prompt and
+  upserts them into one namespace. Workers AI capacity errors answer
+  `AI_CAPACITY` (429); a vector of the wrong size is never written.
+- `vector-delete` deletes up to 1,000 ids.
+- `vector-get` reports which of up to 100 ids have a vector, and in which
+  namespace.
+- `vector-query` embeds a query of up to 500 characters with the query prompt
+  and returns the top matches (at most 100) in one namespace, ids and scores
+  only.
+
+Every op names its shard; a shard with no binding is `INVALID_INPUT`. Convex
+decides what text, namespace and shard to send.
 
 ## Export archive lifecycle
 

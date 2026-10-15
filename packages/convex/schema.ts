@@ -751,6 +751,29 @@ export default defineSchema({
     userId: v.string(),
     startedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  // One row per card with (or due for) a vector in Vectorize; the ledger every
+  // delete path works from (embedding/state.ts). Kept off `cards` so embedding
+  // never rewrites a card or wakes its reactive queries.
+  cardEmbeddings: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    /** Where the vector is; set by the first successful embed. */
+    shard: v.optional(v.number()),
+    namespace: v.optional(v.string()),
+    /** Hash of the text and embedding version the vector was made from. */
+    hash: v.optional(v.string()),
+    embeddedAt: v.optional(v.number()),
+    /** When the next embed is due; also the fence against stale writes. */
+    dueAt: v.optional(v.number()),
+    attempts: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    /** Set when the card is gone and its vector still has to be deleted. */
+    pendingVectorDeleteAt: v.optional(v.number()),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"])
+    .index("by_dueAt", ["dueAt"])
+    .index("by_pendingVectorDeleteAt", ["pendingVectorDeleteAt"]),
   // Which Vectorize shard holds a user's card embeddings (vectorShards.ts).
   vectorShards: defineTable({
     userId: v.string(),

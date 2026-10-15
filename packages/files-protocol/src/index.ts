@@ -71,6 +71,11 @@ export const FILES_OPS = [
   // Fetches and scrapes a link's page through the fetcher Container, with a
   // Browser Run fallback; see ./linkPage.
   "fetch-link-page",
+  // Card embeddings in Vectorize, one namespace per user; see ./embeddings.
+  "embed-upsert",
+  "vector-delete",
+  "vector-get",
+  "vector-query",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];

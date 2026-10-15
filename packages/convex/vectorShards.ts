@@ -4,6 +4,7 @@ import {
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
+import { getR2KeyPrefix } from "./storage/r2Keys";
 
 /**
  * Which Vectorize shard holds a user's card embeddings. Each shard is one
@@ -16,7 +17,9 @@ export const getOrAssignVectorShard = async (
   ctx: MutationCtx,
   userId: string
 ): Promise<{ namespace: string; shard: number }> => {
-  const namespace = vectorNamespaceForUser(userId);
+  // The development deployment shares the production index, as it shares
+  // the bucket, under the same "dev/" prefix as its R2 keys.
+  const namespace = vectorNamespaceForUser(`${getR2KeyPrefix()}${userId}`);
   if (!namespace) {
     throw new Error("vector_namespace_invalid");
   }

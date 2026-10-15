@@ -17,7 +17,7 @@ The short version: your cards are private to you, we don't sell your data or use
 
 - **Account data:** your name, email address, optional profile photo, sign-in details, and account preferences.
 - **Your content:** cards (notes, links, images, videos, audio, documents, palettes, quotes), the files you upload, tags, folders, favorites, notes, and timestamps.
-- **Generated data:** tags, summaries, audio transcripts, colors, thumbnails, link previews and screenshots that Teak creates from your content (see [AI Processing](#ai-processing)).
+- **Generated data:** tags, summaries, audio transcripts, colors, thumbnails, link previews, screenshots and search embeddings that Teak creates from your content (see [AI Processing](#ai-processing)).
 - **Usage and diagnostic data:** which features you use (for example, that you saved a card or ran a search), page views, performance timings, error and crash reports, and device, browser and app version details. These are linked to your Teak account ID and email.
 - **Billing data:** your plan, subscription status, and the email used for checkout. Payment card details go directly to our payment provider, Polar; we never see or store them.
 - **Capture data:** the page URL, title, or text you choose to save from the browser extension, share sheets, Raycast, the CLI, the API, or MCP.
@@ -39,6 +39,7 @@ Teak uses AI to tag, summarize and transcribe your cards so you can find them la
 
 - **What is processed:** the text of text, quote and document cards; image and video thumbnails; audio files (for transcripts); palette colors; and link titles, descriptions and URLs.
 - **What is created:** tags, a short summary, visual style labels, and audio transcripts. These are stored with the card and deleted with it.
+- **Search by meaning:** Teak turns each card's title, description, summary, tags, notes, visual style labels, and the start of its text or transcript into a list of numbers (an embedding) with a model on Cloudflare Workers AI. The embedding is stored in a Cloudflare Vectorize search index, tagged with your account so searches only ever return your own cards, and used only to find your cards by meaning. It's updated when the card changes and deleted when the card or your account is deleted.
 - AI output can be wrong. You can edit or ignore generated tags and summaries.
 
 ## Links You Save
@@ -54,7 +55,7 @@ We use these providers to run Teak. Each handles only the data it needs for its 
 | Provider | Purpose | Data involved |
 | --- | --- | --- |
 | [Convex](https://www.convex.dev) | Database and backend | Account data, your content, generated data |
-| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, image, video and document processing, page rendering, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, saved page content, API and MCP requests including the content they carry |
+| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, search index, image, video and document processing, page rendering, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, embeddings of card text, saved page content, API and MCP requests including the content they carry |
 | [Vercel](https://vercel.com) | Hosts the web app and website | Requests to the web app and website |
 | [WorkOS](https://workos.com) | Sign-in and sign-in emails | Name, email, sign-in details, session and device information |
 | [Polar](https://polar.sh) | Payments, as merchant of record | Email, Teak account ID, payment details, billing address, subscription history |

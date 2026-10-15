@@ -17,6 +17,7 @@ export default defineConfig({
       "./accountDeletionStorage.test.ts",
       "./accountDeletionWorkflow.test.ts",
       "./vectorShards.test.ts",
+      "./embeddings.test.ts",
       "./importConsolidation.test.ts",
       "./importUploadDeletion.test.ts",
       "./mediaFacts.test.ts",
