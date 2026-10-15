@@ -95,8 +95,16 @@ describe("signed file operations", () => {
     expect(result.data).not.toHaveProperty("segments");
     expect(run.mock.calls[0][0]).toBe(FILES_TRANSCRIPTION_MODEL);
   });
-  test("sends transcription through the configured AI Gateway without logs", async () => {
-    const run = mock(async () => ({ text: "Hello world" }));
+  test("transcribes directly even when an AI Gateway is configured", async () => {
+    // AI Gateway rejects the streamed audio body Whisper needs.
+    const run = mock(
+      (_model: string, _args: unknown, options?: { gateway?: unknown }) =>
+        options?.gateway
+          ? Promise.reject(
+              new Error("AI Gateway does not support ReadableStreams yet.")
+            )
+          : Promise.resolve({ text: "Hello world" })
+    );
     const bucket = new FakeBucket();
     bucket.objects.set("users/u/audio.wav", {
       bytes: new Uint8Array([1, 2, 3]),
@@ -107,9 +115,8 @@ describe("signed file operations", () => {
       { ...envFor(bucket), AI: { run }, AI_GATEWAY_ID: "teak-files" }
     );
     expect(response.status).toBe(200);
-    expect(run.mock.calls[0][2]).toEqual({
-      gateway: { collectLog: false, id: "teak-files", skipCache: true },
-    });
+    const result = (await response.json()) as { data: { text: string } };
+    expect(result.data.text).toBe("Hello world");
   });
   test("rejects oversized audio before inference and bounds model output", async () => {
     const run = mock(async () => ({
