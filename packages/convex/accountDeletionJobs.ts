@@ -332,7 +332,8 @@ export const recordFailure = internalMutation({
     reason: v.optional(
       v.union(
         v.literal("storage_source_changed"),
-        v.literal("object_write_pending")
+        v.literal("object_write_pending"),
+        v.literal("analytics_deletion_failed")
       )
     ),
   },

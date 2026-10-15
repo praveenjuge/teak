@@ -1,12 +1,20 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { POSTHOG_DELETION_ERROR_PREFIX } from "../accountDeletionAnalytics";
 import { workflow } from "./manager";
 
-function storageFailureReason(
+export function deletionFailureReason(
   error: unknown
-): "storage_source_changed" | "object_write_pending" | undefined {
+):
+  | "storage_source_changed"
+  | "object_write_pending"
+  | "analytics_deletion_failed"
+  | undefined {
   if (!(error instanceof Error)) {
     return undefined;
+  }
+  if (error.message.includes(POSTHOG_DELETION_ERROR_PREFIX)) {
+    return "analytics_deletion_failed";
   }
   if (error.message.includes("deletion_storage_source_changed")) {
     return "storage_source_changed";
@@ -44,7 +52,7 @@ export const accountDeletionWorkflow = workflow.define({
           );
         }
       } catch (error) {
-        const reason = storageFailureReason(error);
+        const reason = deletionFailureReason(error);
         await step.runMutation(internal.accountDeletionJobs.recordFailure, {
           ...binding,
           stage,

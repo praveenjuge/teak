@@ -9,6 +9,8 @@ import { scrubTelemetryString, scrubTelemetryValue } from "./telemetry";
 export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
+// Teak's PostHog project (.agents/analytics.md).
+export const POSTHOG_PROJECT_ID = "660923";
 
 const DEFAULT_TIMEOUT_MS = 2000;
 const MAX_FRAMES = 50;
