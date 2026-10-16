@@ -8,6 +8,7 @@ import {
   ARCHIVE_MIX_SCENARIO_SIZE,
   archiveMixScenarioCard,
   CARD_DETAILS_SCENARIO_CARDS,
+  CHECKLIST_LONG_ITEMS,
   DEV_SEED_CARDS,
   EXPORT_UGLY_FOLDER_NAMES,
   type FolderScenario,
@@ -690,6 +691,25 @@ describe("devSeed folder packs", () => {
     expect(longest).toBeGreaterThan(250_000);
     expect(longest).toBeLessThanOrEqual(MARKDOWN_CONTENT_MAX_BYTES);
     expect(notes.some((card) => card.content === "")).toBe(true);
+  });
+
+  test("checklists seeds its notes once, with 200 open items in the long one", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "checklists")).toMatchObject({
+      status: "seeded",
+      cards: 9,
+    });
+    expect(await seedFolders(t, "checklists")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const long = (await cardsOf(t)).find((card) =>
+      card.content.startsWith("# Long checklist")
+    );
+    expect(long?.content.match(/^- \[ \] /gm)).toHaveLength(
+      CHECKLIST_LONG_ITEMS
+    );
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

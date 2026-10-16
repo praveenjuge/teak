@@ -524,6 +524,7 @@ export const FOLDER_SCENARIOS = [
   "export-ugly",
   "palette-mixed",
   "focus-notes",
+  "checklists",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1093,6 +1094,58 @@ const focusNotesPack = (): FolderScenarioPack => {
   };
 };
 
+export const CHECKLIST_LONG_ITEMS = 200;
+
+/** Notes with task lists for checklist sorting. */
+const checklistsPack = (): FolderScenarioPack => {
+  const scenario = "checklists" as const;
+  const note = (index: number, content: string) =>
+    folderScenarioCard(scenario, index, content, []);
+  const tasks = (count: number, label: string) =>
+    Array.from(
+      { length: count },
+      (_, i) => `- [ ] ${label} ${String(i + 1).padStart(3, "0")}`
+    ).join("\n");
+  const nested = [0, 1, 2, 3, 4]
+    .flatMap((depth) => {
+      const indent = "  ".repeat(depth);
+      return [
+        `${indent}- [ ] Level ${depth + 1} first`,
+        `${indent}- [ ] Level ${depth + 1} second`,
+      ];
+    })
+    .join("\n");
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Checklists pack", []),
+      note(1, `# Packing list\n\n${tasks(10, "Pack item")}`),
+      note(2, `# Long checklist\n\n${tasks(CHECKLIST_LONG_ITEMS, "Step")}`),
+      note(3, `# Nested checklist\n\n${nested}`),
+      note(
+        4,
+        "# Mixed lists\n\n- A plain bullet\n- Another bullet\n\nThen the tasks:\n\n- [ ] Open task\n- [ ] Second task\n- [x] Done task"
+      ),
+      note(
+        5,
+        "# All done\n\n- [x] Wrote it\n- [x] Checked it\n- [x] Shipped it"
+      ),
+      note(
+        6,
+        "# Odd spacing\n\n-  [ ] Two spaces\n\n- [ ] Blank line above\n* [ ] Star bullet"
+      ),
+      note(
+        7,
+        "# Quoted checklist\n\n> - [ ] Quoted first\n> - [ ] Quoted second"
+      ),
+      note(
+        8,
+        "# Checklist with a table\n\n| Task | Owner |\n| --- | --- |\n| Review | Web |\n\n- [ ] Table note first\n- [ ] Table note second"
+      ),
+    ],
+  };
+};
+
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
@@ -1382,6 +1435,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Smart folders matching nothing, the whole pack, exactly one card, a manual folder's favorites, design links, an emoji, an RTL and a 500-character search.",
     folders: smartFoldersPack,
+  },
+  checklists: {
+    description:
+      "Task lists for checklist sorting: 10 and 200 items, 5 levels of nesting, bullets beside tasks, all done, odd spacing and a table (both open as literal Markdown), and a checklist in a blockquote.",
+    folders: checklistsPack,
   },
   "export-ugly": {
     description:

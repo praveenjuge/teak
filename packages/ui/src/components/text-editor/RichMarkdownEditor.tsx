@@ -26,6 +26,7 @@ import {
   prepareMarkdownDocument,
 } from "./markdownDocument";
 import { SlashMenu } from "./SlashMenu";
+import { TaskListSort } from "./taskListSort";
 import type { MarkdownTextEditorProps } from "./types";
 
 const commands = defaultSlashCommandItems;
@@ -58,6 +59,8 @@ export function RichMarkdownEditor({
   menuRef.current = menu;
   const [extensions] = useState(() => [
     ...documentExtensions(),
+    // Editor only: markdownManager parses and serializes without it.
+    TaskListSort,
     Markdown,
     Placeholder.configure({
       showOnlyWhenEditable: false,
@@ -248,9 +251,13 @@ export function RichMarkdownEditor({
         return true;
       },
     },
-    onUpdate({ editor: current, transaction }) {
+    onUpdate({ editor: current, transaction, appendedTransactions }) {
+      // A plugin's appended change (a ticked item moving down) comes last,
+      // and carries the Markdown of the final document.
       const markdown: string =
-        transaction.getMeta("teakMarkdown") ?? current.getMarkdown();
+        (
+          appendedTransactions[appendedTransactions.length - 1] ?? transaction
+        ).getMeta("teakMarkdown") ?? current.getMarkdown();
       if (markdown === lastSerialized.current) {
         return;
       }

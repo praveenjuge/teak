@@ -63,3 +63,35 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
   }
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
 });
+
+test("a tick reports the reordered list, not the list before the move", async () => {
+  const onChange = mock((_next: string) => undefined);
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <LoadedMarkdownTextEditor
+        ariaLabel="Markdown content"
+        onChange={onChange}
+        value={"- [ ] A\n- [ ] B"}
+      />
+    )
+  );
+  let checkbox: HTMLInputElement | null = null;
+  for (let tick = 0; tick < 50 && !checkbox; tick++) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    checkbox = container.querySelector<HTMLInputElement>(
+      "input[aria-label='Task item checkbox for A']"
+    );
+  }
+  if (!checkbox) {
+    throw new Error("The rich editor never showed the task list");
+  }
+  const box = checkbox;
+  await act(() => {
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(onChange.mock.lastCall?.[0]).toBe("- [ ] B\n- [x] A");
+});
