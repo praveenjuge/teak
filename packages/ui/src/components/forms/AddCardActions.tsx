@@ -60,7 +60,7 @@ interface AddCardActionsProps {
 }
 
 const NEW_MENU_TRIGGER_CLASS =
-  "size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4";
+  "size-7 rounded-md text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent [&_svg]:size-4 [&_svg]:opacity-60 [&_svg]:transition-opacity hover:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100";
 
 /** The sidebar's New button while the app signs in: it looks the same. */
 export function NewMenuPlaceholder() {

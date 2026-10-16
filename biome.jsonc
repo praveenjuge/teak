@@ -20,6 +20,10 @@
     {
       "path": "./scripts/lint/no-remove-child.grit",
       "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
+    },
+    {
+      "path": "./scripts/lint/no-translucent-icon-color.grit",
+      "includes": ["**/*.tsx"]
     }
   ],
   "javascript": {
