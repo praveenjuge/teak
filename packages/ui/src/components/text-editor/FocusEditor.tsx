@@ -15,7 +15,11 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { ariaKeyShortcut, SAVE_NOTE_KEYS } from "../../lib/keyboardShortcuts";
+import {
+  ariaKeyShortcut,
+  isFocusNoteKey,
+  SAVE_NOTE_KEYS,
+} from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import {
   PRIMARY_BUTTON_KEYS_CLASS,
@@ -169,6 +173,13 @@ export function FocusEditor({
           }
         }}
         onKeyDown={(event) => {
+          // ⌘E leaves from anywhere in Focus, Close and Save included; the
+          // editor handles (and prevents) its own.
+          if (!event.defaultPrevented && isFocusNoteKey(event.nativeEvent)) {
+            event.preventDefault();
+            onRequestClose();
+            return;
+          }
           // A key outside the editor (Tab to the buttons, say) brings the
           // bar back; typing in the editor keeps it hidden.
           const target = event.target as HTMLElement | null;

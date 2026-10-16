@@ -3,8 +3,11 @@ import { MarkdownTextEditor } from "@teak/ui/text-editor";
 import { Maximize2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ariaKeyShortcut, FOCUS_NOTE_KEYS } from "../../lib/keyboardShortcuts";
-import { isApplePlatform } from "../../lib/platform";
+import {
+  ariaKeyShortcut,
+  FOCUS_NOTE_KEYS,
+  isFocusNoteKey,
+} from "../../lib/keyboardShortcuts";
 import type { GetCurrentValue } from "../card-modal/types";
 import { FocusEditor } from "../lazyDialogs";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -20,22 +23,6 @@ interface TextPreviewProps {
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
   onSaveShortcut?: () => void;
-}
-
-/** Cmd+E on Apple platforms, Ctrl+E elsewhere, nothing else held. */
-export function isFocusNoteKey(
-  event: Pick<
-    KeyboardEvent,
-    "altKey" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
-  >,
-  apple = isApplePlatform()
-): boolean {
-  if (event.key.toLowerCase() !== "e" || event.altKey || event.shiftKey) {
-    return false;
-  }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
 }
 
 export function TextPreview({

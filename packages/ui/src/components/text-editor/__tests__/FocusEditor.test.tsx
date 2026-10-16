@@ -14,6 +14,7 @@ mock.module("../LoadedMarkdownTextEditor", () => ({
   },
 }));
 const { act, useState } = await import("react");
+const { isApplePlatform } = await import("../../../lib/platform");
 const { createRoot } = await import("react-dom/client");
 const { editorPopupOwnsEscape, FocusEditor, WORD_COUNT_IDLE_MS } = await import(
   "../FocusEditor"
@@ -102,6 +103,24 @@ test("Ctrl+E in the note and Close both leave Focus", async () => {
   expect(onRequestClose).toHaveBeenCalledTimes(1);
   await act(() => button("Close")?.click());
   expect(onRequestClose).toHaveBeenCalledTimes(2);
+});
+
+test("Cmd/Ctrl+E leaves Focus from Close or Save too, not only the note", async () => {
+  const { onRequestClose } = await renderFocus();
+  const modifier = isApplePlatform() ? { metaKey: true } : { ctrlKey: true };
+  const close = button("Close") as HTMLButtonElement;
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key: "e",
+    ...modifier,
+  });
+  await act(() => {
+    close.dispatchEvent(event);
+  });
+  expect(onRequestClose).toHaveBeenCalledTimes(1);
+  // The browser's own Ctrl+E (the address bar) doesn't run.
+  expect(event.defaultPrevented).toBe(true);
 });
 
 test("typing hides the bar and the count; a pause shows the new count", async () => {
