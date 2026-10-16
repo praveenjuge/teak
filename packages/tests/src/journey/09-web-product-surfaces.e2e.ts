@@ -190,11 +190,8 @@ https://example.com/editor
       source: "e2e",
       url: "https://example.com",
     });
-    await searchForVisibleCard(
-      surface,
-      marker,
-      /^(?:example\.com|Example Domain)$/
-    );
+    // Without a fetched title the card keeps its address as the title.
+    await searchForVisibleCard(surface, marker, /^example\.com$/);
     // The local E2E stack runs the Files Worker without its fetcher
     // Containers, so link fetching fails the way it does when those services
     // are down: the card keeps its address title and the metadata stage
