@@ -70,6 +70,9 @@ export const FILES_OPS = [
   "vector-get",
   "vector-query",
   "vector-similar",
+  // Starts Cloudflare Workflow instances and queues object deletions; see
+  // ./workflows.
+  "dispatch",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -308,3 +311,4 @@ export * from "./metadata";
 export * from "./remoteAsset";
 export * from "./rendering";
 export * from "./storage";
+export * from "./workflows";

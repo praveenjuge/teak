@@ -69,6 +69,90 @@
   "browser": {
     "binding": "BROWSER"
   },
+  // Its own Workflows, Queues and dataset; see the production config.
+  "workflows": [
+    {
+      "name": "teak-dev-card-processing",
+      "binding": "CARD_PROCESSING",
+      "class_name": "CardProcessingWorkflow"
+    },
+    {
+      "name": "teak-dev-export",
+      "binding": "EXPORTS",
+      "class_name": "ExportWorkflow"
+    },
+    {
+      "name": "teak-dev-import",
+      "binding": "IMPORTS",
+      "class_name": "ImportWorkflow"
+    },
+    {
+      "name": "teak-dev-account-deletion",
+      "binding": "ACCOUNT_DELETION",
+      "class_name": "AccountDeletionWorkflow"
+    },
+    {
+      "name": "teak-dev-maintenance",
+      "binding": "MAINTENANCE",
+      "class_name": "MaintenanceWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "OBJECT_DELETIONS", "queue": "teak-dev-object-deletions" },
+      { "binding": "AI_BACKFILL", "queue": "teak-dev-ai-backfill" },
+      { "binding": "WORKOS_EVENTS", "queue": "teak-dev-workos-events" },
+      { "binding": "R2_EVENTS", "queue": "teak-dev-r2-events" }
+    ],
+    "consumers": [
+      {
+        "queue": "teak-dev-object-deletions",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "retry_delay": 30,
+        "dead_letter_queue": "teak-dev-object-deletions-dlq"
+      },
+      {
+        "queue": "teak-dev-object-deletions-dlq",
+        "max_batch_size": 10,
+        "max_retries": 2
+      },
+      {
+        "queue": "teak-dev-ai-backfill",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_concurrency": 2,
+        "max_retries": 10,
+        "retry_delay": 60
+      },
+      {
+        "queue": "teak-dev-workos-events",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 10,
+        "retry_delay": 30,
+        "dead_letter_queue": "teak-dev-workos-events-dlq"
+      },
+      {
+        "queue": "teak-dev-workos-events-dlq",
+        "max_batch_size": 10,
+        "max_retries": 5
+      },
+      {
+        "queue": "teak-dev-r2-events",
+        "max_batch_size": 100,
+        "max_batch_timeout": 30,
+        "max_retries": 5
+      }
+    ]
+  },
+  "analytics_engine_datasets": [
+    { "binding": "AI_USAGE", "dataset": "teak_dev_ai_usage" }
+  ],
+  "triggers": {
+    "crons": ["0 2 * * *", "0 3 * * *", "0 */6 * * *", "0 4 * * 1", "15 * * * *", "45 * * * *"]
+  },
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
   // single request: CPU for the ZIP's checksums, and one R2 read per file plus
   // the upload parts. Other operations use a small fraction of either limit.
@@ -83,7 +167,11 @@
     // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "2",
     // Matches containers[1].max_instances.
-    "LINK_FETCHER_INSTANCES": "2"
+    "LINK_FETCHER_INSTANCES": "2",
+    // Only the development deployment.
+    "CONVEX_SITE_URLS": "https://reminiscent-kangaroo-59.convex.site",
+    "FILES_PUBLIC_ORIGIN": "https://teak-files-development.praveenjuge.workers.dev",
+    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d"
   },
   "observability": {
     "enabled": true,

@@ -22,10 +22,11 @@
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
+    "convex": "1.46.0",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
     "jose": "6.2.12",
-    "wrangler": "^4.136.1"
+    "wrangler": "^4.151.0"
   }
 }

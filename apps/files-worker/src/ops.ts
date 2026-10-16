@@ -76,6 +76,7 @@ import {
   vectorQuery,
   vectorSimilar,
 } from "./vectors";
+import { runDispatch, type WorkflowBindingsEnv } from "./workflows/dispatch";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
@@ -101,11 +102,13 @@ export const getFilesOpObjectKey = (params: unknown): string => {
     : "";
 };
 
-export interface FilesOpsEnv extends AiGatewayEnv {
+export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   AI?: WorkersAiBinding;
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
+  /** This Worker's public origin, for ops run in-process by workflows. */
+  FILES_PUBLIC_ORIGIN?: string;
   FILES_SIGNING_SECRET: string;
   IMAGES?: ImagesBinding;
   LINK_FETCHER?: DurableObjectNamespace;
@@ -747,6 +750,8 @@ const dispatch = async (
         )
       );
     }
+    case "dispatch":
+      return success(requestId, await runDispatch(env, params));
     default:
       throw new Error("invalid_operation");
   }
@@ -795,6 +800,26 @@ export const handleInternalOp = async (
   } catch {
     return fail(requestId, "INVALID_INPUT", "Invalid JSON body", 400);
   }
+  return await runFilesOp(
+    env,
+    requestId,
+    body,
+    new URL(request.url).origin,
+    ctx
+  );
+};
+
+/**
+ * Runs one op whose caller is already trusted: a verified signed request,
+ * or a workflow step in this Worker. Errors become the same envelopes.
+ */
+export const runFilesOp = async (
+  env: FilesOpsEnv,
+  requestId: string,
+  body: FilesOpRequest,
+  origin: string,
+  ctx?: Pick<ExecutionContext, "waitUntil">
+): Promise<Response> => {
   if (
     !body ||
     typeof body !== "object" ||
@@ -816,7 +841,7 @@ export const handleInternalOp = async (
     );
   }
   try {
-    return await dispatch(env, requestId, body, new URL(request.url).origin);
+    return await dispatch(env, requestId, body, origin);
   } catch (error) {
     if (error instanceof MetadataCapacityError) {
       return fail(

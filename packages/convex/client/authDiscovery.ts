@@ -94,7 +94,8 @@ export function discoverAuthServer(
   const read = async (url: string) => {
     const response = await fetchImpl(url, {
       method: "GET",
-      credentials: "omit",
+      // A plain RequestInit field; spread so Worker typings, which omit it, accept it.
+      ...({ credentials: "omit" } as RequestInit),
       redirect: "error",
       headers: { Accept: "application/json" },
       signal: controller.signal,

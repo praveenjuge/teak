@@ -506,6 +506,10 @@ export const cardValidator = v.object({
   colorHexes: v.optional(v.array(v.string())),
   colorHues: v.optional(v.array(v.string())),
   processingStatus: processingStatusValidator,
+  // Bumped whenever a card-processing run starts. A run only writes while the
+  // card is still on its revision, so a replaced run can't overwrite newer
+  // output (workflowDispatch.ts).
+  processingRev: v.optional(v.number()),
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -700,6 +704,44 @@ export default defineSchema({
     // cardSearchDocuments.
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"]),
+  // Background work handed to the Files Worker: Cloudflare Workflow starts
+  // and object deletions, sent by workflowDispatch.flush.
+  workflowDispatches: defineTable({
+    kind: v.union(
+      v.literal("cardProcessing"),
+      v.literal("export"),
+      v.literal("import"),
+      v.literal("accountDeletion"),
+      v.literal("maintenance"),
+      v.literal("deleteObjects")
+    ),
+    // Groups the runs of one subject, e.g. `card:<cardId>`.
+    key: v.string(),
+    instanceId: v.optional(v.string()),
+    params: v.optional(v.any()),
+    keys: v.optional(v.array(v.string())),
+    state: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("done"),
+      v.literal("failed")
+    ),
+    notBefore: v.number(),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+    attempts: v.optional(v.number()),
+    cardId: v.optional(v.id("cards")),
+    rev: v.optional(v.number()),
+    // Reset the card's AI fields and stages when the run is sent.
+    reset: v.optional(v.literal(true)),
+    error: v.optional(v.string()),
+  })
+    .index("by_state_and_notBefore", ["state", "notBefore"])
+    .index("by_state_and_sentAt", ["state", "sentAt"])
+    .index("by_state_and_finishedAt", ["state", "finishedAt"])
+    .index("by_key_and_createdAt", ["key", "createdAt"])
+    .index("by_instanceId", ["instanceId"]),
   vaultSetups: defineTable({
     userId: v.string(),
     startedAt: v.number(),

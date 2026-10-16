@@ -72,9 +72,32 @@ export const reportUnhandledError = (
   env: TelemetryEnvVars,
   ctx: WaitUntil,
   error: unknown,
-  request: Request
+  request?: Request
+): Promise<void> =>
+  sendException(
+    env,
+    ctx,
+    error,
+    request
+      ? {
+          "http.method": request.method.toUpperCase(),
+          "http.path": bounded(new URL(request.url).pathname),
+        }
+      : {}
+  );
+
+/** Reports an error from background work (a workflow step, queue or cron). */
+export const reportBackgroundError = (
+  env: TelemetryEnvVars,
+  ctx: WaitUntil | undefined,
+  error: unknown,
+  context: { task: string; [key: string]: string | number | boolean }
 ): Promise<void> =>
   sendException(env, ctx, error, {
-    "http.method": request.method.toUpperCase(),
-    "http.path": bounded(new URL(request.url).pathname),
+    ...Object.fromEntries(
+      Object.entries(context).map(([key, value]) => [
+        key,
+        typeof value === "string" ? bounded(value) : value,
+      ])
+    ),
   });

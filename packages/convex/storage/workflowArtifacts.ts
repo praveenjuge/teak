@@ -121,7 +121,7 @@ export const readWorkflowArtifact = async (
     throw new Error(`workflow_artifact_read_failed:${response.status}`);
   }
   const bytes = await readBodyWithLimit(response, WORKFLOW_ARTIFACT_MAX_BYTES);
-  const json = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const json = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
   if (
     bytes.byteLength !== ref.byteLength ||
     (await hashRawMetadata(json)) !== ref.digest

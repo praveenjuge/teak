@@ -7,6 +7,13 @@ import {
 export { ObjectDeletionGate } from "./deletionGate";
 export { MediaRenderer } from "./mediaRenderer";
 export { LinkFetcher } from "./remoteAsset";
+export {
+  AccountDeletionWorkflow,
+  CardProcessingWorkflow,
+  ExportWorkflow,
+  ImportWorkflow,
+  MaintenanceWorkflow,
+} from "./workflows/entrypoints";
 
 import {
   buildMultipartPartSigningPayload,
@@ -18,6 +25,7 @@ import {
   type FilesErrorCode,
 } from "@teak/files-protocol";
 import { handleApiProxyRequest } from "./apiProxy";
+import { handleScheduled } from "./cron";
 import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
@@ -25,12 +33,14 @@ import {
   verifyHmacPayload,
   verifySignedFileRequest,
 } from "./lib";
-import { type FilesOpsEnv, handleInternalOp } from "./ops";
+import { handleInternalOp } from "./ops";
+import { handleQueueBatch } from "./queues";
 import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
+import type { BackgroundEnv } from "./workflows/runtime";
 
-export type Env = FilesOpsEnv & EdgeRateLimitEnv;
+export type Env = BackgroundEnv & EdgeRateLimitEnv;
 
 const decodeObjectKey = (pathname: string): string => {
   try {
@@ -537,6 +547,22 @@ export default {
       return await handler.fetch(request, env, ctx);
     } catch (error) {
       await reportUnhandledError(env, ctx, error, request);
+      throw error;
+    }
+  },
+  async queue(batch, env, ctx): Promise<void> {
+    try {
+      await handleQueueBatch(batch, env, ctx);
+    } catch (error) {
+      await reportUnhandledError(env, ctx, error);
+      throw error;
+    }
+  },
+  async scheduled(controller, env, ctx): Promise<void> {
+    try {
+      await handleScheduled(controller, env, ctx);
+    } catch (error) {
+      await reportUnhandledError(env, ctx, error);
       throw error;
     }
   },

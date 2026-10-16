@@ -291,7 +291,7 @@ export const readDocumentText = async (key: string): Promise<string> => {
   if (!response.ok) {
     throw new Error(`document_text_read_failed:${response.status}`);
   }
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(
+  const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(
     await readBodyWithLimit(response, MAX_TEXT_BYTES)
   );
   if ((await sha256Hex(text)) !== digest) {
