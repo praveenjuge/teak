@@ -14,6 +14,7 @@ import {
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
+  PALETTE_MIXED_SMART_FOLDERS,
   SEARCH_QUALIFIER_HOSTS,
   SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
   SEARCH_QUALIFIERS_VOLUME_SIZE,
@@ -668,6 +669,31 @@ describe("devSeed folder packs", () => {
       "192.168.1.20": 1,
       "example.com": 3,
     });
+  });
+
+  test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "palette-mixed")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+      folders: 60,
+    });
+    expect(await seedFolders(t, "palette-mixed")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const folders = await foldersOf(t);
+    expect(folders.filter((folder) => folder.kind === "smart")).toHaveLength(
+      PALETTE_MIXED_SMART_FOLDERS.length - 1
+    );
+    expect(folders.filter((folder) => folder.kind === "manual")).toHaveLength(
+      50
+    );
+    expect(
+      folders.find((folder) => folder.nameKey === "smart ideas")?.name
+    ).toBe("Smart IDEAS");
   });
 
   test("smart-folders seeds smart folders with canonical searches once", async () => {

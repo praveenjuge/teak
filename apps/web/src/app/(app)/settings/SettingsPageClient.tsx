@@ -7,8 +7,14 @@ import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
-import { SettingsContent, SubscriptionDialog } from "@teak/ui/settings";
+import { parseSettingsDialogParam } from "@teak/ui/lib/commandPalette";
+import {
+  type ImportExportOpenRequest,
+  SettingsContent,
+  SubscriptionDialog,
+} from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
@@ -20,6 +26,23 @@ export function SettingsPageClient() {
   const checkoutOpenedRef = useRef(false);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
+  const router = useRouter();
+  const dialogParam = useSearchParams().get("dialog");
+  const [importExportRequest, setImportExportRequest] =
+    useState<ImportExportOpenRequest | null>(null);
+
+  // `?dialog=import|export` (from the command palette) opens that tab once,
+  // then leaves the URL so closing the dialog or Back doesn't reopen it.
+  useEffect(() => {
+    if (dialogParam === null) {
+      return;
+    }
+    const tab = parseSettingsDialogParam(dialogParam);
+    if (tab) {
+      setImportExportRequest({ id: Date.now(), tab });
+    }
+    router.replace("/settings", { scroll: false });
+  }, [dialogParam, router]);
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
@@ -106,6 +129,7 @@ export function SettingsPageClient() {
       email={settings.email}
       exportState={settings.exportState}
       hasPremium={settings.hasPremium}
+      importExportRequest={importExportRequest}
       keys={settings.keys}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}

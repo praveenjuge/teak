@@ -1,0 +1,450 @@
+"use client";
+
+import { api } from "@teak/convex";
+import { defaultFilter } from "cmdk";
+import { useQueries } from "convex-helpers/react/cache/hooks";
+import {
+  Download,
+  FileText,
+  FolderSearch,
+  Hash,
+  Import,
+  Keyboard,
+  LogOut,
+  type LucideIcon,
+  Search,
+  Settings,
+  Shuffle,
+  SunMoon,
+  Upload,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController";
+import { useFolders } from "../../hooks/useFolders";
+import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import {
+  COMMAND_PALETTE_ACTIONS,
+  type CommandPaletteActionId,
+  PALETTE_CARD_LIMIT,
+  PALETTE_MIN_CARD_QUERY_LENGTH,
+  type PaletteCard,
+  paletteCardHost,
+  paletteCardSearchArgs,
+  paletteCardTitle,
+} from "../../lib/commandPalette";
+import {
+  FOLDER_ICON_CLASSES,
+  type FolderSummary,
+  folderPath,
+} from "../../lib/folders";
+import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
+import {
+  LIBRARY_VIEW_LABELS,
+  LIBRARY_VIEW_PATHS,
+  LIBRARY_VIEWS,
+} from "../../lib/libraryViews";
+import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
+import { FolderDot } from "../folders/FolderDot";
+import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
+import { LIBRARY_VIEW_ICONS } from "../sidebar/AppSidebar";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
+import { Skeleton } from "../ui/skeleton";
+
+/** What choosing a row does; the app decides how. */
+export type CommandPaletteCommand =
+  | { kind: "navigate"; href: string }
+  | { kind: "card"; cardId: string }
+  | { kind: "search"; query: string }
+  | { kind: "action"; id: CommandPaletteActionId };
+
+export type PaletteCardsState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; cards: PaletteCard[] };
+
+const ACTION_ICONS: Record<CommandPaletteActionId, LucideIcon> = {
+  "new-note": FileText,
+  upload: Upload,
+  import: Import,
+  export: Download,
+  "toggle-theme": SunMoon,
+  shuffle: Shuffle,
+  shortcuts: Keyboard,
+  "sign-out": LogOut,
+};
+
+// Cards come from the server search, so they always match; a perfect local
+// match (a folder's exact name) still comes before them.
+const CARD_SCORE = 0.5;
+const SEARCH_ALL_SCORE = 0.01;
+
+/** Matches local rows by their label and keywords, never by their id. */
+export function filterPaletteItem(
+  value: string,
+  search: string,
+  keywords?: string[]
+): number {
+  if (value.startsWith("card:")) {
+    return CARD_SCORE;
+  }
+  if (value === "search-all") {
+    return SEARCH_ALL_SCORE;
+  }
+  if (!keywords?.length) {
+    return 0;
+  }
+  const [label = "", ...rest] = keywords;
+  return defaultFilter(label, search, rest);
+}
+
+interface CommandPaletteResultsProps {
+  cards: PaletteCardsState;
+  folders: readonly FolderSummary[] | undefined;
+  onSelect: (command: CommandPaletteCommand) => void;
+  query: string;
+}
+
+/** The palette's rows: Navigate, Cards and Actions. */
+export function CommandPaletteResults({
+  cards,
+  folders,
+  onSelect,
+  query,
+}: CommandPaletteResultsProps) {
+  const trimmed = query.trim();
+  return (
+    <>
+      {/* cmdk doesn't count the server's card rows, so "No results" waits
+          until the cards are known to be none. */}
+      {(cards.status === "idle" ||
+        (cards.status === "ready" && cards.cards.length === 0)) && (
+        <CommandEmpty className="py-4 text-center text-[13px] text-muted-foreground">
+          No results
+        </CommandEmpty>
+      )}
+      <CommandGroup heading="Navigate">
+        {LIBRARY_VIEWS.map((view) => {
+          const Icon = LIBRARY_VIEW_ICONS[view];
+          return (
+            <CommandItem
+              key={view}
+              keywords={[LIBRARY_VIEW_LABELS[view], "go to", "view"]}
+              onSelect={() =>
+                onSelect({ kind: "navigate", href: LIBRARY_VIEW_PATHS[view] })
+              }
+              value={`view:${view}`}
+            >
+              <Icon />
+              <span className="truncate">{LIBRARY_VIEW_LABELS[view]}</span>
+              <span aria-hidden="true" className="ml-auto">
+                <ShortcutHint
+                  row={{
+                    keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
+                    label: LIBRARY_VIEW_LABELS[view],
+                    sequence: true,
+                  }}
+                />
+              </span>
+            </CommandItem>
+          );
+        })}
+        <CommandItem
+          keywords={["Tags", "labels"]}
+          onSelect={() => onSelect({ kind: "navigate", href: "/tags" })}
+          value="view:tags"
+        >
+          <Hash />
+          <span>Tags</span>
+        </CommandItem>
+        <CommandItem
+          keywords={["Settings", "account", "preferences", "billing"]}
+          onSelect={() => onSelect({ kind: "navigate", href: "/settings" })}
+          value="view:settings"
+        >
+          <Settings />
+          <span>Settings</span>
+        </CommandItem>
+      </CommandGroup>
+      {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH &&
+        !(cards.status === "ready" && cards.cards.length === 0) && (
+          <CommandGroup forceMount heading="Cards">
+            <PaletteCardRows
+              cards={cards}
+              onSelect={onSelect}
+              query={trimmed}
+            />
+          </CommandGroup>
+        )}
+      <CommandGroup heading="Actions">
+        {COMMAND_PALETTE_ACTIONS.map((action) => {
+          const Icon = ACTION_ICONS[action.id];
+          return (
+            <CommandItem
+              key={action.id}
+              keywords={[action.label, ...action.keywords]}
+              onSelect={() => onSelect({ kind: "action", id: action.id })}
+              value={`action:${action.id}`}
+            >
+              <Icon />
+              <span className="truncate">{action.label}</span>
+              {action.keys && (
+                <span aria-hidden="true" className="ml-auto">
+                  <ShortcutHint
+                    row={{ keys: action.keys, label: action.label }}
+                  />
+                </span>
+              )}
+            </CommandItem>
+          );
+        })}
+      </CommandGroup>
+      {/* Last, so up to 500 folders never push the actions out of reach. */}
+      {folders && folders.length > 0 && (
+        <CommandGroup heading="Folders">
+          {folders.map((folder) => (
+            <CommandItem
+              key={folder._id}
+              keywords={[
+                folder.name,
+                folder.kind === "smart" ? "smart folder" : "folder",
+              ]}
+              onSelect={() =>
+                onSelect({ kind: "navigate", href: folderPath(folder._id) })
+              }
+              title={folder.name}
+              value={`folder:${folder._id}`}
+            >
+              {folder.kind === "smart" ? (
+                <FolderSearch
+                  aria-label="Smart folder"
+                  className={
+                    folder.color ? FOLDER_ICON_CLASSES[folder.color] : undefined
+                  }
+                />
+              ) : (
+                <span className="flex size-4 shrink-0 items-center justify-center">
+                  <FolderDot className="size-[7px]" color={folder.color} />
+                </span>
+              )}
+              <span className="min-w-0 truncate" dir="auto">
+                {folder.name}
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      )}
+    </>
+  );
+}
+
+function PaletteCardRows({
+  cards,
+  onSelect,
+  query,
+}: {
+  cards: PaletteCardsState;
+  onSelect: (command: CommandPaletteCommand) => void;
+  query: string;
+}) {
+  if (cards.status === "loading" || cards.status === "idle") {
+    return (
+      <div
+        aria-label="Searching cards"
+        className="space-y-1 px-2 py-1"
+        role="status"
+      >
+        {[0, 1, 2].map((row) => (
+          <div className="flex h-7 items-center gap-2" key={row}>
+            <Skeleton className="size-4 rounded-sm" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (cards.status === "error") {
+    return (
+      <p className="px-2 py-1 text-[13px] text-muted-foreground" role="status">
+        Couldn’t search cards
+      </p>
+    );
+  }
+  return (
+    <>
+      {cards.cards.map((card) => {
+        const Icon = getCardTypeIconComponent(card.type);
+        const title = paletteCardTitle(card);
+        const host = paletteCardHost(card);
+        return (
+          <CommandItem
+            forceMount
+            key={card._id}
+            onSelect={() => onSelect({ kind: "card", cardId: card._id })}
+            title={title}
+            value={`card:${card._id}`}
+          >
+            <Icon />
+            <span className="min-w-0 flex-1 truncate" dir="auto">
+              {title}
+            </span>
+            {host && (
+              <span className="max-w-[40%] shrink-0 truncate text-muted-foreground text-xs">
+                {host}
+              </span>
+            )}
+          </CommandItem>
+        );
+      })}
+      <CommandItem
+        forceMount
+        onSelect={() => onSelect({ kind: "search", query })}
+        value="search-all"
+      >
+        <Search />
+        <span className="min-w-0 truncate" dir="auto">
+          Search all for “{query}”
+        </span>
+      </CommandItem>
+    </>
+  );
+}
+
+/** The card search behind the palette's Cards rows, debounced. */
+function usePaletteCards(query: string, pathname: string | null) {
+  const { isOnline } = useNetworkStatus();
+  const trimmed = query.trim();
+  const [debounced, setDebounced] = useState(trimmed);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebounced(trimmed),
+      REMOTE_SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [trimmed]);
+  const active = debounced.length >= PALETTE_MIN_CARD_QUERY_LENGTH;
+  const queries = useMemo(() => {
+    const map: Parameters<typeof useQueries>[0] = {};
+    if (active) {
+      map.cards = {
+        query: api.cards.searchCardsPaginated,
+        args: {
+          ...paletteCardSearchArgs(debounced, pathname),
+          paginationOpts: { cursor: null, numItems: PALETTE_CARD_LIMIT },
+        },
+      };
+    }
+    return map;
+  }, [active, debounced, pathname]);
+  const result = useQueries(queries).cards as
+    | { page: PaletteCard[] }
+    | Error
+    | undefined;
+
+  if (trimmed.length < PALETTE_MIN_CARD_QUERY_LENGTH) {
+    return { status: "idle" } as const;
+  }
+  if (!isOnline || result instanceof Error) {
+    return { status: "error" } as const;
+  }
+  // Until the typed query has been searched, older results would be stale.
+  if (debounced !== trimmed || result === undefined) {
+    return { status: "loading" } as const;
+  }
+  return {
+    status: "ready",
+    cards: result.page.slice(0, PALETTE_CARD_LIMIT),
+  } as const;
+}
+
+interface CommandPaletteProps {
+  /** Called as the palette closes; preventing it keeps focus where it is. */
+  onCloseAutoFocus?: (event: Event) => void;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (command: CommandPaletteCommand) => void;
+  open: boolean;
+  pathname: string | null;
+}
+
+/** ⌘K: jump to a view, folder or card, or run an action. */
+export function CommandPalette({
+  onCloseAutoFocus,
+  onOpenChange,
+  onSelect,
+  open,
+  pathname,
+}: CommandPaletteProps) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const folders = useFolders();
+  const cards = usePaletteCards(open ? query : "", pathname);
+  const cardsKey =
+    cards.status === "ready"
+      ? cards.cards.map((card) => card._id).join(",")
+      : cards.status;
+
+  // Each opening starts empty.
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setSelected("");
+    }
+  }, [open]);
+
+  // Card rows arrive after the typed search has moved the selection, and
+  // may sort above it: select the first row then, so the highlighted row is
+  // the top one and Enter picks what is shown first.
+  useEffect(() => {
+    if (!cardsKey) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const first = listRef.current?.querySelector<HTMLElement>(
+        "[cmdk-item]:not([aria-disabled='true'])"
+      );
+      setSelected(first?.dataset.value ?? "");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [cardsKey]);
+
+  return (
+    <CommandDialog
+      className="top-[20vh] w-[calc(100%-1rem)] max-w-[520px] translate-y-0 rounded-xl duration-150 sm:max-w-[520px]"
+      commandProps={{
+        filter: filterPaletteItem,
+        loop: true,
+        onValueChange: setSelected,
+        value: selected,
+        vimBindings: false,
+      }}
+      description="Go to a view or folder, find a card, or run an action"
+      onCloseAutoFocus={onCloseAutoFocus}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="Command palette"
+    >
+      <CommandInput
+        aria-label="Search commands, folders and cards"
+        onValueChange={setQuery}
+        placeholder="Type a command or search…"
+        value={query}
+      />
+      <CommandList className="max-h-[min(50vh,360px)] pb-1" ref={listRef}>
+        <CommandPaletteResults
+          cards={cards}
+          folders={folders}
+          onSelect={onSelect}
+          query={query}
+        />
+      </CommandList>
+    </CommandDialog>
+  );
+}

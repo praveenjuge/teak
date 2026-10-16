@@ -9,7 +9,10 @@ import type { ApiKeyListItem } from "./ApiKeysDialog";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
-import { ImportExportSection } from "./ImportExportSection";
+import {
+  type ImportExportOpenRequest,
+  ImportExportSection,
+} from "./ImportExportSection";
 import {
   type ConnectionIdentity,
   type ConnectionTarget,
@@ -34,6 +37,8 @@ interface SettingsContentProps {
   exportLoading?: boolean;
   exportState?: ExportState | null;
   hasPremium?: boolean;
+  /** Opens Import/Export on a tab, as `/settings?dialog=` asks. */
+  importExportRequest?: ImportExportOpenRequest | null;
   keys: ApiKeyListItem[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
@@ -70,6 +75,7 @@ export function SettingsContent({
   exportLoading,
   hasPremium,
   accountLoading,
+  importExportRequest,
   keys,
   connectionIdentity,
   sessions,
@@ -172,6 +178,7 @@ export function SettingsContent({
         onCancelExport={onCancelExport}
         onDownloadExport={onDownloadExport}
         onStartExport={onStartExport}
+        openRequest={importExportRequest}
       />
 
       <SettingRow title="Theme">

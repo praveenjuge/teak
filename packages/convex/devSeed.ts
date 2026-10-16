@@ -522,6 +522,7 @@ export const FOLDER_SCENARIOS = [
   "search-qualifiers",
   "smart-folders",
   "export-ugly",
+  "palette-mixed",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -962,6 +963,66 @@ const exportUglyPack = (): FolderScenarioPack => {
   };
 };
 
+export const PALETTE_MIXED_SMART_FOLDERS = [
+  { name: "🔍 Palette marker cards", query: "tag:scenario-palette-mixed" },
+  { name: "بحث ذكي", query: "palette marker" },
+  { name: "スマートフォルダ", query: "type:link" },
+  { name: "Smart IDEAS", query: "#ideas" },
+  { name: longName("Smart"), query: "saved" },
+  { name: "🧭".repeat(MAX_FOLDER_NAME_LENGTH), query: "is:fav" },
+  { name: "Nothing matches", query: "zzqx-no-such-card" },
+  { name: "Ordering links", query: "tag:scenario-ordering type:link" },
+  { name: "רשימה חכמה", query: "note" },
+  { name: "Palette sky", query: "sky" },
+  // Differs from "Smart IDEAS" only by case, so it is the same folder.
+  { name: "smart ideas", query: "ideas" },
+];
+
+/**
+ * Folders for the command palette: awkward names (emoji, RTL, CJK, 300
+ * characters, ones that differ only by case and so share a folder) and
+ * smart folders. Seed `ordering` too for 1,000 cards that one query
+ * ("saved") all match while another ("zzqx") matches none.
+ */
+const paletteMixedPack = (): FolderScenarioPack => {
+  const scenario = "palette-mixed" as const;
+  const manual = [
+    ...UGLY_FOLDER_NAMES,
+    ...Array.from(
+      // Three of the awkward names differ only by case and share a folder.
+      { length: 50 - (UGLY_FOLDER_NAMES.length - 2) },
+      (_, index) => `Palette folder ${String(index + 1).padStart(2, "0")}`
+    ),
+  ];
+  return {
+    folders: [
+      ...manual.map((name, index) => ({
+        name,
+        color: FOLDER_COLOR_CYCLE[index % FOLDER_COLOR_CYCLE.length],
+      })),
+      ...PALETTE_MIXED_SMART_FOLDERS,
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Palette marker link", [0]),
+      ...[
+        "Palette marker note",
+        "Palette marker 🎨 emoji",
+        "ملاحظة علامة اللوحة",
+        "パレットのマーカー",
+        `Palette marker ${longName("long")}`,
+      ].map((label, index) =>
+        folderScenarioCard(scenario, index + 1, label, [index + 1])
+      ),
+      folderScenarioCard(scenario, 6, "Palette marker archived", [], {
+        isArchived: true,
+      }),
+      folderScenarioCard(scenario, 7, "Palette marker in Trash", [], {
+        isDeleted: true,
+      }),
+    ],
+  };
+};
+
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
@@ -1256,6 +1317,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Titles and folder names an export must write safely (quotes, commas, newlines, markup, formulas, emoji, RTL, CJK), a link in 50 folders, archived and favorite cards, with and without AI fields.",
     folders: exportUglyPack,
+  },
+  "palette-mixed": {
+    description:
+      "50 folders and 10 smart folders with emoji, RTL, CJK, 300-character and case-only-different names, and marker cards (one archived, one in Trash) for the command palette; seed ordering too for 1,000 cards.",
+    folders: paletteMixedPack,
   },
   "keyboard-mixed": {
     description:
