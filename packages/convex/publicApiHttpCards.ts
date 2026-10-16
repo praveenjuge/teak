@@ -32,10 +32,13 @@ import {
   serializeListCard,
   validateFavoritePayload,
   validatePatchPayload,
+  validateThumbnailSetPayload,
+  validateThumbnailUploadPayload,
   validateUploadPayload,
 } from "./publicApiHttpValidation";
 import { fetchSemanticRanking } from "./search/semanticActions";
 import { combineSearchQueries } from "./shared/search/qualifiers";
+import { captureBackendEvent } from "./telemetry/posthog";
 
 const MAX_SHUFFLE_READS = 4;
 
@@ -252,15 +255,40 @@ const handleCardsListRequest = async (
       });
     }
     // The meaning side first: queries cannot call the vector service. Down,
-    // slow or rate-limited, the search is keyword-only and says so.
+    // slow or rate-limited, a search is keyword-only and says so; a
+    // `like:` or `mood:` search has no keyword side, so it says why it is
+    // empty instead.
+    const { similarity } = options;
     const semantic =
-      options.searchQuery && options.mode !== "keyword"
+      similarity || (options.searchQuery && options.mode !== "keyword")
         ? await fetchSemanticRanking(
             ctx,
             auth.validated.userId,
-            options.semanticText
+            options.semantic
           )
         : null;
+    if (similarity && semantic?.outcome === "rate_limited") {
+      return errorResponse(
+        429,
+        "RATE_LIMITED",
+        "Too many searches. Try again in a minute."
+      );
+    }
+    if (similarity && semantic?.outcome === "unavailable") {
+      return errorResponse(
+        503,
+        "SERVICE_UNAVAILABLE",
+        "Similar search is unavailable right now. Try again later."
+      );
+    }
+    if (similarity && !semantic?.ranking) {
+      return json(200, {
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+        searchMode: "semantic",
+        similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
+      });
+    }
     const semanticRanking = semantic?.ranking ?? undefined;
     const queryArgs = {
       archived: options.archived,
@@ -279,6 +307,7 @@ const handleCardsListRequest = async (
       userId: auth.validated.userId,
       ...options.qualifiers,
       ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
+      ...(similarity ? { similarity } : {}),
     };
     let cardsPage: {
       items: any[];
@@ -314,7 +343,7 @@ const handleCardsListRequest = async (
         items,
         pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
       };
-    } else if (options.searchQuery || options.tag) {
+    } else if (options.searchQuery || options.tag || similarity) {
       cardsPage = await ctx.runQuery(
         (internal as any).publicApi.searchCardsPageForUser,
         {
@@ -397,7 +426,8 @@ const handleCardsListRequest = async (
         serializeListCard(card, request.url, include)
       ),
       pageInfo: cardsPage.pageInfo,
-      ...(options.searchQuery
+      ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
+      ...(options.hasQuery && !similarity
         ? { searchMode: semanticRanking ? options.mode : "keyword" }
         : {}),
     });
@@ -469,6 +499,104 @@ const cardContentResponse = async (
   });
 };
 
+/** A thumbnail error: FILE_TOO_LARGE is 413 here, the rest as usual. */
+const thumbnailErrorResponse = (error: unknown, fallbackMessage: string) => {
+  const data =
+    error instanceof ConvexError
+      ? (error.data as { code?: unknown; message?: unknown } | undefined)
+      : undefined;
+  if (data?.code === "FILE_TOO_LARGE") {
+    return errorResponse(413, "FILE_TOO_LARGE", String(data.message));
+  }
+  return mapConvexErrorToResponse(error, fallbackMessage);
+};
+
+/**
+ * POST /v1/cards/:id/thumbnail/upload, PUT and DELETE /v1/cards/:id/thumbnail:
+ * replace a link card's image with an uploaded one, or go back to its own.
+ */
+const handleThumbnailRequest = async (
+  ctx: ActionCtx,
+  request: Request,
+  {
+    cardId,
+    operation,
+    userId,
+  }: {
+    cardId: Id<"cards">;
+    operation: "thumbnail-reset" | "thumbnail-set" | "thumbnail-upload";
+    userId: string;
+  }
+): Promise<Response> => {
+  const respondWithCard = async () => {
+    const card = await ensureCardExistsForUser(ctx, userId, cardId, true);
+    return card
+      ? json(200, serializeCard(card, request.url))
+      : errorResponse(404, "NOT_FOUND", "Card not found");
+  };
+
+  if (operation === "thumbnail-reset") {
+    try {
+      const result = await ctx.runMutation(
+        internal.card.thumbnailOverride.resetLinkThumbnailForUser,
+        { cardId, userId }
+      );
+      if (result.changeId) {
+        await captureBackendEvent("card_thumbnail_reset", userId, {});
+      }
+      return await respondWithCard();
+    } catch (error) {
+      return thumbnailErrorResponse(error, "Failed to reset the image");
+    }
+  }
+
+  let payload: unknown;
+  try {
+    payload = await parseJsonBody(request);
+  } catch {
+    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
+  }
+
+  if (operation === "thumbnail-upload") {
+    const upload = validateThumbnailUploadPayload(payload);
+    if (!upload) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Body must include only mimeType and fileSize"
+      );
+    }
+    try {
+      return json(
+        200,
+        await ctx.runMutation(
+          internal.card.thumbnailOverride.createThumbnailUploadUrlForUser,
+          { ...upload, cardId, userId }
+        )
+      );
+    } catch (error) {
+      return thumbnailErrorResponse(error, "Failed to prepare the upload");
+    }
+  }
+
+  const thumbnail = validateThumbnailSetPayload(payload);
+  if (!thumbnail) {
+    return errorResponse(400, "INVALID_INPUT", "Body must include fileKey");
+  }
+  try {
+    await ctx.runAction(
+      internal.card.thumbnailOverride.setLinkThumbnailForUser,
+      { cardId, fileKey: thumbnail.fileKey, userId }
+    );
+    await captureBackendEvent("card_thumbnail_replaced", userId, {
+      source: "api",
+    });
+    return await respondWithCard();
+  } catch (error) {
+    return thumbnailErrorResponse(error, "Failed to replace the image");
+  }
+};
+
 const handleCardsByIdV1Request = async (
   ctx: ActionCtx,
   request: Request,
@@ -507,6 +635,8 @@ const handleCardsByIdV1Request = async (
     normalizedCardId,
     route.operation === "restore" ||
       route.operation === "refresh" ||
+      // A card in Trash answers 409, not 404.
+      route.operation.startsWith("thumbnail-") ||
       (route.operation === "delete" && permanent === "true")
   );
   if (!currentCard) {
@@ -515,6 +645,18 @@ const handleCardsByIdV1Request = async (
 
   if (route.operation === "get") {
     return json(200, serializeCard(currentCard, request.url));
+  }
+
+  if (
+    route.operation === "thumbnail-upload" ||
+    route.operation === "thumbnail-set" ||
+    route.operation === "thumbnail-reset"
+  ) {
+    return await handleThumbnailRequest(ctx, request, {
+      cardId: normalizedCardId as Id<"cards">,
+      operation: route.operation,
+      userId: auth.validated.userId,
+    });
   }
 
   if (route.operation === "content") {

@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   combineSearchQueries,
+  describePriceBound,
   formatSearchQualifier,
+  matchesPriceBounds,
   matchesSearchPhrases,
   parseSearchQuery,
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
+import { semanticQueryText } from "../../../shared/search/semantic";
 
 describe("parseSearchQuery", () => {
   test("reads every qualifier, phrases and words", () => {
@@ -127,6 +130,57 @@ describe("parseSearchQuery", () => {
     ).toBe('is:fav site:例え.jp tag:design "a b" notes');
   });
 
+  test.each([
+    // [input, prices, canonical]
+    ["price:<100", [{ op: "<", amount: 100 }], "price:<100"],
+    ["PRICE:>20", [{ op: ">", amount: 20 }], "price:>20"],
+    ["price:<=9.99", [{ op: "<=", amount: 9.99 }], "price:<=9.99"],
+    ["price:>=010.50", [{ op: ">=", amount: 10.5 }], "price:>=10.5"],
+    ["price:=0", [{ op: "=", amount: 0 }], "price:=0"],
+    ['price:"<50"', [{ op: "<", amount: 50 }], "price:<50"],
+    ["price:<50,", [{ op: "<", amount: 50 }], "price:<50"],
+    [
+      "price:>20 price:<100 price:>20",
+      [
+        { op: ">", amount: 20 },
+        { op: "<", amount: 100 },
+      ],
+      "price:>20 price:<100",
+    ],
+  ])(
+    "reads %p as price bounds",
+    (input: string, prices: unknown, canonical: string) => {
+      const parsed = parseSearchQuery(input);
+      expect(parsed.prices).toEqual(prices as typeof parsed.prices);
+      expect(parsed.terms).toEqual([]);
+      expect(parsed.canonical).toBe(canonical);
+      expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
+    }
+  );
+
+  test.each([
+    "price:abc",
+    "price:<",
+    "price:<1e9",
+    "price:<-5",
+    "price:100",
+    "price:<$50",
+    "price:<1,000",
+    "price:=<5",
+  ])("%p stays a plain word", (input: string) => {
+    const parsed = parseSearchQuery(input);
+    expect(parsed.prices).toEqual([]);
+    expect(parsed.qualifiers).toEqual([]);
+    expect(parsed.terms).toEqual([input]);
+  });
+
+  test("a price bound is a filter, not words to search by meaning", () => {
+    const parsed = parseSearchQuery("desk lamp price:<50");
+    expect(parsed.text).toBe("desk lamp");
+    expect(semanticQueryText(parsed)).toBe("desk lamp");
+    expect(semanticQueryText(parseSearchQuery("price:<50"))).toBe("");
+  });
+
   test("an empty search parses to nothing", () => {
     expect(parseSearchQuery("   ")).toMatchObject({
       qualifiers: [],
@@ -165,6 +219,11 @@ describe("combineSearchQueries", () => {
     ["site:a.com site:b.com", "site:B.com", "site:b.com"],
     ["type:link", "site:a.com", "type:link site:a.com"],
     ["tag:x tag:x", "#X", "tag:x"],
+    // Price bounds add up, so a smart folder's bound and a typed one make
+    // a range.
+    ["price:<100", "price:>20", "price:<100 price:>20"],
+    ["price:<100", "price:<100 lamp", "price:<100 lamp"],
+    ["type:link price:<100", "", "price:<100 type:link"],
   ])("%j with %j", (scope: string, typed: string, combined: string) => {
     expect(combineSearchQueries(scope, typed)).toBe(combined);
   });
@@ -188,6 +247,41 @@ describe("combineSearchQueries", () => {
   });
 });
 
+describe("matchesPriceBounds", () => {
+  const bounds = parseSearchQuery("price:>20 price:<=100").prices;
+  test.each([
+    [20, false],
+    [20.01, true],
+    [100, true],
+    [100.01, false],
+    [undefined, false],
+    [null, false],
+  ])(
+    "amount %p in (20, 100]: %p",
+    (amount: number | null | undefined, expected: boolean) => {
+      expect(matchesPriceBounds(amount, bounds)).toBe(expected);
+    }
+  );
+
+  test("= matches the amount exactly, and no bounds match anything", () => {
+    const exact = parseSearchQuery("price:=0").prices;
+    expect(matchesPriceBounds(0, exact)).toBe(true);
+    expect(matchesPriceBounds(0.5, exact)).toBe(false);
+    expect(matchesPriceBounds(undefined, [])).toBe(true);
+  });
+
+  test.each([
+    ["price:<100", "Under 100"],
+    ["price:>1500", "Over 1,500"],
+    ["price:<=9.99", "9.99 or less"],
+    ["price:>=10", "10 or more"],
+    ["price:=0", "Exactly 0"],
+  ])("%p reads as %p", (query: string, label: string) => {
+    const [bound] = parseSearchQuery(query).prices;
+    expect(bound && describePriceBound(bound)).toBe(label);
+  });
+});
+
 describe("renameFolderInSearchQuery", () => {
   test("renames every folder: naming the folder, ignoring case", () => {
     expect(
@@ -205,5 +299,53 @@ describe("renameFolderInSearchQuery", () => {
   test("leaves a search that names other folders as it was", () => {
     const query = "folder:inbox  tag:x";
     expect(renameFolderInSearchQuery(query, "reading", "Later")).toBe(query);
+  });
+});
+
+describe("like: and mood:", () => {
+  const ID = "j979t50bv7gjxz2mazwwf5tes18gbvnt";
+  const OTHER = "j97a1vaafgzkxkzag6rb6wt0gs8gbq0x";
+
+  test("reads a card id and a mood, written the canonical way", () => {
+    const like = parseSearchQuery(`like:${ID} type:link`);
+    expect(like.similarity).toEqual({ kind: "like", cardId: ID });
+    expect(like.terms).toEqual([]);
+    expect(like.canonical).toBe(`like:${ID} type:link`);
+    const mood = parseSearchQuery('MOOD:"moody   brutalist" #design');
+    expect(mood.similarity).toEqual({ kind: "mood", text: "moody brutalist" });
+    expect(mood.canonical).toBe('mood:"moody brutalist" tag:design');
+  });
+
+  test("keeps a malformed id as plain text", () => {
+    const parsed = parseSearchQuery("like:not-a-card");
+    expect(parsed.similarity).toBeNull();
+    expect(parsed.terms).toEqual(["like:not-a-card"]);
+  });
+
+  test("keeps one anchor; a second one is plain text", () => {
+    const parsed = parseSearchQuery(`like:${ID} like:${OTHER}`);
+    expect(parsed.similarity).toEqual({ kind: "like", cardId: ID });
+    expect(parsed.terms).toEqual([`like:${OTHER}`]);
+    expect(parseSearchQuery(`like:${ID} mood:calm`).terms).toEqual([
+      "mood:calm",
+    ]);
+    // The same anchor twice is one anchor.
+    expect(parseSearchQuery(`like:${ID} like:${ID}`).terms).toEqual([]);
+  });
+
+  test("a smart folder and a typed search can't name two anchors", () => {
+    expect(combineSearchQueries(`like:${ID}`, `like:${OTHER}`)).toBeNull();
+    expect(combineSearchQueries(`like:${ID}`, "mood:calm")).toBeNull();
+    expect(combineSearchQueries(`like:${ID}`, "chair")).toBe(
+      `like:${ID} chair`
+    );
+    expect(combineSearchQueries("type:link", `like:${ID}`)).toBe(
+      `like:${ID} type:link`
+    );
+    // The same mood in another case is the same anchor.
+    expect(combineSearchQueries('mood:"Calm  Blue"', 'mood:"calm blue"')).toBe(
+      'mood:"Calm Blue"'
+    );
+    expect(parseSearchQuery("mood:Calm mood:calm").terms).toEqual([]);
   });
 });

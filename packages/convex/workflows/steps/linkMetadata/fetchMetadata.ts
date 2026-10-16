@@ -26,17 +26,20 @@ import {
 } from "../../../linkMetadata";
 import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
+  fetchSocialPostMetadata,
+  mapOpenGraphSocialPost,
+  type SocialPostMedia,
+  type SocialPostMetadata,
+  toSocialPostPreviewFields,
+} from "../../../linkMetadata/socialPost";
+import {
   assertUrlIsSafe,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
 } from "../../../linkMetadata/ssrf";
 import { buildSelectorResultsFromHtml } from "../../../linkMetadata/staticHtml";
-import {
-  fetchXStatusMetadata,
-  isXStatusUrl,
-  type XStatusMedia,
-} from "../../../linkMetadata/x";
+import { fetchXStatusMetadata, isXStatusUrl } from "../../../linkMetadata/x";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import {
   callFilesWorkerJson,
@@ -53,7 +56,7 @@ import {
 
 const MAX_REMOTE_HTML_BYTES = 2 * 1024 * 1024;
 
-type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
+type PersistableLinkMedia = SocialPostMedia | InstagramPostMedia;
 
 const internalFunctions = internal as Record<string, any>;
 const linkMetadataInternal = internalFunctions.linkMetadata as Record<
@@ -482,34 +485,50 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     throw error;
   }
 
+  // A post read from its site: store its media, then save it the way a
+  // scraped page is saved.
+  const saveSocialPost = async (post: SocialPostMetadata, pageUrl: string) => {
+    const storedMedia = await storeLinkPreviewMedia(
+      ctx,
+      post.media,
+      keyBase,
+      pageUrl
+    );
+    const linkPreview = buildSuccessPreview(normalizedUrl, {
+      ...toSocialPostPreviewFields(post),
+      media: storedMedia,
+    });
+
+    await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
+      cardId,
+      linkPreview,
+      status: "completed",
+    });
+
+    return {
+      status: "success" as const,
+      normalizedUrl,
+      linkPreview,
+    };
+  };
+
   try {
     if (isXStatusUrl(normalizedUrl)) {
       const xStatusMetadata = await fetchXStatusMetadata(normalizedUrl);
 
       if (xStatusMetadata) {
-        const storedMedia = await storeLinkPreviewMedia(
-          ctx,
-          xStatusMetadata.media,
-          keyBase,
-          xStatusMetadata.finalUrl
-        );
-        const linkPreview = buildSuccessPreview(normalizedUrl, {
-          ...xStatusMetadata,
-          media: storedMedia,
-        });
-
-        await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
-          cardId,
-          linkPreview,
-          status: "completed",
-        });
-
-        return {
-          status: "success" as const,
-          normalizedUrl,
-          linkPreview,
-        };
+        return await saveSocialPost(xStatusMetadata, xStatusMetadata.finalUrl);
       }
+    }
+
+    // Bluesky, Mastodon, Reddit and TikTok answer from their APIs; anything
+    // they can't (private, deleted, rate-limited) falls through to the page.
+    const socialPost = await fetchSocialPostMetadata(normalizedUrl, {
+      resolveDns: nodeDnsResolver,
+      pinnedFetch,
+    });
+    if (socialPost) {
+      return await saveSocialPost(socialPost, socialPost.finalUrl);
     }
 
     const page = await (isFilesWorkerConfigured()
@@ -558,6 +577,11 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    // Threads, LinkedIn and Substack Notes posts come from the same scrape.
+    const openGraphPost = mapOpenGraphSocialPost(normalizedUrl, parsed);
+    if (openGraphPost) {
+      return await saveSocialPost(openGraphPost, pageUrl);
+    }
     // Instagram posts embed their media in the page's relay JSON; og:image
     // stays the fallback when it is missing (a login wall).
     const html = isInstagramPostUrl(normalizedUrl) ? page.html() : null;

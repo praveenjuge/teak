@@ -78,6 +78,10 @@ describe("Convex public API metadata", () => {
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
       "PATCH"
     );
+    // PUT /v1/cards/:cardId/thumbnail
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "PUT"
+    );
     expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
       "Idempotency-Key"
     );
@@ -219,7 +223,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(31);
+    expect(operationIds).toHaveLength(34);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

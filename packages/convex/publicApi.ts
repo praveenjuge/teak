@@ -39,6 +39,10 @@ import {
   shuffleSegmentCount,
 } from "./card/shuffle";
 import {
+  isSimilarAnchorAvailable,
+  loadSimilarCards,
+} from "./card/similarSearch";
+import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
@@ -62,7 +66,12 @@ import {
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { type CardType, cardTypes } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
-import { matchesSearchPhrases } from "./shared/search/qualifiers";
+import {
+  matchesPriceBounds,
+  matchesSearchPhrases,
+  type PriceBound,
+  type SearchSimilarity,
+} from "./shared/search/qualifiers";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
@@ -145,10 +154,14 @@ interface SearchOptions {
   hueFilters?: string[];
   limit?: number;
   phrases?: string[];
+  /** `price:` bounds a card's link price must all meet. */
+  prices?: PriceBound[];
   searchQuery?: string;
   /** Meaning matches to fuse with the keyword ones, and how. */
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
+  /** `like:` or `mood:`: list only these meaning matches. */
+  similarity?: { similarity: SearchSimilarity; ranking: SemanticRanking };
   sites?: string[];
   sort?: ApiCardSort;
   styleFilters?: string[];
@@ -300,6 +313,16 @@ const matchesStructuredFilters = (
   }
 
   if (
+    options.prices?.length &&
+    !matchesPriceBounds(
+      card.metadata?.linkCategory?.price?.amount,
+      options.prices
+    )
+  ) {
+    return false;
+  }
+
+  if (
     options.phrases?.length &&
     !matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
@@ -445,6 +468,26 @@ const searchCardsByQuery = async (
   userId: TeakUserId,
   options: SearchOptions
 ): Promise<{ cards: Doc<"cards">[]; hitScanBudget: boolean }> => {
+  if (options.similarity) {
+    const { similarity, ranking } = options.similarity;
+    if (
+      similarity.kind === "like" &&
+      !(await isSimilarAnchorAvailable(ctx, userId, similarity.cardId))
+    ) {
+      return { cards: [], hitScanBudget: false };
+    }
+    const cards = await loadSimilarCards(ctx, {
+      userId,
+      similarity,
+      ranking,
+      keep: (card) => matchesStructuredFilters(card, options),
+      text: options.searchQuery ?? "",
+    });
+    return {
+      cards: sortCards(cards, normalizeSort(options.sort)),
+      hitScanBudget: false,
+    };
+  }
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
     return { cards: [], hitScanBudget: false };
@@ -793,6 +836,7 @@ const normalizeCardsQueryOptions = (args: {
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
   phrases?: string[];
+  prices?: PriceBound[];
   sites?: string[];
   tags?: string[];
   showTrashOnly?: boolean;
@@ -818,6 +862,7 @@ const normalizeCardsQueryOptions = (args: {
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
     phrases: args.phrases?.length ? args.phrases : undefined,
+    prices: args.prices?.length ? args.prices : undefined,
     sites: args.sites?.length ? args.sites : undefined,
     tags: tags.length ? tags : undefined,
     showTrashOnly: args.showTrashOnly,
@@ -852,17 +897,45 @@ const normalizeCardsQueryOptions = (args: {
  * cannot call the vector service), and the search mode. Without a ranking a
  * search is keyword-only, whatever the mode.
  */
+/** A `price:` bound from `q` (shared/search/qualifiers.ts). */
+const priceBoundValidator = v.object({
+  op: v.union(
+    v.literal("<"),
+    v.literal(">"),
+    v.literal("<="),
+    v.literal(">="),
+    v.literal("=")
+  ),
+  amount: v.number(),
+});
+
 const semanticSearchArgs = {
   semanticRanking: v.optional(semanticRankingValidator),
   mode: v.optional(searchModeValidator),
+  /** With `semanticRanking`, a `like:` or `mood:` search: list only those. */
+  similarity: v.optional(
+    v.union(
+      v.object({ kind: v.literal("like"), cardId: v.string() }),
+      v.object({ kind: v.literal("mood"), text: v.string() })
+    )
+  ),
 };
 
 const semanticOption = (args: {
   semanticRanking?: SemanticRanking;
   mode?: SearchMode;
+  similarity?: SearchSimilarity;
 }): SearchOptions["semantic"] =>
-  args.semanticRanking && args.mode !== "keyword"
+  args.semanticRanking && args.mode !== "keyword" && !args.similarity
     ? { mode: args.mode ?? "hybrid", ranking: args.semanticRanking }
+    : undefined;
+
+const similarityOption = (args: {
+  semanticRanking?: SemanticRanking;
+  similarity?: SearchSimilarity;
+}): SearchOptions["similarity"] =>
+  args.similarity
+    ? { similarity: args.similarity, ranking: args.semanticRanking ?? [] }
     : undefined;
 
 export const searchCardsPageForUser = internalQuery({
@@ -882,6 +955,7 @@ export const searchCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -905,6 +979,7 @@ export const searchCardsPageForUser = internalQuery({
     const options = {
       ...normalizeCardsQueryOptions({ ...args, folderIds }),
       semantic: semanticOption(args),
+      similarity: similarityOption(args),
     };
     const limit = normalizeLimit(options.limit);
     const sort = normalizeSort(options.sort);
@@ -917,7 +992,7 @@ export const searchCardsPageForUser = internalQuery({
     let pageItems: Doc<"cards">[];
     let hasMore: boolean;
 
-    if (options.searchQuery) {
+    if (options.searchQuery || options.similarity) {
       const result = await searchCardsByQuery(ctx, userId, options);
       let remaining = result.cards;
       if (decodedCursor.mode === "offset") {
@@ -1059,6 +1134,7 @@ export const shuffleCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -1090,6 +1166,7 @@ export const shuffleCardsPageForUser = internalQuery({
     const options = {
       ...normalizeCardsQueryOptions({ ...args, folderIds, sort: "newest" }),
       semantic: semanticOption(args),
+      similarity: similarityOption(args),
     };
     const limit = normalizeLimit(options.limit);
     const cursor = decodeShuffleCursor(seed, args.cursor);
@@ -1166,7 +1243,7 @@ export const shuffleCardsPageForUser = internalQuery({
     };
     const types = options.type ? [options.type] : options.types;
 
-    if (options.searchQuery) {
+    if (options.searchQuery || options.similarity) {
       return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
     }
     const tag = normalizeTag(options.tag);
@@ -1253,6 +1330,7 @@ export const scanCardsPageForUser = internalQuery({
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
   },

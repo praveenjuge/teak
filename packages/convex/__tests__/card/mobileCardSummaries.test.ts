@@ -94,3 +94,35 @@ describe("mobile card summaries", () => {
     expect(summary.title).toBe("example.com");
   });
 });
+
+describe("a link with a chosen image", () => {
+  test("takes its aspect ratio from the chosen image", () => {
+    const summary = toMobileCardSummary({
+      _creationTime: 1,
+      _id: testId("cards", "card-3"),
+      content: "",
+      createdAt: 1,
+      hasThumbnailOverride: true,
+      linkPreviewImageUrl: "https://files.example.com/chosen.jpg",
+      metadata: {
+        linkPreview: { imageHeight: 630, imageWidth: 1200, status: "success" },
+      },
+      processingStatus: {},
+      thumbnailOverride: {
+        height: 900,
+        storageKey: "users/u/cards/card-3/thumbnail-override/chosen",
+        updatedAt: 1,
+        width: 600,
+      },
+      type: "link",
+      updatedAt: 1,
+      url: "https://example.com",
+      userId: "user-1",
+    });
+    expect(summary.linkPreviewImageUrl).toBe(
+      "https://files.example.com/chosen.jpg"
+    );
+    expect(summary.aspectRatio).toBeCloseTo(600 / 900);
+    expect(summary.hasThumbnailOverride).toBe(true);
+  });
+});

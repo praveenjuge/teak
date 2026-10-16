@@ -130,6 +130,19 @@ describe("teak cli formatting", () => {
     );
   });
 
+  test("lists similar cards with the list filters", () => {
+    expect(
+      queryOptions({ similarTo: "card_1", type: ["image"] })
+    ).toMatchObject({ similarTo: "card_1", type: ["image"] });
+    const similar = program.commands.find(
+      (command) => command.name() === "similar"
+    );
+    expect(similar?.registeredArguments.map((arg) => arg.name())).toEqual([
+      "id",
+    ]);
+    expect(similar?.options.map((option) => option.long)).toContain("--type");
+  });
+
   test("passes a search mode, and only a known one", () => {
     expect(parseMode("semantic")).toBe("semantic");
     expect(() => parseMode("meaning")).toThrow(

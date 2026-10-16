@@ -70,9 +70,11 @@ import {
   parseEmbedUpsertParams,
   parseVectorIdsParams,
   parseVectorQueryParams,
+  parseVectorSimilarParams,
   vectorDelete,
   vectorGet,
   vectorQuery,
+  vectorSimilar,
 } from "./vectors";
 import { ArchiveEntryTooLargeError } from "./zip";
 
@@ -680,6 +682,11 @@ const dispatch = async (
       return success(
         requestId,
         await vectorQuery(env, parseVectorQueryParams(params))
+      );
+    case "vector-similar":
+      return success(
+        requestId,
+        await vectorSimilar(env, parseVectorSimilarParams(params))
       );
     case "fetch-link-page":
       return success(

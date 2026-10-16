@@ -17,6 +17,8 @@ import { SEMANTIC_TOP_K } from "../shared/search/semantic";
 
 /** How long one search's meaning matches are reused. */
 export const SEMANTIC_CACHE_TTL_MS = 10 * 60 * 1000;
+/** How long a `like:` card without a vector yet is remembered as pending. */
+export const SEMANTIC_PENDING_TTL_MS = 15 * 1000;
 /** Expired rows one cleanup run removes before it schedules the next. */
 const CLEANUP_BATCH = 500;
 
@@ -24,6 +26,15 @@ export const semanticRankingValidator = v.array(
   v.object({ cardId: v.id("cards"), score: v.number() })
 );
 export type SemanticRanking = { cardId: Id<"cards">; score: number }[];
+
+export const semanticEntryValidator = v.object({
+  status: v.union(v.literal("ok"), v.literal("pending")),
+  ranking: semanticRankingValidator,
+});
+export interface SemanticEntry {
+  ranking: SemanticRanking;
+  status: "ok" | "pending";
+}
 
 /**
  * The cache key for a search's embedded text: its hash with the embedding
@@ -49,25 +60,44 @@ const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
     .first();
 
 /**
- * The cached ranking for a search, or null. Queries read an entry until the
- * cleanup removes it, so a page of results never changes when the clock
- * passes `expiresAt`; actions refresh an expired entry.
+ * The cached entry for a search (by its `SemanticRequest.cacheText`), or
+ * null. Queries read an entry until the cleanup removes it, so a page of
+ * results never changes when the clock passes `expiresAt`; actions refresh
+ * an expired entry.
  */
+export const readSemanticEntry = async (
+  ctx: QueryCtx,
+  userId: string,
+  cacheText: string
+): Promise<SemanticEntry | null> => {
+  const entry = await findEntry(
+    ctx,
+    userId,
+    await semanticSearchKey(cacheText)
+  );
+  return entry
+    ? { status: entry.status ?? "ok", ranking: entry.ranking }
+    : null;
+};
+
+/** The cached ranking for a search, or null (none, or still pending). */
 export const readSemanticRanking = async (
   ctx: QueryCtx,
   userId: string,
-  text: string
+  cacheText: string
 ): Promise<SemanticRanking | null> => {
-  const entry = await findEntry(ctx, userId, await semanticSearchKey(text));
-  return entry ? entry.ranking : null;
+  const entry = await readSemanticEntry(ctx, userId, cacheText);
+  return entry?.status === "ok" ? entry.ranking : null;
 };
 
 export const getCachedRanking = internalQuery({
   args: { userId: v.string(), key: v.string(), now: v.number() },
-  returns: v.union(semanticRankingValidator, v.null()),
+  returns: v.union(semanticEntryValidator, v.null()),
   handler: async (ctx, { userId, key, now }) => {
     const entry = await findEntry(ctx, userId, key);
-    return entry && entry.expiresAt > now ? entry.ranking : null;
+    return entry && entry.expiresAt > now
+      ? { status: entry.status ?? ("ok" as const), ranking: entry.ranking }
+      : null;
   },
 });
 
@@ -77,9 +107,11 @@ export const storeRanking = internalMutation({
     key: v.string(),
     /** Vectorize's matches; ids that are not this user's cards are dropped. */
     matches: v.array(v.object({ id: v.string(), score: v.number() })),
+    /** A `like:` card with no vector yet: remembered briefly, no ranking. */
+    pending: v.optional(v.boolean()),
   },
   returns: semanticRankingValidator,
-  handler: async (ctx, { userId, key, matches }) => {
+  handler: async (ctx, { userId, key, matches, pending }) => {
     const ranking: SemanticRanking = [];
     for (const match of matches.slice(0, SEMANTIC_TOP_K)) {
       const cardId = ctx.db.normalizeId("cards", match.id);
@@ -91,9 +123,11 @@ export const storeRanking = internalMutation({
     const entry = {
       userId,
       key,
-      ranking,
+      ...(pending ? { status: "pending" as const } : {}),
+      ranking: pending ? [] : ranking,
       createdAt: now,
-      expiresAt: now + SEMANTIC_CACHE_TTL_MS,
+      expiresAt:
+        now + (pending ? SEMANTIC_PENDING_TTL_MS : SEMANTIC_CACHE_TTL_MS),
     };
     const existing = await findEntry(ctx, userId, key);
     if (existing) {

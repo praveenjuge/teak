@@ -1,10 +1,13 @@
 "use node";
 
 import {
+  isLinkCategory,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
   type LinkCategoryDetail,
   type LinkCategoryMetadata,
+  type LinkPrice,
+  parseStructuredPrice,
   resolveLinkCategory,
 } from "@teak/convex/shared";
 import { v } from "convex/values";
@@ -30,6 +33,7 @@ import {
 import { enrichProvider } from "./providers";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
+const PREVIEW_HINT_CONFIDENCE = 0.95;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 const TRAILING_SLASH_REGEX = /\/+$/;
@@ -77,6 +81,7 @@ export const projectCategorizationSnapshot = (
             raw: preview.raw,
             rawStorageKey: preview.rawStorageKey,
             rawSha256: preview.rawSha256,
+            categoryHint: preview.categoryHint,
           }
         : undefined,
     },
@@ -141,6 +146,18 @@ export const classifyLinkCategory = (
     siteName: linkPreview?.siteName,
     title: linkPreview?.title || linkPreview?.description,
   });
+
+  // A post confirmed by its site's API (a Mastodon status on any instance,
+  // say) outranks what the URL alone suggests.
+  const hint = linkPreview?.categoryHint;
+  if (typeof hint === "string" && isLinkCategory(hint)) {
+    return {
+      category: hint,
+      confidence: PREVIEW_HINT_CONFIDENCE,
+      providerHint: resolution.provider,
+      reason: "preview_hint",
+    };
+  }
 
   return {
     category: resolution.category,
@@ -319,6 +336,7 @@ export const enrichLinkCategory = async (
     ? await fetchStructuredData(sourceUrl)
     : (providedStructured ?? null);
 
+  let structuredPrice: LinkPrice | undefined;
   if (structured?.entities?.length) {
     const enriched = enrichWithStructuredData(
       classification.category,
@@ -329,13 +347,20 @@ export const enrichLinkCategory = async (
         imageUrl = enriched.imageUrl;
       }
       mergeFacts(facts, enriched.facts);
+      structuredPrice = enriched.price;
       raw = {
         ...(raw ?? {}),
         structured: enriched.raw,
         structuredMeta: structured?.meta,
       };
     }
+  } else if (classification.category === "product" && raw?.structured) {
+    // JSON-LD read on an earlier pass and not fetched again.
+    structuredPrice = parseStructuredPrice(raw.structured) ?? undefined;
   }
+
+  // The page's JSON-LD states the price more reliably than its selectors.
+  const price = structuredPrice ?? providerEnrichment?.price;
 
   const metadata: LinkCategoryMetadata = {
     category: classification.category,
@@ -351,6 +376,9 @@ export const enrichLinkCategory = async (
   }
   if (facts.length > 0) {
     metadata.facts = facts;
+  }
+  if (price) {
+    metadata.price = price;
   }
 
   return metadata;

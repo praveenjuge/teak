@@ -9,6 +9,10 @@ import {
 } from "../shared/folders";
 import { SEARCH_MODES } from "../shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
+import {
+  THUMBNAIL_MAX_BYTES,
+  THUMBNAIL_MIME_TYPES,
+} from "../shared/thumbnails";
 import { captureBackendEvent } from "../telemetry/posthog";
 
 type JsonObject = Record<string, unknown>;
@@ -17,7 +21,7 @@ type QueryValue = boolean | number | string | readonly string[] | undefined;
 export interface PublicApiToolOperation {
   body?: unknown;
   headers?: HeadersInit;
-  method: "DELETE" | "GET" | "PATCH" | "POST";
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   path: string;
   query?: Record<string, QueryValue>;
 }
@@ -68,6 +72,7 @@ const cardFiltersShape = {
   folder: nonEmptyString.optional(),
   tag: nonEmptyString.optional(),
   mode: z.enum(SEARCH_MODES).optional(),
+  similarTo: nonEmptyString.optional(),
   sort: cardSortSchema.optional(),
   shuffleSeed: z.number().int().min(0).max(2_147_483_647).optional(),
   createdAfter: z.number().optional(),
@@ -81,6 +86,15 @@ const cardFiltersShape = {
   include: z.array(includeSchema).optional(),
 };
 const listCardsInputSchema = z.object(cardFiltersShape);
+const findSimilarInputSchema = z.object({
+  cardId: nonEmptyString,
+  limit: cardFiltersShape.limit,
+  cursor: cardFiltersShape.cursor,
+  type: cardFiltersShape.type,
+  sort: cardFiltersShape.sort,
+  shuffleSeed: cardFiltersShape.shuffleSeed,
+  include: cardFiltersShape.include,
+});
 const queryInputSchema = listCardsInputSchema;
 const duplicateInputSchema = z.object({ url: nonEmptyString });
 
@@ -177,6 +191,15 @@ const createCardInputSchema = z
     }
   });
 const cardIdInputSchema = z.object({ cardId: nonEmptyString });
+const thumbnailUploadInputSchema = z.object({
+  cardId: nonEmptyString,
+  mimeType: z.enum(THUMBNAIL_MIME_TYPES),
+  fileSize: z.number().int().positive().max(THUMBNAIL_MAX_BYTES),
+});
+const setThumbnailInputSchema = z.object({
+  cardId: nonEmptyString,
+  fileKey: nonEmptyString,
+});
 const deleteCardInputSchema = z.object({
   cardId: nonEmptyString,
   confirm: z.literal(true),
@@ -305,7 +328,13 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), and "quoted phrases". Qualifiers combine with the other filters.',
+  },
+  similarTo: {
+    type: "string",
+    minLength: 1,
+    description:
+      "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)",
   },
   mode: {
     enum: SEARCH_MODES,
@@ -594,9 +623,31 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list" and "quoted phrases"; tags and folders must all match, types and sites match any. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only) and "quoted phrases"; tags, folders and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
+  },
+  {
+    name: "teak_v1_find_similar_cards",
+    description:
+      "List the cards closest in meaning to one card, of any type unless type narrows them; the card itself is never listed. Ordered newest first unless sort says otherwise. Returns { items, total, pageInfo, similarity }; similarity is pending while the card is still being read, and unavailable for a card in Trash or not found.",
+    annotations: { title: "Find similar cards", ...READ_ONLY },
+    inputSchema: inputSchema(
+      {
+        cardId: {
+          type: "string",
+          minLength: 1,
+          description: "The card to find similar cards for",
+        },
+        limit: cardFilterProperties.limit,
+        cursor: cardFilterProperties.cursor,
+        type: cardFilterProperties.type,
+        sort: cardFilterProperties.sort,
+        shuffleSeed: cardFilterProperties.shuffleSeed,
+        include: cardFilterProperties.include,
+      },
+      ["cardId"]
+    ),
   },
   {
     name: "teak_v1_list_favorite_cards",
@@ -641,6 +692,42 @@ export const TEAK_V1_TOOLS = [
       },
       ["cardId", "isFavorited"]
     ),
+  },
+  {
+    name: "teak_v1_create_thumbnail_upload",
+    description:
+      "Start replacing a link card's image: returns uploadUrl and fileKey. PUT the image bytes to uploadUrl with the same Content-Type, then call teak_v1_set_card_thumbnail. JPEG, PNG, WebP, GIF or AVIF, under 20 MB.",
+    annotations: { title: "Upload a link's image", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        mimeType: { enum: [...THUMBNAIL_MIME_TYPES] },
+        fileSize: { type: "integer", minimum: 1, maximum: THUMBNAIL_MAX_BYTES },
+      },
+      ["cardId", "mimeType", "fileSize"]
+    ),
+  },
+  {
+    name: "teak_v1_set_card_thumbnail",
+    description:
+      "Use an uploaded image (fileKey from teak_v1_create_thumbnail_upload) as a link card's image. It stays through Refresh details until teak_v1_reset_card_thumbnail.",
+    annotations: { title: "Replace a link's image", ...WRITES },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        fileKey: { type: "string", minLength: 1 },
+      },
+      ["cardId", "fileKey"]
+    ),
+  },
+  {
+    name: "teak_v1_reset_card_thumbnail",
+    description:
+      "Go back to the image Teak found for a link card, deleting the one that replaced it. Changes nothing when the card has its own image.",
+    annotations: { title: "Reset a link's image", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
   },
   {
     name: "teak_v1_set_card_archived",
@@ -1067,6 +1154,23 @@ const toolConfigs: Record<string, ToolConfig> = {
       `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
   },
   teak_v1_search_cards: queryTool({}),
+  teak_v1_find_similar_cards: {
+    schema: findSimilarInputSchema,
+    operation: ({ cardId, ...input }) => ({
+      method: "GET",
+      path: "/v1/cards",
+      query: queryParams({
+        ...cardsQuery(input),
+        similarTo: cardId as QueryValue,
+      }),
+    }),
+    transform: (payload) => ({
+      ...pageToCardResults(payload),
+      pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
+      ...(payload.similarity ? { similarity: payload.similarity } : {}),
+    }),
+    summary: (payload) => `Found ${Number(payload.total) || 0} similar cards`,
+  },
   teak_v1_list_favorite_cards: {
     ...queryTool({ favorited: true }),
     summary: (payload) =>
@@ -1092,6 +1196,34 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
+  },
+  teak_v1_create_thumbnail_upload: {
+    schema: thumbnailUploadInputSchema,
+    operation: ({ cardId, ...body }) => ({
+      method: "POST",
+      path: `${cardPath(cardId)}/thumbnail/upload`,
+      body,
+    }),
+    summary: () =>
+      "Upload URL created. PUT the image to uploadUrl, then call teak_v1_set_card_thumbnail with fileKey.",
+  },
+  teak_v1_set_card_thumbnail: {
+    schema: setThumbnailInputSchema,
+    operation: (input) => ({
+      method: "PUT",
+      path: `${cardPath(input.cardId)}/thumbnail`,
+      body: { fileKey: input.fileKey },
+    }),
+    summary: (_payload, input) => `Replaced the image of card ${input.cardId}`,
+  },
+  teak_v1_reset_card_thumbnail: {
+    schema: cardIdInputSchema,
+    operation: (input) => ({
+      method: "DELETE",
+      path: `${cardPath(input.cardId)}/thumbnail`,
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.cardId} shows its original image`,
   },
   teak_v1_set_card_archived: {
     schema: archivedInputSchema,

@@ -115,3 +115,57 @@ describe("card/queryUtils.ts", () => {
     );
   });
 });
+
+describe("a link's chosen image", () => {
+  const link = card({
+    _id: "link",
+    type: "link",
+    metadata: {
+      linkPreview: {
+        imageStorageKey: "users/abc/cards/link/link-preview-image/og.jpg",
+        media: [
+          {
+            storageKey: "users/abc/cards/link/link-media-image/x.jpg",
+            type: "image",
+            updatedAt: 1,
+          },
+        ],
+        screenshotStorageKey: "users/abc/cards/link/screenshot/s.jpg",
+      },
+    },
+    thumbnailOverride: {
+      height: 900,
+      storageKey: "users/abc/cards/link/thumbnail-override/chosen",
+      updatedAt: 1,
+      width: 600,
+    },
+  });
+  const chosen = encodeURIComponent(
+    "users/abc/cards/link/thumbnail-override/chosen"
+  );
+
+  test.each([
+    ["full cards", attachFileUrls],
+    ["grid cards", attachGridFileUrls],
+    ["summaries", attachCardSummaryUrls],
+  ])(
+    "is the link image for %s",
+    async (_name: string, attach: typeof attachFileUrls) => {
+      process.env.FILES_BASE = "https://files.example.com";
+      process.env.FILES_SIGNING_SECRET = "test-secret";
+      delete process.env.R2_KEY_PREFIX;
+
+      const [withOverride] = await attach({} as any, [link]);
+      expect(withOverride?.linkPreviewImageUrl).toContain(chosen);
+      expect(withOverride?.hasThumbnailOverride).toBe(true);
+
+      const [scraped] = await attach({} as any, [
+        { ...link, thumbnailOverride: undefined },
+      ]);
+      expect(scraped?.linkPreviewImageUrl).toContain(
+        encodeURIComponent("users/abc/cards/link/link-preview-image/og.jpg")
+      );
+      expect(scraped?.hasThumbnailOverride).toBeUndefined();
+    }
+  );
+});

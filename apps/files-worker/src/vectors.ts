@@ -12,6 +12,8 @@ import {
   type FilesVectorGetResult,
   type FilesVectorQueryParams,
   type FilesVectorQueryResult,
+  type FilesVectorSimilarParams,
+  type FilesVectorSimilarResult,
   VECTOR_ID_MAX_BYTES,
   VECTOR_NAMESPACE_MAX_BYTES,
   VECTOR_QUERY_MAX_CHARS,
@@ -126,6 +128,32 @@ export const parseVectorQueryParams = (
   };
 };
 
+const parseTopK = (value: unknown): number => {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > VECTOR_QUERY_MAX_TOP_K
+  ) {
+    throw new Error("invalid_vector_query");
+  }
+  return value;
+};
+
+export const parseVectorSimilarParams = (
+  params: Record<string, unknown>
+): FilesVectorSimilarParams => {
+  if (!isBoundedString(params.id, VECTOR_ID_MAX_BYTES)) {
+    throw new Error("invalid_vector_ids");
+  }
+  return {
+    id: params.id,
+    namespace: parseNamespace(params.namespace),
+    shard: parseShard(params.shard),
+    topK: parseTopK(params.topK),
+  };
+};
+
 const indexForShard = (env: FilesOpsEnv, shard: number): Vectorize => {
   const index = (env as unknown as Record<string, Vectorize | undefined>)[
     vectorShardBinding(shard)
@@ -206,6 +234,37 @@ export const vectorGet = async (
       id: vector.id,
       namespace: vector.namespace ?? null,
     })),
+  };
+};
+
+/**
+ * The cards closest to one card, by its stored vector: no Workers AI call.
+ * The vector must be in the caller's namespace, so one user can never search
+ * with (or learn about) another user's card.
+ */
+export const vectorSimilar = async (
+  env: FilesOpsEnv,
+  { id, namespace, shard, topK }: FilesVectorSimilarParams
+): Promise<FilesVectorSimilarResult> => {
+  const index = indexForShard(env, shard);
+  const [stored] = await index.getByIds([id]);
+  const values = stored?.values ? Array.from(stored.values) : [];
+  if (stored?.namespace !== namespace || values.length === 0) {
+    return { found: false, matches: [] };
+  }
+  const result = await index.query(values, {
+    namespace,
+    returnMetadata: "none",
+    returnValues: false,
+    // The card itself is the closest match; ask for one more.
+    topK: Math.min(topK + 1, VECTOR_QUERY_MAX_TOP_K),
+  });
+  return {
+    found: true,
+    matches: result.matches
+      .filter((match) => match.id !== id)
+      .slice(0, topK)
+      .map((match) => ({ id: match.id, score: match.score })),
   };
 };
 

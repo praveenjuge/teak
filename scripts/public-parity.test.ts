@@ -22,7 +22,7 @@ import {
 const names = (surface: Surface): readonly string[] =>
   Array.isArray(surface) ? surface : [];
 
-const HTTP_METHODS = ["get", "post", "patch", "delete"] as const;
+const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
 const operations = Object.entries(
   openApiSpec.paths as Record<string, Record<string, { operationId?: string }>>
@@ -69,6 +69,11 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_check_duplicate_url: { url: "https://example.com" },
   teak_v1_create_card: { content: "x" },
   teak_v1_create_folder: { name: "Reading" },
+  teak_v1_create_thumbnail_upload: {
+    cardId: "card_1",
+    mimeType: "image/png",
+    fileSize: 10,
+  },
   teak_v1_create_upload: {
     fileName: "a.png",
     mimeType: "image/png",
@@ -77,6 +82,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_delete_card: { cardId: "card_1", confirm: true },
   teak_v1_delete_folder: { folderId: "folder_1", confirm: true },
   teak_v1_delete_tag: { tag: "design", confirm: true },
+  teak_v1_find_similar_cards: { cardId: "card_1" },
   teak_v1_get_card: { cardId: "card_1" },
   teak_v1_get_card_changes: { since: 1 },
   teak_v1_get_card_content: { cardId: "card_1" },
@@ -94,10 +100,12 @@ const MCP_SAMPLES: Record<string, unknown> = {
     cardIds: ["card_1"],
   },
   teak_v1_rename_tag: { from: "a", to: "b" },
+  teak_v1_reset_card_thumbnail: { cardId: "card_1" },
   teak_v1_restore_card: { cardId: "card_1" },
   teak_v1_search_cards: { q: "x" },
   teak_v1_set_card_archived: { cardId: "card_1", isArchived: true },
   teak_v1_set_card_favorite: { cardId: "card_1", isFavorited: true },
+  teak_v1_set_card_thumbnail: { cardId: "card_1", fileKey: "key_1" },
   teak_v1_update_card: { cardId: "card_1", notes: "n" },
   teak_v1_update_folder: { folderId: "folder_1", name: "Later" },
 };
@@ -126,17 +134,27 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
     "cards.changes": (c) => c.cards.changes({ since: 1 }),
     "cards.content": (c) => c.cards.content("card_1"),
+    "cards.createThumbnailUpload": (c) =>
+      c.cards.createThumbnailUpload("card_1", {
+        fileSize: 1,
+        mimeType: "image/png",
+      }),
     "cards.create": (c) => c.cards.create({ content: "x" }),
     "cards.delete": (c) => c.cards.delete("card_1"),
     "cards.duplicate": (c) => c.cards.duplicate("https://example.com"),
     "cards.favorites": (c) => c.cards.favorites(),
     "cards.get": (c) => c.cards.get("card_1"),
+    "cards.similar": (c) => c.cards.similar("card_1"),
     "cards.list": (c) => c.cards.list(),
     "cards.refresh": (c) => c.cards.refresh("card_1"),
+    "cards.resetThumbnail": (c) => c.cards.resetThumbnail("card_1"),
     "cards.restore": (c) => c.cards.restore("card_1"),
     "cards.search": (c) => c.cards.search({ q: "x" }),
     "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
     "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
+    // Bytes would upload first; a finished upload reaches only the PUT.
+    "cards.setThumbnail": (c) =>
+      c.cards.setThumbnail("card_1", { fileKey: "key_1" }),
     "cards.update": (c) => c.cards.update("card_1", { notes: "n" }),
     "exports.latest": (c) => c.exports.latest(),
     "exports.start": (c) => c.exports.start(),

@@ -17,6 +17,7 @@
     "./shared/analytics": "./shared/analytics.ts",
     "./shared/markdown": "./shared/markdown.ts",
     "./shared/posthog": "./shared/posthog.ts",
+    "./shared/price": "./shared/price.ts",
     "./shared/telemetry": "./shared/telemetry.ts",
     "./shared/hooks/useCardActions": "./client/hooks/useCardActions.client.tsx",
     "./shared/hooks/useFileUpload": "./client/hooks/useFileUpload.client.tsx",

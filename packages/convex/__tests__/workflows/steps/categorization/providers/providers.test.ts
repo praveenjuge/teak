@@ -13,6 +13,7 @@ import { enrichDribbble } from "../../../../../workflows/steps/categorization/pr
 import { enrichGithub } from "../../../../../workflows/steps/categorization/providers/github";
 import { enrichGoodreads } from "../../../../../workflows/steps/categorization/providers/goodreads";
 import { enrichImdb } from "../../../../../workflows/steps/categorization/providers/imdb";
+import { enrichProvider } from "../../../../../workflows/steps/categorization/providers/index";
 
 const createMap = (
   entries: [
@@ -145,6 +146,48 @@ describe("enrichAmazon", () => {
       price: "$19.99",
       currency: "USD",
     });
+  });
+
+  it.each([
+    // [store, price text, og:price:currency, expected]
+    ["amazon.com", "$24.99", undefined, { amount: 24.99, currency: "USD" }],
+    ["amazon.de", "1.299,00 €", "EUR", { amount: 1299, currency: "EUR" }],
+    [
+      "amazon.co.jp",
+      "￥1,299,999",
+      undefined,
+      { amount: 1_299_999, currency: "JPY" },
+    ],
+    ["amazon.in", "₹2,499.00", "INR", { amount: 2499, currency: "INR" }],
+    ["amazon.ca", "$15.00", "CAD", { amount: 15, currency: "CAD" }],
+  ])(
+    "returns the structured price on %s",
+    (_store, text, currency, expected) => {
+      const map = createMap([
+        [".a-price .a-offscreen", { text }],
+        ...(currency
+          ? [
+              [
+                "meta[property='og:price:currency']",
+                { attributes: [{ name: "content", value: currency }] },
+              ] as [string, { attributes: { name: string; value: string }[] }],
+            ]
+          : []),
+      ]);
+      expect(enrichAmazon(map)?.price).toEqual(expected);
+    }
+  );
+
+  it("has no structured price when the text has no amount", () => {
+    const map = createMap([
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+    expect(result?.facts?.[0]?.value).toBe("USD");
+    expect(result?.price).toBeUndefined();
   });
 });
 
@@ -763,5 +806,22 @@ describe("enrichDribbble", () => {
 
   it("returns null if no enrichment", () => {
     expect(enrichDribbble(new Map())).toBeNull();
+  });
+});
+
+describe("enrichProvider", () => {
+  const stars = createMap([["a[href$='/stargazers']", { text: "1,234" }]]);
+
+  it.each(["software", "repo"] as const)(
+    "adds GitHub's facts to a %s link",
+    (category) => {
+      expect(enrichProvider("github", category, stars)?.facts).toEqual([
+        { label: "Stars", value: "1,234" },
+      ]);
+    }
+  );
+
+  it("skips GitHub's facts for a confident category it doesn't serve", () => {
+    expect(enrichProvider("github", "article", stars)).toBeNull();
   });
 });

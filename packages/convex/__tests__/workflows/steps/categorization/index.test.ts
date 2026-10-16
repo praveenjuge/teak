@@ -70,9 +70,62 @@ describe("categorization index", () => {
       });
       const result = await classifyLinkCategory(card);
       expect(result).toMatchObject({
-        category: "software",
+        category: "repo",
         providerHint: "github",
       });
+    });
+
+    test("files a status an unlisted Mastodon instance confirmed as a social post", async () => {
+      const result = await classifyLinkCategory(
+        linkCard({
+          url: "https://social.example.org/@alice/112233445566",
+          metadata: {
+            linkPreview: {
+              status: "success",
+              title: "Hello from my instance",
+              categoryHint: "social_post",
+            },
+          },
+        })
+      );
+      expect(result).toMatchObject({
+        category: "social_post",
+        reason: "preview_hint",
+      });
+    });
+
+    test("leaves an unconfirmed Mastodon-like path on a blog as other", async () => {
+      const result = await classifyLinkCategory(
+        linkCard({
+          url: "https://social.example.org/@alice/112233445566",
+          metadata: {
+            linkPreview: { status: "success", title: "Hello" },
+          },
+        })
+      );
+      expect(result?.category).toBe("other");
+    });
+
+    test("ignores a hint that is not a category, or on a failed preview", async () => {
+      const url = "https://www.yelp.com/biz/tartine-bakery";
+      const bogus = await classifyLinkCategory(
+        linkCard({
+          url,
+          metadata: {
+            linkPreview: { status: "success", categoryHint: "toString" },
+          },
+        })
+      );
+      const failed = await classifyLinkCategory(
+        linkCard({
+          url,
+          metadata: {
+            linkPreview: { status: "error", categoryHint: "social_post" },
+          },
+        })
+      );
+      expect(bogus?.category).toBe("place");
+      expect(failed?.category).toBe("place");
     });
 
     test("returns null for missing targetUrl", async () => {
@@ -161,6 +214,26 @@ describe("categorization index", () => {
       expect(result).toMatchObject({
         mode: "classified",
         classification: expect.anything(),
+      });
+    });
+
+    test("reads the stored preview's category hint", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        url: "https://social.example.org/@alice/112233445566",
+        metadata: {
+          linkPreview: {
+            status: "success",
+            title: "Hello",
+            categoryHint: "social_post",
+          },
+        },
+      });
+
+      const result = await classifyHandler(ctx, { cardId: CARD_ID });
+      expect(result).toMatchObject({
+        classification: { category: "social_post" },
       });
     });
   });
@@ -570,6 +643,173 @@ describe("categorization index", () => {
       expect(factValue(result, "Price")).toBe("$19.99 USD");
     });
 
+    describe("product price", () => {
+      const amazonCard = (priceText?: string) =>
+        linkCard({
+          url: "https://www.amazon.com/dp/B0",
+          metadata: {
+            linkPreview: {
+              status: "success",
+              raw: priceText
+                ? [
+                    {
+                      selector: ".a-price .a-offscreen",
+                      results: [{ text: priceText }],
+                    },
+                  ]
+                : [],
+            },
+          },
+        });
+      const product = (offers: unknown) => ({
+        "@type": "Product",
+        name: "Lamp",
+        offers,
+      });
+      const enrich = (
+        card: CategorizationContextCard,
+        entities: unknown[] | null
+      ) =>
+        enrichLinkCategory(
+          card,
+          { category: "product", confidence: 0.9 },
+          { structuredData: entities ? { entities } : null }
+        );
+
+      test.each([
+        [
+          "a single offer",
+          { "@type": "Offer", price: "24.99", priceCurrency: "USD" },
+          { amount: 24.99, currency: "USD" },
+        ],
+        [
+          "an offers array, at its lowest price",
+          [
+            { "@type": "Offer", price: 30, priceCurrency: "EUR" },
+            { "@type": "Offer", price: "19.50", priceCurrency: "EUR" },
+            { "@type": "Offer", price: "Contact us" },
+          ],
+          { amount: 19.5, currency: "EUR" },
+        ],
+        [
+          "an AggregateOffer's lowPrice",
+          {
+            "@type": "AggregateOffer",
+            lowPrice: "10",
+            highPrice: "20",
+            priceCurrency: "GBP",
+          },
+          { amount: 10, currency: "GBP" },
+        ],
+        [
+          "a price specification",
+          {
+            "@type": "Offer",
+            priceSpecification: { price: 0, priceCurrency: "USD" },
+          },
+          { amount: 0, currency: "USD" },
+        ],
+      ])("reads JSON-LD %s", async (_name, offers, expected) => {
+        const result = await enrich(amazonCard(), [product(offers)]);
+        expect(result.price).toEqual(expected);
+      });
+
+      test("prefers JSON-LD over the provider's selectors", async () => {
+        const result = await enrich(amazonCard("$99.00"), [
+          product({ "@type": "Offer", price: "89.00", priceCurrency: "CAD" }),
+        ]);
+        expect(result.price).toEqual({ amount: 89, currency: "CAD" });
+        // Both prices stay as facts.
+        expect(
+          result.facts?.filter((fact) => fact.label === "Price").length
+        ).toBe(2);
+      });
+
+      test("falls back to the provider's price without JSON-LD", async () => {
+        const result = await enrich(amazonCard("$99.00"), null);
+        expect(result.price).toEqual({ amount: 99, currency: "USD" });
+      });
+
+      test("falls back to the provider when the JSON-LD price is unusable", async () => {
+        const result = await enrich(amazonCard("$99.00"), [
+          product({ "@type": "Offer", price: "-5" }),
+        ]);
+        expect(result.price).toEqual({ amount: 99, currency: "USD" });
+      });
+
+      test("reads JSON-LD stored on an earlier pass", async () => {
+        const card = linkCard({
+          url: "https://shop.example/lamp",
+          metadata: {
+            linkCategory: {
+              raw: {
+                structured: product({
+                  "@type": "Offer",
+                  price: "12.00",
+                  priceCurrency: "EUR",
+                }),
+              },
+            },
+          },
+        });
+        const result = await enrichLinkCategory(
+          card,
+          { category: "product", confidence: 0.9 },
+          { structuredData: null }
+        );
+        expect(result.price).toEqual({ amount: 12, currency: "EUR" });
+      });
+
+      test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {
+        // How Shopify stores describe a product with sizes.
+        const group = {
+          "@type": "ProductGroup",
+          name: "T-shirt",
+          hasVariant: ["XS", "S", "XL"].map((size, index) => ({
+            "@type": "Product",
+            name: `T-shirt - ${size}`,
+            sku: `sku-${size}`,
+            offers: {
+              "@type": "Offer",
+              price: index === 2 ? "44.99" : "39.99",
+              priceCurrency: "EUR",
+            },
+          })),
+        };
+        const result = await enrich(
+          linkCard({ url: "https://shop.example/t-shirt" }),
+          [group]
+        );
+        expect(result.price).toEqual({ amount: 39.99, currency: "EUR" });
+        expect(result.facts).toContainEqual({
+          label: "Price",
+          value: "€39.99",
+        });
+        // Only the variants' offers are kept.
+        const stored = result.raw?.structured as { hasVariant: unknown[] };
+        expect(stored.hasVariant[0]).toEqual({
+          offers: group.hasVariant[0]?.offers,
+        });
+
+        const refreshed = await enrichLinkCategory(
+          linkCard({
+            url: "https://shop.example/t-shirt",
+            metadata: {
+              linkCategory: { ...result, raw: result.raw },
+            },
+          }),
+          { category: "product", confidence: 0.9 },
+          { structuredData: null }
+        );
+        expect(refreshed.price).toEqual({ amount: 39.99, currency: "EUR" });
+      });
+
+      test("has no price when no source states one", async () => {
+        const result = await enrich(amazonCard(), [product(undefined)]);
+        expect(result.price).toBeUndefined();
+      });
+    });
+
     test("covers full GitHub enrichment", async () => {
       const card = linkCard({
         url: "https://github.com/a/b",
@@ -881,6 +1121,141 @@ describe("categorization index", () => {
         });
         expect(result.detectedProvider).toBeDefined();
       }
+    });
+
+    test.each([
+      [
+        "place",
+        {
+          "@type": "Restaurant",
+          name: "Tartine",
+          image: "https://example.com/tartine.jpg",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "600 Guerrero St",
+            addressLocality: "San Francisco",
+            addressRegion: "CA",
+            postalCode: "94110",
+            addressCountry: { name: "US" },
+          },
+          servesCuisine: ["Bakery", "Cafe"],
+          priceRange: "$$",
+          aggregateRating: { ratingValue: 4.5 },
+        },
+        {
+          Address: "600 Guerrero St, San Francisco, CA, 94110, US",
+          Cuisine: "Bakery, Cafe",
+          "Price range": "$$",
+          Rating: "4.5",
+        },
+      ],
+      [
+        "place",
+        {
+          "@type": "RealEstateListing",
+          name: "1 Main St",
+          about: {
+            "@type": "SingleFamilyResidence",
+            address: "1 Main St, Springfield",
+          },
+        },
+        { Address: "1 Main St, Springfield" },
+      ],
+      [
+        "app",
+        {
+          "@type": "MobileApplication",
+          name: "Things 3",
+          operatingSystem: "iOS",
+          applicationCategory: "Productivity",
+          aggregateRating: { ratingValue: 4.8 },
+        },
+        { Platform: "iOS", Category: "Productivity", Rating: "4.8" },
+      ],
+      [
+        "game",
+        {
+          "@type": "VideoGame",
+          name: "Hades",
+          gamePlatform: ["PC", "Nintendo Switch"],
+          genre: ["Roguelike", "Action"],
+          aggregateRating: { ratingValue: 9.3 },
+          datePublished: "2020-09-17T12:00:00Z",
+        },
+        {
+          Platform: "PC, Nintendo Switch",
+          Genre: "Roguelike, Action",
+          Rating: "9.3",
+          Released: "Sep 17, 2020",
+        },
+      ],
+    ])("reads %s facts from JSON-LD", async (category, entity, expected) => {
+      const result = await enrichLinkCategory(
+        linkCard({ url: "https://example.com/page" }),
+        { category: category as LinkCategory, confidence: 0.98 },
+        { structuredData: { entities: [{ "@type": "WebSite" }, entity] } }
+      );
+      expect(
+        Object.fromEntries(
+          (result.facts ?? []).map((fact) => [fact.label, fact.value])
+        )
+      ).toEqual(expected);
+    });
+
+    test("uses the place's image when the preview has none", async () => {
+      const result = await enrichLinkCategory(
+        linkCard({ url: "https://example.com/page" }),
+        { category: "place", confidence: 0.98 },
+        {
+          structuredData: {
+            entities: [
+              {
+                "@type": "LocalBusiness",
+                image: ["https://example.com/venue.jpg"],
+                address: "1 Main St",
+              },
+            ],
+          },
+        }
+      );
+      expect(result.imageUrl).toBe("https://example.com/venue.jpg");
+    });
+
+    test("adds no JSON-LD facts for a game page without VideoGame data", async () => {
+      const result = await enrichLinkCategory(
+        linkCard({ url: "https://example.com/page" }),
+        { category: "game", confidence: 0.98 },
+        {
+          structuredData: {
+            entities: [{ "@type": "Product", name: "Hades" }],
+          },
+        }
+      );
+      expect(result.facts).toBeUndefined();
+    });
+
+    test("keeps GitHub's facts for a repository", async () => {
+      const result = await enrichLinkCategory(
+        linkCard({
+          url: "https://github.com/vercel/next.js",
+          metadata: {
+            linkPreview: {
+              status: "success",
+              raw: [
+                {
+                  selector: "a[href$='/stargazers']",
+                  results: [{ text: "1,234" }],
+                },
+              ],
+            },
+          },
+        }),
+        { category: "repo", confidence: 0.98, providerHint: "github" },
+        { structuredData: null }
+      );
+      expect(result.facts?.find((f) => f.label === "Stars")?.value).toBe(
+        "1,234"
+      );
     });
 
     test("returns null from enrichWithStructuredData if no data found", async () => {

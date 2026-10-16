@@ -17,6 +17,9 @@ export type CardCreationSource =
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
+/** How a link's image was replaced: on the web, or through the public API. */
+export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
+
 type NoProperties = Record<string, never>;
 
 export interface ClientEventCatalog {
@@ -25,6 +28,8 @@ export interface ClientEventCatalog {
     source: CardCreationSource;
     via?: string;
   };
+  card_thumbnail_replaced: { source: ThumbnailReplaceSource };
+  card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
   checkout_started: NoProperties;
   export_completed: NoProperties;
@@ -42,6 +47,7 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   search_performed: { zero_result: boolean };
   signed_in: NoProperties;
+  similar_search_opened: { source: "panel" };
 }
 
 export interface ServerEventCatalog {
@@ -70,6 +76,8 @@ export interface ServerEventCatalog {
     error_class: string;
     stage: string;
   };
+  card_thumbnail_replaced: { source: ThumbnailReplaceSource };
+  card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
   mcp_tool_called: {

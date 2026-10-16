@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
@@ -349,26 +350,33 @@ export const Card = memo(function Card({
     previewTitle: linkPreview?.title,
     url: card.url,
   });
-  const primaryAttachedMedia =
-    card.linkPreviewMedia?.find((item) => item.type === "image") ??
-    card.linkPreviewMedia?.find(
-      (item) => item.type === "video" && typeof item.posterUrl === "string"
-    );
+  // An image someone chose for the link comes before attached media.
+  const thumbnailOverride = card.hasThumbnailOverride
+    ? card.thumbnailOverride
+    : undefined;
+  const primaryAttachedMedia = thumbnailOverride
+    ? undefined
+    : (card.linkPreviewMedia?.find((item) => item.type === "image") ??
+      card.linkPreviewMedia?.find(
+        (item) => item.type === "video" && typeof item.posterUrl === "string"
+      ));
   const linkCardImage =
     primaryAttachedMedia?.type === "image"
       ? primaryAttachedMedia.url
       : (primaryAttachedMedia?.posterUrl ?? card.linkPreviewImageUrl);
-  const primaryStoredMedia =
-    storedLinkMedia.find((item) => item.type === "image") ??
-    storedLinkMedia.find(
-      (item) =>
-        item.type === "video" && typeof item.posterStorageKey === "string"
-    );
+  const primaryStoredMedia = thumbnailOverride
+    ? undefined
+    : (storedLinkMedia.find((item) => item.type === "image") ??
+      storedLinkMedia.find(
+        (item) =>
+          item.type === "video" && typeof item.posterStorageKey === "string"
+      ));
   const primaryLinkImageKey =
-    primaryStoredMedia?.type === "image"
+    thumbnailOverride?.storageKey ??
+    (primaryStoredMedia?.type === "image"
       ? primaryStoredMedia.storageKey
       : (primaryStoredMedia?.posterStorageKey ??
-        card.metadata?.linkPreview?.imageStorageKey);
+        card.metadata?.linkPreview?.imageStorageKey));
   const screenshotStorageKey = card.metadata?.linkPreview?.screenshotStorageKey;
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
@@ -392,11 +400,14 @@ export const Card = memo(function Card({
           height: primaryAttachedMedia.posterHeight,
         }
       : undefined;
-  const linkPreviewImageSize =
+  const scrapedImageSize =
     typeof linkPreview?.imageWidth === "number" &&
     typeof linkPreview?.imageHeight === "number"
       ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
       : undefined;
+  const linkPreviewImageSize = thumbnailOverride
+    ? { width: thumbnailOverride.width, height: thumbnailOverride.height }
+    : scrapedImageSize;
   const primaryImageSize =
     attachedImageSize ?? attachedPosterSize ?? linkPreviewImageSize;
   const fallbackImageSize =
@@ -452,6 +463,17 @@ export const Card = memo(function Card({
     card.type === "link" ? getDisplayHostname(card.url) : undefined;
   const linkDescription =
     linkPreview?.description || card.metadataDescription || card.aiSummary;
+  const storedPrice = card.metadata?.linkCategory?.price;
+  const priceLabel =
+    card.type === "link" && isLinkPrice(storedPrice)
+      ? formatLinkPrice(storedPrice)
+      : undefined;
+  // Frosted so it reads over light and dark images; long amounts truncate.
+  const pricePill = priceLabel ? (
+    <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
+      {priceLabel}
+    </span>
+  ) : null;
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
@@ -528,7 +550,7 @@ export const Card = memo(function Card({
         return (
           <div className={cn(CARD_SURFACE, "overflow-hidden")}>
             <div
-              className="w-full overflow-hidden border-b bg-muted"
+              className="relative w-full overflow-hidden border-b bg-muted"
               style={{
                 aspectRatio: Math.min(
                   Math.max(
@@ -551,6 +573,7 @@ export const Card = memo(function Card({
                     : undefined
                 }
               />
+              {pricePill}
             </div>
             {linkFooter}
           </div>
@@ -563,7 +586,7 @@ export const Card = memo(function Card({
           : primaryLinkImageKey;
         return (
           <div className={cn(CARD_SURFACE, "overflow-hidden")}>
-            <div className="h-32 min-h-32 overflow-hidden border-b bg-muted">
+            <div className="relative h-32 min-h-32 overflow-hidden border-b bg-muted">
               <ResilientMediaImage
                 alt={linkCardTitle}
                 cardId={card._id}
@@ -574,6 +597,7 @@ export const Card = memo(function Card({
                   typeof legacyKey === "string" ? legacyKey : undefined
                 }
               />
+              {pricePill}
             </div>
             {linkFooter}
           </div>
@@ -590,6 +614,11 @@ export const Card = memo(function Card({
                 ? linkCardTitle.replace(/^https?:\/\/(www\.)?/, "")
                 : linkCardTitle}
             </p>
+            {priceLabel && (
+              <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
+                {priceLabel}
+              </span>
+            )}
           </div>
           {linkDescription && !titleIsUrl && (
             <p

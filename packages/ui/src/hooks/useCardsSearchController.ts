@@ -777,12 +777,13 @@ export function useCardsSearchController(
     [folderQuery, searchTerms]
   );
 
-  const hasFolderQualifier = useMemo(
-    () =>
-      localSearchTerms === null ||
-      parseSearchQuery(localSearchTerms).folders.length > 0,
-    [localSearchTerms]
-  );
+  const hasFolderQualifier = useMemo(() => {
+    if (localSearchTerms === null) {
+      return true;
+    }
+    const parsed = parseSearchQuery(localSearchTerms);
+    return parsed.folders.length > 0 || Boolean(parsed.similarity);
+  }, [localSearchTerms]);
 
   const localSearchResults = useMemo(() => {
     if (hasFolderQualifier || localSearchTerms === null) {

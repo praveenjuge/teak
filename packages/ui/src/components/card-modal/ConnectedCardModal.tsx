@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardModal } from "../../hooks/useCardModal";
+import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
@@ -16,6 +17,8 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
+  /** Lists the cards closest in meaning to a card. */
+  onMoreLikeThis?: (cardId: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
   /** Shows the previous card in the grid; absent on the first card. */
@@ -36,6 +39,7 @@ export function ConnectedCardModal({
   onNext,
   onPrevious,
   onTagClick,
+  onMoreLikeThis,
   returnFocus,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -77,6 +81,8 @@ export function ConnectedCardModal({
     onCardTypeClick,
     onCardUpdate,
   });
+
+  const linkThumbnail = useLinkThumbnail(card?._id);
 
   const runBulkAction = useBulkCardActions("card-modal");
   const toggleArchive = useCallback(() => {
@@ -123,8 +129,10 @@ export function ConnectedCardModal({
       hasUnsavedChanges={hasUnsavedChanges}
       isDownloading={isDownloading}
       isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
+      linkThumbnail={card?.type === "link" ? linkThumbnail : undefined}
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
+      onMoreLikeThis={onMoreLikeThis}
       onNext={onNext}
       onPrevious={onPrevious}
       onReprocess={

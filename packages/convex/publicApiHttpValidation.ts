@@ -35,12 +35,14 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "./shared/folders";
+import { isLinkPrice } from "./shared/price";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import {
+  combineSearchQueries,
   hasSearchQualifiers,
   parseSearchQuery,
 } from "./shared/search/qualifiers";
-import { isSearchMode, semanticQueryText } from "./shared/search/semantic";
+import { isSearchMode, semanticRequestFor } from "./shared/search/semantic";
 import { parseShuffleSeed } from "./shared/search/shuffle";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -59,6 +61,11 @@ const getCardAppUrl = (requestUrl: string, cardId: string): string => {
   return appUrl.toString();
 };
 
+const serializeLinkPrice = (price: unknown) =>
+  isLinkPrice(price)
+    ? { amount: price.amount, currency: price.currency ?? null }
+    : null;
+
 const serializeDisplayMetadata = (card: any) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
@@ -71,6 +78,7 @@ const serializeDisplayMetadata = (card: any) => ({
       })
     ) ?? [],
   linkPreviewTitle: card.metadata?.linkPreview?.title ?? null,
+  linkPrice: serializeLinkPrice(card.metadata?.linkCategory?.price),
   linkFaviconUrl: card.metadata?.linkPreview?.faviconUrl ?? null,
   fileWidth: card.fileMetadata?.width ?? null,
   fileHeight: card.fileMetadata?.height ?? null,
@@ -128,6 +136,8 @@ const serializeCard = (card: any, requestUrl: string) => ({
   tags: card.tags ?? [],
   placeholderUrl: card.placeholderUrl ?? null,
   thumbnailUrl: card.thumbnailUrl ?? null,
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  thumbnailOverridden: Boolean(card.thumbnailOverride),
   type: card.type,
   updatedAt: card.updatedAt,
   url: card.url ?? null,
@@ -179,6 +189,7 @@ const serializeListCard = (
           linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
           placeholderUrl: card.placeholderUrl ?? null,
           screenshotUrl: card.screenshotUrl ?? null,
+          thumbnailOverridden: Boolean(card.thumbnailOverride),
           thumbnailUrl: card.thumbnailUrl ?? null,
         }
       : {}),
@@ -392,7 +403,24 @@ const parseCardsQueryOptions = (
   request: Request
 ): CardsQueryOptions | Response => {
   const { searchParams } = new URL(request.url);
-  const query = parseOptionalString(searchParams.get("q"));
+  const similarTo = parseOptionalString(searchParams.get("similarTo"));
+  if (
+    searchParams.has("similarTo") &&
+    !(similarTo && parseSearchQuery(`like:${similarTo}`).similarity)
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `similarTo` must be a card id"
+    );
+  }
+  const typedQuery = parseOptionalString(searchParams.get("q"));
+  // `similarTo=<id>` is `like:<id>` in `q`; another anchor there matches
+  // nothing.
+  const combinedQuery = similarTo
+    ? combineSearchQueries(`like:${similarTo}`, typedQuery ?? "")
+    : typedQuery;
+  const query = combinedQuery ?? undefined;
   const types = searchParams
     .getAll("type")
     .map((value) => value.trim())
@@ -552,6 +580,20 @@ const parseCardsQueryOptions = (
       : parsed.types;
     matchesNothing = resolvedTypes.length === 0;
   }
+  // `price:` narrows to links: only they have a price.
+  if (parsed.prices.length > 0) {
+    matchesNothing ||=
+      resolvedTypes.length > 0 && !resolvedTypes.includes("link");
+    resolvedTypes = ["link"];
+  }
+  // `mood:` reads images only.
+  if (parsed.similarity?.kind === "mood") {
+    resolvedTypes = resolvedTypes.length
+      ? resolvedTypes.filter((type) => type === "image")
+      : ["image"];
+    matchesNothing ||= resolvedTypes.length === 0;
+  }
+  matchesNothing ||= combinedQuery === null;
   let resolvedArchived = archived as CardsQueryOptions["archived"];
   if (parsed.archived && trashed !== true) {
     matchesNothing ||= archived === "exclude";
@@ -579,6 +621,7 @@ const parseCardsQueryOptions = (
             archivedInTrash: trashed === true && parsed.archived,
             folderNames: parsed.folders,
             phrases: parsed.phrases,
+            prices: parsed.prices,
             sites: parsed.sites,
             tags: tags.slice(1),
           },
@@ -589,9 +632,11 @@ const parseCardsQueryOptions = (
     hueFilters: visualFilters.hueFilters,
     hexFilters: visualFilters.hexFilters,
     limit: parseLimit(searchParams.get("limit")),
+    hasQuery: Boolean(query),
     mode,
     searchQuery: parsed.text || undefined,
-    semanticText: semanticQueryText(parsed),
+    semantic: semanticRequestFor(parsed),
+    similarity: parsed.similarity ?? null,
     sort: sort as CardsQueryOptions["sort"] | undefined,
     ...(sort === "shuffle" ? { shuffleSeed } : {}),
     tag: tags[0],
@@ -624,7 +669,10 @@ const parseCardRoute = (
     | "get"
     | "patch"
     | "refresh"
-    | "restore";
+    | "restore"
+    | "thumbnail-reset"
+    | "thumbnail-set"
+    | "thumbnail-upload";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -652,6 +700,25 @@ const parseCardRoute = (
 
   if (request.method === "DELETE" && segments.length === 3) {
     return { cardId, operation: "delete" };
+  }
+
+  if (segments.length === 4 && segments[3] === "thumbnail") {
+    if (request.method === "PUT") {
+      return { cardId, operation: "thumbnail-set" };
+    }
+    if (request.method === "DELETE") {
+      return { cardId, operation: "thumbnail-reset" };
+    }
+    return null;
+  }
+
+  if (
+    request.method === "POST" &&
+    segments.length === 5 &&
+    segments[3] === "thumbnail" &&
+    segments[4] === "upload"
+  ) {
+    return { cardId, operation: "thumbnail-upload" };
   }
 
   if (
@@ -795,6 +862,38 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   return next;
+};
+
+/** `{ mimeType, fileSize }` for a link image upload, or null. */
+const validateThumbnailUploadPayload = (
+  payload: unknown
+): { fileSize: number; mimeType: string } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  if (
+    Object.keys(source).some((key) => key !== "fileSize" && key !== "mimeType")
+  ) {
+    return null;
+  }
+  const mimeType = parseOptionalString(source.mimeType);
+  const fileSize = source.fileSize;
+  return mimeType && typeof fileSize === "number"
+    ? { fileSize, mimeType }
+    : null;
+};
+
+/** `{ fileKey }` naming a finished link image upload, or null. */
+const validateThumbnailSetPayload = (
+  payload: unknown
+): { fileKey: string } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  const fileKey = parseOptionalString(source.fileKey);
+  return Object.keys(source).length === 1 && fileKey ? { fileKey } : null;
 };
 
 const validateFavoritePayload = (
@@ -992,5 +1091,7 @@ export {
   validateCreatePayload,
   validateFavoritePayload,
   validatePatchPayload,
+  validateThumbnailSetPayload,
+  validateThumbnailUploadPayload,
   validateUploadPayload,
 };

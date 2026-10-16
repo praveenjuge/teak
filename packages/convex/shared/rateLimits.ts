@@ -54,6 +54,13 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 5,
   },
+  // Replacing or resetting a link's image (card/thumbnailOverride.ts).
+  thumbnailReplace: {
+    kind: "token bucket",
+    rate: 20,
+    period: MINUTE,
+    capacity: 20,
+  },
 } as const;
 
 export const rateLimiter = new RateLimiter(

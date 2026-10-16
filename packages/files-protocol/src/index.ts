@@ -69,6 +69,7 @@ export const FILES_OPS = [
   "vector-delete",
   "vector-get",
   "vector-query",
+  "vector-similar",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];

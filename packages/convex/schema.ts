@@ -72,6 +72,10 @@ export const linkCategoryMetadataValidator = v.object({
   sourceUrl: v.string(),
   imageUrl: v.optional(v.string()),
   facts: v.optional(v.array(linkCategoryFactValidator)),
+  // A product's price, read from the page; `price:` searches match `amount`.
+  price: v.optional(
+    v.object({ amount: v.number(), currency: v.optional(v.string()) })
+  ),
   raw: v.optional(v.any()),
   rawStorageKey: v.optional(v.string()),
   rawSha256: v.optional(v.string()),
@@ -146,6 +150,18 @@ export const fileMetadataValidator = v.optional(
 
 export const r2KeyValidator = v.string();
 
+/**
+ * An image someone chose for a link card in place of its scraped one
+ * (card/thumbnailOverride.ts). Width and height are the decoded image's, so
+ * grids can reserve its aspect ratio.
+ */
+export const thumbnailOverrideValidator = v.object({
+  storageKey: r2KeyValidator,
+  width: v.number(),
+  height: v.number(),
+  updatedAt: v.number(),
+});
+
 export const metadataValidator = v.optional(
   v.object({
     source: v.optional(v.string()),
@@ -200,6 +216,9 @@ export const metadataValidator = v.optional(
         raw: v.optional(v.any()),
         rawStorageKey: v.optional(v.string()),
         rawSha256: v.optional(v.string()),
+        // Set when a site's own API confirmed what the link is (a social
+        // post); categorization prefers it to the URL rules.
+        categoryHint: v.optional(linkCategoryValidator),
       })
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),
@@ -454,6 +473,26 @@ export const cardValidator = v.object({
   ),
   metadataTitle: v.optional(v.string()),
   metadataTitleEdited: v.optional(v.boolean()),
+  /**
+   * A link's chosen image. It lives outside metadata.linkPreview so Refresh
+   * details, screenshots and new link media never replace it.
+   */
+  thumbnailOverride: v.optional(thumbnailOverrideValidator),
+  /**
+   * What the last replace or reset changed from, kept for the undo window:
+   * `override: null` means the card showed its original image. Its object is
+   * deleted after `deleteAfter` unless an undo puts it back.
+   */
+  previousThumbnailOverride: v.optional(
+    v.object({
+      override: v.union(thumbnailOverrideValidator, v.null()),
+      changeId: v.string(),
+      deleteAfter: v.number(),
+      deletionJobId: v.optional(v.id("_scheduled_functions")),
+    })
+  ),
+  /** Minted by every replace or reset; an undo must name the current one. */
+  thumbnailChangeId: v.optional(v.string()),
   metadataDescription: v.optional(v.string()),
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
@@ -689,6 +728,11 @@ export default defineSchema({
   semanticSearchResults: defineTable({
     userId: v.string(),
     key: v.string(),
+    /**
+     * `pending`: a `like:` card with no vector yet, kept briefly so retries
+     * stay cheap. Missing means `ok`.
+     */
+    status: v.optional(v.literal("pending")),
     ranking: v.array(v.object({ cardId: v.id("cards"), score: v.number() })),
     createdAt: v.number(),
     expiresAt: v.number(),

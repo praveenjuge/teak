@@ -459,6 +459,10 @@ Four signed ops read and write the index (`src/vectors.ts`):
 - `vector-query` embeds a query of up to 500 characters with the query prompt
   and returns the top matches (at most 100) in one namespace, ids and scores
   only.
+- `vector-similar` searches with one card's stored vector (no Workers AI call)
+  and returns its closest cards in the same namespace, without the card itself.
+  A card with no vector in that namespace answers `found: false`, so one user
+  can never search with another's card.
 
 Every op names its shard; a shard with no binding is `INVALID_INPUT`. Convex
 decides what text, namespace and shard to send.

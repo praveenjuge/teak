@@ -224,6 +224,38 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("screenshot.jpg");
   });
 
+  test("shows a chosen image before attached X image media", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            hasThumbnailOverride: true,
+            linkPreviewImageUrl: "https://example.com/chosen.jpg",
+            metadata: {
+              linkPreview: { status: "success", title: "Post with images" },
+            },
+            linkPreviewMedia: [
+              {
+                type: "image",
+                url: "https://example.com/attached-image.jpg",
+                width: 1200,
+                height: 900,
+              },
+            ],
+            thumbnailOverride: {
+              height: 900,
+              storageKey: "users/u/cards/c/thumbnail-override/chosen",
+              width: 600,
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain("chosen.jpg");
+    expect(markup).not.toContain("attached-image.jpg");
+  });
+
   test("prefers attached X video poster over screenshot in masonry preview", () => {
     const markup = renderToStaticMarkup(
       <Card
@@ -326,6 +358,60 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain(">example.com<");
   });
 
+  const pricedLink = (
+    price: { amount: number; currency?: string } | undefined,
+    withImage = true
+  ) =>
+    linkWithPreview({
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "Desk lamp",
+          ...(withImage ? { imageWidth: 1200, imageHeight: 630 } : {}),
+        },
+        linkCategory: {
+          category: "product",
+          fetchedAt: 1,
+          sourceUrl: "https://www.example.com/story",
+          ...(price ? { price } : {}),
+        },
+      },
+      ...(withImage ? {} : { linkPreviewImageUrl: undefined }),
+    });
+
+  test.each([
+    [{ amount: 24.99, currency: "USD" }, "$24.99"],
+    [{ amount: 1299, currency: "EUR" }, "€1,299.00"],
+    [{ amount: 1_299_999, currency: "JPY" }, "¥1,299,999"],
+    [{ amount: 0, currency: "USD" }, "Free"],
+    [{ amount: 12.5 }, "12.5"],
+    [{ amount: 7, currency: "NOTACODE" }, "7"],
+  ])("tags a product tile's image with its price %#", (price, label) => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(price) as any} />
+    );
+    expect(markup).toContain(`>${label}</span>`);
+  });
+
+  test("shows no price tag on a link without a price", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(undefined) as any} />
+    );
+    expect(markup).toContain("Desk lamp");
+    expect(markup).not.toContain("$");
+    expect(markup).not.toContain("Free");
+  });
+
+  test("puts the price beside the title when the tile has no image", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={pricedLink({ amount: 24.99, currency: "USD" }, false) as any}
+      />
+    );
+    expect(markup).not.toContain("og.jpg");
+    expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
+  });
+
   test("offers open, favorite and more actions on an active card", () => {
     const markup = renderToStaticMarkup(
       <Card
@@ -398,5 +484,30 @@ describe("Cards/Card redesign", () => {
     );
     expect(markup).toContain("Standup.m4a");
     expect(markup).toContain("1:24");
+  });
+
+  test("shows a text-only social post with its author", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            url: "https://mastodon.social/@Gargron/109311046116149744",
+            metadata: {
+              linkPreview: {
+                status: "success",
+                title: "It was the butler and the cook.",
+                description:
+                  "Eugen Rochko (@Gargron@mastodon.social) on Mastodon · November 9, 2022",
+                author: "Eugen Rochko",
+                siteName: "Mastodon",
+                categoryHint: "social_post",
+              },
+            },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">It was the butler and the cook.<");
+    expect(markup).toContain("Eugen Rochko (@Gargron@mastodon.social)");
   });
 });

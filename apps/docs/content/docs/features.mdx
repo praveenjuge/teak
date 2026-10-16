@@ -60,10 +60,13 @@ Special tokens work automatically:
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
 | **Site** | `site:github.com` | Links from that website |
 | **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
+| **Price** | `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, `price:=0` | Product links whose price is under, over or exactly that amount |
 | **Phrase** | `"design system"` | Those words together, in that order |
+| **Similar** | `like:<card id>` | Cards closest in meaning to that card (use **More like this**) |
+| **Mood** | `mood:"moody brutalist"` | Images whose look and description match the mood |
 | **Keyword** | anything else | Full-text match |
 
-Mix tokens in one query — all recognized filters apply together. Tags and folders must all match; several types or sites match any of them.
+Mix tokens in one query — all recognized filters apply together. Tags, folders and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them.
 
 ```
 blue button hover state
@@ -78,8 +81,17 @@ As you type, the search box suggests filters, your tags and folders, and the sit
 A few details:
 
 - `site:` matches the website exactly. `www.` and capital letters don't matter, so `site:www.GitHub.com` is the same as `site:github.com`, but `site:example.com` doesn't include `blog.example.com`.
+- `price:` compares the amount only, whatever the currency, so `price:<100` includes both $90 and ¥90. Links without a price never match.
 - `#` followed by a color code, like `#fff` or `#3B82F6`, is a color. Use `tag:fff` for a tag that looks like one.
 - Quoted phrases also match the text inside your documents.
+
+#### Find similar
+
+Open a card and choose **More like this** from its **⋯** menu to see the cards closest to it in meaning, of any type: notes, links and images about the same thing. The search box shows the pill **Similar to** and the card's title. Add filters to narrow the list, such as `type:link` or a tag, and pick the order in **View**. Save it as a smart folder to keep it; the folder follows the card if you rename it. A card saved a moment ago may need a few seconds before its similar cards show up.
+
+#### Search images by mood
+
+`mood:"moody brutalist"` lists images whose look matches the words: their description, tags, visual style and any text in them. It reads only images, so `mood:` with `type:link` finds nothing.
 - Files you saved before Teak kept their text become searchable once Teak catches up on them. For a video saved earlier, use **Refresh details** on the card to get its transcript.
 - A filter Teak doesn't recognize, like `type:banana`, is searched as text. A folder name you don't have shows as **No folder named …** and matches nothing.
 
@@ -200,7 +212,7 @@ Each card is processed automatically:
 | --- | --- |
 | **Auto-tagging** | Keywords and concepts |
 | **Summaries** | Short descriptions for scanning |
-| **Categorization** | Link type (design, development, article, tool) |
+| **Categorization** | Link type: article, news, book, movie, TV, podcast, music, product, recipe, course, research, event, software, design, place, typeface, social post, app, game, or code repository |
 | **Color extraction** | Dominant colors in images |
 | **Transcription** | Audio → searchable text |
 | **Thumbnails** | Previews for video and documents |
@@ -209,9 +221,19 @@ Each card is processed automatically:
 
 If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, including the link preview. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
 
+### Replace a link's image
+
+If a link's preview image is wrong, missing, or not the one you want, open the card and choose your own: drop an image on the preview, paste one with `⌘V` (`Ctrl+V` on Windows) while no text field has focus, or choose **Replace image** from the card's **⋯** menu. Use a JPEG, PNG, WebP, GIF, or AVIF image under 20 MB; SVG and HEIC images aren't supported yet. A link without an image shows **Add an image** where you can drop one.
+
+Your image shows in the grid and in the card on the web, and in the grids of the iPhone, iPad, and Mac apps. It stays through **Refresh details**. **Undo** in the message that follows puts back the previous image for two minutes. **Reset to original image** goes back to the image Teak found, or its screenshot of the page, and deletes yours.
+
 ### Card details
 
-Link cards show who wrote the page and when it was published, next to the site name, when the page says so. **Details**, beside an open card, lists the author, publisher, and publish date, and for photos the camera, exposure, aperture, focal length, ISO, and when the photo was taken. Teak never shows a photo's location.
+Link cards show who wrote the page and when it was published, next to the site name, when the page says so. Product links show their price as a tag on the card, such as "$24.99", "€1,299.00" or "Free", when the page states one. **Details**, beside an open card, lists the author, publisher, and publish date, and for photos the camera, exposure, aperture, focal length, ISO, and when the photo was taken. Teak never shows a photo's location.
+
+Places, apps, and games get their own facts when the page publishes them: a restaurant or home's address, cuisine, price range, and rating; an app's platform, category, and rating; and a game's platform, genre, rating, and release date. Code repositories on GitHub show their stars, forks, and language.
+
+**Social posts:** a saved post from X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn, or Substack Notes keeps its text and author, and its date when the site shares it. Bluesky, Mastodon, and Reddit posts keep up to 10 photos, and a video when the site offers it as a file (otherwise its cover image). A TikTok keeps its caption and cover image, and Threads, LinkedIn, and Substack Notes keep the text and image their page shares. A private, deleted, or login-only post is saved like any other page.
 
 ## Apps and access
 

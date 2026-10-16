@@ -9,7 +9,11 @@ import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { normalizeUrlHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
-import { matchesSearchPhrases, parseSearchQuery } from "./qualifiers";
+import {
+  matchesPriceBounds,
+  matchesSearchPhrases,
+  parseSearchQuery,
+} from "./qualifiers";
 import { type CardListSort, compareCardsByCreatedAt } from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
 
@@ -148,6 +152,18 @@ export const filterLocalCards = (
         return false;
       }
       if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
+        return false;
+      }
+      if (
+        parsed.prices.length > 0 &&
+        !(
+          card.type === "link" &&
+          matchesPriceBounds(
+            card.metadata?.linkCategory?.price?.amount,
+            parsed.prices
+          )
+        )
+      ) {
         return false;
       }
 

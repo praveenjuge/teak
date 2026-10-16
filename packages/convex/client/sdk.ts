@@ -116,6 +116,11 @@ export interface Card {
     posterWidth?: number;
     posterHeight?: number;
   }>;
+  /**
+   * A product link's price: `amount` in the page's currency, `currency` an
+   * ISO 4217 code or null. Null for cards without a price.
+   */
+  linkPrice: { amount: number; currency: string | null } | null;
   linkPublishedAt: string | null;
   linkPublisher: string | null;
   linkSiteName: string | null;
@@ -128,6 +133,8 @@ export interface Card {
   processingStatus: Record<string, unknown> | null;
   screenshotUrl: string | null;
   tags: string[];
+  /** True when linkPreviewImageUrl is an image chosen for the link. */
+  thumbnailOverridden: boolean;
   thumbnailUrl: string | null;
   type: CardType | string;
   updatedAt: number;
@@ -161,6 +168,11 @@ export interface CardsPage {
   pageInfo: PageInfo;
   /** With a query: the mode that ran (`keyword` when meaning search could not). */
   searchMode?: SearchMode;
+  /**
+   * For similar cards: `pending` while the card is still being read, and
+   * `unavailable` for a card in Trash or not found.
+   */
+  similarity?: "ok" | "pending" | "unavailable";
 }
 export interface CardChangesResponse {
   deletedIds: string[];
@@ -278,6 +290,11 @@ export interface RequestOptions {
 }
 export interface CreateUploadInput {
   fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
+/** A link image upload: JPEG, PNG, WebP, GIF or AVIF, under 20 MB. */
+export interface CreateThumbnailUploadInput {
   fileSize: number;
   mimeType: string;
 }
@@ -435,12 +452,14 @@ export const buildCardsSearchParams = (input: {
   mode?: SearchMode;
   /**
    * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
-   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"` and
-   * `"quoted phrases"`.
+   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`,
+   * `price:<100` (also `>`, `<=`, `>=` and `=`) and `"quoted phrases"`.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
   shuffleSeed?: number;
+  /** A card id: only the cards closest to it in meaning. */
+  similarTo?: string;
   sort?: CardSort;
   style?: string | readonly string[];
   tag?: string;
@@ -478,6 +497,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.archived === "only" || input.archived === "include") {
     search.set("archived", input.archived);
+  }
+  if (input.similarTo?.trim()) {
+    search.set("similarTo", input.similarTo.trim());
   }
   if (input.mode === "keyword" || input.mode === "semantic") {
     search.set("mode", input.mode);
@@ -752,6 +774,45 @@ export const createTeakClient = (options: {
       : {};
   const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
   const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
+  const putFile = async (
+    uploadUrl: string,
+    bytes: BodyInit,
+    mimeType: string
+  ) => {
+    const headers = new Headers({ "Content-Type": mimeType });
+    const byteLength = byteLengthForBody(bytes);
+    if (byteLength !== null) {
+      headers.set("Content-Length", String(byteLength));
+    }
+    const response = await fetchImpl(uploadUrl, {
+      body: bytes,
+      headers,
+      method: "PUT",
+    });
+    if (!response.ok) {
+      throw new TeakApiError(
+        "REQUEST_FAILED",
+        `Upload failed with status ${response.status}`,
+        { status: response.status }
+      );
+    }
+    return { fileEtag: response.headers.get("etag") ?? undefined };
+  };
+  const createThumbnailUpload = (
+    id: string,
+    input: CreateThumbnailUploadInput
+  ) =>
+    request(
+      `${cardPath(id)}/thumbnail/upload`,
+      { body: JSON.stringify(input), method: "POST" },
+      asUpload
+    );
+  const applyThumbnail = (id: string, fileKey: string) =>
+    request(
+      `${cardPath(id)}/thumbnail`,
+      { body: JSON.stringify({ fileKey }), method: "PUT" },
+      asCard
+    );
   return {
     cards: {
       bulk: (
@@ -816,11 +877,29 @@ export const createTeakClient = (options: {
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
+      /**
+       * A signed URL for a link card's new image; `setThumbnail` with bytes
+       * does this for you.
+       */
+      createThumbnailUpload,
       /** Refreshes summary, tags and link preview; it finishes in the background. */
       refresh: (id: string) =>
         request(`${cardPath(id)}/refresh`, { method: "POST" }, asRefresh),
+      /**
+       * Goes back to the image Teak found for a link card and deletes the one
+       * that replaced it. Changes nothing when the card has its own image.
+       */
+      resetThumbnail: (id: string) =>
+        request(`${cardPath(id)}/thumbnail`, { method: "DELETE" }, asCard),
       restore: (id: string) =>
         request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
+      /** The cards closest in meaning to one card; never the card itself. */
+      similar: (id: string, input: Parameters<typeof qs>[0] = {}) =>
+        request(
+          `/v1/cards?${qs({ include: "content,metadata", ...input, similarTo: id })}`,
+          { method: "GET" },
+          asPage
+        ),
       search: (input: Parameters<typeof qs>[0] = {}) =>
         request(
           `/v1/cards?${qs({ include: "content,metadata", ...input })}`,
@@ -834,6 +913,34 @@ export const createTeakClient = (options: {
           { body: JSON.stringify({ isArchived }), method: "PATCH" },
           asCard
         ),
+      /**
+       * Replaces a link card's image: uploads `bytes` (JPEG, PNG, WebP, GIF or
+       * AVIF, under 20 MB) and applies them. Pass `{ fileKey }` instead to
+       * apply an upload made with `createThumbnailUpload`.
+       */
+      setThumbnail: async (
+        id: string,
+        image: BodyInit | { fileKey: string },
+        mimeType?: string
+      ): Promise<Card> => {
+        if (
+          isObject(image) &&
+          typeof (image as { fileKey?: unknown }).fileKey === "string"
+        ) {
+          return applyThumbnail(id, (image as { fileKey: string }).fileKey);
+        }
+        const bytes = image as BodyInit;
+        const fileSize = byteLengthForBody(bytes);
+        if (fileSize === null || !mimeType) {
+          throw new TeakApiError(
+            "INVALID_INPUT",
+            "setThumbnail needs the image's bytes and its MIME type."
+          );
+        }
+        const upload = await createThumbnailUpload(id, { fileSize, mimeType });
+        await putFile(upload.uploadUrl, bytes, mimeType);
+        return applyThumbnail(id, upload.fileKey);
+      },
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
           `${cardPath(id)}/favorite`,
@@ -950,26 +1057,7 @@ export const createTeakClient = (options: {
           { body: JSON.stringify(input), method: "POST" },
           asUpload
         ),
-      putFile: async (uploadUrl: string, bytes: BodyInit, mimeType: string) => {
-        const headers = new Headers({ "Content-Type": mimeType });
-        const byteLength = byteLengthForBody(bytes);
-        if (byteLength !== null) {
-          headers.set("Content-Length", String(byteLength));
-        }
-        const response = await fetchImpl(uploadUrl, {
-          body: bytes,
-          headers,
-          method: "PUT",
-        });
-        if (!response.ok) {
-          throw new TeakApiError(
-            "REQUEST_FAILED",
-            `Upload failed with status ${response.status}`,
-            { status: response.status }
-          );
-        }
-        return { fileEtag: response.headers.get("etag") ?? undefined };
-      },
+      putFile,
     },
   };
 };

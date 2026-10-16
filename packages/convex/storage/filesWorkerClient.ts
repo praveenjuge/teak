@@ -50,6 +50,7 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "vector-delete": 30_000,
   "vector-get": 30_000,
   "vector-query": 30_000,
+  "vector-similar": 30_000,
   "store-remote-asset": SAFE_FETCH_MAX_DURATION_MS + 60_000,
 };
 

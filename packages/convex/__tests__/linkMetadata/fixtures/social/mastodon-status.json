@@ -1,0 +1,47 @@
+{
+  "id": "109311046116149744",
+  "created_at": "2022-11-09T12:00:00.000Z",
+  "sensitive": true,
+  "spoiler_text": "Spoilers for the finale",
+  "visibility": "public",
+  "url": "https://mastodon.social/@Gargron/109311046116149744",
+  "content": "<p>It was the butler &amp; the cook.</p><p>Line two<br />line three <a href=\"https://mastodon.social/tags/tv\" class=\"mention hashtag\">#<span>tv</span></a></p><script>alert(1)</script>",
+  "account": {
+    "id": "1",
+    "username": "Gargron",
+    "acct": "Gargron",
+    "display_name": "Eugen Rochko",
+    "url": "https://mastodon.social/@Gargron"
+  },
+  "media_attachments": [
+    {
+      "id": "1",
+      "type": "image",
+      "url": "https://files.mastodon.social/media_attachments/files/1/original/photo.jpg",
+      "preview_url": "https://files.mastodon.social/media_attachments/files/1/small/photo.jpg",
+      "meta": { "original": { "width": 1600, "height": 900 } }
+    },
+    {
+      "id": "2",
+      "type": "gifv",
+      "url": "https://files.mastodon.social/media_attachments/files/2/original/loop.mp4",
+      "preview_url": "https://files.mastodon.social/media_attachments/files/2/small/loop.png",
+      "meta": {
+        "original": { "width": 480, "height": 270 },
+        "small": { "width": 400, "height": 225 }
+      }
+    },
+    {
+      "id": "3",
+      "type": "video",
+      "url": "https://files.mastodon.social/media_attachments/files/3/original/clip.m3u8",
+      "preview_url": "https://files.mastodon.social/media_attachments/files/3/small/clip.png",
+      "meta": { "original": { "width": 1280, "height": 720 } }
+    },
+    {
+      "id": "4",
+      "type": "audio",
+      "url": "https://files.mastodon.social/media_attachments/files/4/original/voice.mp3"
+    }
+  ]
+}

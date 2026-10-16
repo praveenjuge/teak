@@ -2,7 +2,10 @@
 
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import {
+  parseSearchQuery,
+  SEARCH_DEFAULT_CARD_LIMIT,
+} from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
@@ -275,6 +278,24 @@ export function CardsScreen({
     ...queryArgs,
     enabled: !(isFolderView && !folder),
   });
+  // A typed `like:` chip reads "Similar to" and its card's title.
+  const similarity = useMemo(
+    () => parseSearchQuery(queryArgs.searchQuery ?? "").similarity ?? null,
+    [queryArgs.searchQuery]
+  );
+  const anchorCardId =
+    similarity?.kind === "like" ? similarity.cardId : undefined;
+  const similarAnchor = useQuery(
+    api.cards.similarAnchorSummary,
+    anchorCardId ? { cardId: anchorCardId } : "skip"
+  );
+  let similarAnchorTitle: string | undefined;
+  if (anchorCardId) {
+    similarAnchorTitle =
+      similarAnchor?.status === "unavailable"
+        ? "unavailable card"
+        : (similarAnchor?.title ?? "…");
+  }
 
   const {
     addFilter,
@@ -513,6 +534,17 @@ export function CardsScreen({
     onCloseModal: onCloseCard,
   });
 
+  // "More like this": the library lists the card's neighbors, in the
+  // current order; Back returns to the card.
+  const handleMoreLikeThis = useCallback(
+    (cardId: string) => {
+      onCloseCard();
+      applyUrlState({ ...urlState, q: `like:${cardId}`, tag: "", types: [] });
+      captureEvent("similar_search_opened", { source: "panel" });
+    },
+    [applyUrlState, onCloseCard, urlState]
+  );
+
   const handleInvalidSelectedCard = useCallback(() => {
     onCloseCard();
     toast.error("Card not found");
@@ -631,6 +663,34 @@ export function CardsScreen({
       );
     }
 
+    if (displayCards.length === 0 && similarity) {
+      const outcome = semanticSearch.outcome;
+      let message =
+        similarity.kind === "like"
+          ? "Nothing similar yet"
+          : "No images match this mood yet";
+      let canRetry = false;
+      if (outcome === "pending" || similarAnchor?.status === "pending") {
+        message = "Still learning about this card. Try again in a moment.";
+        canRetry = true;
+      } else if (outcome === "rate_limited") {
+        message = "Too many searches. Try again in a minute.";
+      } else if (outcome === "unavailable") {
+        message = "Couldn't search by meaning right now.";
+        canRetry = true;
+      }
+      return (
+        <div className="space-y-3 py-12 text-center">
+          <p className="text-muted-foreground">{message}</p>
+          {canRetry && (
+            <Button onClick={semanticSearch.retry} variant="ghost">
+              Try again
+            </Button>
+          )}
+        </div>
+      );
+    }
+
     if (displayCards.length === 0) {
       return (
         <div className="space-y-4 py-12 text-center">
@@ -727,6 +787,7 @@ export function CardsScreen({
             ? `Search ${clipName(folder.name)}`
             : LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view ?? "all"]
         }
+        similarAnchorTitle={similarAnchorTitle}
         title={title}
       />
 
@@ -799,6 +860,7 @@ export function CardsScreen({
         onCardTypeClick={handleCardTypeClick}
         onCardUpdate={updateCachedCard}
         onInvalidCard={handleInvalidSelectedCard}
+        onMoreLikeThis={handleMoreLikeThis}
         onNext={
           onSwitchCard && nextCardId
             ? () => onSwitchCard(nextCardId)

@@ -22,6 +22,7 @@ import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
   semanticQueryText,
+  similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
 import {
@@ -55,6 +56,7 @@ import {
   pageShuffleWalk,
   type ShuffleWalkOptions,
 } from "./shuffle";
+import { isSimilarAnchorAvailable, loadSimilarCards } from "./similarSearch";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -90,6 +92,8 @@ export const cardReturnValidator = v.object({
     )
   ),
   linkPreviewImageUrl: v.optional(v.string()),
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  hasThumbnailOverride: v.optional(v.literal(true)),
   /**
    * A search result matched by meaning (shared/search/semantic.ts), which
    * need not contain the searched words; clients keep it when they narrow
@@ -483,6 +487,60 @@ export const searchCardsPaginatedHandler = async (
         : null,
     };
   };
+
+  // `like:` and `mood:` list the cached meaning matches, filtered by the
+  // view and the other qualifiers; until they are cached, nothing.
+  if (resolved.similarity) {
+    const { similarity } = resolved;
+    const request = similarityRequest(similarity);
+    if (
+      request.kind === "like" &&
+      !(await isSimilarAnchorAvailable(ctx, user.teakUserId, request.cardId))
+    ) {
+      return emptyPage;
+    }
+    const ranking = await readSemanticRanking(
+      ctx,
+      user.teakUserId,
+      request.cacheText
+    );
+    if (!ranking) {
+      return emptyPage;
+    }
+    const inView = (card: Doc<"cards">) => {
+      if (showTrashOnly) {
+        return card.isDeleted === true;
+      }
+      if (card.isDeleted === true) {
+        return false;
+      }
+      if (archived === "include") {
+        return true;
+      }
+      return archived === "only"
+        ? card.isArchived === true
+        : card.isArchived !== true;
+    };
+    const similar = await loadSimilarCards(ctx, {
+      userId: user.teakUserId,
+      similarity,
+      ranking,
+      keep: (card) =>
+        inView(card) &&
+        matchesQualifiers(card) &&
+        isCreatedAtInRange(card.createdAt, createdAtRange) &&
+        doesCardMatchVisualFilters(card, visualFilters),
+      text: parsed.text,
+    });
+    const ordered = shuffle
+      ? shuffleBySeed(similar, seed, (card) => card._id)
+      : similar.sort((a, b) => compareCardsByCreatedAt(a, b, sort));
+    return offsetPage(ordered, (cards) =>
+      Promise.resolve(
+        cards.map((card) => ({ ...card, matchedByMeaning: true as const }))
+      )
+    );
+  }
 
   if (searchQuery) {
     const query = searchQuery.toLowerCase();

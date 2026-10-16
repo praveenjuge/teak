@@ -1,6 +1,6 @@
 import { sanitizeText, sanitizeUrl } from "./parsing";
+import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
 import { decodeHtmlEntities } from "./staticHtml";
-import type { ScrapeSelectorResult } from "./types";
 
 export const X_HOSTNAMES = ["x.com", "twitter.com"] as const;
 const X_OEMBED_ENDPOINTS = [
@@ -48,32 +48,12 @@ interface XSyndicationResponse {
   user?: XSyndicationUser;
 }
 
-export interface XStatusMedia {
-  contentType?: string;
-  height?: number;
-  posterContentType?: string;
-  posterHeight?: number;
-  posterUrl?: string;
-  posterWidth?: number;
-  type: "image" | "video";
-  url: string;
-  width?: number;
-}
-
-export interface XStatusMetadata {
-  author: string | undefined;
-  canonicalUrl: string | undefined;
-  description: string | undefined;
-  faviconUrl: string | undefined;
-  finalUrl: string;
-  imageUrl: string | undefined;
-  media: XStatusMedia[] | undefined;
-  publishedAt: string | undefined;
-  publisher: string | undefined;
-  raw: ScrapeSelectorResult[] | undefined;
-  siteName: string | undefined;
-  title: string | undefined;
-}
+// X posts share the social post shape (socialPost.ts); these names stay for
+// existing callers.
+export type {
+  SocialPostMedia as XStatusMedia,
+  SocialPostMetadata as XStatusMetadata,
+} from "./socialPost";
 
 export const isXHostname = (hostname: string): boolean =>
   X_HOSTNAMES.some(
@@ -242,12 +222,12 @@ const fetchXOEmbed = async (url: string): Promise<XOEmbedResponse | null> => {
 const buildXMediaFromSyndication = (
   normalizedUrl: string,
   payload: XSyndicationResponse | null
-): XStatusMedia[] | undefined => {
+): SocialPostMedia[] | undefined => {
   if (!payload?.mediaDetails?.length) {
     return undefined;
   }
 
-  const media: XStatusMedia[] = [];
+  const media: SocialPostMedia[] = [];
 
   for (const item of payload.mediaDetails) {
     const width =
@@ -340,7 +320,7 @@ const fetchXSyndication = async (
 
 export const fetchXStatusMetadata = async (
   normalizedUrl: string
-): Promise<XStatusMetadata | null> => {
+): Promise<SocialPostMetadata | null> => {
   const statusId = extractXStatusId(normalizedUrl);
   if (!statusId) {
     return null;
