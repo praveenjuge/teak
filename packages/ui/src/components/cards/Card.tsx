@@ -1064,7 +1064,7 @@ function QuickActionButton({
       aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
       aria-label={label}
       aria-pressed={pressed}
-      className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground/80 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-colors hover:bg-background hover:text-foreground data-[state=open]:bg-background dark:ring-white/10 [&_svg]:size-3.5"
+      className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-colors hover:bg-background data-[state=open]:bg-background dark:ring-white/10 [&_svg]:size-3.5 [&_svg]:opacity-80 [&_svg]:transition-opacity hover:[&_svg]:opacity-100"
       ref={ref}
       tabIndex={-1}
       title={shortcut ? undefined : label}

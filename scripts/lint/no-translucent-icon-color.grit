@@ -1,0 +1,47 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// An icon is several overlapping strokes. With a see-through color (text-x/55)
+// each stroke is blended on its own, so the overlaps show as brighter spots.
+// Keep the icon's color solid and fade the whole <svg> with opacity instead.
+or {
+  // A class string that styles svgs: `[&>svg]:text-x/55`, or a see-through
+  // color the svgs inherit with no solid `[&>svg]:text-x` override.
+  or {
+    JsStringLiteralExpression(),
+    JsxString()
+  } as $match where {
+    or {
+      $match <: r"(?s).*svg[^\s]*\]:(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
+      and {
+        $match <: r"(?s).*svg.*",
+        $match <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
+        not $match <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
+      }
+    }
+  },
+  // An icon component given a see-through color: <Hash className="text-x/60" />
+  JsxSelfClosingElement(name=$name, attributes=$attributes) as $match where {
+    $name <: r"[A-Z].*",
+    $attributes <: contains JsxAttribute(name=$attribute, initializer=$value) where {
+      $attribute <: `className`,
+      $value <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
+      not $value <: r"(?s).*placeholder:text-.*",
+      not $value <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
+    }
+  },
+  // An element with a see-through color around an icon that inherits it.
+  JsxElement(opening_element=$opening) as $match where {
+    $opening <: contains JsxAttribute(name=$attribute, initializer=$value) where {
+      $attribute <: `className`,
+      $value <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
+      not $value <: r"(?s).*placeholder:text-.*",
+      not $value <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
+    },
+    $match <: contains JsxSelfClosingElement(name=$child) where {
+      $child <: r"[A-Z].*"
+    }
+  }
+} where {
+  register_diagnostic(span=$match, message="Icons need a solid color: overlapping strokes in a see-through color (text-x/55) show brighter spots. Use a solid color and fade the svg with opacity, e.g. [&>svg]:text-x [&>svg]:opacity-55.", severity="error")
+}
