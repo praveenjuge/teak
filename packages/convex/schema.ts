@@ -757,9 +757,12 @@ export default defineSchema({
     attempts: v.optional(v.number()),
     lastError: v.optional(v.string()),
     pendingVectorDeleteAt: v.optional(v.number()),
+    /** Until then the `embedDue` job that claimed the card owns it. */
+    leaseUntil: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
+    .index("by_userId_and_dueAt", ["userId", "dueAt"])
     .index("by_dueAt", ["dueAt"])
     .index("by_pendingVectorDeleteAt", ["pendingVectorDeleteAt"]),
   vectorShards: defineTable({

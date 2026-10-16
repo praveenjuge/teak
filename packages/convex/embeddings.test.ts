@@ -16,11 +16,14 @@ interface WorkerCall {
 
 const stubWorker = ({
   fail = [],
+  failCode = "INTERNAL",
   failNext = {},
   matches = [],
   onCall,
 }: {
   fail?: string[];
+  /** What a failing call answers: INTERNAL (500) or RATE_LIMITED (429). */
+  failCode?: "INTERNAL" | "RATE_LIMITED";
   failNext?: Record<string, number>;
   /** What `vector-query` answers. */
   matches?: { id: string; score: number }[];
@@ -46,13 +49,13 @@ const stubWorker = ({
           {
             ok: false,
             error: {
-              code: "INTERNAL",
+              code: failCode,
               message: "boom",
               requestId: "r",
               retryable: true,
             },
           },
-          { status: 500 }
+          { status: failCode === "RATE_LIMITED" ? 429 : 500 }
         );
       }
       const answers: Record<string, unknown> = {
@@ -157,6 +160,77 @@ describe("embedding cards", () => {
       shard: 0,
     });
     expect(row).not.toHaveProperty("dueAt");
+  });
+
+  test("a burst of saves is written in batches of 32, each card once", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardIds: Id<"cards">[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      cardIds.push(await createCard(t, `saved in a burst ${i}`));
+    }
+
+    await runScheduled(t);
+
+    // One job claims the owner's due cards; the burst's other jobs find
+    // theirs claimed. On one write per card, Vectorize answers 429s.
+    expect(
+      upserts(calls)
+        .map((call) => call.params.items.length)
+        .sort((a, b) => a - b)
+    ).toEqual([8, 32]);
+    const written = upserts(calls).flatMap((call) =>
+      call.params.items.map((item: { id: string }) => item.id)
+    );
+    expect(written.sort()).toEqual([...cardIds].sort());
+    for (const cardId of cardIds) {
+      expect(await rowOf(t, cardId)).toMatchObject({
+        hash: expect.any(String),
+      });
+      expect(await rowOf(t, cardId)).not.toHaveProperty("leaseUntil");
+    }
+  });
+
+  test("a job claims at most 64 cards and leaves the rest to the next job", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    for (let i = 0; i < 70; i += 1) {
+      await createCard(t, `big burst ${i}`);
+    }
+
+    await runScheduled(t);
+
+    expect(
+      upserts(calls)
+        .map((call) => call.params.items.length)
+        .sort((a, b) => a - b)
+    ).toEqual([6, 32, 32]);
+  });
+
+  test("a rate-limited write backs off and retries its cards together, without a failure warning", async () => {
+    const calls = stubWorker({
+      failCode: "RATE_LIMITED",
+      failNext: { "embed-upsert": 1 },
+    });
+    const warn = vi.spyOn(console, "warn");
+    const t = setup();
+    const first = await createCard(t, "first in the burst");
+    const second = await createCard(t, "second in the burst");
+
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items.length)).toEqual([
+      2, 2,
+    ]);
+    for (const cardId of [first, second]) {
+      expect(await rowOf(t, cardId)).toMatchObject({
+        hash: expect.any(String),
+      });
+    }
+    expect(warn).not.toHaveBeenCalledWith(
+      "[embedding] card embed failed",
+      expect.anything()
+    );
   });
 
   test("a burst of edits is embedded once, with the last text", async () => {
@@ -544,6 +618,7 @@ describe("backfill", () => {
     await backfill(t, { dryRun: false });
     await runScheduled(t);
 
+    // The card already due for its own embed rides along in the same write.
     const writes = upserts(calls).slice(1);
     expect(writes).toHaveLength(1);
     expect(
@@ -552,6 +627,7 @@ describe("backfill", () => {
       "its job was lost",
       "ran out of retries",
       "saved before embeddings",
+      "waiting for its embed",
     ]);
     for (const cardId of [cards.missing, cards.failed, cards.lost]) {
       const row = await rowOf(t, cardId);
@@ -579,7 +655,11 @@ describe("backfill", () => {
     expect(starts.slice(1).map((time, i) => time - (starts[i] ?? 0))).toEqual([
       3200,
     ]);
-    await runScheduled(t);
+    // Each job runs at its own time, before the next batch is due.
+    for (const start of starts) {
+      vi.advanceTimersByTime(Math.max(0, start - Date.now()));
+      await t.finishInProgressScheduledFunctions();
+    }
 
     expect(
       upserts(calls)

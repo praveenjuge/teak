@@ -27,9 +27,12 @@ const fakes = ({
     { id: "card_2", score: 0.81 },
     { id: "card_1", score: 0.42 },
   ],
+  writeError,
 }: {
   aiError?: unknown;
   dimensions?: number;
+  /** Rejects upserts and deletes, as Vectorize does under load. */
+  writeError?: unknown;
   /** What every query finds, closest first, before its filter and topK. */
   ranked?: Ranked[];
   /** Rejects filtered queries, as an index without the metadata index may. */
@@ -60,6 +63,9 @@ const fakes = ({
     },
     CARD_VECTORS_0: {
       deleteByIds: (ids: string[]) => {
+        if (writeError) {
+          return Promise.reject(writeError);
+        }
         deletes.push(ids);
         return Promise.resolve({ mutationId: "m-delete" });
       },
@@ -92,6 +98,9 @@ const fakes = ({
         return Promise.resolve({ count: matches.length, matches });
       },
       upsert: (vectors: unknown[]) => {
+        if (writeError) {
+          return Promise.reject(writeError);
+        }
         upserts.push(vectors);
         return Promise.resolve({ mutationId: "m-upsert" });
       },
@@ -190,6 +199,43 @@ describe("embed-upsert", () => {
     expect(status).toBe(429);
     expect(body.error?.code).toBe("AI_CAPACITY");
     expect(upserts).toEqual([]);
+  });
+
+  test("answers a Vectorize rate limit as a retryable RATE_LIMITED, for writes and deletes", async () => {
+    const { env } = fakes({
+      writeError: new Error(
+        "VECTOR_UPSERT_ERROR (code = 40041): Too Many Requests"
+      ),
+    });
+    const upsert = await runOp(env, "embed-upsert", {
+      items: [{ id: "card_1", text: "Teak" }],
+      namespace: NAMESPACE,
+      shard: 0,
+    });
+    const remove = await runOp(env, "vector-delete", {
+      ids: ["card_1"],
+      shard: 0,
+    });
+    for (const { body, status } of [upsert, remove]) {
+      expect(status).toBe(429);
+      expect(body.error).toMatchObject({
+        code: "RATE_LIMITED",
+        retryable: true,
+      });
+    }
+  });
+
+  test("any other Vectorize write error is still an internal error", async () => {
+    const { env } = fakes({
+      writeError: new Error("VECTOR_UPSERT_ERROR (code = 40006)"),
+    });
+    const { body, status } = await runOp(env, "embed-upsert", {
+      items: [{ id: "card_1", text: "Teak" }],
+      namespace: NAMESPACE,
+      shard: 0,
+    });
+    expect(status).toBe(500);
+    expect(body.error?.code).toBe("INTERNAL");
   });
 
   test("never upserts vectors of the wrong size", async () => {

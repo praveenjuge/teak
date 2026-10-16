@@ -51,10 +51,11 @@ interface DueRow {
 }
 
 /**
- * Embed the due cards among `cardIds`. Cards whose text needs a new vector
- * are embedded together, up to EMBED_UPSERT_MAX_ITEMS per `embed-upsert` and
- * one call per owner (a call writes one namespace): Vectorize answers many
- * small writes with 429s, so the backfill queues cards in batches.
+ * Embed the due cards among `cardIds`, with their owners' other due cards
+ * (`claimDueEmbeddings`). Cards whose text needs a new vector are embedded
+ * together, up to EMBED_UPSERT_MAX_ITEMS per `embed-upsert` and one call per
+ * owner (a call writes one namespace): Vectorize answers many small writes
+ * with 429s, so a burst of saves makes a few batched writes, not one each.
  */
 export const embedDue = internalAction({
   args: { cardIds: v.array(v.id("cards")) },
@@ -63,19 +64,25 @@ export const embedDue = internalAction({
     if (!isFilesWorkerConfigured()) {
       return null;
     }
-    const rows: DueRow[] = await ctx.runQuery(state().loadForEmbedding, {
-      cardIds,
-    });
+    const { claimed, later } = await ctx.runMutation(
+      state().claimDueEmbeddings,
+      { cardIds }
+    );
     const now = Date.now();
+    for (const { cardId, dueAt } of later) {
+      await ctx.scheduler.runAfter(dueAt - now, self().embedDue, {
+        cardIds: [cardId],
+      });
+    }
+    if (claimed.length === 0) {
+      return null;
+    }
+    const rows: DueRow[] = await ctx.runQuery(state().loadForEmbedding, {
+      cardIds: claimed,
+    });
     const toEmbed = new Map<string, { hash: string; row: DueRow }[]>();
     for (const row of rows) {
       if (row.dueAt === undefined) {
-        continue;
-      }
-      if (row.dueAt > now + 1000) {
-        await ctx.scheduler.runAfter(row.dueAt - now, self().embedDue, {
-          cardIds: [row.cardId],
-        });
         continue;
       }
       const hash = await settleWithoutEmbedding(ctx, row);
@@ -103,18 +110,25 @@ export const embedDue = internalAction({
   },
 });
 
-/** One failed attempt for these cards; they are retried together. */
+/**
+ * One failed attempt for these cards; they are retried together. Vectorize
+ * rate-limiting a write is expected under load, so it logs as a back-off.
+ */
 const recordFailure = async (
   ctx: ActionCtx,
   rows: DueRow[],
   error: unknown
 ) => {
-  console.warn("[embedding] card embed failed", {
-    cardIds: rows.map((row) => row.cardId),
-    message: errorMessage(error),
-  });
+  const message = errorMessage(error);
+  const rateLimited = message.includes(":RATE_LIMITED:");
+  (rateLimited ? console.log : console.warn)(
+    rateLimited
+      ? "[embedding] card embed rate-limited; retrying later"
+      : "[embedding] card embed failed",
+    { cardIds: rows.map((row) => row.cardId), message }
+  );
   await ctx.runMutation(state().recordEmbedFailures, {
-    error: errorMessage(error),
+    error: message,
     items: rows.map((row) => ({
       cardId: row.cardId,
       expectedDueAt: row.dueAt,

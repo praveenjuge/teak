@@ -24,8 +24,30 @@ import {
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
 import { meteredAiRun } from "./aiUsage";
+import { OpFailure } from "./opFailure";
 import type { FilesOpsEnv } from "./ops";
 import { isCapacityError, MetadataCapacityError } from "./textMetadata";
+
+// Vectorize answers a burst of writes with 429 (`VECTOR_UPSERT_ERROR (code =
+// 40041): Too Many Requests`). It is load, not a fault: answer RATE_LIMITED
+// so Convex backs off, instead of logging and reporting an internal error.
+const VECTORIZE_RATE_LIMIT = /\b40041\b|too many requests/iu;
+
+const isVectorizeRateLimit = (error: unknown) =>
+  VECTORIZE_RATE_LIMIT.test(
+    error instanceof Error ? error.message : String(error)
+  );
+
+const withVectorizeRateLimit = async <T>(write: () => Promise<T>) => {
+  try {
+    return await write();
+  } catch (error) {
+    if (isVectorizeRateLimit(error)) {
+      throw new OpFailure("vector_rate_limited", { cause: error });
+    }
+    throw error;
+  }
+};
 
 const MAX_ITEM_TEXT_CHARS = 20_000;
 
@@ -217,15 +239,17 @@ export const embedUpsert = async (
     env,
     items.map((item) => cardEmbeddingDocument(item.text))
   );
-  const mutation = await index.upsert(
-    items.map((item, i) => ({
-      id: item.id,
-      namespace,
-      values: vectors[i] as number[],
-      ...(item.type
-        ? { metadata: { [VECTOR_TYPE_METADATA_KEY]: item.type } }
-        : {}),
-    }))
+  const mutation = await withVectorizeRateLimit(() =>
+    index.upsert(
+      items.map((item, i) => ({
+        id: item.id,
+        namespace,
+        values: vectors[i] as number[],
+        ...(item.type
+          ? { metadata: { [VECTOR_TYPE_METADATA_KEY]: item.type } }
+          : {}),
+      }))
+    )
   );
   return { mutationId: mutation.mutationId, upserted: items.length };
 };
@@ -234,7 +258,9 @@ export const vectorDelete = async (
   env: FilesOpsEnv,
   { ids, shard }: FilesVectorDeleteParams
 ): Promise<FilesVectorDeleteResult> => {
-  const mutation = await indexForShard(env, shard).deleteByIds(ids);
+  const mutation = await withVectorizeRateLimit(() =>
+    indexForShard(env, shard).deleteByIds(ids)
+  );
   return { mutationId: mutation.mutationId };
 };
 
