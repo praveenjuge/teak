@@ -189,7 +189,10 @@ export function FocusEditor({
           <div
             className={cn(
               "absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-background/90 px-4 py-2 backdrop-blur transition-opacity duration-200 ease-out sm:px-6",
-              isTyping && "pointer-events-none opacity-0"
+              // Faded, the strip lets clicks through to the note, but its
+              // buttons still work for a click that comes without a hover.
+              isTyping &&
+                "pointer-events-none opacity-0 [&_button]:pointer-events-auto"
             )}
             data-focus-chrome={isTyping ? "hidden" : "visible"}
           >

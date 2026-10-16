@@ -35,7 +35,8 @@ test("Focus on an existing note: write, leave with Esc, and the edit saves", asy
   await expect(cardDialog.getByRole("textbox", "Markdown content")).toHaveText(
     `${marker} written in focus`
   );
-  await expect(cardDialog.getByRole("button", "Focus")).toBeFocused();
+  // Focus goes back to what had it on entering: here, the card dialog.
+  await expect(cardDialog).toBeFocused();
   await expect.poll(() => library.read(id)).toBe(`${marker} written in focus`);
 
   // The Focus button, then Save in the bar.
