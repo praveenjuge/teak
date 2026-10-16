@@ -30,7 +30,10 @@ import type { Env } from "./index";
 import type { FilesOpsEnv } from "./ops";
 import { isCapacityError, MetadataCapacityError } from "./textMetadata";
 
-/** Clef rejects images over 4 MiB, so larger renditions get no styles. */
+/**
+ * Clef rejects images over 4 MiB. A larger rendition is no decision, so
+ * callers fall back to the tag aliases.
+ */
 const MAX_CLEF_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_CLEF_CAPACITY_RETRIES = 2;
 const CAPACITY_RETRY_BASE_DELAY_MS = 250;
@@ -505,9 +508,8 @@ export const decideVisualStylesForImage = async (
   title?: string | null
 ): Promise<FilesVisualStylesDecisionResult> => {
   const model: ClefModel = "clef-flash";
-  const base = facts(model, DECISION_VERSIONS.visualStyles, undefined);
   if (image.bytes.byteLength > MAX_CLEF_IMAGE_BYTES) {
-    return { ...base, styles: [] };
+    throw new Error("clef_image_too_large");
   }
   const reply = await runClef(
     env,

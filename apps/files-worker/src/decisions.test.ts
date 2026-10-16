@@ -256,13 +256,17 @@ describe("visual styles", () => {
     expect(firstArgs(calls).images).toEqual([image.dataUrl]);
   });
 
-  test("skips images Clef would reject", async () => {
+  test("an image Clef would reject is no decision, so tags decide", async () => {
     const calls: Call[] = [];
-    const result = await decideVisualStylesForImage(
-      fakeEnv(() => ({}), calls),
-      { bytes: new Uint8Array(4 * 1024 * 1024 + 1), dataUrl: "data:" }
-    );
-    expect(result.styles).toEqual([]);
+    await expect(
+      decideVisualStylesForImage(
+        fakeEnv(() => ({}), calls),
+        {
+          bytes: new Uint8Array(4 * 1024 * 1024 + 1),
+          dataUrl: "data:",
+        }
+      )
+    ).rejects.toThrow("clef_image_too_large");
     expect(calls).toHaveLength(0);
   });
 });
