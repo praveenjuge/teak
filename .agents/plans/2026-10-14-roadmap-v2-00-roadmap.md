@@ -149,7 +149,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 
 | # | Plan | Group | Depends on |
 |---|---|---|---|
-| 1 | [Command palette (⌘K)](2026-10-14-roadmap-v2-01-command-palette.md) | Quick wins | — |
+| 1 | Command palette (⌘K): built, plan deleted | Quick wins | — |
 | 2 | [Focus mode for text cards](2026-10-14-roadmap-v2-02-focus-mode.md) | Quick wins | — |
 | 3 | [Ticked checklist items move down](2026-10-14-roadmap-v2-03-checklist-sort.md) | Quick wins | — |
 | 4 | [Hidden cards via reserved tags](2026-10-14-roadmap-v2-04-hidden-cards.md) | Quick wins | — |
@@ -216,6 +216,7 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 
 | Phase | Decision |
 |---|---|
+| 1 | ⌘K does nothing while another dialog or menu is open, the card modal included, like every other shortcut |
 | 2 | The composer's full-screen note and Focus mode become one feature, on ⌘E, for new and existing notes |
 | 4 | No announcement for cards that already carry `private`, `nsfw` or `hidden`; the normal changelog entry covers it |
 | 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |

@@ -64,6 +64,7 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: "Anywhere",
     rows: [
+      { keys: ["Mod", "K"], label: "Command palette", combo: true },
       { keys: ["/"], label: "Search" },
       { keys: ["N"], label: "New note" },
       { keys: ["U"], label: "Upload files" },

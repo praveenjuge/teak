@@ -13,6 +13,8 @@ import {
 } from "./SettingsDialog";
 
 interface ImportExportDialogProps {
+  /** The tab it opens on. */
+  defaultTab?: "import" | "export";
   exportLoading: boolean;
   exportState: ExportState | null | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
@@ -24,6 +26,7 @@ interface ImportExportDialogProps {
 }
 
 export function ImportExportDialog({
+  defaultTab = "import",
   exportLoading,
   exportState,
   onCancelExport,
@@ -42,7 +45,7 @@ export function ImportExportDialog({
       open={open}
       title="Manage data"
     >
-      <Tabs className={settingsTabsClassName} defaultValue="import">
+      <Tabs className={settingsTabsClassName} defaultValue={defaultTab}>
         <TabsList className={settingsTabsListClassName}>
           <TabsTrigger className={settingsTabsTriggerClassName} value="import">
             Import

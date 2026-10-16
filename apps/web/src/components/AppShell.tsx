@@ -16,8 +16,9 @@ import { LibraryShortcuts } from "@teak/ui/shortcuts";
 import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 import { rememberHomeScroll } from "@/lib/homeScroll";
+import { signOut } from "@/lib/sign-out-client";
 
 export function AppShell({
   children,
@@ -51,6 +52,29 @@ export function AppShell({
     }
   }, [handleGoToView]);
 
+  const handleNavigate = useCallback(
+    (href: string) => {
+      if (isCardsPage) {
+        rememberHomeScroll();
+      }
+      // Opening a card over this page keeps its scroll.
+      const samePage = pathname !== null && href.startsWith(`${pathname}?`);
+      router.push(href, samePage ? { scroll: false } : undefined);
+    },
+    [isCardsPage, pathname, router]
+  );
+
+  const signingOutRef = useRef(false);
+  const handleSignOut = useCallback(() => {
+    if (signingOutRef.current) {
+      return;
+    }
+    signingOutRef.current = true;
+    signOut().catch(() => {
+      signingOutRef.current = false;
+    });
+  }, []);
+
   const handleUpgrade = () => {
     rememberHomeScroll();
     router.push("/settings");
@@ -58,7 +82,12 @@ export function AppShell({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-      <LibraryShortcuts onGoToView={handleGoToView} />
+      <LibraryShortcuts
+        onGoToView={handleGoToView}
+        onNavigate={handleNavigate}
+        onSignOut={handleSignOut}
+        pathname={pathname}
+      />
       <AppSidebar
         activeView={view}
         addActions={
