@@ -167,6 +167,9 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await clearFilters(screen);
 
     await pickType("Palette");
+    await expect(
+      browser.locator('[role="main"] [aria-label*="#DDEEFF"]').first()
+    ).toBeVisible();
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await expect(screen.getByRole("main")).not.toContainText(
       `${marker} quoted line`
