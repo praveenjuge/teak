@@ -15,6 +15,7 @@ import {
   type FilesVideoScrub,
 } from "@teak/files-protocol";
 import type { WorkersAiBinding } from "./aiGateway";
+import { meteredAiRun } from "./aiUsage";
 import { MAX_PDF_TEXT_PAGES, textFacts } from "./inspect";
 import { OpFailure } from "./opFailure";
 import {
@@ -306,13 +307,16 @@ export const readWaveform = (
 type AiBinding = NonNullable<MediaJobsEnv["AI"]>;
 
 const runWhisper = async (
+  env: MediaJobsEnv,
   ai: AiBinding,
   body: ReadableStream,
   contentType: string
 ): Promise<FilesAudioTranscript> => {
-  const result = (await ai.run(FILES_TRANSCRIPTION_MODEL, {
-    audio: { body, contentType },
-  })) as { text?: unknown } | null;
+  const result = (await meteredAiRun(
+    env,
+    { functionId: "teak.ai.transcript", model: FILES_TRANSCRIPTION_MODEL },
+    () => ai.run(FILES_TRANSCRIPTION_MODEL, { audio: { body, contentType } })
+  )) as { text?: unknown } | null;
   const text = result?.text ?? "";
   if (typeof text !== "string") {
     return { reason: "transcription_invalid_response", status: "failed" };
@@ -357,11 +361,12 @@ const transcribe = async (
   const mp3 = (bytes: Uint8Array) => new Blob([bytes]).stream();
   try {
     if (input.converted) {
-      return await runWhisper(ai, mp3(input.converted), "audio/mpeg");
+      return await runWhisper(env, ai, mp3(input.converted), "audio/mpeg");
     }
     const source = await r2SourceOpener(env.BUCKET, input.sourceKey)();
     try {
       return await runWhisper(
+        env,
         ai,
         source.body,
         input.mimeType || source.contentType || "audio/mpeg"
@@ -375,7 +380,7 @@ const transcribe = async (
     if (!converted) {
       return { reason: "audio_decode_failed", status: "failed" };
     }
-    return await runWhisper(ai, mp3(converted), "audio/mpeg");
+    return await runWhisper(env, ai, mp3(converted), "audio/mpeg");
   } catch (error) {
     if (isAudioDecodeError(error)) {
       return { reason: "audio_decode_failed", status: "failed" };

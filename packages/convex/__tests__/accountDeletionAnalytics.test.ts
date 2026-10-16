@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { deletePostHogPerson } from "../accountDeletionAnalytics";
-import { deletionFailureReason } from "../workflows/accountDeletion";
+import { deletionFailureReason } from "../accountDeletionStages";
 
 const DELETION_KEY = "phx_test_person_deletion_key";
 const ENV_KEYS = [

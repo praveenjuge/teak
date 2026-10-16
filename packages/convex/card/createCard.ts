@@ -3,7 +3,6 @@ import {
   extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
 import { ConvexError, v } from "convex/values";
-import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -22,7 +21,7 @@ import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
-import { startWorkflow } from "../workflows/manager";
+import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
@@ -272,12 +271,7 @@ export const createCardForUserHandler = async (
   const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
   await syncCardSearch(ctx, cardId, userId);
 
-  await startWorkflow(
-    ctx,
-    (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
-    { cardId },
-    { startAsync: true }
-  );
+  await queueCardProcessing(ctx, cardId);
 
   await scheduleCardOutcome(ctx, {
     cardId,

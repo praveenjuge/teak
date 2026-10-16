@@ -184,10 +184,9 @@ test("the orphan sweep keeps a card's scrub sprite", async () => {
   const cardId = await insertCard(t, "video", {});
   await t.run((ctx) => ctx.db.patch(cardId, { scrubKey }));
 
-  const page = await t.query(
-    internal.workflows.orphanSweepQueries.pageSweepCards,
-    { numItems: 10 }
-  );
+  const page = await t.query(internal.storage.orphanSweep.pageSweepCards, {
+    numItems: 10,
+  });
 
   expect(cardStorageObjectKeys(page.cards[0] ?? {})).toContain(scrubKey);
 });

@@ -77,7 +77,8 @@ beforeEach(() => {
 });
 
 describe("ensureRelevanceScores", () => {
-  test("scores the candidates, caches them and records the cost", async () => {
+  test("scores the candidates, caches them and charges the searcher", async () => {
+    process.env.CONVEX_SITE_URL = "https://relevance-tests.convex.site";
     const { ctx, mutations } = makeCtx();
     const result = await ensureRelevanceScores(ctx, {
       candidates: [card("a"), card("b")],
@@ -91,16 +92,14 @@ describe("ensureRelevanceScores", () => {
     ]);
     expect(workerCalls[0]?.op).toBe("score-relevance");
     expect(workerCalls[0]?.params.query).toBe("soup");
+    // The Worker records the model call in Analytics Engine for this user.
+    expect(workerCalls[0]?.params.aiUsage).toEqual({
+      convexSiteUrl: "https://relevance-tests.convex.site",
+      userId: "teak_user",
+    });
     expect(mutations.map((entry) => entry.name)).toEqual([
-      "adminUsage:recordAiUsage",
       "search/relevanceCache:storeScores",
     ]);
-    expect(mutations[0]?.args).toMatchObject({
-      calls: 1,
-      errors: 0,
-      inputTokens: 1000,
-      costUsd: 0.000_038,
-    });
     expect(rateLimitCalls).toBe(1);
   });
 
@@ -198,11 +197,7 @@ describe("ensureRelevanceScores", () => {
       userId: "teak_user",
     });
     expect(invalid.outcome).toBe("unavailable");
-    expect(mutations.map((entry) => entry.name)).toEqual([
-      "adminUsage:recordAiUsage",
-      "adminUsage:recordAiUsage",
-    ]);
-    expect(mutations.every((entry) => entry.args.errors === 1)).toBe(true);
+    expect(mutations).toEqual([]);
   });
 
   test("scores at most the top 64", async () => {

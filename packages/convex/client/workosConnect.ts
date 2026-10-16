@@ -59,7 +59,8 @@ const send = (url: string, init: RequestInit, local: boolean) =>
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   fetch(validateOAuthUrl(url, local).href, {
     ...init,
-    credentials: "omit",
+    // A plain RequestInit field; spread so Worker typings, which omit it, accept it.
+    ...({ credentials: "omit" } as RequestInit),
     redirect: "error",
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });

@@ -1,0 +1,271 @@
+import {
+  buildWorkflowDispatchSigningPayload,
+  type DispatchItem,
+  type DispatchItemResult,
+  type DispatchResult,
+  isWorkflowInstanceId,
+  isWorkflowName,
+  MAX_DISPATCH_DELETE_KEYS,
+  MAX_DISPATCH_ITEMS,
+  WORKFLOW_RPC_MAX_TTL_SECONDS,
+  type WorkflowName,
+} from "@teak/files-protocol";
+import {
+  allowedConvexSiteUrl,
+  type ConvexRpcEnv,
+  workflowRpcSecret,
+} from "../convexRpc";
+import { sha256Hex, verifyHmacPayload } from "../lib";
+import { sendInBatches } from "../queues/sendBatch";
+import { isValidUploadKey } from "../upload";
+
+export interface ObjectDeletionMessage {
+  keys: string[];
+}
+
+export interface WorkflowBindingsEnv extends ConvexRpcEnv {
+  ACCOUNT_DELETION?: Workflow;
+  CARD_PROCESSING?: Workflow;
+  EXPORTS?: Workflow;
+  IMPORTS?: Workflow;
+  MAINTENANCE?: Workflow;
+  OBJECT_DELETIONS?: Queue<ObjectDeletionMessage>;
+}
+
+export const workflowBinding = (
+  env: WorkflowBindingsEnv,
+  name: WorkflowName
+): Workflow | undefined => {
+  switch (name) {
+    case "account-deletion":
+      return env.ACCOUNT_DELETION;
+    case "card-processing":
+      return env.CARD_PROCESSING;
+    case "export":
+      return env.EXPORTS;
+    case "import":
+      return env.IMPORTS;
+    case "maintenance":
+      return env.MAINTENANCE;
+    default:
+      return;
+  }
+};
+
+/** createBatch reports an ID that already exists, or repeats, with these. */
+const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
+
+const parseItem = (value: unknown): DispatchItem | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (record.type === "delete-objects") {
+    const { keys } = record;
+    if (
+      !Array.isArray(keys) ||
+      keys.length === 0 ||
+      keys.length > MAX_DISPATCH_DELETE_KEYS ||
+      keys.some((key) => typeof key !== "string" || !isValidUploadKey(key))
+    ) {
+      return null;
+    }
+    return { keys: keys as string[], type: "delete-objects" };
+  }
+  if (record.type === "workflow") {
+    const { id, params, terminate, workflow } = record;
+    if (
+      !(isWorkflowName(workflow) && isWorkflowInstanceId(id) && params) ||
+      typeof params !== "object" ||
+      Array.isArray(params) ||
+      (terminate !== undefined &&
+        !(
+          Array.isArray(terminate) &&
+          terminate.length <= 20 &&
+          terminate.every(isWorkflowInstanceId)
+        ))
+    ) {
+      return null;
+    }
+    return {
+      id,
+      params: params as Record<string, unknown>,
+      ...(terminate ? { terminate: terminate as string[] } : {}),
+      type: "workflow",
+      workflow,
+    };
+  }
+  return null;
+};
+
+export const parseDispatchItems = (params: Record<string, unknown>) => {
+  const { items } = params;
+  if (
+    !Array.isArray(items) ||
+    items.length === 0 ||
+    items.length > MAX_DISPATCH_ITEMS
+  ) {
+    throw new Error("invalid_dispatch_items");
+  }
+  return items.map(parseItem);
+};
+
+/**
+ * Whether the dispatching deployment signed these items with its own
+ * workflow RPC secret. The files signing secret that authenticated the op is
+ * shared with development, so it alone can't say which deployment sent it.
+ */
+const hasValidDispatchProof = async (
+  env: WorkflowBindingsEnv,
+  convexSiteUrl: string,
+  params: Record<string, unknown>,
+  now: number
+): Promise<boolean> => {
+  const { expiresAt, items, signature } = params;
+  if (typeof expiresAt !== "string" || typeof signature !== "string") {
+    return false;
+  }
+  const expiry = Number(expiresAt);
+  const nowSeconds = Math.floor(now / 1000);
+  if (
+    !Number.isSafeInteger(expiry) ||
+    String(expiry) !== expiresAt ||
+    expiry < nowSeconds ||
+    expiry > nowSeconds + WORKFLOW_RPC_MAX_TTL_SECONDS
+  ) {
+    return false;
+  }
+  const secret = await workflowRpcSecret(env, convexSiteUrl);
+  if (!secret) {
+    return false;
+  }
+  return await verifyHmacPayload(
+    secret,
+    buildWorkflowDispatchSigningPayload({
+      convexSiteUrl,
+      expiresAt,
+      itemsSha256: await sha256Hex(JSON.stringify(items)),
+    }),
+    signature
+  );
+};
+
+/** Stops replaced runs; an instance that is gone or already ended is fine. */
+const terminateInstances = async (binding: Workflow, ids: string[]) => {
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const instance = await binding.get(id);
+        const { status } = await instance.status();
+        if (
+          status !== "complete" &&
+          status !== "errored" &&
+          status !== "terminated"
+        ) {
+          await instance.terminate();
+        }
+      } catch {
+        // Missing or already finished; the revision guard covers the rest.
+      }
+    })
+  );
+};
+
+/**
+ * Starts workflow instances and queues object deletions for Convex. Each
+ * item succeeds or fails on its own; Convex sends the failures again.
+ */
+export const runDispatch = async (
+  env: WorkflowBindingsEnv,
+  params: Record<string, unknown>,
+  now = Date.now()
+): Promise<DispatchResult> => {
+  const convexSiteUrl = allowedConvexSiteUrl(env, params.convexSiteUrl);
+  if (!convexSiteUrl) {
+    throw new Error("invalid_convex_site_url");
+  }
+  if (!(await hasValidDispatchProof(env, convexSiteUrl, params, now))) {
+    throw new Error("invalid_dispatch_proof");
+  }
+  const items = parseDispatchItems(params);
+  const results: DispatchItemResult[] = items.map((item, index) => ({
+    index,
+    ok: false,
+    ...(item ? {} : { error: "invalid_item" }),
+  }));
+
+  const deletions = items.flatMap((item, index) =>
+    item?.type === "delete-objects" ? [{ index, keys: item.keys }] : []
+  );
+  if (deletions.length > 0) {
+    if (env.OBJECT_DELETIONS) {
+      const failed = await sendInBatches(
+        env.OBJECT_DELETIONS,
+        deletions.map(({ keys }) => ({ keys }))
+      );
+      deletions.forEach(({ index }, position) => {
+        const error = failed.get(position);
+        results[index] =
+          error === undefined
+            ? { index, ok: true }
+            : { error, index, ok: false };
+      });
+    } else {
+      for (const { index } of deletions) {
+        results[index] = { error: "queue_missing", index, ok: false };
+      }
+    }
+  }
+
+  const byWorkflow = new Map<
+    WorkflowName,
+    Array<{ index: number; item: Extract<DispatchItem, { type: "workflow" }> }>
+  >();
+  items.forEach((item, index) => {
+    if (item?.type === "workflow") {
+      const group = byWorkflow.get(item.workflow) ?? [];
+      group.push({ index, item });
+      byWorkflow.set(item.workflow, group);
+    }
+  });
+  for (const [name, group] of byWorkflow) {
+    const binding = workflowBinding(env, name);
+    if (!binding) {
+      for (const { index } of group) {
+        results[index] = { error: "workflow_missing", index, ok: false };
+      }
+      continue;
+    }
+    const replaced = group.flatMap(({ item }) => item.terminate ?? []);
+    if (replaced.length > 0) {
+      await terminateInstances(binding, replaced);
+    }
+    try {
+      const { errors } = await binding.createBatch({
+        instances: group.map(({ item }) => ({
+          id: item.id,
+          params: { ...item.params, convexSiteUrl },
+        })),
+      });
+      const failed = new Map<number, string>();
+      for (const error of errors) {
+        if (!DUPLICATE_INSTANCE_CODES.has(error.code)) {
+          failed.set(error.index, error.message);
+        }
+      }
+      group.forEach(({ index }, position) => {
+        const error = failed.get(position);
+        results[index] =
+          error === undefined
+            ? { index, ok: true }
+            : { error, index, ok: false };
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "create_failed";
+      for (const { index } of group) {
+        results[index] = { error: message, index, ok: false };
+      }
+    }
+  }
+  return { results };
+};

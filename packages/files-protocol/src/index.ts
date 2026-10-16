@@ -70,6 +70,9 @@ export const FILES_OPS = [
   "vector-get",
   "vector-query",
   "vector-similar",
+  // Starts Cloudflare Workflow instances and queues object deletions; see
+  // ./workflows.
+  "dispatch",
   // Clef decision models; see ./decisions. Each returns `null` (or no
   // styles) when Clef isn't sure, so callers keep their rules' answer.
   "decide-card-type",
@@ -315,3 +318,4 @@ export * from "./metadata";
 export * from "./remoteAsset";
 export * from "./rendering";
 export * from "./storage";
+export * from "./workflows";

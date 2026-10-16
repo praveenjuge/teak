@@ -12,6 +12,10 @@ import {
   query,
 } from "./_generated/server";
 import {
+  buildArtifactKey,
+  exportArtifactObjectKeys,
+} from "./export/artifactKey";
+import {
   ACTIVE_EXPORT_STATUSES,
   DOWNLOAD_URL_TTL_SECONDS,
   EXPORT_FAILURE_CLASS,
@@ -27,6 +31,7 @@ import {
 import { getSessionUser, type TeakUserId } from "./securitySessions";
 import { MAX_FOLDERS_PER_USER } from "./shared/folders";
 import { getR2Url } from "./storage/fileUrls";
+import { enqueueObjectDeletion, queueExportWorkflow } from "./workflowDispatch";
 
 const internalAny = internal as Record<string, any>;
 
@@ -202,11 +207,8 @@ async function startExportJob(ctx: MutationCtx, userId: string) {
     updatedAt: now,
   })) as Id<"exportJobs">;
 
-  await ctx.scheduler.runAfter(
-    0,
-    internalAny["workflows/export"].startExportWorkflow,
-    { jobId }
-  );
+  const workflowId = await queueExportWorkflow(ctx, jobId, userId);
+  await ctx.db.patch(jobId, { workflowId });
 
   const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc;
   return { started: true, job: summarizeJob(job, now) };
@@ -322,9 +324,13 @@ export const getJob = internalQuery({
   handler: async (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
+/** Starts a job's run; the archive goes to `artifactKey`. */
 export const markRunning = internalMutation({
   args: { jobId: v.id("exportJobs"), workflowId: v.optional(v.string()) },
-  returns: v.object({ canceled: v.boolean() }),
+  returns: v.object({
+    canceled: v.boolean(),
+    artifactKey: v.optional(v.string()),
+  }),
   handler: async (ctx, { jobId, workflowId }) => {
     const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
     if (!job) {
@@ -333,13 +339,17 @@ export const markRunning = internalMutation({
     if (job.cancelRequested || job.status === EXPORT_STATUS.CANCELED) {
       return { canceled: true };
     }
+    const now = Date.now();
     await ctx.db.patch(jobId, {
       status: EXPORT_STATUS.RUNNING,
-      startedAt: Date.now(),
-      updatedAt: Date.now(),
+      startedAt: now,
+      updatedAt: now,
       ...(workflowId ? { workflowId } : {}),
     });
-    return { canceled: false };
+    return {
+      canceled: false,
+      artifactKey: await buildArtifactKey(job.userId, jobId, now),
+    };
   },
 });
 
@@ -512,10 +522,9 @@ export const completeExport = internalMutation({
       return null;
     }
     if (job.status === EXPORT_STATUS.CANCELED || job.cancelRequested === true) {
-      await ctx.scheduler.runAfter(
-        0,
-        internalAny["export/runExport"].deleteArtifact,
-        { artifactKey: args.artifactKey }
+      await enqueueObjectDeletion(
+        ctx,
+        exportArtifactObjectKeys(args.artifactKey)
       );
       return null;
     }

@@ -63,7 +63,11 @@ export const MCP_BODY_READ_TIMEOUT_MS = 1000;
 
 export type EdgeRateLimitOutcome =
   | { response: Response }
-  | { attestation: string | null };
+  | {
+      attestation: string | null;
+      /** Set when a known user's request was charged to their edge limit. */
+      identity?: Extract<EdgeIdentity, { key: `user:${string}` }>;
+    };
 
 const isMcpPath = (request: Request): boolean => {
   const { pathname } = new URL(request.url);
@@ -249,6 +253,11 @@ const attestationFor = async (
 const isKnownUser = (identity: EdgeIdentity): boolean =>
   identity.source !== "address";
 
+const isTeakUser = (
+  identity: EdgeIdentity
+): identity is Extract<EdgeIdentity, { key: `user:${string}` }> =>
+  identity.key.startsWith("user:");
+
 export const applyEdgeRateLimit = async (
   request: Request,
   env: EdgeRateLimitEnv,
@@ -317,10 +326,12 @@ export const applyEdgeRateLimit = async (
   if (!isKnownUser(identity)) {
     return { attestation: null };
   }
+  const charged = isTeakUser(identity) ? { identity } : {};
   if (isMcpPath(request) && (await mayBeJsonArrayBody(request))) {
-    return { attestation: null };
+    return { attestation: null, ...charged };
   }
   return {
     attestation: await attestationFor(request, env.FILES_SIGNING_SECRET),
+    ...charged,
   };
 };

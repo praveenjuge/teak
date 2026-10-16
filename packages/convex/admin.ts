@@ -44,6 +44,7 @@ import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
+import { queueCardProcessing } from "./workflowDispatch";
 
 interface StageSummary {
   failed: number;
@@ -752,6 +753,8 @@ export const resetCardProcessingState = internalMutation({
       processingStatus: updatedProcessing,
       updatedAt: Date.now(),
     });
+    // An admin refresh reads link details again, like "Refresh details".
+    await queueCardProcessing(ctx, cardId, { refresh: true, reset: true });
 
     return {
       clearedThumbnail,
@@ -764,15 +767,10 @@ export const retryAiBackfill = action({
   handler: async (ctx): Promise<BackfillSummary> => {
     const actor = await ensureAdmin(ctx);
 
-    const workflowResult = (await ctx.runMutation(
-      internal.workflows.aiBackfill.startAiBackfillWorkflow,
-      { startAsync: false }
-    )) as AiBackfillWorkflowResult | { workflowId: string };
-
-    const normalizedResult: AiBackfillWorkflowResult =
-      "workflowId" in workflowResult
-        ? { enqueuedCount: 0, failedCardIds: [] }
-        : workflowResult;
+    const normalizedResult: AiBackfillWorkflowResult = await ctx.runMutation(
+      internal.ai.backfill.retryAiBackfillNow,
+      {}
+    );
 
     const pendingSample = (await ctx.runQuery(
       internal.ai.queries.findCardsMissingAi,
@@ -826,12 +824,6 @@ export const refreshCardProcessing = action({
     await ctx.runMutation((internal as any).admin.resetCardProcessingState, {
       cardId,
     });
-
-    await ctx.scheduler.runAfter(
-      0,
-      (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-      { cardId, refresh: true }
-    );
 
     await ctx.runMutation(internal.adminAccess.recordAudit, {
       actor,

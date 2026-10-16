@@ -6,7 +6,7 @@ import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { runDecision } from "../ai/decisions";
 import { isVisualStyle } from "../shared/constants";
-import { resolveImageAnalysisKey } from "../workflows/steps/metadata";
+import { resolveImageAnalysisKey } from "../shared/imageAnalysis";
 
 /**
  * One job of `backfillVisualStyles`: asks Clef for each card's styles and

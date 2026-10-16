@@ -1,6 +1,4 @@
 import {
-  CLEF_FLASH_MODEL_ID,
-  CLEF_INPUT_USD_PER_MILLION,
   type FilesRelevanceResult,
   readRelevanceResult,
 } from "@teak/files-protocol";
@@ -8,6 +6,7 @@ import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { type ActionCtx, action } from "../_generated/server";
+import { aiUsageParams } from "../ai/usage";
 import { searchCardsPaginatedArgsValidator } from "../card/getCards";
 import { rateLimiter } from "../shared/rateLimits";
 import {
@@ -127,6 +126,8 @@ export const ensureRelevanceScores = async (
     const outcome = await callFilesWorkerJson<unknown>({
       op: "score-relevance",
       params: {
+        // The Worker charges the scoring to the searcher's AI usage.
+        ...aiUsageParams(userId),
         query: text,
         cards: missing.map((card) => ({
           id: card._id,
@@ -148,17 +149,6 @@ export const ensureRelevanceScores = async (
       durationMs: Date.now() - startedAt,
     });
   }
-  await ctx.runMutation(internal.adminUsage.recordAiUsage, {
-    userId,
-    calls: 1,
-    errors: result ? 0 : 1,
-    inputTokens: result?.usage?.inputTokens ?? 0,
-    outputTokens: result?.usage?.outputTokens ?? 0,
-    costUsd:
-      ((result?.usage?.inputTokens ?? 0) *
-        (CLEF_INPUT_USD_PER_MILLION[CLEF_FLASH_MODEL_ID] ?? 0)) /
-      1_000_000,
-  });
   if (!result) {
     return { outcome: "unavailable", scores: cached };
   }

@@ -3,6 +3,7 @@ import {
   DECISION_THRESHOLDS,
   MAX_DECISION_QUESTIONS,
 } from "@teak/files-protocol";
+import { runWithAiUsage } from "./aiUsage";
 import {
   decideCardType,
   decideLinkCategory,
@@ -372,4 +373,36 @@ test("capacity errors retry, then report AI capacity", async () => {
     )
   ).rejects.toThrow("workers_ai_capacity_exhausted");
   expect(calls).toHaveLength(3);
+});
+
+test("each Clef call is charged to the card's owner in AI usage", async () => {
+  const points: AnalyticsEngineDataPoint[] = [];
+  const env = {
+    ...fakeEnv(choiceReply("type", "quote", 0.9)),
+    AI_USAGE: {
+      writeDataPoint: (point?: AnalyticsEngineDataPoint) => {
+        if (point) {
+          points.push(point);
+        }
+      },
+    } as AnalyticsEngineDataset,
+  } as FilesOpsEnv;
+  await runWithAiUsage(
+    {
+      convexSiteUrl: "https://test-deployment.convex.site",
+      userId: "teak_owner",
+    },
+    () => decideCardType(env, { content: "hi", rulesType: "text" })
+  );
+  expect(points).toHaveLength(1);
+  expect(points[0]?.indexes).toEqual(["teak_owner"]);
+  expect(points[0]?.blobs?.slice(1)).toEqual([
+    "@cf/cloudflare/clef-flash",
+    "teak.ai.decision",
+    "ok",
+  ]);
+  const [calls, errors, input, output, cost] = points[0]?.doubles ?? [];
+  expect([calls, errors, input, output]).toEqual([1, 0, 120, 0]);
+  // 120 input tokens at Clef-flash's $0.038 per million; no output price.
+  expect(cost).toBeCloseTo(0.000_004_56, 12);
 });

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalQuery } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { internalQuery, type QueryCtx } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
 // Cards younger than this may still be in their first processing run.
@@ -12,42 +13,50 @@ export const getCardForAI = internalQuery({
   handler: async (ctx, { cardId }) => await ctx.db.get("cards", cardId),
 });
 
+/**
+ * Cards past their first processing run that still have no AI output: up to
+ * one backfill batch, oldest first.
+ */
+export const findCardsMissingAiCandidates = async (
+  ctx: QueryCtx
+): Promise<{ cardId: Id<"cards"> }[]> => {
+  const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
+
+  // Query both active-card representations directly through the compound
+  // index. This keeps reads bounded without repeatedly restarting behind a
+  // persistent prefix of deleted or partially processed cards.
+  const findActiveCards = async (
+    isDeleted: boolean | undefined,
+    limit: number
+  ) =>
+    await ctx.db
+      .query("cards")
+      .withIndex(AI_BACKFILL_INDEX, (q) =>
+        q
+          .eq("aiSummary", undefined)
+          .eq("aiTags", undefined)
+          .eq("aiTranscript", undefined)
+          .eq("isDeleted", isDeleted)
+          .lt("createdAt", createdBefore)
+      )
+      .take(limit);
+
+  const cardsWithUnsetDeletedFlag = await findActiveCards(
+    undefined,
+    AI_BACKFILL_BATCH_SIZE
+  );
+  const remaining = AI_BACKFILL_BATCH_SIZE - cardsWithUnsetDeletedFlag.length;
+  const cardsWithFalseDeletedFlag =
+    remaining > 0 ? await findActiveCards(false, remaining) : [];
+
+  return [...cardsWithUnsetDeletedFlag, ...cardsWithFalseDeletedFlag].map(
+    (card) => ({ cardId: card._id })
+  );
+};
+
 export const findCardsMissingAi = internalQuery({
   args: {},
-  handler: async (ctx) => {
-    const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
-
-    // Query both active-card representations directly through the compound
-    // index. This keeps reads bounded without repeatedly restarting behind a
-    // persistent prefix of deleted or partially processed cards.
-    const findActiveCards = async (
-      isDeleted: boolean | undefined,
-      limit: number
-    ) =>
-      await ctx.db
-        .query("cards")
-        .withIndex(AI_BACKFILL_INDEX, (q) =>
-          q
-            .eq("aiSummary", undefined)
-            .eq("aiTags", undefined)
-            .eq("aiTranscript", undefined)
-            .eq("isDeleted", isDeleted)
-            .lt("createdAt", createdBefore)
-        )
-        .take(limit);
-
-    const cardsWithUnsetDeletedFlag = await findActiveCards(
-      undefined,
-      AI_BACKFILL_BATCH_SIZE
-    );
-    const remaining = AI_BACKFILL_BATCH_SIZE - cardsWithUnsetDeletedFlag.length;
-    const cardsWithFalseDeletedFlag =
-      remaining > 0 ? await findActiveCards(false, remaining) : [];
-
-    return [...cardsWithUnsetDeletedFlag, ...cardsWithFalseDeletedFlag].map(
-      (card) => ({ cardId: card._id })
-    );
-  },
+  handler: (ctx) => findCardsMissingAiCandidates(ctx),
 });
 
 export const getCardForVerification = internalQuery({

@@ -4,9 +4,10 @@
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
+- the Files Worker under `wrangler dev` in local mode (`src/stack/filesWorker.ts`), which serves files and runs the backend's background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
 - the web app.
 
-It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory. The main checkout uses web 3000, Convex 3210/3211 and the emulator 4100/4101; each linked worktree uses its own ports, so the suite runs in any worktree.
+It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory; the Files Worker's signing secret is a test-only constant in `src/stack/filesWorker.ts`. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Files Worker 4102 (its inspector on 4103); each linked worktree uses its own ports, so the suite runs in any worktree.
 
 The specs drive the browser with locators and exact `expect` assertions only. They run no agent steps, so the suite needs no model or API key. The e2e skill (`.agents/skills/e2e/`) covers writing and running specs, and the full docs ship in `node_modules/e2e/docs`.
 
@@ -86,7 +87,7 @@ Tests sign in fresh instead of reusing saved cookies, which go stale once the cl
 
 ## What the local stack doesn't cover
 
-- **File uploads, previews, renditions, import/export and AI metadata.** They need the Files Worker, R2 and Workers AI, which the local stack doesn't run. Card metadata stays `pending`, and the specs don't depend on it.
+- **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
 - **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/workosAuthKit.test.ts` covers it.
 - **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `extension-oauth-runtime.yml` workflow.
 - **Billing.** Polar checkout needs Polar credentials.

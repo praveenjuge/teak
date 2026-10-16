@@ -11,6 +11,7 @@ import {
   validationRetryPrompt,
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
+import { meteredAiRun } from "./aiUsage";
 import type { FilesOpsEnv } from "./ops";
 
 export class MetadataCapacityError extends Error {
@@ -104,7 +105,8 @@ export const generateTextMetadataForOp = async (
   ) {
     throw new Error("invalid_metadata_params");
   }
-  if (!env.AI) {
+  const ai = env.AI;
+  if (!ai) {
     throw new Error("workers_ai_not_configured");
   }
   const system =
@@ -120,17 +122,32 @@ export const generateTextMetadataForOp = async (
     facts.validationRetryCount = attempt;
     let response: unknown;
     try {
-      response = await env.AI.run(
-        TEXT_METADATA_MODEL_ID,
+      response = await meteredAiRun(
+        env,
         {
-          max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: validationRetryPrompt(prompt, attempt) },
-          ],
-          response_format: { type: "json_object" },
+          functionId:
+            op === "generate-text-metadata"
+              ? "teak.ai.metadata.text"
+              : "teak.ai.metadata.link",
+          isCapacity: isCapacityError,
+          model: TEXT_METADATA_MODEL_ID,
         },
-        aiRunOptions(env)
+        () =>
+          ai.run(
+            TEXT_METADATA_MODEL_ID,
+            {
+              max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
+              messages: [
+                { role: "system", content: system },
+                {
+                  role: "user",
+                  content: validationRetryPrompt(prompt, attempt),
+                },
+              ],
+              response_format: { type: "json_object" },
+            },
+            aiRunOptions(env)
+          )
       );
     } catch (error) {
       if (isCapacityError(error)) {

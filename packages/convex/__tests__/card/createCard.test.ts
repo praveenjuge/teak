@@ -5,7 +5,6 @@ import { withTestSession } from "../helpers/session.test-utils";
 
 describe("card/createCard.ts", () => {
   let createCard: any;
-  let workflow: any;
   let originalGetSubscription: any;
 
   const addCardUsage = (ctx: any) => {
@@ -51,10 +50,6 @@ describe("card/createCard.ts", () => {
   };
 
   beforeEach(async () => {
-    const managerModule = await import("../../workflows/manager");
-    workflow = managerModule.workflow;
-    workflow.start = mock().mockResolvedValue(undefined);
-
     const _authModule = await import("../../auth");
     const billingModule = await import("../../billing");
 
@@ -177,7 +172,12 @@ describe("card/createCard.ts", () => {
 
     expect((error as any)?.data?.code).toBe("CARD_LIMIT_REACHED");
     expect([...cards.keys()]).toEqual([]);
-    expect(workflow.start).not.toHaveBeenCalled();
+    // No card, so no processing run was queued.
+    expect(
+      ctx.db.insert.mock.calls.some(
+        ([table]: [string]) => table === "workflowDispatches"
+      )
+    ).toBe(false);
   });
 
   test("keeps an imported bookmark title as an edited title that page titles don't replace", async () => {
@@ -278,7 +278,20 @@ describe("card/createCard.ts", () => {
       "cardSearchDocuments",
       expect.objectContaining({ cardId: "c1", userId: "u1" })
     );
-    expect(workflow.start).toHaveBeenCalled();
+    // Processing is queued in the same transaction, for the card's first
+    // revision.
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "workflowDispatches",
+      expect.objectContaining({
+        cardId: "c1",
+        kind: "cardProcessing",
+        rev: 1,
+        state: "pending",
+      })
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith("cards", "c1", {
+      processingRev: 1,
+    });
     expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
       0,
       expect.anything(),

@@ -5,7 +5,9 @@ import {
   type ActionCtx,
   env,
   httpAction,
+  internalAction,
   internalMutation,
+  type MutationCtx,
 } from "./_generated/server";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { authKit } from "./workosAuthKit";
@@ -191,25 +193,100 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+const insertDeadLetter = async (
+  ctx: MutationCtx,
+  args: { eventId: string; event: string; reason: string }
+) => {
+  const existing = await ctx.db
+    .query("workosWebhookDeadLetters")
+    .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+    .first();
+  if (!existing) {
+    await ctx.db.insert("workosWebhookDeadLetters", {
+      ...args,
+      receivedAt: Date.now(),
+    });
+    console.error("workos_event_dead_lettered", {
+      event: args.event,
+      reason: args.reason,
+    });
+  }
+};
+
 export const recordDeadLetter = internalMutation({
   args: { eventId: v.string(), event: v.string(), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("workosWebhookDeadLetters")
-      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
-      .first();
-    if (!existing) {
-      await ctx.db.insert("workosWebhookDeadLetters", {
-        ...args,
-        receivedAt: Date.now(),
-      });
-      console.error("workos_event_dead_lettered", {
-        event: args.event,
-        reason: args.reason,
-      });
-    }
+    await insertDeadLetter(ctx, args);
     return null;
+  },
+});
+
+/**
+ * The Files Worker's WorkOS event queue gave up delivering an event to the
+ * webhook route above (Convex kept failing). Recorded once per event, and
+ * not at all when the event was applied after all; the hourly WorkOS event
+ * catch-up replays it from the Events API either way.
+ */
+export const recordUndeliverable = internalMutation({
+  args: { eventId: v.string(), event: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { event, eventId }) => {
+    const id = eventId.slice(0, 256);
+    const applied = await ctx.db
+      .query("workosEvents")
+      .withIndex("by_eventId", (q) => q.eq("eventId", id))
+      .first();
+    if (applied) {
+      return null;
+    }
+    await insertDeadLetter(ctx, {
+      eventId: id,
+      event: event.slice(0, 64) || "unknown",
+      reason: "delivery_failed",
+    });
+    return null;
+  },
+});
+
+/** Dead letters are recorded only for webhooks signed this recently. */
+const UNDELIVERABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Records a webhook the Files Worker could not deliver: its signature aged
+ * out while it waited in the queue, or it exhausted its retries. The Worker
+ * doesn't hold the webhook secret, so the signature is verified here, on
+ * everything but its age, before anything is recorded; a forged webhook
+ * never becomes a dead letter.
+ */
+export const recordUndeliverableWebhook = internalAction({
+  args: { body: v.string(), signature: v.string() },
+  returns: v.object({ recorded: v.boolean() }),
+  handler: async (ctx, { body, signature }) => {
+    const kit = authKit;
+    const secret = env.WORKOS_WEBHOOK_SECRET;
+    if (!(kit && secret)) {
+      throw new Error("webhook_unavailable");
+    }
+    if (body.length > 256 * 1024 || signature.length > 1024) {
+      return { recorded: false };
+    }
+    let event: Awaited<ReturnType<typeof kit.workos.webhooks.constructEvent>>;
+    try {
+      event = await kit.workos.webhooks.constructEvent({
+        payload: body,
+        secret,
+        sigHeader: signature,
+        tolerance: UNDELIVERABLE_MAX_AGE_MS,
+      });
+    } catch {
+      return { recorded: false };
+    }
+    await ctx.runMutation(internal.workosWebhook.recordUndeliverable, {
+      event: String(event.event),
+      eventId: String(event.id),
+    });
+    return { recorded: true };
   },
 });
 

@@ -255,28 +255,72 @@ describe("internal accounts", () => {
 });
 
 describe("AI usage", () => {
-  test("adds every step's spend into one row per account per day", async () => {
+  const usage = {
+    userId: "teak_customer",
+    calls: 2,
+    errors: 1,
+    inputTokens: 100,
+    outputTokens: 50,
+    costUsd: 0.25,
+  };
+
+  test("a repeated rollup sets a day's totals instead of adding to them", async () => {
     const t = setup();
-    const usage = {
-      userId: "teak_customer",
-      calls: 2,
-      errors: 1,
-      inputTokens: 100,
-      outputTokens: 50,
-      costUsd: 0.25,
-    };
-    await t.mutation(internal.adminUsage.recordAiUsage, usage);
-    await t.mutation(internal.adminUsage.recordAiUsage, usage);
+    await t.mutation(internal.adminUsage.replaceDailyUsage, {
+      date: "2026-10-15",
+      rows: [usage],
+    });
+    await t.mutation(internal.adminUsage.replaceDailyUsage, {
+      date: "2026-10-15",
+      rows: [{ ...usage, calls: 5, costUsd: 0.75 }],
+    });
 
     const rows = await t.run((ctx) => ctx.db.query("aiUsageDaily").take(5));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      calls: 4,
-      errors: 2,
-      inputTokens: 200,
-      outputTokens: 100,
-      costUsd: 0.5,
+      date: "2026-10-15",
+      calls: 5,
+      errors: 1,
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0.75,
     });
+    expect(
+      await t.query(internal.adminUsage.usageForDay, { date: "2026-10-15" })
+    ).toEqual([{ userId: "teak_customer", calls: 5, costUsd: 0.75 }]);
+  });
+
+  test("keeps each day and each account in its own row", async () => {
+    const t = setup();
+    await t.mutation(internal.adminUsage.replaceDailyUsage, {
+      date: "2026-10-14",
+      rows: [usage, { ...usage, userId: "teak_other", calls: 1 }],
+    });
+    await t.mutation(internal.adminUsage.replaceDailyUsage, {
+      date: "2026-10-15",
+      rows: [usage],
+    });
+    const { users } = await t.query(internal.adminUsage.usageByUserSince, {
+      sinceDate: "2026-10-14",
+    });
+    const byUser = [...users].sort(
+      (a: { userId: string }, b: { userId: string }) =>
+        a.userId.localeCompare(b.userId)
+    );
+    expect(byUser).toEqual([
+      { userId: "teak_customer", calls: 4, costUsd: 0.5 },
+      { userId: "teak_other", calls: 1, costUsd: 0.25 },
+    ]);
+  });
+
+  test("refuses a malformed date", async () => {
+    const t = setup();
+    await expect(
+      t.mutation(internal.adminUsage.replaceDailyUsage, {
+        date: "yesterday",
+        rows: [usage],
+      })
+    ).rejects.toThrow("invalid_usage_date");
   });
 });
 

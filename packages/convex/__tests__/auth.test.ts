@@ -6,7 +6,6 @@ mock.module("../storage/r2", r2MockModuleFactory);
 
 let ensureCardCreationAllowed: any;
 let deleteAccountDataHandler: any;
-let runAccountDataDeletion: any;
 let removeAccountCardUsageHandler: any;
 let polar: any;
 let rateLimiter: any;
@@ -50,7 +49,6 @@ describe("auth", () => {
     const accountDeletionModule = await import("../accountDeletion");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
     deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
-    runAccountDataDeletion = accountDeletionModule.runAccountDataDeletion;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;
 
@@ -582,70 +580,6 @@ describe("auth", () => {
         ),
         "userCardUsage:usage1",
       ]);
-    });
-
-    it("drains card then import storage before removing card usage", async () => {
-      const events: string[] = [];
-      const ctx = {
-        runAction: mock((_ref: unknown, args: any) => {
-          events.push(`drain-${args.kind}`);
-          return true;
-        }),
-        runMutation: mock((_ref: unknown, args: any) => {
-          events.push(events.length === 0 ? "begin-lock" : "delete-usage");
-          expect(args).toEqual({ userId: "u1" });
-          return null;
-        }),
-      } as any;
-
-      await expect(
-        runAccountDataDeletion(ctx, "u1", {
-          boundedDeletion: { stateId: "state1", generation: 2 },
-          observe: (_input: unknown, callback: () => Promise<unknown>) =>
-            callback(),
-        })
-      ).resolves.toBe(true);
-      expect(events).toEqual([
-        "begin-lock",
-        "drain-cards",
-        "drain-imports",
-        "delete-usage",
-      ]);
-      expect(ctx.runAction).toHaveBeenCalledWith(expect.anything(), {
-        stateId: "state1",
-        generation: 2,
-        kind: "cards",
-      });
-    });
-
-    it("propagates deletion failures", async () => {
-      const ctx = {
-        runAction: mock(() => null),
-        runMutation: mock(() => {
-          throw new Error("begin lock failed");
-        }),
-        runQuery: mock(() => ({ cardIds: [], objectKeys: [] })),
-      } as any;
-
-      const observe = mock(
-        (_input: unknown, callback: () => Promise<unknown>) => callback()
-      );
-
-      await expect(
-        runAccountDataDeletion(ctx, "u1", {
-          boundedDeletion: { stateId: "state1", generation: 1 },
-          observe,
-        })
-      ).rejects.toThrow("begin lock failed");
-      expect(observe).toHaveBeenCalledWith(
-        {
-          name: "auth.deleteAccountData",
-          operation: "auth",
-          surface: "backend",
-          userId: "u1",
-        },
-        expect.any(Function)
-      );
     });
   });
 });

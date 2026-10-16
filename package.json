@@ -22,6 +22,7 @@
     "pre-commit": "bun --no-env-file run scripts/check-lockfile.ts && turbo run typecheck lint build --affected",
     "prepare": "[ -f .git ] || simple-git-hooks || exit 0",
     "publish:raycast": "cd apps/raycast && bun run publish",
+    "r2:lifecycle": "bun --no-env-file run scripts/cloudflare-r2-lifecycle.ts",
     "release:prepare": "bun --no-env-file run scripts/release-prepare.ts",
     "setup": "bun --no-env-file run scripts/setup.ts",
     "smoke:web": "bun --no-env-file run scripts/smoke-web-session.ts",

@@ -1,6 +1,5 @@
 import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -89,6 +88,7 @@ import {
   shuffleRank,
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
+import { queueCardProcessing } from "./workflowDispatch";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -1938,14 +1938,10 @@ export const executeBulkCardsForUser = internalMutation({
                 : undefined,
             });
             if (pipelineDelayMs !== null) {
-              await ctx.scheduler.runAfter(
-                pipelineDelayMs,
-                (internal as any)["workflows/manager"]
-                  .startCardProcessingWorkflow,
-                {
-                  cardId,
-                }
-              );
+              await queueCardProcessing(ctx, cardId, {
+                delayMs: pipelineDelayMs,
+                reset: true,
+              });
             }
 
             results.push({

@@ -1,4 +1,5 @@
 import { env } from "./_generated/server";
+import { POSTHOG_DELETION_ERROR_PREFIX } from "./accountDeletionStages";
 import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
 
 const POSTHOG_DELETION_TIMEOUT_MS = 30_000;
@@ -9,8 +10,6 @@ const STEPS_AFTER_PERSON_DELETED = new Set([
   "log_activity",
   "publish_clickhouse_tombstone",
 ]);
-
-export const POSTHOG_DELETION_ERROR_PREFIX = "deletion_posthog_";
 
 const fail = (code: string): never => {
   throw new Error(`${POSTHOG_DELETION_ERROR_PREFIX}${code}`);

@@ -1,16 +1,54 @@
 "use node";
 
+import { gunzipSync } from "node:zlib";
+import type { FilesLinkPageResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
+import { SCRAPE_ELEMENTS } from "../linkMetadata/selectors";
+import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { hydrateArchivedMetadata } from "../storage/rawMetadata";
 import { reviewLinkCategoryWithClef } from "../workflows/steps/categorization/clef";
 import {
   type CategorizationContextCard,
   classifyLinkCategory,
   enrichLinkCategory,
+  parseStructuredData,
   projectCategorizationSnapshot,
-} from "../workflows/steps/categorization/index";
+  type StructuredDataResult,
+} from "../workflows/steps/categorization/rules";
+
+const MAX_STRUCTURED_HTML = 250_000;
+
+/**
+ * The page's JSON-LD, read through the Files Worker's link fetcher (the same
+ * `fetch-link-page` result card processing uses, kept for a day there).
+ * Null when the page can't be read.
+ */
+const fetchStructuredData = async (
+  url: string
+): Promise<StructuredDataResult | null> => {
+  try {
+    const outcome = await callFilesWorkerJson<FilesLinkPageResult>({
+      op: "fetch-link-page",
+      params: {
+        selectors: SCRAPE_ELEMENTS.map(({ selector }) => selector),
+        url,
+      },
+    });
+    if (outcome.kind !== "ok" || !outcome.data.fetched) {
+      return null;
+    }
+    const html = gunzipSync(
+      Buffer.from(outcome.data.htmlGzipBase64, "base64")
+    ).toString("utf8");
+    const parsed = parseStructuredData(html.slice(0, MAX_STRUCTURED_HTML));
+    parsed.meta = { fetchedAt: Date.now() };
+    return parsed;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * One review job of `backfillLinkCategoriesClef`: asks Clef about each card
@@ -32,9 +70,17 @@ export const reviewLinkCategories = internalAction({
       if (!card?.url) {
         continue;
       }
-      const snapshot = await hydrateArchivedMetadata(
-        projectCategorizationSnapshot(card as CategorizationContextCard)
+      const projected = projectCategorizationSnapshot(
+        card as CategorizationContextCard
       );
+      const snapshot: CategorizationContextCard = {
+        ...projected,
+        ...(await hydrateArchivedMetadata({
+          _id: cardId,
+          metadata: projected.metadata,
+          userId: card.userId,
+        })),
+      };
       const rules = classifyLinkCategory(snapshot, card.url);
       if (!rules) {
         continue;
@@ -51,10 +97,10 @@ export const reviewLinkCategories = internalAction({
         continue;
       }
       // Enrich again for the new category, as categorization would: drop the
-      // old category's structured facts so the page's JSON-LD is read again.
+      // old category's structured facts and read the page's JSON-LD again.
       const { structured: _structured, ...raw } =
         snapshot.metadata?.linkCategory?.raw ?? {};
-      const metadata = await enrichLinkCategory(
+      const metadata = enrichLinkCategory(
         {
           ...snapshot,
           metadata: {
@@ -62,7 +108,8 @@ export const reviewLinkCategories = internalAction({
             linkCategory: { ...snapshot.metadata?.linkCategory, raw },
           },
         },
-        reviewedClassification
+        reviewedClassification,
+        { structuredData: await fetchStructuredData(card.url) }
       );
       const written = await ctx.runMutation(
         (internal as any)["migration/backfillLinkCategoriesClef"]

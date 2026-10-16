@@ -4,7 +4,6 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, env, internalAction } from "../_generated/server";
 import { CRONS } from "../cronSchedules";
-import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { catchUpHandler } from "../workosEventCatchUp";
 import { captureBackendException } from "./posthog";
 
@@ -67,22 +66,6 @@ const monitored = async (
   return null;
 };
 
-export const cleanupOldDeletedCards = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupOldDeletedCards.name, async () => {
-      await ctx.runMutation(
-        internalAny.workflows.cardCleanup.startCardCleanupWorkflow,
-        {}
-      );
-      await ctx.runMutation(
-        internalAny.publicApiTombstones.pruneExpiredCardTombstones,
-        {}
-      );
-    }),
-});
-
 export const cleanupAbandonedImportUploads = internalAction({
   args: {},
   returns: v.null(),
@@ -92,85 +75,12 @@ export const cleanupAbandonedImportUploads = internalAction({
     ),
 });
 
-export const cleanupStalePendingCardUploads = internalAction({
+export const cleanupExpiredUploadSessions = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupStalePendingCardUploads.name, async () => {
-      await sweepStalePendingUploadsHandler(ctx);
-      await ctx.runAction(
-        internalAny.fileUploads.cleanupExpiredMultipartUploads,
-        {}
-      );
-    }),
-});
-
-export const sweepOrphanedObjects = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.sweepOrphanedObjects.name, async () => {
-      // Two independent reports: a failure in either still runs the other,
-      // then fails the cron.
-      const results = await Promise.allSettled([
-        ctx.runAction(internal.embedding.sweep.sweepVectorLedger, {}),
-        ctx.runAction(
-          internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
-          {}
-        ),
-      ]);
-      for (const result of results) {
-        if (result.status === "rejected") {
-          throw result.reason;
-        }
-      }
-      return null;
-    }),
-});
-
-export const aiMetadataBackfill = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.aiMetadataBackfill.name, () =>
-      ctx.runMutation(
-        internalAny.workflows.aiBackfill.startAiBackfillWorkflow,
-        {}
-      )
-    ),
-});
-
-export const reapStuckWorkflows = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.reapStuckWorkflows.name, async () => {
-      await ctx.runAction(
-        internalAny["workflows/manager"].reapStuckWorkflows,
-        {}
-      );
-      return null;
-    }),
-});
-
-export const cleanupExpiredExports = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupExpiredExports.name, () =>
-      ctx.runMutation(
-        internalAny.workflows.exportCleanup.startExportCleanupWorkflow,
-        {}
-      )
-    ),
-});
-
-export const redriveAccountDeletion = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.redriveAccountDeletion.name, () =>
-      ctx.runMutation(internal.accountDeletionJobs.redrive, {})
+    monitored(ctx, CRONS.cleanupExpiredUploadSessions.name, () =>
+      ctx.runAction(internalAny.fileUploads.cleanupExpiredMultipartUploads, {})
     ),
 });
 

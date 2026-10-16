@@ -1,7 +1,6 @@
 import betterAuth from "@convex-dev/better-auth/convex.config";
 import polar from "@convex-dev/polar/convex.config";
 import rateLimiter from "@convex-dev/rate-limiter/convex.config";
-import workflow from "@convex-dev/workflow/convex.config";
 import workOSAuthKit from "@convex-dev/workos-authkit/convex.config";
 import apiKeys from "@vllnt/convex-api-keys/convex.config";
 import { defineApp } from "convex/server";
@@ -24,6 +23,9 @@ const app = defineApp({
     WORKOS_ACTION_SECRET: v.optional(v.string()),
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
+    // This deployment's own secret for the Files Worker's workflow RPCs and
+    // dispatch proofs; `bun scripts/workflow-rpc-secret.ts` derives it.
+    WORKFLOW_RPC_SECRET: v.optional(v.string()),
     R2_BUCKET: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
@@ -49,7 +51,6 @@ const app = defineApp({
 app.use(betterAuth);
 app.use(workOSAuthKit);
 app.use(polar);
-app.use(workflow);
 app.use(rateLimiter, { name: "rateLimiterV2" });
 app.use(apiKeys);
 

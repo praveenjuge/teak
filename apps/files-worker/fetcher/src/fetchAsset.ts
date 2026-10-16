@@ -5,7 +5,6 @@ import {
   SsrfError,
   safeFetch,
 } from "../../../../packages/convex/linkMetadata/ssrf";
-import { readRemoteImageDimensions } from "../../../../packages/convex/workflows/steps/linkMetadata/remoteImageDimensions";
 import {
   FILES_REMOTE_ASSET_MAX_BYTES,
   FILES_REMOTE_ASSET_MAX_URL_LENGTH,
@@ -15,6 +14,7 @@ import {
   resolveRemoteAssetContentType,
 } from "../../../../packages/files-protocol/src/remoteAsset";
 import type { FetcherRequest } from "./protocol";
+import { readRemoteImageDimensions } from "./remoteImageDimensions";
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
 // The browser the page scrape presents as. Some image CDNs block other

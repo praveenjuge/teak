@@ -25,6 +25,7 @@ import {
   RELEVANCE_MAX_SCORE,
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
+import { meteredAiRun } from "./aiUsage";
 import { loadImageForAi } from "./imageMetadata";
 import type { Env } from "./index";
 import type { FilesOpsEnv } from "./ops";
@@ -259,15 +260,18 @@ export const runClef = async (
   if (questionCount === 0 || questionCount > MAX_DECISION_QUESTIONS) {
     throw new Error("invalid_clef_question_count");
   }
-  if (!env.AI) {
+  const ai = env.AI;
+  if (!ai) {
     throw new Error("workers_ai_not_configured");
   }
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await env.AI.run(
-        CLEF_MODEL_IDS[request.model],
-        { ...request },
-        aiRunOptions(env)
+      const model = CLEF_MODEL_IDS[request.model];
+      // Counted in the owner's daily AI usage when a card step runs it.
+      const response = await meteredAiRun(
+        env,
+        { functionId: "teak.ai.decision", isCapacity: isCapacityError, model },
+        () => ai.run(model, { ...request }, aiRunOptions(env))
       );
       return parseClefReply(request, response);
     } catch (error) {

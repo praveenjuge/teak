@@ -3,10 +3,10 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
 import {
+  ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   ACCOUNT_DELETION_STAGES_DONE,
   accountDeletionStage,
 } from "./accountDeletionStages";
-import { workflow } from "./workflows/manager";
 import {
   expectedWorkosDeletionResolution,
   sameWorkosDeletionTarget,
@@ -91,6 +91,7 @@ export const advance = internalMutation({
     await ctx.db.patch("accountDeletionStates", stateId, {
       stage: stage + 1,
       failureCode: undefined,
+      nextAttemptAt: Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS,
     });
     return null;
   },
@@ -118,9 +119,14 @@ export const saveSessionCursor = internalMutation({
     return null;
   },
 });
+/**
+ * Completes a deletion whose stages all finished: commits the owner's
+ * tombstone and settles expected WorkOS deletion receipts one page per call.
+ * Returns true once the state is gone; the workflow calls it until then.
+ */
 export const finalize = internalMutation({
   args: bindingArgs,
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, { stateId, generation }) => {
     const state = await ctx.db.get("accountDeletionStates", stateId);
     if (
@@ -221,11 +227,7 @@ export const finalize = internalMutation({
         await ctx.db.patch("accountDeletionStates", stateId, {
           deletionReceiptCursor: page.continueCursor,
         });
-        await ctx.scheduler.runAfter(0, internal.accountDeletionJobs.finalize, {
-          stateId,
-          generation,
-        });
-        return null;
+        return false;
       }
     } else {
       await ctx.db.patch("users", owner._id, {
@@ -234,7 +236,7 @@ export const finalize = internalMutation({
       });
     }
     await ctx.db.delete("accountDeletionStates", stateId);
-    return null;
+    return true;
   },
 });
 export const revokeLocalPage = internalMutation({
@@ -282,49 +284,6 @@ export const revokeConsentPage = internalMutation({
     return page.isDone;
   },
 });
-export const redrive = internalMutation({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    const states = await ctx.db
-      .query("accountDeletionStates")
-      .withIndex("by_nextAttemptAt", (q) =>
-        q.gt("nextAttemptAt", 0).lte("nextAttemptAt", Date.now())
-      )
-      .take(20);
-    for (const state of states) {
-      if (!state.workflowId || state.generation === undefined) {
-        continue;
-      }
-      if (state.stage === ACCOUNT_DELETION_STAGES_DONE) {
-        await ctx.scheduler.runAfter(0, internal.accountDeletionJobs.finalize, {
-          stateId: state._id,
-          generation: state.generation,
-        });
-        await ctx.db.patch("accountDeletionStates", state._id, {
-          nextAttemptAt: Date.now() + 300_000,
-        });
-        continue;
-      }
-      const status = await workflow.status(
-        ctx,
-        state.workflowId as Parameters<typeof workflow.status>[1]
-      );
-      if (status.type === "failed" || status.type === "canceled") {
-        // Restart only terminated executions. A running action can still write externally.
-        await workflow.restart(
-          ctx,
-          state.workflowId as Parameters<typeof workflow.restart>[1]
-        );
-      }
-      await ctx.db.patch("accountDeletionStates", state._id, {
-        nextAttemptAt: Date.now() + 300_000,
-      });
-    }
-    return null;
-  },
-});
-
 export const recordFailure = internalMutation({
   args: {
     ...bindingArgs,

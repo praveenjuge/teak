@@ -22,10 +22,15 @@
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
-    "fflate": "^0.8.2"
+    "convex": "1.46.0",
+    "fflate": "^0.8.2",
+    "htmlparser2": "^12.0.0"
   },
   "devDependencies": {
+    "@types/probe-image-size": "^7.2.5",
     "jose": "6.2.12",
-    "wrangler": "^4.136.1"
+    "probe-image-size": "7.4.0",
+    "undici": "^7.30.0",
+    "wrangler": "^4.151.0"
   }
 }

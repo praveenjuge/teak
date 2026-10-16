@@ -10,20 +10,17 @@ import {
   json,
   withPublicApiGatewayHeaders,
 } from "../publicApiMeta";
-import { callTeakV1Tool, isTeakV1Tool, TEAK_V1_TOOLS } from "./tools";
+import {
+  answerProtocolMessage,
+  jsonRpcError,
+  jsonRpcResponse,
+  MAX_MCP_JSON_RPC_BATCH,
+  MCP_CORS_HEADERS,
+} from "./protocol";
+import { callTeakV1Tool, isTeakV1Tool } from "./tools";
 
 type JsonObject = Record<string, unknown>;
 
-const MCP_CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version",
-  "Access-Control-Expose-Headers": "WWW-Authenticate, Mcp-Session-Id",
-  "Access-Control-Max-Age": "86400",
-};
-
-export const MAX_MCP_JSON_RPC_BATCH = 100;
 const JSON_RPC_RATE_LIMITED_CODE = -32_000;
 
 const withMcpCors = (response: Response): Response => {
@@ -89,22 +86,6 @@ const executeToolOperation = (
     "mcp"
   );
 
-const jsonRpcResponse = (id: unknown, result: unknown): JsonObject => ({
-  jsonrpc: "2.0",
-  id: id ?? null,
-  result,
-});
-
-const jsonRpcError = (
-  id: unknown,
-  code: number,
-  message: string
-): JsonObject => ({
-  jsonrpc: "2.0",
-  id: id ?? null,
-  error: { code, message },
-});
-
 const PARSE_ERROR = Symbol("parse error");
 
 const parseJsonRpcBody = async (request: Request): Promise<unknown> => {
@@ -134,24 +115,11 @@ const handleJsonRpcMessage = async (
     return jsonRpcError(rpc.id, -32_600, "Invalid Request");
   }
 
-  if (rpc.method.startsWith("notifications/")) {
-    return null;
-  }
-
-  if (rpc.method === "initialize") {
-    return jsonRpcResponse(rpc.id, {
-      protocolVersion:
-        typeof (rpc.params as { protocolVersion?: unknown } | null)
-          ?.protocolVersion === "string"
-          ? (rpc.params as { protocolVersion: string }).protocolVersion
-          : "2025-06-18",
-      capabilities: { tools: {} },
-      serverInfo: { name: "teak-api", version: "1.0.0" },
-    });
-  }
-
-  if (rpc.method === "tools/list") {
-    return jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS });
+  // initialize, ping, tools/list and notifications; the Files Worker
+  // answers these at the edge with the same builders.
+  const answered = answerProtocolMessage(rpc);
+  if (answered !== undefined) {
+    return answered;
   }
 
   if (rpc.method === "tools/call") {

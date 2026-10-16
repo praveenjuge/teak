@@ -34,6 +34,18 @@ One credential, one writer. Entries that appear in several providers (for
 example the shared files signing secret) document the sync direction in the
 contract note; the audit rejects unexplained multi-provider credentials.
 
+Files Worker secrets are put per Worker (production, and the development
+Worker with `--config development/wrangler.jsonc`) with
+`bunx wrangler secret put <NAME>`: `FILES_SIGNING_SECRET`, shared with its
+Convex deployment, and `ANALYTICS_API_TOKEN`, a Cloudflare API token with
+Account Analytics: Read that the hourly AI usage rollup uses to query
+Workers Analytics Engine (unset, the rollup is skipped), and
+`WORKFLOW_RPC_ROOT_SECRET`. Each Convex deployment the Worker serves holds
+only its own `WORKFLOW_RPC_SECRET`, derived from that root and its origin
+with `bun scripts/workflow-rpc-secret.ts`; unlike `FILES_SIGNING_SECRET` it is
+never shared between development and production (see the Files Worker
+README, "Background work").
+
 ## Canonical facts and generated aliases
 
 `CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts;

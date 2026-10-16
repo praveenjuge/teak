@@ -17,6 +17,7 @@ import {
   VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
+import { type AiUsageContext, runWithAiUsage } from "./aiUsage";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -24,6 +25,7 @@ import {
   validScrapeSelectors,
 } from "./browserRender";
 import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
+import { allowedConvexSiteUrl } from "./convexRpc";
 import {
   decideCardType,
   decideLinkCategory,
@@ -83,6 +85,7 @@ import {
   vectorQuery,
   vectorSimilar,
 } from "./vectors";
+import { runDispatch, type WorkflowBindingsEnv } from "./workflows/dispatch";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
@@ -108,11 +111,13 @@ export const getFilesOpObjectKey = (params: unknown): string => {
     : "";
 };
 
-export interface FilesOpsEnv extends AiGatewayEnv {
+export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   AI?: WorkersAiBinding;
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
+  /** This Worker's public origin, for ops run in-process by workflows. */
+  FILES_PUBLIC_ORIGIN?: string;
   FILES_SIGNING_SECRET: string;
   IMAGES?: ImagesBinding;
   LINK_FETCHER?: DurableObjectNamespace;
@@ -341,6 +346,8 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
+        // Background work: the workflows exist and the Worker can sign RPCs.
+        workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
         // `embed-upsert` stores card types and `vector-query` filters by one.
         vectorTypes: true,
         ...(params.checkRenderer === true
@@ -795,6 +802,8 @@ const dispatch = async (
         )
       );
     }
+    case "dispatch":
+      return success(requestId, await runDispatch(env, params));
     default:
       throw new Error("invalid_operation");
   }
@@ -843,6 +852,47 @@ export const handleInternalOp = async (
   } catch {
     return fail(requestId, "INVALID_INPUT", "Invalid JSON body", 400);
   }
+  return await runFilesOp(
+    env,
+    requestId,
+    body,
+    new URL(request.url).origin,
+    ctx
+  );
+};
+
+/**
+ * Runs one op whose caller is already trusted: a verified signed request,
+ * or a workflow step in this Worker. Errors become the same envelopes.
+ */
+/**
+ * The user an op's Workers AI calls are charged to, when Convex named one
+ * (`aiUsage` in the params) for a deployment this Worker serves.
+ */
+const aiUsageParam = (
+  env: FilesOpsEnv,
+  value: unknown
+): AiUsageContext | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const { convexSiteUrl, userId } = value as Record<string, unknown>;
+  const origin = allowedConvexSiteUrl(env, convexSiteUrl);
+  return origin &&
+    typeof userId === "string" &&
+    userId.length > 0 &&
+    userId.length <= 200
+    ? { convexSiteUrl: origin, userId }
+    : null;
+};
+
+export const runFilesOp = async (
+  env: FilesOpsEnv,
+  requestId: string,
+  body: FilesOpRequest,
+  origin: string,
+  ctx?: Pick<ExecutionContext, "waitUntil">
+): Promise<Response> => {
   if (
     !body ||
     typeof body !== "object" ||
@@ -864,7 +914,12 @@ export const handleInternalOp = async (
     );
   }
   try {
-    return await dispatch(env, requestId, body, new URL(request.url).origin);
+    const usage = aiUsageParam(
+      env,
+      (body.params as Record<string, unknown>).aiUsage
+    );
+    const run = () => dispatch(env, requestId, body, origin);
+    return await (usage ? runWithAiUsage(usage, run) : run());
   } catch (error) {
     if (error instanceof MetadataCapacityError) {
       return fail(

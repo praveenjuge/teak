@@ -1,23 +1,20 @@
 "use node";
 
-import {
-  CLEF_FLASH_MODEL_ID,
-  CLEF_MODEL_ID,
-  type FilesOp,
-} from "@teak/files-protocol";
+import type { FilesOp } from "@teak/files-protocol";
 import { internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { collectAiUsage, observeAiGeneration } from "./telemetry";
+import { aiUsageParams } from "./usage";
 
 /**
  * Clef decisions run in the Files Worker, which owns their prompts and
- * thresholds. This only sends the inputs, honours the AI gate, records usage
- * and swallows every failure: a `null` result means keep the rules' answer,
- * so a decision can never fail a card or a search.
+ * thresholds. This only sends the inputs and honours the AI gate. The Worker
+ * records each model call in Analytics Engine, charged to the owner named in
+ * `aiUsage`. Every failure is swallowed: a `null` result means keep the
+ * rules' answer, so a decision can never fail a card or a search.
  */
 export const CARD_PROCESSING_DECISION_TIMEOUT_MS = 3000;
 export const SEARCH_DECISION_TIMEOUT_MS = 1500;
@@ -30,13 +27,6 @@ type DecisionOp = Extract<
   | "score-relevance"
 >;
 
-const DECISION_MODELS: Record<DecisionOp, string> = {
-  "decide-card-type": CLEF_FLASH_MODEL_ID,
-  "decide-link-category": CLEF_MODEL_ID,
-  "decide-visual-styles": CLEF_FLASH_MODEL_ID,
-  "score-relevance": CLEF_FLASH_MODEL_ID,
-};
-
 export const isAiAllowedForUser = async (
   ctx: Pick<ActionCtx, "runQuery">,
   userId: string | undefined
@@ -46,7 +36,7 @@ export const isAiAllowedForUser = async (
     "allowed";
 
 export const runDecision = async <T>(
-  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  ctx: Pick<ActionCtx, "runQuery">,
   {
     op,
     params,
@@ -61,26 +51,26 @@ export const runDecision = async <T>(
     userId: string | undefined;
   }
 ): Promise<T | null> => {
-  if (!isFilesWorkerConfigured()) {
+  if (!(isFilesWorkerConfigured() && userId)) {
     return null;
   }
   try {
     if (!(await isAiAllowedForUser(ctx, userId))) {
       return null;
     }
-    // Counted in the owner's daily AI usage. Inside a step that already
-    // collects (the metadata step), it adds to that step's total instead.
-    return await collectAiUsage(
-      () => observeDecision(op, params, read, timeoutMs),
-      async (usage) => {
-        if (userId && usage.calls > 0) {
-          await ctx.runMutation(internal.adminUsage.recordAiUsage, {
-            userId,
-            ...usage,
-          });
-        }
-      }
-    );
+    const outcome = await callFilesWorkerJson<unknown>({
+      op,
+      params: { ...params, ...aiUsageParams(userId) },
+      timeoutMs,
+    });
+    if (outcome.kind === "fallback") {
+      return null;
+    }
+    const result = read(outcome.data);
+    if (!result) {
+      throw new Error("invalid_decision_reply");
+    }
+    return result;
   } catch (error) {
     console.warn("[ai/decisions] keeping the rules' answer", {
       message: error instanceof Error ? error.message : String(error),
@@ -89,32 +79,3 @@ export const runDecision = async <T>(
     return null;
   }
 };
-
-const observeDecision = <T>(
-  op: DecisionOp,
-  params: Record<string, unknown>,
-  read: (data: unknown) => T | null,
-  timeoutMs: number
-): Promise<T | null> =>
-  observeAiGeneration(
-    {
-      functionId: `teak.ai.decision.${op}`,
-      model: DECISION_MODELS[op],
-      stage: "ai_metadata",
-    },
-    async () => {
-      const outcome = await callFilesWorkerJson<unknown>({
-        op,
-        params,
-        timeoutMs,
-      });
-      if (outcome.kind === "fallback") {
-        return null;
-      }
-      const result = read(outcome.data);
-      if (!result) {
-        throw new Error("invalid_decision_reply");
-      }
-      return result;
-    }
-  );

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
@@ -195,7 +196,13 @@ describe("raw metadata archival", () => {
       internal.storage.rawMetadataMaintenance.commitArchive,
       args
     );
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // Two copies, each written then read back. A background outbox flush
+    // left by an earlier test may also call the ops endpoint; it isn't one.
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url]) => new URL(url).pathname !== "/__ops/v1"
+      )
+    ).toHaveLength(4);
     expect(ctx.runMutation).toHaveBeenCalledTimes(4);
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(
@@ -204,12 +211,7 @@ describe("raw metadata archival", () => {
         retry.mock.calls[0][2]
       )
     ).toBe(false);
-    const pending = await t.run((dbCtx) =>
-      dbCtx.db.system.query("_scheduled_functions").collect()
-    );
-    expect(
-      pending.some((scheduled) => scheduled.args[0]?.keys?.includes(args.key))
-    ).toBe(true);
+    expect(await queuedObjectDeletions(t)).toContain(args.key);
   });
 
   test("retained commit tracks stale copies without racing future references", async () => {
@@ -308,11 +310,7 @@ describe("raw metadata archival", () => {
         args
       )
     ).toBe(false);
-    const pending = await t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").collect()
-    );
-    expect(pending).toHaveLength(1);
-    expect(pending[0].args).toEqual([{ keys: [args.key] }]);
+    expect(await queuedObjectDeletions(t)).toEqual([args.key]);
   });
 
   test("stale raw, missing cards, wrong namespace and wrong hash never clear data", async () => {
@@ -380,10 +378,9 @@ describe("raw metadata archival", () => {
       rawHasStructured: true,
       rawStructuredFetchedAt: 120,
     });
-    const page = await t.query(
-      internal.workflows.orphanSweepQueries.pageSweepCards,
-      { numItems: 10 }
-    );
+    const page = await t.query(internal.storage.orphanSweep.pageSweepCards, {
+      numItems: 10,
+    });
     expect(cardStorageObjectKeys(page.cards[0])).toContain(key);
   });
 

@@ -1,6 +1,5 @@
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
@@ -10,6 +9,10 @@ import {
   putObjectViaFilesWorker,
 } from "./filesWorkerClient";
 import { tryResolveObjectUrl } from "./fileUrls";
+
+export { cardStorageObjectKeys } from "./cardObjectKeys";
+
+import { enqueueObjectDeletion } from "../workflowDispatch";
 import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
 
 // Re-exported for backward compatibility: the signed-URL stack lives in the
@@ -53,60 +56,13 @@ export const buildR2ObjectKey = (args: {
   fileName?: string;
 }) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
 
-export const cardStorageObjectKeys = (card: {
-  documentTextKey?: string;
-  fileKey?: string;
-  metadata?: {
-    linkCategory?: { rawStorageKey?: string };
-    linkPreview?: {
-      rawStorageKey?: string;
-      imageStorageKey?: string;
-      media?: Array<{ posterStorageKey?: string; storageKey?: string }>;
-      screenshotStorageKey?: string;
-    };
-  };
-  previewKey?: string;
-  previousThumbnailOverride?: { override?: { storageKey?: string } | null };
-  scrubKey?: string;
-  thumbnailKey?: string;
-  thumbnailOverride?: { storageKey?: string };
-  workflowArtifactKeys?: string[];
-}): string[] => {
-  const linkPreview = card.metadata?.linkPreview;
-  return [
-    card.fileKey,
-    card.fileKey ? `${card.fileKey}.processing.json` : undefined,
-    card.thumbnailKey,
-    card.scrubKey,
-    card.previewKey,
-    card.documentTextKey,
-    ...(card.workflowArtifactKeys ?? []),
-    linkPreview?.rawStorageKey,
-    card.metadata?.linkCategory?.rawStorageKey,
-    linkPreview?.imageStorageKey,
-    linkPreview?.screenshotStorageKey,
-    ...(linkPreview?.media ?? []).flatMap((item) => [
-      item.storageKey,
-      item.posterStorageKey,
-    ]),
-    card.thumbnailOverride?.storageKey,
-    // Kept for the undo window; deleted with the card if it goes first.
-    card.previousThumbnailOverride?.override?.storageKey,
-  ].filter((key, index, keys): key is string =>
-    Boolean(key && keys.indexOf(key) === index)
-  );
-};
-
+/** Queues an object for deletion in the caller's transaction. */
 export const deleteObject = async (ctx: MutationCtx, key?: string) => {
   if (!key) {
     return;
   }
   assertR2KeyInNamespace(key);
-  await ctx.scheduler.runAfter(
-    0,
-    (internal as any)["workflows/objectCleanup"].startObjectDeletion,
-    { keys: [key] }
-  );
+  await enqueueObjectDeletion(ctx, [key]);
 };
 
 export const storeObject = async (

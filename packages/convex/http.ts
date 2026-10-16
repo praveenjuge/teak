@@ -1,4 +1,4 @@
-import { EDGE_IDENTITY_PATH } from "@teak/files-protocol";
+import { EDGE_IDENTITY_PATH, WORKFLOW_RPC_PATH } from "@teak/files-protocol";
 import { httpRouter } from "convex/server";
 import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
@@ -25,6 +25,7 @@ import {
   v1CorsPreflight,
 } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
+import { workflowRpcV1 } from "./workflowGateway";
 import { disconnectWorkosConsent } from "./workosConnectRevocation";
 import { registerWorkosRoutes } from "./workosWebhook";
 
@@ -34,6 +35,12 @@ http.route({
   path: EDGE_IDENTITY_PATH,
   method: "POST",
   handler: edgeIdentityV1,
+});
+
+http.route({
+  path: WORKFLOW_RPC_PATH,
+  method: "POST",
+  handler: workflowRpcV1,
 });
 
 http.route({

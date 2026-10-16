@@ -25,7 +25,7 @@ function FileLabel({
   return (
     <div className="flex min-w-0 items-center gap-2">
       {formatBadge ? (
-        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-semibold text-[10px] text-muted-foreground tracking-wide">
+        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-semibold text-[10px] text-foreground tracking-wide">
           {formatBadge}
         </span>
       ) : (

@@ -404,11 +404,8 @@ describe("publicApi", () => {
 
   test("executeBulkCardsForUser preserves explicit text and enforces its byte limit", async () => {
     const billingModule = await import("../billing");
-    const managerModule = await import("../workflows/manager");
     const originalGetSubscription = billingModule.polar.getCurrentSubscription;
-    const originalWorkflowStart = managerModule.workflow.start;
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
-    managerModule.workflow.start = mock().mockResolvedValue(undefined);
 
     try {
       const handler =
@@ -482,7 +479,6 @@ describe("publicApi", () => {
       });
     } finally {
       billingModule.polar.getCurrentSubscription = originalGetSubscription;
-      managerModule.workflow.start = originalWorkflowStart;
     }
   });
 

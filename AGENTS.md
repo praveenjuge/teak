@@ -19,7 +19,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. WorkOS AuthKit sessions provide Convex identity; WorkOS is the only sign-in provider in every environment.
 - Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
 - Shared web and extension UI belongs in `packages/ui` unless the behavior is surface-specific.
-- Card processing is orchestrated by `packages/convex/workflows/cardProcessing.ts`. Preserve workflow retries and `processingStatus` consistency.
+- Card processing is orchestrated by the Files Worker's Cloudflare Workflow (`apps/files-worker/src/workflows/cardProcessing/run.ts`), started from Convex with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Preserve workflow retries, the processing-revision guard on every write, and `processingStatus` consistency.
 - Supported card types are text, link, image, video, audio, document, palette, and quote.
 - `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.
 

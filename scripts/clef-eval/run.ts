@@ -26,10 +26,10 @@ import {
   VISUAL_STYLE_QUESTION_PREFIX,
 } from "../../apps/files-worker/src/decisions";
 import type { FilesOpsEnv } from "../../apps/files-worker/src/ops";
+import { textCardRulesType } from "../../packages/convex/card/classificationRules";
 import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
 import { resolveLinkCategory } from "../../packages/convex/shared/utils/linkCategoryResolver";
-import { textCardRulesType } from "../../packages/convex/workflows/steps/classification";
 import {
   CLEF_INPUT_USD_PER_MILLION,
   CLEF_MODEL_IDS,

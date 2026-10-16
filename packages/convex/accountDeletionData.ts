@@ -1,49 +1,21 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { internalAction, internalMutation } from "./_generated/server";
-import { drainStorageWithinBudget } from "./accountDeletion";
+import { internalMutation } from "./_generated/server";
 import {
   captureDeletionBatch,
   commitDeletionBatch,
 } from "./accountDeletionBatch";
-import { accountDeletionStage } from "./accountDeletionStages";
-import { purgeAccountVectorsPage } from "./embedding/embedCard";
+import {
+  ACCOUNT_DELETION_PROGRESS_GRACE_MS,
+  accountDeletionStage,
+} from "./accountDeletionStages";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
-import { callFilesWorkerJson } from "./storage/filesWorkerClient";
-import { assertR2KeyInNamespace } from "./storage/r2Keys";
-import { workflow } from "./workflows/manager";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
   generation: v.number(),
 };
-export const deleteKeys = internalAction({
-  args: { keys: v.array(v.string()) },
-  returns: v.null(),
-  handler: async (ctx, { keys }) => {
-    if (keys.length > 500) {
-      throw new Error("deletion_key_batch_limit");
-    }
-    for (const key of keys) {
-      assertR2KeyInNamespace(key);
-    }
-    for (const key of new Set(keys)) {
-      const frozen = await callFilesWorkerJson<{ frozen: boolean }>({
-        op: "freeze-object",
-        params: { key },
-      });
-      if (frozen.kind !== "ok" || !frozen.data.frozen) {
-        throw new Error("deletion_object_write_pending");
-      }
-    }
-    await ctx.runAction(
-      internal["workflows/objectCleanup"].deleteObjectsAction,
-      { keys }
-    );
-    return null;
-  },
-});
 export const cancelJobsPage = internalMutation({
   args: {
     ...bindingArgs,
@@ -110,47 +82,6 @@ export const checkpointWriters = internalMutation({
       await ctx.db.patch(state._id, { writersPrepared: true });
     }
     return null;
-  },
-});
-export const prepareWriters = internalAction({
-  args: bindingArgs,
-  returns: v.boolean(),
-  handler: async (ctx, binding): Promise<boolean> => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
-    if (state.stage !== accountDeletionStage("accountData")) {
-      throw new Error("stale_deletion_stage");
-    }
-    if (state.writersPrepared) {
-      return true;
-    }
-    const table = state.writerTable ?? "importJobs";
-    const previous = state.writerCursor ?? null;
-    const page: { done: boolean; cursor: string; workflowIds: string[] } =
-      await ctx.runMutation(internal.accountDeletionData.cancelJobsPage, {
-        ...binding,
-        table,
-        cursor: previous,
-      });
-    for (const id of page.workflowIds) {
-      const status = await workflow.status(
-        ctx,
-        id as Parameters<typeof workflow.status>[1]
-      );
-      if (status.type === "inProgress") {
-        throw new Error("deletion_job_still_running");
-      }
-    }
-    await ctx.runMutation(internal.accountDeletionData.checkpointWriters, {
-      ...binding,
-      table,
-      previous,
-      next: page.cursor,
-      done: page.done,
-    });
-    return table === "exportJobs" && page.done;
   },
 });
 export const ancillaryPage = internalMutation({
@@ -255,40 +186,6 @@ export const ancillaryPage = internalMutation({
     );
   },
 });
-export const deleteRemainingData = internalAction({
-  args: bindingArgs,
-  returns: v.boolean(),
-  handler: async (ctx, binding): Promise<boolean> => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
-    if (
-      state.stage !== accountDeletionStage("accountData") ||
-      !state.writersPrepared
-    ) {
-      throw new Error("stale_deletion_stage");
-    }
-    if (
-      !(await drainStorageWithinBudget(ctx, binding, [
-        "exports",
-        "uploads",
-        "objects",
-      ]))
-    ) {
-      return false;
-    }
-    // Card vectors, by the account's embedding rows, one page per pass; the
-    // rows go only after their vectors are deleted.
-    if (await purgeAccountVectorsPage(ctx, state.userId)) {
-      return false;
-    }
-    return !(await ctx.runMutation(
-      internal.accountDeletionData.ancillaryPage,
-      binding
-    ));
-  },
-});
 const batchKind = v.union(
   v.literal("cards"),
   v.literal("imports"),
@@ -379,55 +276,20 @@ export const checkpointStorageBatch = internalMutation({
       throw new Error("deletion_storage_source_changed");
     }
     const next = offset + count;
+    // Each checkpoint is progress, so a long drain never reads as stalled.
+    const nextAttemptAt = Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS;
     if (next < batch.keys.length) {
       await ctx.db.patch(state._id, {
         storageProgress: { ...progress, offset: next },
+        nextAttemptAt,
       });
       return false;
     }
     await commitDeletionBatch(ctx, batch);
-    await ctx.db.patch(state._id, { storageProgress: undefined });
-    return true;
-  },
-});
-export const drainStorageBatch = internalAction({
-  args: { ...bindingArgs, kind: batchKind },
-  returns: v.boolean(),
-  handler: async (ctx, { kind, ...binding }): Promise<boolean> => {
-    const page: {
-      empty: boolean;
-      fingerprint: string;
-      offset: number;
-      keys: string[];
-      aborts: { key: string; uploadId: string }[];
-    } = await ctx.runMutation(
-      internal.accountDeletionData.prepareStorageBatch,
-      { ...binding, kind }
-    );
-    if (page.empty) {
-      return true;
-    }
-    for (const abort of page.aborts) {
-      const result = await callFilesWorkerJson({
-        op: "abort-multipart",
-        params: abort,
-      });
-      if (result.kind !== "ok") {
-        throw new Error("deletion_upload_abort_failed");
-      }
-    }
-    if (page.keys.length > 0) {
-      await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-        keys: page.keys,
-      });
-    }
-    await ctx.runMutation(internal.accountDeletionData.checkpointStorageBatch, {
-      ...binding,
-      kind,
-      fingerprint: page.fingerprint,
-      offset: page.offset,
-      count: page.keys.length,
+    await ctx.db.patch(state._id, {
+      storageProgress: undefined,
+      nextAttemptAt,
     });
-    return false;
+    return true;
   },
 });

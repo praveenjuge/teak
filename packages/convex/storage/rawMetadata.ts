@@ -103,9 +103,10 @@ const readArchivedRaw = async (
     if (!response.ok) {
       throw new Error(`raw_metadata_read_failed:${response.status}`);
     }
-    const json = new TextDecoder("utf-8", { fatal: true }).decode(
-      await readBodyWithLimit(response, RAW_METADATA_MAX_BYTES)
-    );
+    const json = new TextDecoder("utf-8", {
+      fatal: true,
+      ignoreBOM: false,
+    }).decode(await readBodyWithLimit(response, RAW_METADATA_MAX_BYTES));
     if ((await hashRawMetadata(json)) !== digest) {
       throw new Error("raw_metadata_hash_mismatch");
     }

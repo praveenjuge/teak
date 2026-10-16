@@ -42,11 +42,16 @@ Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
 - A new user table, per-card row or R2 key is removed by account deletion
   (`accountDeletionData.ts` `ancillaryPage`, per-card rows in
   `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete
-  (`card/deleteCard.ts`, `workflows/cardCleanup.ts`) and by
-  `cardStorageObjectKeys` (`storage/r2.ts`). Seed it in the "complete stages"
-  test in `accountDeletionWorkflow.test.ts`.
-- New workflow steps go at the end of `workflows/cardProcessing.ts`, so
-  in-flight journals still replay.
+  (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by
+  `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the
+  "complete stages" test in `accountDeletionWorkflow.test.ts`, which runs the
+  Files Worker's account deletion workflow against the test database.
+- Card processing runs in the Files Worker
+  (`apps/files-worker/src/workflows/cardProcessing/run.ts`). Step names are
+  durable history: never rename one, and add new steps after the existing
+  ones. Every Convex write a step makes passes the run's
+  `guard: { cardId, rev }`, and every function it calls is listed in
+  `workflowRpcAllowlist.ts`.
 - Analytics events go in `shared/analytics.ts` first (`.agents/analytics.md`).
 
 ## Indexes and reads

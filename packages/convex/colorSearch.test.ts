@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -24,7 +23,6 @@ type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workflowTest.register(t);
   workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, "owner");
   const owner = t.withIdentity({

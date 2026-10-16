@@ -19,6 +19,13 @@ export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
 export const EMULATOR_COOKIE_PASSWORD =
   "teak-e2e-emulator-cookie-password-0001";
 
+/** The local Files Worker (filesWorker.ts) listens next to the emulator. */
+export const filesWorkerPort = (ports: Pick<StackPorts, "emulator">) =>
+  ports.emulator + 2;
+
+export const filesWorkerOrigin = (ports: Pick<StackPorts, "emulator">) =>
+  `http://127.0.0.1:${filesWorkerPort(ports)}`;
+
 export const stackUrls = (ports: StackPorts): Required<StackUrls> => ({
   appOrigin: `http://localhost:${ports.web}`,
   convexUrl: `http://127.0.0.1:${ports.convex}`,
@@ -43,6 +50,8 @@ export const emulatorWebEnv = (ports: StackPorts) => {
   return {
     NEXT_PUBLIC_CONVEX_URL: urls.convexUrl,
     NEXT_PUBLIC_CONVEX_SITE_URL: urls.apiOrigin,
+    // The web CSP allows file and image URLs from the local Files Worker.
+    NEXT_PUBLIC_FILES_BASE: filesWorkerOrigin(ports),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
     WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
     WORKOS_API_KEY: EMULATOR_API_KEY,

@@ -9,6 +9,8 @@ let workerAnswer: () => Promise<unknown>;
 let aiGate = "allowed";
 let reviewLinkCategoryWithClef: any;
 let jsonLdTypesFrom: any;
+// The owner the Worker charges the model call to.
+let aiUsageFor: (userId: string) => Record<string, unknown>;
 
 beforeAll(async () => {
   mock.module(
@@ -27,22 +29,15 @@ beforeAll(async () => {
   ({ jsonLdTypesFrom, reviewLinkCategoryWithClef } = await import(
     "../../../../workflows/steps/categorization/clef"
   ));
+  ({ aiUsageParams: aiUsageFor } = await import("../../../../ai/usage"));
 });
 
 beforeEach(() => {
   workerCalls = [];
-  usageRecords = [];
   aiGate = "allowed";
 });
 
-let usageRecords: unknown[] = [];
-const ctx = {
-  runQuery: () => Promise.resolve(aiGate),
-  runMutation: (_ref: unknown, args: unknown) => {
-    usageRecords.push(args);
-    return Promise.resolve(null);
-  },
-};
+const ctx = { runQuery: () => Promise.resolve(aiGate) };
 
 const card = {
   _id: "c1",
@@ -88,18 +83,11 @@ describe("reviewLinkCategoryWithClef", () => {
       confidence: 0.93,
       reason: "clef",
     });
-    expect(usageRecords).toEqual([
-      expect.objectContaining({
-        userId: "teak_user",
-        calls: 1,
-        inputTokens: 100,
-        costUsd: 0.000_024,
-      }),
-    ]);
     expect(workerCalls).toEqual([
       {
         op: "decide-link-category",
         params: {
+          ...aiUsageFor("teak_user"),
           url: "https://example.com/soup",
           rulesCategory: "other",
           title: "Weeknight lentil soup",

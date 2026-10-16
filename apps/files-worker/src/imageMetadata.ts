@@ -1,5 +1,6 @@
 import { parseTextMetadata } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
+import { meteredAiRun } from "./aiUsage";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
@@ -169,32 +170,44 @@ export const generateImageMetadataForOp = async (
   let validationAttempt = 0;
   while (true) {
     try {
-      const response = await ai.run(
-        IMAGE_METADATA_MODEL_ID,
+      const response = await meteredAiRun(
+        env,
         {
-          max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
-          messages: [
+          functionId: "teak.ai.metadata.image",
+          isCapacity: isWorkersAiCapacityError,
+          model: IMAGE_METADATA_MODEL_ID,
+        },
+        () =>
+          ai.run(
+            IMAGE_METADATA_MODEL_ID,
             {
-              content: IMAGE_ANALYSIS_SYSTEM_PROMPT,
-              role: "system",
-            },
-            {
-              content: [
+              max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
+              messages: [
                 {
-                  text: validationRetryPrompt(basePrompt, validationAttempt),
-                  type: "text",
+                  content: IMAGE_ANALYSIS_SYSTEM_PROMPT,
+                  role: "system",
                 },
                 {
-                  image_url: { url: imageDataUrl },
-                  type: "image_url",
+                  content: [
+                    {
+                      text: validationRetryPrompt(
+                        basePrompt,
+                        validationAttempt
+                      ),
+                      type: "text",
+                    },
+                    {
+                      image_url: { url: imageDataUrl },
+                      type: "image_url",
+                    },
+                  ],
+                  role: "user",
                 },
               ],
-              role: "user",
+              response_format: { type: "json_object" },
             },
-          ],
-          response_format: { type: "json_object" },
-        },
-        aiRunOptions(env)
+            aiRunOptions(env)
+          )
       );
       const text = extractMessageText(response);
       if (text === null) {

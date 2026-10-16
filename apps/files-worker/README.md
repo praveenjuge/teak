@@ -37,8 +37,9 @@ and must get a fresh answer. The gateway must exist before a deploy that names
 it. Eligible sources (≤20 MB) are transformed directly from R2 through
 the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
-users, owns card state, validates uploads, and orchestrates workflows —
-while stored-file processing and storage transfers flow through this worker.
+users, owns card state and validates uploads — while background work
+(Cloudflare Workflows, Queues and Cron Triggers; see "Background work"),
+stored-file processing and storage transfers run in this worker.
 Remote preview images and media download on the link fetcher Container (see below).
 Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
@@ -147,6 +148,26 @@ and API key creation limits stay in Convex: they count cards rather than
 requests, defer edits rather than refusing them, or never pass the edge.
 
 
+### MCP at the edge
+
+MCP clients open every session with `initialize`, a
+`notifications/initialized`, `tools/list`, and then `ping` now and then. For a
+`/mcp` POST the edge has tied to a Teak user (`user:` identity) and charged to
+that user's limit, `src/mcpEdge.ts` answers those messages itself: if every
+message in the body (one, or a batch of up to 100) is one of them, the Worker
+replies with the JSON-RPC result, `202` with no body for notifications alone,
+and the headers Convex adds (`MCP_CORS_HEADERS`, the API's CORS headers,
+`X-Request-Id`, `no-store`). The tool list and the `initialize` result come
+from `packages/convex/mcp/protocol.ts`, which Convex's `mcp/httpServer.ts`
+uses too, so both answer byte for byte the same; `ping` answers `{}` in both.
+Anything else is forwarded unchanged: a tool call (alone or in a batch), an
+unknown method or invalid message, a body Convex would refuse (wrong `Accept`
+or `Content-Type`, unparseable, over 64 KiB, more than 100 messages), and every
+request without a known user, so an unknown credential still gets Convex's 401
+with `WWW-Authenticate`. The identity cache can trail a revoked key by up to
+five minutes; these answers carry nothing about the account, and Convex still
+authenticates every tool call.
+
 ## Internal ops
 
 Besides downloads, the worker accepts body-bound, short-lived signed `POST`
@@ -185,8 +206,10 @@ Operation request bodies are limited to 1 MiB before signature verification.
 - `head-object` returns existence, size, ETag, and content type for a key —
   used to check an import's source before reading it.
 - `list-objects` pages objects under a `users/` (prod) or `dev/users/`
-  (dev) prefix (limit ≤1000, opaque cursor) — used by the stale
-  pending-upload sweep and the weekly orphaned-object reconciliation report.
+  (dev) prefix (limit ≤1000, opaque cursor) — used by the weekly
+  orphaned-object reconciliation report. `cleanup-stale-pending-uploads`
+  deletes pending uploads older than a day under one of those prefixes, ten
+  list pages a call; the weekly cron's backstop sweep runs it in-process.
   The production Worker accepts both prefixes so dev traffic can share the
   prod bucket.
 - `generate-image-metadata` feeds the existing `detail` rendition into
@@ -347,15 +370,24 @@ runtime cannot make: the [Workers HTTP API](https://developers.cloudflare.com/wo
 implements neither `lookup` nor `createConnection`, `resolveOverride` only
 reaches hosts in the zone, and Undici's Agent fails in workerd
 (`ERR_OPTION_NOT_IMPLEMENTED` for `ALPNProtocols`). Inside the Container the
-same code Convex used runs unchanged, bundled by path rather than copied:
+SSRF guard Convex used runs unchanged, bundled by path rather than copied:
 
 - `packages/convex/linkMetadata/ssrf.ts`: http(s) only, standard ports, no
   credentials, every resolved address public, every redirect hop rechecked;
-- `packages/convex/workflows/steps/pinnedFetch.ts`: the connection goes to the
-  addresses that were checked, so DNS rebinding between the check and the
-  connection cannot redirect it;
-- `packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts`:
-  images must have readable dimensions within the pixel cap.
+- `fetcher/src/pinnedFetch.ts`: the connection goes to the addresses that
+  were checked, so DNS rebinding between the check and the connection cannot
+  redirect it;
+- `fetcher/src/remoteImageDimensions.ts`: images must have readable
+  dimensions within the pixel cap.
+
+Card processing (`src/workflows/cardProcessing/`) runs the same `safeFetch`
+in the Worker for the requests it makes to user URLs (Bluesky, Mastodon,
+Reddit and TikTok post APIs): it resolves each hop's host with DNS over HTTPS
+(`src/pinnedHop.ts`) and sends one hop at a time to `POST /hop`
+(`fetcher/src/hop.ts`), which checks the addresses again with the same policy,
+connects only to them, and returns a redirect unfollowed, so the Worker checks
+its target before the next hop. A hop carries only `accept` and `user-agent`
+and brings back at most its byte cap plus one.
 
 Limits come from `@teak/files-protocol` (`FILES_REMOTE_ASSET_MAX_BYTES`: 20 MiB
 images, 50 MiB videos). Each instance runs four downloads at once and answers
@@ -469,6 +501,136 @@ Four signed ops read and write the index (`src/vectors.ts`):
 Every op names its shard; a shard with no binding is `INVALID_INPUT`. Convex
 decides what text, namespace and shard to send.
 
+## Background work
+
+Card processing, exports, imports, account deletion and maintenance run as
+Cloudflare Workflows in this Worker (`src/workflows/`, entrypoints in
+`src/workflows/entrypoints.ts`). Convex starts them through an outbox:
+`packages/convex/workflowDispatch.ts` writes a `workflowDispatches` row in
+the same transaction as the change that needs the work, and a flush hands due
+rows to the `dispatch` op, which creates the instances (an ID that already
+exists counts as started, so a resend is safe) and queues object deletions
+on `OBJECT_DELETIONS`. Rows the Worker refuses go back to pending with
+backoff; deletions it accepts are done at once.
+
+Steps read and write Convex through one signed endpoint,
+`POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
+`packages/convex/workflowGateway.ts`), which runs one function from
+`packages/convex/workflowRpcAllowlist.ts` per call. Every card-processing
+write carries the run's processing revision and lands only while the card is
+still on it, so an edit (which bumps the revision and stops the older run)
+can never be overwritten by the run it replaced.
+
+Each deployment has its own workflow RPC secret: the Worker derives it from
+`WORKFLOW_RPC_ROOT_SECRET` and the deployment's origin, and the deployment
+holds only the result as `WORKFLOW_RPC_SECRET`. Gateway requests and the
+dispatch op's proof are signed with it over a payload that names the
+deployment, so development, which shares `FILES_SIGNING_SECRET` with
+production, can neither call production's gateway nor start work that
+reports to production. Workflows call back the deployment named in their
+params, which must be one of `CONVEX_SITE_URLS`.
+
+## Cron Triggers
+
+`src/cron.ts` runs the background tasks that used to be Convex crons. The
+schedules live in `packages/convex/cronSchedules.ts` (`runsOn: "cloudflare"`)
+and must equal `triggers.crons` in both Wrangler configs; a Convex test checks.
+This Worker serves every deployment in `CONVEX_SITE_URLS`, so each task runs
+once per deployment, and one deployment's failure neither stops another nor
+goes unreported (PostHog, with the deployment). Tasks the handler runs itself
+record the deployment's cron heartbeat (`adminHealth:recordCronRun` over the
+workflow RPC gateway) under the name in `cronSchedules.ts`, so the admin
+health view lists them beside Convex's own crons.
+
+| Cron (UTC) | Task |
+| --- | --- |
+| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat |
+| `0 3 * * *` | Export cleanup (maintenance workflow) |
+| `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
+| `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
+| `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
+| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) |
+
+The reconcile (`src/workflowReconcile.ts`) asks Convex for runs that have not
+reported for longer than their kind allows (`workflowDispatch:listStale`) and
+looks each instance up through its binding: `complete` reports complete, and
+`errored` or `terminated` reports errored with the instance's error, so the
+job behind it fails instead of staying "running". An instance Workflows does
+not know (`instance_missing`) means the hand-over was lost after Convex
+claimed the row, so the row is sent again (up to the dispatch attempt limit).
+Queued, running, waiting and paused runs are left alone, and a lookup that
+fails for another reason is tried again the next hour. It then prunes finished dispatch rows
+(`workflowDispatch:pruneFinished`, at most ten pages).
+
+## WorkOS webhook queue
+
+WorkOS posts webhooks to
+`https://files.teakvault.com/__webhooks/workos/<convex-site-host>`. The host
+must be one of `CONVEX_SITE_URLS`; the production endpoint is
+`https://files.teakvault.com/__webhooks/workos/uncommon-ladybug-882.convex.site`.
+`src/queues/workosEvents.ts` checks the request cheaply (a `workos-signature`
+of at most 1,024 characters whose `t=` timestamp is at most three minutes old,
+the WorkOS SDK's tolerance, and at most five minutes ahead,
+`Content-Type: application/json`, a body of at most 120 KiB so it fits a
+128 KB queue message), charges `UNKNOWN_CREDENTIAL_LIMITER` by address, queues
+`{ convexSiteUrl, body, signature, receivedAt }` on `WORKOS_EVENTS` and answers
+200 at once. The Worker does not hold the webhook secret.
+
+The consumer posts the exact body with the original signature to that
+deployment's `/workos/webhook`, which verifies the signature and dedupes
+events as before (the route still works directly; the E2E stack's emulator
+posts to it). A 2xx acknowledges the message; 400, 401, 403, 413 and 415 mean a
+forged or malformed webhook and drop it; a 5xx or network failure retries
+after 30 s, doubling up to 15 minutes, ten times, and then lands in
+`teak-workos-events-dlq`. The WorkOS SDK refuses a signature older than three
+minutes, so a 401 for a message signed longer ago than that is a webhook that
+may have aged out while it waited, and the dead-letter consumer handles each
+message that exhausted its retries the same way: the Worker hands the body and
+signature to its deployment (`workosWebhook:recordUndeliverableWebhook`), which
+verifies the signature on everything but its age and only then records the
+event as undeliverable (reason `delivery_failed`, once per event ID, skipped
+when the event was applied after all), where the admin health view shows it.
+A forged webhook is never recorded. Either way the hourly WorkOS event catch-up applies the event from
+the Events API.
+
+## R2 events and pending uploads
+
+A pending upload is an object under `.../cards/upload-pending-v2/` that a client
+uploaded but never finalized into a card. The bucket's event notification
+sends every object written under `users/` and `dev/users/` to `R2_EVENTS`
+(`teak-r2-events`, or `teak-dev-r2-events` for the development bucket).
+`src/queues/r2Events.ts` acknowledges everything that is not a pending upload.
+A pending upload younger than 24 hours goes back on the queue with a delay of
+up to 12 hours (the queue's maximum), carrying its original upload time; once
+it is 24 hours old the consumer reads its head and deletes it if it is still
+there and was uploaded at least 24 hours ago, the same rule as the
+`cleanup-stale-pending-uploads` op. The weekly cron runs that op in-process for
+`users/` and `dev/users/` until it reaches the end or five minutes pass, as a
+backstop for events that never arrived. Convex's hourly sweep is gone; its
+cron (`cleanup-expired-upload-sessions`) now only expires upload sessions.
+
+## AI usage (Analytics Engine)
+
+Every Workers AI call made inside `runWithAiUsage` (card metadata for text,
+links and images, Whisper transcripts and embeddings, when a workflow or queue
+step runs them for a card) writes one data point to the `AI_USAGE` dataset
+(`teak_ai_usage`; `teak_dev_ai_usage` for the development Worker) through
+`meteredAiRun` in `src/aiUsage.ts`: index `[userId]`, blobs
+`[convexSiteUrl, model, functionId, outcome]` and doubles
+`[calls, errors, inputTokens, outputTokens, costUsd, latencyMs]`, with the cost
+from the Workers AI price list in `packages/convex/shared/aiPricing.ts`. Calls
+outside a card's context (search, ops Convex calls directly) are not charged
+to anyone, and a failed write never fails the call.
+
+The hourly rollup (`src/aiUsageRollup.ts`) queries the Analytics Engine SQL API
+for today and yesterday (UTC), per deployment, weighting every sum by
+`_sample_interval`, and sets each user's absolute totals for the day with
+`adminUsage:replaceDailyUsage`, at most 200 users a call. A repeated run writes
+the same numbers again. It needs the `ANALYTICS_ACCOUNT_ID` and
+`AI_USAGE_DATASET` vars and the `ANALYTICS_API_TOKEN` secret; without the
+token it is skipped and records no heartbeat. Convex's `admin-daily-snapshot`
+runs at 00:45 UTC, after the 00:15 rollup has finalized yesterday.
+
 ## Export archive lifecycle
 
 Export archives, their `.checkpoint.json` and `.result.json` sidecars and the
@@ -480,16 +642,19 @@ that path misses: artifacts of failed or canceled jobs, manifests whose
 best-effort delete failed, and deletes that errored. Download links are already
 refused after expiry, so the extra day costs nothing.
 
-The rules are bucket configuration, not part of `wrangler.jsonc`; add them
-once per bucket and confirm with `lifecycle list`:
-
-```bash
-bunx wrangler r2 bucket lifecycle add teak-files-prod expire-exports exports/ --expire-days 8
-bunx wrangler r2 bucket lifecycle add teak-files-prod expire-dev-exports dev/exports/ --expire-days 8
-bunx wrangler r2 bucket lifecycle list teak-files-prod
-```
-
-The isolated development bucket needs the `dev/exports/` rule too. Exports
+The rules are bucket configuration, not part of `wrangler.jsonc`.
+`scripts/cloudflare-r2-lifecycle.ts` holds them for both buckets: exports
+(`exports/` and `dev/exports/`) expire after 8 days, incomplete multipart
+uploads are aborted after a day, and the event notifications described under
+"R2 events and pending uploads" are set. `bun run r2:lifecycle` shows what
+would change, `--check` exits 1 when a bucket has drifted, and `--apply` makes
+the changes. It only creates, updates and deletes lifecycle rules whose id,
+and notification rules whose description, starts with `teak-`; anything else
+on the buckets is left as it is (the hand-made `expire-exports` and
+`expire-dev-exports` rules can be removed once the `teak-` ones exist). It
+needs `CLOUDFLARE_API_TOKEN` with Workers R2 Storage: Edit and Queues: Read
+(Workers R2 Storage: Read for a dry run or `--check`); the queues must exist
+before `--apply`. Exports
 written before the move keep their `users/<hash>/exports/` keys; the daily
 cleanup still deletes them, and both roots stay inside the storage namespace
 (`isR2KeyInNamespace` in Convex, `isValidUploadKey` here) so account deletion
@@ -565,6 +730,19 @@ Convex dev uses the isolated Worker.
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
+- `WORKFLOW_RPC_ROOT_SECRET` — Worker-only root of each Convex deployment's
+  `WORKFLOW_RPC_SECRET`. Set with
+  `bunx wrangler secret put WORKFLOW_RPC_ROOT_SECRET`, then give every
+  deployment in `CONVEX_SITE_URLS` its derived secret:
+  `WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site`
+  and `bunx convex env set WORKFLOW_RPC_SECRET <output>` on that deployment.
+  Until a deployment has it, its background work stays queued in its outbox.
+  Never copy the root secret to Convex.
+- `ANALYTICS_API_TOKEN` — Cloudflare API token with Account Analytics: Read
+  for the hourly AI usage rollup. Set with
+  `bunx wrangler secret put ANALYTICS_API_TOKEN` (and
+  `--config development/wrangler.jsonc` for the development Worker); unset
+  skips the rollup.
 - `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports
   (errors only, sent with a plain `fetch`). A plain var in the production
   `wrangler.jsonc`; the development Worker has none, so it reports nothing.

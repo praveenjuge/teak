@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -22,7 +21,6 @@ type CardSeed = Pick<Doc<"cards">, "type"> &
 const setup = () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workflowTest.register(t);
   workosTest.register(t);
   const insert = (seed: CardSeed) =>
     t.run((ctx) =>
@@ -96,11 +94,9 @@ const seedLibrary = async (
   text: await insert({ type: "text", content: "a note" }),
 });
 
-const IMAGE_JOB = "workflows/steps/renderables/analyzeImage:analyzeImage";
-const GIF_JOB =
-  "workflows/steps/renderables/extractAnimationPalette:extractAnimationPalette";
-const VIDEO_JOB =
-  "workflows/steps/renderables/generateVideoThumbnail:generateVideoThumbnail";
+const IMAGE_JOB = "migration/mediaColorsJobs:analyzeImageColors";
+const GIF_JOB = "migration/mediaColorsJobs:extractGifColors";
+const VIDEO_JOB = "migration/mediaColorsJobs:rerenderVideoColors";
 
 describe("backfillMediaColors", () => {
   test("a dry run counts the cards and queues no colors jobs", async () => {
@@ -132,7 +128,7 @@ describe("backfillMediaColors", () => {
       { name: GIF_JOB, args: { cardId: cards.gif }, delayMs: 200 },
       {
         name: VIDEO_JOB,
-        args: { cardId: cards.video, rerender: true },
+        args: { cardId: cards.video },
         delayMs: 2200,
       },
     ]);
@@ -175,7 +171,7 @@ describe("backfillMediaColors", () => {
     expect(await scheduled()).toEqual([
       {
         name: VIDEO_JOB,
-        args: { cardId: cards.video, rerender: true },
+        args: { cardId: cards.video },
         delayMs: 0,
       },
     ]);

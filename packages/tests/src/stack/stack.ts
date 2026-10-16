@@ -14,8 +14,9 @@ import {
   isPortInUse,
   type WorktreePorts,
 } from "../../../../scripts/worktree-env.ts";
-import { emulatorWebEnv, stackUrls } from "./config";
+import { emulatorWebEnv, filesWorkerPort, stackUrls } from "./config";
 import { startEmulator } from "./emulator";
+import { startFilesWorker } from "./filesWorker";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const CONVEX_DIR = join(ROOT, "packages/convex");
@@ -64,6 +65,8 @@ export const startStack = async (
     ports.convexSite,
     ports.emulator,
     ports.emulator + 1,
+    filesWorkerPort(ports),
+    filesWorkerPort(ports) + 1,
   ]) {
     if (await isPortInUse(port)) {
       busy.push(port);
@@ -110,6 +113,9 @@ export const startStack = async (
     }
   );
   const log = createWriteStream(STACK_LOG_PATH);
+  // The Files Worker runs the backend's background work (Cloudflare
+  // Workflows and Queues, emulated locally) and serves its files.
+  const filesWorker = startFilesWorker(ports, log);
   for (const stream of [convex.stdout, convex.stderr]) {
     stream?.pipe(log);
     if (options.echo) {
@@ -120,7 +126,9 @@ export const startStack = async (
   // Recorded now, not once ready, so a stack whose owner dies while it
   // starts can still be found and stopped (stopOrphanedStack).
   const state: StackState = {
-    groups: convex.pid ? [convex.pid] : [],
+    groups: [convex.pid, filesWorker.child.pid].filter(
+      (pid): pid is number => pid !== undefined
+    ),
     pid: process.pid,
     mode: "e2e",
     ports,
@@ -136,7 +144,7 @@ export const startStack = async (
   let stopping = false;
   const stop = async () => {
     stopping = true;
-    await stopGroup(convex);
+    await Promise.all([stopGroup(convex), stopGroup(filesWorker.child)]);
     await emulator.close();
     rmSync(STATE_PATH, { force: true });
   };
@@ -154,6 +162,7 @@ export const startStack = async (
   });
 
   try {
+    await waitFor(`${filesWorker.origin}/__health`, filesWorker.child, 180_000);
     await waitFor(`${urls.apiOrigin}/healthz`, convex, 180_000);
     await waitFor(urls.appOrigin, convex, 180_000);
     await warmBackend(urls.convexUrl);

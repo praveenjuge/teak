@@ -20,6 +20,8 @@ const required = [
   "vector-get",
   "vector-query",
   "vector-similar",
+  // Convex hands background work to Cloudflare Workflows and Queues with it.
+  "dispatch",
   "decide-card-type",
   "decide-link-category",
   "decide-visual-styles",
@@ -80,6 +82,7 @@ for (;;) {
         renderer?: boolean;
         rendererHealthy?: boolean;
         vectors?: boolean;
+        workflows?: boolean;
         vectorTypes?: boolean;
       };
     };
@@ -93,6 +96,7 @@ for (;;) {
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
       result.data.vectors === true &&
+      result.data.workflows === true &&
       result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
@@ -101,7 +105,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
     );
     break;
   }

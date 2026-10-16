@@ -22,6 +22,8 @@ const keyFor = (suffix: string) =>
 const KEY_A = keyFor("0001");
 const KEY_B = keyFor("0002");
 const STRANGER_KEY = keyFor("9999");
+/** KEY_A's owner, as the edge identity charged for the request. */
+const KNOWN_USER = { key: "user:teak-user-1", source: "api_key" };
 
 const streamedMcpPost = (body: ReadableStream<Uint8Array>): Request =>
   new Request("https://teakvault.com/mcp", {
@@ -127,6 +129,13 @@ describe("a known user", () => {
     await limit(shared, request("/api/v1/cards", { key: KEY_A }));
     await limit(shared, request("/api/v1/cards", { key: KEY_B }));
     expect(shared.api.keys).toEqual(["user:teak-user-1", "user:teak-user-1"]);
+  });
+
+  test("names the charged user so the MCP edge can answer for them", async () => {
+    const known = await limit(env(), request("/mcp", { key: KEY_A }));
+    expect("identity" in known && known.identity).toEqual(KNOWN_USER);
+    const stranger = await limit(env(), request("/mcp", { key: STRANGER_KEY }));
+    expect("identity" in stranger).toBe(false);
   });
 
   test("within the limit, is forwarded with an attestation bound to the credential", async () => {
@@ -272,7 +281,7 @@ describe("a known user", () => {
         env(),
         request("/mcp", { key: KEY_A, body: `  \n${batch}` })
       );
-      expect(outcome).toEqual({ attestation: null });
+      expect(outcome).toEqual({ attestation: null, identity: KNOWN_USER });
     }
   );
 
@@ -323,7 +332,7 @@ describe("a known user", () => {
       },
     });
     const outcome = await limit(env(), streamedMcpPost(body));
-    expect(outcome).toEqual({ attestation: null });
+    expect(outcome).toEqual({ attestation: null, identity: KNOWN_USER });
   });
 
   test(
@@ -335,7 +344,7 @@ describe("a known user", () => {
         },
       });
       const outcome = await limit(env(), streamedMcpPost(body));
-      expect(outcome).toEqual({ attestation: null });
+      expect(outcome).toEqual({ attestation: null, identity: KNOWN_USER });
     },
     MCP_BODY_READ_TIMEOUT_MS + 1000
   );
