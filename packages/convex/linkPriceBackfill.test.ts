@@ -100,6 +100,18 @@ const seedLibrary = async (env: ReturnType<typeof setup>) => ({
     raw: { provider: { name: "amazon", price: "₹2,499.00", currency: "INR" } },
     facts: priceFact("$1.00"),
   }),
+  // A Shopify ProductGroup stores its variants' offers.
+  variants: await env.insert("Shopify lamp", {
+    raw: {
+      structured: {
+        "@type": "ProductGroup",
+        hasVariant: [
+          { offers: { price: "18.00", priceCurrency: "EUR" } },
+          { offers: { price: "16.00", priceCurrency: "EUR" } },
+        ],
+      },
+    },
+  }),
   fact: await env.insert("Fact-only lamp", {
     facts: priceFact("1.299,00 €"),
   }),
@@ -139,8 +151,8 @@ describe("backfillLinkPrice", () => {
     await env.runScheduled();
     expect(result).toMatchObject({ dryRun: true, isDone: true });
     expect(result.totals).toEqual({
-      examined: 10,
-      priced: 4,
+      examined: 11,
+      priced: 5,
       skippedArchivedRaw: 1,
       unparsable: 1,
       skippedDeletingAccounts: 0,
@@ -156,7 +168,7 @@ describe("backfillLinkPrice", () => {
   test("userId limits a run to one account", async () => {
     const env = setup();
     await seedLibrary(env);
-    expect((await env.backfill({ userId: "owner" })).totals.priced).toBe(4);
+    expect((await env.backfill({ userId: "owner" })).totals.priced).toBe(5);
     expect(
       (await env.backfill({ userId: "someone-else" })).totals.examined
     ).toBe(0);
@@ -192,6 +204,10 @@ describe("backfillLinkPrice", () => {
       amount: 2499,
       currency: "INR",
     });
+    expect(await env.priceOf(cards.variants)).toEqual({
+      amount: 16,
+      currency: "EUR",
+    });
     expect(await env.priceOf(cards.fact)).toEqual({
       amount: 1299,
       currency: "EUR",
@@ -211,7 +227,7 @@ describe("backfillLinkPrice", () => {
     // Running it again finds nothing to add.
     const again = await env.backfill({ once: true });
     expect(again.batch).toEqual({
-      examined: 10,
+      examined: 11,
       priced: 0,
       skippedArchivedRaw: 1,
       unparsable: 1,
@@ -234,6 +250,7 @@ describe("backfillLinkPrice", () => {
     expect(page.items.map((card: { _id: string }) => card._id)).toEqual([
       cards.alreadyPriced,
       cards.archivedWithFact,
+      cards.variants,
     ]);
   });
 

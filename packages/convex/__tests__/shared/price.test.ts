@@ -178,6 +178,24 @@ describe("parseStructuredPrice", () => {
       { "@type": "Offer", price: "5", priceCurrency: "GBP" },
       { amount: 5, currency: "GBP" },
     ],
+    [
+      "a ProductGroup's cheapest variant",
+      {
+        "@type": "ProductGroup",
+        hasVariant: [
+          {
+            "@type": "Product",
+            offers: { price: "44.99", priceCurrency: "EUR" },
+          },
+          {
+            "@type": "Product",
+            offers: { price: "39.99", priceCurrency: "EUR" },
+          },
+          { "@type": "Product", name: "No offer" },
+        ],
+      },
+      { amount: 39.99, currency: "EUR" },
+    ],
     ["a Product without offers", { "@type": "Product", name: "x" }, null],
     ["a free offer", { offers: { price: "0" } }, { amount: 0 }],
     ["text", "24.99", null],

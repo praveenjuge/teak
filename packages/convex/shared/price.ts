@@ -290,14 +290,29 @@ const offerPrice = (offer: unknown, depth: number): LinkPrice | null => {
 /**
  * A JSON-LD `Product`'s price, or an `Offer`'s own: the lowest of its
  * offers (an `offers` array), an `AggregateOffer`'s `lowPrice`, an offer's
- * `price` or its `priceSpecification`.
+ * `price` or its `priceSpecification`. A `ProductGroup` (how Shopify stores
+ * describe a product with sizes or colours) costs its cheapest variant.
  */
 export const parseStructuredPrice = (entity: unknown): LinkPrice | null => {
   if (!entity || typeof entity !== "object") {
     return null;
   }
-  const { offers } = entity as Record<string, unknown>;
-  return offers === undefined ? offerPrice(entity, 0) : offerPrice(offers, 0);
+  const { offers, hasVariant } = entity as Record<string, unknown>;
+  if (offers !== undefined) {
+    return offerPrice(offers, 0);
+  }
+  if (Array.isArray(hasVariant)) {
+    return lowestPrice(
+      hasVariant
+        .slice(0, MAX_OFFERS)
+        .map((variant) =>
+          variant && typeof variant === "object"
+            ? offerPrice((variant as Record<string, unknown>).offers, 1)
+            : null
+        )
+    );
+  }
+  return offerPrice(entity, 0);
 };
 
 /** Whether a stored value is a usable price. */

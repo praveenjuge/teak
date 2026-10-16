@@ -1,4 +1,5 @@
 import {
+  formatLinkPrice,
   type LinkCategory,
   type LinkCategoryDetail,
   type LinkPrice,
@@ -10,6 +11,9 @@ import {
   type RawSelectorEntry,
   type RawSelectorMap,
 } from "./providers/common";
+
+/** Variants whose offers a ProductGroup keeps; the price reads up to 50. */
+const MAX_STORED_VARIANTS = 50;
 
 const ISO_DURATION_REGEX = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i;
 const STRUCTURED_DATA_FIELDS = [
@@ -449,18 +453,31 @@ export const enrichWithStructuredData = (
       break;
     }
     case "product": {
-      const product = findByType(entities, ["Product", "Offer"]);
+      const product = findByType(entities, [
+        "Product",
+        "ProductGroup",
+        "Offer",
+      ]);
       if (!product) {
         break;
       }
       applyImage(product);
+      price = parseStructuredPrice(product) ?? undefined;
       if (product.offers?.price) {
         const currency = product.offers.priceCurrency || "";
         addFact("Price", `${product.offers.price} ${currency}`.trim());
+      } else if (price) {
+        addFact("Price", formatLinkPrice(price));
       }
       addFact("Brand", valueToText(product.brand));
-      price = parseStructuredPrice(product) ?? undefined;
       raw = pickFields(product, STRUCTURED_DATA_FIELDS);
+      // A ProductGroup prices its variants; keep only their offers, so a
+      // later pass can price the card without fetching the page again.
+      if (raw && Array.isArray(product.hasVariant)) {
+        raw.hasVariant = product.hasVariant
+          .slice(0, MAX_STORED_VARIANTS)
+          .map((variant: any) => ({ offers: variant?.offers }));
+      }
       break;
     }
     case "recipe": {

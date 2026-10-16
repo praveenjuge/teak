@@ -772,6 +772,47 @@ describe("categorization index", () => {
         expect(result.price).toEqual({ amount: 12, currency: "EUR" });
       });
 
+      test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {
+        // How Shopify stores describe a product with sizes.
+        const group = {
+          "@type": "ProductGroup",
+          name: "T-shirt",
+          hasVariant: ["XS", "S", "XL"].map((size, index) => ({
+            "@type": "Product",
+            name: `T-shirt - ${size}`,
+            sku: `sku-${size}`,
+            offers: {
+              "@type": "Offer",
+              price: index === 2 ? "44.99" : "39.99",
+              priceCurrency: "EUR",
+            },
+          })),
+        };
+        const result = await enrich(
+          { url: "https://shop.example/t-shirt", metadata: {} },
+          [group]
+        );
+        expect(result.price).toEqual({ amount: 39.99, currency: "EUR" });
+        expect(result.facts).toContainEqual({
+          label: "Price",
+          value: "€39.99",
+        });
+        // Only the variants' offers are kept.
+        expect(result.raw.structured.hasVariant[0]).toEqual({
+          offers: group.hasVariant[0]?.offers,
+        });
+
+        const refreshed = await enrichLinkCategory(
+          {
+            url: "https://shop.example/t-shirt",
+            metadata: { linkCategory: { raw: result.raw } },
+          },
+          { category: "product", confidence: 0.9 },
+          { structuredData: null }
+        );
+        expect(refreshed.price).toEqual({ amount: 39.99, currency: "EUR" });
+      });
+
       test("has no price when no source states one", async () => {
         const result = await enrich(amazonCard(), [product(undefined)]);
         expect(result.price).toBeUndefined();

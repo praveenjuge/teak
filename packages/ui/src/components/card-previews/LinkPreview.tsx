@@ -94,7 +94,7 @@ const hasFiles = (event: DragEvent) =>
 
 /**
  * A drop target for a new image, outlined while a file is dragged over it.
- * Drop-only: the details panel's Replace image button is the keyboard path.
+ * Drop-only: the card menu's Replace image item is the keyboard path.
  */
 function ThumbnailDropZone({
   children,

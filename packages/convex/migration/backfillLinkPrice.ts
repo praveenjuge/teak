@@ -63,6 +63,7 @@ export const readStoredLinkPrice = (
   if (structured && typeof structured === "object") {
     const hasOffers =
       structured.offers !== undefined ||
+      structured.hasVariant !== undefined ||
       structured.price !== undefined ||
       structured.lowPrice !== undefined;
     hasSource ||= hasOffers;

@@ -2,23 +2,12 @@ import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Button } from "@teak/ui/components/ui/button";
-import { Spinner } from "@teak/ui/components/ui/spinner";
-import {
-  Copy,
-  ImageUp,
-  RotateCcw,
-  Sparkles,
-  Trash,
-  Undo2,
-  X,
-} from "lucide-react";
+import { Copy, RotateCcw, Sparkles, Trash, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useFolders } from "../../hooks/useFolders";
-import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
-import { firstFile, LINK_THUMBNAIL_ACCEPT } from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { FolderDot } from "../folders/FolderDot";
@@ -43,15 +32,11 @@ interface CardMetadataPanelProps {
   onCardTypeClick: () => void;
   /** Saves edits now, as a field loses focus. */
   onCommit: () => void;
-  /** Lists the cards closest in meaning to this one. */
-  onMoreLikeThis?: () => void;
   onNotesChange: (notes: string) => void;
   onPermanentDelete: () => void;
   onRestore: () => void;
   onTagClick?: (tag: string) => void;
   tags: CardTagsControl;
-  /** Replaces or resets a link card's image; absent where it can't change. */
-  thumbnail?: LinkThumbnailControl;
 }
 
 // A summary longer than this starts folded, with "Show more".
@@ -105,58 +90,6 @@ function PropertyRow({
   );
 }
 
-/** "Replace image", and "Reset to original image" once one was chosen. */
-export function LinkImageActions({
-  hasOverride,
-  thumbnail,
-}: {
-  hasOverride: boolean;
-  thumbnail: LinkThumbnailControl;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  return (
-    <div className="flex flex-wrap gap-1">
-      <input
-        accept={LINK_THUMBNAIL_ACCEPT}
-        className="sr-only"
-        onChange={(event) => {
-          const file = firstFile(event.target.files);
-          // The same file can be picked again after a failure.
-          event.target.value = "";
-          if (file) {
-            thumbnail.replace(file, "pick");
-          }
-        }}
-        ref={inputRef}
-        tabIndex={-1}
-        type="file"
-      />
-      <Button
-        className="h-7 px-2.5"
-        disabled={thumbnail.isBusy}
-        onClick={() => inputRef.current?.click()}
-        size="sm"
-        variant="outline"
-      >
-        {thumbnail.isBusy ? <Spinner /> : <ImageUp />}
-        Replace image
-      </Button>
-      {hasOverride && (
-        <Button
-          className="h-7 px-2.5"
-          disabled={thumbnail.isBusy}
-          onClick={thumbnail.reset}
-          size="sm"
-          variant="ghost"
-        >
-          <Undo2 />
-          Reset to original image
-        </Button>
-      )}
-    </div>
-  );
-}
-
 function DetailRows({ fields }: { fields: CardDetailField[] }) {
   return fields.map(({ label, value }) => (
     <PropertyRow key={label} label={label} title={value}>
@@ -178,12 +111,10 @@ export function CardMetadataPanel({
   onCardTypeClick,
   onCommit,
   onNotesChange,
-  onMoreLikeThis,
   onPermanentDelete,
   onRestore,
   onTagClick,
   tags,
-  thumbnail,
 }: CardMetadataPanelProps) {
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
   const [isFoldersOpen, setIsFoldersOpen] = useState(false);
@@ -279,15 +210,6 @@ export function CardMetadataPanel({
           )}
         </div>
       </PanelSection>
-
-      {thumbnail && card.type === "link" && !card.isDeleted && (
-        <PanelSection title="Image">
-          <LinkImageActions
-            hasOverride={Boolean(card.thumbnailOverride)}
-            thumbnail={thumbnail}
-          />
-        </PanelSection>
-      )}
 
       {summary && (
         <PanelSection title="Summary">
@@ -485,17 +407,6 @@ export function CardMetadataPanel({
             </div>
           )}
         </dl>
-        {onMoreLikeThis && !card.isDeleted && (
-          <Button
-            className="mt-2 w-full justify-start gap-2 px-2 text-muted-foreground hover:text-foreground"
-            onClick={onMoreLikeThis}
-            size="sm"
-            variant="ghost"
-          >
-            <Sparkles aria-hidden="true" className="size-3.5" />
-            More like this
-          </Button>
-        )}
       </PanelSection>
 
       <CardFoldersDialog
