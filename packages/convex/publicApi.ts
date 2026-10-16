@@ -59,6 +59,7 @@ import {
   type TombstoneCursor,
 } from "./publicApiTombstones";
 import { cardTypeValidator, searchModeValidator } from "./schema";
+import { relevanceScoreValidator } from "./search/relevanceCache";
 import {
   type SemanticRanking,
   semanticRankingValidator,
@@ -72,6 +73,11 @@ import {
   type PriceBound,
   type SearchSimilarity,
 } from "./shared/search/qualifiers";
+import {
+  currentRelevanceScores,
+  orderByRelevance,
+  type RelevanceScore,
+} from "./shared/search/relevance";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
@@ -152,6 +158,8 @@ interface SearchOptions {
   folderIds?: Id<"folders">[];
   hexFilters?: string[];
   hueFilters?: string[];
+  /** Best match: keep the search's own order instead of sorting by date. */
+  keepSearchOrder?: boolean;
   limit?: number;
   phrases?: string[];
   /** `price:` bounds a card's link price must all meet. */
@@ -188,7 +196,10 @@ type ApiCursor =
   // Cursors issued before keyset paging. Still accepted so a client that is
   // mid-pagination during a deploy can finish.
   | { mode: "index"; cursor: string | null; pageOffset: number }
-  | { mode: "offset"; offset: number };
+  | { mode: "offset"; offset: number }
+  // Best match pages: an offset into the search's order, and whether that
+  // order was scored, fixed by the first page for the whole pagination.
+  | { mode: "relevance"; offset: number; ranked: boolean };
 
 const normalizeLimit = (limit?: number): number => {
   if (!(typeof limit === "number" && Number.isFinite(limit))) {
@@ -422,6 +433,15 @@ const decodeCursor = (cursor?: string): ApiCursor => {
         return { mode: "offset", offset: Math.max(0, parsed.offset) };
       }
       break;
+    case "relevance":
+      if (isFiniteNumber(parsed.offset) && typeof parsed.ranked === "boolean") {
+        return {
+          mode: "relevance",
+          offset: Math.max(0, Math.floor(parsed.offset)),
+          ranked: parsed.ranked,
+        };
+      }
+      break;
     case "index":
       if (
         (parsed.cursor === null || typeof parsed.cursor === "string") &&
@@ -524,10 +544,10 @@ const searchCardsByQuery = async (
   );
   if (!semantic) {
     return {
-      cards: sortCards(unique, normalizeSort(options.sort)).slice(
-        0,
-        MAX_QUERY_SCAN
-      ),
+      cards: (options.keepSearchOrder
+        ? unique
+        : sortCards(unique, normalizeSort(options.sort))
+      ).slice(0, MAX_QUERY_SCAN),
       hitScanBudget: scanBudget.hitSearchLimit,
     };
   }
@@ -560,7 +580,9 @@ const searchCardsByQuery = async (
     limit: MAX_QUERY_SCAN,
   }).flatMap((cardId) => cardsById.get(cardId) ?? []);
   return {
-    cards: sortCards(fused, normalizeSort(options.sort)),
+    cards: options.keepSearchOrder
+      ? fused
+      : sortCards(fused, normalizeSort(options.sort)),
     hitScanBudget: scanBudget.hitSearchLimit,
   };
 };
@@ -930,6 +952,79 @@ const semanticOption = (args: {
     ? { mode: args.mode ?? "hybrid", ranking: args.semanticRanking }
     : undefined;
 
+/**
+ * One page of a Best match search. The order is the search's own, scored
+ * first when scores are given; the cursor carries whether it was scored, so
+ * a pagination never switches order between pages.
+ */
+const relevancePage = async (
+  ctx: QueryCtx,
+  userId: TeakUserId,
+  options: SearchOptions,
+  {
+    cursor,
+    hasCursor,
+    limit,
+    scores,
+  }: {
+    cursor: ApiCursor;
+    hasCursor: boolean;
+    limit: number;
+    scores: RelevanceScore[] | undefined;
+  }
+) => {
+  const ranked = scores !== undefined;
+  if (
+    !(cursor.mode === "start" || cursor.mode === "relevance") ||
+    (cursor.mode === "relevance" && cursor.ranked !== ranked)
+  ) {
+    throw invalidCursorError();
+  }
+  const result = await searchCardsByQuery(ctx, userId, {
+    ...options,
+    keepSearchOrder: true,
+  });
+  const ordered = ranked
+    ? orderByRelevance(
+        result.cards,
+        currentRelevanceScores(scores, result.cards)
+      )
+    : result.cards;
+  const offset = cursor.mode === "relevance" ? cursor.offset : 0;
+  const pageItems = ordered.slice(offset, offset + limit);
+  const hasMore = ordered.length > offset + limit;
+  if (!(hasMore || hasCursor) && result.hitScanBudget) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Search is too broad. Add a type or date filter.",
+    });
+  }
+  const nextCursor = hasMore
+    ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
+    : null;
+  const cardsWithUrls = await attachFileUrls(ctx, pageItems);
+  return {
+    items: applyQuoteFormattingToList(cardsWithUrls),
+    pageInfo: { nextCursor, hasMore: nextCursor !== null },
+  };
+};
+
+/**
+ * Whether a Best match cursor's pagination is scored; undefined for the
+ * first page and for any other cursor.
+ */
+export const relevanceCursorRanked = (
+  cursor: string | undefined
+): boolean | undefined => {
+  if (!cursor) {
+    return;
+  }
+  try {
+    const decoded = decodeCursor(cursor);
+    return decoded.mode === "relevance" ? decoded.ranked : undefined;
+  } catch {}
+};
+
 const similarityOption = (args: {
   semanticRanking?: SemanticRanking;
   similarity?: SearchSimilarity;
@@ -964,6 +1059,13 @@ export const searchCardsPageForUser = internalQuery({
     sort: v.optional(apiCardSortValidator),
     limit: v.optional(v.number()),
     ...semanticSearchArgs,
+    /**
+     * Best match for a search: keep the search's own order, scored first
+     * when `scores` (fetched by the HTTP handler) are given.
+     */
+    relevance: v.optional(
+      v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
+    ),
   },
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
@@ -984,8 +1086,20 @@ export const searchCardsPageForUser = internalQuery({
     const limit = normalizeLimit(options.limit);
     const sort = normalizeSort(options.sort);
     const decodedCursor = decodeCursor(args.cursor);
-    if (decodedCursor.mode === "list" || decodedCursor.mode === "index") {
+    if (
+      decodedCursor.mode === "list" ||
+      decodedCursor.mode === "index" ||
+      (decodedCursor.mode === "relevance" && !args.relevance)
+    ) {
       throw invalidCursorError();
+    }
+    if (args.relevance && options.searchQuery) {
+      return await relevancePage(ctx, userId, options, {
+        cursor: decodedCursor,
+        hasCursor: Boolean(args.cursor),
+        limit,
+        scores: args.relevance.scores,
+      });
     }
     const anchor =
       decodedCursor.mode === "match" ? decodedCursor.anchor : undefined;

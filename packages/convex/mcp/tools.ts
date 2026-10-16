@@ -46,7 +46,7 @@ interface McpToolResult {
 const MCP_UNAUTHORIZED_MESSAGE = "Missing or invalid Authorization header";
 
 const nonEmptyString = z.string().trim().min(1);
-const cardSortSchema = z.enum(["newest", "oldest", "shuffle"]);
+const cardSortSchema = z.enum(["newest", "oldest", "relevance", "shuffle"]);
 const cardTypeSchema = z.enum([
   "text",
   "link",
@@ -370,7 +370,7 @@ const cardFilterProperties = {
   sort: {
     enum: cardSortSchema.options,
     description:
-      "newest (default) or oldest by saved date, or shuffle: a stable random order (needs shuffleSeed)",
+      "newest (default) or oldest by saved date; shuffle: a stable random order (needs shuffleSeed); or relevance (Best match, with q): the top results by how well they match. relevanceRanked says whether they were scored",
   },
   shuffleSeed: {
     type: "integer",
@@ -1075,6 +1075,9 @@ const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
     ...pageToCardResults(payload),
     pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
     ...(payload.searchMode ? { searchMode: payload.searchMode } : {}),
+    ...(typeof payload.relevanceRanked === "boolean"
+      ? { relevanceRanked: payload.relevanceRanked }
+      : {}),
   }),
   summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });

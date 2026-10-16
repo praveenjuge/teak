@@ -20,7 +20,7 @@ const CARD_TYPES = new Set([
   "palette",
   "quote",
 ]);
-const CARD_SORTS = new Set(["newest", "oldest", "shuffle"]);
+const CARD_SORTS = new Set(["newest", "oldest", "relevance", "shuffle"]);
 const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
 const MAX_TAG_LENGTH = 64;
 const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
@@ -104,7 +104,7 @@ interface CardsQueryOptions {
   shuffleSeed?: number;
   /** `like:` (or `similarTo`) or `mood:`: the search lists meaning matches only. */
   similarity: import("./shared/search/qualifiers").SearchSimilarity | null;
-  sort?: "newest" | "oldest" | "shuffle";
+  sort?: "newest" | "oldest" | "relevance" | "shuffle";
   styleFilters?: string[];
   tag?: string;
   type?: string;

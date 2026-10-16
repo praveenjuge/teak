@@ -24,7 +24,7 @@ import type { FOLDER_COLORS } from "../shared/folders";
 export type { CardType } from "../shared/constants";
 
 export const CARD_TYPES = cardTypes;
-export const CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
+export const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;
 export const ERROR_CODES = [
   "AUTH_REQUIRED",
   "BAD_REQUEST",
@@ -166,6 +166,8 @@ export interface PageInfo {
 export interface CardsPage {
   items: CardListItem[];
   pageInfo: PageInfo;
+  /** With a query and `sort: "relevance"`: whether the top results were scored. */
+  relevanceRanked?: boolean;
   /** With a query: the mode that ran (`keyword` when meaning search could not). */
   searchMode?: SearchMode;
   /**

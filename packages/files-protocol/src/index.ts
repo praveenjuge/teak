@@ -70,6 +70,12 @@ export const FILES_OPS = [
   "vector-get",
   "vector-query",
   "vector-similar",
+  // Clef decision models; see ./decisions. Each returns `null` (or no
+  // styles) when Clef isn't sure, so callers keep their rules' answer.
+  "decide-card-type",
+  "decide-link-category",
+  "decide-visual-styles",
+  "score-relevance",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -301,6 +307,7 @@ export type FilesImportMarkdownResult =
       failureReason: string;
     };
 
+export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
 export * from "./linkPage";

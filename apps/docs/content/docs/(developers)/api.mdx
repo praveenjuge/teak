@@ -260,7 +260,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="sort" type="string">
-  Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`, a random order picked by `shuffleSeed`.
+  Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`, a random order picked by `shuffleSeed`. Or `relevance` (Best match) with `q`: the search's top 64 results by how well they match its words, then the rest in search order; without `q` it is `newest`. See [Best match](#best-match).
 </ParamField>
 
 <ParamField query="shuffleSeed" type="number">
@@ -342,6 +342,19 @@ A response to a search also has `searchMode`: the mode that ran. It is
 only qualifiers, or when meaning search was slow, unavailable or over its limit
 of 60 new searches a minute. Those searches still return every keyword match.
 
+### Best match
+
+`sort=relevance` with `q` orders a search's top 64 results by how well they
+match its words, then lists the rest in search order. The response has
+`relevanceRanked`: `false` when the results could not be scored in time, the
+account is over its limit of 60 new searches a minute (one search counts once,
+whatever it uses), or AI is turned off for the account; the results then keep
+the search order. The first page decides, and every later page of the same
+listing keeps its order, so paging never repeats or skips a card. A cursor from
+a `sort=relevance` listing only continues that listing. Scores are kept for a
+day; a scored listing's cursor used after that returns `400 INVALID_INPUT`, so
+start the search again.
+
 ### Search qualifiers
 
 `q` reads the same qualifiers as the search box in the app. Keys ignore case,
@@ -393,7 +406,7 @@ parameters to match any value within each filter, combining different filters. E
 Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
 Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
 For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
-`style` matches image cards. `hue` and `hex` match image, palette, and video cards: a video's colors, including a GIF's, come from frames across it, and videos saved before October 2026 have none.
+`style` matches image and video cards (a video by its thumbnail). Styles: `abstract`, `cinematic`, `dark`, `illustrative`, `minimal`, `monochrome`, `moody`, `pastel`, `photographic`, `retro`, `surreal`, `vintage`, `vibrant`, `typographic`, `3d`, `flat`, `geometric`, `hand-drawn`, and `futuristic`. `hue` and `hex` match image, palette, and video cards: a video's colors, including a GIF's, come from frames across it, and videos saved before October 2026 have none.
 
 ## Errors
 

@@ -10,7 +10,7 @@ import {
 // `--deployment-name` selects exactly this deployment.
 export const DEVELOPMENT_DEPLOYMENT = "reminiscent-kangaroo-59";
 export const DEVELOPMENT_FILES_WORKER = "teak-files-development";
-const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
+export const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 
 export interface DevelopmentFilesRouting {
   bucket: string | undefined;

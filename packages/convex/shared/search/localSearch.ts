@@ -2,6 +2,7 @@ import type { Doc } from "../../_generated/dataModel";
 import type { CardType } from "../constants";
 import {
   isColorCardType,
+  isVisualStyleCardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
 } from "../constants";
@@ -14,7 +15,11 @@ import {
   matchesSearchPhrases,
   parseSearchQuery,
 } from "./qualifiers";
-import { type CardListSort, compareCardsByCreatedAt } from "./sort";
+import {
+  type CardListSort,
+  compareCardsByCreatedAt,
+  keepsServerOrder,
+} from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
 
 export interface LocalSearchFilters {
@@ -70,7 +75,7 @@ const matchesVisualFilters = (
   }
 ) => {
   if (filters.styleFilters.length > 0) {
-    if (card.type !== "image") {
+    if (!isVisualStyleCardType(card.type)) {
       return false;
     }
 
@@ -223,7 +228,7 @@ export const filterLocalCards = (
       );
     })
     .sort((a, b) =>
-      sort === "shuffle" ? 0 : compareCardsByCreatedAt(a, b, sort)
+      keepsServerOrder(sort) ? 0 : compareCardsByCreatedAt(a, b, sort)
     );
 };
 
@@ -290,8 +295,9 @@ export function pruneCardsMissingFromRemote(
 /**
  * Instant local matches plus what the server found, without duplicates.
  * With `sort`, the combined list is ordered by saved date, so cards the cache
- * picked up in another view never land out of order. Shuffle keeps the
- * server's order and adds local matches it has not returned yet after it.
+ * picked up in another view never land out of order. Shuffle and Best match
+ * keep the server's order and add local matches it has not returned yet
+ * after it.
  */
 export function mergeLocalAndRemoteSearchResults(
   remoteCards: Doc<"cards">[],
@@ -299,7 +305,7 @@ export function mergeLocalAndRemoteSearchResults(
   hasActiveSearch: boolean,
   sort?: CardListSort
 ) {
-  if (sort === "shuffle") {
+  if (keepsServerOrder(sort)) {
     if (!hasActiveSearch || localSearchResults.length === 0) {
       return remoteCards;
     }

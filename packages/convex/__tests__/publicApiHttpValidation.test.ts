@@ -384,7 +384,7 @@ describe("parseCardsQueryOptions", () => {
     [
       "an unknown sort",
       "sort=popular",
-      "Query parameter `sort` must be `newest`, `oldest` or `shuffle`",
+      "Query parameter `sort` must be `newest`, `oldest`, `relevance` or `shuffle`",
     ],
     [
       "a non-numeric createdAfter",

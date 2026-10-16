@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { readDocumentText } from "./card/documentText";
+import { relevanceCursorRanked } from "./publicApi";
 import {
   completeIdempotencyResponse,
   type IdempotencyState,
@@ -36,8 +37,16 @@ import {
   validateThumbnailUploadPayload,
   validateUploadPayload,
 } from "./publicApiHttpValidation";
+import {
+  API_RELEVANCE_TIMEOUT_MS,
+  ensureRelevanceScores,
+} from "./search/relevanceActions";
 import { fetchSemanticRanking } from "./search/semanticActions";
 import { combineSearchQueries } from "./shared/search/qualifiers";
+import {
+  RELEVANCE_CANDIDATE_LIMIT,
+  type RelevanceScore,
+} from "./shared/search/relevance";
 import { captureBackendEvent } from "./telemetry/posthog";
 
 const MAX_SHUFFLE_READS = 4;
@@ -301,7 +310,7 @@ const handleCardsListRequest = async (
       createdBefore: options.createdBefore,
       cursor: options.cursor,
       favorited: options.favoritesOnly ? true : undefined,
-      sort: options.sort,
+      sort: options.sort === "relevance" ? undefined : options.sort,
       type: options.type,
       types: options.types,
       userId: auth.validated.userId,
@@ -313,6 +322,14 @@ const handleCardsListRequest = async (
       items: any[];
       pageInfo: { hasMore: boolean; nextCursor: string | null };
     };
+    // Best match needs free words; without them it is newest first, and a
+    // `like:` or `mood:` list keeps its similarity order.
+    const bestMatchText =
+      options.sort === "relevance" && options.semantic?.kind === "text"
+        ? options.semantic.text
+        : "";
+    const bestMatch = Boolean(options.searchQuery && bestMatchText);
+    let relevanceRanked: boolean | undefined;
 
     if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
       const items: any[] = [];
@@ -344,6 +361,23 @@ const handleCardsListRequest = async (
         pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
       };
     } else if (options.searchQuery || options.tag || similarity) {
+      const relevance = bestMatch
+        ? await relevanceForPage(ctx, {
+            cursor: options.cursor,
+            spentToken: semantic?.spentToken === true,
+            text: bestMatchText,
+            userId: auth.validated.userId,
+            candidateArgs: {
+              ...queryArgs,
+              cursor: undefined,
+              limit: RELEVANCE_CANDIDATE_LIMIT,
+              searchQuery: options.searchQuery,
+              tag: options.tag,
+              relevance: {},
+            },
+          })
+        : undefined;
+      relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
       cardsPage = await ctx.runQuery(
         (internal as any).publicApi.searchCardsPageForUser,
         {
@@ -351,6 +385,7 @@ const handleCardsListRequest = async (
           limit: options.limit,
           searchQuery: options.searchQuery,
           tag: options.tag,
+          ...(relevance ? { relevance } : {}),
         }
       );
     } else {
@@ -430,10 +465,62 @@ const handleCardsListRequest = async (
       ...(options.hasQuery && !similarity
         ? { searchMode: semanticRanking ? options.mode : "keyword" }
         : {}),
+      ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
     });
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to fetch cards");
   }
+};
+
+/**
+ * Best match scores for a search page, fetched before the page is read
+ * (queries cannot call Clef). The first page is scored when every one of the
+ * search's top results gets a score in time; later pages follow the first,
+ * which their cursor records, so a pagination never changes order.
+ */
+export const relevanceForPage = async (
+  ctx: ActionCtx,
+  {
+    candidateArgs,
+    cursor,
+    spentToken,
+    text,
+    userId,
+  }: {
+    candidateArgs: Record<string, unknown>;
+    cursor: string | undefined;
+    spentToken: boolean;
+    text: string;
+    userId: string;
+  }
+): Promise<{ scores?: RelevanceScore[] }> => {
+  const pinned = relevanceCursorRanked(cursor);
+  if (pinned === false) {
+    return {};
+  }
+  const candidates = await ctx.runQuery(
+    (internal as any).publicApi.searchCardsPageForUser,
+    candidateArgs
+  );
+  const { outcome, scores } = await ensureRelevanceScores(ctx, {
+    candidates: candidates.items,
+    spentToken,
+    text,
+    timeoutMs: API_RELEVANCE_TIMEOUT_MS,
+    userId,
+  });
+  if (pinned === true) {
+    // A ranked pagination can only continue in the order it started with.
+    if (!scores?.length) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message:
+          "Best match scores for this search have expired; start the search again",
+      });
+    }
+    return { scores };
+  }
+  return outcome === "ok" ? { scores: scores ?? [] } : {};
 };
 
 const resolveCardId = (

@@ -501,7 +501,7 @@ const parseCardsQueryOptions = (
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Query parameter `sort` must be `newest`, `oldest` or `shuffle`"
+      "Query parameter `sort` must be `newest`, `oldest`, `relevance` or `shuffle`"
     );
   }
 

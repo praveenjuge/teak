@@ -41,6 +41,7 @@ import { cn } from "../../lib/utils";
 export const SORT_LABELS: Record<CardListSort, string> = {
   newest: "Newest first",
   oldest: "Oldest first",
+  relevance: "Best match",
   shuffle: "Shuffle",
 };
 
@@ -58,6 +59,8 @@ const TYPE_ICONS: Record<CardType, LucideIcon> = {
 interface ViewMenuProps {
   /** Card types narrowing the results, shown checked. */
   activeTypes: readonly CardType[];
+  /** Offers Best match, which needs words to match: a search's default. */
+  canSortByRelevance?: boolean;
   onClearTypes?: () => void;
   /** Offers "Save as smart folder…" while there is a search to keep. */
   onSaveSearch?: () => void;
@@ -93,6 +96,7 @@ export const viewMenuLabel = (
  */
 export function ViewMenu({
   activeTypes,
+  canSortByRelevance = false,
   onClearTypes,
   onSaveSearch,
   onSortChange,
@@ -100,7 +104,9 @@ export function ViewMenu({
   sort = "newest",
 }: ViewMenuProps) {
   const count = activeTypes.length;
-  const changed = count > 0 || sort !== "newest";
+  // Best match is how a search starts, so it is not a changed order.
+  const changedOrder = sort !== "newest" && sort !== "relevance";
+  const changed = count > 0 || changedOrder;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -122,7 +128,7 @@ export function ViewMenu({
               {count}
             </span>
           )}
-          {count === 0 && sort !== "newest" && (
+          {count === 0 && changedOrder && (
             <span
               aria-hidden="true"
               className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
@@ -175,6 +181,11 @@ export function ViewMenu({
               onValueChange={(value) => onSortChange(value as CardListSort)}
               value={sort}
             >
+              {canSortByRelevance && (
+                <DropdownMenuRadioItem value="relevance">
+                  {SORT_LABELS.relevance}
+                </DropdownMenuRadioItem>
+              )}
               <DropdownMenuRadioItem value="newest">
                 {SORT_LABELS.newest}
               </DropdownMenuRadioItem>

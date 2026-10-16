@@ -6,9 +6,14 @@ import {
   MAX_COLOR_NAME_WORDS,
   parseColorString,
 } from "@teak/convex/shared/utils/colorUtils";
+import {
+  CARD_TYPE_DECISION_TYPES,
+  readCardTypeDecision,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { type ActionCtx, internalAction } from "../../_generated/server";
+import { runDecision } from "../../ai/decisions";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
 import { inferFileFormat } from "../../shared/fileFormats";
@@ -370,6 +375,50 @@ const deterministicClassify = (
   return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
 
+/** The rules' answer for a note with no URL or file; scripts/clef-eval uses it. */
+export const textCardRulesType = (card: { content?: string }): CardType =>
+  normalizeQuoteContent(card.content ?? "").removedQuotes
+    ? "quote"
+    : deterministicClassify(card).type;
+
+/**
+ * The rules' text, quote or palette answer for a card with no URL or file,
+ * reviewed by Clef in the Files Worker. Clef's answer replaces the rules only
+ * when it is confident, and a palette must still yield a colour.
+ */
+const reviewTextCardType = async (
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  card: any,
+  heuristicQuote: boolean
+): Promise<{ type: CardType; confidence: number }> => {
+  const rules: { type: CardType; confidence: number } = heuristicQuote
+    ? { type: "quote", confidence: 0.95 }
+    : deterministicClassify(card);
+  if (!(CARD_TYPE_DECISION_TYPES as readonly string[]).includes(rules.type)) {
+    return rules;
+  }
+  const result = await runDecision(ctx, {
+    op: "decide-card-type",
+    params: {
+      content: card.content,
+      rulesType: rules.type,
+    },
+    read: readCardTypeDecision,
+    userId: card.userId,
+  });
+  const decision = result?.decision;
+  if (!decision) {
+    return rules;
+  }
+  if (
+    decision.type === "palette" &&
+    extractCardColors(buildPaletteAnalysisText(card)).length === 0
+  ) {
+    return rules;
+  }
+  return { type: decision.type, confidence: decision.confidence };
+};
+
 const maybeUpdatePaletteColors = async (
   ctx: any,
   card: any,
@@ -469,18 +518,23 @@ export const classify = internalAction({
         const quoteNormalization = normalizeQuoteContent(card.content ?? "");
         const heuristicQuote =
           quoteNormalization.removedQuotes && !card.url && !card.fileKey;
+        const reviewed =
+          !(card.url || card.fileKey) && card.content?.trim()
+            ? await reviewTextCardType(ctx, card, heuristicQuote)
+            : null;
 
-        if (heuristicQuote) {
+        if (reviewed ? reviewed.type === "quote" : heuristicQuote) {
+          const quoteConfidence = reviewed?.confidence ?? 0.95;
           await recordClassification(ctx, {
             cardId,
             type: "quote",
-            confidence: 0.95,
+            confidence: quoteConfidence,
           });
 
           const heuristicResult: ClassificationWorkflowResult = {
             mode: "completed",
             type: "quote",
-            confidence: 0.95,
+            confidence: quoteConfidence,
             needsLinkMetadata: false,
             shouldCategorize: false,
             shouldGenerateMetadata: true,
@@ -491,7 +545,7 @@ export const classify = internalAction({
         }
 
         const { type: resultType, confidence: resultConfidence } =
-          deterministicClassify(card);
+          reviewed ?? deterministicClassify(card);
 
         const trimmedContent =
           typeof card.content === "string" ? card.content.trim() : "";

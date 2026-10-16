@@ -6,8 +6,10 @@ import {
   COLOR_CARD_TYPES,
   type ColorHueBucket,
   isColorCardType,
+  isVisualStyleCardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
+  VISUAL_STYLE_CARD_TYPES,
   type VisualStyle,
 } from "../shared/constants";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../shared/search/constants";
@@ -78,7 +80,7 @@ export const doesCardMatchVisualFilters = (
   }
 
   if (visualFilters.styleFilters?.length) {
-    if (card.type !== "image") {
+    if (!isVisualStyleCardType(card.type)) {
       return false;
     }
 
@@ -138,8 +140,6 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-const VISUAL_STYLE_TYPES: readonly CardType[] = ["image"];
-
 /**
  * The card types that can match the visual filters, within the requested
  * types: undefined when any type can, an empty list when none can.
@@ -152,7 +152,7 @@ export const visualFilterTypes = (
     return types;
   }
   const visualTypes = visualFilters.styleFilters?.length
-    ? VISUAL_STYLE_TYPES
+    ? VISUAL_STYLE_CARD_TYPES
     : COLOR_CARD_TYPES;
   return types?.length
     ? visualTypes.filter((type) => types.includes(type))

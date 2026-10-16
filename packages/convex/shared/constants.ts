@@ -35,6 +35,12 @@ export const VISUAL_STYLE_TAXONOMY = [
   "surreal",
   "vintage",
   "vibrant",
+  "typographic",
+  "3d",
+  "flat",
+  "geometric",
+  "hand-drawn",
+  "futuristic",
 ] as const;
 
 export type VisualStyle = (typeof VISUAL_STYLE_TAXONOMY)[number];
@@ -53,6 +59,12 @@ export const VISUAL_STYLE_LABELS: Record<VisualStyle, string> = {
   surreal: "Surreal",
   vintage: "Vintage",
   vibrant: "Vibrant",
+  typographic: "Typographic",
+  "3d": "3D",
+  flat: "Flat",
+  geometric: "Geometric",
+  "hand-drawn": "Hand-drawn",
+  futuristic: "Futuristic",
 } as const;
 
 export const VISUAL_STYLE_ALIAS_MAP: Record<string, VisualStyle> = {
@@ -100,6 +112,26 @@ export const VISUAL_STYLE_ALIAS_MAP: Record<string, VisualStyle> = {
   colorful: "vibrant",
   colourful: "vibrant",
   saturated: "vibrant",
+  typographic: "typographic",
+  typography: "typographic",
+  lettering: "typographic",
+  "3d": "3d",
+  render: "3d",
+  cgi: "3d",
+  isometric: "3d",
+  flat: "flat",
+  flatdesign: "flat",
+  vector: "flat",
+  geometric: "geometric",
+  geometry: "geometric",
+  shapes: "geometric",
+  handdrawn: "hand-drawn",
+  lineart: "hand-drawn",
+  doodle: "hand-drawn",
+  futuristic: "futuristic",
+  futurism: "futuristic",
+  scifi: "futuristic",
+  cyberpunk: "futuristic",
 } as const;
 
 const normalizeFacetToken = (value: string): string =>
@@ -163,6 +195,18 @@ export const COLOR_CARD_TYPES: readonly CardType[] = [
 
 export const isColorCardType = (type: string): boolean =>
   (COLOR_CARD_TYPES as readonly string[]).includes(type);
+
+/**
+ * Card types that carry visual styles: images, and videos from their
+ * thumbnail.
+ */
+export const VISUAL_STYLE_CARD_TYPES: readonly CardType[] = ["image", "video"];
+
+export const isVisualStyleCardType = (type: string): boolean =>
+  (VISUAL_STYLE_CARD_TYPES as readonly string[]).includes(type);
+
+export const isVisualStyle = (value: string): value is VisualStyle =>
+  (VISUAL_STYLE_TAXONOMY as readonly string[]).includes(value);
 
 export const COLOR_HUE_BUCKETS = [
   "red",
