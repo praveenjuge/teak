@@ -50,20 +50,28 @@ export function TextPreview({
   const isFocusOpenRef = useRef(false);
   isFocusOpenRef.current = isFocusOpen;
   const focusButtonRef = useRef<HTMLButtonElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // ⌘E anywhere in the open card, not only in its editor (the editor's own
-  // ⌘E opens Focus too, and prevents this one). An open menu keeps its keys;
-  // the card's own dialog doesn't count, since this lives inside it.
+  // ⌘E opens Focus too, and prevents this one). An open menu keeps its keys,
+  // and so does a dialog opened over the card, such as Folders.
   const openFocusRef = useRef(openFocus);
   openFocusRef.current = openFocus;
   useEffect(() => {
+    const isInOwnDialog = (target: EventTarget | null) => {
+      const ownDialog = wrapperRef.current?.closest("[role='dialog']");
+      return (
+        !ownDialog || (target instanceof Node && ownDialog.contains(target))
+      );
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
         event.isComposing ||
         isFocusOpenRef.current ||
         !isFocusNoteKey(event) ||
-        document.querySelector("[role='menu'][data-state='open']")
+        document.querySelector("[role='menu'][data-state='open']") ||
+        !isInOwnDialog(event.target)
       ) {
         return;
       }
@@ -75,7 +83,7 @@ export function TextPreview({
   }, []);
 
   return (
-    <div className="group/text-preview relative h-full">
+    <div className="group/text-preview relative h-full" ref={wrapperRef}>
       <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus" side="left">
         <Button
           aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
