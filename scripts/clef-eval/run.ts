@@ -79,21 +79,30 @@ const fixtures = join(import.meta.dir, "fixtures");
 const readJson = <T>(name: string): T =>
   JSON.parse(readFileSync(join(fixtures, name), "utf8")) as T;
 
+const CLEF_RUN_URLS = new Map<string, string>(
+  Object.values(CLEF_MODEL_IDS).map((id) => [
+    id,
+    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${id}`,
+  ])
+);
+
 /** A Workers AI binding over the REST API, as `runClef` expects. */
 const env = {
   AI: {
     run: async (model: string, body: Record<string, unknown>) => {
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${model}`,
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${token}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(body),
-        }
-      );
+      // Only the Clef models, on Cloudflare's API.
+      const url = CLEF_RUN_URLS.get(model);
+      if (!url) {
+        throw new Error(`Not a Clef model: ${model}`);
+      }
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
       const json = (await response.json()) as {
         errors?: { code?: number; message?: string }[];
         result?: unknown;
@@ -339,14 +348,22 @@ const runRelevance = async () => {
   console.log(`| Newest first | ${(totals.newest / count).toFixed(3)} |`);
 };
 
-const runners: Record<Feature, () => Promise<void>> = {
-  "card-type": runCardType,
-  "link-category": runLinkCategory,
-  relevance: runRelevance,
-  "visual-styles": runVisualStyles,
-};
-
-await runners[feature]();
+switch (feature) {
+  case "card-type":
+    await runCardType();
+    break;
+  case "link-category":
+    await runLinkCategory();
+    break;
+  case "relevance":
+    await runRelevance();
+    break;
+  case "visual-styles":
+    await runVisualStyles();
+    break;
+  default:
+    throw new Error(`Unknown feature: ${feature satisfies never}`);
+}
 
 const model =
   CLEF_MODEL_IDS[
