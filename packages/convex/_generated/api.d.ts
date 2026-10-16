@@ -17,7 +17,6 @@ import type * as accountDeletionJobs from "../accountDeletionJobs.js";
 import type * as accountDeletionStages from "../accountDeletionStages.js";
 import type * as admin from "../admin.js";
 import type * as adminAccess from "../adminAccess.js";
-import type * as adminAlerts from "../adminAlerts.js";
 import type * as adminBilling from "../adminBilling.js";
 import type * as adminConsole from "../adminConsole.js";
 import type * as adminHealth from "../adminHealth.js";
@@ -301,7 +300,6 @@ declare const fullApi: ApiFromModules<{
   accountDeletionStages: typeof accountDeletionStages;
   admin: typeof admin;
   adminAccess: typeof adminAccess;
-  adminAlerts: typeof adminAlerts;
   adminBilling: typeof adminBilling;
   adminConsole: typeof adminConsole;
   adminHealth: typeof adminHealth;

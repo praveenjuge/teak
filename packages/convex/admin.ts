@@ -18,7 +18,6 @@ import {
   requireReason,
   writeAudit,
 } from "./adminAccess";
-import { scheduleAdminAlert } from "./adminAlerts";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
@@ -419,10 +418,6 @@ export const revealCard = mutation({
       targetCardId: cardId,
       reason: why,
     });
-    await scheduleAdminAlert(
-      ctx,
-      `Teak console: ${actor.email} revealed a card (${why})`
-    );
     const [revealed] = await attachCardUrls(ctx, [card]);
     return revealed;
   },

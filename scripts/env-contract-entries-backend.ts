@@ -247,16 +247,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Public project token (PostHog project 660923). Set only for production: Backend Deploy stamps it into Convex, release workflows bake it into the Apple app and the extension, and the production files worker carries it as a plain var. Unset means nothing is sent.",
   }),
-  spec("ADMIN_ALERT_WEBHOOK_URL", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["production"],
-    secret: true,
-    validation: "url",
-    providers: ["convex-dashboard"],
-    required: false,
-    note: "Slack or Discord incoming webhook. The superadmin console posts every admin sign-in and card reveal to it. No alerts are sent when unset.",
-  }),
   spec("POSTHOG_QUERY_API_KEY", {
     owners: ["@teak/convex"],
     targets: ["convex"],

@@ -40,7 +40,6 @@ const app = defineApp({
     // is set, or account deletion retries until it is.
     POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
-    ADMIN_ALERT_WEBHOOK_URL: v.optional(v.string()),
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     TEAK_DEV_DEPLOYMENT: v.optional(v.string()),
     TEAK_DEV_APP_URL: v.optional(v.string()),
