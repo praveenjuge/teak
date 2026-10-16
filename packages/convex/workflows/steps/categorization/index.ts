@@ -387,6 +387,7 @@ export const enrichLinkCategory = async (
 export const classifyStep: any = internalAction({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
     workflowId: v.optional(v.string()),
   },
   returns: v.union(
@@ -400,7 +401,7 @@ export const classifyStep: any = internalAction({
       shouldFetchStructured: v.boolean(),
     })
   ),
-  handler: (ctx: any, args: { cardId: Id<"cards"> }) =>
+  handler: (ctx: any, args: { cardId: Id<"cards">; refresh?: boolean }) =>
     withBackendErrorCapture(
       {
         cardId: args.cardId,
@@ -413,9 +414,17 @@ export const classifyStep: any = internalAction({
     ),
 });
 
+/**
+ * A `refresh` (the person pressed Refresh details) ignores the 30-day cache:
+ * the link is classified again and its page's JSON-LD is fetched again.
+ */
 export async function classifyHandler(
   ctx: any,
-  { cardId, workflowId }: { cardId: Id<"cards">; workflowId?: string }
+  {
+    cardId,
+    refresh,
+    workflowId,
+  }: { cardId: Id<"cards">; refresh?: boolean; workflowId?: string }
 ) {
   const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
     cardId,
@@ -453,6 +462,7 @@ export async function classifyHandler(
     existingMetadata?.sourceUrl;
 
   if (
+    !refresh &&
     existingMetadata?.category &&
     sourceUrl &&
     cachedSourceUrl &&
@@ -482,10 +492,12 @@ export async function classifyHandler(
 
   const shouldFetchStructured =
     !!sourceUrl &&
-    !(
-      existingMetadata?.raw?.structured ?? existingMetadata?.rawHasStructured
-    ) &&
-    !structuredFresh;
+    (refresh ||
+      !(
+        (existingMetadata?.raw?.structured ??
+          existingMetadata?.rawHasStructured) ||
+        structuredFresh
+      ));
 
   return {
     mode: "classified" as const,

@@ -658,7 +658,7 @@ export const reprocessCardForUserHandler = async (
   await ctx.scheduler.runAfter(
     0,
     (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-    { cardId }
+    { cardId, refresh: true }
   );
 
   return { cardId, requestedAt: Date.now() };

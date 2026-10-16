@@ -700,7 +700,7 @@ describe("Refresh details", () => {
     expect(result.cardId).toBe(cardId);
     const jobs = await scheduledWorkflowStarts(t);
     expect(jobs).toHaveLength(1);
-    expect(jobs[0]?.args).toEqual([{ cardId }]);
+    expect(jobs[0]?.args).toEqual([{ cardId, refresh: true }]);
   });
 
   test("a second run on the same card within a minute is refused with retryAt", async () => {

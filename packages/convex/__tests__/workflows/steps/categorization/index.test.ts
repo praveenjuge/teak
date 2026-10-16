@@ -177,6 +177,35 @@ describe("categorization index", () => {
       expect(result.mode).toBe("skipped");
     });
 
+    test("a refresh re-classifies fresh metadata and refetches its JSON-LD", async () => {
+      const fetchedAt = Date.now() - 1000;
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        url: "https://example.com/a",
+        metadata: {
+          linkCategory: {
+            category: "product",
+            fetchedAt,
+            sourceUrl: "https://example.com/a",
+            raw: {
+              structured: { "@type": "Product" },
+              structuredMeta: { fetchedAt },
+            },
+          },
+        },
+      });
+
+      const result = await classifyHandler(ctx, {
+        cardId: CARD_ID,
+        refresh: true,
+      });
+      expect(result).toMatchObject({
+        mode: "classified",
+        shouldFetchStructured: true,
+      });
+    });
+
     test("does not skip if sourceUrl changed", async () => {
       const fetchedAt = Date.now() - 1000;
       mockRunQuery.mockResolvedValue({

@@ -682,8 +682,10 @@ export const scheduleWorkflowHistoryCleanupBatch = internalAction({
   handler: scheduleWorkflowHistoryCleanupBatchHandler,
 });
 
-interface CardIdentifier {
+interface CardProcessingStart {
   cardId: Id<"cards">;
+  // A person asked to refresh the card, so cached link details are re-read.
+  refresh?: boolean;
 }
 
 export const initializeCardProcessingStateHandler = async (
@@ -727,14 +729,14 @@ export const initializeCardProcessingState = internalMutation({
 
 export const startCardProcessingWorkflowHandler = async (
   ctx: any,
-  { cardId }: CardIdentifier
+  { cardId, refresh }: CardProcessingStart
 ) => {
   const workflowRef =
     internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
   const workflowId = await startWorkflow(
     ctx,
     workflowRef,
-    { cardId },
+    refresh ? { cardId, refresh } : { cardId },
     { startAsync: true }
   );
 
@@ -749,6 +751,7 @@ export const startCardProcessingWorkflowHandler = async (
 export const startCardProcessingWorkflow = internalAction({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
   },
   returns: v.object({
     workflowId: v.string(),
