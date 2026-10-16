@@ -34,7 +34,8 @@ const PRODUCT_URL = "https://shop.example/products/mug";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = 100 * DAY_MS;
 
-const productPage = `<html><head><script type="application/ld+json">
+const productPage = `<html><head><meta property="og:title" content="Blue mug">
+<script type="application/ld+json">
 {"@type":"Product","name":"Mug","offers":{"@type":"Offer","price":"24.99","priceCurrency":"USD"}}
 </script></head></html>`;
 
@@ -63,7 +64,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const setup = async () => {
+const setup = async ({ pageReachable = true } = {}) => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
   workflowTest.register(t);
@@ -81,6 +82,9 @@ const setup = async () => {
       const url = String(input instanceof Request ? input.url : input);
       if (url === PRODUCT_URL) {
         pageFetches.push(url);
+        if (!pageReachable) {
+          return Promise.resolve(new Response("unavailable", { status: 503 }));
+        }
         return Promise.resolve(
           new Response(productPage, {
             headers: { "content-type": "text/html" },
@@ -109,6 +113,7 @@ const setup = async () => {
           url: PRODUCT_URL,
           title: "Mug",
           siteName: "Shop",
+          fetchedAt: categorizedAt,
         },
         linkCategory: {
           category: "article",
@@ -121,17 +126,24 @@ const setup = async () => {
           },
         },
       },
+      thumbnailOverride: {
+        storageKey: "users/owner/cards/chosen/thumbnail-override.png",
+        width: 800,
+        height: 600,
+        updatedAt: categorizedAt,
+      },
       createdAt: 1,
       updatedAt: 1,
     })
   );
+  const getCard = () => t.run((ctx) => ctx.db.get("cards", cardId));
   /** The card's link details, once its categorize stage has finished. */
   const linkCategory = async () => {
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.processingStatus?.categorize?.status).toBe("completed");
     return card?.metadata?.linkCategory;
   };
-  return { t, cardId, categorizedAt, linkCategory, pageFetches };
+  return { t, cardId, categorizedAt, getCard, linkCategory, pageFetches };
 };
 
 describe("Refresh details on a link", () => {
@@ -145,15 +157,60 @@ describe("Refresh details on a link", () => {
     });
     await t.finishAllScheduledFunctions(() => vi.runAllTimers());
 
-    expect(pageFetches).toEqual([PRODUCT_URL]);
+    // Once for the link preview, once for the page's JSON-LD.
+    expect(pageFetches).toEqual([PRODUCT_URL, PRODUCT_URL]);
     const refreshed = await linkCategory();
     expect(refreshed?.category).toBe("product");
     expect(refreshed?.fetchedAt).toBeGreaterThan(categorizedAt);
     expect(refreshed?.price).toMatchObject({ amount: 24.99, currency: "USD" });
   });
 
-  test("an automatic run within 30 days keeps the cached category", async () => {
-    const { t, cardId, categorizedAt, linkCategory, pageFetches } =
+  test("fetches the link preview again and keeps the image the person chose", async () => {
+    const { t, cardId, categorizedAt, getCard } = await setup();
+    const before = await getCard();
+
+    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      cardId,
+      userId: "owner",
+    });
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+
+    const card = await getCard();
+    expect(card?.metadataStatus).toBe("completed");
+    expect(card?.metadata?.linkPreview).toMatchObject({
+      status: "success",
+      title: "Blue mug",
+    });
+    expect(card?.metadata?.linkPreview?.fetchedAt).toBeGreaterThan(
+      categorizedAt
+    );
+    expect(card?.metadataTitle).toBe("Blue mug");
+    expect(card?.thumbnailOverride).toEqual(before?.thumbnailOverride);
+  });
+
+  test("a refresh that can't read the page keeps the stored preview and finishes", async () => {
+    const { t, cardId, getCard, pageFetches } = await setup({
+      pageReachable: false,
+    });
+    const before = await getCard();
+
+    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      cardId,
+      userId: "owner",
+    });
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+
+    // The preview fetch was retried before giving up.
+    expect(pageFetches.length).toBeGreaterThan(2);
+    const card = await getCard();
+    expect(card?.metadataStatus).toBe("completed");
+    expect(card?.metadata?.linkPreview).toEqual(before?.metadata?.linkPreview);
+    // The run went on past the preview to categorize the link.
+    expect(card?.processingStatus?.categorize?.status).toBe("completed");
+  });
+
+  test("an automatic run within 30 days keeps the cached category and preview", async () => {
+    const { t, cardId, categorizedAt, getCard, linkCategory, pageFetches } =
       await setup();
 
     await t.action(internal["workflows/manager"].startCardProcessingWorkflow, {
@@ -162,6 +219,8 @@ describe("Refresh details on a link", () => {
     await t.finishAllScheduledFunctions(() => vi.runAllTimers());
 
     expect(pageFetches).toEqual([]);
+    const card = await getCard();
+    expect(card?.metadata?.linkPreview?.title).toBe("Mug");
     const after = await linkCategory();
     expect(after?.category).toBe("article");
     expect(after?.fetchedAt).toBe(categorizedAt);

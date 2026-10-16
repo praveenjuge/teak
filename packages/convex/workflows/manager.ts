@@ -690,7 +690,7 @@ interface CardProcessingStart {
 
 export const initializeCardProcessingStateHandler = async (
   ctx: any,
-  { cardId }: any
+  { cardId, refresh }: any
 ) => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
@@ -700,8 +700,9 @@ export const initializeCardProcessingStateHandler = async (
   const now = Date.now();
   const cardType = (card.type ?? "text") as CardType;
   const linkPreviewStatus = card.metadata?.linkPreview?.status;
+  // A refresh fetches the link preview again even when the stored one worked.
   const awaitingLinkMetadata =
-    cardType === "link" && linkPreviewStatus !== "success";
+    cardType === "link" && (refresh || linkPreviewStatus !== "success");
   const initialProcessingStatus = buildInitialProcessingStatus({
     now,
     cardType,
@@ -722,6 +723,7 @@ export const initializeCardProcessingStateHandler = async (
 export const initializeCardProcessingState = internalMutation({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: initializeCardProcessingStateHandler,
@@ -742,7 +744,7 @@ export const startCardProcessingWorkflowHandler = async (
 
   await ctx.runMutation(
     internalAny["workflows/manager"].initializeCardProcessingState,
-    { cardId }
+    refresh ? { cardId, refresh } : { cardId }
   );
 
   return { workflowId };

@@ -859,6 +859,60 @@ describe("categorization index", () => {
       });
     });
 
+    test.each([
+      [
+        "an article's publish date",
+        "article",
+        {
+          "@type": "Article",
+          headline: "Lamps",
+          datePublished: "2024-03-05",
+        },
+        "Published",
+      ],
+      [
+        "a book's authors",
+        "book",
+        { "@type": "Book", name: "Lamps", author: [{ name: "Ada Lovelace" }] },
+        "Authors",
+      ],
+      [
+        "a place's address",
+        "place",
+        {
+          "@type": "Restaurant",
+          name: "Lamp Café",
+          address: {
+            streetAddress: "1 Main St",
+            addressLocality: "Springfield",
+          },
+        },
+        "Address",
+      ],
+    ] as const)(
+      "keeps %s stored on an earlier pass when the page isn't read",
+      async (_name, category, structured, label) => {
+        const fresh = await enrichLinkCategory(
+          linkCard({ url: "https://site.example/lamp" }),
+          { category, confidence: 0.9 },
+          { structuredData: { entities: [structured] } }
+        );
+        const expected = factValue(fresh, label);
+        expect(expected).toBeTruthy();
+
+        const result = await enrichLinkCategory(
+          linkCard({
+            url: "https://site.example/lamp",
+            metadata: { linkCategory: { raw: fresh.raw } },
+          }),
+          { category, confidence: 0.9 },
+          { structuredData: null }
+        );
+        expect(factValue(result, label)).toBe(expected);
+        expect(result.raw?.structured).toEqual(fresh.raw?.structured);
+      }
+    );
+
     test("covers full GitHub enrichment", async () => {
       const card = linkCard({
         url: "https://github.com/a/b",

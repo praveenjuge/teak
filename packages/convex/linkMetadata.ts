@@ -161,7 +161,7 @@ export const getCardForScreenshot = internalQuery({
 
 export const updateCardMetadataHandler = async (
   ctx: any,
-  { cardId, linkPreview, status }: any
+  { cardId, linkPreview, status, refresh }: any
 ) => {
   const existingCard = await ctx.db.get("cards", cardId);
   if (!existingCard) {
@@ -170,6 +170,17 @@ export const updateCardMetadataHandler = async (
   }
 
   const previousLinkPreview = existingCard.metadata?.linkPreview;
+  // A refresh that can't read the page keeps the preview it already has.
+  if (
+    refresh &&
+    status === "failed" &&
+    previousLinkPreview?.status === "success"
+  ) {
+    return await patchCardWithSearchSync(ctx, cardId, {
+      metadataStatus: "completed",
+      updatedAt: Date.now(),
+    });
+  }
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
   const collectMediaStorageRefs = (mediaItems: any[] | undefined) => {
     const storageKeys = new Set<string>();
@@ -315,6 +326,7 @@ export const updateCardMetadata = internalMutation({
     cardId: v.id("cards"),
     linkPreview: v.optional(v.any()),
     status: v.union(v.literal("completed"), v.literal("failed")),
+    refresh: v.optional(v.boolean()),
   },
   handler: updateCardMetadataHandler,
 });

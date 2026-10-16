@@ -2,7 +2,7 @@
 title: "October 2026"
 description: Find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-15"
+date: "2026-10-16"
 changelog:
   category: Product updates
 ---
@@ -27,7 +27,7 @@ changelog:
 
 ## Prices on product cards and `price:` search
 
-- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link, and for a shop that describes its products, again when you choose **Refresh details**.
+- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link, and again from the page when you choose **Refresh details**.
 - Search by price with `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, or `price:=0`. Two bounds make a range, so `lamp price:>20 price:<100` finds lamps between 20 and 100, and you can save it as a smart folder. The amount is compared in any currency, and links without a price don't match.
 - Product links you saved earlier get their price as Teak catches up on them.
 - **API, CLI, and MCP:** `q` and `teak search` read `price:` too, and cards include `linkPrice` with `amount` and `currency`. `teak cards get` shows the price. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
