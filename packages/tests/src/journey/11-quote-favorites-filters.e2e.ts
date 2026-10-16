@@ -128,7 +128,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       source: "e2e",
     });
     const palette = await api.cards.create({
-      content: `#AABBCC ${marker}`,
+      content: `#AABBCC #DDEEFF ${marker}`,
       tags: ["e2e"],
       source: "e2e",
     });
