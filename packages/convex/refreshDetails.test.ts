@@ -4,7 +4,6 @@ import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import {
-  afterAll,
   afterEach,
   beforeAll,
   beforeEach,
@@ -39,25 +38,22 @@ const productPage = `<html><head><script type="application/ld+json">
 {"@type":"Product","name":"Mug","offers":{"@type":"Offer","price":"24.99","priceCurrency":"USD"}}
 </script></head></html>`;
 
-// A workflow run sets `globalThis.process` to undefined, which breaks
-// Vitest's loader when the run imports a workflow component module. Ignore
-// those writes, as the workflow library allows test runtimes to.
-const processDescriptor = Object.getOwnPropertyDescriptor(
-  globalThis,
-  "process"
-);
-beforeAll(() => {
-  const nodeProcess = globalThis.process;
-  Object.defineProperty(globalThis, "process", {
-    configurable: true,
-    get: () => nodeProcess,
-    set: () => undefined,
-  });
-});
-afterAll(() => {
-  if (processDescriptor) {
-    Object.defineProperty(globalThis, "process", processDescriptor);
-  }
+// A workflow run sets `process` to undefined for its own calls, and Vitest
+// cannot import a module without it. Load the workflow component's modules
+// before any run so a run never has to import one.
+let preloadedWorkflowModules: Record<string, () => Promise<unknown>> = {};
+beforeAll(async () => {
+  const entries = await Promise.all(
+    Object.entries(workflowTest.modules)
+      .filter(
+        ([path]) => !(path.endsWith(".test.ts") || path.endsWith(".config.ts"))
+      )
+      .map(async ([path, load]) => {
+        const loaded = await (load as () => Promise<unknown>)();
+        return [path, () => Promise.resolve(loaded)] as const;
+      })
+  );
+  preloadedWorkflowModules = Object.fromEntries(entries);
 });
 
 beforeEach(() => vi.useFakeTimers({ now: NOW }));
@@ -71,6 +67,11 @@ const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
   workflowTest.register(t);
+  t.registerComponent(
+    "workflow",
+    workflowTest.schema,
+    preloadedWorkflowModules
+  );
   workosTest.register(t);
   await seedWorkosOwner(t, "owner");
   const pageFetches: string[] = [];
