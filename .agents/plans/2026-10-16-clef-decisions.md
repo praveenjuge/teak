@@ -34,7 +34,7 @@ Clef only. One PR, shipped straight on with no shadow phase or flag.
 | Rerank: depth | The fused top 64, in one Clef-flash request. |
 | Rerank: waiting | Hold the first paint up to about 400 ms. If the scores are late, keep the fused order for that search and never reshuffle. |
 | Rerank: judgement | A `score` rubric from 0 to 3. |
-| Rerank: cost guard | Counts against the existing `semanticSearch` limit (60 uncached searches per minute per user). Cached for 10 minutes. Over the limit, results keep the fused order. |
+| Rerank: cost guard | Counts against the existing `semanticSearch` limit (60 uncached searches per minute per user), one token per search: the rerank takes a token only when the semantic lookup for that search was a cache hit and took none. Cached for 10 minutes. Over the limit, results keep the fused order. |
 | Eval data | Seeded dev cards plus committed, hand-labelled public fixtures. No real user content. |
 | Delivery | One PR. Order inside it: shared base, link category, card type, visual styles, Best match. |
 
@@ -284,7 +284,7 @@ The web composer sends `type: "text"` for multi-block notes (`packages/ui/src/co
 **Action `search/relevanceActions:requestRelevance({ q, filters, mode })`:**
 1. Make sure the semantic ranking is cached, using the existing path.
 2. Read the top 64 candidates and compact card texts through an internal query. Each card text holds the type, title, host, AI summary, up to 6 tags and the first 300 characters of the body.
-3. Skip cards already scored. Take a `semanticSearch` rate-limit token; when none is left, stop and leave the fused order.
+3. Skip cards already scored. If step 1 missed the semantic cache, it already took this search's `semanticSearch` token (`search/semanticActions.ts`), so take no other. Otherwise take one. When none is left, stop and leave the fused order.
 4. Call Clef-flash:
    - `state = { query: searchText }`
    - One `score` question per card, keyed by card id, with the instruction "How well does this saved card match what the person is searching for?" and the card's text.
@@ -372,7 +372,7 @@ The web composer sends `type: "text"` for multi-block notes (`packages/ui/src/co
   - An older Apple build shows a card with a new style without crashing.
 - **Best match.**
   - Qualifier-only searches never call Clef.
-  - 61 searches in a minute fall back.
+  - 61 new searches in a minute fall back, both when the semantic cache misses and when it hits. A search never spends two `semanticSearch` tokens, and plain meaning search keeps its full 60.
   - Paging during a late score never repeats or skips a card.
   - A card edited or deleted after scoring.
   - Trash, archive and favorites filters.
