@@ -405,58 +405,25 @@ describe("cron heartbeats", () => {
   });
 });
 
-describe("admin sign-in alerts", () => {
-  test("a sign-in is audited and posted to the alert webhook", async () => {
-    vi.stubEnv("ADMIN_ALERT_WEBHOOK_URL", "https://hooks.example.org/teak");
-    const fetchMock = vi.fn(async () => new Response("ok"));
-    vi.stubGlobal("fetch", fetchMock);
-    vi.useFakeTimers();
-    try {
-      const t = setup();
-      await seedAdmin(t);
+describe("admin sign-ins", () => {
+  test("a sign-in is audited, and customers cannot record sign-ins", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
 
-      await asAdmin(t).mutation(api.adminConsole.recordSignIn, {
-        ipAddress: "203.0.113.9",
-        userAgent: "Safari",
-      });
-      await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await asAdmin(t).mutation(api.adminConsole.recordSignIn, {
+      ipAddress: "203.0.113.9",
+      userAgent: "Safari",
+    });
+    await expect(
+      asCustomer(t).mutation(api.adminConsole.recordSignIn, {})
+    ).rejects.toThrow("Unauthorized");
 
-      expect(await auditRows(t)).toEqual([
-        expect.objectContaining({
-          action: "admin.sign_in",
-          details: { ipAddress: "203.0.113.9", userAgent: "Safari" },
-        }),
-      ]);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchMock.mock.calls[0] as unknown as [
-        string,
-        RequestInit,
-      ];
-      expect(url).toBe("https://hooks.example.org/teak");
-      expect(JSON.parse(String(init.body)).text).toBe(
-        "Teak console sign-in: owner@teak.dev from 203.0.113.9"
-      );
-    } finally {
-      vi.useRealTimers();
-      vi.unstubAllGlobals();
-    }
-  });
-
-  test("nothing is posted without a webhook, and customers cannot record sign-ins", async () => {
-    const fetchMock = vi.fn(async () => new Response("ok"));
-    vi.stubGlobal("fetch", fetchMock);
-    try {
-      const t = setup();
-      await seedAdmin(t);
-      await seedCustomer(t);
-      await asAdmin(t).mutation(api.adminConsole.recordSignIn, {});
-      await expect(
-        asCustomer(t).mutation(api.adminConsole.recordSignIn, {})
-      ).rejects.toThrow("Unauthorized");
-      expect(await auditRows(t)).toHaveLength(1);
-      expect(fetchMock).not.toHaveBeenCalled();
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    expect(await auditRows(t)).toEqual([
+      expect.objectContaining({
+        action: "admin.sign_in",
+        details: { ipAddress: "203.0.113.9", userAgent: "Safari" },
+      }),
+    ]);
   });
 });

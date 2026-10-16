@@ -18,7 +18,6 @@ import {
   upsertUserFlags,
   writeAudit,
 } from "./adminAccess";
-import { scheduleAdminAlert } from "./adminAlerts";
 import { readSignupsDisabled } from "./env";
 
 const AUDIT_PAGE_LIMIT = 100;
@@ -262,12 +261,6 @@ export const recordSignIn = mutation({
       ...(userAgent ? { userAgent: userAgent.slice(0, 200) } : {}),
     };
     await writeAudit(ctx, actor, { action: "admin.sign_in", details });
-    await scheduleAdminAlert(
-      ctx,
-      `Teak console sign-in: ${actor.email}${
-        ipAddress ? ` from ${ipAddress.slice(0, 64)}` : ""
-      }`
-    );
     return null;
   },
 });

@@ -10,6 +10,7 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
 ];
 
 export const DELETED_ALIASES = [
+  "ADMIN_ALERT_WEBHOOK_URL",
   "APPLE_APP_BUNDLE_IDENTIFIER",
   "APPLE_CLIENT_ID",
   "APPLE_KEY_ID",
