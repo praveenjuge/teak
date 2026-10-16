@@ -285,8 +285,9 @@ const toMatches = (matches: VectorizeMatch[]) =>
  * Vectors written before they carried a type never match the filter, so an
  * unfiltered query runs beside it and adds the untyped ones among its
  * matches; once every vector carries a type it adds nothing. An index without
- * the `type` metadata index may reject the filter: every vector then reads as
- * untyped, which is the search as it was before types.
+ * the `type` metadata index may reject the filter, and none of its matches
+ * read as typed: then the search runs as it did before types. A filter that
+ * fails where vectors do carry types is a real failure.
  */
 export const vectorQuery = async (
   env: FilesOpsEnv,
@@ -316,22 +317,32 @@ export const vectorQuery = async (
         ...options,
         filter: { [VECTOR_TYPE_METADATA_KEY]: type },
       })
-      .catch((error: unknown): VectorizeMatches => {
-        console.warn("[files-worker] vector type filter failed", {
-          message: error instanceof Error ? error.message.slice(0, 200) : "",
-          shard,
-        });
-        return { count: 0, matches: [] };
-      }),
+      .then(
+        (result) => result.matches,
+        (error: unknown) => ({ error })
+      ),
     index.query(vector as number[], { ...options, returnMetadata: "indexed" }),
   ]);
   const untyped = all.matches.filter(
     (match) => match.metadata?.[VECTOR_TYPE_METADATA_KEY] === undefined
   );
-  const typedIds = new Set(typed.matches.map((match) => match.id));
+  let typedMatches: VectorizeMatch[] = [];
+  if (Array.isArray(typed)) {
+    typedMatches = typed;
+  } else {
+    if (untyped.length < all.matches.length) {
+      throw typed.error;
+    }
+    console.warn("[files-worker] vector type filter failed", {
+      message:
+        typed.error instanceof Error ? typed.error.message.slice(0, 200) : "",
+      shard,
+    });
+  }
+  const typedIds = new Set(typedMatches.map((match) => match.id));
   return {
     matches: toMatches(
-      [...typed.matches, ...untyped.filter((match) => !typedIds.has(match.id))]
+      [...typedMatches, ...untyped.filter((match) => !typedIds.has(match.id))]
         .sort((left, right) => right.score - left.score)
         .slice(0, topK)
     ),

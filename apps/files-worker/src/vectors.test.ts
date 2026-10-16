@@ -387,6 +387,15 @@ describe("vector-delete, vector-get and vector-query", () => {
       });
     });
 
+    test("a filter that fails where vectors carry types is an error, not an empty answer", async () => {
+      const { env } = fakes({
+        filterError: new Error("VECTOR_QUERY_ERROR"),
+        ranked: library,
+      });
+      const { status } = await query(env, 3);
+      expect(status).toBe(500);
+    });
+
     test("returns at most topK matches, closest first", async () => {
       const { env } = fakes({
         ranked: [
