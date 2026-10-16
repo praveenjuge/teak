@@ -10,6 +10,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import type { CardType } from "../schema";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
@@ -45,6 +46,7 @@ interface DueRow {
   namespace?: string;
   shard?: number;
   text: string;
+  type: CardType;
   userId: string;
 }
 
@@ -139,7 +141,7 @@ const settleWithoutEmbedding = async (
       });
       return null;
     }
-    const hash = await embeddingHash(row.text);
+    const hash = await embeddingHash(row.text, row.type);
     if (hash !== row.hash) {
       return hash;
     }
@@ -171,7 +173,11 @@ const embedBatch = async (
     const outcome = await callFilesWorkerJson<FilesEmbedUpsertResult>({
       op: "embed-upsert",
       params: {
-        items: items.map(({ row }) => ({ id: row.cardId, text: row.text })),
+        items: items.map(({ row }) => ({
+          id: row.cardId,
+          text: row.text,
+          type: row.type,
+        })),
         namespace,
         shard,
       },

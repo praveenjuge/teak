@@ -334,6 +334,8 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
+        // `embed-upsert` stores card types and `vector-query` filters by one.
+        vectorTypes: true,
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),

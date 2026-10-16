@@ -57,11 +57,17 @@ export const buildEmbeddingText = (
     .slice(0, MAX_TEXT_CHARS);
 };
 
-/** Identifies what a vector was made from, including the embedding version. */
-export const embeddingHash = async (text: string): Promise<string> => {
+/**
+ * Identifies what a vector was made from, including the embedding version,
+ * and the card type it carries as metadata.
+ */
+export const embeddingHash = async (
+  text: string,
+  type: string
+): Promise<string> => {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`${CARD_EMBEDDING_VERSION}\n${text}`)
+    new TextEncoder().encode(`${CARD_EMBEDDING_VERSION}\n${type}\n${text}`)
   );
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")
