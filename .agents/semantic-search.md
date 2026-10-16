@@ -87,6 +87,14 @@ or is due for, a vector (`packages/convex/embedding/`).
   processing has no embedding step and an embedding failure never fails a
   card. A mark sets `dueAt` 30 seconds out and schedules `embedDue`; later
   edits push `dueAt` back, so a burst of edits costs one embedding.
+- **Batching.** Every save schedules its own job, so a burst of saves (an
+  import, a bulk edit, a reprocessing run) would be one small Vectorize write
+  per card, which Vectorize answers with 429s. The first job to run claims
+  its owner's due cards (`claimDueEmbeddings`, up to 64, with a 10-minute
+  `leaseUntil`) and writes them 32 to an `embed-upsert`; the burst's other
+  jobs find their cards claimed and stop. Due cards past 64 go to a follow-up
+  job three seconds later. Recording a card, its failure or a hand-off
+  releases the claim.
 - **Skipping.** The row stores a SHA-256 of `CARD_EMBEDDING_VERSION`, the
   card type and the text. An unchanged hash records the row without a
   Workers AI call. A type change alone marks the card too, so its vector's
@@ -97,7 +105,9 @@ or is due for, a vector (`packages/convex/embedding/`).
   hash, because the index may no longer hold the hashed text, so the current
   text is embedded again.
 - **Failures.** A failed embed retries with backoff (30 s doubling) five
-  times, then keeps `attempts` and `lastError` for the backfill.
+  times, then keeps `attempts` and `lastError` for the backfill. The Files
+  Worker answers a Vectorize 429 as `RATE_LIMITED` (429, retryable), which
+  backs off the same way and logs as a back-off, not a failure.
 - **Empty text.** A card cleared of every field has its vector deleted.
 - **Deletion.** Deleting a card tombstones its row (`pendingVectorDeleteAt`)
   and deletes the vector; the row goes only after the delete succeeds, and a

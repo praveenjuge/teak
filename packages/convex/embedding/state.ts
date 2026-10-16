@@ -1,3 +1,4 @@
+import { EMBED_UPSERT_MAX_ITEMS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -20,6 +21,12 @@ import { buildEmbeddingText } from "./text";
  * `dueAt` is set exactly while an `embedDue` job is scheduled for the card,
  * and it doubles as a fence: a job records its result only if `dueAt` still
  * holds the value it read, so an older job can never mark a newer edit done.
+ *
+ * Every save schedules its own job, so a burst of saves (an import, a bulk
+ * edit, a reprocessing run) would make one small Vectorize write per card,
+ * which Vectorize answers with 429s. Instead the first job to run claims the
+ * owner's due cards (`leaseUntil`) and writes them in batches; the burst's
+ * other jobs find their cards claimed and stop.
  */
 
 /** Edits within this window are embedded once, after the last one. */
@@ -27,6 +34,12 @@ export const EMBED_DEBOUNCE_MS = 30_000;
 /** After this many failed attempts the card waits for the backfill. */
 export const MAX_EMBED_ATTEMPTS = 5;
 export const MAX_VECTOR_DELETE_ATTEMPTS = 5;
+/** Cards one job claims: two `embed-upsert` calls' worth. */
+export const EMBED_CLAIM_MAX_CARDS = EMBED_UPSERT_MAX_ITEMS * 2;
+/** A job that claims cards owns them this long, an action's longest run. */
+export const EMBED_CLAIM_LEASE_MS = 10 * 60_000;
+/** Due cards past one job's claim go to the next job after this gap. */
+export const EMBED_CLAIM_GAP_MS = 3000;
 
 const embedRef = () => internal.embedding.embedCard;
 
@@ -35,6 +48,9 @@ const rowFor = (ctx: QueryCtx, cardId: Id<"cards">) =>
     .query("cardEmbeddings")
     .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
     .unique();
+
+const isClaimed = (row: Doc<"cardEmbeddings">, now: number) =>
+  row.leaseUntil !== undefined && row.leaseUntil > now;
 
 /**
  * Embed the card about EMBED_DEBOUNCE_MS from now. Called by the search sync
@@ -129,7 +145,8 @@ export const tombstoneCardEmbedding = async (
  * only when none is due), so schedule one. If this job wrote a vector, the
  * stored hash no longer says what the index holds (the vector may have
  * landed on top of a newer one, or the text may since have been reverted to
- * the hashed text): forget it so the next job embeds for real.
+ * the hashed text): forget it so the next job embeds for real. Either way
+ * the job lets go of its claim, so the job it hands off to can take it.
  */
 const handOffStaleJob = async (
   ctx: MutationCtx,
@@ -137,12 +154,14 @@ const handOffStaleJob = async (
   wroteVector: boolean
 ) => {
   if (row.dueAt === undefined && !wroteVector) {
+    await ctx.db.patch("cardEmbeddings", row._id, { leaseUntil: undefined });
     return;
   }
   const dueAt = row.dueAt ?? Date.now();
-  if (wroteVector) {
-    await ctx.db.patch("cardEmbeddings", row._id, { dueAt, hash: undefined });
-  }
+  await ctx.db.patch("cardEmbeddings", row._id, {
+    leaseUntil: undefined,
+    ...(wroteVector ? { dueAt, hash: undefined } : {}),
+  });
   await ctx.scheduler.runAfter(
     Math.max(0, dueAt - Date.now()),
     embedRef().embedDue,
@@ -161,6 +180,86 @@ const embeddingRowValidator = v.object({
   text: v.string(),
   type: cardTypeValidator,
   userId: v.string(),
+});
+
+/**
+ * Claim the due cards among `cardIds` for the calling job, together with the
+ * same owners' other due cards, up to EMBED_CLAIM_MAX_CARDS. A card another
+ * job has claimed is skipped: that job records it or schedules its retry.
+ * Due cards past the cap go to a follow-up job. `later` lists cards whose
+ * `dueAt` an edit pushed back, for the caller to schedule.
+ */
+export const claimDueEmbeddings = internalMutation({
+  args: { cardIds: v.array(v.id("cards")) },
+  returns: v.object({
+    claimed: v.array(v.id("cards")),
+    later: v.array(v.object({ cardId: v.id("cards"), dueAt: v.number() })),
+  }),
+  handler: async (ctx, { cardIds }) => {
+    const now = Date.now();
+    const dueBy = now + 1000;
+    const claimed = new Set<Id<"cards">>();
+    const owners = new Set<string>();
+    const overflow: Id<"cards">[] = [];
+    const later: { cardId: Id<"cards">; dueAt: number }[] = [];
+    const claim = async (row: Doc<"cardEmbeddings">) => {
+      await ctx.db.patch("cardEmbeddings", row._id, {
+        leaseUntil: now + EMBED_CLAIM_LEASE_MS,
+      });
+      claimed.add(row.cardId);
+      owners.add(row.userId);
+    };
+    for (const cardId of cardIds) {
+      const row = await rowFor(ctx, cardId);
+      if (
+        !row ||
+        row.dueAt === undefined ||
+        row.pendingVectorDeleteAt !== undefined ||
+        isClaimed(row, now) ||
+        claimed.has(cardId)
+      ) {
+        continue;
+      }
+      if (row.dueAt > dueBy) {
+        later.push({ cardId, dueAt: row.dueAt });
+      } else if (claimed.size < EMBED_CLAIM_MAX_CARDS) {
+        await claim(row);
+      } else {
+        overflow.push(cardId);
+      }
+    }
+    for (const userId of owners) {
+      if (claimed.size >= EMBED_CLAIM_MAX_CARDS) {
+        break;
+      }
+      const due = await ctx.db
+        .query("cardEmbeddings")
+        .withIndex("by_userId_and_dueAt", (q) =>
+          q.eq("userId", userId).gte("dueAt", 0).lte("dueAt", dueBy)
+        )
+        .take(EMBED_CLAIM_MAX_CARDS * 2);
+      for (const row of due) {
+        if (claimed.size >= EMBED_CLAIM_MAX_CARDS) {
+          break;
+        }
+        if (
+          !(
+            claimed.has(row.cardId) ||
+            row.pendingVectorDeleteAt !== undefined ||
+            isClaimed(row, now)
+          )
+        ) {
+          await claim(row);
+        }
+      }
+    }
+    if (overflow.length > 0) {
+      await ctx.scheduler.runAfter(EMBED_CLAIM_GAP_MS, embedRef().embedDue, {
+        cardIds: overflow,
+      });
+    }
+    return { claimed: [...claimed], later };
+  },
 });
 
 /** The due cards' rows and current text; skips gone cards and deletions. */
@@ -231,6 +330,7 @@ export const recordEmbedded = internalMutation({
       if (row && !card && row.pendingVectorDeleteAt === undefined) {
         await ctx.db.patch("cardEmbeddings", row._id, {
           dueAt: undefined,
+          leaseUntil: undefined,
           namespace: args.namespace ?? row.namespace,
           shard: args.shard ?? row.shard,
         });
@@ -254,6 +354,7 @@ export const recordEmbedded = internalMutation({
       embeddedAt: args.hash === undefined ? undefined : Date.now(),
       hash: args.hash,
       lastError: undefined,
+      leaseUntil: undefined,
       namespace: args.namespace ?? row.namespace,
       shard: args.shard ?? row.shard,
     });
@@ -287,6 +388,7 @@ const recordOneFailure = async (
       attempts,
       dueAt: undefined,
       lastError,
+      leaseUntil: undefined,
     });
     return null;
   }
@@ -295,6 +397,7 @@ const recordOneFailure = async (
     attempts,
     dueAt: Date.now() + delay,
     lastError,
+    leaseUntil: undefined,
   });
   return delay;
 };

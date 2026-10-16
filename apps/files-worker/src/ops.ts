@@ -943,7 +943,8 @@ export const runFilesOp = async (
     }
     if (
       error instanceof RendererUnavailable ||
-      (error instanceof OpFailure && error.answer.retryable)
+      (error instanceof OpFailure &&
+        error.answer.code === "RENDERER_UNAVAILABLE")
     ) {
       console.warn("[files-worker] renderer unavailable", {
         message: error.message,

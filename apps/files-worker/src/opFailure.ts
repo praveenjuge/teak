@@ -34,6 +34,7 @@ const OP_FAILURES = {
     retryable: false,
     status: 413,
   },
+  vector_rate_limited: { code: "RATE_LIMITED", retryable: true, status: 429 },
 } as const satisfies Record<
   string,
   { code: FilesErrorCode; retryable: boolean; status: number }
