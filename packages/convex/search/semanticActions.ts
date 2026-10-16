@@ -56,7 +56,12 @@ export const fetchSemanticRanking = async (
   userId: string,
   text: string,
   { timeoutMs = API_SEMANTIC_TIMEOUT_MS }: { timeoutMs?: number } = {}
-): Promise<{ outcome: SemanticOutcome; ranking: SemanticRanking | null }> => {
+): Promise<{
+  outcome: SemanticOutcome;
+  ranking: SemanticRanking | null;
+  /** True when this call took a `semanticSearch` token (a cache miss). */
+  spentToken?: true;
+}> => {
   if (!text) {
     return { outcome: "skipped", ranking: null };
   }
@@ -101,19 +106,19 @@ export const fetchSemanticRanking = async (
         code: result.code,
         durationMs: Date.now() - startedAt,
       });
-      return { outcome: "unavailable", ranking: null };
+      return { outcome: "unavailable", ranking: null, spentToken: true };
     }
     const ranking: SemanticRanking = await ctx.runMutation(
       internal.search.semanticCache.storeRanking,
       { userId, key, matches: result.data.matches }
     );
-    return { outcome: "ok", ranking };
+    return { outcome: "ok", ranking, spentToken: true };
   } catch (error) {
     console.warn("[search/semantic] unavailable", {
       error: error instanceof Error ? error.message.slice(0, 200) : "unknown",
       durationMs: Date.now() - startedAt,
     });
-    return { outcome: "unavailable", ranking: null };
+    return { outcome: "unavailable", ranking: null, spentToken: true };
   }
 };
 

@@ -35,6 +35,7 @@ export const collectPages = async (
   }
   const items = [...first.items];
   let cursor: string | null = first.pageInfo.nextCursor;
+  const { relevanceRanked } = first;
   let { searchMode } = first;
   while (cursor) {
     const page = await fetchPage(cursor);
@@ -49,6 +50,8 @@ export const collectPages = async (
     items,
     pageInfo: { hasMore: false, nextCursor: null },
     ...(searchMode ? { searchMode } : {}),
+    // The first page decides Best match for every page of the listing.
+    ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
   };
 };
 

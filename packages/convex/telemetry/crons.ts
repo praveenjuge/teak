@@ -189,6 +189,7 @@ export const cleanupSemanticSearchCache = internalAction({
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.cleanupSemanticSearchCache.name, async () => {
       await ctx.runMutation(internal.search.semanticCache.cleanupExpired, {});
+      await ctx.runMutation(internal.search.relevanceCache.cleanupExpired, {});
     }),
 });
 

@@ -79,7 +79,7 @@ describe("cron monitoring", () => {
     ]);
   });
 
-  test("the hourly cache cleanup removes expired search meaning matches", async () => {
+  test("the hourly cache cleanup removes expired meaning matches and Best match scores", async () => {
     const runMutation = recordMutations();
     expect(
       await handlerOf(cleanupSemanticSearchCache)(
@@ -89,7 +89,10 @@ describe("cron monitoring", () => {
     ).toBeNull();
     expect(
       jobCalls(runMutation).map(([reference]) => getFunctionName(reference))
-    ).toEqual(["search/semanticCache:cleanupExpired"]);
+    ).toEqual([
+      "search/semanticCache:cleanupExpired",
+      "search/relevanceCache:cleanupExpired",
+    ]);
   });
 
   test("names every scheduled job once", () => {

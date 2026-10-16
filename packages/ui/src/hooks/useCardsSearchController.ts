@@ -32,6 +32,7 @@ import {
   quickCommandTarget,
 } from "../lib/libraryViews";
 import type { SearchUrlState } from "../lib/searchUrlState";
+import { semanticSearchText } from "./useSemanticSearch";
 
 export interface CardsSearchState {
   filterTags: CardType[];
@@ -78,7 +79,7 @@ export interface CardsSearchQueryArgs {
   /** Shuffle's seed; set with `sort: "shuffle"` only. */
   shuffleSeed?: number;
   /** Only set off the default, so the default query keeps its key. */
-  sort?: "oldest" | "shuffle";
+  sort?: "oldest" | "relevance" | "shuffle";
   styleFilters?: VisualStyle[];
   tag?: string;
   types?: CardType[];
@@ -557,7 +558,29 @@ const orderQueryArgs = (
   if (order.sort === "shuffle") {
     return { shuffleSeed: order.seed, sort: "shuffle" };
   }
-  return order.sort === "oldest" ? { sort: "oldest" } : {};
+  if (order.sort === "oldest" || order.sort === "relevance") {
+    return { sort: order.sort };
+  }
+  return {};
+};
+
+/**
+ * Best match is a search's default: a search with words to match starts
+ * there unless the person picked another order during it, and Best match
+ * without words orders like newest.
+ */
+export const effectiveCardsOrder = (
+  order: CardsOrder,
+  canSortByRelevance: boolean,
+  sortPicked: boolean
+): CardsOrder => {
+  if (order.sort === "relevance" && !canSortByRelevance) {
+    return { sort: "newest" };
+  }
+  if (order.sort === "newest" && canSortByRelevance && !sortPicked) {
+    return { sort: "relevance" };
+  }
+  return order;
 };
 
 const initialCardsSearchState = (
@@ -586,7 +609,13 @@ export function initialCardsSearchQueryArgs(
       ...initialCardsSearchState(urlState),
       ...libraryViewFlags(view),
     }),
-    ...orderQueryArgs(orderFromUrl(urlState)),
+    ...orderQueryArgs(
+      effectiveCardsOrder(
+        orderFromUrl(urlState),
+        semanticSearchText(urlState?.q ?? "") !== "",
+        false
+      )
+    ),
   };
 }
 
@@ -619,9 +648,11 @@ export function useCardsSearchController(
   const [order, setOrder] = useState<CardsOrder>(() =>
     orderFromUrl(initialUrlState)
   );
-  const sort = order.sort;
-  const shuffleSeed = order.sort === "shuffle" ? order.seed : undefined;
+  // Whether the person chose an order during this search; Best match stays
+  // the default until they do.
+  const [sortPicked, setSortPicked] = useState(false);
   const setSort = useCallback((next: CardListSort) => {
+    setSortPicked(true);
     setOrder((prev) => {
       if (prev.sort === next) {
         return prev;
@@ -733,17 +764,32 @@ export function useCardsSearchController(
     ? searchState.searchQuery
     : debouncedSearchQuery;
 
+  const canSortByRelevance =
+    semanticSearchText(remoteSearchQuery, folderQuery) !== "";
+  useEffect(() => {
+    if (!canSortByRelevance) {
+      setSortPicked(false);
+    }
+  }, [canSortByRelevance]);
+  const effectiveOrder = useMemo(
+    () => effectiveCardsOrder(order, canSortByRelevance, sortPicked),
+    [canSortByRelevance, order, sortPicked]
+  );
+  const sort = effectiveOrder.sort;
+  const shuffleSeed =
+    effectiveOrder.sort === "shuffle" ? effectiveOrder.seed : undefined;
+
   const queryArgs = useMemo(
     () => ({
       ...buildCardsSearchQueryArgs({
         ...searchState,
         searchQuery: remoteSearchQuery,
       }),
-      ...orderQueryArgs(order),
+      ...orderQueryArgs(effectiveOrder),
       ...(folderId ? { folderId } : {}),
       ...(folderId && folderQuery !== undefined ? { folderQuery } : {}),
     }),
-    [folderId, folderQuery, order, remoteSearchQuery, searchState]
+    [folderId, folderQuery, effectiveOrder, remoteSearchQuery, searchState]
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
@@ -1069,11 +1115,13 @@ export function useCardsSearchController(
         })),
       onClearAll: clearAllFilters,
       sort,
+      canSortByRelevance,
       onSortChange: setSort,
       onReshuffle: reshuffle,
     }),
     [
       addQualifier,
+      canSortByRelevance,
       clearAllFilters,
       onKeyDown,
       onSearchChange,

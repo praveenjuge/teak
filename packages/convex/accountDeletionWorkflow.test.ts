@@ -872,6 +872,13 @@ describe("durable deletion admission and tombstones", () => {
         createdAt: 1,
         expiresAt: Date.now() + 60_000,
       });
+      await ctx.db.insert("searchRelevanceResults", {
+        userId: "permanent-owner",
+        key: "c".repeat(64),
+        scores: [{ cardId: card, score: 2, cardUpdatedAt: 1 }],
+        createdAt: 1,
+        expiresAt: Date.now() + 60_000,
+      });
     });
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
     const state = await t.run((ctx) =>
@@ -916,6 +923,7 @@ describe("durable deletion admission and tombstones", () => {
       "vectorShards",
       "cardEmbeddings",
       "semanticSearchResults",
+      "searchRelevanceResults",
     ] as const) {
       expect({
         table,

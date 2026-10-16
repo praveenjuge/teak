@@ -125,8 +125,17 @@ export const parseDateRange = (value: string, now?: Date) => {
 };
 
 export const parseSort = (value: string): CardSort => {
-  if (!(value === "newest" || value === "oldest" || value === "shuffle")) {
-    throw new InvalidArgumentError("sort must be newest, oldest or shuffle");
+  if (
+    !(
+      value === "newest" ||
+      value === "oldest" ||
+      value === "relevance" ||
+      value === "shuffle"
+    )
+  ) {
+    throw new InvalidArgumentError(
+      "sort must be newest, oldest, relevance or shuffle"
+    );
   }
   return value;
 };
@@ -155,6 +164,7 @@ export const queryOptions = (options: Record<string, unknown>) => {
   const sort: CardSort | undefined =
     options.sort === "newest" ||
     options.sort === "oldest" ||
+    options.sort === "relevance" ||
     options.sort === "shuffle"
       ? options.sort
       : undefined;
@@ -230,7 +240,11 @@ const withListOptions = (command: Command) =>
     )
     .option("--limit <n>", "result limit", parseLimit)
     .option("--cursor <cursor>", "nextCursor from the previous page")
-    .option("--sort <sort>", "newest, oldest or shuffle", parseSort)
+    .option(
+      "--sort <sort>",
+      "newest, oldest, relevance (best match, with --query) or shuffle",
+      parseSort
+    )
     .option(
       "--seed <n>",
       "with --sort shuffle: the same seed gives the same order",
@@ -303,6 +317,14 @@ const writeCards = async (
     options.mode !== "keyword"
   ) {
     process.stderr.write("mode: keyword\n");
+  }
+  // Best match was asked for but could not score the results.
+  if (
+    !options.json &&
+    options.sort === "relevance" &&
+    page.relevanceRanked === false
+  ) {
+    process.stderr.write("relevance: unranked\n");
   }
 };
 

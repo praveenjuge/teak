@@ -17,6 +17,12 @@ export const CLEF_MODEL_IDS: Record<ClefModel, string> = {
   "clef-flash": CLEF_FLASH_MODEL_ID,
 };
 
+/** Input price per million tokens; Clef bills no output. */
+export const CLEF_INPUT_USD_PER_MILLION: Record<string, number> = {
+  [CLEF_MODEL_ID]: 0.24,
+  [CLEF_FLASH_MODEL_ID]: 0.09,
+};
+
 /** Clef accepts 1 to 64 questions per request. */
 export const MAX_DECISION_QUESTIONS = 64;
 

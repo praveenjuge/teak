@@ -24,7 +24,7 @@ const CARD_TYPES = [
   "palette",
   "quote",
 ] as const;
-const CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
+const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;
 const apiKeySecurity = [{ bearerAuth: [] }];
 const folderIdParameters = [
   {
@@ -426,6 +426,11 @@ const components = {
             "With `q`: how the search found cards. `keyword` when meaning search was not used: `mode=keyword`, no words to search by meaning, or the meaning service was slow, down or rate-limited.",
           enum: SEARCH_MODES,
           type: "string",
+        },
+        relevanceRanked: {
+          description:
+            "With `q` and `sort=relevance`: whether the search's top results are ordered by how well they match. `false` when scoring was slow, failed, rate-limited, or AI is turned off for the account; the results then keep the search order.",
+          type: "boolean",
         },
       },
       required: ["items", "pageInfo"],
@@ -915,7 +920,7 @@ export const openApiSpec = {
             in: "query",
             name: "sort",
             description:
-              "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`: a stable random order picked by `shuffleSeed`. A search, tag or folder shuffles its matches (a search its best 400, a tag or folder its newest 2,000).",
+              "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`: a stable random order picked by `shuffleSeed`. A search, tag or folder shuffles its matches (a search its best 400, a tag or folder its newest 2,000). Or `relevance` (Best match), with `q`: the search's top 64 results by how well they match its words, then the rest in search order. Without `q` it is `newest`. The response's `relevanceRanked` says whether the top results were scored; the first page decides, and every later page keeps its order.",
             schema: { enum: CARD_SORTS, type: "string" },
           },
           {

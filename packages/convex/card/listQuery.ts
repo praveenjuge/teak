@@ -15,10 +15,14 @@ export const cardListSortValidator = v.union(
   v.literal("oldest")
 );
 
-/** The grid's sorts: by date, or Shuffle with a seed (card/shuffle.ts). */
+/**
+ * The grid's sorts: by date, Shuffle with a seed (card/shuffle.ts), or Best
+ * match for a search (shared/search/relevance.ts).
+ */
 export const cardListSortWithShuffleValidator = v.union(
   v.literal("newest"),
   v.literal("oldest"),
+  v.literal("relevance"),
   v.literal("shuffle")
 );
 

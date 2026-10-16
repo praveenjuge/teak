@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: Search that understands what you mean, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Search that understands what you mean, Best match and new visual styles, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-15"
 changelog:
@@ -12,6 +12,14 @@ changelog:
 - Search now finds cards by meaning as well as by their words. `cozy reading nook` also finds a photo of an armchair by a window with books, a typo such as `typograhpy` still finds your type notes, and a search in another language finds cards saved in English.
 - Cards that match your words appear as fast as before, and related cards join them a moment later. Filters, qualifiers, folders, Archive, Trash, and your chosen order all still apply. See [Smart search](/docs/features#smart-search).
 - **API, CLI, and MCP:** searches blend by default. `mode=keyword` (`--mode keyword` in the CLI) gives word matches only and `mode=semantic` meaning matches only, and every search response says which ran in `searchMode`. See the [API guide](/docs/api#search-and-favorites).
+
+## Best match, and cards that know what they are
+
+- A search now starts in **Best match**: the cards that best match what you typed come first. Results never move while you look at them; choose **Newest first** from the **View** menu to see your matches by date. See [Sort and share a search](/docs/features#sort-and-share-a-search).
+- **API, CLI, and MCP:** `sort=relevance` (`--sort relevance` in the CLI) gives the same order, and `relevanceRanked` says whether the results were scored. See [Best match](/docs/api#best-match).
+- Six new visual styles: typographic, 3D, flat, geometric, hand-drawn, and futuristic. Teak now judges styles from the picture itself, and videos get styles from their thumbnail, so `style:` filters find them too.
+- Links on sites Teak has no rule for get the right kind more often, such as a recipe, a course, or a product, read from the page itself.
+- A quotation you paste without quote marks becomes a quote card, and code or dialogue that only looks like a palette or a quote stays a note.
 
 ## The API, MCP, SDK, and CLI in step
 

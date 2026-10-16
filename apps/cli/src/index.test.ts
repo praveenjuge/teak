@@ -125,8 +125,9 @@ describe("teak cli formatting", () => {
   test("rejects invalid sort values", () => {
     expect(parseSort("oldest")).toBe("oldest");
     expect(parseSort("shuffle")).toBe("shuffle");
+    expect(parseSort("relevance")).toBe("relevance");
     expect(() => parseSort("newestt")).toThrow(
-      "sort must be newest, oldest or shuffle"
+      "sort must be newest, oldest, relevance or shuffle"
     );
   });
 
