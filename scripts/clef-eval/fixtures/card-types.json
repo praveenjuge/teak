@@ -40,7 +40,11 @@
     "content": ".button { color: #ffffff; background: #000000; border: 1px solid #333; }",
     "label": "text"
   },
-  { "content": "\"Are you coming to dinner tonight?\"", "label": "text" },
+  {
+    "content": "\"Are you coming to dinner tonight?\"",
+    "savedAs": "text",
+    "label": "text"
+  },
   { "content": "Groceries: oat milk, eggs, spinach, rice", "label": "text" },
   {
     "content": "Meeting notes 14 Oct\n- ship the importer\n- fix the flaky test\n- ask about the budget",

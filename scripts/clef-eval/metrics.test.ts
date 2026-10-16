@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { choiceRows, median, ndcgAt, percentile, styleRows } from "./metrics";
+import {
+  choiceRows,
+  median,
+  ndcgAt,
+  percentile,
+  styleBreakdown,
+  styleRows,
+} from "./metrics";
 
 test("a change counts only when Clef disagrees, is sure, and may", () => {
   const rows = choiceRows(
@@ -41,6 +48,27 @@ test("styles score the top four over the threshold", () => {
   expect(at7?.precision).toBeCloseTo(2 / 3);
   expect(at7?.recall).toBe(1);
   expect(at7?.f1).toBeCloseTo(0.8);
+});
+
+test("each style is scored on its own", () => {
+  const rows = styleBreakdown(
+    [
+      {
+        labels: ["minimal"],
+        probabilities: { minimal: 0.9, dark: 0.8, retro: 0.1 },
+      },
+      {
+        labels: ["minimal", "retro"],
+        probabilities: { minimal: 0.95, dark: 0.1, retro: 0.3 },
+      },
+    ],
+    0.7
+  );
+  expect(rows).toEqual([
+    { style: "dark", labelled: 0, predicted: 1, precision: 0, recall: 1 },
+    { style: "minimal", labelled: 2, predicted: 2, precision: 1, recall: 1 },
+    { style: "retro", labelled: 1, predicted: 0, precision: 1, recall: 0 },
+  ]);
 });
 
 test("nDCG is 1 for the ideal order and lower otherwise", () => {

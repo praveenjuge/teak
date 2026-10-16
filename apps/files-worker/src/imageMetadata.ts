@@ -138,20 +138,22 @@ export const loadImageForAi = async (
 export const generateImageMetadataForOp = async (
   env: Env,
   {
+    image,
     origin,
     sourceKey,
     title,
-  }: { origin: string; sourceKey: string; title?: string | null },
+  }: {
+    /** Already loaded with `loadImageForAi`, so it isn't transformed twice. */
+    image?: { dataUrl: string };
+    origin: string;
+    sourceKey: string;
+    title?: string | null;
+  },
   now = Math.floor(Date.now() / 1000),
   imageFetch: typeof fetch = fetch as typeof fetch
 ): Promise<ImageMetadataResult> => {
-  const { dataUrl: imageDataUrl } = await loadImageForAi(
-    env,
-    origin,
-    sourceKey,
-    now,
-    imageFetch
-  );
+  const { dataUrl: imageDataUrl } =
+    image ?? (await loadImageForAi(env, origin, sourceKey, now, imageFetch));
 
   const ai = env.AI;
   if (!ai) {

@@ -28,6 +28,7 @@ import {
   decideCardType,
   decideLinkCategory,
   decideVisualStyles,
+  decideVisualStylesForImage,
   scoreRelevance,
 } from "./decisions";
 import { freezeObject } from "./deletionGate";
@@ -38,7 +39,7 @@ import {
 } from "./export";
 import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
-import { generateImageMetadataForOp } from "./imageMetadata";
+import { generateImageMetadataForOp, loadImageForAi } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import {
   extractZipEntries,
@@ -622,12 +623,17 @@ const dispatch = async (
         throw new Error("invalid_title");
       }
       const sourceKey = requiredString(params, "sourceKey");
-      // Clef styles run beside the tags call when asked. A Clef failure
-      // leaves `visualStyles` out, so callers fall back to the tag aliases.
-      const [metadata, visualStyles] = await Promise.all([
-        generateImageMetadataForOp(env, { origin, sourceKey, title }),
+      // Clef styles run beside the tags call when asked, on the same loaded
+      // image. A Clef failure leaves `visualStyles` out, so callers fall back
+      // to the tag aliases.
+      const image =
         params.visualStyles === true
-          ? decideVisualStyles(env, { origin, sourceKey, title }).catch(
+          ? await loadImageForAi(env, origin, sourceKey)
+          : undefined;
+      const [metadata, visualStyles] = await Promise.all([
+        generateImageMetadataForOp(env, { image, origin, sourceKey, title }),
+        image
+          ? decideVisualStylesForImage(env, image, title).catch(
               (error: unknown) => {
                 console.warn("[files-worker] visual styles failed", {
                   message:

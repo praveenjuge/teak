@@ -112,6 +112,67 @@ export const styleRows = (
     };
   });
 
+export interface StyleBreakdownRow {
+  /** Images labelled with the style. */
+  labelled: number;
+  precision: number;
+  /** Images Clef gave the style. */
+  predicted: number;
+  recall: number;
+  style: string;
+}
+
+/**
+ * Precision and recall per style at one threshold, after the same top-`cap`
+ * cut as `styleRows`, so one weak style can't hide in the overall numbers.
+ */
+export const styleBreakdown = (
+  outcomes: readonly StyleOutcome[],
+  threshold: number,
+  cap = 4
+): StyleBreakdownRow[] => {
+  const counts = new Map<
+    string,
+    { labelled: number; predicted: number; right: number }
+  >();
+  const countFor = (style: string) => {
+    const existing = counts.get(style);
+    if (existing) {
+      return existing;
+    }
+    const fresh = { labelled: 0, predicted: 0, right: 0 };
+    counts.set(style, fresh);
+    return fresh;
+  };
+  for (const item of outcomes) {
+    for (const style of Object.keys(item.probabilities)) {
+      countFor(style);
+    }
+    const picks = Object.entries(item.probabilities)
+      .filter(([, probability]) => probability >= threshold)
+      .sort(([, left], [, right]) => right - left)
+      .slice(0, cap)
+      .map(([style]) => style);
+    for (const style of item.labels) {
+      countFor(style).labelled += 1;
+    }
+    for (const style of picks) {
+      const count = countFor(style);
+      count.predicted += 1;
+      count.right += item.labels.includes(style) ? 1 : 0;
+    }
+  }
+  return [...counts.entries()]
+    .map(([style, count]) => ({
+      style,
+      labelled: count.labelled,
+      predicted: count.predicted,
+      precision: count.predicted ? count.right / count.predicted : 1,
+      recall: count.labelled ? count.right / count.labelled : 1,
+    }))
+    .sort((left, right) => left.style.localeCompare(right.style));
+};
+
 /** nDCG@k of an order against graded relevance (missing ids count as 0). */
 export const ndcgAt = (
   order: readonly string[],

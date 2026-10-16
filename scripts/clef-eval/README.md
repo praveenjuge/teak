@@ -29,14 +29,17 @@ Pick the lowest threshold that keeps precision at 95% or more for link
 category and card type, with coverage of at least 30% (link category) or 50%
 (card type). For styles, pick the best F1 with precision at 85% and recall at
 50% or more. A decision that can't meet both bars stays off: set its threshold
-to 1.
+to 1. The per-style table shows any single style below the bar.
 
 ## Fixtures
 
 - `link-categories.json`: links on made-up sites, as the resolver sees them.
   Links a domain or path rule decides are skipped, as in production.
 - `card-types.json`: notes, quotations with and without quote marks, palettes,
-  and code or dialogue that only looks like one.
+  and code or dialogue that only looks like one. A note in quote marks saved
+  with no type is a quote from creation and never reaches Clef, so it is
+  skipped; `"savedAs": "text"` marks one a client saved as text, which Clef
+  reviews.
 - `search.json`: a small library and searches with graded relevance (0 to 3);
   `fused` is the order the search returns before Best match.
 - `visual-styles/`: add your own or CC0 images and label them in

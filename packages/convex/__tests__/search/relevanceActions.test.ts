@@ -51,7 +51,7 @@ const scoreAll = (params: any) =>
     },
   });
 
-const makeCtx = (cached: unknown = null, gate = "allowed") => {
+const makeCtx = (cached: unknown = null, gate = "allowed", stored = true) => {
   const mutations: Array<{ name: string; args: any }> = [];
   return {
     mutations,
@@ -61,8 +61,9 @@ const makeCtx = (cached: unknown = null, gate = "allowed") => {
           getFunctionName(ref as never).endsWith("getAiGate") ? gate : cached
         ),
       runMutation: (ref: unknown, args: any) => {
-        mutations.push({ name: getFunctionName(ref as never), args });
-        return Promise.resolve(true);
+        const name = getFunctionName(ref as never);
+        mutations.push({ name, args });
+        return Promise.resolve(name.endsWith("storeScores") ? stored : true);
       },
     },
   };
@@ -101,6 +102,16 @@ describe("ensureRelevanceScores", () => {
       costUsd: 0.000_038,
     });
     expect(rateLimitCalls).toBe(1);
+  });
+
+  test("scores the cache refused are not reported as ranked", async () => {
+    const { ctx } = makeCtx(null, "allowed", false);
+    const result = await ensureRelevanceScores(ctx, {
+      candidates: [card("a")],
+      text: "soup",
+      userId: "teak_user",
+    });
+    expect(result).toEqual({ outcome: "unavailable", scores: null });
   });
 
   test("only scores cards without a current score", async () => {

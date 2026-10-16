@@ -170,11 +170,14 @@ export const ensureRelevanceScores = async (
     score,
     cardUpdatedAt: updatedAt.get(id) ?? 0,
   }));
-  await ctx.runMutation(internal.search.relevanceCache.storeScores, {
-    userId,
-    key,
-    scores: fresh,
-  });
+  const stored: boolean = await ctx.runMutation(
+    internal.search.relevanceCache.storeScores,
+    { userId, key, scores: fresh }
+  );
+  // Refused (the account is being deleted): the grid would read no scores.
+  if (!stored) {
+    return { outcome: "unavailable", scores: cached };
+  }
   const freshIds = new Set<string>(fresh.map((entry) => entry.cardId));
   return {
     outcome: "ok",

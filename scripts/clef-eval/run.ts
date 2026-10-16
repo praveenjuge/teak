@@ -26,6 +26,7 @@ import {
   VISUAL_STYLE_QUESTION_PREFIX,
 } from "../../apps/files-worker/src/decisions";
 import type { FilesOpsEnv } from "../../apps/files-worker/src/ops";
+import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
 import { resolveLinkCategory } from "../../packages/convex/shared/utils/linkCategoryResolver";
 import { textCardRulesType } from "../../packages/convex/workflows/steps/classification";
@@ -43,6 +44,7 @@ import {
   ndcgAt,
   percentile,
   type StyleOutcome,
+  styleBreakdown,
   styleRows,
 } from "./metrics";
 
@@ -196,9 +198,22 @@ const runLinkCategory = async () => {
 
 const runCardType = async () => {
   const items =
-    readJson<{ content: string; label: string }[]>("card-types.json");
+    readJson<{ content: string; label: string; savedAs?: "text" }[]>(
+      "card-types.json"
+    );
   const outcomes: ChoiceOutcome[] = [];
+  let skipped = 0;
   for (const item of items) {
+    // Saved with no type, quoted text is a quote from creation and never
+    // reaches Clef (`resolveCreatedCardType`); `savedAs: "text"` is a note a
+    // client saved as text, which Clef does review.
+    if (
+      item.savedAs !== "text" &&
+      normalizeQuoteContent(item.content).removedQuotes
+    ) {
+      skipped += 1;
+      continue;
+    }
     const rulesType = textCardRulesType(item);
     const { request } = buildCardTypeRequest({
       content: item.content,
@@ -214,7 +229,9 @@ const runCardType = async () => {
       });
     }
   }
-  console.log(`Card type: ${outcomes.length} notes.\n`);
+  console.log(
+    `Card type: ${outcomes.length} notes (${skipped} skipped: quotes from creation).\n`
+  );
   printChoiceRows(outcomes, DECISION_THRESHOLDS.cardType);
 };
 
@@ -262,6 +279,16 @@ const runVisualStyles = async () => {
       row.threshold === DECISION_THRESHOLDS.visualStyle ? " (current)" : "";
     console.log(
       `| ${row.threshold}${marker} | ${percent(row.precision)} | ${percent(row.recall)} | ${row.f1.toFixed(3)} |`
+    );
+  }
+  console.log(
+    `\nPer style at the current threshold (${DECISION_THRESHOLDS.visualStyle}):\n`
+  );
+  console.log("| style | labelled | predicted | precision | recall |");
+  console.log("| --- | --- | --- | --- | --- |");
+  for (const row of styleBreakdown(outcomes, DECISION_THRESHOLDS.visualStyle)) {
+    console.log(
+      `| ${row.style} | ${row.labelled} | ${row.predicted} | ${percent(row.precision)} | ${percent(row.recall)} |`
     );
   }
 };
