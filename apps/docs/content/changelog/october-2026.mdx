@@ -9,13 +9,13 @@ changelog:
 
 ## Find similar cards
 
-- Open a card and choose **More like this** to see the cards closest to it in meaning, from notes and links to images about the same thing. Narrow the list with any filter and save it as a smart folder. See [Find similar](/docs/features#find-similar).
+- Open a card and choose **More like this** from its **⋯** menu to see the cards closest to it in meaning, from notes and links to images about the same thing. Narrow the list with any filter and save it as a smart folder. See [Find similar](/docs/features#find-similar).
 - `mood:"moody brutalist"` finds images by their look and feel.
 - **API, CLI, and MCP:** `GET /v1/cards?similarTo=<id>`, `teak similar <id>`, and the `teak_v1_find_similar_cards` tool return the same cards.
 
 ## Choose your own image for any link
 
-- On the web, give a link the image you want: drop an image on its preview, paste one while the card is open, or choose **Replace image** beside it. A link without an image shows **Add an image**.
+- On the web, give a link the image you want: drop an image on its preview, paste one while the card is open, or choose **Replace image** from its **⋯** menu. A link without an image shows **Add an image**.
 - Your image shows in the grid on the web and in the iPhone, iPad, and Mac apps, and stays when you refresh the card's details. **Undo** puts back the previous image, and **Reset to original image** goes back to the one Teak found. See [Replace a link's image](/docs/features#replace-a-links-image).
 - **API, MCP, SDK, and CLI:** upload with `POST /v1/cards/:cardId/thumbnail/upload`, apply with `PUT /v1/cards/:cardId/thumbnail`, and reset with `DELETE`; `teak cards thumbnail <card-id> <file>` (or `--reset`) does it from the command line. See [Replace a link's image](/docs/api#replace-a-links-image).
 
@@ -27,7 +27,7 @@ changelog:
 
 ## Prices on product cards and `price:` search
 
-- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link, and **Refresh details** reads it again.
+- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link.
 - Search by price with `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, or `price:=0`. Two bounds make a range, so `lamp price:>20 price:<100` finds lamps between 20 and 100, and you can save it as a smart folder. The amount is compared in any currency, and links without a price don't match.
 - Product links you saved earlier get their price as Teak catches up on them.
 - **API, CLI, and MCP:** `q` and `teak search` read `price:` too, and cards include `linkPrice` with `amount` and `currency`. `teak cards get` shows the price. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
