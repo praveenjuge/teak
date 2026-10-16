@@ -124,7 +124,6 @@ describe("web environment writer", () => {
     expect(repaired).toContain(
       "WORKOS_COOKIE_PASSWORD=human-set-password-preserved"
     );
-    // A callback on this machine follows the checkout's port.
     expect(repaired).toContain(
       "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
     );

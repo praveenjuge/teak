@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { mergeProcessingStages } from "../card/processingStatus";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
 
@@ -20,14 +21,12 @@ export const updateCardProcessing = internalMutation({
     if (!card) {
       return false;
     }
-    // Merge into the status read in this transaction so a parallel step's
-    // stage is never overwritten with the caller's stale copy.
     await patchCardWithSearchSync(ctx, cardId, {
       ...(type ? { type } : {}),
-      processingStatus: {
-        ...(card.processingStatus ?? {}),
-        ...processingStatus,
-      },
+      processingStatus: mergeProcessingStages(
+        card.processingStatus,
+        processingStatus
+      ),
       ...(metadataStatus ? { metadataStatus } : {}),
       ...(metadata === undefined ? {} : { metadata }),
       updatedAt: Date.now(),

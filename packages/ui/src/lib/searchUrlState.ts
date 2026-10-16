@@ -35,8 +35,6 @@ export function parseTagParam(value: string | null): string {
   return (value ?? "").trim().toLowerCase().slice(0, MAX_URL_TAG_LENGTH);
 }
 
-// Long enough for any real search; keeps a pasted URL from filling the input
-// (and every query key) with an arbitrarily long string.
 export const MAX_URL_SEARCH_LENGTH = 500;
 
 interface ReadableParams {
@@ -76,7 +74,6 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
   };
 }
 
-/** The seed a state's order uses: Shuffle's, or none for a date order. */
 const shuffleSeedOf = (state: SearchUrlState): number | undefined =>
   normalizeCardListSort(state.sort) === "shuffle" ? state.seed : undefined;
 

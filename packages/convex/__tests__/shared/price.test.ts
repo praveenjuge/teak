@@ -200,7 +200,7 @@ describe("parseStructuredPrice", () => {
     ["a free offer", { offers: { price: "0" } }, { amount: 0 }],
     ["text", "24.99", null],
   ])("reads %s", (_name: string, entity: unknown, expected: unknown) => {
-    expect(parseStructuredPrice(entity)).toEqual(expected);
+    expect<unknown>(parseStructuredPrice(entity)).toEqual(expected);
   });
 });
 

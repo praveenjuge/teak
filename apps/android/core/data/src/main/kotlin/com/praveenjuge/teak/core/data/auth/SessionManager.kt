@@ -44,7 +44,6 @@ class SessionManager @Inject constructor(
 
     val currentSession: AuthSession? get() = session
 
-    /** Loads the stored session once at launch. */
     suspend fun restore() {
         mutex.withLock {
             if (_state.value != SessionState.Loading) return
@@ -94,10 +93,7 @@ class SessionManager @Inject constructor(
             endSessionLocked()
             return null
         }
-        if (refreshed.user.id != current.user.id || refreshed.sessionId != current.sessionId ||
-            (current.user.teakUserId != null && refreshed.user.teakUserId != current.user.teakUserId)
-        ) {
-            // A refresh must never switch accounts underneath the open vault.
+        if (!current.isSameAccount(refreshed)) {
             endSessionLocked()
             return null
         }
@@ -134,7 +130,6 @@ class SessionManager @Inject constructor(
         _tokens.tryEmit(null)
     }
 
-    /** One loop per session: sleep until a minute before expiry, refresh, repeat. */
     private fun startRefreshLoop() {
         if (refreshJob?.isActive == true) return
         refreshJob = scope.launch {
@@ -146,7 +141,6 @@ class SessionManager @Inject constructor(
                     accessToken()
                     backoff = INITIAL_BACKOFF_MS
                 } catch (e: IOException) {
-                    // Offline: keep the stored session and try again with backoff.
                     delay(backoff)
                     backoff = (backoff * 2).coerceAtMost(MAX_BACKOFF_MS)
                 } catch (e: SignInException) {

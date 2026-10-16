@@ -17,7 +17,6 @@ import { ingestWorkosEvent } from "./workosWebhook";
 const CURSOR = "user-events";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-// The first run looks back one day; later runs continue from the last event.
 const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 export const readCursor = internalQuery({
@@ -89,7 +88,6 @@ export const catchUpHandler = async (
       ) {
         continue;
       }
-      // A failure throws before the cursor moves, so the next run retries it.
       const outcome = await ingestWorkosEvent(ctx, event);
       if (outcome === "rejected") {
         rejected += 1;

@@ -61,7 +61,7 @@ describe("parsing", () => {
     const map = new Map<string, ScrapeResultItem[]>();
     map.set("sel1", [{ text: " t1 " }]);
     map.set("sel2", [{ attributes: [{ name: "content", value: " c1 " }] }]);
-    map.set("sel3", [{ text: "" }]); // Empty text
+    map.set("sel3", [{ text: "" }]);
 
     test("gets text content", () => {
       const source: SelectorSource = { selector: "sel1", attribute: "text" };
@@ -196,7 +196,6 @@ describe("parsing", () => {
     });
 
     test("returns undefined for invalid urls", () => {
-      // http://[ is invalid
       expect(sanitizeUrl(baseUrl, "http://[")).toBeUndefined();
     });
   });
@@ -237,8 +236,6 @@ describe("parsing", () => {
       const debug = buildDebugRaw(results);
       expect(debug).toBeDefined();
       expect(debug![0].results![0].text).toBe("t1");
-      // html should be stripped or check implementation details if it preserves what we expect
-      // looking at implementation: map(item => ({ text: item.text, attributes: item.attributes }))
       expect((debug![0].results![0] as any).html).toBeUndefined();
     });
   });
@@ -251,17 +248,7 @@ describe("parsing", () => {
           results: [{ attributes: [{ name: "content", value: "My Title" }] }],
         },
       ];
-      // Mocking selectors to match what we put in results.
-      // Since we can't easily mock the constant arrays in the module, we rely on the real ones.
-      // We need to know what selectors are in TITLE_SOURCES etc.
-      // Assuming TITLE_SOURCES includes meta[property="og:title"] content
 
-      // Let's create a more robust test that doesn't rely on specific selector implementation details if possible,
-      // OR checks the actual selectors.ts content.
-      // For now, let's use a known selector from the code if we can see it, or just use `toSelectorMap` logic
-      // The function `parseLinkPreview` uses specific imported constants.
-
-      // Checking `selectors.ts` content would be good, but let's assume standard OG tags are there.
       const res = parseLinkPreview("https://example.com", [
         {
           selector: "meta[property='og:title']",

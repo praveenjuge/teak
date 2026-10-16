@@ -3,7 +3,6 @@ import { extractPalette } from "./palette";
 
 type Rgba = [number, number, number, number];
 
-/** RGBA bytes with `count` pixels of each color, in order. */
 const image = (...runs: [Rgba, number][]): Uint8Array => {
   const bytes: number[] = [];
   for (const [color, count] of runs) {
@@ -75,7 +74,6 @@ describe("extractPalette", () => {
         [opaque("#B00000"), 15]
       )
     );
-    // A darker red beside the red already kept would only repeat it.
     expect(palette.map((swatch) => swatch.hex)).toEqual([
       "#FFFFFF",
       "#000000",
@@ -119,8 +117,6 @@ describe("extractPalette", () => {
       )
     );
     const hexes = palette.map((swatch) => swatch.hex);
-    // Near-black covers less than the mid brown between two picked shades,
-    // but nothing picked is close to it.
     expect(hexes).toContain("#0D0B09");
     expect(hexes).not.toContain("#857669");
     expect(palette.map((swatch) => swatch.weight)).toEqual(
@@ -158,5 +154,15 @@ describe("extractPalette", () => {
       3
     );
     expect(palette).toHaveLength(3);
+  });
+
+  test("gives the same palette whatever order the pixels come in", () => {
+    const runs = Array.from({ length: 40 }, (_, index): [Rgba, number] => [
+      [(index * 53) % 256, (index * 97) % 256, (index * 151) % 256, 255],
+      10,
+    ]);
+    expect(extractPalette(image(...runs.toReversed()))).toEqual(
+      extractPalette(image(...runs))
+    );
   });
 });

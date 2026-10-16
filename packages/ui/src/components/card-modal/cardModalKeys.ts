@@ -50,7 +50,6 @@ export function cardModalKeyAction(
   ) {
     return null;
   }
-  // Arrow keys seek a focused video or audio player.
   if (
     event.target instanceof Element &&
     event.target.closest("video, audio, iframe, [role='slider'], [role='menu']")
@@ -66,7 +65,6 @@ export function cardModalKeyAction(
   if (!action) {
     return null;
   }
-  // Holding an arrow walks through cards; holding a letter does nothing more.
   if (event.repeat && action !== "previous" && action !== "next") {
     return null;
   }

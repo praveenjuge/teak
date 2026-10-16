@@ -1,13 +1,3 @@
-/**
- * Durable Object Deletion Workflow
- *
- * Replaces synchronous Convex R2 component deletes. The initiating mutation
- * atomically records the immutable object keys requiring cleanup (as durable
- * workflow arguments), then this workflow calls the Files Worker's
- * `delete-objects` op. Failures are retried by the workflow step and recorded
- * for operational visibility; already-deleted cards are never restored.
- */
-
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -21,7 +11,6 @@ import { startWorkflow, workflow } from "./manager";
 
 const internalAny = internal as any;
 
-// Retry up to five times with 500 ms initial backoff and a factor of two.
 export const OBJECT_DELETION_STEP_RETRY: RetryBehavior = {
   base: 2,
   initialBackoffMs: 500,
@@ -31,8 +20,6 @@ export const OBJECT_DELETION_STEP_RETRY: RetryBehavior = {
 // The Files Worker accepts at most 100 keys per delete-objects call.
 const DELETE_BATCH_SIZE = 100;
 
-// Deleting nothing needs no Files Worker, so accounts without stored files
-// can be deleted on a deployment that has no file storage configured.
 export const deleteStorageObjects = async (keys: string[]) => {
   const usable = keys.filter((key) => key.length > 0);
   if (usable.length === 0) {
@@ -51,8 +38,6 @@ export const deleteStorageObjects = async (keys: string[]) => {
       op: "delete-objects",
       params: { keys: unique.slice(index, index + DELETE_BATCH_SIZE) },
     });
-    // NOT_FOUND-style fallbacks cannot occur: batch deletes treat missing
-    // objects as success on the worker.
     if (outcome.kind !== "ok") {
       throw new Error("files_worker_delete_objects_unavailable");
     }
@@ -101,8 +86,6 @@ export const objectDeletionWorkflow: any = workflow.define({
       );
       return { deleted: true };
     } catch (error) {
-      // Record failures for operational visibility without restoring
-      // already-deleted cards.
       await step.runMutation(
         internalAny["workflows/objectCleanup"].recordObjectDeletionFailure,
         {

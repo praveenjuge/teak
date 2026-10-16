@@ -1,5 +1,3 @@
-// Library-wide tag changes for the public API, MCP and SDK: internal
-// functions keyed by the authorized user, wrapping the handlers the app uses.
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { requireTeakUserId } from "./securitySessions";

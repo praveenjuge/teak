@@ -95,12 +95,10 @@ test("a key, then its values, become a chip with Enter", async () => {
   await type("notes si");
   expect(options()).toEqual(["site:Links from a website"]);
   expect(input().getAttribute("aria-expanded")).toBe("true");
-  // Plain words keep Enter for the search until a row is picked.
   await press("ArrowDown");
   await press("Enter");
   expect(input().value).toBe("notes site:");
   expect(options()).toEqual(["github.com3"]);
-  // Completing a value starts on its first match.
   await press("Enter");
   expect(chips).toEqual(["site:github.com"]);
   expect(input().value).toBe("notes");
@@ -114,7 +112,6 @@ test("Escape closes the list and keeps the text, not the page", async () => {
   expect(options()).toEqual([]);
   expect(input().value).toBe("tag:de");
   expect(pageKeys).toEqual([]);
-  // Enter now reaches the page's own handler.
   await press("Enter");
   expect(pageKeys).toEqual(["Enter"]);
 });

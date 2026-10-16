@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
@@ -25,12 +26,19 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A file that couldn't be added, and why, worded for an alert. */
+/** Each staged file gets its own folder, which [UploadWorker] deletes once the file is uploaded. */
+object StagingArea {
+    private const val DIRECTORY = "uploads"
+
+    fun newSlot(context: Context): File = File(context.cacheDir, "$DIRECTORY/${UUID.randomUUID()}").apply { mkdirs() }
+
+    internal fun slotOf(path: String): File? = File(path).parentFile?.takeIf { it.parentFile?.name == DIRECTORY }
+}
+
 data class SkippedFile(val name: String, val reason: String)
 
 data class StageResult(val files: List<StagedFile>, val skipped: List<SkippedFile>)
 
-/** One upload's progress, as WorkManager reports it. */
 data class UploadStatus(
     val id: UUID,
     val fileName: String,
@@ -51,7 +59,6 @@ interface UploadRepository {
 
     val uploads: Flow<List<UploadStatus>>
 
-    /** Forgets finished uploads once their result has been shown. */
     fun clearFinished()
 }
 
@@ -72,7 +79,7 @@ class WorkManagerUploadRepository @Inject constructor(
                     continue
                 }
                 try {
-                    val directory = File(context.cacheDir, "uploads/${UUID.randomUUID()}").apply { mkdirs() }
+                    val directory = StagingArea.newSlot(context)
                     val target = File(directory, safeName(name))
                     val copied = context.contentResolver.openInputStream(uri)?.use { input ->
                         target.outputStream().use { output -> input.copyTo(output) }
@@ -109,7 +116,6 @@ class WorkManagerUploadRepository @Inject constructor(
                 .addTag(UploadWorker.NAME_TAG_PREFIX + file.fileName)
                 .addTag(UploadWorker.PATH_TAG_PREFIX + file.path)
                 .build()
-            // One at a time, in order, like iOS. A full card limit stops the rest of the queue.
             workManager.enqueueUniqueWork(UploadWorker.QUEUE, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
         }
     }
@@ -123,12 +129,11 @@ class WorkManagerUploadRepository @Inject constructor(
 
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
-        // An upload that fails with no output of its own never ran: one before it hit the card limit.
-        val skipped = info.state == WorkInfo.State.FAILED && output.getString(UploadWorker.OUT_ERROR) == null
-        val failed = info.state == WorkInfo.State.FAILED || output.getString(UploadWorker.OUT_ERROR) != null
+        val outcome = uploadOutcome(info.state, output)
+        val skipped = outcome == UploadOutcome.Skipped
         val state = when {
             info.state == WorkInfo.State.CANCELLED -> UploadStatus.State.Failed
-            failed && info.state.isFinished -> UploadStatus.State.Failed
+            outcome != null && outcome != UploadOutcome.Saved -> UploadStatus.State.Failed
             info.state == WorkInfo.State.SUCCEEDED -> UploadStatus.State.Saved
             info.state == WorkInfo.State.RUNNING -> UploadStatus.State.Uploading
             else -> UploadStatus.State.Waiting
@@ -137,12 +142,12 @@ class WorkManagerUploadRepository @Inject constructor(
             id = info.id,
             fileName = info.tags.firstOrNull { it.startsWith(UploadWorker.NAME_TAG_PREFIX) }
                 ?.removePrefix(UploadWorker.NAME_TAG_PREFIX)
-                ?: output.getString(UploadWorker.OUT_NAME)
+                ?: output.getString(UploadWorker.Output.NAME)
                 ?: "File",
             state = state,
             progress = info.progress.getFloat(UploadWorker.KEY_PROGRESS, if (state == UploadStatus.State.Saved) 1f else 0f),
-            error = if (skipped) SKIPPED_AT_LIMIT else output.getString(UploadWorker.OUT_ERROR),
-            errorCode = if (skipped) TeakException.CARD_LIMIT_REACHED else output.getString(UploadWorker.OUT_ERROR_CODE),
+            error = if (skipped) SKIPPED_AT_LIMIT else output.getString(UploadWorker.Output.ERROR),
+            errorCode = if (skipped) TeakException.CARD_LIMIT_REACHED else output.getString(UploadWorker.Output.ERROR_CODE),
         )
     }
 
@@ -184,5 +189,20 @@ class WorkManagerUploadRepository @Inject constructor(
     private companion object {
         const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
+    }
+}
+
+/**
+ * Rows a worker wrote before [UploadWorker.Output.OUTCOME] existed can outlive an app update,
+ * so their outcome is read from the error they carry and the state the old worker ended in.
+ */
+internal fun uploadOutcome(state: WorkInfo.State, output: Data): UploadOutcome? {
+    output.getString(UploadWorker.Output.OUTCOME)?.let { return UploadOutcome.valueOf(it) }
+    val hasError = output.getString(UploadWorker.Output.ERROR) != null
+    return when {
+        state == WorkInfo.State.FAILED && hasError -> UploadOutcome.LimitReached
+        state == WorkInfo.State.FAILED -> UploadOutcome.Skipped
+        state.isFinished && hasError -> UploadOutcome.Failed
+        else -> null
     }
 }

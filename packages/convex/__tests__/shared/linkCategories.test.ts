@@ -33,7 +33,7 @@ describe("LINK_CATEGORIES", () => {
       "game",
       "repo",
       "other",
-    ];
+    ] as const;
     expect(LINK_CATEGORIES).toEqual(expected);
   });
 
@@ -143,11 +143,7 @@ describe("normalizeLinkCategory", () => {
 
   it("should handle whitespace and special characters", () => {
     expect(normalizeLinkCategory("  book  ")).toBe("book");
-    expect(normalizeLinkCategory("book/ebook")).toBe("book"); // normalized as single string
-    // "movie, film" -> "movie film" which isn't in lookup
-    // expect(normalizeLinkCategory("movie, film")).toBe("movie");
-    // "tv - series" -> "tv series" which isn't in lookup
-    // expect(normalizeLinkCategory("tv - series")).toBe("tv");
+    expect(normalizeLinkCategory("book/ebook")).toBe("book");
   });
 
   it("should handle hyphens, underscores, and mixed separators", () => {

@@ -1,18 +1,13 @@
+import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
 import { readConvexUrl } from "./public-env";
 
 const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_R2_UPLOAD_ORIGIN =
   "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
-// Worker-gated private file origin (see apps/files-worker). URLs minted by the
-// Convex backend carry short-lived HMAC tokens; the worker streams from R2.
-const TEAK_FILES_ORIGIN = "https://files.teakvault.com";
-// The dev deployment's isolated Files Worker (scripts/check-cloudflare.ts
-// DEVELOPMENT_FILES_ORIGIN). Trusted only by builds for that exact deployment
-// (packages/convex/auth.config.ts), so production never allows it.
+const TEAK_FILES_ORIGIN = TEAK_FILES_ORIGINS.production;
 const TEAK_DEV_CONVEX_ORIGIN = "https://reminiscent-kangaroo-59.convex.cloud";
-export const TEAK_DEV_FILES_ORIGIN =
-  "https://teak-files-development.praveenjuge.workers.dev";
+export const TEAK_DEV_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",
   "https://*.r2.dev",
@@ -43,12 +38,6 @@ const normalizeConfiguredOrigin = (
   }
 };
 
-/**
- * Self-hosted file origins. Mirror the backend FILES_BASE into
- * NEXT_PUBLIC_FILES_BASE at web build time so signed file URLs stay
- * loadable; static Teak origins always apply. Builds for the dev deployment
- * also allow its isolated Files Worker without extra configuration.
- */
 const customFilesOrigins = (
   environment: PolicyEnvironment,
   convexOrigin: string | null

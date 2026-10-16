@@ -65,7 +65,6 @@ export interface DoctorCheck {
 export interface DoctorReport {
   checks: DoctorCheck[];
   ok: boolean;
-  /** Always "local": doctor checks this checkout's dev setup. */
   profile: "local";
   target: DoctorTarget;
   version: number;
@@ -189,23 +188,19 @@ export const checkDotenvHygiene = (): DoctorCheck => {
 export const checkDependencyLock = (): DoctorCheck =>
   isInstallStale(ROOT)
     ? {
-        detail: "node_modules is missing or older than bun.lock",
+        detail: "node_modules was not installed from this bun.lock",
         id: "deps-lock",
         ok: false,
         remediation: ["Run bun run setup (it owns installation)"],
         severity: "error",
       }
     : {
-        detail: "node_modules is present and newer than bun.lock",
+        detail: "node_modules was installed from this bun.lock",
         id: "deps-lock",
         ok: true,
         severity: "error",
       };
 
-/**
- * Dev reaches only the shared dev deployment, with a Convex login or a dev
- * deploy key for it.
- */
 export const checkConvexIsolation = (): DoctorCheck => {
   const access = readConvexAccess();
   if (access.kind === "refused") {
@@ -340,7 +335,6 @@ export const checkConvexSiteUrl = async (): Promise<DoctorCheck> => {
   };
 };
 
-/** Owner-managed values dev tooling uses; missing ones turn features off. */
 export const checkDevVars = async (): Promise<DoctorCheck> => {
   const listed = await listDeploymentVarNames(CONVEX_PATH);
   if (listed.status === "unavailable") {
@@ -372,7 +366,6 @@ export const checkDevVars = async (): Promise<DoctorCheck> => {
 
 const WORKOS_DEPLOYMENT_VARS = ["WORKOS_CLIENT_ID", "WORKOS_API_KEY"];
 
-/** WorkOS AuthKit is the only sign-in provider, so its credentials are required. */
 export const evaluateWorkosPresence = (
   presence: Map<string, EnvPresence>
 ): DoctorCheck => {
@@ -563,7 +556,6 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
   };
 };
 
-/** Targets that never consume a Convex deployment; backend checks are skipped for them. */
 const NON_CONVEX_TARGETS: ReadonlySet<DoctorTarget> = new Set([
   "cli",
   "docs",

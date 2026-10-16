@@ -66,8 +66,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     screen,
     library,
   }) => {
-    // The composer's Markdown escapes `_` as `\_` and `&` as `&amp;`; the saved
-    // link must point at the URL as typed, or metadata fetches hit the wrong page.
     const run = `run=${Date.now()}`;
     const url = `https://example.com/wiki/Tectona_grandis?${run}&lang=en`;
     const composer = screen.getByRole("group", "Markdown content editor");
@@ -91,8 +89,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     screen,
     library,
   }) => {
-    // A pasted URL becomes a link showing its own address, which serializes
-    // as `[url](url)`; the note must still save as a link card.
     const run = `run=${Date.now()}`;
     const url = `https://example.com/posts/teak-notes.html?${run}`;
     await pasteMarkdown(browser, COMPOSER_EDITOR, url);
@@ -150,7 +146,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const dialog = await library.open(id);
     const input = await getBlockEditor(dialog);
     await expect(input).toHaveText(source);
-    // The side panel's Notes field is a textarea; the note itself has none.
     await expect(
       browser.locator(
         '[role="dialog"] main textarea, [role="dialog"] img, [role="dialog"] script'
@@ -297,7 +292,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const id = await library.create("# Tasks\n\n- [ ] Pending");
     const dialog = await library.open(id);
     await dialog.getByRole("checkbox").check();
-    // Edits save themselves once typing pauses.
     await expect(dialog.getByText("Saved")).toBeVisible();
     await expect.poll(() => library.read(id)).toContain("- [x] Pending");
   });
@@ -333,7 +327,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
   }) => {
     const composer = screen.getByRole("group", "Markdown content editor");
     const input = await getBlockEditor(composer);
-    // One byte short of 512 KiB, so one more ASCII keystroke reaches it.
     const draft = `${"é".repeat(256 * 1024 - 1)}a`;
     await input.fill(draft);
     await expect(input).toHaveText(draft);
@@ -398,8 +391,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
   }) => {
     const original = generateTestContent("Retry");
     const id = await library.create(original);
-    // Inject one server failure at the network boundary; the retry reaches
-    // Convex. The routing applies from the reload on.
     await routeConvexSocket(browser, {
       fromClient: (message, context) => {
         if (
@@ -424,7 +415,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     const dialog = await library.open(id);
     const blocks = await getBlockEditor(dialog);
     await blocks.fill(`${original} edited`);
-    // The autosave fails; the dialog says so and keeps the draft.
     await expect
       .poll(async () => (await readSocketState(browser)).failed)
       .toBe(true);
@@ -526,9 +516,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     library,
   }) => {
     const marker = generateTestContent("Disabled restore");
-    // In the page: remember the card creation status query and the create
-    // mutation, hold the mutation's real response back, and from the create
-    // on report that no more cards can be created.
     await routeConvexSocket(browser, {
       fromClient: (message, context) => {
         for (const query of message.modifications ?? []) {

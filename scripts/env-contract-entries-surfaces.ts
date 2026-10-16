@@ -1,14 +1,6 @@
-/**
- * Environment contract entries: dev-url overrides and web and extension clients.
- *
- * One third of ENV_CONTRACT, assembled in ./env-contract.ts. Names and
- * metadata only - never values.
- */
-
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const SURFACE_ENTRIES: EnvVarSpec[] = [
-  // Dev tooling on the shared cloud dev deployment (devSeed, devPushLease).
   spec("TEAK_DEV_DEPLOYMENT", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -20,7 +12,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Set to true only on the shared dev deployment; enables seed data and the backend push lease. Never set in production.",
   }),
-  // Local dev-URL overrides (shared resolver in @teak/convex/dev-urls).
   spec("TEAK_DEV_APP_URL", {
     owners: ["@teak/convex", "@teak/web", "@teak/extension", "@teak/docs"],
     targets: ["convex", "web", "extension", "docs"],
@@ -48,8 +39,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "shell"],
     required: false,
   }),
-  // Dev server ports. `bun run dev` sets them from the checkout's leased
-  // ports (scripts/worktree-env.ts); each app falls back to its main port.
   spec("PORT", {
     owners: ["@teak/web"],
     targets: ["web"],
@@ -80,7 +69,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "WXT dev server port; bun run dev sets this checkout's extension port.",
   }),
-  // Web client.
   spec("WORKOS_COOKIE_PASSWORD", {
     owners: ["@teak/web"],
     targets: ["web"],
@@ -208,7 +196,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Manual commit-SHA override for release derivation outside Vercel/GitHub.",
   }),
-  // Extension (Vite).
   spec("VITE_PUBLIC_CONVEX_URL", {
     derivedFrom: "CONVEX_URL",
     owners: ["@teak/extension"],

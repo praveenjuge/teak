@@ -17,9 +17,13 @@ const workerPath = new URL(
   import.meta.url
 ).pathname;
 const supportPath = new URL(
-  "../../apps/files-worker/src/testsupport.ts",
+  "../../apps/files-worker/src/test/testsupport.ts",
   import.meta.url
 ).pathname;
+await import(
+  new URL("../../apps/files-worker/src/test/workersRuntime.ts", import.meta.url)
+    .pathname
+);
 const worker = (await import(workerPath)).default;
 const { FakeBucket, withObjectGates } = await import(supportPath);
 const modules = import.meta.glob("./**/*.ts");
@@ -51,10 +55,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-// Failure modes: already admitted completion overlaps deletion; a lost R2
-// completion remains unknown; newly signed/resumed parts outlive the session;
-// creation completes before its job can attach the upload ID. Production gate
-// markers must prevent cleanup from being certified for every admitted write.
 test("deletion retains its source and state while an authenticated import completion is in flight", async () => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);

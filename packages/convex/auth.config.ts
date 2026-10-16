@@ -5,8 +5,6 @@ import {
   workosIssuer,
 } from "./shared/workosApi";
 
-// Convex trusts AuthKit session tokens for this deployment's WorkOS client.
-// WorkOS is the only sign-in provider, so a deployment without one fails here.
 const clientId = process.env.WORKOS_CLIENT_ID;
 if (!clientId) {
   throw new Error(

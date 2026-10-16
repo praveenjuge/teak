@@ -106,9 +106,6 @@ export const generatePdfThumbnail = internalAction({
   },
 });
 
-/**
- * Manual trigger for PDF thumbnail generation (useful for testing)
- */
 export const manualTriggerPdfThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),

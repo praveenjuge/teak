@@ -7,9 +7,6 @@ test("new WorkOS users get isolated Teak vaults and API keys", {
   timeout: 240_000,
 }, async ({ app, browser, screen }) => {
   const surface = { browser, screen };
-  // The first account signs up unverified, so its first sign-in goes through
-  // the emailed verification code before the vault opens, and its API key
-  // comes from Settings.
   const first = await createAccount(surface, "primary", {
     emailVerified: false,
   });
@@ -20,7 +17,6 @@ test("new WorkOS users get isolated Teak vaults and API keys", {
   const firstKey = first.apiKey ?? "";
   expect(await apiStatus(firstKey)).toBe(200);
 
-  // A second sign-up in a fresh browser gets a vault of its own.
   await app.clearState();
   const second = await createAccount(surface, "isolated");
   const secondKey = second.apiKey ?? "";
@@ -31,8 +27,6 @@ test("new WorkOS users get isolated Teak vaults and API keys", {
     content: marker,
     source: "e2e",
   });
-  // The owner finds the card, so the second account's empty search below is
-  // isolation, not an index that hasn't caught up.
   await expect
     .poll(
       async () =>

@@ -26,13 +26,13 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
-import { recordActiveCardCreated } from "./cardUsage";
+import { insertCountedCard } from "./cardUsage";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
-import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
@@ -67,7 +67,6 @@ export const validateDirectUploadRequest = (args: {
   }
 };
 
-// Unified upload mutation that handles the complete upload-to-card pipeline
 export const uploadAndCreateCard = mutation({
   args: {
     fileName: v.string(),
@@ -104,8 +103,6 @@ export const uploadAndCreateCard = mutation({
         });
       }
 
-      // Quota only: the creation rate-limit token is charged once, when the
-      // uploaded file becomes a card.
       await ensureCardQuotaAvailable(ctx, user.teakUserId);
 
       const key = buildR2ObjectKey({
@@ -125,7 +122,7 @@ export const uploadAndCreateCard = mutation({
         success: true,
         uploadKey: signed.key,
         uploadUrl: signed.url,
-        cardId: undefined, // Will be set after successful upload
+        cardId: undefined,
       };
     } catch (error) {
       if (
@@ -264,37 +261,30 @@ export const createUploadedCardForUser = async (
     ...(additionalMeta.height && { height: additionalMeta.height }),
   };
 
-  const cardId = await ctx.db.insert("cards", {
-    userId: args.userId,
-    shuffleKey: newShuffleKey(),
-    content: args.content || "",
-    type: cardType,
-    fileKey: args.fileKey,
-    fileMetadata: fileMetadataObj,
-    metadataTitle: args.fileName,
-    notes: args.notes ?? undefined,
-    tags: args.tags,
-    metadata: undefined,
-    processingStatus: buildInitialProcessingStatus({
-      now,
-      cardType,
-      classificationStatus: stageCompleted(now, 1),
-    }),
-    createdAt: now,
-    updatedAt: now,
-  });
-  try {
-    await recordActiveCardCreated(ctx, args.userId, cardId, { hasPremium });
-  } catch (error) {
-    // No savepoints: never commit an uncounted card when a caller catches
-    // CARD_LIMIT_REACHED (see createCard.ts).
-    await ctx.db.delete("cards", cardId);
-    throw error;
-  }
-  await scheduleCardSearchSync(ctx, cardId, args.userId);
-
-  // Object metadata is served by the Files Worker path; the Convex R2
-  // component's metadata sync is no longer part of the upload pipeline.
+  const cardId = await insertCountedCard(
+    ctx,
+    {
+      userId: args.userId,
+      shuffleKey: newShuffleKey(),
+      content: args.content || "",
+      type: cardType,
+      fileKey: args.fileKey,
+      fileMetadata: fileMetadataObj,
+      metadataTitle: args.fileName,
+      notes: args.notes ?? undefined,
+      tags: args.tags,
+      metadata: undefined,
+      processingStatus: buildInitialProcessingStatus({
+        now,
+        cardType,
+        classificationStatus: stageCompleted(now, 1),
+      }),
+      createdAt: now,
+      updatedAt: now,
+    },
+    { hasPremium }
+  );
+  await syncCardSearch(ctx, cardId, args.userId);
 
   await ctx.scheduler.runAfter(
     0,

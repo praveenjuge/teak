@@ -1,7 +1,6 @@
 import Foundation
 @testable import TeakCore
 
-/// Answers HTTP requests in tests. Each handler sees the request and its JSON body.
 final class ScriptedTransport: HTTPTransport, FileUploadTransport, @unchecked Sendable {
     typealias Handler = @Sendable (URLRequest, [String: Any]) async throws -> (Int, Any)
 
@@ -39,7 +38,6 @@ final class ScriptedTransport: HTTPTransport, FileUploadTransport, @unchecked Se
     }
 }
 
-/// The shared keychain item, in memory.
 final class MemoryStorage: SessionStorage, @unchecked Sendable {
     private let lock = NSLock()
     private var value: Data?
@@ -62,7 +60,6 @@ final class MemoryStorage: SessionStorage, @unchecked Sendable {
     }
 }
 
-/// A gate a test opens to release a waiting request.
 actor Gate {
     private var open = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
@@ -75,7 +72,6 @@ actor Gate {
         await withCheckedContinuation { waiters.append($0) }
     }
 
-    /// Records an arrival without waiting.
     func arrive() {
         arrivals += 1
         arrivalWaiters.forEach { $0.resume() }
@@ -94,7 +90,6 @@ actor Gate {
     }
 }
 
-/// Background time a test grants or denies, and runs out of the way iOS does.
 final class ScriptedActivity: BackgroundActivity, @unchecked Sendable {
     private let mutex = NSLock()
     private let granted: Bool
@@ -107,7 +102,6 @@ final class ScriptedActivity: BackgroundActivity, @unchecked Sendable {
         self.lockDirectory = lockDirectory
     }
 
-    /// For each activity that ended, whether the credential lock was still held.
     var lockedAtEnd: [Bool] { mutex.withLock { _lockedAtEnd } }
 
     func begin(reason: String, onExpiry: @escaping @Sendable () -> Void) async -> (@Sendable () -> Void)? {
@@ -144,7 +138,6 @@ enum Fixture {
         return url
     }
 
-    /// Whether anything holds the test environment's credential lock in `directory`.
     static func isLocked(_ directory: URL) -> Bool {
         let path = directory.appending(path: "workos-session.test.lock").path
         let descriptor = open(path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
@@ -180,7 +173,6 @@ enum Fixture {
         ]
     }
 
-    /// A stored session record, as the keychain holds it.
     static func stored(refresh: String = "old", expiry: Date = Date().addingTimeInterval(-1)) -> Data {
         let response = response(refresh: refresh, expiry: expiry)
         let user = response["user"] as? [String: Any] ?? [:]

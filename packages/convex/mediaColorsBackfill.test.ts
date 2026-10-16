@@ -34,7 +34,6 @@ const setup = () => {
         ...seed,
       })
     );
-  /** Jobs the backfill queued, in the order they are due. */
   const scheduled = async () =>
     (await t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(50)))
       .map((job) => ({
@@ -128,8 +127,6 @@ describe("backfillMediaColors", () => {
 
     await backfill({ dryRun: false, batchSize: 10, once: true });
 
-    // Every image is recolored; the colored, still-processing and trashed
-    // videos are left alone; the video renders again over its existing thumbnail.
     expect(await scheduled()).toEqual([
       { name: IMAGE_JOB, args: { cardId: cards.image }, delayMs: 0 },
       { name: GIF_JOB, args: { cardId: cards.gif }, delayMs: 200 },

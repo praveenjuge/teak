@@ -159,8 +159,6 @@ export const processAudioCard = async (
         )
     ));
   } catch (error) {
-    // Undecodable audio and failed transcription are expected outcomes: the
-    // card keeps its file, and its waveform when there is one.
     if (
       !(
         error instanceof AudioDeclined || error instanceof TranscriptUnavailable

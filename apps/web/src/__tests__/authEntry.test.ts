@@ -7,8 +7,6 @@ const target = (path: string, signedIn = false) =>
     signedIn
   )?.toString() ?? null;
 
-// Failure modes: a signed-in visitor bounced through hosted sign-in, an open
-// redirect through `next`, and redirecting pages that are not entry pages.
 describe("WorkOS entry redirect", () => {
   test("returns signed-in visitors to their destination", () => {
     expect(target("/login?next=%2Fsettings", true)).toBe(

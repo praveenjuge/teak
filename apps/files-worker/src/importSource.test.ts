@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 import { indexImportSource, readImportMarkdown } from "./importSource";
-import { FakeBucket, fakeHttpEtag } from "./testsupport";
+import { FakeBucket, fakeHttpEtag } from "./test/testsupport";
 import {
   ArchiveEntryTooLargeError,
   extractZipEntries,
@@ -103,7 +103,6 @@ describe("worker import source", () => {
           JSON.stringify({ exportVersion: 1, schemaVersion, appName: "Teak" })
         ),
         "cards.json": strToU8(JSON.stringify({ cards: [card] }, null, 2)),
-        // v2 exports add these; the importer reads only cards.json.
         "bookmarks.html": strToU8("<!DOCTYPE NETSCAPE-Bookmark-file-1>"),
         "cards.csv": strToU8('\uFEFF"id"\r\n'),
       });

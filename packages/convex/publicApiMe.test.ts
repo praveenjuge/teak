@@ -48,10 +48,6 @@ async function setup() {
   return { t, workosUserId, key: key.key, request, revoke };
 }
 
-// Failure modes: unauthenticated access, wrong owner selected from input,
-// revoked bearer reuse, provider IDs or rows leaking into the profile, and
-// deleted identities. These exercise the real HTTP router, credential
-// components, rate limiter, and database rather than mocked helpers.
 test("me rejects missing credentials and provides the public API preflight", async () => {
   const { t } = await setup();
   const denied = await t.fetch("/v1/me");
@@ -141,8 +137,6 @@ test("me denies an API key once its account is deleted", async () => {
   expect((await request()).status).toBe(401);
 });
 
-// The shared dev deployment answers on its convex.site host, so the request
-// hostname alone sent these links to production.
 test("on the shared dev deployment, API links open the dev web app", async () => {
   vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
   const { key, request, t } = await setup();
@@ -176,7 +170,6 @@ test("requests in quick succession reuse one key validation", async () => {
     const usage = await t.run((ctx) =>
       apiKeys.getUsage(ctx, { keyId: keyRow.keyId, ownerId: OWNER })
     );
-    // Only the first request wrote the key component's shared usage counter.
     expect(usage.total).toBe(1);
     vi.advanceTimersByTime(61_000);
     expect((await request()).status).toBe(200);

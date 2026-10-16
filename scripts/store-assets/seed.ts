@@ -50,8 +50,6 @@ const FILE_TYPES: Record<string, string> = {
   ".pdf": "document",
 };
 
-// Keys pair the card type with its URL, text, or file name, so a personal
-// card that merely shares a quote or file name is never matched.
 const key = (card: ShowcaseCard): string => {
   if (card.kind === "file") {
     return `${FILE_TYPES[path.extname(card.file)]}:${card.file}`;
@@ -72,10 +70,6 @@ const keysFor = (card: CardSummary): string[] => {
   return [`${card.type}:${card.metadataTitle ?? ""}`];
 };
 
-/**
- * Pages through the library, newest first, until every showcase card is found
- * or the library ends, so a refresh never misses older showcase cards.
- */
 const libraryUntilFound = async (
   wanted: Set<string>
 ): Promise<CardSummary[]> => {
@@ -170,7 +164,6 @@ if (mode === "check") {
 
 let toAdd = missing;
 if (mode === "refresh") {
-  // Every match, so duplicates from an interrupted run go too.
   const ids = recent
     .filter((card) =>
       keysFor(card).some((cardKey) => showcaseKeys.has(cardKey))
@@ -183,7 +176,6 @@ if (mode === "refresh") {
   toAdd = SHOWCASE;
 }
 
-// Oldest first, so the first showcase entry ends up newest.
 for (const card of [...toAdd].reverse()) {
   const created = (await teak(addArgs(card))) as { cardId: string };
   if ("title" in card && card.title) {

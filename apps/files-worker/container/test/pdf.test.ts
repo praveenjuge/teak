@@ -18,7 +18,6 @@ const paeth = (left: number, up: number, upLeft: number): number => {
   return toUp <= toUpLeft ? up : upLeft;
 };
 
-/** How many pixels of an 8-bit RGB or RGBA PNG are dark, like text. */
 function darkPixels(bytes: Uint8Array): number {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const width = view.getUint32(16);
@@ -68,7 +67,6 @@ function darkPixels(bytes: Uint8Array): number {
 
 describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
   test("draws text set in a standard font the PDF does not embed", async () => {
-    // Each page of the fixture is one line of Helvetica, not embedded.
     const result = await renderFixture("/pdf/page?max=800", "sixty-pages.pdf");
     expect(result.status).toBe(200);
     expect(darkPixels(result.parts.page)).toBeGreaterThan(200);
@@ -81,7 +79,6 @@ describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
     expect(result.manifest?.pages).toBe(60);
     const size = pngSize(result.parts.page);
     expect(result.manifest?.page).toEqual(size);
-    // A US Letter page is 612×792 points: 400 tall makes it 309.1 wide.
     expect(size.height).toBe(400);
     expect(Math.abs(size.width - 309.1)).toBeLessThan(1);
   });

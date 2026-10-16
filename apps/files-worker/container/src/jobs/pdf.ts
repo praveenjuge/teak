@@ -28,7 +28,6 @@ export function pngSize(
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
-/** Trims and caps text at `maxChars` code points without splitting one. */
 export function capText(
   text: string,
   maxChars: number
@@ -54,7 +53,7 @@ export function capText(
 
 async function pageCount(ctx: JobContext): Promise<number> {
   const result = await run(pdfInfoCommand(ctx.dir, ctx.input), {
-    deadline: ctx.deadline,
+    deadlineEpochMs: ctx.deadlineEpochMs,
   });
   if (result.exitCode !== 0) {
     if (!result.timedOut && PASSWORD.test(result.stderr)) {
@@ -77,7 +76,7 @@ export async function pdfPageJob(
   const prefix = join(ctx.dir, "page");
   const result = await run(
     pdfPageCommand(ctx.dir, ctx.input, params.max, prefix),
-    { deadline: ctx.deadline }
+    { deadlineEpochMs: ctx.deadlineEpochMs }
   );
   const bytes =
     result.exitCode === 0 ? await readOutput(`${prefix}.png`) : null;
@@ -103,9 +102,8 @@ export async function pdfTextJob(
   const result = await run(
     pdfTextCommand(ctx.dir, ctx.input, params.maxPages),
     {
-      deadline: ctx.deadline,
-      maxStdoutBytes: maxBytes,
-      stopAtStdoutLimit: true,
+      deadlineEpochMs: ctx.deadlineEpochMs,
+      stdout: { kind: "buffer", maxBytes, stopAtLimit: true },
     }
   );
   if (result.timedOut || !(result.exitCode === 0 || result.stdoutTruncated)) {
@@ -115,14 +113,15 @@ export async function pdfTextJob(
     new TextDecoder().decode(result.stdout),
     params.maxChars
   );
-  const bytes = new TextEncoder().encode(text);
   return {
     facts: null,
-    // A scan or image-only PDF has no text layer: no part rather than an
-    // empty one, which the Worker would refuse.
-    parts: bytes.byteLength
-      ? [{ name: "text", type: "text/plain; charset=utf-8", bytes }]
-      : [],
+    parts: [
+      {
+        name: "text",
+        type: "text/plain; charset=utf-8",
+        bytes: new TextEncoder().encode(text),
+      },
+    ],
     extra: {
       pages,
       truncated: cut || result.stdoutTruncated || pages > params.maxPages,

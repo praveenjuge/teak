@@ -46,9 +46,7 @@ import { PageHeader, PageTitle } from "./PageHeader";
 /** How the list is ordered: most-used first, or by name. */
 export type TagSort = "count" | "name";
 
-/** Tags shown before "Show more"; thousands of rows stay light. */
 const TAG_PAGE_SIZE = 150;
-/** How long to wait before asking for a first tag snapshot again. */
 const SUMMARY_RETRY_MS = 5000;
 const SKELETON_WIDTHS = ["42%", "28%", "56%", "34%", "48%", "24%"];
 const SORT_LABELS: Record<TagSort, string> = {
@@ -56,12 +54,10 @@ const SORT_LABELS: Record<TagSort, string> = {
   name: "Name",
 };
 
-/** The library narrowed to one tag. */
 export const libraryTagHref = (name: string) =>
   `${LIBRARY_VIEW_PATHS.all}?${new URLSearchParams({ tag: name })}`;
 
 export interface TagsScreenProps {
-  /** Shown before the find box, such as the sidebar toggle. */
   headerLeading?: ReactNode;
   /** The app's link (Next.js `Link` on the web). */
   LinkComponent: SidebarLinkComponent;
@@ -81,7 +77,6 @@ interface TagRowProps {
 const cardCountLabel = (count: number) =>
   `${count.toLocaleString()} ${count === 1 ? "card" : "cards"}`;
 
-/** One tag: open its cards, or change it everywhere from its menu. */
 const TagRow = memo(function TagRow({
   href,
   isMenuOpen,
@@ -95,7 +90,6 @@ const TagRow = memo(function TagRow({
       aria-label={`More for ${item.name}`}
       className={cn(
         "mr-2 size-8 shrink-0 text-muted-foreground transition-opacity hover:text-foreground",
-        // Touch screens always show the menu; pointers reveal it on hover.
         "md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100",
         isMenuOpen && "md:opacity-100"
       )}
@@ -130,7 +124,6 @@ const TagRow = memo(function TagRow({
           {item.count.toLocaleString()}
         </span>
       </LinkComponent>
-      {/* The menu mounts only while open, so long lists stay light. */}
       {isMenuOpen ? (
         <DropdownMenu
           onOpenChange={(open) => onMenuOpenChange(open ? item.name : null)}
@@ -233,8 +226,6 @@ export function TagsScreen({
     target?: string;
   } | null>(null);
 
-  // No snapshot yet (a first visit): ask for one, and ask again a little
-  // later if the request fails.
   const [request, setRequest] = useState<"idle" | "pending" | "failed">("idle");
   useEffect(() => {
     if (summary !== null || request !== "idle") {
@@ -251,8 +242,6 @@ export function TagsScreen({
     return () => clearTimeout(retry);
   }, [request]);
 
-  // The snapshot follows tag changes after a few seconds; a change still
-  // running or just finished is shown on top of it.
   const items = useMemo(
     () =>
       summary ? applyTagOperationToSummary(summary.items, latest) : undefined,
@@ -282,8 +271,6 @@ export function TagsScreen({
     setDialog({ mode, open: true, tag });
   };
 
-  // The count beside the title: how many match while finding, the most
-  // used while the list is still partial, else every tag.
   let count: ReactNode;
   if (items && matches && (needle || items.length > 0)) {
     let figure = items.length.toLocaleString();
@@ -292,7 +279,6 @@ export function TagsScreen({
     } else if (summary && !summary.isComplete) {
       figure = `Top ${figure}`;
     }
-    // Just the number on screen; the unit is for screen readers.
     count = (
       <>
         {figure}
@@ -332,7 +318,6 @@ export function TagsScreen({
               autoCorrect="off"
               className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
               onChange={(event) => {
-                // A new search starts from the top of the list again.
                 setQuery(event.target.value);
                 setLimit(TAG_PAGE_SIZE);
               }}

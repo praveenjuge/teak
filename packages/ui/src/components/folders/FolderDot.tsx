@@ -2,7 +2,6 @@ import type { FolderColor } from "@teak/convex/shared/folders";
 import { FOLDER_DOT_CLASSES } from "../../lib/folders";
 import { cn } from "../../lib/utils";
 
-/** The small color mark beside a folder's name. */
 export function FolderDot({
   color,
   className,

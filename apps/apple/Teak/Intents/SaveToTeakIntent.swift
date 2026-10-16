@@ -1,8 +1,6 @@
 import AppIntents
 import TeakCore
 
-/// "Save to Teak" in Shortcuts and Siri. Saves text or a link straight to the
-/// library, the way the share sheet does, without opening the app.
 struct SaveToTeakIntent: AppIntent {
     static let title: LocalizedStringResource = "Save to Teak"
     static let description = IntentDescription("Saves text or a link to your Teak library.")

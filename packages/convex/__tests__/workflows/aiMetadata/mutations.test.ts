@@ -1,10 +1,9 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
   updateCardAI,
   updateCardColors,
 } from "../../../workflows/aiMetadata/mutations";
-import { inlineSearchSyncDb } from "../../helpers/session.test-utils";
+import { withSearchSyncDb } from "../../helpers/session.test-utils";
 
 const handlerOf = (mutation: any) => {
   const handler = mutation.handler ?? mutation;
@@ -18,11 +17,10 @@ describe("AI metadata mutations", () => {
   test("updates AI metadata only while the card exists", async () => {
     const patch = mock().mockResolvedValue(undefined);
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: mock().mockResolvedValue({ _id: "card" }),
         patch,
-      },
+      }),
     } as any;
 
     const result = await handlerOf(updateCardAI)(ctx, {
@@ -38,8 +36,7 @@ describe("AI metadata mutations", () => {
   test("keeps a renderables stage completed by a parallel step when saving metadata", async () => {
     const patch = mock().mockResolvedValue(undefined);
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: mock().mockResolvedValue({
           _id: "card",
           processingStatus: {
@@ -48,7 +45,7 @@ describe("AI metadata mutations", () => {
           },
         }),
         patch,
-      },
+      }),
     } as any;
 
     await handlerOf(updateCardAI)(ctx, {
@@ -67,11 +64,7 @@ describe("AI metadata mutations", () => {
   test("skips late AI and palette writes after deletion", async () => {
     const patch = mock();
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
-        get: mock().mockResolvedValue(null),
-        patch,
-      },
+      db: withSearchSyncDb({ get: mock().mockResolvedValue(null), patch }),
     } as any;
 
     await expect(

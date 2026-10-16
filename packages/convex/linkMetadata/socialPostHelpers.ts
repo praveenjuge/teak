@@ -51,7 +51,7 @@ export const fetchSocialJson = async <T>(
   deps: SocialFetchDeps
 ): Promise<SocialJsonResult<T>> => {
   try {
-    const response = await safeFetch(
+    const { response } = await safeFetch(
       url,
       deps.resolveDns,
       {

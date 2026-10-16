@@ -10,10 +10,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Hands WorkOS access tokens to Convex. The session manager does the signing in; this only
- * passes along the current token and every refreshed one, and null when the session ends.
- */
 @Singleton
 class WorkOsConvexAuthProvider @Inject constructor(
     private val sessions: SessionManager,

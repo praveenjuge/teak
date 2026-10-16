@@ -5,8 +5,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Convex is the external boundary: the card only needs `useAction` for
-// copying images, which these tests never trigger.
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,

@@ -1,15 +1,15 @@
 import { Parser } from "htmlparser2";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { readCsvTable } from "./csv";
-import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
+import {
+  ImportLimitExceeded,
+  linkItem,
+  notAnExport,
+  parseSourceDate,
+} from "./sourceItems";
 
 const SOURCE = "Pocket";
 
-/**
- * Pocket's CSV export: `title, url, time_added, tags, status`, with tags
- * separated by `|` and status `unread` or `archive`. Some exports add
- * columns (such as `cursor`); columns are matched by name.
- */
 function parsePocketCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);
   if (!(table.has("url") && table.has("time_added"))) {
@@ -26,11 +26,6 @@ function parsePocketCsv(csv: string): ParsedBookmarkItem[] {
   );
 }
 
-/**
- * Pocket's older HTML export (`ril_export.html`): an "Unread" and a
- * "Read Archive" heading, each over a list of links with `time_added` and
- * comma-separated `tags` attributes.
- */
 function parsePocketHtml(html: string): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];
   let heading: string[] | undefined;
@@ -62,7 +57,7 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
         }
         if (name === "a" && anchor) {
           if (output.length >= 10_000) {
-            throw new Error("Pocket export exceeds 10,000 items");
+            throw new ImportLimitExceeded("Pocket export exceeds 10,000 items");
           }
           output.push(
             linkItem(SOURCE, {

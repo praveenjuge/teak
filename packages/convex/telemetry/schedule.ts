@@ -1,5 +1,6 @@
 import { internal } from "../_generated/api";
 import type { MutationCtx } from "../_generated/server";
+import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
 
 type ScheduledFunction = Parameters<MutationCtx["scheduler"]["runAfter"]>[1];
 
@@ -29,22 +30,18 @@ export const scheduleCardOutcome = async (
     workflowId?: string;
   }
 ): Promise<void> => {
-  try {
-    await ctx.scheduler.runAfter(0, telemetryFunctions.emitCardOutcome, args);
-  } catch {
-    // Scheduling telemetry must never alter the product mutation.
-  }
+  await ignoreTelemetryErrorAsync(() =>
+    ctx.scheduler.runAfter(0, telemetryFunctions.emitCardOutcome, args)
+  );
 };
 
 export const scheduleUserCreated = async (
   ctx: Pick<MutationCtx, "scheduler">,
   args: { email?: string; source?: string; userId: string }
 ): Promise<void> => {
-  try {
-    await ctx.scheduler.runAfter(0, telemetryFunctions.emitUserCreated, args);
-  } catch {
-    // Scheduling telemetry must never alter the product mutation.
-  }
+  await ignoreTelemetryErrorAsync(() =>
+    ctx.scheduler.runAfter(0, telemetryFunctions.emitUserCreated, args)
+  );
 };
 
 export const scheduleCardProcessingFailed = async (
@@ -56,13 +53,7 @@ export const scheduleCardProcessingFailed = async (
     userId?: string;
   }
 ): Promise<void> => {
-  try {
-    await ctx.scheduler.runAfter(
-      0,
-      telemetryFunctions.emitCardProcessingFailed,
-      args
-    );
-  } catch {
-    // Scheduling telemetry must never alter the workflow.
-  }
+  await ignoreTelemetryErrorAsync(() =>
+    ctx.scheduler.runAfter(0, telemetryFunctions.emitCardProcessingFailed, args)
+  );
 };

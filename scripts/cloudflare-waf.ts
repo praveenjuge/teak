@@ -41,7 +41,6 @@ const sameRule = (live: LiveRule, rule: WafRule): boolean =>
   live.enabled === rule.enabled &&
   live.expression === rule.expression;
 
-/** What it takes to make the zone's managed rules match `desired`. */
 export const planWafChanges = (
   live: readonly LiveRule[],
   desired: readonly WafRule[]
@@ -90,7 +89,6 @@ export const cloudflareClient = (token: string, fetcher: typeof fetch) => {
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    // Only a read may find nothing; a write that 404s has not been made.
     if (response.status === 404 && options.allowMissing) {
       return { status: 404, result: null };
     }
@@ -118,7 +116,6 @@ const ruleBody = ({
   ref,
 });
 
-/** Reads the zone's custom rules, then makes the managed ones match. */
 export const syncWafRules = async (options: {
   apply: boolean;
   desired?: readonly WafRule[];
@@ -166,7 +163,6 @@ export const syncWafRules = async (options: {
 
   const rulesetId = entrypoint.result?.id;
   if (!rulesetId) {
-    // No custom rules in the zone yet: the entrypoint holds only ours.
     await call("PUT", entrypointPath, { rules: plan.create.map(ruleBody) });
     return plan;
   }

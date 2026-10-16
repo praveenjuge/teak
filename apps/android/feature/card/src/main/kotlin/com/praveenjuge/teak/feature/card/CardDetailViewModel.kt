@@ -24,11 +24,8 @@ import kotlinx.coroutines.launch
 data class CardDetailUiState(
     val isLoading: Boolean = true,
     val card: Card? = null,
-    /** The favorite the person just chose, shown until the card catches up. */
     val favoriteOverride: Boolean? = null,
-    /** A text document's own contents, once fetched. */
     val documentText: String? = null,
-    /** A file is downloading to share or save. */
     val isTransferring: Boolean = false,
 ) {
     val isFavorited: Boolean get() = favoriteOverride ?: (card?.favorited == true)
@@ -37,7 +34,6 @@ data class CardDetailUiState(
 sealed interface CardDetailEvent {
     data class Message(val text: String) : CardDetailEvent
     data class ShareFile(val uri: Uri, val mimeType: String) : CardDetailEvent
-    /** The card is gone from this view: trashed, restored, or deleted. */
     data object Close : CardDetailEvent
 }
 
@@ -90,7 +86,6 @@ class CardDetailViewModel @AssistedInject constructor(
 
     fun deleteForever() = run("Couldn't delete this card.") { repository.deleteForever(it.id) }
 
-    /** Downloads the card's file and hands it to the share sheet. */
     fun shareFile() {
         val target = _uiState.value.card?.let(CardSheet::shareTarget) as? ShareTarget.File ?: return
         transfer("Couldn't share this file.") {
@@ -99,7 +94,6 @@ class CardDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /** Saves the original file to Downloads. */
     fun download() {
         val card = _uiState.value.card ?: return
         val url = card.fileUrl ?: return

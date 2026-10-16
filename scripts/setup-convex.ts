@@ -1,10 +1,3 @@
-/**
- * Read-only Convex deployment operations for setup and doctor (issue #407,
- * Phase 4): the local dotenv deployment pointer and the selected deployment's
- * variables. Setup never writes deployment variables. Values are returned to
- * the caller and never logged.
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
@@ -102,7 +95,6 @@ export const listDeploymentVars = async (
   }
 };
 
-/** The deployment's variable names, without values. */
 export const listDeploymentVarNames = async (
   cwd: string = convexProjectDir()
 ): Promise<

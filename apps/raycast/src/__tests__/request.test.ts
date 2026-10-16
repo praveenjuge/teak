@@ -177,14 +177,19 @@ describe("raycast request handling", () => {
     });
     globalThis.fetch = withDiscovery(fetchMock as unknown as typeof fetch);
 
-    await request("/cards?limit=1", parseCardsPageResponse, {
-      headers: {
-        Authorization: "Bearer attacker",
-        "Content-Type": "text/plain",
-        "X-Teak-Test": "present",
+    await request(
+      "/cards?limit=1",
+      parseCardsPageResponse,
+      {
+        headers: {
+          Authorization: "Bearer attacker",
+          "Content-Type": "text/plain",
+          "X-Teak-Test": "present",
+        },
+        method: "GET",
       },
-      method: "GET",
-    });
+      "prompt",
+    );
 
     expect(capturedHeaders?.get("authorization")).toBe("Bearer valid-test-key");
     expect(capturedHeaders?.get("content-type")).toBe("application/json");
@@ -199,7 +204,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -253,7 +258,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -269,7 +274,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -285,7 +290,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -301,7 +306,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -329,7 +334,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 });
+      await searchCards({ limit: 1 }, "prompt");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -356,7 +361,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const updated = await setCardFavorite("card_123", false);
+    const updated = await setCardFavorite("card_123", false, "prompt");
 
     expect(capturedUrl).toContain("/cards/card_123/favorite");
     expect(capturedMethod).toBe("PATCH");
@@ -376,7 +381,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    await softDeleteCard("card_123");
+    await softDeleteCard("card_123", "prompt");
 
     expect(capturedUrl).toContain("/cards/card_123");
     expect(capturedMethod).toBe("DELETE");
@@ -397,12 +402,15 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const result = await createCard({
-      content: "Teak",
-      source: "raycast_test",
-      tags: ["design"],
-      url: "https://teakvault.com",
-    });
+    const result = await createCard(
+      {
+        content: "Teak",
+        source: "raycast_test",
+        tags: ["design"],
+        url: "https://teakvault.com",
+      },
+      "prompt",
+    );
 
     expect(capturedBody).toEqual({
       content: "Teak",
@@ -427,7 +435,10 @@ describe("raycast request handling", () => {
     );
     const content = "\uFEFF  # Raycast\r\n\r\nBody  \n";
 
-    await createCard({ cardType: "text", content, source: "raycast_test" });
+    await createCard(
+      { cardType: "text", content, source: "raycast_test" },
+      "prompt",
+    );
 
     expect(capturedBody).toEqual({
       cardType: "text",
@@ -446,7 +457,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const result = await getCardById("card_123");
+    const result = await getCardById("card_123", "prompt");
 
     expect(capturedMethod).toBe("GET");
     expect(result.id).toBe("card_123");
@@ -467,10 +478,14 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const result = await updateCard("card_123", {
-      notes: "Updated note",
-      tags: ["design"],
-    });
+    const result = await updateCard(
+      "card_123",
+      {
+        notes: "Updated note",
+        tags: ["design"],
+      },
+      "prompt",
+    );
 
     expect(capturedMethod).toBe("PATCH");
     expect(capturedBody).toEqual({
@@ -490,7 +505,7 @@ describe("raycast request handling", () => {
     });
     globalThis.fetch = withDiscovery(fetchMock as unknown as typeof fetch);
 
-    await searchCards({ limit: 1 });
+    await searchCards({ limit: 1 }, "prompt");
 
     expect(authorizeMock).toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalled();
@@ -505,7 +520,7 @@ describe("raycast request handling", () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response(null, { status: 503 })),
     ) as unknown as typeof fetch;
-    await expect(searchCards({ limit: 1 })).rejects.toMatchObject({
+    await expect(searchCards({ limit: 1 }, "prompt")).rejects.toMatchObject({
       code: "NETWORK_ERROR",
     });
     expect(authorizeMock).not.toHaveBeenCalled();
@@ -531,7 +546,7 @@ describe("raycast request handling", () => {
       }
       return discovered(input, init);
     }) as typeof fetch;
-    await expect(searchCards({ limit: 1 })).rejects.toMatchObject({
+    await expect(searchCards({ limit: 1 }, "prompt")).rejects.toMatchObject({
       code: "NETWORK_ERROR",
     });
     expect(apiCalls).toBe(1);
@@ -555,7 +570,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    await searchCards({ limit: 1 });
+    await searchCards({ limit: 1 }, "prompt");
 
     expect(seenTokens).toEqual(["Bearer stale-token", "Bearer fresh-token"]);
   });
@@ -671,7 +686,11 @@ describe("raycast file saves and Trash", () => {
       );
     }) as unknown as typeof fetch;
 
-    const saved = await saveFileCard(filePath, { source: "raycast_finder" });
+    const saved = await saveFileCard(
+      filePath,
+      { source: "raycast_finder" },
+      "prompt",
+    );
 
     expect(saved.cardId).toBe("card_f");
     expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
@@ -697,7 +716,7 @@ describe("raycast file saves and Trash", () => {
       urls.push(`${init?.method} ${String(input)}`);
       return Promise.resolve(createEmptyResponse(204));
     }) as unknown as typeof fetch;
-    await restoreCard("card_123");
+    await restoreCard("card_123", "prompt");
     expect(urls).toEqual([
       "POST https://teakvault.com/api/v1/cards/card_123/restore",
     ]);

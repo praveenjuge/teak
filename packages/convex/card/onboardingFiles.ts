@@ -12,7 +12,6 @@ import {
 } from "./defaultCards";
 import { ONBOARDING_FILES } from "./onboarding/files";
 
-/** The storage key role for each slot, as the card pipeline names them. */
 const SLOT_ROLES: Record<OnboardingSlot, string> = {
   file: "file",
   linkImage: "link-preview-image",
@@ -100,7 +99,6 @@ export const addOnboardingCards = internalAction({
         { createdAt, stored, userId }
       );
       if (inserted === 0) {
-        // The account already has them (the backstop ran first).
         await deleteObjects(storedKeys);
       }
     } catch (error) {
@@ -108,7 +106,6 @@ export const addOnboardingCards = internalAction({
         error: error instanceof Error ? error.message : String(error),
       });
       await deleteObjects(storedKeys);
-      // Still give the account the cards that need no files.
       await ctx
         .runMutation(internal.card.defaultCards.insertOnboardingCards, {
           createdAt,

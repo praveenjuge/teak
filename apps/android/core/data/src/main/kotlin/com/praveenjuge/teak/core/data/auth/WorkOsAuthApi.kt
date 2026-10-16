@@ -25,7 +25,6 @@ import javax.inject.Singleton
 
 /** WorkOS AuthKit as a public (PKCE) client: no API key or client secret ever ships in the app. */
 interface WorkOsAuthApi {
-    /** The AuthKit URL to open in a Custom Tab, plus the PKCE values to keep until the redirect. */
     fun startSignIn(clientId: String, method: SignInMethod): Pair<String, PendingSignIn>
 
     suspend fun exchangeCode(pending: PendingSignIn, code: String): AuthSession

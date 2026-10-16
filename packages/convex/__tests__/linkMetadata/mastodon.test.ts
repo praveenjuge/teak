@@ -32,7 +32,7 @@ describe("parseMastodonStatusUrl", () => {
       { origin: "https://social.example.org:8443", user: "alice", id: "42" },
     ],
   ])("reads %s", (url: string, ref: unknown) => {
-    expect(parseMastodonStatusUrl(url)).toEqual(ref);
+    expect<unknown>(parseMastodonStatusUrl(url)).toEqual(ref);
   });
 
   test.each([

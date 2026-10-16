@@ -1,19 +1,13 @@
 /// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
-import { makeFunctionReference } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
-// Failure modes: absent or unverified component profile; provider deletion
-// despite a surviving component row; cross-vault reads; display fields coming
-// from a different profile source.
 const modules = import.meta.glob("./**/*.ts");
-const getProfile = makeFunctionReference<"query", { workosUserId: string }>(
-  "workosProfileRead:getProfile"
-);
+const getProfile = internal.workosProfileRead.getProfile;
 beforeEach(() => {
   vi.stubEnv("WORKOS_CLIENT_ID", "client_READ");
 });
@@ -89,7 +83,6 @@ test.each(["absent", "unverified", "deleted"])(
       variant === "absent" ? null : { emailVerified: variant === "deleted" }
     );
     if (variant === "deleted") {
-      // Teak's tombstone wins over a component row that is still present.
       await t.run((ctx) =>
         ctx.db.insert("workosEvents", {
           eventId: "evt_READ_deleted",

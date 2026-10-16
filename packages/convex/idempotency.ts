@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
+import { API_IDEMPOTENCY_KEY_TTL_MS } from "./shared/constants";
 
 const idempotencyStateValidator = v.union(
   v.literal("pending"),
@@ -37,7 +38,7 @@ const ttlArg = {
 } as const;
 
 const getTtlMs = (ttlMs?: number): number =>
-  typeof ttlMs === "number" && ttlMs > 0 ? ttlMs : 24 * 60 * 60 * 1000;
+  typeof ttlMs === "number" && ttlMs > 0 ? ttlMs : API_IDEMPOTENCY_KEY_TTL_MS;
 
 const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) =>
   ctx.db

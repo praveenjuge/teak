@@ -32,9 +32,7 @@ describe("CardMetadataPanel", () => {
   beforeEach(() => {
     toastSuccess.mockReset();
     toastError.mockReset();
-    console.error = mock(() => {
-      // noop: silence expected error logs during tests
-    });
+    console.error = mock(() => undefined);
   });
 
   afterEach(() => {

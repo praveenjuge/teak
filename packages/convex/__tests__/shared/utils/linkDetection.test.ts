@@ -12,7 +12,6 @@ describe("extractUrlFromContent", () => {
 
   it("should return empty result for whitespace-only content", () => {
     const result = extractUrlFromContent("   ");
-    // extractUrlFromContent trims the content
     expect(result).toEqual({ cleanedContent: "" });
   });
 
@@ -84,10 +83,8 @@ describe("extractUrlFromContent", () => {
     });
   });
 
-  it("should extract URL from content with trailing punctuation", () => {
+  it("keeps a trailing sentence period in the extracted URL", () => {
     const result = extractUrlFromContent("Check this: https://example.com.");
-    // The regex matches until whitespace, so period is included in URL
-    // isValidHttpUrl accepts URLs with trailing dots
     expect(result).toEqual({
       url: "https://example.com.",
       cleanedContent: "Check this: https://example.com.",

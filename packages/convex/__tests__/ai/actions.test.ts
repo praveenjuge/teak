@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 

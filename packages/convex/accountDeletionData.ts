@@ -7,6 +7,7 @@ import {
   captureDeletionBatch,
   commitDeletionBatch,
 } from "./accountDeletionBatch";
+import { accountDeletionStage } from "./accountDeletionStages";
 import { purgeAccountVectorsPage } from "./embedding/embedCard";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
@@ -36,7 +37,6 @@ export const deleteKeys = internalAction({
         throw new Error("deletion_object_write_pending");
       }
     }
-    // Missing objects succeed. Real Worker/R2 failures throw and retain rows/evidence.
     await ctx.runAction(
       internal["workflows/objectCleanup"].deleteObjectsAction,
       { keys }
@@ -92,7 +92,7 @@ export const checkpointWriters = internalMutation({
       binding
     );
     if (
-      state.stage !== 3 ||
+      state.stage !== accountDeletionStage("accountData") ||
       state.writersPrepared ||
       (state.writerTable ?? "importJobs") !== table ||
       (state.writerCursor ?? null) !== previous
@@ -120,7 +120,7 @@ export const prepareWriters = internalAction({
       internal.accountDeletionJobs.getState,
       binding
     );
-    if (state.stage !== 3) {
+    if (state.stage !== accountDeletionStage("accountData")) {
       throw new Error("stale_deletion_stage");
     }
     if (state.writersPrepared) {
@@ -161,7 +161,7 @@ export const ancillaryPage = internalMutation({
       internal.accountDeletionJobs.getState,
       binding
     );
-    if (state.stage !== 3) {
+    if (state.stage !== accountDeletionStage("accountData")) {
       throw new Error("stale_deletion_stage");
     }
     const userId = state.userId;
@@ -177,8 +177,6 @@ export const ancillaryPage = internalMutation({
       userId,
       100
     );
-    // Card batches already removed each card's folder rows; this sweeps any
-    // left over, then the folders themselves.
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -193,7 +191,6 @@ export const ancillaryPage = internalMutation({
     for (const folder of folders) {
       await ctx.db.delete(folder._id);
     }
-    // Tag snapshots, pending recomputes and tag operations hold no card ids.
     const tagSummaries = await ctx.db
       .query("userTagSummaries")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -258,7 +255,10 @@ export const deleteRemainingData = internalAction({
       internal.accountDeletionJobs.getState,
       binding
     );
-    if (state.stage !== 3 || !state.writersPrepared) {
+    if (
+      state.stage !== accountDeletionStage("accountData") ||
+      !state.writersPrepared
+    ) {
       throw new Error("stale_deletion_stage");
     }
     if (
@@ -295,7 +295,10 @@ export const prepareStorageBatch = internalMutation({
       internal.accountDeletionJobs.getState,
       binding
     );
-    if (state.stage !== 3 || !state.writersPrepared) {
+    if (
+      state.stage !== accountDeletionStage("accountData") ||
+      !state.writersPrepared
+    ) {
       throw new Error("stale_deletion_stage");
     }
     const batch = await captureDeletionBatch(ctx, state.userId, kind);
@@ -349,7 +352,7 @@ export const checkpointStorageBatch = internalMutation({
     );
     const progress = state.storageProgress;
     if (
-      state.stage !== 3 ||
+      state.stage !== accountDeletionStage("accountData") ||
       !progress ||
       progress.kind !== kind ||
       progress.fingerprint !== fingerprint ||
@@ -374,7 +377,7 @@ export const checkpointStorageBatch = internalMutation({
       });
       return false;
     }
-    await commitDeletionBatch(ctx, kind, state.userId, batch.rows);
+    await commitDeletionBatch(ctx, batch);
     await ctx.db.patch(state._id, { storageProgress: undefined });
     return true;
   },
@@ -417,7 +420,6 @@ export const drainStorageBatch = internalAction({
       offset: page.offset,
       count: page.keys.length,
     });
-    // Even the last batch yields; the next invocation proves the source empty.
     return false;
   },
 });

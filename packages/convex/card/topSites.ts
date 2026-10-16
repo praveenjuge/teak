@@ -5,7 +5,6 @@ import { hostForDisplay } from "../shared/utils/urlHost";
 import { buildCardListQuery } from "./listQuery";
 import { cardUrlHost } from "./searchPlanner";
 
-/** Recent links the site suggestions count; older sites can still be typed. */
 const TOP_SITES_SCAN_LIMIT = 500;
 const TOP_SITES_DEFAULT_LIMIT = 8;
 const TOP_SITES_MAX_LIMIT = 20;

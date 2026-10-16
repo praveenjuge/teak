@@ -23,7 +23,6 @@ describe("vector shards", () => {
 
   test("keeps a user on the shard they were first placed on", async () => {
     const t = convexTest(schema, modules);
-    // As if this user joined while a later shard was current.
     await t.run((ctx) =>
       ctx.db.insert("vectorShards", { userId: "teak_user_a", shard: 3 })
     );

@@ -2,7 +2,6 @@ import { cn } from "../../lib/utils";
 
 type Stage = "media" | "reading" | "compact";
 
-/** How much room a card's content needs: media fills the dialog. */
 function stageFor(type?: string): Stage {
   if (
     type === "image" ||
@@ -26,9 +25,7 @@ export function cardModalFrameClass(type?: string): string {
   const stage = stageFor(type);
   return cn(
     "flex flex-col gap-0 overflow-hidden border bg-background p-0 shadow-2xl outline-none sm:max-w-none",
-    // Opens quickly and closes at once, with no animation out.
     "data-[state=closed]:!animate-none data-[state=open]:duration-150",
-    // Phones: a sheet from the bottom that scrolls as one page.
     "max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:zoom-in-100 max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[94dvh] max-md:w-full max-md:max-w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0",
     stage === "media" &&
       "md:h-[min(56rem,calc(100dvh-4rem))] md:w-[min(82rem,calc(100vw-4rem))]",

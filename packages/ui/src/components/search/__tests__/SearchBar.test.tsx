@@ -70,7 +70,6 @@ describe("SearchBar WebMCP annotations", () => {
 });
 
 describe("SearchBar filter chips", () => {
-  // Names of the chip buttons inside the field, in order.
   const chipNames = (markup: string) =>
     [...markup.matchAll(/aria-label="Remove ([^"]+)"/g)].map(
       (match) => match[1]
@@ -88,7 +87,6 @@ describe("SearchBar filter chips", () => {
     expect(markup).toContain('aria-label="Clear all"');
   });
 
-  // Views live in the sidebar and types to pick in the View menu.
   test("never offers view or unpicked type chips", () => {
     const names = chipNames(renderSearchBar("", { filterTags: ["link"] }));
     expect(names).toEqual(["type Link"]);

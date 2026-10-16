@@ -74,8 +74,6 @@ const setup = async () => {
 
   const runScheduled = () => t.finishAllScheduledFunctions(vi.runAllTimers);
 
-  // Every page of a search, newest first unless args say otherwise, once
-  // the tag rows have caught up.
   const search = async (
     searchQuery: string,
     args: Record<string, unknown> = {},
@@ -203,7 +201,6 @@ describe("search qualifiers", () => {
     expect(await search("site:github.com")).toEqual(github);
     expect(await search("site:WWW.GITHUB.COM")).toEqual(github);
     expect(await search("site:https://github.com/anything")).toEqual(github);
-    // Subdomains are separate sites.
     expect(await search("site:example.com")).toEqual(["Example home"]);
   });
 
@@ -258,7 +255,6 @@ describe("search qualifiers", () => {
       "Blog post about design",
       "Design system on GitHub",
     ]);
-    // A type outside the view's types matches nothing.
     expect(await search("type:text", { types: ["link"] })).toEqual([]);
   });
 
@@ -273,11 +269,9 @@ describe("search qualifiers", () => {
     expect(await search("is:archived site:github.com")).toEqual([
       "Archived GitHub design",
     ]);
-    // Archived cards stay out of the library without is:archived.
     expect(await search("site:github.com")).not.toContain(
       "Archived GitHub design"
     );
-    // In Trash, is:archived keeps the trashed cards that were archived.
     expect(await search("is:archived", { showTrashOnly: true })).toEqual([
       "Trashed archived design",
     ]);
@@ -319,7 +313,6 @@ describe("search qualifiers", () => {
     expect(await search("folder:work", { folderId: reading._id })).toEqual([
       "In both folders",
     ]);
-    // A deleted folder's name answers to the newer folder that took it.
     await owner.mutation(api.folders.deleteFolder, { folderId: work._id });
     const newWork = await owner.mutation(api.folders.createFolder, {
       name: "WORK",
@@ -331,7 +324,6 @@ describe("search qualifiers", () => {
     expect(await search("folder:work")).toEqual(["Only reading"]);
     expect(await search("folder:nope")).toEqual([]);
     expect(await search("folder:secret")).toEqual([]);
-    // Another user's name in my search does not reach their folder.
     expect(await search("folder:work", {}, stranger)).toEqual([]);
   });
 
@@ -386,7 +378,6 @@ describe("search qualifiers", () => {
       await insert({ content: `more noise ${index}` });
     }
     await insert({ content: "newest match", url: "https://b.example/1" });
-    // Several sites read the library list in batches and filter each one.
     expect(await search("site:a.example site:b.example")).toEqual([
       "newest match",
       "oldest match",
@@ -622,7 +613,6 @@ describe("backfillUrlHost", () => {
           updatedAt: 1,
         });
         await syncCardSearchDocumentHandler(ctx, id);
-        // Cards saved before urlHost existed.
         await ctx.db.patch("cards", id, { urlHost: undefined });
         const document = await ctx.db
           .query("cardSearchDocuments")
@@ -692,7 +682,6 @@ describe("backfillUrlHost", () => {
       ["xn--r8jz45g.jp", "xn--r8jz45g.jp"],
     ]);
 
-    // A second run finds nothing to change.
     const again = await t.mutation(
       internal.migration.backfillUrlHost.backfillUrlHost,
       { batchSize: 10, once: true }

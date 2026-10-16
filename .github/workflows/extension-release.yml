@@ -67,7 +67,6 @@ jobs:
         env:
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
-          # Only store builds report errors and saves to PostHog.
           WXT_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
         run: bun run zip
 
@@ -124,7 +123,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Exchange the refresh token for a short-lived access token.
           access_token="$(curl -sS --fail \
             -X POST \
             -H "Content-Type: application/x-www-form-urlencoded" \

@@ -67,7 +67,6 @@ export type CardsVisualFilters = Pick<
 export interface CardsSearchQueryArgs {
   createdAtRange?: TimeFilter["range"];
   favoritesOnly?: boolean;
-  /** A folder view's folder. */
   folderId?: Id<"folders">;
   /** A smart folder's search, as this view read it. */
   folderQuery?: string;
@@ -262,7 +261,6 @@ export function buildCardsSearchResetKey(state: CardsSearchState): string {
   return `${searchTerms}::${state.filterTags.join(",")}::${state.styleFilters.join(",")}::${state.hueFilters.join(",")}::${state.hexFilters.join(",")}::${state.showFavoritesOnly}::${state.showTrashOnly}::${state.showArchivedOnly}::${state.tagFilter}::${state.timeFilter?.range.start ?? ""}-${state.timeFilter?.range.end ?? ""}`;
 }
 
-/** Quoted phrases as keyword chips, lowercased, quoted and escaped. */
 const phraseChips = (phrases: readonly string[]) =>
   Array.from(
     new Set(phrases.map((phrase) => quoteSearchValue(phrase.toLowerCase())))
@@ -300,7 +298,6 @@ export function cardsSearchStateFromQuery(
 
 /** Whether two searches mean the same thing, however they are written. */
 export function isSameSearch(left: string, right: string): boolean {
-  // Search ignores case, and chips are lowercased where it doesn't matter.
   return (
     parseSearchQuery(left).canonical.toLowerCase() ===
     parseSearchQuery(right).canonical.toLowerCase()
@@ -361,8 +358,6 @@ export function applyEnterToCardsSearchState(
   const styleAdditions: VisualStyle[] = [];
   const hueAdditions: ColorHueBucket[] = [];
   const hexAdditions: string[] = [];
-  // Qualifiers and quoted phrases become chips whole; the plain words left
-  // over are classified one by one.
   const parsed = parseSearchQuery(state.searchQuery);
   const qualifierAdditions = parsed.qualifiers.map(formatSearchQualifier);
   const keywordAdditions: string[] = phraseChips(parsed.phrases).filter(
@@ -531,22 +526,16 @@ export function applyBackspaceToCardsSearchState(
   return state;
 }
 
-/** The library order: a sort, and Shuffle's seed while shuffling. */
 interface CardsOrder {
   seed?: number;
   sort: CardListSort;
 }
 
-/** A seed other than `previous`, so a reshuffle always changes the order. */
 const nextShuffleSeed = (previous?: number): number => {
   const seed = randomShuffleSeed();
   return seed === previous ? (seed + 1) % 2 ** 31 : seed;
 };
 
-/**
- * The order a URL asks for. Shuffle without a seed keeps the one in use, or
- * picks a new one.
- */
 const orderFromUrl = (
   state: Pick<SearchUrlState, "seed" | "sort"> | undefined,
   previous?: CardsOrder
@@ -571,7 +560,6 @@ const orderQueryArgs = (
   return order.sort === "oldest" ? { sort: "oldest" } : {};
 };
 
-/** The search state a library page starts from, read from its URL. */
 const initialCardsSearchState = (
   urlState: SearchUrlState | undefined
 ): CardsSearchState => ({
@@ -621,8 +609,6 @@ export function useCardsSearchController(
       ...initialVisualFilters,
     })
   );
-  // In a routed view the route owns the favorites, archive and trash flags;
-  // the stored state keeps them off, so Backspace never clears a view.
   const searchState = useMemo<CardsSearchState>(
     () =>
       view === undefined
@@ -743,7 +729,6 @@ export function useCardsSearchController(
     };
   }, [debouncedSearchQuery, isSearchQueryEmpty, searchState.searchQuery]);
 
-  // Clearing the input (or turning it into a chip on Enter) applies at once.
   const remoteSearchQuery = isSearchQueryEmpty
     ? searchState.searchQuery
     : debouncedSearchQuery;
@@ -756,8 +741,6 @@ export function useCardsSearchController(
       }),
       ...orderQueryArgs(order),
       ...(folderId ? { folderId } : {}),
-      // A smart folder's search is part of the query, so editing it starts
-      // a new one instead of reusing pages read with the old search.
       ...(folderId && folderQuery !== undefined ? { folderQuery } : {}),
     }),
     [folderId, folderQuery, order, remoteSearchQuery, searchState]
@@ -786,8 +769,6 @@ export function useCardsSearchController(
     [searchState]
   );
 
-  // In a smart folder, local hits must match its search too. Null when the
-  // two searches can never both match.
   const localSearchTerms = useMemo(
     () =>
       folderQuery === undefined
@@ -796,10 +777,6 @@ export function useCardsSearchController(
     [folderQuery, searchTerms]
   );
 
-  // `folder:` names resolve on the server only, so those searches wait for
-  // remote results instead of showing local hits from other folders.
-  // `like:` and `mood:` match by meaning, which only the server knows, so
-  // they wait for remote results too.
   const hasFolderQualifier = useMemo(() => {
     if (localSearchTerms === null) {
       return true;
@@ -808,8 +785,6 @@ export function useCardsSearchController(
     return parsed.folders.length > 0 || Boolean(parsed.similarity);
   }, [localSearchTerms]);
 
-  // Instant local hits come from every card this screen has seen, so a
-  // manual folder's view keeps only the folder's own.
   const localSearchResults = useMemo(() => {
     if (hasFolderQualifier || localSearchTerms === null) {
       return [];
@@ -832,8 +807,6 @@ export function useCardsSearchController(
         tag: searchState.tagFilter,
       }
     );
-    // In seed order, as the server orders a search's matches, so instant
-    // hits do not jump when its results arrive.
     return shuffleSeed === undefined
       ? matches
       : shuffleBySeed(matches, shuffleSeed, (card) => card._id);
@@ -848,8 +821,6 @@ export function useCardsSearchController(
     sort,
   ]);
 
-  // While typing pauses are pending, the previous remote results stay on
-  // screen, narrowed to the current terms below, next to instant local hits.
   const isSearchPending = remoteSearchQuery !== searchState.searchQuery;
   // Remote cards answer the words typed now: their query is the current one.
   const remoteCardsAreCurrent =
@@ -864,9 +835,6 @@ export function useCardsSearchController(
     }
     return filterLocalCards(remoteCards, {
       searchTerms: localSearchTerms,
-      // Results for the current words matched them on the server, including
-      // text inside files that cards here don't carry; only stale results
-      // for earlier words are narrowed to the new ones.
       textMatchedByServer: remoteCardsAreCurrent,
       types: searchState.filterTags,
       styleFilters: searchState.styleFilters,
@@ -1004,7 +972,6 @@ export function useCardsSearchController(
         setDebouncedSearchQuery(state.q);
       }
       setSearchState((prev) => {
-        // Already showing this search (as chips or typed text): keep it as is.
         const sameTerms =
           keepSearch || isSameSearch(buildCardsSearchTerms(prev), state.q);
         const sameTypes =

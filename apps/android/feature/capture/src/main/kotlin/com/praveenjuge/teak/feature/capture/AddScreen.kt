@@ -47,7 +47,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 
-/** Alerts that come from the camera itself rather than from a pick. */
 private enum class CameraAlert { PermissionDenied, Unavailable }
 
 private val UriListSaver = listSaver<List<Uri>?, String>(
@@ -62,7 +61,6 @@ fun AddRoute(onWriteNote: () -> Unit, onRecordVoice: () -> Unit) {
     val context = LocalContext.current
     val appContext = context.applicationContext
 
-    // Picks waiting on the notification prompt, which is asked once, before the first upload.
     var waitingForNotificationPrompt by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(null) }
     var askedForNotifications by rememberSaveable { mutableStateOf(false) }
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -71,7 +69,6 @@ fun AddRoute(onWriteNote: () -> Unit, onRecordVoice: () -> Unit) {
     fun upload(uris: List<Uri>) = viewModel.upload(uris) { uri -> mediaFacts(appContext, uri) }
 
     val notificationPrompt = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        // Uploads go ahead either way; the permission only adds the progress notification.
         waitingForNotificationPrompt?.let(::upload)
         waitingForNotificationPrompt = null
     }
@@ -178,7 +175,6 @@ internal fun AddScreen(
             )
         },
     ) { padding ->
-        // On tablets and desktop windows the list keeps a readable width, centered.
         LazyColumn(
             modifier = Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 720.dp),
             contentPadding = PaddingValues(

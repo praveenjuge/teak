@@ -1,8 +1,8 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { executePublicApiOperation } from "../publicApiHttp";
+import type { PublicApiOperation } from "../publicApiHttpShared";
+import { mockActionCtx } from "./helpers/convex.test-utils";
 import { buildAuthorizedMutationMock } from "./helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "./helpers/session.test-utils";
 
@@ -24,7 +24,7 @@ const operation = {
 };
 
 const run = (
-  request: Record<string, unknown>,
+  request: PublicApiOperation,
   {
     query = mock().mockResolvedValue(null),
     mutation = mock().mockResolvedValue(null),
@@ -36,7 +36,10 @@ const run = (
   const runMutation = buildAuthorizedMutationMock();
   runMutation.mockImplementation((...args) => mutation(...args));
   const ctx = withMappedOwner({ runMutation, runQuery: query });
-  return executePublicApiOperation(ctx, { headers: AUTH, ...request });
+  return executePublicApiOperation(mockActionCtx(ctx), {
+    headers: AUTH,
+    ...request,
+  });
 };
 
 const argsOf = (fn: ReturnType<typeof mock>, call = 0) =>
@@ -88,7 +91,7 @@ describe("public API tag changes", () => {
   });
 
   test("refuses bad bodies before starting anything", async () => {
-    const bodies = [
+    const bodies: [string, unknown][] = [
       ["/v1/tags/rename", {}],
       ["/v1/tags/rename", { from: "a" }],
       ["/v1/tags/rename", { from: "a", to: "  " }],
@@ -112,7 +115,7 @@ describe("public API tag changes", () => {
       ["TAG_OPERATION_RUNNING", 409],
       ["TAG_EXISTS", 409],
       ["NOT_FOUND", 404],
-    ]) {
+    ] as const) {
       const mutation = mock().mockRejectedValue(
         new ConvexError({ code, message: "Nope" })
       );
@@ -188,7 +191,6 @@ describe("public API tag changes", () => {
       isComplete: true,
     });
 
-    // No summary yet: one is requested, and the partial list comes back.
     const none = mock()
       .mockResolvedValueOnce(partial)
       .mockResolvedValueOnce(null);
@@ -211,7 +213,6 @@ describe("public API tag changes", () => {
     expect(
       (await run({ method: "GET", path: "/v1/tags/operations/" })).status
     ).toBe(404);
-    // An id that isn't valid percent-encoding is not found, not a crash.
     expect(
       (await run({ method: "GET", path: "/v1/tags/operations/%E0" })).status
     ).toBe(404);

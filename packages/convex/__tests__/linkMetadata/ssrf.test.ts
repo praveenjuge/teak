@@ -5,12 +5,12 @@ import {
   type DnsResolver,
   detectIpVersion,
   isBlockedIp,
+  RedirectError,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
 } from "../../../convex/linkMetadata/ssrf";
 
-// Deterministic, offline DNS resolvers for injection.
 const resolveTo =
   (...addresses: string[]): DnsResolver =>
   async () =>
@@ -19,7 +19,6 @@ const resolveFails: DnsResolver = () => {
   throw new Error("dns failure");
 };
 const resolveEmpty: DnsResolver = async () => [];
-// Default resolver for tests that should never trigger DNS (literal IP hosts).
 const resolveUnused: DnsResolver = () => {
   throw new Error("DNS resolver should not have been called");
 };
@@ -52,8 +51,8 @@ describe("isBlockedIp", () => {
     expect(isBlockedIp("8.8.8.8")).toBe(false);
     expect(isBlockedIp("1.1.1.1")).toBe(false);
     expect(isBlockedIp("93.184.216.34")).toBe(false);
-    expect(isBlockedIp("172.32.0.1")).toBe(false); // just outside 172.16/12
-    expect(isBlockedIp("11.0.0.1")).toBe(false); // just outside 10/8
+    expect(isBlockedIp("172.32.0.1")).toBe(false);
+    expect(isBlockedIp("11.0.0.1")).toBe(false);
   });
 
   test("blocks IPv6 loopback, unspecified, unique-local, link-local", () => {
@@ -233,7 +232,6 @@ describe("safeFetch", () => {
     globalThis.fetch = ((input: RequestInfo | URL) => {
       const target = typeof input === "string" ? input : input.toString();
       requested.push(target);
-      // First public hop redirects to a private address.
       return Promise.resolve(
         Response.redirect("http://169.254.169.254/latest/meta-data", 302)
       );
@@ -242,7 +240,6 @@ describe("safeFetch", () => {
     await expect(
       safeFetch("https://8.8.8.8/start", resolveUnused)
     ).rejects.toBeInstanceOf(SsrfError);
-    // The internal redirect target must never be requested.
     expect(requested).toEqual(["https://8.8.8.8/start"]);
   });
 
@@ -250,9 +247,41 @@ describe("safeFetch", () => {
     globalThis.fetch = (async () =>
       new Response("ok", { status: 200 })) as unknown as typeof fetch;
 
-    const response = await safeFetch("https://8.8.8.8/data", resolveUnused);
+    const { finalUrl, response } = await safeFetch(
+      "https://8.8.8.8/data",
+      resolveUnused
+    );
+    expect(finalUrl).toBe("https://8.8.8.8/data");
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
+  });
+
+  test("reports the URL of the hop that answered after redirects", async () => {
+    globalThis.fetch = ((input: RequestInfo | URL) =>
+      Promise.resolve(
+        String(input) === "https://8.8.8.8/start"
+          ? new Response(null, { headers: { location: "/end" }, status: 301 })
+          : new Response("ok")
+      )) as typeof fetch;
+
+    const { finalUrl } = await safeFetch(
+      "https://8.8.8.8/start",
+      resolveUnused
+    );
+    expect(finalUrl).toBe("https://8.8.8.8/end");
+  });
+
+  test("fails a redirect loop as a redirect error, not a refused URL", async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(null, { headers: { location: "/again" }, status: 302 })
+      )) as unknown as typeof fetch;
+
+    const error = await safeFetch("https://8.8.8.8/start", resolveUnused).catch(
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(RedirectError);
+    expect((error as RedirectError).reason).toBe("too_many_redirects");
   });
 
   test("passes only validated DNS addresses to the connection", async () => {
@@ -264,9 +293,13 @@ describe("safeFetch", () => {
       return Promise.resolve(new Response("ok"));
     };
 
-    await expect(
-      safeFetch("https://example.com/", resolveTo("93.184.216.34"), {}, pinned)
-    ).resolves.toBeInstanceOf(Response);
+    const { response } = await safeFetch(
+      "https://example.com/",
+      resolveTo("93.184.216.34"),
+      {},
+      pinned
+    );
+    expect(await response.text()).toBe("ok");
   });
 });
 

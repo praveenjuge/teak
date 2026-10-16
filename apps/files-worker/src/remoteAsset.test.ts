@@ -6,7 +6,7 @@ import {
 import { FETCHER_HEADERS } from "../fetcher/src/protocol";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
-import { FakeBucket, JPEG_BYTES } from "./testsupport";
+import { FakeBucket, JPEG_BYTES } from "./test/testsupport";
 
 const SECRET = "test-secret";
 const KEY = "users/u1/cards/c1/link-preview-image/abc";

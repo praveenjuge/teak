@@ -29,7 +29,6 @@ describe("parseSearchQuery", () => {
   });
 
   test.each([
-    // [input, field, expected]
     ["#Design", "tags", ["design"]],
     ["TAG:Design", "tags", ["design"]],
     ['tag:"Design Systems"', "tags", ["design systems"]],
@@ -207,7 +206,6 @@ describe("matchesSearchPhrases", () => {
 
 describe("combineSearchQueries", () => {
   test.each([
-    // Both must match: tags, folders, phrases and words add up.
     ["tag:design", "tag:ui notes", "tag:design tag:ui notes"],
     [
       'folder:reading "deep work"',
@@ -216,8 +214,6 @@ describe("combineSearchQueries", () => {
     ],
     ["", "tag:x", "tag:x"],
     ["tag:x", "", "tag:x"],
-    // type: and site: match any of their values, so across the two they
-    // intersect.
     ["type:link type:image", "type:link", "type:link"],
     ["type:link", "type:link type:image", "type:link"],
     ["site:a.com site:b.com", "site:B.com", "site:b.com"],

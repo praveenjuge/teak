@@ -1,11 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  mkdirSync,
-  mkdtempSync,
-  statSync,
-  utimesSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -74,50 +68,34 @@ describe("readConvexSelection", () => {
 });
 
 describe("isInstallStale", () => {
-  /** Fixture root with node_modules and bun.lock at controlled mtimes. */
-  const createMockProject = (newer: "lock" | "modules"): { root: string } => {
+  const createProject = (): string => {
     const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const modules = join(root, "node_modules");
-    const lock = join(root, "bun.lock");
-    mkdirSync(modules, { recursive: true });
-    writeFileSync(lock, "lock");
-    const now = new Date();
-    const older = new Date(now.getTime() - 10_000);
-    const [newerPath, olderPath] =
-      newer === "lock" ? [lock, modules] : [modules, lock];
-    utimesSync(newerPath, now, now);
-    utimesSync(olderPath, older, older);
-    return { root };
+    writeFileSync(join(root, "bun.lock"), "lock v1");
+    return root;
   };
 
   test("stale when node_modules is missing", () => {
-    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    writeFileSync(join(root, "bun.lock"), "lock");
+    expect(isInstallStale(createProject())).toBe(true);
+  });
+
+  test("stale when node_modules was not installed by setup", () => {
+    const root = createProject();
+    mkdirSync(join(root, "node_modules"));
     expect(isInstallStale(root)).toBe(true);
   });
 
-  test("stale when bun.lock is newer than node_modules", () => {
-    const { root } = createMockProject("lock");
-    expect(isInstallStale(root)).toBe(true);
-  });
-
-  test("fresh when node_modules is newer than bun.lock", () => {
-    const { root } = createMockProject("modules");
-    expect(isInstallStale(root)).toBe(false);
-  });
-
-  test("markInstallFresh clears staleness after an install", () => {
-    // Bun writes the lockfile last, so a fresh install looks stale.
-    const { root } = createMockProject("lock");
-    // Real lockfiles carry sub-millisecond mtimes; the stamp must beat those.
-    const lock = join(root, "bun.lock");
-    const nowMs = Date.now() + 0.5;
-    utimesSync(lock, nowMs / 1000, nowMs / 1000);
-    expect(isInstallStale(root)).toBe(true);
+  test("fresh after setup marks the install of this bun.lock", () => {
+    const root = createProject();
+    mkdirSync(join(root, "node_modules"));
     markInstallFresh(root);
     expect(isInstallStale(root)).toBe(false);
-    expect(statSync(join(root, "node_modules")).mtimeMs).toBeGreaterThan(
-      statSync(lock).mtimeMs
-    );
+  });
+
+  test("stale again once bun.lock changes", () => {
+    const root = createProject();
+    mkdirSync(join(root, "node_modules"));
+    markInstallFresh(root);
+    writeFileSync(join(root, "bun.lock"), "lock v2");
+    expect(isInstallStale(root)).toBe(true);
   });
 });

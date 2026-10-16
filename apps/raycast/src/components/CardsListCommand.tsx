@@ -95,7 +95,6 @@ export function CardsListCommand({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Ignores pages that arrive after the filters changed.
   const requestGeneration = useRef(0);
 
   const {
@@ -221,7 +220,9 @@ export function CardsListCommand({
       handleCardUpdated({ ...card, isFavorited: !previousState });
 
       try {
-        handleCardUpdated(await setCardFavorite(card.id, !previousState));
+        handleCardUpdated(
+          await setCardFavorite(card.id, !previousState, "prompt"),
+        );
       } catch {
         handleCardUpdated(card);
       }

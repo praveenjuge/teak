@@ -20,7 +20,6 @@ import { SettingRow, SettingValueSkeleton } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
 
-// Loaded values fade in over their placeholder instead of popping in.
 const LOADED_VALUE = "fade-in-0 animate-in duration-300";
 const LOADED_GROUP = `${LOADED_VALUE} flex items-center gap-2 -space-x-2.5`;
 
@@ -167,8 +166,6 @@ export function SettingsContent({
         sessionsLoadingMore={sessionsLoadingMore}
       />
 
-      {/* Import is always available; the Export tab uses these handlers, which
-          web always supplies, so the section is not gated on them. */}
       <ImportExportSection
         exportLoading={exportLoading ?? exportState === undefined}
         exportState={exportState}

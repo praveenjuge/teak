@@ -183,7 +183,6 @@ describe("folder bulk actions", () => {
   });
 
   test("Undo of a move puts back the source and keeps an earlier destination", () => {
-    // c1 was only in A; c2 was in A and already in C.
     const before = new Map([
       ["c1", ["a"]],
       ["c2", ["a", "c"]],

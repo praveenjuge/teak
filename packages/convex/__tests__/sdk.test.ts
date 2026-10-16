@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   buildCardsSearchParams,
   createTeakClient,
+  type Folder,
   parseTags,
+  type TagOperation,
   type TeakApiError,
 } from "../client/sdk";
 
@@ -210,7 +212,7 @@ describe("@teak/convex/sdk", () => {
     expect(seenUrls).toEqual([
       "https://api.example/v1/cards?q=hello&include=content%2Cmetadata&limit=10",
     ]);
-    expect(result).toEqual({
+    expect(result).toEqual<unknown>({
       items: [{ id: "card_1", content: "hello" }],
       pageInfo: { hasMore: false, nextCursor: null },
     });
@@ -357,7 +359,7 @@ describe("@teak/convex/sdk", () => {
 
   test("starts tag changes and polls their progress", async () => {
     const sent: Array<{ body: unknown; method: string; url: string }> = [];
-    const operation = {
+    const operation: TagOperation = {
       id: "op1",
       kind: "rename",
       from: "design",
@@ -431,11 +433,12 @@ describe("@teak/convex/sdk", () => {
 
   test("manages folders and their cards", async () => {
     const sent: Array<{ body: unknown; method: string; url: string }> = [];
-    const folder = {
+    const folder: Folder = {
       id: "f1",
       name: "Reading",
       color: "blue",
       kind: "manual",
+      query: null,
       cardCount: 2,
       createdAt: 1,
       updatedAt: 1,

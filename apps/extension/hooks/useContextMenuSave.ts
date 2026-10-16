@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import type { ContextMenuSaveState } from "../types/contextMenu";
+import {
+  type ContextMenuSaveState,
+  RECENT_CONTEXT_MENU_SAVE_MS,
+} from "../types/contextMenu";
 
 export interface UseContextMenuSaveResult {
   clearSave: () => void;
   isRecentSave: boolean;
   state: ContextMenuSaveState;
 }
-
-const RECENT_SAVE_THRESHOLD = 5000; // 5 seconds
 
 const isContextMenuSaveState = (
   value: unknown
@@ -47,12 +48,10 @@ export const useContextMenuSave = (): UseContextMenuSaveResult => {
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
-  // Once the popup shows a right-click save, it keeps showing it while open,
-  // so an "already saved" or error result is not replaced by an auto-save.
   useEffect(() => {
     if (
       contextMenuSave.timestamp &&
-      Date.now() - contextMenuSave.timestamp < RECENT_SAVE_THRESHOLD
+      Date.now() - contextMenuSave.timestamp < RECENT_CONTEXT_MENU_SAVE_MS
     ) {
       setIsRecentSave(true);
     }

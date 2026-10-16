@@ -93,7 +93,6 @@ export const isCardDrag = (dataTransfer: DataTransfer | null): boolean =>
     dataTransfer && Array.from(dataTransfer.types).includes(CARD_DRAG_TYPE)
   );
 
-/** The app path of a folder's view. */
 export const folderPath = (folderId: string) =>
   `/f/${encodeURIComponent(folderId)}`;
 
@@ -154,7 +153,6 @@ export const folderErrorMessage = (error: unknown, fallback: string) => {
 
 /** What the screen shows besides the search box, for saving it. */
 export interface SmartFolderSearchContext {
-  /** The folder being viewed. */
   folder?: Pick<FolderSummary, "kind" | "name" | "query"> | null;
   /** The sidebar tag (`?tag=`). */
   tag?: string;
@@ -181,7 +179,6 @@ export const buildSmartFolderQuery = ({
   if (view === "trash") {
     return null;
   }
-  // Where the search runs first (folder, view), then what narrows it.
   const extra = [
     ...(folder && folder.kind !== "smart"
       ? [formatSearchQualifier({ key: "folder", value: folder.name })]

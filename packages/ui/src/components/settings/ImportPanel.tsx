@@ -105,9 +105,6 @@ function describeFailure(job: ImportJob): string | null {
   return describeImportFailure(job.mode, job.failureClass);
 }
 
-// Overall progress as one monotonic fraction: upload fills the first stretch,
-// then parsing/importing carry it to the end (importing uses the real
-// processed/parsed ratio when available).
 function progressPercent(job: ImportJob, uploadPercent?: number): number {
   switch (job.status) {
     case "uploading":
@@ -311,7 +308,6 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     }
   };
 
-  // Validate + stage a file for confirmation before any upload starts.
   const stageFile = (file: File, mode: ImportMode) => {
     const error = validateFile(file, mode);
     if (error) {

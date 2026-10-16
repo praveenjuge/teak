@@ -16,10 +16,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Tells the backend which app saved a card, for product analytics. */
 internal const val CARD_SOURCE = "android"
 
-/** What the library is showing: search text, or a date range parsed from it, plus the chips. */
 data class CardQuery(
     val search: String = "",
     val range: CreatedAtRange? = null,
@@ -51,11 +49,11 @@ class ConvexCardsRepository @Inject constructor(
 ) : CardsRepository {
     override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
         val args = buildMap<String, Any?> {
-            put("paginationOpts", mapOf("numItems" to numItems.toDouble(), "cursor" to cursor))
+            put("paginationOpts", mapOf("numItems" to numItems, "cursor" to cursor))
             putAll(query.filters.toSearchArgs())
             val range = query.range
             if (range != null) {
-                put("createdAtRange", mapOf("start" to range.start.toDouble(), "end" to range.end.toDouble()))
+                put("createdAtRange", mapOf("start" to range.start, "end" to range.end))
             } else if (query.search.isNotBlank()) {
                 put("searchQuery", query.search.trim())
             }

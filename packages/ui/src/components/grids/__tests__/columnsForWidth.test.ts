@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { columnsForWidth } from "../MasonryGrid";
 
-// The grid's own width decides the columns, so the sidebar (open, collapsed
-// or hidden) never squeezes cards.
 describe("columnsForWidth", () => {
   test.each([
-    // [grid width, columns]: phone, tablet beside the sidebar, desktop.
     [358, 1],
     [480, 2],
     [736, 3],

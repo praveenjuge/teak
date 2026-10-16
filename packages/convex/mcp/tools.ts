@@ -61,7 +61,6 @@ const cardTypeSchema = z.enum([
 const includeSchema = z.enum(["content", "metadata", "processing"]);
 const MAX_VISUAL_FILTERS = 24;
 
-// Filters shared by the list and search tools, mirroring GET /v1/cards.
 const cardFiltersShape = {
   q: z.string().optional(),
   limit: z.number().int().positive().max(100).optional(),
@@ -970,7 +969,6 @@ const instrumentToolHandler =
         const structured = result.structuredContent as
           | { status?: unknown }
           | undefined;
-        // A partial bulk failure has no HTTP status of its own.
         status =
           typeof structured?.status === "number"
             ? structured.status
@@ -1006,9 +1004,6 @@ const executeToolOperation = async (
     };
   }
 
-  // The Files Worker's rate-limit attestation is bound to this same
-  // Authorization value, so the operation is charged exactly as the MCP
-  // request was.
   const edgeRateLimit = request.headers.get(EDGE_RATE_LIMIT_HEADER);
   const response = await executor({
     ...operation,
@@ -1034,7 +1029,6 @@ const executeToolOperation = async (
 };
 
 interface ToolConfig {
-  /** Marks a successful HTTP response as a tool error, e.g. failed bulk items. */
   isError?: (payload: JsonObject) => boolean;
   operation: (input: any) => PublicApiToolOperation;
   schema: z.ZodTypeAny;
@@ -1045,7 +1039,6 @@ interface ToolConfig {
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
 
-/** "1 card", "3 cards". */
 const countLabel = (value: number, noun: string) =>
   `${value} ${noun}${value === 1 ? "" : "s"}`;
 
@@ -1061,9 +1054,6 @@ const bulkSummary = (payload: JsonObject) => {
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
 const folderPath = (id: string): string =>
   `/v1/folders/${encodeURIComponent(id)}`;
-// Search-style tools query the card list endpoint. The list returns full cards
-// only with content+metadata included, and the transform keeps the stable
-// {items,total} tool payload unchanged.
 const FULL_CARD_INCLUDE = "content,metadata";
 const pageToCardResults = (payload: JsonObject): JsonObject => ({
   items: Array.isArray(payload.items) ? payload.items : [],

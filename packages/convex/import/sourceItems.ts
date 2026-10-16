@@ -20,7 +20,7 @@ export interface SourceLink {
 
 const MAX_TAGS = 50;
 const MAX_TAG_LENGTH = 64;
-const MAX_NOTES_LENGTH = 100_000;
+export const MAX_NOTES_LENGTH = 100_000;
 
 /**
  * Tags as a card accepts them: trimmed, without blanks or tags longer than
@@ -90,7 +90,6 @@ export function parseSourceDate(
   if (!text) {
     return;
   }
-  // "YYYY-MM-DD HH:MM" is common in CSV exports; make it ISO.
   return parseImportedTimestamp(
     text.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/, "$1T$2")
   );
@@ -133,6 +132,11 @@ export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
 }
 
 /** Throws the error every parser raises for a file from the wrong source. */
+/** The source holds more items than one import takes. */
+export class ImportLimitExceeded extends Error {
+  override name = "ImportLimitExceeded";
+}
+
 export function notAnExport(source: string): never {
   const article = /^[aeiou]/i.test(source) ? "an" : "a";
   throw new Error(`This doesn't look like ${article} ${source} export`);

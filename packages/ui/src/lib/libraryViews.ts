@@ -30,6 +30,15 @@ export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
   trash: "Search Trash",
 };
 
+/** `path` without trailing slashes, keeping a lone root `/`, in one pass. */
+function trimTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 1 && path[end - 1] === "/") {
+    end -= 1;
+  }
+  return path.slice(0, end);
+}
+
 /** The view a pathname shows, or null outside the library (settings). */
 export function libraryViewForPath(
   pathname: string | null | undefined
@@ -37,13 +46,7 @@ export function libraryViewForPath(
   if (!pathname) {
     return null;
   }
-  // Trim trailing slashes without a regex: a long run of "/" in a pasted URL
-  // must not cost more than one pass.
-  let end = pathname.length;
-  while (end > 1 && pathname[end - 1] === "/") {
-    end -= 1;
-  }
-  const path = pathname.slice(0, end);
+  const path = trimTrailingSlashes(pathname);
   for (const view of LIBRARY_VIEWS) {
     if (LIBRARY_VIEW_PATHS[view] === path) {
       return view;

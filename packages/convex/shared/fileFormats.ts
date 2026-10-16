@@ -1,3 +1,4 @@
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import type { CardType } from "./constants";
 
 export const FILE_KINDS = [
@@ -65,7 +66,7 @@ export interface FilePreviewFacts {
 }
 
 export const MAX_FILE_NAME_LENGTH = 240;
-export const MAX_FILE_SIZE = 100 * 1024 * 1024;
+export const MAX_FILE_SIZE = FILES_UPLOAD_MAX_BYTES;
 
 export const GENERIC_MIME_TYPES = new Set([
   "",
@@ -624,9 +625,6 @@ const findFormatByFileName = (
   if (matches.length === 0) {
     return undefined;
   }
-  // Extensions such as `.webm` and `.mp4` exist in both audio and video
-  // flavors. Keep the first match as the default, but prefer a definition
-  // whose MIME types accept the provided MIME when the default rejects it.
   const primary = matches[0];
   if (
     !mimeType ||

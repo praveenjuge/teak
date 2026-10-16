@@ -2,9 +2,6 @@ import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
 
-// The WorkOS AuthKit component holds the provider profile. Teak's own deletion
-// tombstone still wins: a deleted WorkOS user never regains a profile, even if
-// a stale component row or a late event says otherwise.
 export async function readCanonicalWorkosProfile(
   ctx: Pick<QueryCtx, "db" | "runQuery">,
   workosUserId: string

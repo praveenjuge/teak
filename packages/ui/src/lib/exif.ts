@@ -21,7 +21,6 @@ const isPositive = (value: unknown): value is number =>
 const cleanText = (value: unknown): string =>
   typeof value === "string" ? value.replace(/\s+/gu, " ").trim() : "";
 
-// Drop a trailing ".0" so f/8 and 50 mm read naturally.
 const trimDecimal = (value: number): string =>
   String(Math.round(value * 10) / 10);
 
@@ -64,7 +63,6 @@ const formatTakenAt = (takenAt?: number): string | null => {
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-  // Matches the Created and Updated rows beside it.
   return date.toLocaleDateString("en-US", {
     day: "numeric",
     hour: "2-digit",

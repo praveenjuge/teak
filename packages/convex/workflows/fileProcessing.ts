@@ -1,7 +1,7 @@
 "use node";
 
 import {
-  FILES_RENDER_MAX_SOURCE_BYTES,
+  FILES_UPLOAD_MAX_BYTES,
   type FilesInspectMode,
 } from "@teak/files-protocol";
 import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
@@ -84,10 +84,8 @@ export const extractFileTextForKey = async (
     mode = "zip";
     maxBytes = MAX_ARCHIVE_INSPECTION_BYTES;
   } else if (pdf) {
-    // The renderer reads PDFs of any upload size; a busy renderer throws, so
-    // the metadata step retries.
     mode = "pdf";
-    maxBytes = FILES_RENDER_MAX_SOURCE_BYTES;
+    maxBytes = FILES_UPLOAD_MAX_BYTES;
   }
   let outcome: FilesWorkerOutcome<FilesWorkerInspectResult>;
   try {

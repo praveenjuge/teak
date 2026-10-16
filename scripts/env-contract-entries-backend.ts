@@ -1,10 +1,3 @@
-/**
- * Environment contract entries: convex backend, capability groups, and deployment plumbing.
- *
- * One third of ENV_CONTRACT, assembled in ./env-contract.ts. Names and
- * metadata only - never values.
- */
-
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const BACKEND_ENTRIES: EnvVarSpec[] = [
@@ -30,7 +23,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Migration account-change pause. Unset means account changes remain available.",
   }),
-  // WorkOS AuthKit is the only sign-in provider; every deployment needs it.
   spec("WORKOS_CLIENT_ID", {
     owners: ["@teak/convex", "@teak/web"],
     targets: ["convex", "web"],
@@ -132,7 +124,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "WorkOS callback signing secret. Separate per environment.",
   }),
-  // Convex backend core.
   spec("SITE_URL", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -154,8 +145,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Public origin for self-hosted /api and /mcp. Optional locally; required when self-hosting public endpoints.",
   }),
-  // Canonical deployment facts. Framework aliases derive from these via
-  // scripts/env-aliases.ts; nothing reads the canonical names directly.
   spec("CONVEX_URL", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -178,7 +167,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE_PUBLIC_CONVEX_SITE_URL aliases.",
   }),
-  // Staged operational-cost rollout.
   ...["OPERATIONAL_RETENTION_ENABLED"].map((name) =>
     spec(name, {
       owners: ["@teak/convex"],
@@ -229,7 +217,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
-  // Polar billing capability group.
   spec("POLAR_ACCESS_TOKEN", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -249,7 +236,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
-  // PostHog: product analytics and error reports (US Cloud, one project).
   spec("POSTHOG_PROJECT_TOKEN", {
     classification: "public-config",
     owners: ["@teak/convex", "@teak/files-worker", "teak-release"],
@@ -322,7 +308,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Read by posthog-cli; https://us.posthog.com.",
   }),
-  // Convex deployment plumbing.
   spec("CONVEX_DEPLOY_KEY", {
     owners: ["@teak/convex"],
     targets: ["convex", "release"],

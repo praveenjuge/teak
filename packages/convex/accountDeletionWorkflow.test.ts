@@ -110,7 +110,7 @@ describe("durable deletion admission and tombstones", () => {
     const binding = { stateId: state!._id, generation: 1 };
     const scan = () =>
       t.action(internal.accountDeletionData.prepareWriters, binding);
-    expect(await scan()).toBe(false); // Empty import page switches to exports.
+    expect(await scan()).toBe(false);
     const cancelled = () =>
       t.run((ctx) =>
         ctx.db
@@ -132,7 +132,7 @@ describe("durable deletion admission and tombstones", () => {
     expect(
       (await cancelled()).filter((row) => row.cancelRequested)
     ).toHaveLength(45);
-    expect(await scan()).toBe(true); // Lost final reply resumes from the committed marker.
+    expect(await scan()).toBe(true);
     await expect(
       t.action(internal.accountDeletionData.prepareWriters, {
         ...binding,
@@ -644,8 +644,6 @@ describe("durable deletion admission and tombstones", () => {
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
-    // Exports written before the move to the top-level exports/ prefix keep
-    // their per-user key; both must be erased.
     const storage = new Set([
       "users/exact/file",
       "users/exact/export.zip",
@@ -737,7 +735,6 @@ describe("durable deletion admission and tombstones", () => {
         tags: ["private"],
         folderIds: [],
       });
-      // A row in every table the library features keep per account.
       const folderId = await ctx.db.insert("folders", {
         userId: "permanent-owner",
         name: "Private",
@@ -1010,8 +1007,6 @@ describe("billing closure", () => {
   });
 });
 
-// Failure modes: unbounded cleanup times out; retries lose their cursor;
-// stale generations revoke a different account; sibling grants are touched.
 test("local consent cleanup yields and resumes atomically across action retries", async () => {
   const { t, signed } = await fixture();
   await t.run(async (ctx) => {
@@ -1058,7 +1053,6 @@ test("local consent cleanup yields and resumes atomically across action retries"
     await t.action(internal.accountDeletionActions.runStage, binding)
   ).toBe(false);
   expect(await revoked()).toBe(100);
-  // A fresh action invocation represents retry after a lost response.
   expect(
     await t.action(internal.accountDeletionActions.runStage, binding)
   ).toBe(false);

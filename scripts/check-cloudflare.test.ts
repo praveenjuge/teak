@@ -8,7 +8,24 @@ import {
   PRODUCTION_FILES_BASE,
   PRODUCTION_STORAGE_BUCKET,
   parseScopeArg,
+  readWranglerConfig,
+  WRANGLER_PATH,
 } from "./check-cloudflare.ts";
+
+describe("readWranglerConfig", () => {
+  test("keeps // inside string values and reads the committed bindings", () => {
+    const cfg = readWranglerConfig(WRANGLER_PATH);
+    expect(cfg.vars?.API_UPSTREAM_ORIGIN).toStartWith("https://");
+    expect(cfg.r2_buckets).toEqual([
+      expect.objectContaining({
+        binding: "BUCKET",
+        bucket_name: PRODUCTION_STORAGE_BUCKET,
+      }),
+    ]);
+    expect(cfg.images?.binding).toBe("IMAGES");
+    expect(cfg.ai?.binding).toBe("AI");
+  });
+});
 
 describe("parseScopeArg", () => {
   test("null without the flag", () => {

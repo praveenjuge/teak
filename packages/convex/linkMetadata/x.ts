@@ -1,5 +1,6 @@
 import { sanitizeText, sanitizeUrl } from "./parsing";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
+import { decodeHtmlEntities } from "./staticHtml";
 
 export const X_HOSTNAMES = ["x.com", "twitter.com"] as const;
 const X_OEMBED_ENDPOINTS = [
@@ -83,24 +84,11 @@ export const extractXStatusId = (url: string): string | undefined => {
 export const isXStatusUrl = (url: string): boolean =>
   Boolean(extractXStatusId(url));
 
-const decodeHtmlEntities = (value: string): string =>
-  value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
-      String.fromCharCode(Number.parseInt(hex, 16))
-    )
-    .replace(/&#([0-9]+);/g, (_, num) =>
-      String.fromCharCode(Number.parseInt(num, 10))
-    )
-    .replace(/&amp;/gi, "&");
-
 const stripHtml = (value: string): string =>
-  decodeHtmlEntities(value).replace(/<[^>]+>/g, " ");
+  decodeHtmlEntities(value.replace(/<br\s*\/?>/gi, "\n")).replace(
+    /<[^>]+>/g,
+    " "
+  );
 
 const stripTrailingTcoLinks = (value: string | undefined): string | undefined =>
   value?.replace(/\s+https:\/\/t\.co\/[a-zA-Z0-9]+$/g, "").trim() || undefined;

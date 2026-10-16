@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Reads the text from a `teak://save?text=…` link, straight from the raw URL, so a `#`, `&` or `%`
- * inside the text survives exactly as the automation app sent it. Matches iOS's `textFromSaveLink`.
+ * inside the text survives exactly as the automation app sent it.
  */
 object SaveLink {
     fun text(url: String?): String {

@@ -1,18 +1,3 @@
-/**
- * fetch-link-page: fetch a saved link's page and scrape its preview metadata.
- * The link fetcher Container fetches the page under Convex's SSRF policy and
- * address pinning and matches the selectors against its static HTML with
- * Convex's own parser (fetcher/src/fetchPage.ts). When that finds nothing, as
- * on pages that build their tags in script, the same HTML is rendered offline
- * on Browser Run, which is what Convex did as a second call.
- *
- * Fetched pages are kept in KV for a day, keyed by URL and selectors, so a
- * link many people save is fetched and rendered once. Every fetch is
- * anonymous (no cookies or credentials), so any requester of the same URL
- * would get the same page; pages marked `no-store` or `private`, and
- * refusals, are never kept.
- */
-
 import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesLinkPageFailureReason,
@@ -34,16 +19,13 @@ export type LinkPageEnv = Pick<
   RemoteAssetEnv,
   "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
 > & {
-  /** Fetched pages for a day; unset (no caching) outside production. */
   LINK_PAGE_CACHE?: KVNamespace;
 };
 
-/** How long a fetched page is reused. */
 export const LINK_PAGE_CACHE_TTL_SECONDS = 24 * 60 * 60;
 
 export interface LinkPageDeps {
   random?: () => number;
-  /** Browser Run scrape of offline HTML; unset when there is no browser. */
   scrape?: (html: string, selectors: string[]) => Promise<FilesScrapeResult>;
 }
 
@@ -101,7 +83,6 @@ const isPageResponse = (value: unknown): value is PageResponse => {
 const hasResults = (selectors: FilesScrapeResult["selectors"]) =>
   selectors.some((entry) => entry.results.length > 0);
 
-/** The page as UTF-8, gzipped and base64 encoded for the JSON result. */
 const gzipBase64 = async (text: string): Promise<string> => {
   const compressed = new Uint8Array(
     await new Response(
@@ -139,9 +120,10 @@ const readFailure = async (
   };
 };
 
-// The version changes whenever the cached result's shape or meaning does.
+const LINK_PAGE_CACHE_VERSION = 1;
+
 const cacheKey = async ({ selectors, url }: FilesLinkPageParams) =>
-  `link-page:v1:${await sha256Hex(JSON.stringify([url, selectors]))}`;
+  `link-page:v${LINK_PAGE_CACHE_VERSION}:${await sha256Hex(JSON.stringify([url, selectors]))}`;
 
 const readCached = async (
   cache: KVNamespace,
@@ -151,7 +133,6 @@ const readCached = async (
     const value = await cache.get<FilesLinkPageResult>(key, "json");
     return value?.fetched === true ? value : null;
   } catch (error) {
-    // A cache that cannot be read is a miss, never a failed fetch.
     console.warn("fetch-link-page: cache read failed", {
       message: error instanceof Error ? error.message : String(error),
     });
@@ -211,10 +192,7 @@ export const fetchLinkPage = async (
 
   let { selectors } = page;
   let source: "browser" | "static" = "static";
-  // A render that failed is retried by the next save, so it is not kept.
   let renderFailed = false;
-  // As Convex did: a browser result replaces the static one even when it is
-  // also empty, and a failed or unavailable browser keeps the static one.
   if (page.html && !hasResults(selectors) && deps.scrape) {
     try {
       selectors = (await deps.scrape(page.html, params.selectors)).selectors;

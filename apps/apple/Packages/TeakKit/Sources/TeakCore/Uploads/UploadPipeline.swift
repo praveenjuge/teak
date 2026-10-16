@@ -1,12 +1,10 @@
 import Foundation
 
-/// A file to save as a card.
 public struct UploadItem: Sendable, Hashable {
     public var fileURL: URL
     public var fileName: String
     public var mimeType: String?
     public var fileSize: Int?
-    /// Pixel size and duration, when the picker knows them.
     public var width: Double?
     public var height: Double?
     public var duration: Double?
@@ -31,9 +29,7 @@ public struct UploadItem: Sendable, Hashable {
     }
 }
 
-/// PUTs a file to a signed URL. Abstracted so tests can answer uploads.
 public protocol FileUploadTransport: Sendable {
-    /// Returns the HTTP status and the `ETag` header.
     func put(_ file: URL, to url: URL, contentType: String) async throws -> (status: Int, etag: String?)
 }
 
@@ -48,7 +44,6 @@ public struct URLSessionFileUpload: FileUploadTransport {
         var request = URLRequest(url: url, timeoutInterval: 300)
         request.httpMethod = "PUT"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-        // Streams from disk, so a 100 MB video never sits in memory.
         let (_, response) = try await session.upload(for: request, fromFile: file)
         guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         return (http.statusCode, http.value(forHTTPHeaderField: "ETag"))
@@ -127,7 +122,6 @@ public struct UploadPipeline: Sendable {
         return cardId
     }
 
-    /// Retries timeouts, rate limits, server errors and dropped connections.
     func put(_ file: URL, to url: URL, contentType: String) async throws -> String? {
         var attempt = 0
         while true {

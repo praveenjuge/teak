@@ -1,7 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// New Note: one field for a note or a pasted link. ⌘↩ saves.
 struct NoteComposerView: View {
     @Environment(CaptureModel.self) private var capture
     @Environment(AppRouter.self) private var router
@@ -61,7 +60,6 @@ struct NoteComposerView: View {
             if await capture.saveText(text) != nil {
                 text = ""
                 router.composerText = ""
-                // Like the iPhone app, a saved note lands back in the library.
                 router.tab = .home
                 dismiss()
             }
@@ -69,7 +67,6 @@ struct NoteComposerView: View {
     }
 }
 
-/// The composer as the first tile of the grid on iPad and Mac.
 struct InlineComposerTile: View {
     let width: Double
     @Environment(CaptureModel.self) private var capture

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { finalizeImageUpload, normalizeDecodedFormat } from "./finalizeImage";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng } from "./test/testsupport";
 
 const SECRET = "finalize-test-secret";
 const NOW = 1_800_000_000;
@@ -187,8 +187,6 @@ describe("finalize-image-upload", () => {
           decodeCount += 1;
           void stream.cancel();
           if (decodeCount === 1) {
-            // The verified read; a concurrent writer replaces the key right
-            // after decoding completes.
             bucket.objects.set(SOURCE_KEY, {
               bytes: new TextEncoder().encode("malicious replacement"),
               httpMetadata: { contentType: "text/plain" },

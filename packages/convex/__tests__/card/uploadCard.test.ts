@@ -112,8 +112,6 @@ describe("direct upload URLs", () => {
     const registerObject = getFunctionName(
       internal.storage.ownership.registerObject
     );
-    // Every rate-limit check is exhausted: only the finalize step, which
-    // creates the card, may charge the creation limit.
     const runMutation = mock(async (ref: any) =>
       getFunctionName(ref) === registerObject
         ? true

@@ -1,7 +1,6 @@
 "use client";
 
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import { useEffect } from "react";
 import {
@@ -17,24 +16,34 @@ interface TeakWebmcpDebugHandle {
   tools: string[];
 }
 
-const recordToolEvent = (type: WebMcpToolEventType): void => {
+type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
+
+const createDevDebugHandle = () => {
   if (process.env.NODE_ENV === "production") {
-    return;
+    return {
+      clear: () => {},
+      markRegistered: () => {},
+      recordEvent: (_type: WebMcpToolEventType) => {},
+    };
   }
-  console.info(`[webmcp] event: ${type}`);
-  const debug = (window as Window & { __teakWebmcp?: TeakWebmcpDebugHandle })
-    .__teakWebmcp;
-  if (debug) {
-    debug.events[type] = (debug.events[type] ?? 0) + 1;
-  }
+  const handle: TeakWebmcpDebugHandle = { events: {}, tools: [] };
+  (window as DebugWindow).__teakWebmcp = handle;
+  return {
+    clear: () => {
+      if ((window as DebugWindow).__teakWebmcp === handle) {
+        (window as DebugWindow).__teakWebmcp = undefined;
+      }
+    },
+    markRegistered: () => {
+      handle.tools = [...WEBMCP_TOOL_NAMES];
+    },
+    recordEvent: (type: WebMcpToolEventType) => {
+      console.info(`[webmcp] event: ${type}`);
+      handle.events[type] = (handle.events[type] ?? 0) + 1;
+    },
+  };
 };
 
-/**
- * Registers Teak's WebMCP tools with the browser when the draft
- * `document.modelContext` API exists. Mounted for signed-in users only; the
- * tools run that user's Convex queries and mutations, so no extra auth is
- * needed.
- */
 export function WebMcpTools() {
   const convex = useConvex();
 
@@ -44,68 +53,40 @@ export function WebMcpTools() {
       return;
     }
     const controller = new AbortController();
-    type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
-    const clearDebugHandle = (): void => {
-      if (process.env.NODE_ENV !== "production") {
-        // Drop the debug handle so DevTools never shows tools that are no
-        // longer registered after unmount, sign-out, or failed registration.
-        (window as DebugWindow).__teakWebmcp = undefined;
-      }
-    };
-    if (process.env.NODE_ENV !== "production") {
-      // Initialize before subscribing so registration-time toolchange
-      // events are counted too; tools fill in once registration succeeds.
-      (window as DebugWindow).__teakWebmcp = { events: {}, tools: [] };
-    }
+    const debug = createDevDebugHandle();
     const unsubscribeEvents = subscribeWebMcpToolEvents(
       modelContext,
-      recordToolEvent
+      debug.recordEvent
     );
+    const stop = (): void => {
+      unsubscribeEvents();
+      controller.abort();
+      debug.clear();
+    };
     registerTeakWebMcpTools(
       modelContext,
       {
         searchCards: (args) => convex.query(api.cards.searchCards, args),
         getCard: (cardId) =>
           convex.query(api.cards.getCardByUrlId, { id: cardId }),
-        createCard: async (args) => {
-          const id = await convex.mutation(api.cards.createCard, {
-            ...args,
-            source: "web",
-          });
-          return String(id);
-        },
-        updateCardField: ({ cardId, field, value }) =>
+        createCard: (args) =>
+          convex.mutation(api.cards.createCard, { ...args, source: "web" }),
+        editCardTags: ({ action, cardId, tags }) =>
+          convex.mutation(api.cards.bulkUpdateCards, {
+            action,
+            cardIds: [cardId],
+            tags,
+          }),
+        setCardFavorite: ({ cardId, favorited }) =>
           convex.mutation(api.cards.updateCardField, {
-            // Tool card IDs are Convex row IDs validated by a read first;
-            // the mutation revalidates the ID shape and row ownership.
-            cardId: cardId as Id<"cards">,
-            field,
-            value,
+            cardId,
+            field: "isFavorited",
+            value: favorited,
           }),
       },
       { signal: controller.signal }
-    ).then(
-      () => {
-        if (process.env.NODE_ENV !== "production") {
-          const debug = (window as DebugWindow).__teakWebmcp;
-          if (debug) {
-            debug.tools = [...WEBMCP_TOOL_NAMES];
-          }
-        }
-      },
-      () => {
-        unsubscribeEvents();
-        controller.abort();
-        clearDebugHandle();
-        // Registration failing (unsupported schema, revoked permission) must
-        // never break the app; the page simply stays non-agent-callable.
-      }
-    );
-    return () => {
-      unsubscribeEvents();
-      controller.abort();
-      clearDebugHandle();
-    };
+    ).then(debug.markRegistered, stop);
+    return stop;
   }, [convex]);
 
   return null;

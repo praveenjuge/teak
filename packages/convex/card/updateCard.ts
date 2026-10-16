@@ -19,8 +19,8 @@ import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
-  recordActiveCardCreated,
   recordActiveCardRemoved,
+  restoreCountedCard,
 } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
@@ -31,7 +31,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { scheduleCardSearchSync, withUrlHost } from "./searchDocumentHelpers";
+import { syncCardSearch, withUrlHost } from "./searchDocumentHelpers";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -74,8 +74,6 @@ interface UpdateCardFieldForUserOptions {
 }
 
 interface UpdateCardFieldForUserResult {
-  // Milliseconds until the processing workflow should start, or null when
-  // this update doesn't need a new run.
   pipelineDelayMs: number | null;
 }
 
@@ -105,8 +103,6 @@ const assertReprocessAllowed = (
   });
 };
 
-// "Refresh details" is asked for directly, so its limits say so instead of the
-// card-creation wording the edit path shares.
 const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
   cardReprocessPerCard:
     "This card is already refreshing. Try again in a minute.",
@@ -114,14 +110,6 @@ const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
     "You've refreshed a lot of cards. Wait a minute and try again.",
 };
 
-/**
- * Charges the pipeline run a content or URL edit needs. Edits are never
- * refused for being too soon: a run the limits can't allow yet is reserved
- * and returned as a delay, and an edit made while this card already has a
- * reserved run waiting joins that run (it reads the card when it starts), so
- * it returns null. Only a burst past the account-wide reservation cap throws.
- * Callers run it once per update, however many fields change.
- */
 const reserveEditReprocess = async (
   ctx: MutationCtx,
   userId: string,
@@ -151,12 +139,25 @@ const reserveEditReprocess = async (
   return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
 };
 
-const consumeCardReprocessLimit = async (
+/** Checks both limits before spending either, so one's refusal never spends the other. */
+const spendCardReprocessLimits = async (
   ctx: MutationCtx,
   userId: string,
   cardId: Id<"cards">,
   messages: Record<ReprocessLimitName, string> = REPROCESS_LIMIT_MESSAGES
 ): Promise<void> => {
+  assertReprocessAllowed(
+    "cardReprocessPerCard",
+    await rateLimiter.check(ctx, "cardReprocessPerCard", {
+      key: String(cardId),
+    }),
+    messages
+  );
+  assertReprocessAllowed(
+    "cardReprocess",
+    await rateLimiter.check(ctx, "cardReprocess", { key: userId }),
+    messages
+  );
   assertReprocessAllowed(
     "cardReprocessPerCard",
     await rateLimiter.limit(ctx, "cardReprocessPerCard", {
@@ -183,7 +184,7 @@ export const updateCard = mutation({
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
   },
-  returns: v.null(), // db.patch returns void/null
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await getSessionUser(ctx);
     if (!user) {
@@ -250,9 +251,8 @@ export const updateCard = mutation({
         updatedAt: now,
       })
     );
-    await scheduleCardSearchSync(ctx, id, card.userId, card);
+    await syncCardSearch(ctx, id, card.userId, card);
 
-    // If content was updated, regenerate AI metadata
     if (pipelineDelayMs !== null) {
       await ctx.scheduler.runAfter(
         pipelineDelayMs,
@@ -297,9 +297,6 @@ interface CardEditState {
   updateData: Record<string, unknown>;
 }
 
-// Applies one field edit to the in-memory state. Validation errors throw
-// before anything is written, so a multi-field edit is all-or-nothing.
-// Returns false when the edit leaves the card unchanged.
 const applyCardFieldEdit = (
   state: CardEditState,
   { field, value, tagToRemove }: CardFieldEdit,
@@ -489,7 +486,7 @@ export const updateCardFieldsForUserHandler = async (
     })
   );
   if (!options.deferSearchSync) {
-    await scheduleCardSearchSync(ctx, cardId, userId, card);
+    await syncCardSearch(ctx, cardId, userId, card);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {
@@ -554,9 +551,6 @@ export const updateCardFieldForUserHandler = async (
       updateData.deletedAt = undefined;
       break;
 
-    // Archive hides a card from the library without deleting it, so it
-    // still counts toward the card limit. A card in Trash keeps its archived
-    // state, and restoring it returns it to Archive.
     case "archive":
       if (card.isArchived) {
         return { pipelineDelayMs: null };
@@ -577,35 +571,26 @@ export const updateCardFieldForUserHandler = async (
       throw new Error(`Unsupported field: ${field}`);
   }
 
-  if (field === "delete") {
-    await ensureCardUsageShardsForRemoval(ctx, userId);
-  }
-  const hasPremium =
-    field === "restore"
-      ? await getCardQuotaEntitlement(ctx, userId)
-      : undefined;
   if (field === "restore") {
-    await ensureCardUsageShards(ctx, userId, hasPremium ?? false);
-  }
-
-  // Count a restored card before writing it: at the card limit this throws
-  // with nothing written, so a bulk restore that carries on past the refusal
-  // never leaves a restored card uncounted.
-  if (field === "restore" && card.isDeleted) {
-    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
-  }
-  await ctx.db.patch("cards", cardId, updateData);
-  if (field === "delete" && !card.isDeleted) {
-    await recordActiveCardRemoved(ctx, userId, cardId);
+    const hasPremium = await getCardQuotaEntitlement(ctx, userId);
+    await ensureCardUsageShards(ctx, userId, hasPremium);
+    await restoreCountedCard(ctx, card, updateData, { hasPremium });
+  } else {
+    if (field === "delete") {
+      await ensureCardUsageShardsForRemoval(ctx, userId);
+    }
+    await ctx.db.patch("cards", cardId, updateData);
+    if (field === "delete" && !card.isDeleted) {
+      await recordActiveCardRemoved(ctx, userId, cardId);
+    }
   }
   if (!options.deferSearchSync) {
-    await scheduleCardSearchSync(ctx, cardId, userId, card);
+    await syncCardSearch(ctx, cardId, userId, card);
   }
 
   return { pipelineDelayMs: null };
 };
 
-// Unified mutation for updating any card field
 export const updateCardField = mutation({
   args: {
     cardId: v.id("cards"),
@@ -668,21 +653,7 @@ export const reprocessCardForUserHandler = async (
     });
   }
 
-  // Check both limits before spending either token, so a refusal by the
-  // account-wide limit doesn't use up this card's minute.
-  assertReprocessAllowed(
-    "cardReprocessPerCard",
-    await rateLimiter.check(ctx, "cardReprocessPerCard", {
-      key: String(cardId),
-    }),
-    RERUN_AI_LIMIT_MESSAGES
-  );
-  assertReprocessAllowed(
-    "cardReprocess",
-    await rateLimiter.check(ctx, "cardReprocess", { key: userId }),
-    RERUN_AI_LIMIT_MESSAGES
-  );
-  await consumeCardReprocessLimit(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
+  await spendCardReprocessLimits(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
 
   await ctx.scheduler.runAfter(
     0,
@@ -698,8 +669,6 @@ const reprocessCardResultValidator = v.object({
   requestedAt: v.number(),
 });
 
-// Refusals the person can act on. Each happens before anything is written,
-// so returning one instead of throwing commits nothing.
 const REPROCESS_REFUSAL_CODES = new Set([
   "CONFLICT",
   "NOT_FOUND",

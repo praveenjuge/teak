@@ -11,14 +11,11 @@ import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, serve, spawn } from "bun";
 
-// The real CLI, callback server, discovery helper and SDK run in isolated child
-// processes. Only the authorization server/API and OS credential store are fake.
 const directory = mkdtempSync(join(tmpdir(), "teak-discovery-"));
 mkdirSync(join(directory, "teak"));
 writeFileSync(join(directory, "security"), "#!/bin/sh\nexit 1\n", {
   mode: 0o700,
 });
-// Two WorkOS environments model a client registration change on the server.
 let environment: "alpha" | "beta" = "alpha";
 let tokenStatus = 200;
 let tokenBody: Record<string, unknown> | undefined;
@@ -425,7 +422,6 @@ test("CLI discovers the auth server once when it refreshes expired credentials",
   expect(await child.exited).toBe(0);
   expect(refreshes).toBe(1);
   expect(apiRequests).toBe(1);
-  // Resource, client registry and issuer metadata, fetched once.
   expect(discoveryRequests).toBe(3);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
 });
@@ -627,7 +623,6 @@ test("CLI reuses a same-client refresh when an older concurrent request returns 
     saved.expiresAt = 0;
     writeFileSync(file, JSON.stringify(saved));
     expect(await api.tags.list()).toEqual({ items: [] });
-    // A second refresh must not be needed, even when the provider is down.
     tokenStatus = 503;
     releaseApi();
     expect(await first).toEqual({ items: [] });
@@ -676,7 +671,6 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
       const response = await originalFetch(input, init);
       if (String(input).endsWith("/v1/tags") && firstApi) {
         firstApi = false;
-        // A new transport instance gives the overlapping read uncached metadata.
         globalThis.fetch = (async (next, nextInit) => {
           if (String(next).includes("/.well-known/")) {
             notifyMetadata();

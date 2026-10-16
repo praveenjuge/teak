@@ -32,8 +32,6 @@ export function useCardActions(config: UiCardActionsConfig = {}) {
   const permanentDeleteCard = useMutation(
     api.cards.permanentDeleteCard
   ).withOptimisticUpdate((localStore, { id }) => {
-    // Drop the card from every loaded list right away. Search results then
-    // stop returning it, which also clears it from the local search cache.
     updateCardInSearchQueries(localStore, id, () => null);
   });
   const updateCardField = useMutation(

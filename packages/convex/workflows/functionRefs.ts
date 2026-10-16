@@ -1,12 +1,5 @@
-/**
- * Function References for Workflow
- *
- * Helper to properly type workflow function references
- */
-
 import { internal } from "../_generated/api";
 
-// Create properly typed references for workflow functions
 type WorkflowFunctionMap = Record<string, unknown>;
 const internalFunctions = internal as Record<string, unknown>;
 const linkMetadataFunctions = internalFunctions[

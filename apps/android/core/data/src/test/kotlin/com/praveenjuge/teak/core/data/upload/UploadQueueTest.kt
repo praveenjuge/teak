@@ -29,8 +29,8 @@ import org.robolectric.annotation.Config
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
-/** Uploads queued together run as a WorkManager chain; each must keep its own file. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class UploadQueueTest {
@@ -68,14 +68,10 @@ class UploadQueueTest {
     fun tearDown() = server.shutdown()
 
     private fun staged(name: String, mime: String): StagedFile {
-        val file = File(context.cacheDir, "uploads/${name.hashCode()}/$name").apply {
-            parentFile?.mkdirs()
-            writeText("bytes of $name")
-        }
+        val file = File(StagingArea.newSlot(context), name).apply { writeText("bytes of $name") }
         return StagedFile(file.path, name, mime, file.length())
     }
 
-    /** Each upload waits for the network; release each one as the chain reaches it. */
     private fun runQueue() {
         val driver = requireNotNull(WorkManagerTestInitHelper.getTestDriver(context))
         val deadline = System.currentTimeMillis() + 10_000
@@ -109,6 +105,35 @@ class UploadQueueTest {
             .map { info -> info.tags.first { it.startsWith(UploadWorker.NAME_TAG_PREFIX) }.removePrefix(UploadWorker.NAME_TAG_PREFIX) }
             .toSet()
         assertEquals(setOf("recording.m4a", "photo.jpg", "clip.mp4"), names)
+    }
+
+    @Test
+    fun `a failed upload shows its own error and the next file still uploads`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val prepare = convex.responses.getValue("cards:uploadAndCreateCard")
+        convex.responses["cards:uploadAndCreateCard"] = { args ->
+            if (args["fileName"] != "recording.m4a") {
+                prepare(args)
+            } else {
+                buildJsonObject {
+                    put("success", false)
+                    put("errorCode", TeakException.UNSUPPORTED_TYPE)
+                    put("error", "This file type isn't supported.")
+                }
+            }
+        }
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(listOf(staged("recording.m4a", "audio/mp4"), staged("photo.jpg", "image/jpeg")))
+        runQueue()
+
+        val rows = runBlocking { withTimeout(5_000) { repository.uploads.first { it.size == 2 } } }.associateBy { it.fileName }
+        val failed = rows.getValue("recording.m4a")
+        assertEquals(UploadStatus.State.Failed, failed.state)
+        assertEquals("This file type isn't supported.", failed.error)
+        assertEquals(TeakException.UNSUPPORTED_TYPE, failed.errorCode)
+        val saved = rows.getValue("photo.jpg")
+        assertEquals(UploadStatus.State.Saved, saved.state)
+        assertNull(saved.error)
     }
 
     @Test

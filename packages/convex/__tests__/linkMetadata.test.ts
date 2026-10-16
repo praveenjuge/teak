@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
+import { testId } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
-import { inlineSearchSyncDb } from "./helpers/session.test-utils";
+import { withSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -14,16 +14,11 @@ const {
   updateCardScreenshotHandler,
 } = await import("../linkMetadata");
 
-// Helper to create a mock context
 const createMockCtx = () => {
   r2Mocks.deleteObject.mockReset();
   r2Mocks.deleteObject.mockResolvedValue(null);
   return {
-    db: {
-      ...inlineSearchSyncDb(),
-      get: mock(),
-      patch: mock(),
-    },
+    db: withSearchSyncDb({ get: mock(), patch: mock() }),
     scheduler: { runAfter: mock().mockResolvedValue(null) },
   } as any;
 };
@@ -32,13 +27,13 @@ describe("linkMetadata", () => {
   describe("getFullCardForMetadata", () => {
     test("fetches card by id", async () => {
       const ctx = createMockCtx();
-      const cardId = "card_123";
+      const cardId = testId("cards", "card_123");
       const card = { _id: cardId, type: "link" };
       ctx.db.get.mockResolvedValue(card);
 
       const result = await getFullCardForMetadataHandler(ctx, { cardId });
       expect(ctx.db.get).toHaveBeenCalledWith("cards", cardId);
-      expect(result).toEqual(card);
+      expect(result).toEqual<unknown>(card);
     });
   });
 
@@ -149,7 +144,7 @@ describe("linkMetadata", () => {
       };
       ctx.db.get.mockResolvedValue(card);
 
-      const linkPreview = { title: "Title" }; // No screenshot info
+      const linkPreview = { title: "Title" };
       await updateCardMetadataHandler(ctx, {
         cardId: "card_123",
         linkPreview,
@@ -191,7 +186,6 @@ describe("linkMetadata", () => {
       });
 
       expect(r2Mocks.deleteObject).toHaveBeenCalled();
-      // Should still patch
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -555,7 +549,9 @@ test("workflow reader retains decisions without journaling customer content or p
     },
   };
   ctx.db.get.mockResolvedValue(card);
-  const state = await getCardForMetadataHandler(ctx, { cardId: "c1" });
+  const state = await getCardForMetadataHandler(ctx, {
+    cardId: testId("cards", "c1"),
+  });
   expect(state).toMatchObject({
     workflowPayloadVersion: 1,
     type: "link",
@@ -567,11 +563,13 @@ test("workflow reader retains decisions without journaling customer content or p
   expect(JSON.stringify(state).length).toBeLessThan(512);
   expect(state).not.toHaveProperty("content");
   expect(state).not.toHaveProperty("notes");
-  expect(await getFullCardForMetadataHandler(ctx, { cardId: "c1" })).toEqual(
-    card
-  );
+  expect(
+    await getFullCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toEqual<unknown>(card);
   ctx.db.get.mockResolvedValue(null);
-  expect(await getCardForMetadataHandler(ctx, { cardId: "c1" })).toBeNull();
+  expect(
+    await getCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toBeNull();
 });
 
 test("link fetch reader preserves classification gates and owner without unrelated payloads", async () => {
@@ -593,18 +591,22 @@ test("link fetch reader preserves classification gates and owner without unrelat
     },
   };
   ctx.db.get.mockResolvedValue(card);
-  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+  expect(
+    await getCardForLinkFetchHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toEqual({
     type: "link",
     url: card.url,
     userId: "owner",
     processingStatus: { classify: { status: "in_progress" } },
     metadata: { linkCategory: { status: "pending" } },
   });
-  expect(await getFullCardForMetadataHandler(ctx, { cardId: "c1" })).toEqual(
-    card
-  );
+  expect(
+    await getFullCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toEqual<unknown>(card);
   ctx.db.get.mockResolvedValue(null);
-  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toBeNull();
+  expect(
+    await getCardForLinkFetchHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toBeNull();
 });
 
 test("screenshot reader retains existing screenshot guard without preview raw data or transcript", async () => {
@@ -623,7 +625,9 @@ test("screenshot reader retains existing screenshot guard without preview raw da
       },
     },
   });
-  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toEqual({
+  expect(
+    await getCardForScreenshotHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toEqual({
     userId: "owner",
     type: "link",
     url: "https://example.com",
@@ -635,7 +639,9 @@ test("screenshot reader retains existing screenshot guard without preview raw da
     },
   });
   ctx.db.get.mockResolvedValue(null);
-  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toBeNull();
+  expect(
+    await getCardForScreenshotHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toBeNull();
 });
 
 test("link fetch projection accepts legacy string categories without private payloads", async () => {
@@ -646,7 +652,9 @@ test("link fetch projection accepts legacy string categories without private pay
     url: "https://example.com",
     metadata: { linkCategory: "article" },
   });
-  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+  expect(
+    await getCardForLinkFetchHandler(ctx, { cardId: testId("cards", "c1") })
+  ).toEqual({
     type: "link",
     userId: "u1",
     url: "https://example.com",

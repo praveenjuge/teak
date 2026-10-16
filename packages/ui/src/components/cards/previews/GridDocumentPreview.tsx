@@ -5,7 +5,6 @@ import { ResilientMediaImage } from "./ResilientMediaImage";
 interface GridDocumentPreviewProps {
   cardId?: string;
   fileName?: string;
-  /** A short file-type badge, such as `PDF`. */
   formatBadge?: string;
   height?: number;
   isPriority?: boolean;
@@ -14,8 +13,6 @@ interface GridDocumentPreviewProps {
   width?: number;
 }
 
-// Documents are usually portrait pages; until real dimensions are known,
-// reserve a portrait box so lazy-loaded thumbnails don't reflow the grid.
 const FALLBACK_ASPECT_RATIO = 3 / 4;
 
 function FileLabel({

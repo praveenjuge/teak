@@ -1,8 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// A card's page: its media or content, then notes, tags and info. Wide
-/// windows move the details into an inspector.
 struct CardDetailView: View {
     let route: CardRoute
     @Environment(AppModel.self) private var app
@@ -93,16 +91,12 @@ struct CardDetailView: View {
         }
     }
 
-    // MARK: Content
-
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
         CardPreview(card: card)
             #if os(macOS)
             .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { showEditSheet = true } }
             #endif
     }
-
-    // MARK: Toolbar
 
     @ToolbarContentBuilder
     private func toolbar(_ card: Card, _ model: CardDetailModel) -> some ToolbarContent {
@@ -203,7 +197,6 @@ struct CardDetailView: View {
 
     private func webURL(_ card: Card) -> URL { CardSheet.webURL(cardId: card.id, base: app.config.webURL) }
 
-    /// Runs an action that leaves the page when it works.
     private func run(_ action: @escaping () async -> Bool) {
         Task {
             if await action() {

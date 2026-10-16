@@ -2,9 +2,8 @@
 set -euo pipefail
 
 # Smoke the public API/MCP surface.
-# Usage: BASE_URL=https://preview-url.vercel.app bash scripts/smoke-urls.sh
+# Usage: BASE_URL=https://staging.example.com bash scripts/smoke-urls.sh
 #        SMOKE_BASE_URL=... bash scripts/smoke-urls.sh
-#        EXPECTED_BASE_URL=https://teakvault.com bash scripts/smoke-urls.sh
 # Defaults to production https://teakvault.com for scheduled checks.
 BASE_URL="${SMOKE_BASE_URL:-${BASE_URL:-https://teakvault.com}}"
 BASE_URL="${BASE_URL%/}"
@@ -91,35 +90,18 @@ check_mcp_unauthorized() {
 
 check_status 200 "$BASE_URL/api/healthz"
 check_contains "$BASE_URL/api" '"version":"v1"'
-# Preview deployments rewrite /api* to the fixed production Convex site, whose
-# public metadata uses canonical prod URLs. Assert liveness against BASE_URL
-# but assert metadata against the canonical origin in preview mode.
-# Custom origins (staging/self-hosted via workflow_dispatch base_url) advertise
-# their own origin, so only Vercel previews (*.vercel.app) use the canonical
-# override unless EXPECTED_BASE_URL is set explicitly.
-EXPECTED_BASE="${EXPECTED_BASE_URL:-}"
-if [[ -z "$EXPECTED_BASE" ]]; then
-  if [[ "$IS_PROD" == "true" ]]; then
-    EXPECTED_BASE="$BASE_URL"
-  elif [[ "$BASE_URL" == *.vercel.app ]]; then
-    EXPECTED_BASE="https://teakvault.com"
-  else
-    EXPECTED_BASE="$BASE_URL"
-  fi
-fi
-EXPECTED_BASE="${EXPECTED_BASE%/}"
-check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$EXPECTED_BASE/mcp\""
+check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$BASE_URL/mcp\""
 check_contains "$BASE_URL/api/openapi.json" '"openapi":"3.1.0"'
 check_mcp_unauthorized \
   "$BASE_URL/mcp" \
-  "$EXPECTED_BASE/.well-known/oauth-protected-resource/mcp"
+  "$BASE_URL/.well-known/oauth-protected-resource/mcp"
 check_contains \
   "$BASE_URL/.well-known/oauth-protected-resource/mcp" \
-  "\"resource\":\"$EXPECTED_BASE/mcp\""
+  "\"resource\":\"$BASE_URL/mcp\""
 check_status 200 "$BASE_URL/llms.txt"
 check_matches \
   "$BASE_URL/.well-known/mcp.json" \
-  "\"endpoint\"[[:space:]]*:[[:space:]]*\"$(printf '%s' "$EXPECTED_BASE" | sed 's/\./\\./g')/mcp\""
+  "\"endpoint\"[[:space:]]*:[[:space:]]*\"$(printf '%s' "$BASE_URL" | sed 's/\./\\./g')/mcp\""
 
 check_redirect() {
   local url="$1"
@@ -140,7 +122,6 @@ check_redirect() {
 }
 
 # The API lives at teakvault.com/api*; the legacy subdomain permanently redirects (308 keeps methods intact).
-# Preview deployments have no api.* alias, so only check redirects in prod.
 if [[ "$IS_PROD" == "true" ]]; then
   check_redirect "https://api.teakvault.com/" "https://teakvault.com/api/v1"
   check_redirect "https://api.teakvault.com/v1" "https://teakvault.com/api/v1"

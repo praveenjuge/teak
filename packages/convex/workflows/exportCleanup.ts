@@ -1,14 +1,3 @@
-/**
- * Scheduled cleanup for expired export artifacts.
- *
- * For each ready job whose retention window has passed:
- *   - delete the ZIP artifact from R2
- *   - remove any leftover snapshot items
- *   - mark the job expired (and drop the artifact key)
- *
- * Reschedules itself while a full batch is processed.
- */
-
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";

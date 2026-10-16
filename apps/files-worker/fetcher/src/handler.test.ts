@@ -3,8 +3,7 @@ import type { PinnedFetch } from "../../../../packages/convex/linkMetadata/ssrf"
 import { createFetcherHandler } from "./handler";
 import { FETCHER_HEADERS, FETCHER_MAX_IN_FLIGHT } from "./protocol";
 
-// A 1x1 PNG.
-const PNG = Uint8Array.from(
+const ONE_PIXEL_PNG = Uint8Array.from(
   atob(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
   ),
@@ -53,7 +52,10 @@ describe("link fetcher", () => {
   test("returns an image's bytes, type and dimensions, pinned to the checked address", async () => {
     const { calls, fetchAsset } = setup(
       { "cdn.example": [PUBLIC] },
-      () => new Response(PNG, { headers: { "content-type": "image/png" } })
+      () =>
+        new Response(ONE_PIXEL_PNG, {
+          headers: { "content-type": "image/png" },
+        })
     );
     const response = await fetchAsset({
       kind: "image",
@@ -63,7 +65,7 @@ describe("link fetcher", () => {
     expect(response.headers.get(FETCHER_HEADERS.contentType)).toBe("image/png");
     expect(response.headers.get(FETCHER_HEADERS.width)).toBe("1");
     expect(response.headers.get(FETCHER_HEADERS.height)).toBe("1");
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(PNG);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(ONE_PIXEL_PNG);
     expect(calls).toEqual([
       { addresses: [PUBLIC], url: "https://cdn.example/a.png" },
     ]);
@@ -95,7 +97,7 @@ describe("link fetcher", () => {
       { "evil.example": [PUBLIC, "10.0.0.5"] },
     ],
   ])("refuses %s without connecting", async (_name, dns) => {
-    const { calls, fetchAsset } = setup(dns, () => new Response(PNG));
+    const { calls, fetchAsset } = setup(dns, () => new Response(ONE_PIXEL_PNG));
     const response = await fetchAsset({
       kind: "image",
       url: "https://evil.example/a.png",
@@ -130,7 +132,9 @@ describe("link fetcher", () => {
       (url) =>
         url === FIGMA_COVER
           ? Response.redirect("https://cdn.figma.example/cover.png", 302)
-          : new Response(PNG, { headers: { "content-type": "image/png" } })
+          : new Response(ONE_PIXEL_PNG, {
+              headers: { "content-type": "image/png" },
+            })
     );
     const response = await fetchAsset({
       kind: "image",
@@ -158,7 +162,9 @@ describe("link fetcher", () => {
       (url) =>
         url.startsWith("https:")
           ? Response.redirect("http://plain.example/a.png", 302)
-          : new Response(PNG, { headers: { "content-type": "image/png" } })
+          : new Response(ONE_PIXEL_PNG, {
+              headers: { "content-type": "image/png" },
+            })
     );
     const response = await fetchAsset({
       kind: "image",
@@ -172,7 +178,10 @@ describe("link fetcher", () => {
   test("sends no Referer without a page", async () => {
     const { fetchAsset, referers } = setup(
       { "cdn.example": [PUBLIC] },
-      () => new Response(PNG, { headers: { "content-type": "image/png" } })
+      () =>
+        new Response(ONE_PIXEL_PNG, {
+          headers: { "content-type": "image/png" },
+        })
     );
     await fetchAsset({ kind: "image", url: "https://cdn.example/a.png" });
     expect(referers).toEqual([null]);
@@ -181,7 +190,7 @@ describe("link fetcher", () => {
   test("still refuses a private address when the page is public", async () => {
     const { calls, fetchAsset } = setup(
       { "evil.example": ["10.0.0.5"] },
-      () => new Response(PNG)
+      () => new Response(ONE_PIXEL_PNG)
     );
     const response = await fetchAsset({
       kind: "image",
@@ -201,7 +210,7 @@ describe("link fetcher", () => {
     [
       "a declared size over the image limit",
       () =>
-        new Response(PNG, {
+        new Response(ONE_PIXEL_PNG, {
           headers: {
             "content-length": String(21 * 1024 * 1024),
             "content-type": "image/png",
@@ -263,7 +272,7 @@ describe("link fetcher", () => {
       url: "https://a/b.png",
     },
   ])("rejects an invalid request %#", async (body) => {
-    const { fetchAsset } = setup({}, () => new Response(PNG));
+    const { fetchAsset } = setup({}, () => new Response(ONE_PIXEL_PNG));
     expect((await fetchAsset(body)).status).toBe(400);
   });
 
@@ -274,7 +283,9 @@ describe("link fetcher", () => {
     });
     const { fetchAsset } = setup({ "cdn.example": [PUBLIC] }, async () => {
       await gate;
-      return new Response(PNG, { headers: { "content-type": "image/png" } });
+      return new Response(ONE_PIXEL_PNG, {
+        headers: { "content-type": "image/png" },
+      });
     });
     const request = { kind: "image", url: "https://cdn.example/a.png" };
     const running = Array.from({ length: FETCHER_MAX_IN_FLIGHT }, () =>
@@ -290,7 +301,7 @@ describe("link fetcher", () => {
   });
 
   test("reports its protocol on the health check", async () => {
-    const { handle } = setup({}, () => new Response(PNG));
+    const { handle } = setup({}, () => new Response(ONE_PIXEL_PNG));
     const response = await handle(new Request("http://fetcher/health"));
     expect(await response.json()).toMatchObject({ ok: true, protocol: 1 });
   });

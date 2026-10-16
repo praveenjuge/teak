@@ -1,8 +1,3 @@
-/**
- * Public API authentication: bearer validation (API keys + OAuth tokens),
- * per-identity rate limiting, and idempotency-key reservation/replay.
- * Split out of `publicApiHttp.ts`, kept behavior-identical.
- */
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import {
@@ -31,6 +26,7 @@ import {
 import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
+import { ignoreTelemetryError } from "./shared/telemetry";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
@@ -70,7 +66,6 @@ const maybeHandleIdempotency = async (
   const idempotencyKey = parseOptionalString(
     args.request.headers.get("idempotency-key")
   );
-  // Requests without a key write nothing; analytics only count keyed requests.
   if (!idempotencyKey) {
     return {
       keyHash: "",
@@ -140,9 +135,6 @@ const maybeHandleIdempotency = async (
 const IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS = [50, 250];
 const IDEMPOTENCY_COMPLETE_FALLBACK_DELAY_MS = 1000;
 
-// Stores the response for an operation that already committed. It never
-// throws: a lost completion would leave the key "in progress" for a day and
-// hide the result from retries, so it retries, then schedules the write.
 const completeIdempotencyResponse = async (
   ctx: ActionCtx,
   args: {
@@ -197,7 +189,7 @@ const completeIdempotencyResponse = async (
   }
 };
 
-const releaseIdempotencyResponse = async (
+const releaseReservationKeepingOriginalError = async (
   ctx: ActionCtx,
   args: {
     userId: string;
@@ -209,10 +201,12 @@ const releaseIdempotencyResponse = async (
     return;
   }
 
-  await ctx.runMutation(
-    (internal as any).idempotency.releaseIdempotencyRequestForUser,
-    args
-  );
+  try {
+    await ctx.runMutation(
+      (internal as any).idempotency.releaseIdempotencyRequestForUser,
+      args
+    );
+  } catch {}
 };
 
 interface AuthOptions {
@@ -229,9 +223,6 @@ const decide = (result: AuthResult, reason: PublicApiAuthReason): Decision => ({
   reason,
 });
 
-// Throttle well-formed-but-invalid API keys via a single shared bucket so an
-// attacker rotating random bearer tokens cannot mint a fresh limit per token.
-// Returns a 429 decision when the shared bucket is exhausted, otherwise null.
 const enforceInvalidAuthLimit = async (
   ctx: ActionCtx
 ): Promise<Decision | null> => {
@@ -248,7 +239,6 @@ const enforceInvalidAuthLimit = async (
         "rate_limit_contention"
       );
     }
-    // Never fail open on the invalid-auth path: surface a generic auth error.
     return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
@@ -267,8 +257,6 @@ const enforceInvalidAuthLimit = async (
   return null;
 };
 
-// The same shape checks the boundary uses below, independent of the primary,
-// so a credential from the other auth system (an old build) is visible.
 const classifyBearerCredential = (
   token: string | null
 ): BearerCredentialClass => {
@@ -278,8 +266,6 @@ const classifyBearerCredential = (
   if (isWellFormedApiKey(token)) {
     return "api_key";
   }
-  // Retired Better Auth access tokens: opaque 32 characters. Still classified
-  // so monitoring shows old clients that keep sending them.
   if (/^[A-Za-z0-9]{32}$/.test(token)) {
     return "betterauth_oauth";
   }
@@ -288,14 +274,13 @@ const classifyBearerCredential = (
     : "malformed";
 };
 
-// One log line per boundary decision. It never touches the response.
 const recordAuthOutcome = (
   request: Request,
   options: AuthOptions,
   reason: PublicApiAuthReason,
   status: number
-): void => {
-  try {
+): void =>
+  ignoreTelemetryError(() => {
     logPublicApiAuthOutcome({
       check: options.chargeRateLimit === false ? "gate" : "request",
       credential: classifyBearerCredential(parseBearerToken(request)),
@@ -303,10 +288,7 @@ const recordAuthOutcome = (
       status,
       surface: options.resource === "mcp" ? "mcp" : "rest",
     });
-  } catch {
-    // Monitoring must never alter authentication.
-  }
-};
+  });
 
 const withAuthorizedUser = async (
   ctx: ActionCtx,
@@ -334,8 +316,6 @@ const authorizeBearer = async (
   request: Request,
   options: AuthOptions
 ): Promise<Decision> => {
-  // The Files Worker charges requests that pass through it to the user's
-  // edge limit; only those carrying its attestation skip this charge.
   const chargeRateLimit =
     (options.chargeRateLimit ?? true) &&
     !(await hasEdgeRateLimitAttestation(request));
@@ -353,10 +333,6 @@ const authorizeBearer = async (
     );
   }
 
-  // Bearer credentials are discriminated before any DB read: `teakapi_` API
-  // keys or bounded WorkOS JWTs. This ensures the cheapest abuse vector
-  // (spraying random tokens) is rejected without a write, and so failures can
-  // return the right error code per credential type.
   const isApiKey = isWellFormedApiKey(token);
   const isConnectToken =
     !isApiKey && token.length <= 16_384 && token.split(".").length === 3;
@@ -380,10 +356,6 @@ const authorizeBearer = async (
     );
   }
 
-  // Validate first. Both validators are effectively read-only on the hot path
-  // (the API-key one only writes a throttled lastUsedAt), so doing it before
-  // rate limiting lets us key the limiter on a stable identity instead of the
-  // attacker-controlled raw token.
   let validated: AuthorizedUser | null = null;
   let rateLimit: { ok?: boolean; retryAt?: number } | undefined;
   let rejection: PublicApiAuthReason = "invalid_credential";
@@ -431,7 +403,6 @@ const authorizeBearer = async (
         rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
       }
     } else {
-      // The key's owner is resolved in the validation mutation's transaction.
       const credential = await ctx.runMutation(
         (internal as any).apiKeys.validateUserApiKey,
         { token, chargeRateLimit }
@@ -449,7 +420,6 @@ const authorizeBearer = async (
         "rate_limit_contention"
       );
     }
-    // Any other write race is retryable, not a server fault.
     if (isOptimisticConcurrencyError(error)) {
       return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
     }
@@ -479,8 +449,6 @@ const authorizeBearer = async (
     return decide({ validated }, "ok");
   }
 
-  // The validation mutation charged the limit to the validated identity, so it
-  // follows the real key / OAuth app+user rather than the raw token string.
   if (!rateLimit?.ok) {
     return decide(
       {
@@ -513,7 +481,7 @@ export {
   completeIdempotencyResponse,
   type IdempotencyState,
   maybeHandleIdempotency,
-  releaseIdempotencyResponse,
+  releaseReservationKeepingOriginalError,
   trackIdempotency,
   validatePublicApiBearer,
   withAuthorizedUser,

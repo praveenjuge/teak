@@ -86,7 +86,6 @@ internal val MAX_MEDIA_HEIGHT = 440.dp
 private val PLACEHOLDER_HEIGHT = 200.dp
 internal val MediaShape = RoundedCornerShape(20.dp)
 
-/** Width over height from saved dimensions, or null when they're missing. */
 internal fun mediaRatio(width: Double?, height: Double?): Float? =
     if (width != null && height != null && width > 0 && height > 0) (width / height).toFloat() else null
 
@@ -128,7 +127,6 @@ internal fun MediaImage(
     }
 }
 
-/** Sizes media to the full width at [ratio], capped at [MAX_MEDIA_HEIGHT]. Unknown ratios size to the content. */
 @Composable
 internal fun MediaFrame(ratio: Float?, modifier: Modifier = Modifier, content: @Composable (Modifier) -> Unit) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -159,7 +157,6 @@ internal fun MediaPlaceholder(icon: ImageVector, label: String, modifier: Modifi
     }
 }
 
-/** A full-screen image you can pinch to zoom, drag, and double-tap to reset. */
 @Composable
 internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -201,7 +198,6 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
     }
 }
 
-/** An ExoPlayer for [url] that lives as long as the composable and pauses when the app leaves the screen. */
 @OptIn(UnstableApi::class)
 @Composable
 private fun rememberPlayer(url: String): ExoPlayer {
@@ -218,10 +214,6 @@ private fun rememberPlayer(url: String): ExoPlayer {
     return player
 }
 
-/**
- * Video with the Material player controls; the poster shows until the first frame is ready. When the
- * device can't decode the file, the poster stays with a short note and a way to open it elsewhere.
- */
 @OptIn(UnstableApi::class)
 @Composable
 internal fun VideoPlayer(url: String, posterUrl: String?, ratio: Float?, modifier: Modifier = Modifier) {
@@ -287,7 +279,6 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
     }
 }
 
-/** A play button, the card's waveform filling with progress, and the time. */
 @Composable
 internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, modifier: Modifier = Modifier) {
     if (url == null) {
@@ -388,7 +379,6 @@ private fun Waveform(seed: String, progress: Float, modifier: Modifier = Modifie
     }
 }
 
-/** Opens [url] in the full-screen viewer while set. */
 @Composable
 internal fun rememberImageViewer(contentDescription: String?): (String) -> Unit {
     var viewing by rememberSaveable { mutableStateOf<String?>(null) }

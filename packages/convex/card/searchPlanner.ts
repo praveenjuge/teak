@@ -84,7 +84,6 @@ export const resolveFolderNames = async (
   const folderIds: Id<"folders">[] = [];
   for (const nameKey of nameKeys) {
     let found: Id<"folders"> | undefined;
-    // A deleted folder can share its name with a newer one.
     for await (const folder of ctx.db
       .query("folders")
       .withIndex("by_userId_and_nameKey", (query) =>
@@ -175,7 +174,6 @@ export const resolveSearch = async (
     }
   }
 
-  // In Trash, `is:archived` keeps the trashed cards that were archived.
   const archivedInTrash = trash && parsed.archived;
   const archived: ArchivedFilter =
     !trash && parsed.archived ? "only" : view.archived;

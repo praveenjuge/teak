@@ -32,7 +32,6 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var preferences: PreferencesRepository
     @Inject lateinit var signIn: SignInController
 
-    /** Something the launch asked for: a new note from the app shortcut, for example. */
     private val launchRequest = MutableStateFlow<LaunchRequest?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +47,6 @@ class MainActivity : ComponentActivity() {
                 ThemePreference.Light -> false
                 ThemePreference.Dark -> true
             }
-            // Status and navigation bar icons follow the app's theme, not just the system's.
             DisposableEffect(dark) {
                 val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)

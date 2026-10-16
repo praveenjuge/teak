@@ -29,8 +29,6 @@ const e2eArgs = stackOnly
   ? []
   : process.argv.slice(2).filter((arg, index) => index > 0 || arg !== "--");
 
-// Without arguments, run the main suite in Chromium, then the browser matrix's
-// WebKit half. With arguments, run exactly what they select.
 const runs: string[][] =
   e2eArgs.length > 0
     ? [e2eArgs]
@@ -64,15 +62,11 @@ for (const check of prepared.checks) {
 if (!prepared.ok) {
   throw new Error("The pinned runtimes or packages aren't ready; see above");
 }
-// Takes packages/convex/.env.local over for the local backend; the next
-// `bun run dev` selects the shared dev deployment again.
 const ports = await resolveWorktree(ROOT);
 for (const line of await setupBackend(ROOT, ports)) {
   console.log(`✓ e2e-backend: ${line}`);
 }
 
-// The suite makes its own accounts. The stack pushes once: the suite's trace
-// and state writes would keep a watcher busy.
 const stack = await startStack({ echo: false, ports });
 
 let exitCode = 1;
@@ -84,11 +78,8 @@ try {
   if (stackOnly) {
     await stack.exited;
   } else {
-    // The dev server compiles each route on its first visit; warm it alone
-    // before the suites share the runner.
     exitCode = await e2e(["--config", "e2e.warmup.config.ts"]);
     if (exitCode === 0) {
-      // Every run goes ahead, so one failure still reports the others.
       for (const args of runs) {
         const code = await e2e(args);
         exitCode ||= code;

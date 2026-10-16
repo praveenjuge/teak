@@ -1,6 +1,7 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
 import {
   folderPath,
+  ImportLimitExceeded,
   linkItem,
   notAnExport,
   parseSourceDate,
@@ -29,7 +30,6 @@ interface LinkwardenLink {
 const text = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
-/** The `id` of each `{ id }` in a list, for pin lookups. */
 const ids = (value: unknown): Set<unknown> =>
   new Set(
     Array.isArray(value)
@@ -67,8 +67,6 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
       byId.set(collection.id, collection);
     }
   }
-  // The collection's name with its parents', stopping at a loop or a
-  // missing parent.
   const pathOf = (collection: LinkwardenCollection): string | undefined => {
     const names: string[] = [];
     const seen = new Set<unknown>();
@@ -92,7 +90,7 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
     const folder = pathOf(collection);
     for (const link of collection.links as LinkwardenLink[]) {
       if (output.length >= 10_000) {
-        throw new Error("Linkwarden backup exceeds 10,000 links");
+        throw new ImportLimitExceeded("Linkwarden backup exceeds 10,000 links");
       }
       const tags = Array.isArray(link?.tags)
         ? (link.tags as Array<{ name?: unknown }>).map((tag) => text(tag?.name))

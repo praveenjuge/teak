@@ -34,7 +34,6 @@ import {
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-/** Cmd+B (Ctrl+B) collapses or opens the sidebar (see `SidebarProvider`). */
 const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;
 
 export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
@@ -44,7 +43,6 @@ export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
   trash: Trash2,
 };
 
-/** Views before Tags; Archive and Trash follow it. */
 const PRIMARY_VIEWS = ["all", "favorites"] as const;
 const SECONDARY_VIEWS = ["archive", "trash"] as const;
 
@@ -61,12 +59,9 @@ export type SidebarLinkComponent = ComponentType<{
 export interface AppSidebarProps {
   /** The open library view, or null outside the library (settings). */
   activeView: LibraryView | null;
-  /** The New menu, shown beside the logo. */
   addActions?: ReactNode;
-  /** The Folders group. */
   foldersSlot?: ReactNode;
   isSettingsActive?: boolean;
-  /** Whether the Tags page is open. */
   isTagsActive?: boolean;
   LinkComponent: SidebarLinkComponent;
   /** Called before any sidebar link navigates (e.g. to remember scroll). */
@@ -111,7 +106,6 @@ export function AppSidebar({
   // The sidebar renders on the server too, which can't tell ⌘ from Ctrl.
   const apple = useIsApplePlatform();
 
-  // On phones the drawer closes once the user picks where to go.
   const handleNavigate = () => {
     onNavigate?.();
     if (isMobile) {
@@ -141,8 +135,6 @@ export function AppSidebar({
             <span>{LIBRARY_VIEW_LABELS[view]}</span>
           </LinkComponent>
         </SidebarMenuButton>
-        {/* On hover, the keys that go here; collapsed, the tooltip names
-            them instead. */}
         <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
           <ShortcutKeys keys={["G", GO_TO_VIEW_KEYS[view].toUpperCase()]} />
         </SidebarMenuBadge>
@@ -152,8 +144,6 @@ export function AppSidebar({
 
   return (
     <Sidebar className="group/sidebar-panel" collapsible="icon">
-      {/* As tall as the page header beside it, so the two share a top line.
-          Collapsed, the New button stacks under the logo. */}
       <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-2">
         <SidebarMenu className="w-auto">
           <SidebarMenuItem>
@@ -173,8 +163,6 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         <span className="flex-1 group-data-[collapsible=icon]:hidden" />
-        {/* Shown while the pointer is over the sidebar; peeking, it pins
-            the sidebar open instead. */}
         <ShortcutTooltip
           keys={TOGGLE_SIDEBAR_KEYS}
           label={

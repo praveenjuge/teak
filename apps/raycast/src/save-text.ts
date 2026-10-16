@@ -24,7 +24,6 @@ export default async function SaveTextCommand(
     return;
   }
 
-  // Like the web composer, let Teak detect links, quotes, and palettes.
   await saveCardWithFeedback(
     {
       content,

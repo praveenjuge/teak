@@ -27,11 +27,9 @@ export interface WorkersAiBinding {
 }
 
 export interface AiGatewayEnv {
-  /** AI Gateway to route Workers AI calls through; unset calls Workers AI directly. */
   AI_GATEWAY_ID?: string;
 }
 
-/** The binding's third `run` argument, or undefined when no gateway is set. */
 export const aiRunOptions = (
   env: AiGatewayEnv
 ): WorkersAiRunOptions | undefined => {

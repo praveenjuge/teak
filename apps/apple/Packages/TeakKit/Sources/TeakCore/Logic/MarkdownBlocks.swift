@@ -1,6 +1,5 @@
 import Foundation
 
-/// A block of a Markdown note: the same split the web, iPhone and Android note views use.
 public enum MarkdownBlock: Hashable, Sendable {
     case heading(level: Int, text: String)
     case list([MarkdownListItem])
@@ -22,7 +21,6 @@ public struct MarkdownListItem: Hashable, Sendable {
     }
 }
 
-/// Ported from the Expo iPhone app's Markdown blocks.
 public enum MarkdownBlocks {
     private nonisolated(unsafe) static let heading = /^(#{1,6})\s+(.*?)\s*#*\s*$/
     private nonisolated(unsafe) static let bullet = /^(\s*)[-*+]\s+(.*)$/
@@ -112,7 +110,6 @@ public enum MarkdownBlocks {
         return blocks
     }
 
-    /// A note as plain lines for small previews: block markers and inline emphasis removed.
     public static func plainText(_ markdown: String) -> String {
         parse(markdown).map { block -> String in
             let text: String = switch block {

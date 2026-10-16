@@ -56,7 +56,6 @@ const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
     ...principal,
     ...fields,
   });
-// Marks the principal's grant revoked, as a completed disconnect leaves it.
 const revoke = (t: Backend) =>
   t.run(async (ctx) => {
     const consent = await ctx.db
@@ -79,9 +78,6 @@ const sessionClient = (t: Backend) =>
     external_id: "legacy-owner",
   });
 
-// Public failure modes: wrong provider/owner, unverified or deleting identity,
-// foreign/duplicate/malformed grants, empty revoked pages, sibling revocation,
-// retry timestamps and refreshed credentials resurrecting a disconnected grant.
 describe("signed-in Connect management", () => {
   beforeEach(() => {
     vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
@@ -322,9 +318,6 @@ describe("signed-in Connect management", () => {
 
 afterEach(() => vi.useRealTimers());
 
-// Failures: consent IDs become vault owners; duplicate credentials cross owners;
-// refreshed tokens undo revocation; another owner revokes an app; missing,
-// unverified, tombstoned or deleting mappings gain access; every request writes.
 describe("durable Connect consent authorization", () => {
   test("records the canonical permanent owner and deduplicates repeated use", async () => {
     const t = setup();

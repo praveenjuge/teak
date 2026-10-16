@@ -1,11 +1,7 @@
-// Waveform peaks from a stream of 8 kHz mono s16le PCM. The stream is
-// reduced to one max |sample| per 50 ms window as it arrives, so an hour of
-// audio costs 72,000 numbers rather than the decoded samples.
-
 export const SAMPLES_PER_WINDOW = 400;
 
 export class PeakWindows {
-  readonly windows: number[] = [];
+  private readonly closed: number[] = [];
   private carry: number | null = null;
   private current = 0;
   private filled = 0;
@@ -26,14 +22,8 @@ export class PeakWindows {
     }
   }
 
-  /** Closes the last partial window. Call once the stream ends. */
-  finish(): number[] {
-    if (this.filled > 0) {
-      this.windows.push(this.current);
-      this.current = 0;
-      this.filled = 0;
-    }
-    return this.windows;
+  get windows(): number[] {
+    return this.filled > 0 ? [...this.closed, this.current] : this.closed;
   }
 
   private addSample(sample: number): void {
@@ -43,7 +33,7 @@ export class PeakWindows {
     }
     this.filled++;
     if (this.filled === SAMPLES_PER_WINDOW) {
-      this.windows.push(this.current);
+      this.closed.push(this.current);
       this.current = 0;
       this.filled = 0;
     }
@@ -55,10 +45,6 @@ function toInt16(low: number, high: number): number {
   return value >= 32_768 ? value - 65_536 : value;
 }
 
-/**
- * Buckets windows into `count` bars (max per bucket), normalises by the
- * loudest window, applies sqrt and quantises to 0–100. Silence stays zero.
- */
 export function peaksFromWindows(windows: number[], count: number): number[] {
   let loudest = 0;
   for (const value of windows) {

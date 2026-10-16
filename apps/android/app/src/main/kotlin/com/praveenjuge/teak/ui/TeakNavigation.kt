@@ -51,10 +51,6 @@ private enum class Tab(val label: String, val selected: ImageVector, val unselec
     Settings("Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
-/**
- * The signed-in app: three tabs, each with its own back stack. On wide windows (tablets,
- * foldables, desktop windows) the library and a card's detail sit side by side.
- */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> Unit) {
@@ -93,7 +89,6 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                 item(
                     selected = tab == item,
                     onClick = {
-                        // Tapping the current tab again goes back to its first screen.
                         if (tab == item) stacks.getValue(item).resetTo(stacks.getValue(item).first()) else tab = item
                     },
                     icon = { Icon(if (tab == item) item.selected else item.unselected, contentDescription = null) },
@@ -122,7 +117,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         searchRequest = searchRequest,
                         onSearchRequestHandled = { searchRequest = null },
                         selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
-                        onOpenCard = { id -> backStack.openDetail(CardDetail(id)) },
+                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
                         onWriteNote = { backStack.push(NoteComposer()) },
                     )
                 }
@@ -173,8 +168,7 @@ private fun NavBackStack<NavKey>.push(key: NavKey) {
     if (lastOrNull() != key) add(key)
 }
 
-/** Opening another card replaces the open one rather than stacking details. */
-private fun NavBackStack<NavKey>.openDetail(key: CardDetail) {
+private fun NavBackStack<NavKey>.replaceDetail(key: CardDetail) {
     while (lastOrNull() is CardEdit || lastOrNull() is CardDetail) removeLastOrNull()
     add(key)
 }

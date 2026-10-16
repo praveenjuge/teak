@@ -6,7 +6,6 @@ import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
 const lint = (source: string) => {
-  // Keep a repeatable fixture artifact without touching backend source files.
   const directory = mkdtempSync(join(tmpdir(), "teak-identity-lint-"));
   const sourceConfig = readFileSync(
     join(root, "biome.jsonc"),
@@ -19,9 +18,8 @@ const lint = (source: string) => {
     .replaceAll(/"ultracite\/biome\/(core|react|next)"/g, (value) =>
       JSON.stringify(Bun.resolveSync(JSON.parse(value), root))
     )
-    .replace(
-      '"./scripts/lint/no-raw-identity.grit"',
-      JSON.stringify(join(root, "scripts/lint/no-raw-identity.grit"))
+    .replaceAll(/"\.\/(scripts\/lint\/[\w-]+\.grit)"/g, (_match, path) =>
+      JSON.stringify(join(root, path))
     );
   writeFileSync(join(directory, "biome.jsonc"), config);
   mkdirSync(join(directory, "packages/convex"), { recursive: true });

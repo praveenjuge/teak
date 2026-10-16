@@ -65,7 +65,6 @@ import {
   visualFilterTypes,
 } from "./visualFilters";
 
-// Return validator for card arrays - includes _id and _creationTime from Convex
 export const cardReturnValidator = v.object({
   ...cardValidator.fields,
   _id: v.id("cards"),
@@ -118,7 +117,6 @@ const createdAtRangeValidator = v.object({
   end: v.number(),
 });
 
-// Paginated search pages are cut from this many best matches, sorted by date.
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
 /** The most results one search index query returns. */
 const SEARCH_INDEX_RESULT_LIMIT = 1024;
@@ -128,17 +126,10 @@ const isSearchTooBroadError = (error: unknown): boolean =>
   (error.data as { code?: unknown } | undefined)?.code === "INVALID_INPUT";
 export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
-/** Folder rows a color, style or favorites view of one folder reads per page. */
 const FOLDER_FILTER_SCAN_BATCH = 200;
-/**
- * Shuffle of a tag or folder: how many of its rows (the newest) are put in
- * seeded order. Rows are small; only a page's cards are loaded.
- */
 const SHUFFLE_ROW_LIMIT = 2000;
-/** Rows a filtered Shuffle walk reads at most per page. */
 const SHUFFLE_WALK_SCAN_LIMIT = 400;
 
-/** The cards behind index rows, in order, skipping any since deleted. */
 const loadCards = async (
   ctx: QueryCtx,
   cardIds: readonly Doc<"cards">["_id"][]
@@ -179,7 +170,6 @@ export const getCards = query({
   },
 });
 
-// New server-side search and filter query
 export const searchCards = query({
   args: {
     searchQuery: v.optional(v.string()),
@@ -222,11 +212,9 @@ export const searchCards = query({
       hexFilters,
     });
 
-    // If we have a search query, use search indexes for efficiency
     if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
 
-      // Handle special keywords
       if (
         ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
       ) {
@@ -280,7 +268,6 @@ export const searchCards = query({
           }).length === 1,
       });
 
-      // Apply additional filters
       const filteredResults = applyCardLevelFilters(uniqueResults, {
         types,
         favoritesOnly,
@@ -296,7 +283,6 @@ export const searchCards = query({
       return applyQuoteFormattingToList(resultsWithUrls);
     }
 
-    // No search query: colors and styles read the library in date order.
     if (visualFilters.hasVisualFilters) {
       const visualResults = await findVisualMatches(ctx, {
         userId: user.teakUserId,
@@ -403,9 +389,6 @@ export const searchCardsPaginatedHandler = async (
   const emptyPage = { page: [], isDone: true, continueCursor: null };
   const sort: CardListSort = normalizeCardListSort(args.sort);
   const order = sort === "oldest" ? "asc" : "desc";
-  // Qualifiers in the search (`tag:`, `type:`, `is:fav`, `site:`, `folder:`)
-  // merge into the view's own filters; the words left over search the text.
-  // A smart folder's own search joins the typed one.
   const view = await expandFolderSearch(
     ctx,
     user.teakUserId,
@@ -425,23 +408,15 @@ export const searchCardsPaginatedHandler = async (
     trash: showTrashOnly,
     types: args.types,
   });
-  // A folder that is missing, being deleted or another user's, an unknown
-  // `folder:` name, or a `type:` outside the view lists nothing.
   if (!resolved) {
     return emptyPage;
   }
   const { archived, types, sites } = resolved;
   const favoritesOnly = resolved.favoritesOnly || undefined;
   const searchQuery = resolved.text;
-  // The first folder or tag can drive a read; `matches` checks the rest.
   const folderId = resolved.folderIds[0];
   const tag = resolved.tags[0] ?? "";
-  // List scans check a card's own fields; the full-text path below passes
-  // the search document's text, which also holds extracted file text.
   const matchesQualifiers = (card: Doc<"cards">) => resolved.matches(card);
-  // Clamp the caller-provided page size so a single request cannot force an
-  // arbitrarily large index read / in-memory sort. The cursor is validated
-  // separately where it is parsed into an offset.
   const paginationOpts = {
     ...rawPaginationOpts,
     numItems: clampPageSize(rawPaginationOpts.numItems),
@@ -456,9 +431,6 @@ export const searchCardsPaginatedHandler = async (
     ? { gte: createdAtRange.start, lt: createdAtRange.end }
     : undefined;
 
-  // Shuffle: the library is walked by each card's random key from a point
-  // the seed picks; a bounded set of matches (a search, tag, folder, site
-  // or colors) is put in the seed's order instead (shared/search/shuffle.ts).
   const shuffle = sort === "shuffle";
   const seed = isShuffleSeed(args.shuffleSeed) ? args.shuffleSeed : 0;
   const offsetPage = async <T>(
@@ -466,8 +438,6 @@ export const searchCardsPaginatedHandler = async (
     load: (items: T[]) => Promise<Doc<"cards">[]>
   ) => {
     const parsedCursor = Number(paginationOpts.cursor ?? "0");
-    // Bounded by the set itself (up to SHUFFLE_ROW_LIMIT), not by a
-    // search's offset cap, so every card of a large tag or folder is reached.
     const offset = Math.min(
       Number.isFinite(parsedCursor) && parsedCursor > 0
         ? Math.floor(parsedCursor)
@@ -574,8 +544,6 @@ export const searchCardsPaginatedHandler = async (
 
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    // The bare quick commands list the whole library, so with a folder, a
-    // tag or any qualifier the words are searched like any other.
     const quickCommand = !(
       folderId ||
       tag ||
@@ -673,16 +641,13 @@ export const searchCardsPaginatedHandler = async (
       urlHost: sites.length === 1 ? sites[0] : undefined,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
     };
-    // Meaning matches, when this search's are cached. Semantic mode with
-    // none cached falls back to keyword results.
+    // Semantic mode with no cached meaning matches falls back to keyword.
     const mode = args.mode ?? "hybrid";
     const semanticText = mode === "keyword" ? "" : semanticQueryText(parsed);
     const ranking = semanticText
       ? await readSemanticRanking(ctx, user.teakUserId, semanticText)
       : null;
     const keywordSearch = !(mode === "semantic" && ranking);
-    // Every page sorts the same candidate set, so offsets never overlap or
-    // skip between pages.
     let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
     try {
@@ -697,10 +662,6 @@ export const searchCardsPaginatedHandler = async (
       if (!isSearchTooBroadError(error)) {
         throw error;
       }
-      // A saturated search with selective filters: filter every match the
-      // index returned (not just the first page of candidates) instead of
-      // failing the grid, so a folder keeps the matches the filtered pass
-      // already found.
       searchResults = await searchCardsByDocument(ctx, {
         ...searchArgs,
         limit: SEARCH_INDEX_RESULT_LIMIT,
@@ -711,7 +672,6 @@ export const searchCardsPaginatedHandler = async (
       .filter((card) => matchesFilters(card, searchTexts.get(card._id)))
       .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
 
-    // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     let filteredResults = uniqueResults;
     const matchedByMeaning = new Set<Id<"cards">>();
     if (ranking) {
@@ -759,12 +719,7 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
-  // A tag: page through the tag's index rows in date order. Folders and
-  // colors or styles filter each batch here, so a batch can hold no match
-  // while more remain; the grid then loads the next one.
   if (tag) {
-    // A card changes before its tag rows catch up, so check the card itself
-    // still has the tag and belongs in this view.
     const inView = (card: Doc<"cards">) => {
       if (showTrashOnly) {
         return card.isDeleted === true;
@@ -832,12 +787,6 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
-  // Colors, styles and favorites inside a folder: the library-wide search
-  // indexes can't narrow to one folder, so page through the folder's own
-  // rows (in date order) and filter each batch here. A batch can hold no
-  // match while more remain; the grid then loads the next one.
-  // Shuffle of a folder: its newest rows in the seed's order, each page's
-  // cards checked against the view's filters.
   if (folderId && shuffle) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
@@ -898,10 +847,6 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
-  // Sites, phrases, colors, styles and the other card-level filters without
-  // a folder or tag: one site reads its host index, anything else the
-  // library list, and each batch is filtered here like the folder views
-  // above. Colors and styles are arrays, which no search index covers.
   if (resolved.hasCardFilters || visualFilters.hasVisualFilters) {
     const scanTypes = visualFilterTypes(types, visualFilters);
     if (scanTypes?.length === 0) {
@@ -918,8 +863,6 @@ export const searchCardsPaginatedHandler = async (
         createdAtRange,
         visualFilters,
       });
-    // Shuffle walks the whole library with the same filters (a site
-    // included), so no matching card is left out.
     if (shuffle) {
       return shuffleWalkPage(
         {
@@ -947,8 +890,6 @@ export const searchCardsPaginatedHandler = async (
           types: scanTypes,
           createdAt: createdAtBounds,
         });
-    // The host index alone answers a site with no other card filter, so
-    // every row matches and the page keeps the size asked for.
     const exact =
       host !== undefined &&
       !types?.length &&

@@ -11,8 +11,6 @@ import { insertCompletedCards } from "./card/defaultCards";
 import { insertFolder } from "./folder/folders";
 import schema from "./schema";
 
-// Re-importing a schema v2 Teak archive restores folders (by name, created
-// when missing), archive state and titles, and still stops at the card cap.
 const modules = import.meta.glob("./**/*.ts");
 
 beforeEach(() => vi.useFakeTimers());
@@ -127,13 +125,11 @@ describe("schema v2 archive import", () => {
     expect(archived?.metadataTitle).toBe("A kept title");
     expect(archived?.folderIds).toHaveLength(2);
 
-    // "reading" matched the folder made for the first card.
     const plain = await cardByContent("Plain note");
     expect(plain?.folderIds).toEqual([reading?._id]);
     expect(plain?.isArchived).toBeUndefined();
     expect((await cardByContent("Loose note"))?.folderIds).toBeUndefined();
 
-    // The folder rows and counts follow, with the archived card left out.
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const rows = await t.run((ctx) => ctx.db.query("folderCards").collect());
     expect(rows).toHaveLength(3);
@@ -224,9 +220,7 @@ describe("schema v2 archive import", () => {
     ]);
     const card = await cardByContent("My bookmark");
     expect(card?.isArchived).toBe(true);
-    // Bookmark sources take the title from the link's name.
     expect(card?.metadataTitle).toBe("My bookmark");
-    // Both items share the folder the first one created.
     expect((await folders()).map((folder) => folder.name)).toEqual([
       "Work / Design",
     ]);

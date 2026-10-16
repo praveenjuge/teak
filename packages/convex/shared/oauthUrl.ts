@@ -1,11 +1,5 @@
 import { isLocalDevelopmentHostname } from "../devUrls";
 
-/**
- * OAuth URL safety rules, shared by the browser discovery client, Convex and
- * the Files Worker (which verifies access tokens and must not pull in the
- * browser client).
- */
-
 export const isLoopbackHostname = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
 

@@ -2,9 +2,16 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Card } from "@teak/ui/cards";
 import { Spinner } from "@teak/ui/components/ui/spinner";
-import { Masonry } from "antd";
-import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
+import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
@@ -13,7 +20,8 @@ import {
   collectCardLinks,
 } from "../../lib/bulkCardActions";
 import type { FolderSummary } from "../../lib/folders";
-import { type GridDirection, nextCardIndex } from "../../lib/gridNavigation";
+import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
+import { nextCardIndex } from "../../lib/gridNavigation";
 import { isOptimisticCard } from "../cards/types";
 import {
   BulkTagsDialog,
@@ -28,12 +36,10 @@ import {
 } from "../selection/BulkActionBar";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 
-type CardItem = Doc<"cards"> | "add-form";
-
-interface MasonryItemData {
-  data: CardItem;
-  isPriority?: boolean;
-  key: string | number;
+type MasonryCell = "add-form" | { card: Doc<"cards">; isPriority: boolean };
+interface MasonryItem {
+  data: MasonryCell;
+  key: string;
 }
 
 type MasonryColumns =
@@ -48,17 +54,6 @@ type MasonryColumns =
     };
 
 const DEFAULT_BATCH_SIZE = 24;
-// How long focus waits for the card modal to finish closing.
-const MODAL_CLOSE_WAIT_MS = 1000;
-
-const GRID_DIRECTIONS: Record<string, GridDirection> = {
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  j: "next",
-  k: "previous",
-};
 const MIN_COLUMN_WIDTH = 200;
 const MAX_COLUMNS = 5;
 
@@ -72,15 +67,27 @@ export const columnsForWidth = (width: number, gutter: number): number =>
     Math.max(1, Math.floor((width + gutter) / (MIN_COLUMN_WIDTH + gutter)))
   );
 
-// Before the grid is measured (and on the server) the viewport decides.
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 const DEFAULT_ROOT_MARGIN = "200px 0px";
-// Cards near the top of the grid are above the fold on every screen size, so
-// their media loads eagerly with high fetch priority instead of lazily.
 const PRIORITY_CARD_COUNT = 10;
 
+// antd animates items in and out. Its motion forgets it has mounted while
+// Next.js hides the page in <Activity>, so any re-render there (a card
+// changing while Settings is open) unmounts every item, the composer
+// included. Without motion the items stay mounted.
+const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
+
+export interface MasonryGridHandle {
+  /**
+   * Focuses the card a dialog opened from the grid showed last, as the
+   * dialog closes. False when the dialog was not opened from the grid or the
+   * card is gone, so the dialog returns focus as it would anyway.
+   */
+  returnFocusTo: (cardId: string) => boolean;
+}
+
 export interface MasonryGridProps {
-  AddCardFormComponent?: React.ComponentType;
+  addCardForm?: ReactNode;
   /**
    * Choosing cards for this folder: the grid opens in selection mode and
    * the bar's one action adds the selection to it.
@@ -120,8 +127,7 @@ export interface MasonryGridProps {
   onRestoreCard?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
-  /** The card open in the modal; when it closes, focus returns to the grid. */
-  openCardId?: string | null;
+  ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
   /** The Archive view: the bulk bar offers Unarchive instead of Archive. */
@@ -140,7 +146,7 @@ export function MasonryGrid({
   showArchivedOnly = false,
   showAddForm = false,
   showBulkActions = true,
-  AddCardFormComponent,
+  addCardForm,
   onCardClick,
   onDeleteCard,
   onBulkAction,
@@ -150,7 +156,7 @@ export function MasonryGrid({
   onToggleFavorite,
   onAddTags,
   onCopyImage,
-  openCardId,
+  ref,
   initialBatchSize = DEFAULT_BATCH_SIZE,
   batchSize = DEFAULT_BATCH_SIZE,
   resetKey,
@@ -181,11 +187,7 @@ export function MasonryGrid({
     "add" | "move" | null
   >(null);
   const [foldersCardId, setFoldersCardId] = useState<string | null>(null);
-  // Choosing cards for a folder keeps selection mode on even with nothing
-  // picked, until the user adds them or cancels.
   const keepSelectionMode = Boolean(addToFolder);
-  // Keyed on the folder ID: the screen passes a fresh object each render, and
-  // a render (loading more cards, a live update) must not clear the picks.
   const addToFolderId = addToFolder?.id;
   useEffect(() => {
     if (addToFolderId) {
@@ -198,15 +200,10 @@ export function MasonryGrid({
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  // The card the grid's one tab stop is on; arrows and J/K move it.
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  // Whether keyboard focus was last in the grid, so focus can follow when
-  // the focused card leaves it (moved to Trash, archived).
   const gridFocusedRef = useRef(false);
   const lastActiveIndexRef = useRef(0);
-  // A card opened from the grid, so closing the modal can focus it again.
   const openedFromGridRef = useRef(false);
-  const previousOpenCardIdRef = useRef(openCardId ?? null);
   const [measuredColumns, setMeasuredColumns] = useState<number | null>(null);
   useEffect(() => {
     const grid = gridRef.current;
@@ -275,8 +272,6 @@ export function MasonryGrid({
   }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
 
   useEffect(() => {
-    // The sentinel only renders while the grid can grow, so this re-runs when
-    // hasMore turns true (a filter's first page can arrive before that).
     const canGrow = visibleCount < filteredCards.length || hasMore !== false;
     const sentinel = loadMoreRef.current;
     if (!(sentinel && canGrow)) {
@@ -323,7 +318,6 @@ export function MasonryGrid({
     () => filteredCards.slice(0, visibleCount),
     [filteredCards, visibleCount]
   );
-  // Cards still being saved can't be focused or acted on.
   const navigableIds = useMemo(
     () =>
       visibleCards
@@ -345,8 +339,6 @@ export function MasonryGrid({
     element.scrollIntoView({ block: "nearest" });
   }, []);
 
-  // J or K with nothing focused (after a toast's Undo, say) goes back to
-  // the grid's card. Arrows are left alone: they scroll the page.
   useKeyboardShortcuts(
     useMemo(() => {
       const nothingFocused = () =>
@@ -370,7 +362,6 @@ export function MasonryGrid({
     }, [focusCard, tabStopId])
   );
 
-  // Shows the next batch, or asks for the next page, as scrolling would.
   const showMoreCards = useCallback(() => {
     if (visibleCount < filteredCards.length) {
       setVisibleCount((prev) =>
@@ -407,9 +398,6 @@ export function MasonryGrid({
     };
   }, []);
 
-  // When the focused card leaves the grid (Delete, E, or F in Favorites),
-  // focus moves to the card that took its place, so the keyboard never
-  // drops back to the top of the page.
   useEffect(() => {
     if (activeCardId === null) {
       return;
@@ -442,38 +430,26 @@ export function MasonryGrid({
     }
   }, [activeCardId, focusCard, navigableIds]);
 
-  // Closing the modal returns focus to the card it showed last (or the one
-  // that opened it), as closing any dialog returns focus to its trigger.
-  useEffect(() => {
-    const previous = previousOpenCardIdRef.current;
-    previousOpenCardIdRef.current = openCardId ?? null;
-    if (!previous || openCardId || !openedFromGridRef.current) {
-      return;
-    }
-    openedFromGridRef.current = false;
-    // The modal animates out first; focus the card once it is gone, unless
-    // focus has gone somewhere on purpose by then.
-    let timer = 0;
-    const startedAt = Date.now();
-    const restore = () => {
-      if (
-        document.querySelector("[role='dialog']") &&
-        Date.now() - startedAt < MODAL_CLOSE_WAIT_MS
-      ) {
-        timer = window.setTimeout(restore, 50);
-        return;
-      }
-      const focused = document.activeElement;
-      const element = gridRef.current?.querySelector<HTMLElement>(
-        `[data-card-id="${CSS.escape(previous)}"]`
-      );
-      if (element && (focused === null || focused === document.body)) {
+  useImperativeHandle(
+    ref,
+    () => ({
+      returnFocusTo: (cardId: string) => {
+        if (!openedFromGridRef.current) {
+          return false;
+        }
+        openedFromGridRef.current = false;
+        const element = gridRef.current?.querySelector<HTMLElement>(
+          `[data-card-id="${CSS.escape(cardId)}"]`
+        );
+        if (!element) {
+          return false;
+        }
         focusCard(element);
-      }
-    };
-    timer = window.setTimeout(restore, 0);
-    return () => window.clearTimeout(timer);
-  }, [focusCard, openCardId]);
+        return true;
+      },
+    }),
+    [focusCard]
+  );
 
   const enterSelectionMode = useCallback((cardId?: string) => {
     setIsSelectionMode(true);
@@ -545,7 +521,6 @@ export function MasonryGrid({
     [filteredCards, selectedCardIds]
   );
 
-  // Tags on the selection, offered as choices when removing tags.
   const selectionTags = useMemo(() => {
     const byName = new Map<string, string>();
     for (const card of selectedCards) {
@@ -571,7 +546,6 @@ export function MasonryGrid({
       }
       setIsBulkBusy(true);
       try {
-        // Each card's folders before the action, so Undo restores them.
         const priorFolderIds = options.folder
           ? new Map(
               selectedCards.map((card) => [
@@ -681,7 +655,6 @@ export function MasonryGrid({
     [addToFolder, folder, runBulk, selectedCards, toastIdPrefix]
   );
 
-  // "Delete Forever" can't be undone, so it always asks first.
   const requestPermanentDelete = useMemo(
     () =>
       onPermanentDeleteCard
@@ -697,39 +670,34 @@ export function MasonryGrid({
     setPendingPermanentDeleteId(null);
   }, [onPermanentDeleteCard, pendingPermanentDeleteId]);
 
-  const masonryItems: MasonryItemData[] = useMemo(() => {
-    const items: MasonryItemData[] = [];
+  const masonryItems = useMemo(() => {
+    const items: MasonryItem[] = [];
 
-    if (showAddForm && !showTrashOnly && AddCardFormComponent) {
-      items.push({
-        key: "add-form",
-        data: "add-form" as const,
-      });
+    if (showAddForm && !showTrashOnly && addCardForm) {
+      items.push({ key: "add-form", data: "add-form" });
     }
 
     for (const [index, card] of visibleCards.entries()) {
       items.push({
-        data: card,
-        isPriority: index < PRIORITY_CARD_COUNT,
+        data: { card, isPriority: index < PRIORITY_CARD_COUNT },
         key: card._id,
       });
     }
 
     return items;
-  }, [visibleCards, showTrashOnly, showAddForm, AddCardFormComponent]);
+  }, [visibleCards, showTrashOnly, showAddForm, addCardForm]);
 
   const renderItem = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (item: any) => {
-      if (item.data === "add-form" && AddCardFormComponent) {
-        return <AddCardFormComponent />;
+    ({ data }: Pick<MasonryItem, "data">) => {
+      if (data === "add-form") {
+        return addCardForm;
       }
 
-      const card = item.data as Doc<"cards">;
+      const { card, isPriority } = data;
       return (
         <Card
           card={card}
-          isPriority={item.isPriority === true}
+          isPriority={isPriority}
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
           isTabStop={card._id === tabStopId}
@@ -749,7 +717,7 @@ export function MasonryGrid({
       );
     },
     [
-      AddCardFormComponent,
+      addCardForm,
       handleCardClick,
       onDeleteCard,
       onRestoreCard,
@@ -774,10 +742,6 @@ export function MasonryGrid({
     }
   }, []);
 
-  // Keys on a focused card: arrows and J/K move, F favorites, T adds tags,
-  // E archives, Delete moves to Trash (asks to delete forever in Trash), X
-  // selects and Esc leaves selection; with cards selected, F, T, E and
-  // Delete act on the selection. Enter, Space and Cmd+C are the card's own.
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const cardId = target.dataset?.cardId;
@@ -791,12 +755,21 @@ export function MasonryGrid({
     ) {
       return;
     }
-    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-    const direction = GRID_DIRECTIONS[key];
-    if (direction) {
+    const action = gridKeyAction(
+      event.key.length === 1 ? event.key.toLowerCase() : event.key,
+      {
+        addToFolder: Boolean(addToFolder),
+        allSelectedFavorited: selectedCards.every(
+          (selected) => selected.isFavorited
+        ),
+        hasSelection:
+          isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction),
+        isSelectionMode,
+        view: bulkView,
+      }
+    );
+    if (action?.type === "move") {
       event.preventDefault();
-      // Positions are read on each press: images loading and resizes
-      // reflow the columns.
       const elements = Array.from(
         gridRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []
       );
@@ -814,91 +787,62 @@ export function MasonryGrid({
       const next = nextCardIndex(
         ordered.map((element) => element.getBoundingClientRect()),
         index,
-        direction
+        action.direction
       );
       const nextElement = ordered[next];
       if (next !== index && nextElement) {
         focusCard(nextElement);
-      } else if (direction === "down" || direction === "next") {
+      } else if (action.direction === "down" || action.direction === "next") {
         showMoreCards();
       }
       return;
     }
-    if (event.repeat) {
+    if (!action || event.repeat) {
       return;
     }
     const card = visibleCards.find((candidate) => candidate._id === cardId);
     if (!card) {
       return;
     }
-    const isActionKey =
-      key === "f" ||
-      key === "t" ||
-      key === "e" ||
-      key === "Delete" ||
-      key === "Backspace";
-    // Choosing cards for a folder only picks them: no other card actions.
-    if (addToFolder && isActionKey) {
+    if (action.type === "blocked") {
       event.preventDefault();
-      return;
-    }
-    // With cards selected, F, T, E and Delete act on all of them, like the
-    // bar.
-    const hasSelection =
-      isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction);
-    // Trash's bar has no Delete Forever for a selection, so neither do keys.
-    if (hasSelection && showTrashOnly && isActionKey) {
+    } else if (action.type === "selection") {
       event.preventDefault();
-      return;
-    }
-    if (hasSelection && !showTrashOnly) {
-      let action: BulkCardAction | null = null;
-      if (key === "f") {
-        action = selectedCards.every((selected) => selected.isFavorited)
-          ? "unfavorite"
-          : "favorite";
-      } else if (key === "e") {
-        action = showArchivedOnly ? "unarchive" : "archive";
-      } else if (key === "Delete" || key === "Backspace") {
-        action = "delete";
-      }
-      if (action) {
-        event.preventDefault();
-        runBulk(action).catch(() => undefined);
-        return;
-      }
-      if (key === "t") {
-        event.preventDefault();
-        handleBulkAction("addTags");
-        return;
-      }
-    }
-    if (key === "f" && !showTrashOnly && onToggleFavorite) {
-      event.preventDefault();
-      onToggleFavorite(cardId);
-    } else if (key === "t" && !showTrashOnly && onAddTags) {
-      event.preventDefault();
-      onAddTags(cardId);
-    } else if (key === "e" && !showTrashOnly && onToggleArchive) {
-      event.preventDefault();
-      onToggleArchive(cardId, !card.isArchived);
-    } else if (key === "Delete" || key === "Backspace") {
-      event.preventDefault();
-      if (showTrashOnly) {
-        requestPermanentDelete?.(cardId);
-      } else {
-        onDeleteCard(cardId).catch(() => undefined);
-      }
-    } else if (key === "x") {
-      event.preventDefault();
-      if (isSelectionMode) {
-        toggleCardSelection(cardId);
-      } else {
-        enterSelectionMode(cardId);
-      }
-    } else if (key === "Escape" && isSelectionMode) {
+      handleBulkAction(action.action);
+    } else if (action.type === "cancelSelection") {
       event.preventDefault();
       cancelSelection();
+    } else {
+      runCardKeyAction(event, action.action, card);
+    }
+  };
+
+  const runCardKeyAction = (
+    event: KeyboardEvent<HTMLDivElement>,
+    action: GridCardKeyAction,
+    card: Doc<"cards">
+  ) => {
+    const handlers: Record<GridCardKeyAction, (() => void) | undefined> = {
+      addTags: onAddTags && (() => onAddTags(card._id)),
+      archive:
+        onToggleArchive && (() => onToggleArchive(card._id, !card.isArchived)),
+      delete: () => {
+        onDeleteCard(card._id).catch(() => undefined);
+      },
+      deleteForever: () => requestPermanentDelete?.(card._id),
+      favorite: onToggleFavorite && (() => onToggleFavorite(card._id)),
+      select: () => {
+        if (isSelectionMode) {
+          toggleCardSelection(card._id);
+        } else {
+          enterSelectionMode(card._id);
+        }
+      },
+    };
+    const run = handlers[action];
+    if (run) {
+      event.preventDefault();
+      run();
     }
   };
 
@@ -928,14 +872,16 @@ export function MasonryGrid({
         onKeyDown={handleGridKeyDown}
         ref={gridRef}
       >
-        <Masonry
-          className={isSelectionMode ? "select-none" : ""}
-          columns={resolvedColumns}
-          fresh
-          gutter={gutter}
-          itemRender={renderItem}
-          items={masonryItems}
-        />
+        <ConfigProvider theme={STILL_MASONRY_THEME}>
+          <Masonry
+            className={isSelectionMode ? "select-none" : ""}
+            columns={resolvedColumns}
+            fresh
+            gutter={gutter}
+            itemRender={renderItem}
+            items={masonryItems}
+          />
+        </ConfigProvider>
       </div>
       {filteredCards.length > 0 &&
         (visibleCount < filteredCards.length ||

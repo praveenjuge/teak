@@ -3,7 +3,6 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    // A complete WorkOS configuration; tests stub specific values as needed.
     env: {
       CONVEX_SITE_URL: "https://session-tests.convex.site",
       WORKOS_CLIENT_ID: "client_edgetests",
@@ -13,7 +12,6 @@ export default defineConfig({
       "./occContention.test.ts",
       "./edgeIdentity.test.ts",
       "./edgeRateLimit.test.ts",
-      "./accountDeletionRetry.test.ts",
       "./accountDeletionStorage.test.ts",
       "./accountDeletionWorkflow.test.ts",
       "./vectorShards.test.ts",

@@ -2,9 +2,6 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Ported from the Expo iPhone app's card-sheet, card-edit, markdown-blocks,
-// save-link, createCardFromText and files tests.
-
 private func card(_ type: CardType, content: String = "", url: String? = nil, notes: String? = nil,
                   tags: [String]? = nil, aiTags: [String]? = nil, colors: [CardColor]? = nil,
                   file: FileMetadata? = nil, fileUrl: String? = nil, thumbnailUrl: String? = nil,

@@ -40,7 +40,7 @@ describe("parseBlueskyPostUrl", () => {
       { actor: "a.example.com", rkey: "3kabc" },
     ],
   ])("reads %s", (url: string, ref: unknown) => {
-    expect(parseBlueskyPostUrl(url)).toEqual(ref);
+    expect<unknown>(parseBlueskyPostUrl(url)).toEqual(ref);
   });
 
   test.each([

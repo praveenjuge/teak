@@ -90,7 +90,6 @@ fun SettingsScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
     ) { padding ->
-        // On tablets and desktop windows the list keeps a readable width, centered.
         Column(
             Modifier
                 .padding(padding)
@@ -105,7 +104,6 @@ fun SettingsScreen(
 
             ListSectionHeader("Account")
             ListGroup {
-                // An email can be long, so it goes under its label instead of squeezing it.
                 ListRow("Email", Icons.Outlined.Mail, supporting = state.email ?: "Not logged in")
                 ListRow("Usage", Icons.Outlined.Inventory2, trailing = { LoadingValue(state.usage) })
                 ListRow("Plan", Icons.Outlined.WorkspacePremium, trailing = { LoadingValue(state.plan.takeIf { state.usage != null }) })
@@ -193,7 +191,6 @@ private fun ThemePicker(selected: ThemePreference, onChange: (ThemePreference) -
     }
 }
 
-/** A row's value, or a small spinner while it loads. */
 @Composable
 private fun LoadingValue(value: String?) {
     if (value == null) {

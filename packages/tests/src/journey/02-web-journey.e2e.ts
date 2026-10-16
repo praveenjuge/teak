@@ -9,8 +9,6 @@ import {
 } from "../helpers/app";
 import { describe, expect, test } from "../helpers/test";
 
-// One fresh account for the file: the journey expects an empty vault, and
-// the palette check reuses its session and API key.
 let email = "";
 let apiKey = "";
 
@@ -74,9 +72,6 @@ describe("web core journey", { serial: true }, () => {
     await gotoApp(browser, "/settings");
     await expect(screen.getByText(email, { exact: false })).toBeVisible();
     await expect(screen.getByText("Free Plan", { exact: false })).toBeVisible();
-    // Settings loads the device list on every visit, and the page must not
-    // be left while that read is in flight. Seeing this device in Security
-    // shows it finished before generateApiKey reloads Settings.
     const security = await openSecurityDialog(surface);
     await expect(
       security.getByText("This device", { exact: false })
@@ -90,8 +85,6 @@ describe("web core journey", { serial: true }, () => {
     browser,
     screen,
   }) => {
-    // Regression: the web note composer forced type "text", which disabled
-    // server-side classification, so colors stopped becoming palette cards.
     expect(apiKey, "web-core API key from the journey").toMatch(/^teakapi_/);
     const hex = "#2050D0";
 
@@ -99,12 +92,8 @@ describe("web core journey", { serial: true }, () => {
     const composer = composerOf(screen);
     await composer.fill(hex);
     await screen.getByRole("button", "Save").click();
-    // The optimistic card appears immediately; classification runs
-    // server-side.
     await expect(screen.getByRole("main").getByText(hex).first()).toBeVisible();
 
-    // Poll the API until the composer-created card is classified as a
-    // palette.
     const api = clientFor(apiKey);
     await expect
       .poll(

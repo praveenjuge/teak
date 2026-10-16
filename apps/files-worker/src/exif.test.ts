@@ -11,7 +11,6 @@ const readerOf = (bytes: Uint8Array) => ({
   size: bytes.length,
 });
 
-// Written with Pillow: see the fixture's EXIF in the expectation below.
 const FIXTURE_FACTS = {
   exposureTime: 0.004,
   fNumber: 2.8,
@@ -120,11 +119,10 @@ const heifWithExif = (tiff: Uint8Array): Uint8Array => {
 };
 
 describe("readExifFacts", () => {
-  test("reads camera, exposure, location and capture time from a JPEG", async () => {
+  test("reads camera, exposure and capture time from a JPEG but never its GPS location", async () => {
     const jpeg = fixture("fixture-exif.jpg");
     const { read, size } = readerOf(jpeg);
     const facts = await readExifFacts(read, size);
-    // The fixture also carries GPS coordinates, which are never stored.
     expect(facts).toEqual(FIXTURE_FACTS);
   });
 

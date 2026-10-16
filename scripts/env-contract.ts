@@ -1,19 +1,3 @@
-/**
- * Name-only environment contract for the Teak monorepo.
- *
- * Single source of truth for every operator-owned runtime, build, release,
- * and E2E variable: who owns it, which target consumes it, which profiles it
- * applies to, whether it is secret, how it validates, where it is provided,
- * and whether it is required. Entry tables live in
- * ./env-contract-entries-*.ts; types and the entry builder live in
- * ./env-contract-types.ts. Names and metadata only - never values.
- *
- * Automatic platform values (CI, GitHub Actions, Vercel/Git metadata, test
- * runner and framework injections) are listed in PLATFORM_EXACT /
- * PLATFORM_PATTERNS instead. Removed names live in DELETED_ALIASES so the
- * audit in ./env-audit.ts can fail if they return.
- */
-
 import { BACKEND_ENTRIES } from "./env-contract-entries-backend.ts";
 import { OPS_ENTRIES } from "./env-contract-entries-ops.ts";
 import { SURFACE_ENTRIES } from "./env-contract-entries-surfaces.ts";
@@ -25,12 +9,6 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
   ...OPS_ENTRIES,
 ];
 
-/**
- * Names removed by the typed-env cleanup, the Better Auth removal (WorkOS
- * AuthKit is the only sign-in provider; WorkOS also sends every sign-in
- * email, so Resend has no key), the move from Sentry to PostHog, and Teak for
- * Mac's retirement. The audit fails if they return.
- */
 export const DELETED_ALIASES = [
   "APPLE_APP_BUNDLE_IDENTIFIER",
   "APPLE_CLIENT_ID",
@@ -79,11 +57,6 @@ export const DELETED_ALIASES = [
   "WORKOS_CONNECT_SAFARI_CLIENT_ID",
 ] as const;
 
-/**
- * Automatic platform, tool, and framework values. Never operator-owned, so
- * never in the contract. Exact names only; prefix families live in
- * PLATFORM_PATTERNS.
- */
 export const PLATFORM_EXACT = [
   "ANDROID_HOME",
   "BROWSER",
@@ -137,7 +110,6 @@ export const PLATFORM_EXACT = [
   "XDG_CONFIG_HOME",
 ] as const;
 
-/** Prefix families owned by platforms and tools, matched case-sensitively. */
 export const PLATFORM_PATTERNS = [
   // Claude Code sets these in its sessions (CLAUDE_CODE_REMOTE in cloud VMs).
   /^CLAUDE_CODE_/,

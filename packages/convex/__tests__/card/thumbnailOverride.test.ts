@@ -70,6 +70,6 @@ describe("link image types", () => {
     ["text/plain", null],
     ["", null],
   ])("%s is %s", (input: string, expected: string | null) => {
-    expect(toThumbnailMimeType(input)).toBe(expected);
+    expect<string | null>(toThumbnailMimeType(input)).toBe(expected);
   });
 });

@@ -1,11 +1,3 @@
-/**
- * Client for the dev deployment's push lease (packages/convex/devPushLease.ts).
- *
- * Every checkout and cloud session shares one dev deployment, so only the
- * lease holder runs `convex dev`. Calls go through `bunx convex run`, which
- * works with a Convex login and with a cloud session's dev deploy key alike.
- */
-
 import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import { runCommand } from "./proc.ts";
@@ -41,7 +33,6 @@ const git = async (root: string, args: string[]): Promise<string> => {
   return result.exitCode === 0 ? result.stdout.trim() : "";
 };
 
-/** This checkout on this machine; the label says which branch it pushes. */
 export const leaseHolder = async (root: string): Promise<LeaseHolder> => {
   const host = hostname();
   const branch =
@@ -71,7 +62,6 @@ export const parseRunOutput = (stdout: string): unknown => {
   throw new Error("no JSON result");
 };
 
-/** The thrown message from a failed `convex run`, without its stack frames. */
 export const convexRunError = (stderr: string): string => {
   const lines = stderr
     .split("\n")
@@ -86,7 +76,6 @@ export const convexRunError = (stderr: string): string => {
   );
 };
 
-/** Classifies a failed `convex run` of a lease function. */
 export const classifyLeaseFailure = (
   stderr: string
 ): { detail: string; reason: LeaseFailure } => {
@@ -199,7 +188,6 @@ export const leaseStatus = async (
     : { status: "unavailable", detail: outcome.detail };
 };
 
-/** One line about who pushes the dev deployment's backend. */
 export const describeLease = (
   state: LeaseState,
   self?: LeaseHolder

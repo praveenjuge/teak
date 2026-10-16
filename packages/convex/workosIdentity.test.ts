@@ -18,8 +18,6 @@ const input = {
   workosUserId: "user_provider",
   verification: { kind: "connect" as const },
 };
-// An owner row plus the component's provider profile for its WorkOS user. The
-// component keeps the first profile it stores, so repeat seeds keep it too.
 const seed = async (
   t: Backend,
   fields: Partial<Doc<"users">> = {},
@@ -58,10 +56,6 @@ const snapshot = (t: Backend) =>
     }),
   }));
 
-// Failures: provider subjects become vault owners; legacy verification promotes
-// access; missing session evidence passes; duplicate owner/provider rows
-// resolve; global deletion does not cover an unpatched third row; external IDs
-// drift; active deletion is ignored; a resolver writes or creates mappings.
 describe("read-only canonical WorkOS owner resolution", () => {
   test("returns the permanent owner without writes", async () => {
     const t = setup();

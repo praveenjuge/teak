@@ -1,18 +1,4 @@
-// Pure signing/verification logic for the files.teakvault.com proxy worker.
-// The Convex backend (packages/convex/storage/r2.ts) builds URLs with the
-// exact same payload format; the fixed test vector in lib.test.ts locks both
-// runtimes to identical HMAC output.
-
-// Must stay in lockstep with PRIVATE_FILE_CACHE_CONTROL in
-// packages/convex/storage/r2.ts, and below the signed-URL minimum remaining
-// validity (7 days) so browsers never replay an expired signature.
-export const FILES_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
-
-// The Workers Cache API refuses to store responses marked `private`, so the
-// copy handed to cache.put() is rewritten to public. Entries are keyed by the
-// user-scoped object path, so nothing is shared across users; client-facing
-// responses always carry the private directive above.
-export const FILES_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
+import { buildFileSigningPayload } from "@teak/files-protocol";
 
 export interface R2GetRange {
   length?: number;
@@ -69,21 +55,6 @@ export const parseSingleByteRange = (
   return { kind: "offset", offset: start, length: end - start + 1 };
 };
 
-export interface FileSigningFields {
-  contentDisposition?: string | null;
-  contentType?: string | null;
-  exp: string;
-  key: string;
-}
-
-export const buildSigningPayload = ({
-  key,
-  exp,
-  contentType = "",
-  contentDisposition = "",
-}: FileSigningFields): string =>
-  [key, exp, contentType, contentDisposition].join("\n");
-
 const hexDecode = (hex: string): Uint8Array => {
   if (hex.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(hex)) {
     throw new Error("Invalid hex string");
@@ -123,8 +94,6 @@ export const verifyHmacPayload = async (
 ): Promise<boolean> =>
   timingSafeEqualHex(signature, await hmacSha256Hex(secret, payload));
 
-// CryptoKey derivation is memoized per secret: importKey on every request is
-// pure overhead for a secret that never changes within an isolate.
 const cryptoKeyCache = new Map<string, Promise<CryptoKey>>();
 
 const getHmacCryptoKey = (secret: string): Promise<CryptoKey> => {
@@ -237,7 +206,7 @@ export const verifySignedFileRequest = async (
   }
   const expected = await hmacSha256Hex(
     secret,
-    buildSigningPayload({
+    buildFileSigningPayload({
       key,
       exp,
       contentType: ct ?? "",

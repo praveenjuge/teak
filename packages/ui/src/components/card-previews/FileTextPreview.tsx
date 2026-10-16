@@ -160,7 +160,6 @@ export function FileTextPreview({
           setSource(text);
         }
       } catch {
-        // File facts remain visible when source loading is unavailable.
       } finally {
         if (active) {
           setIsLoading(false);

@@ -10,10 +10,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.designsystem.theme.TeakTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * "Save to Teak" from another app: the share sheet, the text selection menu, or a
- * `teak://save?text=…` link. Shows a small sheet over the other app while it saves.
- */
 @AndroidEntryPoint
 class ShareActivity : ComponentActivity() {
     private val viewModel: ShareViewModel by viewModels()

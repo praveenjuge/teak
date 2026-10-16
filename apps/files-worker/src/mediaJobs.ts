@@ -1,8 +1,9 @@
 import {
-  FILES_RENDER_MAX_SOURCE_BYTES,
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_SCRUB_FRAMES,
   FILES_TRANSCRIPT_MAX_BYTES,
   FILES_TRANSCRIPTION_MODEL,
+  FILES_UPLOAD_MAX_BYTES,
   FILES_WAVEFORM_BARS,
   type FilesAnimationPaletteResult,
   type FilesAudioTranscript,
@@ -14,11 +15,8 @@ import {
   type FilesVideoScrub,
 } from "@teak/files-protocol";
 import type { WorkersAiBinding } from "./aiGateway";
-import {
-  MAX_AI_TEXT_CHARACTERS,
-  MAX_PDF_TEXT_PAGES,
-  textFacts,
-} from "./inspect";
+import { MAX_PDF_TEXT_PAGES, textFacts } from "./inspect";
+import { OpFailure } from "./opFailure";
 import {
   callRenderer,
   RendererDeclined,
@@ -28,11 +26,6 @@ import {
 } from "./rendererClient";
 import { isAudioDecodeError } from "./transcript";
 import { InspectSourceMissing } from "./zip";
-
-/**
- * Media jobs on the renderer Container. The Worker reads the source from R2
- * and stores every output; the Container only ever sees the bytes it is sent.
- */
 
 export interface MediaJobsEnv extends RendererEnv {
   AI?: WorkersAiBinding;
@@ -45,7 +38,7 @@ const MAX_FRAME_BYTES = 10 * 1024 * 1024;
 const MAX_SCRUB_BYTES = 4 * 1024 * 1024;
 const MAX_PAGE_BYTES = 20 * 1024 * 1024;
 const MAX_WHISPER_BYTES = 32 * 1024 * 1024;
-const MAX_PDF_TEXT_BYTES = MAX_AI_TEXT_CHARACTERS * 4;
+const MAX_PDF_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 const MAX_SCRUB_FRAME_COUNT = 20;
 const MAX_IMAGE_SIDE = 8192;
 
@@ -57,7 +50,6 @@ const JOB_TIMEOUT_MS = {
   video: 60_000,
 } as const;
 
-/** Opens the R2 object once per attempt; a changed object fails the job. */
 export const r2SourceOpener = (
   bucket: R2Bucket,
   key: string
@@ -70,10 +62,10 @@ export const r2SourceOpener = (
     }
     if (
       (etag !== null && object.httpEtag !== etag) ||
-      object.size > FILES_RENDER_MAX_SOURCE_BYTES
+      object.size > FILES_UPLOAD_MAX_BYTES
     ) {
       await object.body.cancel();
-      throw new Error(
+      throw new OpFailure(
         etag !== null && object.httpEtag !== etag
           ? "source_changed"
           : "source_too_large"
@@ -105,7 +97,6 @@ const shortString = (value: unknown): string | null =>
     ? value
     : null;
 
-/** The Container's facts, in the probe-media shape. */
 export const readMediaFacts = (
   facts: RendererManifest["facts"]
 ): FilesMediaProbeResult => {
@@ -153,7 +144,6 @@ const readScrub = (value: unknown): FilesVideoScrub | null => {
 const MAX_PALETTE_COLORS = 8;
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 
-/** The renderer's palette, or null when it sent none or anything malformed. */
 const readPalette = (value: unknown): string[] | null =>
   Array.isArray(value) &&
   value.length > 0 &&
@@ -162,7 +152,6 @@ const readPalette = (value: unknown): string[] | null =>
     ? (value as string[])
     : null;
 
-/** A thumbnail frame and, when asked for, a hover scrub sprite. */
 export const extractVideoFrame = async (
   env: MediaJobsEnv,
   keys: {
@@ -208,10 +197,8 @@ export const extractVideoFrame = async (
   };
 };
 
-/** Frames read across an animation for its palette. */
 const ANIMATION_PALETTE_FRAMES = 8;
 
-/** An animated GIF's palette, from frames across it. Nothing is stored. */
 export const extractAnimationPalette = async (
   env: MediaJobsEnv,
   sourceKey: string
@@ -225,7 +212,6 @@ export const extractAnimationPalette = async (
   return { palette: readPalette(result.manifest.palette) ?? [] };
 };
 
-/** Page 1 of a PDF as a PNG, at most 1600px each way. */
 export const renderPdfPage = async (
   env: MediaJobsEnv,
   keys: { destinationKey: string; sourceKey: string }
@@ -256,11 +242,6 @@ export const renderPdfPage = async (
   };
 };
 
-/**
- * Text of the first MAX_PDF_TEXT_PAGES pages for AI analysis. PDF text is an
- * optional enrichment, so undecodable or encrypted documents and documents
- * over `maxBytes` resolve to empty text; an unavailable renderer throws.
- */
 export const extractPdfTextViaRenderer = async (
   env: MediaJobsEnv,
   sourceKey: string,
@@ -270,7 +251,7 @@ export const extractPdfTextViaRenderer = async (
   if (!head) {
     throw new InspectSourceMissing();
   }
-  if (head.size > maxBytes || head.size > FILES_RENDER_MAX_SOURCE_BYTES) {
+  if (head.size > maxBytes || head.size > FILES_UPLOAD_MAX_BYTES) {
     return { facts: textFacts(""), text: "" };
   }
   let result: Awaited<ReturnType<typeof callRenderer>>;
@@ -280,7 +261,7 @@ export const extractPdfTextViaRenderer = async (
       outputs: {
         text: { kind: "text", maxBytes: MAX_PDF_TEXT_BYTES, required: false },
       },
-      path: `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${MAX_AI_TEXT_CHARACTERS}`,
+      path: `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`,
       timeoutMs: JOB_TIMEOUT_MS.pdf,
     });
   } catch (error) {
@@ -295,7 +276,7 @@ export const extractPdfTextViaRenderer = async (
         .decode(bytes)
         // pdftotext ends each page with a form feed.
         .replaceAll("\f", "\n")
-        .slice(0, MAX_AI_TEXT_CHARACTERS)
+        .slice(0, FILES_EXTRACTED_TEXT_MAX_CHARACTERS)
         .trim()
     : "";
   const pageCount = positiveInteger(result.manifest.pages, 1_000_000);
@@ -314,7 +295,6 @@ const readPeaks = (value: unknown, count: number): number[] | null => {
     : null;
 };
 
-/** Both waveform sizes from the manifest, or undefined when either is off. */
 export const readWaveform = (
   value: unknown
 ): FilesAudioWaveform | undefined => {
@@ -325,8 +305,6 @@ export const readWaveform = (
 
 type AiBinding = NonNullable<MediaJobsEnv["AI"]>;
 
-// Whisper calls Workers AI directly: AI Gateway does not accept a streamed
-// audio body (see aiGateway.ts).
 const runWhisper = async (
   ai: AiBinding,
   body: ReadableStream,
@@ -393,7 +371,6 @@ const transcribe = async (
         throw error;
       }
     }
-    // Whisper could not decode the original (error 3030): convert and retry once.
     const converted = await convertForWhisper(env, input.sourceKey);
     if (!converted) {
       return { reason: "audio_decode_failed", status: "failed" };
@@ -406,8 +383,6 @@ const transcribe = async (
     if (error instanceof Error && error.message.startsWith("renderer_")) {
       throw error;
     }
-    // The card keeps its waveform and facts without a transcript, as when
-    // transcription failed before this op existed.
     console.warn("[files-worker] transcription failed", {
       message: error instanceof Error ? error.message : String(error),
     });
@@ -415,11 +390,6 @@ const transcribe = async (
   }
 };
 
-/**
- * Media facts, waveform peaks and a transcript from one decode. Audio Whisper
- * cannot read natively (anything but mp3 or PCM) is converted to a 16 kHz mono
- * MP3 by the same pass.
- */
 export const processAudio = async (
   env: MediaJobsEnv,
   params: { mimeType: string | null; sourceKey: string; transcribe: boolean }

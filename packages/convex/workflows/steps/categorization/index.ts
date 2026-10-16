@@ -1,6 +1,5 @@
 "use node";
 
-import { lookup } from "node:dns/promises";
 import {
   isLinkCategory,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
@@ -14,11 +13,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import {
-  type DnsResolver,
-  readBodyWithLimit,
-  safeFetch,
-} from "../../../linkMetadata/ssrf";
+import { readBodyWithLimit, safeFetch } from "../../../linkMetadata/ssrf";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import type { Id } from "../../../shared/types";
 import { hydrateArchivedMetadata } from "../../../storage/rawMetadata";
@@ -27,7 +22,7 @@ import {
   hydrateWorkflowValue,
 } from "../../../storage/workflowArtifacts";
 import { withBackendErrorCapture } from "../../../telemetry/posthog";
-import { pinnedFetch } from "../pinnedFetch";
+import { nodeDnsResolver, pinnedFetch } from "../pinnedFetch";
 import {
   buildRawSelectorMap,
   detectProvider,
@@ -37,18 +32,10 @@ import {
 } from "./enrichment";
 import { enrichProvider } from "./providers";
 
-// Node runtime DNS resolver injected into the SSRF guard (keeps the guard free
-// of Node built-ins so it bundles for any Convex runtime).
-const resolveDns: DnsResolver = async (hostname) => {
-  const records = await lookup(hostname, { all: true, verbatim: true });
-  return records.map((record) => record.address);
-};
-
 const MAX_FETCH_BODY_SIZE = 250_000;
 const PREVIEW_HINT_CONFIDENCE = 0.95;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
-// Top-level regex patterns for performance
 const TRAILING_SLASH_REGEX = /\/+$/;
 
 export interface CategorizationContextCard {
@@ -115,7 +102,6 @@ const normalizeUrlForComparison = (
     const url = new URL(value);
     url.hash = "";
     const params = url.searchParams;
-    // Remove tracking parameters to improve cache hits.
     const trackingParams = [
       "utm_source",
       "utm_medium",
@@ -133,7 +119,6 @@ const normalizeUrlForComparison = (
       params.delete(param);
     }
     url.search = params.toString();
-    // Normalize trailing slash.
     url.pathname = url.pathname.replace(TRAILING_SLASH_REGEX, "");
     return url.toString();
   } catch {
@@ -223,9 +208,7 @@ const parseStructuredData = (html: string): StructuredDataResult => {
           }
         }
       }
-    } catch {
-      // Skip invalid JSON-LD blocks
-    }
+    } catch {}
   }
 
   return { entities };
@@ -235,9 +218,9 @@ const fetchStructuredData = async (
   url: string
 ): Promise<StructuredDataResult | null> => {
   try {
-    const response = await safeFetch(
+    const { response } = await safeFetch(
       url,
-      resolveDns,
+      nodeDnsResolver,
       {
         headers: {
           "User-Agent": "TeakBot/1.0 (+https://teak)",
@@ -460,7 +443,7 @@ export async function classifyHandler(
 
   const existingMetadata = contextCard.metadata?.linkCategory ?? undefined;
 
-  const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+  const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;
   const metadataFresh =
     existingMetadata?.fetchedAt &&
     Date.now() - existingMetadata.fetchedAt < METADATA_TTL_MS;

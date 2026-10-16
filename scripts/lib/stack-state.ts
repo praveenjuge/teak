@@ -4,10 +4,8 @@
  * (packages/tests/src/stack) share them, so each refuses to start on the
  * other's ports and either can be stopped after a crash.
  *
- * Playwright loads this file under Node through the E2E suite, so it uses only
- * `node:` modules and no `import.meta` (which would make Node load it as an
- * ES module beside Playwright's CommonJS transform); callers pass the
- * repository root.
+ * The e2e CLI loads this file under Node (packages/tests/src/helpers/env.ts),
+ * so it uses only `node:` modules, no Bun APIs.
  */
 
 import { type ChildProcess, execFileSync } from "node:child_process";
@@ -19,31 +17,21 @@ export interface StackUrls {
   apiOrigin: string;
   appOrigin: string;
   convexUrl: string;
-  /** The E2E suite's stack also records its WorkOS emulator. */
   emulatorOrigin?: string;
 }
 
-// A running stack records itself here so agents, scripts and the E2E suite
-// can find its URLs. It is removed when the stack stops.
 export const stackStatePath = (root: string): string =>
   join(root, ".agents/.state/stack.json");
 
 export interface StackState {
-  /** The dev stack's sign-in account (scripts/dev-stack.ts). */
   account?: { email: string; password: string };
-  /** Process groups of the backend and web app. */
   groups: number[];
   logPath: string;
-  /** `dev` (`bun run dev`) or `e2e` (the E2E suite's own stack). */
   mode: "dev" | "e2e";
-  /** What the dev stack told the person: pushing or not, sign-in, seeding. */
   notes?: string[];
-  /** The process that owns the stack; the stack stops when it does. */
   pid: number;
   ports: WorktreePorts;
-  /** Whether this stack pushes backend code (the dev push lease). */
   pushing?: boolean;
-  /** False while the stack is still starting. */
   ready: boolean;
   startedAt: string;
   urls: StackUrls;
@@ -62,8 +50,6 @@ export const readStackState = (root: string): StackState | null => {
   }
 };
 
-// A file that parses but isn't a stack's state counts as no state, so
-// readers fail closed instead of throwing on a missing field.
 const isStackState = (value: unknown): value is StackState => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
@@ -123,11 +109,7 @@ const commands = ():
   }
 };
 
-// The dev stack's and the E2E suite's entry points.
 const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
-// Leaves `group`, the single group older stacks recorded, readable.
-const groupsOf = (state: StackState & { group?: number }): number[] =>
-  state.groups ?? (state.group ? [state.group] : []);
 const STACK_MEMBERS = ["convex", "next"];
 
 /**
@@ -167,13 +149,10 @@ const groupAlive = (group: number): boolean => {
   );
 };
 
-// A group that went away, or belongs to someone else, is left alone.
 const signalGroup = (group: number, signal: NodeJS.Signals) => {
   try {
     process.kill(-group, signal);
-  } catch {
-    // Gone, or not ours to signal.
-  }
+  } catch {}
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -188,7 +167,7 @@ export const stopOrphanedStack = async (root: string): Promise<boolean> => {
   if (!state || isStackRunning(state)) {
     return false;
   }
-  for (const group of groupsOf(state)) {
+  for (const group of state.groups) {
     if (!groupAlive(group)) {
       continue;
     }
@@ -211,7 +190,6 @@ export const waitFor = async (
   timeoutMs: number
 ) => {
   const deadline = Date.now() + timeoutMs;
-  // A server that answers but keeps refusing (a 4xx) won't recover by waiting.
   let refusals = 0;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
@@ -240,7 +218,6 @@ export const waitFor = async (
       if (error instanceof Error && error.message.startsWith(url)) {
         throw error;
       }
-      // Not listening yet.
     }
     await sleep(1000);
   }
@@ -250,9 +227,7 @@ export const waitFor = async (
 const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
   try {
     process.kill(-(child.pid ?? 0), signal);
-  } catch {
-    // Already gone.
-  }
+  } catch {}
 };
 
 // `convex dev` runs the web server in its own process group and stops it

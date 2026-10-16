@@ -1,7 +1,4 @@
-// Runs one tool process with hard limits. On Linux every process runs under
-// prlimit (address space, CPU seconds, open files, no core dumps). On every
-// platform it runs in its own process group, and the wall-clock timer kills
-// the whole group so nothing it forked survives the job.
+import type { ToolCommand } from "./args";
 
 export const ADDRESS_SPACE_BYTES = 1_073_741_824;
 export const MAX_OPEN_FILES = 64;
@@ -27,15 +24,13 @@ export function limitedCommand(
   ];
 }
 
+export type StdoutHandling =
+  | { kind: "buffer"; maxBytes: number; stopAtLimit: boolean }
+  | { kind: "stream"; onChunk: (chunk: Uint8Array) => void };
+
 export interface RunOptions {
-  /** Absolute epoch milliseconds after which the process group is killed. */
-  deadline: number;
-  /** Bytes of stdout to keep (default 4 MiB). Ignored when `onStdout` is set. */
-  maxStdoutBytes?: number;
-  /** Stream stdout to this callback instead of buffering it. */
-  onStdout?: (chunk: Uint8Array) => void;
-  /** Kill the process once stdout passes `maxStdoutBytes`. */
-  stopAtStdoutLimit?: boolean;
+  deadlineEpochMs: number;
+  stdout?: StdoutHandling;
 }
 
 export interface RunResult {
@@ -49,9 +44,7 @@ export interface RunResult {
 function killGroup(pid: number): void {
   try {
     process.kill(-pid, "SIGKILL");
-  } catch {
-    // The group is already gone.
-  }
+  } catch {}
 }
 
 async function readBounded(
@@ -91,10 +84,10 @@ async function forward(
 }
 
 export async function run(
-  argv: string[],
+  argv: ToolCommand,
   options: RunOptions
 ): Promise<RunResult> {
-  const remaining = options.deadline - Date.now();
+  const remaining = options.deadlineEpochMs - Date.now();
   if (remaining <= 0) {
     return {
       exitCode: null,
@@ -117,41 +110,41 @@ export async function run(
     killGroup(child.pid);
   }, remaining);
 
-  const stopOnOverflow = () => {
-    if (options.stopAtStdoutLimit) {
-      killGroup(child.pid);
-    }
+  const stdout = options.stdout ?? {
+    kind: "buffer",
+    maxBytes: DEFAULT_MAX_STDOUT_BYTES,
+    stopAtLimit: false,
   };
-  const stdoutTask = options.onStdout
-    ? forward(child.stdout, options.onStdout).then(() => ({
-        bytes: new Uint8Array(),
-        truncated: false,
-      }))
-    : readBounded(
-        child.stdout,
-        options.maxStdoutBytes ?? DEFAULT_MAX_STDOUT_BYTES,
-        stopOnOverflow
-      );
+  const stdoutTask =
+    stdout.kind === "stream"
+      ? forward(child.stdout, stdout.onChunk).then(() => ({
+          bytes: new Uint8Array(),
+          truncated: false,
+        }))
+      : readBounded(child.stdout, stdout.maxBytes, () => {
+          if (stdout.stopAtLimit) {
+            killGroup(child.pid);
+          }
+        });
   const stderrTask = readBounded(child.stderr, MAX_STDERR_BYTES, () => {
     // Keep draining so the child never blocks on a full pipe.
   });
 
   try {
-    const [stdout, stderr, exitCode] = await Promise.all([
+    const [stdoutRead, stderrRead, exitCode] = await Promise.all([
       stdoutTask,
       stderrTask,
       child.exited,
     ]);
     return {
       exitCode: timedOut || child.signalCode ? null : exitCode,
-      stdout: stdout.bytes,
-      stderr: new TextDecoder().decode(stderr.bytes),
+      stdout: stdoutRead.bytes,
+      stderr: new TextDecoder().decode(stderrRead.bytes),
       timedOut,
-      stdoutTruncated: stdout.truncated,
+      stdoutTruncated: stdoutRead.truncated,
     };
   } finally {
     clearTimeout(timer);
-    // Anything the tool forked and left behind goes with it.
     killGroup(child.pid);
   }
 }

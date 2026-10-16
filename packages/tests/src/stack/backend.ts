@@ -1,12 +1,3 @@
-/**
- * The E2E suite's local Convex backend: selected, provisioned and pointed at
- * the WorkOS emulator before the stack starts (./stack.ts pushes the code
- * once). It uses test-only values (./config.ts) and no secrets, and never a
- * cloud deployment. It takes over packages/convex/.env.local while the suite
- * runs; the next `bun run dev` selects the shared dev deployment again.
- * Deployment values are never logged.
- */
-
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,7 +17,6 @@ import {
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
 
-/** No deployment yet (convex dev provisions a local one) or a local backend. */
 export const isLocalSelection = (deployment: string | undefined): boolean =>
   !deployment ||
   deployment.startsWith("anonymous:") ||
@@ -92,11 +82,8 @@ export interface LocalBackendPorts {
 }
 
 export interface ConvexDevOnceOptions extends BackendExitOptions {
-  /** Total attempts; transient failures retry with backoff. Defaults to 3. */
   attempts?: number;
-  /** The local backend's ports. */
   ports?: LocalBackendPorts;
-  /** Subprocess runner; defaults to runCommand. */
   run?: typeof runCommand;
 }
 
@@ -115,10 +102,6 @@ export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
       ]
     : [];
 
-/**
- * The anonymous backend this checkout selects, when the declared authority
- * (anonymous mode, no deploy key) makes it this checkout's own.
- */
 export const selectedAnonymousInstance = (cwd: string): string | undefined => {
   const dotenvPath = join(cwd, ".env.local");
   const fileValues = readDotenvFile(dotenvPath)?.values;
@@ -139,13 +122,9 @@ const BACKEND_EXIT_POLL_MS = 250;
 const BACKEND_EXIT_TIMEOUT_MS = 30_000;
 
 export interface BackendExitOptions {
-  /** Local backend identity HTTP boundary; defaults to fetch. */
   fetch?: typeof fetch;
-  /** Clock in milliseconds; defaults to Date.now. */
   now?: () => number;
-  /** Port probe; defaults to isPortInUse. */
   portInUse?: (port: number) => Promise<boolean>;
-  /** Poll sleeper; defaults to Bun.sleep. */
   sleepMs?: (ms: number) => Promise<void>;
 }
 
@@ -168,7 +147,6 @@ export const waitForBackendExit = async (
   const portInUse = opts?.portInUse ?? isPortInUse;
   const sleepMs = opts?.sleepMs ?? Bun.sleep;
   const now = opts?.now ?? Date.now;
-  // A wall-clock deadline: slow probes count against the budget too.
   const deadline = now() + BACKEND_EXIT_TIMEOUT_MS;
   while (now() < deadline) {
     if (!(await portInUse(port))) {
@@ -192,16 +170,12 @@ export const waitForBackendExit = async (
       ) {
         return "other";
       }
-    } catch {
-      // Not answering while the port is held: it is closing.
-    }
+    } catch {}
     await sleepMs(BACKEND_EXIT_POLL_MS);
   }
   return (await portInUse(port)) ? "timeout" : "stopped";
 };
 
-// A port collision alone is not transient: retry only once this checkout's
-// selected backend has released the port.
 const collidedWithOwnBackend = async (
   output: string,
   cwd: string,
@@ -298,14 +272,9 @@ export type DeploymentVarsResult =
   | { configured: string[]; ok: true }
   | { detail: string; ok: false };
 
-/**
- * Set every missing variable and refresh machine-local ones (old ports).
- * A different value a person set is a conflict and is left alone.
- */
 export const ensureDeploymentVars = async (
   convexDir: string,
   desired: Record<string, string>,
-  /** The deployment's variables when the caller already read them. */
   known?: Awaited<ReturnType<typeof listDeploymentVars>>
 ): Promise<DeploymentVarsResult> => {
   const listed = known ?? (await listDeploymentVars(convexDir));
@@ -341,10 +310,6 @@ export const ensureDeploymentVars = async (
   return { ok: true, configured: toSet.map(([name]) => name) };
 };
 
-/**
- * Select (or provision) this checkout's local backend and point it at the
- * WorkOS emulator. Returns what it did; throws with a remedy on failure.
- */
 export const setupBackend = async (
   root: string,
   worktree: WorktreePorts
@@ -358,12 +323,10 @@ export const setupBackend = async (
     selection.deployment === DEV_DEPLOYMENT &&
     selection.source === "dotenv"
   ) {
-    // Dev's selection: the E2E backend takes its turn.
     writeConvexSelection(dotenvPath, null);
     selection = { source: "none" };
     done.push(`switched packages/convex/.env.local from ${DEV_DEPLOYMENT}`);
   }
-  // An exported cloud selection would aim the suite at a shared deployment.
   if (!isLocalSelection(selection.deployment)) {
     throw new Error(
       `CONVEX_DEPLOYMENT selects ${selection.deployment}; the E2E suite needs a local backend. Unset the CONVEX_DEPLOYMENT export or remove it from packages/convex/.env.local, then re-run.`
@@ -374,8 +337,6 @@ export const setupBackend = async (
   delete process.env.CONVEX_DEPLOY_KEY;
   process.env.CONVEX_AGENT_MODE = "anonymous";
   const ports = { convex: worktree.convex, convexSite: worktree.convexSite };
-  // Each Convex CLI call leaves its backend shutting down. Let it go before
-  // the next call (or the stack) needs the port.
   const settle = async () => {
     const instance = selectedAnonymousInstance(convexDir);
     const exit = instance

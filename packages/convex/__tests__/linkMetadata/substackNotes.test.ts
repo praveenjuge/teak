@@ -12,7 +12,7 @@ describe("parseSubstackNoteUrl", () => {
     [NOTE_URL, { handle: "writer" }],
     ["https://substack.com/note/c-12345678", { handle: undefined }],
   ])("reads %s", (url: string, ref: unknown) => {
-    expect(parseSubstackNoteUrl(url)).toEqual(ref);
+    expect<unknown>(parseSubstackNoteUrl(url)).toEqual(ref);
   });
 
   test.each([

@@ -27,8 +27,8 @@ export interface FfprobeOutput {
 export interface ProbeResult {
   audio: { index: number } | null;
   facts: MediaFacts;
-  /** The first real video stream (cover art excluded), coded size. */
-  video: { index: number; width: number; height: number } | null;
+  /** The first real video stream (cover art excluded). */
+  video: { codedHeight: number; codedWidth: number; index: number } | null;
 }
 
 const WEBM_DOCTYPE = [0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d];
@@ -43,7 +43,6 @@ function hasDocType(header: Uint8Array, pattern: number[]): boolean {
   return false;
 }
 
-/** A short lowercase container token: mp4, mov, m4a, webm, matroska, … */
 export function formatToken(
   formatName: string,
   majorBrand: string | undefined,
@@ -72,7 +71,6 @@ export function formatToken(
   return names[0] || "unknown";
 }
 
-/** Clockwise display rotation in degrees, 0–359. */
 export function rotationDegrees(stream: FfprobeStream): number {
   const matrix = stream.side_data_list?.find(
     (entry) => entry.side_data_type === "Display Matrix"
@@ -123,7 +121,7 @@ export function describeProbe(
     },
     video:
       video && codedWidth && codedHeight
-        ? { index: video.index, width: codedWidth, height: codedHeight }
+        ? { codedHeight, codedWidth, index: video.index }
         : null,
     audio: audio ? { index: audio.index } : null,
   };
@@ -131,7 +129,7 @@ export function describeProbe(
 
 export async function probeMedia(ctx: JobContext): Promise<ProbeResult> {
   const result = await run(ffprobeCommand(ctx.dir, ctx.input), {
-    deadline: ctx.deadline,
+    deadlineEpochMs: ctx.deadlineEpochMs,
   });
   if (result.exitCode !== 0 || result.stdoutTruncated) {
     throw toolFailure(result, "Could not read the media");

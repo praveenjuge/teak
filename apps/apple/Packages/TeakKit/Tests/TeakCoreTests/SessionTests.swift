@@ -2,9 +2,6 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Ported from the Expo iPhone app's workos-session tests, plus the
-// cross-process cases the app and its extensions add.
-
 private func makeSession(_ storage: MemoryStorage, _ transport: ScriptedTransport, directory: URL = Fixture.tempDirectory(),
                          activity: any BackgroundActivity = SystemActivity(),
                          bootstrap: TeakSession.Bootstrap? = nil) -> TeakSession {
@@ -153,10 +150,9 @@ private func request() -> AuthKitRequest {
         try await shareExtension.restore()
 
         #expect(try await app.accessToken() != nil)
-        // The extension still holds "old"; replaying it would revoke the session.
         let token = try await shareExtension.accessToken()
         #expect(token != nil)
-        #expect(extensionTransport.count == 0)
+        #expect(extensionTransport.count == 0, "replaying the extension's old refresh token would revoke the session")
         #expect(storage.json?["refresh_token"] as? String == "rotated-by-app")
     }
 
@@ -185,7 +181,6 @@ private func request() -> AuthKitRequest {
         let activity = ScriptedActivity(watching: directory)
         let requested = Gate()
         let transport = ScriptedTransport { _, _ in
-            // WorkOS is slow to answer; cancelling the request stops the wait, as with URLSession.
             await requested.arrive()
             try await Task.sleep(for: .seconds(60))
             return (200, Fixture.response(refresh: "too-late"))
@@ -203,7 +198,6 @@ private func request() -> AuthKitRequest {
         #expect(storage.json?["refresh_token"] as? String == "old")
         #expect(await session.user != nil)
 
-        // Back in the foreground, the refresh runs again.
         transport.respond { _, _ in (200, Fixture.response(refresh: "rotated")) }
         #expect(try await session.accessToken() != nil)
         #expect(storage.json?["refresh_token"] as? String == "rotated")
@@ -261,7 +255,6 @@ private func request() -> AuthKitRequest {
         let directory = Fixture.tempDirectory()
         let activity = ScriptedActivity()
         let lock = FileCredentialLock(directory: directory, environment: "test", activity: activity)
-        // Like a stuck keychain call, the gate ignores cancellation.
         let stuck = Gate()
         let operation = Task { try await lock.withLock { await stuck.wait() } }
         await stuck.arrived()

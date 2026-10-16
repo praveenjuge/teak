@@ -1,15 +1,16 @@
 import Foundation
 
-/// The eight card types the backend stores.
 public enum CardType: String, CaseIterable, Codable, Sendable, Identifiable, Hashable {
     case text, link, image, video, audio, document, palette, quote
 
     public var id: String { rawValue }
 
+    /// Palettes already show their colors as the preview, so their summary leaves them out.
+    public var showsSummaryColors: Bool { self != .palette }
+
     /// "Text", "Link", … (`CARD_TYPE_LABELS`).
     public var label: String { SharedConstants.shared.cardTypeLabels[rawValue] ?? rawValue.capitalized }
 
-    /// Plural names for menus and titles.
     public var plural: String {
         switch self {
         case .text: "Notes"
@@ -364,7 +365,6 @@ public struct CurrentUser: Decodable, Sendable, Hashable {
 
     public var plan: String { hasPremium ? "Pro" : "Free" }
 
-    /// "12 of 200 Cards" on Free, "12 Cards" on Pro.
     public var usageLabel: String {
         let count = Int(cardCount)
         let noun = count == 1 ? "Card" : "Cards"
@@ -386,7 +386,7 @@ public struct AuthMode: Codable, Sendable, Hashable {
         self.authKitClientId = authKitClientId
     }
 
-    /// Port of `parseAuthMode`: anything but a WorkOS mode with a well-formed client ID is rejected.
+    /// Anything but a WorkOS mode with a well-formed client ID is rejected.
     public static func parse(_ data: Data) throws -> AuthMode {
         guard let mode = try? JSONDecoder().decode(AuthMode.self, from: data),
               mode.primary == "workos",
@@ -415,7 +415,6 @@ public struct ColorHue: Hashable, Sendable, Identifiable {
 
     public static var all: [ColorHue] { SharedConstants.shared.colorHues.compactMap(ColorHue.init) }
 
-    /// A swatch for the filter menu.
     public var hex: String {
         switch id {
         case "red": "#EF4444"

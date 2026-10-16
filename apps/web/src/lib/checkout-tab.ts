@@ -6,48 +6,52 @@ export interface CheckoutTab {
   opener: unknown;
 }
 
-interface OpenCheckoutInNewTabOptions {
-  /** Navigates this tab, for when the browser blocks the new one. */
-  assign: (url: string) => void;
-  createCheckoutUrl: () => Promise<string>;
-  openWindow: (url: string, target: string) => CheckoutTab | null;
+export interface ReservedCheckoutTab {
+  navigate: (
+    createCheckoutUrl: () => Promise<string>
+  ) => Promise<"new-tab" | "same-tab">;
 }
 
 /**
- * Opens Polar checkout in a new tab. Polar refuses to be framed, so checkout
- * can't be embedded. The tab opens before the checkout URL exists, while the
- * click that started checkout still counts as a user gesture: browsers block
- * `window.open` after an awaited call. It's pointed at checkout once the URL
- * arrives, and closed again if checkout can't start. When the browser blocks
- * the tab anyway, checkout opens in this tab instead.
+ * Opens a blank tab for Polar checkout, which refuses to be framed. Call it
+ * inside the click: browsers block `window.open` after an awaited call, so
+ * the tab is opened before the checkout URL exists. `navigate` points it at
+ * checkout, closes it if checkout can't start, and uses this tab when the
+ * browser blocked the new one anyway.
  */
-export async function openCheckoutInNewTab({
+export function reserveCheckoutTab({
   assign,
-  createCheckoutUrl,
   openWindow,
-}: OpenCheckoutInNewTabOptions): Promise<"new-tab" | "same-tab"> {
+}: {
+  assign: (url: string) => void;
+  openWindow: (url: string, target: string) => CheckoutTab | null;
+}): ReservedCheckoutTab {
   const tab = openWindow("", "_blank");
   if (tab) {
     // The blank tab is same-origin until it navigates; cut its way back.
     tab.opener = null;
   }
 
-  let checkoutUrl: string;
-  try {
-    const safeUrl = sanitizeExternalUrl(await createCheckoutUrl());
-    if (!safeUrl) {
-      throw new Error("Invalid checkout URL");
-    }
-    checkoutUrl = safeUrl;
-  } catch (error) {
-    tab?.close();
-    throw error;
-  }
+  return {
+    navigate: async (createCheckoutUrl) => {
+      let checkoutUrl: string;
+      try {
+        const safeUrl = sanitizeExternalUrl(await createCheckoutUrl());
+        if (!safeUrl) {
+          throw new Error("Invalid checkout URL");
+        }
+        checkoutUrl = safeUrl;
+      } catch (error) {
+        tab?.close();
+        throw error;
+      }
 
-  if (!tab) {
-    assign(checkoutUrl);
-    return "same-tab";
-  }
-  tab.location.href = checkoutUrl;
-  return "new-tab";
+      if (!tab) {
+        assign(checkoutUrl);
+        return "same-tab";
+      }
+      tab.location.href = checkoutUrl;
+      return "new-tab";
+    },
+  };
 }

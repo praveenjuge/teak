@@ -1,16 +1,8 @@
 /**
- * Pure export serialization logic.
- *
- * This module is intentionally free of Convex/server imports so it can be unit
- * tested directly and reused by the workflow. It is responsible for:
- *   - deciding which cards are included (active only)
- *   - producing the user-facing card JSON with the correct field allow-list:
- *     the visible AI tags and summary, the title and folder names are in
- *     (schema v2); transcripts, scraped link metadata, account data, source
- *     metadata and thumbnails/screenshots/preview media stay out
- *   - building the manifest
- *   - sanitizing original filenames for archive paths
- *   - quota / cap / expiry predicates
+ * The exported card JSON keeps only active cards and an allow-list of fields:
+ * the visible AI tags and summary, the title and folder names are in (schema
+ * v2); transcripts, scraped link metadata, account data, source metadata and
+ * thumbnails/screenshots/preview media stay out.
  */
 
 import {
@@ -123,7 +115,6 @@ export function sanitizeFilename(rawName: string | undefined): string {
   if (!rawName) {
     return fallback;
   }
-  // Drop any directory components.
   const base = rawName.split(/[/\\]/).pop() ?? rawName;
   const cleaned = base
     .normalize("NFKD")
@@ -200,8 +191,6 @@ export function serializeCard(
     serialized.aiSummary = summary;
   }
 
-  // Visible palette colors only: hex + optional human-readable name. Drop rgb/hsl
-  // derived representations to keep the payload to what the user sees.
   if (Array.isArray(card.colors) && card.colors.length > 0) {
     serialized.colors = card.colors.map((color) =>
       color.name ? { hex: color.hex, name: color.name } : { hex: color.hex }
@@ -286,7 +275,7 @@ export interface CapCheckResult {
 export function estimateArtifactSize(
   cards: Array<{ fileMetadata?: { fileSize?: number } }>
 ): number {
-  const PER_CARD_JSON_BYTES = 2 * 1024; // generous allowance for card JSON
+  const PER_CARD_JSON_BYTES = 2 * 1024;
   return cards.reduce((total, card) => {
     const fileSize = card.fileMetadata?.fileSize ?? 0;
     return total + fileSize + PER_CARD_JSON_BYTES;

@@ -1,6 +1,5 @@
 import XCTest
 
-/// End-to-end flows against the local E2E stack, on iPhone, iPad and Mac.
 final class LibraryFlowTests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -8,7 +7,6 @@ final class LibraryFlowTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// Signs in as a new account and opens the library.
     @MainActor private func start() async throws {
         let account = try await E2EStack.account()
         app = XCUIApplication()
@@ -47,7 +45,6 @@ final class LibraryFlowTests: XCTestCase {
         #endif
     }
 
-    /// Enters text and presses Return.
     @MainActor private func submit(_ text: String, into element: XCUIElement) {
         #if os(macOS)
         enter(text, into: element)
@@ -57,7 +54,6 @@ final class LibraryFlowTests: XCTestCase {
         #endif
     }
 
-    /// Writes a note (or link) through the composer and waits for its tile.
     @MainActor private func save(_ text: String, expecting title: String) {
         #if os(macOS)
         app.typeKey("n", modifierFlags: .command)
@@ -72,7 +68,6 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: title).waitToAppear(20)
     }
 
-    /// A tab: in the tab bar on iPhone, the floating bar or sidebar on iPad.
     @MainActor private func tab(_ name: String) -> XCUIElement {
         let candidates = [app.tabBars.buttons[name], app.buttons.matching(identifier: name).firstMatch,
                           app.cells.containing(.staticText, identifier: name).firstMatch,
@@ -86,7 +81,6 @@ final class LibraryFlowTests: XCTestCase {
         return candidates[0]
     }
 
-    /// A toolbar menu: a menu button on the Mac, a button elsewhere.
     @MainActor private func menu(_ name: String) -> XCUIElement {
         #if os(macOS)
         app.menuButtons[name].firstMatch
@@ -95,7 +89,6 @@ final class LibraryFlowTests: XCTestCase {
         #endif
     }
 
-    /// A confirmation's button: a sheet on the Mac, an action sheet or popover elsewhere.
     @MainActor private func confirmation(_ name: String) -> XCUIElement {
         #if os(macOS)
         app.sheets.buttons[name].firstMatch
@@ -143,7 +136,6 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(tile(containing: note).waitForExistence(timeout: 10))
         tile(containing: "example.org").waitToDisappear()
 
-        // Return turns typed text into tokens; "link" is a type token.
         #if os(macOS)
         search.typeKey("a", modifierFlags: .command)
         #else
@@ -160,7 +152,6 @@ final class LibraryFlowTests: XCTestCase {
         let note = marker("card")
         save("Keep \(note)", expecting: note)
 
-        // Favorite and edit notes and tags from the detail page.
         tap(tile(containing: note))
         tap(app.buttons["Favorite"].firstMatch.waitToAppear())
         app.buttons["Unfavorite"].firstMatch.waitToAppear()
@@ -175,13 +166,11 @@ final class LibraryFlowTests: XCTestCase {
         tap(app.buttons["Save"].firstMatch)
         app.staticTexts["Notes for \(note)"].waitToAppear()
 
-        // A tag filters the library.
         tap(app.buttons["Search for uitag"].firstMatch.waitToAppear())
         tile(containing: note).waitToAppear()
         XCTAssertTrue(app.staticTexts["uitag"].firstMatch.exists || app.buttons["uitag"].firstMatch.exists
             || app.searchFields.firstMatch.exists)
 
-        // Delete to Trash, restore, then delete forever.
         tap(tile(containing: note))
         tap(menu("More").waitToAppear())
         tap(menuItem("Delete Card").waitToAppear())
@@ -202,7 +191,6 @@ final class LibraryFlowTests: XCTestCase {
         tap(menuItem("Delete Forever").waitToAppear())
         tap(confirmation("Delete Forever").waitToAppear())
         tile(containing: note).waitToDisappear()
-        // The confirmation doesn't come back once it has run.
         XCTAssertFalse(confirmation("Delete Forever").waitForExistence(timeout: 3))
     }
 
@@ -225,8 +213,6 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     #if os(macOS)
-    /// The Mac sidebar opens Add, filters the library by view and type, and
-    /// opens Settings; the toolbar's Add menu writes a note.
     @MainActor
     func testMacSidebarAndAddMenu() async throws {
         try await start()
@@ -272,7 +258,6 @@ final class LibraryFlowTests: XCTestCase {
         tap(confirmation("Log Out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
         #if os(macOS)
-        // Only the welcome window is left.
         XCTAssertFalse(app.windows["Settings"].exists || app.windows["Account"].exists)
         #endif
     }

@@ -102,7 +102,6 @@ export const attachFileUrls = async (
       gridImageKeys.add(card.thumbnailKey);
       ids.thumbnailKey = card.thumbnailKey;
     }
-    // The sprite is served whole: a rendition would resize its frame strip.
     if (card.scrubKey && card.fileMetadata?.scrub) {
       storageKeys.add(card.scrubKey);
       ids.scrubKey = card.scrubKey;
@@ -269,9 +268,6 @@ export const attachGridFileUrls = (
   ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
-  // Provider diagnostics are cold data, not grid content. Shape copies only:
-  // customer-facing fields stay intact. Raw diagnostics remain inline or in
-  // their verified R2 archive for backend enrichment.
   const gridCards = cards.map((card) => {
     if (!card.metadata) {
       return card;

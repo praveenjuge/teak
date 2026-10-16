@@ -1,6 +1,5 @@
 import Foundation
 
-/// A failure with the code and message the server sent, when it sent one.
 public struct TeakError: Error, LocalizedError, Sendable, Equatable {
     public let code: String?
     public let message: String
@@ -33,7 +32,6 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
 }
 
 public extension Error {
-    /// A user-facing message for any error.
     var teakMessage: String {
         if let error = self as? TeakError { return error.message }
         if let error = self as? URLError, error.isConnectivity { return TeakMessages.offline }

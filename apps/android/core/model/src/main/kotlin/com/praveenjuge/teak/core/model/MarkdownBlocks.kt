@@ -1,6 +1,5 @@
 package com.praveenjuge.teak.core.model
 
-/** A block of a Markdown note: the same split the web and iPhone note views use. */
 sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class ListBlock(val items: List<MarkdownListItem>) : MarkdownBlock
@@ -37,7 +36,6 @@ object MarkdownBlocks {
     private val inlineLink = Regex("\\[([^\\]]+)]\\([^)]*\\)")
     private val emphasis = Regex("(\\*\\*|__|\\*|_|~~|`)(\\S(?:.*?\\S)?)\\1")
 
-    /** A note as plain lines for small previews: block markers and inline emphasis removed. */
     fun toPlainText(markdown: String): String = parse(markdown).joinToString("\n") { block ->
         val text = when (block) {
             is MarkdownBlock.Heading -> block.text

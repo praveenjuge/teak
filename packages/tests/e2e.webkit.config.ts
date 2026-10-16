@@ -2,8 +2,6 @@ import { web } from "@e2e-dev/web";
 import { suiteConfig } from "./src/config/suite.ts";
 import { stackAppUrl } from "./src/helpers/env.ts";
 
-// The WebKit half of the browser matrix: the same journey-lite spec the main
-// suite runs in Chromium.
 export default suiteConfig("webkit", {
   targets: [
     {

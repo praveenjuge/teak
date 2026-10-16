@@ -5,14 +5,11 @@ import SwiftUI
 import TeakCore
 import UniformTypeIdentifiers
 
-/// Settings that only exist on the Mac.
 enum MacPreferences {
     static let menuBarKey = "teak.menuBarItemEnabled"
     static let quickCaptureKey = "teak.quickCaptureShortcutEnabled"
 }
 
-/// Reads what a paste or drop carries the way the web does: files first, then
-/// an image, then text.
 @MainActor
 enum PasteboardReader {
     static func items(from pasteboard: NSPasteboard) -> [SharedItem] {
@@ -40,8 +37,6 @@ enum PasteboardReader {
     }
 }
 
-/// Saves from outside the library window and confirms with the HUD, so
-/// Services, the menu bar and Quick Capture never need the window open.
 @MainActor
 enum BackgroundCapture {
     static func save(_ items: [SharedItem]) {
@@ -65,7 +60,6 @@ enum BackgroundCapture {
     }
 }
 
-/// A brief, non-activating confirmation near the top of the screen, announced to VoiceOver.
 @MainActor
 enum CaptureHUD {
     private static var panel: NSPanel?
@@ -116,7 +110,6 @@ enum CaptureHUD {
     }
 }
 
-/// A floating composer that opens from anywhere, like the web composer without switching apps.
 @MainActor
 final class QuickCapturePanel: NSObject, NSWindowDelegate {
     static let shared = QuickCapturePanel()
@@ -244,7 +237,6 @@ final class QuickCaptureHotKey {
     }
 }
 
-/// "Save to Teak" in every app's Services menu (text, URLs, files, images).
 final class TeakServicesProvider: NSObject {
     @objc func saveToTeak(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
         nonisolated(unsafe) let pasteboard = pasteboard
@@ -281,7 +273,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     private func add(_ title: String, _ action: Selector) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
-        // A plain text menu: no system-chosen icons.
         if #available(macOS 27, *) { item.preferredImageVisibility = .hidden }
         menu.addItem(item)
     }
@@ -334,7 +325,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     }
 }
 
-/// Wires the Mac-only pieces: Services, the hotkey and the menu bar item.
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
     private let services = TeakServicesProvider()
 
@@ -353,7 +343,6 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Settings for the menu bar item and the shortcut.
 struct MacOptionsSection: View {
     @AppStorage(MacPreferences.menuBarKey) private var menuBar = false
     @AppStorage(MacPreferences.quickCaptureKey) private var quickCapture = false

@@ -6,10 +6,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDir = join(root, "../../.agents/skills");
 const outDir = join(root, ".generated/agent-skills");
 
-/**
- * Skills in `.agents/skills` that Teak publishes for agents. The rest of that
- * directory holds contributor skills that stay out of the public site.
- */
 export const PUBLIC_SKILLS = ["teak"] as const;
 
 /**

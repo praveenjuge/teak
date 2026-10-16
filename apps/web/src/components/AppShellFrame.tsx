@@ -8,7 +8,6 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { AppShell } from "./AppShell";
 
-/** The remembered sidebar state and width, read on the server. */
 export async function readSidebarCookies() {
   const cookieStore = await cookies();
   return {
@@ -21,8 +20,6 @@ export async function readSidebarCookies() {
   };
 }
 
-// Reads the remembered sidebar state and width on the server, so the
-// sidebar renders collapsed (or at its dragged width) from the first paint.
 export async function AppShellFrame({ children }: { children: ReactNode }) {
   const { defaultOpen, defaultWidth } = await readSidebarCookies();
   return (

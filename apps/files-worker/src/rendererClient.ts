@@ -1,5 +1,6 @@
-import { FILES_RENDER_MAX_SOURCE_BYTES } from "@teak/files-protocol";
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import { RENDERER_PROTOCOL } from "./mediaRenderer";
+import { OpFailure } from "./opFailure";
 
 /**
  * Calls the media renderer Container pool. The source is opened once per
@@ -9,11 +10,9 @@ import { RENDERER_PROTOCOL } from "./mediaRenderer";
 
 export interface RendererEnv {
   MEDIA_RENDERER?: DurableObjectNamespace;
-  /** Pool size; matches the Container's max_instances. */
   MEDIA_RENDERER_INSTANCES?: string;
 }
 
-/** The source cannot be rendered (undecodable, encrypted, too long to process). */
 export class RendererDeclined extends Error {
   readonly reason: string;
   constructor(reason: string) {
@@ -22,7 +21,6 @@ export class RendererDeclined extends Error {
   }
 }
 
-/** No renderer could take the job: missing binding, all busy, or a failure. */
 export class RendererUnavailable extends Error {
   readonly reason: string;
   constructor(reason: string) {
@@ -33,7 +31,6 @@ export class RendererUnavailable extends Error {
 
 export interface RendererSource {
   body: ReadableStream;
-  /** The stored object's content type, when it has one. */
   contentType?: string;
   size: number;
 }
@@ -86,7 +83,6 @@ export const rendererPoolSize = (env: RendererEnv): number => {
     : DEFAULT_POOL_SIZE;
 };
 
-/** Instance names to try, starting at a random one so load spreads. */
 export const rendererInstanceOrder = (
   size: number,
   random: () => number = Math.random,
@@ -170,7 +166,6 @@ const readBodyExactly = async (
   return bytes;
 };
 
-/** Split and check the outputs against what the caller expects. */
 export const readRendererOutputs = async (
   response: Response,
   specs: Record<string, RendererPartSpec>
@@ -212,19 +207,13 @@ export const readRendererOutputs = async (
   return { manifest, parts };
 };
 
-// A Workers runtime global; Bun tests run without it.
-const { FixedLengthStream: FixedLength } = globalThis as {
-  FixedLengthStream?: new (
-    length: number
-  ) => { readable: ReadableStream; writable: WritableStream };
+const { FixedLengthStream: FixedLength } = globalThis as unknown as {
+  FixedLengthStream: typeof FixedLengthStream;
 };
 
 const withFixedLength = (source: RendererSource): ReadableStream => {
   // Workers send a stream with an unknown length as chunked; FixedLengthStream
   // gives the Container a Content-Length to check against its cap up front.
-  if (!FixedLength) {
-    return source.body;
-  }
   const { readable, writable } = new FixedLength(source.size);
   source.body.pipeTo(writable).catch(() => undefined);
   return readable;
@@ -247,9 +236,9 @@ export const callRenderer = async (
   let lastReason = "busy";
   for (const name of rendererInstanceOrder(rendererPoolSize(env), random)) {
     const source = await job.openSource();
-    if (source.size > FILES_RENDER_MAX_SOURCE_BYTES) {
+    if (source.size > FILES_UPLOAD_MAX_BYTES) {
       await source.body.cancel().catch(() => undefined);
-      throw new Error("source_too_large");
+      throw new OpFailure("source_too_large");
     }
     let response: Response;
     try {
@@ -276,16 +265,13 @@ export const callRenderer = async (
     switch (response.status) {
       case 503:
         lastReason = reason || "unavailable";
-        // Busy instances are skipped; a failed one may be alone in its trouble.
         continue;
       case 413:
-        throw new Error("source_too_large");
+        throw new OpFailure("source_too_large");
       case 415:
         throw new RendererDeclined(reason || "unsupported");
-      // The job ran past its wall clock; the same bytes would again.
       case 422:
         throw new RendererDeclined(reason || "timeout");
-      // The Worker sent parameters the Container rejects: a bug, not an outage.
       case 400:
         throw new Error(`renderer_bad_request:${reason}`);
       default:
@@ -297,7 +283,6 @@ export const callRenderer = async (
   throw new RendererUnavailable(lastReason);
 };
 
-/** For deploy gates: can a renderer start, and does it speak this protocol? */
 export const checkRendererHealth = async (
   env: RendererEnv
 ): Promise<{ rendererHealthy: boolean; rendererProtocol: number | null }> => {

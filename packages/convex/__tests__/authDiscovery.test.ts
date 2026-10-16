@@ -1,14 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { discoverAuthServer } from "../client/sdk";
+import { asFetch } from "./helpers/convex.test-utils";
 
-// Failure modes: a non-WorkOS provider, wrong issuer/resource, a registration
-// change between documents, missing clients/PKCE, unsafe URLs, redirects,
-// oversized/bad JSON, failed cache entries, concurrent discovery, expiry, and a
-// stale failure evicting a newer result.
 const surfaces = ["cli", "raycast", "chrome", "firefox"] as const;
 const clientIds = Object.fromEntries(
   surfaces.map((surface) => [surface, `client_01${surface.toUpperCase()}`])
-);
+) as Record<(typeof surfaces)[number], string>;
 
 function fixture(
   issuer = "https://auth.example",
@@ -33,11 +30,11 @@ function fixture(
       },
   };
   const calls: Array<{ url: string; init?: RequestInit }> = [];
-  const transport: typeof fetch = (url, init) => {
+  const transport = asFetch((url, init) => {
     const key = String(url);
     calls.push({ url: key, init });
     return Promise.resolve(Response.json(documents[key]));
-  };
+  });
   return { documents, calls, transport };
 }
 
@@ -205,12 +202,13 @@ describe("OAuth discovery", () => {
     async (failure: string) => {
       const f = fixture();
       let broken = true;
-      const transport: typeof fetch = async (url, init) =>
+      const transport = asFetch(async (url, init) =>
         broken
           ? new Response(failure === "oversized" ? "x".repeat(65_537) : "{", {
               status: failure === "http failure" ? 503 : 200,
             })
-          : f.transport(url, init);
+          : f.transport(url, init)
+      );
       await expect(
         discoverAuthServer("https://teak.example", { fetch: transport })
       ).rejects.toThrow();
@@ -238,7 +236,7 @@ describe("OAuth discovery", () => {
     const f = fixture();
     let calls = 0;
     let rejectOld!: (error: Error) => void;
-    const transport: typeof fetch = (url, init) => {
+    const transport = asFetch((url, init) => {
       calls += 1;
       if (calls === 1) {
         return new Promise((_resolve, reject) => {
@@ -246,7 +244,7 @@ describe("OAuth discovery", () => {
         });
       }
       return f.transport(url, init);
-    };
+    });
     const old = discoverAuthServer("https://teak.example", {
       fetch: transport,
     });
@@ -268,7 +266,7 @@ describe("OAuth discovery", () => {
     const f = fixture();
     let broken = true;
     let aborted = false;
-    const transport: typeof fetch = (url, init) => {
+    const transport = asFetch((url, init) => {
       if (!broken) {
         return f.transport(url, init);
       }
@@ -285,7 +283,7 @@ describe("OAuth discovery", () => {
           { once: true }
         );
       });
-    };
+    });
     await expect(
       discoverAuthServer("https://teak.example", { fetch: transport })
     ).rejects.toThrow("request failed");
@@ -299,7 +297,7 @@ describe("OAuth discovery", () => {
   test("times out discovery and allows another attempt", async () => {
     const f = fixture();
     let stalled = true;
-    const transport: typeof fetch = (url, init) =>
+    const transport = asFetch((url, init) =>
       stalled
         ? new Promise((_resolve, reject) => {
             init?.signal?.addEventListener(
@@ -308,7 +306,8 @@ describe("OAuth discovery", () => {
               { once: true }
             );
           })
-        : f.transport(url, init);
+        : f.transport(url, init)
+    );
     await expect(
       discoverAuthServer("https://teak.example", {
         fetch: transport,
@@ -332,7 +331,7 @@ describe("OAuth discovery", () => {
       discoverAuthServer("https://teak.example", { fetch: f.transport })
     ).rejects.toThrow("Unsafe");
     const issuer = "http://127.0.0.1:3000";
-    const transport: typeof fetch = (url) => {
+    const transport = asFetch((url) => {
       if (String(url).endsWith("teak-oauth-clients.json")) {
         return Promise.resolve(
           Response.json({
@@ -358,7 +357,7 @@ describe("OAuth discovery", () => {
           code_challenge_methods_supported: ["S256"],
         })
       );
-    };
+    });
     expect(
       await discoverAuthServer("http://127.0.0.1:3211", { fetch: transport })
     ).toMatchObject({
@@ -370,7 +369,7 @@ describe("OAuth discovery", () => {
   test.each(["http://localhost:3000", "http://app.teak.localhost:3000"])(
     "cloud development requires explicit approval for %s and keeps its cache separate",
     async (issuer: string) => {
-      const transport: typeof fetch = (url) => {
+      const transport = asFetch((url) => {
         if (String(url).endsWith("teak-oauth-clients.json")) {
           return Promise.resolve(
             Response.json({
@@ -396,7 +395,7 @@ describe("OAuth discovery", () => {
             code_challenge_methods_supported: ["S256"],
           })
         );
-      };
+      });
       await expect(
         discoverAuthServer("https://dev.example", { fetch: transport })
       ).rejects.toThrow("Unsafe");

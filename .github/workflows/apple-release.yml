@@ -166,7 +166,6 @@ jobs:
                 ;;
             esac
           fi
-          # The app builds with the pinned, non-beta Xcode 27 (see select-xcode.sh).
           apps/apple/scripts/select-xcode.sh
           xcode_version="$(xcodebuild -version)"
           if [[ "$xcode_version" != Xcode\ 27.* ]]; then
@@ -246,8 +245,6 @@ jobs:
           else
             reuse=false
             build_id=""
-            # One counter for both platforms: the next number is above every
-            # iOS and macOS build on the listing.
             asc builds list --app "$ASC_APP_ID" --platform IOS --paginate --output json > "$RUNNER_TEMP/apple-ios-all-builds.json"
             asc builds list --app "$ASC_APP_ID" --platform MAC_OS --paginate --output json > "$RUNNER_TEMP/apple-macos-all-builds.json"
             build_number="$(node scripts/apple-build-number.mjs "$RUNNER_TEMP/apple-ios-all-builds.json" "$RUNNER_TEMP/apple-macos-all-builds.json")"
@@ -539,7 +536,6 @@ jobs:
               echo "$expected_bundle is missing the production runtime configuration." >&2
               exit 1
             fi
-            # Only the app reports to PostHog; the extensions carry no token.
             if [ "$expected_bundle" = "$APP_BUNDLE_ID" ] && [ -z "$posthog_token" ]; then
               echo "$expected_bundle has no TeakPostHogToken; the archive must get POSTHOG_PROJECT_TOKEN." >&2
               exit 1
@@ -879,8 +875,6 @@ jobs:
             if [ -n "$SOURCE_VERSION" ]; then
               source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
             else
-              # The first version on this platform borrows the review contact
-              # from the live iOS version of the same listing.
               source_id="$(asc versions list --app "$ASC_APP_ID" --platform IOS --paginate --output json | jq -r '[.data[] | select((.attributes.appVersionState // .attributes.appStoreState) as $state | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"] | index($state))][0].id // empty')"
             fi
             if [ -z "$source_id" ]; then

@@ -5,9 +5,9 @@ import { internalMutation } from "../../_generated/server";
 import type { CardType } from "../../schema";
 import { cardTypeValidator } from "../../schema";
 import { startWorkflow, workflow } from "../manager";
+import { aiMetadataResultValidator } from "./schemas";
 import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 
-// Typed internal reference map for workflow helpers
 const internalWorkflow = internal as Record<string, any>;
 const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
   | Record<string, any>
@@ -39,22 +39,12 @@ const resolveCardType = async (
   return card.type as CardType;
 };
 
-// Matches workflows/steps/metadata.generate, which returns persisted-result
-// facts rather than the generated text.
-export const aiMetadataWorkflowReturns = v.object({
-  aiTagsCount: v.number(),
-  hasSummary: v.boolean(),
-  hasTranscript: v.boolean(),
-  confidence: v.number(),
-  mode: v.union(v.literal("completed"), v.literal("skipped")),
-});
-
 export const aiMetadataWorkflow = workflow.define({
   args: {
     cardId: v.id("cards"),
     cardType: v.optional(cardTypeValidator),
   },
-  returns: aiMetadataWorkflowReturns,
+  returns: aiMetadataResultValidator,
   handler: async (step, args): Promise<AiMetadataResult> => {
     const cardType = await resolveCardType(step, args);
 

@@ -1,4 +1,5 @@
 import type { ParsedBookmarkItem } from "@teak/convex/import/bookmarks";
+import { ImportLimitExceeded } from "@teak/convex/import/sourceItems";
 import { parseImportSource } from "@teak/convex/import/sources";
 import { isImportMode } from "@teak/convex/shared/importSources";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@teak/files-protocol";
 import { readImportJson } from "./importJson";
 import { indexOmnivoreZip, isZipSource } from "./importOmnivore";
+import { OpFailure } from "./opFailure";
 import { isValidUploadKey } from "./upload";
 import {
   ArchiveEntryTooLargeError,
@@ -52,13 +54,13 @@ export async function indexImportSource(
   }
   const meta = await bucket.head(sourceKey);
   if (!meta) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   if (
     meta.size !== expectedSize ||
     (sourceEtag && sourceEtag !== meta.httpEtag)
   ) {
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   if (mode === "archive") {
     const directory = await readZipDirectory(bucket, sourceKey, meta.httpEtag);
@@ -106,7 +108,6 @@ export async function indexImportSource(
       sourceEtag: meta.httpEtag,
     };
   }
-  // Omnivore exports a ZIP of metadata files; its other sources are text.
   if (
     mode === "omnivore" &&
     (await isZipSource(bucket, sourceKey, meta.httpEtag))
@@ -114,24 +115,22 @@ export async function indexImportSource(
     return indexOmnivoreZip(bucket, sourceKey, meta.httpEtag, cursor);
   }
   if (meta.size > 20 * 1024 * 1024) {
-    throw new Error("source_too_large");
+    throw new OpFailure("source_too_large");
   }
   const object = await bucket.get(sourceKey);
   if (!object) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   if (object.httpEtag !== meta.httpEtag) {
     await object.body.cancel();
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   const text = await object.text();
   let parsed: ParsedBookmarkItem[];
   try {
     parsed = parseImportSource(mode, text);
   } catch (error) {
-    // Parsers stop at 10,000 items (CSV readers at a row count); Convex words
-    // that, and anything else as "This doesn't look like a <source> export".
-    if (error instanceof Error && /exceeds [\d,]+ /.test(error.message)) {
+    if (error instanceof ImportLimitExceeded) {
       throw new Error("invalid_bookmark_count", { cause: error });
     }
     throw new Error("invalid_import_source", { cause: error });
@@ -225,7 +224,7 @@ export async function readImportMarkdown(
     if (
       error instanceof Error &&
       (error.message.startsWith("invalid_archive") ||
-        error.message === "archive_parse_failed")
+        (error instanceof OpFailure && error.code === "archive_parse_failed"))
     ) {
       return {
         status: "failed",

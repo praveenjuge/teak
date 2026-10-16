@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import * as r2Storage from "../../storage/r2";
 import { withTestSession } from "../helpers/session.test-utils";
@@ -77,8 +75,6 @@ describe("card/deleteCard.ts", () => {
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
-    // Inline sync cleanup is atomic with the delete: the search document is
-    // removed in the same mutation.
     expect(ctx.db.delete).toHaveBeenCalledWith(
       "cardSearchDocuments",
       "searchdoc_1"

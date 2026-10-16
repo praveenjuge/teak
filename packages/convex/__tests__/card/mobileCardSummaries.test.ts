@@ -1,14 +1,14 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { toMobileCardSummary } from "../../card/mobileCardSummaries";
+import { testId } from "../helpers/convex.test-utils";
 
 describe("mobile card summaries", () => {
   test("returns compact display fields without full card content", () => {
     const longContent = "A".repeat(400);
     const summary = toMobileCardSummary({
       _creationTime: 1,
-      _id: "card-1",
-      colors: [{ hex: "#112233", percentage: 1 }],
+      _id: testId("cards", "card-1"),
+      colors: [{ hex: "#112233" }],
       content: longContent,
       createdAt: 1,
       processingStatus: {},
@@ -30,7 +30,7 @@ describe("mobile card summaries", () => {
 
   const base = {
     _creationTime: 1,
-    _id: "card-2",
+    _id: testId("cards", "card-2"),
     createdAt: 1,
     processingStatus: {},
     updatedAt: 1,
@@ -59,7 +59,7 @@ describe("mobile card summaries", () => {
       imageWidth: 1200,
       screenshotHeight: 1000,
       screenshotWidth: 800,
-      status: "success",
+      status: "success" as const,
       title: "Example",
     };
     const withImage = toMobileCardSummary({
@@ -99,7 +99,7 @@ describe("a link with a chosen image", () => {
   test("takes its aspect ratio from the chosen image", () => {
     const summary = toMobileCardSummary({
       _creationTime: 1,
-      _id: "card-3",
+      _id: testId("cards", "card-3"),
       content: "",
       createdAt: 1,
       hasThumbnailOverride: true,

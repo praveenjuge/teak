@@ -2,9 +2,6 @@ import { api } from "@teak/convex";
 import { expectVault, gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// Folders from the sidebar: create one, add cards to it from a selection,
-// open it, rename it, then delete it and bring it back with Undo. A fresh
-// account starts with the getting-started cards in a Start here folder.
 const FIRST_CARD = "Good design is as little design as possible";
 const SECOND_CARD = "Welcome to Teak, a home for everything";
 
@@ -18,13 +15,11 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
 
-  // New folder, beside the Folders heading, is named in place.
   await screen.getByRole("button", "New folder").first().click();
   await screen.getByLabel("New folder name").fill("Reading");
   await screen.getByLabel("New folder name").press("Enter");
   await expect(screen.getByRole("link", "Reading")).toBeVisible();
 
-  // Names are unique ignoring case; Escape leaves the row.
   await screen.getByRole("button", "New folder").first().click();
   await screen.getByLabel("New folder name").fill("reading");
   await expect(
@@ -33,7 +28,6 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await screen.getByLabel("New folder name").press("Escape");
   await expect(screen.getByLabel("New folder name")).toHaveCount(0);
 
-  // Select two cards and add them through the bulk bar.
   await screen.getByText(FIRST_CARD, { exact: false }).secondaryTap();
   await screen.getByRole("menuitem", "Select", { exact: false }).click();
   await screen.getByText(SECOND_CARD, { exact: false }).click();
@@ -47,7 +41,6 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     screen.getByText("Added 2 cards to Reading", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // The folder page lists just those cards.
   await screen.getByRole("link", "Reading").click();
   await expect(screen.getByPlaceholder("Search Reading")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
@@ -56,10 +49,14 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     "page"
   );
   await expect(screen.getByText("2 cards")).toBeVisible();
-  await expect(screen.getByText(FIRST_CARD, { exact: false })).toBeVisible();
-  await expect(screen.getByText(SECOND_CARD, { exact: false })).toBeVisible();
+  // Home stays mounted but hidden behind the folder, with the same cards.
+  await expect(
+    screen.getByText(FIRST_CARD, { exact: false, visible: true })
+  ).toBeVisible();
+  await expect(
+    screen.getByText(SECOND_CARD, { exact: false, visible: true })
+  ).toBeVisible();
 
-  // Rename from the folder's menu.
   await screen.getByRole("button", "More for Reading").click();
   await screen.getByRole("menuitem", "Rename…").click();
   const rename = screen.getByRole("dialog", "Edit folder");
@@ -68,8 +65,6 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await expect(screen.getByRole("link", "Reading list")).toBeVisible();
   await expect(screen.getByPlaceholder("Search Reading list")).toBeVisible();
 
-  // Deleting the open folder returns to Everything; Undo brings it back
-  // with its cards.
   await screen.getByRole("button", "More for Reading list").click();
   await screen.getByRole("menuitem", "Delete").click();
   await expect(
@@ -162,7 +157,6 @@ test("save a search as a smart folder; a card saved later shows up live", async 
     screen.getByText("Smart folder first match", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // Saving is in the View menu while there is a search to keep.
   await screen.getByRole("button", /^View/).click();
   await screen.getByRole("menuitem", "Save as smart folder…").click();
   const save = screen.getByRole("dialog", "Save as smart folder");
@@ -175,26 +169,31 @@ test("save a search as a smart folder; a card saved later shows up live", async 
     screen.getByText("Saved “Smart picks”", { exact: false })
   ).toBeVisible();
 
-  // Its view shows what the search matches, and the search as chips.
   await screen.getByRole("link", "Smart picks").click();
   await expect(screen.getByPlaceholder("Search Smart picks")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
+  // The search results stay mounted but hidden behind the folder, with the
+  // same cards, so each query is for the copy on screen.
   await expect(
-    screen.getByText("Smart folder first match", { exact: false })
+    screen.getByText("Smart folder first match", {
+      exact: false,
+      visible: true,
+    })
   ).toBeVisible({ timeout: 30_000 });
   await expect(
-    screen.getByText("Smart folder other card", { exact: false })
+    screen.getByText("Smart folder other card", { exact: false, visible: true })
   ).not.toBeVisible();
 
-  // A matching card saved elsewhere appears without a reload.
   await create("Smart folder live match", ["smartfolder"]);
   await expect(
-    screen.getByText("Smart folder live match", { exact: false })
+    screen.getByText("Smart folder live match", {
+      exact: false,
+      visible: true,
+    })
   ).toBeVisible({ timeout: 30_000 });
 
-  // Cards can't be put in a smart folder: the picker never lists it.
   await screen
-    .getByText("Smart folder live match", { exact: false })
+    .getByText("Smart folder live match", { exact: false, visible: true })
     .secondaryTap();
   await screen.getByRole("menuitem", "Select", { exact: false }).click();
   await screen.getByRole("button", "More actions").click();
@@ -208,10 +207,8 @@ test("save a search as a smart folder; a card saved later shows up live", async 
   await screen.getByLabel("Search folders").press("Escape");
   await screen.getByRole("button", "Cancel selection").click();
 
-  // Editing the search to match nothing shows the empty state.
   await screen.getByRole("button", "Edit search").first().click();
   const edit = screen.getByRole("dialog", "Edit smart folder");
-  // A search still being typed only disables Save.
   await edit.getByLabel("Search", { exact: true }).fill("folder:");
   await expect(edit.getByRole("button", "Save")).toBeDisabled();
   await expect(edit.getByRole("alert")).not.toBeVisible();

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 
 mock.module("@convex-dev/workflow/convex.config", () => ({

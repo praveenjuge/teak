@@ -2,14 +2,33 @@ import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { unstable_readConfig } from "wrangler";
+import rootPackageJson from "../../../package.json";
 import packageJson from "../package.json";
+
+const baseImages = async (dockerfile: string): Promise<string[]> =>
+  Array.from(
+    (await Bun.file(resolve(import.meta.dir, dockerfile)).text()).matchAll(
+      /^FROM\s+(?:--\S+\s+)*(\S+)/gm
+    ),
+    (match) => match[1] ?? ""
+  );
+
+test("the container images build with the repo's pinned Bun and Node", async () => {
+  const bun = rootPackageJson.packageManager.replace(/^bun@/, "");
+  expect(await baseImages("../container/Dockerfile")).toContain(
+    `oven/bun:${bun}-alpine`
+  );
+  expect(await baseImages("../fetcher/Dockerfile")).toEqual([
+    `oven/bun:${bun}-alpine`,
+    `node:${rootPackageJson.engines.node}-alpine`,
+  ]);
+});
 
 test("only the production worker reports errors to PostHog", () => {
   const config = unstable_readConfig({
     config: resolve(import.meta.dir, "../wrangler.jsonc"),
   });
   expect(String(config.vars.POSTHOG_PROJECT_TOKEN)).toStartWith("phc_");
-  // The renderer pool size the Worker uses matches the Container's limit.
   expect(config.containers?.[0]?.max_instances).toBe(
     Number(config.vars.MEDIA_RENDERER_INSTANCES)
   );
@@ -50,9 +69,7 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.vars.LINK_FETCHER_INSTANCES).toBe("2");
   expect(config.ai?.binding).toBe("AI");
   expect(config.images?.binding).toBe("IMAGES");
-  // Development errors stay out of the production PostHog project.
   expect(config.vars.POSTHOG_PROJECT_TOKEN).toBeUndefined();
-  // It never proxies the public API to the production Convex deployment.
   expect(config.vars.API_PUBLIC_HOST).toBeUndefined();
   expect(config.vars.API_UPSTREAM_ORIGIN).toBeUndefined();
   expect(config.vars.API_WORKOS_ISSUER).toBeUndefined();

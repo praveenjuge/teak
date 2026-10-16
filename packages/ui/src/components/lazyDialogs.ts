@@ -1,8 +1,5 @@
 import { onDemand } from "../lib/lazyWithPreload";
 
-// Dialogs the library opens only on request. Their code loads after the
-// page (see `preloadLibraryDialogs`), not with it.
-
 export const BulkTagsDialog = onDemand(() =>
   import("./selection/BulkTagsDialog").then((module) => module.BulkTagsDialog)
 );

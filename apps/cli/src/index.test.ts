@@ -25,7 +25,7 @@ import {
 } from ".";
 import { resolveAddInput } from "./files";
 import { collectPages } from "./library";
-import { VERSION } from "./runtime";
+import { credentialSourceOrder, VERSION } from "./runtime";
 
 const fixtureDirectory = mkdtempSync(join(tmpdir(), "teak-cli-files-"));
 
@@ -260,4 +260,24 @@ describe("teak bulk input", () => {
       expect(bulkItems(input)).toBeNull();
     }
   );
+});
+
+describe("teak credential storage", () => {
+  const saved = { accessToken: "a", refreshToken: "r", expiresAt: 0 };
+
+  test("an old fallback file loses to Keychain", () => {
+    expect(credentialSourceOrder(JSON.stringify(saved))).toEqual([
+      "keychain",
+      "file",
+    ]);
+    expect(credentialSourceOrder("")).toEqual(["keychain", "file"]);
+  });
+
+  test("a fallback file written after a failed Keychain update wins", () => {
+    expect(
+      credentialSourceOrder(
+        JSON.stringify({ ...saved, fallbackAuthority: true })
+      )
+    ).toEqual(["file"]);
+  });
 });

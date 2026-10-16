@@ -20,7 +20,6 @@ const runBuildBeforeHook = () => {
   if (typeof hook !== "function") {
     throw new Error("wxt.config.ts has no build:before hook");
   }
-  // The hook only reads process.env, so it needs no real WXT instance.
   return hook({} as never);
 };
 

@@ -1,8 +1,6 @@
 import { WorkOS } from "@workos-inc/node";
 import { isWorkosProductionApi, workosApiBase } from "./workosApi";
 
-// The one way backend code builds a WorkOS client. Callers retry at the
-// workflow or request level, so the SDK never retries on its own.
 export const createWorkosClient = (apiKey: string, clientId?: string) => {
   const base = workosApiBase();
   return new WorkOS(apiKey, {

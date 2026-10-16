@@ -1,6 +1,7 @@
+import { API_IDEMPOTENCY_KEY_TTL_MS } from "@teak/convex/shared/constants";
+import { getCaptureOwner } from "../lib/captureOwner";
 import {
   beginOAuthSignIn,
-  getCaptureOwner,
   getOAuthState,
   initializeAuth,
   oauthRequest,
@@ -37,6 +38,7 @@ import {
 } from "../types/social";
 
 const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
+const RETRY_SAFE_WINDOW_MS = API_IDEMPOTENCY_KEY_TTL_MS - 60 * 60 * 1000;
 
 function runPendingSave(
   pending: PendingSave,
@@ -49,11 +51,9 @@ function runPendingSave(
   }
   const operation = (async () => {
     const capture = async (): Promise<TeakSaveResponse> => {
-      // The API remembers operation IDs for 24 hours. Stop uncertain retries
-      // before that expires so a lost response cannot create a second card.
       if (
         save.firstAttemptAt &&
-        Date.now() - save.firstAttemptAt >= 23 * 60 * 60 * 1000
+        Date.now() - save.firstAttemptAt >= RETRY_SAFE_WINDOW_MS
       ) {
         return buildSaveError(
           "This save is too old to retry safely. Check your library before discarding it and saving again.",
@@ -160,7 +160,6 @@ async function queueSave(
   return runPendingSave(save, true);
 }
 
-// Returns the first save that could not finish, so a retry can say why.
 async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
   let failure: TeakSaveResponse | undefined;
   for (const id of await listPendingSaveIds()) {
@@ -252,9 +251,7 @@ async function extractContextMenuContent(
         if (typeof content === "string" && content.trim()) {
           return content;
         }
-      } catch {
-        // Fall through to tab-title fallback below.
-      }
+      } catch {}
 
       if (tab.title?.trim()) {
         return tab.title.trim();
@@ -322,15 +319,12 @@ export default defineBackground(() => {
   void initializeAuth()
     .then(resumePendingSaves)
     .catch(() => {});
-  // Create context menus when extension starts
   chrome.runtime.onStartup.addListener(createContextMenus);
   chrome.runtime.onInstalled.addListener(createContextMenus);
 
-  // Handle context menu clicks
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
   chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 
-  // Create context menu items
   function createContextMenus() {
     chrome.contextMenus.removeAll(() => {
       chrome.contextMenus.create({
@@ -353,7 +347,6 @@ export default defineBackground(() => {
     });
   }
 
-  // Handle context menu clicks with enhanced error handling
   async function handleContextMenuClick(
     info: chrome.contextMenus.OnClickData,
     tab?: chrome.tabs.Tab
@@ -365,7 +358,6 @@ export default defineBackground(() => {
     const action = info.menuItemId as ContextMenuAction;
 
     try {
-      // Check if the current page is restricted
       if (isRestrictedUrl(tab.url)) {
         throw new Error(restrictedUrlMessage(tab.url));
       }
@@ -378,7 +370,6 @@ export default defineBackground(() => {
         throw new Error("Could not access the selected asset URL");
       }
 
-      // Store content for processing
       const contextMenuState = {
         action,
         timestamp: Date.now(),
@@ -397,8 +388,6 @@ export default defineBackground(() => {
               input: { content, source: "context-menu" },
             });
       if (saveResult.status === "unauthenticated") {
-        // Clear the "saving" state and send the user to the sign-in tab rather
-        // than surfacing an auth error in the popup.
         await chrome.storage.local.remove("contextMenuSave");
         void chrome.action.openPopup();
         return;
@@ -425,7 +414,6 @@ export default defineBackground(() => {
       });
     }
 
-    // Open popup to show save status
     void chrome.action.openPopup();
   }
 
@@ -481,7 +469,6 @@ export default defineBackground(() => {
               return;
             }
           } else {
-            // A running save finishes or re-queues itself; only waiting ones go.
             for (const id of await listWaitingSaveIds()) {
               await removePendingSave(id);
             }
@@ -642,6 +629,5 @@ export default defineBackground(() => {
     return true;
   }
 
-  // Initialize context menus immediately
   void createContextMenus();
 });

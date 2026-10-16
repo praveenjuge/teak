@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { getCaptureOwner } from "../../lib/captureOwner";
 
 const originalFetch = globalThis.fetch;
 const originalChrome = globalThis.chrome;
@@ -10,7 +11,6 @@ const originalEnv = {
   TEAK_DEV_APP_URL: process.env.TEAK_DEV_APP_URL,
   VITE_PUBLIC_CONVEX_SITE_URL: process.env.VITE_PUBLIC_CONVEX_SITE_URL,
 };
-// Two WorkOS environments model a client registration change on the server.
 let environment: "alpha" | "beta" = "alpha";
 const tokenKey = "teakOAuthCredentials";
 const accessToken = "a".repeat(32);
@@ -418,7 +418,7 @@ test.each([false, true])(
       clientId,
     });
     (storage[credentialsKey] as { expiresAt: number }).expiresAt = 0;
-    expect(await auth.getCaptureOwner()).toBe("permanent-owner");
+    expect(await getCaptureOwner()).toBe("permanent-owner");
     expect((await auth.getOAuthState()).user?.id).toBe("permanent-owner");
     const refresh = new URLSearchParams(String(calls[2]?.init?.body));
     expect(refresh.get("grant_type")).toBe("refresh_token");
@@ -458,7 +458,7 @@ test("a credential from another client registration is never sent", async () => 
   expect(await auth.oauthRequest("/v1/cards")).toBeNull();
   expect(network).not.toHaveBeenCalled();
   expect(storage[tokenKey]).toBeUndefined();
-  expect(await auth.getCaptureOwner()).toBe("original-owner");
+  expect(await getCaptureOwner()).toBe("original-owner");
 });
 
 test.each([
@@ -503,7 +503,7 @@ test("development cannot read or clear production credentials", async () => {
   storage.teakOAuthOwner = "production-owner";
   const auth = await load();
   expect(await auth.oauthRequest("/v1/cards")).toBeNull();
-  expect(await auth.getCaptureOwner()).toBeUndefined();
+  expect(await getCaptureOwner()).toBeUndefined();
   await auth.signOutOAuth();
   expect(storage[tokenKey]).toBe(production);
   expect(storage.teakOAuthOwner).toBe("production-owner");
@@ -536,7 +536,6 @@ test("a successful refresh reuses discovery and a rejected refresh fetches it ag
   }) as typeof fetch;
   const auth = await load();
   expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
-  // Resource, client registry and issuer metadata: one discovery, no re-fetch.
   expect(discoveryFetches).toBe(3);
   storage[tokenKey] = {
     ...(storage[tokenKey] as object),

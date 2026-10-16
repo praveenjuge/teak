@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useEffect, useState } from "react";
+import { useNow } from "./useNow";
 
 /**
  * How long a new account shows "Setting up your vault" at most. Its cards
@@ -40,8 +41,13 @@ export const vaultSetupState = (
 /** Whether the signed-in account's getting-started cards are still coming. */
 export function useVaultSetup(): VaultSetupState {
   const setup = useQuery(api.card.vaultSetup.getVaultSetup, {});
-  const [now, setNow] = useState(() => Date.now());
   const [shownAt, setShownAt] = useState<number | null>(null);
+  const now = useNow({
+    until: [
+      setup ? setup.startedAt + VAULT_SETUP_MAX_MS : null,
+      shownAt === null ? null : shownAt + VAULT_SETUP_MIN_MS,
+    ],
+  });
   const state = vaultSetupState(setup, now, shownAt);
 
   useEffect(() => {
@@ -49,26 +55,6 @@ export function useVaultSetup(): VaultSetupState {
       setShownAt(Date.now());
     }
   }, [state, shownAt]);
-
-  // Re-render when the next deadline passes: the server's cap, or the
-  // minimum time on screen.
-  const deadlines = [
-    setup ? setup.startedAt + VAULT_SETUP_MAX_MS : null,
-    shownAt === null ? null : shownAt + VAULT_SETUP_MIN_MS,
-  ].filter(
-    (deadline): deadline is number => deadline !== null && deadline > now
-  );
-  const nextDeadline = deadlines.length > 0 ? Math.min(...deadlines) : null;
-  useEffect(() => {
-    if (nextDeadline === null) {
-      return;
-    }
-    const timer = setTimeout(
-      () => setNow(Date.now()),
-      Math.max(0, nextDeadline - Date.now()) + 50
-    );
-    return () => clearTimeout(timer);
-  }, [nextDeadline]);
 
   return state;
 }

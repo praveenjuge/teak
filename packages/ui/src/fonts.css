@@ -1,5 +1,3 @@
-/* SN Pro, the app's typeface (every script it covers). The web app loads
- * the same files through next/font instead, which also preloads them. */
 @font-face {
   font-family: "SN Pro";
   src: url("./fonts/SNPro-VariableRegular.woff2") format("woff2-variations");

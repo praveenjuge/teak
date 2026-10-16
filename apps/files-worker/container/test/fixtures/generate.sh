@@ -22,12 +22,9 @@ SVT_LOG=1 ff $video -c:v libsvtav1 -g 10 -pix_fmt yuv420p av1.mp4
 ff $video $tone -c:v libx264 -g 10 -pix_fmt yuv420p -c:a libopus -b:a 16k -ac 1 -shortest video.mkv
 ff $video -c:v mpeg4 -g 10 -q:v 10 video.avi
 
-# A 2 s, 32×32 GIF that is red for its first second and blue for its last,
-# so a palette read from only the first frame misses the blue.
 ff -f lavfi -i "color=c=red:s=32x32:d=1:r=4" -f lavfi -i "color=c=blue:s=32x32:d=1:r=4" \
   -filter_complex "[0][1]concat=n=2:v=1" animation.gif
 
-# 2 s of a tone that swells and fades, so the peaks aren't flat.
 swell="-f lavfi -i sine=frequency=330:duration=2:sample_rate=8000 -af volume=eval=frame:volume=sin(PI*t/2)"
 ff $swell -ac 1 -c:a libmp3lame -b:a 32k audio.mp3
 ff $swell -ac 1 -c:a pcm_s16le audio.wav
@@ -39,11 +36,9 @@ bun make-pdf.ts 60 sixty-pages.pdf
 bun make-pdf.ts 1 no-text.pdf --no-text
 qpdf --encrypt user-secret owner-secret 256 -- sixty-pages.pdf encrypted.pdf
 
-# Corrupt inputs: an MP4 cut off before its moov atom, and random bytes.
 head -c 4096 h264.mp4 > truncated.mp4
 head -c 4096 /dev/urandom > garbage.pdf
 
-# Hostile inputs that try to make ffmpeg read other files or the network.
 cat > playlist.m3u8 <<'EOF'
 #EXTM3U
 #EXT-X-VERSION:3

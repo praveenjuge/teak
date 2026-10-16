@@ -124,7 +124,6 @@ export function createCardActions(
     }
   };
 
-  // New unified field update method
   const updateField = async (
     cardId: Id<"cards">,
     field:
@@ -159,6 +158,6 @@ export function createCardActions(
     handleRestoreCard,
     handlePermanentDeleteCard,
     handleToggleFavorite,
-    updateField, // New unified update method
+    updateField,
   };
 }

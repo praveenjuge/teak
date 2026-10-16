@@ -21,7 +21,6 @@ interface PreferencesRepository {
     val theme: Flow<ThemePreference>
     suspend fun setTheme(theme: ThemePreference)
 
-    /** The last `auth:getAuthMode` result, so sign-in works before the socket connects. */
     suspend fun cachedAuthMode(): String?
     suspend fun cacheAuthMode(json: String)
 }

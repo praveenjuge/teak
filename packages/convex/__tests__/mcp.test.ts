@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import type { ActionCtx } from "../_generated/server";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
@@ -10,6 +9,7 @@ import {
   type PublicApiToolExecutor,
   TEAK_V1_TOOLS,
 } from "../mcp/tools";
+import { mockActionCtx } from "./helpers/convex.test-utils";
 import { withMappedOwner } from "./helpers/session.test-utils";
 
 interface JsonRpcSuccess {
@@ -121,10 +121,19 @@ const initializeMcp = (ctx: any) =>
     })
   );
 
+const respondWith = (
+  respond: (
+    operation: Parameters<PublicApiToolExecutor>[0]
+  ) => Response | Promise<Response>
+) =>
+  mock((operation: Parameters<PublicApiToolExecutor>[0]) =>
+    Promise.resolve(respond(operation))
+  );
+
 describe("Convex MCP endpoint", () => {
   test("returns 401 with OAuth protected-resource challenge for missing auth", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
+      mockActionCtx({ runMutation: mock(), runQuery: mock() }),
       new Request("https://api.teakvault.com/mcp", {
         method: "POST",
         headers: {
@@ -146,7 +155,6 @@ describe("Convex MCP endpoint", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
-  // Without WORKOS_RESOURCE_ORIGIN every host keeps the production resource.
   test.each([
     "https://api.teakvault.com",
     "https://uncommon-ladybug-882.convex.site",
@@ -202,7 +210,7 @@ describe("Convex MCP endpoint", () => {
     process.env.PUBLIC_ORIGIN = "https://api.selfhost.example";
 
     const challenge = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
+      mockActionCtx({ runMutation: mock(), runQuery: mock() }),
       new Request("https://api.selfhost.example/mcp", {
         method: "POST",
         headers: {
@@ -219,7 +227,7 @@ describe("Convex MCP endpoint", () => {
 
   test("lets unauthenticated OPTIONS /mcp preflight through", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
+      mockActionCtx({ runMutation: mock(), runQuery: mock() }),
       new Request("https://api.teakvault.com/mcp", { method: "OPTIONS" })
     );
 
@@ -232,7 +240,7 @@ describe("Convex MCP endpoint", () => {
 
   test("challenges unauthenticated non-POST MCP requests", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
+      mockActionCtx({ runMutation: mock(), runQuery: mock() }),
       new Request("https://api.teakvault.com/mcp", { method: "GET" })
     );
 
@@ -243,7 +251,7 @@ describe("Convex MCP endpoint", () => {
   });
 
   test("initializes and lists the Teak and ChatGPT-compatible tools", async () => {
-    expect(TEAK_V1_TOOLS.map((tool) => tool.name).sort()).toEqual(
+    expect(TEAK_V1_TOOLS.map((tool): string => tool.name).sort()).toEqual(
       EXPECTED_TOOL_NAMES
     );
 
@@ -254,10 +262,12 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = withMappedOwner({
-      runMutation,
-      runQuery: mock(),
-    }) as unknown as ActionCtx;
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock(),
+      })
+    );
     expect((await initializeMcp(ctx)).status).toBe(200);
 
     const listResponse = await handleMcpV1Request(
@@ -283,10 +293,12 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_2",
     });
-    const ctx = withMappedOwner({
-      runMutation,
-      runQuery: mock(),
-    }) as unknown as ActionCtx;
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock(),
+      })
+    );
 
     const firstResponse = await handleMcpV1Request(
       ctx,
@@ -341,10 +353,12 @@ describe("Convex MCP endpoint", () => {
           );
         }
       );
-      const ctx = withMappedOwner({
-        runMutation,
-        runQuery: mock(),
-      }) as unknown as ActionCtx;
+      const ctx = mockActionCtx(
+        withMappedOwner({
+          runMutation,
+          runQuery: mock(),
+        })
+      );
       const initialize = await handleMcpV1Request(
         ctx,
         mcpRequest(
@@ -388,41 +402,43 @@ describe("Convex MCP endpoint", () => {
       body?: unknown;
       query?: Record<string, unknown>;
     }> = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push({
-        path: operation.path,
-        method: operation.method,
-        authorization: new Headers(operation.headers).get("authorization"),
-        body: operation.body,
-        query: operation.query,
-      });
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push({
+          path: operation.path,
+          method: operation.method,
+          authorization: new Headers(operation.headers).get("authorization"),
+          body: operation.body,
+          query: operation.query,
+        });
 
-      if (operation.method === "DELETE") {
-        return Promise.resolve(new Response(null, { status: 204 }));
+        if (operation.method === "DELETE") {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "card_1",
+              appUrl: "https://app.teakvault.com/?card=card_1",
+              cardId: "card_1",
+              content: "Design note",
+              deletedIds: ["card_2"],
+              fileKey: "users/user_1/file/image.png",
+              items: [{ id: "card_1", metadataTitle: "Design note" }],
+              metadataTitle: "Design note",
+              pageInfo: { hasMore: false, nextCursor: null },
+              status: "created",
+              total: 1,
+              uploadUrl: "https://upload.example",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        );
       }
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            id: "card_1",
-            appUrl: "https://app.teakvault.com/?card=card_1",
-            cardId: "card_1",
-            content: "Design note",
-            deletedIds: ["card_2"],
-            fileKey: "users/user_1/file/image.png",
-            items: [{ id: "card_1", metadataTitle: "Design note" }],
-            metadataTitle: "Design note",
-            pageInfo: { hasMore: false, nextCursor: null },
-            status: "created",
-            total: 1,
-            uploadUrl: "https://upload.example",
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      );
-    }) as PublicApiToolExecutor;
+    );
     const toolCalls = [
       ["teak_v1_list_cards", { limit: 25, cursor: "cursor_1", tag: "design" }],
       ["teak_v1_create_card", { content: "https://example.com" }],
@@ -594,26 +610,31 @@ describe("Convex MCP endpoint", () => {
 
   test("forwards search filters, new tools, and idempotency keys to the API", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push(operation);
-      if (operation.method === "POST" && operation.path.endsWith("/restore")) {
-        return Promise.resolve(new Response(null, { status: 204 }));
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        if (
+          operation.method === "POST" &&
+          operation.path.endsWith("/restore")
+        ) {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          Response.json({
+            cardId: null,
+            items: [{ id: "card_1" }],
+            pageInfo: { hasMore: true, nextCursor: "next" },
+            data: {
+              id: "u",
+              email: "e",
+              plan: "free",
+              cardCount: 3,
+              cardLimit: 200,
+            },
+          })
+        );
       }
-      return Promise.resolve(
-        Response.json({
-          cardId: null,
-          items: [{ id: "card_1" }],
-          pageInfo: { hasMore: true, nextCursor: "next" },
-          data: {
-            id: "u",
-            email: "e",
-            plan: "free",
-            cardCount: 3,
-            cardLimit: 200,
-          },
-        })
-      );
-    }) as PublicApiToolExecutor;
+    );
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -690,22 +711,24 @@ describe("Convex MCP endpoint", () => {
 
   test("tag tools start tag changes and poll their progress", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push(operation);
-      return Promise.resolve(
-        Response.json(
-          {
-            operationId: "op_1",
-            id: "op_1",
-            kind: "rename",
-            status: operation.method === "GET" ? "completed" : "running",
-            changed: 1,
-            total: 1,
-          },
-          { status: operation.method === "GET" ? 200 : 202 }
-        )
-      );
-    }) as PublicApiToolExecutor;
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        return Promise.resolve(
+          Response.json(
+            {
+              operationId: "op_1",
+              id: "op_1",
+              kind: "rename",
+              status: operation.method === "GET" ? "completed" : "running",
+              changed: 1,
+              total: 1,
+            },
+            { status: operation.method === "GET" ? 200 : 202 }
+          )
+        );
+      }
+    );
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -756,25 +779,30 @@ describe("Convex MCP endpoint", () => {
 
   test("folder tools map onto the folder endpoints", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push(operation);
-      if (operation.method === "DELETE" && !operation.path.endsWith("/cards")) {
-        return Promise.resolve(new Response(null, { status: 204 }));
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        if (
+          operation.method === "DELETE" &&
+          !operation.path.endsWith("/cards")
+        ) {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          Response.json({
+            id: "folder_1",
+            name: "Reading",
+            items: [{ id: "folder_1" }],
+            updatedIds: ["card_1"],
+            failedIds:
+              operation.path.endsWith("/cards") && operation.method === "DELETE"
+                ? ["card_2"]
+                : [],
+            folderLimitIds: [],
+          })
+        );
       }
-      return Promise.resolve(
-        Response.json({
-          id: "folder_1",
-          name: "Reading",
-          items: [{ id: "folder_1" }],
-          updatedIds: ["card_1"],
-          failedIds:
-            operation.path.endsWith("/cards") && operation.method === "DELETE"
-              ? ["card_2"]
-              : [],
-          folderLimitIds: [],
-        })
-      );
-    }) as PublicApiToolExecutor;
+    );
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -872,21 +900,23 @@ describe("Convex MCP endpoint", () => {
       path: string;
       query?: Record<string, unknown>;
     }> = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push({ path: operation.path, query: operation.query });
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            items: [{ id: "card_1" }],
-            pageInfo: { hasMore: false, nextCursor: null },
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      );
-    }) as PublicApiToolExecutor;
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push({ path: operation.path, query: operation.query });
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [{ id: "card_1" }],
+              pageInfo: { hasMore: false, nextCursor: null },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        );
+      }
+    );
 
     const result = await callTeakV1Tool(
       "teak_v1_list_favorite_cards",
@@ -923,17 +953,20 @@ describe("Convex MCP endpoint", () => {
   test("forwards raw Markdown through create and update tools", async () => {
     const captured: Array<{ body?: unknown; method: string; path: string }> =
       [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
-      captured.push(operation);
-      return Response.json({
-        appUrl: "https://app.teakvault.com/?card=card_1",
-        cardId: "card_1",
-        content: (operation.body as { content?: string } | undefined)?.content,
-        id: "card_1",
-        status: "created",
-        type: "text",
-      });
-    }) as PublicApiToolExecutor;
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        return Response.json({
+          appUrl: "https://app.teakvault.com/?card=card_1",
+          cardId: "card_1",
+          content: (operation.body as { content?: string } | undefined)
+            ?.content,
+          id: "card_1",
+          status: "created",
+          type: "text",
+        });
+      }
+    );
     const created = "\uFEFF  # MCP\r\n\r\n- [ ] create  \n";
     const updated = "  ---\r\ntitle: Update\r\n---  ";
 
@@ -1031,10 +1064,12 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = withMappedOwner({
-      runMutation,
-      runQuery: mock(),
-    }) as unknown as ActionCtx;
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock(),
+      })
+    );
     const batch = Array.from({ length: 100 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,
@@ -1067,10 +1102,12 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = withMappedOwner({
-      runMutation,
-      runQuery: mock(),
-    }) as unknown as ActionCtx;
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock(),
+      })
+    );
     const batch = Array.from({ length: 101 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,
@@ -1134,16 +1171,18 @@ describe("Convex MCP endpoint", () => {
   });
 
   const authorizedCtx = () =>
-    withMappedOwner({
-      runMutation: mock().mockResolvedValue({
-        keyId: "key_1",
-        userId: "user_1",
-        access: "full_access",
-        source: "component",
-        rateLimitKey: "component:key_1",
-      }),
-      runQuery: mock(),
-    }) as unknown as ActionCtx;
+    mockActionCtx(
+      withMappedOwner({
+        runMutation: mock().mockResolvedValue({
+          keyId: "key_1",
+          userId: "user_1",
+          access: "full_access",
+          source: "component",
+          rateLimitKey: "component:key_1",
+        }),
+        runQuery: mock(),
+      })
+    );
 
   test("answers an unknown tool with JSON-RPC invalid params", async () => {
     const response = await handleMcpV1Request(

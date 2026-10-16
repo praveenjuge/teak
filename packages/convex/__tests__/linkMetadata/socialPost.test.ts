@@ -86,7 +86,9 @@ describe("mapOpenGraphSocialPost", () => {
     ["https://www.linkedin.com/posts/ada_hello-activity-7100-abcd", "linkedin"],
     ["https://substack.com/@ada/note/c-1", "substack_notes"],
   ])("maps %s as %s", (url: string, platform: string) => {
-    expect(mapOpenGraphSocialPost(url, page)?.platform).toBe(platform);
+    expect<string | undefined>(
+      mapOpenGraphSocialPost(url, page)?.platform
+    ).toBe(platform);
   });
 
   test("leaves other pages to the generic preview", () => {

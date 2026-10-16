@@ -9,30 +9,20 @@ export type StoreId = "android" | "apple-iphone" | "apple-ipad" | "apple-mac";
 export interface Shot {
   /** Short and catchy. One line on Mac, at most two on phones. */
   headline: string;
-  /** Output and capture file name, without extension. */
   name: string;
-  /** A second capture floated over the first, like a Mac panel. */
   overlay?: string;
-  /** Capture to draw instead of `name`, when two shots share one. */
   source?: string;
 }
 
 export interface Store {
-  /** Koubou device frame for simulator captures, and its canvas size. */
   frame?: { device: string; size: [number, number] };
-  /** How a page places the capture: a Mac window, a framed phone or tablet, or a drawn Pixel. */
   layout: "mac" | "phone" | "tablet" | "android";
-  /** Final images, in the layout each store's upload expects. */
   outputDir: string;
   scale: number;
   shots: Shot[];
-  /** Booted simulator to capture from, by name (TEAK_STORE_SIMULATOR overrides). */
   simulator?: string;
-  /** Raw captures, committed so headlines can change without recapturing. */
   sourceDir: string;
-  /** CSS canvas size; output pixels are this times `scale`. */
   viewport: { width: number; height: number };
-  /** Mac window to capture: its owner app and title (flags override). */
   window?: { app: string; title: string };
 }
 
@@ -65,7 +55,6 @@ const MAC_SHOTS: Shot[] = [
 ];
 
 export const STORES: Record<StoreId, Store> = {
-  // The native Apple app (apps/apple): one listing for iPhone, iPad and Mac.
   "apple-iphone": {
     layout: "phone",
     frame: IPHONE_FRAME,
@@ -120,7 +109,6 @@ export const STORES: Record<StoreId, Store> = {
   },
 };
 
-/** Play's 1024 × 500 feature graphic, built from one Android capture. */
 export const FEATURE_GRAPHIC = {
   output: "apps/android/store/listing/en-US/graphics/feature_graphic.png",
   capture: "01-library",

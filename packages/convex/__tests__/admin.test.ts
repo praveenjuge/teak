@@ -1,15 +1,13 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { handlerOf } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
 import {
-  inlineSearchSyncDb,
+  withSearchSyncDb,
   withTestSession,
 } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
-// The overview reads the cards table and the internal-account flags.
 const overviewTables =
   (cards: any[], internalIds: string[] = []) =>
   (table: string) =>
@@ -34,7 +32,7 @@ describe("admin.ts", () => {
     getAccess = module.getAccess;
     getOverview = module.getOverview;
     const registeredReset = module.resetCardProcessingState;
-    const resetHandler = registeredReset.handler ?? registeredReset;
+    const resetHandler = handlerOf(registeredReset);
     resetCardProcessingState = {
       handler: (ctx: any, args: any) => {
         ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
@@ -91,10 +89,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables([]),
-          },
+          db: withSearchSyncDb({ query: overviewTables([]) }),
         } as any,
         { role: "admin" }
       );
@@ -139,10 +134,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards) }),
         } as any,
         { role: "admin" }
       );
@@ -187,10 +179,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards) }),
         } as any,
         { role: "admin" }
       );
@@ -221,10 +210,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards) }),
         } as any,
         { role: "admin" }
       );
@@ -249,10 +235,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards) }),
         } as any,
         { role: "admin" }
       );
@@ -292,10 +275,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards) }),
         } as any,
         { role: "admin" }
       );
@@ -316,10 +296,7 @@ describe("admin.ts", () => {
             getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
           },
           runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-          db: {
-            ...inlineSearchSyncDb(),
-            query: overviewTables(cards, ["tester"]),
-          },
+          db: withSearchSyncDb({ query: overviewTables(cards, ["tester"]) }),
         } as any,
         { role: "admin" }
       );
@@ -352,11 +329,10 @@ describe("admin.ts", () => {
         processingStatus: { classify: { status: "completed" } },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
@@ -389,11 +365,10 @@ describe("admin.ts", () => {
         processingStatus: { classify: { status: "completed" } },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
@@ -417,11 +392,10 @@ describe("admin.ts", () => {
         processingStatus: { classify: { status: "completed" } },
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
@@ -440,18 +414,16 @@ describe("admin.ts", () => {
         processingStatus: {},
       };
       const ctx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
-        },
+        }),
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
       expect(result.clearedThumbnail).toBe(true);
-      // Reset to default for subsequent tests
       r2Mocks.deleteObject.mockResolvedValue(null);
     });
   });

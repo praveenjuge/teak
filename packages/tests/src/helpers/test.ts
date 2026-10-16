@@ -5,7 +5,6 @@ export type { Browser } from "@e2e-dev/web";
 export { describe, test } from "@e2e-dev/web";
 export { expect, type Locator, type Screen } from "e2e";
 
-/** What the page helpers drive: semantic queries plus the browser itself. */
 export interface Surface {
   browser: Browser;
   screen: Screen;
@@ -40,7 +39,6 @@ export const retry = async (
   }
 };
 
-/** Waits until one of the locators is visible and returns its index. */
 export const firstVisible = async (
   locators: readonly Locator[],
   options: { timeout?: number } = {}

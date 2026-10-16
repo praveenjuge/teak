@@ -54,7 +54,6 @@ export interface SearchSuggestionResult {
 
 /** Most rows one group shows. */
 export const SEARCH_SUGGESTION_GROUP_LIMIT = 8;
-/** Most rows each group shows for a plain word, so all groups fit. */
 const WORD_GROUP_LIMIT = 4;
 
 const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
@@ -102,11 +101,6 @@ export function currentSearchToken(text: string): {
 const unquote = (value: string) =>
   value.replace(/^["“”]/, "").replace(/["“”]$/, "");
 
-/**
- * An exact name first, then names starting with the text, then names with
- * a word starting with it ("web design" for "des"); a match inside a word
- * is noise. Within each tier the most used come first when counts are known.
- */
 const rank = <T>(
   items: readonly T[],
   text: string,
@@ -243,9 +237,6 @@ export function buildSearchSuggestions(
 
   if (token.startsWith("#")) {
     const value = unquote(token.slice(1));
-    // A hex color (`#fff`) stays a color, as the parser reads it: tags still
-    // show, but none is picked on Enter, which keeps the color filter. A
-    // bare `#` picks the top tag, like `tag:`.
     const isColor = parseSearchQuery(token).terms.length > 0;
     return {
       completingValue: !isColor,
@@ -268,7 +259,6 @@ export function buildSearchSuggestions(
       sources,
       SEARCH_SUGGESTION_GROUP_LIMIT
     );
-    // Typed exactly as the only match: nothing left to complete.
     const typed = parseSearchQuery(token).qualifiers[0];
     const exact =
       typed &&

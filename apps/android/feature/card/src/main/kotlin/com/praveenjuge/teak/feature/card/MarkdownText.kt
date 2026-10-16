@@ -39,13 +39,8 @@ import androidx.compose.ui.unit.sp
 import com.praveenjuge.teak.core.model.MarkdownBlock
 import com.praveenjuge.teak.core.model.MarkdownBlocks
 
-/** Extra size for h1, h2 and h3, matching the iPhone note view. */
 private val headingSteps = listOf(7, 4, 2)
 
-/**
- * Shows Markdown like the web's note view: headings, lists, quotes, code and rules as blocks,
- * with bold, italics, inline code and links inside each block. The text is selectable.
- */
 @Composable
 internal fun MarkdownText(text: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodyLarge) {
     val blocks = remember(text) { MarkdownBlocks.parse(text) }
@@ -168,11 +163,9 @@ private fun AnnotatedString.Builder.appendInline(text: String, styles: InlineSty
     flush()
 }
 
-/** The index of the closing backtick. */
 private fun codeSpan(text: String, start: Int): Int? =
     text.indexOf('`', start + 1).takeIf { it > start + 1 }
 
-/** The index where the closing `**` or `__` starts. */
 private fun strongSpan(text: String, start: Int): Int? {
     val marker = text.substring(start, start + 2)
     if (text.getOrNull(start + 2)?.isWhitespace() != false) return null
@@ -195,7 +188,6 @@ private fun emphasisSpan(text: String, start: Int): Int? {
     return null
 }
 
-/** The index of the `)` that closes `[label](url)`. */
 private fun linkSpan(text: String, start: Int): Int? {
     val close = text.indexOf(']', start + 1).takeIf { it > start + 1 } ?: return null
     if (text.getOrNull(close + 1) != '(') return null

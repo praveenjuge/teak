@@ -118,8 +118,6 @@ export const normalizeQuoteContent = (
     const after = working.slice(closingIndex + 1);
     working = `${before}${after}`.trim();
     removed = true;
-
-    // Continue removing if multiple decorative quote layers are present
   }
 
   return {

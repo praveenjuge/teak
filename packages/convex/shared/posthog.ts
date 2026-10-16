@@ -1,4 +1,8 @@
-import { scrubTelemetryString, scrubTelemetryValue } from "./telemetry";
+import {
+  ignoreTelemetryError,
+  scrubTelemetryString,
+  scrubTelemetryValue,
+} from "./telemetry";
 
 /**
  * Dependency-free PostHog capture for surfaces that must not load an SDK:
@@ -9,7 +13,6 @@ import { scrubTelemetryString, scrubTelemetryValue } from "./telemetry";
 export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
-// Teak's PostHog project (.agents/analytics.md).
 export const POSTHOG_PROJECT_ID = "660923";
 
 const DEFAULT_TIMEOUT_MS = 2000;
@@ -54,8 +57,6 @@ interface StackFrame {
 
 const MAX_FRAME_LINE_LENGTH = 2000;
 
-// Splits "file:line:col" from its right end. String scanning, not a regex,
-// keeps hostile stack text from backtracking.
 const splitLocation = (
   location: string
 ): { colno: number; filename: string; lineno: number } | null => {
@@ -235,7 +236,7 @@ export const createPostHogBatch = (
     if (!token) {
       return;
     }
-    try {
+    ignoreTelemetryError(() => {
       const distinctId = input.distinctId || ANONYMOUS_DISTINCT_ID;
       queue.push({
         distinct_id: distinctId,
@@ -250,9 +251,7 @@ export const createPostHogBatch = (
         },
         timestamp: new Date().toISOString(),
       });
-    } catch {
-      // Telemetry must never alter product behavior.
-    }
+    });
   };
 
   return {
@@ -261,7 +260,7 @@ export const createPostHogBatch = (
       if (!token) {
         return;
       }
-      try {
+      ignoreTelemetryError(() =>
         enqueue(
           { distinctId: input.distinctId, event: "$exception" },
           buildExceptionProperties(error, {
@@ -269,10 +268,8 @@ export const createPostHogBatch = (
             platform,
             properties: input.properties,
           })
-        );
-      } catch {
-        // Telemetry must never alter product behavior.
-      }
+        )
+      );
     },
     get enabled() {
       return Boolean(token);

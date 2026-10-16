@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -35,6 +36,7 @@ import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.DetailRow
+import com.praveenjuge.teak.core.model.parseHexArgb
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -44,7 +46,6 @@ import java.util.Locale
 private const val MAX_LINK_MEDIA = 4
 private val SectionShape = RoundedCornerShape(20.dp)
 
-/** A titled group of rows on a tinted surface, like the iPhone's inset-grouped list. */
 @Composable
 internal fun DetailSection(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -70,7 +71,6 @@ private fun SelectableText(text: String) {
     SelectionContainer { Text(text, style = MaterialTheme.typography.bodyLarge) }
 }
 
-/** The link's category facts (price, rating, author…) and the post's extra photos. */
 @Composable
 internal fun LinkDetailsSections(card: Card, onOpenImage: (String) -> Unit) {
     if (card.type != CardType.Link) return
@@ -110,13 +110,11 @@ internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit) {
     }
 }
 
-/** Teak's summary with its tags and colors, then the transcript. */
 @Composable
 internal fun SummarySections(card: Card, onSearchTag: (String) -> Unit) {
     val summary = card.aiSummary?.trim().orEmpty()
     val tags = card.aiTags.orEmpty().map(String::trim).filter(String::isNotEmpty)
-    // Palettes already show their colors as the preview.
-    val colors = if (card.type == CardType.Palette) emptyList() else card.colors.orEmpty().take(8).map { it.hex }
+    val colors = if (card.type.showsSummaryColors) card.colors.orEmpty().take(8).map { it.hex } else emptyList()
     val transcript = card.aiTranscript?.trim().orEmpty()
     if (summary.isNotEmpty() || tags.isNotEmpty() || colors.isNotEmpty()) {
         DetailSection("Summary") {
@@ -143,7 +141,6 @@ internal fun InfoSection(card: Card) {
     }
 }
 
-/** Medium date and short time in the device's locale, like iOS. */
 internal fun formatTimestamp(epochMillis: Double, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
     DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
         .withLocale(locale)
@@ -169,7 +166,6 @@ private fun DetailRows(rows: List<DetailRow>) {
     }
 }
 
-/** Tag chips that search for their tag, plus small color dots. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ChipRow(
@@ -187,7 +183,7 @@ internal fun ChipRow(
             Box(
                 Modifier
                     .size(22.dp)
-                    .background(parseHexColor(hex) ?: MaterialTheme.colorScheme.outline, CircleShape),
+                    .background(parseHexArgb(hex)?.let(::Color) ?: MaterialTheme.colorScheme.outline, CircleShape),
             )
         }
         tags.forEach { tag ->

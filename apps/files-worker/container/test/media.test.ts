@@ -117,8 +117,6 @@ describe.skipIf(!RENDERER_URL)("renderer media jobs", () => {
     expect(result.status).toBe(200);
     expect(result.manifest?.facts?.videoCodec).toBe("gif");
     expect(result.manifest?.parts).toEqual([]);
-    // The two largest colors are the red and the blue, in either order:
-    // each covers half the frames.
     const palette = (result.manifest?.palette ?? []) as string[];
     const largest = palette.slice(0, 2);
     const isRed = largest.map(
@@ -173,7 +171,6 @@ describe.skipIf(!RENDERER_URL)("renderer media jobs", () => {
       expect(bar).toBeGreaterThanOrEqual(0);
       expect(bar).toBeLessThanOrEqual(100);
     }
-    // The tone swells and fades, so the loudest bar is 100 and the edges are quiet.
     expect(Math.max(...peaks["45"])).toBe(100);
     expect(peaks["45"][0]).toBeLessThan(50);
     expect(result.manifest?.whisper).toBe(whisper);

@@ -3,10 +3,8 @@ import type { UserIdentity } from "convex/server";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { readWorkosSessionIdentity } from "../securitySessions";
 import { verifyWorkosConnectToken } from "../workosTokens";
+import { asFetch } from "./helpers/convex.test-utils";
 
-// Failure modes: forged/expired JWTs, issuer/audience confusion, M2M or session
-// tokens, missing scopes/consent, malformed owner claims, and unsafe JWKS origins.
-// Real signatures exercise jose; only the provider's network boundary is mocked.
 const issuer = "https://workos-token-test.authkit.app";
 const apiAudience = "https://teakvault.com/api";
 const mcpAudience = "https://teakvault.com/mcp";
@@ -22,7 +20,7 @@ beforeAll(async () => {
   keys = await generateKeyPair("RS256", { extractable: true });
   wrongKeys = await generateKeyPair("RS256");
   const publicKey = await exportJWK(keys.publicKey);
-  globalThis.fetch = (input: string | URL | Request) => {
+  globalThis.fetch = asFetch((input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
     requests.push(url);
     if (url !== `${issuer}/oauth2/jwks`) {
@@ -33,7 +31,7 @@ beforeAll(async () => {
         keys: [{ ...publicKey, kid: "test-key", alg: "RS256" }],
       })
     );
-  };
+  });
 });
 
 afterAll(() => {
@@ -59,6 +57,9 @@ async function token(overrides: JWTPayload = {}, key = keys.privateKey) {
 }
 
 const config = { issuer, audience: apiAudience };
+
+const issuedFor = (issuedAt: number, lifetimeSeconds: number) =>
+  token({ iat: issuedAt, exp: issuedAt + lifetimeSeconds });
 
 describe("Connect credential validation", () => {
   test("accepts signed API and MCP tokens only at their own resource", async () => {
@@ -189,29 +190,17 @@ describe("Connect credential validation", () => {
   test("accepts a token issued slightly ahead of this deployment's clock", async () => {
     const issuedAt = Math.floor(Date.now() / 1000) + 30;
     expect(
-      await verifyWorkosConnectToken(
-        await token({ iat: issuedAt, exp: issuedAt + 300 }),
-        config
-      )
+      await verifyWorkosConnectToken(await issuedFor(issuedAt, 300), config)
     ).not.toBeNull();
   });
 
   test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
-    // The issue time belongs to the previous second, while token() constructs
-    // the signature now. Pair both claims so elapsed time cannot shorten the
-    // intended lifetime, as it did when exp was set at test registration.
-    const issuedAt = Math.floor(Date.now() / 1000) - 1;
+    const lastSecond = Math.floor(Date.now() / 1000) - 1;
     expect(
-      await verifyWorkosConnectToken(
-        await token({ iat: issuedAt, exp: issuedAt + 300 }),
-        config
-      )
+      await verifyWorkosConnectToken(await issuedFor(lastSecond, 300), config)
     ).not.toBeNull();
     expect(
-      await verifyWorkosConnectToken(
-        await token({ iat: issuedAt, exp: issuedAt + 301 }),
-        config
-      )
+      await verifyWorkosConnectToken(await issuedFor(lastSecond, 301), config)
     ).toBeNull();
   });
 

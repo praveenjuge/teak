@@ -20,6 +20,7 @@ import {
   readFilesAiGenerationFacts,
 } from "@teak/files-protocol";
 import { env } from "../_generated/server";
+import { SAFE_FETCH_MAX_DURATION_MS } from "../linkMetadata/ssrf";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
 // Op URLs are minted per action invocation; a short TTL bounds the replay
@@ -50,8 +51,7 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "vector-get": 30_000,
   "vector-query": 30_000,
   "vector-similar": 30_000,
-  // Up to six redirect hops of 30 s each in the fetcher, plus a cold start.
-  "store-remote-asset": 240_000,
+  "store-remote-asset": SAFE_FETCH_MAX_DURATION_MS + 60_000,
 };
 
 export const isFilesWorkerConfigured = (): boolean =>

@@ -4,7 +4,6 @@ import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../../shared/search/con
 
 describe("card/visualFilters normalizeVisualFilterArgs", () => {
   test("caps hex filters to the per-dimension maximum", () => {
-    // Build more unique valid hex values than the cap allows.
     const manyHexes = Array.from(
       { length: SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION + 50 },
       (_, i) => `#${i.toString(16).padStart(6, "0")}`

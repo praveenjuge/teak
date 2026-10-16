@@ -16,7 +16,6 @@ export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
 export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";
 export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
-// Seals the E2E web app's AuthKit sessions. Test-only, like the values above.
 export const EMULATOR_COOKIE_PASSWORD =
   "teak-e2e-emulator-cookie-password-0001";
 
@@ -27,8 +26,6 @@ export const stackUrls = (ports: StackPorts): Required<StackUrls> => ({
   emulatorOrigin: `http://localhost:${ports.emulator}`,
 });
 
-// Values the local Convex deployment needs to trust emulator sessions and
-// receive its signed webhooks.
 export const emulatorDeploymentVars = (ports: StackPorts) => ({
   WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
   WORKOS_API_KEY: EMULATOR_API_KEY,

@@ -2,7 +2,6 @@ import { createApiAccount } from "../helpers/app";
 import { runCli } from "../helpers/cli";
 import { expect, test } from "../helpers/test";
 
-// The account this file's tests run the CLI as; no other file uses it.
 let apiKey = "";
 test.beforeAll(async () => {
   ({ apiKey } = await createApiAccount("service-cli"));
@@ -16,7 +15,6 @@ test("CLI covers auth, cards, tags, and aliases", async () => {
   const created = JSON.parse(
     await runCli(["--json", "cards", "create", content], apiKey)
   );
-  // A text card's text is its own content.
   expect(await runCli(["content", created.cardId], apiKey)).toBe(content);
   for (const args of [
     ["--json", "cards", "list", "--limit", "5"],

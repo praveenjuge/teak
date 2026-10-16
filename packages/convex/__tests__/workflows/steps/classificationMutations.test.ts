@@ -1,10 +1,6 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import {
-  markClassificationCompleted,
-  updateClassification,
-} from "../../../../convex/workflows/steps/classificationMutations";
-import { inlineSearchSyncDb } from "../../helpers/session.test-utils";
+import { recordClassification } from "../../../../convex/workflows/steps/classificationMutations";
+import { withSearchSyncDb } from "../../helpers/session.test-utils";
 
 const withScheduler = (registered: any) => {
   const handler = registered.handler ?? registered._handler ?? registered;
@@ -12,9 +8,9 @@ const withScheduler = (registered: any) => {
     handler({ ...ctx, scheduler: { runAfter: async () => null } }, args);
 };
 
-describe("classification updateClassification", () => {
+describe("recordClassification with a type", () => {
   test("updates card type and processing status", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -29,13 +25,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -53,7 +48,7 @@ describe("classification updateClassification", () => {
   });
 
   test("clears palette swatches when a palette becomes another type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
     let cardState: any = {
       _id: "card_123",
       type: "palette",
@@ -64,13 +59,12 @@ describe("classification updateClassification", () => {
       processingStatus: {},
     };
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => cardState,
         patch: (_table: string, _id: string, updates: any) => {
           cardState = { ...cardState, ...updates };
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, {
@@ -86,7 +80,7 @@ describe("classification updateClassification", () => {
   });
 
   test("keeps colours when a non-palette card changes type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
     let cardState: any = {
       _id: "card_123",
       type: "text",
@@ -95,13 +89,12 @@ describe("classification updateClassification", () => {
       processingStatus: {},
     };
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => cardState,
         patch: (_table: string, _id: string, updates: any) => {
           cardState = { ...cardState, ...updates };
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, {
@@ -115,7 +108,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets categorize to pending for link type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -129,13 +122,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -151,7 +143,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets categorize to completed for non-link type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -165,13 +157,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -188,7 +179,7 @@ describe("classification updateClassification", () => {
   });
 
   test("always sets metadata to pending", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -202,13 +193,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -224,7 +214,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for image type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -238,13 +228,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -260,7 +249,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for video type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -274,13 +263,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -296,7 +284,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for document type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -310,13 +298,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -332,7 +319,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for text type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -346,13 +333,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -368,7 +354,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets metadataStatus to pending for link type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -382,13 +368,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -404,7 +389,7 @@ describe("classification updateClassification", () => {
   });
 
   test("does not set metadataStatus for non-link type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -418,13 +403,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -440,7 +424,7 @@ describe("classification updateClassification", () => {
   });
 
   test("normalizes quote content by removing quotes", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -455,13 +439,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -477,7 +460,7 @@ describe("classification updateClassification", () => {
   });
 
   test("does not update content if quotes not removed", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -492,13 +475,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -514,7 +496,7 @@ describe("classification updateClassification", () => {
   });
 
   test("handles undefined content for quote normalization", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -529,13 +511,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -551,13 +532,10 @@ describe("classification updateClassification", () => {
   });
 
   test("skips if the card was deleted during classification", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
-        get: async () => null,
-      },
+      db: withSearchSyncDb({ get: async () => null }),
     };
 
     await expect(
@@ -570,7 +548,7 @@ describe("classification updateClassification", () => {
   });
 
   test("preserves existing processing status fields", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -586,13 +564,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -608,7 +585,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for quote type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -622,13 +599,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -644,7 +620,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for link type", async () => {
-    const mutation = withScheduler(updateClassification);
+    const mutation = withScheduler(recordClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -658,13 +634,12 @@ describe("classification updateClassification", () => {
       };
 
       const mockCtx = {
-        db: {
-          ...inlineSearchSyncDb(),
+        db: withSearchSyncDb({
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
           },
-        },
+        }),
       };
 
       await mutation(mockCtx, {
@@ -680,9 +655,9 @@ describe("classification updateClassification", () => {
   });
 });
 
-describe("classification markClassificationCompleted", () => {
+describe("recordClassification without a type", () => {
   test("marks a pending classify stage completed without touching other stages", async () => {
-    const mutation = withScheduler(markClassificationCompleted);
+    const mutation = withScheduler(recordClassification);
 
     let patchCount = 0;
     const cardState: any = {
@@ -697,14 +672,13 @@ describe("classification markClassificationCompleted", () => {
     };
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async (_table: string, _id: string) => cardState,
         patch: (_table: string, _id: string, updates: any) => {
           patchCount += 1;
           Object.assign(cardState, updates);
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, { cardId: "card_123", confidence: 0.8 });
@@ -718,7 +692,7 @@ describe("classification markClassificationCompleted", () => {
   });
 
   test("is a no-op when classify is already completed", async () => {
-    const mutation = withScheduler(markClassificationCompleted);
+    const mutation = withScheduler(recordClassification);
 
     let patchCount = 0;
     const cardState: any = {
@@ -730,13 +704,12 @@ describe("classification markClassificationCompleted", () => {
     };
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async (_table: string, _id: string) => cardState,
         patch: () => {
           patchCount += 1;
         },
-      },
+      }),
     };
 
     await mutation(mockCtx, { cardId: "card_123", confidence: 0.9 });
@@ -746,16 +719,15 @@ describe("classification markClassificationCompleted", () => {
   });
 
   test("returns null for a missing card", async () => {
-    const mutation = withScheduler(markClassificationCompleted);
+    const mutation = withScheduler(recordClassification);
 
     const mockCtx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => null,
         patch: () => {
           throw new Error("should not patch");
         },
-      },
+      }),
     };
 
     await expect(

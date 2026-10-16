@@ -1,9 +1,3 @@
-/**
- * Public API request validation and response serialization: payload
- * validators, query-option parsing, and card serializers.
- * Split out of `publicApiHttp.ts`, kept behavior-identical.
- */
-
 import { env } from "./_generated/server";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
@@ -54,8 +48,6 @@ import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
 
-// The shared dev deployment serves its API from a convex.site host, not
-// localhost, so its links follow TEAK_DEV_DEPLOYMENT to the dev web app.
 const getAppBaseUrl = (requestUrl: string): string => {
   const { hostname } = new URL(requestUrl);
   return isLocalDevelopmentHostname(hostname) || readIsDevDeployment()
@@ -253,8 +245,6 @@ const CREATE_KEYS = new Set([
   "url",
 ]);
 
-// Reject supplied string fields with the wrong type instead of silently
-// dropping them (notes/tags/fileSize guard their own shapes below).
 const CREATE_STRING_KEYS = [
   "cardType",
   "content",
@@ -524,7 +514,6 @@ const parseCardsQueryOptions = (
     );
   }
 
-  // Shuffle needs a seed: the same seed gives the same order.
   const shuffleSeed = parseShuffleSeed(searchParams.get("shuffleSeed"));
   if (sort === "shuffle" && shuffleSeed === undefined) {
     return errorResponse(
@@ -857,7 +846,6 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   if ("folderIds" in source) {
-    // An empty list takes the card out of every folder.
     const folderIds = parseStringArray(source.folderIds);
     if (
       folderIds === undefined ||

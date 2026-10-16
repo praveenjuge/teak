@@ -1,10 +1,12 @@
 package com.praveenjuge.teak.core.data.repository
 
 import android.content.Context
+import com.praveenjuge.teak.core.data.auth.AuthSession
 import com.praveenjuge.teak.core.data.auth.SessionManager
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.ConvexApi
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakJson
@@ -27,7 +29,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Who is signed in, how to sign in, and the account itself. */
 interface AccountRepository {
     val session: StateFlow<SessionState>
     val authMode: StateFlow<AuthMode?>
@@ -37,7 +38,6 @@ interface AccountRepository {
     /** Restores the saved session and connects Convex. Called once at launch. */
     suspend fun start()
 
-    /** The AuthKit URL to open in a Custom Tab. */
     suspend fun signInUrl(method: SignInMethod): String
 
     /** Handles the `teak://auth/callback` redirect. Returns false when the person cancelled. */
@@ -83,13 +83,8 @@ class ConvexAccountRepository @Inject constructor(
                 val previousClient = _authMode.value?.validClientId
                 _authMode.value = mode
                 preferences.cacheAuthMode(teakJson.encodeToString(AuthMode.serializer(), mode))
-                // A deployment that switched WorkOS clients can't use the old client's session.
-                val stored = sessions.currentSession
-                if (stored != null && previousClient != null && mode.validClientId != previousClient &&
-                    stored.clientId != mode.validClientId
-                ) {
-                    sessions.clear()
-                    client.logout(context)
+                if (previousClient != null && mode.validClientId != previousClient) {
+                    dropSessionIssuedByOtherClient(mode.validClientId)
                 }
             }
         }
@@ -112,16 +107,8 @@ class ConvexAccountRepository @Inject constructor(
     }
 
     override suspend fun signOut() {
-        val current = sessions.currentSession
-        if (current != null) {
-            // Revoke this device's session on the server first; a failure (say, offline) still signs out locally.
-            runCatching {
-                sessions.accessToken()
-                convex.action("securitySessions:revokeAuthkitSession", mapOf("sessionId" to current.sessionId))
-            }
-        }
-        sessions.clear()
-        client.logout(context)
+        sessions.currentSession?.let { revokeOnServerBestEffort(it) }
+        clearLocalSession()
     }
 
     override suspend fun deleteAccount() {
@@ -129,7 +116,22 @@ class ConvexAccountRepository @Inject constructor(
             throw TeakException(null, TeakMessages.ACCOUNT_CHANGES_PAUSED)
         }
         convex.mutation("accountDeletion:deleteMyAccount")
-        // The server already removed the session along with the account.
+        clearLocalSession()
+    }
+
+    private suspend fun dropSessionIssuedByOtherClient(clientId: String?) {
+        val stored = sessions.currentSession ?: return
+        if (stored.clientId != clientId) clearLocalSession()
+    }
+
+    private suspend fun revokeOnServerBestEffort(session: AuthSession) {
+        catchingFailures {
+            sessions.accessToken()
+            convex.action("securitySessions:revokeAuthkitSession", mapOf("sessionId" to session.sessionId))
+        }
+    }
+
+    private suspend fun clearLocalSession() {
         sessions.clear()
         client.logout(context)
     }

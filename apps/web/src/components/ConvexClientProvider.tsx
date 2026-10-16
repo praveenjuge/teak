@@ -33,8 +33,6 @@ const convex = new ConvexReactClient(getConvexUrl(), {
   unsavedChangesWarning: false,
 });
 
-// How long the page's first queries stay subscribed on their own: long
-// enough for a slow connection to reach the components that use them.
 const FIRST_LOAD_QUERY_HOLD_MS = 30_000;
 
 // In the browser, subscribe to the page's first queries as this module
@@ -62,17 +60,12 @@ export default function ConvexClientProvider({
   initialAuth?: Omit<UserInfo | NoUserInfo, "accessToken">;
 }) {
   const signedIn = Boolean(initialAuth?.user);
-  // The card dialog (with the editor) loads while the first queries are in
-  // flight, once the page is idle, so a card clicked the moment it appears
-  // opens at once.
   useEffect(() => {
     if (!signedIn) {
       return;
     }
     return whenIdle(() => {
-      preloadCardModal().catch(() => {
-        // Opening a card retries the load.
-      });
+      preloadCardModal().catch(() => undefined);
     });
   }, [signedIn]);
 

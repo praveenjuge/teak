@@ -1,7 +1,3 @@
-// Main cards module - re-exports all card-related functions
-// This maintains the api.cards.* namespace for client-side code
-
-// Re-export all public functions from the modular files
 export * from "./card/bulkActions";
 export * from "./card/createCard";
 export * from "./card/deleteCard";

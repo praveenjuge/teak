@@ -12,7 +12,6 @@ const NAMESPACE = "teak_user_a";
 const vector = (seed: number) =>
   Array.from({ length: 768 }, (_, i) => (i === seed ? 1 : 0));
 
-/** Workers AI and one Vectorize shard, recording what they were asked. */
 const fakes = ({
   aiError,
   dimensions = 768,
@@ -133,7 +132,6 @@ describe("embed-upsert", () => {
         args: {
           text: [
             "title: none | text: Teak\nA tropical hardwood",
-            // Cut to what EmbeddingGemma reads.
             `title: none | text: ${"x".repeat(1440)}`,
           ],
         },

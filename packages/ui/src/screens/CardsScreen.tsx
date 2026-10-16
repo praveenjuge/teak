@@ -13,7 +13,7 @@ import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import { VaultSetupState } from "@teak/ui/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@teak/ui/forms";
 import { AddCardEmptyState, AddCardForm } from "@teak/ui/forms";
-import { MasonryGrid } from "@teak/ui/grids";
+import { MasonryGrid, type MasonryGridHandle } from "@teak/ui/grids";
 import {
   type CardsVisualFilters,
   useBulkCardActions,
@@ -53,6 +53,7 @@ import {
   TagManagementModal,
 } from "../components/lazyDialogs";
 import { useFolders } from "../hooks/useFolders";
+import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
@@ -68,13 +69,16 @@ import {
   type LibraryView,
 } from "../lib/libraryViews";
 import {
-  isSameSearchUrlState,
   parseSearchUrlState,
   type SearchUrlState,
 } from "../lib/searchUrlState";
+import {
+  createSearchUrlSync,
+  type SearchFromUrl,
+  type SearchUrlChange,
+} from "../lib/searchUrlSync";
 import { PageTitle } from "./PageHeader";
 
-/** What a routed view shows when it has no cards and nothing narrows it. */
 const EMPTY_VIEW_COPY: Record<
   Exclude<LibraryView, "all">,
   { icon: LucideIcon; text: string }
@@ -90,19 +94,12 @@ const EMPTY_VIEW_COPY: Record<
   trash: { icon: Trash2, text: "Trash is empty." },
 };
 
-/** A folder name short enough for the search placeholder. */
 const clipName = (name: string) =>
   Array.from(name).length > 40
     ? `${Array.from(name).slice(0, 39).join("")}…`
     : name;
 
-/** A change worth its own history entry: a new sort or new card types. */
-export interface SearchUrlChange {
-  sortChanged: boolean;
-  /** The sidebar tag was picked or cleared. */
-  tagChanged: boolean;
-  typesChanged: boolean;
-}
+export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
   /**
@@ -113,7 +110,6 @@ interface CardsScreenProps {
   contentContainerClassName?: string;
   /** A folder view: the folder id from the route, valid or not. */
   folderId?: string;
-  /** Shown before the search box, such as the sidebar toggle. */
   headerLeading?: ReactNode;
   /** Filters to start with, kept from before a failed read was retried. */
   initialVisualFilters?: CardsVisualFilters;
@@ -139,10 +135,6 @@ interface CardsScreenProps {
   onUpgrade?: AddCardFormProps["onUpgrade"];
   /** Called when the in-memory filters change, so a retry can keep them. */
   onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
-  /**
-   * Set after a failed card read is retried (CardsReadBoundary), so the
-   * grid subscribes afresh instead of reading the cached failure.
-   */
   queryRetryKey?: string;
   /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
@@ -183,8 +175,11 @@ export function CardsScreen({
   );
   const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef("");
-  // A folder view waits for its folder: undefined while loading, null when
-  // it doesn't exist (deleted, or another account's).
+  const gridRef = useRef<MasonryGridHandle>(null);
+  const returnFocusToGrid = useCallback(
+    (cardId: string) => gridRef.current?.returnFocusTo(cardId) ?? false,
+    []
+  );
   const folder: FolderSummary | null | undefined = useQuery(
     api.folders.getFolder,
     folderId ? { folderId } : "skip"
@@ -195,7 +190,18 @@ export function CardsScreen({
   );
   const isFolderView = Boolean(folderId);
   const isSmartFolder = folder?.kind === "smart";
-  // A brand-new account's getting-started cards land a moment after sign-up.
+  const gridAddToFolder = useMemo(
+    () =>
+      addToFolder ? { id: addToFolder._id, name: addToFolder.name } : undefined,
+    [addToFolder]
+  );
+  const gridFolder = useMemo(
+    () =>
+      folder && !isSmartFolder
+        ? { id: folder._id, name: folder.name }
+        : undefined,
+    [folder, isSmartFolder]
+  );
   const vaultSetup = useVaultSetup();
   const searchController = useCardsSearchController({
     folderId: folder?._id,
@@ -207,42 +213,20 @@ export function CardsScreen({
   });
   const { applyUrlState, urlState } = searchController;
 
-  // The URL and the search stay in step both ways. What this screen last
-  // wrote (or read) is remembered so its own URL updates never echo back.
-  const syncedUrlStateRef = useRef<SearchUrlState | null>(
-    searchUrlState ?? null
+  const [urlSync] = useState(() => createSearchUrlSync(searchUrlState));
+  const showSearchFromUrl = useCallback(
+    (search: SearchFromUrl | null) => {
+      if (search) {
+        applyUrlState(search.state, { keepSearch: search.keepSearch });
+      }
+    },
+    [applyUrlState]
   );
-  // The URL state this screen last read. Effects re-run without the URL
-  // changing (Activity showing a hidden screen again, Strict Mode), and the
-  // URL can still lag this screen's own write then; only a real URL change
-  // may overwrite the search.
-  const readUrlStateRef = useRef<SearchUrlState | null>(searchUrlState ?? null);
   useEffect(() => {
-    if (!searchUrlState) {
-      return;
+    if (searchUrlState) {
+      showSearchFromUrl(urlSync.urlReported(searchUrlState));
     }
-    const lastRead = readUrlStateRef.current;
-    readUrlStateRef.current = searchUrlState;
-    if (
-      (lastRead && isSameSearchUrlState(lastRead, searchUrlState)) ||
-      (syncedUrlStateRef.current &&
-        isSameSearchUrlState(syncedUrlStateRef.current, searchUrlState))
-    ) {
-      return;
-    }
-    const previous = syncedUrlStateRef.current;
-    syncedUrlStateRef.current = searchUrlState;
-    // When only the types or sort changed (a sidebar type), keep any text
-    // still being typed rather than resetting it to the URL's older query.
-    applyUrlState(searchUrlState, {
-      keepSearch:
-        previous !== null && previous.q.trim() === searchUrlState.q.trim(),
-    });
-  }, [applyUrlState, searchUrlState]);
-  // Back or Forward right after this screen writes the URL can reach the
-  // router together with that write, so the URL state above never changes
-  // and the screen keeps the newer search (a reshuffled order under the old
-  // seed). Read the entry Back lands on, when it is still this page.
+  }, [searchUrlState, showSearchFromUrl, urlSync]);
   const urlDriven = searchUrlState !== undefined;
   const pagePathRef = useRef<string | null>(null);
   useEffect(() => {
@@ -253,51 +237,27 @@ export function CardsScreen({
       return;
     }
     const handlePopState = () => {
-      if (window.location.pathname !== pagePathRef.current) {
-        return;
+      if (window.location.pathname === pagePathRef.current) {
+        showSearchFromUrl(
+          urlSync.historyLanded(
+            parseSearchUrlState(new URLSearchParams(window.location.search))
+          )
+        );
       }
-      const landed = parseSearchUrlState(
-        new URLSearchParams(window.location.search)
-      );
-      const previous = syncedUrlStateRef.current;
-      if (previous && isSameSearchUrlState(previous, landed)) {
-        return;
-      }
-      readUrlStateRef.current = landed;
-      syncedUrlStateRef.current = landed;
-      applyUrlState(landed, {
-        keepSearch: previous !== null && previous.q.trim() === landed.q.trim(),
-      });
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [applyUrlState, urlDriven]);
+  }, [showSearchFromUrl, urlDriven, urlSync]);
   useEffect(() => {
-    const previous = syncedUrlStateRef.current;
-    if (previous && isSameSearchUrlState(previous, urlState)) {
+    const change = urlSync.searchSettled(urlState);
+    if (!change) {
       return;
     }
-    syncedUrlStateRef.current = urlState;
-    // A reshuffle is a new order too, unless the URL only lacked a seed.
-    const sortChanged =
-      previous !== null &&
-      (previous.sort !== urlState.sort ||
-        (previous.seed !== undefined && previous.seed !== urlState.seed));
-    const typesChanged =
-      previous !== null &&
-      (previous.types.length !== urlState.types.length ||
-        previous.types.some((type) => !urlState.types.includes(type)));
-    const tagChanged =
-      previous !== null && (previous.tag ?? "") !== (urlState.tag ?? "");
-    if (sortChanged || typesChanged || tagChanged) {
+    if (change.sortChanged || change.typesChanged || change.tagChanged) {
       window.scrollTo({ top: 0 });
     }
-    onSearchUrlStateChange?.(urlState, {
-      sortChanged,
-      tagChanged,
-      typesChanged,
-    });
-  }, [onSearchUrlStateChange, urlState]);
+    onSearchUrlStateChange?.(urlState, change);
+  }, [onSearchUrlStateChange, urlState, urlSync]);
 
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
@@ -358,7 +318,6 @@ export function CardsScreen({
     timeFilter,
     updateCachedCard,
   } = searchController;
-  // The URL keeps the rest of the search; these live only in memory.
   useEffect(() => {
     onVisualFiltersChange?.({
       hexFilters,
@@ -367,16 +326,12 @@ export function CardsScreen({
       timeFilter,
     });
   }, [hexFilters, hueFilters, onVisualFiltersChange, styleFilters, timeFilter]);
-  // A new account's library shows its vault being set up, for a moment
-  // even after the cards land (see useVaultSetup).
   const showVaultSetup =
     vaultSetup === "settingUp" &&
     hasNoFilters &&
     !isFolderView &&
     (!view || view === "all");
 
-  // Saving what is on screen as a smart folder, or editing the smart folder
-  // being viewed.
   const [folderDialog, setFolderDialog] = useState<
     | { mode: "save"; query: string }
     | { focusQuery: boolean; mode: "edit" }
@@ -399,8 +354,6 @@ export function CardsScreen({
     hexFilters.length > 0 ||
     timeFilter !== null;
   const allFolders = useFolders();
-  // Lowercased manual folder names, so a smart folder's `folder:` that no
-  // longer names one reads "No folder named …".
   const folderNames = useMemo(
     () =>
       allFolders === undefined
@@ -419,28 +372,13 @@ export function CardsScreen({
     setRemoteCards(cards, searchKey);
   }, [cards, searchKey, setRemoteCards]);
 
-  // Some filtered views (colors or favorites inside a folder) can return a
-  // page with no match while more remain. Whenever a requested page adds no
-  // cards, ask for the next one, so the grid neither shows an empty state
-  // nor stalls with matches still further down.
-  const isSeekingFirstMatch =
-    cards.length === 0 &&
-    (cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore");
-  const countAtLoadMoreRef = useRef<number | null>(null);
-  const requestMoreCards = useCallback(() => {
-    countAtLoadMoreRef.current = cards.length;
-    loadMore(SEARCH_DEFAULT_CARD_LIMIT);
-  }, [cards.length, loadMore]);
-  useEffect(() => {
-    if (cardsStatus !== "CanLoadMore") {
-      return;
-    }
-    if (cards.length === 0 || countAtLoadMoreRef.current === cards.length) {
-      requestMoreCards();
-    } else {
-      countAtLoadMoreRef.current = null;
-    }
-  }, [cards.length, cardsStatus, requestMoreCards]);
+  const { isSeekingFirstMatch, requestMore: requestMoreCards } =
+    useLoadUntilMatches({
+      count: cards.length,
+      loadMore,
+      pageSize: SEARCH_DEFAULT_CARD_LIMIT,
+      status: cardsStatus,
+    });
 
   useEffect(() => {
     if (
@@ -463,8 +401,6 @@ export function CardsScreen({
     semanticSearch.isPending,
   ]);
 
-  // Once cards are on screen, load the card dialog (and the other dialogs)
-  // while the page is idle, so even a quick first click opens a card at once.
   const hasCards = displayCards.length > 0;
   useEffect(() => {
     if (!hasCards) {
@@ -483,8 +419,6 @@ export function CardsScreen({
     [displayCards, selectedCardId]
   );
 
-  // Previous and next walk the cards in grid order, skipping ones still
-  // being saved.
   const { previous: previousCardId, next: nextCardId } = useMemo(
     () =>
       getAdjacentCardIds(
@@ -518,8 +452,6 @@ export function CardsScreen({
     [runBulkAction]
   );
 
-  // Sets the favorite to the opposite of what the card shows (instantly,
-  // through the optimistic update), so pressing F quickly never races.
   const handleToggleFavorite = useCallback(
     (cardId: string) => {
       const card = displayCards.find(
@@ -551,8 +483,6 @@ export function CardsScreen({
     const currentTags = tagManagementCard?.tags || [];
 
     if (tag && !currentTags.includes(tag) && tagManagementCardId) {
-      // Optimistic: the next edit builds on this list even before the server
-      // confirms it, and failures surface through onError as a toast.
       void cardActions.updateField(tagManagementCardId as Id<"cards">, "tags", [
         ...currentTags,
         tag,
@@ -620,7 +550,7 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
-  const AddCardFormWrapper = useCallback(
+  const addCardForm = useMemo(
     () => (
       <AddCardForm
         draftContentRef={draftContentRef}
@@ -654,8 +584,6 @@ export function CardsScreen({
       );
     }
 
-    // A debounced search that hasn't been sent yet is still loading, not
-    // empty, and so is one whose meaning matches may still come.
     if (
       (isFolderView && folder === undefined) ||
       cardsStatus === "LoadingFirstPage" ||
@@ -701,7 +629,6 @@ export function CardsScreen({
       );
     }
 
-    // A routed view (or the Archive filter) with nothing else narrowing it.
     let emptyView: Exclude<LibraryView, "all"> | null = null;
     if (view && view !== "all") {
       emptyView = view;
@@ -780,8 +707,6 @@ export function CardsScreen({
     return null;
   };
 
-  // The page's name at the start of the header: the view, or the folder
-  // with its color (or search icon) and count.
   let title: ReactNode = (
     <PageTitle>{LIBRARY_VIEW_LABELS[view ?? "all"]}</PageTitle>
   );
@@ -870,21 +795,11 @@ export function CardsScreen({
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
-          AddCardFormComponent={AddCardFormWrapper}
-          addToFolder={
-            addToFolder
-              ? { id: addToFolder._id, name: addToFolder.name }
-              : undefined
-          }
+          addCardForm={addCardForm}
+          addToFolder={gridAddToFolder}
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
-          folder={
-            // No card is ever in a smart folder, so its view offers no
-            // Remove from folder.
-            folder && !isSmartFolder
-              ? { id: folder._id, name: folder.name }
-              : undefined
-          }
+          folder={gridFolder}
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
@@ -900,7 +815,6 @@ export function CardsScreen({
           onCardClick={handleCardClick}
           onCopyImage={handleCopyImage}
           onDeleteCard={async (cardId) => {
-            // Like the bulk bar: optimistic, with Undo in the toast.
             const { failedIds } = await runBulkAction("delete", [cardId]);
             return failedIds.length === 0;
           }}
@@ -913,7 +827,7 @@ export function CardsScreen({
           }
           onToggleArchive={handleToggleArchive}
           onToggleFavorite={handleToggleFavorite}
-          openCardId={selectedCardId}
+          ref={gridRef}
           resetKey={resetKey}
           showAddForm={
             !(
@@ -959,6 +873,7 @@ export function CardsScreen({
         }
         onTagClick={handleTagClick}
         open={!!selectedCardId}
+        returnFocus={returnFocusToGrid}
       />
 
       <FolderNameDialog

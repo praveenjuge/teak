@@ -10,14 +10,6 @@ const { createRoot } = await import("react-dom/client");
 const { MarkdownTextEditor } = await import("../MarkdownTextEditor");
 const { focusNewNoteComposer } = await import("../../../lib/keyboardShortcuts");
 
-// The rich editor loads after the page. Every render and event below runs
-// synchronously, before that code can arrive, so they reach the plain
-// textarea that stands in for it.
-// Failure modes: a note typed while the editor loads is lost, the stand-in
-// accepts a note over the size limit, its save shortcut does nothing, and
-// `N` finds no composer to focus, and HTML typed into a note saves as markup
-// here but as text in the rich editor.
-
 let root: Root | undefined;
 
 afterEach(() => {
@@ -93,7 +85,6 @@ describe("the editor while it loads", () => {
     if (!textarea) {
       throw new Error("No stand-in textarea");
     }
-    // Code shows an entity literally, so tags in code stay as typed.
     const note = [
       'Hi <script>alert("x")</script> in `<b>`',
       "",

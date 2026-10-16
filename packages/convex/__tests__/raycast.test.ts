@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
   favoriteCardsForUser,
@@ -6,8 +5,8 @@ import {
   resolveCardIdForUserRequest,
 } from "../raycast";
 import {
-  inlineSearchSyncDb,
   withMappedOwner,
+  withSearchSyncDb,
 } from "./helpers/session.test-utils";
 
 const runHandler = (fn: any, ctx: any, args: any) => {
@@ -21,8 +20,7 @@ describe("raycast", () => {
     const searchIndexes: string[] = [];
 
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         query: () => ({
           withSearchIndex: (indexName: string, cb: (q: any) => void) => {
             searchIndexes.push(indexName);
@@ -41,7 +39,7 @@ describe("raycast", () => {
             };
           },
         }),
-      },
+      }),
     };
 
     const result = await runHandler(favoriteCardsForUser, ctx, {
@@ -51,8 +49,6 @@ describe("raycast", () => {
     });
 
     expect(result).toEqual([]);
-    // The file-text index only knows a row's owner; its matches are checked
-    // for favorites on the card.
     expect(searchIndexes).toEqual(["search_searchableText", "search_text"]);
     expect(isFavoritedFilters).toEqual(["search_searchableText"]);
   });
@@ -61,8 +57,7 @@ describe("raycast", () => {
     const patchCalls: Record<string, unknown>[] = [];
 
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => ({
           _id: "card_1",
           userId: "user_1",
@@ -73,7 +68,7 @@ describe("raycast", () => {
           patchCalls.push(payload as Record<string, unknown>);
           return null;
         },
-      },
+      }),
       storage: {
         getUrl: async () => null,
       },
@@ -91,7 +86,6 @@ describe("raycast", () => {
 
     expect(result?._id).toBe("card_1");
     expect(result?.userId).toBe("user_1");
-    // Both fields land in one write.
     expect(patchCalls).toHaveLength(1);
     expect(patchCalls[0]).toMatchObject({ notes: undefined, tags: undefined });
   });
@@ -101,8 +95,7 @@ describe("raycast", () => {
     const runAfter = mock().mockResolvedValue(null);
 
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         get: async () => ({
           _id: "card_1",
           _creationTime: 1,
@@ -118,7 +111,7 @@ describe("raycast", () => {
           patchCalls.push(payload as Record<string, unknown>);
           return null;
         },
-      },
+      }),
       storage: {
         getUrl: async () => null,
       },
@@ -146,11 +139,10 @@ describe("raycast", () => {
 
   test("resolveCardIdForUserRequest normalizes card id", async () => {
     const ctx = {
-      db: {
-        ...inlineSearchSyncDb(),
+      db: withSearchSyncDb({
         normalizeId: (_table: string, id: string) =>
           id === "valid" ? "card_1" : null,
-      },
+      }),
     } as any;
 
     expect(

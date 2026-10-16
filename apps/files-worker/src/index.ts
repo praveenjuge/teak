@@ -8,55 +8,29 @@ export { ObjectDeletionGate } from "./deletionGate";
 export { MediaRenderer } from "./mediaRenderer";
 export { LinkFetcher } from "./remoteAsset";
 
-import type { BrowserWorker } from "@cloudflare/puppeteer";
 import {
   buildMultipartPartSigningPayload,
+  FILES_EDGE_CACHE_CONTROL,
   FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
+  FILES_PRIVATE_CACHE_CONTROL,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
-import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
-import { type ApiProxyEnv, handleApiProxyRequest } from "./apiProxy";
+import { handleApiProxyRequest } from "./apiProxy";
 import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
-  FILES_CACHE_CONTROL,
-  FILES_EDGE_CACHE_CONTROL,
   parseSingleByteRange,
   verifyHmacPayload,
   verifySignedFileRequest,
 } from "./lib";
-import { handleInternalOp } from "./ops";
+import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { retryingReads } from "./r2Retry";
 import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
-export interface Env extends AiGatewayEnv, ApiProxyEnv, EdgeRateLimitEnv {
-  /** Workers AI binding: metadata, image understanding and transcription. */
-  AI?: WorkersAiBinding;
-  /** Browser Run binding; screenshots and scrapes offline HTML. */
-  BROWSER?: BrowserWorker;
-  BUCKET: R2Bucket;
-  /** Card embeddings for semantic search, shard 0; see files-protocol embeddings.ts. */
-  CARD_VECTORS_0?: Vectorize;
-  FILES_SIGNING_SECRET: string;
-  /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
-  IMAGES?: ImagesBinding;
-  /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
-  LINK_FETCHER?: DurableObjectNamespace;
-  /** Fetcher pool size; matches the fetcher Container's max_instances. */
-  LINK_FETCHER_INSTANCES?: string;
-  /** fetch-link-page results for a day; see linkPage.ts. */
-  LINK_PAGE_CACHE?: KVNamespace;
-  /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
-  MEDIA_RENDERER?: DurableObjectNamespace;
-  /** Renderer pool size; matches the Container's max_instances. */
-  MEDIA_RENDERER_INSTANCES?: string;
-  OBJECT_GATES?: DurableObjectNamespace;
-  /** PostHog project token for error reports; set in production only. */
-  POSTHOG_PROJECT_TOKEN?: string;
-}
+export type Env = FilesOpsEnv & EdgeRateLimitEnv;
 
 const decodeObjectKey = (pathname: string): string => {
   try {
@@ -90,7 +64,7 @@ const multipartError = (
     },
     status
   );
-  withCorsHeaders(response.headers);
+  allowAnyOriginForSignedUrl(response.headers);
   return response;
 };
 
@@ -108,12 +82,7 @@ const methodNotAllowed = (
   return response;
 };
 
-/**
- * Signed URLs act as bearer credentials, so permissive CORS cannot leak
- * anything that isn't already in the URL; it lets the web app fetch files
- * with progress/streaming instead of navigating.
- */
-const withCorsHeaders = (headers: Headers): void => {
+const allowAnyOriginForSignedUrl = (headers: Headers): void => {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET, HEAD, PUT, OPTIONS");
   headers.set(
@@ -129,7 +98,7 @@ const withCorsHeaders = (headers: Headers): void => {
 
 const corsPreflight = (): Response => {
   const headers = new Headers();
-  withCorsHeaders(headers);
+  allowAnyOriginForSignedUrl(headers);
   return new Response(null, { status: 204, headers });
 };
 
@@ -235,7 +204,7 @@ const handleMultipartPart = async (
       uploadId
     ).uploadPart(partNumber, request.body);
     const headers = new Headers({ ETag: uploaded.etag });
-    withCorsHeaders(headers);
+    allowAnyOriginForSignedUrl(headers);
     return new Response(null, { status: 204, headers });
   } catch (error) {
     if (error instanceof ObjectWriteBlockedError) {
@@ -260,12 +229,6 @@ const handleMultipartPart = async (
   }
 };
 
-/**
- * Edge-cache key for a full-object response. The object key already embeds the
- * owning user's hash prefix, so entries are never shared across users; ct/cd
- * are folded in because they vary per request policy (inline vs attachment)
- * and are echoed back verbatim from the cached headers.
- */
 const buildCacheKey = (request: Request): Request => {
   const url = new URL(request.url);
   const cacheUrl = new URL(url.origin + url.pathname);
@@ -283,7 +246,6 @@ const buildCacheKey = (request: Request): Request => {
   });
 };
 
-/** ETag comparison tolerant of weak validators and quoting styles. */
 const etagMatches = (ifNoneMatch: string | null, httpEtag: string): boolean => {
   if (!ifNoneMatch) {
     return false;
@@ -303,17 +265,15 @@ const applyObjectHeaders = (
   request: Request,
   objectHttpMetadata: R2HTTPMetadata | undefined,
   httpEtag: string,
-  objectSize?: number
+  contentLength: number | null
 ): void => {
   const url = new URL(request.url);
-  headers.set("Cache-Control", FILES_CACHE_CONTROL);
+  headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
   headers.set("ETag", httpEtag);
   headers.set("Accept-Ranges", "bytes");
   headers.set("X-Content-Type-Options", "nosniff");
-  if (objectSize !== undefined && request.method !== "HEAD") {
-    // Explicit length enables client-side progress; for HEAD responses the
-    // length is set by the caller alongside the emulated status.
-    headers.set("Content-Length", String(objectSize));
+  if (contentLength !== null) {
+    headers.set("Content-Length", String(contentLength));
   }
   headers.set(
     "Content-Type",
@@ -326,29 +286,22 @@ const applyObjectHeaders = (
   if (contentDisposition) {
     headers.set("Content-Disposition", contentDisposition);
   }
-  withCorsHeaders(headers);
+  allowAnyOriginForSignedUrl(headers);
 };
-
-/** Edge Cache API; absent in unit-test runtimes, always present on Workers. */
-const edgeCache: Cache | null =
-  typeof caches === "undefined" ? null : caches.default;
 
 const handler = {
   async fetch(request, bindings, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
     const url = new URL(request.url);
 
-    // The public API and MCP paths on the marketing host; see apiProxy.ts.
     const apiResponse = await handleApiProxyRequest(request, bindings, ctx, {
-      cache: edgeCache,
+      cache: caches.default,
       rateLimit: (apiRequest) => applyEdgeRateLimit(apiRequest, bindings, ctx),
     });
     if (apiResponse) {
       return apiResponse;
     }
     if (bindings.API_PUBLIC_HOST && url.hostname === bindings.API_PUBLIC_HOST) {
-      // A route caught a path by prefix that Convex does not serve: let the
-      // site's own origin answer it.
       return await fetch(request);
     }
 
@@ -356,7 +309,6 @@ const handler = {
       return corsPreflight();
     }
 
-    // Unauthenticated liveness probe for uptime monitors.
     if (url.pathname === "/__health") {
       if (requestMethod !== "GET" && requestMethod !== "HEAD") {
         return new Response(null, { status: 405 });
@@ -419,12 +371,6 @@ const handler = {
       return new Response(null, { status: 404 });
     }
 
-    // Mutating operations were historically GET query parameters. Refuse the
-    // legacy shape explicitly so HEAD/GET can never trigger storage writes.
-    if (url.searchParams.has("op")) {
-      return json({ error: "legacy_op_removed" }, 410);
-    }
-
     const verification = await verifySignedFileRequest(
       env.FILES_SIGNING_SECRET,
       {
@@ -444,9 +390,6 @@ const handler = {
       return new Response(null, { status: 404 });
     }
 
-    // Only full-object responses are served from (and written to) the edge
-    // cache; ranged video/audio requests always go to R2 so seeking stays
-    // accurate.
     const parsedRange =
       requestMethod === "GET"
         ? parseSingleByteRange(request.headers.get("range"))
@@ -456,25 +399,25 @@ const handler = {
       const cacheKey = buildCacheKey(request);
 
       if (!isHead) {
-        const cached = edgeCache ? await edgeCache.match(cacheKey) : null;
+        const cached = await caches.default.match(cacheKey);
         if (cached) {
           const cachedEtag = cached.headers.get("ETag");
           if (
             etagMatches(request.headers.get("if-none-match"), cachedEtag ?? "")
           ) {
             const notModifiedHeaders = new Headers(cached.headers);
-            notModifiedHeaders.set("Cache-Control", FILES_CACHE_CONTROL);
-            withCorsHeaders(notModifiedHeaders);
+            notModifiedHeaders.set(
+              "Cache-Control",
+              FILES_PRIVATE_CACHE_CONTROL
+            );
+            allowAnyOriginForSignedUrl(notModifiedHeaders);
             return new Response(null, {
               status: 304,
               headers: notModifiedHeaders,
             });
           }
-          // The edge copy is stored with a public directive (the Cache API
-          // refuses to store private responses); browsers must still receive
-          // the private variant.
           const headers = new Headers(cached.headers);
-          headers.set("Cache-Control", FILES_CACHE_CONTROL);
+          headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
           return new Response(cached.body, {
             status: cached.status,
             statusText: cached.statusText,
@@ -496,9 +439,8 @@ const handler = {
           request,
           object.httpMetadata,
           object.httpEtag,
-          object.size
+          null
         );
-        notModifiedHeaders.delete("Content-Length");
         return new Response(null, { status: 304, headers: notModifiedHeaders });
       }
 
@@ -513,7 +455,6 @@ const handler = {
 
       if (isHead) {
         await object.body.cancel();
-        headers.set("Content-Length", String(object.size));
         return new Response(null, { status: 200, headers });
       }
 
@@ -522,14 +463,12 @@ const handler = {
 
       const edgeHeaders = new Headers(headers);
       edgeHeaders.set("Cache-Control", FILES_EDGE_CACHE_CONTROL);
-      if (edgeCache) {
-        ctx.waitUntil(
-          edgeCache.put(
-            cacheKey,
-            new Response(edgeBody, { status: 200, headers: edgeHeaders })
-          )
-        );
-      }
+      ctx.waitUntil(
+        caches.default.put(
+          cacheKey,
+          new Response(edgeBody, { status: 200, headers: edgeHeaders })
+        )
+      );
       return response;
     }
 
@@ -576,8 +515,13 @@ const handler = {
     }
 
     const headers = new Headers();
-    applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
-    headers.set("Content-Length", String(length));
+    applyObjectHeaders(
+      headers,
+      request,
+      object.httpMetadata,
+      object.httpEtag,
+      length
+    );
     headers.set(
       "Content-Range",
       `bytes ${start}-${start + length - 1}/${size}`

@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { scheduleCardSearchSync } from "./card/searchDocumentHelpers";
+import { syncCardSearch } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -15,10 +15,6 @@ interface WorkerCall {
   params: Record<string, any>;
 }
 
-/**
- * The Files Worker's vector ops. `fail` makes the named op answer 500 every
- * time, `failNext` the given number of times; `onCall` runs before answering.
- */
 const stubWorker = ({
   fail = [],
   failNext = {},
@@ -91,7 +87,7 @@ const createCard = (t: T, content: string) =>
       updatedAt: Date.now(),
       userId: USER,
     });
-    await scheduleCardSearchSync(ctx, cardId, USER);
+    await syncCardSearch(ctx, cardId, USER);
     return cardId;
   });
 
@@ -99,14 +95,14 @@ const editCard = (t: T, cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
   t.run(async (ctx) => {
     const previous = await ctx.db.get("cards", cardId);
     await ctx.db.patch("cards", cardId, { ...value, updatedAt: Date.now() });
-    await scheduleCardSearchSync(ctx, cardId, USER, previous ?? undefined);
+    await syncCardSearch(ctx, cardId, USER, previous ?? undefined);
   });
 
 const deleteCard = (t: T, cardId: Id<"cards">) =>
   t.run(async (ctx) => {
     const previous = await ctx.db.get("cards", cardId);
     await ctx.db.delete("cards", cardId);
-    await scheduleCardSearchSync(ctx, cardId, USER, previous ?? undefined);
+    await syncCardSearch(ctx, cardId, USER, previous ?? undefined);
   });
 
 const rowOf = (t: T, cardId: Id<"cards">) =>
@@ -186,9 +182,7 @@ describe("embedding cards", () => {
     await runScheduled(t);
     expect(upserts(calls)).toHaveLength(1);
 
-    // Not search text at all: nothing is scheduled.
     await editCard(t, cardId, { isFavorited: true });
-    // Marked again with the same text: the hash matches, so no call.
     await t.run(async (ctx) => {
       const { markCardForEmbedding } = await import("./embedding/state");
       await markCardForEmbedding(ctx, cardId, USER);
@@ -306,7 +300,6 @@ describe("deleting vectors", () => {
     const t = setup();
     const cardId = await createCard(t, "racing");
     const row = await rowOf(t, cardId);
-    // The delete lands before the job records its upsert.
     await t.run(async (ctx) => {
       await ctx.db.delete("cardEmbeddings", row!._id);
       await ctx.db.delete("cards", cardId);
@@ -362,7 +355,6 @@ describe("stale writes", () => {
     await runScheduled(t);
     expect(upserts(calls)).toHaveLength(1);
 
-    // An older job's upsert landed after the newer job completed.
     expect(
       await t.mutation(internal.embedding.state.recordEmbedded, {
         cardId,

@@ -4,13 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.auth.SessionState
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.model.CurrentUser
 import com.praveenjuge.teak.core.model.TeakMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,13 +20,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Where the delete-account flow is: the warning, then the typed confirmation. */
 enum class DeleteStep { None, Warning, Confirm }
 
 data class SettingsUiState(
     val theme: ThemePreference = ThemePreference.System,
     val email: String? = null,
-    /** Null while loading. */
     val usage: String? = null,
     val plan: String? = null,
     val accountChangesPaused: Boolean = false,
@@ -43,7 +41,6 @@ class SettingsViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
     config: TeakConfig,
 ) : ViewModel() {
-    /** Shown under About. */
     val versionName: String = config.versionName
 
     private val local = MutableStateFlow(SettingsUiState())
@@ -97,25 +94,20 @@ class SettingsViewModel @Inject constructor(
 
     fun cancelDelete() = local.update { it.copy(deleteStep = DeleteStep.None) }
 
-    /** Deletes only when [typed] is "delete account", ignoring case and surrounding spaces. */
-    @Suppress("TooGenericExceptionCaught") // Any failure becomes a message instead of a crash.
     fun confirmDelete(typed: String) {
         if (typed.trim().lowercase() != DELETE_PHRASE) return
         local.update { it.copy(deleteStep = DeleteStep.None, isDeleting = true) }
         viewModelScope.launch {
-            try {
-                account.deleteAccount()
-                local.update { it.copy(isDeleting = false) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val message = if (uiState.value.accountChangesPaused) {
-                    TeakMessages.ACCOUNT_CHANGES_PAUSED
-                } else {
-                    "Something went wrong while deleting your account."
+            catchingFailures { account.deleteAccount() }
+                .onSuccess { local.update { it.copy(isDeleting = false) } }
+                .onFailure {
+                    val message = if (uiState.value.accountChangesPaused) {
+                        TeakMessages.ACCOUNT_CHANGES_PAUSED
+                    } else {
+                        "Something went wrong while deleting your account."
+                    }
+                    local.update { it.copy(isDeleting = false, error = message) }
                 }
-                local.update { it.copy(isDeleting = false, error = message) }
-            }
         }
     }
 

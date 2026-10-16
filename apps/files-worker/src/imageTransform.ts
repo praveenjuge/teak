@@ -7,6 +7,7 @@ import {
   isFilesImageRendition,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "./deletionGate";
+import { throughImagesBinding } from "./imagesBinding";
 import type { Env } from "./index";
 import { hmacSha256Hex, verifyHmacPayload } from "./lib";
 import { renderSvgToPng } from "./wasm";
@@ -33,11 +34,6 @@ export const IMAGE_RENDITIONS = {
   FilesImageRendition,
   { edge: number; quality: number }
 >;
-
-// The Images binding accepts raw inputs up to 20 MB. Larger sources keep the
-// proven URL-transformation path, whose remote-image limit covers Teak's
-// upload ceiling.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 
 type ImageFetch = (
   input: RequestInfo | URL,
@@ -144,7 +140,6 @@ export const preferredFormat = (
   return normalized.includes("image/webp") ? "webp" : undefined;
 };
 
-/** Map a negotiated format onto an Images binding output MIME type. */
 const bindingOutputFormat = (
   format: "avif" | "webp" | undefined
 ): "image/avif" | "image/webp" | null => {
@@ -154,15 +149,7 @@ const bindingOutputFormat = (
   return format === "webp" ? "image/webp" : null;
 };
 
-/**
- * Transform an R2 stream directly through the Images binding. This skips the
- * internal signed source round-trip entirely for eligible objects (≤20 MB)
- * and is cached per source ETag + rendition + negotiated format so a
- * re-uploaded key can never serve a stale variant. Returns null when the
- * binding is unavailable, the source is too large, or the client negotiates
- * no modern format — callers fall back to the URL-based transformation path.
- */
-export const transformViaBinding = async (
+export const transformViaBinding = (
   env: Env,
   key: string,
   rendition: FilesImageRendition,
@@ -170,57 +157,42 @@ export const transformViaBinding = async (
   sourceSize: number,
   bucket: R2Bucket = env.BUCKET
 ): Promise<Response | null> => {
-  const format = preferredFormat(accept);
-  const outputFormat = bindingOutputFormat(format);
-  if (
-    !(env.IMAGES && outputFormat) ||
-    sourceSize > MAX_IMAGES_BINDING_INPUT_BYTES
-  ) {
-    return null;
+  const outputFormat = bindingOutputFormat(preferredFormat(accept));
+  if (!outputFormat) {
+    return Promise.resolve(null);
   }
-  const object = await bucket.get(key);
-  if (!object) {
-    return null;
-  }
-  try {
-    const preset = IMAGE_RENDITIONS[rendition];
-    const result = await env.IMAGES.input(object.body)
-      .transform({
-        fit: "scale-down",
-        height: preset.edge,
-        sharpen: 1,
-        width: preset.edge,
-      })
-      .output({
-        anim: true,
-        format: outputFormat,
-        quality: preset.quality,
+  return throughImagesBinding(
+    env.IMAGES,
+    sourceSize,
+    () => bucket.get(key),
+    async (images, object) => {
+      const preset = IMAGE_RENDITIONS[rendition];
+      const result = await images
+        .input(object.body)
+        .transform({
+          fit: "scale-down",
+          height: preset.edge,
+          sharpen: 1,
+          width: preset.edge,
+        })
+        .output({
+          anim: true,
+          format: outputFormat,
+          quality: preset.quality,
+        });
+      const response = result.response();
+      const headers = new Headers(response.headers);
+      headers.set("Content-Type", result.contentType());
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Vary", "Accept");
+      return new Response(response.body, {
+        headers,
+        status: response.status,
       });
-    const response = result.response();
-    const headers = new Headers(response.headers);
-    headers.set("Content-Type", result.contentType());
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Vary", "Accept");
-    return new Response(response.body, {
-      headers,
-      status: response.status,
-    });
-  } catch {
-    // The binding may have locked or consumed the stream.
-    try {
-      await object.body.cancel();
-    } catch {
-      // Already consumed.
     }
-    return null;
-  }
+  );
 };
 
-/**
- * Edge-cache identity for a binding-transformed rendition: immutable object
- * key + rendition live in the path; the source ETag and negotiated format are
- * folded into the query so re-uploads and Accept differences never collide.
- */
 export const buildBindingCacheKey = (
   url: URL,
   sourceEtag: string,
@@ -410,8 +382,6 @@ export const handleImageRequest = async (
     return new Response(null, { status: 415 });
   }
 
-  // Preferred path: transform the R2 stream directly through the Images
-  // binding for eligible sources, cached per source ETag + rendition + format.
   const accept = request.headers.get("accept");
   const negotiatedFormat = preferredFormat(accept);
   if (env.IMAGES && negotiatedFormat) {
@@ -437,7 +407,6 @@ export const handleImageRequest = async (
     );
     if (bound) {
       bound.headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
-      // Expose the source ETag so reloads can revalidate the rendition.
       bound.headers.set(
         "ETag",
         `W/"${metadata.httpEtag.replace(/"/g, "")}-${parsed.rendition}"`

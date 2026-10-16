@@ -10,25 +10,20 @@ public struct DetailRow: Hashable, Sendable {
     }
 }
 
-/// What sharing a card sends: text, a file to download first, or nothing.
 public enum ShareTarget: Hashable, Sendable {
     case none
     case text(String, subject: String?)
     case file(url: URL, fileName: String, mimeType: String?)
 }
 
-/// A link's attached photo or video still, sized for the detail view.
 public struct LinkMediaItem: Hashable, Sendable {
     public let url: URL
     public let width: Double?
     public let height: Double?
 }
 
-/// The detail screen's formatting rules, ported from the Expo iPhone app,
-/// plus Teak for Mac's link and document rules.
 public enum CardSheet {
     private static let sizeUnits = ["B", "KB", "MB", "GB"]
-    /// Same cap as the web's file text preview.
     public static let textPreviewLimit = 512 * 1024
 
     public static func formatFileSize(_ bytes: Double) -> String {
@@ -70,7 +65,6 @@ public enum CardSheet {
         return "download-\(Int(now.timeIntervalSince1970 * 1000))\(suffix)"
     }
 
-    /// "Swift · 12 slides · 1,204 words"-style facts, without the card type itself.
     public static func fileFacts(_ card: Card) -> [String] {
         guard let file = card.fileMetadata else { return [] }
         let preview = file.preview
@@ -89,7 +83,6 @@ public enum CardSheet {
         return facts.filter { $0.lowercased() != typeLabel }
     }
 
-    /// "PDF · 4.6 MB" for a document's subtitle.
     public static func documentSummary(_ card: Card) -> String? {
         let file = card.fileMetadata
         let format = file?.fileName.flatMap { FileFormats.infer(fileName: $0, mimeType: file?.mimeType) }
@@ -120,7 +113,6 @@ public enum CardSheet {
         return rows
     }
 
-    /// What Copy puts on the clipboard.
     public static func copyText(_ card: Card) -> String? {
         let content = card.content.trimmingCharacters(in: .whitespacesAndNewlines)
         switch card.type {
@@ -135,7 +127,6 @@ public enum CardSheet {
         }
     }
 
-    /// The copy action's label: "Copy Link", "Copy Palette", "Copy Quote", "Copy Text".
     public static func copyLabel(_ card: Card) -> String {
         switch card.type {
         case .link: "Copy Link"
@@ -160,19 +151,15 @@ public enum CardSheet {
         case .palette:
             return copyText(card).map { .text($0, subject: nil) } ?? .none
         case .image:
-            // A thumbnail is still an image, so it's a fine share when the original is missing.
-            // Fallback renditions are named from their own URL, not the original file name.
             if card.fileUrl != nil {
                 return file(card.fileUrl, name: card.fileMetadata?.fileName, mime: card.fileMetadata?.mimeType)
             }
             return file(card.thumbnailUrl ?? card.screenshotUrl, name: nil, mime: nil)
         default:
-            // Video, audio and documents share only the original file.
             return file(card.fileUrl, name: card.fileMetadata?.fileName, mime: card.fileMetadata?.mimeType)
         }
     }
 
-    /// The detail title: "Note", "Quote", the saved title, the file name, a cached title, or the type.
     public static func title(_ card: Card, fallback: String? = nil) -> String {
         switch card.type {
         case .text: return "Note"
@@ -184,7 +171,6 @@ public enum CardSheet {
         }
     }
 
-    /// Images: the best rendition first; the original only when every device can decode it.
     public static func imageURLs(_ card: Card) -> [URL] {
         let name = card.fileMetadata?.fileName?.lowercased() ?? ""
         let needsRendition = name.hasSuffix(".heic") || name.hasSuffix(".heif") || name.hasSuffix(".svg")
@@ -207,7 +193,6 @@ public enum CardSheet {
         return candidates.lazy.compactMap { SafeURL.sanitize($0) }.first
     }
 
-    /// The photos or video stills attached to a post, up to four.
     public static func linkMedia(_ card: Card) -> [LinkMediaItem] {
         (card.linkPreviewMedia ?? []).compactMap { item -> LinkMediaItem? in
             let raw = item.type == "image" ? item.url : item.posterUrl
@@ -217,7 +202,6 @@ public enum CardSheet {
         .prefix(4).map { $0 }
     }
 
-    /// The link's title, site and byline, as the Mac detail shows them.
     public static func linkFacts(_ card: Card) -> [DetailRow] {
         let preview = card.metadata?.linkPreview
         var rows: [DetailRow] = []
@@ -240,7 +224,6 @@ public enum CardSheet {
 
     public enum TextPreviewKind: Sendable { case markdown, code }
 
-    /// Markdown and source documents show their text inline, up to 512 KB.
     public static func textPreviewKind(_ card: Card) -> TextPreviewKind? {
         let file = card.fileMetadata
         if let size = file?.fileSize, size > Double(textPreviewLimit) { return nil }
@@ -265,7 +248,6 @@ public enum CardSheet {
         return ["audio/webm", "audio/ogg", "audio/opus"].contains(mime) || ["webm", "ogg", "opus", "oga"].contains(ext)
     }
 
-    /// The card on Teak for the web.
     public static func webURL(cardId: String, base: URL) -> URL {
         var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "card", value: cardId)]

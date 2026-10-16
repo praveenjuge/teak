@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 import { buildR2UserPrefix } from "../../storage/r2";
@@ -156,7 +154,6 @@ describe("card/createCard.ts", () => {
     const registered = (await import("../../card/createCard")).createCard;
     const handler = (registered as any)._handler ?? registered;
     addCardUsage(ctx);
-    // Every usage shard is full: the free tier's 200 cards are in use.
     const query = ctx.db.query;
     ctx.db.query = mock((table: string) =>
       table === "userCardUsageShards"
@@ -339,10 +336,6 @@ describe("card/createCard.ts", () => {
   });
 
   test("honors an explicit text type for a note that mentions a URL", async () => {
-    // Regression: a caller that deliberately saves a note as text (e.g.
-    // "I read this at https://example.com") should keep a text card. The
-    // backend only auto-upgrades URL content to a link when no type is
-    // provided, so an explicit type is always honored.
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -383,7 +376,9 @@ describe("card/createCard.ts", () => {
   });
 
   test("keeps explicit text stable for URLs, quotes, colors, and Markdown", async () => {
-    const insert = mock(async () => "c_explicit");
+    const insert = mock(
+      async (_table: string, _value: unknown) => "c_explicit"
+    );
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -419,8 +414,6 @@ describe("card/createCard.ts", () => {
       await handler(ctx, { content, type: "text" });
     }
 
-    // The inline search sync writes through the same mocked db, so filter
-    // the insert calls down to the cards table.
     expect(
       insert.mock.calls
         .filter((call) => call[0] === "cards")
@@ -821,6 +814,33 @@ describe("card/createCard.ts", () => {
           source: "raycast_browser_tab",
         }),
       })
+    );
+  });
+});
+
+describe("resolveCreatedCardType", () => {
+  test.each([
+    [
+      "keeps an explicit text type for a note with a URL",
+      "text",
+      true,
+      false,
+      "text",
+    ],
+    ["keeps an explicit type over quotes", "image", false, true, "image"],
+    [
+      "makes quoted text a quote, even with a URL",
+      undefined,
+      true,
+      true,
+      "quote",
+    ],
+    ["makes a URL without a type a link", undefined, true, false, "link"],
+    ["defaults to text", undefined, false, false, "text"],
+  ] as const)("%s", async (_name, providedType, hasUrl, isQuoted, expected) => {
+    const { resolveCreatedCardType } = await import("../../card/createCard");
+    expect(resolveCreatedCardType({ providedType, hasUrl, isQuoted })).toBe(
+      expected
     );
   });
 });

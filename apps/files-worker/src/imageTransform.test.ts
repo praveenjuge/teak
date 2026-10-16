@@ -6,7 +6,7 @@ import {
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import type { Env } from "./index";
 import { hmacSha256Hex } from "./lib";
-import { FakeBucket, makePng, withObjectGates } from "./testsupport";
+import { FakeBucket, makePng, withObjectGates } from "./test/testsupport";
 
 const SECRET = "image-test-secret";
 const NOW = 1_800_000_000;
@@ -333,7 +333,6 @@ describe("Cloudflare image transformations", () => {
     expect(outputs).toEqual([
       { anim: true, format: "image/avif", quality: 80 },
     ]);
-    // The internal signed source round-trip never happens on this path.
     expect(fetchCalled).toBe(false);
   });
 

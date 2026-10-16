@@ -8,9 +8,6 @@ import { readHasPremium } from "./auth";
 import { isOnboardingCard } from "./card/defaultCards";
 import { readComponentUser } from "./securitySessions";
 
-// One account at a time for the superadmin console. Returns counts, states
-// and timestamps; card content stays private (see admin.revealCard).
-
 const CARD_SCAN_LIMIT = 2000;
 const CARD_SCAN_BYTES = 8 * 1024 * 1024;
 const RECENT_CARDS = 12;
@@ -20,7 +17,6 @@ const AUDIT_LIMIT = 20;
 const ACTIVITY_WEEKS = 12;
 const STAGES = ["classify", "categorize", "metadata", "renderables"] as const;
 
-/** Emails for a handful of accounts, for tables that list people. */
 export const emailsFor = internalQuery({
   args: { teakUserIds: v.array(v.string()) },
   handler: async (ctx, { teakUserIds }) => {

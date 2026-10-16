@@ -8,8 +8,6 @@ import {
   expectedWorkosDeletionResolution,
 } from "./workosDeletionCompletion";
 
-// A payload Teak can never apply, however often WorkOS retries it. The webhook
-// records it as a dead letter and acknowledges it instead of failing forever.
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
 const invalid = (message: string) =>
   new ConvexError({ code: INVALID_WORKOS_EVENT, message });
@@ -47,14 +45,9 @@ const eventTime = (raw: string): number => {
   if (time > Date.now() + 300_000) {
     throw new Error("WorkOS event timestamp is in the future");
   }
-  // The approved ledger uses milliseconds. Finer timestamps that collide are
-  // treated by the equal-time conflict guard, never as verification promotion.
   return time;
 };
 
-// Every check Teak needs before any store sees the event. It throws the
-// INVALID_WORKOS_EVENT ConvexError for payloads Teak can never apply, so the
-// webhook dead-letters them before the component's own validators run.
 export const parseWorkosEvent = (event: {
   id: string;
   createdAt: string;
@@ -106,7 +99,6 @@ export const parseWorkosEvent = (event: {
     }
   }
   if (!deleting) {
-    // Shapes the component would store as is: reject them before either store.
     if (!isStorableEmail(email)) {
       throw invalid("Invalid WorkOS event email");
     }
@@ -138,12 +130,6 @@ export const parseWorkosEvent = (event: {
   return { time, workosUserId, deleting, email, externalId, profile };
 };
 
-// Keeps the owner's stored address in step with the provider, for the lookups
-// that still read it (admin seeding, the admin user list and email linking).
-// The values come from the component's stored profile rather than the event,
-// so an out-of-order delivery the component ignored can't roll them back.
-// A new address is copied only once WorkOS has verified it and no other owner
-// holds it, so an unverified change can't claim someone else's address.
 const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
   const provider = await readComponentUser(ctx, workosUserId);
   if (!provider) {
@@ -221,8 +207,6 @@ export const applyWorkosEvent = internalMutation({
     if (duplicate) {
       return { status: "duplicate" as const };
     }
-    // The WorkOS component stores the profile in the same transaction. Teak
-    // keeps only what the component can't: owner linking and deletion proof.
     let result:
       | { status: "applied" | "deleted" }
       | { status: "quarantined"; reason: string } = {
@@ -251,7 +235,6 @@ export const applyWorkosEvent = internalMutation({
         .query("users")
         .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
         .take(2);
-      // A permanent tombstone: these owners never sign in through WorkOS again.
       for (const row of rows) {
         if (row.workosDeletedAt === undefined) {
           await ctx.db.patch("users", row._id, { workosDeletedAt: time });

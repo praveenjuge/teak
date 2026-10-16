@@ -89,7 +89,7 @@ describe("card/queryUtils.ts", () => {
 
   test("grid results preserve absent metadata and preview-only metadata", async () => {
     const metadata = {
-      linkPreview: { status: "success", title: "Preview title" },
+      linkPreview: { status: "success" as const, title: "Preview title" },
     };
     const [withoutMetadata, preview] = await attachGridFileUrls({}, [
       card({}),

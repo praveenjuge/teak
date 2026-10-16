@@ -1,5 +1,3 @@
-// Folder operations for the public API, MCP and SDK: internal functions keyed
-// by the authorized user, wrapping the same handlers the app uses.
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
@@ -107,8 +105,6 @@ export const changeFolderCardsForApi = internalMutation({
     }
     const owner = await requireTeakUserId(ctx, userId);
     if (valid.length === 0) {
-      // Still check the folder, so a bad folder id reports NOT_FOUND and a
-      // smart folder SMART_FOLDER.
       const folder = await requireFolderForUser(ctx, owner, args.folderId);
       if (folder.kind === "smart") {
         throw smartFolderMembership();

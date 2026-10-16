@@ -1,17 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildFileSigningPayload,
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { buildSigningPayload, hmacSha256Hex, sha256Hex } from "./lib";
+import { hmacSha256Hex, sha256Hex } from "./lib";
 import {
   FakeBucket,
   fakeHttpEtag,
   makePng,
   withObjectGates,
-} from "./testsupport";
+} from "./test/testsupport";
 
 const SECRET = "test-secret";
 
@@ -31,7 +32,7 @@ const signedUrl = async (
   const exp = String(Math.floor(Date.now() / 1000) + expSecondsFromNow);
   const sig = await hmacSha256Hex(
     SECRET,
-    buildSigningPayload({
+    buildFileSigningPayload({
       key,
       exp,
       contentType: params.ct ?? "",
@@ -156,13 +157,14 @@ describe("files worker handler", () => {
     expect(options.headers.get("access-control-allow-origin")).toBe("*");
   });
 
-  test("rejects unsigned downloads", async () => {
+  test("rejects unsigned downloads without granting any origin access", async () => {
     const response = await worker.fetch(
       new Request("https://files.teakvault.com/users/u1/cards/f/x.png"),
       env(),
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(401);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   test("serves a correctly signed key containing consecutive dots", async () => {
@@ -191,7 +193,7 @@ describe("files worker handler", () => {
       env_,
       { waitUntil: () => undefined } as never
     );
-    expect(legacyHead.status).toBe(410);
+    expect(legacyHead.status).toBe(401);
     const post = await worker.fetch(
       await signedOpRequest("create-multipart", {
         contentType: "image/png",
@@ -337,7 +339,7 @@ describe("files worker handler", () => {
     expect(response.status).toBe(403);
   });
 
-  test("streams a validated pending upload and preserves a Markdown BOM", async () => {
+  test("streams a validated pending upload, preserves a Markdown BOM and leaves the pending object for Convex to delete", async () => {
     const env_ = env();
     const bucket = env_.BUCKET as unknown as FakeBucket;
     const sourceKey = "users/u1/cards/upload-pending-v2/file/design..final.md";
@@ -367,8 +369,6 @@ describe("files worker handler", () => {
       },
       ok: true,
     });
-    // Convex deletes the pending object only after its card mutation succeeds,
-    // so a failed database write can safely retry finalization.
     expect(bucket.objects.has(sourceKey)).toBe(true);
     expect(bucket.storedBytes(destinationKey)).toEqual(bytes);
   });
@@ -703,7 +703,6 @@ describe("API paths on the marketing host", () => {
     ...env(),
     API_PUBLIC_HOST: "teakvault.com",
     API_UPSTREAM_ORIGIN: "https://upstream.example.convex.site",
-    // The proxy needs no file storage; a missing gate must not block it.
     OBJECT_GATES: undefined,
   });
   const fetchedUrls: string[] = [];

@@ -10,6 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import type { DeletionBatchKind } from "./accountDeletionBatch";
+import { accountDeletionStage } from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextContents } from "./card/textContents";
 import { readAccountChangesPaused } from "./env";
@@ -18,7 +19,6 @@ import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
-import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
 import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
 
@@ -42,6 +42,31 @@ export const getAccountDeletionState = async (
   }
   const state = await indexedQuery.unique();
   return state && typeof state.startedAt === "number" ? state : null;
+};
+
+/**
+ * While an account deletion runs, its batches own every row the user has.
+ * Background writers stand down instead of writing: Convex conflicts on rows
+ * read or written, so a racing write makes the deletion batches retry until
+ * the whole deletion fails.
+ */
+export const accountDeletionOwnsRows = async (
+  ctx: DatabaseReaderCtx,
+  userId: string | undefined
+): Promise<boolean> =>
+  userId !== undefined && Boolean(await getAccountDeletionState(ctx, userId));
+
+/** `accountDeletionOwnsRows`, read once per user for a batch of many cards. */
+export const createAccountDeletionGate = (ctx: DatabaseReaderCtx) => {
+  const owned = new Map<string, Promise<boolean>>();
+  return (userId: string): Promise<boolean> => {
+    let result = owned.get(userId);
+    if (!result) {
+      result = accountDeletionOwnsRows(ctx, userId);
+      owned.set(userId, result);
+    }
+    return result;
+  };
 };
 
 export const assertAccountNotDeleting = async (
@@ -69,63 +94,8 @@ export const beginAccountDeletion = async (
   }
 };
 
-// Production evidence: account deletion batches race scheduled card search
-// sync jobs that keep writing the same cardSearchTagSyncStates documents.
-// Convex retries a conflicted mutation immediately, so under a hot writer
-// every internal retry conflicts again and the whole deletion fails with a
-// 500. Back off at the action level so the scheduled jobs can drain before
-// the batch runs again.
-export const ACCOUNT_DELETION_OCC_RETRY_DELAYS_MS: number[] = [
-  250, 500, 1000, 2000, 4000,
-];
-
-export const isOptimisticConcurrencyConflict = (error: unknown): boolean =>
-  error instanceof Error &&
-  error.message.includes("changed while this") &&
-  error.message.includes("was being run");
-
-export const withOptimisticConcurrencyRetry = async <T>(
-  run: () => Promise<T>,
-  options?: {
-    retryDelaysMs?: number[];
-    sleep?: (delayMs: number) => Promise<void>;
-  }
-): Promise<T> => {
-  const retryDelaysMs =
-    options?.retryDelaysMs ?? ACCOUNT_DELETION_OCC_RETRY_DELAYS_MS;
-  const sleep =
-    options?.sleep ??
-    ((delayMs: number) =>
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, delayMs);
-      }));
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await run();
-    } catch (error) {
-      if (
-        !isOptimisticConcurrencyConflict(error) ||
-        attempt >= retryDelaysMs.length
-      ) {
-        throw error;
-      }
-      await sleep(retryDelaysMs[attempt]);
-    }
-  }
-};
-
-// How long one account-deletion workflow step keeps draining storage pages
-// before it yields. Every page is still its own fenced prepare/checkpoint
-// pair, so a crash or retry resumes from the last checkpoint. Draining many
-// pages per step keeps an account with many cards from costing one workflow
-// step, and one wait in the shared workflow queue, per card.
 export const ACCOUNT_DELETION_DRAIN_BUDGET_MS = 20_000;
 
-/**
- * Drain each kind in order, one bounded page at a time, until every kind is
- * empty (true) or the budget runs out (false: the caller yields and runs
- * again).
- */
 export const drainStorageWithinBudget = async (
   ctx: Pick<ActionCtx, "runAction">,
   binding: { stateId: Id<"accountDeletionStates">; generation: number },
@@ -148,20 +118,11 @@ export const drainStorageWithinBudget = async (
   return true;
 };
 
-export interface AccountImportDeletionObject {
-  reportKey?: string;
-  sourceKey: string;
-  uploadId?: string;
-}
-
 interface AccountDataDeletionOptions {
-  boundedDeletion?: {
+  boundedDeletion: {
     stateId: Id<"accountDeletionStates">;
     generation: number;
   };
-  deleteImportObjects: (
-    objects: AccountImportDeletionObject[]
-  ) => Promise<unknown>;
   observe: <T>(
     input: {
       name: string;
@@ -176,7 +137,7 @@ interface AccountDataDeletionOptions {
 export const runAccountDataDeletion = (
   ctx: ActionCtx,
   userId: string,
-  { deleteImportObjects, observe, boundedDeletion }: AccountDataDeletionOptions
+  { observe, boundedDeletion }: AccountDataDeletionOptions
 ) =>
   observe(
     {
@@ -189,136 +150,46 @@ export const runAccountDataDeletion = (
       await ctx.runMutation(internal.accountDeletion.beginAccountDataDeletion, {
         userId,
       });
-      if (boundedDeletion) {
-        if (
-          !(await drainStorageWithinBudget(ctx, boundedDeletion, [
-            "cards",
-            "imports",
-          ]))
-        ) {
-          return {
-            done: false,
-            deletedCards: 0,
-            deletedStorageObjectCount: 0,
-          };
-        }
-        await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
-          userId,
-        });
-        return { done: true, deletedCards: 0, deletedStorageObjectCount: 0 };
-      }
-      let deletedCards = 0;
-      let deletedStorageObjectCount = 0;
-      while (true) {
-        const batch = await ctx.runQuery(
-          internal.accountDeletion.getAccountCardDeletionBatch,
-          { userId }
-        );
-        if (batch.cardIds.length === 0) {
-          break;
-        }
-        if (batch.objectKeys.length > 0) {
-          await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-            keys: batch.objectKeys,
-          });
-        }
-        deletedCards += await withOptimisticConcurrencyRetry(() =>
-          ctx.runMutation(internal.accountDeletion.deleteAccountDataBatch, {
-            cardIds: batch.cardIds,
-            userId,
-          })
-        );
-        deletedStorageObjectCount += batch.objectKeys.length;
-      }
-      while (true) {
-        const batch = await ctx.runQuery(
-          internal.accountDeletion.getAccountImportDeletionBatch,
-          { userId }
-        );
-        if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
-          break;
-        }
-        if (batch.objects.length > 0) {
-          await deleteImportObjects(batch.objects);
-        }
-        await withOptimisticConcurrencyRetry(() =>
-          ctx.runMutation(internal.accountDeletion.deleteAccountImportRows, {
-            itemIds: batch.itemIds,
-            jobIds: batch.jobIds,
-            userId,
-          })
-        );
-      }
-      const finalCards = await ctx.runQuery(
-        internal.accountDeletion.getAccountCardDeletionBatch,
-        { userId }
-      );
-      const finalImports = await ctx.runQuery(
-        internal.accountDeletion.getAccountImportDeletionBatch,
-        { userId }
-      );
       if (
-        finalCards.cardIds.length > 0 ||
-        finalImports.jobIds.length > 0 ||
-        finalImports.itemIds.length > 0
+        !(await drainStorageWithinBudget(ctx, boundedDeletion, [
+          "cards",
+          "imports",
+        ]))
       ) {
-        throw new Error("Account data changed during deletion");
+        return false;
       }
       await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
         userId,
       });
-      return { deletedCards, deletedStorageObjectCount };
+      return true;
     }
   );
 
-export const getAccountCardDeletionBatchHandler = async (
-  ctx: QueryCtx,
-  userId: string
+declare const ownerIndexBrand: unique symbol;
+
+/** Card ids read from one owner's `by_user_deleted` index. */
+export type OwnedCardIds = Id<"cards">[] & {
+  readonly [ownerIndexBrand]: true;
+};
+
+export const takeOwnedCards = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  limit: number
 ) => {
   const cards = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .take(20);
-  const readyCards: typeof cards = [];
-  for (const card of cards) {
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      readyCards.push(card);
-    }
-  }
-  return {
-    cardIds: cards.map((card) => card._id),
-    objectKeys: Array.from(
-      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
-    ),
-  };
+    .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
+    .take(limit);
+  return { cards, cardIds: cards.map((card) => card._id) as OwnedCardIds };
 };
-
-export const getAccountCardDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    cardIds: v.array(v.id("cards")),
-    objectKeys: v.array(v.string()),
-  }),
-  handler: (ctx, { userId }) => getAccountCardDeletionBatchHandler(ctx, userId),
-});
 
 export const deleteAccountDataHandler = async (
   ctx: MutationCtx,
-  _userId: string,
-  cardIds: Id<"cards">[]
+  cardIds: OwnedCardIds
 ) => {
   let deletedCards = 0;
   for (const cardId of cardIds) {
-    // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
-    // card ownership is immutable (no code path patches cards.userId) and
-    // the caller derives these IDs from the by_user_deleted index for this
-    // user, so the extra read only widened the mutation's conflict surface.
-    // The writers that raced these batches are fenced off during account
-    // deletion in patchCardWithSearchSync.
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
       .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -346,10 +217,7 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    // Its R2 object is among the card's object keys, deleted with the batch.
     await deleteCardTextContents(ctx, cardId);
-    // A card is in at most MAX_FOLDERS_PER_CARD folders; any rows past the
-    // bound are swept with the user's folders in the ancillary pass.
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_cardId_and_folderId", (query) =>
@@ -381,76 +249,6 @@ export const deleteAccountDataHandler = async (
   }
   return deletedCards;
 };
-
-export const deleteAccountDataBatch = internalMutation({
-  args: { cardIds: v.array(v.id("cards")), userId: v.string() },
-  returns: v.number(),
-  handler: async (ctx, { cardIds, userId }) =>
-    deleteAccountDataHandler(ctx, userId, cardIds),
-});
-
-export const getAccountImportDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    objects: v.array(
-      v.object({
-        reportKey: v.optional(v.string()),
-        sourceKey: v.string(),
-        uploadId: v.optional(v.string()),
-      })
-    ),
-  }),
-  handler: async (ctx, { userId }) => {
-    const jobs = await ctx.db
-      .query("importJobs")
-      .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .take(100);
-    const items = await ctx.db
-      .query("importJobItems")
-      .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .take(100);
-    return {
-      itemIds: items.map((item) => item._id),
-      jobIds: jobs.map((job) => job._id),
-      objects: [
-        ...jobs.map((job) => ({
-          sourceKey: job.sourceKey,
-          reportKey: job.reportKey,
-          uploadId: job.uploadId,
-        })),
-        ...items.flatMap((item) =>
-          item.extractedFileKey ? [{ sourceKey: item.extractedFileKey }] : []
-        ),
-      ],
-    };
-  },
-});
-
-export const deleteAccountImportRows = internalMutation({
-  args: {
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    userId: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { itemIds, jobIds, userId }) => {
-    for (const itemId of itemIds) {
-      const item = await ctx.db.get("importJobItems", itemId);
-      if (item?.userId === userId) {
-        await ctx.db.delete("importJobItems", itemId);
-      }
-    }
-    for (const jobId of jobIds) {
-      const job = await ctx.db.get("importJobs", jobId);
-      if (job?.userId === userId) {
-        await ctx.db.delete("importJobs", jobId);
-      }
-    }
-    return null;
-  },
-});
 
 export const beginAccountDataDeletion = internalMutation({
   args: { userId: v.string() },
@@ -499,13 +297,7 @@ export const initiateAccountDeletion = async (
   if (readAccountChangesPaused()) {
     throw new ConvexError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
   }
-  // Accounts that existed before WorkOS also have retained Better Auth rows,
-  // which deletion removes too. Owners WorkOS created have a `teak_` key that
-  // is no Better Auth document ID, so looking one up would throw.
-  const legacy =
-    owner.identityOrigin === "workos"
-      ? null
-      : await findLegacyBetterAuthUser(ctx, owner.teakUserId);
+  const legacy = await findLegacyBetterAuthUser(ctx, owner);
   const target = await currentWorkosDeletionTarget();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
@@ -514,7 +306,7 @@ export const initiateAccountDeletion = async (
     ...(legacy ? { betterAuthUserId: legacy._id } : {}),
     ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
     ...(target ? { workosTarget: target } : {}),
-    stage: 0,
+    stage: accountDeletionStage("accessAndBilling"),
     generation: 1,
     nextAttemptAt: Date.now() + 60_000,
   });

@@ -11,11 +11,7 @@ import { join } from "node:path";
 import { env, serve, spawn } from "bun";
 import { EXIT } from "./runtime";
 
-// Runs the real CLI entry point against a fake Teak API and checks what a
-// user sees: stdout, stderr, exit code, and the requests the CLI sends.
-
 const configHome = mkdtempSync(join(tmpdir(), "teak-cli-commands-"));
-// Downloads land in the CLI's working directory, so give it a scratch one.
 const workDirectory = mkdtempSync(join(tmpdir(), "teak-cli-work-"));
 const API_KEY = "teak_test_key";
 
@@ -93,7 +89,6 @@ const teakWithEnv = async (
       },
       stderr: "pipe",
       stdout: "pipe",
-      // Fail the test instead of hanging the suite if the CLI never exits.
       timeout: 15_000,
     }
   );
@@ -862,7 +857,6 @@ describe("teak batch and fallback behavior", () => {
     expect(missing.code).toBe(EXIT.notFound);
     expect(missing.stderr).toContain("This card has no stored text");
 
-    // Only the start of the stored text could be read: a different note.
     routes.set("GET /v1/cards/card_c/content", () =>
       json({ ...body, cardId: "card_c", charCount: 90_000 })
     );
@@ -932,7 +926,6 @@ describe("teak batch and fallback behavior", () => {
     expect(listed.stdout).toContain("folder_1");
     expect(listed.stdout).toContain("Reading (blue)");
 
-    // `get` finds the folder by name, then reads it by id.
     routes.set("GET /v1/folders/folder_1", () =>
       json({ ...reading, cardCount: 3 })
     );
@@ -955,7 +948,6 @@ describe("teak batch and fallback behavior", () => {
       color: "green",
     });
 
-    // A folder is found by name, ignoring case, as well as by id.
     requests.length = 0;
     const renamed = await teak(
       "folders",
@@ -976,9 +968,7 @@ describe("teak batch and fallback behavior", () => {
     expect(added.stderr).toContain(
       "card_b: already in the most folders a card can be in"
     );
-    // Every failure was the folder limit, so it exits like an API error,
-    // not like a missing card.
-    expect(added.code).toBe(1);
+    expect(added.code).toBe(EXIT.api);
 
     const missing = await teak("folders", "add", "Nope", "card_a");
     expect(missing.stderr).toContain("Folder not found: Nope");

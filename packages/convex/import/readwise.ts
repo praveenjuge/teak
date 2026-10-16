@@ -1,11 +1,14 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { readCsvTable } from "./csv";
-import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
+import {
+  ImportLimitExceeded,
+  linkItem,
+  notAnExport,
+  parseSourceDate,
+} from "./sourceItems";
 
 const SOURCE = "Readwise Reader";
 const MAX_ITEMS = 10_000;
-// Feed items are skipped, so a library can hold far more rows than it
-// imports; the 10,000 limit applies to what's kept.
 const MAX_ROWS = 100_000;
 
 /**
@@ -40,7 +43,9 @@ export function parseReadwiseCsv(csv: string): ParsedBookmarkItem[] {
       continue;
     }
     if (output.length === MAX_ITEMS) {
-      throw new Error("Readwise Reader export exceeds 10,000 items");
+      throw new ImportLimitExceeded(
+        "Readwise Reader export exceeds 10,000 items"
+      );
     }
     const tags = parseReaderTags(table.cell(row, "document tags"));
     output.push(

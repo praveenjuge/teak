@@ -1,13 +1,9 @@
-// Constants for reuse across the web app's structured data
 const SITE_URL = "https://teakvault.com";
 const APP_URL = "https://app.teakvault.com";
 const SITE_NAME = "Teak";
 const ORGANIZATION_LOGO = `${SITE_URL}/icon.png`;
-// Matches the Organization node the teakvault.com docs publish (Blume's
-// seo.organization), so every page references one entity.
 const ORGANIZATION_ID = `${SITE_URL}#organization`;
 
-// Shared Organization schema
 export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -21,7 +17,6 @@ export const organizationSchema = {
   sameAs: ["https://github.com/teakvault"],
 } as const;
 
-// WebSite schema for the app
 export const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -31,7 +26,6 @@ export const websiteSchema = {
   publisher: { "@id": ORGANIZATION_ID },
 } as const;
 
-// SoftwareApplication schema for app listing
 export const softwareApplicationSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",

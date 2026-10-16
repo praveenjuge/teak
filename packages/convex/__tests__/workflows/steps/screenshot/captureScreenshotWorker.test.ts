@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   afterAll,
   beforeAll,
@@ -32,7 +31,8 @@ beforeAll(async () => {
   const actualSsrf = await import(ssrfPath);
   mock.module(ssrfPath, () => ({
     ...actualSsrf,
-    safeFetch: () => Promise.resolve(page()),
+    safeFetch: (url: string) =>
+      Promise.resolve({ finalUrl: url, response: page() }),
   }));
 
   const r2Path = import.meta.resolve("../../../../storage/r2");

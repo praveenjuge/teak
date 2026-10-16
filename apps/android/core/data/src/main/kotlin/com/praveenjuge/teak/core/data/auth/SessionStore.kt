@@ -22,7 +22,6 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Where the signed-in session and an in-flight sign-in live between launches. */
 interface SessionStore {
     suspend fun loadSession(): AuthSession?
     suspend fun saveSession(session: AuthSession)
@@ -96,6 +95,7 @@ class KeystoreSessionStore @Inject constructor(
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
+                .setRandomizedEncryptionRequired(true)
                 .build(),
         )
         return generator.generateKey()
@@ -109,8 +109,6 @@ class KeystoreSessionStore @Inject constructor(
     private fun decrypt(data: ByteArray): ByteArray {
         if (data.size <= IV_SIZE) throw GeneralSecurityException("Truncated session")
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        // This IV was made by the Keystore in encrypt(): the key requires randomized encryption, so every
-        // encryption gets a fresh random IV and a caller-supplied one is refused. No IV is ever reused.
         // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, data, 0, IV_SIZE))
         return cipher.doFinal(data, IV_SIZE, data.size - IV_SIZE)

@@ -8,9 +8,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const React = await import("react");
 const { act } = React;
 
-// Boundaries: Convex (the createCard mutation and the creation-status query),
-// toasts, and the rich text editor, which is replaced by a textarea plus a
-// button that fires the editor's Cmd/Ctrl+Enter callback.
 interface PendingSave {
   content: string;
   resolve: () => void;

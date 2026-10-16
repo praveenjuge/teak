@@ -218,8 +218,6 @@ export function AddCardForm({
     setContent("");
   };
 
-  // The draft clears as soon as a save starts, so another note can be written
-  // and saved (button or Cmd/Ctrl+Enter) while earlier saves are in flight.
   const submitTextCard = async (): Promise<boolean> => {
     // Read the ref, not render state: it clears synchronously, so a repeated
     // shortcut or click can never submit the same note twice.
@@ -238,8 +236,6 @@ export function AddCardForm({
     });
 
     try {
-      // Structured notes stay Markdown text; plain URL/color/quote captures
-      // retain the server's existing automatic classification.
       await createCard({
         ...prepareNoteCapture(submittedContent),
         source: "web",
@@ -251,7 +247,6 @@ export function AddCardForm({
     } catch (error) {
       console.error("Failed to create card:", error);
 
-      // Put the unsaved note back without dropping anything typed since.
       const newerDraft = latestContentRef.current;
       setContent(
         newerDraft.trim()
@@ -305,7 +300,6 @@ export function AddCardForm({
         data-new-note-composer=""
         onFocus={clearNewNoteComposerFocusRequest}
       >
-        {/* N focuses the composer from anywhere, like / for search. */}
         {!hasContent && (
           <ShortcutKeys
             className="pointer-events-none absolute top-3 right-3 group-focus-within/composer:hidden max-sm:hidden"

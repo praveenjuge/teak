@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
@@ -11,6 +9,7 @@ import {
   listCardsV1,
   tagsV1,
 } from "../publicApiHttp";
+import { mockActionCtx } from "./helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
   buildAuthorizedMutationMockWithIdempotencySkip,
@@ -24,10 +23,12 @@ describe("publicApiHttp card endpoints", () => {
 
     for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
       const response = await executePublicApiOperation(
-        withMappedOwner({
-          runMutation: buildAuthorizedMutationMock(),
-          runQuery: mock().mockResolvedValue(null),
-        } as any),
+        mockActionCtx(
+          withMappedOwner({
+            runMutation: buildAuthorizedMutationMock(),
+            runQuery: mock().mockResolvedValue(null),
+          } as any)
+        ),
         {
           method: "GET",
           path,
@@ -36,8 +37,6 @@ describe("publicApiHttp card endpoints", () => {
         }
       );
 
-      // The paths now fall through to the card-by-id handler, where the
-      // trailing segment reads as an unknown card id.
       expect(response.status).toBe(404);
       expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
     }
@@ -47,17 +46,19 @@ describe("publicApiHttp card endpoints", () => {
     "dispatches restore for a card with deleted=%s",
     async (isDeleted) => {
       const response = await executePublicApiOperation(
-        withMappedOwner({
-          runMutation:
-            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
-          runQuery: mock()
-            .mockResolvedValueOnce("card_1")
-            .mockResolvedValueOnce({
-              _id: "card_1",
-              userId: "user_1",
-              isDeleted,
-            }),
-        }),
+        mockActionCtx(
+          withMappedOwner({
+            runMutation:
+              buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+            runQuery: mock()
+              .mockResolvedValueOnce("card_1")
+              .mockResolvedValueOnce({
+                _id: "card_1",
+                userId: "user_1",
+                isDeleted,
+              }),
+          })
+        ),
         {
           method: "POST",
           path: "/v1/cards/card_1/restore",
@@ -207,7 +208,6 @@ describe("publicApiHttp card endpoints", () => {
       )
     );
     expect(response.status).toBe(200);
-    // The text and the first tag route the search; the rest filter it.
     expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
       searchQuery: "design system",
       tag: "brand",
@@ -537,8 +537,6 @@ describe("publicApiHttp card endpoints", () => {
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_INPUT");
     expect(payload.error).toContain("100");
-    // Only the two authorization mutations (validate key + rate limit) run;
-    // neither idempotency reservation nor the bulk fan-out mutation fire.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
@@ -1165,15 +1163,17 @@ describe("publicApiHttp card endpoints", () => {
 
   test("refresh is reachable through executePublicApiOperation", async () => {
     const response = await executePublicApiOperation(
-      withMappedOwner({
-        runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
-          cardId: "card_1",
-          requestedAt: 1,
-        }),
-        runQuery: mock()
-          .mockResolvedValueOnce("card_1")
-          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
-      }),
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+            cardId: "card_1",
+            requestedAt: 1,
+          }),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+        })
+      ),
       {
         method: "POST",
         path: "/v1/cards/card_1/refresh",
@@ -1209,7 +1209,6 @@ describe("publicApiHttp card endpoints", () => {
       code: "NOT_IN_TRASH",
       error: "Move the card to Trash before deleting it permanently",
     });
-    // Only the auth call ran; nothing was deleted.
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
@@ -1408,7 +1407,7 @@ describe("listCardsV1 search modes", () => {
   // Dispatches by function: the shard and cache lookups, then the page.
   const ctxFor = () => {
     const pageArgs: any[] = [];
-    const runQuery = mock((ref: any, args: any) => {
+    const runQuery = mock((ref: any, args: any): Promise<unknown> => {
       const name = getFunctionName(ref);
       if (name.endsWith("getUserShard")) {
         return Promise.resolve(0);
@@ -1619,7 +1618,17 @@ describe("link image routes", () => {
   const call = (
     method: "DELETE" | "POST" | "PUT",
     path: string,
-    { body, runAction, runMutation, runQuery } = {}
+    {
+      body,
+      runAction,
+      runMutation,
+      runQuery,
+    }: {
+      body?: unknown;
+      runAction?: unknown;
+      runMutation?: unknown;
+      runQuery?: unknown;
+    } = {}
   ) =>
     executePublicApiOperation(
       withMappedOwner({

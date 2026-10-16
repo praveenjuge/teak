@@ -14,6 +14,7 @@ import {
   isXStatusUrl,
   isXUrl,
 } from "../../linkMetadata/x";
+import { asFetch } from "../helpers/convex.test-utils";
 
 type MockFetchInput = string | URL | Request;
 
@@ -49,7 +50,7 @@ describe("x link metadata", () => {
   const mockFetch = mock();
 
   beforeAll(() => {
-    global.fetch = mockFetch;
+    global.fetch = asFetch(mockFetch);
   });
 
   afterAll(() => {

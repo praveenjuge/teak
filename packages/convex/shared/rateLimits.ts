@@ -1,11 +1,6 @@
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
-/**
- * Rate limiter configuration for card creation.
- *
- * Uses token bucket algorithm: 30 cards per minute for all users.
- */
 export const RATE_LIMIT_CONFIG = {
   cardCreation: {
     kind: "token bucket",
@@ -14,13 +9,9 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 30,
     // Six shards retain five burst tokens per shard while covering the
     // observed eight-request production concurrency without exhausting
-    // Convex's OCC retry budget. When changing an existing deployment from
-    // three shards, first observe one full period without card-creation
-    // traffic so the old shards are full before the new shards become live.
+    // Convex's OCC retry budget.
     shards: 6,
   },
-  // Card edits reserve reprocess tokens instead of being refused (see
-  // `reserveEditReprocess`), so `maxReserved` bounds how far ahead they queue.
   cardReprocess: {
     kind: "token bucket",
     rate: 6,
@@ -28,8 +19,6 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 6,
     maxReserved: 6,
   },
-  // One reserved token per card: while an edit's deferred run is waiting,
-  // later edits join it instead of queueing another.
   cardReprocessPerCard: {
     kind: "token bucket",
     rate: 1,
@@ -44,9 +33,6 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 120,
     shards: 12,
   },
-  // Shared bucket for invalid / unauthenticated public-API auth attempts.
-  // All failures are consolidated onto a single keyed document so attackers
-  // cannot spray fresh per-token buckets by rotating bearer tokens.
   invalidApiAuth: {
     kind: "token bucket",
     rate: 60,

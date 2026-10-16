@@ -8,7 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { folderColorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
@@ -159,8 +159,6 @@ const assertNameAvailable = async (
     .withIndex("by_userId_and_nameKey", (q) =>
       q.eq("userId", userId).eq("nameKey", nameKey)
     )
-    // Folders being deleted keep their name until their row is gone, so
-    // several rows can share a key; read them all (bounded by the cap).
     .take(MAX_FOLDERS_PER_USER);
   if (
     sameName.some(
@@ -250,7 +248,6 @@ export const getOrCreateImportFolderIds = async (
       if (existing) {
         id = existing.kind === "manual" ? existing._id : null;
       } else {
-        // Folders being deleted still count until their row is gone.
         cache.count ??= (
           await ctx.db
             .query("folders")
@@ -283,9 +280,6 @@ export const normalizeSmartFolderQuery = async (
   query: string
 ): Promise<string> => {
   const parsed = parseSearchQuery(query);
-  // A bare quick command is a view, not words: Favorites and Archive are
-  // saved as `is:fav` and `is:archived`, so typing more still narrows them;
-  // Trash is refused.
   const command =
     parsed.qualifiers.length === 0 &&
     parsed.phrases.length === 0 &&
@@ -365,7 +359,6 @@ export const createFolderForUser = async (
       ? await normalizeSmartFolderQuery(ctx, userId, args.query ?? "")
       : undefined;
   await assertNameAvailable(ctx, userId, name);
-  // Folders being deleted still count until their row is gone.
   const existing = await ctx.db
     .query("folders")
     .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
@@ -412,9 +405,6 @@ export const updateFolderForUser = async (
         message: FOLDER_ERROR_MESSAGES.QUERY_ON_MANUAL_FOLDER,
       });
     }
-    // An unchanged search (the dialog sends it with a rename) is not checked
-    // again: its `folder:` may name a folder deleted since, which only
-    // makes it match nothing.
     if (parseSearchQuery(args.query).canonical !== folder.query) {
       patch.query = await normalizeSmartFolderQuery(ctx, userId, args.query);
     }
@@ -438,8 +428,6 @@ export const updateFolderForUser = async (
   }
   const now = Date.now();
   await ctx.db.patch("folders", folder._id, { ...patch, updatedAt: now });
-  // Smart folders name manual folders in `folder:`; follow the rename so
-  // they keep matching the same cards.
   if (
     folder.kind === "manual" &&
     patch.nameKey !== undefined &&
@@ -530,8 +518,6 @@ export const deleteFolderBatchHandler = async (
   deletingAt?: number
 ): Promise<{ done: boolean }> => {
   const folder = await ctx.db.get("folders", folderId);
-  // Restored (Undo) before the batch ran, or restored and deleted again so
-  // that a later batch owns it: nothing to do.
   if (
     !folder ||
     folder.deletingAt === undefined ||
@@ -539,9 +525,7 @@ export const deleteFolderBatchHandler = async (
   ) {
     return { done: true };
   }
-  // Account deletion removes every folder and folder row itself; card
-  // writes stand down meanwhile, so a batch here would never finish.
-  if (await getAccountDeletionState(ctx, folder.userId)) {
+  if (await accountDeletionOwnsRows(ctx, folder.userId)) {
     return { done: true };
   }
   const rows = await ctx.db
@@ -556,7 +540,6 @@ export const deleteFolderBatchHandler = async (
     const card = await ctx.db.get("cards", row.cardId);
     const remaining = (card?.folderIds ?? []).filter((id) => id !== folderId);
     if (card && remaining.length !== (card.folderIds ?? []).length) {
-      // The card sync removes this folder's row for the card.
       await patchCardWithSearchSync(ctx, card._id, {
         folderIds: remaining.length > 0 ? remaining : undefined,
         updatedAt: now,

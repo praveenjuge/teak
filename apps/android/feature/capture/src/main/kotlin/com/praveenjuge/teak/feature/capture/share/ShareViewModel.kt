@@ -2,8 +2,8 @@ package com.praveenjuge.teak.feature.capture.share
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.catchingFailures
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface ShareUiState {
-    /** Waiting to learn whether someone is signed in. */
     data object Resolving : ShareUiState
     data object Saving : ShareUiState
     data object Saved : ShareUiState
@@ -33,7 +32,6 @@ class ShareViewModel @Inject constructor(
     val uiState: StateFlow<ShareUiState> = _uiState.asStateFlow()
 
     private val _close = Channel<Unit>(Channel.CONFLATED)
-    /** Fires when the sheet should close by itself, a moment after a save. */
     val close: Flow<Unit> = _close.receiveAsFlow()
 
     private var started = false
@@ -56,16 +54,10 @@ class ShareViewModel @Inject constructor(
         import(items)
     }
 
-    @Suppress("TooGenericExceptionCaught") // Any failure becomes a message on the sheet.
     private fun import(items: List<ShareItem>) {
         viewModelScope.launch {
-            val result = try {
-                importer.import(items) { _uiState.value = ShareUiState.Saving }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                ShareResult.Failed(null)
-            }
+            val result = catchingFailures { importer.import(items) { _uiState.value = ShareUiState.Saving } }
+                .getOrElse { ShareResult.Failed(null) }
             _uiState.value = when (result) {
                 ShareResult.Empty -> ShareUiState.Empty
                 ShareResult.SignInRequired -> ShareUiState.SignInRequired

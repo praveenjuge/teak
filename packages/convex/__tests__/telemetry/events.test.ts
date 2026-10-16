@@ -1,6 +1,10 @@
-// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { emitCardOutcome, emitUserCreated } from "../../telemetry/events";
+import {
+  asFetch,
+  handlerOf,
+  mockActionCtx,
+} from "../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
 const originalToken = process.env.POSTHOG_PROJECT_TOKEN;
@@ -11,7 +15,7 @@ const sentEvents = () =>
 
 beforeEach(() => {
   fetchMock = mock(async () => Response.json({ status: 1 }));
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = asFetch(fetchMock);
   process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
 });
 
@@ -26,14 +30,17 @@ afterEach(() => {
 
 describe("server product events", () => {
   test("maps card outcomes to created and failed events", async () => {
-    await emitCardOutcome._handler(
-      {},
-      { cardType: "link", outcome: "success", source: "api", userId: "u1" }
-    );
-    await emitCardOutcome._handler(
-      {},
-      { errorClass: "ValidationError", outcome: "failure", userId: "u1" }
-    );
+    await handlerOf(emitCardOutcome)(mockActionCtx({}), {
+      cardType: "link",
+      outcome: "success",
+      source: "api",
+      userId: "u1",
+    });
+    await handlerOf(emitCardOutcome)(mockActionCtx({}), {
+      errorClass: "ValidationError",
+      outcome: "failure",
+      userId: "u1",
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(
@@ -63,10 +70,11 @@ describe("server product events", () => {
   });
 
   test("identifies a new account with its email and free plan", async () => {
-    await emitUserCreated._handler(
-      {},
-      { email: "new@example.com", source: "auth", userId: "teak_u2" }
-    );
+    await handlerOf(emitUserCreated)(mockActionCtx({}), {
+      email: "new@example.com",
+      source: "auth",
+      userId: "teak_u2",
+    });
 
     const [event] = sentEvents();
     expect(event).toMatchObject({

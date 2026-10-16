@@ -3,7 +3,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
-import type { AccountImportDeletionObject } from "../accountDeletion";
 import { inferFileFormat } from "../shared/fileFormats";
 import { isMarkdownFileName } from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
@@ -225,7 +224,6 @@ export const indexImportSource = internalAction({
         });
         const items: ReturnType<typeof normalizeIndexItem>[] = [];
         let batchBytes = 0;
-        // Bound both concurrent remote reads and expanded Markdown memory.
         for (let offset = 0; offset < normalized.length; offset += 8) {
           const batch = normalized.slice(offset, offset + 8);
           await Promise.all(
@@ -397,7 +395,6 @@ export const extractImportFiles = internalAction({
   ),
 });
 
-// Failure reports contain a bounded identifying excerpt, never entire card bodies.
 const reportLabel = (text: string) =>
   text.length > 1024 ? `${text.slice(0, 1024)}…` : text;
 
@@ -553,43 +550,4 @@ export const cleanupExpiredUploads = internalAction({
       return null;
     }
   ),
-});
-
-export const deleteAccountImportObjectsHandler = async (
-  ctx: ActionCtx,
-  { objects }: { objects: AccountImportDeletionObject[] }
-) => {
-  let failureCount = 0;
-  for (const object of objects) {
-    try {
-      await abortImportUpload(object.sourceKey, object.uploadId);
-      // Persist deletion work before the account cleanup removes these rows.
-      await queueImportObjectDeletion(ctx, [
-        object.sourceKey,
-        object.reportKey,
-      ]);
-    } catch {
-      failureCount += 1;
-    }
-  }
-  if (failureCount) {
-    throw new Error(
-      `Account import cleanup incomplete for ${failureCount} objects; retry required`
-    );
-  }
-  return null;
-};
-
-export const deleteAccountImportObjects = internalAction({
-  args: {
-    objects: v.array(
-      v.object({
-        sourceKey: v.string(),
-        reportKey: v.optional(v.string()),
-        uploadId: v.optional(v.string()),
-      })
-    ),
-  },
-  returns: v.null(),
-  handler: deleteAccountImportObjectsHandler,
 });

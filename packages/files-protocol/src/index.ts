@@ -30,9 +30,6 @@ export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;
 export const FILES_OPS = [
   "capabilities",
   "analyze-image",
-  // Additive alias of analyze-image; both are accepted so Worker and Convex
-  // deployments can overlap safely within protocol version 1.
-  "analyze-image-content",
   "abort-multipart",
   "build-export",
   "cleanup-stale-pending-uploads",
@@ -50,11 +47,8 @@ export const FILES_OPS = [
   "head-object",
   "inspect",
   "list-objects",
-  "transcribe-audio",
   "index-import-source",
   "read-import-markdown",
-  // Rendering and media (Browser Run and the media renderer Container); see
-  // ./rendering.
   "render-pdf-thumbnail",
   "extract-video-frame",
   "capture-screenshot",
@@ -62,8 +56,7 @@ export const FILES_OPS = [
   "probe-media",
   // Palette of an animated GIF from frames across it; stores nothing.
   "extract-animation-palette",
-  // Waveform, media facts and transcript in one pass; supersedes
-  // transcribe-audio, which stays for Convex deployments that predate it.
+  // Waveform, media facts and transcript in one pass.
   "process-audio",
   // Downloads a remote preview asset through the fetcher Container straight
   // into R2; see ./remoteAsset.
@@ -251,7 +244,6 @@ export const buildImageSourceSigningPayload = ({
 
 export const FILES_TRANSCRIPTION_MODEL =
   "@cf/openai/whisper-large-v3-turbo" as const;
-export const FILES_AUDIO_MAX_BYTES = 100 * 1024 * 1024;
 export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
 /**
  * Text the inspect op extracts from a document: at most this many characters
@@ -260,34 +252,26 @@ export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
  */
 export const FILES_EXTRACTED_TEXT_MAX_CHARACTERS = 512 * 1024;
 export const FILES_PDF_TEXT_MAX_PAGES = 500;
-export interface FilesTranscriptParams {
-  mimeType?: string;
-  sourceKey: string;
-}
-export interface FilesTranscriptResult {
-  byteLength: number;
-  mimeType: string;
-  sourceEtag: string;
-  text: string;
-}
 
 export const FILES_IMPORT_PAGE_BYTES = 4 * 1024 * 1024;
 export const FILES_IMPORT_PAGE_ITEMS = 100;
+export const FILES_IMPORT_MODES = [
+  "bookmarks",
+  "pocket",
+  "raindrop",
+  "instapaper",
+  "readwise",
+  "omnivore",
+  "linkwarden",
+  "mymind",
+  "onetab",
+  "archive",
+] as const;
+export type FilesImportMode = (typeof FILES_IMPORT_MODES)[number];
 export interface FilesImportIndexParams {
   cursor?: number;
   expectedSize: number;
-  /** A source in @teak/convex shared/importSources.ts IMPORT_MODES. */
-  mode:
-    | "archive"
-    | "bookmarks"
-    | "raindrop"
-    | "pocket"
-    | "instapaper"
-    | "readwise"
-    | "omnivore"
-    | "linkwarden"
-    | "mymind"
-    | "onetab";
+  mode: FilesImportMode;
   sourceEtag?: string;
   sourceKey: string;
 }
@@ -323,3 +307,4 @@ export * from "./linkPage";
 export * from "./metadata";
 export * from "./remoteAsset";
 export * from "./rendering";
+export * from "./storage";

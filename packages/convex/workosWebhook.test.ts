@@ -88,10 +88,6 @@ const snapshot = (t: Backend) =>
     scheduled: await ctx.db.system.query("_scheduled_functions").take(10),
   }));
 
-// Failures: forged/tampered/expired deliveries write data; parsing changes signed
-// bytes; callback suppression loses canonical receipts; component failure commits
-// only one store; retries duplicate quarantine; trimmed deletion revives a vault;
-// body limits or registration routing regress when replacing webhook ingress.
 describe.each([
   "environment_01KBYSVN9RVQ1JXACG3MDMQZGA",
   "environment_01M46HC8CJ5D0THX3EP6WVDKMM",
@@ -116,7 +112,6 @@ describe.each([
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("OK");
     const result = await snapshot(t);
-    // The owner and role stay; the address follows the provider profile.
     expect(result.users[0]).toMatchObject({
       teakUserId: "owner-a",
       email: "provider@example.com",

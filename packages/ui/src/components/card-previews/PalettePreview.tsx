@@ -31,8 +31,6 @@ export function PalettePreview({ card }: PalettePreviewProps) {
     );
   }
 
-  // Swatches sit side by side like the grid card and wrap onto new rows when
-  // the pane is too narrow for every hex label.
   return (
     <div className="flex min-h-full items-center justify-center">
       <div className="flex w-full max-w-3xl flex-wrap overflow-hidden rounded-2xl border">

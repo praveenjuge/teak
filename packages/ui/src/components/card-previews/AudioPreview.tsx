@@ -154,7 +154,6 @@ export function AudioPreview({ card }: AudioPreviewProps) {
               hidden
               onDurationChange={syncDuration}
               onEnded={(e) => {
-                // Recordings without a stored duration learn it on first play.
                 const playedTo = e.currentTarget.currentTime;
                 setDuration((value) => (value > 0 ? value : playedTo));
                 setIsPlaying(false);

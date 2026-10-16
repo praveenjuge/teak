@@ -13,7 +13,6 @@ public enum ConvexValue: Sendable, Hashable {
 
     public static func number(_ value: Int) -> ConvexValue { .number(Double(value)) }
 
-    /// The JSON the Convex HTTP API and the Swift client expect.
     public func jsonData() throws -> Data {
         try JSONSerialization.data(withJSONObject: foundationValue, options: [.fragmentsAllowed, .sortedKeys])
     }

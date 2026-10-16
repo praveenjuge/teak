@@ -2,8 +2,6 @@ import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-respons
 
 const MAX_BROWSER_PREVIEW_BYTES = 1024 * 1024;
 const MAX_MEMORY_CACHE_BYTES = 4 * 1024 * 1024;
-// Match the 15-minute signed URL lifetime so a cached preview stops rendering
-// once the underlying private file may have expired or been deleted.
 const PREVIEW_CACHE_TTL_MS = 15 * 60 * 1000;
 
 interface LoadFileTextPreviewOptions {
@@ -68,7 +66,6 @@ export const cachedFileTextPreview = (cacheKey: string): string | undefined => {
     dropCacheEntry(cacheKey);
     return;
   }
-  // Refresh recency so the byte-budget eviction stays LRU-ordered.
   previewCache.delete(cacheKey);
   previewCache.set(cacheKey, cached);
   return cached.source;

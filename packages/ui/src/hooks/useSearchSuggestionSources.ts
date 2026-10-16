@@ -25,7 +25,6 @@ export function useSearchSuggestionSources(
   return useMemo(
     () => ({
       tags: tagSummary?.items,
-      // `folder:` names manual folders: no card is in a smart one.
       folders: folders === undefined ? undefined : manualFolders(folders),
       sites,
     }),

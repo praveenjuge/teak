@@ -6,18 +6,13 @@ import { runCommand } from "./proc.ts";
 
 const PROC_MODULE = join(import.meta.dir, "proc.ts");
 
-/**
- * Runs a script that starts `runCommand(["sleep", ...])`, waits until the
- * script prints "ready", then sends it SIGTERM. Returns its output, how it
- * ended, and the sleeper's pid.
- */
 const signalWhileRunning = async (body: string) => {
   const dir = mkdtempSync(join(tmpdir(), "proc-signal-"));
   try {
     const script = join(dir, "script.ts");
     writeFileSync(
       script,
-      `import { runCommand } from ${JSON.stringify(PROC_MODULE)};\n${body}`
+      `import { onExitSignal, runCommand } from ${JSON.stringify(PROC_MODULE)};\n${body}`
     );
     const child = Bun.spawn(["bun", script], { stdout: "pipe" });
     const reader = child.stdout.getReader();
@@ -180,12 +175,9 @@ describe("runCommand", () => {
     }
   });
 
-  // `bun run dev --stop` sends SIGTERM while the lease heartbeat is often
-  // inside runCommand; re-raising it killed the stack before it stopped its
-  // web server and `convex dev`.
-  test("a signal leaves a script's own shutdown handler to finish", async () => {
+  test("a signal mid-command leaves the script's own shutdown handler to finish", async () => {
     const ended = await signalWhileRunning(`
-process.once("SIGTERM", async () => {
+onExitSignal(async () => {
   await Bun.sleep(300);
   console.log("cleaned up");
   process.exit(0);

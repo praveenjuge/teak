@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared R2 storage module mock for tests. Bun's `mock.module` is registered
  * globally, so any test file that mocks `storage/r2` will affect every other
@@ -22,9 +21,9 @@
  */
 
 import { mock } from "bun:test";
+import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
 import {
   bucketedSignatureExpiry,
-  buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
   getR2ReadBase,
@@ -40,33 +39,14 @@ import {
   isR2KeyInNamespace,
 } from "../../storage/r2Keys";
 
-const hashUserId = (userId: string) =>
-  Array.from(new TextEncoder().encode(userId))
-    .reduce((hash, byte) => (hash * 31 + byte) >>> 0, 0)
-    .toString(36);
+const buildR2UserPrefix = (userId: string) => filesCardKeyPrefix("", userId);
 
-const buildR2UserPrefix = (userId: string) =>
-  ["users", hashUserId(userId), "cards"].join("/");
-
-const buildR2ObjectKey = ({
-  userId,
-  cardId,
-  role,
-  fileName,
-}: {
+const buildR2ObjectKey = (args: {
   userId: string;
   cardId?: string;
   role: string;
   fileName?: string;
-}) => {
-  const safeName = fileName?.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
-  return [
-    buildR2UserPrefix(userId),
-    cardId ?? "pending",
-    role,
-    `${crypto.randomUUID()}${safeName ? `-${safeName}` : ""}`,
-  ].join("/");
-};
+}) => buildCardObjectKey({ envPrefix: "", ...args });
 
 export const r2Mocks = {
   deleteObject: mock().mockResolvedValue(null),
@@ -97,7 +77,6 @@ export const r2MockModuleFactory = () => ({
   // Pure URL-signing helpers pass through so files importing them alongside
   // the mocked module never hit a named-export link error.
   bucketedSignatureExpiry,
-  buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
   getR2ReadBase,

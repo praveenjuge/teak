@@ -122,8 +122,6 @@ export const filterLocalCards = (
     textMatchedByServer = false,
   }: LocalSearchFilters
 ) => {
-  // Qualifiers filter like the server does; `folder:` names cannot be
-  // resolved here, so callers leave folder searches to the server.
   const parsed = parseSearchQuery(searchTerms);
   const terms = tokenizeSearchQuery(parsed.terms.join(" "));
   const tagKeys = [tag?.trim().toLowerCase() ?? "", ...parsed.tags].filter(
@@ -134,105 +132,99 @@ export const filterLocalCards = (
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
 
-  return (
-    cards
-      .filter((card) => {
-        if (showTrashOnly) {
-          if (card.isDeleted !== true) {
-            return false;
-          }
-          if (parsed.archived && card.isArchived !== true) {
-            return false;
-          }
-        } else if (
-          card.isDeleted ||
-          (card.isArchived === true) !== archivedOnly
-        ) {
+  return cards
+    .filter((card) => {
+      if (showTrashOnly) {
+        if (card.isDeleted !== true) {
           return false;
         }
+        if (parsed.archived && card.isArchived !== true) {
+          return false;
+        }
+      } else if (
+        card.isDeleted ||
+        (card.isArchived === true) !== archivedOnly
+      ) {
+        return false;
+      }
 
-        if (types && types.length > 0 && !types.includes(card.type)) {
-          return false;
-        }
-        if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
-          return false;
-        }
-        // Only links have a price, and one without a price never matches.
-        if (
-          parsed.prices.length > 0 &&
-          !(
-            card.type === "link" &&
-            matchesPriceBounds(
-              card.metadata?.linkCategory?.price?.amount,
-              parsed.prices
-            )
+      if (types && types.length > 0 && !types.includes(card.type)) {
+        return false;
+      }
+      if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
+        return false;
+      }
+      if (
+        parsed.prices.length > 0 &&
+        !(
+          card.type === "link" &&
+          matchesPriceBounds(
+            card.metadata?.linkCategory?.price?.amount,
+            parsed.prices
           )
-        ) {
-          return false;
-        }
+        )
+      ) {
+        return false;
+      }
 
-        if (tagKeys.length > 0) {
-          const cardTags = new Set(
-            [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
-              cardTag.trim().toLowerCase()
-            )
-          );
-          if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
-            return false;
-          }
-        }
-
-        if (parsed.sites.length > 0) {
-          const host = normalizeUrlHost(card.url);
-          if (!(host && parsed.sites.includes(host))) {
-            return false;
-          }
-        }
-
-        if (
-          !matchesVisualFilters(card, {
-            styleFilters: normalizedStyles,
-            hueFilters: normalizedHues,
-            hexFilters: normalizedHexes,
-          })
-        ) {
-          return false;
-        }
-
-        if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
-          return false;
-        }
-
-        if (
-          createdAtRange &&
-          (card.createdAt < createdAtRange.start ||
-            card.createdAt >= createdAtRange.end)
-        ) {
-          return false;
-        }
-
-        if (
-          (textMatchedByServer &&
-            (card.hasExtractedText === true ||
-              (card as { matchedByMeaning?: true }).matchedByMeaning)) ||
-          (terms.length === 0 && parsed.phrases.length === 0)
-        ) {
-          return true;
-        }
-
-        const searchableText = buildSearchableText(card);
-        // A phrase stays inside one field, as on the server: two tags in a
-        // row ("design", "systems") are not the phrase "design system".
-        return (
-          terms.every((term) => searchableText.includes(term)) &&
-          matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
+      if (tagKeys.length > 0) {
+        const cardTags = new Set(
+          [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
+            cardTag.trim().toLowerCase()
+          )
         );
-      })
-      // Shuffle's order comes from the server (or the caller); keep it.
-      .sort((a, b) =>
-        sort === "shuffle" ? 0 : compareCardsByCreatedAt(a, b, sort)
-      )
-  );
+        if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+          return false;
+        }
+      }
+
+      if (parsed.sites.length > 0) {
+        const host = normalizeUrlHost(card.url);
+        if (!(host && parsed.sites.includes(host))) {
+          return false;
+        }
+      }
+
+      if (
+        !matchesVisualFilters(card, {
+          styleFilters: normalizedStyles,
+          hueFilters: normalizedHues,
+          hexFilters: normalizedHexes,
+        })
+      ) {
+        return false;
+      }
+
+      if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
+        return false;
+      }
+
+      if (
+        createdAtRange &&
+        (card.createdAt < createdAtRange.start ||
+          card.createdAt >= createdAtRange.end)
+      ) {
+        return false;
+      }
+
+      if (
+        (textMatchedByServer &&
+          (card.hasExtractedText === true ||
+            (card as { matchedByMeaning?: true }).matchedByMeaning)) ||
+        (terms.length === 0 && parsed.phrases.length === 0)
+      ) {
+        return true;
+      }
+
+      const searchableText = buildSearchableText(card);
+      return (
+        terms.every((term) => searchableText.includes(term)) &&
+        matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
+      );
+    })
+    .sort((a, b) =>
+      sort === "shuffle" ? 0 : compareCardsByCreatedAt(a, b, sort)
+    );
 };
 
 export function mergeCardsIntoLocalSearchCache(
@@ -324,8 +316,6 @@ export function mergeLocalAndRemoteSearchResults(
         )
       : cards;
 
-  // The previous query's cards stay on screen while a new one loads; keeping
-  // them in the chosen order means a sort change takes effect at once.
   if (!hasActiveSearch) {
     return ordered(remoteCards);
   }

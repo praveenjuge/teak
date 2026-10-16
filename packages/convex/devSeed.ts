@@ -32,13 +32,6 @@ import {
 import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
-// Seed data for development accounts (`bun run dev`). It runs only on the
-// shared dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to
-// the WorkOS emulator; any other deployment refuses it. Card types that need
-// stored files (image, video, audio, document) are left out. Link cards start
-// pending and run through the real processing workflow, so their previews come
-// from the page itself; every other card is inserted already processed.
-
 const link = (
   url: string,
   extra: Partial<DefaultCardDef> = {}
@@ -191,11 +184,6 @@ export const DEV_SEED_CARDS: DefaultCardDef[] = [
   }),
 ];
 
-/**
- * Fill a dev account's empty vault. The account is linked first by its
- * user.created webhook. Safe to re-run: a vault that holds anything beyond the
- * onboarding cards is left alone.
- */
 export const seed = internalMutation({
   args: { workosUserId: v.string() },
   returns: v.object({
@@ -229,12 +217,6 @@ export const seed = internalMutation({
   },
 });
 
-// Opt-in scenario packs for checking a feature against awkward data. Unlike
-// `seed`, they add to a vault that already holds cards, and run only when
-// asked: `bunx convex run devSeed:seedScenario '{"workosUserId": "...",
-// "scenario": "card-details"}'`. Each pack's cards carry a marker URL, so
-// running a pack twice adds nothing the second time.
-
 const SCENARIO_MARKER = "teak-scenario";
 
 const bylineLink = (
@@ -265,9 +247,6 @@ const bylineLink = (
   };
 };
 
-// Phase 1 ("card details"): link bylines in every shape pages send them.
-// Images with and without EXIF need stored files, so they are uploaded
-// through the API instead (see the Phase 1 plan's proof steps).
 export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
   bylineLink("full", "https://www.theverge.com/2024/3/5/teak-byline", {
     title: "A full byline whose publisher repeats the site",
@@ -333,18 +312,12 @@ export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
   ),
 ];
 
-// Ordering: 1,000 cards whose saved dates (`createdAt`) are spread over ten
-// years but inserted in a shuffled order, so insertion order and saved date
-// disagree on every page. Each card's text names its index and saved date,
-// so the grid shows at a glance whether it is sorted. Seeded 200 at a time.
 export const ORDERING_SCENARIO_SIZE = 1000;
 export const ORDERING_SCENARIO_PAGE_SIZE = 200;
 const ORDERING_START = Date.UTC(2016, 0, 1);
 const ORDERING_SPAN = Date.UTC(2026, 0, 1) - ORDERING_START;
 const ORDERING_TYPES = ["text", "quote", "link", "palette"] as const;
 
-// A fixed permutation of 0..n-1 (multiplication by a unit mod n), so the
-// pack is the same on every run.
 const orderingIndexAt = (position: number) =>
   (position * 389) % ORDERING_SCENARIO_SIZE;
 
@@ -403,12 +376,6 @@ const orderingScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
-// Archive mix: 1,000 cards in every library state. Every fifth card is
-// archived (200), 20 of those are also in Trash, 100 more are only in Trash,
-// and every seventh card is a favorite whatever its state. Tags differ only
-// by case ("Moodboard", "moodboard") across archived and active cards. Each
-// label names its state, so a wrong view shows at a glance. Seeded 200 at a
-// time.
 export const ARCHIVE_MIX_SCENARIO_SIZE = 1000;
 export const ARCHIVE_MIX_SCENARIO_PAGE_SIZE = 200;
 const ARCHIVE_MIX_START = Date.UTC(2025, 0, 1);
@@ -462,10 +429,6 @@ const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
-// Tag packs (Phase 6). "tags-2000": 1,000 cards carrying 2,000 distinct tags
-// (two each), plus a few shared ones so the sidebar has clear leaders: every
-// other card is "design", every third "reference", every fifth
-// "inspiration". Seeded 200 cards at a time.
 export const TAGS_2000_SCENARIO_SIZE = 1000;
 export const TAGS_2000_SCENARIO_PAGE_SIZE = 200;
 const TAGS_2000_START = Date.UTC(2025, 6, 1);
@@ -502,9 +465,6 @@ const tags2000ScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
-// "tags-case": one tag in three casings across user and AI tags, on active,
-// archived and trashed cards, next to emoji, right-to-left, CJK and
-// 64-character tags.
 export const LONG_SCENARIO_TAG = `long-${"x".repeat(59)}`;
 
 const tagsCaseCard = (
@@ -545,20 +505,12 @@ export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
   tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
 ];
 
-// Folder packs. Each lists its folders and its cards, and each card names
-// the folders it starts in by their place in that list. Folders are matched
-// by name ignoring case, as the app matches them: running a pack twice adds
-// nothing, and a name that differs from another only by case lands in the
-// same folder rather than breaking the one-name-per-folder rule. Folders stop
-// at the account's cap. The cards' marker URL makes them seed once.
 export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
-  /** Places in the pack's folder list. */
   folders: number[];
 }
 
 export interface FolderScenarioPack {
   cards: FolderScenarioCard[];
-  /** `query` makes a smart folder with that search. */
   folders: { color?: FolderColor; name: string; query?: string }[];
 }
 
@@ -588,7 +540,6 @@ const folderScenarioCard = (
     folders,
     ...extra,
   };
-  // The first card of every pack is a link, so its marker URL is found.
   if (index === 0) {
     const url = `https://example.com/${scenario}#${SCENARIO_MARKER}-${scenario}`;
     return { ...base, type: "link", content: url, url, metadataTitle: label };
@@ -609,9 +560,6 @@ const FOLDER_COLOR_CYCLE: (FolderColor | undefined)[] = [
   undefined,
 ];
 
-// One folder holding active, archived and trashed cards, beside cards that
-// are in no folder, so the folder view and its count show what they leave
-// out.
 const foldersOnePack = (): FolderScenarioPack => {
   const states: [string, Partial<DefaultCardDef>][] = [
     ...Array.from({ length: 8 }, (): [string, Partial<DefaultCardDef>] => [
@@ -646,8 +594,6 @@ const foldersOnePack = (): FolderScenarioPack => {
   };
 };
 
-// The account's cap: 500 folders, the first holding a few cards, the rest
-// empty, every tenth one uncolored.
 const folders500Pack = (): FolderScenarioPack => ({
   folders: Array.from({ length: MAX_FOLDERS_PER_USER }, (_, index) => ({
     name: `Folder ${String(index + 1).padStart(3, "0")}`,
@@ -663,8 +609,6 @@ const folders500Pack = (): FolderScenarioPack => ({
   ),
 });
 
-// A card at the per-card cap: one card in 50 folders, one in 49, and a 51st
-// folder neither is in, so adding the full card to it is refused.
 const cardIn50FoldersPack = (): FolderScenarioPack => {
   const all = Array.from({ length: MAX_FOLDERS_PER_CARD }, (_, index) => index);
   return {
@@ -692,7 +636,6 @@ const cardIn50FoldersPack = (): FolderScenarioPack => {
 const longName = (word: string) =>
   `${word} `.repeat(MAX_FOLDER_NAME_LENGTH).slice(0, MAX_FOLDER_NAME_LENGTH);
 
-/** Names that are awkward to show, sort, truncate or compare. */
 export const UGLY_FOLDER_NAMES = [
   "🎨 Moodboard ✨",
   "👩‍👩‍👧‍👦",
@@ -710,14 +653,11 @@ export const UGLY_FOLDER_NAMES = [
   "Zürich",
 ];
 
-// The Arabic folder's card is archived and the Hebrew one's is in Trash.
 const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
   2: { isArchived: true },
   3: { isDeleted: true },
 };
 
-// Awkward names, each folder holding one card; the case-only variants of
-// "Ideas" land in the same folder, and two cards are archived or in Trash.
 const foldersUglyPack = (): FolderScenarioPack => ({
   folders: UGLY_FOLDER_NAMES.map((name, index) => ({
     name,
@@ -734,11 +674,6 @@ const foldersUglyPack = (): FolderScenarioPack => ({
   ),
 });
 
-// "search-qualifiers": links on 30 hosts written every way `site:` must
-// match (www., capitals, a port, Unicode and punycode, an IP), tags in
-// several casings and hex-shaped names (`#fff` is a color, `tag:fff` the
-// tag), folders with spaces and quotes, and favorite, archived and trashed
-// cards among them.
 export const SEARCH_QUALIFIER_HOSTS = [
   "https://github.com/teak/design-system",
   "https://www.github.com/teak/notes",
@@ -839,10 +774,6 @@ const searchQualifiersPack = (): FolderScenarioPack => {
   };
 };
 
-// "smart-folders": smart folders whose searches match nothing, the whole
-// pack, exactly one card, a manual folder's favorites (`folder:`), design
-// links, an emoji and an RTL search, and a search at the 500-character
-// limit, over a handful of cards that exercise each.
 const SMART_FOLDER_PHRASE = "the only card with this phrase";
 const smartFolderLongQuery = () => {
   const head = "tag:scenario-smart-folders";
@@ -939,7 +870,6 @@ const smartFoldersPack = (): FolderScenarioPack => {
   };
 };
 
-/** Folder names that break naive CSV, HTML and spreadsheet writers. */
 export const EXPORT_UGLY_FOLDER_NAMES = [
   'Quotes "and", commas',
   "Line one\nline two",
@@ -951,10 +881,6 @@ export const EXPORT_UGLY_FOLDER_NAMES = [
   longName("Folder"),
 ];
 
-// "export-ugly": what an export must write safely in cards.json,
-// bookmarks.html and cards.csv: titles and folder names with quotes, commas,
-// newlines, markup, formulas, emoji, RTL and CJK; a link in 50 folders;
-// archived and favorite cards; cards with and without AI fields.
 const exportUglyPack = (): FolderScenarioPack => {
   const scenario = "export-ugly" as const;
   const stacks = Array.from(
@@ -1036,40 +962,11 @@ const exportUglyPack = (): FolderScenarioPack => {
   };
 };
 
-export const folderScenarioPack = (
-  scenario: FolderScenario
-): FolderScenarioPack => {
-  switch (scenario) {
-    case "search-qualifiers":
-      return searchQualifiersPack();
-    case "smart-folders":
-      return smartFoldersPack();
-    case "export-ugly":
-      return exportUglyPack();
-    case "folders-one":
-      return foldersOnePack();
-    case "folders-500":
-      return folders500Pack();
-    case "card-in-50-folders":
-      return cardIn50FoldersPack();
-    default:
-      return foldersUglyPack();
-  }
-};
-
-const isFolderScenario = (scenario: string): scenario is FolderScenario =>
-  (FOLDER_SCENARIOS as readonly string[]).includes(scenario);
-
-/**
- * Seeds a folder pack: the folders it names that are not there yet (up to
- * the cap), then its cards in those folders unless they are there already.
- */
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
-  scenario: FolderScenario
+  pack: FolderScenarioPack
 ) => {
-  const pack = folderScenarioPack(scenario);
   const existing = await ctx.db
     .query("folders")
     .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
@@ -1088,7 +985,6 @@ const seedFolderScenario = async (
     const key = folderNameKey(folder.name);
     let folderId = byKey.get(key);
     if (!folderId && total < MAX_FOLDERS_PER_USER) {
-      // Spaced a millisecond apart so creation order is stable.
       folderId = await insertFolder(
         ctx,
         userId,
@@ -1140,9 +1036,6 @@ const seedFolderScenario = async (
   };
 };
 
-// "search-qualifiers-1000": 1,000 links, nine in ten on one host, so `site:`
-// and the other qualifiers page through more than one scan budget. Seeded
-// 200 at a time.
 export const SEARCH_QUALIFIERS_VOLUME_SIZE = 1000;
 export const SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE = 200;
 const SEARCH_QUALIFIERS_VOLUME_START = Date.UTC(2024, 0, 1);
@@ -1185,11 +1078,6 @@ const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
   );
 };
 
-// "keyboard-mixed": 48 cards whose heights differ a lot (tall and wide
-// blocks beside one-line notes and palettes), so moving through the masonry
-// grid with the arrow keys has to pick the visually nearest card. The blocks
-// are images with no stored file: the grid shows them in their color at
-// their size.
 const KEYBOARD_MIXED_START = Date.UTC(2026, 9, 1);
 const KEYBOARD_MIXED_SHAPES = [
   "tall",
@@ -1254,10 +1142,6 @@ export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
 
 const KEYBOARD_MIXED_SCENARIO_SIZE = 48;
 
-// "shuffle-partial": 400 cards, 300 of them without a Shuffle key, as cards
-// saved before the key existed are until the backfill runs. Every fourth
-// card has a key. Shuffle must still show each card exactly once. Seeded 200
-// at a time; each page starts with its marker link.
 export const SHUFFLE_PARTIAL_SCENARIO_SIZE = 400;
 const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
 const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
@@ -1271,7 +1155,6 @@ export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
   const base = {
     createdAt: SHUFFLE_PARTIAL_START + index * 86_400_000,
     tags: ["scenario-shuffle-partial"],
-    // null: inserted without a key, like a card from before Shuffle.
     shuffleKey: keyed ? undefined : null,
   };
   if (index % SHUFFLE_PARTIAL_PAGE_SIZE === 0) {
@@ -1300,73 +1183,113 @@ const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
-const scenarioPackPage = (
-  scenario:
-    | "card-details"
-    | "keyboard-mixed"
-    | "ordering"
-    | "shuffle-partial"
-    | "archive-mix"
-    | "tags-2000"
-    | "tags-case"
-    | "search-qualifiers-1000",
-  page: number
-): DefaultCardDef[] => {
-  if (scenario === "search-qualifiers-1000") {
-    return searchQualifiersVolumePage(page);
-  }
-  if (scenario === "keyboard-mixed") {
-    return page === 0
-      ? Array.from({ length: KEYBOARD_MIXED_SCENARIO_SIZE }, (_, index) =>
-          keyboardMixedScenarioCard(index)
-        )
-      : [];
-  }
-  if (scenario === "ordering") {
-    return orderingScenarioPage(page);
-  }
-  if (scenario === "shuffle-partial") {
-    return shufflePartialScenarioPage(page);
-  }
-  if (scenario === "tags-2000") {
-    return tags2000ScenarioPage(page);
-  }
-  if (scenario === "tags-case") {
-    return page === 0 ? TAGS_CASE_SCENARIO_CARDS : [];
-  }
-  if (scenario === "archive-mix") {
-    return archiveMixScenarioPage(page);
-  }
-  return CARD_DETAILS_SCENARIO_CARDS;
+type ScenarioPack = { description: string } & (
+  | { cards: (page: number) => DefaultCardDef[] }
+  | { folders: () => FolderScenarioPack }
+);
+
+const firstPageOnly = (cards: DefaultCardDef[]) => (page: number) =>
+  page === 0 ? cards : [];
+
+const SCENARIOS: Record<string, ScenarioPack> = {
+  "card-details": {
+    description:
+      "Link bylines in every shape pages send them. Images with and without EXIF need stored files, so upload those through the API.",
+    cards: () => CARD_DETAILS_SCENARIO_CARDS,
+  },
+  ordering: {
+    description:
+      "1,000 cards saved over ten years but inserted in shuffled order; each names its index and saved date. 200 per page.",
+    cards: orderingScenarioPage,
+  },
+  "archive-mix": {
+    description:
+      "1,000 cards in every library state: every fifth archived, 20 of those also in Trash, 100 more only in Trash, every seventh a favorite, tags differing only by case. 200 per page.",
+    cards: archiveMixScenarioPage,
+  },
+  "tags-2000": {
+    description:
+      "1,000 cards carrying 2,000 distinct tags, plus shared design, reference and inspiration tags. 200 per page.",
+    cards: tags2000ScenarioPage,
+  },
+  "tags-case": {
+    description:
+      "One tag in three casings across user and AI tags on active, archived and trashed cards, beside emoji, RTL, CJK and 64-character tags.",
+    cards: firstPageOnly(TAGS_CASE_SCENARIO_CARDS),
+  },
+  "folders-one": {
+    description:
+      "One folder holding active, archived and trashed cards, beside cards in no folder.",
+    folders: foldersOnePack,
+  },
+  "folders-500": {
+    description:
+      "The 500-folder cap: the first holds a few cards, the rest are empty, every tenth uncolored.",
+    folders: folders500Pack,
+  },
+  "card-in-50-folders": {
+    description:
+      "One card in 50 folders, one in 49, and a 51st folder neither is in, so adding the full card to it is refused.",
+    folders: cardIn50FoldersPack,
+  },
+  "folders-ugly": {
+    description:
+      'Awkward folder names, one card each; case-only variants of "Ideas" share a folder, and two cards are archived or in Trash.',
+    folders: foldersUglyPack,
+  },
+  "search-qualifiers": {
+    description:
+      "Links on 30 hosts written every way site: must match, tags in several casings and hex-shaped names, folders with spaces and quotes, and favorite, archived and trashed cards.",
+    folders: searchQualifiersPack,
+  },
+  "search-qualifiers-1000": {
+    description:
+      "1,000 links, nine in ten on one host, so qualifiers page through more than one scan budget. 200 per page.",
+    cards: searchQualifiersVolumePage,
+  },
+  "smart-folders": {
+    description:
+      "Smart folders matching nothing, the whole pack, exactly one card, a manual folder's favorites, design links, an emoji, an RTL and a 500-character search.",
+    folders: smartFoldersPack,
+  },
+  "export-ugly": {
+    description:
+      "Titles and folder names an export must write safely (quotes, commas, newlines, markup, formulas, emoji, RTL, CJK), a link in 50 folders, archived and favorite cards, with and without AI fields.",
+    folders: exportUglyPack,
+  },
+  "keyboard-mixed": {
+    description:
+      "48 cards of very different heights, so arrow keys in the masonry grid must pick the visually nearest card.",
+    cards: firstPageOnly(
+      Array.from({ length: KEYBOARD_MIXED_SCENARIO_SIZE }, (_, index) =>
+        keyboardMixedScenarioCard(index)
+      )
+    ),
+  },
+  "shuffle-partial": {
+    description:
+      "400 cards, 300 without a Shuffle key as before its backfill; Shuffle must still show each card once. 200 per page.",
+    cards: shufflePartialScenarioPage,
+  },
 };
+
+const unknownScenarioMessage = () =>
+  [
+    "Unknown scenario. Packs:",
+    ...Object.entries(SCENARIOS).map(
+      ([name, { description }]) => `  ${name}: ${description}`
+    ),
+  ].join("\n");
 
 export const seedScenario = internalMutation({
   args: {
     workosUserId: v.string(),
-    scenario: v.union(
-      v.literal("card-details"),
-      v.literal("ordering"),
-      v.literal("archive-mix"),
-      v.literal("tags-2000"),
-      v.literal("tags-case"),
-      v.literal("folders-one"),
-      v.literal("folders-500"),
-      v.literal("card-in-50-folders"),
-      v.literal("folders-ugly"),
-      v.literal("search-qualifiers"),
-      v.literal("search-qualifiers-1000"),
-      v.literal("smart-folders"),
-      v.literal("export-ugly"),
-      v.literal("keyboard-mixed"),
-      v.literal("shuffle-partial")
-    ),
-    /** Large packs seed in pages: run with page 0, 1, 2… until done. */
+    scenario: v.string(),
     page: v.optional(v.number()),
   },
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
-    /** Folder packs only: the folders added. */
     folders: v.optional(v.number()),
   }),
   handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
@@ -1375,6 +1298,10 @@ export const seedScenario = internalMutation({
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );
     }
+    const pack = new Map(Object.entries(SCENARIOS)).get(scenario);
+    if (!pack) {
+      throw new Error(unknownScenarioMessage());
+    }
     const owner = await ctx.db
       .query("users")
       .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
@@ -1382,15 +1309,13 @@ export const seedScenario = internalMutation({
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
     }
-    if (isFolderScenario(scenario)) {
-      return await seedFolderScenario(ctx, owner.teakUserId, scenario);
+    if ("folders" in pack) {
+      return await seedFolderScenario(ctx, owner.teakUserId, pack.folders());
     }
-    const cards = scenarioPackPage(scenario, page);
+    const cards = pack.cards(page);
     if (cards.length === 0) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    // Each page has a link card with a marker URL; finding it (in or out of
-    // Trash) means this page was seeded already.
     const marker = cards.find((card) => card.url)?.url;
     const existing = marker
       ? await ctx.db
@@ -1403,19 +1328,12 @@ export const seedScenario = internalMutation({
     if (existing) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    // Volume packs deliberately pass the free plan's card limit.
     await insertCompletedCards(ctx, owner.teakUserId, cards, {
       ignoreCardLimit: true,
     });
     return { status: "seeded" as const, cards: cards.length };
   },
 });
-
-// Every Claude Code cloud session gets its own dev account, and nothing else
-// removes them once the session ends. `bun run dev` in a cloud session prunes
-// the stale ones through the full account deletion workflow, which also
-// deletes the WorkOS user. Unlike seeding, pruning runs only on the shared dev
-// deployment, and only for cloud session accounts.
 
 const assertPrunableDeployment = () => {
   if (!readIsDevDeployment()) {
@@ -1427,10 +1345,6 @@ const assertPrunableDeployment = () => {
 
 const CLOUD_ACCOUNT_PAGE_SIZE = 100;
 
-/**
- * One page of live cloud session accounts. Deleted owners keep their address,
- * so the range is paged rather than read in one bounded batch.
- */
 export const listCloudAccounts = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   returns: v.object({
@@ -1470,10 +1384,6 @@ export const listCloudAccounts = internalQuery({
   },
 });
 
-/**
- * Delete a finished cloud session's dev account: its cards, files and WorkOS
- * user. Refuses every other account.
- */
 export const pruneCloudAccount = internalMutation({
   args: { workosUserId: v.string() },
   returns: v.union(v.literal("deleting"), v.literal("already_deleted")),

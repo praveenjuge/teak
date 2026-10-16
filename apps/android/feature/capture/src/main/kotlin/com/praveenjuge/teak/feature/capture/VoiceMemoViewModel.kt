@@ -2,10 +2,10 @@ package com.praveenjuge.teak.feature.capture
 
 import android.content.Context
 import android.media.MediaRecorder
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.upload.StagedFile
+import com.praveenjuge.teak.core.data.upload.StagingArea
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +22,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import javax.inject.Inject
 
 enum class RecordingPhase { Idle, Recording, Saving }
@@ -33,7 +32,6 @@ data class VoiceMemoUiState(
     val error: String? = null,
 )
 
-/** Records one voice memo with [MediaRecorder] and queues it for upload when it stops. */
 @HiltViewModel
 class VoiceMemoViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -43,25 +41,16 @@ class VoiceMemoViewModel @Inject constructor(
     val uiState: StateFlow<VoiceMemoUiState> = _uiState.asStateFlow()
 
     private val _saved = Channel<Unit>(Channel.BUFFERED)
-    /** Fires once the recording is queued to upload. */
     val saved: Flow<Unit> = _saved.receiveAsFlow()
 
     private var recorder: MediaRecorder? = null
     private var output: File? = null
     private var ticker: Job? = null
+    private val stopwatch = Stopwatch()
 
-    // Time recorded before the current stretch, and when the current stretch started (0 while paused).
-    private var recordedMillis = 0L
-    private var stretchStartedAt = 0L
-
-    private val elapsedMillis: Long
-        get() = recordedMillis + if (stretchStartedAt > 0) SystemClock.elapsedRealtime() - stretchStartedAt else 0
-
-    @Suppress("TooGenericExceptionCaught") // MediaRecorder reports a busy or missing microphone as a bare RuntimeException.
     fun start() {
         if (_uiState.value.phase != RecordingPhase.Idle) return
-        // Under cache/uploads/<id>/, so the upload worker removes it once it's uploaded.
-        val directory = File(context.cacheDir, "uploads/${UUID.randomUUID()}").apply { mkdirs() }
+        val directory = StagingArea.newSlot(context)
         val file = File(directory, "recording-${System.currentTimeMillis()}.m4a")
         val mediaRecorder = MediaRecorder(context)
         try {
@@ -85,32 +74,29 @@ class VoiceMemoViewModel @Inject constructor(
         }
         recorder = mediaRecorder
         output = file
-        recordedMillis = 0
-        stretchStartedAt = SystemClock.elapsedRealtime()
+        stopwatch.reset()
+        stopwatch.start()
         _uiState.value = VoiceMemoUiState(phase = RecordingPhase.Recording)
         startTicker()
     }
 
-    /** Stops recording and queues the memo to upload in the background. */
-    @Suppress("TooGenericExceptionCaught") // MediaRecorder.stop() throws a bare RuntimeException when nothing was recorded.
     fun stop() {
         val mediaRecorder = recorder ?: return
         val file = output ?: return
         if (_uiState.value.phase != RecordingPhase.Recording) return
-        val seconds = elapsedMillis / 1000.0
+        val seconds = stopwatch.elapsedMillis / 1000.0
         _uiState.update { it.copy(phase = RecordingPhase.Saving) }
         ticker?.cancel()
         val stopped = try {
             mediaRecorder.stop()
             true
         } catch (e: RuntimeException) {
-            // Stopping right after starting leaves no audio to keep.
             false
         } finally {
             mediaRecorder.release()
             recorder = null
             output = null
-            stretchStartedAt = 0
+            stopwatch.pause()
         }
         if (!stopped || file.length() == 0L) {
             file.parentFile?.deleteRecursively()
@@ -124,22 +110,20 @@ class VoiceMemoViewModel @Inject constructor(
     /** Apps can't hear the microphone from the background, so recording pauses while Teak is hidden. */
     fun pause() {
         val mediaRecorder = recorder ?: return
-        if (stretchStartedAt == 0L) return
+        if (!stopwatch.isRunning) return
         runCatching { mediaRecorder.pause() }
-        recordedMillis = elapsedMillis
-        stretchStartedAt = 0
+        stopwatch.pause()
         ticker?.cancel()
     }
 
     fun resume() {
         val mediaRecorder = recorder ?: return
-        if (stretchStartedAt != 0L || _uiState.value.phase != RecordingPhase.Recording) return
+        if (stopwatch.isRunning || _uiState.value.phase != RecordingPhase.Recording) return
         runCatching { mediaRecorder.resume() }
-        stretchStartedAt = SystemClock.elapsedRealtime()
+        stopwatch.start()
         startTicker()
     }
 
-    /** Throws away the recording in progress. */
     fun discard() {
         ticker?.cancel()
         recorder?.let { mediaRecorder ->
@@ -149,8 +133,7 @@ class VoiceMemoViewModel @Inject constructor(
         output?.parentFile?.deleteRecursively()
         recorder = null
         output = null
-        recordedMillis = 0
-        stretchStartedAt = 0
+        stopwatch.reset()
         _uiState.value = VoiceMemoUiState()
     }
 
@@ -164,6 +147,7 @@ class VoiceMemoViewModel @Inject constructor(
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (isActive) {
+                val elapsedMillis = stopwatch.elapsedMillis
                 _uiState.update { it.copy(elapsedSeconds = elapsedMillis / 1000) }
                 delay(1000 - elapsedMillis % 1000)
             }
