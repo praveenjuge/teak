@@ -384,6 +384,8 @@ export interface FilesWorkerHeadObjectResult {
 export interface FilesWorkerImageMetadataResult {
   summary: string;
   tags: string[];
+  /** Clef's styles, when asked for and Clef answered; see decisions. */
+  visualStyles?: unknown;
 }
 
 export interface FilesWorkerListedObject {

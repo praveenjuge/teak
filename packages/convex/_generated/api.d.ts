@@ -139,6 +139,8 @@ import type * as migration_backfillLinkCategoriesClefReview from "../migration/b
 import type * as migration_backfillMediaColors from "../migration/backfillMediaColors.js";
 import type * as migration_backfillShuffleKey from "../migration/backfillShuffleKey.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
+import type * as migration_backfillVisualStyles from "../migration/backfillVisualStyles.js";
+import type * as migration_backfillVisualStylesJob from "../migration/backfillVisualStylesJob.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_extractDocumentText from "../migration/extractDocumentText.js";
 import type * as operationalRetention from "../operationalRetention.js";
@@ -429,6 +431,8 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillMediaColors": typeof migration_backfillMediaColors;
   "migration/backfillShuffleKey": typeof migration_backfillShuffleKey;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
+  "migration/backfillVisualStyles": typeof migration_backfillVisualStyles;
+  "migration/backfillVisualStylesJob": typeof migration_backfillVisualStylesJob;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/extractDocumentText": typeof migration_extractDocumentText;
   operationalRetention: typeof operationalRetention;

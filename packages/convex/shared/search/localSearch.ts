@@ -2,6 +2,7 @@ import type { Doc } from "../../_generated/dataModel";
 import type { CardType } from "../constants";
 import {
   isColorCardType,
+  isVisualStyleCardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
 } from "../constants";
@@ -66,7 +67,7 @@ const matchesVisualFilters = (
   }
 ) => {
   if (filters.styleFilters.length > 0) {
-    if (card.type !== "image") {
+    if (!isVisualStyleCardType(card.type)) {
       return false;
     }
 

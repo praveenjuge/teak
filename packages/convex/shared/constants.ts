@@ -196,6 +196,18 @@ export const COLOR_CARD_TYPES: readonly CardType[] = [
 export const isColorCardType = (type: string): boolean =>
   (COLOR_CARD_TYPES as readonly string[]).includes(type);
 
+/**
+ * Card types that carry visual styles: images, and videos from their
+ * thumbnail.
+ */
+export const VISUAL_STYLE_CARD_TYPES: readonly CardType[] = ["image", "video"];
+
+export const isVisualStyleCardType = (type: string): boolean =>
+  (VISUAL_STYLE_CARD_TYPES as readonly string[]).includes(type);
+
+export const isVisualStyle = (value: string): value is VisualStyle =>
+  (VISUAL_STYLE_TAXONOMY as readonly string[]).includes(value);
+
 export const COLOR_HUE_BUCKETS = [
   "red",
   "orange",

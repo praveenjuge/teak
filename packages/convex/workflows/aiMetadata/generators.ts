@@ -5,8 +5,10 @@ import {
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
   readFilesAiGenerationFacts,
+  readVisualStylesDecision,
   validateTextMetadata,
 } from "@teak/files-protocol";
+import { isVisualStyle, type VisualStyle } from "../../shared/constants";
 
 export {
   boundAiMetadataInput,
@@ -106,13 +108,15 @@ export const generateTextMetadata = (content: string, title?: string) =>
  */
 export const generateImageMetadataForStoredKey = async (
   sourceKey: string,
-  title?: string
+  title?: string,
+  options: { visualStyles?: boolean } = {}
 ) => {
   const outcome = await callFilesWorkerJson<FilesWorkerImageMetadataResult>({
     op: "generate-image-metadata",
     params: {
       sourceKey,
       ...(title ? { title } : {}),
+      ...(options.visualStyles ? { visualStyles: true } : {}),
     },
   });
   if (outcome.kind === "fallback") {
@@ -123,7 +127,33 @@ export const generateImageMetadataForStoredKey = async (
   return {
     aiTags: normalizeAiTags(outcome.data.tags),
     aiSummary: outcome.data.summary,
+    visualStyles: await readClefVisualStyles(outcome.data.visualStyles),
   };
+};
+
+/**
+ * Clef's styles from the image op, when it ran and replied validly; else
+ * `undefined`, so the caller falls back to the tag aliases.
+ */
+const readClefVisualStyles = async (
+  value: unknown
+): Promise<VisualStyle[] | undefined> => {
+  if (value === undefined) {
+    return;
+  }
+  const decision = readVisualStylesDecision(value, isVisualStyle);
+  if (!decision) {
+    return;
+  }
+  await observeAiGeneration(
+    {
+      functionId: "teak.ai.decision.decide-visual-styles",
+      model: decision.model,
+      stage: "ai_metadata",
+    },
+    () => Promise.resolve({ usage: decision.usage })
+  );
+  return decision.styles as VisualStyle[];
 };
 
 export const generateLinkMetadata = (content: string, url?: string) =>

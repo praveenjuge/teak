@@ -7,7 +7,10 @@ import { collectAiUsage } from "../../ai/telemetry";
 import { storeDocumentText } from "../../card/documentText";
 import { stageCompleted } from "../../card/processingStatus";
 import type { CardType } from "../../schema";
-import { extractVisualStylesFromTags } from "../../shared/constants";
+import {
+  extractVisualStylesFromTags,
+  isVisualStyleCardType,
+} from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
@@ -270,10 +273,15 @@ async function generateForCard(
         const imageKey = resolveImageAnalysisKey(card);
 
         if (imageKey) {
-          const result = await generateImageMetadataForStoredKey(imageKey);
+          const result = await generateImageMetadataForStoredKey(
+            imageKey,
+            undefined,
+            { visualStyles: true }
+          );
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
-          visualStyles = extractVisualStylesFromTags(result.aiTags);
+          visualStyles =
+            result.visualStyles ?? extractVisualStylesFromTags(result.aiTags);
           confidence = 0.9;
         }
         break;
@@ -285,10 +293,13 @@ async function generateForCard(
             (typeof card.content === "string" ? card.content : undefined);
           const result = await generateImageMetadataForStoredKey(
             card.thumbnailKey,
-            title
+            title,
+            { visualStyles: true }
           );
           aiTags = result.aiTags;
           aiSummary = result.aiSummary;
+          visualStyles =
+            result.visualStyles ?? extractVisualStylesFromTags(result.aiTags);
           confidence = 0.88;
         }
         aiTranscript = await transcribeVideo(ctx, card);
@@ -411,7 +422,12 @@ async function generateForCard(
     return deferToBackfill();
   }
 
-  if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+  if (
+    aiTags.length === 0 &&
+    !aiSummary &&
+    !aiTranscript &&
+    !visualStyles?.length
+  ) {
     return await completeWithoutAi();
   }
 
@@ -427,7 +443,9 @@ async function generateForCard(
       aiSummary: aiSummary || undefined,
       aiTranscript,
       visualStyles:
-        cardType === "image" && visualStyles?.length ? visualStyles : undefined,
+        isVisualStyleCardType(cardType) && visualStyles?.length
+          ? visualStyles
+          : undefined,
       processingStatus: updatedProcessing,
     }
   );

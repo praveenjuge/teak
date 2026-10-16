@@ -10,6 +10,7 @@ const originalFetch = global.fetch;
 const mockFetch = mock();
 global.fetch = asFetch(mockFetch);
 
+import { getFunctionName } from "convex/server";
 import { validate } from "convex-helpers/validators";
 import { aiMetadataResultValidator } from "../../../../convex/workflows/aiMetadata/schemas";
 import {
@@ -457,6 +458,90 @@ describe("metadata handler", () => {
       expectSaved(["photo"], "A photo");
       expect(lastWorkerOpRequest().op).toBe("generate-image-metadata");
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
+    });
+
+    describe("visual styles", () => {
+      const savedStyles = () =>
+        mockRunMutation.mock.calls.find(
+          (call) =>
+            getFunctionName(call[0]) ===
+            "workflows/aiMetadata/mutations:updateCardAI"
+        )?.[1]?.visualStyles;
+      const clefStyles = (styles: string[]) => ({
+        model: "@cf/cloudflare/clef-flash",
+        version: 1,
+        usage: { inputTokens: 400, outputTokens: 0 },
+        styles,
+      });
+      const imageCard = {
+        _id: "c1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
+        fileMetadata: { mimeType: "image/png" },
+      };
+
+      test("asks the image op for Clef's styles and keeps them", async () => {
+        mockRunQuery.mockResolvedValue(imageCard);
+        enableWorkerOp({
+          summary: "A poster",
+          tags: ["poster", "grayscale"],
+          visualStyles: clefStyles(["typographic", "minimal"]),
+        });
+
+        await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
+
+        expect(lastWorkerOpRequest().params.visualStyles).toBe(true);
+        expect(savedStyles()).toEqual(["typographic", "minimal"]);
+      });
+
+      test("falls back to the tag aliases without a Clef reply", async () => {
+        mockRunQuery.mockResolvedValue(imageCard);
+        enableWorkerOp({ summary: "A photo", tags: ["grayscale", "photo"] });
+
+        await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
+
+        expect(savedStyles()).toEqual(["monochrome", "photographic"]);
+      });
+
+      test("falls back to the tag aliases for an invalid Clef reply", async () => {
+        mockRunQuery.mockResolvedValue(imageCard);
+        enableWorkerOp({
+          summary: "A photo",
+          tags: ["grayscale"],
+          visualStyles: clefStyles(["grunge"]),
+        });
+
+        await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
+
+        expect(savedStyles()).toEqual(["monochrome"]);
+      });
+
+      test("a confident 'no styles' from Clef saves none", async () => {
+        mockRunQuery.mockResolvedValue(imageCard);
+        enableWorkerOp({
+          summary: "A photo",
+          tags: ["grayscale"],
+          visualStyles: clefStyles([]),
+        });
+
+        await generateHandler(ctx, { cardId: CARD_ID, cardType: "image" });
+
+        expect(savedStyles()).toBeUndefined();
+      });
+
+      test("videos keep styles from their thumbnail", async () => {
+        mockRunQuery.mockResolvedValue({ _id: "c1", thumbnailKey: "t1" });
+        enableWorkerOp({
+          summary: "A trailer",
+          tags: ["trailer"],
+          visualStyles: clefStyles(["cinematic", "dark"]),
+        });
+
+        await generateHandler(ctx, { cardId: CARD_ID, cardType: "video" });
+
+        expect(lastWorkerOpRequest().params.visualStyles).toBe(true);
+        expect(savedStyles()).toEqual(["cinematic", "dark"]);
+      });
     });
 
     test("de-duplicates tags from the image worker", async () => {

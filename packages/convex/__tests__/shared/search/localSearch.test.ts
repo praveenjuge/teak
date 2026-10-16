@@ -232,7 +232,7 @@ describe("shared search helpers", () => {
     expect(results.map((card): string => card._id)).toEqual(["2", "3", "1"]);
   });
 
-  it("filters by normalized visual style on image cards", () => {
+  it("filters by normalized visual style on image and video cards", () => {
     const cards = [
       makeCard({
         _id: "1",
@@ -248,12 +248,37 @@ describe("shared search helpers", () => {
         createdAt: 9,
         updatedAt: 9,
       }),
+      makeCard({
+        _id: "3",
+        type: "video",
+        visualStyles: ["vintage"],
+        createdAt: 8,
+        updatedAt: 8,
+      }),
     ];
 
     const results = filterLocalCards(cards, {
       styleFilters: ["  Vintage  "],
     });
-    expect(results.map((card): string => card._id)).toEqual(["1"]);
+    expect(results.map((card): string => card._id)).toEqual(["1", "3"]);
+  });
+
+  it("matches the new styles and their aliases", () => {
+    const cards = [
+      makeCard({ _id: "1", type: "image", visualStyles: ["hand-drawn"] }),
+      makeCard({ _id: "2", type: "image", visualStyles: ["3d"] }),
+    ];
+
+    expect(
+      filterLocalCards(cards, { styleFilters: ["lineart"] }).map(
+        (card): string => card._id
+      )
+    ).toEqual(["1"]);
+    expect(
+      filterLocalCards(cards, { styleFilters: ["3D"] }).map(
+        (card): string => card._id
+      )
+    ).toEqual(["2"]);
   });
 
   it("filters by normalized hue and hex on image, palette and video cards", () => {
