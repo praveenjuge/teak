@@ -27,6 +27,8 @@ export type CardWithUrls = Doc<"cards"> & {
     width?: number;
   }>;
   linkPreviewImageUrl?: string;
+  /** Set when linkPreviewImageUrl is an image someone chose for the link. */
+  hasThumbnailOverride?: true;
 };
 
 export const isCreatedAtInRange = (
@@ -84,6 +86,7 @@ export const attachFileUrls = async (
     screenshotKey?: string;
     scrubKey?: string;
     thumbnailKey?: string;
+    thumbnailOverrideKey?: string;
   }
   const cardToIds = new Map<string, CardStorageIds>();
 
@@ -106,6 +109,10 @@ export const attachFileUrls = async (
     if (card.metadata?.linkPreview?.imageStorageKey) {
       gridImageKeys.add(card.metadata.linkPreview.imageStorageKey);
       ids.linkPreviewImageKey = card.metadata.linkPreview.imageStorageKey;
+    }
+    if (card.thumbnailOverride) {
+      gridImageKeys.add(card.thumbnailOverride.storageKey);
+      ids.thumbnailOverrideKey = card.thumbnailOverride.storageKey;
     }
     const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])
       ?.map((item: LinkPreviewMediaItem) => {
@@ -223,6 +230,13 @@ export const attachFileUrls = async (
       linkPreviewMedia?.find((item) => item.type === "video")?.posterUrl;
 
     const imageUrls = imageRenditions.get(card._id);
+    // A chosen image wins over the scraped one and the attached media.
+    const overrideUrl = ids.thumbnailOverrideKey
+      ? gridUrlMap.get(ids.thumbnailOverrideKey)
+      : undefined;
+    const scrapedImageUrl = ids.linkPreviewImageKey
+      ? (gridUrlMap.get(ids.linkPreviewImageKey) ?? undefined)
+      : fallbackLinkPreviewImageUrl;
     return {
       ...card,
       fileUrl:
@@ -244,9 +258,8 @@ export const attachFileUrls = async (
         ? (urlMap.get(ids.scrubKey) ?? undefined)
         : undefined,
       linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
-      linkPreviewImageUrl: ids.linkPreviewImageKey
-        ? (gridUrlMap.get(ids.linkPreviewImageKey) ?? undefined)
-        : fallbackLinkPreviewImageUrl,
+      linkPreviewImageUrl: overrideUrl ?? scrapedImageUrl,
+      ...(overrideUrl ? { hasThumbnailOverride: true as const } : {}),
     };
   });
 };
@@ -290,6 +303,9 @@ export const attachCardSummaryUrls = async (
     }
     if (card.metadata?.linkPreview?.imageStorageKey) {
       linkImageKeys.add(card.metadata.linkPreview.imageStorageKey);
+    }
+    if (card.thumbnailOverride) {
+      linkImageKeys.add(card.thumbnailOverride.storageKey);
     }
   }
 
@@ -340,32 +356,40 @@ export const attachCardSummaryUrls = async (
   );
 
   return cards.map(
-    ({ workflowArtifactKeys: _workflowArtifactKeys, ...card }) => ({
-      ...card,
-      thumbnailUrl:
-        imageCardUrls.get(card._id)?.grid ??
-        (card.thumbnailKey
-          ? (renditionMap.get(card.thumbnailKey)?.grid ?? undefined)
-          : undefined),
-      compactUrl:
-        imageCardUrls.get(card._id)?.compact ??
-        (card.thumbnailKey
-          ? (renditionMap.get(card.thumbnailKey)?.compact ?? undefined)
-          : undefined),
-      placeholderUrl:
-        imageCardUrls.get(card._id)?.tiny ??
-        (card.thumbnailKey
-          ? (renditionMap.get(card.thumbnailKey)?.tiny ?? undefined)
-          : undefined),
-      screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
-        ? (screenshotUrlMap.get(
-            card.metadata.linkPreview.screenshotStorageKey
-          ) ?? undefined)
-        : undefined,
-      linkPreviewImageUrl: card.metadata?.linkPreview?.imageStorageKey
-        ? (linkImageUrlMap.get(card.metadata.linkPreview.imageStorageKey) ??
-          undefined)
-        : undefined,
-    })
+    ({ workflowArtifactKeys: _workflowArtifactKeys, ...card }) => {
+      const overrideUrl = card.thumbnailOverride
+        ? linkImageUrlMap.get(card.thumbnailOverride.storageKey)
+        : undefined;
+      return {
+        ...card,
+        thumbnailUrl:
+          imageCardUrls.get(card._id)?.grid ??
+          (card.thumbnailKey
+            ? (renditionMap.get(card.thumbnailKey)?.grid ?? undefined)
+            : undefined),
+        compactUrl:
+          imageCardUrls.get(card._id)?.compact ??
+          (card.thumbnailKey
+            ? (renditionMap.get(card.thumbnailKey)?.compact ?? undefined)
+            : undefined),
+        placeholderUrl:
+          imageCardUrls.get(card._id)?.tiny ??
+          (card.thumbnailKey
+            ? (renditionMap.get(card.thumbnailKey)?.tiny ?? undefined)
+            : undefined),
+        screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
+          ? (screenshotUrlMap.get(
+              card.metadata.linkPreview.screenshotStorageKey
+            ) ?? undefined)
+          : undefined,
+        linkPreviewImageUrl:
+          overrideUrl ??
+          (card.metadata?.linkPreview?.imageStorageKey
+            ? (linkImageUrlMap.get(card.metadata.linkPreview.imageStorageKey) ??
+              undefined)
+            : undefined),
+        ...(overrideUrl ? { hasThumbnailOverride: true as const } : {}),
+      };
+    }
   );
 };

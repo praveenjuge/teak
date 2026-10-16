@@ -17,6 +17,7 @@ import {
   type RelevanceScore,
   relevanceSearchKey,
 } from "../shared/search/relevance";
+import type { SemanticRequest } from "../shared/search/semantic";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
@@ -197,7 +198,10 @@ export const requestRelevanceScores = action({
   args: gridSearchArgs,
   returns: v.object({ outcome: outcomeValidator }),
   handler: async (ctx, args): Promise<{ outcome: RelevanceOutcome }> => {
-    const search: { userId: string; text: string } | null = await ctx.runQuery(
+    const search: {
+      userId: string;
+      request: SemanticRequest | null;
+    } | null = await ctx.runQuery(
       internal.search.semanticActions.semanticSearchFor,
       {
         searchQuery: args.searchQuery ?? "",
@@ -207,13 +211,15 @@ export const requestRelevanceScores = action({
           : { folderQuery: args.folderQuery }),
       }
     );
-    if (!search?.text) {
+    // Best match scores free words; `like:` and `mood:` lists keep their order.
+    if (search?.request?.kind !== "text") {
       return { outcome: "skipped" };
     }
+    const { request, userId } = search;
     const semantic =
       args.mode === "keyword"
         ? null
-        : await fetchSemanticRanking(ctx, search.userId, search.text, {
+        : await fetchSemanticRanking(ctx, userId, request, {
             timeoutMs: GRID_SEMANTIC_TIMEOUT_MS,
           });
     const page = await ctx.runQuery(api.cards.searchCardsPaginated, {
@@ -226,9 +232,9 @@ export const requestRelevanceScores = action({
     const { outcome } = await ensureRelevanceScores(ctx, {
       candidates: page.page as CandidateCard[],
       spentToken: semantic?.spentToken === true,
-      text: search.text,
+      text: request.text,
       timeoutMs: GRID_RELEVANCE_TIMEOUT_MS,
-      userId: search.userId,
+      userId,
     });
     return { outcome };
   },

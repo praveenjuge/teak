@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  isLinkCategory,
   LINK_CATEGORIES,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   LINK_CATEGORY_ICONS,
   LINK_CATEGORY_LABELS,
+  MASTODON_HOSTS,
   normalizeLinkCategory,
 } from "../../shared/linkCategories";
 
@@ -24,9 +26,22 @@ describe("LINK_CATEGORIES", () => {
       "event",
       "software",
       "design_portfolio",
+      "place",
+      "typeface",
+      "social_post",
+      "app",
+      "game",
+      "repo",
       "other",
     ] as const;
     expect(LINK_CATEGORIES).toEqual(expected);
+  });
+
+  it("recognizes stored category values and rejects anything else", () => {
+    expect(isLinkCategory("social_post")).toBe(true);
+    expect(isLinkCategory("repo")).toBe(true);
+    expect(isLinkCategory("Social Post")).toBe(false);
+    expect(isLinkCategory("toString")).toBe(false);
   });
 
   it("should have unique categories", () => {
@@ -53,9 +68,18 @@ describe("LINK_CATEGORY_LABELS", () => {
     expect(LINK_CATEGORY_LABELS.book).toBe("Book / eBook");
     expect(LINK_CATEGORY_LABELS.movie).toBe("Movie / Film");
     expect(LINK_CATEGORY_LABELS.tv).toBe("TV Show / Series");
-    expect(LINK_CATEGORY_LABELS.software).toBe(
-      "Software / App / GitHub Project"
+    expect(LINK_CATEGORY_LABELS.software).toBe("Software / Developer Tool");
+  });
+
+  it("labels the newer categories", () => {
+    expect(LINK_CATEGORY_LABELS.place).toBe(
+      "Place / Restaurant / Venue / Real Estate"
     );
+    expect(LINK_CATEGORY_LABELS.typeface).toBe("Typeface / Font");
+    expect(LINK_CATEGORY_LABELS.social_post).toBe("Social Post");
+    expect(LINK_CATEGORY_LABELS.app).toBe("App / Mobile or Desktop App");
+    expect(LINK_CATEGORY_LABELS.game).toBe("Game / Video Game");
+    expect(LINK_CATEGORY_LABELS.repo).toBe("Code Repository");
   });
 });
 
@@ -78,6 +102,12 @@ describe("LINK_CATEGORY_ICONS", () => {
     expect(LINK_CATEGORY_ICONS.movie).toBe("Clapperboard");
     expect(LINK_CATEGORY_ICONS.tv).toBe("Tv");
     expect(LINK_CATEGORY_ICONS.music).toBe("Music");
+    expect(LINK_CATEGORY_ICONS.place).toBe("MapPin");
+    expect(LINK_CATEGORY_ICONS.typeface).toBe("Type");
+    expect(LINK_CATEGORY_ICONS.social_post).toBe("MessageSquare");
+    expect(LINK_CATEGORY_ICONS.app).toBe("AppWindow");
+    expect(LINK_CATEGORY_ICONS.game).toBe("Gamepad2");
+    expect(LINK_CATEGORY_ICONS.repo).toBe("FolderGit2");
   });
 });
 
@@ -145,8 +175,17 @@ describe("normalizeLinkCategory", () => {
     expect(normalizeLinkCategory("Webinar")).toBe("event");
     expect(normalizeLinkCategory("Meetup")).toBe("event");
     expect(normalizeLinkCategory("Software")).toBe("software");
-    expect(normalizeLinkCategory("App")).toBe("software");
-    expect(normalizeLinkCategory("GitHub Project")).toBe("software");
+    expect(normalizeLinkCategory("Developer Tool")).toBe("software");
+    expect(normalizeLinkCategory("app")).toBe("app");
+    expect(normalizeLinkCategory("App")).toBe("app");
+    expect(normalizeLinkCategory("Mobile or Desktop App")).toBe("app");
+    expect(normalizeLinkCategory("Restaurant")).toBe("place");
+    expect(normalizeLinkCategory("Real Estate")).toBe("place");
+    expect(normalizeLinkCategory("Font")).toBe("typeface");
+    expect(normalizeLinkCategory("Social Post")).toBe("social_post");
+    expect(normalizeLinkCategory("social-post")).toBe("social_post");
+    expect(normalizeLinkCategory("Video Game")).toBe("game");
+    expect(normalizeLinkCategory("Code Repository")).toBe("repo");
     expect(normalizeLinkCategory("Design Portfolio")).toBe("design_portfolio");
     expect(normalizeLinkCategory("Other")).toBe("other");
     expect(normalizeLinkCategory("Miscellaneous")).toBe("other");
@@ -161,6 +200,15 @@ describe("normalizeLinkCategory", () => {
   it("should return null for whitespace only", () => {
     expect(normalizeLinkCategory("   ")).toBeNull();
     expect(normalizeLinkCategory("\t\n")).toBeNull();
+  });
+});
+
+describe("MASTODON_HOSTS", () => {
+  it("lists bare hostnames", () => {
+    expect(MASTODON_HOSTS).toContain("mastodon.social");
+    for (const host of MASTODON_HOSTS) {
+      expect(new URL(`https://${host}/`).hostname).toBe(host);
+    }
   });
 });
 

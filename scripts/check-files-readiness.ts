@@ -19,6 +19,7 @@ const required = [
   "vector-delete",
   "vector-get",
   "vector-query",
+  "vector-similar",
   "decide-card-type",
   "decide-link-category",
   "decide-visual-styles",
@@ -79,6 +80,7 @@ for (;;) {
         renderer?: boolean;
         rendererHealthy?: boolean;
         vectors?: boolean;
+        vectorTypes?: boolean;
       };
     };
     ready =
@@ -91,6 +93,7 @@ for (;;) {
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
       result.data.vectors === true &&
+      result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch {

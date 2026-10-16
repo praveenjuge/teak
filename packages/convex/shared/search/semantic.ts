@@ -1,5 +1,5 @@
 import { normalizeHexColor } from "../utils/colorUtils";
-import type { ParsedSearchQuery } from "./qualifiers";
+import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
 
 /**
  * How a search finds cards: `hybrid` blends keyword and meaning matches,
@@ -123,3 +123,49 @@ export const fuseRankings = <Id extends string>(
     .slice(0, limit)
     .map(([id]) => id);
 };
+
+/**
+ * What a search asks the vector service for, and the text its cached ranking
+ * is keyed by: a `like:` card's neighbors, a `mood:` among images, or the
+ * free words. Null when there is nothing to search by meaning.
+ */
+export type SemanticRequest =
+  | { kind: "text"; text: string; cacheText: string }
+  | { kind: "like"; cardId: string; cacheText: string }
+  | { kind: "mood"; text: string; cacheText: string };
+
+const normalizeMood = (text: string) =>
+  text
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .slice(0, SEMANTIC_QUERY_MAX_CHARS);
+
+export const similarityRequest = (
+  similarity: SearchSimilarity
+): SemanticRequest =>
+  similarity.kind === "like"
+    ? {
+        kind: "like",
+        cardId: similarity.cardId,
+        // A newline never survives in free text, so keys never collide.
+        cacheText: `like\n${similarity.cardId}`,
+      }
+    : {
+        kind: "mood",
+        text: normalizeMood(similarity.text),
+        cacheText: `mood\n${normalizeMood(similarity.text)}`,
+      };
+
+export const semanticRequestFor = (
+  parsed: ParsedSearchQuery
+): SemanticRequest | null => {
+  if (parsed.similarity) {
+    return similarityRequest(parsed.similarity);
+  }
+  const text = semanticQueryText(parsed);
+  return text ? { kind: "text", text, cacheText: text } : null;
+};
+
+/** Cards one similarity search lists at most. */
+export const SIMILAR_CARDS_LIMIT = 100;

@@ -78,6 +78,8 @@ interface CardsQueryOptions {
   favoritesOnly: boolean;
   /** A folder id from `?folder=`; the handler checks it is the user's. */
   folder?: string;
+  /** Whether the request searched (`q` or `similarTo`). */
+  hasQuery: boolean;
   hexFilters?: string[];
   hueFilters?: string[];
   limit: number;
@@ -90,15 +92,18 @@ interface CardsQueryOptions {
     archivedInTrash?: boolean;
     folderNames?: string[];
     phrases?: string[];
+    prices?: import("./shared/search/qualifiers").PriceBound[];
     sites?: string[];
     tags?: string[];
   };
   searchQuery?: string;
-  /** The words in `q` to search by meaning; empty when there are none. */
-  semanticText: string;
+  /** What `q` asks the vector service for; null when nothing. */
+  semantic: import("./shared/search/semantic").SemanticRequest | null;
   showTrashOnly?: boolean;
   /** Shuffle's seed; required with `sort=shuffle`. */
   shuffleSeed?: number;
+  /** `like:` (or `similarTo`) or `mood:`: the search lists meaning matches only. */
+  similarity: import("./shared/search/qualifiers").SearchSimilarity | null;
   sort?: "newest" | "oldest" | "relevance" | "shuffle";
   styleFilters?: string[];
   tag?: string;
@@ -127,7 +132,7 @@ type QueryValue = boolean | number | string | readonly string[] | undefined;
 export interface PublicApiOperation {
   body?: unknown;
   headers?: HeadersInit;
-  method: "DELETE" | "GET" | "PATCH" | "POST";
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   origin?: string;
   path: string;
   query?: Record<string, QueryValue>;

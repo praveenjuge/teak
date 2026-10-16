@@ -1,0 +1,32 @@
+{
+  "thread": {
+    "$type": "app.bsky.feed.defs#threadViewPost",
+    "post": {
+      "uri": "at://did:plc:abc/app.bsky.feed.post/3kvideo",
+      "author": {
+        "did": "did:plc:abc",
+        "handle": "alice.example.com",
+        "displayName": "Alice"
+      },
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Quoting with a clip",
+        "createdAt": "2025-01-02T03:04:05.000Z"
+      },
+      "embed": {
+        "$type": "app.bsky.embed.recordWithMedia#view",
+        "record": {
+          "$type": "app.bsky.embed.record#view",
+          "record": { "$type": "app.bsky.embed.record#viewRecord" }
+        },
+        "media": {
+          "$type": "app.bsky.embed.video#view",
+          "cid": "bafkvideo",
+          "playlist": "https://video.bsky.app/watch/did%3Aplc%3Aabc/bafkvideo/playlist.m3u8",
+          "thumbnail": "https://video.bsky.app/watch/did%3Aplc%3Aabc/bafkvideo/thumbnail.jpg",
+          "aspectRatio": { "width": 1080, "height": 1920 }
+        }
+      }
+    }
+  }
+}

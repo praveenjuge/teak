@@ -58,9 +58,13 @@ const emptyTotals = (): Totals => ({
  * Queues an embed for every card with text and no current vector: cards
  * saved before embeddings shipped, cards whose embed ran out of retries,
  * and cards whose job was lost. `reembed` also queues embedded cards; their
- * embed costs no Workers AI call unless the text or `CARD_EMBEDDING_VERSION`
- * changed, so run it after bumping the version. Trashed and archived cards
- * are embedded too (search filters them).
+ * embed costs no Workers AI call unless the text, the card type or
+ * `CARD_EMBEDDING_VERSION` changed, so run it after bumping the version, and
+ * once to write the type onto vectors from before they carried one. `force`
+ * also forgets each hash, so every vector is written again even when nothing
+ * changed: for vectors written before their index's `type` metadata index
+ * existed, which Vectorize never indexes. Trashed and archived cards are
+ * embedded too (search filters them).
  *
  * A dry run (the default) writes nothing and reports what a real run would
  * queue. Each batch schedules the next until the table is done, and the
@@ -80,6 +84,7 @@ export const backfillEmbeddings = internalMutation({
     /** Stop after this batch instead of scheduling the next. */
     once: v.optional(v.boolean()),
     reembed: v.optional(v.boolean()),
+    force: v.optional(v.boolean()),
     userId: v.optional(v.string()),
     totals: v.optional(totalsValidator),
   },
@@ -141,7 +146,7 @@ export const backfillEmbeddings = internalMutation({
         batch.failed += 1;
       } else if (row?.hash !== undefined && row.dueAt === undefined) {
         batch.embedded += 1;
-        if (!args.reembed) {
+        if (!(args.reembed || args.force)) {
           continue;
         }
       } else {
@@ -173,7 +178,8 @@ export const backfillEmbeddings = internalMutation({
           row,
           card._id,
           card.userId,
-          now + (jobs.length - 1) * EMBED_JOB_SPACING_MS
+          now + (jobs.length - 1) * EMBED_JOB_SPACING_MS,
+          { forgetHash: args.force === true }
         );
       }
       batch.queued += 1;
@@ -205,6 +211,7 @@ export const backfillEmbeddings = internalMutation({
           dryRun,
           batchSize,
           ...(args.reembed ? { reembed: true } : {}),
+          ...(args.force ? { force: true } : {}),
           ...(userId ? { userId } : {}),
           totals,
         }

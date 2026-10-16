@@ -830,7 +830,7 @@ export const refreshCardProcessing = action({
     await ctx.scheduler.runAfter(
       0,
       (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-      { cardId }
+      { cardId, refresh: true }
     );
 
     await ctx.runMutation(internal.adminAccess.recordAudit, {

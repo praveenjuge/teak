@@ -26,11 +26,14 @@ import {
   Copy,
   Download,
   Heart,
+  ImageUp,
   MoreHorizontal,
   RefreshCw,
   RotateCcw,
+  Sparkles,
   Trash,
   Trash2,
+  Undo2,
   X,
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
@@ -38,11 +41,18 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import type { CardSaveState } from "../../hooks/useCardModal";
+import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
   cardMenuShortcuts,
 } from "../../lib/keyboardShortcuts";
+import {
+  firstFile,
+  imageFromClipboard,
+  isTextEntryTarget,
+  LINK_THUMBNAIL_ACCEPT,
+} from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
@@ -74,11 +84,13 @@ function CardPreview({
   card,
   getCurrentValue,
   saveChanges,
+  thumbnail,
   updateContent,
 }: {
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
   saveChanges: () => void;
+  thumbnail?: LinkThumbnailControl;
   updateContent: (value: string) => void;
 }) {
   switch (card.type) {
@@ -100,7 +112,20 @@ function CardPreview({
         />
       );
     case "link":
-      return <LinkPreview card={card} showScreenshot />;
+      return (
+        <LinkPreview
+          card={card}
+          showScreenshot
+          thumbnail={
+            thumbnail && !card.isDeleted
+              ? {
+                  onFile: (file) => thumbnail.replace(file, "drop"),
+                  uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
+                }
+              : undefined
+          }
+        />
+      );
     case "image":
       return <ImagePreview card={card} />;
     case "video":
@@ -162,8 +187,12 @@ interface CardModalProps {
   hasUnsavedChanges: boolean;
   isDownloading?: boolean;
   isReprocessing?: boolean;
+  /** Replaces or resets a link card's image. */
+  linkThumbnail?: LinkThumbnailControl;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
+  /** Lists the cards closest in meaning to a card (`like:<id>`). */
+  onMoreLikeThis?: (cardId: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
   /** Shows the previous card in the grid; absent on the first card. */
@@ -197,6 +226,7 @@ export function CardModal({
   onNext,
   onPrevious,
   onTagClick,
+  onMoreLikeThis,
   hasUnsavedChanges,
   getCurrentValue,
   updateContent,
@@ -214,6 +244,7 @@ export function CardModal({
   tags,
   isDownloading,
   isReprocessing,
+  linkThumbnail,
   onReprocess,
   returnFocus,
 }: CardModalProps) {
@@ -229,6 +260,9 @@ export function CardModal({
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+  // The menu's "Replace image" opens this picker; it stays mounted while the
+  // menu closes.
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
@@ -254,6 +288,33 @@ export function CardModal({
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
+
+  // A link's image can be replaced or reset; not from Trash.
+  const imageControl =
+    card?.type === "link" && !card.isDeleted ? linkThumbnail : undefined;
+
+  // Pasting an image while a link is open replaces its image, unless a text
+  // field has focus. Capture runs before the library's paste-to-save.
+  const canPasteImage = Boolean(open && imageControl);
+  useEffect(() => {
+    if (!(canPasteImage && linkThumbnail)) {
+      return;
+    }
+    const handlePaste = (event: ClipboardEvent) => {
+      if (isTextEntryTarget(event.target)) {
+        return;
+      }
+      const file = imageFromClipboard(event.clipboardData);
+      if (!file) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      linkThumbnail.replace(file, "paste");
+    };
+    document.addEventListener("paste", handlePaste, true);
+    return () => document.removeEventListener("paste", handlePaste, true);
+  }, [canPasteImage, linkThumbnail]);
 
   const commit = () => {
     if (hasUnsavedChanges) {
@@ -575,6 +636,25 @@ export function CardModal({
                     </Button>
                   )}
 
+                  {imageControl && (
+                    <input
+                      accept={LINK_THUMBNAIL_ACCEPT}
+                      aria-hidden="true"
+                      className="sr-only"
+                      data-testid="link-image-input"
+                      onChange={(event) => {
+                        const file = firstFile(event.target.files);
+                        // The same file can be picked again after a failure.
+                        event.target.value = "";
+                        if (file) {
+                          imageControl.replace(file, "pick");
+                        }
+                      }}
+                      ref={imageInputRef}
+                      tabIndex={-1}
+                      type="file"
+                    />
+                  )}
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <HeaderIconButton label="More actions">
@@ -635,6 +715,32 @@ export function CardModal({
                         </>
                       ) : (
                         <>
+                          {onMoreLikeThis && (
+                            <DropdownMenuItem
+                              onClick={() => onMoreLikeThis(card._id)}
+                            >
+                              <Sparkles />
+                              More like this
+                            </DropdownMenuItem>
+                          )}
+                          {imageControl && (
+                            <DropdownMenuItem
+                              disabled={imageControl.isBusy}
+                              onClick={() => imageInputRef.current?.click()}
+                            >
+                              {imageControl.isBusy ? <Spinner /> : <ImageUp />}
+                              Replace image
+                            </DropdownMenuItem>
+                          )}
+                          {imageControl && card.thumbnailOverride && (
+                            <DropdownMenuItem
+                              disabled={imageControl.isBusy}
+                              onClick={imageControl.reset}
+                            >
+                              <Undo2 />
+                              Reset to original image
+                            </DropdownMenuItem>
+                          )}
                           {onReprocess && (
                             <DropdownMenuItem
                               disabled={isReprocessing}
@@ -702,6 +808,7 @@ export function CardModal({
                       saveChanges={() => {
                         void saveChanges();
                       }}
+                      thumbnail={linkThumbnail}
                       updateContent={editContent}
                     />
                   </div>

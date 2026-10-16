@@ -127,6 +127,9 @@ describe("smart folder searches", () => {
       suggestSmartFolderName('tag:design type:link site:github.com "a b" x')
     ).toBe("Design · Links · github.com · “a b” · x");
     expect(suggestSmartFolderName("is:fav")).toBe("Favorites");
+    expect(suggestSmartFolderName("price:>20 price:<100 type:link")).toBe(
+      "Price over 20 · Price under 100 · Links"
+    );
     expect(Array.from(suggestSmartFolderName("a".repeat(400)))).toHaveLength(
       300
     );

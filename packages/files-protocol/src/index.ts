@@ -69,6 +69,7 @@ export const FILES_OPS = [
   "vector-delete",
   "vector-get",
   "vector-query",
+  "vector-similar",
   // Clef decision models; see ./decisions. Each returns `null` (or no
   // styles) when Clef isn't sure, so callers keep their rules' answer.
   "decide-card-type",

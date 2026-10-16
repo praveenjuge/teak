@@ -1,3 +1,5 @@
+import type { LinkCategory } from "../shared/linkCategories";
+
 export interface ScrapeAttribute {
   name: string;
   value: string;
@@ -31,6 +33,8 @@ export const TEAK_SCRAPER_SOURCE = "kernel_playwright";
 export interface LinkPreviewMetadata {
   author?: string;
   canonicalUrl?: string;
+  /** What a site's own API confirmed the link to be; see socialPost.ts. */
+  categoryHint?: LinkCategory;
   description?: string;
   error?: {
     type?: string;

@@ -1,8 +1,10 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   combineSearchQueries,
+  describePriceBound,
   formatSearchQualifier,
   hostForDisplay,
+  parsePriceBound,
   parseSearchQuery,
 } from "@teak/convex/shared";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
@@ -216,6 +218,12 @@ export const suggestSmartFolderName = (query: string): string => {
           return hostForDisplay(qualifier.value);
         case "is":
           return qualifier.value === "fav" ? "Favorites" : "Archived";
+        case "price": {
+          const bound = parsePriceBound(qualifier.value);
+          return bound
+            ? `Price ${describePriceBound(bound).toLowerCase()}`
+            : "";
+        }
         default:
           return qualifier.value;
       }

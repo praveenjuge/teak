@@ -222,6 +222,8 @@ and replace your local copy.
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
 | `/v1/cards/:cardId/content` | Read one card's full text: its document's text or its transcript |
 | `/v1/cards/:cardId/refresh` | Refresh one card's summary, tags, and link preview with POST |
+| `/v1/cards/:cardId/thumbnail/upload` | Start uploading a new image for a link card with POST |
+| `/v1/cards/:cardId/thumbnail` | Use an uploaded image as a link card's image with PUT, or reset it with DELETE |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
 | `/v1/exports` | Start a ZIP export of your cards with POST |
@@ -238,7 +240,11 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+</ParamField>
+
+<ParamField query="similarTo" type="string">
+  A card ID. Lists only the cards closest to it in meaning, of any type and never the card itself; the same as `like:<id>` in `q`. The other parameters narrow the list and `sort` orders it (at most 100 cards). A malformed ID returns `400 INVALID_INPUT`. The response's `similarity` is `pending` while Teak is still reading a card saved moments ago, and `unavailable` for a card in Trash or not found, both with no items.
 </ParamField>
 
 <ParamField query="mode" type="string">
@@ -311,6 +317,7 @@ these query parameters:
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Qualifiers: `GET /v1/cards?q=site:github.com%20tag:design%20%22design%20system%22`
+- Prices: `GET /v1/cards?q=price:%3E20%20price:%3C100&include=metadata`
 - Tags: `GET /v1/tags` lists the lowercase tags on cards outside Trash,
   including tags Teak added, with how many cards have each. A new tag appears
   a moment after the card is saved. Any listed name
@@ -361,18 +368,23 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
 | `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
+| `price:<100` | Links whose `linkPrice.amount` is under 100. Also `>`, `<=`, `>=` and `=`, with a plain number such as `9.99`. The amount is compared in any currency, links without a price never match, and the search narrows to links |
 | `"design system"` | Cards whose text contains that phrase |
 
-Qualifiers combine with each other and with the other parameters: tags and
-folders must all match, and several types or sites match any of them. `type:`
-narrows `type`, so `?type=link&q=type:image` returns no cards, and so does
-`?archived=exclude&q=is:archived`. `#` followed by a hex color (`#fff`) is a
+Qualifiers combine with each other and with the other parameters: tags,
+folders and price bounds must all match (`price:>20 price:<100` is a range),
+and several types or sites match any of them. `type:` narrows `type`, so
+`?type=link&q=type:image` returns no cards, and so do
+`?archived=exclude&q=is:archived` and `?type=image&q=price:<100`. `#` followed by a hex color (`#fff`) is a
 color, not a tag; use `tag:fff` for that tag. Text a qualifier can't use, such
-as `type:banana` or `foo:bar`, is searched as words.
+as `type:banana`, `foo:bar` or `price:cheap`, is searched as words.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
-date when present. It also adds `audioWaveform` and `videoScrub`, described
+date when present. `linkPrice` is a product link's price, `{ "amount": 24.99,
+"currency": "USD" }`, read from the page: `currency` is an ISO 4217 code, or
+`null` when the page didn't say which, and `linkPrice` is `null` for cards
+without a price. It also adds `audioWaveform` and `videoScrub`, described
 below. `include=processing` adds `aiTranscript`, `metadataStatus`,
 and `processingStatus`; the single-card response includes all of these fields
 without an `include` parameter. Link
@@ -451,6 +463,26 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 `POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
 
 You can refresh a card once a minute and up to six cards a minute. Past that, the API answers `429 RATE_LIMITED` with `retryAt` and a `Retry-After` header. A card in Trash returns `409 CONFLICT`; restore it first.
+
+## Replace a link's image
+
+A link card's image can be one you choose instead of the one Teak found. It takes three calls:
+
+1. `POST /v1/cards/:cardId/thumbnail/upload` with `{ "mimeType": "image/png", "fileSize": 48213 }` returns `{ uploadUrl, fileKey, method: "PUT", maxFileSize, expiresIn }`. This works for an account at the free plan's 200 cards, because no card is created.
+2. `PUT` the bytes to `uploadUrl` with the same `Content-Type` within `expiresIn` seconds.
+3. `PUT /v1/cards/:cardId/thumbnail` with `{ "fileKey": "..." }` checks the image and returns the card, with `linkPreviewImageUrl` showing it and `thumbnailOverridden: true`.
+
+Accepted images are JPEG, PNG, WebP, GIF (the grid shows its first frame), and AVIF, under 20 MB and at most 10,000 pixels on a side. SVG and HEIC are refused. The image stays through a refresh of the card's details. `DELETE /v1/cards/:cardId/thumbnail` goes back to the image Teak found (or its screenshot of the page), deletes the uploaded one, and returns the card; a card already on its own image is returned unchanged.
+
+| Status | Code | When |
+| --- | --- | --- |
+| `400` | `TYPE_MISMATCH` | The card isn't a link |
+| `400` | `UNSUPPORTED_TYPE` | The image isn't one of the accepted types |
+| `400` | `INVALID_INPUT` | The image couldn't be read, or is too many pixels |
+| `404` | `NOT_FOUND` | Another account's card, or a `fileKey` that isn't this card's upload |
+| `409` | `CONFLICT` | The card is in Trash |
+| `413` | `FILE_TOO_LARGE` | The image is 20 MB or more |
+| `429` | `RATE_LIMITED` | More than 20 image changes in a minute; see `retryAt` |
 
 ## Archive cards
 

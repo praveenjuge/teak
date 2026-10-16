@@ -66,8 +66,10 @@ export const cardStorageObjectKeys = (card: {
     };
   };
   previewKey?: string;
+  previousThumbnailOverride?: { override?: { storageKey?: string } | null };
   scrubKey?: string;
   thumbnailKey?: string;
+  thumbnailOverride?: { storageKey?: string };
   workflowArtifactKeys?: string[];
 }): string[] => {
   const linkPreview = card.metadata?.linkPreview;
@@ -87,6 +89,9 @@ export const cardStorageObjectKeys = (card: {
       item.storageKey,
       item.posterStorageKey,
     ]),
+    card.thumbnailOverride?.storageKey,
+    // Kept for the undo window; deleted with the card if it goes first.
+    card.previousThumbnailOverride?.override?.storageKey,
   ].filter((key, index, keys): key is string =>
     Boolean(key && keys.indexOf(key) === index)
   );
@@ -180,6 +185,7 @@ export const getFileUrl = query({
     const linkPreview = card.metadata?.linkPreview;
     const matchesKey =
       card.fileKey === args.key ||
+      card.thumbnailOverride?.storageKey === args.key ||
       card.thumbnailKey === args.key ||
       card.scrubKey === args.key ||
       linkPreview?.screenshotStorageKey === args.key ||

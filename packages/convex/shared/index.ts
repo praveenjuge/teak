@@ -7,6 +7,7 @@ export * from "./linkCategories";
 export * from "./markdown";
 export * from "./polarPlans";
 export * from "./posthog";
+export * from "./price";
 export * from "./search";
 export * from "./telemetry";
 export * from "./types";

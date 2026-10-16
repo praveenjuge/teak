@@ -1,6 +1,8 @@
 import {
+  describePriceBound,
   formatSearchQualifier,
   hostForDisplay,
+  parsePriceBound,
   parseSearchQuery,
   type SearchQualifier,
   type SearchQualifierKey,
@@ -60,6 +62,8 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "site", hint: "Links from a website" },
   { key: "folder", hint: "Cards in a folder" },
   { key: "is", hint: "Favorites or archived" },
+  { key: "mood", hint: "Images by mood" },
+  { key: "price", hint: "Price under or over" },
 ];
 
 const IS_OPTIONS = [
@@ -289,8 +293,14 @@ export function buildSearchSuggestions(
   };
 }
 
-/** How a chip reads: "Site" and "github.com". */
-export function describeQualifierChip(chip: string): {
+/**
+ * How a chip reads: "Site" and "github.com". A `like:` chip reads "Similar
+ * to" and the card's title, which the caller looks up.
+ */
+export function describeQualifierChip(
+  chip: string,
+  anchorTitle?: string
+): {
   label: string;
   qualifier: SearchQualifier;
   title: string;
@@ -322,6 +332,20 @@ export function describeQualifierChip(chip: string): {
       };
     case "folder":
       return { qualifier, title: "Folder", label: qualifier.value };
+    case "like":
+      return {
+        qualifier,
+        title: "Similar to",
+        label: anchorTitle ?? "a card",
+      };
+    case "mood":
+      return { qualifier, title: "Mood", label: `“${qualifier.value}”` };
+    case "price": {
+      const bound = parsePriceBound(qualifier.value);
+      return bound
+        ? { qualifier, title: "Price", label: describePriceBound(bound) }
+        : null;
+    }
     default:
       return null;
   }

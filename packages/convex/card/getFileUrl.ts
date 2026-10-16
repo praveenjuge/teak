@@ -22,6 +22,7 @@ const cardOwnsMediaKey = (
     fileKey?: string;
     scrubKey?: string;
     thumbnailKey?: string;
+    thumbnailOverride?: { storageKey: string };
     metadata?: {
       linkPreview?: {
         imageStorageKey?: string;
@@ -35,6 +36,7 @@ const cardOwnsMediaKey = (
   card.fileKey === key ||
   card.thumbnailKey === key ||
   card.scrubKey === key ||
+  card.thumbnailOverride?.storageKey === key ||
   card.metadata?.linkPreview?.screenshotStorageKey === key ||
   card.metadata?.linkPreview?.imageStorageKey === key ||
   Boolean(

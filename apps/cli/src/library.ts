@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import {
@@ -12,7 +12,13 @@ import {
   type TeakClient,
 } from "@teak/convex/sdk";
 import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
+import {
+  THUMBNAIL_ERROR_MESSAGES,
+  THUMBNAIL_MAX_BYTES,
+  toThumbnailMimeType,
+} from "@teak/convex/shared/thumbnails";
 import { InvalidArgumentError } from "commander";
+import { mimeFor } from "./files";
 import {
   type ClientOptions,
   client,
@@ -52,6 +58,7 @@ export const collectPages = async (
     ...(searchMode ? { searchMode } : {}),
     // The first page decides Best match for every page of the listing.
     ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
+    ...(first.similarity ? { similarity: first.similarity } : {}),
   };
 };
 
@@ -209,6 +216,41 @@ export const setCardsArchived = async (
     failed,
     options
   );
+};
+
+/**
+ * Replaces a link card's image with an image file, or with `reset` goes back
+ * to the image Teak found for the link.
+ */
+export const setCardThumbnail = async (
+  id: string,
+  file: string | undefined,
+  options: GlobalOptions & { reset?: boolean }
+) => {
+  const api = client(options);
+  if (options.reset) {
+    if (file) {
+      throw new InvalidArgumentError("pass an image file or --reset, not both");
+    }
+    const card = await api.cards.resetThumbnail(id);
+    write(options.json ? card : `${id} shows its original image`, options);
+    return;
+  }
+  if (!file) {
+    throw new InvalidArgumentError("pass an image file, or --reset");
+  }
+  if (!(existsSync(file) && statSync(file).isFile())) {
+    throw new InvalidArgumentError(`no file at ${file}`);
+  }
+  const mimeType = toThumbnailMimeType(mimeFor(file));
+  if (!mimeType) {
+    throw new InvalidArgumentError(THUMBNAIL_ERROR_MESSAGES.unsupported);
+  }
+  if (statSync(file).size > THUMBNAIL_MAX_BYTES) {
+    throw new InvalidArgumentError(THUMBNAIL_ERROR_MESSAGES.tooLarge);
+  }
+  const card = await api.cards.setThumbnail(id, readFileSync(file), mimeType);
+  write(options.json ? card : `Replaced the image of ${id}`, options);
 };
 
 export const refreshCards = async (ids: string[], options: GlobalOptions) => {

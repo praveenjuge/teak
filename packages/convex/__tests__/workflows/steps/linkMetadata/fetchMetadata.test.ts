@@ -49,6 +49,7 @@ mock.module("../../../../../convex/storage/r2", r2MockModuleFactory);
 
 import { internal } from "../../../../../convex/_generated/api";
 import { fetchMetadataHandler } from "../../../../../convex/workflows/steps/linkMetadata/fetchMetadata";
+import { socialFixture } from "../../../helpers/socialFetch.test-utils";
 
 describe("fetchMetadata", () => {
   const mockRunQuery = mock();
@@ -975,5 +976,202 @@ describe("fetchMetadata", () => {
         status: "failed",
       })
     );
+  });
+
+  describe("social posts", () => {
+    const MASTODON_URL = "https://mastodon.social/@Gargron/109311046116149744";
+    const MASTODON_API =
+      "https://mastodon.social/api/v1/statuses/109311046116149744";
+    const BLUESKY_URL = "https://bsky.app/profile/bsky.app/post/3l6oveex3ii2l";
+    const REDDIT_URL = "https://www.reddit.com/r/a/comments/abc123/title/";
+    const html = () =>
+      new Response("<html><head><title>Page</title></head></html>", {
+        headers: { "content-type": "text/html" },
+        status: 200,
+      });
+    const requested = () =>
+      mockFetch.mock.calls.map(([url]) => toUrlString(url));
+    const savedPreviewFields = () => mockBuildSuccessPreview.mock.calls[0]?.[1];
+
+    /** Answer social APIs from `api` and the page with HTML. */
+    const answer = (api: (url: string) => Response | undefined) =>
+      mockFetch.mockImplementation((input: string | URL | Request) => {
+        const url = toUrlString(input);
+        return Promise.resolve(api(url) ?? html());
+      });
+
+    test("reads a Mastodon status from its instance instead of the page", async () => {
+      mockRunQuery.mockResolvedValue(linkCard(MASTODON_URL));
+      answer((url) =>
+        url === MASTODON_API
+          ? Response.json(socialFixture("mastodon-status.json"))
+          : undefined
+      );
+
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result.status).toBe("success");
+      expect(requested()).toEqual([MASTODON_API]);
+      expect(mockParseLinkPreview).not.toHaveBeenCalled();
+      expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
+        MASTODON_URL,
+        expect.objectContaining({
+          author: "Eugen Rochko",
+          categoryHint: "social_post",
+          publishedAt: "2022-11-09T12:00:00.000Z",
+          siteName: "Mastodon",
+        })
+      );
+      expect(savedPreviewFields()).not.toHaveProperty("platform");
+    });
+
+    test("falls through to the page when the post is not public", async () => {
+      mockRunQuery.mockResolvedValue(linkCard(MASTODON_URL));
+      answer((url) =>
+        url === MASTODON_API
+          ? Response.json({ error: "Record not found" }, { status: 404 })
+          : undefined
+      );
+
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result.status).toBe("success");
+      expect(requested()).toEqual([MASTODON_API, MASTODON_URL]);
+      expect(mockParseLinkPreview).toHaveBeenCalled();
+    });
+
+    test.each([
+      [
+        "Bluesky",
+        BLUESKY_URL,
+        [
+          "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=bsky.app",
+        ],
+      ],
+      [
+        "Reddit",
+        REDDIT_URL,
+        [
+          "https://www.reddit.com/r/a/comments/abc123.json?raw_json=1",
+          `https://www.reddit.com/oembed?url=${encodeURIComponent(REDDIT_URL)}`,
+        ],
+      ],
+    ])(
+      "a %s API rate limit falls through to the page and is never retried",
+      async (_site, url, apiCalls) => {
+        mockRunQuery.mockResolvedValue(linkCard(url));
+        answer((requestUrl) =>
+          requestUrl === url
+            ? undefined
+            : new Response("slow down", { status: 429 })
+        );
+
+        const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+        expect(result.status).toBe("success");
+        expect(requested()).toEqual([...apiCalls, url]);
+        expect(savedPreviewFields()).not.toHaveProperty("categoryHint");
+      }
+    );
+
+    test("keeps a page scrape's own rate limit retryable", async () => {
+      mockRunQuery.mockResolvedValue(linkCard(MASTODON_URL));
+      answer(() => new Response("slow down", { status: 429 }));
+
+      await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+        /"type":"rate_limit"/
+      );
+    });
+
+    test("reads a Threads post from the page it scraped, with no other request", async () => {
+      const threadsUrl = "https://www.threads.net/@zuck/post/C8abc123";
+      mockRunQuery.mockResolvedValue(linkCard(threadsUrl));
+      mockParseLinkPreview.mockReturnValue({
+        title: "Mark Zuckerberg (@zuck) on Threads",
+        description: "A new feed today.",
+        imageUrl: "https://scontent.cdninstagram.com/photo.jpg",
+      });
+
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result.status).toBe("success");
+      expect(requested()).toEqual([threadsUrl]);
+      expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
+        threadsUrl,
+        expect.objectContaining({
+          title: "A new feed today.",
+          author: "Mark Zuckerberg",
+          categoryHint: "social_post",
+        })
+      );
+    });
+
+    test("stores a Bluesky post's images through the Files Worker", async () => {
+      const previous = [
+        process.env.FILES_BASE,
+        process.env.FILES_SIGNING_SECRET,
+      ];
+      process.env.FILES_BASE = "https://files.teakvault.com";
+      process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+      mockRunMutation.mockResolvedValue(true);
+      mockRunQuery.mockResolvedValue(linkCard(BLUESKY_URL));
+      const ops: Record<string, any>[] = [];
+      mockFetch.mockImplementation((input: string | URL | Request, init) => {
+        const url = toUrlString(input);
+        if (url.startsWith("https://files.teakvault.com/__ops/v1")) {
+          const body = JSON.parse(String(init?.body));
+          ops.push(body);
+          return Promise.resolve(
+            workerOk({
+              stored: true,
+              contentType: "image/jpeg",
+              size: 10,
+              width: 2000,
+              height: 1500,
+            })
+          );
+        }
+        if (url.includes("resolveHandle")) {
+          return Promise.resolve(
+            Response.json({ did: "did:plc:z72i7hdynmk6r22z27h6tvur" })
+          );
+        }
+        if (url.includes("getPostThread")) {
+          return Promise.resolve(
+            Response.json(socialFixture("bluesky-images.json"))
+          );
+        }
+        throw new Error(`Convex fetched ${url} itself`);
+      });
+
+      try {
+        const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+        expect(result.status).toBe("success");
+        // No page fetch: the API answered.
+        expect(ops.map(({ op }) => op)).toEqual(
+          new Array(4).fill("store-remote-asset")
+        );
+        expect(ops.map(({ params }) => params.pageUrl)).toEqual(
+          new Array(4).fill(BLUESKY_URL)
+        );
+        const preview = savedPreviewFields();
+        expect(preview.media).toHaveLength(4);
+        expect(preview.media[0]).toMatchObject({
+          type: "image",
+          storageKey: ops.find(({ params }) => params.url.endsWith("/a@jpeg"))
+            ?.params.destinationKey,
+        });
+        expect(preview.categoryHint).toBe("social_post");
+      } finally {
+        [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+        if (previous[0] === undefined) {
+          delete process.env.FILES_BASE;
+        }
+        if (previous[1] === undefined) {
+          delete process.env.FILES_SIGNING_SECRET;
+        }
+      }
+    });
   });
 });

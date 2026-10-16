@@ -168,6 +168,35 @@ describe("teak cards", () => {
     expect(result.stdout).toContain("notes: remember this");
     expect(result.stdout).toContain("tags: design, cli");
     expect(result.stdout).toContain("Content of card_a");
+    expect(result.stdout).not.toContain("price:");
+  });
+
+  test("get prints a product's price in its currency, or the bare amount", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", {
+          type: "link",
+          url: "https://www.amazon.de/dp/1",
+          linkPrice: { amount: 1299, currency: "EUR" },
+        })
+      )
+    );
+    routes.set("GET /v1/cards/card_b", () =>
+      json(
+        card("card_b", {
+          type: "link",
+          url: "https://shop.example/thing",
+          linkPrice: { amount: 24.5, currency: null },
+        })
+      )
+    );
+
+    const euro = await teak("cards", "get", "card_a");
+    const bare = await teak("cards", "get", "card_b");
+
+    expect(euro.code).toBe(0);
+    expect(euro.stdout).toContain("price: €1,299.00");
+    expect(bare.stdout).toContain("price: 24.5");
   });
 
   test("delete moves every id to trash and says so", async () => {
@@ -693,6 +722,64 @@ describe("teak batch and fallback behavior", () => {
       failed: [{ code: "NOT_FOUND", id: "bogus", message: "Card not found" }],
       restoredIds: ["card_b"],
     });
+  });
+
+  test("cards thumbnail uploads an image and applies it", async () => {
+    const image = join(workDirectory, "cover.png");
+    writeFileSync(image, new Uint8Array([137, 80, 78, 71, 1, 2, 3]));
+    routes.set("POST /v1/cards/card_a/thumbnail/upload", () =>
+      json({
+        expiresIn: 600,
+        fileKey: "pending/cover",
+        maxFileSize: 20 * 1024 * 1024,
+        method: "PUT",
+        uploadUrl: new URL("/__upload/v1/pending", server.url).toString(),
+      })
+    );
+    routes.set("PUT /__upload/v1/pending", () => new Response(null));
+    routes.set("PUT /v1/cards/card_a/thumbnail", () =>
+      json(card("card_a", { thumbnailOverridden: true, type: "link" }))
+    );
+
+    const result = await teak("cards", "thumbnail", "card_a", image);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("Replaced the image of card_a");
+    expect(
+      requests.map((request) => `${request.method} ${request.path}`)
+    ).toEqual([
+      "POST /v1/cards/card_a/thumbnail/upload",
+      "PUT /__upload/v1/pending",
+      "PUT /v1/cards/card_a/thumbnail",
+    ]);
+    expect(JSON.parse(requests[0]?.body ?? "")).toEqual({
+      fileSize: 7,
+      mimeType: "image/png",
+    });
+    expect(JSON.parse(requests[2]?.body ?? "")).toEqual({
+      fileKey: "pending/cover",
+    });
+  });
+
+  test("cards thumbnail --reset goes back to the link's own image", async () => {
+    routes.set("DELETE /v1/cards/card_a/thumbnail", () =>
+      json(card("card_a", { thumbnailOverridden: false, type: "link" }))
+    );
+    const result = await teak("cards", "thumbnail", "card_a", "--reset");
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("card_a shows its original image");
+    expect(requests.map((request) => request.method)).toEqual(["DELETE"]);
+  });
+
+  test("cards thumbnail refuses an SVG before uploading", async () => {
+    const image = join(workDirectory, "logo.svg");
+    writeFileSync(image, "<svg/>");
+    const result = await teak("cards", "thumbnail", "card_a", image);
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain(
+      "Use a JPEG, PNG, WebP, GIF or AVIF image."
+    );
+    expect(requests).toHaveLength(0);
   });
 
   test("refresh queues each card and reports rate limits", async () => {

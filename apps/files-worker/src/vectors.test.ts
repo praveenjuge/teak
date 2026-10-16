@@ -12,12 +12,28 @@ const NAMESPACE = "teak_user_a";
 const vector = (seed: number) =>
   Array.from({ length: 768 }, (_, i) => (i === seed ? 1 : 0));
 
+interface Ranked {
+  id: string;
+  score: number;
+  /** The `type` metadata the vector was written with, if any. */
+  type?: string;
+}
+
 const fakes = ({
   aiError,
   dimensions = 768,
+  filterError,
+  ranked = [
+    { id: "card_2", score: 0.81 },
+    { id: "card_1", score: 0.42 },
+  ],
 }: {
   aiError?: unknown;
   dimensions?: number;
+  /** What every query finds, closest first, before its filter and topK. */
+  ranked?: Ranked[];
+  /** Rejects filtered queries, as an index without the metadata index may. */
+  filterError?: unknown;
 } = {}) => {
   const aiCalls: { args: { text: string[] }; model: string }[] = [];
   const upserts: unknown[][] = [];
@@ -25,6 +41,7 @@ const fakes = ({
   const queries: { options: unknown; vector: number[] }[] = [];
   const stored = new Map<string, { namespace: string }>([
     ["card_1", { namespace: NAMESPACE }],
+    ["card_other", { namespace: "teak_user_b" }],
   ]);
   const env = {
     AI: {
@@ -50,17 +67,29 @@ const fakes = ({
         Promise.resolve(
           ids
             .filter((id) => stored.has(id))
-            .map((id) => ({ id, namespace: stored.get(id)?.namespace }))
+            .map((id) => ({
+              id,
+              namespace: stored.get(id)?.namespace,
+              values: new Float32Array(vector(3)),
+            }))
         ),
-      query: (values: number[], options: unknown) => {
+      query: (values: number[], options: VectorizeQueryOptions) => {
         queries.push({ options, vector: values });
-        return Promise.resolve({
-          count: 2,
-          matches: [
-            { id: "card_2", score: 0.81 },
-            { id: "card_1", score: 0.42 },
-          ],
-        });
+        if (filterError && options.filter) {
+          return Promise.reject(filterError);
+        }
+        const wanted = options.filter?.type;
+        const matches = ranked
+          .filter((match) => wanted === undefined || match.type === wanted)
+          .slice(0, options.topK)
+          .map(({ id, score, type }) => ({
+            id,
+            score,
+            ...(options.returnMetadata === "indexed" && type
+              ? { metadata: { type } }
+              : {}),
+          }));
+        return Promise.resolve({ count: matches.length, matches });
       },
       upsert: (vectors: unknown[]) => {
         upserts.push(vectors);
@@ -109,11 +138,11 @@ const runOp = async (
 };
 
 describe("embed-upsert", () => {
-  test("embeds each card with the document prompt and upserts it in the user's namespace", async () => {
+  test("embeds each card with the document prompt and upserts it with its type in the user's namespace", async () => {
     const { aiCalls, env, upserts } = fakes();
     const { body, status } = await runOp(env, "embed-upsert", {
       items: [
-        { id: "card_1", text: "Teak\nA tropical hardwood" },
+        { id: "card_1", text: "Teak\nA tropical hardwood", type: "image" },
         { id: "card_2", text: `  ${"x".repeat(5000)}  ` },
       ],
       namespace: NAMESPACE,
@@ -135,7 +164,13 @@ describe("embed-upsert", () => {
     ]);
     expect(upserts).toEqual([
       [
-        { id: "card_1", namespace: NAMESPACE, values: vector(0) },
+        {
+          id: "card_1",
+          metadata: { type: "image" },
+          namespace: NAMESPACE,
+          values: vector(0),
+        },
+        // From a caller that predates types: no metadata.
         { id: "card_2", namespace: NAMESPACE, values: vector(1) },
       ],
     ]);
@@ -188,6 +223,14 @@ describe("embed-upsert", () => {
           { id: "card_1", text: "a" },
           { id: "card_1", text: "b" },
         ],
+        namespace: NAMESPACE,
+        shard: 0,
+      },
+    ],
+    [
+      "a type that is not a card type",
+      {
+        items: [{ id: "card_1", text: "a", type: "Image Card" }],
         namespace: NAMESPACE,
         shard: 0,
       },
@@ -270,6 +313,153 @@ describe("vector-delete, vector-get and vector-query", () => {
     });
   });
 
+  describe("with a type", () => {
+    // A library mostly of notes: the closest matches are all notes.
+    const library: Ranked[] = [
+      { id: "note_1", score: 0.62, type: "text" },
+      { id: "note_2", score: 0.6, type: "text" },
+      { id: "link_1", score: 0.58, type: "link" },
+      { id: "untyped_1", score: 0.5 },
+      { id: "photo_1", score: 0.46, type: "image" },
+      { id: "photo_2", score: 0.4, type: "image" },
+    ];
+    const query = (env: FilesOpsEnv, topK: number) =>
+      runOp(env, "vector-query", {
+        namespace: NAMESPACE,
+        shard: 0,
+        text: "calm and peaceful",
+        topK,
+        type: "image",
+      });
+
+    test("finds the images however many notes match better", async () => {
+      const { env, queries } = fakes({ ranked: library });
+      const { body } = await query(env, 3);
+      expect(body.data).toEqual({
+        matches: [
+          { id: "photo_1", score: 0.46 },
+          { id: "photo_2", score: 0.4 },
+        ],
+      });
+      // Never full metadata: Vectorize caps topK at 50 with it.
+      expect(queries.map((call) => call.options)).toEqual([
+        {
+          filter: { type: "image" },
+          namespace: NAMESPACE,
+          returnMetadata: "none",
+          returnValues: false,
+          topK: 3,
+        },
+        {
+          namespace: NAMESPACE,
+          returnMetadata: "indexed",
+          returnValues: false,
+          topK: 3,
+        },
+      ]);
+    });
+
+    test("keeps close vectors written before cards carried a type", async () => {
+      const { env } = fakes({ ranked: library });
+      const { body } = await query(env, 4);
+      expect(body.data).toEqual({
+        matches: [
+          { id: "untyped_1", score: 0.5 },
+          { id: "photo_1", score: 0.46 },
+          { id: "photo_2", score: 0.4 },
+        ],
+      });
+    });
+
+    test("searches as before types when the index can't filter on type", async () => {
+      const { env } = fakes({
+        filterError: new Error("VECTOR_QUERY_ERROR (code = 40027)"),
+        ranked: library.map(({ id, score }) => ({ id, score })),
+      });
+      const { body, status } = await query(env, 3);
+      expect(status).toBe(200);
+      expect(body.data).toEqual({
+        matches: [
+          { id: "note_1", score: 0.62 },
+          { id: "note_2", score: 0.6 },
+          { id: "link_1", score: 0.58 },
+        ],
+      });
+    });
+
+    test("a filter that fails where vectors carry types is an error, not an empty answer", async () => {
+      const { env } = fakes({
+        filterError: new Error("VECTOR_QUERY_ERROR"),
+        ranked: library,
+      });
+      const { status } = await query(env, 3);
+      expect(status).toBe(500);
+    });
+
+    test("returns at most topK matches, closest first", async () => {
+      const { env } = fakes({
+        ranked: [
+          { id: "untyped_1", score: 0.7 },
+          { id: "photo_1", score: 0.6, type: "image" },
+          { id: "untyped_2", score: 0.5 },
+          { id: "photo_2", score: 0.4, type: "image" },
+        ],
+      });
+      const { body } = await query(env, 3);
+      expect(body.data).toEqual({
+        matches: [
+          { id: "untyped_1", score: 0.7 },
+          { id: "photo_1", score: 0.6 },
+          { id: "untyped_2", score: 0.5 },
+        ],
+      });
+    });
+  });
+
+  test("searches with a card's own vector, leaving the card out", async () => {
+    const { aiCalls, env, queries } = fakes();
+    const { body } = await runOp(env, "vector-similar", {
+      id: "card_1",
+      namespace: NAMESPACE,
+      shard: 0,
+      topK: 1,
+    });
+    expect(aiCalls).toEqual([]);
+    expect(queries).toEqual([
+      {
+        options: {
+          namespace: NAMESPACE,
+          returnMetadata: "none",
+          returnValues: false,
+          topK: 2,
+        },
+        vector: vector(3),
+      },
+    ]);
+    expect(body.data).toEqual({
+      found: true,
+      matches: [{ id: "card_2", score: 0.81 }],
+    });
+  });
+
+  test.each([
+    ["card_9", NAMESPACE],
+    ["card_other", NAMESPACE],
+  ])(
+    "finds nothing for %s without a vector in the namespace",
+    async (id, namespace) => {
+      const { env, queries } = fakes();
+      const { body } = await runOp(env, "vector-similar", {
+        id,
+        namespace,
+        shard: 0,
+        topK: 10,
+      });
+      expect(body.data).toEqual({ found: false, matches: [] });
+      expect(queries).toEqual([]);
+    }
+  );
+
   test.each([
     [
       "vector-delete",
@@ -285,6 +475,15 @@ describe("vector-delete, vector-get and vector-query", () => {
     [
       "vector-query",
       { namespace: NAMESPACE, shard: 0, text: "a".repeat(501), topK: 10 },
+    ],
+    [
+      "vector-query",
+      { namespace: NAMESPACE, shard: 0, text: "a", topK: 10, type: 1 },
+    ],
+    ["vector-similar", { namespace: NAMESPACE, shard: 0, topK: 10 }],
+    [
+      "vector-similar",
+      { id: "card_1", namespace: NAMESPACE, shard: 0, topK: 101 },
     ],
   ])("%s refuses out-of-range params %#", async (op, params) => {
     const { env } = fakes();

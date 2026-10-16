@@ -12,10 +12,14 @@ import {
   type FilesVectorGetResult,
   type FilesVectorQueryParams,
   type FilesVectorQueryResult,
+  type FilesVectorSimilarParams,
+  type FilesVectorSimilarResult,
+  isVectorCardType,
   VECTOR_ID_MAX_BYTES,
   VECTOR_NAMESPACE_MAX_BYTES,
   VECTOR_QUERY_MAX_CHARS,
   VECTOR_QUERY_MAX_TOP_K,
+  VECTOR_TYPE_METADATA_KEY,
   vectorShardBinding,
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
@@ -70,16 +74,17 @@ export const parseEmbedUpsertParams = (
     throw new Error("invalid_embed_items");
   }
   const parsed = items.map((item) => {
-    const { id, text } = (item ?? {}) as Record<string, unknown>;
+    const { id, text, type } = (item ?? {}) as Record<string, unknown>;
     if (
       !isBoundedString(id, VECTOR_ID_MAX_BYTES) ||
       typeof text !== "string" ||
       !text.trim() ||
-      text.length > MAX_ITEM_TEXT_CHARS
+      text.length > MAX_ITEM_TEXT_CHARS ||
+      !(type === undefined || isVectorCardType(type))
     ) {
       throw new Error("invalid_embed_items");
     }
-    return { id, text };
+    return type === undefined ? { id, text } : { id, text, type };
   });
   if (new Set(parsed.map((item) => item.id)).size !== parsed.length) {
     throw new Error("invalid_embed_items");
@@ -102,11 +107,12 @@ export const parseVectorIdsParams = (
 export const parseVectorQueryParams = (
   params: Record<string, unknown>
 ): FilesVectorQueryParams => {
-  const { text, topK } = params;
+  const { text, topK, type } = params;
   if (
     typeof text !== "string" ||
     !text.trim() ||
-    text.length > VECTOR_QUERY_MAX_CHARS
+    text.length > VECTOR_QUERY_MAX_CHARS ||
+    !(type === undefined || isVectorCardType(type))
   ) {
     throw new Error("invalid_vector_query");
   }
@@ -123,6 +129,33 @@ export const parseVectorQueryParams = (
     shard: parseShard(params.shard),
     text,
     topK,
+    ...(type === undefined ? {} : { type }),
+  };
+};
+
+const parseTopK = (value: unknown): number => {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > VECTOR_QUERY_MAX_TOP_K
+  ) {
+    throw new Error("invalid_vector_query");
+  }
+  return value;
+};
+
+export const parseVectorSimilarParams = (
+  params: Record<string, unknown>
+): FilesVectorSimilarParams => {
+  if (!isBoundedString(params.id, VECTOR_ID_MAX_BYTES)) {
+    throw new Error("invalid_vector_ids");
+  }
+  return {
+    id: params.id,
+    namespace: parseNamespace(params.namespace),
+    shard: parseShard(params.shard),
+    topK: parseTopK(params.topK),
   };
 };
 
@@ -183,6 +216,9 @@ export const embedUpsert = async (
       id: item.id,
       namespace,
       values: vectors[i] as number[],
+      ...(item.type
+        ? { metadata: { [VECTOR_TYPE_METADATA_KEY]: item.type } }
+        : {}),
     }))
   );
   return { mutationId: mutation.mutationId, upserted: items.length };
@@ -209,24 +245,106 @@ export const vectorGet = async (
   };
 };
 
+/**
+ * The cards closest to one card, by its stored vector: no Workers AI call.
+ * The vector must be in the caller's namespace, so one user can never search
+ * with (or learn about) another user's card.
+ */
+export const vectorSimilar = async (
+  env: FilesOpsEnv,
+  { id, namespace, shard, topK }: FilesVectorSimilarParams
+): Promise<FilesVectorSimilarResult> => {
+  const index = indexForShard(env, shard);
+  const [stored] = await index.getByIds([id]);
+  const values = stored?.values ? Array.from(stored.values) : [];
+  if (stored?.namespace !== namespace || values.length === 0) {
+    return { found: false, matches: [] };
+  }
+  const result = await index.query(values, {
+    namespace,
+    returnMetadata: "none",
+    returnValues: false,
+    // The card itself is the closest match; ask for one more.
+    topK: Math.min(topK + 1, VECTOR_QUERY_MAX_TOP_K),
+  });
+  return {
+    found: true,
+    matches: result.matches
+      .filter((match) => match.id !== id)
+      .slice(0, topK)
+      .map((match) => ({ id: match.id, score: match.score })),
+  };
+};
+
+const toMatches = (matches: VectorizeMatch[]) =>
+  matches.map((match) => ({ id: match.id, score: match.score }));
+
+/**
+ * The cards closest to a search query. With `type`, only cards of that type,
+ * so notes and links can't crowd a few images out of the top matches.
+ * Vectors written before they carried a type never match the filter, so an
+ * unfiltered query runs beside it and adds the untyped ones among its
+ * matches; once every vector carries a type it adds nothing. An index without
+ * the `type` metadata index may reject the filter, and none of its matches
+ * read as typed: then the search runs as it did before types. A filter that
+ * fails where vectors do carry types is a real failure.
+ */
 export const vectorQuery = async (
   env: FilesOpsEnv,
-  { namespace, shard, text, topK }: FilesVectorQueryParams
+  { namespace, shard, text, topK, type }: FilesVectorQueryParams
 ): Promise<FilesVectorQueryResult> => {
   const index = indexForShard(env, shard);
   const [vector] = await embed(env, [cardEmbeddingQuery(text)]);
-  const result = await index.query(vector as number[], {
+  const options = {
     namespace,
     // The typings accept a boolean, but the production API rejects one
-    // ("returnMetadata: expected value", code 40026).
+    // ("returnMetadata: expected value", code 40026). "all" would also cap
+    // topK at 50; "none" and "indexed" allow 100.
     returnMetadata: "none",
     returnValues: false,
     topK,
-  });
+  } satisfies VectorizeQueryOptions;
+  if (!type) {
+    return {
+      matches: toMatches(
+        (await index.query(vector as number[], options)).matches
+      ),
+    };
+  }
+  const [typed, all] = await Promise.all([
+    index
+      .query(vector as number[], {
+        ...options,
+        filter: { [VECTOR_TYPE_METADATA_KEY]: type },
+      })
+      .then(
+        (result) => result.matches,
+        (error: unknown) => ({ error })
+      ),
+    index.query(vector as number[], { ...options, returnMetadata: "indexed" }),
+  ]);
+  const untyped = all.matches.filter(
+    (match) => match.metadata?.[VECTOR_TYPE_METADATA_KEY] === undefined
+  );
+  let typedMatches: VectorizeMatch[] = [];
+  if (Array.isArray(typed)) {
+    typedMatches = typed;
+  } else {
+    if (untyped.length < all.matches.length) {
+      throw typed.error;
+    }
+    console.warn("[files-worker] vector type filter failed", {
+      message:
+        typed.error instanceof Error ? typed.error.message.slice(0, 200) : "",
+      shard,
+    });
+  }
+  const typedIds = new Set(typedMatches.map((match) => match.id));
   return {
-    matches: result.matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-    })),
+    matches: toMatches(
+      [...typedMatches, ...untyped.filter((match) => !typedIds.has(match.id))]
+        .sort((left, right) => right.score - left.score)
+        .slice(0, topK)
+    ),
   };
 };

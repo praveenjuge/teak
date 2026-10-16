@@ -1,10 +1,13 @@
 "use node";
 
 import {
+  isLinkCategory,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
   type LinkCategoryDetail,
   type LinkCategoryMetadata,
+  type LinkPrice,
+  parseStructuredPrice,
   resolveLinkCategory,
 } from "@teak/convex/shared";
 import { v } from "convex/values";
@@ -31,6 +34,7 @@ import {
 import { enrichProvider } from "./providers";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
+const PREVIEW_HINT_CONFIDENCE = 0.95;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 const TRAILING_SLASH_REGEX = /\/+$/;
@@ -78,6 +82,7 @@ export const projectCategorizationSnapshot = (
             raw: preview.raw,
             rawStorageKey: preview.rawStorageKey,
             rawSha256: preview.rawSha256,
+            categoryHint: preview.categoryHint,
           }
         : undefined,
     },
@@ -142,6 +147,18 @@ export const classifyLinkCategory = (
     siteName: linkPreview?.siteName,
     title: linkPreview?.title || linkPreview?.description,
   });
+
+  // A post confirmed by its site's API (a Mastodon status on any instance,
+  // say) outranks what the URL alone suggests.
+  const hint = linkPreview?.categoryHint;
+  if (typeof hint === "string" && isLinkCategory(hint)) {
+    return {
+      category: hint,
+      confidence: PREVIEW_HINT_CONFIDENCE,
+      providerHint: resolution.provider,
+      reason: "preview_hint",
+    };
+  }
 
   return {
     category: resolution.category,
@@ -320,23 +337,47 @@ export const enrichLinkCategory = async (
     ? await fetchStructuredData(sourceUrl)
     : (providedStructured ?? null);
 
-  if (structured?.entities?.length) {
-    const enriched = enrichWithStructuredData(
-      classification.category,
-      structured.entities
-    );
-    if (enriched) {
-      if (enriched.imageUrl && !imageUrl) {
-        imageUrl = enriched.imageUrl;
-      }
-      mergeFacts(facts, enriched.facts);
-      raw = {
-        ...(raw ?? {}),
-        structured: enriched.raw,
-        structuredMeta: structured?.meta,
-      };
+  let structuredPrice: LinkPrice | undefined;
+  const enriched = structured?.entities?.length
+    ? enrichWithStructuredData(classification.category, structured.entities)
+    : null;
+  if (enriched) {
+    if (enriched.imageUrl && !imageUrl) {
+      imageUrl = enriched.imageUrl;
     }
+    mergeFacts(facts, enriched.facts);
+    structuredPrice = enriched.price;
+    raw = {
+      ...(raw ?? {}),
+      structured: enriched.raw,
+      structuredMeta: structured?.meta,
+    };
+  } else if (structured) {
+    // The page was read again and no longer describes itself, so what an
+    // earlier pass stored (a price the shop removed, say) is dropped.
+    if (raw && "structured" in raw) {
+      const { structured: _stale, ...rest } = raw;
+      raw = { ...rest, structuredMeta: structured.meta };
+    }
+  } else if (raw?.structured) {
+    // JSON-LD read on an earlier pass and not read again (skipped, or the
+    // fetch failed): its facts and price come from what was stored.
+    const stored = enrichWithStructuredData(classification.category, [
+      raw.structured,
+    ]);
+    if (stored?.imageUrl && !imageUrl) {
+      imageUrl = stored.imageUrl;
+    }
+    mergeFacts(facts, stored?.facts);
+    structuredPrice =
+      stored?.price ??
+      (classification.category === "product"
+        ? (parseStructuredPrice(raw.structured) ?? undefined)
+        : undefined);
   }
+
+  // The page's JSON-LD states the price more reliably than its selectors.
+  const price = structuredPrice ?? providerEnrichment?.price;
 
   const metadata: LinkCategoryMetadata = {
     category: classification.category,
@@ -353,6 +394,9 @@ export const enrichLinkCategory = async (
   if (facts.length > 0) {
     metadata.facts = facts;
   }
+  if (price) {
+    metadata.price = price;
+  }
 
   return metadata;
 };
@@ -360,6 +404,7 @@ export const enrichLinkCategory = async (
 export const classifyStep: any = internalAction({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
     workflowId: v.optional(v.string()),
   },
   returns: v.union(
@@ -373,7 +418,7 @@ export const classifyStep: any = internalAction({
       shouldFetchStructured: v.boolean(),
     })
   ),
-  handler: (ctx: any, args: { cardId: Id<"cards"> }) =>
+  handler: (ctx: any, args: { cardId: Id<"cards">; refresh?: boolean }) =>
     withBackendErrorCapture(
       {
         cardId: args.cardId,
@@ -386,9 +431,17 @@ export const classifyStep: any = internalAction({
     ),
 });
 
+/**
+ * A `refresh` (the person pressed Refresh details) ignores the 30-day cache:
+ * the link is classified again and its page's JSON-LD is fetched again.
+ */
 export async function classifyHandler(
   ctx: any,
-  { cardId, workflowId }: { cardId: Id<"cards">; workflowId?: string }
+  {
+    cardId,
+    refresh,
+    workflowId,
+  }: { cardId: Id<"cards">; refresh?: boolean; workflowId?: string }
 ) {
   const card = await ctx.runQuery(internal.ai.queries.getCardForAI, {
     cardId,
@@ -426,6 +479,7 @@ export async function classifyHandler(
     existingMetadata?.sourceUrl;
 
   if (
+    !refresh &&
     existingMetadata?.category &&
     sourceUrl &&
     cachedSourceUrl &&
@@ -455,10 +509,12 @@ export async function classifyHandler(
 
   const shouldFetchStructured =
     !!sourceUrl &&
-    !(
-      existingMetadata?.raw?.structured ?? existingMetadata?.rawHasStructured
-    ) &&
-    !structuredFresh;
+    (refresh ||
+      !(
+        (existingMetadata?.raw?.structured ??
+          existingMetadata?.rawHasStructured) ||
+        structuredFresh
+      ));
 
   return {
     mode: "classified" as const,

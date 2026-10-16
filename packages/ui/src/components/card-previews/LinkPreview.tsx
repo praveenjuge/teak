@@ -3,10 +3,13 @@ import {
   getSafeUrlHostname,
   sanitizeExternalUrl,
 } from "@teak/convex/shared/utils/safeUrl";
-import { ArrowUpRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowUpRight, ImagePlus } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatLinkByline } from "../../lib/linkByline";
+import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
+import { cn } from "../../lib/utils";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 import { SiteFavicon } from "../cards/SiteFavicon";
 
@@ -34,7 +37,102 @@ type CardWithUrls = Doc<"cards"> & {
     width?: number;
   }>;
   linkPreviewImageUrl?: string;
+  hasThumbnailOverride?: true;
 };
+
+/** Lets the preview take a dropped image as the link's new image. */
+export interface LinkPreviewThumbnail {
+  onFile: (file: File) => void;
+  /** The image being uploaded, shown with a shimmer until it is applied. */
+  uploadingPreviewUrl?: string;
+}
+
+const hasFiles = (event: DragEvent) =>
+  Array.from(event.dataTransfer?.types ?? []).includes("Files");
+
+/**
+ * A drop target for a new image, outlined while a file is dragged over it.
+ * Drop-only: the card menu's Replace image item is the keyboard path.
+ */
+function ThumbnailDropZone({
+  children,
+  className,
+  onFile,
+}: {
+  children: ReactNode;
+  className?: string;
+  onFile: (file: File) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isOver, setIsOver] = useState(false);
+  const onFileRef = useRef(onFile);
+  onFileRef.current = onFile;
+
+  useEffect(() => {
+    const zone = ref.current;
+    if (!zone) {
+      return;
+    }
+    const accept = (event: DragEvent) => {
+      if (!hasFiles(event)) {
+        return false;
+      }
+      // Keep the drop from the browser and from the library's drop-to-save.
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    };
+    const handleDragEnter = (event: DragEvent) => {
+      if (accept(event)) {
+        setIsOver(true);
+      }
+    };
+    const handleDragOver = (event: DragEvent) => {
+      if (accept(event) && event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+    };
+    const handleDragLeave = (event: DragEvent) => {
+      if (!zone.contains(event.relatedTarget as Node | null)) {
+        setIsOver(false);
+      }
+    };
+    const handleDrop = (event: DragEvent) => {
+      if (!accept(event)) {
+        return;
+      }
+      setIsOver(false);
+      const file = firstFile(event.dataTransfer?.files);
+      if (file) {
+        onFileRef.current(file);
+      }
+    };
+    zone.addEventListener("dragenter", handleDragEnter);
+    zone.addEventListener("dragover", handleDragOver);
+    zone.addEventListener("dragleave", handleDragLeave);
+    zone.addEventListener("drop", handleDrop);
+    return () => {
+      zone.removeEventListener("dragenter", handleDragEnter);
+      zone.removeEventListener("dragover", handleDragOver);
+      zone.removeEventListener("dragleave", handleDragLeave);
+      zone.removeEventListener("drop", handleDrop);
+    };
+  }, []);
+
+  return (
+    <div
+      className={cn(
+        "relative rounded-2xl outline-2 outline-transparent outline-offset-4 transition-[outline-color]",
+        isOver && "outline-dashed outline-primary",
+        className
+      )}
+      data-drop-target={isOver ? "active" : undefined}
+      ref={ref}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface LinkPreviewProps {
   card: CardWithUrls;
@@ -46,12 +144,15 @@ interface LinkPreviewProps {
     children: React.ReactNode;
   }>;
   showScreenshot?: boolean;
+  /** Set where the link's image can be replaced (the card dialog). */
+  thumbnail?: LinkPreviewThumbnail;
 }
 
 export function LinkPreview({
   card,
   showScreenshot = false,
   LinkComponent,
+  thumbnail,
 }: LinkPreviewProps) {
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
@@ -98,24 +199,73 @@ export function LinkPreview({
       Boolean(image.url) && !failedImageUrls.includes(image.url ?? "")
   );
 
+  const imageClassName =
+    "h-auto max-h-[30vh] w-auto max-w-full self-start rounded-2xl border bg-muted object-cover object-top md:max-h-[50vh]";
+  const uploadingPreviewUrl = thumbnail?.uploadingPreviewUrl;
+  let image: ReactNode = null;
+  if (uploadingPreviewUrl) {
+    image = (
+      <span
+        aria-busy="true"
+        className="relative block self-start overflow-hidden rounded-2xl"
+      >
+        {/* biome-ignore lint/correctness/useImageSize: a local file of unknown size */}
+        <img
+          alt="Uploading the new link preview"
+          className={imageClassName}
+          src={uploadingPreviewUrl}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 animate-pulse bg-background/50"
+        />
+      </span>
+    );
+  } else if (previewImage) {
+    image = (
+      <ResilientMediaImage
+        alt={card.hasThumbnailOverride ? "Link image" : previewImage.alt}
+        cardId={card._id}
+        className={imageClassName}
+        height={630}
+        key={previewImage.url}
+        onPermanentError={() =>
+          setFailedImageUrls((urls) => [...urls, previewImage.url])
+        }
+        src={previewImage.url}
+        storageKey={
+          card.hasThumbnailOverride
+            ? card.thumbnailOverride?.storageKey
+            : previewImage.storageKey
+        }
+        width={1200}
+      />
+    );
+  }
+
+  // With no image, the dialog offers a quiet place to drop one, outside the
+  // link so a click never opens the site.
+  const emptyDropArea =
+    thumbnail && !image ? (
+      <ThumbnailDropZone onFile={thumbnail.onFile}>
+        <div className="flex h-32 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed text-muted-foreground text-sm">
+          <ImagePlus aria-hidden="true" className="size-5" />
+          Add an image
+        </div>
+      </ThumbnailDropZone>
+    ) : null;
+
   const linkContent = (
     <>
       <div className="flex flex-col gap-4">
-        {previewImage && (
-          <ResilientMediaImage
-            alt={previewImage.alt}
-            cardId={card._id}
-            className="h-auto max-h-[30vh] w-auto max-w-full self-start rounded-2xl border bg-muted object-cover object-top md:max-h-[50vh]"
-            height={630}
-            key={previewImage.url}
-            onPermanentError={() =>
-              setFailedImageUrls((urls) => [...urls, previewImage.url])
-            }
-            src={previewImage.url}
-            storageKey={previewImage.storageKey}
-            width={1200}
-          />
-        )}
+        {image &&
+          (thumbnail ? (
+            <ThumbnailDropZone className="self-start" onFile={thumbnail.onFile}>
+              {image}
+            </ThumbnailDropZone>
+          ) : (
+            image
+          ))}
 
         <div className="space-y-1.5 px-1">
           <div className="flex items-start gap-2">
@@ -179,6 +329,7 @@ export function LinkPreview({
   if (LinkComponent) {
     return (
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
+        {emptyDropArea}
         {safeUrl ? (
           <LinkComponent
             className="group block"
@@ -226,6 +377,7 @@ export function LinkPreview({
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
+      {emptyDropArea}
       {safeUrl ? (
         <a
           className="group block"

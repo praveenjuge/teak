@@ -1,6 +1,8 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { buildErrorPreview } from "../linkMetadata";
+import { parseLinkMetadataRetryableError } from "./linkMetadata";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as any;
@@ -59,6 +61,7 @@ export const createMissingCardWorkflowResult = () => ({
 export const cardProcessingWorkflow: any = workflow.define({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
   },
   returns: v.union(
     v.object({
@@ -91,7 +94,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       reason: v.literal("card_missing"),
     })
   ),
-  handler: async (step, { cardId }) => {
+  handler: async (step, { cardId, refresh }) => {
     console.info(`${PIPELINE_LOG_PREFIX} Starting`, { cardId });
 
     const initialCard = await step.runQuery(
@@ -143,12 +146,36 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await step.runAction(
-          internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-            .fetchMetadata,
-          { cardId },
-          { retry: LINK_METADATA_STEP_RETRY }
-        );
+        try {
+          await step.runAction(
+            internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+              .fetchMetadata,
+            refresh ? { cardId, refresh } : { cardId },
+            { retry: LINK_METADATA_STEP_RETRY }
+          );
+        } catch (error) {
+          // A refresh that still can't read the page keeps the preview the
+          // card has and goes on; an automatic run fails as before.
+          const retryable = refresh
+            ? parseLinkMetadataRetryableError(error)
+            : null;
+          if (!retryable) {
+            throw error;
+          }
+          await step.runMutation(
+            internalWorkflow.linkMetadata.updateCardMetadata,
+            {
+              cardId,
+              linkPreview: buildErrorPreview(retryable.normalizedUrl ?? "", {
+                type: retryable.type ?? "error",
+                message: retryable.message,
+                details: retryable.details,
+              }),
+              status: "failed",
+              refresh,
+            }
+          );
+        }
       }
     }
 
@@ -157,7 +184,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       const categorizationOutcome = await (async () => {
         const classifyStepResult = await step.runAction(
           internalWorkflow["workflows/steps/categorization/index"].classifyStep,
-          { cardId, ...artifactOwner },
+          { cardId, ...artifactOwner, ...(refresh ? { refresh } : {}) },
           { retry: LINK_ENRICHMENT_STEP_RETRY }
         );
 

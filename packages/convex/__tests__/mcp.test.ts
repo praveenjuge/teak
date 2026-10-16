@@ -37,10 +37,12 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_check_duplicate_url",
   "teak_v1_create_card",
   "teak_v1_create_folder",
+  "teak_v1_create_thumbnail_upload",
   "teak_v1_create_upload",
   "teak_v1_delete_card",
   "teak_v1_delete_folder",
   "teak_v1_delete_tag",
+  "teak_v1_find_similar_cards",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_card_content",
@@ -55,10 +57,12 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_refresh_card",
   "teak_v1_remove_cards_from_folder",
   "teak_v1_rename_tag",
+  "teak_v1_reset_card_thumbnail",
   "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
   "teak_v1_set_card_favorite",
+  "teak_v1_set_card_thumbnail",
   "teak_v1_update_card",
   "teak_v1_update_folder",
 ];
@@ -538,6 +542,35 @@ describe("Convex MCP endpoint", () => {
       q: "design",
       limit: 10,
       include: "content,metadata",
+    });
+  });
+
+  test("finds similar cards through similarTo", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_2" }],
+          pageInfo: { hasMore: false, nextCursor: null },
+          similarity: "ok",
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_find_similar_cards",
+      { cardId: "card_1", type: "image", limit: 5 },
+      mcpRequest({ jsonrpc: "2.0", id: 53, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards",
+      query: { similarTo: "card_1", type: "image", limit: 5 },
+    });
+    expect(result.structuredContent).toMatchObject({
+      total: 1,
+      similarity: "ok",
     });
   });
 
@@ -1290,4 +1323,72 @@ describe("Convex MCP endpoint", () => {
       "Bulk favorite complete: 1 of 1 succeeded"
     );
   });
+});
+
+describe("link image tools", () => {
+  const run = async (tool: string, input: unknown) => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const result = await callTeakV1Tool(
+      tool,
+      input,
+      mcpRequest({ jsonrpc: "2.0", id: 70, method: "tools/call" }),
+      mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+        const { headers: _headers, ...request } = operation;
+        captured.push(request);
+        return Promise.resolve(Response.json({ id: "card_1" }));
+      }) as PublicApiToolExecutor
+    );
+    return { captured, result };
+  };
+
+  test("upload, apply and reset reach the thumbnail routes", async () => {
+    const upload = await run("teak_v1_create_thumbnail_upload", {
+      cardId: "card_1",
+      fileSize: 2048,
+      mimeType: "image/webp",
+    });
+    expect(upload.captured).toEqual([
+      {
+        body: { fileSize: 2048, mimeType: "image/webp" },
+        method: "POST",
+        path: "/v1/cards/card_1/thumbnail/upload",
+      },
+    ]);
+    const set = await run("teak_v1_set_card_thumbnail", {
+      cardId: "card_1",
+      fileKey: "pending/key",
+    });
+    expect(set.captured).toEqual([
+      {
+        body: { fileKey: "pending/key" },
+        method: "PUT",
+        path: "/v1/cards/card_1/thumbnail",
+      },
+    ]);
+    const reset = await run("teak_v1_reset_card_thumbnail", {
+      cardId: "card_1",
+    });
+    expect(reset.captured).toEqual([
+      { method: "DELETE", path: "/v1/cards/card_1/thumbnail" },
+    ]);
+  });
+
+  test.each([
+    { mimeType: "image/svg+xml", fileSize: 10 },
+    { mimeType: "image/heic", fileSize: 10 },
+    { mimeType: "image/png", fileSize: 20 * 1024 * 1024 + 1 },
+  ])(
+    "refuses %o before calling the API",
+    async (input: { fileSize: number; mimeType: string }) => {
+      const { captured, result } = await run(
+        "teak_v1_create_thumbnail_upload",
+        {
+          cardId: "card_1",
+          ...input,
+        }
+      );
+      expect(result.isError).toBe(true);
+      expect(captured).toEqual([]);
+    }
+  );
 });

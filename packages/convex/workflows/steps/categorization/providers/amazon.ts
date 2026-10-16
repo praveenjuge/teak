@@ -1,4 +1,4 @@
-import type { LinkCategoryDetail } from "@teak/convex/shared";
+import { type LinkCategoryDetail, parsePrice } from "@teak/convex/shared";
 import type { ProviderEnrichmentResult, RawSelectorMap } from "./common";
 import { getRawAttribute, getRawText, normalizeWhitespace } from "./common";
 
@@ -31,8 +31,11 @@ export const enrichAmazon = (
     ? [{ label: "Price", value: priceLabel }]
     : undefined;
 
+  const price = parsePrice(priceText, currency);
+
   return {
     facts,
+    ...(price ? { price } : {}),
     raw: {
       price: priceText ?? null,
       currency: currency ?? null,

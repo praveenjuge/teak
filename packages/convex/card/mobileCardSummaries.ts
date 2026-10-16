@@ -17,6 +17,8 @@ const mobileCardSummaryValidator = v.object({
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
   fileName: v.optional(v.string()),
+  /** linkPreviewImageUrl is an image someone chose for the link. */
+  hasThumbnailOverride: v.optional(v.literal(true)),
   isFavorited: v.optional(v.boolean()),
   linkPreviewImageUrl: v.optional(v.string()),
   placeholderUrl: v.optional(v.string()),
@@ -51,6 +53,12 @@ const ratio = (width?: number, height?: number) =>
 
 const mediaAspectRatio = (card: CardWithUrls) => {
   if (card.type === "link") {
+    const override = card.hasThumbnailOverride
+      ? card.thumbnailOverride
+      : undefined;
+    if (override) {
+      return ratio(override.width, override.height);
+    }
     const preview = card.metadata?.linkPreview;
     return card.linkPreviewImageUrl
       ? ratio(preview?.imageWidth, preview?.imageHeight)
@@ -92,6 +100,7 @@ export const toMobileCardSummary = (card: CardWithUrls) => {
     colors: card.colors?.map((color) => color.hex),
     compactUrl: card.compactUrl,
     fileName,
+    hasThumbnailOverride: card.hasThumbnailOverride,
     isFavorited: card.isFavorited || undefined,
     linkPreviewImageUrl: card.linkPreviewImageUrl,
     placeholderUrl: card.placeholderUrl,

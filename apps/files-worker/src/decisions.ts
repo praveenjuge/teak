@@ -53,9 +53,17 @@ export const LINK_CATEGORY_DESCRIPTIONS: Record<LinkCategory, string> = {
   course: "An online course, class, tutorial series or lesson",
   research: "A research paper, preprint, study or academic publication",
   event: "A specific event, conference, meetup or ticketed show",
-  software: "A software tool, library, app, developer tool or service",
+  software: "A software tool, library, developer tool or online service",
   design_portfolio:
     "A designer's or studio's portfolio, case study or design showcase",
+  place:
+    "A physical place: a restaurant, shop, venue, hotel, attraction or property listing",
+  typeface: "A typeface or font family",
+  social_post:
+    "A single post on a social network, such as a tweet, toot or Reddit post",
+  app: "A mobile or desktop app's store listing or download page",
+  game: "A video game or board game",
+  repo: "A code repository on GitHub, GitLab or a similar host",
 };
 
 /** Each style as a yes/no question about the image. */

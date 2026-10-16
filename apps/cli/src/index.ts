@@ -40,6 +40,7 @@ import {
   resolveFolder,
   restoreCards,
   setCardsArchived,
+  setCardThumbnail,
   showCardContent,
   showFolder,
   startExport,
@@ -188,6 +189,8 @@ export const queryOptions = (options: Record<string, unknown>) => {
       typeof options.mode === "string"
         ? (options.mode as SearchMode)
         : undefined,
+    similarTo:
+      typeof options.similarTo === "string" ? options.similarTo : undefined,
     query: typeof options.query === "string" ? options.query : undefined,
     sort,
     ...(sort === "shuffle" && typeof options.seed === "number"
@@ -205,8 +208,9 @@ const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder: and "phrases"'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =) and "phrases"'
     )
+    .option("--similar-to <id>", "only the cards closest in meaning to a card")
     .option(
       "--type <type>",
       "card type; repeat to match any of several",
@@ -255,7 +259,7 @@ const withListOptions = (command: Command) =>
     .option("--include <groups>", "content, metadata, processing")
     .option("--all", "follow every page");
 
-type ListMode = "list" | "search" | "favorites";
+type ListMode = "list" | "search" | "favorites" | "similar";
 
 /**
  * A listing as JSON. A shuffled one carries its seed: a later
@@ -293,6 +297,10 @@ const writeCards = async (
     if (mode === "favorites") {
       return api.cards.favorites(input);
     }
+    if (mode === "similar" && input.similarTo) {
+      const { similarTo, ...rest } = input;
+      return api.cards.similar(similarTo, rest);
+    }
     return mode === "search" ? api.cards.search(input) : api.cards.list(input);
   };
   const page = await collectPages(fetchPage, options.all === true);
@@ -309,6 +317,13 @@ const writeCards = async (
   );
   if (!(options.json || page.pageInfo.nextCursor === null)) {
     process.stderr.write(`nextCursor: ${page.pageInfo.nextCursor}\n`);
+  }
+  if (!options.json && page.similarity && page.similarity !== "ok") {
+    process.stderr.write(
+      page.similarity === "pending"
+        ? "Still learning about this card. Try again in a moment.\n"
+        : "That card is in Trash or was not found.\n"
+    );
   }
   // Meaning search was asked for but did not run.
   if (
@@ -495,6 +510,14 @@ withListOptions(
   )
 );
 withListOptions(
+  cards
+    .command("similar")
+    .argument("<id>")
+    .description("List the cards closest in meaning to a card")
+).action(async (id, options) =>
+  writeCards({ ...program.opts(), ...options, similarTo: id }, "similar")
+);
+withListOptions(
   cards.command("favorites").description("List favorite cards")
 ).action(async (options) =>
   writeCards({ ...program.opts(), ...options }, "favorites")
@@ -558,6 +581,15 @@ cards
   .argument("<ids...>")
   .description("Refresh summaries, tags and link previews for cards")
   .action(async (ids) => refreshCards(ids, program.opts()));
+cards
+  .command("thumbnail")
+  .argument("<id>", "a link card")
+  .argument("[file]", "a JPEG, PNG, WebP, GIF or AVIF image under 20 MB")
+  .description("Replace a link card's image, or reset it with --reset")
+  .option("--reset", "go back to the image Teak found for the link")
+  .action(async (id, file, options) =>
+    setCardThumbnail(id, file, { ...program.opts(), ...options })
+  );
 cards
   .command("archive")
   .argument("<ids...>")
@@ -830,6 +862,14 @@ withListOptions(
   program.command("trash").description("List cards in Trash")
 ).action(async (options) =>
   writeCards({ ...program.opts(), ...options, trashed: true })
+);
+withListOptions(
+  program
+    .command("similar")
+    .argument("<id>")
+    .description("List the cards closest in meaning to a card")
+).action(async (id, options) =>
+  writeCards({ ...program.opts(), ...options, similarTo: id }, "similar")
 );
 withAddOptions(
   program.command("add").description("Save text, a link, or a file as a card")
