@@ -10,7 +10,11 @@ import {
 } from "./_generated/server";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
-import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
+import {
+  WORKOS_CLIENT_ID,
+  WORKOS_SESSION_ID,
+  WORKOS_USER_ID,
+} from "./shared/workosIds";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -26,7 +30,7 @@ function readWorkosSessionClaims(
   clientId: string
 ) {
   if (
-    !(/^client_[A-Za-z0-9]+$/.test(clientId) && identity) ||
+    !(WORKOS_CLIENT_ID.test(clientId) && identity) ||
     identity.issuer !== workosIssuer(clientId) ||
     !WORKOS_USER_ID.test(identity.subject) ||
     typeof identity.sid !== "string" ||

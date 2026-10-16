@@ -2,7 +2,6 @@ import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import {
   type BearerCredentialClass,
-  isExpiredJwt,
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
@@ -373,9 +372,13 @@ const authorizeBearer = async (
         );
       }
       let jwksUnavailable = false;
+      let tokenExpired = false;
       const principal = await verifyWorkosConnectToken(token, {
         issuer,
         audience: resources[options.resource ?? "api"],
+        onExpired: () => {
+          tokenExpired = true;
+        },
         onUnavailable: () => {
           jwksUnavailable = true;
         },
@@ -400,7 +403,7 @@ const authorizeBearer = async (
       } else if (jwksUnavailable) {
         rejection = "jwks_unavailable";
       } else {
-        rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
+        rejection = tokenExpired ? "expired_token" : "invalid_token";
       }
     } else {
       const credential = await ctx.runMutation(

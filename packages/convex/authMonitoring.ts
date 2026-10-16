@@ -97,16 +97,3 @@ export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
       reason: normalizeMonitoringReason(outcome.reason),
     });
   });
-
-export const isExpiredJwt = (token: string, nowMs = Date.now()): boolean => {
-  try {
-    const segment = token.split(".")[1] ?? "";
-    const base64 = segment.replace(/-/gu, "+").replace(/_/gu, "/");
-    const payload = JSON.parse(
-      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))
-    ) as { exp?: unknown };
-    return typeof payload.exp === "number" && payload.exp * 1000 <= nowMs;
-  } catch {
-    return false;
-  }
-};

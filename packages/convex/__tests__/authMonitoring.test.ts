@@ -2,7 +2,6 @@ import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
   hashMonitoringSubject,
-  isExpiredJwt,
   logPublicApiAuthOutcome,
   logResolverDenial,
 } from "../authMonitoring";
@@ -89,14 +88,5 @@ describe("public API auth outcome log", () => {
     } finally {
       log.restore();
     }
-  });
-
-  test("labels an expired rejected JWT without trusting anything else", () => {
-    const token = (exp: number) =>
-      `h.${btoa(JSON.stringify({ exp })).replace(/[=]+$/u, "")}.sig`;
-    const now = Date.parse("2026-10-07T10:00:00Z");
-    expect(isExpiredJwt(token(now / 1000 - 1), now)).toBe(true);
-    expect(isExpiredJwt(token(now / 1000 + 60), now)).toBe(false);
-    expect(isExpiredJwt("not.a-jwt.at-all", now)).toBe(false);
   });
 });

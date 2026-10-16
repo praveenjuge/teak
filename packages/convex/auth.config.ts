@@ -4,6 +4,7 @@ import {
   parseWorkosApiBase,
   workosIssuer,
 } from "./shared/workosApi";
+import { WORKOS_CLIENT_ID } from "./shared/workosIds";
 
 const clientId = process.env.WORKOS_CLIENT_ID;
 if (!clientId) {
@@ -11,7 +12,7 @@ if (!clientId) {
     "WORKOS_CLIENT_ID is required: WorkOS is the only sign-in provider."
   );
 }
-if (!/^client_[A-Za-z0-9]+$/.test(clientId)) {
+if (!WORKOS_CLIENT_ID.test(clientId)) {
   throw new Error("WORKOS_CLIENT_ID must be a WorkOS client ID.");
 }
 

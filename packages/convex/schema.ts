@@ -597,8 +597,7 @@ export default defineSchema({
     externalId: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_eventId", ["eventId"])
-    .index("by_workosUserId_and_type", ["workosUserId", "type"])
-    .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+    .index("by_workosUserId_and_type", ["workosUserId", "type"]),
   workosApplicationDisconnects: defineTable({
     recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     operationId: v.string(),
@@ -637,11 +636,6 @@ export default defineSchema({
     disconnectCompletedAt: v.optional(v.number()),
   })
     .index("by_consentId", ["consentId"])
-    .index("by_workosUserId_and_clientId_and_revokedAt", [
-      "workosUserId",
-      "clientId",
-      "revokedAt",
-    ])
     .index("by_workosUserId_and_clientId_and_disconnectCompletedAt", [
       "workosUserId",
       "clientId",
