@@ -63,6 +63,8 @@ import {
 import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
+  /** Offers Best match in the sort menu: the search has words to match. */
+  canSortByRelevance?: boolean;
   filterTags: CardType[];
   /** Controls at the end of the bar, such as the sort menu. */
   HeaderActions?: ReactNode;
@@ -256,6 +258,7 @@ export function SearchBar({
   lockedChips,
   placeholder = "Search everything",
   sort = "newest",
+  canSortByRelevance,
   onSaveSearch,
   onSortChange,
   onReshuffle,
@@ -527,6 +530,7 @@ export function SearchBar({
             <div className={cn(mobileOpen && "max-sm:hidden")}>
               <ViewMenu
                 activeTypes={filterTags}
+                canSortByRelevance={canSortByRelevance}
                 onClearTypes={() => {
                   for (const filter of filterTags) {
                     onRemoveFilter(filter);

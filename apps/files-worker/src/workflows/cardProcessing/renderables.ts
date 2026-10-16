@@ -4,6 +4,7 @@ import {
   stageFailed,
 } from "@teak/convex/card/processingStatus";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import { hasKnownTinyImageDimensions } from "@teak/convex/shared/imageAnalysis";
 import type {
   FilesAnimationPaletteResult,
   FilesOp,
@@ -20,7 +21,6 @@ import {
   objectKey,
 } from "./context";
 import { buildFilePreviewFactsForKey, recordMediaFacts } from "./files";
-import { hasKnownTinyImageDimensions } from "./metadata";
 
 // Renderables: what a card shows besides its file. Image sizes, EXIF and
 // colors; video thumbnails and scrub sprites; PDF page thumbnails; archive

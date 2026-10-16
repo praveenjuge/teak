@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import type { FilesOp } from "@teak/files-protocol";
 import {
   CARD_ID,
@@ -16,12 +17,11 @@ import {
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
-import { createWorkflowTelemetry } from "../telemetry";
+import { createWorkflowTelemetry, type WorkflowTelemetry } from "../telemetry";
 import {
   buildLinkContentParts,
   generateCardMetadata,
   type MetadataOptions,
-  resolveImageAnalysisKey,
 } from "./metadata";
 
 // AI metadata, as card processing and the AI backfill run it. The text and
@@ -100,11 +100,16 @@ const setup = (
       ? callFilesOp(env, spec)
       : fakes.ops(spec);
   const job = testJob(env, testDeps(env, convex.fetcher, ops));
+  const generateWith = (
+    telemetry: WorkflowTelemetry,
+    cardType: string,
+    options: MetadataOptions = DEFER
+  ) => generateCardMetadata(job, telemetry, cardType, options);
   const generate = (cardType: string, options: MetadataOptions = DEFER) =>
-    generateCardMetadata(job, createWorkflowTelemetry(env), cardType, options);
+    generateWith(createWorkflowTelemetry(env), cardType, options);
   const saved = () =>
     convex.callsTo("workflows/aiMetadata/mutations:updateCardAI").at(-1)?.args;
-  return { card, convex, fakes, generate, saved };
+  return { card, convex, fakes, generate, generateWith, saved };
 };
 
 beforeEach(() => {
@@ -374,6 +379,121 @@ describe("generating metadata", () => {
       expect(fakes.calls.at(-1)?.params.sourceKey).toBe("f1");
     });
 
+    describe("visual styles", () => {
+      const imageCard = {
+        fileKey: "f1",
+        fileMetadata: { mimeType: "image/png" },
+        thumbnailKey: "t1",
+      };
+      const clefStyles = (styles: string[]) => ({
+        model: "@cf/cloudflare/clef-flash",
+        styles,
+        usage: { inputTokens: 400, outputTokens: 0 },
+        version: 1,
+      });
+      const imageAnswer = (
+        tags: string[],
+        visualStyles?: unknown
+      ): OpAnswer => ({
+        data: {
+          summary: "An image",
+          tags,
+          ...(visualStyles === undefined ? {} : { visualStyles }),
+        },
+      });
+      const recordingTelemetry = () => {
+        const events: Array<{ name: string; properties: unknown }> = [];
+        const telemetry: WorkflowTelemetry = {
+          flush: () => Promise.resolve(),
+          record: (name, properties) => {
+            events.push({ name, properties });
+          },
+        };
+        return { events, telemetry };
+      };
+
+      test("asks the image op for Clef's styles and keeps them", async () => {
+        const { fakes, generateWith, saved } = setup(imageCard, {
+          "generate-image-metadata": imageAnswer(
+            ["poster", "grayscale"],
+            clefStyles(["typographic", "minimal"])
+          ),
+        });
+        const { events, telemetry } = recordingTelemetry();
+        await generateWith(telemetry, "image");
+        expect(fakes.calls.at(-1)?.params.visualStyles).toBe(true);
+        expect(saved()?.visualStyles).toEqual(["typographic", "minimal"]);
+        expect(events).toEqual([
+          {
+            name: "$ai_generation",
+            properties: expect.objectContaining({
+              $ai_input_tokens: 400,
+              $ai_is_error: false,
+              $ai_model: "@cf/cloudflare/clef-flash",
+              $ai_span_name: "teak.ai.decision.decide-visual-styles",
+            }),
+          },
+        ]);
+      });
+
+      test("falls back to the tag aliases without a Clef reply", async () => {
+        const { generate, saved } = setup(imageCard, {
+          "generate-image-metadata": imageAnswer(["grayscale", "photo"]),
+        });
+        await generate("image");
+        expect(saved()?.visualStyles).toEqual(["monochrome", "photographic"]);
+      });
+
+      test("falls back to the tag aliases for an invalid Clef reply", async () => {
+        const { generate, saved } = setup(imageCard, {
+          "generate-image-metadata": imageAnswer(
+            ["grayscale"],
+            clefStyles(["grunge"])
+          ),
+        });
+        await generate("image");
+        expect(saved()?.visualStyles).toEqual(["monochrome"]);
+      });
+
+      test("a confident 'no styles' from Clef saves none", async () => {
+        const { generate, saved } = setup(imageCard, {
+          "generate-image-metadata": imageAnswer(["grayscale"], clefStyles([])),
+        });
+        await generate("image");
+        expect(saved()).toBeDefined();
+        expect(saved()?.visualStyles).toBeUndefined();
+      });
+
+      test("styles alone still complete the stage with them", async () => {
+        const { generate, saved } = setup(imageCard, {
+          "generate-image-metadata": {
+            data: {
+              summary: "",
+              tags: [],
+              visualStyles: clefStyles(["abstract"]),
+            },
+          },
+        });
+        expect((await generate("image")).mode).toBe("completed");
+        expect(saved()?.visualStyles).toEqual(["abstract"]);
+      });
+
+      test("videos keep styles from their thumbnail", async () => {
+        const { fakes, generate, saved } = setup(
+          { thumbnailKey: "t1" },
+          {
+            "generate-image-metadata": imageAnswer(
+              ["trailer"],
+              clefStyles(["cinematic", "dark"])
+            ),
+          }
+        );
+        await generate("video");
+        expect(fakes.calls.at(-1)?.params.visualStyles).toBe(true);
+        expect(saved()?.visualStyles).toEqual(["cinematic", "dark"]);
+      });
+    });
+
     test("a known tiny image is never sent", async () => {
       const { fakes, generate } = setup({
         fileKey: "f1",
@@ -404,7 +524,7 @@ describe("generating metadata", () => {
       expect(
         fakes.calls.find((call) => call.op === "generate-image-metadata")
           ?.params
-      ).toEqual({ sourceKey: "t1", title: "clip.mp4" });
+      ).toEqual({ sourceKey: "t1", title: "clip.mp4", visualStyles: true });
       expect(saved()).toMatchObject({
         aiSummary: "A talk",
         aiTags: ["talk"],

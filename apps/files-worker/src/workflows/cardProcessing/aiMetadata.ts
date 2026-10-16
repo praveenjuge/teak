@@ -1,8 +1,10 @@
+import { isVisualStyle, type VisualStyle } from "@teak/convex/shared/constants";
 import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
   readFilesAiGenerationFacts,
+  readVisualStylesDecision,
   TEXT_METADATA_MODEL_ID,
   validateTextMetadata,
 } from "@teak/files-protocol";
@@ -129,21 +131,68 @@ export const generateLinkMetadata = (
 export const generateImageMetadataForStoredKey = async (
   job: CardJob,
   sourceKey: string,
-  title?: string
-): Promise<GeneratedMetadata> => {
-  const outcome = await job.deps.filesOp<{ summary: string; tags: string[] }>({
+  title?: string,
+  /** With telemetry, the op also asks Clef for the image's visual styles. */
+  options: { telemetry?: WorkflowTelemetry } = {}
+): Promise<GeneratedMetadata & { visualStyles?: VisualStyle[] }> => {
+  const outcome = await job.deps.filesOp<{
+    summary: string;
+    tags: string[];
+    visualStyles?: unknown;
+  }>({
     op: "generate-image-metadata",
-    params: { sourceKey, ...(title ? { title } : {}) },
+    params: {
+      sourceKey,
+      ...(title ? { title } : {}),
+      ...(options.telemetry ? { visualStyles: true } : {}),
+    },
   });
   if (outcome.kind === "fallback") {
     throw new Error(
       "Image analysis is waiting for a raster thumbnail (worker unavailable)"
     );
   }
+  const visualStyles = options.telemetry
+    ? await readClefVisualStyles(
+        job,
+        options.telemetry,
+        outcome.data.visualStyles
+      )
+    : undefined;
   return {
     aiSummary: outcome.data.summary,
     aiTags: normalizeAiTags(outcome.data.tags),
+    ...(visualStyles ? { visualStyles } : {}),
   };
+};
+
+/**
+ * Clef's styles from the image op, when it ran and replied validly; else
+ * `undefined`, so the caller falls back to the tag aliases. The op made the
+ * Clef call, so its `$ai_generation` is recorded here.
+ */
+const readClefVisualStyles = async (
+  job: CardJob,
+  telemetry: WorkflowTelemetry,
+  value: unknown
+): Promise<VisualStyle[] | undefined> => {
+  if (value === undefined) {
+    return;
+  }
+  const decision = readVisualStylesDecision(value, isVisualStyle);
+  if (!decision) {
+    return;
+  }
+  await observeAiGeneration(
+    telemetry,
+    {
+      functionId: "teak.ai.decision.decide-visual-styles",
+      model: decision.model,
+      traceId: job.cardId,
+    },
+    () => Promise.resolve({ usage: decision.usage })
+  );
+  return decision.styles as VisualStyle[];
 };
 
 // Whisper invents these closing lines for silence, tones and beeps. A

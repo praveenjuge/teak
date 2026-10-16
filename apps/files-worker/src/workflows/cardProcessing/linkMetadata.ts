@@ -60,6 +60,50 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
+/** The page fetch failure a retryable error carries, or null for any other. */
+export const parseLinkMetadataRetryableError = (
+  error: unknown
+): LinkMetadataRetryableError | null => {
+  const message = error instanceof Error ? error.message : String(error);
+  const start = message.indexOf(LINK_METADATA_RETRYABLE_PREFIX);
+  if (start === -1) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(
+      message.slice(start + LINK_METADATA_RETRYABLE_PREFIX.length)
+    ) as LinkMetadataRetryableError;
+    return parsed && typeof parsed.type === "string" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A refresh that still can't read the page after its retries: records the
+ * failure with `refresh`, so Convex keeps the preview the card already has,
+ * and the run goes on.
+ */
+export const keepPreviewAfterFailedRefresh = async (
+  job: CardJob,
+  failure: LinkMetadataRetryableError
+): Promise<void> => {
+  await job.deps.convex.mutation(
+    internal.linkMetadata.updateCardMetadata,
+    {
+      cardId: job.cardId,
+      linkPreview: buildErrorPreview(failure.normalizedUrl ?? "", {
+        type: failure.type || "error",
+        message: failure.message,
+        ...(failure.details ? { details: failure.details } : {}),
+      }),
+      refresh: true,
+      status: "failed",
+    },
+    guardOf(job)
+  );
+};
+
 /** What the step reports: facts only, never the stored preview. */
 export interface LinkMetadataResult {
   errorType?: string;
@@ -325,7 +369,13 @@ export const fetchLinkMetadata = async (
   const save = async (linkPreview: unknown, status: "completed" | "failed") => {
     await convex.mutation(
       internal.linkMetadata.updateCardMetadata,
-      { cardId: job.cardId, linkPreview, status },
+      {
+        cardId: job.cardId,
+        linkPreview,
+        // A refresh that can't read the page keeps the stored preview.
+        ...(job.refresh ? { refresh: true } : {}),
+        status,
+      },
       guardOf(job)
     );
   };

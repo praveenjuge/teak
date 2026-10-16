@@ -1,8 +1,8 @@
 ---
 title: "October 2026"
-description: Find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-15"
+date: "2026-10-16"
 changelog:
   category: Product updates
 ---
@@ -27,7 +27,7 @@ changelog:
 
 ## Prices on product cards and `price:` search
 
-- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link.
+- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link, and again from the page when you choose **Refresh details**.
 - Search by price with `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, or `price:=0`. Two bounds make a range, so `lamp price:>20 price:<100` finds lamps between 20 and 100, and you can save it as a smart folder. The amount is compared in any currency, and links without a price don't match.
 - Product links you saved earlier get their price as Teak catches up on them.
 - **API, CLI, and MCP:** `q` and `teak search` read `price:` too, and cards include `linkPrice` with `amount` and `currency`. `teak cards get` shows the price. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
@@ -43,6 +43,14 @@ changelog:
 
 - Links to Google Maps, Apple Maps, Yelp, Tripadvisor, OpenTable, Resy, Airbnb, Booking.com, Zillow, Redfin, Rightmove, and Realtor.com are places; Google Fonts, Adobe Fonts, MyFonts, Fontshare, and Future Fonts are typefaces; the App Store, Google Play, the Chrome Web Store, and the Microsoft Store are apps; Steam, itch.io, the Epic Games Store, GOG, and BoardGameGeek are games; and GitHub, GitLab, Bitbucket, Codeberg, and sourcehut projects are code repositories.
 - Places, apps, and games show more in an open card's **Details** when the page lists it: a restaurant's address, cuisine, price range, and rating, an app's platform and rating, or a game's platform, genre, and release date. Repositories keep their GitHub stars and forks. See [Card details](/docs/features#card-details).
+
+## Best match, and cards that know what they are
+
+- A search now starts in **Best match**: the cards that best match what you typed come first. Results never move while you look at them; choose **Newest first** from the **View** menu to see your matches by date. See [Sort and share a search](/docs/features#sort-and-share-a-search).
+- **API, CLI, and MCP:** `sort=relevance` (`--sort relevance` in the CLI) gives the same order, and `relevanceRanked` says whether the results were scored. See [Best match](/docs/api#best-match).
+- Six new visual styles: typographic, 3D, flat, geometric, hand-drawn, and futuristic. Teak now judges styles from the picture itself, and videos get styles from their thumbnail, so `style:` filters find them too.
+- Links on sites Teak has no rule for get the right kind more often, such as a recipe, a course, or a product, read from the page itself.
+- A quotation you paste without quote marks becomes a quote card, and code or dialogue that only looks like a palette or a quote stays a note.
 
 ## The API, MCP, SDK, and CLI in step
 

@@ -35,6 +35,11 @@ export interface CardJob {
   convexSiteUrl: string;
   deps: CardProcessingDeps;
   env: BackgroundEnv;
+  /**
+   * A person asked to refresh the card: link details are read again even
+   * when the stored ones worked.
+   */
+  refresh?: boolean;
   /** The processing revision the run owns; every write is guarded by it. */
   rev: number;
 }

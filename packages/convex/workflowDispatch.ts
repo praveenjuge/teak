@@ -113,7 +113,13 @@ const insertDispatch = async (
 export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  options: { delayMs?: number; metadataOnly?: boolean; reset?: boolean } = {}
+  options: {
+    delayMs?: number;
+    metadataOnly?: boolean;
+    /** "Refresh details": read the link preview and category again. */
+    refresh?: boolean;
+    reset?: boolean;
+  } = {}
 ): Promise<{ instanceId: string; rev: number } | null> => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
@@ -136,7 +142,10 @@ export const queueCardProcessing = async (
     : null;
   const replaced = previous?.state === "pending" ? previous : null;
   const reset = options.reset === true || replaced?.reset === true;
+  const refresh =
+    options.refresh === true || replaced?.params?.refresh === true;
   const metadataOnly =
+    !refresh &&
     options.metadataOnly === true &&
     (!replaced || replaced.params?.metadataOnly === true);
   const rev = (card.processingRev ?? 0) + 1;
@@ -148,7 +157,12 @@ export const queueCardProcessing = async (
     instanceId,
     key: `card:${cardId}`,
     kind: "cardProcessing",
-    params: { cardId, rev, ...(metadataOnly ? { metadataOnly: true } : {}) },
+    params: {
+      cardId,
+      rev,
+      ...(metadataOnly ? { metadataOnly: true } : {}),
+      ...(refresh ? { refresh: true } : {}),
+    },
     rev,
     ...(reset ? { reset: true as const } : {}),
   });
@@ -300,7 +314,9 @@ export const claim = internalMutation({
           continue;
         }
         if (row.reset) {
-          await initializeCardProcessingState(ctx, row.cardId);
+          await initializeCardProcessingState(ctx, row.cardId, {
+            refresh: row.params?.refresh === true,
+          });
         }
       }
       const terminate =

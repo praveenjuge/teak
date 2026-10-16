@@ -43,17 +43,28 @@ const linkPage = async () => ({
   },
 });
 
+const clefAnswer = (decision: null) => ({
+  data: { decision, model: "@cf/cloudflare/clef", version: 1 },
+});
+
+/** Clef reviews notes and guessed link categories; here it never objects. */
+const NO_DECISIONS: Partial<Record<FilesOp, OpAnswer>> = {
+  "decide-card-type": clefAnswer(null),
+  "decide-link-category": clefAnswer(null),
+};
+
 const setup = (
   card: FakeCard | null,
   answers: Partial<Record<FilesOp, OpAnswer | (() => OpAnswer)>>,
   options: {
     handlers?: Parameters<typeof createCardConvex>[1];
+    refresh?: boolean;
     rev?: number;
     step?: Parameters<typeof createFakeStep>[0];
   } = {}
 ) => {
   const convex = createCardConvex(card, options.handlers);
-  const ops = createFakeOps(answers);
+  const ops = createFakeOps({ ...NO_DECISIONS, ...answers });
   const fakeStep = createFakeStep(options.step);
   const env = testEnv();
   const run = () =>
@@ -64,6 +75,7 @@ const setup = (
         params: {
           cardId: CARD_ID,
           convexSiteUrl: TEST_CONVEX_SITE_URL,
+          ...(options.refresh ? { refresh: true } : {}),
           rev: options.rev ?? 1,
         },
         step: fakeStep.step,
@@ -107,7 +119,10 @@ describe("card processing", () => {
       "completed",
     ]);
     expect(card.aiTags).toEqual(["type", "fonts"]);
-    expect(ops.opsCalled()).toEqual(["generate-text-metadata"]);
+    expect(ops.opsCalled()).toEqual([
+      "decide-card-type",
+      "generate-text-metadata",
+    ]);
     expect(result).toMatchObject({
       classification: { type: "text" },
       metadata: { aiTagsCount: 2, mode: "completed" },
@@ -235,6 +250,77 @@ describe("card processing", () => {
     expect(await run()).toEqual({ mode: "skipped", reason: "superseded" });
     expect(card.processingStatus?.screenshot?.status).toBe("in_progress");
     expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  const refreshedLink = () =>
+    makeCard({
+      ...linkCard(),
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "Stored title",
+          url: "https://example.com/article",
+        },
+      },
+    });
+
+  test("a refresh fetches the link preview again even when the stored one worked", async () => {
+    const card = refreshedLink();
+    const { convex, run } = setup(
+      card,
+      {
+        "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "fetch-link-page": await linkPage(),
+        "generate-link-metadata": textMetadataAnswer(["article"]),
+      },
+      { refresh: true }
+    );
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(
+      (card.metadata as { linkPreview: { title: string } }).linkPreview.title
+    ).toBe("A good article");
+    expect(
+      convex.callsTo("linkMetadata:updateCardMetadata")[0]?.args
+    ).toMatchObject({ refresh: true, status: "completed" });
+  });
+
+  test("a refresh that can't read the page keeps the stored preview and finishes", async () => {
+    const card = refreshedLink();
+    const { convex, fakeStep, ops, run } = setup(
+      card,
+      {
+        "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "fetch-link-page": { fallback: "RENDERER_UNAVAILABLE" },
+        "generate-link-metadata": textMetadataAnswer(["article"]),
+      },
+      { refresh: true }
+    );
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    // The preview fetch was retried before giving up.
+    expect(
+      ops.opsCalled().filter((op) => op === "fetch-link-page").length
+    ).toBeGreaterThan(2);
+    expect(fakeStep.names()).toContain("keep link preview after refresh");
+    expect(card.metadataStatus).toBe("completed");
+    expect(
+      (card.metadata as { linkPreview: { title: string } }).linkPreview.title
+    ).toBe("Stored title");
+    // The run went on past the preview to categorize the link.
+    expect(card.processingStatus?.categorize?.status).toBe("completed");
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("an automatic run that can't read the page fails as before", async () => {
+    const card = linkCard();
+    const { fakeStep, run } = setup(card, {
+      "fetch-link-page": { fallback: "RENDERER_UNAVAILABLE" },
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable:");
+    expect(fakeStep.names()).not.toContain("keep link preview after refresh");
   });
 
   test("a metadata-only run regenerates the AI metadata and nothing else", async () => {
@@ -601,14 +687,19 @@ describe("card processing", () => {
 
   test("an edit during the run stops it before its next write", async () => {
     const card = makeCard({ content: "Being edited" });
+    let gateReads = 0;
     const { convex, run } = setup(
       card,
       { "generate-text-metadata": textMetadataAnswer() },
       {
         handlers: {
-          // The edit lands while the metadata step reads the AI gate.
+          // The edit lands while the metadata step reads the AI gate (the
+          // classify step's Clef review reads it first).
           "adminAccess:getAiGate": () => {
-            card.processingRev = 2;
+            gateReads += 1;
+            if (gateReads === 2) {
+              card.processingRev = 2;
+            }
             return "allowed";
           },
         },

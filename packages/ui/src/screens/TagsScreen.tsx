@@ -115,7 +115,7 @@ const TagRow = memo(function TagRow({
       >
         <Hash
           aria-hidden="true"
-          className="size-4 shrink-0 text-muted-foreground/60"
+          className="size-4 shrink-0 text-muted-foreground opacity-60"
         />
         <span className="truncate font-medium text-sm" dir="auto">
           {item.name}

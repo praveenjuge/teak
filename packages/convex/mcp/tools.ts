@@ -519,6 +519,9 @@ const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
     ...pageToCardResults(payload),
     pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
     ...(payload.searchMode ? { searchMode: payload.searchMode } : {}),
+    ...(typeof payload.relevanceRanked === "boolean"
+      ? { relevanceRanked: payload.relevanceRanked }
+      : {}),
   }),
   summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });

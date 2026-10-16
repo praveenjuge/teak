@@ -17,6 +17,7 @@ import {
   VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
+import { type AiUsageContext, runWithAiUsage } from "./aiUsage";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -24,6 +25,14 @@ import {
   validScrapeSelectors,
 } from "./browserRender";
 import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
+import { allowedConvexSiteUrl } from "./convexRpc";
+import {
+  decideCardType,
+  decideLinkCategory,
+  decideVisualStyles,
+  decideVisualStylesForImage,
+  scoreRelevance,
+} from "./decisions";
 import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
@@ -32,7 +41,7 @@ import {
 } from "./export";
 import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
-import { generateImageMetadataForOp } from "./imageMetadata";
+import { generateImageMetadataForOp, loadImageForAi } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import {
   extractZipEntries,
@@ -339,6 +348,8 @@ const dispatch = async (
         vectors: Boolean(env.CARD_VECTORS_0),
         // Background work: the workflows exist and the Worker can sign RPCs.
         workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
+        // `embed-upsert` stores card types and `vector-query` filters by one.
+        vectorTypes: true,
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
@@ -618,15 +629,54 @@ const dispatch = async (
       if (title !== null && title.length > 2000) {
         throw new Error("invalid_title");
       }
+      const sourceKey = requiredString(params, "sourceKey");
+      // Clef styles run beside the tags call when asked, on the same loaded
+      // image. A Clef failure leaves `visualStyles` out, so callers fall back
+      // to the tag aliases.
+      const image =
+        params.visualStyles === true
+          ? await loadImageForAi(env, origin, sourceKey)
+          : undefined;
+      const [metadata, visualStyles] = await Promise.all([
+        generateImageMetadataForOp(env, { image, origin, sourceKey, title }),
+        image
+          ? decideVisualStylesForImage(env, image, title).catch(
+              (error: unknown) => {
+                console.warn("[files-worker] visual styles failed", {
+                  message:
+                    error instanceof Error ? error.message : String(error),
+                  requestId,
+                });
+                return null;
+              }
+            )
+          : Promise.resolve(null),
+      ]);
+      return success(requestId, {
+        ...metadata,
+        ...(visualStyles ? { visualStyles } : {}),
+      });
+    }
+    case "decide-card-type":
+      return success(requestId, await decideCardType(env, params));
+    case "decide-link-category":
+      return success(requestId, await decideLinkCategory(env, params));
+    case "decide-visual-styles": {
+      const title = optionalString(params, "title");
+      if (title !== null && title.length > 2000) {
+        throw new Error("invalid_title");
+      }
       return success(
         requestId,
-        await generateImageMetadataForOp(env, {
+        await decideVisualStyles(env, {
           origin,
           sourceKey: requiredString(params, "sourceKey"),
           title,
         })
       );
     }
+    case "score-relevance":
+      return success(requestId, await scoreRelevance(env, params));
     case "render-pdf-thumbnail":
       return success(
         requestId,
@@ -815,6 +865,27 @@ export const handleInternalOp = async (
  * Runs one op whose caller is already trusted: a verified signed request,
  * or a workflow step in this Worker. Errors become the same envelopes.
  */
+/**
+ * The user an op's Workers AI calls are charged to, when Convex named one
+ * (`aiUsage` in the params) for a deployment this Worker serves.
+ */
+const aiUsageParam = (
+  env: FilesOpsEnv,
+  value: unknown
+): AiUsageContext | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const { convexSiteUrl, userId } = value as Record<string, unknown>;
+  const origin = allowedConvexSiteUrl(env, convexSiteUrl);
+  return origin &&
+    typeof userId === "string" &&
+    userId.length > 0 &&
+    userId.length <= 200
+    ? { convexSiteUrl: origin, userId }
+    : null;
+};
+
 export const runFilesOp = async (
   env: FilesOpsEnv,
   requestId: string,
@@ -843,7 +914,12 @@ export const runFilesOp = async (
     );
   }
   try {
-    return await dispatch(env, requestId, body, origin);
+    const usage = aiUsageParam(
+      env,
+      (body.params as Record<string, unknown>).aiUsage
+    );
+    const run = () => dispatch(env, requestId, body, origin);
+    return await (usage ? runWithAiUsage(usage, run) : run());
   } catch (error) {
     if (error instanceof MetadataCapacityError) {
       return fail(

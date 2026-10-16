@@ -217,7 +217,7 @@ export function SidebarFolders({
         {folders?.length === 0 && !isCreating && (
           <SidebarMenuItem>
             <div className="mt-0.5 rounded-lg border border-sidebar-border border-dashed px-3 pt-2.5 pb-3 group-data-[collapsible=icon]:hidden">
-              <p className="text-[12px] text-sidebar-foreground/55 leading-snug">
+              <p className="text-balance text-[12px] text-sidebar-foreground/55 leading-snug">
                 Group related cards. Make a folder, then drag cards onto it.
               </p>
               <button

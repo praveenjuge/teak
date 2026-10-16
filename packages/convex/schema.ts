@@ -781,6 +781,22 @@ export default defineSchema({
   })
     .index("by_userId_and_key", ["userId", "key"])
     .index("by_expiresAt", ["expiresAt"]),
+  // Best match scores for one search text, per card; see search/relevance.
+  searchRelevanceResults: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    scores: v.array(
+      v.object({
+        cardId: v.id("cards"),
+        score: v.number(),
+        cardUpdatedAt: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_userId_and_key", ["userId", "key"])
+    .index("by_expiresAt", ["expiresAt"]),
   folders: defineTable({
     userId: v.string(),
     name: v.string(),

@@ -649,7 +649,7 @@ export const reprocessCardForUserHandler = async (
 
   await spendCardReprocessLimits(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
 
-  await queueCardProcessing(ctx, cardId, { reset: true });
+  await queueCardProcessing(ctx, cardId, { refresh: true, reset: true });
 
   return { cardId, requestedAt: Date.now() };
 };

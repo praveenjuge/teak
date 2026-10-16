@@ -71,6 +71,9 @@ export default defineConfig({
       "./folders.test.ts",
       "./colorSearch.test.ts",
       "./mediaColorsBackfill.test.ts",
+      "./linkCategoryClefBackfill.test.ts",
+      "./visualStylesBackfill.test.ts",
+      "./bestMatch.test.ts",
       "./linkCategoriesBackfill.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
@@ -83,6 +86,7 @@ export default defineConfig({
       "./workflowDispatch.test.ts",
       "./cutoverWorkflows.test.ts",
       "./cardProcessingDispatch.test.ts",
+      "./refreshDetails.test.ts",
     ],
   },
 });

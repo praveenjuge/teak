@@ -22,6 +22,10 @@ const required = [
   "vector-similar",
   // Convex hands background work to Cloudflare Workflows and Queues with it.
   "dispatch",
+  "decide-card-type",
+  "decide-link-category",
+  "decide-visual-styles",
+  "score-relevance",
 ];
 
 async function productionEnv(name: string): Promise<string> {
@@ -79,6 +83,7 @@ for (;;) {
         rendererHealthy?: boolean;
         vectors?: boolean;
         workflows?: boolean;
+        vectorTypes?: boolean;
       };
     };
     ready =
@@ -92,6 +97,7 @@ for (;;) {
       result.data.rendererHealthy === true &&
       result.data.vectors === true &&
       result.data.workflows === true &&
+      result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch {

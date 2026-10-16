@@ -8,6 +8,7 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import { cardTypeValidator } from "../schema";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildEmbeddingText } from "./text";
 
@@ -73,20 +74,23 @@ export const markCardForEmbedding = async (
 /**
  * Mark a card the backfill found without a current vector as due at
  * `dueAt`. The backfill schedules one `embedDue` per batch of these, since a
- * row it re-queues may have lost its job.
+ * row it re-queues may have lost its job. `forgetHash` makes the job write
+ * the vector even when its text and type are unchanged.
  */
 export const queueCardEmbedding = async (
   ctx: MutationCtx,
   row: Doc<"cardEmbeddings"> | null,
   cardId: Id<"cards">,
   userId: string,
-  dueAt: number
+  dueAt: number,
+  { forgetHash = false }: { forgetHash?: boolean } = {}
 ) => {
   if (row) {
     await ctx.db.patch("cardEmbeddings", row._id, {
       attempts: undefined,
       dueAt,
       lastError: undefined,
+      ...(forgetHash ? { hash: undefined } : {}),
     });
   } else {
     await ctx.db.insert("cardEmbeddings", { cardId, dueAt, userId });
@@ -155,6 +159,7 @@ const embeddingRowValidator = v.object({
   namespace: v.optional(v.string()),
   shard: v.optional(v.number()),
   text: v.string(),
+  type: cardTypeValidator,
   userId: v.string(),
 });
 
@@ -191,6 +196,7 @@ export const loadForEmbedding = internalQuery({
         namespace: row.namespace,
         shard: row.shard,
         text: buildEmbeddingText(card, extracted?.text),
+        type: card.type,
         userId: card.userId,
       });
     }

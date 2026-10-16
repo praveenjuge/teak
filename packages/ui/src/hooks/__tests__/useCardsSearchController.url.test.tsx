@@ -247,12 +247,40 @@ test("back and forward apply at once, without the typing pause", async () => {
     controller.applyUrlState({ q: "colors", sort: "newest", types: [] })
   );
   expect(controller.queryArgs.searchQuery).toBe("colors");
+  // A search with words starts in Best match.
   expect(controller.urlState).toEqual({
     q: "colors",
-    sort: "newest",
+    sort: "relevance",
     tag: "",
     types: [],
   });
+});
+
+test("a search with words starts in Best match", async () => {
+  await mount({ q: "lentil soup", sort: "newest", types: [] });
+  expect(controller.sort).toBe("relevance");
+  expect(controller.queryArgs.sort).toBe("relevance");
+  expect(controller.searchBarProps.canSortByRelevance).toBe(true);
+});
+
+test("a search without words keeps newest and offers no Best match", async () => {
+  await mount({ q: "type:link", sort: "relevance", types: [] });
+  expect(controller.sort).toBe("newest");
+  expect(controller.queryArgs.sort).toBeUndefined();
+  expect(controller.searchBarProps.canSortByRelevance).toBe(false);
+});
+
+test("newest picked during a search stays until the words are cleared", async () => {
+  await mount({ q: "lentil soup", sort: "newest", types: [] });
+  await act(() => controller.searchBarProps.onSortChange?.("newest"));
+  expect(controller.sort).toBe("newest");
+  await act(() =>
+    controller.applyUrlState({ q: "", sort: "newest", types: [] })
+  );
+  await act(() =>
+    controller.applyUrlState({ q: "bread", sort: "newest", types: [] })
+  );
+  expect(controller.sort).toBe("relevance");
 });
 
 test("applying the search already shown keeps its chips", async () => {

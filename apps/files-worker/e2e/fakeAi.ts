@@ -120,6 +120,7 @@ export default class FakeWorkersAi extends WorkerEntrypoint {
 
 interface StoredVector {
   id: string;
+  metadata?: Record<string, unknown>;
   namespace?: string;
   values: number[];
 }
@@ -153,6 +154,7 @@ export class FakeVectorize extends WorkerEntrypoint {
     for (const item of items) {
       vectors.set(item.id, {
         id: item.id,
+        ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
         namespace: item.namespace,
         values: Array.from(item.values),
       });
@@ -178,11 +180,28 @@ export class FakeVectorize extends WorkerEntrypoint {
     });
   }
 
-  query(values: number[], options: { namespace?: string; topK?: number } = {}) {
+  query(
+    values: number[],
+    options: {
+      filter?: Record<string, unknown>;
+      namespace?: string;
+      returnMetadata?: string;
+      topK?: number;
+    } = {}
+  ) {
     const matches = [...vectors.values()]
-      .filter((vector) => vector.namespace === options.namespace)
+      .filter(
+        (vector) =>
+          vector.namespace === options.namespace &&
+          Object.entries(options.filter ?? {}).every(
+            ([key, value]) => vector.metadata?.[key] === value
+          )
+      )
       .map((vector) => ({
         id: vector.id,
+        ...(options.returnMetadata && options.returnMetadata !== "none"
+          ? { metadata: vector.metadata ?? {} }
+          : {}),
         score: cosine(values, vector.values),
       }))
       .sort((left, right) => right.score - left.score)

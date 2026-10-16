@@ -309,18 +309,52 @@ describe("requestSemanticResults for like: and mood:", () => {
     expect(calls).toEqual([]);
   });
 
-  test("mood: embeds its text", async () => {
+  test("mood: asks for image vectors only, so notes can't crowd out the images", async () => {
     const env = await setup();
-    const calls = stubWorker({ query: { matches: [] } });
-    await env.owner.action(api.search.semanticActions.requestSemanticResults, {
-      searchQuery: 'mood:"Moody Brutalist" type:image',
+    const photo = await env.insert({
+      content: "Fog over still water",
+      type: "image",
     });
+    const note = await env.insert({ content: "Calm meeting notes" });
+    const calls = stubWorker({
+      query: {
+        matches: [
+          { id: photo, score: 0.45 },
+          // A vector written before vectors carried a type.
+          { id: note, score: 0.5 },
+        ],
+      },
+    });
+    expect(
+      await env.owner.action(
+        api.search.semanticActions.requestSemanticResults,
+        {
+          searchQuery: 'mood:"Calm and Peaceful"',
+        }
+      )
+    ).toEqual({ outcome: "ok" });
     expect(calls).toEqual([
       {
         op: "vector-query",
-        params: expect.objectContaining({ text: "moody brutalist" }),
+        params: expect.objectContaining({
+          text: "calm and peaceful",
+          type: "image",
+        }),
       },
     ]);
+    expect(await env.grid({ searchQuery: 'mood:"calm and peaceful"' })).toEqual(
+      [photo]
+    );
+  });
+
+  test("a search by meaning asks for every type", async () => {
+    const env = await setup();
+    const calls = stubWorker({ query: { matches: [] } });
+    await env.owner.action(api.search.semanticActions.requestSemanticResults, {
+      searchQuery: "calm and peaceful",
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.params).not.toHaveProperty("type");
   });
 });
 

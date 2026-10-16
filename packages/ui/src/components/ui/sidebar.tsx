@@ -671,7 +671,7 @@ function SidebarGroupLabel({
   return (
     <Comp
       className={cn(
-        "flex h-6 shrink-0 items-center rounded-md px-[9px] font-medium text-[11px] text-sidebar-foreground/60 outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-150 ease-out focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
+        "flex h-6 shrink-0 items-center rounded-md px-[9px] font-medium text-[11px] text-sidebar-foreground/60 outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-150 ease-out focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-sidebar-foreground [&>svg]:opacity-60",
         "group-data-[collapsible=icon]:-mt-6 group-data-[collapsible=icon]:opacity-0",
         className
       )}
@@ -692,7 +692,7 @@ function SidebarGroupAction({
   return (
     <Comp
       className={cn(
-        "absolute top-1.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground/50 outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
+        "absolute top-1.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:opacity-50 [&>svg]:transition-opacity hover:[&>svg]:opacity-100",
         "after:absolute after:-inset-2 md:after:hidden",
         "group-data-[collapsible=icon]:hidden",
         className
@@ -741,7 +741,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-[9px] py-0 text-left text-[13px] text-sidebar-foreground/75 outline-hidden ring-sidebar-ring transition-[width,height,padding,background-color,color] duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-7! group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:px-[9px]! [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-sidebar-foreground/55 [&>svg]:transition-colors hover:[&>svg]:text-sidebar-foreground/80 data-[active=true]:[&>svg]:text-sidebar-accent-foreground",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-[9px] py-0 text-left text-[13px] text-sidebar-foreground/75 outline-hidden ring-sidebar-ring transition-[width,height,padding,background-color,color] duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:h-7! group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:px-[9px]! [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-sidebar-foreground [&>svg]:opacity-55 [&>svg]:transition-[color,opacity] hover:[&>svg]:opacity-80 data-[active=true]:[&>svg]:text-sidebar-accent-foreground data-[active=true]:[&>svg]:opacity-100",
   {
     variants: {
       variant: {
@@ -824,7 +824,7 @@ function SidebarMenuAction({
   return (
     <Comp
       className={cn(
-        "absolute top-1 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground/60 outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-3.5 [&>svg]:shrink-0",
+        "absolute top-1 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:opacity-60 [&>svg]:transition-opacity hover:[&>svg]:opacity-100 peer-hover/menu-button:[&>svg]:opacity-100",
         "after:absolute after:-inset-2 md:after:hidden",
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1",

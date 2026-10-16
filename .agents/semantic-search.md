@@ -51,10 +51,14 @@ model, the prompts or the text a card is embedded from.
 ## Index and shards
 
 - Each shard is one Vectorize index: `teak-cards-<shard>`, 768 dimensions,
-  cosine, with no metadata indexes.
+  cosine, with one string metadata index, `type`.
 - Each index is bound in the Files Worker as `CARD_VECTORS_<shard>`.
 - Shard 0 is `teak-cards-0`, created in the dashboard under Storage &
   Databases → Vectorize.
+- Each vector carries its card's type as `type` metadata. A new shard needs
+  the metadata index before its first vector, since Vectorize indexes only
+  vectors upserted after the index exists:
+  `npx wrangler vectorize create-metadata-index teak-cards-<shard> --property-name=type --type=string`.
 - Each user is one namespace, named by their Teak user ID (Vectorize allows
   at most 64 bytes).
 - One index holds up to 50,000 namespaces and 20 million vectors.
@@ -83,8 +87,10 @@ or is due for, a vector (`packages/convex/embedding/`).
   processing has no embedding step and an embedding failure never fails a
   card. A mark sets `dueAt` 30 seconds out and schedules `embedDue`; later
   edits push `dueAt` back, so a burst of edits costs one embedding.
-- **Skipping.** The row stores a SHA-256 of `CARD_EMBEDDING_VERSION` and the
-  text. An unchanged hash records the row without a Workers AI call.
+- **Skipping.** The row stores a SHA-256 of `CARD_EMBEDDING_VERSION`, the
+  card type and the text. An unchanged hash records the row without a
+  Workers AI call. A type change alone marks the card too, so its vector's
+  `type` stays current.
 - **Fencing.** A job records its result only if `dueAt` still holds the value
   it read. An older job never marks a newer edit done: an edit made while a
   job ran is handed to a new job. A stale job that wrote a vector clears the
@@ -131,6 +137,28 @@ The last batch logs `backfillEmbeddings finished` with the totals. `once` and
 `cursor` run one batch at a time. After bumping `CARD_EMBEDDING_VERSION`, add
 `"reembed": true` to queue embedded cards too. A card whose text is
 unchanged costs no Workers AI call.
+
+### Type metadata
+
+Vectors written before the `type` metadata (October 2026) have none, so a
+type filter never matches them. Their rows hash without the type, so
+`"reembed": true` writes every one again with it. Once the Files Worker that
+writes types is live and `teak-cards-0` has the `type` metadata index:
+
+```bash
+npx wrangler vectorize list-metadata-index teak-cards-0
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"reembed":true}'
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"reembed":true,"userId":"teak_…"}'
+npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"reembed":true}'
+```
+
+The dry run's `embedded` count is the number of cards a real run writes
+again. After the canary, try a `mood:` search on that account before the
+whole table. If vectors were written before the metadata index existed (the
+index created after the worker deployed), their hash already includes the
+type, so `reembed` skips them; run with `"force": true` instead, which
+forgets every hash and writes every vector again. Until a vector is written again,
+`mood:` still finds it the old way (below).
 
 ## Weekly ledger sweep
 
@@ -198,15 +226,22 @@ keyword side:
   read and request, so a cached ranking never outlives it. A card with no
   vector yet is cached as `pending` for 15 seconds. Every neighbor counts,
   however close; the card itself is left out.
-- `mood:` embeds its text through `vector-query`, reads images only and keeps
-  matches above `SEMANTIC_MIN_SCORE`.
+- `mood:` embeds its text through `vector-query` with `type: "image"`, reads
+  images only and keeps matches above `SEMANTIC_MIN_SCORE`.
 - One anchor per search: a second `like:` or `mood:` is plain text, and a
   smart folder and a typed search with different anchors match nothing.
 - The other qualifiers, the view and the search's words (all must appear)
   narrow the list, then the sort orders it, at most 100 cards.
 - Rankings share `semanticSearchResults`, keyed by `like\n<id>` or
-  `mood\n<text>`. Vectorize has no metadata filters here, so a `mood:` keeps
-  the images among its 100 closest cards.
+  `mood\n<text>`.
+- A `mood:` asks Vectorize for the 100 closest image vectors (a metadata
+  filter on `type`), so notes and links can't crowd a few images out. An
+  unfiltered query runs beside it and adds the closest vectors with no type,
+  written before vectors carried one; once the backfill has written every
+  vector again it adds nothing. If the index rejects the filter (no `type`
+  metadata index), the worker logs `vector type filter failed` and the
+  search runs as it did before types. Both return ids and scores only: full
+  metadata would cap `topK` at 50.
 
 ## Checking search by meaning
 

@@ -3,8 +3,12 @@ import {
   stageCompleted,
   stagePending,
 } from "@teak/convex/card/processingStatus";
-import { extractVisualStylesFromTags } from "@teak/convex/shared/constants";
+import {
+  extractVisualStylesFromTags,
+  isVisualStyleCardType,
+} from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import { runWithAiUsage } from "../../aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
@@ -29,47 +33,6 @@ import {
 
 // The AI summary, tags and transcript for one card. The card-processing
 // workflow and the AI backfill queue both run it.
-
-export const MIN_IMAGE_ANALYSIS_DIMENSION = 12;
-
-interface ImageDimensions {
-  height?: number;
-  width?: number;
-}
-
-const hasStoredDimensions = (
-  dimensions?: ImageDimensions
-): dimensions is Required<ImageDimensions> =>
-  typeof dimensions?.width === "number" &&
-  typeof dimensions.height === "number";
-
-export const hasMinimumImageAnalysisDimensions = (
-  dimensions?: ImageDimensions
-) =>
-  hasStoredDimensions(dimensions) &&
-  dimensions.width >= MIN_IMAGE_ANALYSIS_DIMENSION &&
-  dimensions.height >= MIN_IMAGE_ANALYSIS_DIMENSION;
-
-export const hasKnownTinyImageDimensions = (dimensions?: ImageDimensions) =>
-  hasStoredDimensions(dimensions) &&
-  (dimensions.width < MIN_IMAGE_ANALYSIS_DIMENSION ||
-    dimensions.height < MIN_IMAGE_ANALYSIS_DIMENSION);
-
-export const resolveImageAnalysisKey = (card: {
-  fileKey?: string;
-  fileMetadata?: ImageDimensions;
-  thumbnailKey?: string;
-}): string | undefined => {
-  if (hasKnownTinyImageDimensions(card.fileMetadata)) {
-    return;
-  }
-  if (card.thumbnailKey) {
-    return card.thumbnailKey;
-  }
-  if (card.fileKey && hasMinimumImageAnalysisDimensions(card.fileMetadata)) {
-    return card.fileKey;
-  }
-};
 
 interface LinkPreviewFields {
   author?: string;
@@ -228,11 +191,17 @@ const generateForType = async (
       if (!imageKey) {
         return empty;
       }
-      const result = await generateImageMetadataForStoredKey(job, imageKey);
+      const result = await generateImageMetadataForStoredKey(
+        job,
+        imageKey,
+        undefined,
+        { telemetry }
+      );
       return {
         ...result,
         confidence: 0.9,
-        visualStyles: extractVisualStylesFromTags(result.aiTags),
+        visualStyles:
+          result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
       };
     }
     case "video": {
@@ -244,9 +213,15 @@ const generateForType = async (
         const result = await generateImageMetadataForStoredKey(
           job,
           card.thumbnailKey,
-          title
+          title,
+          { telemetry }
         );
-        generated = { ...result, confidence: 0.88 };
+        generated = {
+          ...result,
+          confidence: 0.88,
+          visualStyles:
+            result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
+        };
       }
       const aiTranscript = await transcribeVideo(job, telemetry, loaded);
       if (aiTranscript && !card.thumbnailKey) {
@@ -414,7 +389,12 @@ export const generateCardMetadata = async (
       }
       const { aiSummary, aiTags, aiTranscript, confidence, visualStyles } =
         generated;
-      if (aiTags.length === 0 && !aiSummary && !aiTranscript) {
+      if (
+        aiTags.length === 0 &&
+        !aiSummary &&
+        !aiTranscript &&
+        !visualStyles?.length
+      ) {
         return await completeWithoutAi(job);
       }
       const saved = await job.deps.convex.mutation(
@@ -427,7 +407,9 @@ export const generateCardMetadata = async (
           ...(aiTags.length > 0 ? { aiTags } : {}),
           ...(aiSummary ? { aiSummary } : {}),
           ...(aiTranscript ? { aiTranscript } : {}),
-          ...(type === "image" && visualStyles?.length ? { visualStyles } : {}),
+          ...(isVisualStyleCardType(type) && visualStyles?.length
+            ? { visualStyles }
+            : {}),
         },
         guardOf(job)
       );

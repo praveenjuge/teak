@@ -149,7 +149,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="h-8 w-auto px-[7px] hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:px-[7px]! [&>svg]:size-[18px]"
+              className="h-8 w-auto px-[7px] hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:px-[7px]! [&>svg]:size-[18px] [&>svg]:opacity-100"
               tooltip="Teak"
             >
               <LinkComponent
@@ -174,7 +174,7 @@ export function AppSidebar({
             aria-label={
               state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
             }
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/55 opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden [&>svg]:opacity-55 [&>svg]:transition-opacity hover:[&>svg]:opacity-100"
             onClick={toggleSidebar}
             type="button"
           >

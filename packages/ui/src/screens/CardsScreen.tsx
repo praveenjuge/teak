@@ -54,6 +54,7 @@ import {
 } from "../components/lazyDialogs";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
+import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
@@ -262,15 +263,25 @@ export function CardsScreen({
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
   const reportedSearchKeyRef = useRef<string | null>(null);
+  // Best match: scores that arrive in time order this search; until then
+  // (at most a moment) the grid waits instead of reordering later.
+  const relevance = useRelevanceRanking({
+    ...queryArgs,
+    enabled: !(isFolderView && !folder),
+  });
   const {
     results: cards,
     status: cardsStatus,
     loadMore,
   } = usePaginatedQuery(
     api.cards.searchCardsPaginated,
-    isFolderView && !folder
+    (isFolderView && !folder) || relevance.holding
       ? "skip"
-      : { ...queryArgs, ...(queryRetryKey ? { retryKey: queryRetryKey } : {}) },
+      : {
+          ...queryArgs,
+          ...(relevance.useRelevanceScores ? { useRelevanceScores: true } : {}),
+          ...(queryRetryKey ? { retryKey: queryRetryKey } : {}),
+        },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
   // Meaning matches merge into the query above once they are cached.

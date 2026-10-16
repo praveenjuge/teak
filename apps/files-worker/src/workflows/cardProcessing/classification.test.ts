@@ -3,13 +3,22 @@ import {
   createCardConvex,
   createFakeOps,
   type FakeCard,
+  makeCard,
   testDeps,
   testEnv,
+  testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
+import { callFilesOp } from "../filesOps";
 import { classifyCard } from "./classification";
 import type { CardJob } from "./context";
+
+const NO_DECISION = {
+  decision: null,
+  model: "@cf/cloudflare/clef-flash",
+  version: 1,
+};
 
 // The card the fake deployment holds for the next classification.
 let given: Record<string, unknown> | null | undefined = null;
@@ -31,7 +40,12 @@ const classify = async (mutations: ReturnType<typeof mock>) => {
   const job: CardJob = {
     cardId: (card?._id ?? "c1") as CardJob["cardId"],
     convexSiteUrl: TEST_CONVEX_SITE_URL,
-    deps: testDeps(env, convex.fetcher, createFakeOps({}).ops),
+    // Clef has no opinion, so the rules decide.
+    deps: testDeps(
+      env,
+      convex.fetcher,
+      createFakeOps({ "decide-card-type": { data: NO_DECISION } }).ops
+    ),
     env,
     rev: 0,
   };
@@ -896,4 +910,158 @@ describe("classification stage completion", () => {
       ],
     ]);
   });
+});
+
+describe("card type review by Clef", () => {
+  // The `decide-card-type` op runs for real against a fake Workers AI.
+  const review = async (
+    fields: { content: string; type?: string; url?: string },
+    options: {
+      choice?: string | Error;
+      gate?: string;
+      probability?: number;
+    } = {}
+  ) => {
+    const card = makeCard({ ...fields, type: fields.type ?? "text" });
+    const convex = createCardConvex(card, {
+      "adminAccess:getAiGate": () => options.gate ?? "allowed",
+    });
+    const aiCalls: Record<string, unknown>[] = [];
+    const points: AnalyticsEngineDataPoint[] = [];
+    const env = testEnv({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          aiCalls.push(args);
+          const { choice = "text", probability = 0.95 } = options;
+          if (choice instanceof Error) {
+            return Promise.reject(choice);
+          }
+          const others = ["text", "quote", "palette"].filter(
+            (option) => option !== choice
+          );
+          return Promise.resolve({
+            answers: {
+              type: {
+                type: "choice",
+                choice,
+                confidence: probability,
+                probabilities: {
+                  [choice]: probability,
+                  ...Object.fromEntries(
+                    others.map((option) => [option, (1 - probability) / 2])
+                  ),
+                },
+              },
+            },
+            usage: { input_tokens: 90, output_tokens: 0 },
+          });
+        },
+      } as never,
+      AI_USAGE: {
+        writeDataPoint: (point: AnalyticsEngineDataPoint) => {
+          points.push(point);
+        },
+      } as AnalyticsEngineDataset,
+    });
+    const job = testJob(
+      env,
+      testDeps(env, convex.fetcher, (spec) => callFilesOp(env, spec))
+    );
+    const result = await classifyCard(job);
+    if (result.mode !== "completed") {
+      throw new Error("expected a completed classification");
+    }
+    const recorded = convex
+      .callsTo("workflows/steps/classificationMutations:recordClassification")
+      .map((call) => call.args);
+    return { aiCalls, points, recorded, result };
+  };
+
+  test("an unquoted quotation becomes a quote", async () => {
+    const { aiCalls, points, recorded, result } = await review(
+      { content: "Make it work, then make it fast. — my old teacher" },
+      { choice: "quote", probability: 0.92 }
+    );
+    expect(result).toMatchObject({ confidence: 0.92, type: "quote" });
+    expect(recorded).toEqual([
+      expect.objectContaining({ confidence: 0.92, type: "quote" }),
+    ]);
+    expect(aiCalls).toHaveLength(1);
+    // The call is charged to the card's owner.
+    expect(points.map((point) => point.indexes)).toEqual([[USER_ID]]);
+    expect(points[0]?.blobs?.slice(1, 3)).toEqual([
+      "@cf/cloudflare/clef-flash",
+      "teak.ai.decision",
+    ]);
+    expect(points[0]?.doubles?.[2]).toBe(90);
+  });
+
+  test("vetoes the quote-mark heuristic", async () => {
+    const { result } = await review(
+      { content: '"Are you coming to dinner tonight?"' },
+      { choice: "text", probability: 0.9 }
+    );
+    expect(result.type).toBe("text");
+  });
+
+  test("vetoes the palette rule for CSS", async () => {
+    const { result } = await review(
+      { content: ".button { color: #ffffff; background: #000000; }" },
+      { choice: "text", probability: 0.95 }
+    );
+    expect(result.type).toBe("text");
+  });
+
+  test("a palette with no colours stays text", async () => {
+    const { result } = await review(
+      { content: "my favourite things" },
+      { choice: "palette", probability: 0.95 }
+    );
+    expect(result.type).toBe("text");
+  });
+
+  test("an unsure answer keeps the rules", async () => {
+    const { result } = await review(
+      { content: "Make it work. — someone" },
+      { choice: "quote", probability: 0.6 }
+    );
+    expect(result.type).toBe("text");
+  });
+
+  test("a failing model keeps the rules", async () => {
+    const { result } = await review(
+      { content: "#264653 #2a9d8f #e9c46a" },
+      { choice: new Error("model exploded") }
+    );
+    expect(result.type).toBe("palette");
+  });
+
+  test("an explicitly saved quote is not reviewed", async () => {
+    const { aiCalls, result } = await review(
+      { content: "to be or not to be", type: "quote" },
+      { choice: "text", probability: 0.99 }
+    );
+    expect(result.type).toBe("quote");
+    expect(aiCalls).toEqual([]);
+  });
+
+  test("links are not reviewed", async () => {
+    const { aiCalls } = await review(
+      { content: "hi", url: "https://example.com" },
+      { choice: "quote", probability: 0.99 }
+    );
+    expect(aiCalls).toEqual([]);
+  });
+
+  test.each(["user_disabled", "paused"])(
+    "AI %s keeps the rules and calls no model",
+    async (gate) => {
+      const { aiCalls, result } = await review(
+        { content: "Make it work. — someone" },
+        { choice: "quote", gate, probability: 0.99 }
+      );
+      expect(result.type).toBe("text");
+      expect(aiCalls).toEqual([]);
+    }
+  );
 });

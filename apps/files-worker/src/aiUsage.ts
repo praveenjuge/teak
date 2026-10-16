@@ -47,7 +47,10 @@ const tokenCount = (value: unknown): number =>
     ? value
     : 0;
 
-/** Token counts from a Workers AI reply (`usage`, OpenAI style). */
+/**
+ * Token counts from a Workers AI reply's `usage`: OpenAI style
+ * (`prompt_tokens`), or Clef's (`input_tokens`).
+ */
 export const readAiTokenUsage = (
   response: unknown
 ): { inputTokens: number; outputTokens: number } => {
@@ -56,8 +59,8 @@ export const readAiTokenUsage = (
       ? (response as { usage?: Record<string, unknown> | null }).usage
       : undefined;
   return {
-    inputTokens: tokenCount(usage?.prompt_tokens),
-    outputTokens: tokenCount(usage?.completion_tokens),
+    inputTokens: tokenCount(usage?.prompt_tokens ?? usage?.input_tokens),
+    outputTokens: tokenCount(usage?.completion_tokens ?? usage?.output_tokens),
   };
 };
 

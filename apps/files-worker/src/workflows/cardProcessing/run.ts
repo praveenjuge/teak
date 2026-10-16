@@ -26,7 +26,11 @@ import {
   loadCard,
   markInProgress,
 } from "./context";
-import { fetchLinkMetadata } from "./linkMetadata";
+import {
+  fetchLinkMetadata,
+  keepPreviewAfterFailedRefresh,
+  parseLinkMetadataRetryableError,
+} from "./linkMetadata";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
 import {
   extractPaletteFromImage,
@@ -43,6 +47,11 @@ export interface CardProcessingParams {
   cardId: string;
   /** Only regenerate the AI metadata (the admin's AI backfill retry). */
   metadataOnly?: boolean;
+  /**
+   * A person asked to refresh the card ("Refresh details"): the link preview
+   * and category are read again even when the stored ones worked.
+   */
+  refresh?: boolean;
   rev: number;
 }
 
@@ -116,6 +125,7 @@ export const runCardProcessing = (
     convexSiteUrl: params.convexSiteUrl,
     deps: createCardProcessingDeps(env, params.convexSiteUrl, overrides),
     env,
+    ...(params.refresh === true ? { refresh: true } : {}),
     rev: params.rev,
   };
   const metadataOnly = params.metadataOnly === true;
@@ -229,17 +239,31 @@ const processCard = async (
   }
 
   if (cardType === "link") {
-    await step.do(
-      "fetch link metadata",
-      LINK_METADATA_STEP,
-      reported("card.link_metadata", "link_metadata", 5, async () => {
-        const card = (await loadCard(job))?.card;
-        if (!card?.url || card.metadataStatus !== "pending") {
-          return { status: "skipped" as const };
-        }
-        return await fetchLinkMetadata(job);
-      })
-    );
+    try {
+      await step.do(
+        "fetch link metadata",
+        LINK_METADATA_STEP,
+        reported("card.link_metadata", "link_metadata", 5, async () => {
+          const card = (await loadCard(job))?.card;
+          if (!card?.url || card.metadataStatus !== "pending") {
+            return { status: "skipped" as const };
+          }
+          return await fetchLinkMetadata(job);
+        })
+      );
+    } catch (error) {
+      // A refresh that still can't read the page keeps the preview the card
+      // has and goes on; an automatic run fails as before.
+      const failure = job.refresh
+        ? parseLinkMetadataRetryableError(error)
+        : null;
+      if (!failure || isSuperseded(error)) {
+        throw error;
+      }
+      await step.do("keep link preview after refresh", CONVEX_STEP, () =>
+        keepPreviewAfterFailedRefresh(job, failure)
+      );
+    }
   }
 
   let categorization: { category: string; confidence: number } | undefined;

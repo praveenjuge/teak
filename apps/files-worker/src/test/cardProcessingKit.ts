@@ -160,6 +160,20 @@ export const createCardConvex = (
           }
         : null,
     "linkMetadata:updateCardMetadata": write("updateCardMetadata", (args) => {
+      const previous = (
+        (card as FakeCard).metadata as
+          | { linkPreview?: { status?: string } }
+          | undefined
+      )?.linkPreview;
+      // Like Convex: a refresh that can't read the page keeps the preview.
+      if (
+        args.refresh === true &&
+        args.status === "failed" &&
+        previous?.status === "success"
+      ) {
+        Object.assign(card as FakeCard, { metadataStatus: "completed" });
+        return null;
+      }
       Object.assign(card as FakeCard, {
         metadata: {
           ...((card as FakeCard).metadata as object),

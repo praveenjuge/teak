@@ -30,7 +30,12 @@ export const MCP_CARD_TYPES = [
   "palette",
   "quote",
 ] as const;
-export const MCP_CARD_SORTS = ["newest", "oldest", "shuffle"] as const;
+export const MCP_CARD_SORTS = [
+  "newest",
+  "oldest",
+  "relevance",
+  "shuffle",
+] as const;
 export const MCP_CARD_INCLUDES = ["content", "metadata", "processing"] as const;
 export const MAX_VISUAL_FILTERS = 24;
 
@@ -93,7 +98,7 @@ const cardFilterProperties = {
   sort: {
     enum: MCP_CARD_SORTS,
     description:
-      "newest (default) or oldest by saved date, or shuffle: a stable random order (needs shuffleSeed)",
+      "newest (default) or oldest by saved date; shuffle: a stable random order (needs shuffleSeed); or relevance (Best match, with q): the top results by how well they match. relevanceRanked says whether they were scored",
   },
   shuffleSeed: {
     type: "integer",

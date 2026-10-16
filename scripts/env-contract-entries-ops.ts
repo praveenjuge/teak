@@ -462,7 +462,7 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["shell"],
     required: false,
-    note: "Cloudflare API token for `bun run waf` (scripts/cloudflare-waf.ts): Zone Read and Zone WAF Edit on teakvault.com, or Zone WAF Read for a dry run; and for `bun run r2:lifecycle` (scripts/cloudflare-r2-lifecycle.ts): Workers R2 Storage Edit and Queues Read on the account, or Workers R2 Storage Read for a dry run. Exported in the shell of whoever applies the rules; never committed.",
+    note: "Cloudflare API token for `bun run waf` (scripts/cloudflare-waf.ts): Zone Read and Zone WAF Edit on teakvault.com, or Zone WAF Read for a dry run; for `bun run r2:lifecycle` (scripts/cloudflare-r2-lifecycle.ts): Workers R2 Storage Edit and Queues Read on the account, or Workers R2 Storage Read for a dry run; and for the Clef eval (scripts/clef-eval/run.ts): Workers AI Read on the Teak account. Exported in the shell of whoever runs them; never committed.",
   }),
   spec("STORE_ASSETS_BROWSER", {
     owners: ["teak-repo"],

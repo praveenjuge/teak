@@ -7,6 +7,7 @@ import {
   cardValidator,
   searchModeValidator,
 } from "../schema";
+import { readRelevanceScores } from "../search/relevanceCache";
 import { readSemanticRanking } from "../search/semanticCache";
 import { getSessionUser } from "../securitySessions";
 import {
@@ -18,6 +19,10 @@ import {
   hasSearchQualifiers,
   parseSearchQuery,
 } from "../shared/search/qualifiers";
+import {
+  currentRelevanceScores,
+  orderByRelevance,
+} from "../shared/search/relevance";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
@@ -353,6 +358,12 @@ export const searchCardsPaginatedArgsValidator = v.object({
    * are cached, and stays keyword-only until then.
    */
   mode: v.optional(searchModeValidator),
+  /**
+   * With `sort: "relevance"`, order the search by the Best match scores that
+   * `requestRelevanceScores` cached. The client sets it once per search, when
+   * the scores arrived in time; false keeps the unscored search order.
+   */
+  useRelevanceScores: v.optional(v.boolean()),
   /**
    * Ignored. A client retrying a failed read sends a new one, so its cached
    * query hooks subscribe afresh instead of returning the cached error.
@@ -698,9 +709,28 @@ export const searchCardsPaginatedHandler = async (
       ).flatMap((cardId) => cardsById.get(cardId) ?? []);
     }
 
-    const sortedResults = shuffle
-      ? shuffleBySeed(filteredResults, seed, (card) => card._id)
-      : filteredResults.sort((a, b) => compareCardsByCreatedAt(a, b, sort));
+    // Best match keeps the search's own order, scored first when the client
+    // asks for the cached scores (it decides once per search, so a page
+    // never reorders when late scores land).
+    const relevanceText = sort === "relevance" ? semanticQueryText(parsed) : "";
+    let sortedResults: Doc<"cards">[];
+    if (shuffle) {
+      sortedResults = shuffleBySeed(filteredResults, seed, (card) => card._id);
+    } else if (relevanceText) {
+      sortedResults = args.useRelevanceScores
+        ? orderByRelevance(
+            filteredResults,
+            currentRelevanceScores(
+              await readRelevanceScores(ctx, user.teakUserId, relevanceText),
+              filteredResults
+            )
+          )
+        : filteredResults;
+    } else {
+      sortedResults = filteredResults.sort((a, b) =>
+        compareCardsByCreatedAt(a, b, sort)
+      );
+    }
     const page = sortedResults
       .slice(offset, offset + pageSize)
       .map((card) =>

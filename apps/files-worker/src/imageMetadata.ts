@@ -96,19 +96,18 @@ const waitForCapacityRetry = (attempt: number): Promise<void> =>
     setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
   });
 
-export const generateImageMetadataForOp = async (
+/**
+ * The canonical `detail` rendition as one broadly supported raster frame, for
+ * models that read images. Animated originals and formats Workers AI cannot
+ * decode come back as a single JPEG frame.
+ */
+export const loadImageForAi = async (
   env: Env,
-  {
-    origin,
-    sourceKey,
-    title,
-  }: { origin: string; sourceKey: string; title?: string | null },
+  origin: string,
+  sourceKey: string,
   now = Math.floor(Date.now() / 1000),
   imageFetch: typeof fetch = fetch as typeof fetch
-): Promise<ImageMetadataResult> => {
-  // Keep the canonical detail dimensions, but give the model one broadly
-  // supported raster frame even when the private original is animated or uses
-  // a format Workers AI cannot decode directly.
+): Promise<{ bytes: Uint8Array; contentType: string; dataUrl: string }> => {
   const renditionResponse = await fetchPrivateImageSource(
     env,
     origin,
@@ -134,6 +133,28 @@ export const generateImageMetadataForOp = async (
   if (bytes.byteLength === 0) {
     throw new OpFailure("image_transform_failed");
   }
+  return { bytes, contentType, dataUrl: toDataUrl(bytes, contentType) };
+};
+
+export const generateImageMetadataForOp = async (
+  env: Env,
+  {
+    image,
+    origin,
+    sourceKey,
+    title,
+  }: {
+    /** Already loaded with `loadImageForAi`, so it isn't transformed twice. */
+    image?: { dataUrl: string };
+    origin: string;
+    sourceKey: string;
+    title?: string | null;
+  },
+  now = Math.floor(Date.now() / 1000),
+  imageFetch: typeof fetch = fetch as typeof fetch
+): Promise<ImageMetadataResult> => {
+  const { dataUrl: imageDataUrl } =
+    image ?? (await loadImageForAi(env, origin, sourceKey, now, imageFetch));
 
   const ai = env.AI;
   if (!ai) {
@@ -145,8 +166,6 @@ export const generateImageMetadataForOp = async (
       ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
       : "Analyze this image and generate tags and summary:"
   );
-  const imageDataUrl = toDataUrl(bytes, contentType);
-
   let capacityAttempt = 0;
   let validationAttempt = 0;
   while (true) {

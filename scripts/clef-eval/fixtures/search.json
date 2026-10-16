@@ -1,0 +1,81 @@
+{
+  "cards": [
+    {
+      "id": "c1",
+      "createdAt": 1,
+      "text": "Type: link\nTitle: Weeknight lentil soup\nSummary: A quick red lentil soup with cumin.\nTags: soup, lentils, dinner"
+    },
+    {
+      "id": "c2",
+      "createdAt": 2,
+      "text": "Type: text\nText: Groceries: oat milk, eggs, spinach, rice"
+    },
+    {
+      "id": "c3",
+      "createdAt": 3,
+      "text": "Type: image\nSummary: A bowl of tomato soup with basil on a wooden table.\nTags: soup, tomato, food"
+    },
+    {
+      "id": "c4",
+      "createdAt": 4,
+      "text": "Type: link\nTitle: Sourdough bread for beginners\nTags: bread, baking"
+    },
+    {
+      "id": "c5",
+      "createdAt": 5,
+      "text": "Type: link\nTitle: Cozy reading nook ideas\nSummary: Ten small corners with armchairs, lamps and shelves.\nTags: interior, reading"
+    },
+    {
+      "id": "c6",
+      "createdAt": 6,
+      "text": "Type: image\nSummary: An armchair by a window with a stack of books.\nTags: armchair, books, window"
+    },
+    {
+      "id": "c7",
+      "createdAt": 7,
+      "text": "Type: link\nTitle: Car insurance renewal\nTags: insurance"
+    },
+    {
+      "id": "c8",
+      "createdAt": 8,
+      "text": "Type: quote\nText: We shape our tools and thereafter our tools shape us."
+    },
+    {
+      "id": "c9",
+      "createdAt": 9,
+      "text": "Type: link\nTitle: Fastlint — a linter that runs in milliseconds\nTags: tools, javascript"
+    },
+    {
+      "id": "c10",
+      "createdAt": 10,
+      "text": "Type: palette\nText: #264653 #2a9d8f #e9c46a\nTags: teal, sand"
+    }
+  ],
+  "queries": [
+    {
+      "query": "soup",
+      "fused": ["c3", "c1", "c2"],
+      "relevance": { "c1": 3, "c3": 2 }
+    },
+    {
+      "query": "something warm to cook tonight",
+      "fused": ["c2", "c1", "c3", "c4"],
+      "relevance": { "c1": 3, "c3": 2, "c4": 1 }
+    },
+    {
+      "query": "reading corner",
+      "fused": ["c5", "c6", "c8"],
+      "relevance": { "c5": 3, "c6": 3 }
+    },
+    {
+      "query": "javascript tooling",
+      "fused": ["c8", "c9"],
+      "relevance": { "c9": 3 }
+    },
+    {
+      "query": "teal colors",
+      "fused": ["c10", "c3"],
+      "relevance": { "c10": 3 }
+    }
+  ]
+}

@@ -87,7 +87,13 @@ const askVectorService = async (
   }
   const result = await callFilesWorkerJson<FilesVectorQueryResult>({
     op: "vector-query",
-    params: { ...vectors, text: request.text, topK: SEMANTIC_TOP_K },
+    params: {
+      ...vectors,
+      text: request.text,
+      topK: SEMANTIC_TOP_K,
+      // A few images among many notes would otherwise miss the top matches.
+      ...(request.kind === "mood" ? { type: "image" } : {}),
+    },
     timeoutMs,
   });
   if (result.kind !== "ok") {
@@ -107,7 +113,12 @@ export const fetchSemanticRanking = async (
   userId: string,
   request: SemanticRequest | null,
   { timeoutMs = API_SEMANTIC_TIMEOUT_MS }: { timeoutMs?: number } = {}
-): Promise<{ outcome: SemanticOutcome; ranking: SemanticRanking | null }> => {
+): Promise<{
+  outcome: SemanticOutcome;
+  ranking: SemanticRanking | null;
+  /** True when this call took a `semanticSearch` token (a cache miss). */
+  spentToken?: true;
+}> => {
   if (!request) {
     return { outcome: "skipped", ranking: null };
   }
@@ -166,15 +177,15 @@ export const fetchSemanticRanking = async (
       { userId, key, matches, ...(found ? {} : { pending: true }) }
     );
     return found
-      ? { outcome: "ok", ranking }
-      : { outcome: "pending", ranking: null };
+      ? { outcome: "ok", ranking, spentToken: true }
+      : { outcome: "pending", ranking: null, spentToken: true };
   } catch (error) {
     console.warn("[search/semantic] unavailable", {
       kind: request.kind,
       error: error instanceof Error ? error.message.slice(0, 200) : "unknown",
       durationMs: Date.now() - startedAt,
     });
-    return { outcome: "unavailable", ranking: null };
+    return { outcome: "unavailable", ranking: null, spentToken: true };
   }
 };
 

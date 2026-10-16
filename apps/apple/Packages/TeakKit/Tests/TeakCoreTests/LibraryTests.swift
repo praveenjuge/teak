@@ -90,7 +90,8 @@ private func day(_ milliseconds: Double) -> String {
         ("1E90FF", .hex, "#1E90FF"),
         ("#travel", .tag, "travel"),
         ("yesterday", .date, "yesterday"),
-        ("typography", .keyword, "typography"),
+        ("typography", .style, "typographic"),
+        ("poster", .keyword, "poster"),
     ])
     func classifiesTypedWords(input: String, kind: SearchToken.Kind, value: String) {
         let token = SearchTokens.classify(input, now: tuesdayNoon, timeZone: newYork)

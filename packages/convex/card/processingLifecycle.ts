@@ -26,7 +26,8 @@ export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [
  */
 export const initializeCardProcessingState = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  options: { refresh?: boolean } = {}
 ): Promise<boolean> => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
@@ -34,8 +35,11 @@ export const initializeCardProcessingState = async (
   }
   const now = Date.now();
   const cardType = (card.type ?? "text") as CardType;
+  // A refresh fetches the link preview again even when the stored one worked.
   const awaitingLinkMetadata =
-    cardType === "link" && card.metadata?.linkPreview?.status !== "success";
+    cardType === "link" &&
+    (options.refresh === true ||
+      card.metadata?.linkPreview?.status !== "success");
   await patchCardWithSearchSync(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,

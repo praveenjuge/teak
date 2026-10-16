@@ -753,7 +753,8 @@ export const resetCardProcessingState = internalMutation({
       processingStatus: updatedProcessing,
       updatedAt: Date.now(),
     });
-    await queueCardProcessing(ctx, cardId, { reset: true });
+    // An admin refresh reads link details again, like "Refresh details".
+    await queueCardProcessing(ctx, cardId, { refresh: true, reset: true });
 
     return {
       clearedThumbnail,
