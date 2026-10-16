@@ -3,7 +3,7 @@ title: Privacy Policy
 description: Privacy policy for Teak apps, API, and integrations
 ---
 
-**Effective date:** October 15, 2026
+**Effective date:** October 16, 2026
 
 ## Overview
 
@@ -40,6 +40,7 @@ Teak uses AI to tag, summarize and transcribe your cards so you can find them la
 - **What is processed:** the text of text, quote and document cards; image and video thumbnails; audio files (for transcripts); palette colors; and link titles, descriptions and URLs.
 - **What is created:** tags, a short summary, visual style labels, and audio transcripts. These are stored with the card and deleted with it.
 - **Search by meaning:** Teak turns each card's title, description, summary, tags, notes, visual style labels, and the start of its text or transcript into a list of numbers (an embedding) with a model on Cloudflare Workers AI. The embedding is stored in a Cloudflare Vectorize search index, tagged with your account so searches only ever return your own cards, and used only to find your cards by meaning. It's updated when the card changes and deleted when the card or your account is deleted.
+- **Best match:** when you search with words and sort by Best match (the default), Teak sends your search words and a short description of each of the top 64 results to a model on Cloudflare Workers AI, which scores how well each card matches. The description is the card's type, title, site, description, summary, up to six tags, notes and the first 300 characters of its text. The scores are kept for 24 hours under a hash of your search words, so the words themselves aren't stored. Searches that only use filters, such as a tag or type, send nothing.
 - AI output can be wrong. You can edit or ignore generated tags and summaries.
 
 ## Links You Save
@@ -55,7 +56,7 @@ We use these providers to run Teak. Each handles only the data it needs for its 
 | Provider | Purpose | Data involved |
 | --- | --- | --- |
 | [Convex](https://www.convex.dev) | Database and backend | Account data, your content, generated data |
-| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, search index, image, video and document processing, page rendering, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, embeddings of card text, saved page content, API and MCP requests including the content they carry |
+| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, search index, image, video and document processing, page rendering, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, search words and result descriptions for Best match, embeddings of card text, saved page content, API and MCP requests including the content they carry |
 | [Vercel](https://vercel.com) | Hosts the web app and website | Requests to the web app and website |
 | [WorkOS](https://workos.com) | Sign-in and sign-in emails | Name, email, sign-in details, session and device information |
 | [Polar](https://polar.sh) | Payments, as merchant of record | Email, Teak account ID, payment details, billing address, subscription history |
