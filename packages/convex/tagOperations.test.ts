@@ -595,7 +595,7 @@ describe("overlapping recomputes", () => {
 });
 
 describe("tag listings with many small tags", () => {
-  test("the snapshot pages by tags and the live listing stops at its bound, without failing", async () => {
+  test("the snapshot counts every tag and the live listing stops at its bound, without failing", async () => {
     const { t, summary } = await setup();
     const distinct = 1200;
     await t.run(async (ctx) => {
@@ -633,6 +633,46 @@ describe("tag listings with many small tags", () => {
     });
     expect(live.items).toHaveLength(500);
     expect(live.isComplete).toBe(false);
+  }, 30_000);
+
+  test("one snapshot page counts a page of rows, however many small tags they hold", async () => {
+    // Counting tag by tag took a seek and a range query per tag: a page of
+    // 500 small tags ran four to five seconds and timed out under load.
+    const { t } = await setup();
+    const distinct = 1200;
+    await t.run(async (ctx) => {
+      for (let index = 0; index < distinct; index += 1) {
+        const tag = `idea-${String(index).padStart(4, "0")}`;
+        const cardId = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: tag,
+          createdAt: 1000,
+          updatedAt: 1000,
+          tags: [tag],
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId,
+          userId: "owner",
+          tag,
+          type: "text",
+          cardCreatedAt: 1000,
+          sourceUpdatedAt: 1000,
+          syncGeneration: 1,
+        });
+      }
+    });
+
+    const page = await t.query(internal.tag.tagSummary.countTagSummaryPage, {
+      userId: "owner",
+      cursor: null,
+    });
+
+    expect(page.counts).toHaveLength(distinct);
+    expect(
+      page.counts.every(({ count }: { count: number }) => count === 1)
+    ).toBe(true);
+    expect(page.continueCursor).toBeNull();
   }, 30_000);
 });
 
