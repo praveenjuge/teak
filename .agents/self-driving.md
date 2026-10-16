@@ -30,3 +30,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Product health: 14 `card_created`, 18 `card_processing_completed`, zero failure events. `source` still `unknown` on some image/text/link cards (older app versions).
 - Nothing merged earlier, so no fixes to measure. No PRs this run besides this log.
 - Check tomorrow: recurrence of R2 10001 errors (if more than one burst, add a bounded retry in the files worker); first non-zero failure events.
+
+### 2026-10-16
+- Inbox empty. Product health: 25 `card_created`, 25 `card_processing_completed`, zero failure events.
+- **Backend Deploy failed on main** (#712, run 38792427700): `tsc --noEmit` error in `accountDeletionStorage.test.ts(444)` (test-only; `runMutation` stub typed `never`). Blocks every backend deploy until fixed; prod backend lacked #712. Fixed by a test typing PR. Lesson: the Backend Deploy typecheck covers test files; check `list_workflow_runs` for Backend Deploy on main every run.
+- Files worker `$exception`s: Vectorize `returnMetadata: expected value` (10 events, 17:31–17:32 IST on 10-15) predates the fix in #711 (19:37 IST), none after. `VECTOR_UPSERT_ERROR 40041 Too Many Requests` (4, backfill burst) — transient, watch for repeats; consider backoff in the backfill if it recurs. Two web `searchCardsPaginated` Server Errors likely the same Vectorize issue.
+- Check tomorrow: Backend Deploy green on main; zero `VECTOR_QUERY_ERROR`; any more 40041.

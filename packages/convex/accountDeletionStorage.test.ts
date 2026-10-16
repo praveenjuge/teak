@@ -441,7 +441,13 @@ test("a deployment without the Files Worker never registers phantom objects", as
   });
   await expect(
     ensureObjectOwnership(
-      { runMutation: (ref: never, args: never) => t.mutation(ref, args) },
+      {
+        runMutation: ((ref: never, args: never) =>
+          (t.mutation as (r: never, a: never) => Promise<unknown>)(
+            ref,
+            args
+          )) as never,
+      },
       "owner",
       "users/owner/link-preview-image-1"
     )
