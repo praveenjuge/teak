@@ -11,6 +11,9 @@ const ONE_MILLION = 1_000_000;
 export const WORKERS_AI_PROVIDER = "cloudflare";
 
 const WORKERS_AI_PRICING_USD_PER_MILLION = {
+  // Clef decision models bill input tokens only (images count as input).
+  "@cf/cloudflare/clef": { input: 0.24, output: 0 },
+  "@cf/cloudflare/clef-flash": { input: 0.09, output: 0 },
   "@cf/google/gemma-4-26b-a4b-it": { input: 0.1, output: 0.3 },
   "@cf/qwen/qwen3-30b-a3b-fp8": { input: 0.051, output: 0.335 },
 } as const;

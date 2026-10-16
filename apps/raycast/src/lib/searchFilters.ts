@@ -29,6 +29,12 @@ export const STYLE_OPTIONS = [
   "surreal",
   "vintage",
   "vibrant",
+  "typographic",
+  "3d",
+  "flat",
+  "geometric",
+  "hand-drawn",
+  "futuristic",
 ] as const;
 
 export type RaycastCardType = (typeof CARD_TYPES)[number];

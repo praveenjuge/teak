@@ -19,6 +19,10 @@ const required = [
   "vector-delete",
   "vector-get",
   "vector-query",
+  "decide-card-type",
+  "decide-link-category",
+  "decide-visual-styles",
+  "score-relevance",
 ];
 
 async function productionEnv(name: string): Promise<string> {

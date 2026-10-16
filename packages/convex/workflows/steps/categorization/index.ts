@@ -20,6 +20,7 @@ import {
 } from "../../../storage/workflowArtifacts";
 import { withBackendErrorCapture } from "../../../telemetry/posthog";
 import { nodeDnsResolver, pinnedFetch } from "../pinnedFetch";
+import { reviewLinkCategoryWithClef } from "./clef";
 import {
   buildRawSelectorMap,
   detectProvider,
@@ -556,7 +557,7 @@ export async function mergeAndSaveHandler(
   {
     cardId,
     card: cardResult,
-    sourceUrl: _sourceUrl,
+    sourceUrl,
     mode,
     classification,
     existingMetadata: metadataResult,
@@ -601,9 +602,19 @@ export async function mergeAndSaveHandler(
     throw new Error(`Classification result missing for card ${cardId}`);
   }
 
-  const metadata = await enrichLinkCategory(
-    await hydrateArchivedMetadata(card as CategorizationContextCard),
+  const hydratedCard = await hydrateArchivedMetadata(
+    card as CategorizationContextCard
+  );
+  const reviewedClassification = await reviewLinkCategoryWithClef(
+    ctx,
+    hydratedCard,
     classification as CategoryClassificationResult,
+    sourceUrl,
+    structuredData?.entities
+  );
+  const metadata = await enrichLinkCategory(
+    hydratedCard,
+    reviewedClassification,
     {
       structuredData,
     }

@@ -24,6 +24,12 @@ import {
   validScrapeSelectors,
 } from "./browserRender";
 import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
+import {
+  decideCardType,
+  decideLinkCategory,
+  decideVisualStyles,
+  scoreRelevance,
+} from "./decisions";
 import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
@@ -611,15 +617,49 @@ const dispatch = async (
       if (title !== null && title.length > 2000) {
         throw new Error("invalid_title");
       }
+      const sourceKey = requiredString(params, "sourceKey");
+      // Clef styles run beside the tags call when asked. A Clef failure
+      // leaves `visualStyles` out, so callers fall back to the tag aliases.
+      const [metadata, visualStyles] = await Promise.all([
+        generateImageMetadataForOp(env, { origin, sourceKey, title }),
+        params.visualStyles === true
+          ? decideVisualStyles(env, { origin, sourceKey, title }).catch(
+              (error: unknown) => {
+                console.warn("[files-worker] visual styles failed", {
+                  message:
+                    error instanceof Error ? error.message : String(error),
+                  requestId,
+                });
+                return null;
+              }
+            )
+          : Promise.resolve(null),
+      ]);
+      return success(requestId, {
+        ...metadata,
+        ...(visualStyles ? { visualStyles } : {}),
+      });
+    }
+    case "decide-card-type":
+      return success(requestId, await decideCardType(env, params));
+    case "decide-link-category":
+      return success(requestId, await decideLinkCategory(env, params));
+    case "decide-visual-styles": {
+      const title = optionalString(params, "title");
+      if (title !== null && title.length > 2000) {
+        throw new Error("invalid_title");
+      }
       return success(
         requestId,
-        await generateImageMetadataForOp(env, {
+        await decideVisualStyles(env, {
           origin,
           sourceKey: requiredString(params, "sourceKey"),
           title,
         })
       );
     }
+    case "score-relevance":
+      return success(requestId, await scoreRelevance(env, params));
     case "render-pdf-thumbnail":
       return success(
         requestId,
