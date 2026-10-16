@@ -10,7 +10,7 @@ import {
   scheduleCompletedWorkflowCleanup,
   scheduleCompletedWorkflowCleanupHandler,
   scheduleWorkflowHistoryCleanupBatchHandler,
-  startCardProcessingWorkflowHandler,
+  startCardProcessingHandler,
   WORKFLOW_CLEANUP_RETRY_MS,
   WORKFLOW_MAX_PARALLELISM,
   WORKFLOW_RETENTION_MS,
@@ -96,28 +96,44 @@ describe("workflow manager", () => {
     });
   });
 
-  describe("startCardProcessingWorkflow", () => {
+  describe("startCardProcessing", () => {
     const mockWorkflowStart = mock();
-    const mockRunMutation = mock();
-    const ctx = { runMutation: mockRunMutation } as any;
+    const mockDbGet = mock();
+    const mockDbPatch = mock();
+    const ctx = {
+      db: withSearchSyncDb({ get: mockDbGet, patch: mockDbPatch }),
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any;
 
     workflow.start = mockWorkflowStart;
 
     beforeEach(() => {
       mockWorkflowStart.mockReset();
-      mockRunMutation.mockReset();
+      mockDbGet.mockReset();
+      mockDbPatch.mockReset();
     });
 
-    test("starts workflow and initializes state", async () => {
+    test("resets a refreshed link's preview to pending in the transaction that starts its workflow", async () => {
       mockWorkflowStart.mockResolvedValue("wf_123");
-      const result = await startCardProcessingWorkflowHandler(ctx, {
+      mockDbGet.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        metadata: { linkPreview: { status: "success" } },
+      });
+      const result = await startCardProcessingHandler(ctx, {
         cardId: testId("cards", "c1"),
+        refresh: true,
       });
 
+      expect(mockDbPatch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({ metadataStatus: "pending" })
+      );
       expect(mockWorkflowStart).toHaveBeenCalledWith(
         ctx,
         expect.anything(),
-        { cardId: "c1" },
+        { cardId: "c1", refresh: true },
         {
           context: {
             cardId: "c1",
@@ -127,8 +143,15 @@ describe("workflow manager", () => {
           startAsync: true,
         }
       );
-      expect(mockRunMutation).toHaveBeenCalled();
       expect(result).toEqual({ workflowId: "wf_123" as WorkflowId });
+    });
+
+    test("starts no workflow for a missing card", async () => {
+      mockDbGet.mockResolvedValue(null);
+      await expect(
+        startCardProcessingHandler(ctx, { cardId: testId("cards", "c1") })
+      ).rejects.toThrow("Card c1 not found");
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
     });
   });
 

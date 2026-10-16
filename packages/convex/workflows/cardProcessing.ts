@@ -1,6 +1,8 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { buildErrorPreview } from "../linkMetadata";
+import { parseLinkMetadataRetryableError } from "./linkMetadata";
 import { workflow } from "./manager";
 
 const internalWorkflow = internal as any;
@@ -144,12 +146,36 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await step.runAction(
-          internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-            .fetchMetadata,
-          { cardId },
-          { retry: LINK_METADATA_STEP_RETRY }
-        );
+        try {
+          await step.runAction(
+            internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+              .fetchMetadata,
+            refresh ? { cardId, refresh } : { cardId },
+            { retry: LINK_METADATA_STEP_RETRY }
+          );
+        } catch (error) {
+          // A refresh that still can't read the page keeps the preview the
+          // card has and goes on; an automatic run fails as before.
+          const retryable = refresh
+            ? parseLinkMetadataRetryableError(error)
+            : null;
+          if (!retryable) {
+            throw error;
+          }
+          await step.runMutation(
+            internalWorkflow.linkMetadata.updateCardMetadata,
+            {
+              cardId,
+              linkPreview: buildErrorPreview(retryable.normalizedUrl ?? "", {
+                type: retryable.type ?? "error",
+                message: retryable.message,
+                details: retryable.details,
+              }),
+              status: "failed",
+              refresh,
+            }
+          );
+        }
       }
     }
 

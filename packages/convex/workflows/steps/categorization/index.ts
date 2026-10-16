@@ -358,9 +358,21 @@ export const enrichLinkCategory = async (
       const { structured: _stale, ...rest } = raw;
       raw = { ...rest, structuredMeta: structured.meta };
     }
-  } else if (classification.category === "product" && raw?.structured) {
-    // JSON-LD read on an earlier pass and not fetched again.
-    structuredPrice = parseStructuredPrice(raw.structured) ?? undefined;
+  } else if (raw?.structured) {
+    // JSON-LD read on an earlier pass and not read again (skipped, or the
+    // fetch failed): its facts and price come from what was stored.
+    const stored = enrichWithStructuredData(classification.category, [
+      raw.structured,
+    ]);
+    if (stored?.imageUrl && !imageUrl) {
+      imageUrl = stored.imageUrl;
+    }
+    mergeFacts(facts, stored?.facts);
+    structuredPrice =
+      stored?.price ??
+      (classification.category === "product"
+        ? (parseStructuredPrice(raw.structured) ?? undefined)
+        : undefined);
   }
 
   // The page's JSON-LD states the price more reliably than its selectors.
