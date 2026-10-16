@@ -1,5 +1,6 @@
 "use client";
 
+import { api } from "@teak/convex";
 import { preloadCardModal } from "@teak/ui/card-modal/lazy";
 import { ConvexQueryCacheProvider } from "@teak/ui/convex-query-cache";
 import { firstLoadQueries } from "@teak/ui/lib/firstLoadQueries";
@@ -50,6 +51,36 @@ if (typeof window !== "undefined") {
       extendSubscriptionFor: FIRST_LOAD_QUERY_HOLD_MS,
     });
   }
+}
+
+const INTENT_QUERY_HOLD_MS = 15_000;
+
+/**
+ * Subscribes to the queries the page at `href` first asks for, as a link to
+ * it is hovered, focused or touched, so its cards are often in by the click.
+ * A query already open (the sidebar's) is shared, not sent again.
+ */
+export function prewarmRouteQueries(href: string) {
+  const url = new URL(href, window.location.href);
+  if (url.origin !== window.location.origin) {
+    return;
+  }
+  for (const { query, args } of firstLoadQueries(url, {
+    folders: loadedFolders(),
+  })) {
+    convex.prewarmQuery({
+      query,
+      args,
+      extendSubscriptionFor: INTENT_QUERY_HOLD_MS,
+    });
+  }
+}
+
+// The sidebar's folder list if it has arrived; a failed load reads as none.
+function loadedFolders() {
+  try {
+    return convex.watchQuery(api.folders.listFolders, {}).localQueryResult();
+  } catch {}
 }
 
 export default function ConvexClientProvider({

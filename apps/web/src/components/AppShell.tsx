@@ -14,11 +14,11 @@ import {
 } from "@teak/ui/lib/libraryViews";
 import { LibraryShortcuts } from "@teak/ui/shortcuts";
 import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useRef } from "react";
 import { rememberHomeScroll } from "@/lib/homeScroll";
 import { signOut } from "@/lib/sign-out-client";
+import { IntentLink } from "./IntentLink";
 
 export function AppShell({
   children,
@@ -101,14 +101,14 @@ export function AppShell({
         foldersSlot={
           <SidebarFolders
             activeFolderId={folderId}
-            LinkComponent={Link}
+            LinkComponent={IntentLink}
             onActiveFolderDeleted={() => router.push("/")}
             onNavigate={isCardsPage ? rememberHomeScroll : undefined}
           />
         }
         isSettingsActive={pathname?.startsWith("/settings") ?? false}
         isTagsActive={pathname === "/tags"}
-        LinkComponent={Link}
+        LinkComponent={IntentLink}
         onNavigate={isCardsPage ? rememberHomeScroll : undefined}
       />
       <SidebarInset className="min-w-0">
