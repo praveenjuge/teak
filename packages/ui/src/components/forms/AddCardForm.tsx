@@ -20,11 +20,11 @@ import { useQuery } from "../../convexQueryHooks";
 import {
   ariaKeyShortcut,
   clearNewNoteComposerFocusRequest,
-  FULL_SCREEN_NOTE_KEYS,
+  FOCUS_NOTE_KEYS,
   isNewNoteComposerFocusRequested,
   SAVE_NOTE_KEYS,
 } from "../../lib/keyboardShortcuts";
-import { FullScreenAddCardDialog } from "../lazyDialogs";
+import { FocusEditor } from "../lazyDialogs";
 import {
   PRIMARY_BUTTON_KEYS_CLASS,
   ShortcutKeys,
@@ -126,7 +126,10 @@ export function AddCardForm({
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
-  const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  const [isFocusOpen, setIsFocusOpen] = useState(false);
+  // The hidden composer keeps the text it had while Focus is open (see
+  // TextPreview), and catches up when Focus closes.
+  const [heldContent, setHeldContent] = useState<string | null>(null);
   // `N` pressed away from Everything opens it and asks for the composer;
   // the request stands until the composer has focus (it can mount more
   // than once while the page loads).
@@ -154,7 +157,7 @@ export function AddCardForm({
     ? "Write a note..."
     : "Upgrade to Pro to add more cards...";
   const inlinePlaceholderText = basePlaceholderText;
-  const fullScreenPlaceholderText = basePlaceholderText;
+  const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
   const hasShownBlockedToastRef = useRef(false);
 
@@ -275,25 +278,34 @@ export function AddCardForm({
     await submitTextCard();
   };
 
-  const handleFullScreenSave = async () => {
-    setIsFullScreenOpen(false);
+  const openFocus = () => {
+    setHeldContent(content);
+    setIsFocusOpen(true);
+  };
+
+  const handleFocusSave = async () => {
+    setIsFocusOpen(false);
+    setHeldContent(null);
     await submitTextCard();
   };
 
-  const requestFullScreenClose = () => {
-    setIsFullScreenOpen(false);
+  const requestFocusClose = () => {
+    setIsFocusOpen(false);
+    setHeldContent(null);
   };
 
   return (
     <>
-      <FullScreenAddCardDialog
-        canCreateCard={canCreateCard}
-        content={content}
-        onContentChange={setContent}
-        onRequestClose={requestFullScreenClose}
-        onSave={handleFullScreenSave}
-        open={isFullScreenOpen}
-        placeholder={fullScreenPlaceholderText}
+      <FocusEditor
+        canSave={Boolean(content.trim() && canCreateCard)}
+        disabled={!canCreateCard}
+        onChange={setContent}
+        onRequestClose={requestFocusClose}
+        onSave={handleFocusSave}
+        open={isFocusOpen}
+        placeholder={focusPlaceholderText}
+        title="Focus"
+        value={content}
       />
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
@@ -329,7 +341,7 @@ export function AddCardForm({
               }
               onOpenFullScreen={() => {
                 if (canCreateCard) {
-                  setIsFullScreenOpen(true);
+                  openFocus();
                 }
               }}
               onSaveShortcut={() => {
@@ -338,23 +350,20 @@ export function AddCardForm({
                 }
               }}
               placeholder={inlinePlaceholderText}
-              value={content}
+              value={heldContent ?? content}
               variant="compact"
             />
 
             <div className="absolute right-3 bottom-3 flex justify-end gap-2">
               {hasContent && (
                 <>
-                  <ShortcutTooltip
-                    keys={FULL_SCREEN_NOTE_KEYS}
-                    label="Open full-screen note"
-                  >
+                  <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus">
                     <Button
-                      aria-keyshortcuts={ariaKeyShortcut(FULL_SCREEN_NOTE_KEYS)}
-                      aria-label="Open full-screen note"
+                      aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
+                      aria-label="Focus"
                       className="w-8 px-0"
                       disabled={!canCreateCard}
-                      onClick={() => setIsFullScreenOpen(true)}
+                      onClick={openFocus}
                       size="sm"
                       type="button"
                       variant="outline"

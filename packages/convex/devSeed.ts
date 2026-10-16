@@ -523,6 +523,7 @@ export const FOLDER_SCENARIOS = [
   "smart-folders",
   "export-ugly",
   "palette-mixed",
+  "focus-notes",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1023,6 +1024,75 @@ const paletteMixedPack = (): FolderScenarioPack => {
   };
 };
 
+const FOCUS_SENTENCES = [
+  "The quiet morning light settled over the desk while the draft slowly took shape.",
+  "Every paragraph asks for one clear idea and enough room to breathe.",
+  "Long notes are where thinking happens, so the page should get out of the way.",
+  "She crossed out the second heading and wrote a simpler one underneath.",
+];
+
+/** About 50,000 words (a little over 300 KB), under the 512 KiB note cap. */
+export const FOCUS_LONG_NOTE_WORDS = 50_000;
+const focusLongNote = (): string => {
+  const paragraphs: string[] = ["# A very long draft"];
+  let words = 4;
+  let index = 0;
+  while (words < FOCUS_LONG_NOTE_WORDS) {
+    const sentences: string[] = [];
+    for (let i = 0; i < 6 && words < FOCUS_LONG_NOTE_WORDS; i++) {
+      const sentence = FOCUS_SENTENCES[index % FOCUS_SENTENCES.length] ?? "";
+      const sentenceWords = sentence.split(" ");
+      const room = FOCUS_LONG_NOTE_WORDS - words;
+      sentences.push(sentenceWords.slice(0, room).join(" "));
+      words += Math.min(sentenceWords.length, room);
+      index += 1;
+    }
+    paragraphs.push(sentences.join(" "));
+  }
+  return paragraphs.join("\n\n");
+};
+
+export const FOCUS_LITERAL_NOTE = [
+  "# Release checklist",
+  "",
+  "| Step | Owner | Done |",
+  "| --- | --- | --- |",
+  "| Build | CI | yes |",
+  "| Smoke test | Web | no |",
+  "",
+  "```ts",
+  "export const ready = (steps: string[]) => steps.length > 0;",
+  "```",
+].join("\n");
+
+/**
+ * Text notes for Focus mode: a 50,000-word draft, a note with tables and
+ * code (it opens as literal Markdown), an empty note, CJK and RTL text, and
+ * a 300-character first line.
+ */
+const focusNotesPack = (): FolderScenarioPack => {
+  const scenario = "focus-notes" as const;
+  const note = (index: number, content: string) =>
+    folderScenarioCard(scenario, index, content, []);
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Focus notes pack", []),
+      note(1, focusLongNote()),
+      note(2, FOCUS_LITERAL_NOTE),
+      note(3, ""),
+      note(
+        4,
+        "東京の朝は静かで、ノートに考えを書きとめた。\n\n这是一段中文的笔记，用来测试字数。\n\nهذه ملاحظة قصيرة مكتوبة من اليمين إلى اليسار."
+      ),
+      note(
+        5,
+        `${longName("Focus")}\n\nThe body of a note whose first line is 300 characters.`
+      ),
+    ],
+  };
+};
+
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
@@ -1317,6 +1387,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Titles and folder names an export must write safely (quotes, commas, newlines, markup, formulas, emoji, RTL, CJK), a link in 50 folders, archived and favorite cards, with and without AI fields.",
     folders: exportUglyPack,
+  },
+  "focus-notes": {
+    description:
+      "Text notes for Focus mode: a 50,000-word draft, tables and code that open as literal Markdown, an empty note, CJK and RTL text, and a 300-character first line.",
+    folders: focusNotesPack,
   },
   "palette-mixed": {
     description:

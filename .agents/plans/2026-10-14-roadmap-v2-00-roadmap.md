@@ -149,8 +149,8 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 
 | # | Plan | Group | Depends on |
 |---|---|---|---|
-| 1 | Command palette (⌘K): built, plan deleted | Quick wins | — |
-| 2 | [Focus mode for text cards](2026-10-14-roadmap-v2-02-focus-mode.md) | Quick wins | — |
+| 1 | Command palette (⌘K): shipped in #732, plan deleted | Quick wins | — |
+| 2 | Focus mode for text cards: built, plan deleted | Quick wins | — |
 | 3 | [Ticked checklist items move down](2026-10-14-roadmap-v2-03-checklist-sort.md) | Quick wins | — |
 | 4 | [Hidden cards via reserved tags](2026-10-14-roadmap-v2-04-hidden-cards.md) | Quick wins | — |
 | 5 | [Revisit view](2026-10-14-roadmap-v2-05-revisit.md) | Quick wins | 4 |

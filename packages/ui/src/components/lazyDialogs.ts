@@ -20,10 +20,8 @@ export const FolderPickerDialog = onDemand(() =>
   )
 );
 
-export const FullScreenAddCardDialog = onDemand(() =>
-  import("./forms/FullScreenAddCardDialog").then(
-    (module) => module.FullScreenAddCardDialog
-  )
+export const FocusEditor = onDemand(() =>
+  import("./text-editor/FocusEditor").then((module) => module.FocusEditor)
 );
 
 export const TagManagementModal = onDemand(() =>
@@ -40,7 +38,7 @@ export function preloadLibraryDialogs(): Promise<unknown> {
       CardFoldersDialog,
       FolderNameDialog,
       FolderPickerDialog,
-      FullScreenAddCardDialog,
+      FocusEditor,
       TagManagementModal,
     ].map((dialog) => dialog.preload())
   );
