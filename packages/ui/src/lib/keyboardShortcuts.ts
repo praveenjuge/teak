@@ -48,6 +48,7 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["F"], label: "Favorite or unfavorite" },
       { keys: ["T"], label: "Add a tag" },
       { keys: ["N"], label: "Write a note" },
+      { keys: ["Mod", "E"], label: "Focus on the note", combo: true },
       { keys: ["E"], label: "Archive or unarchive" },
       { keys: ["Delete"], label: "Move to Trash" },
     ],
@@ -120,8 +121,24 @@ export function ariaKeyShortcut(
 
 /** Cmd+Enter (Ctrl+Enter) saves the note being written. */
 export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
-/** Cmd+E (Ctrl+E) opens the note being written full screen. */
-export const FULL_SCREEN_NOTE_KEYS = ["Mod", "E"] as const;
+/** Cmd+E (Ctrl+E) enters and leaves Focus for the note being written. */
+export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
+
+/** Cmd+E on Apple platforms, Ctrl+E elsewhere, nothing else held. */
+export function isFocusNoteKey(
+  event: Pick<
+    KeyboardEvent,
+    "altKey" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
+  >,
+  apple = isApplePlatform()
+): boolean {
+  if (event.key.toLowerCase() !== "e" || event.altKey || event.shiftKey) {
+    return false;
+  }
+  return apple
+    ? event.metaKey && !event.ctrlKey
+    : event.ctrlKey && !event.metaKey;
+}
 
 /** A key shown beside a menu item whose action the key also does. */
 export interface MenuShortcut {

@@ -31,6 +31,7 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { MARKDOWN_CONTENT_MAX_BYTES } from "./shared/markdown";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -669,6 +670,26 @@ describe("devSeed folder packs", () => {
       "192.168.1.20": 1,
       "example.com": 3,
     });
+  });
+
+  test("focus-notes seeds its notes once, the long one under the note cap", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "focus-notes")).toMatchObject({
+      status: "seeded",
+      cards: 6,
+    });
+    expect(await seedFolders(t, "focus-notes")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const notes = (await cardsOf(t)).filter((card) => card.type === "text");
+    const longest = Math.max(
+      ...notes.map((card) => new TextEncoder().encode(card.content).length)
+    );
+    expect(longest).toBeGreaterThan(250_000);
+    expect(longest).toBeLessThanOrEqual(MARKDOWN_CONTENT_MAX_BYTES);
+    expect(notes.some((card) => card.content === "")).toBe(true);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

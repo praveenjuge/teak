@@ -83,13 +83,17 @@ function withEscapedPunctuation(
  * blockquotes, horizontal rules), inline emphasis, links/images, inline code,
  * HTML tags and comments are stripped, and whitespace is collapsed to single
  * spaces. Backslash escapes are shown as the literal character. Only a
- * short prefix is processed since the preview is clamped.
+ * short prefix is processed since the preview is clamped; pass a larger
+ * `maxLength` (such as `Infinity`) to read the whole note.
  */
-export function markdownToPlainText(input?: string | null): string {
+export function markdownToPlainText(
+  input?: string | null,
+  { maxLength = MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
+): string {
   if (!input) {
     return "";
   }
-  return withEscapedPunctuation(input.slice(0, MAX_PREVIEW_LENGTH), (text) => {
+  return withEscapedPunctuation(input.slice(0, maxLength), (text) => {
     const lines = applyRules(text, BLOCK_RULES)
       .split(/\r?\n/)
       .map((rawLine) => {

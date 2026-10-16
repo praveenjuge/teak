@@ -295,6 +295,23 @@ export function RichMarkdownEditor({
     }
   }, [editor, onEditorReady]);
 
+  // A dialog around the editor sees Esc first and prevents it to stay open
+  // (Focus does, while the slash menu is up), and ProseMirror ignores
+  // prevented events, so the menu listens for that Esc itself.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+    const view = editor.view;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && event.defaultPrevented && menuRef.current) {
+        exitSuggestion(view, slashKey);
+      }
+    };
+    view.dom.addEventListener("keydown", onKeyDown);
+    return () => view.dom.removeEventListener("keydown", onKeyDown);
+  }, [editor]);
+
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
       editor.setEditable(!props.disabled);

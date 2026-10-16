@@ -134,11 +134,7 @@ Responsive masonry layout for card collections.
 ### Forms
 
 ```tsx
-import {
-  AddCardForm,
-  AddCardEmptyState,
-  FullScreenAddCardDialog,
-} from "@teak/ui/forms";
+import { AddCardForm, AddCardEmptyState } from "@teak/ui/forms";
 ```
 
 ---

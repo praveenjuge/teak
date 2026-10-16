@@ -1,7 +1,17 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { MarkdownTextEditor } from "@teak/ui/text-editor";
+import { Maximize2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  ariaKeyShortcut,
+  FOCUS_NOTE_KEYS,
+  isFocusNoteKey,
+} from "../../lib/keyboardShortcuts";
 import type { GetCurrentValue } from "../card-modal/types";
+import { FocusEditor } from "../lazyDialogs";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import { Button } from "../ui/button";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -24,20 +34,95 @@ export function TextPreview({
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
+  const [isFocusOpen, setIsFocusOpen] = useState(false);
+  // While Focus is open the editor underneath keeps the text it had: it is
+  // hidden, and re-reading a long note on every key would slow typing in
+  // Focus. It catches up once Focus closes.
+  const [heldContent, setHeldContent] = useState<string | null>(null);
+  const openFocus = () => {
+    setHeldContent(currentContent || "");
+    setIsFocusOpen(true);
+  };
+  const closeFocus = () => {
+    setIsFocusOpen(false);
+    setHeldContent(null);
+  };
+  const isFocusOpenRef = useRef(false);
+  isFocusOpenRef.current = isFocusOpen;
+  const focusButtonRef = useRef<HTMLButtonElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // ⌘E anywhere in the open card, not only in its editor (the editor's own
+  // ⌘E opens Focus too, and prevents this one). An open menu keeps its keys,
+  // and so does a dialog opened over the card, such as Folders.
+  const openFocusRef = useRef(openFocus);
+  openFocusRef.current = openFocus;
+  useEffect(() => {
+    const isInOwnDialog = (target: EventTarget | null) => {
+      const ownDialog = wrapperRef.current?.closest("[role='dialog']");
+      return (
+        !ownDialog || (target instanceof Node && ownDialog.contains(target))
+      );
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        isFocusOpenRef.current ||
+        !isFocusNoteKey(event) ||
+        document.querySelector("[role='menu'][data-state='open']") ||
+        !isInOwnDialog(event.target)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      openFocusRef.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
-    <MarkdownTextEditor
-      ariaLabel="Markdown content"
-      className="h-full"
-      minHeight="55vh"
-      onChange={onContentChange}
-      onLimitExceeded={() =>
-        toast.error("Notes can be up to 512 KiB of UTF-8 text")
-      }
-      onSaveShortcut={onSaveShortcut}
-      placeholder="Write a note..."
-      value={currentContent || ""}
-      variant="modal"
-    />
+    <div className="group/text-preview relative h-full" ref={wrapperRef}>
+      <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus" side="left">
+        <Button
+          aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
+          aria-label="Focus"
+          className="absolute top-2 right-2 z-10 size-8 text-muted-foreground"
+          onClick={openFocus}
+          ref={focusButtonRef}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <Maximize2 className="size-4" />
+        </Button>
+      </ShortcutTooltip>
+      <MarkdownTextEditor
+        ariaLabel="Markdown content"
+        className="h-full"
+        minHeight="55vh"
+        onChange={onContentChange}
+        onLimitExceeded={() =>
+          toast.error("Notes can be up to 512 KiB of UTF-8 text")
+        }
+        onOpenFullScreen={openFocus}
+        onSaveShortcut={onSaveShortcut}
+        placeholder="Write a note..."
+        value={heldContent ?? currentContent ?? ""}
+        variant="modal"
+      />
+      <FocusEditor
+        canSave
+        fallbackFocusRef={focusButtonRef}
+        onChange={onContentChange}
+        onRequestClose={closeFocus}
+        onSave={() => onSaveShortcut?.()}
+        open={isFocusOpen}
+        placeholder="Write a note…"
+        title="Focus"
+        value={currentContent || ""}
+      />
+    </div>
   );
 }
