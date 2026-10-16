@@ -9,17 +9,14 @@ let ensureRelevanceScores: any;
 
 beforeAll(async () => {
   const actualClient = await import("../../storage/filesWorkerClient");
-  mock.module(
-    import.meta.resolve("../../storage/filesWorkerClient"),
-    () => ({
-      ...actualClient,
-      callFilesWorkerJson: (spec: { op: string; params: any }) => {
-        workerCalls.push(spec);
-        return workerAnswer(spec.params);
-      },
-      isFilesWorkerConfigured: () => true,
-    })
-  );
+  mock.module(import.meta.resolve("../../storage/filesWorkerClient"), () => ({
+    ...actualClient,
+    callFilesWorkerJson: (spec: { op: string; params: any }) => {
+      workerCalls.push(spec);
+      return workerAnswer(spec.params);
+    },
+    isFilesWorkerConfigured: () => true,
+  }));
   const actualLimits = await import("../../shared/rateLimits");
   mock.module(import.meta.resolve("../../shared/rateLimits"), () => ({
     ...actualLimits,
@@ -30,9 +27,7 @@ beforeAll(async () => {
       },
     },
   }));
-  ({ ensureRelevanceScores } = await import(
-    "../../search/relevanceActions"
-  ));
+  ({ ensureRelevanceScores } = await import("../../search/relevanceActions"));
 });
 
 const card = (id: string, updatedAt = 1) => ({
@@ -103,7 +98,7 @@ describe("ensureRelevanceScores", () => {
       calls: 1,
       errors: 0,
       inputTokens: 1000,
-      costUsd: 0.000_09,
+      costUsd: 0.000_038,
     });
     expect(rateLimitCalls).toBe(1);
   });
@@ -171,7 +166,8 @@ describe("ensureRelevanceScores", () => {
   });
 
   test("a failing worker or an invalid reply caches nothing", async () => {
-    workerAnswer = () => Promise.reject(new Error("files_worker_network_error"));
+    workerAnswer = () =>
+      Promise.reject(new Error("files_worker_network_error"));
     const { ctx, mutations } = makeCtx();
     const failed = await ensureRelevanceScores(ctx, {
       candidates: [card("a")],

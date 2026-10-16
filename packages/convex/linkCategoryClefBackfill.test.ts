@@ -101,8 +101,13 @@ describe("applyReviewedCategory", () => {
   ) =>
     t.mutation(backfillApi.applyReviewedCategory, {
       cardId,
-      category: "recipe",
-      confidence: 0.91,
+      metadata: {
+        category: "recipe",
+        confidence: 0.91,
+        fetchedAt: 600,
+        sourceUrl: "https://example.com/soup",
+        facts: [{ label: "Servings", value: "4" }],
+      },
       expectedCategory: "other",
       expectedFetchedAt: 500,
       expectedUrl: "https://example.com/soup",
@@ -115,15 +120,16 @@ describe("applyReviewedCategory", () => {
   ) =>
     (await t.run((ctx) => ctx.db.get("cards", cardId)))?.metadata?.linkCategory;
 
-  test("writes the category and confidence, keeping the rest", async () => {
+  test("writes the metadata enriched for the new category", async () => {
     const { insertLink, t } = setup();
     const cardId = await insertLink("https://example.com/soup", "other");
     expect(await apply(t, cardId)).toBe(true);
     expect(await categoryOf(t, cardId)).toEqual({
       category: "recipe",
       confidence: 0.91,
-      fetchedAt: 500,
+      fetchedAt: 600,
       sourceUrl: "https://example.com/soup",
+      facts: [{ label: "Servings", value: "4" }],
     });
   });
 
@@ -131,8 +137,8 @@ describe("applyReviewedCategory", () => {
     ["the URL changed", { expectedUrl: "https://example.com/old" }],
     ["the category changed", { expectedCategory: "article" }],
     ["it was refreshed", { expectedFetchedAt: 400 }],
-    ["the category is other", { category: "other" }],
-    ["the category is unknown", { category: "cookbook" }],
+    ["the category is other", { metadata: { category: "other" } }],
+    ["the category is unknown", { metadata: { category: "cookbook" } }],
   ])("refuses when %s", async (_name, overrides) => {
     const { insertLink, t } = setup();
     const cardId = await insertLink("https://example.com/soup", "other");

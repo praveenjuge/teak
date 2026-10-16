@@ -6,6 +6,7 @@ import { createAccountDeletionGate } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { LINK_CATEGORIES, type LinkCategory } from "../shared/linkCategories";
 import { resolveLinkCategory } from "../shared/utils/linkCategoryResolver";
+import { serializeArchivableRaw } from "../storage/rawMetadata";
 
 const isLinkCategory = (value: string): value is LinkCategory =>
   (LINK_CATEGORIES as readonly string[]).includes(value);
@@ -172,22 +173,27 @@ export const getReviewCandidate = internalQuery({
 });
 
 /**
- * Writes a reviewed category only if the card still holds the category the
- * review read: a refresh, an edit or a new URL in between wins.
+ * Writes a reviewed category's metadata, enriched again for the new category,
+ * only if the card still holds the category the review read: a refresh, an
+ * edit or a new URL in between wins.
  */
 export const applyReviewedCategory = internalMutation({
   args: {
     cardId: v.id("cards"),
-    category: v.string(),
-    confidence: v.number(),
+    /** The whole `linkCategory` metadata, from `enrichLinkCategory`. */
+    metadata: v.any(),
     expectedCategory: v.string(),
     expectedFetchedAt: v.optional(v.number()),
     expectedUrl: v.string(),
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const category = args.category;
-    if (!isLinkCategory(category) || category === "other") {
+    const category = args.metadata?.category;
+    if (
+      typeof category !== "string" ||
+      !isLinkCategory(category) ||
+      category === "other"
+    ) {
       return false;
     }
     const card = await ctx.db.get("cards", args.cardId);
@@ -203,15 +209,15 @@ export const applyReviewedCategory = internalMutation({
       return false;
     }
     await patchCardWithSearchSync(ctx, card._id, {
-      metadata: {
-        ...card.metadata,
-        linkCategory: {
-          ...stored,
-          category,
-          confidence: args.confidence,
-        },
-      },
+      metadata: { ...card.metadata, linkCategory: args.metadata },
     });
+    if (serializeArchivableRaw(args.metadata.raw) !== null) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storage.rawMetadataMaintenance.archiveCard,
+        { cardId: card._id }
+      );
+    }
     return true;
   },
 });

@@ -63,7 +63,7 @@ export const jsonLdTypesFrom = (...sources: unknown[]): string[] => {
  * whose facts need the rules' category keeps it, so its facts survive.
  */
 export const reviewLinkCategoryWithClef = async (
-  ctx: Pick<ActionCtx, "runQuery">,
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   card: CategorizationContextCard,
   classification: CategoryClassificationResult,
   sourceUrl: string,

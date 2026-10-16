@@ -387,7 +387,7 @@ export const textCardRulesType = (card: { content?: string }): CardType =>
  * when it is confident, and a palette must still yield a colour.
  */
 const reviewTextCardType = async (
-  ctx: Pick<ActionCtx, "runQuery">,
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   card: any,
   heuristicQuote: boolean
 ): Promise<{ type: CardType; confidence: number }> => {

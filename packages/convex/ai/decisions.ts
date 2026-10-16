@@ -11,7 +11,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { observeAiGeneration } from "./telemetry";
+import { collectAiUsage, observeAiGeneration } from "./telemetry";
 
 /**
  * Clef decisions run in the Files Worker, which owns their prompts and
@@ -46,7 +46,7 @@ export const isAiAllowedForUser = async (
     "allowed";
 
 export const runDecision = async <T>(
-  ctx: Pick<ActionCtx, "runQuery">,
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   {
     op,
     params,
@@ -68,26 +68,17 @@ export const runDecision = async <T>(
     if (!(await isAiAllowedForUser(ctx, userId))) {
       return null;
     }
-    return await observeAiGeneration(
-      {
-        functionId: `teak.ai.decision.${op}`,
-        model: DECISION_MODELS[op],
-        stage: "ai_metadata",
-      },
-      async () => {
-        const outcome = await callFilesWorkerJson<unknown>({
-          op,
-          params,
-          timeoutMs,
-        });
-        if (outcome.kind === "fallback") {
-          return null;
+    // Counted in the owner's daily AI usage. Inside a step that already
+    // collects (the metadata step), it adds to that step's total instead.
+    return await collectAiUsage(
+      () => observeDecision(op, params, read, timeoutMs),
+      async (usage) => {
+        if (userId && usage.calls > 0) {
+          await ctx.runMutation(internal.adminUsage.recordAiUsage, {
+            userId,
+            ...usage,
+          });
         }
-        const result = read(outcome.data);
-        if (!result) {
-          throw new Error("invalid_decision_reply");
-        }
-        return result;
       }
     );
   } catch (error) {
@@ -98,3 +89,32 @@ export const runDecision = async <T>(
     return null;
   }
 };
+
+const observeDecision = <T>(
+  op: DecisionOp,
+  params: Record<string, unknown>,
+  read: (data: unknown) => T | null,
+  timeoutMs: number
+): Promise<T | null> =>
+  observeAiGeneration(
+    {
+      functionId: `teak.ai.decision.${op}`,
+      model: DECISION_MODELS[op],
+      stage: "ai_metadata",
+    },
+    async () => {
+      const outcome = await callFilesWorkerJson<unknown>({
+        op,
+        params,
+        timeoutMs,
+      });
+      if (outcome.kind === "fallback") {
+        return null;
+      }
+      const result = read(outcome.data);
+      if (!result) {
+        throw new Error("invalid_decision_reply");
+      }
+      return result;
+    }
+  );

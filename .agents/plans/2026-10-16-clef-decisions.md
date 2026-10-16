@@ -108,7 +108,7 @@ Delete this plan in the PR after the backfills have run.
 - **Convex, `ai/decisions.ts`:**
   - `runDecision` checks `isFilesWorkerConfigured` and the AI gate.
   - It calls the op with a 3 s timeout.
-  - It records usage through `observeAiGeneration`.
+  - It records usage through `observeAiGeneration`, and in the owner's daily `adminUsage` totals (inside the metadata step, as part of that step's total).
   - It returns `null` on any failure.
 - **Telemetry.** Clef prices are in `ai/telemetry.ts`, from the protocol's `CLEF_INPUT_USD_PER_MILLION`.
 - **Readiness.** `scripts/check-files-readiness.ts` requires the four new ops, so Convex deploys only after a Worker that serves them.
@@ -128,7 +128,7 @@ Delete this plan in the PR after the backfills have run.
   - It recomputes the rules and queues links whose stored category is still the rules' guess.
   - Jobs hold 8 cards and run 2 s apart, in `migration/backfillLinkCategoriesClefReview.ts`.
   - The write mutation refuses when any of these changed since the job read the card: the URL, the stored category, or `fetchedAt`. It also refuses while the account is being deleted, and it never writes `other`.
-  - Only `category` and `confidence` change; facts and raw data stay.
+  - A changed link is enriched again for its new category (its JSON-LD read again), and the whole `linkCategory` is written, as normal categorization would.
 
 ### Card type
 
@@ -246,10 +246,10 @@ A decision that can't meet both its precision and coverage bars stays off: raise
 - **New models.** Clef launched on 2026-10-01, and every benchmark is Cloudflare's own. The eval is the only accuracy evidence before users see changes.
 - **Rate limits.** Workers AI publishes none for Clef. Watch the backfill canary for 429s before running the rest.
 - **Rerank latency.** The grid scores after its meaning lookup, so a cold search can take longer than the 400 ms hold. Best match then shows only on a repeat of that search within 10 minutes, or on later pages of the API. If the eval's p95 is well over 400 ms, raise `RELEVANCE_HOLD_MS` or lower the depth to 32.
-- **Cost.**
-  - Rerank: about $0.0009 per uncached search.
+- **Cost** (Clef-flash is $0.038 per million input tokens since 2026-10-09, with a 24K-token context; Clef 27B is $0.24):
+  - Rerank: about $0.0004 per uncached search (about 10,000 tokens, within Clef-flash's 24K).
   - Category: about $0.0001 per low-tier link on Clef 27B.
-  - Styles: about $0.0001 per image.
+  - Styles: under $0.0001 per image.
   - Card type: under $0.0001 per text card.
 - **Card type backfill.** Not planned. Existing text cards that are really quotes stay text.
 - **Quotes made at save time aren't reviewed.** Text wrapped in quote marks and saved without a type becomes a quote when the card is created, and the classifier keeps created quotes as they are. So Clef's veto reaches only notes saved explicitly as text. Reviewing those quotes too needs a record of whether the type was chosen or inferred.

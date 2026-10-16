@@ -8,6 +8,7 @@ import { reviewLinkCategoryWithClef } from "../workflows/steps/categorization/cl
 import {
   type CategorizationContextCard,
   classifyLinkCategory,
+  enrichLinkCategory,
   projectCategorizationSnapshot,
 } from "../workflows/steps/categorization/index";
 
@@ -49,13 +50,26 @@ export const reviewLinkCategories = internalAction({
       if (reviewedClassification === rules) {
         continue;
       }
+      // Enrich again for the new category, as categorization would: drop the
+      // old category's structured facts so the page's JSON-LD is read again.
+      const { structured: _structured, ...raw } =
+        snapshot.metadata?.linkCategory?.raw ?? {};
+      const metadata = await enrichLinkCategory(
+        {
+          ...snapshot,
+          metadata: {
+            ...snapshot.metadata,
+            linkCategory: { ...snapshot.metadata?.linkCategory, raw },
+          },
+        },
+        reviewedClassification
+      );
       const written = await ctx.runMutation(
         (internal as any)["migration/backfillLinkCategoriesClef"]
           .applyReviewedCategory,
         {
           cardId,
-          category: reviewedClassification.category,
-          confidence: reviewedClassification.confidence,
+          metadata,
           expectedCategory: card.metadata.linkCategory.category,
           expectedFetchedAt: card.metadata.linkCategory.fetchedAt,
           expectedUrl: card.url,

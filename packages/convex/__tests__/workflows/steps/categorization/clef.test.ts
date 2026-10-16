@@ -31,10 +31,18 @@ beforeAll(async () => {
 
 beforeEach(() => {
   workerCalls = [];
+  usageRecords = [];
   aiGate = "allowed";
 });
 
-const ctx = { runQuery: () => Promise.resolve(aiGate) };
+let usageRecords: unknown[] = [];
+const ctx = {
+  runQuery: () => Promise.resolve(aiGate),
+  runMutation: (_ref: unknown, args: unknown) => {
+    usageRecords.push(args);
+    return Promise.resolve(null);
+  },
+};
 
 const card = {
   _id: "c1",
@@ -80,6 +88,14 @@ describe("reviewLinkCategoryWithClef", () => {
       confidence: 0.93,
       reason: "clef",
     });
+    expect(usageRecords).toEqual([
+      expect.objectContaining({
+        userId: "teak_user",
+        calls: 1,
+        inputTokens: 100,
+        costUsd: 0.000_024,
+      }),
+    ]);
     expect(workerCalls).toEqual([
       {
         op: "decide-link-category",

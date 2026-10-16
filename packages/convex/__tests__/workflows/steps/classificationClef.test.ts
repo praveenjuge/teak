@@ -40,18 +40,23 @@ beforeEach(() => {
 
 const run = async (card: Record<string, unknown>) => {
   const recorded: Record<string, unknown>[] = [];
+  const usage: Record<string, unknown>[] = [];
   const ctx = {
     runQuery: (ref: unknown) =>
       Promise.resolve(
         getFunctionName(ref as never).endsWith("getAiGate") ? aiGate : card
       ),
-    runMutation: (_ref: unknown, args: Record<string, unknown>) => {
-      recorded.push(args);
+    runMutation: (ref: unknown, args: Record<string, unknown>) => {
+      if (getFunctionName(ref as never) === "adminUsage:recordAiUsage") {
+        usage.push(args);
+      } else {
+        recorded.push(args);
+      }
       return Promise.resolve(null);
     },
   };
   const result = await classify(ctx, { cardId: "c1" });
-  return { recorded, result };
+  return { recorded, result, usage };
 };
 
 const note = (content: string, type = "text") => ({
@@ -64,11 +69,15 @@ const note = (content: string, type = "text") => ({
 describe("card type review by Clef", () => {
   test("an unquoted quotation becomes a quote", async () => {
     decision = { type: "quote", confidence: 0.92 };
-    const { recorded, result } = await run(
+    const { recorded, result, usage } = await run(
       note("Make it work, then make it fast. — my old teacher")
     );
     expect(result).toMatchObject({ type: "quote", confidence: 0.92 });
     expect(recorded[0]).toMatchObject({ type: "quote", confidence: 0.92 });
+    // The call counts in the owner's daily AI usage.
+    expect(usage).toEqual([
+      expect.objectContaining({ userId: "teak_user", calls: 1, errors: 0 }),
+    ]);
     expect(workerCalls[0]).toMatchObject({
       op: "decide-card-type",
       params: { rulesType: "text" },
