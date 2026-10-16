@@ -308,6 +308,24 @@ describe("generating metadata", () => {
       expect(card?.processingStatus?.metadata?.status).toBe("pending");
     });
 
+    test("a deferral leaves a stage that already finished as it is", async () => {
+      aiError = "invalid";
+      const { card, generate } = setup({
+        content: "content",
+        processingStatus: {
+          metadata: { completedAt: 5, status: "completed" },
+        },
+      });
+      await generate("text", {
+        capacity: "retry",
+        restorePendingOnDefer: true,
+      });
+      expect(card?.processingStatus?.metadata).toEqual({
+        completedAt: 5,
+        status: "completed",
+      });
+    });
+
     test("an image source the op declines defers like a pending thumbnail", async () => {
       const { generate, saved } = setup(
         {

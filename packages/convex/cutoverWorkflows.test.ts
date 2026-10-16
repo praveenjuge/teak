@@ -156,7 +156,7 @@ describe("requeueJobs", () => {
       .sort();
     expect(instanceIds).toEqual(
       [
-        `account-deletion-${ids.stateId}-1-1`,
+        `account-deletion-${ids.stateId}-1-${NOW}`,
         `export-${ids.exportId}`,
         `import-${ids.importId}`,
       ].sort()

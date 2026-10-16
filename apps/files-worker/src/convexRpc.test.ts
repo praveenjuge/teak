@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { internal } from "@teak/convex/_generated/api";
 import { hasValidWorkflowRpcSignature } from "@teak/convex/workflowGateway";
-import { allowedConvexSiteUrl, createConvexRpc } from "./convexRpc";
+import {
+  allowedConvexSiteUrl,
+  createConvexRpc,
+  workflowRpcSecret,
+} from "./convexRpc";
 import {
   createFakeConvex,
   FakeConvexError,
@@ -10,18 +14,33 @@ import {
   TEST_SIGNING_SECRET,
 } from "./test/fakeConvex";
 
+const DEV_SITE_URL = "https://dev-deployment.convex.site";
+const twoDeploymentEnv = {
+  ...fakeConvexEnv,
+  CONVEX_SITE_URLS: `${TEST_CONVEX_SITE_URL},${DEV_SITE_URL}`,
+};
+
+/** What the gateway at `origin` would say about the request. */
+const gatewayAccepts = async (
+  init: RequestInit | undefined,
+  origin: string,
+  secret: string
+) =>
+  await hasValidWorkflowRpcSignature(
+    new Headers(init?.headers),
+    new TextEncoder().encode(String(init?.body)).buffer as ArrayBuffer,
+    secret,
+    origin
+  );
+
 const complete = internal.workflowDispatch.complete;
 
 describe("createConvexRpc", () => {
   test("signs requests the Convex gateway accepts", async () => {
+    const secret = await workflowRpcSecret(fakeConvexEnv, TEST_CONVEX_SITE_URL);
     let verified = false;
     const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
-      const body = new TextEncoder().encode(String(init?.body));
-      verified = await hasValidWorkflowRpcSignature(
-        new Headers(init?.headers),
-        body.buffer as ArrayBuffer,
-        TEST_SIGNING_SECRET
-      );
+      verified = await gatewayAccepts(init, TEST_CONVEX_SITE_URL, secret ?? "");
       return Response.json({ ok: true, value: null });
     }) as typeof fetch;
     const rpc = createConvexRpc(fakeConvexEnv, TEST_CONVEX_SITE_URL, fetcher);
@@ -30,6 +49,38 @@ describe("createConvexRpc", () => {
       status: "complete",
     });
     expect(verified).toBe(true);
+  });
+
+  test("gives each deployment a secret that can't sign for another", async () => {
+    const prodSecret = await workflowRpcSecret(
+      twoDeploymentEnv,
+      TEST_CONVEX_SITE_URL
+    );
+    const devSecret = await workflowRpcSecret(twoDeploymentEnv, DEV_SITE_URL);
+    expect(prodSecret).not.toBe(devSecret);
+    let sent: RequestInit | undefined;
+    const fetcher = ((_url: RequestInfo | URL, init?: RequestInit) => {
+      sent = init;
+      return Promise.resolve(Response.json({ ok: true, value: null }));
+    }) as typeof fetch;
+    await createConvexRpc(twoDeploymentEnv, DEV_SITE_URL, fetcher).mutation(
+      complete,
+      { instanceId: "card-a-1", status: "complete" }
+    );
+    // Production refuses what was signed for development, whether checked
+    // with production's secret, development's, or the shared files secret.
+    expect(await gatewayAccepts(sent, DEV_SITE_URL, devSecret ?? "")).toBe(
+      true
+    );
+    expect(
+      await gatewayAccepts(sent, TEST_CONVEX_SITE_URL, prodSecret ?? "")
+    ).toBe(false);
+    expect(
+      await gatewayAccepts(sent, TEST_CONVEX_SITE_URL, devSecret ?? "")
+    ).toBe(false);
+    expect(
+      await gatewayAccepts(sent, TEST_CONVEX_SITE_URL, TEST_SIGNING_SECRET)
+    ).toBe(false);
   });
 
   test("sends the function name, kind, Convex JSON args and guard", async () => {

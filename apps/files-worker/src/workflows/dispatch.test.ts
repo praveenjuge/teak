@@ -1,8 +1,36 @@
 import { describe, expect, test } from "bun:test";
+import { buildWorkflowDispatchSigningPayload } from "@teak/files-protocol";
+import { workflowRpcSecret } from "../convexRpc";
+import { hmacSha256Hex, sha256Hex } from "../lib";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
 import { type ObjectDeletionMessage, runDispatch } from "./dispatch";
 
 const fileKey = "users/u1/cards/c1/file/a.png";
+
+/** Dispatch params with the proof the deployment signs, as Convex sends them. */
+const signed = async (
+  items: unknown[],
+  options: { convexSiteUrl?: string; secretFor?: string } = {}
+) => {
+  const convexSiteUrl = options.convexSiteUrl ?? TEST_CONVEX_SITE_URL;
+  const secret = await workflowRpcSecret(
+    {
+      ...fakeConvexEnv,
+      CONVEX_SITE_URLS: `${TEST_CONVEX_SITE_URL},https://dev.convex.site`,
+    },
+    options.secretFor ?? convexSiteUrl
+  );
+  const expiresAt = String(Math.floor(Date.now() / 1000) + 60);
+  const signature = await hmacSha256Hex(
+    secret ?? "",
+    buildWorkflowDispatchSigningPayload({
+      convexSiteUrl,
+      expiresAt,
+      itemsSha256: await sha256Hex(JSON.stringify(items)),
+    })
+  );
+  return { convexSiteUrl, expiresAt, items, signature };
+};
 
 const fakeWorkflow = (
   options: {
@@ -55,17 +83,14 @@ describe("runDispatch", () => {
     const cards = fakeWorkflow();
     const result = await runDispatch(
       { ...fakeConvexEnv, CARD_PROCESSING: cards.binding },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: [
-          {
-            id: "card-abc-2",
-            params: { cardId: "abc", rev: 2 },
-            type: "workflow",
-            workflow: "card-processing",
-          },
-        ],
-      }
+      await signed([
+        {
+          id: "card-abc-2",
+          params: { cardId: "abc", rev: 2 },
+          type: "workflow",
+          workflow: "card-processing",
+        },
+      ])
     );
     expect(result.results).toEqual([{ index: 0, ok: true }]);
     expect(cards.created).toEqual([
@@ -82,17 +107,14 @@ describe("runDispatch", () => {
     });
     const result = await runDispatch(
       { ...fakeConvexEnv, CARD_PROCESSING: cards.binding },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: [
-          {
-            id: "card-abc-2",
-            params: {},
-            type: "workflow",
-            workflow: "card-processing",
-          },
-        ],
-      }
+      await signed([
+        {
+          id: "card-abc-2",
+          params: {},
+          type: "workflow",
+          workflow: "card-processing",
+        },
+      ])
     );
     expect(result.results).toEqual([{ index: 0, ok: true }]);
   });
@@ -103,15 +125,14 @@ describe("runDispatch", () => {
     });
     const result = await runDispatch(
       { ...fakeConvexEnv, CARD_PROCESSING: cards.binding },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: ["card-a-1", "card-b-1"].map((id) => ({
+      await signed(
+        ["card-a-1", "card-b-1"].map((id) => ({
           id,
           params: {},
           type: "workflow",
           workflow: "card-processing",
-        })),
-      }
+        }))
+      )
     );
     expect(result.results).toEqual([
       { index: 0, ok: true },
@@ -125,18 +146,15 @@ describe("runDispatch", () => {
     });
     await runDispatch(
       { ...fakeConvexEnv, CARD_PROCESSING: cards.binding },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: [
-          {
-            id: "card-a-3",
-            params: {},
-            terminate: ["card-a-1", "card-a-2", "card-a-0"],
-            type: "workflow",
-            workflow: "card-processing",
-          },
-        ],
-      }
+      await signed([
+        {
+          id: "card-a-3",
+          params: {},
+          terminate: ["card-a-1", "card-a-2", "card-a-0"],
+          type: "workflow",
+          workflow: "card-processing",
+        },
+      ])
     );
     expect(cards.terminated).toEqual(["card-a-1"]);
     expect(cards.created.map((instance) => instance.id)).toEqual(["card-a-3"]);
@@ -146,14 +164,11 @@ describe("runDispatch", () => {
     const queue = fakeQueue();
     const result = await runDispatch(
       { ...fakeConvexEnv, OBJECT_DELETIONS: queue.queue },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: [
-          { keys: [fileKey], type: "delete-objects" },
-          // The development deployment's keys share this Worker.
-          { keys: [`dev/${fileKey}`], type: "delete-objects" },
-        ],
-      }
+      await signed([
+        { keys: [fileKey], type: "delete-objects" },
+        // The development deployment's keys share this Worker.
+        { keys: [`dev/${fileKey}`], type: "delete-objects" },
+      ])
     );
     expect(result.results).toEqual([
       { index: 0, ok: true },
@@ -169,19 +184,16 @@ describe("runDispatch", () => {
     const queue = fakeQueue(true);
     const result = await runDispatch(
       { ...fakeConvexEnv, OBJECT_DELETIONS: queue.queue },
-      {
-        convexSiteUrl: TEST_CONVEX_SITE_URL,
-        items: [
-          { keys: [fileKey], type: "delete-objects" },
-          { keys: ["/etc/passwd"], type: "delete-objects" },
-          {
-            id: "export-j1",
-            params: {},
-            type: "workflow",
-            workflow: "export",
-          },
-        ],
-      }
+      await signed([
+        { keys: [fileKey], type: "delete-objects" },
+        { keys: ["/etc/passwd"], type: "delete-objects" },
+        {
+          id: "export-j1",
+          params: {},
+          type: "workflow",
+          workflow: "export",
+        },
+      ])
     );
     expect(result.results).toEqual([
       { error: "queue_down", index: 0, ok: false },
@@ -192,10 +204,47 @@ describe("runDispatch", () => {
 
   test("refuses a deployment this Worker doesn't serve", async () => {
     await expect(
-      runDispatch(fakeConvexEnv, {
-        convexSiteUrl: "https://elsewhere.convex.site",
-        items: [{ keys: [fileKey], type: "delete-objects" }],
-      })
+      runDispatch(
+        fakeConvexEnv,
+        await signed([{ keys: [fileKey], type: "delete-objects" }], {
+          convexSiteUrl: "https://elsewhere.convex.site",
+        })
+      )
     ).rejects.toThrow("invalid_convex_site_url");
+  });
+
+  test("refuses work for one deployment signed by another", async () => {
+    const queue = fakeQueue();
+    const env = {
+      ...fakeConvexEnv,
+      CONVEX_SITE_URLS: `${TEST_CONVEX_SITE_URL},https://dev.convex.site`,
+      OBJECT_DELETIONS: queue.queue,
+    };
+    // Development shares the files signing secret with production, but its
+    // own RPC secret can't vouch for production's origin.
+    await expect(
+      runDispatch(
+        env,
+        await signed([{ keys: [fileKey], type: "delete-objects" }], {
+          secretFor: "https://dev.convex.site",
+        })
+      )
+    ).rejects.toThrow("invalid_dispatch_proof");
+    const unsigned = await signed([
+      { keys: [fileKey], type: "delete-objects" },
+    ]);
+    await expect(
+      runDispatch(env, { ...unsigned, signature: undefined })
+    ).rejects.toThrow("invalid_dispatch_proof");
+    await expect(
+      runDispatch(env, {
+        ...unsigned,
+        items: [{ keys: [`dev/${fileKey}`], type: "delete-objects" }],
+      })
+    ).rejects.toThrow("invalid_dispatch_proof");
+    await expect(
+      runDispatch(env, unsigned, Date.now() + 10 * 60 * 1000)
+    ).rejects.toThrow("invalid_dispatch_proof");
+    expect(queue.sent).toEqual([]);
   });
 });

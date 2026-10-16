@@ -85,8 +85,30 @@ export const claimAiBackfillCards = internalMutation({
 });
 
 /**
- * The admin console's "retry AI backfill": claims a batch now and runs card
- * processing for each claimed card, which regenerates its AI metadata.
+ * Gives back the attempts a claim counted when the Worker could not queue
+ * the cards, so an attempt is only spent on a card that was queued.
+ */
+export const releaseAiBackfillCards = internalMutation({
+  args: { cardIds: v.array(v.id("cards")) },
+  returns: v.null(),
+  handler: async (ctx, { cardIds }) => {
+    for (const cardId of cardIds) {
+      const card = await ctx.db.get("cards", cardId);
+      const attempts = card?.aiBackfillAttempts ?? 0;
+      if (attempts > 0) {
+        await ctx.db.patch("cards", cardId, {
+          aiBackfillAttempts: attempts - 1,
+        });
+      }
+    }
+    return null;
+  },
+});
+
+/**
+ * The admin console's "retry AI backfill": claims a batch now and starts a
+ * metadata-only card-processing run for each claimed card, which
+ * regenerates its AI metadata and leaves every other stage as it is.
  */
 export const retryAiBackfillNow = internalMutation({
   args: {},
@@ -102,7 +124,7 @@ export const retryAiBackfillNow = internalMutation({
       if (claim.outcome !== "claimed") {
         continue;
       }
-      if (await queueCardProcessing(ctx, cardId)) {
+      if (await queueCardProcessing(ctx, cardId, { metadataOnly: true })) {
         enqueuedCount += 1;
       } else {
         failedCardIds.push(cardId);

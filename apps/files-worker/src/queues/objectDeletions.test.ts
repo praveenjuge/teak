@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { createFakeBatch, createFakeQueue } from "../test/fakeQueue";
 import { FakeBucket } from "../test/testsupport";
 import type { FilesOpCaller } from "../workflows/deps";
@@ -71,13 +71,21 @@ describe("object deletion consumer", () => {
     expect(bucket.deleteBatches).toEqual([[key(3)]]);
   });
 
-  test("dead letters are acknowledged after they are logged", async () => {
+  test("dead letters are acknowledged after they are logged without their keys", async () => {
     const { bucket, env } = setup();
     const { batch, outcomes } = createFakeBatch("teak-object-deletions-dlq", [
       { keys: [key(0)] },
     ]);
-
-    await handleQueueBatch(batch, env, ctx);
+    const errors = spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await handleQueueBatch(batch, env, ctx);
+      const logged = JSON.stringify(errors.mock.calls);
+      expect(logged).toContain('"cardId":"c1"');
+      expect(logged).not.toContain(key(0));
+      expect(logged).not.toContain("u1");
+    } finally {
+      errors.mockRestore();
+    }
 
     expect(outcomes()).toEqual(["ack"]);
     expect(bucket.objects.has(key(0))).toBe(true);

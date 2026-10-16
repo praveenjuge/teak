@@ -4,11 +4,13 @@ import { convexToJson, jsonToConvex, type Value } from "convex/values";
 
 export const TEST_CONVEX_SITE_URL = "https://test-deployment.convex.site";
 export const TEST_SIGNING_SECRET = "test-files-signing-secret";
+export const TEST_RPC_ROOT_SECRET = "test-workflow-rpc-root-secret";
 
 /** Env for the RPC client pointed at the fake deployment. */
 export const fakeConvexEnv = {
   CONVEX_SITE_URLS: TEST_CONVEX_SITE_URL,
   FILES_SIGNING_SECRET: TEST_SIGNING_SECRET,
+  WORKFLOW_RPC_ROOT_SECRET: TEST_RPC_ROOT_SECRET,
 };
 
 export type FakeHandler = (

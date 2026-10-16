@@ -337,6 +337,8 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
+        // Background work: the workflows exist and the Worker can sign RPCs.
+        workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),

@@ -1,5 +1,6 @@
 import { NonRetryableError } from "cloudflare:workflows";
 import {
+  buildWorkflowRpcSecretPayload,
   buildWorkflowRpcSigningPayload,
   normalizeConvexSiteUrl,
   parseConvexSiteUrls,
@@ -30,7 +31,11 @@ export interface ConvexRpcEnv {
    * Worker serves, comma-separated. The first is the primary one.
    */
   CONVEX_SITE_URLS?: string;
-  FILES_SIGNING_SECRET: string;
+  /**
+   * Root of every deployment's workflow RPC secret. Only the Worker holds it;
+   * each deployment holds its own derived secret (`workflowRpcSecret`).
+   */
+  WORKFLOW_RPC_ROOT_SECRET?: string;
 }
 
 /** The deployments this Worker serves. */
@@ -46,9 +51,30 @@ export const allowedConvexSiteUrl = (
   return origin && convexSiteUrls(env).includes(origin) ? origin : null;
 };
 
+/**
+ * The secret one deployment signs and verifies workflow RPCs and dispatch
+ * proofs with. Deriving it per origin means the development deployment's
+ * secret never works for production.
+ */
+export const workflowRpcSecret = async (
+  env: ConvexRpcEnv,
+  convexSiteUrl: string
+): Promise<string | null> =>
+  env.WORKFLOW_RPC_ROOT_SECRET
+    ? await hmacSha256Hex(
+        env.WORKFLOW_RPC_ROOT_SECRET,
+        buildWorkflowRpcSecretPayload(convexSiteUrl)
+      )
+    : null;
+
 /** Signed RPCs stay valid this long; the gateway allows at most 5 minutes. */
 const RPC_TTL_SECONDS = 120;
 const RPC_TIMEOUT_MS = 60_000;
+/**
+ * Convex lets an action run for 10 minutes; a long one (the vector ledger
+ * sweep) must not be abandoned and retried while it is still going.
+ */
+const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
 
 /** The gateway refused a write for a card this run no longer owns. */
 const NON_RETRYABLE_CODES = new Set([
@@ -100,7 +126,8 @@ export const createConvexRpc = (
     guard?: WorkflowRpcGuard
   ): Promise<unknown> => {
     const origin = allowedConvexSiteUrl(env, convexSiteUrl);
-    if (!(origin && env.FILES_SIGNING_SECRET)) {
+    const secret = origin ? await workflowRpcSecret(env, origin) : null;
+    if (!(origin && secret)) {
       throw new NonRetryableError("convex_rpc_not_configured");
     }
     const body = JSON.stringify({
@@ -112,9 +139,10 @@ export const createConvexRpc = (
     const requestId = crypto.randomUUID();
     const expiresAt = String(Math.floor(Date.now() / 1000) + RPC_TTL_SECONDS);
     const signature = await hmacSha256Hex(
-      env.FILES_SIGNING_SECRET,
+      secret,
       buildWorkflowRpcSigningPayload({
         bodySha256: await sha256Hex(body),
+        convexSiteUrl: origin,
         expiresAt,
         requestId,
       })
@@ -130,8 +158,10 @@ export const createConvexRpc = (
           [WORKFLOW_RPC_HEADERS.signature]: signature,
         },
         method: "POST",
-        redirect: "error",
-        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+        redirect: "manual",
+        signal: AbortSignal.timeout(
+          kind === "action" ? ACTION_RPC_TIMEOUT_MS : RPC_TIMEOUT_MS
+        ),
       });
     } catch (error) {
       throw new Error(

@@ -55,19 +55,36 @@ export const enqueueAiBackfill = async (
     });
   }
   if (cards.length > 0) {
-    await queue.sendBatch(
-      cards.map(
-        ({
-          cardId,
-          rev,
-        }: {
-          cardId: string;
-          rev: number;
-        }): MessageSendRequest<AiBackfillMessage> => ({
-          body: { cardId, convexSiteUrl, rev },
+    try {
+      await queue.sendBatch(
+        cards.map(
+          ({
+            cardId,
+            rev,
+          }: {
+            cardId: string;
+            rev: number;
+          }): MessageSendRequest<AiBackfillMessage> => ({
+            body: { cardId, convexSiteUrl, rev },
+          })
+        )
+      );
+    } catch (error) {
+      // Nothing was queued: give the cards back the attempt the claim took.
+      await convex
+        .mutation(internal.ai.backfill.releaseAiBackfillCards, {
+          cardIds: cards.map(({ cardId }: { cardId: Id<"cards"> }) => cardId),
         })
-      )
-    );
+        .catch((releaseError: unknown) => {
+          console.error("[aiBackfill] could not release claimed cards", {
+            error:
+              releaseError instanceof Error
+                ? releaseError.message
+                : String(releaseError),
+          });
+        });
+      throw error;
+    }
   }
   return cards.length;
 };

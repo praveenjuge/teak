@@ -251,7 +251,10 @@
     "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app",
     // The Convex deployments whose background work this Worker runs; the
     // first is primary. Development shares this Worker until the storage
-    // switch, so its deployment is listed too.
+    // switch, so its deployment is listed too. Remove it in the same change
+    // that deploys development/wrangler.jsonc: two Workers serving one
+    // deployment would both run its crons, and each would reconcile runs
+    // that live in the other's workflows as missing.
     "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site,https://reminiscent-kangaroo-59.convex.site",
     // In-process ops transform large images through this Worker's own URL.
     "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",

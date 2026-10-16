@@ -113,6 +113,39 @@ describe("enqueueAiBackfill", () => {
     ).rejects.toThrow("ai_backfill_queue_missing");
     expect(convex.calls).toEqual([]);
   });
+
+  test("gives the attempts back when the queue refuses the batch", async () => {
+    // The deployment counts an attempt per claim and gives it back on release.
+    const attempts: Record<string, number> = { c1: 0, c2: 2 };
+    const convex = createFakeConvex({
+      "ai/backfill:claimAiBackfillCards": () => {
+        for (const cardId of Object.keys(attempts)) {
+          attempts[cardId] = (attempts[cardId] ?? 0) + 1;
+        }
+        return {
+          cards: Object.keys(attempts).map((cardId) => ({ cardId, rev: 1 })),
+          exhausted: 0,
+        };
+      },
+      "ai/backfill:releaseAiBackfillCards": (args) => {
+        for (const cardId of args.cardIds as string[]) {
+          attempts[cardId] = (attempts[cardId] ?? 0) - 1;
+        }
+        return null;
+      },
+    });
+    const queue = {
+      sendBatch: () => Promise.reject(new Error("queue_unavailable")),
+    } as unknown as Queue<unknown>;
+    const env = testEnv({ AI_BACKFILL: queue });
+
+    await expect(
+      enqueueAiBackfill(env, TEST_CONVEX_SITE_URL, {
+        convex: createConvexRpc(env, TEST_CONVEX_SITE_URL, convex.fetcher),
+      })
+    ).rejects.toThrow("queue_unavailable");
+    expect(attempts).toEqual({ c1: 0, c2: 2 });
+  });
 });
 
 describe("handleAiBackfillBatch", () => {

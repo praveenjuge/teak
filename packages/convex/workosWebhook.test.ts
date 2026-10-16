@@ -470,6 +470,36 @@ describe("events the Files Worker could not deliver", () => {
     ]);
   });
 
+  test("are dead-lettered only when Convex verifies the aged signature", async () => {
+    vi.stubEnv(
+      "WORKOS_ENVIRONMENT_ID",
+      "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
+    );
+    vi.stubEnv("WORKOS_CLIENT_ID", "client_dead_letter_test");
+    vi.stubEnv("WORKOS_API_KEY", "sk_test_dead_letter");
+    vi.stubEnv("WORKOS_WEBHOOK_SECRET", secret);
+    vi.resetModules();
+    const t = setup();
+    const body = JSON.stringify(fixture("evt_aged", "user.updated"));
+    const aged = Date.now() - 10 * 60 * 1000;
+    expect(
+      await t.action(internal.workosWebhook.recordUndeliverableWebhook, {
+        body,
+        signature: await signature(body, "wrong-secret", aged),
+      })
+    ).toEqual({ recorded: false });
+    expect(
+      await t.action(internal.workosWebhook.recordUndeliverableWebhook, {
+        body,
+        signature: await signature(body, secret, aged),
+      })
+    ).toEqual({ recorded: true });
+    expect(
+      await t.run((ctx) => ctx.db.query("workosWebhookDeadLetters").take(10))
+    ).toMatchObject([{ event: "user.updated", eventId: "evt_aged" }]);
+    vi.unstubAllEnvs();
+  });
+
   test("are not dead-lettered when the event was applied after all", async () => {
     const t = setup();
     await t.run((ctx) =>

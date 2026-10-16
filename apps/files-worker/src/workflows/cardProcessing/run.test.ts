@@ -186,6 +186,105 @@ describe("card processing", () => {
     expect(convex.callsTo("linkMetadata:updateCardScreenshot")).toHaveLength(1);
   });
 
+  const linkCard = () =>
+    makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+
+  const finalError = (message: string) =>
+    Object.assign(new Error(message), { name: "NonRetryableError" });
+
+  test("a screenshot that fails for good is recorded failed and the run completes", async () => {
+    const card = linkCard();
+    const { convex, run } = setup(card, {
+      "capture-screenshot": { throws: finalError("renderer_refused") },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    const result = await run();
+
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(card.processingStatus?.screenshot).toMatchObject({
+      error: "screenshot_error",
+      status: "failed",
+    });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("an edit while the screenshot fails still ends the run as replaced", async () => {
+    const card = linkCard();
+    const { convex, run } = setup(card, {
+      "capture-screenshot": () => {
+        card.processingRev = 2;
+        return { throws: finalError("renderer_refused") };
+      },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    expect(await run()).toEqual({ mode: "skipped", reason: "superseded" });
+    expect(card.processingStatus?.screenshot?.status).toBe("in_progress");
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a metadata-only run regenerates the AI metadata and nothing else", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      metadata: { linkPreview: { status: "success", title: "Kept" } },
+      processingStatus: {
+        categorize: { status: "completed" },
+        classify: { confidence: 0.9, status: "completed" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+        screenshot: { status: "completed" },
+      },
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const convex = createCardConvex(card);
+    const ops = createFakeOps({
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+    const fakeStep = createFakeStep();
+    const env = testEnv();
+
+    await runCardProcessing(
+      {
+        env,
+        instanceId: `card-${CARD_ID}-1`,
+        params: {
+          cardId: CARD_ID,
+          convexSiteUrl: TEST_CONVEX_SITE_URL,
+          metadataOnly: true,
+          rev: 1,
+        },
+        step: fakeStep.step,
+      },
+      testDeps(env, convex.fetcher, ops.ops)
+    );
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "generate metadata",
+      "report complete",
+    ]);
+    expect(ops.opsCalled()).toEqual(["generate-link-metadata"]);
+    expect(card.aiTags).toEqual(["article"]);
+    expect(
+      convex.stageWrites.filter((write) => write.stage !== "metadata")
+    ).toEqual([]);
+  });
+
   test("an image card: renderables, palette, then metadata, one after another", async () => {
     const card = makeCard({
       fileKey: "users/x/cards/c/file/a.png",

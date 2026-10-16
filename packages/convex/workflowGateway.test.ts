@@ -12,6 +12,8 @@ import { hmacSha256Hex } from "./storage/r2Keys";
 
 const modules = import.meta.glob("./**/*.ts");
 const SECRET = "workflow-rpc-test-secret";
+const FILES_SECRET = "files-signing-test-secret";
+const SITE_URL = "https://prod-deployment.convex.site";
 
 const sha256Hex = async (text: string): Promise<string> =>
   Array.from(
@@ -23,7 +25,11 @@ const sha256Hex = async (text: string): Promise<string> =>
 
 const signedRequest = async (
   payload: unknown,
-  options: { expiresInSeconds?: number; secret?: string } = {}
+  options: {
+    convexSiteUrl?: string;
+    expiresInSeconds?: number;
+    secret?: string;
+  } = {}
 ): Promise<RequestInit> => {
   const body = JSON.stringify(payload);
   const requestId = crypto.randomUUID();
@@ -34,6 +40,7 @@ const signedRequest = async (
     options.secret ?? SECRET,
     buildWorkflowRpcSigningPayload({
       bodySha256: await sha256Hex(body),
+      convexSiteUrl: options.convexSiteUrl ?? SITE_URL,
       expiresAt,
       requestId,
     })
@@ -85,7 +92,9 @@ const completeCall = (instanceId: string) => ({
 });
 
 beforeEach(() => {
-  vi.stubEnv("FILES_SIGNING_SECRET", SECRET);
+  vi.stubEnv("WORKFLOW_RPC_SECRET", SECRET);
+  vi.stubEnv("FILES_SIGNING_SECRET", FILES_SECRET);
+  vi.stubEnv("CONVEX_SITE_URL", SITE_URL);
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -111,6 +120,12 @@ describe("workflow RPC gateway", () => {
 
   test.each([
     ["a different secret", { secret: "wrong-secret" }],
+    // Development shares the files signing secret with production.
+    ["the files signing secret", { secret: FILES_SECRET }],
+    [
+      "a signature for another deployment",
+      { convexSiteUrl: "https://dev-deployment.convex.site" },
+    ],
     ["an expired signature", { expiresInSeconds: -5 }],
     [
       "an expiry further out than the gateway allows",
@@ -127,6 +142,18 @@ describe("workflow RPC gateway", () => {
       ctx.db.get("workflowDispatches", dispatchId)
     );
     expect(row?.state).toBe("sent");
+  });
+
+  test("stays closed until the deployment has its own RPC secret", async () => {
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "");
+    const { cardId, t } = await setup();
+    const response = await t.fetch(
+      WORKFLOW_RPC_PATH,
+      await signedRequest(completeCall(`card-${cardId}-2`), {
+        secret: FILES_SECRET,
+      })
+    );
+    expect(response.status).toBe(503);
   });
 
   test("refuses a body changed after signing", async () => {

@@ -1,6 +1,7 @@
 import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { stageFailed } from "@teak/convex/card/processingStatus";
 import {
   CONVEX_STEP,
   NO_RETRY,
@@ -40,6 +41,8 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 
 export interface CardProcessingParams {
   cardId: string;
+  /** Only regenerate the AI metadata (the admin's AI backfill retry). */
+  metadataOnly?: boolean;
   rev: number;
 }
 
@@ -115,6 +118,7 @@ export const runCardProcessing = (
     env,
     rev: params.rev,
   };
+  const metadataOnly = params.metadataOnly === true;
   return runReported(
     run,
     async () => {
@@ -131,7 +135,7 @@ export const runCardProcessing = (
         );
 
       try {
-        return await processCard(job, step, reported);
+        return await processCard(job, step, reported, metadataOnly);
       } catch (error) {
         if (isSuperseded(error)) {
           return {
@@ -158,7 +162,8 @@ type Reported = <T>(
 const processCard = async (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
-  reported: Reported
+  reported: Reported,
+  metadataOnly: boolean
 ): Promise<CardProcessingResult> => {
   const initial = await step.do(
     "load card",
@@ -214,6 +219,14 @@ const processCard = async (
     return { mode: "skipped", reason: "card_missing" };
   }
   const cardType = classified.type;
+
+  if (metadataOnly) {
+    // Every other stage keeps what the card's earlier runs left.
+    const metadata = classified.shouldGenerateMetadata
+      ? await runMetadataStep(job, step, reported, cardType)
+      : null;
+    return completedResult(classified, cardType, metadata, null);
+  }
 
   if (cardType === "link") {
     await step.do(
@@ -275,40 +288,7 @@ const processCard = async (
     }
   };
 
-  const runMetadata = (): Promise<MetadataResult> =>
-    step.do(
-      "generate metadata",
-      METADATA_STEP,
-      reported(
-        "card.ai_metadata",
-        "ai_metadata",
-        AI_CAPACITY_RETRIES + 1,
-        async (ctx) => {
-          try {
-            await markInProgress(job, ["metadata"]);
-            return await withWorkflowTelemetry(job.env, (telemetry) =>
-              generateCardMetadata(job, telemetry, cardType, {
-                // The last attempt leaves a card Workers AI still can't take
-                // to the backfill.
-                capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
-                restorePendingOnDefer: true,
-              })
-            );
-          } catch (error) {
-            if (
-              !isAiProviderCapacityError(error) &&
-              ctx.attempt >= METADATA_ATTEMPTS &&
-              !(error instanceof Error && error.name === "NonRetryableError")
-            ) {
-              throw new NonRetryableError(
-                error instanceof Error ? error.message : String(error)
-              );
-            }
-            throw error;
-          }
-        }
-      )
-    );
+  const runMetadata = () => runMetadataStep(job, step, reported, cardType);
 
   let metadata: MetadataResult | null = null;
   let renderables: RenderablesResult | null = null;
@@ -349,13 +329,33 @@ const processCard = async (
           captureScreenshotStep(job, ctx.attempt)
         )
       )
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         // The screenshot is its own stage: a failure is recorded on it and
         // does not fail the card's run.
         rethrowSuperseded(error);
         console.error("[cardProcessing] Screenshot failed", {
           cardId: job.cardId,
           error: error instanceof Error ? error.message : String(error),
+        });
+        // A failure the step gave up on without recording (a final error)
+        // must not leave the stage in progress.
+        await step.do("mark screenshot failed", CONVEX_STEP, async () => {
+          const loaded = await loadCard(job);
+          const status = loaded?.card.processingStatus?.screenshot?.status;
+          if (!loaded || status === "completed" || status === "failed") {
+            return null;
+          }
+          await job.deps.convex.mutation(
+            internal.ai.mutations.updateCardProcessing,
+            {
+              cardId: job.cardId,
+              processingStatus: {
+                screenshot: stageFailed(Date.now(), "screenshot_error"),
+              },
+            },
+            guardOf(job)
+          );
+          return null;
         });
         return null;
       });
@@ -372,20 +372,69 @@ const processCard = async (
     .catch(() => null);
 
   return {
-    classification: {
-      confidence: classified.confidence,
-      type: cardType,
-    },
-    metadata: {
-      aiTagsCount: metadata?.aiTagsCount ?? 0,
-      hasSummary: metadata?.hasSummary ?? false,
-      hasTranscript: metadata?.hasTranscript ?? false,
-      mode: metadata?.mode ?? "skipped",
-    },
-    mode: "completed",
+    ...completedResult(classified, cardType, metadata, renderables),
     ...(categorization ? { categorization } : {}),
-    ...(renderables
-      ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
-      : {}),
   };
 };
+
+const completedResult = (
+  classified: { confidence: number },
+  cardType: string,
+  metadata: MetadataResult | null,
+  renderables: RenderablesResult | null
+): CardProcessingResult => ({
+  classification: {
+    confidence: classified.confidence,
+    type: cardType,
+  },
+  metadata: {
+    aiTagsCount: metadata?.aiTagsCount ?? 0,
+    hasSummary: metadata?.hasSummary ?? false,
+    hasTranscript: metadata?.hasTranscript ?? false,
+    mode: metadata?.mode ?? "skipped",
+  },
+  mode: "completed",
+  ...(renderables
+    ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
+    : {}),
+});
+
+const runMetadataStep = (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"],
+  reported: Reported,
+  cardType: string
+): Promise<MetadataResult> =>
+  step.do(
+    "generate metadata",
+    METADATA_STEP,
+    reported(
+      "card.ai_metadata",
+      "ai_metadata",
+      AI_CAPACITY_RETRIES + 1,
+      async (ctx) => {
+        try {
+          await markInProgress(job, ["metadata"]);
+          return await withWorkflowTelemetry(job.env, (telemetry) =>
+            generateCardMetadata(job, telemetry, cardType, {
+              // The last attempt leaves a card Workers AI still can't take
+              // to the backfill.
+              capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
+              restorePendingOnDefer: true,
+            })
+          );
+        } catch (error) {
+          if (
+            !isAiProviderCapacityError(error) &&
+            ctx.attempt >= METADATA_ATTEMPTS &&
+            !(error instanceof Error && error.name === "NonRetryableError")
+          ) {
+            throw new NonRetryableError(
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+          throw error;
+        }
+      }
+    )
+  );

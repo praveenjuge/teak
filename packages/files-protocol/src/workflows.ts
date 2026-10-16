@@ -1,14 +1,21 @@
 /**
  * Background work runs on Cloudflare Workflows and Queues inside the Files
- * Worker; Convex stays the database. The two talk in both directions with the
- * shared files signing secret, each over a payload that starts with its own
- * label, so a signed Files op can never be replayed as an RPC or the other
- * way round.
+ * Worker; Convex stays the database. The two talk in both directions:
  *
  * - Convex → Worker: the `dispatch` Files op starts workflow instances and
- *   queues object deletions.
+ *   queues object deletions. Like every Files op it is signed with the files
+ *   signing secret, and its params also carry a proof signed with the
+ *   deployment's workflow RPC secret, so it can only start work that reports
+ *   to the deployment that sent it.
  * - Worker → Convex: `POST /__workflow/v1` runs one allowlisted internal
- *   query, mutation or action.
+ *   query, mutation or action, signed with that deployment's workflow RPC
+ *   secret.
+ *
+ * Each deployment's workflow RPC secret is derived from a root secret that
+ * only the Worker holds, so the development deployment (which shares the
+ * files signing secret with production) can never sign for production. Every
+ * payload starts with its own label and names the deployment, so a signature
+ * is never valid for another purpose or another deployment.
  */
 
 export const WORKFLOW_RPC_PATH = "/__workflow/v1" as const;
@@ -25,16 +32,40 @@ export const WORKFLOW_RPC_HEADERS = {
   signature: "x-teak-signature",
 } as const;
 
+/**
+ * What the Worker signs with its root secret to get a deployment's workflow
+ * RPC secret (hex HMAC-SHA256). `bun scripts/workflow-rpc-secret.ts` prints
+ * it for a deployment's Convex environment.
+ */
+export const buildWorkflowRpcSecretPayload = (convexSiteUrl: string): string =>
+  ["workflow-rpc-secret", "1", convexSiteUrl].join("\n");
+
 export const buildWorkflowRpcSigningPayload = ({
   bodySha256,
+  convexSiteUrl,
   expiresAt,
   requestId,
 }: {
   bodySha256: string;
+  convexSiteUrl: string;
   expiresAt: string;
   requestId: string;
 }): string =>
-  ["workflow-rpc", "1", requestId, expiresAt, bodySha256].join("\n");
+  ["workflow-rpc", "2", convexSiteUrl, requestId, expiresAt, bodySha256].join(
+    "\n"
+  );
+
+/** Signed with the deployment's workflow RPC secret over `JSON.stringify(items)`. */
+export const buildWorkflowDispatchSigningPayload = ({
+  convexSiteUrl,
+  expiresAt,
+  itemsSha256,
+}: {
+  convexSiteUrl: string;
+  expiresAt: string;
+  itemsSha256: string;
+}): string =>
+  ["workflow-dispatch", "1", convexSiteUrl, expiresAt, itemsSha256].join("\n");
 
 export type WorkflowRpcKind = "action" | "mutation" | "query";
 
@@ -171,7 +202,11 @@ export interface DispatchParams {
    * in `CONVEX_SITE_URLS`.
    */
   convexSiteUrl: string;
+  /** Unix seconds; the proof is refused after this. */
+  expiresAt: string;
   items: DispatchItem[];
+  /** Hex HMAC of `buildWorkflowDispatchSigningPayload`. */
+  signature: string;
 }
 
 /** Every workflow's params carry the deployment it reports to. */

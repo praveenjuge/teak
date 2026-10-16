@@ -1,4 +1,5 @@
 import {
+  buildWorkflowDispatchSigningPayload,
   type DispatchItem,
   type DispatchItemResult,
   type DispatchResult,
@@ -6,9 +7,16 @@ import {
   isWorkflowName,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
+  WORKFLOW_RPC_MAX_TTL_SECONDS,
   type WorkflowName,
 } from "@teak/files-protocol";
-import { allowedConvexSiteUrl, type ConvexRpcEnv } from "../convexRpc";
+import {
+  allowedConvexSiteUrl,
+  type ConvexRpcEnv,
+  workflowRpcSecret,
+} from "../convexRpc";
+import { sha256Hex, verifyHmacPayload } from "../lib";
+import { sendInBatches } from "../queues/sendBatch";
 import { isValidUploadKey } from "../upload";
 
 export interface ObjectDeletionMessage {
@@ -102,6 +110,46 @@ export const parseDispatchItems = (params: Record<string, unknown>) => {
   return items.map(parseItem);
 };
 
+/**
+ * Whether the dispatching deployment signed these items with its own
+ * workflow RPC secret. The files signing secret that authenticated the op is
+ * shared with development, so it alone can't say which deployment sent it.
+ */
+const hasValidDispatchProof = async (
+  env: WorkflowBindingsEnv,
+  convexSiteUrl: string,
+  params: Record<string, unknown>,
+  now: number
+): Promise<boolean> => {
+  const { expiresAt, items, signature } = params;
+  if (typeof expiresAt !== "string" || typeof signature !== "string") {
+    return false;
+  }
+  const expiry = Number(expiresAt);
+  const nowSeconds = Math.floor(now / 1000);
+  if (
+    !Number.isSafeInteger(expiry) ||
+    String(expiry) !== expiresAt ||
+    expiry < nowSeconds ||
+    expiry > nowSeconds + WORKFLOW_RPC_MAX_TTL_SECONDS
+  ) {
+    return false;
+  }
+  const secret = await workflowRpcSecret(env, convexSiteUrl);
+  if (!secret) {
+    return false;
+  }
+  return await verifyHmacPayload(
+    secret,
+    buildWorkflowDispatchSigningPayload({
+      convexSiteUrl,
+      expiresAt,
+      itemsSha256: await sha256Hex(JSON.stringify(items)),
+    }),
+    signature
+  );
+};
+
 /** Stops replaced runs; an instance that is gone or already ended is fine. */
 const terminateInstances = async (binding: Workflow, ids: string[]) => {
   await Promise.all(
@@ -129,11 +177,15 @@ const terminateInstances = async (binding: Workflow, ids: string[]) => {
  */
 export const runDispatch = async (
   env: WorkflowBindingsEnv,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  now = Date.now()
 ): Promise<DispatchResult> => {
   const convexSiteUrl = allowedConvexSiteUrl(env, params.convexSiteUrl);
   if (!convexSiteUrl) {
     throw new Error("invalid_convex_site_url");
+  }
+  if (!(await hasValidDispatchProof(env, convexSiteUrl, params, now))) {
+    throw new Error("invalid_dispatch_proof");
   }
   const items = parseDispatchItems(params);
   const results: DispatchItemResult[] = items.map((item, index) => ({
@@ -147,19 +199,17 @@ export const runDispatch = async (
   );
   if (deletions.length > 0) {
     if (env.OBJECT_DELETIONS) {
-      try {
-        await env.OBJECT_DELETIONS.sendBatch(
-          deletions.map(({ keys }) => ({ body: { keys } }))
-        );
-        for (const { index } of deletions) {
-          results[index] = { index, ok: true };
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "queue_failed";
-        for (const { index } of deletions) {
-          results[index] = { error: message, index, ok: false };
-        }
-      }
+      const failed = await sendInBatches(
+        env.OBJECT_DELETIONS,
+        deletions.map(({ keys }) => ({ keys }))
+      );
+      deletions.forEach(({ index }, position) => {
+        const error = failed.get(position);
+        results[index] =
+          error === undefined
+            ? { index, ok: true }
+            : { error, index, ok: false };
+      });
     } else {
       for (const { index } of deletions) {
         results[index] = { error: "queue_missing", index, ok: false };

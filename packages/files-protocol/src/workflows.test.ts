@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   accountDeletionInstanceId,
+  buildWorkflowDispatchSigningPayload,
+  buildWorkflowRpcSecretPayload,
+  buildWorkflowRpcSigningPayload,
   cardProcessingInstanceId,
   exportInstanceId,
   importInstanceId,
@@ -110,5 +113,29 @@ describe("instance IDs", () => {
     ["more than 100 characters", "a".repeat(101)],
   ])("rejects an ID with %s", (_label, id) => {
     expect(isWorkflowInstanceId(id)).toBe(false);
+  });
+});
+
+describe("workflow signing payloads", () => {
+  test("name the deployment and start with their own label", () => {
+    const origin = "https://prod.convex.site";
+    expect(buildWorkflowRpcSecretPayload(origin)).toBe(
+      "workflow-rpc-secret\n1\nhttps://prod.convex.site"
+    );
+    expect(
+      buildWorkflowRpcSigningPayload({
+        bodySha256: "abc",
+        convexSiteUrl: origin,
+        expiresAt: "123",
+        requestId: "req-1",
+      })
+    ).toBe("workflow-rpc\n2\nhttps://prod.convex.site\nreq-1\n123\nabc");
+    expect(
+      buildWorkflowDispatchSigningPayload({
+        convexSiteUrl: origin,
+        expiresAt: "123",
+        itemsSha256: "abc",
+      })
+    ).toBe("workflow-dispatch\n1\nhttps://prod.convex.site\n123\nabc");
   });
 });

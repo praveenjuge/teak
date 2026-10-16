@@ -1,5 +1,6 @@
 import {
   accountDeletionInstanceId,
+  buildWorkflowDispatchSigningPayload,
   cardProcessingInstanceId,
   type DispatchItem,
   type DispatchResult,
@@ -7,6 +8,7 @@ import {
   importInstanceId,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
+  normalizeConvexSiteUrl,
   type WorkflowName,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
@@ -33,7 +35,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "./storage/filesWorkerClient";
-import { isR2KeyInNamespace } from "./storage/r2Keys";
+import { hmacSha256Hex, isR2KeyInNamespace } from "./storage/r2Keys";
 
 // Background work runs on Cloudflare Workflows and Queues in the Files
 // Worker. Mutations record it here, in the same transaction as the change
@@ -105,17 +107,38 @@ const insertDispatch = async (
  * Starts a card-processing run: bumps the card's processing revision, so
  * any earlier run stops writing, and queues the run for that revision.
  * With `reset`, the card's AI output and stages are cleared when the run
- * is sent (after `delayMs`), not now.
+ * is sent (after `delayMs`), not now. With `metadataOnly`, the run only
+ * regenerates the AI metadata (the admin's AI backfill retry).
  */
 export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  options: { delayMs?: number; reset?: boolean } = {}
+  options: { delayMs?: number; metadataOnly?: boolean; reset?: boolean } = {}
 ): Promise<{ instanceId: string; rev: number } | null> => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
     return null;
   }
+  // The run for the current revision, if it is still waiting to be sent, is
+  // replaced by this one, which takes over what it owed: its reset, and the
+  // whole pipeline. Each run takes over from the one before, so the
+  // previous revision is the only one to look at.
+  const previous = card.processingRev
+    ? await ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_instanceId", (q) =>
+          q.eq(
+            "instanceId",
+            cardProcessingInstanceId(cardId, card.processingRev ?? 0)
+          )
+        )
+        .first()
+    : null;
+  const replaced = previous?.state === "pending" ? previous : null;
+  const reset = options.reset === true || replaced?.reset === true;
+  const metadataOnly =
+    options.metadataOnly === true &&
+    (!replaced || replaced.params?.metadataOnly === true);
   const rev = (card.processingRev ?? 0) + 1;
   await ctx.db.patch("cards", cardId, { processingRev: rev });
   const instanceId = cardProcessingInstanceId(cardId, rev);
@@ -125,9 +148,9 @@ export const queueCardProcessing = async (
     instanceId,
     key: `card:${cardId}`,
     kind: "cardProcessing",
-    params: { cardId, rev },
+    params: { cardId, rev, ...(metadataOnly ? { metadataOnly: true } : {}) },
     rev,
-    ...(options.reset ? { reset: true as const } : {}),
+    ...(reset ? { reset: true as const } : {}),
   });
   return { instanceId, rev };
 };
@@ -161,21 +184,27 @@ export const queueImportWorkflow = async (
   return instanceId;
 };
 
-/** Each failed run is started again as the next attempt. */
+/**
+ * Each failed run is started again as a new attempt. Attempts are numbered
+ * by when they were queued, not by counting earlier rows: those are pruned
+ * after a week while Cloudflare keeps instances longer, and a reused ID
+ * would never start.
+ */
 export const queueAccountDeletionWorkflow = async (
   ctx: MutationCtx,
   binding: { generation: number; stateId: Id<"accountDeletionStates"> },
   options: { delayMs?: number } = {}
 ): Promise<string> => {
   const key = `accountDeletion:${binding.stateId}:${binding.generation}`;
-  const previous = await ctx.db
+  const latest = await ctx.db
     .query("workflowDispatches")
     .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
-    .take(1000);
+    .order("desc")
+    .first();
   const instanceId = accountDeletionInstanceId(
     binding.stateId,
     binding.generation,
-    previous.length + 1
+    Math.max(Date.now(), (latest?.createdAt ?? 0) + 1)
   );
   await insertDispatch(ctx, {
     delayMs: options.delayMs,
@@ -280,6 +309,9 @@ export const claim = internalMutation({
           : [];
       await ctx.db.patch("workflowDispatches", row._id, {
         attempts: (row.attempts ?? 0) + 1,
+        // The reset is applied once: sending the row again after a lost
+        // reply must not wipe what the run has written since.
+        ...(row.reset ? { reset: undefined } : {}),
         sentAt: now,
         state: "sent",
       });
@@ -341,6 +373,39 @@ export const release = internalMutation({
   },
 });
 
+/** A dispatch proof stays valid this long. */
+const DISPATCH_PROOF_TTL_SECONDS = 120;
+
+const sha256Hex = async (text: string): Promise<string> =>
+  Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    ),
+    (byte) => byte.toString(16).padStart(2, "0")
+  ).join("");
+
+/**
+ * Proves to the Worker that this deployment sent the items, so it only
+ * starts runs that report back here.
+ */
+export const signDispatch = async (
+  secret: string,
+  convexSiteUrl: string,
+  items: DispatchItem[],
+  now = Date.now()
+): Promise<{ expiresAt: string; signature: string }> => {
+  const expiresAt = String(Math.floor(now / 1000) + DISPATCH_PROOF_TTL_SECONDS);
+  const signature = await hmacSha256Hex(
+    secret,
+    buildWorkflowDispatchSigningPayload({
+      convexSiteUrl,
+      expiresAt,
+      itemsSha256: await sha256Hex(JSON.stringify(items)),
+    })
+  );
+  return { expiresAt, signature };
+};
+
 /**
  * Hands every due row to the Files Worker. Without a Worker (the local E2E
  * stack), rows stay pending until one is configured.
@@ -350,8 +415,9 @@ export const flush = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     // Convex sets CONVEX_SITE_URL for every deployment; workflows call it back.
-    const convexSiteUrl = env.CONVEX_SITE_URL;
-    if (!(isFilesWorkerConfigured() && convexSiteUrl)) {
+    const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
+    const secret = env.WORKFLOW_RPC_SECRET;
+    if (!(isFilesWorkerConfigured() && convexSiteUrl && secret)) {
       return null;
     }
     for (let round = 0; round < 10; round += 1) {
@@ -363,13 +429,16 @@ export const flush = internalAction({
         return null;
       }
       let failedIds: Id<"workflowDispatches">[] = [];
+      let deliveredIds: Id<"workflowDispatches">[] = [];
       let error = "dispatch_rejected";
       try {
+        const items = claimed.map(({ item }) => item);
         const outcome = await callFilesWorkerJson<DispatchResult>({
           op: "dispatch",
           params: {
             convexSiteUrl,
-            items: claimed.map(({ item }) => item),
+            items,
+            ...(await signDispatch(secret, convexSiteUrl, items)),
           },
           timeoutMs: 60_000,
         });
@@ -385,6 +454,12 @@ export const flush = internalAction({
           failedIds = claimed
             .filter((_, index) => !accepted.has(index))
             .map(({ id }) => id);
+          deliveredIds = claimed
+            .filter(
+              ({ item }, index) =>
+                accepted.has(index) && item.type === "delete-objects"
+            )
+            .map(({ id }) => id);
           error =
             outcome.data.results.find((result) => !result.ok)?.error ??
             "dispatch_rejected";
@@ -392,6 +467,11 @@ export const flush = internalAction({
       } catch (caught) {
         failedIds = claimed.map(({ id }) => id);
         error = caught instanceof Error ? caught.message : String(caught);
+      }
+      if (deliveredIds.length > 0) {
+        await ctx.runMutation(internal.workflowDispatch.markDelivered, {
+          ids: deliveredIds,
+        });
       }
       if (failedIds.length > 0) {
         await ctx.runMutation(internal.workflowDispatch.release, {
@@ -500,6 +580,9 @@ const handleRunFailure = async (
   }
 };
 
+/** Reconcile's error for a sent run Cloudflare has no instance for. */
+export const INSTANCE_MISSING = "instance_missing";
+
 /** A workflow reports how it ended (the Worker, or reconcile on its behalf). */
 export const complete = internalMutation({
   args: {
@@ -509,14 +592,33 @@ export const complete = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { error, instanceId, status }) => {
-    const row = await ctx.db
+    const rows = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_instanceId", (q) => q.eq("instanceId", instanceId))
-      .first();
-    if (!row || row.state === "done" || row.state === "failed") {
+      .take(10);
+    const row = rows.find(
+      (candidate) => candidate.state === "pending" || candidate.state === "sent"
+    );
+    if (!row) {
       return null;
     }
     const now = Date.now();
+    // Reconcile found no instance: the hand-over was lost after the claim
+    // (the flush died before the Worker started it). Instance IDs are
+    // deterministic, so sending the row again is safe.
+    if (
+      error === INSTANCE_MISSING &&
+      row.state === "sent" &&
+      (row.attempts ?? 1) < MAX_DISPATCH_ATTEMPTS
+    ) {
+      await ctx.db.patch("workflowDispatches", row._id, {
+        error: INSTANCE_MISSING,
+        notBefore: now,
+        state: "pending",
+      });
+      await scheduleFlush(ctx);
+      return null;
+    }
     await ctx.db.patch("workflowDispatches", row._id, {
       finishedAt: now,
       state: status === "complete" ? "done" : "failed",
@@ -524,6 +626,29 @@ export const complete = internalMutation({
     });
     if (status === "errored") {
       await handleRunFailure(ctx, row, "workflow_failed");
+    }
+    return null;
+  },
+});
+
+/**
+ * Object deletions the Worker accepted belong to its queue from then on, so
+ * their rows are done at once and never crowd the sent rows reconcile pages
+ * through.
+ */
+export const markDelivered = internalMutation({
+  args: { ids: v.array(v.id("workflowDispatches")) },
+  returns: v.null(),
+  handler: async (ctx, { ids }) => {
+    const now = Date.now();
+    for (const id of ids) {
+      const row = await ctx.db.get("workflowDispatches", id);
+      if (row?.kind === "deleteObjects" && row.state === "sent") {
+        await ctx.db.patch("workflowDispatches", id, {
+          finishedAt: now,
+          state: "done",
+        });
+      }
     }
     return null;
   },
@@ -570,8 +695,9 @@ export const listStale = internalQuery({
 
 /**
  * Hourly housekeeping from the Worker: reschedules a flush when rows have
- * waited too long (a lost flush), marks sent object deletions done, and
- * deletes finished rows past retention.
+ * waited too long (a lost flush), marks done the sent object deletions a
+ * flush could not (it died after the hand-over), and deletes finished rows
+ * past retention.
  */
 export const pruneFinished = internalMutation({
   args: {},

@@ -1,17 +1,17 @@
+import { parseCardObjectKey } from "@teak/files-protocol";
 import { reportBackgroundError } from "../telemetry";
 import { isValidUploadKey } from "../upload";
 import type { FilesOpCaller } from "../workflows/deps";
 import type { ObjectDeletionMessage } from "../workflows/dispatch";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
+import { sendInBatches } from "./sendBatch";
 
 // Storage objects whose rows are gone. Convex queues them through `dispatch`
 // (its outbox); workflows in this Worker queue them directly.
 
 /** delete-objects takes at most this many keys per call. */
 const MAX_KEYS_PER_DELETE = 100;
-/** sendBatch takes at most this many messages. */
-const MAX_MESSAGES_PER_SEND = 100;
 
 const chunk = <T>(items: T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -46,10 +46,13 @@ export const queueObjectDeletions = async (
   ];
   const batches = chunk(usable, MAX_KEYS_PER_DELETE);
   if (env.OBJECT_DELETIONS) {
-    for (const messages of chunk(batches, MAX_MESSAGES_PER_SEND)) {
-      await env.OBJECT_DELETIONS.sendBatch(
-        messages.map((batch) => ({ body: { keys: batch } }))
-      );
+    const failed = await sendInBatches(
+      env.OBJECT_DELETIONS,
+      batches.map((batch) => ({ keys: batch }))
+    );
+    const [error] = failed.values();
+    if (error !== undefined) {
+      throw new Error(`object_deletion_queue_failed:${error}`);
     }
     return usable.length;
   }
@@ -114,10 +117,12 @@ export const handleObjectDeletionDeadLetters = async (
 ): Promise<void> => {
   for (const message of batch.messages) {
     const keys = messageKeys(message.body) ?? [];
+    // Keys name users and files; logs carry only the card and role of one.
+    const sample = keys[0] ? parseCardObjectKey(keys[0]) : {};
     console.error("[queues/object-deletions] gave up deleting objects", {
       id: message.id,
       keyCount: keys.length,
-      keys: keys.slice(0, 10),
+      ...sample,
     });
     await reportBackgroundError(
       env,
@@ -125,7 +130,8 @@ export const handleObjectDeletionDeadLetters = async (
       new Error("object_deletion_dead_lettered"),
       {
         keyCount: keys.length,
-        ...(keys[0] ? { sampleKey: keys[0] } : {}),
+        ...(sample.cardId ? { cardId: sample.cardId } : {}),
+        ...(sample.role ? { role: sample.role } : {}),
         task: "object-deletions",
       }
     );

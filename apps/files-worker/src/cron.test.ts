@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { createConvexRpc } from "./convexRpc";
 import { type CronDeps, type CronEnv, handleScheduled } from "./cron";
-import { createFakeConvex, TEST_SIGNING_SECRET } from "./test/fakeConvex";
+import {
+  createFakeConvex,
+  TEST_RPC_ROOT_SECRET,
+  TEST_SIGNING_SECRET,
+} from "./test/fakeConvex";
 
 const PROD = "https://prod-deployment.convex.site";
 const DEV = "https://dev-deployment.convex.site";
@@ -14,6 +18,7 @@ const env = (overrides: Partial<CronEnv> = {}) =>
     ANALYTICS_API_TOKEN: "token",
     CONVEX_SITE_URLS: `${PROD},${DEV}`,
     FILES_SIGNING_SECRET: TEST_SIGNING_SECRET,
+    WORKFLOW_RPC_ROOT_SECRET: TEST_RPC_ROOT_SECRET,
     ...overrides,
   }) as CronEnv;
 

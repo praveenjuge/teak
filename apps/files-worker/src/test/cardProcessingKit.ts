@@ -92,11 +92,20 @@ export const createCardConvex = (
     "ai/mutations:updateCardProcessing": write(
       "updateCardProcessing",
       (args) => {
-        record(args.processingStatus as Record<string, unknown>);
-        merge(
-          card as FakeCard,
-          args.processingStatus as Record<string, unknown>
+        const stages = Object.fromEntries(
+          Object.entries(
+            args.processingStatus as Record<string, unknown>
+          ).filter(
+            ([stage]) =>
+              !args.onlyIfInProgress ||
+              card?.processingStatus?.[stage]?.status === "in_progress"
+          )
         );
+        if (args.onlyIfInProgress && Object.keys(stages).length === 0) {
+          return false;
+        }
+        record(stages);
+        merge(card as FakeCard, stages);
         return true;
       }
     ),

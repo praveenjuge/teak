@@ -12,6 +12,7 @@ import {
   queueAccountDeletionWorkflow,
   queueExportWorkflow,
   queueImportWorkflow,
+  signDispatch,
 } from "./workflowDispatch";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -240,12 +241,29 @@ describe("complete", () => {
     );
     await sendAll(t);
     await t.mutation(internal.workflowDispatch.complete, {
-      instanceId: `account-deletion-${stateId}-1-1`,
+      instanceId: `account-deletion-${stateId}-1-${NOW}`,
       status: "errored",
     });
     const next = (await rows(t)).find((row) => row.state === "pending");
-    expect(next?.instanceId).toBe(`account-deletion-${stateId}-1-2`);
+    // Attempts are numbered by when they were queued, so an ID is never
+    // reused even after older rows are pruned.
+    expect(next?.instanceId).toBe(`account-deletion-${stateId}-1-${NOW + 1}`);
     expect(next?.notBefore).toBe(NOW + 5 * 60 * 1000);
+  });
+
+  test("sends a run again when its hand-over was lost", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      error: "instance_missing",
+      instanceId: `export-${jobId}`,
+      status: "errored",
+    });
+    expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
+    const job = await t.run((ctx) => ctx.db.get("exportJobs", jobId));
+    expect(job?.status).toBe("pending");
   });
 
   test("ignores a run Convex never dispatched", async () => {
@@ -331,12 +349,23 @@ describe("flush", () => {
   test("sends due rows and retries the items the Worker refused", async () => {
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
-    const sent: Array<{ convexSiteUrl: string; items: DispatchItem[] }> = [];
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
+    const sent: Array<{
+      convexSiteUrl: string;
+      expiresAt: string;
+      items: DispatchItem[];
+      signature: string;
+    }> = [];
     vi.stubGlobal(
       "fetch",
       vi.fn((_url: string, init: RequestInit) => {
         const body = JSON.parse(String(init.body)) as {
-          params: { convexSiteUrl: string; items: DispatchItem[] };
+          params: {
+            convexSiteUrl: string;
+            expiresAt: string;
+            items: DispatchItem[];
+            signature: string;
+          };
         };
         sent.push(body.params);
         return Promise.resolve(
@@ -365,10 +394,23 @@ describe("flush", () => {
     });
     await t.action(internal.workflowDispatch.flush, {});
     expect(sent).toHaveLength(1);
-    expect(sent[0]?.convexSiteUrl).toBe("https://session-tests.convex.site");
+    const params = sent[0];
+    expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
+    // The proof is signed with this deployment's own RPC secret.
+    expect(params?.signature).toBe(
+      (
+        await signDispatch(
+          "deployment-rpc-secret",
+          "https://session-tests.convex.site",
+          params?.items ?? [],
+          (Number(params?.expiresAt) - 120) * 1000
+        )
+      ).signature
+    );
     const states = Object.fromEntries(
       (await rows(t)).map((row) => [row.kind, row.state])
     );
-    expect(states).toEqual({ deleteObjects: "sent", export: "pending" });
+    // Accepted deletions are the queue's now; refused runs wait to be sent again.
+    expect(states).toEqual({ deleteObjects: "done", export: "pending" });
   });
 });

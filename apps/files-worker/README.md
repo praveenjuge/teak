@@ -37,8 +37,9 @@ and must get a fresh answer. The gateway must exist before a deploy that names
 it. Eligible sources (≤20 MB) are transformed directly from R2 through
 the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
-users, owns card state, validates uploads, and orchestrates workflows —
-while stored-file processing and storage transfers flow through this worker.
+users, owns card state and validates uploads — while background work
+(Cloudflare Workflows, Queues and Cron Triggers; see "Background work"),
+stored-file processing and storage transfers run in this worker.
 Remote preview images and media download on the link fetcher Container (see below).
 Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
@@ -498,6 +499,35 @@ Four signed ops read and write the index (`src/vectors.ts`):
 Every op names its shard; a shard with no binding is `INVALID_INPUT`. Convex
 decides what text, namespace and shard to send.
 
+## Background work
+
+Card processing, exports, imports, account deletion and maintenance run as
+Cloudflare Workflows in this Worker (`src/workflows/`, entrypoints in
+`src/workflows/entrypoints.ts`). Convex starts them through an outbox:
+`packages/convex/workflowDispatch.ts` writes a `workflowDispatches` row in
+the same transaction as the change that needs the work, and a flush hands due
+rows to the `dispatch` op, which creates the instances (an ID that already
+exists counts as started, so a resend is safe) and queues object deletions
+on `OBJECT_DELETIONS`. Rows the Worker refuses go back to pending with
+backoff; deletions it accepts are done at once.
+
+Steps read and write Convex through one signed endpoint,
+`POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
+`packages/convex/workflowGateway.ts`), which runs one function from
+`packages/convex/workflowRpcAllowlist.ts` per call. Every card-processing
+write carries the run's processing revision and lands only while the card is
+still on it, so an edit (which bumps the revision and stops the older run)
+can never be overwritten by the run it replaced.
+
+Each deployment has its own workflow RPC secret: the Worker derives it from
+`WORKFLOW_RPC_ROOT_SECRET` and the deployment's origin, and the deployment
+holds only the result as `WORKFLOW_RPC_SECRET`. Gateway requests and the
+dispatch op's proof are signed with it over a payload that names the
+deployment, so development, which shares `FILES_SIGNING_SECRET` with
+production, can neither call production's gateway nor start work that
+reports to production. Workflows call back the deployment named in their
+params, which must be one of `CONVEX_SITE_URLS`.
+
 ## Cron Triggers
 
 `src/cron.ts` runs the background tasks that used to be Convex crons. The
@@ -521,12 +551,13 @@ health view lists them beside Convex's own crons.
 
 The reconcile (`src/workflowReconcile.ts`) asks Convex for runs that have not
 reported for longer than their kind allows (`workflowDispatch:listStale`) and
-looks each instance up through its binding: `complete` reports complete,
-`errored` or `terminated` reports errored with the instance's error, and an
-instance Workflows does not know reports errored (`instance_missing`), so the
-job behind it fails instead of staying "running". Queued, running, waiting and
-paused runs are left alone, and a lookup that fails for another reason is
-tried again the next hour. It then prunes finished dispatch rows
+looks each instance up through its binding: `complete` reports complete, and
+`errored` or `terminated` reports errored with the instance's error, so the
+job behind it fails instead of staying "running". An instance Workflows does
+not know (`instance_missing`) means the hand-over was lost after Convex
+claimed the row, so the row is sent again (up to the dispatch attempt limit).
+Queued, running, waiting and paused runs are left alone, and a lookup that
+fails for another reason is tried again the next hour. It then prunes finished dispatch rows
 (`workflowDispatch:pruneFinished`, at most ten pages).
 
 ## WorkOS webhook queue
@@ -536,7 +567,8 @@ WorkOS posts webhooks to
 must be one of `CONVEX_SITE_URLS`; the production endpoint is
 `https://files.teakvault.com/__webhooks/workos/uncommon-ladybug-882.convex.site`.
 `src/queues/workosEvents.ts` checks the request cheaply (a `workos-signature`
-of at most 1,024 characters whose `t=` timestamp is within five minutes,
+of at most 1,024 characters whose `t=` timestamp is at most three minutes old,
+the WorkOS SDK's tolerance, and at most five minutes ahead,
 `Content-Type: application/json`, a body of at most 120 KiB so it fits a
 128 KB queue message), charges `UNKNOWN_CREDENTIAL_LIMITER` by address, queues
 `{ convexSiteUrl, body, signature, receivedAt }` on `WORKOS_EVENTS` and answers
@@ -550,11 +582,13 @@ forged or malformed webhook and drop it; a 5xx or network failure retries
 after 30 s, doubling up to 15 minutes, ten times, and then lands in
 `teak-workos-events-dlq`. The WorkOS SDK refuses a signature older than three
 minutes, so a 401 for a message signed longer ago than that is a webhook that
-aged out while it waited: it is recorded as undeliverable instead of dropped.
-The dead-letter consumer records each undeliverable event in its deployment
-(`workosWebhook:recordUndeliverable`, reason `delivery_failed`, once per event
-ID, skipped when the event was applied after all), where the admin health view
-shows it. Either way the hourly WorkOS event catch-up applies the event from
+may have aged out while it waited, and the dead-letter consumer handles each
+message that exhausted its retries the same way: the Worker hands the body and
+signature to its deployment (`workosWebhook:recordUndeliverableWebhook`), which
+verifies the signature on everything but its age and only then records the
+event as undeliverable (reason `delivery_failed`, once per event ID, skipped
+when the event was applied after all), where the admin health view shows it.
+A forged webhook is never recorded. Either way the hourly WorkOS event catch-up applies the event from
 the Events API.
 
 ## R2 events and pending uploads
@@ -694,6 +728,14 @@ Convex dev uses the isolated Worker.
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
+- `WORKFLOW_RPC_ROOT_SECRET` — Worker-only root of each Convex deployment's
+  `WORKFLOW_RPC_SECRET`. Set with
+  `bunx wrangler secret put WORKFLOW_RPC_ROOT_SECRET`, then give every
+  deployment in `CONVEX_SITE_URLS` its derived secret:
+  `WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site`
+  and `bunx convex env set WORKFLOW_RPC_SECRET <output>` on that deployment.
+  Until a deployment has it, its background work stays queued in its outbox.
+  Never copy the root secret to Convex.
 - `ANALYTICS_API_TOKEN` — Cloudflare API token with Account Analytics: Read
   for the hourly AI usage rollup. Set with
   `bunx wrangler secret put ANALYTICS_API_TOKEN` (and

@@ -1,5 +1,6 @@
 import {
   buildWorkflowRpcSigningPayload,
+  normalizeConvexSiteUrl,
   parseWorkflowRpcRequest,
   WORKFLOW_RPC_HEADERS,
   WORKFLOW_RPC_MAX_BODY_BYTES,
@@ -27,6 +28,9 @@ import { isWorkflowRpcFunction } from "./workflowRpcAllowlist";
 
 // The Files Worker's workflows and queues read and write Convex through this
 // one signed endpoint. Each request runs one allowlisted internal function.
+// Requests are signed with this deployment's own WORKFLOW_RPC_SECRET (derived
+// by the Worker from its root secret and this deployment's origin), never the
+// files signing secret that development shares with production.
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
@@ -70,7 +74,8 @@ const signatureMatches = async (
 export const hasValidWorkflowRpcSignature = async (
   headers: Headers,
   body: ArrayBuffer,
-  secret: string
+  secret: string,
+  convexSiteUrl: string
 ): Promise<boolean> => {
   const requestId = headers.get(WORKFLOW_RPC_HEADERS.requestId);
   const expiresAt = headers.get(WORKFLOW_RPC_HEADERS.expiresAt);
@@ -86,6 +91,7 @@ export const hasValidWorkflowRpcSignature = async (
     signature,
     buildWorkflowRpcSigningPayload({
       bodySha256: await sha256Hex(body),
+      convexSiteUrl,
       expiresAt,
       requestId,
     })
@@ -176,8 +182,9 @@ export const runWorkflowRpc = async (
 };
 
 export const workflowRpcV1 = httpAction(async (ctx, request) => {
-  const secret = env.FILES_SIGNING_SECRET;
-  if (!secret) {
+  const secret = env.WORKFLOW_RPC_SECRET;
+  const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
+  if (!(secret && convexSiteUrl)) {
     return json(503, { error: "not_configured" });
   }
   const declared = Number(request.headers.get("content-length"));
@@ -188,7 +195,14 @@ export const workflowRpcV1 = httpAction(async (ctx, request) => {
   if (body.byteLength > WORKFLOW_RPC_MAX_BODY_BYTES) {
     return json(413, { error: "too_large" });
   }
-  if (!(await hasValidWorkflowRpcSignature(request.headers, body, secret))) {
+  if (
+    !(await hasValidWorkflowRpcSignature(
+      request.headers,
+      body,
+      secret,
+      convexSiteUrl
+    ))
+  ) {
     return json(401, { error: "unauthorized" });
   }
   let parsed: unknown;

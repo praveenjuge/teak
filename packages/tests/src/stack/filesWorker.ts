@@ -1,16 +1,23 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildWorkflowRpcSecretPayload } from "@teak/files-protocol";
 import type { WorktreePorts } from "../../../../scripts/worktree-env.ts";
-import { stackUrls } from "./config";
+import {
+  filesWorkerOrigin,
+  filesWorkerPort,
+  type StackPorts,
+  stackUrls,
+} from "./config";
 
 // The Files Worker on the E2E stack: `wrangler dev` in local mode, with
 // Workflows, Queues, R2, KV, Durable Objects and Analytics Engine emulated by
 // Miniflare. What needs a Cloudflare account or Docker is left out: Workers
-// AI is a service binding to a fake (apps/files-worker/e2e/fakeAi.ts),
-// Browser Run, Vectorize and the two Containers are absent, so link fetching,
-// screenshots, media rendering and embeddings fail the way they do when those
-// services are down.
+// AI and the Vectorize index are service bindings to fakes
+// (apps/files-worker/e2e/fakeAi.ts); Browser Run and the two Containers are
+// absent, so link fetching, screenshots and media rendering fail the way they
+// do when those services are down.
 
 const ROOT = join(import.meta.dir, "../../../..");
 const WORKER_DIR = join(ROOT, "apps/files-worker");
@@ -20,18 +27,21 @@ const STATE_DIR = join(ROOT, ".agents/.state/e2e-files-worker");
 export const E2E_FILES_SIGNING_SECRET =
   "teak-e2e-files-signing-secret-local-only-0001";
 
-export const filesWorkerPort = (ports: Pick<WorktreePorts, "emulator">) =>
-  ports.emulator + 2;
+/** Test-only; the Worker derives the local backend's RPC secret from it. */
+export const E2E_WORKFLOW_RPC_ROOT_SECRET =
+  "teak-e2e-workflow-rpc-root-secret-local-only-0001";
 
-export const filesWorkerOrigin = (ports: Pick<WorktreePorts, "emulator">) =>
-  `http://127.0.0.1:${filesWorkerPort(ports)}`;
+/** The workflow RPC secret the Worker expects from the deployment at `origin`. */
+export const e2eWorkflowRpcSecret = (origin: string) =>
+  createHmac("sha256", E2E_WORKFLOW_RPC_ROOT_SECRET)
+    .update(buildWorkflowRpcSecretPayload(origin))
+    .digest("hex");
 
 /** Backend variables that point the local Convex backend at this Worker. */
-export const filesWorkerDeploymentVars = (
-  ports: Pick<WorktreePorts, "emulator">
-) => ({
+export const filesWorkerDeploymentVars = (ports: StackPorts) => ({
   FILES_BASE: filesWorkerOrigin(ports),
   FILES_SIGNING_SECRET: E2E_FILES_SIGNING_SECRET,
+  WORKFLOW_RPC_SECRET: e2eWorkflowRpcSecret(stackUrls(ports).apiOrigin),
 });
 
 const readCompatibilityDate = (): string => {
@@ -132,7 +142,14 @@ export const filesWorkerConfigs = (
     analytics_engine_datasets: [
       { binding: "AI_USAGE", dataset: "teak_e2e_ai_usage" },
     ],
-    services: [{ binding: "AI", service: "teak-e2e-fake-ai" }],
+    services: [
+      { binding: "AI", service: "teak-e2e-fake-ai" },
+      {
+        binding: "CARD_VECTORS_0",
+        entrypoint: "FakeVectorize",
+        service: "teak-e2e-fake-ai",
+      },
+    ],
     images: { binding: "IMAGES" },
     triggers: {
       crons: [
@@ -148,6 +165,7 @@ export const filesWorkerConfigs = (
       CONVEX_SITE_URLS: urls.apiOrigin,
       FILES_PUBLIC_ORIGIN: filesWorkerOrigin(ports),
       FILES_SIGNING_SECRET: E2E_FILES_SIGNING_SECRET,
+      WORKFLOW_RPC_ROOT_SECRET: E2E_WORKFLOW_RPC_ROOT_SECRET,
       // `localhost` is the public site here: its /api and /mcp proxy to the
       // local backend. Files use 127.0.0.1, which the proxy leaves alone
       // (any other path on the API host is forwarded to its origin, which

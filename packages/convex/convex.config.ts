@@ -23,6 +23,9 @@ const app = defineApp({
     WORKOS_ACTION_SECRET: v.optional(v.string()),
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
+    // This deployment's own secret for the Files Worker's workflow RPCs and
+    // dispatch proofs; `bun scripts/workflow-rpc-secret.ts` derives it.
+    WORKFLOW_RPC_SECRET: v.optional(v.string()),
     R2_BUCKET: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),

@@ -341,7 +341,8 @@ const completeWithoutAi = async (job: CardJob): Promise<MetadataResult> => {
 
 /**
  * Leaves metadata incomplete for the bounded AI backfill to retry, with the
- * stage back to pending as the first run left it.
+ * stage back to pending as the first run left it. Only a stage this run
+ * still has in progress goes back: one that finished stays finished.
  */
 const deferToBackfill = async (
   job: CardJob,
@@ -350,7 +351,11 @@ const deferToBackfill = async (
   if (options.restorePendingOnDefer) {
     await job.deps.convex.mutation(
       internal.ai.mutations.updateCardProcessing,
-      { cardId: job.cardId, processingStatus: { metadata: stagePending() } },
+      {
+        cardId: job.cardId,
+        onlyIfInProgress: true,
+        processingStatus: { metadata: stagePending() },
+      },
       guardOf(job)
     );
   }

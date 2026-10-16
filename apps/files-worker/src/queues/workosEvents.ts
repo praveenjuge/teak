@@ -26,7 +26,7 @@ export const WORKOS_WEBHOOK_PATH_PREFIX = "/__webhooks/workos/";
 /** Queue messages are limited to 128 KB; this leaves room for the rest. */
 export const WORKOS_WEBHOOK_MAX_BODY_BYTES = 120 * 1024;
 export const WORKOS_SIGNATURE_MAX_LENGTH = 1024;
-/** Signed timestamps further than this from now are refused at the edge. */
+/** Signed timestamps further ahead of now than this are refused at the edge. */
 export const WORKOS_SIGNATURE_WINDOW_MS = 5 * 60 * 1000;
 /**
  * The WorkOS SDK's default tolerance, which Convex's route applies: a
@@ -104,7 +104,9 @@ export const handleWorkosWebhookIngress = async (
   if (
     !(signature && timestamp !== null) ||
     signature.length > WORKOS_SIGNATURE_MAX_LENGTH ||
-    Math.abs(now - timestamp) > WORKOS_SIGNATURE_WINDOW_MS
+    // Convex would refuse it already; only a fresh one can age in the queue.
+    now - timestamp > WORKOS_SDK_TOLERANCE_MS ||
+    timestamp - now > WORKOS_SIGNATURE_WINDOW_MS
   ) {
     return text(401, "Invalid signature");
   }
@@ -200,6 +202,10 @@ export interface WorkosEventsDeps {
   now?: number;
 }
 
+/**
+ * Asks the deployment to record the webhook as a dead letter. It verifies
+ * the signature (all but its age) first, so a forged one is never recorded.
+ */
 const recordUndeliverable = async (
   env: ConvexRpcEnv,
   message: WorkosEventMessage,
@@ -208,10 +214,15 @@ const recordUndeliverable = async (
   const convex =
     deps.convex?.(message.convexSiteUrl) ??
     createConvexRpc(env, message.convexSiteUrl);
-  await convex.mutation(
-    internal.workosWebhook.recordUndeliverable,
-    await describeEvent(message.body)
+  const { recorded } = await convex.action(
+    internal.workosWebhook.recordUndeliverableWebhook,
+    { body: message.body, signature: message.signature }
   );
+  if (!recorded) {
+    console.error("[workos-events] dropped an unverifiable webhook", {
+      ...(await describeEvent(message.body)),
+    });
+  }
 };
 
 /**
@@ -246,7 +257,7 @@ export const handleWorkosEventsBatch = async (
             "workos-signature": message.signature,
           },
           method: "POST",
-          redirect: "error",
+          redirect: "manual",
           signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
         }
       );

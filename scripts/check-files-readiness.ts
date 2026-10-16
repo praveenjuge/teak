@@ -78,6 +78,7 @@ for (;;) {
         renderer?: boolean;
         rendererHealthy?: boolean;
         vectors?: boolean;
+        workflows?: boolean;
       };
     };
     ready =
@@ -90,6 +91,7 @@ for (;;) {
       result.data.renderer === true &&
       result.data.rendererHealthy === true &&
       result.data.vectors === true &&
+      result.data.workflows === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch {
@@ -97,7 +99,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
     );
     break;
   }

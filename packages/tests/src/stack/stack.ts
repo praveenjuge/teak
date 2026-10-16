@@ -14,9 +14,9 @@ import {
   isPortInUse,
   type WorktreePorts,
 } from "../../../../scripts/worktree-env.ts";
-import { emulatorWebEnv, stackUrls } from "./config";
+import { emulatorWebEnv, filesWorkerPort, stackUrls } from "./config";
 import { startEmulator } from "./emulator";
-import { filesWorkerPort, startFilesWorker } from "./filesWorker";
+import { startFilesWorker } from "./filesWorker";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const CONVEX_DIR = join(ROOT, "packages/convex");

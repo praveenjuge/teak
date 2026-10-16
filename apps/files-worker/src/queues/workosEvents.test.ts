@@ -86,8 +86,14 @@ describe("WorkOS webhook ingress", () => {
     ["a GET", { method: "GET" }, 405],
     ["no signature", { headers: { "workos-signature": "" } }, 401],
     [
-      "a signature older than five minutes",
-      { headers: { "workos-signature": `t=${String(NOW - 301_000)}, v1=abc` } },
+      // Convex's verifier would already refuse it as too old.
+      "a signature older than three minutes",
+      { headers: { "workos-signature": `t=${String(NOW - 181_000)}, v1=abc` } },
+      401,
+    ],
+    [
+      "a signature more than five minutes ahead",
+      { headers: { "workos-signature": `t=${String(NOW + 301_000)}, v1=abc` } },
       401,
     ],
     [
@@ -174,7 +180,7 @@ const deliverWith = async (
     return Promise.resolve(new Response("", { status }));
   }) as typeof fetch;
   const convex = createFakeConvex({
-    "workosWebhook:recordUndeliverable": () => null,
+    "workosWebhook:recordUndeliverableWebhook": () => ({ recorded: true }),
   });
   const { batch, settled } = createFakeBatch(
     "teak-workos-events",
@@ -227,13 +233,18 @@ describe("WorkOS event delivery", () => {
     }
   );
 
-  test("records a webhook whose signature aged out in the queue as undeliverable", async () => {
+  test("asks Convex to verify and record a webhook whose signature aged out in the queue", async () => {
     const { convex, settled } = await deliverWith(401, {
       now: NOW + 10 * 60 * 1000,
     });
     expect(settled[0]?.outcome).toBe("ack");
-    expect(convex.callsTo("workosWebhook:recordUndeliverable")).toMatchObject([
-      { args: { event: "user.updated", eventId: "evt_1" }, kind: "mutation" },
+    expect(
+      convex.callsTo("workosWebhook:recordUndeliverableWebhook")
+    ).toMatchObject([
+      {
+        args: { body: BODY, signature: `t=${String(NOW - 1000)}, v1=abc` },
+        kind: "action",
+      },
     ]);
   });
 
@@ -247,9 +258,12 @@ describe("WorkOS event delivery", () => {
 });
 
 describe("WorkOS events dead letters", () => {
-  test("records each undeliverable event in its deployment", async () => {
+  test("hands each undeliverable webhook to its deployment to verify and record", async () => {
     const convex = createFakeConvex({
-      "workosWebhook:recordUndeliverable": () => null,
+      // The second one's signature doesn't verify.
+      "workosWebhook:recordUndeliverableWebhook": (args) => ({
+        recorded: args.body === BODY,
+      }),
     });
     const { batch, outcomes } = createFakeBatch("teak-workos-events-dlq", [
       queued(),
@@ -259,17 +273,16 @@ describe("WorkOS events dead letters", () => {
       convex: (url) => createConvexRpc(fakeConvexEnv, url, convex.fetcher),
     });
     expect(outcomes()).toEqual(["ack", "ack"]);
-    const recorded = convex
-      .callsTo("workosWebhook:recordUndeliverable")
-      .map((call) => call.args);
-    expect(recorded[0]).toEqual({ event: "user.updated", eventId: "evt_1" });
-    expect(recorded[1]).toMatchObject({ event: "unknown" });
-    expect(String(recorded[1]?.eventId)).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(
+      convex
+        .callsTo("workosWebhook:recordUndeliverableWebhook")
+        .map((call) => call.args.body)
+    ).toEqual([BODY, "{not json"]);
   });
 
   test("retries a dead letter Convex could not record", async () => {
     const convex = createFakeConvex({
-      "workosWebhook:recordUndeliverable": () => {
+      "workosWebhook:recordUndeliverableWebhook": () => {
         throw new Error("database busy");
       },
     });

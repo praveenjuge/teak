@@ -76,6 +76,36 @@ describe("queueCardProcessing", () => {
     ]);
   });
 
+  test("a run that replaces a pending reset keeps the reset", async () => {
+    const t = convexTest(schema, modules);
+    const cardId = await insertCard(t, { aiTags: ["old"] });
+    await t.run(async (ctx) => {
+      await queueCardProcessing(ctx, cardId, { delayMs: 60_000, reset: true });
+      await queueCardProcessing(ctx, cardId);
+    });
+
+    expect(await claimItems(t)).toHaveLength(1);
+    expect((await card(t, cardId))?.aiTags).toBeUndefined();
+  });
+
+  test("a metadata-only run that replaces a pending full run runs in full", async () => {
+    const t = convexTest(schema, modules);
+    const cardId = await insertCard(t);
+    await t.run(async (ctx) => {
+      await queueCardProcessing(ctx, cardId);
+      await queueCardProcessing(ctx, cardId, { metadataOnly: true });
+    });
+
+    expect(await claimItems(t)).toEqual([
+      {
+        id: `card-${cardId}-2`,
+        params: { cardId, rev: 2 },
+        type: "workflow",
+        workflow: "card-processing",
+      },
+    ]);
+  });
+
   test("a deleted card queues nothing", async () => {
     const t = convexTest(schema, modules);
     const cardId = await insertCard(t);
@@ -159,6 +189,26 @@ describe("claiming card runs", () => {
       classify: { status: "completed" },
       metadata: { status: "pending" },
     });
+  });
+});
+
+describe("sending a card run again", () => {
+  test("a reset applies once: a resend after a lost reply keeps the run's work", async () => {
+    const t = convexTest(schema, modules);
+    const cardId = await insertCard(t, { aiTags: ["old"] });
+    await t.run((ctx) => queueCardProcessing(ctx, cardId, { reset: true }));
+    const [claimed] = await t.mutation(internal.workflowDispatch.claim, {});
+    // The run starts and writes, but the Worker's reply to the dispatch is
+    // lost, so the row goes back to pending and is sent again.
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { aiTags: ["new"] }));
+    await t.mutation(internal.workflowDispatch.release, {
+      error: "timeout",
+      ids: [claimed?.id as Id<"workflowDispatches">],
+    });
+    vi.setSystemTime(NOW + HOUR_MS);
+
+    expect(await claimItems(t)).toHaveLength(1);
+    expect((await card(t, cardId))?.aiTags).toEqual(["new"]);
   });
 });
 
@@ -246,6 +296,30 @@ describe("guarded writes", () => {
   });
 });
 
+describe("updateCardProcessing", () => {
+  test("restores a stage only while it is in progress, when asked to", async () => {
+    const t = convexTest(schema, modules);
+    const cardId = await insertCard(t, {
+      processingStatus: {
+        metadata: { completedAt: 5, status: "completed" },
+        renderables: { startedAt: 4, status: "in_progress" },
+      },
+    });
+    await t.mutation(internal.ai.mutations.updateCardProcessing, {
+      cardId,
+      onlyIfInProgress: true,
+      processingStatus: {
+        metadata: { status: "pending" },
+        renderables: { status: "pending" },
+      },
+    });
+    expect((await card(t, cardId))?.processingStatus).toEqual({
+      metadata: { completedAt: 5, status: "completed" },
+      renderables: { status: "pending" },
+    });
+  });
+});
+
 describe("markStagesInProgress", () => {
   test("marks each stage in progress, keeping when it first started", async () => {
     const t = convexTest(schema, modules);
@@ -317,14 +391,28 @@ describe("AI backfill claims", () => {
     });
   });
 
-  test("the admin retry claims the batch and queues a run for each card", async () => {
+  test("the admin retry claims the batch and queues a metadata-only run for each card", async () => {
     const t = convexTest(schema, modules);
     const cardId = await insertCard(t);
 
     expect(
       await t.mutation(internal.ai.backfill.retryAiBackfillNow, {})
     ).toEqual({ enqueuedCount: 1, failedCardIds: [] });
-    expect(await cardRuns(t)).toMatchObject([{ cardId, rev: 1 }]);
+    expect(await cardRuns(t)).toMatchObject([
+      { cardId, params: { cardId, metadataOnly: true, rev: 1 }, rev: 1 },
+    ]);
+    expect((await card(t, cardId))?.aiBackfillAttempts).toBe(1);
+  });
+
+  test("releasing a claim the Worker could not queue gives the attempt back", async () => {
+    const t = convexTest(schema, modules);
+    const cardId = await insertCard(t, { aiBackfillAttempts: 1 });
+    await t.mutation(internal.ai.backfill.claimAiBackfillCards, {});
+
+    await t.mutation(internal.ai.backfill.releaseAiBackfillCards, {
+      cardIds: [cardId],
+    });
+
     expect((await card(t, cardId))?.aiBackfillAttempts).toBe(1);
   });
 });

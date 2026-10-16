@@ -5,6 +5,7 @@ import {
   type ActionCtx,
   env,
   httpAction,
+  internalAction,
   internalMutation,
   type MutationCtx,
 } from "./_generated/server";
@@ -245,6 +246,47 @@ export const recordUndeliverable = internalMutation({
       reason: "delivery_failed",
     });
     return null;
+  },
+});
+
+/** Dead letters are recorded only for webhooks signed this recently. */
+const UNDELIVERABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Records a webhook the Files Worker could not deliver: its signature aged
+ * out while it waited in the queue, or it exhausted its retries. The Worker
+ * doesn't hold the webhook secret, so the signature is verified here, on
+ * everything but its age, before anything is recorded; a forged webhook
+ * never becomes a dead letter.
+ */
+export const recordUndeliverableWebhook = internalAction({
+  args: { body: v.string(), signature: v.string() },
+  returns: v.object({ recorded: v.boolean() }),
+  handler: async (ctx, { body, signature }) => {
+    const kit = authKit;
+    const secret = env.WORKOS_WEBHOOK_SECRET;
+    if (!(kit && secret)) {
+      throw new Error("webhook_unavailable");
+    }
+    if (body.length > 256 * 1024 || signature.length > 1024) {
+      return { recorded: false };
+    }
+    let event: Awaited<ReturnType<typeof kit.workos.webhooks.constructEvent>>;
+    try {
+      event = await kit.workos.webhooks.constructEvent({
+        payload: body,
+        secret,
+        sigHeader: signature,
+        tolerance: UNDELIVERABLE_MAX_AGE_MS,
+      });
+    } catch {
+      return { recorded: false };
+    }
+    await ctx.runMutation(internal.workosWebhook.recordUndeliverable, {
+      event: String(event.event),
+      eventId: String(event.id),
+    });
+    return { recorded: true };
   },
 });
 

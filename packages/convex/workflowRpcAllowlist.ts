@@ -14,12 +14,13 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   // Hourly AI usage rollup from Analytics Engine (src/aiUsageRollup.ts).
   "adminUsage:replaceDailyUsage",
   // WorkOS events the webhook queue gave up on (src/queues/workosEvents.ts).
-  "workosWebhook:recordUndeliverable",
+  "workosWebhook:recordUndeliverableWebhook",
   // Card processing (apps/files-worker/src/workflows/cardProcessing) and the
   // AI backfill queue. Every mutation runs guarded by the card's revision.
   "adminAccess:getAiGate",
   "adminAccess:isLinkFetchPaused",
   "ai/backfill:claimAiBackfillCards",
+  "ai/backfill:releaseAiBackfillCards",
   "ai/mutations:updateCardProcessing",
   "card/documentText:saveDocumentText",
   "card/processingRpc:getCardForProcessing",
