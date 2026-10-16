@@ -789,6 +789,26 @@ describe("categorization index", () => {
         expect(result.price).toEqual({ amount: 12, currency: "EUR" });
       });
 
+      test("drops a stored price when the page is read again without one", async () => {
+        const card = linkCard({
+          url: "https://shop.example/lamp",
+          metadata: {
+            linkCategory: {
+              raw: {
+                structured: product({
+                  "@type": "Offer",
+                  price: "12.00",
+                  priceCurrency: "EUR",
+                }),
+              },
+            },
+          },
+        });
+        const result = await enrich(card, []);
+        expect(result.price).toBeUndefined();
+        expect(result.raw?.structured).toBeUndefined();
+      });
+
       test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {
         // How Shopify stores describe a product with sizes.
         const group = {

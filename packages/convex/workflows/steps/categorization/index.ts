@@ -337,22 +337,26 @@ export const enrichLinkCategory = async (
     : (providedStructured ?? null);
 
   let structuredPrice: LinkPrice | undefined;
-  if (structured?.entities?.length) {
-    const enriched = enrichWithStructuredData(
-      classification.category,
-      structured.entities
-    );
-    if (enriched) {
-      if (enriched.imageUrl && !imageUrl) {
-        imageUrl = enriched.imageUrl;
-      }
-      mergeFacts(facts, enriched.facts);
-      structuredPrice = enriched.price;
-      raw = {
-        ...(raw ?? {}),
-        structured: enriched.raw,
-        structuredMeta: structured?.meta,
-      };
+  const enriched = structured?.entities?.length
+    ? enrichWithStructuredData(classification.category, structured.entities)
+    : null;
+  if (enriched) {
+    if (enriched.imageUrl && !imageUrl) {
+      imageUrl = enriched.imageUrl;
+    }
+    mergeFacts(facts, enriched.facts);
+    structuredPrice = enriched.price;
+    raw = {
+      ...(raw ?? {}),
+      structured: enriched.raw,
+      structuredMeta: structured?.meta,
+    };
+  } else if (structured) {
+    // The page was read again and no longer describes itself, so what an
+    // earlier pass stored (a price the shop removed, say) is dropped.
+    if (raw && "structured" in raw) {
+      const { structured: _stale, ...rest } = raw;
+      raw = { ...rest, structuredMeta: structured.meta };
     }
   } else if (classification.category === "product" && raw?.structured) {
     // JSON-LD read on an earlier pass and not fetched again.

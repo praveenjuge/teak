@@ -90,7 +90,8 @@ const setup = async () => {
       return Promise.resolve(new Response("unavailable", { status: 503 }));
     })
   );
-  // A product categorized a day ago, before its price could be read.
+  // A product filed as an article a day ago, under older rules, without
+  // its price.
   const categorizedAt = NOW - DAY_MS;
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
@@ -110,12 +111,12 @@ const setup = async () => {
           siteName: "Shop",
         },
         linkCategory: {
-          category: "product",
+          category: "article",
           confidence: 0.9,
           sourceUrl: PRODUCT_URL,
           fetchedAt: categorizedAt,
           raw: {
-            structured: { "@type": "Product", name: "Mug" },
+            structured: { "@type": "Article", headline: "Mug" },
             structuredMeta: { fetchedAt: categorizedAt },
           },
         },
@@ -162,6 +163,7 @@ describe("Refresh details on a link", () => {
 
     expect(pageFetches).toEqual([]);
     const after = await linkCategory();
+    expect(after?.category).toBe("article");
     expect(after?.fetchedAt).toBe(categorizedAt);
     expect(after?.price).toBeUndefined();
   });
