@@ -650,6 +650,25 @@ describe("backfill", () => {
     expect(upserts(calls)).toHaveLength(1);
   });
 
+  test("force writes every vector again, though nothing changed", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "already embedded");
+    await runScheduled(t);
+
+    const result = await backfill(t, { dryRun: false, force: true });
+    await runScheduled(t);
+
+    expect(result.totals).toMatchObject({ embedded: 1, queued: 1 });
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "already embedded", type: "text" }],
+      [{ id: cardId, text: "already embedded", type: "text" }],
+    ]);
+    expect(await rowOf(t, cardId)).toMatchObject({
+      hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+  });
+
   test("pages resume from the cursor", async () => {
     stubWorker();
     const t = setup();

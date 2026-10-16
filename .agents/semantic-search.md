@@ -154,7 +154,10 @@ npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,
 
 The dry run's `embedded` count is the number of cards a real run writes
 again. After the canary, try a `mood:` search on that account before the
-whole table. Until a vector is written again,
+whole table. If vectors were written before the metadata index existed (the
+index created after the worker deployed), their hash already includes the
+type, so `reembed` skips them; run with `"force": true` instead, which
+forgets every hash and writes every vector again. Until a vector is written again,
 `mood:` still finds it the old way (below).
 
 ## Weekly ledger sweep

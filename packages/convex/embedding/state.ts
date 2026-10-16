@@ -74,20 +74,23 @@ export const markCardForEmbedding = async (
 /**
  * Mark a card the backfill found without a current vector as due at
  * `dueAt`. The backfill schedules one `embedDue` per batch of these, since a
- * row it re-queues may have lost its job.
+ * row it re-queues may have lost its job. `forgetHash` makes the job write
+ * the vector even when its text and type are unchanged.
  */
 export const queueCardEmbedding = async (
   ctx: MutationCtx,
   row: Doc<"cardEmbeddings"> | null,
   cardId: Id<"cards">,
   userId: string,
-  dueAt: number
+  dueAt: number,
+  { forgetHash = false }: { forgetHash?: boolean } = {}
 ) => {
   if (row) {
     await ctx.db.patch("cardEmbeddings", row._id, {
       attempts: undefined,
       dueAt,
       lastError: undefined,
+      ...(forgetHash ? { hash: undefined } : {}),
     });
   } else {
     await ctx.db.insert("cardEmbeddings", { cardId, dueAt, userId });
