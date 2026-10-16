@@ -445,7 +445,7 @@ const handleCardsListRequest = async (
  * search's top results gets a score in time; later pages follow the first,
  * which their cursor records, so a pagination never changes order.
  */
-const relevanceForPage = async (
+export const relevanceForPage = async (
   ctx: ActionCtx,
   {
     candidateArgs,
@@ -477,7 +477,15 @@ const relevanceForPage = async (
     userId,
   });
   if (pinned === true) {
-    return { scores: scores ?? [] };
+    // A ranked pagination can only continue in the order it started with.
+    if (!scores?.length) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message:
+          "Best match scores for this search have expired; start the search again",
+      });
+    }
+    return { scores };
   }
   return outcome === "ok" ? { scores: scores ?? [] } : {};
 };

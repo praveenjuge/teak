@@ -46,7 +46,7 @@ Delete this plan in the PR after the backfills have run.
 | Rerank: depth | The top 64 of the search's own order, in one Clef-flash request. |
 | Rerank: waiting | Hold the first paint up to 400 ms. If the scores are late, keep the unscored order for that search and never reshuffle. |
 | Rerank: judgement | A `score` rubric from 0 to 3. |
-| Rerank: cost guard | One `semanticSearch` token per search (60 uncached searches per minute per user): the rerank takes a token only when the meaning lookup for that search took none. Scores are cached for 10 minutes. Over the limit, results keep the unscored order. |
+| Rerank: cost guard | One `semanticSearch` token per search (60 uncached searches per minute per user): the rerank takes a token only when the meaning lookup for that search took none. Scores are kept a day and stay valid until the card is edited. Over the limit, results keep the unscored order. |
 | Eval data | Made-up, hand-labelled fixtures. No real user content. |
 | Delivery | One PR. |
 
@@ -161,7 +161,7 @@ Delete this plan in the PR after the backfills have run.
   - Scored cards come first, highest first. Ties and unscored cards keep the search's own order.
   - The card text Clef sees holds the type, title, site, description, summary, up to 6 tags, notes and 300 characters of body, at most 600 characters.
   - The cache key is a SHA-256 of the prompt version and the search text.
-- **Cache table** `searchRelevanceResults`: one row per user and search text, holding per-card `{ cardId, score, cardUpdatedAt }`, for 10 minutes (`search/relevanceCache.ts`).
+- **Cache table** `searchRelevanceResults`: one row per user and search text, holding per-card `{ cardId, score, cardUpdatedAt }`, kept a day after its last write so an open grid or a ranked API pagination never loses its scores (`search/relevanceCache.ts`). A ranked API cursor whose scores are gone returns `400 INVALID_INPUT` rather than changing order.
   - Scores of edited cards are ignored and scored again.
   - Filters don't change a card's score, because Clef judges each card on its own. They only change which cards get scored.
   - `storeScores` drops other users' cards and refuses while the account is being deleted.
@@ -245,7 +245,7 @@ A decision that can't meet both its precision and coverage bars stays off: raise
 
 - **New models.** Clef launched on 2026-10-01, and every benchmark is Cloudflare's own. The eval is the only accuracy evidence before users see changes.
 - **Rate limits.** Workers AI publishes none for Clef. Watch the backfill canary for 429s before running the rest.
-- **Rerank latency.** The grid scores after its meaning lookup, so a cold search can take longer than the 400 ms hold. Best match then shows only on a repeat of that search within 10 minutes, or on later pages of the API. If the eval's p95 is well over 400 ms, raise `RELEVANCE_HOLD_MS` or lower the depth to 32.
+- **Rerank latency.** The grid scores after its meaning lookup, so a cold search can take longer than the 400 ms hold. Best match then shows only when that search is run again, from its cached scores. If the eval's p95 is well over 400 ms, raise `RELEVANCE_HOLD_MS` or lower the depth to 32.
 - **Cost** (Clef-flash is $0.038 per million input tokens since 2026-10-09, with a 24K-token context; Clef 27B is $0.24):
   - Rerank: about $0.0004 per uncached search (about 10,000 tokens, within Clef-flash's 24K).
   - Category: about $0.0001 per low-tier link on Clef 27B.

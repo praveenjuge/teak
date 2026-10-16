@@ -344,7 +344,9 @@ account is over its limit of 60 new searches a minute (one search counts once,
 whatever it uses), or AI is turned off for the account; the results then keep
 the search order. The first page decides, and every later page of the same
 listing keeps its order, so paging never repeats or skips a card. A cursor from
-a `sort=relevance` listing only continues that listing.
+a `sort=relevance` listing only continues that listing. Scores are kept for a
+day; a scored listing's cursor used after that returns `400 INVALID_INPUT`, so
+start the search again.
 
 ### Search qualifiers
 

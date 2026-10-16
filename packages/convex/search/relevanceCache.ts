@@ -12,14 +12,16 @@ import {
   type RelevanceScore,
   relevanceSearchKey,
 } from "../shared/search/relevance";
-import { SEMANTIC_CACHE_TTL_MS } from "./semanticCache";
 
 /**
- * Best match scores, kept as long as a search's meaning matches so every
- * page and re-render of one search reads the same order and Clef is asked
- * once per card. Queries only read it; actions fill it.
+ * Best match scores, so every page and re-render of one search reads the
+ * same order and Clef is asked once per card. Queries only read it; actions
+ * fill it. A score stays valid until its card is edited, so a row lives a
+ * day after its last write: a grid left open never loses its order to the
+ * cleanup, and a ranked API pagination keeps its scores.
  */
 
+export const RELEVANCE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CLEANUP_BATCH = 500;
 /** One search keeps the scores of at most this many cards. */
 const MAX_SCORES_PER_SEARCH = RELEVANCE_CANDIDATE_LIMIT * 8;
@@ -97,7 +99,7 @@ export const storeScores = internalMutation({
       key,
       scores: merged,
       createdAt: existing?.createdAt ?? now,
-      expiresAt: now + SEMANTIC_CACHE_TTL_MS,
+      expiresAt: now + RELEVANCE_CACHE_TTL_MS,
     };
     if (existing) {
       await ctx.db.replace("searchRelevanceResults", existing._id, row);
