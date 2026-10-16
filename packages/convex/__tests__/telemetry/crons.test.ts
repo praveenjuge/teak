@@ -1,12 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
-import { CRONS } from "../../cronSchedules";
+import { CRONS, cronTasksOn } from "../../cronSchedules";
 import crons from "../../crons";
 import {
   cleanupExpiredIdempotency,
-  cleanupOldDeletedCards,
+  cleanupExpiredUploadSessions,
   cleanupSemanticSearchCache,
-  sweepOrphanedObjects,
 } from "../../telemetry/crons";
 import { handlerOf, mockActionCtx } from "../helpers/convex.test-utils";
 
@@ -22,7 +21,7 @@ const recordMutations = (
 type RecordedMutations = ReturnType<typeof recordMutations>;
 
 const runCron = (
-  action: typeof cleanupOldDeletedCards,
+  action: typeof cleanupSemanticSearchCache,
   runMutation: RecordedMutations
 ) => handlerOf(action)(mockActionCtx({ runMutation }), {});
 
@@ -65,20 +64,6 @@ describe("cron monitoring", () => {
     }
   );
 
-  test("the daily deleted-card cleanup also prunes expired card tombstones", async () => {
-    const runMutation = recordMutations();
-    expect(await runCron(cleanupOldDeletedCards, runMutation)).toBeNull();
-    expect(
-      jobCalls(runMutation).map(([reference, args]) => [
-        getFunctionName(reference),
-        args,
-      ])
-    ).toEqual([
-      ["workflows/cardCleanup:startCardCleanupWorkflow", {}],
-      ["publicApiTombstones:pruneExpiredCardTombstones", {}],
-    ]);
-  });
-
   test("the hourly cache cleanup removes expired search meaning matches", async () => {
     const runMutation = recordMutations();
     expect(
@@ -94,19 +79,19 @@ describe("cron monitoring", () => {
 
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRONS).map(({ name }) => name);
-    expect(slugs).toHaveLength(12);
+    expect(slugs).toHaveLength(13);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
   test("routes every schedule to its monitored Node action", () => {
     expect(crons.crons).toEqual(
       Object.fromEntries(
-        Object.entries(CRONS).map(([handler, { name, schedule }]) => [
-          name,
+        cronTasksOn("convex").map((handler) => [
+          CRONS[handler].name,
           {
             name: `telemetry/crons:${handler}`,
             args: [{}],
-            schedule: { cron: schedule, type: "cron" },
+            schedule: { cron: CRONS[handler].schedule, type: "cron" },
           },
         ])
       )
@@ -115,14 +100,14 @@ describe("cron monitoring", () => {
 
   test("records a heartbeat when a job starts and when it finishes", async () => {
     const runMutation = recordMutations();
-    await runCron(cleanupOldDeletedCards, runMutation);
+    await runCron(cleanupSemanticSearchCache, runMutation);
     expect(
       runMutation.mock.calls
         .filter(([reference]) => getFunctionName(reference) === HEARTBEAT)
         .map(([, args]) => args)
     ).toEqual([
-      { name: "cleanup-old-deleted-cards", phase: "started" },
-      { name: "cleanup-old-deleted-cards", phase: "succeeded" },
+      { name: "cleanup-semantic-search-cache", phase: "started" },
+      { name: "cleanup-semantic-search-cache", phase: "succeeded" },
     ]);
   });
 
@@ -133,38 +118,33 @@ describe("cron monitoring", () => {
         heartbeats.push(args);
         return Promise.resolve(null);
       }
-      return Promise.reject(new Error("workflow start failed"));
+      return Promise.reject(new Error("cache cleanup failed"));
     });
-    await expect(runCron(cleanupOldDeletedCards, runMutation)).rejects.toThrow(
-      "workflow start failed"
-    );
+    await expect(
+      runCron(cleanupSemanticSearchCache, runMutation)
+    ).rejects.toThrow("cache cleanup failed");
     expect(heartbeats.at(-1)).toEqual({
-      name: "cleanup-old-deleted-cards",
+      name: "cleanup-semantic-search-cache",
       phase: "failed",
-      error: "workflow start failed",
+      error: "cache cleanup failed",
     });
   });
 
-  test("the weekly sweep runs both reports even when the first one fails", async () => {
+  test("the hourly upload cleanup only expires upload sessions", async () => {
     const runMutation = recordMutations();
     const runAction = mock(
-      (reference: FunctionReference<"action", "internal">) =>
-        getFunctionName(reference) === "embedding/sweep:sweepVectorLedger"
-          ? Promise.reject(new Error("ledger read limit"))
-          : Promise.resolve({ orphanCount: 0 })
+      (_reference: FunctionReference<"action">, _args?: unknown) =>
+        Promise.resolve(null)
     );
-    await expect(
-      handlerOf(sweepOrphanedObjects)(
+    expect(
+      await handlerOf(cleanupExpiredUploadSessions)(
         mockActionCtx({ runAction, runMutation }),
         {}
       )
-    ).rejects.toThrow("ledger read limit");
+    ).toBeNull();
     expect(
       runAction.mock.calls.map(([reference]) => getFunctionName(reference))
-    ).toEqual([
-      "embedding/sweep:sweepVectorLedger",
-      "workflows/orphanSweep:sweepOrphanedObjects",
-    ]);
+    ).toEqual(["fileUploads:cleanupExpiredMultipartUploads"]);
   });
 
   test("a failed heartbeat write never fails the job", async () => {
@@ -173,6 +153,6 @@ describe("cron monitoring", () => {
         ? Promise.reject(new Error("heartbeat table unavailable"))
         : Promise.resolve(null)
     );
-    expect(await runCron(cleanupOldDeletedCards, runMutation)).toBeNull();
+    expect(await runCron(cleanupSemanticSearchCache, runMutation)).toBeNull();
   });
 });

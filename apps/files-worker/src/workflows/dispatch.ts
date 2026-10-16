@@ -1,4 +1,3 @@
-import { isR2KeyInNamespace } from "@teak/convex/storage/r2Keys";
 import {
   type DispatchItem,
   type DispatchItemResult,
@@ -10,6 +9,7 @@ import {
   type WorkflowName,
 } from "@teak/files-protocol";
 import { allowedConvexSiteUrl, type ConvexRpcEnv } from "../convexRpc";
+import { isValidUploadKey } from "../upload";
 
 export interface ObjectDeletionMessage {
   keys: string[];
@@ -58,7 +58,7 @@ const parseItem = (value: unknown): DispatchItem | null => {
       !Array.isArray(keys) ||
       keys.length === 0 ||
       keys.length > MAX_DISPATCH_DELETE_KEYS ||
-      keys.some((key) => typeof key !== "string" || !isR2KeyInNamespace(key))
+      keys.some((key) => typeof key !== "string" || !isValidUploadKey(key))
     ) {
       return null;
     }

@@ -32,6 +32,8 @@ import {
   resolveStoredUserId,
   type TeakUserId,
 } from "./securitySessions";
+import { buildR2UserPrefix } from "./storage/r2";
+import { queueImportWorkflow } from "./workflowDispatch";
 
 const internalAny = internal as Record<string, any>;
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
@@ -323,6 +325,49 @@ export const getJob = internalQuery({
   handler: (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
+/**
+ * What the import workflow needs from its job, with the owner's storage
+ * prefix for the objects it writes.
+ */
+export const getWorkflowJob = internalQuery({
+  args: { jobId: v.id("importJobs") },
+  returns: v.union(
+    v.null(),
+    v.object({
+      userId: v.string(),
+      mode: importModeValidator,
+      status: v.string(),
+      sourceKey: v.string(),
+      sourceEtag: v.optional(v.string()),
+      fileSize: v.number(),
+      cancelRequested: v.boolean(),
+      createdCount: v.number(),
+      skippedCount: v.number(),
+      failedCount: v.number(),
+      userKeyPrefix: v.string(),
+    })
+  ),
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) {
+      return null;
+    }
+    return {
+      userId: job.userId,
+      mode: job.mode,
+      status: job.status,
+      sourceKey: job.sourceKey,
+      ...(job.sourceEtag ? { sourceEtag: job.sourceEtag } : {}),
+      fileSize: job.fileSize,
+      cancelRequested: job.cancelRequested === true,
+      createdCount: job.createdCount,
+      skippedCount: job.skippedCount,
+      failedCount: job.failedCount,
+      userKeyPrefix: buildR2UserPrefix(job.userId),
+    };
+  },
+});
+
 export const findUploadForUser = internalQuery({
   args: { userId: v.string() },
   returns: v.any(),
@@ -351,13 +396,9 @@ export const markQueued = internalMutation({
       uploadId: undefined,
       uploadExpiresAt: undefined,
       uploadedParts: undefined,
+      workflowId: await queueImportWorkflow(ctx, jobId),
       updatedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(
-      0,
-      internalAny["workflows/import"].startImportWorkflow,
-      { jobId }
-    );
     return null;
   },
 });

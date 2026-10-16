@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import authKitTest from "@convex-dev/workos-authkit/test";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
@@ -95,7 +94,6 @@ async function token(audience = apiAudience, overrides: JWTPayload = {}) {
 async function setup() {
   const t = convexTest(schema, modules);
   authKitTest.register(t);
-  workflowTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   const owner = await t.run((ctx) =>
     ctx.db.insert("users", {

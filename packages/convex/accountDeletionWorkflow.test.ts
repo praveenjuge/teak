@@ -1,16 +1,21 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  convexForWorker,
+  loadFilesWorker,
+} from "./__tests__/helpers/filesWorker.test-utils";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
+vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
+const filesWorker = await loadFilesWorker();
 const modules = import.meta.glob("./**/*.ts");
 const claims = {
   issuer: "https://api.workos.com/user_management/client_DELETE",
@@ -23,7 +28,6 @@ const fixture = async (legacy = false) => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
   polarTest.register(t);
-  workflowTest.register(t);
   apiKeysTest.register(t);
   workosTest.register(t);
   const legacyUser = legacy
@@ -84,7 +88,7 @@ afterEach(() => {
 });
 
 describe("durable deletion admission and tombstones", () => {
-  test("writer scans checkpoint bounded pages and survive lost responses", async () => {
+  test("writer pages cancel bounded pages of jobs and refuse a replayed checkpoint", async () => {
     const { t, signed } = await fixture();
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
     const state = await t.run((ctx) =>
@@ -98,6 +102,7 @@ describe("durable deletion admission and tombstones", () => {
           status: "ready",
           createdAt: index,
           updatedAt: index,
+          ...(index === 0 ? { workflowId: "export-running" } : {}),
         });
       }
       await ctx.db.insert("exportJobs", {
@@ -108,35 +113,66 @@ describe("durable deletion admission and tombstones", () => {
       });
     });
     const binding = { stateId: state!._id, generation: 1 };
-    const scan = () =>
-      t.action(internal.accountDeletionData.prepareWriters, binding);
-    expect(await scan()).toBe(false);
-    const cancelled = () =>
-      t.run((ctx) =>
-        ctx.db
-          .query("exportJobs")
-          .withIndex("by_user_created", (q) =>
-            q.eq("userId", "permanent-owner")
-          )
-          .take(50)
-      );
-    expect(await scan()).toBe(false);
-    expect(
-      (await cancelled()).filter((row) => row.cancelRequested)
-    ).toHaveLength(20);
-    expect(await scan()).toBe(false);
-    expect(
-      (await cancelled()).filter((row) => row.cancelRequested)
-    ).toHaveLength(40);
-    expect(await scan()).toBe(true);
-    expect(
-      (await cancelled()).filter((row) => row.cancelRequested)
-    ).toHaveLength(45);
-    expect(await scan()).toBe(true);
+    type Table = "importJobs" | "exportJobs";
+    const page = (table: Table, cursor: string | null) =>
+      t.mutation(internal.accountDeletionData.cancelJobsPage, {
+        ...binding,
+        table,
+        cursor,
+      });
+    const checkpoint = (
+      table: Table,
+      previous: string | null,
+      next: string,
+      done: boolean
+    ) =>
+      t.mutation(internal.accountDeletionData.checkpointWriters, {
+        ...binding,
+        table,
+        previous,
+        next,
+        done,
+      });
+    const cancelled = async () =>
+      (
+        await t.run((ctx) =>
+          ctx.db
+            .query("exportJobs")
+            .withIndex("by_user_created", (q) =>
+              q.eq("userId", "permanent-owner")
+            )
+            .take(50)
+        )
+      ).filter((row) => row.cancelRequested).length;
+
+    const imports = await page("importJobs", null);
+    expect(imports).toMatchObject({ done: true, workflowIds: [] });
+    await checkpoint("importJobs", null, imports.cursor, imports.done);
+    const first = await page("exportJobs", null);
+    // The Worker waits for these runs before it deletes anything.
+    expect(first.workflowIds).toEqual(["export-running"]);
+    expect(await cancelled()).toBe(20);
+    await checkpoint("exportJobs", null, first.cursor, first.done);
+    // A checkpoint whose reply was lost is refused when replayed.
     await expect(
-      t.action(internal.accountDeletionData.prepareWriters, {
+      checkpoint("exportJobs", null, first.cursor, first.done)
+    ).rejects.toThrow("stale_deletion_writer_page");
+    const second = await page("exportJobs", first.cursor);
+    await checkpoint("exportJobs", first.cursor, second.cursor, second.done);
+    expect(await cancelled()).toBe(40);
+    const third = await page("exportJobs", second.cursor);
+    expect(third.done).toBe(true);
+    await checkpoint("exportJobs", second.cursor, third.cursor, third.done);
+    expect(await cancelled()).toBe(45);
+    expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
+      writersPrepared: true,
+    });
+    await expect(
+      t.mutation(internal.accountDeletionData.cancelJobsPage, {
         ...binding,
         generation: 2,
+        table: "exportJobs",
+        cursor: null,
       })
     ).rejects.toThrow("stale_deletion_generation");
     const sibling = await t.run((ctx) =>
@@ -147,7 +183,6 @@ describe("durable deletion admission and tombstones", () => {
     );
     expect(sibling?.cancelRequested).toBeUndefined();
   });
-
   test.each([1, 2])(
     "oversized provider page at stage %s is rejected before revocation",
     async (stage) => {
@@ -516,12 +551,23 @@ describe("durable deletion admission and tombstones", () => {
         },
       },
     ]);
+    const runs = () =>
+      t.run((ctx) => ctx.db.query("workflowDispatches").take(5));
+    expect(await runs()).toMatchObject([
+      {
+        kind: "accountDeletion",
+        instanceId: first[0]?.workflowId,
+        params: { stateId: first[0]?._id, generation: 1 },
+        state: "pending",
+      },
+    ]);
     expect(
       await signed.mutation(api.accountDeletion.deleteMyAccount, {})
     ).toBeNull();
     expect(
       await t.run((ctx) => ctx.db.query("accountDeletionStates").take(2))
     ).toEqual(first);
+    expect(await runs()).toHaveLength(1);
     expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject({
       teakUserId: "permanent-owner",
     });
@@ -644,14 +690,21 @@ describe("durable deletion admission and tombstones", () => {
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
-    const storage = new Set([
+    const bucket = new filesWorker.FakeBucket();
+    for (const key of [
       "users/exact/file",
       "users/exact/export.zip",
       "exports/exact/export-2.zip",
       "exports/exact/export-2.zip.checkpoint.json",
       "users/exact/unclaimed.pdf",
       "users/exact/document-text/digest.txt",
-    ]);
+    ]) {
+      bucket.objects.set(key, { bytes: new Uint8Array([1]) });
+    }
+    const env = filesWorker.withObjectGates({
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: "disposable-secret",
+    });
     const sessions = new Set(["session_ONE", "session_TWO"]);
     const applications = new Set(["conn_app_ONE", "conn_app_TWO"]);
     let providerDeleted = false;
@@ -664,29 +717,6 @@ describe("durable deletion admission and tombstones", () => {
         );
         const method =
           options?.method ?? (input instanceof Request ? input.method : "GET");
-        if (url.origin === "https://files.test") {
-          const body = JSON.parse(options!.body as string) as {
-            op: string;
-            params: { key?: string; keys?: string[] };
-          };
-          if (body.op === "freeze-object") {
-            return Response.json({ ok: true, data: { frozen: true } });
-          }
-          if (body.op === "vector-delete") {
-            vectorDeletes.push(body.params as { ids: string[]; shard: number });
-            return Response.json({ ok: true, data: { mutationId: "m" } });
-          }
-          if (body.op === "delete-objects") {
-            for (const key of body.params.keys!) {
-              storage.delete(key);
-            }
-            return Response.json({
-              ok: true,
-              data: { deleted: body.params.keys!.length },
-            });
-          }
-          throw new Error(`unexpected_worker_op:${body.op}`);
-        }
         if (url.pathname.endsWith("/sessions/revoke")) {
           sessions.delete(JSON.parse(options!.body as string).session_id);
           return new Response(null, { status: 204 });
@@ -878,23 +908,35 @@ describe("durable deletion admission and tombstones", () => {
       ctx.db.query("accountDeletionStates").unique()
     );
     const binding = { stateId: state!._id, generation: 1 };
-    for (let stage = 0; stage < 6; stage++) {
-      let done = false;
-      while (!done) {
-        done = await t.action(internal.accountDeletionActions.runStage, {
+    // The Files Worker's workflow runs every stage against this database;
+    // its storage ops run in-process on the bucket above.
+    await filesWorker.runAccountDeletion(
+      {
+        env,
+        instanceId: state!.workflowId,
+        params: {
           ...binding,
-          stage,
-        });
+          convexSiteUrl: "https://session-tests.convex.site",
+        },
+        step: filesWorker.createFakeStep().step,
+      },
+      {
+        convex: convexForWorker(t),
+        ops: (spec: { op: string; params: Record<string, unknown> }) => {
+          if (spec.op === "vector-delete") {
+            vectorDeletes.push(spec.params as { ids: string[]; shard: number });
+            return Promise.resolve({ kind: "ok", data: { mutationId: "m" } });
+          }
+          return filesWorker.callFilesOp(env, spec);
+        },
       }
-      await t.mutation(internal.accountDeletionJobs.advance, {
-        ...binding,
-        stage,
-      });
-    }
-    await t.mutation(internal.accountDeletionJobs.finalize, binding);
+    );
+    expect(
+      await t.run((ctx) => ctx.db.query("workflowDispatches").take(2))
+    ).toMatchObject([{ instanceId: state!.workflowId, state: "done" }]);
     expect(sessions.size).toBe(0);
     expect(applications.size).toBe(0);
-    expect(storage.size).toBe(0);
+    expect(bucket.objects.size).toBe(0);
     expect(providerDeleted).toBe(true);
     expect(vectorDeletes).toEqual([{ ids: [card], shard: 0 }]);
     expect(await t.run((ctx) => ctx.db.query("cards").take(2))).toEqual([]);

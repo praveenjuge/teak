@@ -11,7 +11,7 @@ import { buildColorFacets } from "../shared/utils/colorUtils";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
-import { startWorkflow } from "../workflows/manager";
+import { queueCardProcessing } from "../workflowDispatch";
 import {
   getOrInitializeCardUsage,
   initializeCardUsageShards,
@@ -502,12 +502,7 @@ export const insertCompletedCards = async (
       );
     }
     if (cardDef.runProcessing) {
-      await startWorkflow(
-        ctx,
-        (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
-        { cardId },
-        { startAsync: true }
-      );
+      await queueCardProcessing(ctx, cardId);
     }
   }
 };

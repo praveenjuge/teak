@@ -1,32 +1,37 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import {
+  convexForWorker,
+  loadFilesWorker,
+} from "./__tests__/helpers/filesWorker.test-utils";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
-// Runtime imports keep Cloudflare's global declarations out of backend typechecking.
-const workerPath = new URL(
-  "../../apps/files-worker/src/index.ts",
-  import.meta.url
-).pathname;
-const supportPath = new URL(
-  "../../apps/files-worker/src/test/testsupport.ts",
-  import.meta.url
-).pathname;
-await import(
-  new URL("../../apps/files-worker/src/test/workersRuntime.ts", import.meta.url)
-    .pathname
-);
-const worker = (await import(workerPath)).default;
-const { FakeBucket, withObjectGates } = await import(supportPath);
+const filesWorker = await loadFilesWorker();
+const { FakeBucket, withObjectGates, worker } = filesWorker;
 const modules = import.meta.glob("./**/*.ts");
+/** The Files Worker's account deletion drains one batch of import storage. */
+const drainImports = (
+  t: ReturnType<typeof convexTest>,
+  env: Record<string, unknown>,
+  stateId: Id<"accountDeletionStates">
+): Promise<boolean> =>
+  filesWorker.drainStorageBatch(
+    {
+      convex: convexForWorker(t),
+      ops: (spec: unknown) => filesWorker.callFilesOp(env, spec),
+    },
+    { stateId, generation: 1 },
+    "imports"
+  );
+
 const ownerId = "import-deletion-owner";
 const key = "users/import-deletion-owner/imports/proof/source.zip";
 beforeEach(() => {
@@ -58,7 +63,6 @@ afterEach(() => {
 test("deletion retains its source and state while an authenticated import completion is in flight", async () => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
-  workflowTest.register(t);
   apiKeysTest.register(t);
   workosTest.register(t);
   await t.run((ctx) =>
@@ -154,13 +158,7 @@ test("deletion retains its source and state while an authenticated import comple
     ctx.db.patch(state._id, { stage: 3, writersPrepared: true })
   );
   try {
-    await expect(
-      t.action(internal.accountDeletionData.drainStorageBatch, {
-        stateId: state._id,
-        generation: 1,
-        kind: "imports",
-      })
-    ).rejects.toThrow();
+    await expect(drainImports(t, env, state._id)).rejects.toThrow();
     expect(await t.run((ctx) => ctx.db.get(jobId))).not.toBeNull();
     expect(await t.run((ctx) => ctx.db.get(state._id))).toMatchObject({
       stage: 3,
@@ -174,7 +172,6 @@ test("deletion retains its source and state while an authenticated import comple
 async function importSession() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
-  workflowTest.register(t);
   apiKeysTest.register(t);
   workosTest.register(t);
   await t.run((ctx) =>
@@ -252,13 +249,7 @@ test("multipart creation that overlaps deletion stays captured until freeze can 
     ctx.db.patch(state._id, { stage: 3, writersPrepared: true })
   );
   try {
-    await expect(
-      t.action(internal.accountDeletionData.drainStorageBatch, {
-        stateId: state._id,
-        generation: 1,
-        kind: "imports",
-      })
-    ).rejects.toThrow();
+    await expect(drainImports(t, env, state._id)).rejects.toThrow();
     expect(
       await t.run((ctx) => ctx.db.query("importJobs").unique())
     ).not.toBeNull();
@@ -266,11 +257,7 @@ test("multipart creation that overlaps deletion stays captured until freeze can 
     release();
   }
   expect(await creating).toBeInstanceOf(Error);
-  await t.action(internal.accountDeletionData.drainStorageBatch, {
-    stateId: state._id,
-    generation: 1,
-    kind: "imports",
-  });
+  await drainImports(t, env, state._id);
   expect(bucket.multipartUploads.size).toBe(0);
 });
 
@@ -318,11 +305,7 @@ test("five GiB imports retain eighty size-bound Worker parts and resumable uploa
   await t.run((ctx) =>
     ctx.db.patch(state._id, { stage: 3, writersPrepared: true })
   );
-  await t.action(internal.accountDeletionData.drainStorageBatch, {
-    stateId: state._id,
-    generation: 1,
-    kind: "imports",
-  });
+  await drainImports(t, env, state._id);
   expect(bucket.multipartUploads.size).toBe(0);
   await expect(
     signed.action(api.importUpload.resumeImportUpload, file)

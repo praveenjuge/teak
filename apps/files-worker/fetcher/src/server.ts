@@ -1,16 +1,12 @@
-import { lookup } from "node:dns/promises";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
-import { pinnedFetch } from "../../../../packages/convex/workflows/steps/pinnedFetch";
 import { createFetcherHandler } from "./handler";
+import { nodeDnsResolver, pinnedFetch } from "./pinnedFetch";
 import { FETCHER_PORT } from "./protocol";
 
 const handle = createFetcherHandler({
   pinnedFetch,
-  resolveDns: async (hostname) =>
-    (await lookup(hostname, { all: true, verbatim: true })).map(
-      (record) => record.address
-    ),
+  resolveDns: nodeDnsResolver,
 });
 
 const MAX_BODY_BYTES = 64 * 1024;

@@ -5,6 +5,11 @@ import {
   rateLimitedJsonRpcRemainder,
 } from "../mcp/httpServer";
 import {
+  buildInitializeResult,
+  jsonRpcResponse,
+  MCP_CORS_HEADERS,
+} from "../mcp/protocol";
+import {
   callTeakV1Tool,
   type PublicApiToolExecutor,
   TEAK_V1_TOOLS,
@@ -282,6 +287,46 @@ describe("Convex MCP endpoint", () => {
     const payload = (await listResponse.json()) as JsonRpcSuccess;
     const names = (payload.result.tools ?? []).map((tool) => tool.name).sort();
     expect(names).toEqual(EXPECTED_TOOL_NAMES);
+  });
+
+  test("answers protocol messages with the builders the Files Worker shares", async () => {
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation: mock().mockResolvedValue({
+          keyId: "key_1",
+          userId: "user_1",
+          access: "full_access",
+          source: "component",
+          rateLimitKey: "component:key_1",
+        }),
+        runQuery: mock(),
+      })
+    );
+    const params = { protocolVersion: "2026-07-28" };
+    const initialize = await handleMcpV1Request(
+      ctx,
+      mcpRequest({ jsonrpc: "2.0", id: 1, method: "initialize", params })
+    );
+    expect(await initialize.json()).toEqual(
+      jsonRpcResponse(1, buildInitializeResult(params))
+    );
+    for (const [name, value] of Object.entries(MCP_CORS_HEADERS)) {
+      expect(initialize.headers.get(name)).toBe(value);
+    }
+
+    const list = await handleMcpV1Request(
+      ctx,
+      mcpRequest({ jsonrpc: "2.0", id: 2, method: "tools/list" })
+    );
+    expect(await list.json()).toEqual(
+      JSON.parse(JSON.stringify(jsonRpcResponse(2, { tools: TEAK_V1_TOOLS })))
+    );
+
+    const ping = await handleMcpV1Request(
+      ctx,
+      mcpRequest({ jsonrpc: "2.0", id: 3, method: "ping" })
+    );
+    expect(await ping.json()).toEqual({ jsonrpc: "2.0", id: 3, result: {} });
   });
 
   test("checks live credentials on consecutive MCP requests", async () => {

@@ -4,8 +4,11 @@ import {
   parseFetcherRequest,
 } from "./fetchAsset";
 import { fetchLinkPage, parseFetcherPageRequest } from "./fetchPage";
+import { parseFetcherHopRequest, performHop } from "./hop";
 import {
   FETCHER_HEADERS,
+  FETCHER_HOP_PATH,
+  FETCHER_HOP_RESPONSE_HEADERS,
   FETCHER_MAX_IN_FLIGHT,
   FETCHER_PAGE_PATH,
   FETCHER_PATH,
@@ -30,7 +33,11 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
     }
     if (
       request.method !== "POST" ||
-      !(pathname === FETCHER_PATH || pathname === FETCHER_PAGE_PATH)
+      !(
+        pathname === FETCHER_PATH ||
+        pathname === FETCHER_PAGE_PATH ||
+        pathname === FETCHER_HOP_PATH
+      )
     ) {
       return json(404, { error: "not_found" });
     }
@@ -43,6 +50,42 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
       parsed = JSON.parse(body);
     } catch {
       return json(400, { error: "invalid_request" });
+    }
+    if (pathname === FETCHER_HOP_PATH) {
+      const hopRequest = parseFetcherHopRequest(parsed);
+      if (!hopRequest) {
+        return json(400, { error: "invalid_request" });
+      }
+      if (inFlight >= FETCHER_MAX_IN_FLIGHT) {
+        return json(503, { error: "busy" });
+      }
+      inFlight += 1;
+      try {
+        const outcome = await performHop(hopRequest, deps);
+        if (!outcome.ok) {
+          return json(422, { error: "skipped", reason: outcome.reason });
+        }
+        const headers = new Headers({
+          "content-length": String(outcome.body.byteLength),
+          "content-type": "application/octet-stream",
+          [FETCHER_HOP_RESPONSE_HEADERS.status]: String(outcome.status),
+        });
+        for (const [name, value] of [
+          [FETCHER_HOP_RESPONSE_HEADERS.contentLength, outcome.contentLength],
+          [FETCHER_HOP_RESPONSE_HEADERS.contentType, outcome.contentType],
+          [FETCHER_HOP_RESPONSE_HEADERS.location, outcome.location],
+        ] as const) {
+          if (value !== null) {
+            headers.set(name, value);
+          }
+        }
+        return new Response(new Uint8Array(outcome.body), {
+          headers,
+          status: 200,
+        });
+      } finally {
+        inFlight -= 1;
+      }
     }
     if (pathname === FETCHER_PAGE_PATH) {
       const pageRequest = parseFetcherPageRequest(parsed);

@@ -84,9 +84,9 @@ export const errorMessage = (error: unknown): string =>
  */
 export const runReported = async <T>(
   run: WorkflowRun<unknown>,
-  body: () => Promise<T>
+  body: () => Promise<T>,
+  convex: ConvexRpc = convexFor(run.env, run.params)
 ): Promise<T> => {
-  const convex = convexFor(run.env, run.params);
   const report = async (status: "complete" | "errored", error?: string) => {
     try {
       await run.step.do(

@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { FILES_OP_PATH } from "@teak/files-protocol";
 import { ConvexError } from "convex/values";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -130,7 +130,6 @@ const codeOf = async (promise: Promise<unknown>) => {
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workflowTest.register(t);
   workosTest.register(t);
   const asUser = async (teakUserId: string) =>
     t.withIdentity({
@@ -203,16 +202,8 @@ const setup = async () => {
     }
   };
   const runAll = () => t.finishAllScheduledFunctions(vi.runAllTimers);
-  /** Keys queued for durable deletion (workflows/objectCleanup). */
-  const queuedDeletes = () =>
-    t.run(async (ctx) =>
-      (await ctx.db.system.query("_scheduled_functions").collect()).flatMap(
-        (job) =>
-          job.name.includes("startObjectDeletion")
-            ? ((job.args[0] as { keys: string[] }).keys ?? [])
-            : []
-      )
-    );
+  /** Keys queued for deletion through the dispatch outbox. */
+  const queuedDeletes = () => queuedObjectDeletions(t);
 
   return {
     t,

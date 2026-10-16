@@ -1,8 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
 
-mock.module("@convex-dev/workflow/convex.config", () => ({
-  default: { componentDefinitionPath: "workflow" },
-}));
 mock.module("@convex-dev/polar/convex.config", () => ({
   default: { componentDefinitionPath: "polar" },
 }));

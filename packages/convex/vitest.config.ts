@@ -1,6 +1,19 @@
 import { defineConfig } from "vitest/config";
 
+const cloudflareModules = new URL(
+  "./__tests__/helpers/cloudflareModules.test-utils.ts",
+  import.meta.url
+).pathname;
+
 export default defineConfig({
+  // Suites that run the Files Worker in-process (see
+  // __tests__/helpers/filesWorker.test-utils.ts) need its runtime modules.
+  resolve: {
+    alias: {
+      "cloudflare:workers": cloudflareModules,
+      "cloudflare:workflows": cloudflareModules,
+    },
+  },
   test: {
     environment: "edge-runtime",
     env: {
@@ -66,6 +79,10 @@ export default defineConfig({
       "./onboarding.test.ts",
       "./importArchiveV2.test.ts",
       "./thumbnailOverride.test.ts",
+      "./workflowGateway.test.ts",
+      "./workflowDispatch.test.ts",
+      "./cutoverWorkflows.test.ts",
+      "./cardProcessingDispatch.test.ts",
     ],
   },
 });

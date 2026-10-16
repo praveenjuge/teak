@@ -21,6 +21,7 @@ import {
   vectorShardBinding,
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
+import { meteredAiRun } from "./aiUsage";
 import type { FilesOpsEnv } from "./ops";
 import { isCapacityError, MetadataCapacityError } from "./textMetadata";
 
@@ -165,15 +166,20 @@ const indexForShard = (env: FilesOpsEnv, shard: number): Vectorize => {
 };
 
 const embed = async (env: FilesOpsEnv, texts: string[]) => {
-  if (!env.AI) {
+  const ai = env.AI;
+  if (!ai) {
     throw new Error("ai_unavailable");
   }
   let response: unknown;
   try {
-    response = await env.AI.run(
-      CARD_EMBEDDING_MODEL,
-      { text: texts },
-      aiRunOptions(env)
+    response = await meteredAiRun(
+      env,
+      {
+        functionId: "teak.ai.embedding",
+        isCapacity: isCapacityError,
+        model: CARD_EMBEDDING_MODEL,
+      },
+      () => ai.run(CARD_EMBEDDING_MODEL, { text: texts }, aiRunOptions(env))
     );
   } catch (error) {
     if (isCapacityError(error)) {

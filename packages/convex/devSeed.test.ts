@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import {
   ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
   ARCHIVE_MIX_SCENARIO_SIZE,
@@ -37,7 +36,6 @@ const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 
 const setup = async () => {
   const t = convexTest(schema, modules);
-  workflowTest.register(t);
   workosTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -106,12 +104,14 @@ describe("devSeed", () => {
           (card) => card.processingStatus?.metadata?.status === "completed"
         )
     ).toBe(true);
-    const workflows = await t.query(components.workflow.workflow.list, {
-      order: "asc",
-      paginationOpts: { numItems: 100, cursor: null },
-    });
+    // Only the links are processed: one queued run each.
+    const runs = await t.run((ctx) =>
+      ctx.db.query("workflowDispatches").collect()
+    );
     expect(
-      workflows.page.map((run: { args: { cardId: string } }) => run.args.cardId)
+      runs
+        .filter((run) => run.kind === "cardProcessing")
+        .map((run) => run.cardId)
     ).toEqual(links.map((card) => card._id));
     expect(
       await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID })
@@ -141,7 +141,6 @@ describe("pruning cloud dev accounts", () => {
 
   const withOwner = async (email: string, workosUserId: string) => {
     const t = convexTest(schema, modules);
-    workflowTest.register(t);
     workosTest.register(t);
     await t.run(async (ctx) => {
       await ctx.db.insert("users", {

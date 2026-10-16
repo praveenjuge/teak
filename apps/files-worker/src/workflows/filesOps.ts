@@ -5,7 +5,9 @@ import {
   type FilesOp,
   readFilesAiGenerationFacts,
 } from "@teak/files-protocol";
+import { gatedBucket } from "../deletionGate";
 import { type FilesOpsEnv, runFilesOp } from "../ops";
+import { retryingReads } from "../r2Retry";
 
 /**
  * Workflow steps run Files ops in-process, with the same contract Convex's
@@ -29,6 +31,19 @@ export type FilesOpOutcome<T> =
  */
 const DEFAULT_PUBLIC_ORIGIN = "https://files.teakvault.com";
 
+/**
+ * The env an op sees over HTTP: writes pass the object deletion gates, so
+ * account deletion's freeze fences them, and reads retry. Workflows writing
+ * to the bucket directly use it too. Without gates (tests) it is unchanged.
+ */
+export const gatedEnv = <Env extends FilesOpsEnv>(env: Env): Env =>
+  env.OBJECT_GATES
+    ? {
+        ...env,
+        BUCKET: gatedBucket({ ...env, BUCKET: retryingReads(env.BUCKET) }),
+      }
+    : env;
+
 export const callFilesOp = async <T>(
   env: FilesOpsEnv,
   spec: {
@@ -39,7 +54,7 @@ export const callFilesOp = async <T>(
 ): Promise<FilesOpOutcome<T>> => {
   const requestId = `wf-${crypto.randomUUID()}`;
   const response = await runFilesOp(
-    env,
+    gatedEnv(env),
     requestId,
     {
       op: spec.op,

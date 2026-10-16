@@ -156,7 +156,8 @@ describe("finalized upload cleanup", () => {
       fileName: "photo.png",
     });
     const deleted: string[] = [];
-    const scheduled: Array<{ name: string; args: unknown }> = [];
+    const inserted: Array<{ table: string; row: Record<string, unknown> }> = [];
+    const scheduled: string[] = [];
     const ctx = {
       db: {
         query: () => ({
@@ -168,10 +169,14 @@ describe("finalized upload cleanup", () => {
           deleted.push(id);
           return Promise.resolve();
         },
+        insert: (table: string, row: Record<string, unknown>) => {
+          inserted.push({ table, row });
+          return Promise.resolve(`row-${inserted.length}`);
+        },
       },
       scheduler: {
-        runAfter: (_delay: number, fn: unknown, args: unknown) => {
-          scheduled.push({ name: getFunctionName(fn as any), args });
+        runAfter: (_delay: number, fn: unknown) => {
+          scheduled.push(getFunctionName(fn as any));
           return Promise.resolve();
         },
       },
@@ -180,13 +185,14 @@ describe("finalized upload cleanup", () => {
     await handler(ctx, { sourceKey });
 
     expect(deleted).toEqual(["session-1"]);
-    expect(scheduled).toEqual([
+    expect(inserted).toMatchObject([
       {
-        name: getFunctionName(
-          (internal as any)["workflows/objectCleanup"].startObjectDeletion
-        ),
-        args: { keys: [sourceKey] },
+        table: "workflowDispatches",
+        row: { kind: "deleteObjects", keys: [sourceKey], state: "pending" },
       },
+    ]);
+    expect(scheduled).toEqual([
+      getFunctionName(internal.workflowDispatch.flush),
     ]);
   });
 });

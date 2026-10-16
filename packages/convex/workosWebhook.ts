@@ -6,6 +6,7 @@ import {
   env,
   httpAction,
   internalMutation,
+  type MutationCtx,
 } from "./_generated/server";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { authKit } from "./workosAuthKit";
@@ -191,24 +192,58 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+const insertDeadLetter = async (
+  ctx: MutationCtx,
+  args: { eventId: string; event: string; reason: string }
+) => {
+  const existing = await ctx.db
+    .query("workosWebhookDeadLetters")
+    .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+    .first();
+  if (!existing) {
+    await ctx.db.insert("workosWebhookDeadLetters", {
+      ...args,
+      receivedAt: Date.now(),
+    });
+    console.error("workos_event_dead_lettered", {
+      event: args.event,
+      reason: args.reason,
+    });
+  }
+};
+
 export const recordDeadLetter = internalMutation({
   args: { eventId: v.string(), event: v.string(), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("workosWebhookDeadLetters")
-      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+    await insertDeadLetter(ctx, args);
+    return null;
+  },
+});
+
+/**
+ * The Files Worker's WorkOS event queue gave up delivering an event to the
+ * webhook route above (Convex kept failing). Recorded once per event, and
+ * not at all when the event was applied after all; the hourly WorkOS event
+ * catch-up replays it from the Events API either way.
+ */
+export const recordUndeliverable = internalMutation({
+  args: { eventId: v.string(), event: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { event, eventId }) => {
+    const id = eventId.slice(0, 256);
+    const applied = await ctx.db
+      .query("workosEvents")
+      .withIndex("by_eventId", (q) => q.eq("eventId", id))
       .first();
-    if (!existing) {
-      await ctx.db.insert("workosWebhookDeadLetters", {
-        ...args,
-        receivedAt: Date.now(),
-      });
-      console.error("workos_event_dead_lettered", {
-        event: args.event,
-        reason: args.reason,
-      });
+    if (applied) {
+      return null;
     }
+    await insertDeadLetter(ctx, {
+      eventId: id,
+      event: event.slice(0, 64) || "unknown",
+      reason: "delivery_failed",
+    });
     return null;
   },
 });

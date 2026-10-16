@@ -73,25 +73,19 @@ const scheduleColorsJob = async (
   card: Doc<"cards">,
   delayMs: number
 ) => {
-  const renderables = (internal as any).workflows.steps.renderables;
+  const jobs = internal.migration.mediaColorsJobs;
   if (kind === "image") {
-    await ctx.scheduler.runAfter(
-      delayMs,
-      renderables.analyzeImage.analyzeImage,
-      { cardId: card._id }
-    );
+    await ctx.scheduler.runAfter(delayMs, jobs.analyzeImageColors, {
+      cardId: card._id,
+    });
   } else if (kind === "gif") {
-    await ctx.scheduler.runAfter(
-      delayMs,
-      renderables.extractAnimationPalette.extractAnimationPalette,
-      { cardId: card._id }
-    );
+    await ctx.scheduler.runAfter(delayMs, jobs.extractGifColors, {
+      cardId: card._id,
+    });
   } else {
-    await ctx.scheduler.runAfter(
-      delayMs,
-      renderables.generateVideoThumbnail.generateVideoThumbnail,
-      { cardId: card._id, rerender: true }
-    );
+    await ctx.scheduler.runAfter(delayMs, jobs.rerenderVideoColors, {
+      cardId: card._id,
+    });
   }
 };
 

@@ -156,6 +156,7 @@ export class FakeBucket {
       size: stored.bytes?.length ?? 0,
       httpEtag: stored.bytes ? fakeHttpEtag(stored.bytes) : "",
       httpMetadata: stored.httpMetadata,
+      uploaded: new Date(stored.uploadedAt ?? 0),
     };
   }
 

@@ -1,20 +1,21 @@
 /// <reference types="vite/client" />
 
-import batchWorkerTest from "@convex-dev/batch-worker/test";
-import workflowTest from "@convex-dev/workflow/test";
-import workpoolTest from "@convex-dev/workpool/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  convexForWorker,
+  loadFilesWorker,
+} from "./__tests__/helpers/filesWorker.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
+import { buildR2UserPrefix } from "./storage/r2";
 
+vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
+const filesWorker = await loadFilesWorker();
 const modules = import.meta.glob("./**/*.ts");
 const sourceKey = "users/import-test/imports/job/source.zip";
-const setup = async (
-  mode: "archive" | "bookmarks" = "archive",
-  testModules = modules
-) => {
-  const t = convexTest(schema, testModules);
+const setup = async (mode: "archive" | "bookmarks" = "archive") => {
+  const t = convexTest(schema, modules);
   const jobId = await t.run((ctx) =>
     ctx.db.insert("importJobs", {
       userId: "import-test",
@@ -57,63 +58,21 @@ describe("import orchestration through the worker", () => {
       }))
     )
   )(
-    "the $outcome workflow preserves its outcome and cleans unclaimed files (report failure: $reportFails)",
+    "the Worker's $outcome run preserves its outcome and cleans unclaimed files (report failure: $reportFails)",
     async ({ reportFails, outcome }) => {
-      vi.useFakeTimers();
       vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
-      // Workflow replay disables process globally; load the real step modules
-      // into plain module callbacks before replay enters that environment.
-      const cacheModules = async (
-        sources: Record<string, () => Promise<unknown>>
-      ) =>
-        Object.fromEntries(
-          await Promise.all(
-            Object.entries(sources)
-              .filter(
-                ([path]) =>
-                  !(
-                    path.endsWith(".test.ts") ||
-                    path.endsWith("convex.config.ts")
-                  )
-              )
-              .map(async ([path, load]) => {
-                const loaded = await load();
-                return [path, () => Promise.resolve(loaded)] as const;
-              })
-          )
-        );
-      const rootModules = { ...modules };
-      for (const path of [
-        "./dataImport.ts",
-        "./import/runImport.ts",
-        "./workflows/import.ts",
-        "./workflows/objectCleanup.ts",
-        "./workflows/manager.ts",
-      ]) {
-        const loaded = await modules[path]();
-        rootModules[path] = () => Promise.resolve(loaded);
-      }
-      const { t, jobId } = await setup("archive", rootModules);
-      t.registerComponent(
-        "workflow",
-        workflowTest.schema,
-        await cacheModules(workflowTest.modules)
-      );
-      t.registerComponent(
-        "workflow/workpool",
-        workpoolTest.schema,
-        await cacheModules(workpoolTest.modules)
-      );
-      t.registerComponent(
-        "workflow/workpool/batchWorker",
-        batchWorkerTest.schema,
-        await cacheModules(batchWorkerTest.modules)
-      );
+      const { t, jobId } = await setup();
       const orphanKey = "users/import-test/imports/job/orphan.pdf";
       const ownedKey = "users/import-test/imports/job/owned.pdf";
       const extraKeys: string[] = [];
       await t.run(async (ctx) => {
+        await ctx.db.insert("users", {
+          teakUserId: "import-test",
+          email: "import@example.com",
+          emailVerified: true,
+        });
         await ctx.db.patch(jobId, {
+          status: "importing",
           failedCount: 1,
           cancelRequested: outcome === "canceled",
         });
@@ -152,83 +111,45 @@ describe("import orchestration through the worker", () => {
           }
         }
       });
-      let releaseReport!: () => void;
-      let reportStarted!: () => void;
-      const reportPending = new Promise<void>((resolve) => {
-        releaseReport = resolve;
-      });
-      const reportReached = new Promise<void>((resolve) => {
-        reportStarted = resolve;
-      });
+      const bucket = new filesWorker.FakeBucket();
+      const put = bucket.put.bind(bucket);
+      bucket.put = ((key: string, ...rest: unknown[]) =>
+        reportFails && key.endsWith("error-report.txt")
+          ? Promise.reject(new Error("r2 unavailable"))
+          : put(key, ...(rest as [never]))) as typeof bucket.put;
       const deleted: string[] = [];
-      vi.stubGlobal("fetch", async (_url: string, request: RequestInit) => {
-        if (request.method === "PUT") {
-          reportStarted();
-          await reportPending;
-          if (reportFails) {
-            return Response.json(
-              {
-                ok: false,
-                error: { code: "INTERNAL", requestId: "report-failure" },
-              },
-              { status: 503 }
-            );
-          }
-          return Response.json({ ok: true, data: { etag: "report" } });
-        }
-        const body = JSON.parse(String(request.body));
-        if (body.op === "index-import-source") {
-          return Response.json({
-            ok: true,
-            data: {
-              sourceEtag: '"stable"',
-              total: 0,
-              nextCursor: null,
-              items: [],
-            },
-          });
-        }
-        if (body.op === "delete-objects") {
-          deleted.push(...body.params.keys);
-          return Response.json({
-            ok: true,
-            data: { deleted: body.params.keys.length },
-          });
-        }
-        throw new Error(`Unexpected worker operation: ${body.op}`);
+      const env = filesWorker.withObjectGates({
+        BUCKET: bucket,
+        FILES_SIGNING_SECRET: "test-secret",
+        OBJECT_DELETIONS: {
+          sendBatch: (messages: Array<{ body: { keys: string[] } }>) => {
+            deleted.push(...messages.flatMap((message) => message.body.keys));
+            return Promise.resolve();
+          },
+        },
       });
-      await t.mutation(internal["workflows/import"].startImportWorkflow, {
-        jobId,
-      });
-      const drained = t.finishAllScheduledFunctions(() =>
-        vi.advanceTimersByTime(100)
+
+      await filesWorker.runImport(
+        {
+          env,
+          instanceId: `import-${jobId}`,
+          params: { jobId, convexSiteUrl: "https://session-tests.convex.site" },
+          step: filesWorker.createFakeStep().step,
+        },
+        {
+          convex: convexForWorker(t),
+          ops: (spec: unknown) => filesWorker.callFilesOp(env, spec),
+        }
       );
-      await reportReached;
-      try {
-        expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
-          status: outcome === "canceled" ? "parsing" : "importing",
-        });
-        await expect(
-          t.mutation(internal.dataImport.reserveJob, {
-            userId: "import-test",
-            mode: "archive",
-            fileName: "retry.zip",
-            fileSize: 128,
-            fileLastModified: 0,
-            sourceKey,
-            uploadExpiresAt: Date.now() + 60_000,
-          })
-        ).rejects.toThrow("An import is already active");
-      } finally {
-        releaseReport();
-        await drained;
-      }
+
       const finalJob = await t.run((ctx) => ctx.db.get(jobId));
       expect(finalJob).toMatchObject({
         status: outcome === "identity" ? "failed" : outcome,
         ...(reportFails
           ? {}
-          : { reportKey: expect.stringContaining("error-report.txt") }),
+          : {
+              reportKey: `${buildR2UserPrefix("import-test")}/imports/${jobId}/error-report.txt`,
+            }),
       });
       const reportFailure = reportFails
         ? "import_finalization_failed"
@@ -236,6 +157,13 @@ describe("import orchestration through the worker", () => {
       expect(finalJob?.failureClass).toBe(
         outcome === "identity" ? "identity_mapping_unavailable" : reportFailure
       );
+      if (!reportFails) {
+        expect(
+          new TextDecoder().decode(
+            bucket.storedBytes(finalJob?.reportKey as string) as Uint8Array
+          )
+        ).toContain("Teak import report");
+      }
       expect(deleted).toContain(sourceKey);
       expect(deleted).toContain(orphanKey);
       for (const key of extraKeys) {
@@ -255,6 +183,40 @@ describe("import orchestration through the worker", () => {
       expect(retryId).not.toBe(jobId);
     }
   );
+  test("queueing an upload starts its import run and records the instance", async () => {
+    const { t, jobId } = await setup();
+    await t.run((ctx) => ctx.db.patch(jobId, { status: "uploading" }));
+    await t.mutation(internal.dataImport.markQueued, { jobId });
+    const job = await t.run((ctx) => ctx.db.get(jobId));
+    expect(job).toMatchObject({
+      status: "queued",
+      workflowId: `import-${jobId}`,
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query("workflowDispatches").collect())
+    ).toMatchObject([
+      {
+        kind: "import",
+        instanceId: `import-${jobId}`,
+        params: { jobId },
+        state: "pending",
+      },
+    ]);
+  });
+  test("the run reads its job with the owner's storage prefix", async () => {
+    const { t, jobId } = await setup();
+    expect(
+      await t.query(internal.dataImport.getWorkflowJob, { jobId })
+    ).toMatchObject({
+      userId: "import-test",
+      mode: "archive",
+      status: "parsing",
+      sourceKey,
+      sourceEtag: '"stable"',
+      cancelRequested: false,
+      userKeyPrefix: buildR2UserPrefix("import-test"),
+    });
+  });
   test("a rejected import blocks retries until cleanup records its terminal failure", async () => {
     vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
     const { t, jobId } = await setup();
@@ -335,88 +297,44 @@ describe("import orchestration through the worker", () => {
       sourceEtag: '"first"',
     });
   });
-  test("preserves deduplication across pages, invalid items, Markdown conversion, and replay counts", async () => {
+  test("replayed item pages keep their counts and a URL repeated across pages is skipped", async () => {
     const { t, jobId } = await setup();
-    const requests: Array<{ op: string; params: Record<string, unknown> }> = [];
-    vi.stubGlobal("fetch", (_url: string, request: RequestInit) => {
-      const body = JSON.parse(String(request.body));
-      requests.push(body);
-      if (body.op === "read-import-markdown") {
-        return Response.json({
-          ok: true,
-          data: { content: "# Notes", type: "text" },
-        });
-      }
-      expect(body.params.sourceEtag).toBe('"stable"');
-      const first = body.params.cursor === 0;
-      return Response.json({
-        ok: true,
-        data: {
-          sourceEtag: '"stable"',
-          total: 4,
-          nextCursor: first ? 1 : null,
-          items: first
-            ? [
-                {
-                  sourceIndex: 0,
-                  card: {
-                    type: "link",
-                    url: "https://example.com",
-                    content: "First",
-                  },
-                },
-              ]
-            : [
-                {
-                  sourceIndex: 1,
-                  card: {
-                    type: "link",
-                    url: "https://example.com",
-                    content: "Duplicate",
-                  },
-                },
-                {
-                  sourceIndex: 2,
-                  card: { type: "invalid", content: "Invalid" },
-                },
-                {
-                  sourceIndex: 3,
-                  card: {
-                    type: "document",
-                    content: "File",
-                    file: {
-                      fileName: "note.md",
-                      mimeType: "text/markdown",
-                      path: "files/note.md",
-                    },
-                  },
-                  file: { path: "files/note.md", uncompressedSize: 7 },
-                },
-              ],
+    const first = [
+      {
+        sourceIndex: 0,
+        status: "pending" as const,
+        type: "link" as const,
+        content: "First",
+        url: "https://example.com",
+      },
+      {
+        sourceIndex: 1,
+        status: "failed" as const,
+        type: "text" as const,
+        content: "Invalid",
+        failureCode: "INVALID_ITEM",
+        failureReason: "Unsupported card type",
+      },
+    ];
+    await t.mutation(internal.dataImport.insertItems, { jobId, items: first });
+    await t.mutation(internal.dataImport.insertItems, { jobId, items: first });
+    await t.mutation(internal.dataImport.insertItems, {
+      jobId,
+      items: [
+        {
+          sourceIndex: 2,
+          status: "pending",
+          type: "link",
+          content: "Duplicate",
+          url: "https://example.com",
         },
-      });
+      ],
     });
-    const run = async () => {
-      let result = await t.action(
-        internal["import/runImport"].indexImportSource,
-        { jobId }
-      );
-      while (result.ok && result.nextCursor !== undefined) {
-        result = await t.action(
-          internal["import/runImport"].indexImportSource,
-          { jobId, cursor: result.nextCursor }
-        );
-      }
-      return result;
-    };
-    expect(await run()).toEqual({ ok: true });
-    expect(await run()).toEqual({ ok: true });
-    const job = await t.run((ctx) => ctx.db.get(jobId));
-    expect(job).toMatchObject({
-      parsedCount: 4,
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      parsedCount: 3,
+      processedCount: 2,
       skippedCount: 1,
       failedCount: 1,
-      processedCount: 2,
     });
     const items = await t.run((ctx) =>
       ctx.db
@@ -424,77 +342,11 @@ describe("import orchestration through the worker", () => {
         .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
         .take(10)
     );
-    expect(items[1]).toMatchObject({
-      status: "skipped",
-      failureCode: "SOURCE_DUPLICATE",
-    });
-    expect(items[2]).toMatchObject({
-      status: "failed",
-      failureCode: "INVALID_ITEM",
-    });
-    expect(items[3]).toMatchObject({
-      status: "pending",
-      type: "text",
-      content: "# Notes",
-    });
-    expect(items[3]).not.toHaveProperty("filePath");
-    expect(items[3]).not.toHaveProperty("fileName");
-    expect(
-      requests.filter((request) => request.op === "read-import-markdown")
-    ).toHaveLength(2);
-  });
-  test("stops reading further pages after cancellation", async () => {
-    const { t, jobId } = await setup("bookmarks");
-    const fetchMock = vi.fn(async () => {
-      await t.run((ctx) => ctx.db.patch(jobId, { cancelRequested: true }));
-      return Response.json({
-        ok: true,
-        data: {
-          sourceEtag: '"stable"',
-          total: 2,
-          nextCursor: 1,
-          items: [
-            {
-              sourceIndex: 0,
-              card: {
-                type: "link",
-                content: "First",
-                url: "https://example.com",
-              },
-            },
-          ],
-        },
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    expect(
-      await t.action(internal["import/runImport"].indexImportSource, {
-        jobId,
-      })
-    ).toEqual({ ok: true, nextCursor: 1 });
-    expect(
-      await t.action(internal["import/runImport"].indexImportSource, {
-        jobId,
-        cursor: 1,
-      })
-    ).toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-  test("rejects changed archive versions without storing a page", async () => {
-    const { t, jobId } = await setup();
-    vi.stubGlobal("fetch", async () =>
-      Response.json(
-        { ok: false, error: { code: "CONFLICT", requestId: "changed" } },
-        { status: 409 }
-      )
-    );
-    expect(
-      await t.action(internal["import/runImport"].indexImportSource, {
-        jobId,
-      })
-    ).toMatchObject({ ok: false });
-    expect(
-      await t.run((ctx) => ctx.db.query("importJobItems").take(1))
-    ).toHaveLength(0);
+    expect(items.map((item) => item.status)).toEqual([
+      "pending",
+      "failed",
+      "skipped",
+    ]);
+    expect(items[2]).toMatchObject({ failureCode: "SOURCE_DUPLICATE" });
   });
 });

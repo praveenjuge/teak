@@ -339,6 +339,15 @@ describe("admin.ts", () => {
       const result = await handler(ctx, { cardId: "c1" });
 
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
+      // A fresh run is queued, resetting the stages when it is sent.
+      expect(ctx.db.insert).toHaveBeenCalledWith(
+        "workflowDispatches",
+        expect.objectContaining({
+          cardId: "c1",
+          kind: "cardProcessing",
+          reset: true,
+        })
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -483,8 +492,8 @@ describe("admin.ts", () => {
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(ctx.runMutation).toHaveBeenCalled();
-      expect(ctx.scheduler.runAfter).toHaveBeenCalled();
+      // The reset mutation clears the card and queues its run itself.
+      expect(ctx.runMutation.mock.calls[0]?.[1]).toEqual({ cardId: "c1" });
       expect(result.success).toBe(true);
     });
   });

@@ -69,6 +69,27 @@ page itself only as a gzipped copy for the Instagram media parser. Never fetch
 a user-supplied URL anywhere without that policy and pinning. Raw metadata
 archival calls only the configured signed Files Worker.
 
+## Scheduled and edge work on Cloudflare
+
+The Files Worker's Cron Triggers run the daily card and export cleanups, the
+weekly orphan sweep, the 6-hourly AI backfill, the hourly AI usage rollup and
+the hourly workflow reconcile (`apps/files-worker/src/cron.ts`); Convex keeps
+only the small hourly crons in `crons.ts`. `cronSchedules.ts` lists both, so
+the admin health view still shows every task. The hourly pending-upload sweep
+is gone: R2 event notifications delete each abandoned pending upload after a
+day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
+bucket. The `pendingUploadCleanupStates` table is unused and can be dropped.
+
+AI usage no longer costs a mutation per card. The Worker writes a Workers
+Analytics Engine data point per model call, and the hourly rollup sets each
+user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
+
+MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
+and periodic `ping`s; the Worker answers those for a known user at the edge,
+so only tool calls reach Convex's HTTP action. WorkOS webhooks are queued at
+the edge and delivered with retries, so a burst never fans out into
+concurrent HTTP actions.
+
 ## Operational cost rollout
 
 Keep `OPERATIONAL_RETENTION_ENABLED` unset or `false` until the production

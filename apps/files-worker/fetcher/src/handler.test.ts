@@ -303,6 +303,6 @@ describe("link fetcher", () => {
   test("reports its protocol on the health check", async () => {
     const { handle } = setup({}, () => new Response(ONE_PIXEL_PNG));
     const response = await handle(new Request("http://fetcher/health"));
-    expect(await response.json()).toMatchObject({ ok: true, protocol: 1 });
+    expect(await response.json()).toMatchObject({ ok: true, protocol: 2 });
   });
 });

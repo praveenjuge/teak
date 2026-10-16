@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
@@ -26,6 +25,7 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
+import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import {
   buildInitialProcessingStatus,
@@ -286,11 +286,7 @@ export const createUploadedCardForUser = async (
   );
   await syncCardSearch(ctx, cardId, args.userId);
 
-  await ctx.scheduler.runAfter(
-    0,
-    (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-    { cardId }
-  );
+  await queueCardProcessing(ctx, cardId, { reset: true });
 
   await scheduleCardOutcome(ctx, {
     cardId,

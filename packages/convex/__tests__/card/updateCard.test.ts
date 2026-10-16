@@ -142,12 +142,14 @@ describe("card/updateCard.ts", () => {
           type: "text",
           content: "Old",
         }),
+        insert: mock().mockResolvedValue("dispatch_1"),
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any);
 
     const handler = (updateCard as any).handler ?? updateCard;
+    const before = Date.now();
     await handler(ctx, { id: "c1", content: "New" });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
@@ -155,10 +157,17 @@ describe("card/updateCard.ts", () => {
       "c1",
       expect.objectContaining({ content: "New" })
     );
+    // The run is queued now, to be sent (and reset the card) in 45 s.
+    const [, row] = ctx.db.insert.mock.calls.find(
+      ([table]: [string]) => table === "workflowDispatches"
+    );
+    expect(row).toMatchObject({ cardId: "c1", reset: true, rev: 1 });
+    expect(row.notBefore - row.createdAt).toBe(45_000);
+    expect(row.createdAt).toBeGreaterThanOrEqual(before);
     expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
       45_000,
       expect.anything(),
-      { cardId: "c1" }
+      {}
     );
   });
 
@@ -175,6 +184,7 @@ describe("card/updateCard.ts", () => {
           type: "text",
           content: "Old",
         }),
+        insert: mock().mockResolvedValue("dispatch_1"),
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
@@ -188,10 +198,9 @@ describe("card/updateCard.ts", () => {
       "c1",
       expect.objectContaining({ content: "New" })
     );
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      { cardId: "c1" }
+    expect(ctx.db.insert).not.toHaveBeenCalledWith(
+      "workflowDispatches",
+      expect.anything()
     );
     expect(mockReprocessLimit).not.toHaveBeenCalled();
   });

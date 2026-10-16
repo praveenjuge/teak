@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import polarTest from "@convex-dev/polar/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -47,7 +46,6 @@ const OWNER = "teak_devowner";
 async function setup(email: string) {
   const t = convexTest(schema, modules);
   polarTest.register(t);
-  workflowTest.register(t);
   workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
   await updateComponentUser(t, workosUserId, { email });

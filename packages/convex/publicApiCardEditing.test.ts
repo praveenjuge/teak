@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import {
@@ -40,7 +39,6 @@ beforeAll(async () => {
 async function setup() {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workflowTest.register(t);
   workosTest.register(t);
   await seedWorkosOwner(t, "owner");
   await seedWorkosOwner(t, "stranger");
@@ -566,10 +564,11 @@ describe("Public API AI tag removal", () => {
   });
 });
 
+/** The card-processing runs queued in the dispatch outbox, oldest first. */
 const scheduledWorkflowStarts = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
   t.run(async (ctx) =>
-    (await ctx.db.system.query("_scheduled_functions").collect()).filter(
-      (job) => job.name.includes("startCardProcessingWorkflow")
+    (await ctx.db.query("workflowDispatches").collect()).filter(
+      (row) => row.kind === "cardProcessing"
     )
   );
 
@@ -597,9 +596,12 @@ describe("Multi-field edits", () => {
     expect(third?.content).toBe("Third edit");
 
     const jobs = await scheduledWorkflowStarts(t);
-    expect(jobs.map((job) => job.scheduledTime - now)).toEqual([0, 60_000]);
+    expect(jobs.map((job) => job.notBefore - now)).toEqual([0, 60_000]);
+    expect(jobs.every((job) => job.reset === true)).toBe(true);
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.content).toBe("Third edit");
+    // Each queued run owns the revision it bumped to; the latest wins.
+    expect(card?.processingRev).toBe(jobs[jobs.length - 1]?.rev);
   });
 
   test("a bulk edit refused by the account cap leaves the card's next edit a run", async () => {
@@ -642,7 +644,7 @@ describe("Multi-field edits", () => {
       content: "Later edit",
     });
     const cardJobs = (await scheduledWorkflowStarts(t)).filter(
-      (job) => (job.args[0] as { cardId: string }).cardId === cardId
+      (job) => job.cardId === cardId
     );
     expect(cardJobs).toHaveLength(2);
   });
@@ -700,7 +702,7 @@ describe("Refresh details", () => {
     expect(result.cardId).toBe(cardId);
     const jobs = await scheduledWorkflowStarts(t);
     expect(jobs).toHaveLength(1);
-    expect(jobs[0]?.args).toEqual([{ cardId }]);
+    expect(jobs[0]).toMatchObject({ cardId, reset: true, state: "pending" });
   });
 
   test("a second run on the same card within a minute is refused with retryAt", async () => {

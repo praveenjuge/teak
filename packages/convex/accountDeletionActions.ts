@@ -4,7 +4,6 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
-import { runAccountDataDeletion } from "./accountDeletion";
 import { deletePostHogPerson } from "./accountDeletionAnalytics";
 import {
   ACCOUNT_DELETION_STAGES,
@@ -17,7 +16,6 @@ import {
 } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
 import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
-import { withBackendErrorCapture } from "./telemetry/posthog";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
@@ -177,27 +175,10 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
   },
   authorizedApps: async (_ctx, state) =>
     !(state.workosUserId && (await authorizedApps(state))),
-  accountData: async (ctx, state, binding) => {
-    if (
-      !(await ctx.runAction(
-        internal.accountDeletionData.prepareWriters,
-        binding
-      ))
-    ) {
-      return false;
-    }
-    if (
-      !(await runAccountDataDeletion(ctx, state.userId, {
-        boundedDeletion: binding,
-        observe: withBackendErrorCapture,
-      }))
-    ) {
-      return false;
-    }
-    return await ctx.runAction(
-      internal.accountDeletionData.deleteRemainingData,
-      binding
-    );
+  // Storage draining runs in the Files Worker's account deletion workflow,
+  // which calls the accountDeletionData mutations itself.
+  accountData: () => {
+    throw new Error("deletion_stage_runs_in_files_worker");
   },
   workosUser: async (_ctx, state) => {
     if (state.workosUserId) {

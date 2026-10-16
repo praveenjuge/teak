@@ -1,6 +1,7 @@
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
+import { answerMcpAtEdge } from "./mcpEdge";
 
 export interface ApiProxyEnv {
   /** Host whose API paths this Worker proxies (`teakvault.com`). Unset disables the proxy. */
@@ -182,6 +183,13 @@ export const handleApiProxyRequest = async (
       return withSecurityHeaders(outcome.response);
     }
     attestation = outcome.attestation;
+    // MCP protocol chatter from a known user is answered here (mcpEdge.ts).
+    if (upstreamPath === "/mcp") {
+      const answered = await answerMcpAtEdge(request, outcome.identity);
+      if (answered) {
+        return withSecurityHeaders(answered);
+      }
+    }
   }
 
   const fetcher = options.fetcher ?? fetch;

@@ -29,8 +29,6 @@ since they were true when it was written.
 
 - `2026-10-14-roadmap-v2-00-roadmap.md`: the current roadmap (31 phases), with
   one file per phase.
-- `2026-10-14-cloudflare-workflows-migration.md`: moving the Convex workflows
-  to Cloudflare Workflows.
 - `2026-10-10-native-apple-app.md`: the native Apple app; removing
   `apps/mobile` is what remains.
 

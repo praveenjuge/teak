@@ -1,16 +1,16 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  type ActionCtx,
   internalMutation,
   internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
 } from "./_generated/server";
-import type { DeletionBatchKind } from "./accountDeletionBatch";
-import { accountDeletionStage } from "./accountDeletionStages";
+import {
+  ACCOUNT_DELETION_PROGRESS_GRACE_MS,
+  accountDeletionStage,
+} from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextContents } from "./card/textContents";
 import { readAccountChangesPaused } from "./env";
@@ -18,8 +18,7 @@ import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
-import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
-import { startWorkflow } from "./workflows/manager";
+import { queueAccountDeletionWorkflow } from "./workflowDispatch";
 import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
@@ -93,77 +92,6 @@ export const beginAccountDeletion = async (
     });
   }
 };
-
-export const ACCOUNT_DELETION_DRAIN_BUDGET_MS = 20_000;
-
-export const drainStorageWithinBudget = async (
-  ctx: Pick<ActionCtx, "runAction">,
-  binding: { stateId: Id<"accountDeletionStates">; generation: number },
-  kinds: readonly DeletionBatchKind[],
-  now: () => number = Date.now
-): Promise<boolean> => {
-  const deadline = now() + ACCOUNT_DELETION_DRAIN_BUDGET_MS;
-  for (const kind of kinds) {
-    while (
-      !(await ctx.runAction(internal.accountDeletionData.drainStorageBatch, {
-        ...binding,
-        kind,
-      }))
-    ) {
-      if (now() >= deadline) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
-
-interface AccountDataDeletionOptions {
-  boundedDeletion: {
-    stateId: Id<"accountDeletionStates">;
-    generation: number;
-  };
-  observe: <T>(
-    input: {
-      name: string;
-      operation: typeof TELEMETRY_OPERATIONS.auth;
-      surface: "backend";
-      userId: string;
-    },
-    callback: () => Promise<T>
-  ) => Promise<T>;
-}
-
-export const runAccountDataDeletion = (
-  ctx: ActionCtx,
-  userId: string,
-  { observe, boundedDeletion }: AccountDataDeletionOptions
-) =>
-  observe(
-    {
-      name: "auth.deleteAccountData",
-      operation: TELEMETRY_OPERATIONS.auth,
-      surface: "backend",
-      userId,
-    },
-    async () => {
-      await ctx.runMutation(internal.accountDeletion.beginAccountDataDeletion, {
-        userId,
-      });
-      if (
-        !(await drainStorageWithinBudget(ctx, boundedDeletion, [
-          "cards",
-          "imports",
-        ]))
-      ) {
-        return false;
-      }
-      await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
-        userId,
-      });
-      return true;
-    }
-  );
 
 declare const ownerIndexBrand: unique symbol;
 
@@ -308,14 +236,12 @@ export const initiateAccountDeletion = async (
     ...(target ? { workosTarget: target } : {}),
     stage: accountDeletionStage("accessAndBilling"),
     generation: 1,
-    nextAttemptAt: Date.now() + 60_000,
+    nextAttemptAt: Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   });
-  const workflowId = await startWorkflow(
-    ctx,
-    internal["workflows/accountDeletion"].accountDeletionWorkflow,
-    { stateId, generation: 1 },
-    { startAsync: true }
-  );
+  const workflowId = await queueAccountDeletionWorkflow(ctx, {
+    stateId,
+    generation: 1,
+  });
   await ctx.db.patch("accountDeletionStates", stateId, { workflowId });
   return null;
 };

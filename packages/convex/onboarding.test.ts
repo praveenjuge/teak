@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -22,7 +21,6 @@ const UPLOAD_CARDS = ONBOARDING_CARDS.filter((card) => card.uploads);
 
 const setup = () => {
   const t = convexTest(schema, modules);
-  workflowTest.register(t);
   return t;
 };
 type Backend = ReturnType<typeof setup>;

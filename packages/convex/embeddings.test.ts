@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
@@ -72,7 +71,6 @@ const stubWorker = ({
 
 const setup = () => {
   const t = convexTest(schema, modules);
-  workflowTest.register(t);
   return t;
 };
 

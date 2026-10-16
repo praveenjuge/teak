@@ -1,11 +1,11 @@
 import type { Doc } from "./_generated/dataModel";
 import type { ProcessingStageKey } from "./card/processingStatus";
-import { CRONS } from "./cronSchedules";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;
 export const ACTIVATION_WINDOW_DAYS = 7;
-const OVERDUE_RETRY_MS = 12 * CRONS.redriveAccountDeletion.everyMs;
+// A deletion whose next attempt is this late is no longer being driven.
+const OVERDUE_RETRY_MS = 60 * 60 * 1000;
 const STAGE_KEYS: ProcessingStageKey[] = [
   "classify",
   "categorize",

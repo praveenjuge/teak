@@ -215,7 +215,14 @@
   // Background tasks that used to be Convex crons (src/cron.ts). Each records
   // the Convex cron heartbeat the admin health view reads.
   "triggers": {
-    "crons": ["0 2 * * *", "0 3 * * *", "0 */6 * * *", "0 4 * * 1", "15 * * * *", "45 * * * *"]
+    "crons": [
+      "0 2 * * *",
+      "0 3 * * *",
+      "0 */6 * * *",
+      "0 4 * * 1",
+      "15 * * * *",
+      "45 * * * *"
+    ]
   },
   // This config deploys the production custom domain. Local dev overrides it.
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
@@ -248,8 +255,11 @@
     "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site,https://reminiscent-kangaroo-59.convex.site",
     // In-process ops transform large images through this Worker's own URL.
     "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",
-    // The account the Analytics Engine SQL API reads (src/aiUsage.ts).
-    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d"
+    // The account and dataset the hourly AI usage rollup reads through the
+    // Analytics Engine SQL API (src/aiUsageRollup.ts); the token is the
+    // ANALYTICS_API_TOKEN secret.
+    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+    "AI_USAGE_DATASET": "teak_ai_usage"
   },
   "observability": {
     "enabled": true,

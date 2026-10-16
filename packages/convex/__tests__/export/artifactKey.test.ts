@@ -6,7 +6,7 @@ import {
   setSystemTime,
   test,
 } from "bun:test";
-import { buildArtifactKey } from "../../export/runExport";
+import { buildArtifactKey } from "../../export/artifactKey";
 import { isR2KeyInNamespace } from "../../storage/r2Keys";
 
 const USER_ID = "user_production_fixture";
@@ -40,16 +40,16 @@ describe("export artifact key", () => {
     }
   });
 
-  test("keeps the production key byte-identical when no prefix is set", () => {
+  test("keeps the production key byte-identical when no prefix is set", async () => {
     delete process.env.R2_KEY_PREFIX;
 
-    expect(buildArtifactKey(USER_ID, JOB_ID)).toBe(PRODUCTION_KEY);
+    expect(await buildArtifactKey(USER_ID, JOB_ID)).toBe(PRODUCTION_KEY);
   });
 
-  test("keeps production exports and their sidecars inside the namespace", () => {
+  test("keeps production exports and their sidecars inside the namespace", async () => {
     delete process.env.R2_KEY_PREFIX;
 
-    for (const k of sidecars(buildArtifactKey(USER_ID, JOB_ID))) {
+    for (const k of sidecars(await buildArtifactKey(USER_ID, JOB_ID))) {
       expect(isR2KeyInNamespace(k)).toBe(true);
     }
   });
@@ -64,10 +64,10 @@ describe("export artifact key", () => {
     ).toBe(true);
   });
 
-  test("writes dev exports and their sidecars inside the dev namespace", () => {
+  test("writes dev exports and their sidecars inside the dev namespace", async () => {
     process.env.R2_KEY_PREFIX = "dev/";
 
-    const key = buildArtifactKey(USER_ID, JOB_ID);
+    const key = await buildArtifactKey(USER_ID, JOB_ID);
 
     expect(key).toBe(`dev/${PRODUCTION_KEY}`);
     for (const k of sidecars(key)) {

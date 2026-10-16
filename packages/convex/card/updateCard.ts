@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -16,6 +15,7 @@ import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { queueCardProcessing } from "../workflowDispatch";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
@@ -254,13 +254,10 @@ export const updateCard = mutation({
     await syncCardSearch(ctx, id, card.userId, card);
 
     if (pipelineDelayMs !== null) {
-      await ctx.scheduler.runAfter(
-        pipelineDelayMs,
-        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-        {
-          cardId: id,
-        }
-      );
+      await queueCardProcessing(ctx, id, {
+        delayMs: pipelineDelayMs,
+        reset: true,
+      });
     }
 
     return null;
@@ -490,13 +487,10 @@ export const updateCardFieldsForUserHandler = async (
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {
-    await ctx.scheduler.runAfter(
-      pipelineDelayMs,
-      (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-      {
-        cardId,
-      }
-    );
+    await queueCardProcessing(ctx, cardId, {
+      delayMs: pipelineDelayMs,
+      reset: true,
+    });
   }
 
   return { pipelineDelayMs };
@@ -655,11 +649,7 @@ export const reprocessCardForUserHandler = async (
 
   await spendCardReprocessLimits(ctx, userId, cardId, RERUN_AI_LIMIT_MESSAGES);
 
-  await ctx.scheduler.runAfter(
-    0,
-    (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-    { cardId }
-  );
+  await queueCardProcessing(ctx, cardId, { reset: true });
 
   return { cardId, requestedAt: Date.now() };
 };

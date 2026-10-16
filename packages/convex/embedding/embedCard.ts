@@ -269,37 +269,3 @@ export const deleteVectorIds = internalAction({
     return null;
   },
 });
-
-/**
- * One page of an account's vectors and rows, for account deletion. Returns
- * true while rows remain. Without a Files Worker there are no reachable
- * vectors, so only the rows go.
- */
-export const purgeAccountVectorsPage = async (
-  ctx: ActionCtx,
-  userId: string
-): Promise<boolean> => {
-  const rows: Array<{
-    cardId: Id<"cards">;
-    rowId: Id<"cardEmbeddings">;
-    shard?: number;
-  }> = await ctx.runQuery(state().accountEmbeddingsPage, { userId });
-  if (rows.length === 0) {
-    return false;
-  }
-  if (isFilesWorkerConfigured()) {
-    const byShard = new Map<number, string[]>();
-    for (const row of rows) {
-      if (row.shard !== undefined) {
-        byShard.set(row.shard, [...(byShard.get(row.shard) ?? []), row.cardId]);
-      }
-    }
-    for (const [shard, ids] of byShard) {
-      await deleteVectorIdsOnWorker(shard, ids);
-    }
-  }
-  await ctx.runMutation(state().forgetAccountEmbeddings, {
-    rowIds: rows.map((row) => row.rowId),
-  });
-  return true;
-};

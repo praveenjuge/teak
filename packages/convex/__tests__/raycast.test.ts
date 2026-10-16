@@ -129,12 +129,24 @@ describe("raycast", () => {
       url: "https://new.example.com",
     });
 
-    expect(patchCalls).toHaveLength(1);
-    expect(patchCalls[0]).toMatchObject({
-      content: "new content",
-      url: "https://new.example.com",
+    // One edit, then one processing run: its revision bump and its row.
+    expect(patchCalls).toEqual([
+      expect.objectContaining({
+        content: "new content",
+        url: "https://new.example.com",
+      }),
+      { processingRev: 1 },
+    ]);
+    const queued = ctx.db.insert.mock.calls.filter(
+      ([table]: [string]) => table === "workflowDispatches"
+    );
+    expect(queued).toHaveLength(1);
+    expect(queued[0]?.[1]).toMatchObject({
+      cardId: "card_1",
+      kind: "cardProcessing",
+      reset: true,
+      rev: 1,
     });
-    expect(runAfter).toHaveBeenCalledTimes(2);
   });
 
   test("resolveCardIdForUserRequest normalizes card id", async () => {

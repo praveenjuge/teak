@@ -21,7 +21,7 @@ Turn every attachment on a saved email into its own file card, stored in R2 thro
   - `finalizeUploadedCardForUser` calls `createUploadedCardForUser` (`card/uploadCard.ts`), which charges the `cardCreation` token.
 - Convex holds no S3 credentials. Every object write goes through the Files Worker (`files.teakvault.com`) with an HMAC-signed URL (`apps/files-worker/README.md`).
 - `MAX_FILE_SIZE` = 100 MiB and `FILE_FORMATS` / `validateUploadFile` live in `shared/fileFormats.ts`. Markdown files are capped at `MARKDOWN_CONTENT_MAX_BYTES`.
-- Orphaned pending objects are swept by `storage/pendingUploadCleanup.ts` (`sweepStalePendingUploads`).
+- Orphaned pending objects are deleted a day after upload by the Files Worker's R2 events consumer (`apps/files-worker/src/queues/r2Events.ts`), with a weekly backstop sweep.
 - The `cardCreation` bucket is 30 per minute (`shared/rateLimits.ts`), so an email with 30 attachments plus a body exceeds one minute's tokens. `RATE_LIMITED` carries `retryAt`.
 - Cloudflare Email Routing caps a message at 25 MiB including base64. That means real attachments never reach the 100 MB limit, and the Convex HTTP action body limit (20 MB) rules out sending attachment bytes through Convex.
 - The phase 23 worker payload parser ignores unknown fields, so this worker can deploy before Convex.

@@ -16,6 +16,7 @@ import {
 } from "../../../../scripts/worktree-env.ts";
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
+import { filesWorkerDeploymentVars } from "./filesWorker";
 
 export const isLocalSelection = (deployment: string | undefined): boolean =>
   !deployment ||
@@ -366,7 +367,11 @@ export const setupBackend = async (
   // auth.config.ts reads the WorkOS values, so they are set before the push.
   const vars = await ensureDeploymentVars(
     convexDir,
-    { SITE_URL: worktree.siteUrl, ...emulatorDeploymentVars(worktree) },
+    {
+      SITE_URL: worktree.siteUrl,
+      ...emulatorDeploymentVars(worktree),
+      ...filesWorkerDeploymentVars(worktree),
+    },
     listed
   );
   if (!vars.ok) {
@@ -377,8 +382,8 @@ export const setupBackend = async (
   await settle();
   done.push(
     vars.configured.length > 0
-      ? `configured ${vars.configured.join(", ")} for the WorkOS emulator`
-      : "the local backend already points at the WorkOS emulator"
+      ? `configured ${vars.configured.join(", ")} for the WorkOS emulator and the Files Worker`
+      : "the local backend already points at the WorkOS emulator and the Files Worker"
   );
   return done;
 };

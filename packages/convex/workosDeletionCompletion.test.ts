@@ -1,11 +1,10 @@
 /// <reference types="vite/client" />
 
-import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
 import {
   currentWorkosDeletionTarget,
@@ -213,11 +212,18 @@ test("bounded settlement continues until all expected receipts finish", async ()
       await ctx.db.insert("migrationQuarantine", receipt);
     }
   });
-  await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
+    false
+  );
   const initialProof = (await t.run((ctx) => ctx.db.get(ownerId)))
     ?.workosDeletionCompletion;
   expect(await t.run((ctx) => ctx.db.get(stateId))).not.toBeNull();
-  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
+    false
+  );
+  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
+    true
+  );
   expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
   expect(
     await t.run((ctx) =>
@@ -360,22 +366,9 @@ test("ambiguous permanent owner cannot acquire expected-deletion proof", async (
   ).toBeUndefined();
 });
 
-test("redrive resumes failed detached settlement after the workflow completed", async () => {
+test("a settlement page that failed resumes on the next finalize call", async () => {
   const { t, receipt, binding, stateId, ownerId } = await fixture();
-  workflowTest.register(t);
-  const workflowId = await t.mutation(components.workflow.workflow.create, {
-    workflowName: "completed-deletion",
-    workflowHandle: "function://account-deletion-test",
-    workflowArgs: binding,
-    createOnly: true,
-  });
-  await t.mutation(components.workflow.workflow.complete, {
-    workflowId,
-    generationNumber: 0,
-    runResult: { kind: "success", returnValue: null },
-  });
   const unrelated = await t.run(async (ctx) => {
-    await ctx.db.patch(stateId, { workflowId, nextAttemptAt: Date.now() - 1 });
     for (let i = 0; i < 205; i++) {
       await ctx.db.insert("migrationQuarantine", receipt);
     }
@@ -384,7 +377,9 @@ test("redrive resumes failed detached settlement after the workflow completed", 
       reason: "verification_conflict",
     });
   });
-  await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
+    false
+  );
   const proof = (await t.run((ctx) => ctx.db.get(ownerId)))
     ?.workosDeletionCompletion;
   const conflictingOwner = await t.run((ctx) =>
@@ -395,11 +390,16 @@ test("redrive resumes failed detached settlement after the workflow completed", 
       emailVerified: true,
     })
   );
-  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  await expect(
+    t.mutation(internal.accountDeletionJobs.finalize, binding)
+  ).rejects.toThrow();
   expect(await t.run((ctx) => ctx.db.get(stateId))).not.toBeNull();
   await t.run((ctx) => ctx.db.delete(conflictingOwner));
-  await t.mutation(internal.accountDeletionJobs.redrive, {});
-  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  let done = false;
+  for (let page = 0; page < 5 && !done; page++) {
+    done = await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  }
+  expect(done).toBe(true);
   expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
   expect(
     (await t.run((ctx) => ctx.db.get(ownerId)))?.workosDeletionCompletion

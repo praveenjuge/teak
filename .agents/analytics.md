@@ -18,7 +18,7 @@ Split any insight by `$lib`.
 | Web app | `web` | Pageviews, web vitals, exceptions, client events, masked replay, feedback survey | `apps/web/src/lib/posthog-client.ts`, `posthog-config.ts` |
 | Web server | `teak-web-server` | Render, route and action errors | `apps/web/src/instrumentation.ts` |
 | Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures | `packages/convex/telemetry/posthog.ts` |
-| Files worker | `teak-files-worker` | Op failures and uncaught errors | `apps/files-worker/src/telemetry.ts` |
+| Files worker | `teak-files-worker` | Op failures, uncaught errors, non-retryable background (workflow, queue) failures, and card processing's `$ai_generation` and `card_processing_completed` | `apps/files-worker/src/telemetry.ts`, `src/workflows/telemetry.ts` |
 | Browser extension | `teak-extension` | Errors, `extension_card_saved`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
 | Apple app | `posthog-ios` | Lifecycle events, identify, crashes (main app only; Share and Safari extensions send nothing) | `apps/apple/Teak/App/PostHogReporting.swift` |
 | Android app | `posthog-android` | Lifecycle events, identify, crashes | `apps/android/.../TeakApplication.kt` |
@@ -43,7 +43,7 @@ Server events (`captureBackendEvent`):
 
 - `user_signed_up` {source}, which sets `email`, `plan: free` and `signed_up_at`
 - `card_created` and `card_create_failed` {card_type, source, error_class}. `source` is `web`, `apple` or `android` when the signed-in apps pass it to `cards:createCard` or `cards:finalizeUploadedCard`; `api` for public API uploads, `raycast` for public API text saves, `import` for imports; `unknown` for app versions that predate it
-- `card_processing_completed` {card_type, duration_ms}
+- `card_processing_completed` {card_type, duration_ms}, sent by the Files Worker when a card-processing run finishes
 - `card_processing_failed` {stage, error_class, card_type}
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}
 - `billing_portal_opened`

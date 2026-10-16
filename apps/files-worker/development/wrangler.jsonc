@@ -151,7 +151,14 @@
     { "binding": "AI_USAGE", "dataset": "teak_dev_ai_usage" }
   ],
   "triggers": {
-    "crons": ["0 2 * * *", "0 3 * * *", "0 */6 * * *", "0 4 * * 1", "15 * * * *", "45 * * * *"]
+    "crons": [
+      "0 2 * * *",
+      "0 3 * * *",
+      "0 */6 * * *",
+      "0 4 * * 1",
+      "15 * * * *",
+      "45 * * * *"
+    ]
   },
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
   // single request: CPU for the ZIP's checksums, and one R2 read per file plus
@@ -171,7 +178,8 @@
     // Only the development deployment.
     "CONVEX_SITE_URLS": "https://reminiscent-kangaroo-59.convex.site",
     "FILES_PUBLIC_ORIGIN": "https://teak-files-development.praveenjuge.workers.dev",
-    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d"
+    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+    "AI_USAGE_DATASET": "teak_dev_ai_usage"
   },
   "observability": {
     "enabled": true,

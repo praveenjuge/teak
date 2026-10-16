@@ -20,6 +20,8 @@ const required = [
   "vector-get",
   "vector-query",
   "vector-similar",
+  // Convex hands background work to Cloudflare Workflows and Queues with it.
+  "dispatch",
 ];
 
 async function productionEnv(name: string): Promise<string> {

@@ -2,12 +2,29 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { mockActionCtx } from "./__tests__/helpers/convex.test-utils";
+import {
+  convexForWorker,
+  loadFilesWorker,
+} from "./__tests__/helpers/filesWorker.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import { ensureObjectOwnership } from "./storage/ownership";
 
+// The Files Worker's account deletion workflow drains storage through
+// prepareStorageBatch and checkpointStorageBatch. These run its real batch
+// code against the test database and an in-memory bucket.
+
+vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
+const filesWorker = await loadFilesWorker();
 const modules = import.meta.glob("./**/*.ts");
+
+type Kind = "cards" | "exports" | "imports" | "objects" | "uploads";
+interface OpSpec {
+  op: string;
+  params: Record<string, unknown>;
+}
+
 const setup = async (keyCount = 7) => {
   const t = convexTest(schema, modules);
   const keys = Array.from(
@@ -37,14 +54,53 @@ const setup = async (keyCount = 7) => {
     });
     return { card, stateId };
   });
+  const bucket = new filesWorker.FakeBucket();
+  for (const key of keys) {
+    bucket.objects.set(key, { bytes: new Uint8Array([1]) });
+  }
+  const env = filesWorker.withObjectGates({
+    BUCKET: bucket,
+    FILES_SIGNING_SECRET: "test-secret",
+  });
+  const freezes: string[] = [];
+  /** The Worker's ops, through `intercept` so a test can change one. */
+  type Intercept = (
+    spec: OpSpec,
+    next: () => Promise<unknown>
+  ) => Promise<unknown>;
+  const passThrough: Intercept = (_spec, next) => next();
+  let intercept = passThrough;
+  const ops = (spec: OpSpec) => {
+    if (spec.op === "freeze-object") {
+      freezes.push(spec.params.key as string);
+    }
+    return intercept(spec, () => filesWorker.callFilesOp(env, spec));
+  };
+  const drain = (kind: Kind = "cards", generation = 1): Promise<boolean> =>
+    filesWorker.drainStorageBatch(
+      { convex: convexForWorker(t), ops },
+      { stateId, generation },
+      kind
+    );
+  const deleted = () => (bucket.deleteBatches as string[][]).flat();
+  const offset = async () =>
+    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset;
   return {
     t,
     card,
     stateId,
     keys,
-    binding: { stateId, generation: 1, kind: "cards" as const },
+    bucket,
+    freezes,
+    drain,
+    deleted,
+    offset,
+    intercept: (next: Intercept = passThrough) => {
+      intercept = next;
+    },
   };
 };
+
 beforeEach(() => {
   vi.stubEnv("FILES_BASE", "https://files.test");
   vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
@@ -54,44 +110,12 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
-const worker = (
-  onFreeze?: (key: string) => Promise<void>,
-  failDelete = false
-) => {
-  const freezes: string[] = [],
-    deleted: string[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (_input: unknown, options: RequestInit) => {
-      const body = JSON.parse(options.body as string) as {
-        op: string;
-        params: { key: string; keys: string[] };
-      };
-      if (body.op === "freeze-object") {
-        freezes.push(body.params.key);
-        await onFreeze?.(body.params.key);
-        return Response.json({ ok: true, data: { frozen: true } });
-      }
-      deleted.push(...body.params.keys);
-      if (failDelete) {
-        return new Response("unavailable", { status: 503 });
-      }
-      return Response.json({
-        ok: true,
-        data: { deleted: body.params.keys.length },
-      });
-    })
-  );
-  return { freezes, deleted };
-};
-test("many keys drain at most three per invocation before source deletion", async () => {
-  const { t, card, binding, keys } = await setup();
-  const proof = worker();
+
+test("many keys drain at most three per batch before source deletion", async () => {
+  const { t, card, keys, drain, freezes, deleted } = await setup();
   for (const expected of [3, 6, 7]) {
-    expect(
-      await t.action(internal.accountDeletionData.drainStorageBatch, binding)
-    ).toBe(false);
-    expect(proof.freezes).toHaveLength(expected);
+    expect(await drain()).toBe(false);
+    expect(freezes).toHaveLength(expected);
     const remaining = await t.run((ctx) => ctx.db.get(card));
     if (expected === 7) {
       expect(remaining).toBeNull();
@@ -99,60 +123,34 @@ test("many keys drain at most three per invocation before source deletion", asyn
       expect(remaining).not.toBeNull();
     }
   }
-  expect(proof.deleted).toEqual(keys);
-  expect(
-    await t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).toBe(true);
+  expect(deleted()).toEqual(keys);
+  expect(await drain()).toBe(true);
 });
-test("one data-deletion step drains every card page instead of yielding per card", async () => {
-  const { t, binding, keys } = await setup(6);
-  await t.run(async (ctx) => {
-    for (let index = 0; index < 4; index++) {
-      await ctx.db.insert("cards", {
-        userId: "owner",
-        type: "text",
-        content: `note ${index}`,
-        createdAt: 1,
-        updatedAt: 1,
-      });
-    }
-  });
-  const proof = worker();
-  expect(
-    await t.action(internal.accountDeletionActions.runStage, {
-      stateId: binding.stateId,
-      generation: binding.generation,
-      stage: 3,
-    })
-  ).toBe(true);
-  expect(await t.run((ctx) => ctx.db.query("cards").take(1))).toEqual([]);
-  expect(proof.deleted).toEqual(keys);
-});
+
 test("lost delete reply retains source and retries the exact same keys", async () => {
-  const { t, card, stateId, binding } = await setup();
-  worker(undefined, true);
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).rejects.toThrow();
+  const { t, card, drain, deleted, offset, intercept } = await setup();
+  intercept((spec, next) =>
+    spec.op === "delete-objects"
+      ? Promise.reject(new Error("connection reset"))
+      : next()
+  );
+  await expect(drain()).rejects.toThrow("connection reset");
   expect(await t.run((ctx) => ctx.db.get(card))).not.toBeNull();
-  expect(
-    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset
-  ).toBe(0);
-  const proof = worker();
-  expect(
-    await t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).toBe(false);
-  expect(proof.deleted).toEqual([
+  expect(await offset()).toBe(0);
+  intercept();
+  expect(await drain()).toBe(false);
+  expect(deleted()).toEqual([
     "users/owner/object-0",
     "users/owner/object-1",
     "users/owner/object-2",
   ]);
 });
+
 test("source changes during freeze cannot delete its row or advance captured progress", async () => {
-  const { t, card, stateId, binding, keys } = await setup();
+  const { t, card, keys, drain, offset, intercept } = await setup();
   let changed = false;
-  worker(async () => {
-    if (!changed) {
+  intercept(async (spec, next) => {
+    if (spec.op === "freeze-object" && !changed) {
       changed = true;
       await t.run((ctx) =>
         ctx.db.patch(card, {
@@ -160,66 +158,52 @@ test("source changes during freeze cannot delete its row or advance captured pro
         })
       );
     }
+    return next();
   });
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).rejects.toThrow("deletion_storage_source_changed");
+  await expect(drain()).rejects.toThrow("deletion_storage_source_changed");
   expect(
     (await t.run((ctx) => ctx.db.get(card)))?.workflowArtifactKeys
   ).toEqual(["users/owner/new-object", ...keys.slice(1)]);
-  expect(
-    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset
-  ).toBe(0);
+  expect(await offset()).toBe(0);
 });
+
 test("unknown write outcome and stale generations retain the entire source", async () => {
-  const { t, card, binding } = await setup();
-  worker(() => {
-    throw new Error("unknown_write_outcome");
-  });
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).rejects.toThrow();
+  const { t, card, drain, freezes, intercept } = await setup();
+  intercept((spec, next) =>
+    spec.op === "freeze-object"
+      ? Promise.reject(new Error("unknown_write_outcome"))
+      : next()
+  );
+  await expect(drain()).rejects.toThrow("unknown_write_outcome");
   expect(await t.run((ctx) => ctx.db.get(card))).not.toBeNull();
-  const proof = worker();
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, {
-      ...binding,
-      generation: 2,
-    })
-  ).rejects.toThrow("stale_deletion_generation");
-  expect(proof.freezes).toEqual([]);
+  freezes.length = 0;
+  intercept();
+  await expect(drain("cards", 2)).rejects.toThrow("stale_deletion_generation");
+  expect(freezes).toEqual([]);
 });
 
 test("a persisted unfinished R2 writer keeps deletion pending without deleting objects", async () => {
-  const { t, card, stateId, binding } = await setup();
-  let deletes = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((_input: unknown, options: RequestInit) => {
-      const body = JSON.parse(options.body as string) as { op: string };
-      if (body.op === "delete-objects") {
-        deletes++;
-      }
-      return Response.json({ ok: true, data: { frozen: false } });
-    })
+  const { t, card, drain, deleted, offset, intercept } = await setup();
+  intercept((spec, next) =>
+    spec.op === "freeze-object"
+      ? Promise.resolve({ kind: "ok", data: { frozen: false } })
+      : next()
   );
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).rejects.toThrow("deletion_object_write_pending");
-  expect(deletes).toBe(0);
+  await expect(drain()).rejects.toThrow("deletion_object_write_pending");
+  expect(deleted()).toEqual([]);
   expect(await t.run((ctx) => ctx.db.get(card))).not.toBeNull();
-  expect(
-    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset
-  ).toBe(0);
+  expect(await offset()).toBe(0);
 });
 
 test.each(["imports", "uploads"] as const)(
-  "%s multipart sources delete one captured row per action",
+  "%s multipart sources delete one captured row per batch",
   async (kind) => {
-    const { t, stateId, binding } = await setup(0);
+    const { t, stateId, bucket, drain, freezes } = await setup(0);
     const ids = await t.run(async (ctx) => {
       const inserted: (Id<"importJobs"> | Id<"fileUploadSessions">)[] = [];
       for (let index = 0; index < 2; index++) {
+        const sourceKey = `users/owner/${kind}-${index}`;
+        const { uploadId } = bucket.createMultipartUpload(sourceKey);
         if (kind === "imports") {
           inserted.push(
             await ctx.db.insert("importJobs", {
@@ -230,8 +214,8 @@ test.each(["imports", "uploads"] as const)(
               fileName: "test.zip",
               fileSize: 1,
               fileLastModified: 1,
-              sourceKey: `users/owner/import-${index}`,
-              uploadId: `upload-${index}`,
+              sourceKey,
+              uploadId,
               parsedCount: 0,
               processedCount: 0,
               createdCount: 0,
@@ -246,8 +230,8 @@ test.each(["imports", "uploads"] as const)(
             await ctx.db.insert("fileUploadSessions", {
               userId: "owner",
               teakUserId: "owner",
-              sourceKey: `users/owner/upload-${index}`,
-              uploadId: `upload-${index}`,
+              sourceKey,
+              uploadId,
               fileName: "test.pdf",
               fileSize: 1,
               fileType: "application/pdf",
@@ -264,37 +248,9 @@ test.each(["imports", "uploads"] as const)(
       }
       return inserted;
     });
-    let aborts = 0,
-      freezes = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((_input: unknown, options: RequestInit) => {
-        const body = JSON.parse(options.body as string) as {
-          op: string;
-          params: { keys?: string[] };
-        };
-        if (body.op === "abort-multipart") {
-          aborts++;
-          return Response.json({ ok: true, data: {} });
-        }
-        if (body.op === "freeze-object") {
-          freezes++;
-          return Response.json({ ok: true, data: { frozen: true } });
-        }
-        return Response.json({
-          ok: true,
-          data: { deleted: body.params.keys?.length ?? 0 },
-        });
-      })
-    );
-    expect(
-      await t.action(internal.accountDeletionData.drainStorageBatch, {
-        ...binding,
-        kind,
-      })
-    ).toBe(false);
-    expect(aborts).toBe(1);
-    expect(freezes).toBe(1);
+    expect(await drain(kind)).toBe(false);
+    expect(bucket.multipartUploads.size).toBe(1);
+    expect(freezes).toHaveLength(1);
     expect(await t.run((ctx) => ctx.db.get(ids[0]))).toBeNull();
     expect(await t.run((ctx) => ctx.db.get(ids[1]))).not.toBeNull();
     expect(
@@ -303,66 +259,49 @@ test.each(["imports", "uploads"] as const)(
   }
 );
 
-test("storage requests abort at their deadline and preserve the source checkpoint", async () => {
-  const { t, card, stateId, binding } = await setup();
-  const controller = new AbortController();
-  vi.spyOn(AbortSignal, "timeout").mockImplementation(() => controller.signal);
-  let entered!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    entered = resolve;
-  });
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((_input: unknown, options: RequestInit) => {
-      entered();
-      return new Promise<Response>((resolve, reject) => {
-        if (!options.signal) {
-          resolve(Response.json({ ok: true, data: { frozen: false } }));
-          return;
-        }
-        options.signal.addEventListener(
-          "abort",
-          () => reject(new Error("storage_deadline_expired")),
-          { once: true }
-        );
-      });
-    })
-  );
-  const action = t.action(
-    internal.accountDeletionData.drainStorageBatch,
-    binding
-  );
-  const rejection = expect(action).rejects.toThrow("storage_deadline_expired");
-  await pending;
-  controller.abort();
-  await rejection;
-  expect(await t.run((ctx) => ctx.db.get(card))).not.toBeNull();
-  expect(
-    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset
-  ).toBe(0);
+test("source disappearance between batches cannot abandon its remaining R2 keys", async () => {
+  const { t, card, drain, offset } = await setup();
+  expect(await drain()).toBe(false);
+  await t.run((ctx) => ctx.db.delete(card));
+  await expect(drain()).rejects.toThrow("deletion_storage_source_changed");
+  expect(await offset()).toBe(3);
 });
 
-test("source disappearance between pages cannot abandon its remaining R2 keys", async () => {
-  const { t, card, stateId, binding } = await setup();
-  worker();
+test("a checkpoint for a different batch than the one captured is refused", async () => {
+  const { t, stateId, drain, offset } = await setup();
+  expect(await drain()).toBe(false);
+  for (const change of [{ offset: 0 }, { count: 2 }, { fingerprint: "x" }]) {
+    await expect(
+      t.mutation(internal.accountDeletionData.checkpointStorageBatch, {
+        stateId,
+        generation: 1,
+        kind: "cards",
+        fingerprint: (await t.run((ctx) => ctx.db.get(stateId)))
+          ?.storageProgress?.fingerprint as string,
+        offset: 3,
+        count: 3,
+        ...change,
+      })
+    ).rejects.toThrow();
+  }
+  expect(await offset()).toBe(3);
+});
+
+test("each checkpoint moves the state's progress deadline ahead", async () => {
+  const { t, stateId, drain } = await setup();
+  await t.run((ctx) => ctx.db.patch(stateId, { nextAttemptAt: 1 }));
+  await drain();
   expect(
-    await t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).toBe(false);
-  await t.run((ctx) => ctx.db.delete(card));
-  await expect(
-    t.action(internal.accountDeletionData.drainStorageBatch, binding)
-  ).rejects.toThrow("deletion_storage_source_changed");
-  expect(
-    (await t.run((ctx) => ctx.db.get(stateId)))?.storageProgress?.offset
-  ).toBe(3);
+    (await t.run((ctx) => ctx.db.get(stateId)))?.nextAttemptAt
+  ).toBeGreaterThan(Date.now());
 });
 
 test("source conflicts record an operator-visible pending reason and retry time", async () => {
-  const { t, stateId, binding } = await setup();
+  const { t, stateId } = await setup();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   await t.mutation(internal.accountDeletionJobs.recordFailure, {
     stateId,
-    generation: binding.generation,
+    generation: 1,
     stage: 3,
     reason: "storage_source_changed",
   });
@@ -425,7 +364,7 @@ test("durable status remains pending until local cleanup finishes and rejects mi
 });
 
 test("a link's chosen image and the one kept for undo are deleted with the account", async () => {
-  const { t, card, binding } = await setup(0);
+  const { t, card, drain, deleted } = await setup(0);
   const chosen = "users/owner/cards/link/thumbnail-override/chosen";
   const kept = "users/owner/cards/link/thumbnail-override/kept";
   await t.run((ctx) =>
@@ -444,15 +383,11 @@ test("a link's chosen image and the one kept for undo are deleted with the accou
       },
     })
   );
-  const proof = worker();
   let done = false;
   for (let call = 0; call < 5 && !done; call += 1) {
-    done = await t.action(
-      internal.accountDeletionData.drainStorageBatch,
-      binding
-    );
+    done = await drain();
   }
-  expect(proof.deleted).toEqual([chosen, kept]);
+  expect(deleted()).toEqual([chosen, kept]);
   expect(await t.run((ctx) => ctx.db.get(card))).toBeNull();
 });
 
@@ -493,10 +428,13 @@ test("a deployment without the Files Worker never registers phantom objects", as
       })
   );
   expect(
-    await t.action(internal.accountDeletionData.drainStorageBatch, {
-      stateId,
-      generation: 1,
-      kind: "objects",
-    })
+    await filesWorker.drainStorageBatch(
+      {
+        convex: convexForWorker(t),
+        ops: () => Promise.reject(new Error("no storage op expected")),
+      },
+      { stateId, generation: 1 },
+      "objects"
+    )
   ).toBe(true);
 });
