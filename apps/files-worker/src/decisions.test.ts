@@ -80,10 +80,10 @@ describe("link category", () => {
   test("a confident new category replaces the rules' answer", async () => {
     const calls: Call[] = [];
     const result = await decideLinkCategory(
-      fakeEnv(choiceReply("category", "recipe", 0.93), calls),
+      fakeEnv(choiceReply("category", "recipe", 0.97), calls),
       linkParams
     );
-    expect(result.decision).toEqual({ category: "recipe", confidence: 0.93 });
+    expect(result.decision).toEqual({ category: "recipe", confidence: 0.97 });
     expect(result.model).toBe("@cf/cloudflare/clef");
     expect(result.usage).toEqual({ inputTokens: 120, outputTokens: 0 });
     expect(calls[0]?.model).toBe("@cf/cloudflare/clef");

@@ -34,19 +34,21 @@ export const MAX_DECISION_QUESTIONS = 64;
  * relevance cache key includes its version, and telemetry records all four.
  */
 export const DECISION_VERSIONS = {
-  cardType: 1,
-  linkCategory: 1,
+  cardType: 2,
+  linkCategory: 2,
   relevance: 1,
   visualStyles: 1,
 } as const;
 
 /**
- * Conservative starting thresholds: Clef changes an answer only when it is
- * clearly sure. Tune them with `scripts/clef-eval` before lowering any.
+ * Tuned with `scripts/clef-eval` (October 2026): for link category and card
+ * type, the most coverage with precision at 95% or more (the highest of tied
+ * thresholds); for styles, the best F1 with precision at 85% and recall at
+ * 50% or more.
  */
 export const DECISION_THRESHOLDS = {
-  cardType: 0.85,
-  linkCategory: 0.85,
+  cardType: 0.75,
+  linkCategory: 0.95,
   visualStyle: 0.7,
 } as const;
 
