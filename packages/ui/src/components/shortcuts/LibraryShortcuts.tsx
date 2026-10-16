@@ -139,7 +139,9 @@ export function LibraryShortcuts({
           );
           return;
         case "search":
-          onNavigate(paletteSearchAllHref(command.query));
+          onNavigate(
+            paletteSearchAllHref(command.query, window.location.pathname)
+          );
           return;
         default:
           break;

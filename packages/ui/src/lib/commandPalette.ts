@@ -143,9 +143,12 @@ export function paletteCardHref(
   return `${pathname}?${params.toString().replace(/%2C/g, ",")}`;
 }
 
-/** Everything, searching for the palette's query. */
-export const paletteSearchAllHref = (query: string) =>
-  `/?q=${encodeURIComponent(query.trim())}`;
+/**
+ * The full search for the palette's query: the archive from Archive, which
+ * is what the palette searched there, and Everything from anywhere else.
+ */
+export const paletteSearchAllHref = (query: string, pathname?: string | null) =>
+  `${libraryViewForPath(pathname) === "archive" ? "/archive" : "/"}?q=${encodeURIComponent(query.trim())}`;
 
 /**
  * Shuffle the open library page (keeping its search, with a fresh order),

@@ -16,7 +16,7 @@ const {
 } = await import("../commandPalette");
 
 afterEach(() => {
-  document.body.innerHTML = "";
+  document.body.replaceChildren();
 });
 
 type Modifiers = Partial<{
@@ -44,8 +44,10 @@ const keyEvent = (
   ...modifiers,
 });
 
+// Parsed rather than assigned to innerHTML: the fixtures are fixed strings.
 const mount = (html: string): HTMLElement => {
-  document.body.innerHTML = html;
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  document.body.replaceChildren(...parsed.body.childNodes);
   return document.querySelector("[data-target]") ?? document.body;
 };
 
@@ -198,9 +200,15 @@ describe("paletteShuffleHref", () => {
   });
 });
 
-test("Search all opens Everything with the trimmed query", () => {
-  expect(paletteSearchAllHref("  #design site:a.com ")).toBe(
-    "/?q=%23design%20site%3Aa.com"
+test.each([
+  ["/", "/?q=%23design%20site%3Aa.com"],
+  ["/favorites", "/?q=%23design%20site%3Aa.com"],
+  ["/settings", "/?q=%23design%20site%3Aa.com"],
+  [null, "/?q=%23design%20site%3Aa.com"],
+  ["/archive", "/archive?q=%23design%20site%3Aa.com"],
+] as const)("Search all from %p opens %p", (pathname, expected) => {
+  expect(paletteSearchAllHref("  #design site:a.com ", pathname)).toBe(
+    expected
   );
 });
 
