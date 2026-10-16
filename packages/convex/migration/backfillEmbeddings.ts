@@ -58,9 +58,10 @@ const emptyTotals = (): Totals => ({
  * Queues an embed for every card with text and no current vector: cards
  * saved before embeddings shipped, cards whose embed ran out of retries,
  * and cards whose job was lost. `reembed` also queues embedded cards; their
- * embed costs no Workers AI call unless the text or `CARD_EMBEDDING_VERSION`
- * changed, so run it after bumping the version. Trashed and archived cards
- * are embedded too (search filters them).
+ * embed costs no Workers AI call unless the text, the card type or
+ * `CARD_EMBEDDING_VERSION` changed, so run it after bumping the version, and
+ * once to write the type onto vectors from before they carried one. Trashed
+ * and archived cards are embedded too (search filters them).
  *
  * A dry run (the default) writes nothing and reports what a real run would
  * queue. Each batch schedules the next until the table is done, and the

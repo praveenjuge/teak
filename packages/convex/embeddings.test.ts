@@ -143,7 +143,9 @@ describe("embedding cards", () => {
       {
         op: "embed-upsert",
         params: {
-          items: [{ id: cardId, text: "Teak is a tropical hardwood" }],
+          items: [
+            { id: cardId, text: "Teak is a tropical hardwood", type: "text" },
+          ],
           namespace: USER,
           shard: 0,
         },
@@ -171,7 +173,7 @@ describe("embedding cards", () => {
     await runScheduled(t);
 
     expect(upserts(calls).map((call) => call.params.items)).toEqual([
-      [{ id: cardId, text: "third" }],
+      [{ id: cardId, text: "third", type: "text" }],
     ]);
   });
 
@@ -193,6 +195,21 @@ describe("embedding cards", () => {
     const row = await rowOf(t, cardId);
     expect(row).not.toBeNull();
     expect(row).not.toHaveProperty("dueAt");
+  });
+
+  test("a card whose type changes is embedded again, with its new type", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "https://example.com/photo.jpg");
+    await runScheduled(t);
+
+    await editCard(t, cardId, { type: "image" });
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "https://example.com/photo.jpg", type: "text" }],
+      [{ id: cardId, text: "https://example.com/photo.jpg", type: "image" }],
+    ]);
   });
 
   test("a failing Worker is retried with backoff, then left for the backfill", async () => {
@@ -367,8 +384,8 @@ describe("stale writes", () => {
     await runScheduled(t);
 
     expect(upserts(calls).map((call) => call.params.items)).toEqual([
-      [{ id: cardId, text: "current text" }],
-      [{ id: cardId, text: "current text" }],
+      [{ id: cardId, text: "current text", type: "text" }],
+      [{ id: cardId, text: "current text", type: "text" }],
     ]);
   });
 
@@ -388,8 +405,8 @@ describe("stale writes", () => {
     await runScheduled(t);
 
     expect(upserts(calls).map((call) => call.params.items)).toEqual([
-      [{ id: cardId, text: "first" }],
-      [{ id: cardId, text: "second" }],
+      [{ id: cardId, text: "first", type: "text" }],
+      [{ id: cardId, text: "second", type: "text" }],
     ]);
     expect(await rowOf(t, cardId)).not.toHaveProperty("dueAt");
   });
@@ -441,8 +458,8 @@ describe("stale writes", () => {
 
     expect(upserts(calls)).toHaveLength(1);
     expect(upserts(retried).map((call) => call.params.items)).toEqual([
-      [{ id: cardId, text: "current text" }],
-      [{ id: cardId, text: "current text" }],
+      [{ id: cardId, text: "current text", type: "text" }],
+      [{ id: cardId, text: "current text", type: "text" }],
     ]);
     expect(await rowOf(t, cardId)).toMatchObject({
       hash: expect.stringMatching(/^[0-9a-f]{64}$/),

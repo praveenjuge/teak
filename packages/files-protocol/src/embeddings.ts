@@ -52,16 +52,32 @@ export const EMBED_UPSERT_MAX_ITEMS = 32;
 export const VECTOR_DELETE_MAX_IDS = 1000;
 /** Ids per `vector-get` call. */
 export const VECTOR_GET_MAX_IDS = 100;
-/** Matches per `vector-query`; Vectorize allows 100 without metadata. */
+/**
+ * Matches per `vector-query`. Vectorize allows 100, or 50 when matches come
+ * back with values or full metadata, so queries ask for neither.
+ */
 export const VECTOR_QUERY_MAX_TOP_K = 100;
+/**
+ * The card type each vector carries as `type` metadata. The index needs a
+ * string metadata index on `type` for queries to filter on it, and a vector
+ * written before that index existed is filtered only once it is upserted
+ * again (.agents/semantic-search.md).
+ */
+export const VECTOR_TYPE_METADATA_KEY = "type";
+/** A card type as vector metadata: a short lowercase word, as `image`. */
+export const isVectorCardType = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-z]{1,32}$/.test(value);
 /** Vectorize vector ids are at most 64 bytes. */
 export const VECTOR_ID_MAX_BYTES = 64;
 /** Longest search query `vector-query` embeds. */
 export const VECTOR_QUERY_MAX_CHARS = 500;
 
 export interface FilesEmbedUpsertParams {
-  /** Card ids and the card text to embed, already built by Convex. */
-  items: Array<{ id: string; text: string }>;
+  /**
+   * Card ids and the card text to embed, already built by Convex, with the
+   * card's type to store as metadata (absent from callers that predate it).
+   */
+  items: Array<{ id: string; text: string; type?: string }>;
   namespace: string;
   shard: number;
 }
@@ -97,6 +113,8 @@ export interface FilesVectorQueryParams {
   /** A search query, embedded with the query prompt. */
   text: string;
   topK: number;
+  /** Only cards of this type, as `image` for a `mood:` search. */
+  type?: string;
 }
 
 export interface FilesVectorQueryResult {

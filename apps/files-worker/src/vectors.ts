@@ -14,10 +14,12 @@ import {
   type FilesVectorQueryResult,
   type FilesVectorSimilarParams,
   type FilesVectorSimilarResult,
+  isVectorCardType,
   VECTOR_ID_MAX_BYTES,
   VECTOR_NAMESPACE_MAX_BYTES,
   VECTOR_QUERY_MAX_CHARS,
   VECTOR_QUERY_MAX_TOP_K,
+  VECTOR_TYPE_METADATA_KEY,
   vectorShardBinding,
 } from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
@@ -72,16 +74,17 @@ export const parseEmbedUpsertParams = (
     throw new Error("invalid_embed_items");
   }
   const parsed = items.map((item) => {
-    const { id, text } = (item ?? {}) as Record<string, unknown>;
+    const { id, text, type } = (item ?? {}) as Record<string, unknown>;
     if (
       !isBoundedString(id, VECTOR_ID_MAX_BYTES) ||
       typeof text !== "string" ||
       !text.trim() ||
-      text.length > MAX_ITEM_TEXT_CHARS
+      text.length > MAX_ITEM_TEXT_CHARS ||
+      !(type === undefined || isVectorCardType(type))
     ) {
       throw new Error("invalid_embed_items");
     }
-    return { id, text };
+    return type === undefined ? { id, text } : { id, text, type };
   });
   if (new Set(parsed.map((item) => item.id)).size !== parsed.length) {
     throw new Error("invalid_embed_items");
@@ -104,11 +107,12 @@ export const parseVectorIdsParams = (
 export const parseVectorQueryParams = (
   params: Record<string, unknown>
 ): FilesVectorQueryParams => {
-  const { text, topK } = params;
+  const { text, topK, type } = params;
   if (
     typeof text !== "string" ||
     !text.trim() ||
-    text.length > VECTOR_QUERY_MAX_CHARS
+    text.length > VECTOR_QUERY_MAX_CHARS ||
+    !(type === undefined || isVectorCardType(type))
   ) {
     throw new Error("invalid_vector_query");
   }
@@ -125,6 +129,7 @@ export const parseVectorQueryParams = (
     shard: parseShard(params.shard),
     text,
     topK,
+    ...(type === undefined ? {} : { type }),
   };
 };
 
@@ -211,6 +216,9 @@ export const embedUpsert = async (
       id: item.id,
       namespace,
       values: vectors[i] as number[],
+      ...(item.type
+        ? { metadata: { [VECTOR_TYPE_METADATA_KEY]: item.type } }
+        : {}),
     }))
   );
   return { mutationId: mutation.mutationId, upserted: items.length };
@@ -268,24 +276,54 @@ export const vectorSimilar = async (
   };
 };
 
+const toMatches = (matches: VectorizeMatch[]) =>
+  matches.map((match) => ({ id: match.id, score: match.score }));
+
+/**
+ * The cards closest to a search query. With `type`, only cards of that type,
+ * so notes and links can't crowd a few images out of the top matches.
+ * Vectors written before they carried a type never match the filter, so an
+ * unfiltered query runs beside it and adds the untyped ones among its
+ * matches; once every vector carries a type it adds nothing.
+ */
 export const vectorQuery = async (
   env: FilesOpsEnv,
-  { namespace, shard, text, topK }: FilesVectorQueryParams
+  { namespace, shard, text, topK, type }: FilesVectorQueryParams
 ): Promise<FilesVectorQueryResult> => {
   const index = indexForShard(env, shard);
   const [vector] = await embed(env, [cardEmbeddingQuery(text)]);
-  const result = await index.query(vector as number[], {
+  const options = {
     namespace,
     // The typings accept a boolean, but the production API rejects one
-    // ("returnMetadata: expected value", code 40026).
+    // ("returnMetadata: expected value", code 40026). "all" would also cap
+    // topK at 50; "none" and "indexed" allow 100.
     returnMetadata: "none",
     returnValues: false,
     topK,
-  });
+  } satisfies VectorizeQueryOptions;
+  if (!type) {
+    return {
+      matches: toMatches(
+        (await index.query(vector as number[], options)).matches
+      ),
+    };
+  }
+  const [typed, all] = await Promise.all([
+    index.query(vector as number[], {
+      ...options,
+      filter: { [VECTOR_TYPE_METADATA_KEY]: type },
+    }),
+    index.query(vector as number[], { ...options, returnMetadata: "indexed" }),
+  ]);
+  const untyped = all.matches.filter(
+    (match) => match.metadata?.[VECTOR_TYPE_METADATA_KEY] === undefined
+  );
+  const typedIds = new Set(typed.matches.map((match) => match.id));
   return {
-    matches: result.matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-    })),
+    matches: toMatches(
+      [...typed.matches, ...untyped.filter((match) => !typedIds.has(match.id))]
+        .sort((left, right) => right.score - left.score)
+        .slice(0, topK)
+    ),
   };
 };

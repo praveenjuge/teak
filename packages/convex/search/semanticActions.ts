@@ -87,7 +87,13 @@ const askVectorService = async (
   }
   const result = await callFilesWorkerJson<FilesVectorQueryResult>({
     op: "vector-query",
-    params: { ...vectors, text: request.text, topK: SEMANTIC_TOP_K },
+    params: {
+      ...vectors,
+      text: request.text,
+      topK: SEMANTIC_TOP_K,
+      // A few images among many notes would otherwise miss the top matches.
+      ...(request.kind === "mood" ? { type: "image" } : {}),
+    },
     timeoutMs,
   });
   if (result.kind !== "ok") {

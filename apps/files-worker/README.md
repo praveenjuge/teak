@@ -444,21 +444,23 @@ rolling back backend callers.
 ## Card embeddings (Vectorize)
 
 `CARD_VECTORS_0` binds the `teak-cards-0` Vectorize index (768 dimensions,
-cosine), which holds card embeddings for semantic search, one namespace per
-user. `capabilities` reports `vectors` when it is bound. The model, prompts and
+cosine, a string metadata index on `type`), which holds card embeddings for
+semantic search, one namespace per user. `capabilities` reports `vectors` when it is bound. The model, prompts and
 shard layout are in `.agents/semantic-search.md`.
 
 Four signed ops read and write the index (`src/vectors.ts`):
 
 - `embed-upsert` embeds up to 32 card texts with the document prompt and
-  upserts them into one namespace. Workers AI capacity errors answer
-  `AI_CAPACITY` (429); a vector of the wrong size is never written.
+  upserts them into one namespace, each with its card's `type` as metadata.
+  Workers AI capacity errors answer `AI_CAPACITY` (429); a vector of the
+  wrong size is never written.
 - `vector-delete` deletes up to 1,000 ids.
 - `vector-get` reports which of up to 100 ids have a vector, and in which
   namespace.
 - `vector-query` embeds a query of up to 500 characters with the query prompt
   and returns the top matches (at most 100) in one namespace, ids and scores
-  only.
+  only. With `type` it returns cards of that type, plus close vectors written
+  before vectors carried a type. `capabilities` reports `vectorTypes`.
 - `vector-similar` searches with one card's stored vector (no Workers AI call)
   and returns its closest cards in the same namespace, without the card itself.
   A card with no vector in that namespace answers `found: false`, so one user

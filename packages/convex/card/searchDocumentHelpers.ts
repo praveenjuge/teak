@@ -304,7 +304,11 @@ export const syncCardSearchDocumentHandler = async (
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
   }
-  if (existing?.searchableText !== value.searchableText) {
+  // A vector carries its card's type, which `mood:` filters on.
+  if (
+    existing?.searchableText !== value.searchableText ||
+    existing.type !== value.type
+  ) {
     await markCardForEmbedding(ctx, cardId, card.userId);
   }
 
