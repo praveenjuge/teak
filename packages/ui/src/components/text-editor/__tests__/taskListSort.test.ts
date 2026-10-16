@@ -198,3 +198,16 @@ test.each([
 ] as const)("orders %p with item %p toggled as %p", (checked, index, order) => {
   expect(sortedTaskOrder(checked, index)).toEqual([...order]);
 });
+
+test("a caret in another item of the moved run stays in that item", () => {
+  let state = stateFor("- [ ] Alpha\n- [ ] Beta\n- [ ] Gamma");
+  const caret = taskItemPos(state.doc, "Beta") + 4; // between "Be" and "ta"
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, caret))
+  );
+  state = state.apply(toggle(state, "Alpha"));
+  expect(markdownOf(state)).toBe("- [ ] Beta\n- [ ] Gamma\n- [x] Alpha");
+  const { $from } = state.selection;
+  expect($from.parent.textContent).toBe("Beta");
+  expect($from.parentOffset).toBe(2);
+});

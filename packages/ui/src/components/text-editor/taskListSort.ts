@@ -125,6 +125,8 @@ export function moveToggledTaskItem(
   // Replace only the run of items between the old and the new spot.
   const first = Math.min(index, newIndex);
   const last = Math.max(index, newIndex);
+  const rangeOf = (start: number, end: number) =>
+    Array.from({ length: end - start }, (_, offset) => start + offset);
   const sizeOf = (indexes: number[]) =>
     indexes.reduce((size, at) => size + items[at].nodeSize, 0);
   const from = $item.start() + sizeOf(order.slice(0, first));
@@ -135,16 +137,29 @@ export function moveToggledTaskItem(
     Fragment.fromArray(order.slice(first, last + 1).map((at) => items[at]))
   );
 
-  // A selection inside the moved item goes with it; any other maps as usual.
-  const itemEnd = itemPos + items[index].nodeSize;
+  // The replace maps any position inside the run to its edge, so a text
+  // selection inside one of its items (the ticked one, or a sibling the
+  // caret sat in while a checkbox was clicked) moves with that item.
   const { anchor, head } = state.selection;
-  const inItem = (pos: number) => pos > itemPos && pos < itemEnd;
+  const ownerOf = (pos: number) => {
+    let start = from;
+    for (let at = first; at <= last; at++) {
+      if (pos > start && pos < start + items[at].nodeSize) {
+        return at;
+      }
+      start += items[at].nodeSize;
+    }
+    return null;
+  };
+  const owner = ownerOf(anchor);
   if (
     state.selection instanceof TextSelection &&
-    inItem(anchor) &&
-    inItem(head)
+    owner !== null &&
+    owner === ownerOf(head)
   ) {
-    const shift = from + sizeOf(order.slice(first, newIndex)) - itemPos;
+    const oldStart = from + sizeOf(rangeOf(first, owner));
+    const newStart = from + sizeOf(order.slice(first, order.indexOf(owner)));
+    const shift = newStart - oldStart;
     move.setSelection(
       TextSelection.create(move.doc, anchor + shift, head + shift)
     );
