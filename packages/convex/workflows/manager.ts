@@ -720,35 +720,45 @@ export const initializeCardProcessingStateHandler = async (
   });
 };
 
-export const initializeCardProcessingState = internalMutation({
+/**
+ * Resets the card's processing state and starts its workflow in one
+ * transaction, so the workflow's first step always sees the reset state (a
+ * refresh's pending link preview included) and never races it.
+ */
+export const startCardProcessingHandler = async (
+  ctx: MutationCtx,
+  { cardId, refresh }: CardProcessingStart
+) => {
+  const args = refresh ? { cardId, refresh } : { cardId };
+  await initializeCardProcessingStateHandler(ctx, args);
+  const workflowId = await startWorkflow(
+    ctx,
+    internalAny["workflows/cardProcessing"].cardProcessingWorkflow,
+    args,
+    { startAsync: true }
+  );
+  return { workflowId };
+};
+
+export const startCardProcessing = internalMutation({
   args: {
     cardId: v.id("cards"),
     refresh: v.optional(v.boolean()),
   },
-  returns: v.null(),
-  handler: initializeCardProcessingStateHandler,
+  returns: v.object({
+    workflowId: v.string(),
+  }),
+  handler: startCardProcessingHandler,
 });
 
-export const startCardProcessingWorkflowHandler = async (
-  ctx: any,
+export const startCardProcessingWorkflowHandler = (
+  ctx: Pick<ActionCtx, "runMutation">,
   { cardId, refresh }: CardProcessingStart
-) => {
-  const workflowRef =
-    internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
-  const workflowId = await startWorkflow(
-    ctx,
-    workflowRef,
-    refresh ? { cardId, refresh } : { cardId },
-    { startAsync: true }
-  );
-
-  await ctx.runMutation(
-    internalAny["workflows/manager"].initializeCardProcessingState,
+): Promise<{ workflowId: string }> =>
+  ctx.runMutation(
+    internalAny["workflows/manager"].startCardProcessing,
     refresh ? { cardId, refresh } : { cardId }
   );
-
-  return { workflowId };
-};
 
 export const startCardProcessingWorkflow = internalAction({
   args: {

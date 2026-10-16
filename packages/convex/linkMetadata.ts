@@ -176,6 +176,13 @@ export const updateCardMetadataHandler = async (
     status === "failed" &&
     previousLinkPreview?.status === "success"
   ) {
+    console.warn(
+      "[linkMetadata] Refresh couldn't read the page; kept the stored preview",
+      {
+        cardId,
+        error: linkPreview?.error,
+      }
+    );
     return await patchCardWithSearchSync(ctx, cardId, {
       metadataStatus: "completed",
       updatedAt: Date.now(),
