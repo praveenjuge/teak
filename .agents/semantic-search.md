@@ -235,7 +235,9 @@ keyword side:
   filter on `type`), so notes and links can't crowd a few images out. An
   unfiltered query runs beside it and adds the closest vectors with no type,
   written before vectors carried one; once the backfill has written every
-  vector again it adds nothing. Both return ids and scores only: full
+  vector again it adds nothing. If the index rejects the filter (no `type`
+  metadata index), the worker logs `vector type filter failed` and the
+  search runs as it did before types. Both return ids and scores only: full
   metadata would cap `topK` at 50.
 
 ## Checking search by meaning

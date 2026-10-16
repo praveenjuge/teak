@@ -22,6 +22,7 @@ interface Ranked {
 const fakes = ({
   aiError,
   dimensions = 768,
+  filterError,
   ranked = [
     { id: "card_2", score: 0.81 },
     { id: "card_1", score: 0.42 },
@@ -31,6 +32,8 @@ const fakes = ({
   dimensions?: number;
   /** What every query finds, closest first, before its filter and topK. */
   ranked?: Ranked[];
+  /** Rejects filtered queries, as an index without the metadata index may. */
+  filterError?: unknown;
 } = {}) => {
   const aiCalls: { args: { text: string[] }; model: string }[] = [];
   const upserts: unknown[][] = [];
@@ -72,6 +75,9 @@ const fakes = ({
         ),
       query: (values: number[], options: VectorizeQueryOptions) => {
         queries.push({ options, vector: values });
+        if (filterError && options.filter) {
+          return Promise.reject(filterError);
+        }
         const wanted = options.filter?.type;
         const matches = ranked
           .filter((match) => wanted === undefined || match.type === wanted)
@@ -361,6 +367,22 @@ describe("vector-delete, vector-get and vector-query", () => {
           { id: "untyped_1", score: 0.5 },
           { id: "photo_1", score: 0.46 },
           { id: "photo_2", score: 0.4 },
+        ],
+      });
+    });
+
+    test("searches as before types when the index can't filter on type", async () => {
+      const { env } = fakes({
+        filterError: new Error("VECTOR_QUERY_ERROR (code = 40027)"),
+        ranked: library.map(({ id, score }) => ({ id, score })),
+      });
+      const { body, status } = await query(env, 3);
+      expect(status).toBe(200);
+      expect(body.data).toEqual({
+        matches: [
+          { id: "note_1", score: 0.62 },
+          { id: "note_2", score: 0.6 },
+          { id: "link_1", score: 0.58 },
         ],
       });
     });

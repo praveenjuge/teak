@@ -284,7 +284,9 @@ const toMatches = (matches: VectorizeMatch[]) =>
  * so notes and links can't crowd a few images out of the top matches.
  * Vectors written before they carried a type never match the filter, so an
  * unfiltered query runs beside it and adds the untyped ones among its
- * matches; once every vector carries a type it adds nothing.
+ * matches; once every vector carries a type it adds nothing. An index without
+ * the `type` metadata index may reject the filter: every vector then reads as
+ * untyped, which is the search as it was before types.
  */
 export const vectorQuery = async (
   env: FilesOpsEnv,
@@ -309,10 +311,18 @@ export const vectorQuery = async (
     };
   }
   const [typed, all] = await Promise.all([
-    index.query(vector as number[], {
-      ...options,
-      filter: { [VECTOR_TYPE_METADATA_KEY]: type },
-    }),
+    index
+      .query(vector as number[], {
+        ...options,
+        filter: { [VECTOR_TYPE_METADATA_KEY]: type },
+      })
+      .catch((error: unknown): VectorizeMatches => {
+        console.warn("[files-worker] vector type filter failed", {
+          message: error instanceof Error ? error.message.slice(0, 200) : "",
+          shard,
+        });
+        return { count: 0, matches: [] };
+      }),
     index.query(vector as number[], { ...options, returnMetadata: "indexed" }),
   ]);
   const untyped = all.matches.filter(
