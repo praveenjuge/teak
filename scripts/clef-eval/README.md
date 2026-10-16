@@ -26,8 +26,10 @@ It calls a paid model (a few cents for every fixture) and is not part of
 - **accuracy**: the answers people would see, Clef's or the rules'.
 
 Pick the lowest threshold that keeps precision at 95% or more for link
-category and card type. For styles, pick the best F1 with precision at 85% or
-more.
+category and card type, with coverage of at least 30% (link category) or 50%
+(card type). For styles, pick the best F1 with precision at 85% and recall at
+50% or more. A decision that can't meet both bars stays off: set its threshold
+to 1.
 
 ## Fixtures
 
