@@ -306,7 +306,7 @@ The web composer sends `type: "text"` for multi-block notes (`packages/ui/src/co
 **API, MCP, SDK and CLI.**
 - `GET /v1/cards` accepts `sort=relevance`. The handler awaits the ranking and then the relevance scores (cache first, 1.5 s timeout) before reading a page, and passes `useRelevanceScores` accordingly.
 - The response gains `relevanceRanked: boolean`.
-- Every page call re-checks the cache. Cursors resume after the last card served, as semantic cursors do.
+- The first page decides `useRelevanceScores`, and the cursor carries that choice for the rest of the pagination. Later pages never switch modes, so scores that land late can't move cards across a page boundary. If the first page was ranked and the scores have expired before a later page, the handler fetches them again (same prompt version and cards) before reading that page.
 - In order:
   - `publicApiOpenApi.ts`: the `sort` enum, and a description saying it needs `q`.
   - MCP search tool: the `sort` enum.
@@ -373,7 +373,7 @@ The web composer sends `type: "text"` for multi-block notes (`packages/ui/src/co
 - **Best match.**
   - Qualifier-only searches never call Clef.
   - 61 new searches in a minute fall back, both when the semantic cache misses and when it hits. A search never spends two `semanticSearch` tokens, and plain meaning search keeps its full 60.
-  - Paging during a late score never repeats or skips a card.
+  - Paging during a late score never repeats or skips a card, on the web grid and on the API: a cursor issued in fused order stays fused, and one issued in ranked order stays ranked.
   - A card edited or deleted after scoring.
   - Trash, archive and favorites filters.
   - A query in Japanese.
