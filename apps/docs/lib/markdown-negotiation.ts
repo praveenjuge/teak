@@ -1,13 +1,3 @@
-/**
- * Content negotiation for Markdown-aware agents.
- *
- * The site builds a Markdown mirror next to most pages (for example
- * /docs/ai-agents.md for /docs/ai-agents, /index.md for /). The Routing
- * Middleware in middleware.ts uses these helpers to serve the mirror when
- * the client prefers Markdown, so agents get clean text from the same URL
- * that serves HTML to browsers.
- */
-
 interface AcceptEntry {
   mediaRange: string;
   order: number;
@@ -15,7 +5,6 @@ interface AcceptEntry {
   specificity: number;
 }
 
-/** Parses an Accept header into media ranges, most preferred first. */
 export function parseAcceptHeader(header: string): AcceptEntry[] {
   return header
     .split(",")
@@ -91,7 +80,6 @@ export function qualityFor(
   return best?.quality;
 }
 
-/** Quality value from an exact media type mention, wildcards excluded. */
 function explicitQuality(
   entries: AcceptEntry[],
   mediaType: string
@@ -105,7 +93,6 @@ function explicitQuality(
   return undefined;
 }
 
-/** Best-match quality value for HTML across the usual media ranges. */
 function htmlQuality(entries: AcceptEntry[]): number {
   return (
     qualityFor(entries, "text/html") ??
@@ -137,14 +124,8 @@ export function prefersMarkdown(acceptHeader: string | null): boolean {
   return markdownQ >= htmlQuality(entries);
 }
 
-/** Pages whose built Markdown mirror is a single path segment deep. */
 const MIRRORABLE_PAGE = /^\/(?:docs|changelog|reference\/operations)\/[^/]+$/;
 
-/**
- * Markdown mirror URL for a page, or null when the page has no mirror.
- * /apps, /changelog, and /pricing intentionally have no mirror yet, so they
- * always keep serving HTML.
- */
 export function markdownMirrorPath(pathname: string): string | null {
   const normalized = pathname.replace(/\/+$/, "") || "/";
 

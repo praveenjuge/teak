@@ -53,7 +53,6 @@ const upstream = (
   return { calls, fetcher };
 };
 
-/** Cache API stand-in keyed by URL; records the Cache-Control each entry was stored with. */
 class FakeCache {
   readonly entries = new Map<string, Response>();
 
@@ -87,10 +86,6 @@ const proxy = (
     fetcher: options.fetcher,
   });
 
-/**
- * The rewrites `apps/docs/vercel.json` used before this Worker took over these
- * paths, kept so clients keep reaching the same Convex URLs.
- */
 const FORMER_DOCS_REWRITES = [
   { source: "/api", destination: "/v1" },
   { source: "/api/:path*", destination: "/:path*" },
@@ -107,8 +102,6 @@ const FORMER_DOCS_REWRITES = [
 }));
 
 describe("parity with the docs site's former rewrites", () => {
-  // Each former rewrite must reach the same Convex URL through this Worker,
-  // and one of the Worker's routes must catch it.
   const rewrites = FORMER_DOCS_REWRITES.map((rewrite) => ({
     source: rewrite.source.replace(":path*", "v1/cards"),
     destination: rewrite.destination.replace(":path*", "v1/cards"),
@@ -182,8 +175,6 @@ describe("forwarding", () => {
     expect(call?.body).toBe('{"content":"hello"}');
     expect(call?.headers.get("authorization")).toBe("Bearer teak_sk_test");
     expect(call?.headers.get("content-type")).toBe("application/json");
-    // Cloudflare's own headers stay at the edge; the client's address is
-    // forwarded the way the docs site's proxy did.
     expect(call?.headers.get("cf-ray")).toBeNull();
     expect(call?.headers.get("cf-connecting-ip")).toBeNull();
     expect(call?.headers.get("x-forwarded-for")).toBe("203.0.113.7");
@@ -284,8 +275,6 @@ describe("forwarding", () => {
 });
 
 describe("errors the Worker answers itself", () => {
-  // Browsers on other origins must be able to read them, and support needs a
-  // request ID, exactly as with Convex's own API errors.
   test.each([
     [
       "413",
@@ -331,7 +320,6 @@ describe("edge rate limits", () => {
       new Request("https://teakvault.com/api/v1/me", {
         headers: {
           Authorization: "Bearer teak_key",
-          // A client can never attest its own request.
           "x-teak-edge-rate-limit": "9999999999.forged",
         },
       }),
@@ -367,8 +355,6 @@ describe("edge rate limits", () => {
 });
 
 describe("upstream origin pinning", () => {
-  // A path that starts with "//" after the prefix is dropped must not be read
-  // as a protocol-relative URL that points the proxy at another host.
   test.each([
     "/api//evil.example/x",
     "/api/\\evil.example/x",

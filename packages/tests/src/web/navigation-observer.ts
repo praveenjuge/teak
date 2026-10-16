@@ -9,7 +9,6 @@ export interface NavigationObservation {
   loading: string[];
 }
 
-/** Observe the whole transition, including loading that disappears before readiness. */
 export async function observeNavigation(
   browser: Browser,
   navigate: () => Promise<unknown>,

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeImage } from "./imageAnalysis";
 import type { Env } from "./index";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng } from "./test/testsupport";
 
 const KEY = "users/u/cards/c/file/photo.png";
 const SVG_KEY = "users/u/cards/c/file/vector.svg";

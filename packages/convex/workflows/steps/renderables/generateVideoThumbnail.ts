@@ -59,7 +59,6 @@ export const generateVideoThumbnail = internalAction({
       };
     }
 
-    // Both keys are registered before anything writes them.
     const thumbnailKey =
       card.thumbnailKey ??
       buildR2ObjectKey({
@@ -131,7 +130,6 @@ export const generateVideoThumbnail = internalAction({
         ...(duration !== undefined && { duration }),
       }
     );
-    // Colors from the thumbnail and scrub frames, when the renderer sent them.
     if (frame.palette?.length) {
       await ctx.runMutation(
         internal.workflows.aiMetadata.mutations.updateCardColors,
@@ -142,9 +140,6 @@ export const generateVideoThumbnail = internalAction({
   },
 });
 
-/**
- * Manual trigger for video thumbnail generation (useful for testing)
- */
 export const manualTriggerVideoThumbnail = internalAction({
   args: {
     cardId: v.id("cards"),

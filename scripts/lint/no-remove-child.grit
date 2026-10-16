@@ -1,0 +1,6 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+`$parent.removeChild($child)` as $match where {
+  register_diagnostic(span=$match, message="Use node.remove(). The web app's PostHog filter drops removeChild NotFoundErrors as browser-extension noise (apps/web/src/lib/posthog-config.ts).", severity="error")
+}

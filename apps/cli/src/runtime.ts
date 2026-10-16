@@ -11,6 +11,12 @@ import {
 import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
+import {
+  isRefreshTokenDead,
+  isWorkosCredential,
+  matchesBinding,
+  refreshAndSave,
+} from "@teak/convex/client/oauthCredentials";
 import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
 import {
   type AuthDiscovery,
@@ -27,7 +33,7 @@ import {
   type TokenProvider,
 } from "@teak/convex/sdk";
 import { InvalidArgumentError } from "commander";
-import { withCredentialLock } from "./credentialLock";
+import { credentialLockPath, withCredentialLock } from "./credentialLock";
 
 const readPackageVersion = () => {
   try {
@@ -150,37 +156,42 @@ const parseCredentials = (text: string): StoredCredentials | null => {
     ...(savedBinding ? { binding: savedBinding } : {}),
   };
 };
+export const credentialSourceOrder = (
+  fileText: string
+): ("file" | "keychain")[] =>
+  readJson<Record<string, unknown>>(fileText)?.fallbackAuthority === true
+    ? ["file"]
+    : ["keychain", "file"];
+const readKeychain = (options: ClientOptions) => {
+  if (platform() !== "darwin") {
+    return "";
+  }
+  const found = spawnSync(
+    "security",
+    [
+      "find-generic-password",
+      "-a",
+      credentialAccount(options),
+      "-s",
+      SERVICE,
+      "-w",
+    ],
+    { encoding: "utf8" }
+  );
+  return found.status === 0 ? found.stdout.trim() : "";
+};
 export const readCredentials = (
   options: ClientOptions = {}
 ): StoredCredentials | null => {
   const file = credentialsPath(options);
-  const fallback = existsSync(file) ? readFileSync(file, "utf8") : "";
-  // Only new fallback writes claim precedence. Older files may be stale after
-  // a successful Keychain update and retain their original read ordering.
-  if (readJson<Record<string, unknown>>(fallback)?.fallbackAuthority === true) {
-    return parseCredentials(fallback);
-  }
-  if (platform() === "darwin") {
-    const found = spawnSync(
-      "security",
-      [
-        "find-generic-password",
-        "-a",
-        credentialAccount(options),
-        "-s",
-        SERVICE,
-        "-w",
-      ],
-      { encoding: "utf8" }
-    );
-    if (found.status === 0 && found.stdout.trim()) {
-      return parseCredentials(found.stdout.trim());
+  const fileText = existsSync(file) ? readFileSync(file, "utf8") : "";
+  for (const source of credentialSourceOrder(fileText)) {
+    const text = source === "file" ? fileText : readKeychain(options);
+    if (text) {
+      return parseCredentials(text);
     }
   }
-  if (!existsSync(credentialsPath(options))) {
-    return null;
-  }
-  return parseCredentials(readFileSync(credentialsPath(options), "utf8"));
+  return null;
 };
 
 const writeCredentials = (
@@ -277,30 +288,29 @@ const binding = (options: ClientOptions, auth: AuthDiscovery) => ({
   issuer: auth.issuer,
   clientId: auth.clients.cli,
 });
-// Unbound credentials predate WorkOS and never match the current provider.
+const savedBinding = ({ binding: saved }: StoredCredentials) =>
+  saved && {
+    origin: saved.apiUrl,
+    issuer: saved.issuer,
+    clientId: saved.clientId,
+  };
 const matchesProvider = (
   credentials: StoredCredentials,
   options: ClientOptions,
   auth: AuthDiscovery
-) => {
-  const saved = credentials.binding;
-  if (!saved) {
-    return false;
-  }
-  const next = binding(options, auth);
-  return (
-    saved.apiUrl === next.apiUrl &&
-    saved.issuer === next.issuer &&
-    saved.clientId === next.clientId
-  );
-};
+) =>
+  matchesBinding(savedBinding(credentials), {
+    origin: apiBaseUrl(options),
+    issuer: auth.issuer,
+    clientId: auth.clients.cli,
+  });
 const credentialOperation = <T>(
   options: ClientOptions,
   work: () => Promise<T>
 ) => {
   ensureConfigDir();
   return withCredentialLock(
-    path.join(configDir(), `credentials-${credentialAccount(options)}.lock`),
+    credentialLockPath(configDir(), credentialAccount(options)),
     work
   );
 };
@@ -310,48 +320,49 @@ const readLogoutMarker = (options: ClientOptions) =>
   existsSync(logoutMarker(options))
     ? readFileSync(logoutMarker(options), "utf8")
     : "";
-// Discovery already limits loopback endpoints to local deployments and an
-// approved development issuer, so protocol requests accept loopback hosts.
-const LOCAL_ENDPOINTS = true;
+const LOOPBACK_ALLOWED_AFTER_DISCOVERY = true;
+const refreshCredentials = (
+  current: StoredCredentials,
+  options: ClientOptions,
+  auth: AuthDiscovery
+) =>
+  refreshAndSave(
+    async () => {
+      const next = await exchangeToken(options, auth, {
+        grant_type: "refresh_token",
+        refresh_token: current.refreshToken,
+      });
+      if (next.binding && current.binding?.ownerId) {
+        next.binding.ownerId = current.binding.ownerId;
+      }
+      return next;
+    },
+    (next) => writeCredentials(next, options)
+  );
 const revokeCredentials = async (
   credentials: StoredCredentials,
   options: ClientOptions
 ) => {
-  // Anything not bound to a WorkOS client predates WorkOS. No Teak service
-  // accepts those tokens, so the caller only clears them locally.
-  const saved = credentials.binding;
-  if (!saved?.clientId.startsWith("client_")) {
+  const saved = savedBinding(credentials);
+  if (!isWorkosCredential(saved)) {
     return;
   }
-  if (saved.apiUrl !== apiBaseUrl(options)) {
+  if (saved.origin !== apiBaseUrl(options)) {
     throw new Error("Saved connection belongs to another deployment");
   }
   const result = await disconnectConnectGrant(
     apiBaseUrl(options),
     credentials.accessToken,
     {
-      local: LOCAL_ENDPOINTS,
-      // A completed receipt can accept the old token without refreshing a
-      // provider grant that has already been revoked.
+      local: LOOPBACK_ALLOWED_AFTER_DISCOVERY,
       refreshAccessToken: credentials.refreshToken
         ? async () => {
             const auth = await discovery(options, true);
             if (!matchesProvider(credentials, options, auth)) {
               throw new Error("Saved connection belongs to another provider");
             }
-            const renewed = await exchangeToken(options, auth, {
-              grant_type: "refresh_token",
-              // Runtime credential from secure storage, not a hard-coded token.
-              // nosemgrep: codacy.yaml.security.hard-coded-tokens
-              refresh_token: credentials.refreshToken,
-            });
-            // The caller holds the credential lock. Rotation must survive a
-            // failed disconnect; never restore the now invalid refresh token.
-            if (renewed.binding && saved.ownerId) {
-              renewed.binding.ownerId = saved.ownerId;
-            }
-            writeCredentials(renewed, options);
-            return renewed.accessToken;
+            return (await refreshCredentials(credentials, options, auth))
+              .accessToken;
           }
         : undefined,
     }
@@ -389,10 +400,10 @@ const exchangeToken = async (
   const result = await requestConnectTokens(auth, {
     clientId: auth.clients.cli,
     grant: body,
-    local: LOCAL_ENDPOINTS,
+    local: LOOPBACK_ALLOWED_AFTER_DISCOVERY,
   });
   if (!result.ok) {
-    throw result.reason === "refresh_token_rejected"
+    throw isRefreshTokenDead(result)
       ? new TeakApiError("AUTH_REQUIRED", undefined, { status: result.status })
       : new TeakApiError("UNAUTHORIZED", "Could not complete Teak sign-in.", {
           status: result.status,
@@ -436,7 +447,6 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         return null;
       }
       const auth = await discovery(options, force);
-      // Credentials for another provider stay saved until logout, never used.
       if (!matchesProvider(current, options, auth)) {
         return null;
       }
@@ -452,14 +462,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         return null;
       }
       try {
-        const next = await exchangeToken(options, auth, {
-          grant_type: "refresh_token",
-          refresh_token: current.refreshToken,
-        });
-        if (next.binding && current.binding?.ownerId) {
-          next.binding.ownerId = current.binding.ownerId;
-        }
-        writeCredentials(next, options);
+        const next = await refreshCredentials(current, options, auth);
         const latest = await discovery(options);
         if (!matchesProvider(next, options, latest)) {
           return null;
@@ -469,11 +472,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
           clearCredentials(options);
         }
-        try {
-          await discovery(options, true);
-        } catch {
-          /* Preserve the original error. */
-        }
+        await discovery(options, true).catch(() => {});
         throw error;
       }
     });
@@ -552,8 +551,6 @@ export const openBrowser = (url: string): Promise<boolean> => {
     command = "cmd";
   }
   const args = platform() === "win32" ? ["/c", "start", "", url] : [url];
-  // Resolves false when no opener exists, such as on a headless server, so
-  // callers can point to the printed URL instead of crashing.
   return new Promise<boolean>((resolve) => {
     try {
       const child = spawn(command, args, { detached: true, stdio: "ignore" });
@@ -638,7 +635,7 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               const ownerId = await fetchConnectOwnerId(
                 apiBaseUrl(options),
                 next.accessToken,
-                { local: LOCAL_ENDPOINTS }
+                { local: LOOPBACK_ALLOWED_AFTER_DISCOVERY }
               );
               if (!(ownerId && next.binding)) {
                 throw new Error(

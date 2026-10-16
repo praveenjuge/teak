@@ -48,7 +48,6 @@ class ConvexUserBootstrap @Inject constructor(
         throw SignInException(UNABLE_TO_OPEN_VAULT)
     }
 
-    /** Convex's HTTP API, so the token is used once without touching the app's live connection. */
     private suspend fun call(accessToken: String): JsonObject = withContext(Dispatchers.IO) {
         val body = buildJsonObject {
             put("path", "workosBootstrap:ensureUser")

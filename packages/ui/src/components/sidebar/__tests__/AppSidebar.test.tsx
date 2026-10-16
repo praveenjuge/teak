@@ -134,7 +134,6 @@ describe("AppSidebar", () => {
       "Trash",
       "Settings",
     ]);
-    // Folders come after the last place, Settings.
     const order = [
       ...document.querySelectorAll('a, [data-testid="folders"]'),
     ].map(
@@ -152,7 +151,6 @@ describe("AppSidebar", () => {
     expect(rail()?.getAttribute("aria-label")).toBe("Expand sidebar");
     await act(() => rail()?.click());
     expect(sidebarState()).toBe("expanded");
-    // Expanded, the edge resizes; a click leaves it open.
     expect(rail()?.getAttribute("aria-label")).toBe("Resize sidebar");
     await act(() => rail()?.click());
     expect(sidebarState()).toBe("expanded");

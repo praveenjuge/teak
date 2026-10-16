@@ -15,8 +15,7 @@
  * repository or deployment configuration). Warnings for unreachable
  * deployments and the per-developer .dev.vars file never block.
  *
- * A production CONVEX_DEPLOY_KEY is scoped to the production deployment, so
- * CI scopes the check with --only prod and gates on what the key can verify.
+ * --only checks one deployment, for a deploy key scoped to that deployment.
  *
  * Usage: bun run check:cloudflare [--only prod|dev]
  *        bun run scripts/check-cloudflare.ts [--only prod|dev]
@@ -24,10 +23,11 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/filesOrigins";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
-const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
+export const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
 const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
 const ISOLATED_DEV_VARS_PATH = join(
   ROOT,
@@ -91,17 +91,12 @@ export const parseConvexEnvOutput = (
 };
 
 export const PRODUCTION_STORAGE_BUCKET = "teak-files-prod";
-export const PRODUCTION_FILES_BASE = "https://files.teakvault.com";
+export const PRODUCTION_FILES_BASE = TEAK_FILES_ORIGINS.production;
 export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
 export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
-/**
- * workers.dev origin of the dedicated `teak-files-development` Worker on the
- * Teak account's `praveenjuge` subdomain. Web and shared UI trust
- * exactly this origin for the dev deployment; keep them in step.
- */
-export const DEVELOPMENT_FILES_ORIGIN =
-  "https://teak-files-development.praveenjuge.workers.dev";
+/** workers.dev origin of the dedicated `teak-files-development` Worker. */
+export const DEVELOPMENT_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 
 export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>
   value === DEVELOPMENT_FILES_ORIGIN;
@@ -145,18 +140,12 @@ export interface Finding {
   status: Status;
 }
 
-/**
- * Shared storage needs the production signing key; isolated storage must
- * never reuse it. Any non-credential setting stays identical.
- * Unknown dev routing (skipped/unavailable) keeps the shared expectations.
- */
 export const credentialParityFinding = (
   name: string,
   devState: DevStorageState | null,
   same: boolean
 ): Finding => {
   if (devState === "invalid") {
-    // The dev storage routing finding already blocks.
     return {
       status: "warn",
       detail: "not compared while dev storage routing is invalid",
@@ -182,8 +171,6 @@ export const credentialParityFinding = (
       };
 };
 
-// Convex holds no R2 or Workers AI credentials: every byte and AI operation
-// goes through the Files Worker, so its signing key is the only shared secret.
 const expectedProdVars = ["FILES_SIGNING_SECRET"] as const;
 
 const expectedDevVars = [
@@ -214,6 +201,17 @@ const log = (
   }
 };
 
+interface WranglerConfig {
+  ai?: { binding?: string };
+  env?: { development?: unknown };
+  images?: { binding?: string };
+  r2_buckets?: Array<{ binding?: string; bucket_name?: string }>;
+  vars?: Record<string, string>;
+}
+
+export const readWranglerConfig = (path: string) =>
+  Bun.JSONC.parse(readFileSync(path, "utf-8")) as WranglerConfig;
+
 const checkWrangler = () => {
   console.log("\n== Wrangler (apps/files-worker/wrangler.jsonc) ==");
   if (!existsSync(WRANGLER_PATH)) {
@@ -221,25 +219,21 @@ const checkWrangler = () => {
     return;
   }
   try {
-    const raw = readFileSync(WRANGLER_PATH, "utf-8");
-    // wrangler.jsonc may contain comments; strip // and /* */
-    const stripped = raw
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-    const cfg = JSON.parse(stripped);
+    const cfg = readWranglerConfig(WRANGLER_PATH);
     const hasEnvDev = Boolean(cfg.env?.development);
-    const bucketName = cfg.r2_buckets?.[0]?.bucket_name;
+    const buckets = cfg.r2_buckets ?? [];
+    const bucketName = buckets[0]?.bucket_name;
     let bucketStatus: Status = "missing";
     if (bucketName) {
       bucketStatus =
-        cfg.r2_buckets.length === 1 && bucketName === PRODUCTION_STORAGE_BUCKET
+        buckets.length === 1 && bucketName === PRODUCTION_STORAGE_BUCKET
           ? "ok"
           : "different";
     }
     log("top-level bucket", bucketStatus, bucketName ?? "no bucket");
     log(
       "top-level binding BUCKET",
-      cfg.r2_buckets?.[0]?.binding === "BUCKET" ? "ok" : "missing"
+      buckets[0]?.binding === "BUCKET" ? "ok" : "missing"
     );
     log("Images binding", cfg.images?.binding === "IMAGES" ? "ok" : "missing");
     log("AI binding", cfg.ai?.binding === "AI" ? "ok" : "missing");

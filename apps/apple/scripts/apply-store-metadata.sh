@@ -82,7 +82,6 @@ if ! jq -e --slurpfile config "$config" --arg notes "$notes" --arg first "$FIRST
 fi
 echo "- Verified $PLATFORM listing ($locale) from $config; app info $app_info_note" >> "$GITHUB_STEP_SUMMARY"
 
-# Screenshots. An empty folder keeps what App Store Connect already has.
 for set_name in "${screenshot_sets[@]}"; do
   directory="apps/apple/store/screenshots/$set_name/$locale"
   shopt -s nullglob

@@ -8,7 +8,10 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import {
+  accountDeletionOwnsRows,
+  getAccountDeletionState,
+} from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { getSessionUser } from "../securitySessions";
 import {
@@ -40,11 +43,6 @@ export const TAG_OPERATION_PASS_DELAY_MS = 2000;
  * stuck sync delays completion by at most half a minute.
  */
 export const TAG_OPERATION_MAX_SYNC_WAITS = 15;
-/**
- * Whether one of the user's cards may still be on its way into the index.
- * Reads only the user's own pending syncs, so other users' card writes never
- * conflict with the batch.
- */
 const hasPendingTagSync = async (ctx: MutationCtx, userId: string) =>
   (await ctx.db
     .query("cardSearchTagSyncStates")
@@ -178,8 +176,6 @@ export const startTagOperationForUser = async (
   const now = Date.now();
   const running = await runningOperation(ctx, userId);
   if (running) {
-    // A lost batch never blocks tag changes for good: a run that stopped
-    // making progress is marked failed and replaced.
     if (running.updatedAt + TAG_OPERATION_STALL_MS > now) {
       throw new ConvexError({
         code: "TAG_OPERATION_RUNNING",
@@ -212,8 +208,6 @@ export const startTagOperationForUser = async (
     });
   }
 
-  // Count the cards carrying the tag (all states), so progress can say
-  // "120 of 300". Bounded; very large tags report the bound.
   let total = 0;
   for await (const _row of ctx.db
     .query("cardSearchTags")
@@ -278,9 +272,7 @@ export const runTagOperationBatchHandler = async (
   if (operation?.status !== "running") {
     return { done: true };
   }
-  // Account deletion removes the user's cards and operations itself, and
-  // card writes stand down meanwhile.
-  if (await getAccountDeletionState(ctx, operation.userId)) {
+  if (await accountDeletionOwnsRows(ctx, operation.userId)) {
     return { done: true };
   }
   const page = await ctx.db
@@ -301,8 +293,6 @@ export const runTagOperationBatchHandler = async (
   const toKey = operation.to === undefined ? undefined : tagKey(operation.to);
   const hasTag = (list: readonly string[] | undefined, key: string) =>
     list?.some((tag) => tagKey(tag) === key) ?? false;
-  // A card keeps one copy of the target: when only its other list (user or
-  // AI tags) has it, this list just drops the source.
   const rewriteFor = (
     own: readonly string[] | undefined,
     other: readonly string[] | undefined
@@ -328,7 +318,6 @@ export const runTagOperationBatchHandler = async (
     if (!(tags || aiTags)) {
       continue;
     }
-    // AI tags stay AI tags: each list is rewritten in place.
     await patchCardWithSearchSync(ctx, card._id, {
       ...(tags ? { tags: tags.length > 0 ? tags : undefined } : {}),
       ...(aiTags ? { aiTags: aiTags.length > 0 ? aiTags : undefined } : {}),
@@ -339,7 +328,6 @@ export const runTagOperationBatchHandler = async (
 
   const passChanged = (operation.passChanged ?? 0) + changed;
   const progress = {
-    // Later passes only sweep up stragglers, so progress counts the first.
     processed:
       (operation.pass ?? 1) === 1
         ? operation.processed + page.page.length
@@ -351,8 +339,6 @@ export const runTagOperationBatchHandler = async (
     const pass = operation.pass ?? 1;
     const syncWaits = operation.syncWaits ?? 0;
     if (passChanged === 0 || pass >= TAG_OPERATION_MAX_PASSES) {
-      // A tag sync still running may yet add a card with the tag: sweep
-      // again once it lands.
       if (
         syncWaits < TAG_OPERATION_MAX_SYNC_WAITS &&
         (await hasPendingTagSync(ctx, operation.userId))
@@ -379,7 +365,6 @@ export const runTagOperationBatchHandler = async (
       });
       return { done: true };
     }
-    // Another pass from the start once pending tag syncs have landed.
     await ctx.db.patch("tagOperations", operationId, {
       ...progress,
       cursor: undefined,

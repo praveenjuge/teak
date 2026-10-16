@@ -46,7 +46,6 @@ export const DEV_TARGETS: Record<string, string[]> = {
 
 export const FILES_TARGETS = new Set(["files", "files:local"]);
 
-/** Matrix names that resolve to a dev target. */
 export const TARGET_ALIASES: Record<string, string> = {
   "files-worker": "files",
 };
@@ -81,7 +80,6 @@ export interface DevArgs {
    */
   detach: boolean;
   headless: boolean;
-  /** Take over pushing the backend from whichever checkout holds the lease. */
   push: boolean;
   target: string;
 }
@@ -145,7 +143,6 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   };
 };
 
-/** The web stack runs on its own; everything else goes through Turbo. */
 export const usesWebStack = (args: DevArgs): boolean =>
   args.target === "web" && !args.all;
 
@@ -202,8 +199,6 @@ const runningStack = (): StackState | null => {
   return state && isStackRunning(state) ? state : null;
 };
 
-// A stack whose owner was killed outright leaves its backend and web server
-// running; stop them before anything else looks at this checkout's stack.
 const stopOrphans = async () => {
   if (await stopOrphanedStack(ROOT)) {
     console.log("Cleaned up a stack left behind by a process that exited.");
@@ -226,8 +221,6 @@ const stopStack = async (): Promise<number> => {
     console.error(`The stack (pid ${state.pid}) did not stop within 30s.`);
     return 1;
   }
-  // A stack that died before stopping its servers leaves its state file
-  // behind; stop what it left so one --stop always finishes the job.
   await stopOrphanedStack(ROOT);
   console.log("Stopped this checkout's stack.");
   return 0;
@@ -245,7 +238,6 @@ const describeRunning = (running: StackState): string[] => {
   ];
 };
 
-/** What an agent needs to know about this checkout's stack, in a few lines. */
 export const describeStatus = (
   ports: WorktreePorts,
   running: StackState | null
@@ -380,11 +372,6 @@ const runWebStack = async (push: boolean): Promise<number> => {
 const DETACHED_LOG = join(ROOT, ".agents/.state/dev-detached.log");
 const DETACH_READY_TIMEOUT_MS = 300_000;
 
-/**
- * Runs `bun run dev` in a new session with its output in a log file, waits
- * until the stack is ready, and returns. The stack keeps running after this
- * process and its shell exit.
- */
 const runDetached = async (push: boolean): Promise<number> => {
   await stopOrphans();
   const logPath = DETACHED_LOG.replace(`${ROOT}/`, "");
@@ -420,8 +407,6 @@ const runDetached = async (push: boolean): Promise<number> => {
       `Starting the web stack in the background (pid ${child.pid}); its output goes to ${logPath}…`
     );
   }
-  // A stack that is still starting, ours or one already running, is only
-  // reported once it is ready.
   const deadline = Date.now() + DETACH_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (exitCode !== null) {
@@ -490,9 +475,6 @@ const main = async (): Promise<void> => {
       : await runWebStack(parsed.push);
     return;
   }
-  // Fail fast before Turbo spawns watchers (skip for --check dry-runs).
-  // Only the web stack needs apps/web/.env.local; extension uses its own
-  // VITE_PUBLIC_CONVEX_* variables and must stay runnable without web env.
   if (
     parsed.action === "run" &&
     needsWebEnv(parsed.target, parsed.all) &&

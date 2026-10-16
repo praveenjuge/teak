@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   afterAll,
   beforeAll,
@@ -8,42 +7,21 @@ import {
   mock,
   test,
 } from "bun:test";
+import type { LinkCategory, LinkCategoryMetadata } from "../../../../shared";
+import {
+  asFetch,
+  mockActionCtx,
+  testId,
+} from "../../../helpers/convex.test-utils";
+import { mockSafeFetchPassthrough } from "../../../helpers/ssrf.test-utils";
 
-// Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
-// global fetch and treat every URL as safe. The real outbound URL policy is
-// exercised in linkMetadata/ssrf.test.ts.
-mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
-  SsrfError: class SsrfError extends Error {
-    reason: string;
-    constructor(reason: string, message?: string) {
-      super(message ?? reason);
-      this.name = "SsrfError";
-      this.reason = reason;
-    }
-  },
-  isBlockedIp: () => false,
-  detectIpVersion: () => 0,
-  assertUrlStructureSafe: (url: string) => new URL(url),
-  assertUrlIsSafe: async (url: string) => new URL(url),
-  safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
-    global.fetch(url, init),
-  readBodyWithLimit: async (
-    response: { text: () => Promise<string> },
-    maxBytes: number
-  ) => {
-    const body = new TextEncoder().encode(await response.text());
-    if (body.byteLength > maxBytes) {
-      throw new Error("Response body exceeds the allowed size");
-    }
-    return body;
-  },
-}));
+mockSafeFetchPassthrough();
 
-// Setup fetch mock that can be restored
 const originalFetch = global.fetch;
 const mockFetch = mock();
 
 import {
+  type CategorizationContextCard,
   classifyHandler,
   classifyLinkCategory,
   enrichLinkCategory,
@@ -51,16 +29,25 @@ import {
   mergeAndSaveHandler,
 } from "../../../../../convex/workflows/steps/categorization/index";
 
+const CARD_ID = testId("cards", "c1");
+
+const linkCard = (
+  fields: Partial<CategorizationContextCard>
+): CategorizationContextCard => ({ _id: CARD_ID, type: "link", ...fields });
+
+const factValue = (result: LinkCategoryMetadata, label: string) =>
+  result.facts?.find((fact) => fact.label === label)?.value;
+
 describe("categorization index", () => {
   const mockRunQuery = mock();
   const mockRunMutation = mock();
-  const ctx = {
+  const ctx = mockActionCtx({
     runQuery: mockRunQuery,
     runMutation: mockRunMutation,
-  } as any;
+  });
 
   beforeAll(() => {
-    global.fetch = mockFetch;
+    global.fetch = asFetch(mockFetch);
   });
 
   afterAll(() => {
@@ -75,43 +62,45 @@ describe("categorization index", () => {
 
   describe("classifyLinkCategory", () => {
     test("classifies correctly", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://github.com/microsoft/vscode",
         metadata: {
           linkPreview: { status: "success", title: "VS Code" },
         },
-      };
+      });
       const result = await classifyLinkCategory(card);
-      expect(result.category).toBe("software");
-      expect(result.providerHint).toBe("github");
+      expect(result).toMatchObject({
+        category: "software",
+        providerHint: "github",
+      });
     });
 
     test("returns null for missing targetUrl", async () => {
-      expect(await classifyLinkCategory({})).toBeNull();
+      expect(await classifyLinkCategory(linkCard({}))).toBeNull();
     });
 
     test("uses linkPreview finalUrl if available", async () => {
-      const card = {
+      const card = linkCard({
         metadata: {
           linkPreview: { status: "success", finalUrl: "https://amazon.com/p" },
         },
-      };
+      });
       const result = await classifyLinkCategory(card);
-      expect(result.providerHint).toBe("amazon");
+      expect(result).toMatchObject({ providerHint: "amazon" });
     });
   });
 
   describe("classifyHandler", () => {
     test("skips if card was deleted before categorization", async () => {
       mockRunQuery.mockResolvedValue(null);
-      await expect(classifyHandler(ctx, { cardId: "c1" })).resolves.toEqual({
+      await expect(classifyHandler(ctx, { cardId: CARD_ID })).resolves.toEqual({
         mode: "missing",
       });
     });
 
     test("throws if card type is not link", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "text" });
-      await expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      await expect(classifyHandler(ctx, { cardId: CARD_ID })).rejects.toThrow(
         "is not a link card"
       );
     });
@@ -131,7 +120,7 @@ describe("categorization index", () => {
         },
       });
 
-      const result = await classifyHandler(ctx, { cardId: "c1" });
+      const result = await classifyHandler(ctx, { cardId: CARD_ID });
       expect(result.mode).toBe("skipped");
     });
 
@@ -150,13 +139,13 @@ describe("categorization index", () => {
         },
       });
 
-      const result = await classifyHandler(ctx, { cardId: "c1" });
+      const result = await classifyHandler(ctx, { cardId: CARD_ID });
       expect(result.mode).toBe("classified");
     });
 
     test("throws if classification fails", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "link", url: "" });
-      await expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      await expect(classifyHandler(ctx, { cardId: CARD_ID })).rejects.toThrow(
         "Failed to classify"
       );
     });
@@ -168,9 +157,11 @@ describe("categorization index", () => {
         url: "https://example.com",
       });
 
-      const result = await classifyHandler(ctx, { cardId: "c1" });
-      expect(result.mode).toBe("classified");
-      expect(result.classification).toBeDefined();
+      const result = await classifyHandler(ctx, { cardId: CARD_ID });
+      expect(result).toMatchObject({
+        mode: "classified",
+        classification: expect.anything(),
+      });
     });
   });
 
@@ -188,7 +179,7 @@ describe("categorization index", () => {
       });
 
       const result = await fetchStructuredDataHandler(ctx, {
-        cardId: "c1",
+        cardId: CARD_ID,
         sourceUrl: "https://amazon.com/hobbit",
         shouldFetch: true,
       });
@@ -197,6 +188,8 @@ describe("categorization index", () => {
 
     test("returns null if shouldFetch is false", async () => {
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
+        sourceUrl: "https://example.com",
         shouldFetch: false,
       });
       expect(result.structuredData).toBeNull();
@@ -205,6 +198,7 @@ describe("categorization index", () => {
     test("returns null if fetch fails", async () => {
       mockFetch.mockResolvedValue({ ok: false });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -217,6 +211,7 @@ describe("categorization index", () => {
         headers: new Map([["content-type", "application/json"]]),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -226,6 +221,7 @@ describe("categorization index", () => {
     test("handles fetch exception", async () => {
       mockFetch.mockRejectedValue(new Error("Network fail"));
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -240,6 +236,7 @@ describe("categorization index", () => {
         text: () => Promise.resolve(largeText),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -253,6 +250,7 @@ describe("categorization index", () => {
         text: () => Promise.resolve(""),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -273,6 +271,7 @@ describe("categorization index", () => {
           ),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -288,6 +287,7 @@ describe("categorization index", () => {
         ]),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -309,6 +309,7 @@ describe("categorization index", () => {
         `),
       });
       const result = await fetchStructuredDataHandler(ctx, {
+        cardId: CARD_ID,
         shouldFetch: true,
         sourceUrl: "https://example.com",
       });
@@ -320,12 +321,12 @@ describe("categorization index", () => {
 
   describe("enrichLinkCategory", () => {
     test("enriches with provider data (Amazon)", async () => {
-      const card = { url: "https://amazon.com/p" };
+      const card = linkCard({ url: "https://amazon.com/p" });
       const classification = {
         category: "product",
         providerHint: "amazon",
         confidence: 0.9,
-      };
+      } as const;
       const result = await enrichLinkCategory(card, classification, {
         structuredData: null,
       });
@@ -334,45 +335,39 @@ describe("categorization index", () => {
     });
 
     test("covers stringArray and valueToText branches", async () => {
-      // Test stringArray with string value
       const entity = {
         "@type": "Recipe",
         name: "R",
         recipeIngredient: "single ingredient",
       };
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
         {
           structuredData: { entities: [entity] },
         }
       );
-      expect(result.facts.find((f) => f.label === "Ingredients").value).toBe(
-        "single ingredient"
-      );
+      expect(factValue(result, "Ingredients")).toBe("single ingredient");
 
-      // Test stringArray with object containing name
       const entity2 = {
         "@type": "Recipe",
         name: "R",
         recipeIngredient: { name: "obj ingredient" },
       };
       const result2 = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
         {
           structuredData: { entities: [entity2] },
         }
       );
-      expect(result2.facts.find((f) => f.label === "Ingredients").value).toBe(
-        "obj ingredient"
-      );
+      expect(factValue(result2, "Ingredients")).toBe("obj ingredient");
     });
 
     test("covers normalizeImage branches", async () => {
       const entity = { "@type": "Book", image: [{ url: "https://img1.com" }] };
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "book", confidence: 0.9 },
         {
           structuredData: { entities: [entity] },
@@ -382,7 +377,7 @@ describe("categorization index", () => {
     });
 
     test("covers buildRawSelectorMap branches", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://github.com/a/b",
         metadata: {
           linkPreview: {
@@ -396,17 +391,17 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "software",
         providerHint: "github",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "Stars").value).toBe("1,200");
+      expect(factValue(result, "Stars")).toBe("1,200");
     });
 
     test("covers complex providerEnrichment image branch using Dribbble", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://dribbble.com/shots/1",
         metadata: {
           linkPreview: {
@@ -426,7 +421,6 @@ describe("categorization index", () => {
                 selector: ".shot-stats [data-label='Likes']",
                 results: [{ text: "100" }],
               },
-              // Twitter stats to cover mapLabelToStat branches
               {
                 selector: "meta[name='twitter:label1']",
                 results: [
@@ -447,7 +441,6 @@ describe("categorization index", () => {
                 selector: "meta[name='twitter:data2']",
                 results: [{ attributes: [{ name: "content", value: "300" }] }],
               },
-              // designer name from title
               {
                 selector: "meta[property='og:title']",
                 results: [
@@ -461,7 +454,6 @@ describe("categorization index", () => {
                   },
                 ],
               },
-              // keywords
               {
                 selector: "meta[name='keywords']",
                 results: [
@@ -471,25 +463,19 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "design_portfolio",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "Views").value).toBe("200");
-      expect(result.facts.find((f) => f.label === "Comments").value).toBe(
-        "300"
-      );
-      expect(result.facts.find((f) => f.label === "Designer").value).toBe(
-        "Designer Name"
-      );
-      expect(result.facts.find((f) => f.label === "Tags").value).toBe(
-        "a, b, c"
-      );
+      expect(factValue(result, "Views")).toBe("200");
+      expect(factValue(result, "Comments")).toBe("300");
+      expect(factValue(result, "Designer")).toBe("Designer Name");
+      expect(factValue(result, "Tags")).toBe("a, b, c");
     });
 
     test("covers Goodreads enrichment", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://goodreads.com/b",
         metadata: {
           linkPreview: {
@@ -510,21 +496,17 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "book",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "Average rating").value).toBe(
-        "4.50 / 5"
-      );
-      expect(result.facts.find((f) => f.label === "Ratings").value).toBe(
-        "1,000"
-      );
+      expect(factValue(result, "Average rating")).toBe("4.50 / 5");
+      expect(factValue(result, "Ratings")).toBe("1,000");
     });
 
     test("covers IMDb enrichment", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://imdb.com/m",
         metadata: {
           linkPreview: {
@@ -551,25 +533,19 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "movie",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "IMDb rating").value).toBe(
-        "8.50 / 10"
-      );
-      expect(result.facts.find((f) => f.label === "Votes").value).toBe("5,000");
-      expect(result.facts.find((f) => f.label === "Runtime").value).toBe(
-        "2h 30m"
-      );
-      expect(result.facts.find((f) => f.label === "Released").value).toBe(
-        "Jan 1, 2020"
-      );
+      expect(factValue(result, "IMDb rating")).toBe("8.50 / 10");
+      expect(factValue(result, "Votes")).toBe("5,000");
+      expect(factValue(result, "Runtime")).toBe("2h 30m");
+      expect(factValue(result, "Released")).toBe("Jan 1, 2020");
     });
 
     test("covers Amazon enrichment", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://amazon.com/p",
         metadata: {
           linkPreview: {
@@ -586,18 +562,16 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "product",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "Price").value).toBe(
-        "$19.99 USD"
-      );
+      expect(factValue(result, "Price")).toBe("$19.99 USD");
     });
 
     test("covers full GitHub enrichment", async () => {
-      const card = {
+      const card = linkCard({
         url: "https://github.com/a/b",
         metadata: {
           linkPreview: {
@@ -623,27 +597,23 @@ describe("categorization index", () => {
             ],
           },
         },
-      };
+      });
       const result = await enrichLinkCategory(card, {
         category: "software",
         confidence: 0.9,
       });
-      expect(result.facts.find((f) => f.label === "Stars").value).toBe("100");
-      expect(result.facts.find((f) => f.label === "Forks").value).toBe("20");
-      expect(result.facts.find((f) => f.label === "Watchers").value).toBe("5");
-      expect(result.facts.find((f) => f.label === "Language").value).toBe(
-        "TypeScript"
-      );
-      expect(result.facts.find((f) => f.label === "Updated").value).toBe(
-        "Jan 1, 2023"
-      );
+      expect(factValue(result, "Stars")).toBe("100");
+      expect(factValue(result, "Forks")).toBe("20");
+      expect(factValue(result, "Watchers")).toBe("5");
+      expect(factValue(result, "Language")).toBe("TypeScript");
+      expect(factValue(result, "Updated")).toBe("Jan 1, 2023");
     });
 
     test("covers null returns from providers when no data", async () => {
       const providers = ["github", "amazon", "imdb", "goodreads", "dribbble"];
       for (const p of providers) {
         const result = await enrichLinkCategory(
-          { url: `https://${p}.com/test` },
+          linkCard({ url: `https://${p}.com/test` }),
           { category: "article", confidence: 0.9 }
         );
         expect(result.facts).toBeUndefined();
@@ -651,25 +621,22 @@ describe("categorization index", () => {
     });
 
     test("covers various edge cases in helpers", async () => {
-      // normalizeUrlForComparison catch
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         type: "link",
         url: "https://[invalid]",
       });
-      const res1 = await classifyHandler(ctx, { cardId: "c1" });
-      expect(res1.sourceUrl).toBe("https://[invalid]");
+      const res1 = await classifyHandler(ctx, { cardId: CARD_ID });
+      expect(res1).toMatchObject({ sourceUrl: "https://[invalid]" });
 
-      // detectProvider catch
       const res2 = await enrichLinkCategory(
-        { url: "https://[invalid]" },
+        linkCard({ url: "https://[invalid]" }),
         { category: "article", confidence: 0.5 }
       );
       expect(res2).toBeDefined();
 
-      // stringArray with non-name object
       const res3 = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
         {
           structuredData: {
@@ -681,15 +648,14 @@ describe("categorization index", () => {
       );
       expect(res3.facts).toBeUndefined();
 
-      // valueToText with number
       const res4 = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
         {
           structuredData: { entities: [{ "@type": "Recipe", recipeYield: 5 }] },
         }
       );
-      expect(res4.facts?.find((f) => f.label === "Servings").value).toBe("5");
+      expect(factValue(res4, "Servings")).toBe("5");
     });
 
     test("covers design_portfolio category in enrichWithStructuredData", async () => {
@@ -699,17 +665,21 @@ describe("categorization index", () => {
         author: { name: "C" },
       };
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "design_portfolio", confidence: 0.9 },
         {
           structuredData: { entities: [entity] },
         }
       );
-      expect(result.facts?.find((f) => f.label === "Creator").value).toBe("C");
+      expect(factValue(result, "Creator")).toBe("C");
     });
 
     test("handles various categories in enrichWithStructuredData", async () => {
-      const cases = [
+      const cases: {
+        category: LinkCategory;
+        entity: Record<string, unknown>;
+        expectedFacts: string[];
+      }[] = [
         {
           category: "book",
           entity: {
@@ -834,14 +804,14 @@ describe("categorization index", () => {
 
       for (const c of cases) {
         const result = await enrichLinkCategory(
-          { url: "https://x.com" },
+          linkCard({ url: "https://x.com" }),
           { category: c.category, confidence: 0.9 },
           {
             structuredData: { entities: [c.entity] },
           }
         );
         for (const fact of c.expectedFacts) {
-          expect(result.facts.some((f) => f.label === fact)).toBe(true);
+          expect((result.facts ?? []).some((f) => f.label === fact)).toBe(true);
         }
       }
     });
@@ -855,16 +825,14 @@ describe("categorization index", () => {
         recipeIngredient: ["a", { name: "b" }, 123],
       };
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "recipe", confidence: 0.9 },
         {
           structuredData: { entities: [entity] },
         }
       );
-      expect(result.facts.find((f) => f.label === "Servings").value).toBe("4");
-      expect(
-        result.facts.find((f) => f.label === "Ingredients").value
-      ).toContain("a, b");
+      expect(factValue(result, "Servings")).toBe("4");
+      expect(factValue(result, "Ingredients")).toContain("a, b");
     });
 
     test("handles various image formats in normalizeImage", async () => {
@@ -873,7 +841,7 @@ describe("categorization index", () => {
         image: ["https://img1.com", { url: "https://img2.com" }],
       };
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "book", confidence: 0.9 },
         {
           structuredData: { entities: [entity] },
@@ -883,7 +851,7 @@ describe("categorization index", () => {
 
       const imageObj = { "@type": "Book", image: { url: "https://img3.com" } };
       const result2 = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "book", confidence: 0.9 },
         {
           structuredData: { entities: [imageObj] },
@@ -907,17 +875,17 @@ describe("categorization index", () => {
         "https://substack.com/p",
       ];
       for (const url of urls) {
-        const result = await enrichLinkCategory(
-          { url },
-          { category: "article", confidence: 0.9 }
-        );
+        const result = await enrichLinkCategory(linkCard({ url }), {
+          category: "article",
+          confidence: 0.9,
+        });
         expect(result.detectedProvider).toBeDefined();
       }
     });
 
     test("returns null from enrichWithStructuredData if no data found", async () => {
       const result = await enrichLinkCategory(
-        { url: "https://x.com" },
+        linkCard({ url: "https://x.com" }),
         { category: "book", confidence: 0.9 },
         {
           structuredData: { entities: [{ "@type": "Other" }] },

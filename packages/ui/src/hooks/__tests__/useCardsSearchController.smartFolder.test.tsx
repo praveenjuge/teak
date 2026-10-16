@@ -55,8 +55,6 @@ const SMART = "folder_smart" as Id<"folders">;
 
 test("in a smart folder, instant local hits must match its search too", async () => {
   await render({ folderId: SMART, folderQuery: "tag:design" });
-  // No card is in a smart folder; it shows whatever matches its search,
-  // which is part of the query so an edit starts a new one.
   expect(controller.queryArgs).toMatchObject({
     folderId: SMART,
     folderQuery: "tag:design",

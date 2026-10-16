@@ -138,8 +138,6 @@ describe("raw metadata pipeline", () => {
       } else {
         expect(part?.raw).toEqual(raw);
         expect(objects.size).toBe(0);
-        // No archive upload or read; signed ops such as card embedding are
-        // other work.
         expect(
           fetchMock.mock.calls.filter(
             ([url]) => !new URL(url).pathname.startsWith("/__ops/")

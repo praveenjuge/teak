@@ -122,11 +122,6 @@ function validNumber(value: unknown): number | undefined {
 /** Longest imported title kept; longer ones are cut, as card creation does. */
 export const MAX_IMPORT_TITLE_LENGTH = 512;
 
-/**
- * Folder names from an archive card: names a folder can't have are dropped
- * rather than failing the card, and the list is deduped ignoring case and
- * capped at a card's folder limit.
- */
 function importFolderNames(raw: unknown): string[] | undefined {
   if (raw === undefined || raw === null) {
     return;
@@ -159,7 +154,6 @@ function importTitle(raw: unknown): string | undefined {
     return;
   }
   let title = raw.trim().slice(0, MAX_IMPORT_TITLE_LENGTH);
-  // Never end on half of an emoji's surrogate pair.
   if (/[\uD800-\uDBFF]$/.test(title)) {
     title = title.slice(0, -1);
   }

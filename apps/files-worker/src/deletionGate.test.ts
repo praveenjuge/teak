@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { freezeObject, gatedBucket, ObjectDeletionGate } from "./deletionGate";
-import { FakeBucket, withObjectGates } from "./testsupport";
+import { FakeBucket, withObjectGates } from "./test/testsupport";
 
 const fixture = (put: () => Promise<unknown> = () => Promise.resolve(null)) => {
   const values = new Map<string, unknown>();
@@ -97,6 +97,11 @@ describe("exact object deletion fence", () => {
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
     expect(t.values.has("active")).toBe(true);
     expect((await t.request("put", "retry")).status).toBe(409);
+  });
+  test("an unknown operation is refused without holding the key busy", async () => {
+    const t = fixture();
+    expect((await t.request("rename")).status).toBe(400);
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: true });
   });
   test.each(["create", "complete", "part"])(
     "ambiguous multipart %s cannot certify deletion",

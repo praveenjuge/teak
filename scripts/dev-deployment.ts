@@ -1,13 +1,3 @@
-/**
- * The shared cloud dev deployment that `bun run dev` uses in every checkout
- * and cloud session, and the rules for reaching it.
- *
- * A Mac checkout reaches it with the developer's Convex login, selected in
- * packages/convex/.env.local. A cloud session has no login; it exports a dev
- * deploy key scoped to this one deployment as CONVEX_DEPLOY_KEY. Any other
- * key or selection is refused, so dev never touches production.
- */
-
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   DEFAULT_TEAK_DEV_CONVEX_SITE_URL,
@@ -152,10 +142,8 @@ export const selectDevDeployment = (dotenvPath: string): void =>
     siteUrl: DEV_DEPLOYMENT_URLS.convexSiteUrl,
   });
 
-/** Deployment variables the web app needs; setup fails without them. */
 export const REQUIRED_DEV_VARS = ["WORKOS_CLIENT_ID", "WORKOS_API_KEY"];
 
-/** Owner-managed variables that dev tooling uses; missing ones only warn. */
 export const RECOMMENDED_DEV_VARS = [
   "TEAK_DEV_DEPLOYMENT",
   "TEAK_DEV_APP_URL",

@@ -54,12 +54,13 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { cardTypes, cardTypeValidator, searchModeValidator } from "./schema";
+import { cardTypeValidator, searchModeValidator } from "./schema";
 import {
   type SemanticRanking,
   semanticRankingValidator,
 } from "./search/semanticCache";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import { type CardType, cardTypes } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
 import { matchesSearchPhrases } from "./shared/search/qualifiers";
 import {
@@ -133,45 +134,35 @@ const bulkResultValidator = v.object({
 });
 
 interface SearchOptions {
-  /** Archived cards outside Trash; defaults to `"exclude"`. */
   archived?: ArchivedFilter;
-  /** In Trash, only the cards that were archived (`is:archived`). */
   archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
-  /** Only cards in this folder; the caller checked it is the user's. */
   folderId?: Id<"folders">;
-  /** Folders a card must also be in (`folder:`), already resolved. */
   folderIds?: Id<"folders">[];
   hexFilters?: string[];
   hueFilters?: string[];
   limit?: number;
-  /** Quoted phrases a card's text must contain. */
   phrases?: string[];
   searchQuery?: string;
   /** Meaning matches to fuse with the keyword ones, and how. */
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
-  /** Normalized hosts (`site:`); a card on any of them matches. */
   sites?: string[];
   sort?: ApiCardSort;
   styleFilters?: string[];
   tag?: string;
-  /** More tags a card must carry besides `tag`. */
   tags?: string[];
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }
 
-// A card's position in list order: createdAt for date-filtered listings,
-// _creationTime for the others.
 interface ListAnchor {
   createdAt: number;
   creationTime: number;
 }
 
-// Search and tag pages resume strictly after the last card they returned.
 interface MatchAnchor {
   createdAt: number;
   id: string;
@@ -179,7 +170,6 @@ interface MatchAnchor {
 
 type ApiCursor =
   | { mode: "start" }
-  // Keyset cursors: stable when cards are added or removed between pages.
   | { mode: "list"; anchor?: ListAnchor; page?: string }
   | { mode: "match"; anchor: MatchAnchor }
   // Cursors issued before keyset paging. Still accepted so a client that is
@@ -259,8 +249,6 @@ const matchesCreatedAt = (
 const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions,
-  // The card's search document text, when the caller read it: it holds the
-  // card's extracted text too, which quoted phrases also match.
   searchableText?: string
 ): boolean => {
   if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
@@ -439,7 +427,6 @@ const listAnchorOf = (card: Doc<"cards">): ListAnchor => ({
   creationTime: card._creationTime,
 });
 
-// True when `card` sorts strictly after `anchor` in the requested order.
 const isAfterMatchAnchor = (
   card: Doc<"cards">,
   anchor: MatchAnchor,
@@ -451,10 +438,6 @@ const isAfterMatchAnchor = (
     sort
   ) > 0;
 
-// Full-text pages are cut from one fixed candidate set: the first
-// MAX_QUERY_SCAN matches by relevance, sorted by creation date. Every page
-// reads the same set, so pages never overlap or skip, whatever the page size,
-// and the last page ends the search cleanly.
 const SEARCH_CANDIDATE_LIMIT = MAX_QUERY_SCAN;
 
 const searchCardsByQuery = async (
@@ -539,11 +522,6 @@ const searchCardsByQuery = async (
   };
 };
 
-/**
- * Reads the tag page after `anchor`. Tag rows are read in (createdAt, card id)
- * order, the same order compareCards uses, so each type group only needs the
- * first `limit + 1` matches after the anchor.
- */
 const searchCardsByTag = async (
   ctx: QueryCtx,
   userId: TeakUserId,
@@ -599,13 +577,6 @@ const searchCardsByTag = async (
   return { cards: sorted.slice(0, limit), hasMore: sorted.length > limit };
 };
 
-/**
- * Builds the listing query, ordered by `createdAt` (ties by insertion order).
- * With an anchor, the range starts at the anchor's position so a page resumes
- * right after the last card returned, even when cards were added or removed
- * in between. The anchor bound is inclusive; cards that share its createdAt
- * and come before it are skipped while reading (see isAtOrBeforeListAnchor).
- */
 const createBaseQuery = (
   ctx: QueryCtx,
   userId: TeakUserId,
@@ -620,7 +591,6 @@ const createBaseQuery = (
   } else if (anchor) {
     lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
   }
-  // One site reads its host index; the scan filters everything else.
   const host = options.sites?.length === 1 ? options.sites[0] : undefined;
   if (host && !options.showTrashOnly && options.archived !== "include") {
     return buildHostCardListQuery(ctx, {
@@ -640,8 +610,6 @@ const createBaseQuery = (
   });
 };
 
-// In createdAt order, cards sharing the anchor's createdAt are ordered by
-// _creationTime; those up to and including the anchor were already served.
 const isAtOrBeforeListAnchor = (
   card: Doc<"cards">,
   anchor: ListAnchor | undefined,
@@ -658,11 +626,6 @@ const isAtOrBeforeListAnchor = (
     : card._creationTime <= anchor.creationTime;
 };
 
-/**
- * A folder listing: the folder's rows in `createdAt` order, resuming after
- * the anchor row like createBaseQuery does for the library. Anchors carry
- * the row's own creation time, which orders rows that share a date.
- */
 const scanFolderCards = async (
   ctx: QueryCtx,
   options: SearchOptions & { folderId: Id<"folders"> },
@@ -749,7 +712,6 @@ const scanCardsWithBaseQuery = async (
     throw invalidCursorError();
   }
   if (options.folderId) {
-    // Folder cursors are always keyset cursors this listing issued.
     if (decodedCursor.mode === "index") {
       throw invalidCursorError();
     }
@@ -917,7 +879,6 @@ export const searchCardsPageForUser = internalQuery({
     type: v.optional(cardTypeValidator),
     types: v.optional(v.array(cardTypeValidator)),
     tag: v.optional(v.string()),
-    /** Qualifiers from `q` (shared/search/qualifiers.ts), merged in. */
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
@@ -968,8 +929,6 @@ export const searchCardsPageForUser = internalQuery({
       }
       pageItems = remaining.slice(0, limit);
       hasMore = remaining.length > limit;
-      // A cursor this search issued always gets its page; only a first page
-      // that ran out of read budget before finding enough is "too broad".
       if (!(hasMore || args.cursor) && result.hitScanBudget) {
         throw new ConvexError({
           code: "INVALID_INPUT",
@@ -1016,8 +975,6 @@ export const searchCardsPageForUser = internalQuery({
   },
 });
 
-// Shuffle cursors carry the seed they belong to: a walk position through
-// the library, or the last card of a shuffled set of matches.
 type ShuffleApiCursor =
   | { mode: "start" }
   | { mode: "walk"; position: ShuffleWalkPosition }
@@ -1048,7 +1005,6 @@ const decodeShuffleCursor = (
   } catch {
     throw invalidCursorError();
   }
-  // A cursor from another seed or sort would skip or repeat cards.
   if (parsed?.mode !== "shuffle" || parsed.seed !== seed) {
     throw invalidCursorError();
   }
@@ -1072,7 +1028,6 @@ const decodeShuffleCursor = (
   throw invalidCursorError();
 };
 
-// After the anchor in seeded order: by rank, then by id.
 const isAfterShuffleAnchor = (
   seed: number,
   id: string,
@@ -1082,20 +1037,10 @@ const isAfterShuffleAnchor = (
   return rank > anchor.rank || (rank === anchor.rank && id > anchor.id);
 };
 
-/** Tag or folder rows a shuffled listing puts in order (the newest). */
 const SHUFFLE_SET_ROWS = 2000;
-/** Cards one shuffled tag or folder page loads at most. */
 const SHUFFLE_SET_LOADS = MAX_QUERY_SCAN;
-/** Rows one shuffled library page reads at most. */
 const SHUFFLE_WALK_SCAN = MAX_QUERY_SCAN;
 
-/**
- * `sort=shuffle`: a stable random order for `shuffleSeed`. A search, a tag
- * or a folder puts its matches in the seed's order (a search keeps its
- * best MAX_QUERY_SCAN matches, a tag or folder its newest); the library
- * walks every card by its random key. A page can come back short with
- * more to read; the HTTP handler reads on until the page is full.
- */
 export const shuffleCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
@@ -1160,8 +1105,6 @@ export const shuffleCardsPageForUser = internalQuery({
       };
     };
 
-    // A set of matches: put it in the seed's order and resume after the
-    // last card served.
     const setPage = (cards: Doc<"cards">[]) => {
       if (cursor.mode === "walk") {
         throw invalidCursorError();
@@ -1183,9 +1126,6 @@ export const shuffleCardsPageForUser = internalQuery({
       );
     };
 
-    // A tag's or folder's rows: their card ids in the seed's order, loading
-    // only the cards a page needs (at most SHUFFLE_SET_LOADS, so a page can
-    // come back short). The cursor resumes after the last card examined.
     const idSetPage = async (cardIds: readonly Id<"cards">[]) => {
       if (cursor.mode === "walk") {
         throw invalidCursorError();
@@ -1257,7 +1197,6 @@ export const shuffleCardsPageForUser = internalQuery({
       return idSetPage(rows.map((row) => row.cardId));
     }
 
-    // The library: walk it by each card's random key.
     if (cursor.mode === "after") {
       throw invalidCursorError();
     }
@@ -1311,7 +1250,6 @@ export const scanCardsPageForUser = internalQuery({
     createdBefore: v.optional(v.number()),
     sort: v.optional(apiCardSortValidator),
     scanLimit: v.number(),
-    /** Qualifiers from `q` (shared/search/qualifiers.ts), merged in. */
     tags: v.optional(v.array(v.string())),
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
@@ -1329,7 +1267,6 @@ export const scanCardsPageForUser = internalQuery({
     if (!folderIds) {
       return { itemCursors: [], items: [], nextCursor: null, scannedRows: 0 };
     }
-    // A `folder:` name drives the read like `folder=` when that is unset.
     const [firstFolder, ...otherFolders] = folderIds;
     const options = normalizeCardsQueryOptions({
       ...args,
@@ -1355,21 +1292,12 @@ export const scanCardsPageForUser = internalQuery({
   },
 });
 
-// Most tag-index rows one tag listing reads.
 const MAX_TAG_ROWS_READ = 8000;
 // Most distinct tags one listing counts. Each is two index lookups, and a
 // function may only make so many, so a vault of many small tags stops here
 // (GET /v1/tags then answers from the background tag summary).
 const MAX_TAGS_READ = 500;
 
-/**
- * Lists the tags on cards outside Trash and Archive, with how many cards
- * carry each,
- * from the per-tag search index rather than the cards. Tags are the
- * lowercase names `GET /v1/cards?tag=` matches, including tags Teak added.
- * Reads at most MAX_TAG_ROWS_READ index rows and MAX_TAGS_READ tags;
- * `isComplete` is false when a very large vault hits either bound.
- */
 export const listTagsForUser = internalQuery({
   args: {
     userId: v.string(),
@@ -1388,7 +1316,6 @@ export const listTagsForUser = internalQuery({
 
     while (isComplete) {
       if (tagsLeft <= 0) {
-        // Stop before another lookup; more tags may follow.
         const more = await ctx.db
           .query("cardSearchTags")
           .withIndex("by_user_tag_deleted_created", (query) =>
@@ -1401,7 +1328,6 @@ export const listTagsForUser = internalQuery({
         break;
       }
       tagsLeft -= 1;
-      // Seek to the next distinct tag name.
       const afterTag = previousTag;
       const next = await ctx.db
         .query("cardSearchTags")
@@ -1455,7 +1381,6 @@ export const listTagsForUser = internalQuery({
   },
 });
 
-// Changes cursors walk changed cards first, then permanently deleted ones.
 type ChangesCursor =
   | { phase: "cards"; cursor: string | null }
   | { phase: "tombstones"; after?: TombstoneCursor };
@@ -1558,7 +1483,6 @@ export const listCardChangesForUser = internalQuery({
       tombstoneAfter = decoded.after;
     }
 
-    // Cards are done: fill the rest of the page with permanent deletions.
     const remaining = limit - activeCards.length - deletedIds.length;
     let hasMore = false;
     let nextCursor: string | null = null;
@@ -1608,8 +1532,6 @@ type BulkOperation =
   | "removeTags"
   | "restore";
 
-// Validates every field before writing and charges the reprocess limit once,
-// so a rejected item leaves its card untouched.
 const performBulkUpdate = async (
   ctx: MutationCtx,
   args: {
@@ -1663,7 +1585,7 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     });
   }
 
-  if (type && !cardTypes.includes(type as (typeof cardTypes)[number])) {
+  if (type && !cardTypes.includes(type as CardType)) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Each create item `cardType` must be a valid card type",
@@ -1748,9 +1670,9 @@ export const executeBulkCardsForUser = internalMutation({
         switch (args.operation as BulkOperation) {
           case "create": {
             assertBulkCreatePayload(payload);
-            let requestedType: (typeof cardTypes)[number] | undefined;
+            let requestedType: CardType | undefined;
             if (typeof payload.cardType === "string") {
-              requestedType = payload.cardType as (typeof cardTypes)[number];
+              requestedType = payload.cardType as CardType;
             } else if (typeof payload.url === "string" && payload.url.trim()) {
               requestedType = "link";
             }
@@ -1939,16 +1861,11 @@ export const executeBulkCardsForUser = internalMutation({
   },
 });
 
-// Public API rate limits. Both answer { ok, retryAt } instead of throwing so
-// the HTTP layer can map a limit or table contention to its own response.
 export const rateLimitResultValidator = v.object({
   ok: v.boolean(),
   retryAt: v.optional(v.number()),
 });
 
-// Single shared bucket key for all failed public-API auth attempts. Keeping it
-// constant (rather than per-token) means rotating bearer tokens can no longer
-// spawn fresh rate-limit documents, so invalid auth is bounded globally.
 const INVALID_API_AUTH_BUCKET_KEY = "public-api-invalid-auth";
 
 const isRateLimitContentionError = (error: unknown): boolean => {
@@ -1974,12 +1891,15 @@ const toRateLimitResult = (
       : undefined,
 });
 
-// Charges one public API request to a validated identity. Called inside the
-// credential's own validation mutation. Never pass a raw bearer token as the
-// key: rotating tokens would otherwise mint a fresh bucket per request.
+// Only a credential's validation mutation mints one, from the identity it
+// validated, so a raw bearer token can never key the limiter.
+export type ValidatedRateLimitKey = string & {
+  readonly __brand: "ValidatedRateLimitKey";
+};
+
 export async function limitApiRequests(
   ctx: MutationCtx,
-  rateLimitKey: string
+  rateLimitKey: ValidatedRateLimitKey
 ): Promise<{ ok: boolean; retryAt?: number }> {
   const key = rateLimitKey.trim();
   if (!key) {
@@ -2004,9 +1924,6 @@ export async function limitApiRequests(
   }
 }
 
-// Consumes one token from the shared invalid-auth bucket. Called only when a
-// public-API request presents a well-formed but unrecognized API key, so that
-// repeated invalid attempts are throttled globally instead of per token.
 export const consumeInvalidApiAuthLimit = internalMutation({
   args: {},
   returns: rateLimitResultValidator,

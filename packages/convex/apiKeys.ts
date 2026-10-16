@@ -8,7 +8,11 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { limitApiRequests, rateLimitResultValidator } from "./publicApi";
+import {
+  limitApiRequests,
+  rateLimitResultValidator,
+  type ValidatedRateLimitKey,
+} from "./publicApi";
 import {
   getSessionUser,
   resolveStoredUserId,
@@ -397,9 +401,6 @@ const validateCachedComponentApiKey = async (
     .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
     .first();
   if (cached && now - cached.verifiedAt < API_KEY_AUTH_CACHE_TTL_MS) {
-    // A fresh entry skips only the component's writes. The key must still be
-    // active (a read-only check, so a revoke made anywhere applies at once)
-    // and its owner must still resolve.
     const activeKeys = await listComponentKeysByStatus(
       ctx,
       cached.userId,
@@ -449,19 +450,20 @@ export const validateUserApiKey = internalMutation({
       return null;
     }
 
-    // The owner is resolved in this transaction, so callers can trust userId.
     const validated = await validateCachedComponentApiKey(ctx, token);
     if (!(validated && args.chargeRateLimit)) {
       return validated;
     }
     return {
       ...validated,
-      rateLimit: await limitApiRequests(ctx, `key:${validated.rateLimitKey}`),
+      rateLimit: await limitApiRequests(
+        ctx,
+        `key:${validated.rateLimitKey}` as ValidatedRateLimitKey
+      ),
     };
   },
 });
 
-// Workflow-controlled drain: no detached successor that could outlive a stage.
 export const revokeDeletionKeysPage = internalMutation({
   args: { ownerId: v.string() },
   returns: v.boolean(),

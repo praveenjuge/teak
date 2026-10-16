@@ -30,66 +30,47 @@ export async function putParts(
   let uploadedBytes = completeBytes;
   onProgress(Math.round((uploadedBytes / totalBytes) * 100));
   let nextIndex = 0;
-  let failed = false;
-  let failure: unknown;
-  const stopWorkers = (error: unknown) => {
-    if (failed) {
-      return;
-    }
-    failed = true;
-    failure = error;
-    for (const controller of controllers) {
-      controller.abort();
-    }
+  let stopped = false;
+  const uploadPart = async (part: UploadPlan["parts"][number]) => {
+    const start = (part.partNumber - 1) * plan.partSize;
+    const chunk = file.slice(start, Math.min(start + plan.partSize, file.size));
+    const etag = await putPartWithRetry(part, chunk, controllers);
+    await recordPart({ etag, partNumber: part.partNumber, size: chunk.size });
+    uploadedBytes += chunk.size;
+    onProgress(Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)));
   };
   const worker = async () => {
     for (;;) {
-      if (failed) {
-        return;
-      }
-      const part = plan.parts[nextIndex];
+      const part = stopped ? undefined : plan.parts[nextIndex];
       nextIndex += 1;
       if (!part) {
         return;
       }
-      const start = (part.partNumber - 1) * plan.partSize;
-      const chunk = file.slice(
-        start,
-        Math.min(start + plan.partSize, file.size)
-      );
       try {
         // Each worker uploads its assigned parts sequentially; cross-part
         // concurrency comes from running UPLOAD_CONCURRENCY workers in parallel.
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
-        const etag = await putPartWithRetry(part, chunk, controllers);
-        // Completion only uses recorded parts, so record before counting the
-        // part as uploaded; a part that is never recorded is uploaded again.
-        await recordPart({
-          etag,
-          partNumber: part.partNumber,
-          size: chunk.size,
-        });
-        uploadedBytes += chunk.size;
-        onProgress(
-          Math.min(100, Math.round((uploadedBytes / totalBytes) * 100))
-        );
+        await uploadPart(part);
       } catch (error) {
-        stopWorkers(error);
-        return;
+        stopped = true;
+        for (const controller of controllers) {
+          controller.abort();
+        }
+        throw error;
       }
     }
   };
-  // The guard below reads `failed`, which the awaited workers set on failure,
-  // so this await cannot be deferred past it.
-  // react-doctor-disable-next-line react-doctor/async-defer-await
-  await Promise.all(
+  const settled = await Promise.allSettled(
     Array.from(
       { length: Math.min(UPLOAD_CONCURRENCY, plan.parts.length) },
       worker
     )
   );
-  if (failed) {
-    throw failure;
+  const failures = settled.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : []
+  );
+  if (failures.length > 0) {
+    throw failures.find((error) => !isAbortError(error)) ?? failures[0];
   }
 }
 

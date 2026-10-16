@@ -12,7 +12,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import java.util.Base64
 
-/** Records every Convex call and answers with canned responses keyed by function name. */
 class FakeConvexApi : ConvexApi {
     data class Call(val name: String, val args: Map<String, Any?>)
 
@@ -58,7 +57,6 @@ class InMemorySessionStore : SessionStore {
 object Tokens {
     private val encoder = Base64.getUrlEncoder().withoutPadding()
 
-    /** An unsigned JWT with the claims the app checks; signatures are Convex's job, not the client's. */
     fun jwt(clientId: String, sub: String, sid: String, exp: Long): String {
         val header = encoder.encodeToString("""{"alg":"none"}""".toByteArray())
         val payload = encoder.encodeToString(

@@ -173,7 +173,6 @@ beforeEach(async () => {
   malformedToken = false;
   revocationFailure = false;
   disconnectStatus = 204;
-  // A fresh transport identity gives each scenario a fresh canonical SDK cache.
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
 });
 afterEach(() => {
@@ -182,7 +181,6 @@ afterEach(() => {
 
 test("a server that does not advertise WorkOS is refused before browser sign-in", async () => {
   primary = "betterauth";
-  // Discovery itself refuses any provider other than WorkOS.
   await expect(oauth.authorizeTeak()).rejects.toThrow("Unable to reach Teak");
   expect(browserCount).toBe(0);
   expect(posts).toHaveLength(0);
@@ -538,9 +536,9 @@ test.each([false, true])(
         }
         return await transport(input, init);
       }) as typeof fetch;
-      await expect(request("/cards", (payload) => payload)).rejects.toThrow(
-        "Sign Out before reconnecting",
-      );
+      await expect(
+        request("/cards", (payload) => payload, {}, "prompt"),
+      ).rejects.toThrow("Sign Out before reconnecting");
     }
     expect(stores.get(key)).toBe(saved);
     expect(browserCount).toBe(0);

@@ -79,7 +79,6 @@ function sdkTransport(
       url.origin === legacyIssuer &&
       url.pathname === "/.well-known/oauth-authorization-server"
     ) {
-      // The public web issuer proxies this canonical Better Auth backend route.
       return await t.fetch(
         "/api/auth/.well-known/oauth-authorization-server",
         init
@@ -102,9 +101,6 @@ async function expectUnavailable(t: ReturnType<typeof setup>, path: string) {
   }
 }
 
-// Failures: WorkOS uses the local transport as its audience or legacy issuer;
-// stale Better Auth client registrations; malformed/incomplete provider config;
-// SDK discovery crosses transport/provider boundaries; challenge points at audience.
 describe("provider-aware OAuth HTTP discovery", () => {
   test.each(["http://127.0.0.1:3211", "https://teakvault.com"])(
     "WorkOS advertises its registered resource and clients on %s",

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 import { withTestSession } from "../helpers/session.test-utils";
@@ -15,9 +13,6 @@ describe("card/updateCard.ts", () => {
     if (!ctx.db) {
       return;
     }
-    // The search sync now runs inline in these mutations (it used to be a
-    // scheduled function behind the scheduler mock), so the mocked db needs
-    // the extra read/write methods the sync touches.
     ctx.db.get = ctx.db.get ?? mock().mockResolvedValue(null);
     ctx.db.insert = ctx.db.insert ?? mock().mockResolvedValue("sync_1");
     ctx.db.replace = ctx.db.replace ?? mock().mockResolvedValue(null);

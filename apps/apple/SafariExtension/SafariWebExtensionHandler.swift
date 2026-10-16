@@ -6,8 +6,6 @@ import TeakCore
 import AppKit
 #endif
 
-/// Answers the Safari popup: session state, saving the current page, sign-in
-/// and sign-out, all with the app's shared session.
 final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
@@ -62,7 +60,6 @@ struct SafariRequests {
         #endif
     }
 
-    /// Saves the page as a link, unless it's already in the library.
     private func save(_ raw: String?) async -> [String: Any] {
         guard let url = SafeURL.sanitize(raw)?.absoluteString else {
             return ["status": "error", "message": "Open a regular website and try again."]
@@ -83,7 +80,6 @@ struct SafariRequests {
         }
     }
 
-    /// Revokes this device's session on the server, then forgets it everywhere.
     private func signOut() async -> [String: Any] {
         do {
             guard try await session.restore() != nil, try await session.accessToken() != nil,

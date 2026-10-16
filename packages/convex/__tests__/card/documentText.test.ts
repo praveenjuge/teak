@@ -9,7 +9,6 @@ describe("searchPrefix", () => {
   test("keeps text that fits and cuts longer text at a whole character", () => {
     expect(searchPrefix("short", 10)).toBe("short");
     expect(searchPrefix("abcdef", 4)).toBe("abcd");
-    // "é" is 2 bytes and "😀" 4: none is split across the budget.
     expect(searchPrefix("aéé", 4)).toBe("aé");
     expect(searchPrefix("😀😀", 6)).toBe("😀");
     expect(searchPrefix("中文字", 7)).toBe("中文");
@@ -21,9 +20,7 @@ describe("isExtractedTextTruncated", () => {
     expect(isExtractedTextTruncated("short text", 3)).toBe(false);
     expect(isExtractedTextTruncated("short text", 501)).toBe(true);
     expect(isExtractedTextTruncated("x".repeat(512 * 1024))).toBe(true);
-    // Text and archive modes stop at a byte budget.
     expect(isExtractedTextTruncated("é".repeat(256 * 1024))).toBe(true);
-    // A PDF's budget counts characters: long multibyte text under it is whole.
     expect(isExtractedTextTruncated("é".repeat(256 * 1024), 120)).toBe(false);
     expect(isExtractedTextTruncated("é".repeat(512 * 1024), 120)).toBe(true);
   });

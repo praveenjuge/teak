@@ -1,13 +1,5 @@
-// Test-only helpers. Never imported by src/index.ts, so none of this ships in
-// the deployed worker bundle.
-
 import { crc32, deflateSync } from "node:zlib";
-import { ObjectDeletionGate } from "./deletionGate";
-
-/* ------------------------------------------------------------------ *
- * Minimal PNG encoder (truecolor + alpha) so image tests can build
- * deterministic fixtures of any dimension without binary assets.
- * ------------------------------------------------------------------ */
+import { ObjectDeletionGate } from "../deletionGate";
 
 const pngChunk = (type: string, data: Uint8Array): Uint8Array => {
   const out = new Uint8Array(12 + data.length);
@@ -20,7 +12,6 @@ const pngChunk = (type: string, data: Uint8Array): Uint8Array => {
   return out;
 };
 
-/** Encode a solid-color RGBA PNG of the given dimensions. */
 export const makePng = (
   width: number,
   height: number,
@@ -64,12 +55,6 @@ export const makePng = (
   return out;
 };
 
-/* ------------------------------------------------------------------ *
- * In-memory R2 bucket double covering the binding surface the worker
- * uses: get/head/put plus multipart uploads. Methods are synchronous
- * under the hood; awaiting their plain results behaves identically.
- * ------------------------------------------------------------------ */
-
 export interface FakeStoredObject {
   bytes: Uint8Array | null;
   httpMetadata?: Record<string, string>;
@@ -102,7 +87,6 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
-/** Stable fake validator mirroring R2's httpEtag behavior. */
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
   let hash = 0x81_1c_9d_c5;
   for (const byte of bytes) {
@@ -114,7 +98,6 @@ export const fakeHttpEtag = (bytes: Uint8Array): string => {
   return `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
 };
 
-/** Deterministic fixture loader for tests (never shipped in the worker). */
 export const readFixture = async (path: string): Promise<Uint8Array> => {
   const { readFile } = await import("node:fs/promises");
   return new Uint8Array(await readFile(path));
@@ -197,7 +180,6 @@ export class FakeBucket {
   delete(key: string | string[]) {
     if (Array.isArray(key)) {
       this.deleteBatches.push([...key]);
-      // Batch deletes treat missing objects as success.
       for (const single of key) {
         this.objects.delete(single);
       }
@@ -299,13 +281,11 @@ export class FakeBucket {
     };
   }
 
-  /** Bytes stored under a key via put() or a completed multipart upload. */
   storedBytes(key: string): Uint8Array | null {
     return this.objects.get(key)?.bytes ?? null;
   }
 }
 
-/** Execute the production gate; only Cloudflare storage/namespace are mocked. */
 export function withObjectGates<T extends { BUCKET: unknown }>(
   env: T
 ): T & { OBJECT_GATES: DurableObjectNamespace } {
@@ -367,11 +347,6 @@ export function withObjectGates<T extends { BUCKET: unknown }>(
   };
 }
 
-/* ------------------------------------------------------------------ *
- * Fake media renderer pool: a Durable Object namespace whose stubs
- * answer like the Container behind MediaRenderer.
- * ------------------------------------------------------------------ */
-
 export const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 export const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2,
@@ -390,7 +365,6 @@ export const mediaFacts = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-/** A Container success: the manifest header and the parts concatenated. */
 export const rendererResponse = (
   fields: Record<string, unknown>,
   parts: Array<{ bytes: Uint8Array; name: string; type: string }> = []

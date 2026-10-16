@@ -1,10 +1,6 @@
-// @ts-nocheck
-
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 
-// No `storage/r2` mock: URL hydration resolves through the unmocked
-// `storage/fileUrls` leaf, so these tests assert real signed-URL shapes.
 const FILES_BASE = "https://files.example.com";
 const FILES_SECRET = "test-secret-for-urls";
 const PREVIOUS_ENV = {
@@ -170,7 +166,6 @@ describe("card/getCards.ts", () => {
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { limit: 100_000 });
-      // SEARCH_MAX_CARD_LIMIT
       expect(takeMock).toHaveBeenCalledWith(200);
     });
 
@@ -349,7 +344,7 @@ describe("card/getCards.ts", () => {
       const cards = [
         { _id: "c1", _creationTime: 1, userId: "u1", content: "Test" },
       ];
-      const query = buildQuery([cards[0], cards[0]]); // Same card twice
+      const query = buildQuery([cards[0], cards[0]]);
 
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -745,7 +740,6 @@ describe("card/getCards.ts", () => {
       });
 
       expect(paginateMock).toHaveBeenCalledWith(
-        // SEARCH_MAX_PAGE_SIZE
         expect.objectContaining({ numItems: 100 })
       );
     });
@@ -768,7 +762,6 @@ describe("card/getCards.ts", () => {
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      // A cursor far beyond SEARCH_MAX_OFFSET must not throw or over-read.
       const result = await handler(ctx, {
         paginationOpts: { numItems: 10, cursor: "999999999" },
         searchQuery: "test",

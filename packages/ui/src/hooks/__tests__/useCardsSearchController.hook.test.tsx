@@ -94,7 +94,6 @@ test("removes a card deleted on another client from active search results", asyn
   );
   expect(displayedIds().sort()).toEqual(["gone", "kept"]);
 
-  // The reactive search drops the card once it is deleted elsewhere.
   await act(() =>
     controller.setRemoteCards([card("kept", "design one")], remoteKey())
   );
@@ -102,22 +101,17 @@ test("removes a card deleted on another client from active search results", asyn
 });
 
 test("keeps a card the server found by text inside its file, but narrows stale results", async () => {
-  // The card's own fields don't mention the word; its document's text does.
   const pdf = { ...card("pdf", "supplier-review.pdf"), hasExtractedText: true };
   await act(() => controller.searchBarProps.onSearchChange("kestrel"));
   await act(() => jest.advanceTimersByTime(200));
   await act(() => controller.setRemoteCards([pdf], remoteKey()));
   expect(displayedIds()).toEqual(["pdf"]);
 
-  // Typing on: the shown results answer earlier words, so they narrow to the
-  // new ones until the server answers again.
   await act(() => controller.searchBarProps.onSearchChange("kestrel invoice"));
   expect(displayedIds()).toEqual([]);
 });
 
 test("hides a card the server ranked for only some of the words", async () => {
-  // The server's ranked search returns a note for any of the words; the note
-  // carries all its text, so it shows only when it has every word.
   const note = card("note", "matrix-17");
   await act(() =>
     controller.searchBarProps.onSearchChange("matrix-17-missing")

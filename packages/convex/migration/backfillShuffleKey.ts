@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion";
 import { newShuffleKey } from "../card/shuffle";
 
 const DEFAULT_BATCH_SIZE = 200;
@@ -53,20 +53,13 @@ export const backfillShuffleKey = internalMutation({
       .paginate({ cursor: args.cursor ?? null, numItems: batchSize });
 
     const batch = { examined: 0, cardsToUpdate: 0, skippedDeletingAccounts: 0 };
-    const deletingAccounts = new Map<string, boolean>();
+    const accountDeleting = createAccountDeletionGate(ctx);
     for (const card of page.page) {
       batch.examined += 1;
       if (card.shuffleKey !== undefined) {
         continue;
       }
-      // Account deletion owns these rows while it runs; writing would race
-      // its batches.
-      let deleting = deletingAccounts.get(card.userId);
-      if (deleting === undefined) {
-        deleting = Boolean(await getAccountDeletionState(ctx, card.userId));
-        deletingAccounts.set(card.userId, deleting);
-      }
-      if (deleting) {
+      if (await accountDeleting(card.userId)) {
         batch.skippedDeletingAccounts += 1;
         continue;
       }

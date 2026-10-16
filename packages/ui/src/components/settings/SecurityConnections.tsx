@@ -2,8 +2,9 @@
 
 import { api } from "@teak/convex";
 import { AppWindow, Laptop, type LucideIcon, Smartphone } from "lucide-react";
-import { Component, type ReactNode, useState } from "react";
+import { useState } from "react";
 import { usePaginatedQuery } from "../../convexQueryHooks";
+import { RetryableQueryBoundary } from "../../feedback/RetryableQueryBoundary";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import {
@@ -144,37 +145,6 @@ function ReadError({ label, retry }: { label: string; retry?: () => void }) {
   );
 }
 
-// Error boundaries require a class; each cached read has its own retry subscription.
-// biome-ignore lint/style/useReactFunctionComponents: React error boundaries require a class lifecycle.
-class ConnectionReadBoundary extends Component<
-  {
-    label: string;
-    initialKey?: string;
-    children: (retryKey: string | undefined) => ReactNode;
-  },
-  { failed: boolean; retryKey: string | undefined }
-> {
-  state: { failed: boolean; retryKey: string | undefined } = {
-    failed: false,
-    retryKey: undefined,
-  };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? (
-      <ReadError
-        label={this.props.label}
-        retry={() =>
-          this.setState({ failed: false, retryKey: crypto.randomUUID() })
-        }
-      />
-    ) : (
-      this.props.children(this.state.retryKey ?? this.props.initialKey)
-    );
-  }
-}
-
 function deviceIcon(row: ConnectionRow): LucideIcon {
   return MOBILE_DEVICE.test(row.name) ? Smartphone : Laptop;
 }
@@ -299,10 +269,10 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
           title="Connected apps"
         />
         {identity ? (
-          <ConnectionReadBoundary
+          <RetryableQueryBoundary
+            fallback={(retry) => <ReadError label="apps" retry={retry} />}
             initialKey={identity.cacheKey}
             key={identity.key}
-            label="apps"
           >
             {(retryKey) => (
               <WorkosApps
@@ -310,7 +280,7 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
                 retryKey={retryKey}
               />
             )}
-          </ConnectionReadBoundary>
+          </RetryableQueryBoundary>
         ) : (
           <SettingsListSkeleton label="Loading apps…" rows={1} />
         )}

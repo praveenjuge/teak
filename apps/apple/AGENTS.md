@@ -22,7 +22,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 - The session lives in the shared keychain group; refreshes take the cross-process lock in the app group, because WorkOS rotates refresh tokens. Never log tokens.
 - Hold a file lock in the app group only inside `BackgroundActivity` time, as `FileCredentialLock` does: iOS kills a process suspended while holding one (`0xdead10cc`).
 - Shared backend constants come from `Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json`. Regenerate it with `bun --no-env-file run apps/apple/scripts/shared-constants.ts --write`; `apps/apple/tests/shared-constants.test.ts` fails when it drifts.
-- Pure logic was ported from the Expo iPhone app and Teak for Mac with the same test cases. Port behavior changes to Android too (`apps/android/AGENTS.md`).
+- Pure logic in `TeakCore` shares its test cases with Android's `core:model`. Port behavior changes to Android too (`apps/android/AGENTS.md`).
 - SF Rounded everywhere (`.fontDesign(.rounded)` at the root), Teak red only for meaning, system components first.
 - Keyboard shortcuts must not collide with system ones: UIKit throws on duplicate menu shortcuts.
 

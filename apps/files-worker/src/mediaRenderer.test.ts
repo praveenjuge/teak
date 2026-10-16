@@ -17,7 +17,6 @@ const fakeContainer = (
         const url = new URL(request.url);
         if (url.pathname === "/health") {
           healthChecks += 1;
-          // Not listening for the first check after a start.
           if (healthChecks === 1) {
             throw new Error("connection refused");
           }

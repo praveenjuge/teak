@@ -106,8 +106,6 @@ export const validateWebEnvContent = (
       });
     }
   }
-  // WorkOS AuthKit is the only sign-in provider, so the web server always
-  // needs its credentials. The web reader is the single source of the rules.
   const missingAuth = REQUIRED_WEB_AUTH_KEYS.filter((key) => !lookup(key));
   for (const key of missingAuth) {
     issues.push({

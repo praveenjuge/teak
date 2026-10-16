@@ -7,7 +7,6 @@ import AppKit
 import UIKit
 #endif
 
-/// The system clipboard on each platform.
 enum Pasteboard {
     @MainActor static func copy(_ text: String) {
         #if os(macOS)
@@ -32,7 +31,6 @@ enum Pasteboard {
 }
 
 extension UTType {
-    /// The type for a file name, falling back to plain data.
     static func forFileName(_ name: String) -> UTType {
         UTType(filenameExtension: (name as NSString).pathExtension) ?? .data
     }

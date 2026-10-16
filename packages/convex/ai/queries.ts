@@ -2,21 +2,20 @@ import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
+// Cards younger than this may still be in their first processing run.
+const AI_BACKFILL_GRACE_MS = 5 * 60 * 1000;
 const AI_BACKFILL_INDEX =
   "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt" as const;
 
-// Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => await ctx.db.get("cards", cardId),
 });
 
-// Internal query to find cards missing AI metadata
 export const findCardsMissingAi = internalQuery({
   args: {},
   handler: async (ctx) => {
-    // Find cards that don't have AI metadata (created more than 5 minutes ago to avoid race conditions)
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
 
     // Query both active-card representations directly through the compound
     // index. This keeps reads bounded without repeatedly restarting behind a
@@ -33,7 +32,7 @@ export const findCardsMissingAi = internalQuery({
             .eq("aiTags", undefined)
             .eq("aiTranscript", undefined)
             .eq("isDeleted", isDeleted)
-            .lt("createdAt", fiveMinutesAgo)
+            .lt("createdAt", createdBefore)
         )
         .take(limit);
 
@@ -51,7 +50,6 @@ export const findCardsMissingAi = internalQuery({
   },
 });
 
-// Internal query to get card for verification
 export const getCardForVerification = internalQuery({
   args: { cardId: v.id("cards"), userId: v.string() },
   handler: async (ctx, { cardId, userId }) => {

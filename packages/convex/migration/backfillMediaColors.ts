@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion";
 import { inferFileFormat } from "../shared/fileFormats";
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -11,11 +11,6 @@ const MAX_BATCH_SIZE = 200;
 const MEDIA_KINDS = ["image", "gif", "video"] as const;
 type MediaKind = (typeof MEDIA_KINDS)[number];
 
-/**
- * Gap before the next job of each kind. Images run on the Worker alone; GIFs
- * and videos take one of the media renderer's few Container instances, so
- * they are spread out to leave room for new uploads.
- */
 const SPACING_MS: Record<MediaKind, number> = {
   image: 200,
   gif: 2000,
@@ -92,7 +87,6 @@ const scheduleColorsJob = async (
       { cardId: card._id }
     );
   } else {
-    // Writes over the card's existing thumbnail and scrub sprite.
     await ctx.scheduler.runAfter(
       delayMs,
       renderables.generateVideoThumbnail.generateVideoThumbnail,
@@ -146,7 +140,7 @@ export const backfillMediaColors = internalMutation({
       .paginate({ cursor: args.cursor ?? null, numItems: batchSize });
 
     const batch = emptyTotals();
-    const deletingAccounts = new Map<string, boolean>();
+    const accountDeleting = createAccountDeletionGate(ctx);
     let delayMs = 0;
     for (const card of page.page) {
       batch.examined += 1;
@@ -165,13 +159,7 @@ export const backfillMediaColors = internalMutation({
         batch.skippedInProgress += 1;
         continue;
       }
-      // Account deletion owns these rows while it runs.
-      let deleting = deletingAccounts.get(card.userId);
-      if (deleting === undefined) {
-        deleting = Boolean(await getAccountDeletionState(ctx, card.userId));
-        deletingAccounts.set(card.userId, deleting);
-      }
-      if (deleting) {
+      if (await accountDeleting(card.userId)) {
         batch.skippedDeletingAccounts += 1;
         continue;
       }

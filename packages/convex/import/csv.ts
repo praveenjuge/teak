@@ -1,7 +1,4 @@
-/**
- * The CSV reader every CSV import source shares (Raindrop, Pocket,
- * Instapaper, Readwise Reader, mymind).
- */
+import { ImportLimitExceeded } from "./sourceItems";
 
 const MAX_CSV_ROWS = 10_000;
 
@@ -54,7 +51,9 @@ export function parseCsvRows(
     endField();
     if (rows.length === 0 || !isEmptyRow(row)) {
       if (rows.length > maxRows) {
-        throw new Error(`CSV exceeds ${maxRows.toLocaleString("en-US")} rows`);
+        throw new ImportLimitExceeded(
+          `CSV exceeds ${maxRows.toLocaleString("en-US")} rows`
+        );
       }
       rows.push(row);
     }

@@ -1,6 +1,6 @@
 import { Parser } from "htmlparser2";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
-import { cleanTags, folderPath } from "./sourceItems";
+import { cleanTags, folderPath, ImportLimitExceeded } from "./sourceItems";
 import type { ImportCardInput } from "./validate";
 
 export interface ParsedBookmarkItem {
@@ -86,12 +86,13 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
           const rawUrl = anchor.attributes.href;
           const url = sanitizeExternalUrl(rawUrl);
           const seconds = Number(anchor.attributes.add_date);
-          // Nested folders become one Teak folder, "Parent / Child".
           const folder = folderPath(lists[lists.length - 1]?.folders ?? []);
           // Firefox and Teak write tags as a comma-separated TAGS attribute.
           const tags = cleanTags((anchor.attributes.tags ?? "").split(","));
           if (output.length >= 10_000) {
-            throw new Error("Bookmark file exceeds 10,000 bookmarks");
+            throw new ImportLimitExceeded(
+              "Bookmark file exceeds 10,000 bookmarks"
+            );
           }
           output.push(
             url

@@ -22,7 +22,6 @@ import java.util.UUID
 import kotlin.test.assertEquals
 
 @RunWith(AndroidJUnit4::class)
-// A tall screen, so every row of the Add list is on screen at once.
 @Config(sdk = [36], qualifiers = "w411dp-h1200dp")
 class CaptureScreensTest {
     @get:Rule val compose = createComposeRule()

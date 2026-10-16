@@ -1,19 +1,6 @@
-// Bounded file inspection for the inspect op: extracts preview facts / AI text
-// from an object in the R2 binding without the object ever transiting a
-// Convex action.
-//
-// Ports packages/convex/workflows/fileProcessing.ts:
-//   - mode "zip"  → archive stats (+ DOCX/PPTX body text). Uses R2 ranged
-//     reads (EOCD → central directory → selected local entries) so even
-//     multi-GB archives cost kilobytes of memory instead of being buffered.
-//   - mode "css"  → count of color variable declarations
-//   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
-//   - mode "pdf"  → handled in ops by the media renderer (mediaJobs.ts)
-
 import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_PDF_TEXT_MAX_PAGES,
-  type FilesInspectMode,
 } from "@teak/files-protocol";
 import {
   InspectSourceMissing,
@@ -31,12 +18,6 @@ export {
 } from "./zip";
 
 const MAX_AI_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS;
-/** PDF text shares the byte-bounded text modes' budget, counted in characters. */
-export const MAX_AI_TEXT_CHARACTERS = MAX_AI_TEXT_BYTES;
-/**
- * Pages read for a PDF's text; later pages are never parsed. The character
- * budget above still bounds the output, so a long PDF stops early.
- */
 export const MAX_PDF_TEXT_PAGES = FILES_PDF_TEXT_MAX_PAGES;
 export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
@@ -54,7 +35,10 @@ const XML_ENTITIES: Record<string, string> = {
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
-export type InspectMode = FilesInspectMode;
+export type InspectRequest =
+  | { formatId: string; mode: "zip" }
+  | { maxBytes: number; mode: "css" }
+  | { maxBytes: number; mode: "text"; rtf: boolean };
 
 export interface InspectResult {
   facts?: Record<string, number>;
@@ -84,12 +68,6 @@ export const extractRtfText = (value: string): string =>
     .replace(/\s+/gu, " ")
     .trim();
 
-/**
- * Read at most maxBytes bytes of an object; null when missing, and objects
- * larger than the cap resolve to exactly maxBytes bytes (callers treat
- * truncation as acceptable — mirrors fetchBoundedBytes' content-length guard
- * plus streaming fallback).
- */
 const boundedRead = async (
   bucket: R2Bucket,
   key: string,
@@ -102,7 +80,6 @@ const boundedRead = async (
   if ((object.size ?? 0) <= maxBytes) {
     return new Uint8Array(await object.arrayBuffer());
   }
-  // Larger than the cap: read only the prefix we would have used anyway.
   await object.body.cancel();
   const partial = await rangeRead(bucket, key, 0, maxBytes);
   return partial;
@@ -121,11 +98,6 @@ export interface ZipInspection {
   text: string;
 }
 
-/**
- * Inspect an archive using only ranged reads: the EOCD tail, the central
- * directory, and the handful of DOCX/PPTX entries that carry preview text.
- * Memory stays flat regardless of archive size.
- */
 export const inspectZipRanged = async (
   bucket: R2Bucket,
   key: string,
@@ -203,31 +175,19 @@ export const inspectZipRanged = async (
   };
 };
 
-/**
- * Dispatch one inspect request.
- *
- * @param formatId file-format id (zip/word/powerpoint/css tokens/etc.) so
- *   structured modes know what they are looking at
- * @param rtf when true, text mode applies the RTF control-word stripper
- */
 export const runInspect = async (
   bucket: R2Bucket,
   key: string,
-  mode: InspectMode,
-  formatId: string,
-  maxBytes: number,
-  rtf: boolean
+  request: InspectRequest
 ): Promise<InspectResult> => {
-  if (mode === "zip") {
-    // Ranged path never buffers the archive; maxBytes no longer bounds it.
-    return await inspectZipRanged(bucket, key, formatId);
+  if (request.mode === "zip") {
+    return await inspectZipRanged(bucket, key, request.formatId);
   }
-
-  if (mode === "css") {
-    const bytes = await boundedRead(bucket, key, maxBytes);
-    if (!bytes) {
-      throw new InspectSourceMissing();
-    }
+  const bytes = await boundedRead(bucket, key, request.maxBytes);
+  if (!bytes) {
+    throw new InspectSourceMissing();
+  }
+  if (request.mode === "css") {
     const text = new TextDecoder().decode(bytes);
     return {
       facts: {
@@ -237,16 +197,7 @@ export const runInspect = async (
       },
     };
   }
-
-  if (mode === "text") {
-    const bytes = await boundedRead(bucket, key, maxBytes);
-    if (!bytes) {
-      throw new InspectSourceMissing();
-    }
-    const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
-    const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
-    return { facts: textFacts(text), text };
-  }
-
-  throw new Error(`invalid_mode:${mode}`);
+  const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
+  const text = request.rtf ? extractRtfText(decoded).trim() : decoded.trim();
+  return { facts: textFacts(text), text };
 };

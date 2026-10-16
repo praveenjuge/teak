@@ -1,12 +1,7 @@
-// Shared client and byte parsers for the renderer integration tests. They
-// run against a live renderer at RENDERER_URL (the Docker image in CI, or
-// `bun src/server.ts` locally).
-
 import { join } from "node:path";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-/** The tests only ever send fixtures to a renderer on this machine. */
 function loopbackOrigin(value: string | undefined): string {
   if (!value) {
     return "";
@@ -23,7 +18,6 @@ export const RENDERER_TIMEOUT_URL = loopbackOrigin(
   process.env.RENDERER_TIMEOUT_URL
 );
 
-/** A renderer endpoint on the checked loopback origin. */
 export function rendererEndpoint(path: string, baseUrl = RENDERER_URL): URL {
   return new URL(path, loopbackOrigin(baseUrl));
 }
@@ -122,7 +116,6 @@ export async function health(
   };
 }
 
-/** Width and height from a baseline or progressive JPEG's SOF segment. */
 export function jpegSize(bytes: Uint8Array): { width: number; height: number } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint16(0) !== 0xff_d8) {
@@ -151,7 +144,6 @@ export function jpegSize(bytes: Uint8Array): { width: number; height: number } {
 const MPEG2_SAMPLE_RATES = [22_050, 24_000, 16_000];
 const MPEG1_SAMPLE_RATES = [44_100, 48_000, 32_000];
 
-/** Sample rate and channel mode of an MP3's first frame header. */
 export function mp3FrameInfo(bytes: Uint8Array): {
   sampleRate: number;
   mono: boolean;

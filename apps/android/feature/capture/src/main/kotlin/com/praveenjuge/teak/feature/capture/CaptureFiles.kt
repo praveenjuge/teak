@@ -8,10 +8,8 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import java.io.File
 
-/** Hands the camera app a file in Teak's cache to write the photo into. */
 class CaptureFileProvider : FileProvider()
 
-/** A fresh file for the next camera photo. Earlier photos were already copied into the upload queue. */
 internal fun newCameraPhotoUri(context: Context): Uri {
     val directory = File(context.cacheDir, "camera").apply {
         listFiles()?.forEach { it.delete() }
@@ -21,7 +19,6 @@ internal fun newCameraPhotoUri(context: Context): Uri {
     return FileProvider.getUriForFile(context, "${context.packageName}.capture", file)
 }
 
-/** A video's length in seconds, which the server keeps with the card, like iOS sends it. */
 internal fun mediaFacts(context: Context, uri: Uri): Map<String, Double> {
     val type = context.contentResolver.getType(uri) ?: return emptyMap()
     if (!type.startsWith("video/")) return emptyMap()
@@ -34,7 +31,6 @@ internal fun mediaFacts(context: Context, uri: Uri): Map<String, Double> {
     }.getOrDefault(emptyMap())
 }
 
-/** Opens Teak's page in system settings, where a denied permission can be turned back on. */
 internal fun openAppSettings(context: Context) {
     context.startActivity(
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))

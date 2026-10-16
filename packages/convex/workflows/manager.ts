@@ -1,10 +1,3 @@
-/**
- * Workflow Manager
- *
- * Central workflow manager instance for the card processing pipeline.
- * Configured with retry behavior for resilient AI processing.
- */
-
 import {
   vResultValidator,
   vWorkflowId,
@@ -39,9 +32,6 @@ import { scheduleCardProcessingFailed } from "../telemetry/schedule";
 
 const internalAny: any = internal as any;
 
-/**
- * Workflow manager for card processing pipeline
- */
 export const WORKFLOW_MAX_PARALLELISM = 10;
 export const workflow = new WorkflowManager(components.workflow, {
   workpoolOptions: { maxParallelism: WORKFLOW_MAX_PARALLELISM },
@@ -72,9 +62,6 @@ interface CardStageCompletionContext {
   stages: ProcessingStageKey[];
 }
 
-// processingStatus stages each card workflow owns. When one of these
-// workflows fails or is canceled, its unfinished stages are marked failed so
-// they never stay "pending" forever.
 const CARD_STAGES_BY_WORKFLOW: Record<string, ProcessingStageKey[]> = {
   "workflows/cardProcessing:cardProcessingWorkflow": [
     "classify",
@@ -248,11 +235,6 @@ export const cleanupCompletedWorkflowHandler = async (
       return false;
     }
     if (!workflowRecord.runResult) {
-      // A workflow still in progress past the retention horizon is stuck:
-      // its steps will never finish (for example survivors of past retry
-      // storms). Cancel and clean it instead of rescheduling this check
-      // forever - stuck workflows keep the workpool loop hot and accumulate
-      // journal state without bound.
       if (
         typeof workflowRecord._creationTime === "number" &&
         Date.now() - workflowRecord._creationTime > WORKFLOW_RETENTION_MS
@@ -271,7 +253,6 @@ export const cleanupCompletedWorkflowHandler = async (
     const journal = await ctx.runQuery(components.workflow.journal.load, {
       workflowId,
     });
-    // Never carry an observation across a restarted or changed owner.
     if (
       journal.workflow.generationNumber !== generationNumber ||
       !journal.workflow.runResult ||
@@ -396,12 +377,6 @@ export const reapStuckWorkflowsHandler = async (
     }
   }
 
-  // Drain a large backlog in bounded follow-up runs instead of one long
-  // action. Reaped workflows are deleted from the list, so when the reap
-  // limit stops this run mid-page, re-reading the current page via the same
-  // cursor now yields its unprocessed remainder; otherwise continue from the
-  // page cursor so eligible workflows on later pages are not skipped until
-  // the next weekly cron.
   if (reapedCount >= STUCK_WORKFLOW_REAP_LIMIT) {
     await ctx.scheduler.runAfter(
       STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS,
@@ -735,7 +710,6 @@ export const initializeCardProcessingStateHandler = async (
     aiTags: undefined,
     aiSummary: undefined,
     aiTranscript: undefined,
-    // A fresh run gets a fresh AI backfill budget.
     aiBackfillAttempts: undefined,
     processingStatus: initialProcessingStatus,
     metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
@@ -743,10 +717,6 @@ export const initializeCardProcessingStateHandler = async (
   });
 };
 
-/**
- * Internal mutation used to reset a card's AI fields and mark processing as pending
- * before the workflow begins executing.
- */
 export const initializeCardProcessingState = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -776,10 +746,6 @@ export const startCardProcessingWorkflowHandler = async (
   return { workflowId };
 };
 
-/**
- * Action that prepares the card and kicks off the card processing workflow.
- * Returning the workflowId allows callers to track progress if needed.
- */
 export const startCardProcessingWorkflow = internalAction({
   args: {
     cardId: v.id("cards"),

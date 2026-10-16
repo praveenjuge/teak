@@ -45,7 +45,6 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         scope.launch { account.start() }
     }
 
-    /** "New note" and "Voice memo" on the launcher icon's long-press menu. */
     private fun publishShortcuts() {
         fun shortcut(id: String, label: Int, icon: Int, action: String) =
             ShortcutInfoCompat.Builder(this, id)
@@ -72,7 +71,6 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
 
-    /** Product analytics and crash reporting, matching the iPhone app. Off when the build has no token. */
     private fun initPostHog() {
         val token = BuildConfig.POSTHOG_TOKEN
         if (token.isBlank()) return
@@ -96,7 +94,6 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     private var identified: SessionUser? = null
 
-    /** Ties events to the permanent vault ID, with the email as a person property; resets on sign-out. */
     private fun identify(state: SessionState) {
         val user = when (state) {
             SessionState.Loading -> return

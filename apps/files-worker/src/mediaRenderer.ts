@@ -1,11 +1,3 @@
-/**
- * Durable Object that owns one media renderer Container (ffmpeg and poppler;
- * see container/). It starts the Container without internet access, waits for
- * its health check, and forwards requests to port 8080. The Container runs one
- * job at a time and answers 503 `busy` to a second one; rendererClient picks
- * another instance from the pool.
- */
-
 export const RENDERER_PORT = 8080;
 export const RENDERER_PROTOCOL = 1;
 const READY_TIMEOUT_MS = 20_000;
@@ -14,7 +6,6 @@ const HEALTH_REQUEST_TIMEOUT_MS = 1000;
 // Long enough to reuse a warm instance across a card's video or audio steps.
 export const RENDERER_INACTIVITY_TIMEOUT_MS = 90_000;
 
-/** The slice of the Durable Object Container API this class uses. */
 export interface RendererContainer {
   getTcpPort: (port: number) => {
     fetch: (request: Request) => Promise<Response>;
@@ -36,8 +27,9 @@ export const rendererUnavailable = (message: string): Response =>
   Response.json({ error: "unavailable", message }, { status: 503 });
 
 export class MediaRenderer {
-  /** The renderer works only on bytes the Worker sends it. */
   protected readonly enableInternet: boolean = false;
+  protected readonly port: number = RENDERER_PORT;
+  protected readonly protocol: number = RENDERER_PROTOCOL;
   private readonly state: RendererState;
   private ready: Promise<void> | null = null;
 
@@ -72,9 +64,8 @@ export class MediaRenderer {
       request
     );
     try {
-      return await container.getTcpPort(RENDERER_PORT).fetch(forwarded);
+      return await container.getTcpPort(this.port).fetch(forwarded);
     } catch (error) {
-      // The Container stopped or crashed mid-request; the next call restarts it.
       this.ready = null;
       return rendererUnavailable(
         error instanceof Error ? error.message : "container_request_failed"
@@ -96,7 +87,6 @@ export class MediaRenderer {
   private async start(container: RendererContainer): Promise<void> {
     if (!container.running) {
       container.start({ enableInternet: this.enableInternet });
-      // Forget readiness once the Container exits, whatever the reason.
       container
         .monitor()
         .catch(() => undefined)
@@ -105,7 +95,7 @@ export class MediaRenderer {
         });
     }
     await container.setInactivityTimeout(RENDERER_INACTIVITY_TIMEOUT_MS);
-    const port = container.getTcpPort(RENDERER_PORT);
+    const port = container.getTcpPort(this.port);
     const deadline = Date.now() + READY_TIMEOUT_MS;
     while (Date.now() < deadline) {
       try {
@@ -117,12 +107,10 @@ export class MediaRenderer {
         const health = (await response.json().catch(() => null)) as {
           protocol?: unknown;
         } | null;
-        if (response.ok && health?.protocol === RENDERER_PROTOCOL) {
+        if (response.ok && health?.protocol === this.protocol) {
           return;
         }
-      } catch {
-        // Not listening yet.
-      }
+      } catch {}
       await sleep(HEALTH_POLL_MS);
     }
     throw new Error("container_not_ready");

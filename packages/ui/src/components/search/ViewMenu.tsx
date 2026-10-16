@@ -143,7 +143,6 @@ export function ViewMenu({
                   checked={activeTypes.includes(type)}
                   key={type}
                   onSelect={(event) => {
-                    // Keep the menu open to pick several.
                     event.preventDefault();
                     onToggleType(type);
                   }}

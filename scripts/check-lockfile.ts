@@ -2,10 +2,6 @@
  * Pre-commit guard: reject a bun.lock that doesn't match the manifests being
  * committed.
  *
- * Sep 24, 2026: a workspace-scoped `bun add` in apps/docs committed a bun.lock
- * whose hoisting a root install disagrees with, and every frozen install on
- * main failed. Two details matter:
- *
  * - The check runs against the staged snapshot (index), not the working
  *   tree, so a staged manifest with an unstaged lockfile update is caught.
  * - bun.lock layout is Bun-version-specific, so the check refuses to run
@@ -38,7 +34,6 @@ const git = (args: string[]): string => {
   return result.stdout;
 };
 
-/** Write the staged version of every install-relevant file into `dir`. */
 export const writeStagedSnapshot = (dir: string): void => {
   const files = git(["ls-files", "--cached"])
     .split("\n")
@@ -66,7 +61,6 @@ export const runFrozenCheck = (dir: string): FrozenCheckResult => {
 };
 
 const main = (): number => {
-  // Read the staged pin: that is the Bun CI will use for this commit.
   const pinned = pinnedBunVersion(git(["show", ":package.json"]));
   if (pinned && pinned !== Bun.version) {
     console.error(

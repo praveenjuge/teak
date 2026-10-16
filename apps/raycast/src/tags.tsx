@@ -26,7 +26,7 @@ function TagCardsView({ tag }: { tag: string }) {
       emptyIcon={Icon.Tag}
       emptyTitle={`No cards tagged "${tag}"`}
       latestSectionTitle={`Cards tagged "${tag}"`}
-      loadCards={(input) => searchCards({ ...input, limit: 50, tag })}
+      loadCards={(input) => searchCards({ ...input, limit: 50, tag }, "prompt")}
       navigationTitle={`Tag: ${tag}`}
       removeTagFilterFromList
       searchBarPlaceholder={`Search within "${tag}" or use type:, sort:oldest`}
@@ -65,7 +65,7 @@ export default function TagsCommand() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await listTags();
+        const response = await listTags("prompt");
         if (isMounted) {
           setTags(response.items);
         }

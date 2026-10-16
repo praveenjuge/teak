@@ -82,7 +82,6 @@ fun VoiceMemoRoute(onDone: () -> Unit) {
             currentOnDone()
         }
     }
-    // Back from Settings with the microphone allowed: drop the message.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (hasMic()) micDenied = false }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
@@ -201,7 +200,6 @@ internal fun VoiceMemoScreen(
     }
 }
 
-/** One big round button that squares off while recording, like a stop control. */
 @Composable
 private fun RecordButton(recording: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val corner by animateDpAsState(if (recording) 28.dp else 48.dp, label = "recordCorner")

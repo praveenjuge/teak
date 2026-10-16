@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket } from "./test/testsupport";
 import { findEocd, readZipDirectory, readZipEntry } from "./zip";
 
 const key = "users/u/imports/job/source.zip";

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { extractFileTextForAiForKey } from "../../workflows/fileProcessing";
+import { asFetch } from "../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
 const prior = {
@@ -14,7 +15,7 @@ const mockFetch = mock(
 beforeEach(() => {
   process.env.FILES_BASE = "https://files.test";
   process.env.FILES_SIGNING_SECRET = "test-secret";
-  globalThis.fetch = mockFetch;
+  globalThis.fetch = asFetch(mockFetch);
   mockFetch.mockReset();
 });
 afterEach(() => {
@@ -62,7 +63,6 @@ describe("extractFileTextForAiForKey for PDFs", () => {
       op: "inspect",
       params: {
         formatId: "pdf",
-        // Any upload size: the renderer reads PDFs up to Teak's 100 MiB cap.
         maxBytes: 100 * 1024 * 1024,
         mode: "pdf",
         sourceKey: PDF_KEY,

@@ -1,15 +1,11 @@
 import Foundation
 
-/// Build-time facts each target's Info.plist supplies: which Convex deployment
-/// to use, where the web app lives, and the shared containers.
 public struct TeakConfig: Sendable {
     public let convexURL: URL
     public let webURL: URL
-    /// WorkOS's API: hosted AuthKit, or the E2E stack's emulator in debug builds.
     public let workosURL: URL
     public let appGroup: String
     public let keychainAccessGroup: String?
-    /// PostHog project token; only Release builds of the app carry one.
     public let posthogToken: String?
     public let environment: String
     public let version: String
@@ -35,7 +31,6 @@ public struct TeakConfig: Sendable {
     public init(bundle: Bundle, environment overrides: [String: String] = ProcessInfo.processInfo.environment) {
         func value(_ key: String) -> String? {
             #if DEBUG
-            // The E2E stack points debug builds at its local backend and WorkOS emulator.
             if let override = overrides[key], !override.isEmpty { return override }
             #endif
             guard let raw = bundle.object(forInfoDictionaryKey: key) as? String,
@@ -58,12 +53,10 @@ public struct TeakConfig: Sendable {
 
     public var isProduction: Bool { environment == "production" }
 
-    /// The shared container the app and its extensions use.
     public var sharedContainer: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
     }
 
-    /// Hosted WorkOS, or a local emulator in development builds.
     static func trustedWorkOSOrigin(_ value: String) -> URL? {
         guard let url = URL(string: value), let host = url.host()?.lowercased() else { return nil }
         if url.scheme == "https", host == "api.workos.com" { return hostedWorkOS }
@@ -73,8 +66,7 @@ public struct TeakConfig: Sendable {
         return nil
     }
 
-    /// Port of `readConvexOrigin`: hosted deployments over HTTPS, or a local
-    /// backend in development builds.
+    /// Hosted deployments over HTTPS, or a local backend in development builds.
     static func trustedConvexOrigin(_ value: String) -> URL? {
         guard let components = URLComponents(string: value), let host = components.host?.lowercased(),
               let scheme = components.scheme?.lowercased(),

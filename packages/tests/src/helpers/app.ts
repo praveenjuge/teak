@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
 import { createTeakClient } from "@teak/convex/sdk";
-import { ConvexHttpClient } from "convex/browser";
+import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import {
   createEmulatorUser,
   findEmulatorUser,
@@ -18,7 +18,6 @@ import {
   type Surface,
 } from "./test";
 
-/** A WorkOS emulator user the suite made, with its Teak API key once it has one. */
 export interface AccountState {
   apiKey?: string;
   email: string;
@@ -91,28 +90,18 @@ export const fillAndSubmitTextCard = async (
   );
 };
 
-// The vault opens once the backend has the WorkOS webhook for this user. If
-// the first bootstrap ran before the webhook landed, Teak offers a retry. The
-// dev server's error overlay can cover that button after a slow backend call;
-// a reload retries the same bootstrap.
-export const expectVault = async ({ browser, screen }: Surface) => {
-  const composer = composerOf(screen);
-  const tryAgain = screen.getByRole("button", "Try again", { exact: false });
-  await retry(
-    async () => {
-      if (await tryAgain.isVisible().catch(() => false)) {
-        await tryAgain.click({ timeout: 2500 }).catch(() => browser.reload());
-      }
-      await expect(composer).toBeVisible({ timeout: 5000 });
-    },
-    { intervals: [500, 1000, 2000], timeout: 45_000 }
-  );
+export const expectVault = async ({ screen }: Surface) => {
+  await expect(composerOf(screen)).toBeVisible({ timeout: 45_000 });
 };
+
+const waitForAccount = async (email: string, password = E2E_PASSWORD) =>
+  waitForTeakAccount({
+    accessToken: await sessionTokenFor(email, password),
+    convexUrl: env.convexUrl,
+  });
 
 const emulatorOrigin = () => new URL(env.emulatorUrl).origin;
 
-// Sign-in is hosted by WorkOS (here, the emulator's AuthKit pages), never a
-// Teak page. Teak's /login hands the browser straight to it.
 export const expectHostedSignIn = async ({ browser, screen }: Surface) => {
   await expect(screen.getByLabel("Email")).toBeVisible({ timeout: 30_000 });
   expect(
@@ -147,18 +136,12 @@ export const signIn = async (
 ) => {
   const { screen } = surface;
   await enterCredentials(surface, email, password);
-  // An unverified mailbox gets the code WorkOS would email.
   const verify = screen.getByRole("heading", "Verify your email", {
     exact: false,
   });
-  const landed = await firstVisible(
-    [
-      verify,
-      composerOf(screen),
-      screen.getByRole("button", "Try again", { exact: false }),
-    ],
-    { timeout: 30_000 }
-  );
+  const landed = await firstVisible([verify, composerOf(screen)], {
+    timeout: 30_000,
+  });
   if (landed === 0) {
     const { code } = await waitForEmailedEvent<{ code: string; email: string }>(
       "email_verification.created",
@@ -166,6 +149,7 @@ export const signIn = async (
     );
     await screen.getByLabel("Code").fill(code);
     await submitHostedForm(screen);
+    await waitForAccount(email, password);
   }
   await expectVault(surface);
 };
@@ -183,8 +167,6 @@ export const expectWrongPassword = async (
   await expect(composerOf(screen)).toHaveCount(0);
 };
 
-// A deleted WorkOS user can't finish sign-in: the callback fails and Teak
-// sends the browser back to hosted sign-in, without vault access.
 export const expectSignInRefused = async (surface: Surface, email: string) => {
   const { browser, screen } = surface;
   await gotoApp(browser, "/login");
@@ -208,7 +190,6 @@ type SecurityTab = "Connections" | "API keys";
 export const securityDialogOf = (screen: Screen) =>
   screen.getByRole("dialog", "Security");
 
-// Opens Security on the Settings page already loaded, without navigating.
 export const openSecurityDialog = async (
   { browser, screen }: Surface,
   tab: SecurityTab = "Connections"
@@ -229,13 +210,6 @@ export const openSecurityDialog = async (
         await clickVisibleControl(manageButton, { timeout: 2500 });
       }
       await expect(dialog).toBeVisible({ timeout: 2500 });
-      // Settings reads the device list with an action on every load, and the
-      // Convex client raises a beforeunload prompt while a request is in
-      // flight. Let the list settle on the Connections tab before switching
-      // away, so the caller's next navigation never races it.
-      await expect(dialog.getByText("Loading devices…")).toHaveCount(0, {
-        timeout: 2500,
-      });
       if ((await tabTrigger.getAttribute("aria-selected")) !== "true") {
         await clickVisibleControl(tabTrigger, { timeout: 2500 });
       }
@@ -280,33 +254,39 @@ export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", /^Revoke /).click();
-  // Revoked API keys disappear from the settings table.
   await expect(row).toHaveCount(0);
   await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };
 
-// A new WorkOS user signs in for the first time; the signed user.created
-// webhook is what gives the address a Teak account.
+/** A new WorkOS user signed in to its new vault; returns its email. */
+export const signUp = async (
+  surface: Surface,
+  label: string,
+  options: { emailVerified?: boolean } = {}
+) => {
+  const email = uniqueEmail(label);
+  const emailVerified = options.emailVerified ?? true;
+  await createEmulatorUser({ email, emailVerified, password: E2E_PASSWORD });
+  if (emailVerified) {
+    await waitForAccount(email);
+  }
+  await signIn(surface, email);
+  return email;
+};
+
 export const createAccount = async (
   surface: Surface,
   label = "acct",
   options: { emailVerified?: boolean } = {}
 ): Promise<AccountState> => {
-  const email = uniqueEmail(label);
-  await createEmulatorUser({
-    email,
-    emailVerified: options.emailVerified ?? true,
-    password: E2E_PASSWORD,
-  });
-  await signIn(surface, email);
+  const email = await signUp(surface, label, options);
   return { email, apiKey: await generateApiKey(surface) };
 };
 
 /**
  * An account with an API key and no browser: for the API, CLI and MCP specs.
  * The key comes from the same mutation Settings calls, signed in with the
- * password grant the hosted page uses. The vault exists once the backend has
- * the user.created webhook, so the first calls may land before it.
+ * password grant the hosted page uses.
  */
 export const createApiAccount = async (
   label: string
@@ -317,24 +297,9 @@ export const createApiAccount = async (
     emailVerified: true,
     password: E2E_PASSWORD,
   });
-  const client = new ConvexHttpClient(env.convexUrl);
-  client.setAuth(await sessionTokenFor(email, E2E_PASSWORD));
-  let apiKey = "";
-  await expect
-    .poll(
-      async () => {
-        try {
-          apiKey = (await client.mutation(api.apiKeys.createUserApiKey, {}))
-            .key;
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 45_000, interval: 1000, message: "API key for a new account" }
-    )
-    .toBe(true);
-  return { email, apiKey };
+  const { client } = await waitForAccount(email);
+  const { key } = await client.mutation(api.apiKeys.createUserApiKey, {});
+  return { email, apiKey: key };
 };
 
 export const deleteAccountViaUi = async (
@@ -349,8 +314,6 @@ export const deleteAccountViaUi = async (
   ).toBeVisible();
   await browser.locator("#deleteConfirm").fill("delete account");
   await screen.getByRole("button", "Delete account", { exact: false }).click();
-  // Deletion signs out at admission, then removes the vault and the WorkOS
-  // user in the background.
   await expectHostedSignIn(surface);
   const { apiKey } = account;
   if (apiKey) {

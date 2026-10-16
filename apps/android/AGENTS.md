@@ -18,7 +18,7 @@ Native Kotlin and Jetpack Compose. The app matches the Apple app (`apps/apple`):
 
 ## Backend rules
 
-- Convex calls go through `ConvexApi`, by function name. Every number argument must be a `Double`: the SDK sends `Int` and `Long` as int64, which `v.number()` rejects.
+- Convex calls go through `ConvexApi`, by function name. `LiveConvexApi` sends every number argument as a `Double`: the SDK sends `Int` and `Long` as int64, which `v.number()` rejects.
 - Sign-in uses the WorkOS SDK to build the PKCE authorize URL. The code exchange and refresh are posted directly without `client_secret`, because SDK 0.4.0 always sends one and WorkOS rejects an empty one. Never log tokens.
 - Sessions are encrypted with an Android Keystore key and stored in no-backup storage.
 - JNA is pinned to 5.17 or newer. Convex's own JNA 5.14 can't load on 16 KB-page devices. Keep the AAR artifact type.

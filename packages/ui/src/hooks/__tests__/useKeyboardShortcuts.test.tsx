@@ -108,7 +108,6 @@ test("g then f after the timeout does nothing", () => {
   later(2000);
   const event = press("f");
   expect(favorites).not.toHaveBeenCalled();
-  // The late f is an ordinary key again, free for a focused card.
   expect(event.defaultPrevented).toBe(false);
 });
 

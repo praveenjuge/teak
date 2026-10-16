@@ -1,10 +1,3 @@
-# Teak link fetcher: the Files Worker's internet-enabled Cloudflare Container.
-# The build context is the repository root (image_build_context in
-# wrangler.jsonc) so the server bundles Convex's SSRF policy, pinned fetch,
-# page parser and image checks by path instead of copying them.
-# Dockerfile.dockerignore keeps the context to the files listed below.
-# Build: docker build --platform linux/amd64 -f apps/files-worker/fetcher/Dockerfile -t teak-fetcher .
-
 FROM --platform=linux/amd64 oven/bun:1.4.2-alpine AS build
 WORKDIR /build
 # Installed at the context root so the Convex files below resolve them.
@@ -17,7 +10,6 @@ COPY packages/convex/workflows/steps/linkMetadata/remoteImageDimensions.ts packa
 COPY apps/files-worker/fetcher/src apps/files-worker/fetcher/src
 RUN bun build apps/files-worker/fetcher/src/server.ts --target=node --minify --outfile /build/fetcher.mjs
 
-# Matches the repo's pinned Node (root package.json engines).
 FROM --platform=linux/amd64 node:24.21.0-alpine
 RUN addgroup -S -g 10001 fetcher \
   && adduser -S -D -H -u 10001 -G fetcher fetcher

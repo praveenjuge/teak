@@ -12,8 +12,6 @@ import { api, components } from "./_generated/api";
 import schema from "./schema";
 import { POLAR_PLAN_IDS } from "./shared/polarPlans";
 
-// Polar is the boundary. Its sandbox refuses customer emails on domains that
-// can't receive mail, the way the real API answered the seeded dev accounts.
 const polarSdk = vi.hoisted(() => {
   const undeliverable = /(^|\.)(example\.(com|net|org)|test)$/;
   return {
@@ -68,8 +66,6 @@ const checkout = (client: Awaited<ReturnType<typeof setup>>["client"]) =>
     productId: POLAR_PLAN_IDS.development.monthly,
   });
 
-// What Polar sends once the sandbox checkout completes: an active
-// subscription on the customer the checkout was created for.
 const syncSubscription = (
   t: Awaited<ReturnType<typeof setup>>["t"],
   customerId: string

@@ -70,8 +70,6 @@ const STAGE_KEYS: ProcessingStageKey[] = [
 const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_MISSING_CARDS = 50;
-// Maximum cards to process in admin overview to prevent memory issues
-// For larger datasets, consider denormalizing counters or using pagination
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const ADMIN_LIST_LIMIT = 200;
 const MAX_ACTIVITY_DAYS = 90;
@@ -196,12 +194,8 @@ export const getOverview = query({
 
     const uniqueUsers = new Set<string>();
 
-    // Use .take() with limit instead of unbounded .collect() to prevent memory issues
-    // For production at scale, consider denormalizing these counts into a separate table
     const allCards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
     const internalIds = await readInternalUserIds(ctx);
-    // Internal and test accounts never count. Onboarding cards are left out
-    // unless explicitly requested.
     const cards = allCards.filter(
       (card) =>
         !internalIds.has(card.userId) &&
@@ -344,16 +338,11 @@ export const getOverview = query({
         stageSummaries,
         missingCards,
       },
-      // Warn if we hit the limit - counts may be incomplete
       isApproximate: isLimitReached,
     };
   },
 });
 
-/**
- * What the console shows for a card without a stated reason: its type, state
- * and sizes, never its content, notes, URL, file name, AI output or files.
- */
 export const redactCard = (card: Doc<"cards">) => ({
   _id: card._id,
   _creationTime: card._creationTime,
@@ -403,7 +392,6 @@ export const listAllCards = query({
             .order("desc")
             .paginate(safePagination);
 
-    // Filter out onboarding cards unless explicitly requested
     const filteredPage = includeOnboarding
       ? result.page
       : result.page.filter((card) => !isOnboardingCard(card));
@@ -415,10 +403,6 @@ export const listAllCards = query({
   },
 });
 
-/**
- * Break glass: one card's full content and files, for a stated reason. Every
- * reveal is written to the audit log against the card's owner.
- */
 export const revealCard = mutation({
   args: { cardId: v.id("cards"), reason: v.string() },
   handler: async (ctx, { cardId, reason }) => {
@@ -443,7 +427,6 @@ export const revealCard = mutation({
   },
 });
 
-// Teak's own identity table covers accounts from before and after WorkOS.
 export const listAllUsers = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -550,7 +533,6 @@ export const activityUsersPage = internalQuery({
   },
 });
 
-/** How many of these accounts saved enough cards in their first week. */
 export const countActivatedUsers = internalQuery({
   args: {
     users: v.array(v.object({ teakUserId: v.string(), createdAt: v.number() })),
@@ -593,11 +575,6 @@ async function readAllPages<T>(
   return { rows, isComplete: false };
 }
 
-/**
- * Daily totals for the last `days` days (new accounts, cards, uploads, AI
- * stage runs on those cards) and the share of new accounts that saved at
- * least five cards in their first week. Onboarding cards are not counted.
- */
 export const getActivity = action({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) => {
@@ -656,7 +633,6 @@ export const getActivity = action({
   },
 });
 
-/** Account migration and account deletion queue totals. */
 export const getOperations = query({
   args: {},
   handler: async (ctx) => {
@@ -686,8 +662,6 @@ export const getOperations = query({
   },
 });
 
-// Operator-only bootstrap, e.g. for a new self-hosted deployment. Runtime
-// authorization always uses the stored role.
 export const seedAdmin = internalMutation({
   args: { email: v.string() },
   returns: v.object({ teakUserId: v.string(), role: v.literal("admin") }),
@@ -800,7 +774,6 @@ export const retryAiBackfill = action({
         ? { enqueuedCount: 0, failedCardIds: [] }
         : workflowResult;
 
-    // Retrieve a sample of outstanding cards to provide context without exposing IDs
     const pendingSample = (await ctx.runQuery(
       internal.ai.queries.findCardsMissingAi,
       {}

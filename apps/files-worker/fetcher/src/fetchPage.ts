@@ -1,12 +1,5 @@
-/**
- * Fetch a saved link's page and match scrape selectors against its static
- * HTML, as Convex's link metadata step did itself: the same SSRF policy,
- * address pinning, browser user agent, 2 MiB limit and parser, all bundled
- * from Convex by path so there is one copy. Unlike Convex, the page is decoded
- * with the charset it declares rather than always as UTF-8.
- */
-
 import {
+  RedirectError,
   readBodyWithLimit,
   SsrfError,
   safeFetch,
@@ -27,7 +20,6 @@ const MAX_SELECTORS = 128;
 const MAX_SELECTOR_CHARS = 512;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
-const REDIRECT_FAILURES = new Set(["invalid_redirect", "too_many_redirects"]);
 // A page that asks not to be stored, or only by the one browser that asked.
 const UNCACHEABLE = /(?:^|[\s,])(?:no-store|private)(?:$|[\s,=])/i;
 
@@ -61,7 +53,6 @@ export const parseFetcherPageRequest = (
 };
 
 const CHARSET_IN_CONTENT_TYPE = /charset\s*=\s*["']?([^\s"';]+)/i;
-// <meta charset="x"> and <meta http-equiv="Content-Type" content="...; charset=x">.
 const CHARSET_IN_META = /<meta\b[^>]*?charset\s*=\s*["']?\s*([\w.:-]+)/i;
 // Browsers look for a <meta> charset in the first 1024 bytes only.
 const META_PRESCAN_BYTES = 1024;
@@ -127,9 +118,10 @@ export const fetchLinkPage = async (
   request: FetcherPageRequest,
   { pinnedFetch, resolveDns }: FetchAssetDeps
 ): Promise<FetchPageOutcome> => {
+  let finalUrl: string;
   let response: Response;
   try {
-    response = await safeFetch(
+    ({ finalUrl, response } = await safeFetch(
       request.url,
       resolveDns,
       {
@@ -139,12 +131,10 @@ export const fetchLinkPage = async (
         },
       },
       pinnedFetch
-    );
+    ));
   } catch (error) {
-    // safeFetch also throws SsrfError for a broken redirect chain, which is
-    // the page failing, not the policy refusing it.
     return fail(
-      error instanceof SsrfError && !REDIRECT_FAILURES.has(error.reason)
+      error instanceof SsrfError && !(error instanceof RedirectError)
         ? "blocked_url"
         : "fetch_failed"
     );
@@ -184,9 +174,7 @@ export const fetchLinkPage = async (
     charset,
     html,
     ok: true,
-    // safeFetch requests each redirect hop itself, so the response's URL is
-    // the last one.
-    pageUrl: response.url || request.url,
+    pageUrl: finalUrl,
     selectors: buildSelectorResultsFromHtml(
       html,
       request.selectors.map((selector) => ({ selector }))

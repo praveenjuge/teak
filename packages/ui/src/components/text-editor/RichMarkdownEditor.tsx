@@ -262,15 +262,16 @@ export function RichMarkdownEditor({
     },
   });
 
+  // Effects can run with an editor useEditor has already destroyed: it
+  // destroys the instance when a hidden <Activity> disconnects its effects
+  // and makes a new one when they reconnect, after this render.
   useEffect(() => {
-    if (!editor) {
+    if (!editor || editor.isDestroyed) {
       return;
     }
     if (syncedEditor.current !== editor) {
-      // Every editor instance starts from `initial`. React destroys and
-      // recreates the editor while keeping this component's state when a
-      // hidden <Activity> is shown again, as Next.js does for a route it
-      // keeps for back navigation, so sync the current value into it.
+      // Every editor instance starts from `initial`; a new one after an
+      // <Activity> reveal must catch up with the current value.
       syncedEditor.current = editor;
       lastValue.current = initial.value;
       lastSerialized.current = initial.serialized;
@@ -289,13 +290,13 @@ export function RichMarkdownEditor({
   }, [editor, initial, props.value]);
 
   useEffect(() => {
-    if (editor) {
+    if (editor && !editor.isDestroyed) {
       onEditorReady?.(editor);
     }
   }, [editor, onEditorReady]);
 
   useEffect(() => {
-    if (editor) {
+    if (editor && !editor.isDestroyed) {
       editor.setEditable(!props.disabled);
       editor.view.dispatch(
         editor.state.tr.setMeta("teakPlaceholder", props.placeholder)

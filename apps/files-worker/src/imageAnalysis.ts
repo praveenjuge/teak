@@ -1,18 +1,18 @@
 import { type ExifFacts, readExifFacts } from "./exif";
+import { throughImagesBinding } from "./imagesBinding";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
+import { OpFailure } from "./opFailure";
 import { paletteFromPng } from "./palette";
 import { renderSvgToPng } from "./wasm";
 
 export interface ImageAnalysisResult {
-  /** Camera facts, when the original carries EXIF. */
   exif?: ExifFacts;
   height: number;
   palette: string[];
   width: number;
 }
 
-// EXIF is optional: a read or parse failure never fails the analysis.
 const readStoredExif = async (
   bucket: R2Bucket,
   sourceKey: string,
@@ -24,7 +24,7 @@ const readStoredExif = async (
       const object = await bucket.get(sourceKey, { range: { offset, length } });
       if (!object || object.httpEtag !== etag) {
         await object?.body.cancel();
-        throw new Error("source_changed");
+        throw new OpFailure("source_changed");
       }
       return new Uint8Array(await object.arrayBuffer());
     }, size);
@@ -32,11 +32,6 @@ const readStoredExif = async (
     return null;
   }
 };
-
-// Cloudflare's Images binding accepts raw inputs up to 20 MB. Larger images
-// retain the URL-transformation metadata fallback, whose remote-image limit is
-// higher and already covers Teak's upload ceiling.
-const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 
 const isSvgSource = (key: string, contentType?: string): boolean =>
   contentType === "image/svg+xml" ||
@@ -75,11 +70,11 @@ const analyzeSvg = async (
 ): Promise<ImageAnalysisResult> => {
   const object = await env.BUCKET.get(sourceKey);
   if (!object) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   if (object.size > 10 * 1024 * 1024) {
     await object.body.cancel();
-    throw new Error("source_too_large");
+    throw new OpFailure("source_too_large");
   }
   const rendered = await renderSvgToPng(await object.text(), 64);
   return {
@@ -89,31 +84,23 @@ const analyzeSvg = async (
   };
 };
 
-const dimensionsFromBinding = async (
+const dimensionsFromBinding = (
   env: Env,
   sourceKey: string,
   sourceSize: number
-): Promise<{ height: number; width: number } | null> => {
-  if (!(env.IMAGES && sourceSize <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
-    return null;
-  }
-  const object = await env.BUCKET.get(sourceKey);
-  if (!object) {
-    throw new Error("source_not_found");
-  }
-  try {
-    return parseDimensions(await env.IMAGES.info(object.body));
-  } catch {
-    // Binding metadata is an optimization, not a new failure mode. Preserve
-    // the proven transformation fallback for unsupported or transient cases.
-    try {
-      await object.body.cancel();
-    } catch {
-      // The binding may already have locked or consumed the stream.
-    }
-    return null;
-  }
-};
+): Promise<{ height: number; width: number } | null> =>
+  throughImagesBinding(
+    env.IMAGES,
+    sourceSize,
+    async () => {
+      const object = await env.BUCKET.get(sourceKey);
+      if (!object) {
+        throw new OpFailure("source_not_found");
+      }
+      return object;
+    },
+    async (images, object) => parseDimensions(await images.info(object.body))
+  );
 
 const resolveRasterDimensions = async (
   env: Env,
@@ -140,13 +127,13 @@ const resolveRasterDimensions = async (
     now
   );
   if (!response.ok) {
-    throw new Error("image_transform_failed");
+    throw new OpFailure("image_transform_failed");
   }
   const dimensions = parseDimensions(
     (await response.json()) as CloudflareImageInfo
   );
   if (!dimensions) {
-    throw new Error("image_dimensions_missing");
+    throw new OpFailure("image_dimensions_missing");
   }
   return dimensions;
 };
@@ -160,7 +147,7 @@ export const analyzeImage = async (
 ): Promise<ImageAnalysisResult> => {
   const metadata = await env.BUCKET.head(sourceKey);
   if (!metadata) {
-    throw new Error("source_not_found");
+    throw new OpFailure("source_not_found");
   }
   if (isSvgSource(sourceKey, metadata.httpMetadata?.contentType)) {
     return await analyzeSvg(env, sourceKey);
@@ -193,7 +180,7 @@ export const analyzeImage = async (
     readStoredExif(env.BUCKET, sourceKey, metadata.httpEtag, metadata.size),
   ]);
   if (!sampleResponse.ok) {
-    throw new Error("image_transform_failed");
+    throw new OpFailure("image_transform_failed");
   }
   return {
     ...dimensions,

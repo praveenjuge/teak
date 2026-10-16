@@ -1,10 +1,8 @@
-// Production Files Worker, plus the isolated development Worker
-// (scripts/check-cloudflare.ts DEVELOPMENT_FILES_ORIGIN). Exact hosts only:
-// recovery re-signs through Convex, so other origins are never retried.
-export const TEAK_FILES_HOSTS: ReadonlySet<string> = new Set([
-  "files.teakvault.com",
-  "teak-files-development.praveenjuge.workers.dev",
-]);
+import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
+
+export const TEAK_FILES_HOSTS: ReadonlySet<string> = new Set(
+  Object.values(TEAK_FILES_ORIGINS).map((origin) => new URL(origin).hostname)
+);
 const RENDITIONS = new Set(["tiny", "compact", "grid", "detail"] as const);
 
 export type MediaRendition = "tiny" | "compact" | "grid" | "detail";

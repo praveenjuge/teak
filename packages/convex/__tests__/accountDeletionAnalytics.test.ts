@@ -20,8 +20,6 @@ interface BulkDeleteRequest {
 
 let requests: BulkDeleteRequest[];
 
-// A PostHog project holding persons by distinct id. bulk_delete removes the
-// matched person, like the real endpoint, and reports what it found.
 const stubPostHog = (
   persons: Set<string>,
   answer?: (body: Record<string, unknown>) => Response

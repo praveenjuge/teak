@@ -2,7 +2,6 @@ import AuthenticationServices
 import SwiftUI
 import TeakCore
 
-/// The first screen: what Teak is, and the ways to sign in.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.webAuthenticationSession) private var webAuthentication

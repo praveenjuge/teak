@@ -145,11 +145,9 @@ describe("file text previews", () => {
       await prefetchFileTextPreview(options);
       expect(cachedFileTextPreview(options.cacheKey)).toBe("# Expiring");
 
-      // Still served just before the 15-minute lifetime elapses.
       Date.now = () => start + fifteenMinutesMs - 1;
       expect(cachedFileTextPreview(options.cacheKey)).toBe("# Expiring");
 
-      // Dropped once the lifetime passes, so a fresh fetch is required.
       Date.now = () => start + fifteenMinutesMs + 1;
       expect(cachedFileTextPreview(options.cacheKey)).toBeUndefined();
 

@@ -2,9 +2,9 @@
  * `bookmarks.html` for the export ZIP: the Netscape bookmark format that
  * Chrome, Firefox and Safari import.
  *
- * Pure (no Convex imports) so it can be fuzz-tested. Only link cards with a
- * safe web URL are written. Links in no folder come first; then each folder
- * is an `<H3>` section, and a card in several folders appears in each.
+ * Only link cards with a safe web URL are written. Links in no folder come
+ * first; then each folder is an `<H3>` section, and a card in several folders
+ * appears in each.
  */
 
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
@@ -22,7 +22,6 @@ const ENTITIES: Record<string, string> = {
 export const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (char) => ENTITIES[char] ?? char);
 
-/** Bookmark names are one line: whitespace runs, newlines included, become one space. */
 const oneLine = (value: string): string => value.replace(/\s+/g, " ").trim();
 
 const seconds = (epochMs: number): number => Math.floor(epochMs / 1000);

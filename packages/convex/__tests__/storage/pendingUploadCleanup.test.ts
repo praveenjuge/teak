@@ -1,12 +1,19 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   runStalePendingCleanup,
+  type StalePendingCleanupDependencies,
   withFilesWorkerRetry,
 } from "../../storage/pendingUploadCleanup";
 
 describe("worker-side stale cleanup", () => {
   test("makes one worker call and persists its continuation cursor", async () => {
-    const cleanup = mock(async () => ({ cursor: "next-page" }));
+    const cleanup = mock(
+      async (
+        _options: Parameters<StalePendingCleanupDependencies["cleanup"]>[0]
+      ) => ({
+        cursor: "next-page",
+      })
+    );
     const getCursor = mock(async () => "saved-page");
     const setCursor = mock(async () => undefined);
 

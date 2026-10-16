@@ -1,3 +1,4 @@
+import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -11,9 +12,6 @@ import { Input } from "@teak/ui/components/ui/input";
 import { useEffect, useId, useState } from "react";
 import { cardCountLabel } from "../../lib/bulkCardActions";
 
-/** Longest tag the server accepts. */
-const MAX_TAG_LENGTH = 64;
-/** Most tags one call may name. */
 const MAX_TAGS = 20;
 
 /** Splits typed text on commas into trimmed tags, dropping repeats (ignoring case). */
@@ -60,10 +58,10 @@ export function BulkTagsDialog({
   }, [open]);
 
   const tags = parseTagInput([...picked, input].join(","));
-  const tooLong = tags.find((tag) => tag.length > MAX_TAG_LENGTH);
+  const tooLong = tags.find((tag) => tag.length > MAX_TAG_NAME_LENGTH);
   let problem: string | null = null;
   if (tooLong) {
-    problem = `Tags can be at most ${MAX_TAG_LENGTH} characters.`;
+    problem = `Tags can be at most ${MAX_TAG_NAME_LENGTH} characters.`;
   } else if (tags.length > MAX_TAGS) {
     problem = `Choose at most ${MAX_TAGS} tags at a time.`;
   }

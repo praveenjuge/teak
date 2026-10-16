@@ -12,7 +12,6 @@ data class SessionUser(
     val teakUserId: String? = null,
 )
 
-/** A signed-in WorkOS session. Only ever stored encrypted; never logged. */
 @Serializable
 data class AuthSession(
     val clientId: String,
@@ -24,9 +23,13 @@ data class AuthSession(
     val user: SessionUser,
 ) {
     override fun toString(): String = "AuthSession(user=${user.id}, sessionId=$sessionId)"
+
+    /** False when [other] belongs to a different WorkOS user, session, or linked Teak account. */
+    fun isSameAccount(other: AuthSession): Boolean =
+        other.user.id == user.id && other.sessionId == sessionId &&
+            (user.teakUserId == null || other.user.teakUserId == user.teakUserId)
 }
 
-/** The PKCE values that must survive until the browser redirects back. */
 @Serializable
 data class PendingSignIn(
     val clientId: String,
@@ -34,7 +37,6 @@ data class PendingSignIn(
     val state: String,
 )
 
-/** The four ways to sign in, matching the iPhone welcome screen. */
 enum class SignInMethod(val provider: String, val screenHint: String?) {
     Apple("AppleOAuth", null),
     Google("GoogleOAuth", null),
@@ -48,7 +50,6 @@ sealed interface SessionState {
     data class SignedIn(val user: SessionUser) : SessionState
 }
 
-/** A failure the person should see, worded like the iPhone app. */
 class SignInException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** WorkOS rejected the refresh token: the session is over and must be cleared. */

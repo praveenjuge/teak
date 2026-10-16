@@ -113,7 +113,6 @@ test("card types round-trip through the URL state", async () => {
       types: ["image", "palette"],
     })
   );
-  // The typed text stays as typed; only the types follow the URL.
   expect(controller.searchQuery).toBe("blue");
   expect(controller.filterTags).toEqual(["image", "palette"]);
 
@@ -123,7 +122,6 @@ test("card types round-trip through the URL state", async () => {
 
 test("a type picked mid-typing keeps the text being typed", async () => {
   await render({ view: "all" });
-  // The URL still has no query: the typed text has not settled yet.
   await act(() => controller.searchBarProps.onSearchChange("blue"));
   await act(() =>
     controller.applyUrlState(

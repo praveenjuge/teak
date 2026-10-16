@@ -2,11 +2,6 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { env, internalAction, type MutationCtx } from "./_generated/server";
 
-// Posts superadmin events (sign-ins, card reveals) to a Slack or Discord
-// incoming webhook, so every use of the console is seen as it happens. An
-// audit log only helps after the fact; a message in a channel deters.
-
-/** Schedules an alert when ADMIN_ALERT_WEBHOOK_URL is set; else does nothing. */
 export const scheduleAdminAlert = async (ctx: MutationCtx, text: string) => {
   if (!env.ADMIN_ALERT_WEBHOOK_URL) {
     return;

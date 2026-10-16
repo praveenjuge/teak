@@ -60,7 +60,6 @@ public struct FileCredentialLock: CredentialLock {
     }
 }
 
-/// One `withLock` call's hold on the file, which the activity's expiry can take back.
 private final class LockHold: @unchecked Sendable {
     /// How long expiry waits for a cancelled operation to unlock on its own. An
     /// expiry handler has about a second before the watchdog steps in.
@@ -85,7 +84,6 @@ private final class LockHold: @unchecked Sendable {
         }
     }
 
-    /// How to stop the operation; runs now when the time already ran out.
     func onExpiry(_ cancel: @escaping @Sendable () -> Void) {
         let expired = mutex.withLock {
             self.cancel = cancel
@@ -94,7 +92,6 @@ private final class LockHold: @unchecked Sendable {
         if expired { cancel() }
     }
 
-    /// Unlocks, unless expiry already did.
     func release() {
         mutex.withLock {
             guard let descriptor else { return }

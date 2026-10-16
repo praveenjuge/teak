@@ -8,18 +8,13 @@ type Input = {
   isFavorited: boolean;
 };
 
-/**
- * Toggle the favorite state of a Teak card by id.
- */
 export default async function tool(input: Input) {
   const cardId = input.cardId?.trim();
   if (!cardId) {
     throw new Error("cardId is required");
   }
 
-  const updated = await setCardFavorite(cardId, input.isFavorited, {
-    interactive: false,
-  });
+  const updated = await setCardFavorite(cardId, input.isFavorited, "stored");
 
   return {
     appUrl: updated.appUrl,

@@ -11,8 +11,6 @@ import { readWorkosProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import type { WorkosResource } from "./workosTokens";
 
-// Only the bearer middleware supplies this permanent owner ID. This query is
-// internal so callers cannot select another user's profile.
 export const profileForOwner = internalQuery({
   args: { teakUserId: v.string(), includeUsage: v.optional(v.boolean()) },
   returns: v.union(

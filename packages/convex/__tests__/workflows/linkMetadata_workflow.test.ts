@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
   linkMetadataWorkflowHandler,
@@ -81,7 +80,7 @@ describe("linkMetadataWorkflow", () => {
       cardId: "c1",
     });
 
-    expect(result.workflowId).toBe("w1");
+    expect(result.workflowId).toBe<string>("w1");
     expect(mockWorkflowStart).toHaveBeenCalled();
   });
 });

@@ -7,29 +7,10 @@ import {
   DAY_MS,
   summarizeSignupDomains,
 } from "./adminStats";
+import { CRONS } from "./cronSchedules";
 import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
 
-// Operational health for the superadmin console: cron heartbeats, webhooks
-// Teak could not apply, failing imports and exports, and signup abuse.
-
-const HOUR_MS = 60 * 60 * 1000;
 const MAX_ERROR_LENGTH = 300;
-
-/** How often each cron is scheduled (crons.ts), in milliseconds. */
-export const CRON_SCHEDULES: Record<string, number> = {
-  "workos-event-catch-up": HOUR_MS,
-  "cleanup-expired-idempotency": HOUR_MS,
-  "cleanup-old-deleted-cards": DAY_MS,
-  "cleanup-abandoned-import-uploads": HOUR_MS,
-  "cleanup-stale-pending-card-uploads": HOUR_MS,
-  "sweep-orphaned-objects": 7 * DAY_MS,
-  "reap-stuck-workflows": 7 * DAY_MS,
-  "ai-metadata-backfill": 6 * HOUR_MS,
-  "cleanup-expired-exports": DAY_MS,
-  "redrive-account-deletion": 5 * 60 * 1000,
-  "admin-daily-snapshot": DAY_MS,
-  "cleanup-semantic-search-cache": HOUR_MS,
-};
 
 export const recordCronRun = internalMutation({
   args: {
@@ -111,12 +92,12 @@ export const getHealth = query({
       lastSucceededAt: number | null;
       lastError: string | null;
       consecutiveFailures: number;
-    }> = Object.entries(CRON_SCHEDULES).map(([name, expectedEveryMs]) => {
+    }> = Object.values(CRONS).map(({ name, everyMs }) => {
       const row = byName.get(name);
       return {
         name,
-        health: cronHealth(row, expectedEveryMs, now),
-        expectedEveryMs,
+        health: cronHealth(row, everyMs, now),
+        expectedEveryMs: everyMs,
         lastStartedAt: row?.lastStartedAt ?? null,
         lastSucceededAt: row?.lastSucceededAt ?? null,
         lastError: row?.lastError ?? null,
@@ -187,8 +168,6 @@ export const getHealth = query({
   },
 });
 
-/* PostHog reads ----------------------------------------------------------- */
-
 const runHogQl = async (apiKey: string, hogql: string) => {
   const response = await fetch(
     `${POSTHOG_UI_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`,
@@ -215,10 +194,6 @@ const runHogQl = async (apiKey: string, hogql: string) => {
   return body.results ?? [];
 };
 
-/**
- * Product signals only PostHog sees: how often search finds nothing, and
- * which surfaces cards are saved from. Needs POSTHOG_QUERY_API_KEY.
- */
 export const getProductSignals = action({
   args: {},
   handler: async (ctx) => {

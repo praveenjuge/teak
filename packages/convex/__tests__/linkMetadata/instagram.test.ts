@@ -97,7 +97,7 @@ describe("isInstagramUrl", () => {
 
     it("should return false for invalid URLs", () => {
       expect(isInstagramUrl("not a url")).toBe(false);
-      expect(isInstagramUrl("instagram.com")).toBe(false); // missing protocol
+      expect(isInstagramUrl("instagram.com")).toBe(false);
       expect(isInstagramUrl("")).toBe(false);
       expect(isInstagramUrl("javascript:alert('xss')")).toBe(false);
     });
@@ -105,17 +105,12 @@ describe("isInstagramUrl", () => {
     it("should return false for malformed URLs", () => {
       expect(isInstagramUrl("https://")).toBe(false);
       expect(isInstagramUrl("://instagram.com")).toBe(false);
-      // Note: ftp://instagram.com is technically a valid URL with instagram.com hostname
-      // So isInstagramUrl returns true for it - this is expected behavior
       expect(isInstagramUrl("ftp://instagram.com")).toBe(true);
     });
 
     it("should handle edge cases gracefully", () => {
-      // The .. prefix creates a valid hostname that ends with instagram.com
       expect(isInstagramUrl("https://..instagram.com")).toBe(true);
-      // The .. in the middle doesn't match the instagram.com pattern
       expect(isInstagramUrl("https://instagram..com")).toBe(false);
-      // Actual invalid URLs
       expect(isInstagramUrl("not-a-url")).toBe(false);
       expect(isInstagramUrl("https://")).toBe(false);
     });

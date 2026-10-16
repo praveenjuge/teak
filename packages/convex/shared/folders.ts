@@ -1,13 +1,7 @@
-// Folder limits and colors, shared by the backend, the public API and the
-// apps so they agree on what the server accepts.
-
-/** Most folders one account can have. */
 export const MAX_FOLDERS_PER_USER = 500;
-/** Most folders one card can be in. */
 export const MAX_FOLDERS_PER_CARD = 50;
 /** Longest folder name, in characters, after trimming. */
 export const MAX_FOLDER_NAME_LENGTH = 300;
-/** Most cards one add, remove or move call may name. */
 export const MAX_FOLDER_CARD_IDS = 100;
 /** Longest smart folder search, in characters, as stored (canonical). */
 export const MAX_SMART_FOLDER_QUERY_LENGTH = 500;
@@ -15,7 +9,6 @@ export const MAX_SMART_FOLDER_QUERY_LENGTH = 500;
 /** "manual" folders hold the cards put in them; "smart" ones save a search. */
 export type FolderKind = "manual" | "smart";
 
-/** The small fixed palette a folder can be colored with. */
 export const FOLDER_COLORS = [
   "gray",
   "red",

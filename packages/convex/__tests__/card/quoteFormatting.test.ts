@@ -1,21 +1,21 @@
-// @ts-nocheck
 import { describe, expect, it, test } from "bun:test";
 import {
   applyQuoteDisplayFormatting,
   normalizeQuoteContent,
   stripSurroundingQuotes,
 } from "../../card/quoteFormatting";
+import { testDoc } from "../helpers/convex.test-utils";
 
 describe("applyQuoteDisplayFormatting", () => {
   describe("applyQuoteDisplayFormatting", () => {
     test("normalizes non-quote cards when quotes are removed", () => {
-      const card = { type: "text", content: "'Hello'" };
+      const card = testDoc("cards", { type: "text", content: "'Hello'" });
       const result = applyQuoteDisplayFormatting(card);
       expect(result.content).toBe("Hello");
     });
 
     test("returns same card when no formatting is needed", () => {
-      const card = { type: "text", content: "Hello" };
+      const card = testDoc("cards", { type: "text", content: "Hello" });
       const result = applyQuoteDisplayFormatting(card);
       expect(result).toBe(card);
     });
@@ -47,7 +47,10 @@ describe("applyQuoteDisplayFormatting", () => {
     });
 
     test("formats quote-typed cards even when quotes were already stripped", () => {
-      const card = { type: "quote", content: '"Still wrapped"' };
+      const card = testDoc("cards", {
+        type: "quote",
+        content: '"Still wrapped"',
+      });
       expect(applyQuoteDisplayFormatting(card).content).toBe("Still wrapped");
     });
   });
@@ -113,7 +116,6 @@ describe("normalizeQuoteContent", () => {
 
     it("keeps the quotes when a comma and speaker tag follow", () => {
       const result = normalizeQuoteContent('"Hello world", he said');
-      // ", he said" is not allowed trailing text, so the quotes stay
       expect(result.text).toBe('"Hello world", he said');
       expect(result.removedQuotes).toBe(false);
     });
@@ -273,7 +275,6 @@ describe("normalizeQuoteContent", () => {
 
     it("should handle quotes with internal quotes", () => {
       const result = normalizeQuoteContent('"He said \\"hello\\" to me"');
-      // The escaped quotes are part of the string content, not actual quote characters
       expect(result.text).toBe('He said \\"hello\\" to me');
       expect(result.removedQuotes).toBe(true);
     });
@@ -298,7 +299,6 @@ describe("normalizeQuoteContent", () => {
 
     it("should handle French guillemets with punctuation", () => {
       const result = normalizeQuoteContent("« Bonjour le monde », dit-il.");
-      // Guillemets with trailing comma inside - comma is part of the closing quote content
       expect(result.text).toBe("« Bonjour le monde », dit-il.");
       expect(result.removedQuotes).toBe(false);
     });
@@ -323,7 +323,6 @@ describe("normalizeQuoteContent", () => {
 
     it("should handle quote followed by comma and space", () => {
       const result = normalizeQuoteContent('"Hello", world');
-      // ", world" is not allowed trailing text, so the quotes stay
       expect(result.text).toBe('"Hello", world');
       expect(result.removedQuotes).toBe(false);
     });

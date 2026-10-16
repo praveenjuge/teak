@@ -18,13 +18,11 @@ export interface Part {
 }
 
 export interface JobResult {
-  /** Job-specific manifest fields. */
   extra: Record<string, unknown>;
   facts: MediaFacts | null;
   parts: Part[];
 }
 
-// Anything outside printable ASCII.
 const NON_ASCII = /[^ -~]/g;
 
 /** Compact JSON that is always a valid HTTP header value. */
@@ -46,13 +44,14 @@ export function encodeManifest(result: JobResult): string {
 }
 
 export function jobResponse(result: JobResult): Response {
-  const body = Buffer.concat(result.parts.map((part) => part.bytes));
+  const parts = result.parts.filter((part) => part.bytes.byteLength > 0);
+  const body = Buffer.concat(parts.map((part) => part.bytes));
   return new Response(body, {
     status: 200,
     headers: {
       "content-type": "application/octet-stream",
       "content-length": String(body.byteLength),
-      "x-teak-manifest": encodeManifest(result),
+      "x-teak-manifest": encodeManifest({ ...result, parts }),
     },
   });
 }

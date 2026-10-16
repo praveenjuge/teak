@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { useFileUploadCore } from "../../../client/hooks/useFileUpload.client";
 import { MAX_FILE_SIZE } from "../../../shared/constants";
+import { asFetch } from "../../helpers/convex.test-utils";
 import {
   mockFetch,
   mockSetState,
@@ -13,7 +13,7 @@ describe("file upload initialization and multipart flow", () => {
   const finalizeUploadedCard = mock();
 
   beforeEach(() => {
-    global.fetch = mockFetch;
+    global.fetch = asFetch(mockFetch);
     uploadAndCreateCard.mockReset();
     finalizeUploadedCard.mockReset();
     mockFetch.mockReset();

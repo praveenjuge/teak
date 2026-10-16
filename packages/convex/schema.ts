@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { cardTypes } from "./shared/constants";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { FOLDER_COLORS } from "./shared/folders";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
@@ -9,19 +10,7 @@ import {
   workosDeletionTargetValidator,
 } from "./workosDeletionCompletion";
 
-// Card types as literals for validator
-export const cardTypes = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
-
-export type CardType = (typeof cardTypes)[number];
+export type { CardType } from "./shared/constants";
 
 export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
 
@@ -31,7 +20,6 @@ export const linkCategoryValidator = v.union(
   ...linkCategoryLiterals.map((category) => v.literal(category))
 );
 
-// Reusable validators
 export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
 );
@@ -63,7 +51,6 @@ export const processingStatusObjectValidator = v.object({
   categorize: v.optional(stageStatusValidator),
   metadata: v.optional(stageStatusValidator),
   renderables: v.optional(stageStatusValidator),
-  // Link screenshots run in their own workflow after metadata.
   screenshot: v.optional(stageStatusValidator),
 });
 
@@ -128,7 +115,6 @@ export const imageExifValidator = v.object({
 
 export const fileMetadataValidator = v.optional(
   v.object({
-    // File metadata (for non-link cards)
     fileSize: v.optional(v.number()),
     fileName: v.optional(v.string()),
     mimeType: v.optional(v.string()),
@@ -140,7 +126,6 @@ export const fileMetadataValidator = v.optional(
     height: v.optional(v.number()),
     preview: v.optional(filePreviewFactsValidator),
     exif: v.optional(imageExifValidator),
-    // Video hover scrub sprite (`scrubKey`): `frames * frameWidth` wide.
     scrub: v.optional(
       v.object({
         frames: v.number(),
@@ -148,7 +133,6 @@ export const fileMetadataValidator = v.optional(
         frameHeight: v.number(),
       })
     ),
-    // Audio waveform bar heights 0-100: 45 for grid cards, 200 for the player.
     waveform: v.optional(
       v.object({
         grid: v.array(v.number()),
@@ -156,7 +140,6 @@ export const fileMetadataValidator = v.optional(
       })
     ),
     processing: v.optional(fileProcessingProvenanceValidator),
-    // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
   })
 );
@@ -166,7 +149,6 @@ export const r2KeyValidator = v.string();
 export const metadataValidator = v.optional(
   v.object({
     source: v.optional(v.string()),
-    // Metadata for link previews
     linkPreview: v.optional(
       v.object({
         source: v.optional(v.string()),
@@ -224,10 +206,9 @@ export const metadataValidator = v.optional(
   })
 );
 
-// Color palette validator for palette cards
 export const colorValidator = v.object({
-  hex: v.string(), // Always normalized to hex format
-  name: v.optional(v.string()), // Color name if available
+  hex: v.string(),
+  name: v.optional(v.string()),
   rgb: v.optional(
     v.object({
       r: v.number(),
@@ -299,7 +280,6 @@ export const importStatusValidator = v.union(
   v.literal("canceled")
 );
 
-// Every source in shared/importSources.ts IMPORT_MODES.
 export const importModeValidator = v.union(
   v.literal("bookmarks"),
   v.literal("archive"),
@@ -322,7 +302,6 @@ export const importItemStatusValidator = v.union(
 
 export const fileUploadSessionValidator = v.object({
   userId: v.string(),
-  // Existing provider-keyed sessions expire through normal cleanup.
   identityKey: v.optional(v.string()),
   teakUserId: v.optional(v.string()),
   sourceKey: r2KeyValidator,
@@ -351,36 +330,24 @@ export const fileUploadSessionValidator = v.object({
   updatedAt: v.number(),
 });
 
-// Canonical export job record. No backfill: rows are created on demand.
 export const exportJobValidator = v.object({
   userId: v.string(),
   status: exportStatusValidator,
-  // Workflow handle for the durable background generation (when running).
   workflowId: v.optional(v.string()),
-  // Cooperative cancellation flag checked by the workflow.
   cancelRequested: v.optional(v.boolean()),
-  // R2 object key + size of the completed ZIP artifact.
   artifactKey: v.optional(r2KeyValidator),
   artifactBytes: v.optional(v.number()),
-  // Operational counts (no card contents or filenames).
   cardCount: v.optional(v.number()),
   filesIncluded: v.optional(v.number()),
   filesOmitted: v.optional(v.number()),
-  // Coarse in-flight progress. `processedCount` is the running number of cards
-  // snapshotted during phase 1; `stage` distinguishes the numeric snapshot
-  // phase from the indeterminate archive-build phase.
   processedCount: v.optional(v.number()),
   stage: v.optional(v.union(v.literal("snapshotting"), v.literal("archiving"))),
-  // Failure classification only (no PII).
   failureClass: v.optional(exportFailureClassValidator),
-  // Lifecycle timestamps.
   createdAt: v.number(),
   updatedAt: v.number(),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
-  // Timestamp counted against the weekly quota (set only on success).
   quotaCountedAt: v.optional(v.number()),
-  // When the completed artifact expires and is eligible for cleanup.
   expiresAt: v.optional(v.number()),
 });
 
@@ -390,12 +357,10 @@ export const exportJobItemValidator = v.object({
   jobId: v.id("exportJobs"),
   userId: v.string(),
   cardId: v.id("cards"),
-  // The original file key captured at start time (if any).
   fileKey: v.optional(r2KeyValidator),
   createdAt: v.number(),
 });
 
-// Import state is created on demand. No existing document needs a backfill.
 export const importJobValidator = v.object({
   userId: v.string(),
   mode: importModeValidator,
@@ -405,12 +370,9 @@ export const importJobValidator = v.object({
   fileSize: v.number(),
   fileLastModified: v.number(),
   sourceKey: r2KeyValidator,
-  // Bound on first processing attempt; optional for jobs created before rollout.
   sourceEtag: v.optional(v.string()),
   uploadId: v.optional(v.string()),
   uploadExpiresAt: v.optional(v.number()),
-  // Parts the client reported after each signed PUT. Completion hands these
-  // to the files worker, which R2 verifies, so Convex never lists parts.
   uploadedParts: v.optional(
     v.array(
       v.object({ partNumber: v.number(), etag: v.string(), size: v.number() })
@@ -442,8 +404,6 @@ export const importJobItemValidator = v.object({
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
-  // Archive schema v2: restored on the created card. Folders are names,
-  // matched to the user's folders (or created) when the card is made.
   isArchived: v.optional(v.boolean()),
   metadataTitle: v.optional(v.string()),
   folders: v.optional(v.array(v.string())),
@@ -469,24 +429,13 @@ export const cardValidator = v.object({
   content: v.string(),
   type: cardTypeValidator,
   url: v.optional(v.string()),
-  /**
-   * The `url`'s site as `site:` matches it (shared/utils/urlHost.ts), kept
-   * by the search sync. Absent when the card has no web URL.
-   */
   urlHost: v.optional(v.string()),
-  /**
-   * A random number in [0, 1), set once when the card is saved and never
-   * changed: the Shuffle order walks cards by it (card/shuffle.ts). Absent
-   * on cards saved before Shuffle until the backfill sets it.
-   */
   shuffleKey: v.optional(v.number()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
   scrubKey: v.optional(r2KeyValidator),
   workflowArtifactKeys: v.optional(v.array(r2KeyValidator)),
-  /** Bounded ~1600px preview derivative for large originals. */
   previewKey: v.optional(r2KeyValidator),
-  /** Thumbhash placeholder bytes (base64) decoded into a blurry stand-in. */
   placeholderHash: v.optional(v.string()),
   derivativeVersion: v.optional(v.string()),
   derivativeCheckedAt: v.optional(v.number()),
@@ -495,48 +444,29 @@ export const cardValidator = v.object({
   isFavorited: v.optional(v.boolean()),
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
-  // Archived cards leave the library but stay searchable in Archive. Absent
-  // (never false) on active cards, so index equality on `undefined` works.
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
-  // Folders the card belongs to (at most MAX_FOLDERS_PER_CARD). The source of
-  // truth; folderCards is an index of it kept in step by the card search sync.
   folderIds: v.optional(v.array(v.id("folders"))),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
   metadataStatus: v.optional(
     v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
   ),
-  // Searchable metadata fields (flattened for search indexes)
   metadataTitle: v.optional(v.string()),
-  // Preserve manual titles, including clears, through link-preview refreshes.
   metadataTitleEdited: v.optional(v.boolean()),
   metadataDescription: v.optional(v.string()),
-  // AI-generated fields
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
-  /**
-   * The document's extracted text in R2 (card/documentText.ts). Its first
-   * 32 KiB, in cardTextContents, is part of search.
-   */
   documentTextKey: v.optional(r2KeyValidator),
-  /** Set with documentTextKey; absent on cards without stored text. */
   hasExtractedText: v.optional(v.literal(true)),
-  /** Characters in the stored text, for the card's details. */
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),
-  // Times the periodic AI backfill has retried this card. After the limit the
-  // backfill stops picking it, so cards that always fail can't starve others.
   aiBackfillAttempts: v.optional(v.number()),
-  // Palette-specific fields
   colors: v.optional(v.array(colorValidator)),
   colorHexes: v.optional(v.array(v.string())),
   colorHues: v.optional(v.array(v.string())),
-  // Pipeline processing status per stage
   processingStatus: processingStatusValidator,
-  // The getting-started card this is (card/defaultCards.ts). Absent on cards
-  // people save, and on the first onboarding cards, which predate it.
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -594,16 +524,12 @@ export default defineSchema({
       "reason",
       "resolvedAt",
     ]),
-  // Signed WorkOS webhooks Teak can never apply (malformed provider data).
-  // Kept for an operator to inspect; holds no provider payload.
   workosWebhookDeadLetters: defineTable({
     eventId: v.string(),
     event: v.string(),
     reason: v.string(),
     receivedAt: v.number(),
   }).index("by_eventId", ["eventId"]),
-  // Which checkout pushes backend code to the shared dev deployment
-  // (devPushLease.ts). Empty everywhere else.
   devPushLeases: defineTable({
     name: v.string(),
     holderId: v.optional(v.string()),
@@ -613,7 +539,6 @@ export default defineSchema({
       v.object({ label: v.string(), commit: v.string(), at: v.number() })
     ),
   }).index("by_name", ["name"]),
-  // Where the WorkOS Events API catch-up continues from.
   workosEventCursors: defineTable({
     name: v.string(),
     after: v.string(),
@@ -681,18 +606,12 @@ export default defineSchema({
     ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
-    // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
-    // with partial index matching (just userId) per Convex best practices
     .index("by_type_derivative_version", ["type", "derivativeVersion"])
     .index("by_type_derivative_checked", ["type", "derivativeCheckedAt"])
-    // Compound index for type filtering with isDeleted to avoid post-index .filter()
     .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
-    // Compound index for favorites filtering with isDeleted to avoid post-index .filter()
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
-    // Library listings order by the card's saved date (`createdAt`), so an
-    // imported card lands where it was originally saved. See card/listQuery.ts.
     .index("by_user_deleted_archived_created", [
       "userId",
       "isDeleted",
@@ -713,7 +632,6 @@ export default defineSchema({
       "isFavorited",
       "createdAt",
     ])
-    // `site:` searches read one host's cards in date order.
     .index("by_user_deleted_archived_host_created", [
       "userId",
       "isDeleted",
@@ -721,19 +639,13 @@ export default defineSchema({
       "urlHost",
       "createdAt",
     ])
-    // Shuffle walks one archive state's cards by their random key.
     .index("by_user_deleted_archived_shuffle", [
       "userId",
       "isDeleted",
       "isArchived",
       "shuffleKey",
     ])
-    // Trash lists every trashed card, archived or not.
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
-    // Bounded maintenance scans: soft-deleted cards pending cleanup and cards
-    // missing AI summaries are small subsets, so these indexes keep the
-    // cleanup/backfill queries proportional to the result set instead of
-    // scanning the whole table.
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
     .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
       "aiSummary",
@@ -749,45 +661,31 @@ export default defineSchema({
     // cardSearchDocuments.
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"]),
-  // A new account's getting-started cards on their way (card/defaultCards.ts).
-  // Set when the account is created and cleared in the transaction that
-  // inserts the cards, so clients show "Setting up your vault", not an empty
-  // library, until they land.
   vaultSetups: defineTable({
     userId: v.string(),
     startedAt: v.number(),
   }).index("by_userId", ["userId"]),
-  // One row per card with (or due for) a vector in Vectorize; the ledger every
-  // delete path works from (embedding/state.ts). Kept off `cards` so embedding
-  // never rewrites a card or wakes its reactive queries.
   cardEmbeddings: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
-    /** Where the vector is; set by the first successful embed. */
     shard: v.optional(v.number()),
     namespace: v.optional(v.string()),
-    /** Hash of the text and embedding version the vector was made from. */
     hash: v.optional(v.string()),
     embeddedAt: v.optional(v.number()),
-    /** When the next embed is due; also the fence against stale writes. */
     dueAt: v.optional(v.number()),
     attempts: v.optional(v.number()),
     lastError: v.optional(v.string()),
-    /** Set when the card is gone and its vector still has to be deleted. */
     pendingVectorDeleteAt: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_dueAt", ["dueAt"])
     .index("by_pendingVectorDeleteAt", ["pendingVectorDeleteAt"]),
-  // Which Vectorize shard holds a user's card embeddings (vectorShards.ts).
   vectorShards: defineTable({
     userId: v.string(),
     shard: v.number(),
   }).index("by_userId", ["userId"]),
-  // A search's meaning matches, briefly (search/semanticCache.ts). Actions
-  // write them; search queries read them, so a reactive grid merges them in
-  // when they land. `key` hashes the embedded text, never stores it.
+  // `key` hashes the embedded text; the query itself is never stored.
   semanticSearchResults: defineTable({
     userId: v.string(),
     key: v.string(),
@@ -797,27 +695,20 @@ export default defineSchema({
   })
     .index("by_userId_and_key", ["userId", "key"])
     .index("by_expiresAt", ["expiresAt"]),
-  // Folders group cards by hand ("manual"); "smart" folders save a search.
   folders: defineTable({
     userId: v.string(),
     name: v.string(),
-    // The trimmed, lowercased name: unique per user.
     nameKey: v.string(),
     color: v.optional(folderColorValidator),
     kind: v.union(v.literal("manual"), v.literal("smart")),
     query: v.optional(v.string()),
-    // Cards in the folder that are neither in Trash nor archived.
     activeCardCount: v.number(),
-    // Set when deletion starts: the folder is hidden while its cards are
-    // detached in batches, then the row is removed.
     deletingAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_userId_and_nameKey", ["userId", "nameKey"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
-  // One row per card in a folder, derived from cards.folderIds by
-  // syncCardFolderRows so a folder lists its cards from an index.
   folderCards: defineTable({
     folderId: v.id("folders"),
     cardId: v.id("cards"),
@@ -835,8 +726,6 @@ export default defineSchema({
       "isArchived",
       "cardCreatedAt",
     ])
-    // Trash and "archived: include" list archived and active rows together,
-    // so they need the date right after the Trash flag to stay in order.
     .index("by_folderId_and_isDeleted_and_cardCreatedAt", [
       "folderId",
       "isDeleted",
@@ -844,49 +733,32 @@ export default defineSchema({
     ])
     .index("by_cardId_and_folderId", ["cardId", "folderId"])
     .index("by_userId", ["userId"]),
-  // The sidebar's tag list: a snapshot of tag counts on cards outside Trash
-  // and Archive, recomputed in the background shortly after tags change so
-  // the sidebar never scans the tag index reactively.
   userTagSummaries: defineTable({
     userId: v.string(),
-    // Bounded by MAX_TAG_SUMMARY_ITEMS, most-used first.
     items: v.array(v.object({ name: v.string(), count: v.number() })),
-    // False when the snapshot stopped at its row or item bound.
     isComplete: v.boolean(),
-    // When the recompute that wrote it started: the counts are as of then.
     computedAt: v.number(),
   }).index("by_userId", ["userId"]),
-  // Exists only while a snapshot recompute is scheduled, so a burst of tag
-  // changes schedules one recompute. Kept apart from the snapshot so tag
-  // syncs never read the large snapshot row.
   tagSummaryRefreshes: defineTable({
     userId: v.string(),
     dueAt: v.number(),
   }).index("by_userId", ["userId"]),
-  // Library-wide tag renames, merges and deletes, processed in batches.
   tagOperations: defineTable({
     userId: v.string(),
     kind: v.union(v.literal("rename"), v.literal("merge"), v.literal("delete")),
-    // The tag being changed, lowercased like the tag index.
     from: v.string(),
-    // The new name (rename) or the tag merged into (merge), as given.
     to: v.optional(v.string()),
     status: v.union(
       v.literal("running"),
       v.literal("completed"),
       v.literal("failed")
     ),
-    // Cards carrying the tag when the operation started (at most
-    // TAG_OPERATION_COUNT_LIMIT), cards looked at, and cards rewritten.
     total: v.number(),
     processed: v.number(),
     changed: v.number(),
-    // Where the next batch resumes in the tag index.
     cursor: v.optional(v.string()),
-    // The pass over the tag index (from 1) and cards it has changed so far.
     pass: v.optional(v.number()),
     passChanged: v.optional(v.number()),
-    // Sweeps made while the user's tag syncs were still running.
     syncWaits: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
@@ -987,9 +859,6 @@ export default defineSchema({
         "urlHost",
       ],
     }),
-  // Text extracted from a card's file. `text` is the searchable prefix (at
-  // most 32 KiB of UTF-8); the full text is the R2 object at `sourceKey`,
-  // which is also the card's documentTextKey. One row per card.
   cardTextContents: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
@@ -1001,8 +870,6 @@ export default defineSchema({
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
-    // Searched apart from cardSearchDocuments, a bounded number of rows a
-    // request (card/searchDocumentHelpers.ts), as each row is large.
     .searchIndex("search_text", {
       searchField: "text",
       filterFields: ["userId"],
@@ -1105,9 +972,6 @@ export default defineSchema({
     offset: v.number(),
     pending: v.boolean(),
     sourceUpdatedAt: v.optional(v.number()),
-    // Snapshot of the card fields the tag sync needs, written by restarts so
-    // batch invocations sync from the state row instead of reading the cards
-    // table (a write-conflict hotspot while card writes land mid-chain).
     userId: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     aiTags: v.optional(v.array(v.string())),
@@ -1116,9 +980,6 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
-    // False when this chain cannot change the sidebar's tag counts (the
-    // card's tags and Trash and Archive state are as before), so finishing
-    // it skips the tag summary recompute. Missing on older rows: recompute.
     tagCountsChanged: v.optional(v.boolean()),
   })
     .index("by_cardId", ["cardId"])
@@ -1133,8 +994,6 @@ export default defineSchema({
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
-  // Ids of hard-deleted cards, so /v1/cards/changes can report them. Rows
-  // expire after CARD_TOMBSTONE_RETENTION_MS (publicApiTombstones.ts).
   cardTombstones: defineTable({
     userId: v.string(),
     cardId: v.id("cards"),
@@ -1142,8 +1001,6 @@ export default defineSchema({
   })
     .index("by_userId_and_deletedAt", ["userId", "deletedAt"])
     .index("by_deletedAt", ["deletedAt"]),
-  // Short-lived record that an API key validated, so concurrent requests skip
-  // the key component's hot usage-counter write. Revoking a key deletes it.
   apiKeyAuthCache: defineTable({
     tokenHash: v.string(),
     keyId: v.string(),
@@ -1157,10 +1014,8 @@ export default defineSchema({
     .index("by_date_endpoint", ["date", "endpoint"])
     .index("by_date_endpoint_shard", ["date", "endpoint", "shard"]),
   exportJobs: defineTable(exportJobValidator)
-    // Latest job per user + active-job lookups.
     .index("by_user_created", ["userId", "createdAt"])
     .index("by_user_status", ["userId", "status"])
-    // Cleanup scans of ready artifacts by expiry.
     .index("by_status_expires", ["status", "expiresAt"]),
   exportJobItems: defineTable(exportJobItemValidator)
     .index("by_job", ["jobId"])
@@ -1195,7 +1050,6 @@ export default defineSchema({
     .index("by_identity_status", ["identityKey", "status"])
     .index("by_source_key", ["sourceKey"])
     .index("by_expires_at", ["expiresAt"]),
-  // Superadmin console. Append-only record of every admin action.
   adminAuditLog: defineTable({
     actorTeakUserId: v.string(),
     actorEmail: v.string(),
@@ -1203,13 +1057,11 @@ export default defineSchema({
     targetTeakUserId: v.optional(v.string()),
     targetCardId: v.optional(v.string()),
     reason: v.optional(v.string()),
-    // Small JSON-safe before/after values, never card content.
     details: v.optional(v.record(v.string(), v.any())),
     at: v.number(),
   })
     .index("by_at", ["at"])
     .index("by_targetTeakUserId_and_at", ["targetTeakUserId", "at"]),
-  // One row (key "global"): kill switches and goals set from the console.
   adminSettings: defineTable({
     key: v.literal("global"),
     signupsPaused: v.boolean(),
@@ -1219,7 +1071,6 @@ export default defineSchema({
     primaryMetric: v.union(v.literal("mrr"), v.literal("weeklyActiveSavers")),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
-  // Per-account admin flags, kept off the identity table.
   adminUserFlags: defineTable({
     teakUserId: v.string(),
     internal: v.boolean(),
@@ -1228,15 +1079,11 @@ export default defineSchema({
   })
     .index("by_teakUserId", ["teakUserId"])
     .index("by_internal", ["internal"]),
-  // The founder's running "what's blocking growth" list.
   adminNotes: defineTable({
     body: v.string(),
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
   }).index("by_createdAt", ["createdAt"]),
-  // One row per UTC day, written by the daily snapshot cron. Counts exclude
-  // internal and test accounts. Billing fields describe the moment of capture
-  // and are only present for the day the snapshot ran.
   adminDailyMetrics: defineTable({
     date: v.string(),
     capturedAt: v.number(),
@@ -1268,7 +1115,6 @@ export default defineSchema({
     ),
     isApproximate: v.boolean(),
   }).index("by_date", ["date"]),
-  // AI spend per account per UTC day, from every model call.
   aiUsageDaily: defineTable({
     date: v.string(),
     userId: v.string(),
@@ -1280,7 +1126,6 @@ export default defineSchema({
   })
     .index("by_date_and_userId", ["date", "userId"])
     .index("by_userId_and_date", ["userId", "date"]),
-  // Last run of each cron job, for the console's health view.
   cronHeartbeats: defineTable({
     name: v.string(),
     lastStartedAt: v.number(),

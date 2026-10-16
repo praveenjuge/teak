@@ -1,13 +1,4 @@
-/**
- * Teak's typed product-event catalog.
- *
- * Client surfaces (web, extension popup) call `captureEvent`; the host wires a
- * recorder at startup with `configureAnalytics`. Until then, every call is a
- * no-op.
- * Server events are sent from Convex with `captureBackendEvent`.
- *
- * Keep properties low-cardinality and free of user content.
- */
+import { ignoreTelemetryError } from "./telemetry";
 
 export type CardCreationSource =
   | "web"
@@ -114,14 +105,13 @@ export const captureEvent = <Name extends ClientEventName>(
     ? [properties?: ClientEventCatalog[Name]]
     : [properties: ClientEventCatalog[Name]]
 ): void => {
-  if (!activeRecorder) {
+  const recorder = activeRecorder;
+  if (!recorder) {
     return;
   }
-  try {
-    activeRecorder.capture(event, { ...(properties ?? {}) });
-  } catch {
-    // Analytics must never alter product behavior.
-  }
+  ignoreTelemetryError(() =>
+    recorder.capture(event, { ...(properties ?? {}) })
+  );
 };
 
 const MEGABYTE = 1024 * 1024;

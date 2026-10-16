@@ -35,7 +35,6 @@ function getPreviousHomeEntry(): NavigationEntry | null {
   }
 
   const previousUrl = new URL(previousEntry.url);
-  // Any library view (All, Favorites, Archive, Trash) counts as home.
   const isHome =
     previousUrl.origin === window.location.origin &&
     libraryViewForPath(previousUrl.pathname) !== null;
@@ -88,7 +87,6 @@ export function SettingsBackLink() {
   );
 }
 
-/** Settings' page header: the sidebar toggle, Back, and the title. */
 export function SettingsHeader() {
   return (
     <PageHeader

@@ -3,8 +3,6 @@ import Observation
 import TeakCore
 import TeakSync
 
-/// One library view: what it's showing, the live pages, selection and the
-/// card actions with optimistic updates that roll back on failure.
 @MainActor @Observable
 final class LibraryModel {
     let pager: CardPager
@@ -17,9 +15,7 @@ final class LibraryModel {
     private(set) var isRunningBulkAction = false
     private(set) var status: StatusMessage?
 
-    /// Favorite changes the server hasn't confirmed yet.
     private var favoriteOverrides: [String: Bool] = [:]
-    /// Cards moved out of this view (trashed, restored, deleted) until the server drops them.
     private var hiddenIds: Set<String> = []
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private var debouncedText = ""
@@ -35,13 +31,11 @@ final class LibraryModel {
         let id = UUID()
         let text: String
         let isError: Bool
-        /// The Mac offers Upgrade… next to the Free-plan limit.
         let isCardLimit: Bool
     }
 
     // MARK: Query
 
-    /// The query as the server sees it: the filter menu, tokens and text.
     var query: LibraryQuery {
         LibraryQuery(text: debouncedText, tokens: tokens, filters: filters)
     }
@@ -74,7 +68,6 @@ final class LibraryModel {
         pager.load(query.searchArgs())
     }
 
-    /// Typing waits a quarter second before searching.
     private func scheduleSearch() {
         searchTask?.cancel()
         searchTask = Task {
@@ -85,7 +78,6 @@ final class LibraryModel {
         }
     }
 
-    /// Commits typed text as tokens (Return), like the Mac app.
     func commitText() {
         var next = tokens
         for token in SearchTokens.parse(text) where !next.contains(where: { $0.id == token.id }) {
@@ -97,7 +89,6 @@ final class LibraryModel {
         tokens = next
     }
 
-    /// Filters by one exact tag, from a card's tag.
     func filterByTag(_ tag: String) {
         var next = tokens.filter { $0.kind != .tag }
         next.append(SearchTokens.tag(tag))

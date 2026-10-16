@@ -58,7 +58,6 @@ describe("planning", () => {
   });
 });
 
-/** Cloudflare API stand-in recording every call. */
 const cloudflare = (
   entrypoint: { id: string; rules: LiveRule[] } | null,
   options: { missingWrites?: boolean } = {}

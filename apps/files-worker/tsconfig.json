@@ -10,9 +10,5 @@
     "noEmit": true
   },
   "include": ["src/**/*.ts", "waf/**/*.ts", "worker-configuration.d.ts"],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/testsupport.ts",
-    "src/chromeTestSupport.ts"
-  ]
+  "exclude": ["src/**/*.test.ts", "src/test/**"]
 }

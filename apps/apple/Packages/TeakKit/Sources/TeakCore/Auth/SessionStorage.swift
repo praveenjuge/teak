@@ -1,7 +1,6 @@
 import Foundation
 import Security
 
-/// Who is signed in, as WorkOS describes them.
 public struct SessionUser: Codable, Hashable, Sendable {
     public let id: String
     public let email: String
@@ -10,7 +9,6 @@ public struct SessionUser: Codable, Hashable, Sendable {
     public let name: String
 }
 
-/// A validated WorkOS session.
 public struct WorkOSSession: Hashable, Sendable {
     public let clientId: String
     public let accessToken: String
@@ -18,8 +16,13 @@ public struct WorkOSSession: Hashable, Sendable {
     public let expiresAt: Date
     public let sessionId: String
     public let user: SessionUser
-    /// The authenticate response's fields, as stored.
     let record: StoredSession
+
+    /// False when `other` belongs to a different WorkOS user, session, or linked Teak account.
+    func isSameAccount(as other: WorkOSSession) -> Bool {
+        other.user.id == user.id && other.sessionId == sessionId
+            && (user.teakUserId == nil || other.user.teakUserId == user.teakUserId)
+    }
 }
 
 /// What the keychain holds: the parts of WorkOS's authenticate response the
@@ -45,7 +48,6 @@ enum SessionParser {
 
     static func invalid() -> TeakError { TeakError(message: "Invalid sign-in response") }
 
-    /// Parses WorkOS's authenticate response.
     static func parseResponse(_ data: Data, clientId: String) throws -> WorkOSSession {
         guard data.count <= maxLength,
               let response = try? JSONDecoder().decode(AuthenticateResponse.self, from: data)
@@ -99,7 +101,6 @@ enum SessionParser {
     }
 }
 
-/// Where the session lives. The app and its extensions share one keychain item.
 public protocol SessionStorage: Sendable {
     func load() throws -> Data?
     func save(_ data: Data) throws

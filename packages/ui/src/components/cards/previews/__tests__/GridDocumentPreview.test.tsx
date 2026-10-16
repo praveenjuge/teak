@@ -1,8 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// Convex is the boundary: the thumbnail only asks it for a fresh URL when an
-// image fails, which static rendering never does.
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,

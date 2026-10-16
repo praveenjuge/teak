@@ -11,15 +11,13 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { TRASH_RETENTION_MS } from "./shared/constants";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-// Longer than the 30-day Trash purge, so a client that syncs at least once a
-// month never misses a deletion.
-export const CARD_TOMBSTONE_RETENTION_MS = 90 * DAY_MS;
+// A client that syncs at least once per Trash purge never misses a deletion.
+export const CARD_TOMBSTONE_RETENTION_MS = 3 * TRASH_RETENTION_MS;
 const PRUNE_ON_WRITE_LIMIT = 5;
 const PRUNE_BATCH_SIZE = 200;
 
-/** Records that a card row was permanently deleted. */
 export const recordCardTombstone = async (
   ctx: MutationCtx,
   args: { cardId: Id<"cards">; userId: string }
@@ -30,8 +28,6 @@ export const recordCardTombstone = async (
     deletedAt: now,
     userId: args.userId,
   });
-  // Keep each user's tombstones bounded without a separate job: every write
-  // also removes a few of that user's expired rows.
   const expired = await ctx.db
     .query("cardTombstones")
     .withIndex("by_userId_and_deletedAt", (q) =>
@@ -50,10 +46,6 @@ export interface TombstoneCursor {
   deletedAt: number;
 }
 
-/**
- * Reads up to `limit` tombstones at or after `since`, oldest first, resuming
- * strictly after `after`. Returns one extra row's worth of `hasMore`.
- */
 export const listCardTombstonesSince = async (
   ctx: QueryCtx,
   args: {
@@ -93,7 +85,6 @@ export const listCardTombstonesSince = async (
   return { hasMore, rows };
 };
 
-/** Deletes one page of a user's tombstones. Returns true when more remain. */
 export const deleteCardTombstonesForUserPage = async (
   ctx: MutationCtx,
   userId: string,
@@ -109,7 +100,6 @@ export const deleteCardTombstonesForUserPage = async (
   return rows.length === limit;
 };
 
-/** Deletes expired tombstones in batches, rescheduling itself until done. */
 export const pruneExpiredCardTombstones = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

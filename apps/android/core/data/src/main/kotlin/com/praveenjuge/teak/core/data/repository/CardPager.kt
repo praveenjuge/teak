@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Everything the grid needs to draw an infinitely scrolling, live-updating library. */
 data class PagedCards(
     val cards: List<CardSummary> = emptyList(),
     val isLoading: Boolean = true,
@@ -38,21 +37,18 @@ class CardPager(
     private val _state = MutableStateFlow(PagedCards())
     val state: StateFlow<PagedCards> = _state.asStateFlow()
 
-    /** Starts over for a new query. */
     fun load(newQuery: CardQuery) {
         query = newQuery
         restartedForCursor = false
         restart()
     }
 
-    /** Pull to refresh: drop every page and subscribe again from the top. */
     fun refresh() {
         refreshing = true
         restartedForCursor = false
         restart()
     }
 
-    /** Loads the next page once the last one has arrived. */
     fun loadMore() {
         val last = slots.lastOrNull()?.page ?: return
         if (last.isDone || last.continueCursor == null) return

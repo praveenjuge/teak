@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Something the Add screen needs to tell the person about a pick. */
 sealed interface AddAlert {
     data object TooManyFiles : AddAlert
     data class Skipped(val files: List<SkippedFile>) : AddAlert
@@ -24,7 +23,6 @@ sealed interface AddAlert {
 
 data class AddUiState(
     val uploads: List<UploadStatus> = emptyList(),
-    /** Picked files are being copied into the upload queue. */
     val isPreparing: Boolean = false,
     val alert: AddAlert? = null,
 ) {
@@ -44,7 +42,6 @@ class AddViewModel @Inject constructor(
             AddUiState(uploads = uploads, isPreparing = isPreparing, alert = alert)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AddUiState())
 
-    /** Copies picked files into app storage, reports any that can't go, and queues the rest. */
     fun upload(uris: List<Uri>, metadata: (Uri) -> Map<String, Double> = { emptyMap() }) {
         if (uris.isEmpty() || preparing.value) return
         if (uris.size > MAX_FILES_PER_UPLOAD) {

@@ -45,7 +45,6 @@ describe("signed worker upload urls", () => {
     const after = Math.floor(Date.now() / 1000);
 
     expect(signed.key).toBe(KEY);
-    // Default TTL is 10 minutes, within the worker's 15-minute ceiling.
     expect(signed.expiresAt).toBeGreaterThanOrEqual(before + 599);
     expect(signed.expiresAt).toBeLessThanOrEqual(after + 601);
 

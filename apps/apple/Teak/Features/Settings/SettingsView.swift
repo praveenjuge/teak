@@ -15,7 +15,6 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// Appearance, account, Mac options and About.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @State private var account = AccountModel()
@@ -33,7 +32,6 @@ struct SettingsView: View {
     }
 }
 
-/// Auto, Light or Dark, as segments.
 struct AppearanceSection: View {
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
 
@@ -47,7 +45,6 @@ struct AppearanceSection: View {
     }
 }
 
-/// `auth:getCurrentUser`, live.
 @MainActor @Observable
 final class AccountModel {
     private(set) var user: CurrentUser?
@@ -106,7 +103,6 @@ struct AccountSection: View {
                 #endif
             }
             #if os(macOS)
-            // The Mac puts both account actions on one row, Log Out on the right.
             Section {
                 HStack {
                     deleteButton

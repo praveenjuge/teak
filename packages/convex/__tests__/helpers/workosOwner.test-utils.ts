@@ -5,8 +5,6 @@ interface Backend {
   run: <T>(fn: (ctx: MutationCtx) => Promise<T>) => Promise<T>;
 }
 
-// The WorkOS AuthKit component's user row, which Teak reads as the provider
-// profile. Tests must register the component (`workosTest.register(t)`).
 export const seedComponentUser = (
   t: Backend,
   user: {
@@ -38,8 +36,6 @@ export const seedComponentUser = (
     })
   );
 
-// A later provider update to an existing component user, as WorkOS would send
-// it: the whole user with the given changes and a newer updatedAt.
 export const updateComponentUser = (
   t: Backend,
   id: string,
@@ -77,8 +73,6 @@ export const updateComponentUser = (
     });
   });
 
-// A verified WorkOS owner for the permanent Teak user id: the identity row and
-// the component profile the owner resolver requires.
 export const seedWorkosOwner = async (t: Backend, teakUserId: string) => {
   const workosUserId = `user_${Buffer.from(teakUserId).toString("hex")}`;
   const email = `${teakUserId}@example.test`;

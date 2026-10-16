@@ -1,20 +1,16 @@
 import Foundation
 
-/// Calls Convex functions by name. The app uses the live WebSocket client;
-/// sign-in bootstrap and the extensions use `ConvexHTTP`.
 public protocol ConvexCaller: Sendable {
     func query<T: Decodable & Sendable>(_ name: String, _ args: ConvexArgs) async throws -> T
     func mutation<T: Decodable & Sendable>(_ name: String, _ args: ConvexArgs) async throws -> T
     func action<T: Decodable & Sendable>(_ name: String, _ args: ConvexArgs) async throws -> T
 }
 
-/// Decodes a function that returns `null`.
 public struct ConvexVoid: Decodable, Sendable {
     public init() {}
     public init(from decoder: any Decoder) throws {}
 }
 
-/// Abstracts `URLSession.data(for:)` so tests can answer requests.
 public protocol HTTPTransport: Sendable {
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse)
 }
@@ -33,7 +29,6 @@ public struct URLSessionTransport: HTTPTransport {
     }
 }
 
-/// Convex's HTTP API (`/api/query`, `/api/mutation`, `/api/action`) with a bearer token.
 public struct ConvexHTTP: ConvexCaller {
     public typealias TokenProvider = @Sendable () async throws -> String?
 

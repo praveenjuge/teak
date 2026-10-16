@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 
 describe("workflows/cardCleanup", () => {

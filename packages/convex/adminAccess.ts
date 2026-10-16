@@ -11,9 +11,6 @@ import {
 import { readSignupsDisabled } from "./env";
 import { getSessionUser } from "./securitySessions";
 
-// Shared pieces of the superadmin console: who may use it, the audit log every
-// admin action writes to, the kill switches, and which accounts are internal.
-
 export interface AdminActor {
   email: string;
   teakUserId: string;
@@ -45,8 +42,6 @@ export const ensureAdmin = async (ctx: AdminCtx): Promise<AdminActor> => {
   }
   return actor;
 };
-
-/* Audit log -------------------------------------------------------------- */
 
 export interface AuditEntry {
   action: string;
@@ -81,7 +76,6 @@ export const writeAudit = async (
   });
 };
 
-// Actions have no database; they audit through this mutation.
 export const recordAudit = internalMutation({
   args: {
     actor: v.object({ teakUserId: v.string(), email: v.string() }),
@@ -98,7 +92,6 @@ export const recordAudit = internalMutation({
   },
 });
 
-/** A required, trimmed reason for actions that expose or change user data. */
 export const requireReason = (reason: string | undefined): string => {
   const trimmed = reason?.trim() ?? "";
   if (trimmed.length < 3) {
@@ -106,8 +99,6 @@ export const requireReason = (reason: string | undefined): string => {
   }
   return trimmed.slice(0, MAX_REASON_LENGTH);
 };
-
-/* Settings --------------------------------------------------------------- */
 
 export type PrimaryMetric = "mrr" | "weeklyActiveSavers";
 
@@ -120,7 +111,6 @@ export interface AdminSettings {
   weeklyGrowthTargetPct: number;
 }
 
-// Paul Graham's "good" weekly growth rate during YC is 5-7%.
 export const DEFAULT_WEEKLY_GROWTH_TARGET_PCT = 5;
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -155,7 +145,6 @@ export const readAdminSettings = async (ctx: DbCtx): Promise<AdminSettings> => {
   };
 };
 
-/** The environment freeze or the console switch, whichever is on. */
 export const readSignupsPaused = async (ctx: DbCtx): Promise<boolean> =>
   readSignupsDisabled() || (await readAdminSettings(ctx)).signupsPaused;
 
@@ -165,7 +154,6 @@ export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
     .unique();
 
-/** Whether a card owner's AI processing should run right now. */
 export const getAiGate = internalQuery({
   args: { userId: v.string() },
   returns: v.union(
@@ -190,13 +178,9 @@ export const isLinkFetchPaused = internalQuery({
   handler: async (ctx) => (await readAdminSettings(ctx)).linkFetchPaused,
 });
 
-/* Internal accounts ------------------------------------------------------ */
-
-// Reserved domains never belong to customers; e2e accounts carry "e2e-".
 const RESERVED_EMAIL_DOMAIN =
   /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost)$/;
 
-/** Accounts that are never customers: admins, e2e and reserved-domain emails. */
 export const isAutoInternalAccount = (
   user: Pick<Doc<"users">, "email" | "role">
 ): boolean => {
@@ -208,10 +192,8 @@ export const isAutoInternalAccount = (
   return email.includes("e2e-") || RESERVED_EMAIL_DOMAIN.test(domain);
 };
 
-// Internal accounts are few; this bound only guards a misconfiguration.
 const INTERNAL_ACCOUNT_LIMIT = 2000;
 
-/** Teak user ids flagged internal, auto or by hand. */
 export const readInternalUserIds = async (ctx: DbCtx): Promise<Set<string>> => {
   const rows = await ctx.db
     .query("adminUserFlags")
@@ -250,7 +232,6 @@ export const upsertUserFlags = async (
   return row;
 };
 
-/** Flags accounts the auto rule calls internal. Never unflags anyone. */
 export const flagAutoInternalAccounts = internalMutation({
   args: { teakUserIds: v.array(v.string()) },
   returns: v.number(),

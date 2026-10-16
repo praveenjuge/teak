@@ -2,7 +2,6 @@ import AVFoundation
 import SwiftUI
 import TeakCore
 
-/// Records an M4A (AAC) voice memo, up to an hour, and uploads it as `audio/mp4`.
 @MainActor @Observable
 final class VoiceRecorder {
     static let maxDuration: TimeInterval = 3600
@@ -45,7 +44,6 @@ final class VoiceRecorder {
         }
     }
 
-    /// Stops and returns the recording to upload.
     func stop() -> UploadItem? {
         timer?.cancel()
         let duration = recorder?.currentTime ?? elapsed

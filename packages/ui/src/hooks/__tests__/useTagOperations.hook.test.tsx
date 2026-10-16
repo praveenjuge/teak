@@ -91,7 +91,6 @@ test("a finished change stops adjusting the tag list once its time is up", async
   await render();
   expect(hook.latest?._id).toBe("op1");
 
-  // No new data arrives: the list still lets go of the change on time.
   await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
   expect(hook.latest).toBeNull();
 });

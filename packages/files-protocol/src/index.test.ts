@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildCardObjectKey,
+  buildFileSigningPayload,
   buildFilesOpSigningPayload,
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
@@ -7,10 +9,15 @@ import {
   buildUploadSigningPayload,
   cardEmbeddingDocument,
   cardEmbeddingQuery,
+  FILES_EDGE_CACHE_CONTROL,
+  FILES_OBJECT_KEY_ROOTS,
+  FILES_PRIVATE_CACHE_CONTROL,
+  FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  parseCardObjectKey,
   truncateForEmbedding,
   vectorNamespaceForUser,
   vectorShardBinding,
@@ -36,7 +43,6 @@ describe("files protocol", () => {
         size: 42,
       })
     ).toBe("upload\n1\nPUT\nusers/u/cards/file/x.txt\ntext/plain\n42\n123");
-    // Server-generated media signs without a bound size.
     expect(
       buildUploadSigningPayload({
         contentType: "image/jpeg",
@@ -141,18 +147,80 @@ describe("card embeddings", () => {
 
   test("cuts card text to what EmbeddingGemma reads, by its densest scripts", () => {
     expect(truncateForEmbedding("A short note")).toBe("A short note");
-    // A third of a token per ASCII character: 1,440 characters fit in 480.
     expect(truncateForEmbedding("a".repeat(5000))).toHaveLength(1440);
-    // 1.2 tokens per other code point: 400 fit.
     expect(Array.from(truncateForEmbedding("漢".repeat(5000)))).toHaveLength(
       400
     );
-    // An emoji is two UTF-16 units and is never split.
     const emoji = truncateForEmbedding("🌿".repeat(5000));
     expect(Array.from(emoji)).toHaveLength(400);
     expect(emoji.length).toBe(800);
     expect(cardEmbeddingDocument("b".repeat(5000))).toBe(
       `title: none | text: ${"b".repeat(1440)}`
     );
+  });
+});
+
+describe("file storage contract", () => {
+  test("signs file urls over key, expiry, content type and disposition", () => {
+    expect(
+      buildFileSigningPayload({
+        key: "users/abc/cards/file/x.png",
+        exp: "1700000000",
+        contentType: "image/png",
+        contentDisposition: "inline",
+      })
+    ).toBe("users/abc/cards/file/x.png\n1700000000\nimage/png\ninline");
+    expect(
+      buildFileSigningPayload({ key: "users/abc/cards/file/x.png", exp: "1" })
+    ).toBe("users/abc/cards/file/x.png\n1\n\n");
+  });
+
+  test("caches file responses for a day less than a signed url stays valid", () => {
+    expect(FILES_PRIVATE_CACHE_CONTROL).toBe(
+      "private, max-age=518400, immutable"
+    );
+    expect(FILES_EDGE_CACHE_CONTROL).toBe("public, max-age=518400, immutable");
+    expect(FILES_SIGNED_URL_MIN_VALIDITY_SECONDS).toBe(604_800);
+  });
+
+  test("builds card object keys under the user's hashed prefix", () => {
+    expect(
+      buildCardObjectKey({
+        envPrefix: "dev/",
+        userId: "user_1",
+        cardId: "card_9",
+        role: "file",
+        fileName: "My photo (1).png",
+      })
+    ).toMatch(
+      /^dev\/users\/1l7d0vx\/cards\/card_9\/file\/[0-9a-f-]{36}-My-photo-1-\.png$/
+    );
+    expect(
+      buildCardObjectKey({ envPrefix: "", userId: "user_1", role: "thumbnail" })
+    ).toMatch(/^users\/1l7d0vx\/cards\/pending\/thumbnail\/[0-9a-f-]{36}$/);
+  });
+
+  test("reads the card and role back from a card object key", () => {
+    const key = buildCardObjectKey({
+      envPrefix: "dev/",
+      userId: "user_1",
+      cardId: "card_9",
+      role: "file",
+    });
+    expect(parseCardObjectKey(key)).toEqual({ cardId: "card_9", role: "file" });
+    expect(
+      parseCardObjectKey("users/1l7d0vx/cards/pending/thumbnail/x")
+    ).toEqual({ role: "thumbnail" });
+    expect(parseCardObjectKey("exports/user/archive.zip")).toEqual({});
+    expect(parseCardObjectKey("")).toEqual({});
+  });
+
+  test("accepts keys under the user and export roots of both environments", () => {
+    expect([...FILES_OBJECT_KEY_ROOTS].sort()).toEqual([
+      "dev/exports/",
+      "dev/users/",
+      "exports/",
+      "users/",
+    ]);
   });
 });

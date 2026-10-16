@@ -49,14 +49,11 @@ function holdsCodeBlock(token: Token): boolean {
   return found;
 }
 
-/** A block with its tags escaped. One holding a code block keeps its text,
- * except that a list's items are escaped one by one. */
 function escapeBlock(block: Token): string {
   if (!holdsCodeBlock(block)) {
     return escapeOutsideCodeSpans(block.raw);
   }
   if (block.type === "list") {
-    // The items are the list's text, less the blank lines that end it.
     const { items } = block as Tokens.List;
     const itemsRaw = items.map((item) => item.raw).join("");
     if (block.raw.startsWith(itemsRaw)) {
@@ -71,7 +68,6 @@ export function escapeTypedHtml(source: string): string {
   if (!source.includes("<")) {
     return source;
   }
-  // Top-level blocks, which together are the whole source.
   const blocks = lexer.lexer(source);
   if (blocks.map((block) => block.raw).join("") !== source) {
     return escapeOutsideCodeSpans(source);

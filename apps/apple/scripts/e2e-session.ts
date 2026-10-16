@@ -39,7 +39,6 @@ export const loadStack = async () => {
 };
 
 const emulator = async (origin: string, path: string, body: unknown) => {
-  // The origin is the local WorkOS emulator from this checkout's stack.json.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(new URL(path, origin), {
     method: "POST",
@@ -55,7 +54,6 @@ const emulator = async (origin: string, path: string, body: unknown) => {
   return response.json();
 };
 
-/** A new vault and a WorkOS authenticate response for it. */
 export const createSession = async (label = "apple") => {
   const urls = await loadStack();
   const email = `e2e-${label}-${Date.now()}-${randomBytes(4).toString("hex")}@example.org`;
@@ -81,7 +79,6 @@ export const createSession = async (label = "apple") => {
   return { urls, email, response };
 };
 
-/** The environment a Debug build of the app reads at launch. */
 export const launchEnvironment = (
   session: Awaited<ReturnType<typeof createSession>>
 ) => ({

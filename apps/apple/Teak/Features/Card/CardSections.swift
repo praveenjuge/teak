@@ -1,7 +1,6 @@
 import SwiftUI
 import TeakCore
 
-/// Filters the library from a card's tag or type, like tapping a tag on the web.
 struct LibraryFilterAction {
     var tag: (String) -> Void = { _ in }
     var type: (CardType) -> Void = { _ in }
@@ -11,8 +10,6 @@ extension EnvironmentValues {
     @Entry var filterLibrary = LibraryFilterAction()
 }
 
-/// Notes, tags, Teak's summary, transcript and info, shown below the preview
-/// or in the inspector.
 struct CardSections: View {
     let card: Card
     @Environment(\.filterLibrary) private var filterLibrary
@@ -76,8 +73,7 @@ struct CardSections: View {
     @ViewBuilder private var summary: some View {
         let text = card.aiSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let tags = (card.aiTags ?? []).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        // Palettes already show their colors as the preview.
-        let colors = card.type == .palette ? [] : (card.colors ?? []).prefix(8).map(\.hex)
+        let colors = card.type.showsSummaryColors ? (card.colors ?? []).prefix(8).map(\.hex) : []
         if !text.isEmpty || !tags.isEmpty || !colors.isEmpty {
             section("Summary") {
                 VStack(alignment: .leading, spacing: 10) {
@@ -141,7 +137,6 @@ struct CardSections: View {
     }
 }
 
-/// One label and value, like a row in Settings.
 private struct InfoRow<Value: View>: View {
     let label: String
     @ViewBuilder let value: Value
@@ -164,13 +159,11 @@ private struct InfoRow<Value: View>: View {
 }
 
 private extension View {
-    /// The inset grouped look: a rounded card on the page background.
     func grouped() -> some View {
         background(.background.secondary, in: .rect(cornerRadius: 16, style: .continuous))
     }
 }
 
-/// A row of capsule chips; tapping a tag searches for it.
 struct ChipRow: View {
     var tags: [String] = []
     var colors: [String] = []

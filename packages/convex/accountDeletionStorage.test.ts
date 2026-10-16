@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { mockActionCtx } from "./__tests__/helpers/convex.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
@@ -83,8 +84,6 @@ const worker = (
   );
   return { freezes, deleted };
 };
-// Fault modes: unbounded metadata keys; lost delete replies; source mutation
-// during external IO; ambiguous write outcome; stale owner/generation admission.
 test("many keys drain at most three per invocation before source deletion", async () => {
   const { t, card, binding, keys } = await setup();
   const proof = worker();
@@ -106,7 +105,6 @@ test("many keys drain at most three per invocation before source deletion", asyn
   ).toBe(true);
 });
 test("one data-deletion step drains every card page instead of yielding per card", async () => {
-  // Six storage keys plus four cards without storage: well past one page.
   const { t, binding, keys } = await setup(6);
   await t.run(async (ctx) => {
     for (let index = 0; index < 4; index++) {
@@ -441,13 +439,7 @@ test("a deployment without the Files Worker never registers phantom objects", as
   });
   await expect(
     ensureObjectOwnership(
-      {
-        runMutation: ((ref: never, args: never) =>
-          (t.mutation as (r: never, a: never) => Promise<unknown>)(
-            ref,
-            args
-          )) as never,
-      },
+      mockActionCtx({ runMutation: t.mutation }),
       "owner",
       "users/owner/link-preview-image-1"
     )

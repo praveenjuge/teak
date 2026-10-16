@@ -45,10 +45,6 @@ function isValidScrub(scrub?: ScrubMetadata): scrub is ScrubMetadata {
   return !!scrub && Number.isFinite(scrub.frames) && scrub.frames >= 1;
 }
 
-/**
- * Hover-scrub for mouse users. The sprite strip is not requested until the
- * first mouse hover; touch and pen keep the static thumbnail.
- */
 function ScrubPreview({
   aspectRatio,
   cardId,
@@ -159,8 +155,6 @@ function HoverVideoPreview({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovering, setIsHovering] = useState(false);
-  // Never fetch video bytes before intent; the poster or neutral placeholder
-  // keeps an idle grid lightweight.
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
 
   useEffect(() => {

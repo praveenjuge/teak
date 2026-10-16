@@ -16,6 +16,8 @@ interface DateRange {
   start: Date;
 }
 
+const MAX_REGEX_INPUT_LENGTH = 200;
+
 const MONTHS: Record<string, number> = {
   january: 0,
   jan: 0,
@@ -324,14 +326,11 @@ export function parseTimeSearchQuery(
   const now = options.now ?? new Date();
   const weekStart = options.weekStart ?? 0;
 
-  // Limit input length to prevent ReDoS attacks
-  const safeInput = normalized.slice(0, 200);
+  const safeInput = normalized.slice(0, MAX_REGEX_INPUT_LENGTH);
 
-  // Split on known delimiters instead of using vulnerable regex patterns
   const toIndex = safeInput.indexOf(" to ");
   const dashIndex = safeInput.indexOf(" - ");
 
-  // Check for "from X to Y" pattern
   if (safeInput.startsWith("from ") && toIndex > 5) {
     const leftPart = safeInput.slice(5, toIndex).trim();
     const rightPart = safeInput.slice(toIndex + 4).trim();
@@ -347,7 +346,6 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  // Check for "X to Y" pattern (must have "to" but not start with "from")
   if (toIndex > 0 && !safeInput.startsWith("from ")) {
     const leftPart = safeInput.slice(0, toIndex).trim();
     const rightPart = safeInput.slice(toIndex + 4).trim();
@@ -363,7 +361,6 @@ export function parseTimeSearchQuery(
     return null;
   }
 
-  // Check for "X - Y" pattern
   if (dashIndex > 0) {
     const leftPart = safeInput.slice(0, dashIndex).trim();
     const rightPart = safeInput.slice(dashIndex + 3).trim();

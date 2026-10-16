@@ -7,7 +7,6 @@ export type MarkdownResolution =
 
 type Probe = (url: URL) => Promise<number | null>;
 
-/** Markdown body for an unknown path, with links agents can follow next. */
 export function markdownNotFoundBody(pathname: string): string {
   return [
     "# 404: Page not found",
@@ -23,7 +22,6 @@ export function markdownNotFoundBody(pathname: string): string {
   ].join("\n");
 }
 
-/** A real 404 response whose body is Markdown, for Markdown-preferring clients. */
 export function markdownNotFoundResponse(pathname: string): Response {
   return new Response(markdownNotFoundBody(pathname), {
     status: 404,
@@ -35,12 +33,6 @@ export function markdownNotFoundResponse(pathname: string): Response {
   });
 }
 
-/**
- * Decide how to answer a request that asks for Markdown. Returns null when
- * the request should continue untouched. A probe that fails or returns
- * anything other than 404 never blocks a page, so an outage cannot turn a
- * working URL into an error.
- */
 export async function resolveMarkdownRequest(
   request: Request,
   probe: Probe

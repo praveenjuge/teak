@@ -41,7 +41,6 @@ const setup = async () => {
     external_id: "owner",
   });
 
-  // Runs a card's tag sync chain to the end; the scheduler is paused.
   const syncTags = (cardId: Id<"cards">) =>
     t.run(async (ctx) => {
       for (let step = 0; step < 10; step += 1) {
@@ -162,8 +161,6 @@ describe("an archived card leaves the library but stays in Archive", () => {
     expect(
       await apiPage({ searchQuery: "moodboard", archived: "include" })
     ).toEqual(["Archived moodboard", "Kept moodboard"]);
-    // Archived and not by tag reads one index and checks type and favorites
-    // on each row.
     expect(await apiPage({ tag: "moodboard", archived: "include" })).toEqual([
       "Archived moodboard",
       "Kept moodboard",
@@ -269,7 +266,6 @@ describe("bulk actions", () => {
     const tagged = await t.run(async (ctx) =>
       Promise.all(ids.map((id) => ctx.db.get("cards", id)))
     );
-    // "design" matches the existing "Design" and is not added twice.
     expect(tagged.map((card) => card?.tags)).toEqual([
       ["Design", "Later"],
       ["design", "Later"],
@@ -345,7 +341,6 @@ describe("bulk actions", () => {
   test("refuses more than 100 cards and an empty tag list", async () => {
     const { owner, insert, t } = await setup();
     const id = await insert({ content: "Only", type: "text" });
-    // Repeated IDs count once.
     await expect(
       owner.mutation(api.cards.bulkUpdateCards, {
         cardIds: Array.from({ length: 101 }, () => id),

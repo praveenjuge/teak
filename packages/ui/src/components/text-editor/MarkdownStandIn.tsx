@@ -71,9 +71,6 @@ export function MarkdownStandIn({
   focus: StandInFocus;
   ref?: Ref<HTMLTextAreaElement>;
 }) {
-  // HTML typed here saves as text, as in the rich editor, while the textarea
-  // shows what was typed. A note that already holds HTML is one the rich
-  // editor keeps as literal Markdown, so its HTML stays as it is.
   const [escapesHtml] = useState(() => escapeTypedHtml(value) === value);
   const [typed, setTyped] = useState({ markdown: value, text: value });
   const text = typed.markdown === value ? typed.text : value;
@@ -82,7 +79,6 @@ export function MarkdownStandIn({
     if (!(event.metaKey || event.ctrlKey) || disabled) {
       return;
     }
-    // The rich editor's Cmd/Ctrl+Enter (save) and Cmd/Ctrl+E (full screen).
     const key = event.key.toLowerCase();
     let shortcut: (() => void) | undefined;
     if (key === "enter") {

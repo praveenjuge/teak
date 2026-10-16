@@ -3,6 +3,7 @@ import type {
   Browser,
   WorkersLaunchOptions,
 } from "@cloudflare/puppeteer";
+import { OpFailure } from "./opFailure";
 
 /** A browser borrowed for one operation; `release` keeps it running. */
 export interface BrowserLease {
@@ -12,7 +13,6 @@ export interface BrowserLease {
 
 export type AcquireBrowser = () => Promise<BrowserLease>;
 
-/** The slice of @cloudflare/puppeteer used to share Browser Run sessions. */
 export interface BrowserRunClient<Binding> {
   connect: (binding: Binding, sessionId: string) => Promise<Browser>;
   launch: (
@@ -42,7 +42,6 @@ export const createBrowserAcquirer =
   ): AcquireBrowser =>
   async () => {
     const running = await client.sessions(binding).catch(() => []);
-    // Prefer sessions nobody is connected to; they are otherwise equivalent.
     const candidates = [...running]
       .sort(
         (a, b) =>
@@ -53,9 +52,7 @@ export const createBrowserAcquirer =
       try {
         const browser = await client.connect(binding, session.sessionId);
         return { browser, release: () => browser.disconnect() };
-      } catch {
-        // The session closed or is busy; try the next one or launch.
-      }
+      } catch {}
     }
     try {
       const browser = await client.launch(binding, {
@@ -63,11 +60,9 @@ export const createBrowserAcquirer =
       });
       return { browser, release: () => browser.disconnect() };
     } catch (error) {
-      // Browser Run refuses new browsers past its plan limits. That passes, so
-      // Convex retries with backoff instead of failing the card.
       console.warn("[files-worker] Browser Run unavailable", {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error("browser_unavailable");
+      throw new OpFailure("browser_unavailable");
     }
   };

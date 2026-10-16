@@ -32,7 +32,12 @@ async function loadConfig(
     }
   );
   return JSON.parse(stdout) as {
-    providers: { issuer?: string; jwks?: string }[];
+    providers: {
+      algorithm?: string;
+      issuer?: string;
+      jwks?: string;
+      type?: string;
+    }[];
   };
 }
 

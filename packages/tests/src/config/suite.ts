@@ -11,9 +11,7 @@ export const suiteConfig = (
   overrides: Omit<E2EConfig, "reporters" | "output" | "cache"> &
     Partial<Pick<E2EConfig, "cache">>
 ): E2EConfig => ({
-  // The suite runs no agent steps, so there is nothing to replay.
   cache: "off",
-  // Assertions wait as long as they did under Playwright.
   assertionTimeout: 15_000,
   timeout: 120_000,
   trace: "retain-on-failure",

@@ -7,7 +7,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Convex is the boundary: the save writes through `updateCardField`.
 let write = mock(async (_args: unknown) => null as unknown);
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({

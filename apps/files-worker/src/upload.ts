@@ -1,24 +1,13 @@
 import {
   buildUploadSigningPayload,
+  FILES_OBJECT_KEY_ROOTS,
   FILES_PROTOCOL_VERSION,
+  FILES_UPLOAD_MAX_BYTES,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   type FilesErrorCode,
 } from "@teak/files-protocol";
 import { ObjectWriteBlockedError } from "./deletionGate";
 import { verifyHmacPayload } from "./lib";
-
-/**
- * Signed single-file PUT uploads.
- *
- * Signatures are minted by Convex (packages/convex/storage/filesWorkerClient.ts)
- * and bind the HTTP method, object key, expiry, content type, and — when known
- * ahead of time — the exact expected size into one HMAC. Server-generated media
- * (screenshots, thumbnails) signs with an unbound size and is bounded by the
- * hard cap below instead.
- */
-
-// Matches MAX_FILE_SIZE in packages/convex/shared/fileFormats.ts.
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
@@ -46,16 +35,8 @@ export const uploadError = (
   return response;
 };
 
-/** Object keys live under per-user prefixes, or under `exports/` for export
- * archives, which an R2 lifecycle rule expires; refuse anything that could
- * escape. Production uses `users/...` and `exports/...`, development adds a
- * `dev/` prefix; the canonical production Worker accepts both so dev traffic
- * can share the prod bucket.
- */
-const OBJECT_KEY_ROOTS = ["users/", "dev/users/", "exports/", "dev/exports/"];
-
 export const isValidUploadKey = (key: string): boolean =>
-  OBJECT_KEY_ROOTS.some((root) => key.startsWith(root)) &&
+  FILES_OBJECT_KEY_ROOTS.some((root) => key.startsWith(root)) &&
   !key.includes("\0") &&
   !key.split("/").includes("..") &&
   !key.includes("//") &&
@@ -102,9 +83,6 @@ export const handleSignedUpload = async (
   const contentTypeValue =
     request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ??
     "";
-  // A `ct` param binds the content type into the signature; without one the
-  // signature leaves the type unbound and the request's validated header is
-  // stored verbatim (used when the encoding is decided at generation time).
   const boundContentType = url.searchParams.has("ct");
   const effectiveContentType = boundContentType
     ? contentType || contentTypeValue
@@ -163,7 +141,6 @@ export const handleSignedUpload = async (
     );
   }
 
-  // Content-Length is mandatory so sizes are always authoritative.
   const contentLengthHeader = request.headers.get("content-length");
   const contentLength = Number.parseInt(contentLengthHeader ?? "", 10);
   if (!(request.body && Number.isSafeInteger(contentLength))) {
@@ -174,7 +151,7 @@ export const handleSignedUpload = async (
       411
     );
   }
-  if (contentLength <= 0 || contentLength > MAX_UPLOAD_BYTES) {
+  if (contentLength <= 0 || contentLength > FILES_UPLOAD_MAX_BYTES) {
     return uploadError(
       requestId,
       "PAYLOAD_TOO_LARGE",

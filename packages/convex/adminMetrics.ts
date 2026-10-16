@@ -31,12 +31,6 @@ import {
 import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 
-// Business metrics for the superadmin console: the daily snapshot that gives
-// every number a history, and the live growth view (weekly active savers,
-// cohort retention, the signup funnel, and who signed up). Internal and test
-// accounts are left out everywhere. "Saved" means a card created by the
-// account, onboarding cards excluded, dated by when it reached Teak.
-
 const USER_PAGE = 1000;
 const CARD_PAGE = 500;
 const PAGE_BYTES = 4 * 1024 * 1024;
@@ -169,7 +163,6 @@ const flagAutoInternal = async (
   return flagged;
 };
 
-/** Flags admins, e2e and reserved-domain accounts as internal. */
 export const flagInternalAccounts = internalAction({
   args: {},
   handler: async (ctx): Promise<number> => {
@@ -187,8 +180,6 @@ const readInternalIds = async (
   );
   return new Set(ids);
 };
-
-/* Daily snapshot ---------------------------------------------------------- */
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -360,7 +351,6 @@ const snapshotValidator = v.object({
   isApproximate: v.boolean(),
 });
 
-/** One row per date: a later capture of the same day replaces it. */
 export const writeSnapshot = internalMutation({
   args: { snapshot: snapshotValidator },
   returns: v.null(),
@@ -370,7 +360,6 @@ export const writeSnapshot = internalMutation({
       .withIndex("by_date", (q) => q.eq("date", snapshot.date))
       .unique();
     if (existing) {
-      // A recapture of an older day keeps the billing it saw at the time.
       await ctx.db.replace("adminDailyMetrics", existing._id, {
         ...snapshot,
         ...(snapshot.billing || !existing.billing
@@ -384,7 +373,6 @@ export const writeSnapshot = internalMutation({
   },
 });
 
-/** Captures a day now instead of waiting for the nightly run. */
 export const captureSnapshot = action({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, { date }): Promise<{ date: string }> => {
@@ -419,17 +407,11 @@ export const listSnapshots = query({
   },
 });
 
-/* Growth ------------------------------------------------------------------ */
-
 interface CohortActivity extends CohortMember, FunnelMember {
   cardsFirstWeek: number;
   teakUserId: string;
 }
 
-/**
- * For each account: which weeks since signup it saved a card in, and how far
- * it got through the funnel. Reads only small index ranges per account.
- */
 export const cohortActivity = internalQuery({
   args: {
     users: v.array(v.object({ teakUserId: v.string(), createdAt: v.number() })),
@@ -493,10 +475,6 @@ export const cohortActivity = internalQuery({
   },
 });
 
-/**
- * The growth view: weekly active savers and signups against the week before,
- * weekly cohort retention, the signup funnel, and the latest signups.
- */
 export const getGrowth = action({
   args: {},
   handler: async (ctx): Promise<Record<string, unknown>> => {
@@ -580,7 +558,6 @@ export const getGrowth = action({
   },
 });
 
-/** Settings the home view needs alongside growth. */
 export const getHomeSettings = query({
   args: {},
   handler: async (ctx) => {

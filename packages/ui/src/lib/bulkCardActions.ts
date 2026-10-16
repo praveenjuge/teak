@@ -41,7 +41,6 @@ export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
 export interface BulkUndoStep {
   action: BulkCardAction;
   cardIds: string[];
-  /** The folder, for a folder step. */
   folder?: BulkFolderTarget;
 }
 

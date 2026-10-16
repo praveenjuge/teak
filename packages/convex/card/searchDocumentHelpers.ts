@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import {
   markCardForEmbedding,
   tombstoneCardEmbedding,
@@ -63,15 +63,7 @@ export const buildCardSearchTags = (
     )
   ).sort();
 
-// Runs the card's search sync inline in the caller's mutation: the search
-// document write (and tag-sync restart when its snapshot changed) is
-// atomic with the card write that triggered it. This replaces the old
-// runAfter(0) fan-out, under which a burst of patches to one card queued
-// duplicate sync invocations that all wrote the same cardSearchDocuments and
-// cardSearchTagSyncStates rows - the syncCardSearchDocument write-conflict
-// retries seen in production. The tag chain itself still runs asynchronously
-// and stays generation-fenced.
-export const scheduleCardSearchSync = async (
+export const syncCardSearch = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   userId?: string,
@@ -93,10 +85,6 @@ export const scheduleCardSearchTagSync = async (
   );
 };
 
-// Card fields the tag sync needs, snapshotted onto the sync-state row by
-// restarts. Batch invocations sync from the snapshot instead of reading the
-// cards table, which removes the write-conflict window between a running
-// sync chain and concurrent card writes (AI metadata, edits, deletes).
 interface CardSyncSnapshot {
   aiTags?: string[];
   cardCreatedAt: number;
@@ -119,23 +107,25 @@ const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   cardCreatedAt: card.createdAt,
 });
 
-// Whether a restart can change the sidebar's tag counts: they count active
-// cards per tag, so only the tag set and the Trash and Archive state matter.
-// A still-pending chain that could change them keeps that, since this
-// restart supersedes it before it finishes.
+export type TagSyncSnapshotUpdate =
+  | { kind: "record"; card: Doc<"cards"> }
+  | { kind: "clear" }
+  | { kind: "keep" };
+
 const mayChangeTagCounts = (
   previous: Doc<"cardSearchTagSyncStates">,
-  card: Doc<"cards"> | null | undefined
+  snapshot: TagSyncSnapshotUpdate
 ): boolean => {
-  if (card === undefined) {
+  if (snapshot.kind === "keep") {
     return true;
   }
   if (previous.pending && previous.tagCountsChanged !== false) {
     return true;
   }
-  if (card === null || previous.userId === undefined) {
+  if (snapshot.kind === "clear" || previous.userId === undefined) {
     return true;
   }
+  const { card } = snapshot;
   return (
     previous.userId !== card.userId ||
     (previous.isDeleted === true) !== (card.isDeleted === true) ||
@@ -145,18 +135,15 @@ const mayChangeTagCounts = (
   );
 };
 
-// card is the card document at restart time: provided to record a snapshot,
-// null when the card is gone (clears the snapshot so the batch takes the
-// deleted-card path), or omitted to leave any existing snapshot untouched.
 export const restartCardSearchTagSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   sourceUpdatedAt?: number,
   userId?: string,
-  card?: Doc<"cards"> | null
+  snapshotUpdate: TagSyncSnapshotUpdate = { kind: "keep" }
 ) => {
   let snapshot: Partial<CardSyncSnapshot> = {};
-  if (card === null) {
+  if (snapshotUpdate.kind === "clear") {
     snapshot = {
       userId,
       tags: undefined,
@@ -167,8 +154,8 @@ export const restartCardSearchTagSync = async (
       isArchived: undefined,
       cardCreatedAt: undefined,
     };
-  } else if (card !== undefined) {
-    snapshot = cardSyncSnapshotFromCard(card);
+  } else if (snapshotUpdate.kind === "record") {
+    snapshot = cardSyncSnapshotFromCard(snapshotUpdate.card);
   }
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
@@ -183,7 +170,7 @@ export const restartCardSearchTagSync = async (
       phase: "tags",
       sourceUpdatedAt,
       ...snapshot,
-      tagCountsChanged: mayChangeTagCounts(existingState, card),
+      tagCountsChanged: mayChangeTagCounts(existingState, snapshotUpdate),
     });
     await scheduleCardSearchTagSync(ctx, cardId, userId, generation);
   } else {
@@ -216,24 +203,14 @@ export const withUrlHost = <T extends object>(value: T): T => {
   };
 };
 
+/** False when account deletion owns the card's rows and nothing was written. */
 export const patchCardWithSearchSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   value: Partial<Omit<Doc<"cards">, "_creationTime" | "_id">>
 ) => {
-  // While an account deletion runs, its batches delete every card the user
-  // owns, and any concurrent card patch races them: Convex conflicts on
-  // documents read from OR written to, so the deletion batch retries until
-  // it exhausts and fails the whole deletion. Production evidence: a
-  // deleteAccountDataBatch run failed permanently after repeatedly
-  // conflicting with updateCardAI on a cards row. Card writers stand down,
-  // mirroring the search-sync stand-down below; a missing card keeps the
-  // previous behavior of letting db.patch throw.
-  // Returns false so callers can tell the patch was skipped and hold back
-  // follow-up work (for example screenshot scheduling) until deletion
-  // finishes.
   const card = await ctx.db.get("cards", cardId);
-  if (card && (await getAccountDeletionState(ctx, card.userId))) {
+  if (await accountDeletionOwnsRows(ctx, card?.userId)) {
     return false;
   }
   await ctx.db.patch("cards", cardId, withUrlHost(value));
@@ -251,7 +228,7 @@ export const patchCardWithSearchSync = async (
     "url",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
-    await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
+    await syncCardSearch(ctx, cardId, undefined, card ?? undefined);
   }
   return true;
 };
@@ -270,11 +247,8 @@ export const syncCardSearchDocumentHandler = async (
       .unique(),
   ]);
 
-  // While an account deletion is in progress the deletion batches own
-  // cleanup of the search tables for that user's cards. Writing here would
-  // race those batches with optimistic concurrency conflicts, so stand down.
   const ownerId = card?.userId ?? existing?.userId ?? userId;
-  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+  if (await accountDeletionOwnsRows(ctx, ownerId)) {
     return null;
   }
 
@@ -282,26 +256,23 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    // A pre-delete card without extracted text has no row to read.
     if (!previousCard || previousCard.hasExtractedText) {
       await deleteCardTextContents(ctx, cardId);
     }
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
-    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, null);
+    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, {
+      kind: "clear",
+    });
     await tombstoneCardEmbedding(ctx, cardId);
     return null;
   }
 
-  // Folder rows follow the card in the same transaction. A pre-patch card
-  // that proves nothing folder-related changed skips the read entirely.
   if (cardFolderRowsMayChange(previousCard, card)) {
     await syncCardFolderRows(ctx, cardId, card);
   }
 
-  // The card's site follows its URL here, the one place every card write
-  // passes through, so `site:` and its index never drift from `url`.
   const urlHost = normalizeUrlHost(card.url) ?? undefined;
   if (card.urlHost !== urlHost) {
     await ctx.db.patch("cards", cardId, { urlHost });
@@ -333,20 +304,14 @@ export const syncCardSearchDocumentHandler = async (
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
   }
-  // New or changed text gets a fresh vector; an unchanged card makes no call.
   if (existing?.searchableText !== value.searchableText) {
     await markCardForEmbedding(ctx, cardId, card.userId);
   }
 
   const currentTags = JSON.stringify(buildCardSearchTags(card));
-  // A caller-provided pre-patch card proves an ordinary text-only edit
-  // cannot invalidate the exact-tag snapshot. Avoid reading the mutable
-  // batch progress row in that case: even a read-only lookup puts it into
-  // the caller's OCC set and races the running tag chain. A missing search
-  // document, direct sync invocation, or tag/filter change still takes the
-  // repair path below. Invariant: every sync that creates a search document
-  // also writes its tag-sync state, so an existing document implies a state
-  // row; legacy rows are repaired by any direct sync or tag change.
+  // An edit that changes no tag-sync field skips the tag-sync state: even
+  // reading that row puts it in the caller's OCC set and races the running
+  // tag chain.
   if (
     existing &&
     previousCard &&
@@ -377,19 +342,14 @@ export const syncCardSearchDocumentHandler = async (
     tagState.cardCreatedAt !== card.createdAt ||
     JSON.stringify(buildCardSearchTags(tagState)) !== currentTags;
   if (tagsChanged) {
-    await restartCardSearchTagSync(
-      ctx,
-      cardId,
-      card.updatedAt,
-      card.userId,
-      card
-    );
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId, {
+      kind: "record",
+      card,
+    });
   }
   return null;
 };
 
-// The view the batch handler syncs from: either the state-row snapshot or a
-// card document, both normalized to the card's field names.
 interface CardSyncSource {
   aiTags?: string[];
   createdAt: number;
@@ -402,8 +362,6 @@ interface CardSyncSource {
   userId: string;
 }
 
-// A state row carries a usable snapshot only when every field the tag writes
-// depend on is present; partial rows fall back to reading the card.
 const cardSyncSourceFromState = (
   state: Doc<"cardSearchTagSyncStates">
 ): CardSyncSource | null => {
@@ -428,6 +386,18 @@ const cardSyncSourceFromState = (
   };
 };
 
+/**
+ * Every restart schedules the tag sync with a new generation, so an invocation
+ * scheduled before the latest restart is stale. So is one whose state row was
+ * pruned after scheduling (deleted card or account deletion): recreating a
+ * generation-1 row would fence its continuation against its own row forever.
+ */
+export const isStaleTagSyncInvocation = (
+  state: Pick<Doc<"cardSearchTagSyncStates">, "generation"> | null,
+  generation: number | undefined
+): boolean =>
+  generation !== undefined && (!state || state.generation !== generation);
+
 export const syncCardSearchTagsBatchHandler = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -439,15 +409,7 @@ export const syncCardSearchTagsBatchHandler = async (
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
 
-  // Generation fencing: every restart schedules the batch with the new
-  // generation, so an invocation scheduled before the latest restart is
-  // stale. A missing state row with a generation argument means the row was
-  // pruned after scheduling (deleted card or account deletion), so that
-  // invocation is stale too - recreating a generation-1 row here would
-  // leave its continuation fenced against its own row forever. Exit after
-  // this single-row read instead of adding more writes to the state row -
-  // the current generation's invocation does the work.
-  if (generation !== undefined && (!state || state.generation !== generation)) {
+  if (isStaleTagSyncInvocation(state, generation)) {
     return { complete: true, processed: 0, writes: 0 };
   }
 
@@ -462,9 +424,6 @@ export const syncCardSearchTagsBatchHandler = async (
     card = await ctx.db.get("cards", cardId);
   }
 
-  // While an account deletion is in progress the deletion batches own
-  // cleanup of the search tables for that user's cards. Writing here would
-  // race those batches with optimistic concurrency conflicts, so stand down.
   // The card row, its sync state, and its tag rows are removed atomically by
   // the deletion batch, so a missing card with leftover rows means the batch
   // has not reached this card yet and the owner can still be resolved.
@@ -486,7 +445,7 @@ export const syncCardSearchTagsBatchHandler = async (
     ownerId = leftoverTag?.userId;
   }
   ownerId = ownerId ?? userId;
-  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+  if (await accountDeletionOwnsRows(ctx, ownerId)) {
     return { complete: true, processed: 0, writes: 0 };
   }
 
@@ -521,7 +480,6 @@ export const syncCardSearchTagsBatchHandler = async (
     return { complete: true, processed: 0, writes: 0 };
   }
 
-  // Steps this chain schedules for itself stay fenced to the same generation.
   const chainGeneration = generation ?? state.generation;
 
   let writes = 0;
@@ -552,8 +510,6 @@ export const syncCardSearchTagsBatchHandler = async (
     } else {
       await ctx.db.delete("cardSearchTagSyncStates", state._id);
     }
-    // The card's tag rows are final: the sidebar's tag counts follow, when
-    // this chain could have changed them.
     if (ownerId && state.tagCountsChanged !== false) {
       await markTagSummaryDirty(ctx, ownerId);
     }
@@ -668,8 +624,6 @@ export const searchCardsByExactTag = async (
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
   const matchLimit = Math.min(4096, Math.max(1, args.limit));
   const order = args.sort === "oldest" ? "asc" : "desc";
-  // Every index below ends in (cardCreatedAt, cardId), so the date bounds
-  // apply the same way whichever one the filters pick.
   const createdBetween = (range: any) =>
     range
       .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
@@ -677,9 +631,6 @@ export const searchCardsByExactTag = async (
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
-    // Trash, or archived and not: the one index without isArchived. The loop
-    // below checks type and favorites, so every row read counts against the
-    // scan budget.
     tagQuery = tags
       .withIndex("by_user_tag_deleted_created", (range) =>
         createdBetween(
@@ -900,12 +851,6 @@ export const loadSemanticMatches = async (
  */
 export const FILE_TEXT_SEARCH_LIMIT = 128;
 
-/**
- * Adds the cards whose file text (card/documentText.ts) matches. That text
- * lives in its own search index, not the card's search document, so each
- * candidate the main search reads stays small. A row only knows its owner,
- * so the main index's filters are checked on the card.
- */
 const addCardsFoundByFileText = async (
   ctx: QueryCtx,
   args: Parameters<typeof searchCardsByDocument>[1],
@@ -913,7 +858,6 @@ const addCardsFoundByFileText = async (
   scanBudget: { textRemaining?: number },
   found: { cardsById: Map<Id<"cards">, Doc<"cards">>; matchLimit: number }
 ) => {
-  // Only documents have file text.
   if (args.type !== undefined && args.type !== "document") {
     return;
   }
@@ -950,7 +894,6 @@ const addCardsFoundByFileText = async (
   }
 };
 
-/** The main search index's equality filters, checked on the card itself. */
 const matchesSearchIndexFilters = (
   card: Doc<"cards">,
   args: Pick<

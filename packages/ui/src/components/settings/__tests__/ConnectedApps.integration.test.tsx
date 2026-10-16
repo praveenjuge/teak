@@ -129,8 +129,6 @@ async function click(name: string, parent?: Element) {
   });
 }
 
-// Failure modes: retained cached read errors, empty revoked pages, duplicate clients,
-// failed disconnects, reactive removal and stale account callbacks.
 test("cached app retry retains devices and pages separate same-client grants", async () => {
   await mount();
   expect(region("Connected apps").textContent).toContain("Loading apps");

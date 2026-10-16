@@ -3,7 +3,6 @@ package com.praveenjuge.teak.core.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** The eight card types the backend stores, with the names the iPhone app shows. */
 @Serializable
 enum class CardType(val label: String, val plural: String) {
     @SerialName("text") Text("Text", "Notes"),
@@ -16,8 +15,10 @@ enum class CardType(val label: String, val plural: String) {
     @SerialName("quote") Quote("Quote", "Quotes"),
     ;
 
-    /** The value Convex expects for this type. */
     val wireName: String get() = name.lowercase()
+
+    /** Palettes already show their colors as the preview, so their summary leaves them out. */
+    val showsSummaryColors: Boolean get() = this != Palette
 }
 
 /** One tile in the library grid (`cards:searchMobileCardSummariesPaginated`). */
@@ -163,7 +164,6 @@ data class CurrentUser(
 ) {
     val plan: String get() = if (hasPremium) "Pro" else "Free"
 
-    /** "12 of 200 Cards" on Free, "12 Cards" on Pro, like iOS. */
     val usageLabel: String
         get() {
             val count = cardCount.toInt()
@@ -191,7 +191,6 @@ data class AuthMode(
 
 private val WORKOS_CLIENT_ID = Regex("^client_[A-Za-z0-9]{1,128}$")
 
-/** The color buckets the server can filter by. */
 enum class ColorHue(val wireName: String, val label: String, val hex: Long) {
     Red("red", "Red", 0xFFEF4444),
     Orange("orange", "Orange", 0xFFF97316),
@@ -206,7 +205,6 @@ enum class ColorHue(val wireName: String, val label: String, val hex: Long) {
     Neutral("neutral", "Neutral", 0xFF737373),
 }
 
-/** User-facing messages the backend and iOS share. */
 object TeakMessages {
     const val SIGNUPS_PAUSED = "New sign-ups are paused right now. Please try again later."
     const val ACCOUNT_CHANGES_PAUSED = "Account changes are paused right now. Please try again later."
@@ -215,5 +213,4 @@ object TeakMessages {
 /** 100 MB, the backend's upload limit. */
 const val MAX_FILE_SIZE: Long = 100L * 1024 * 1024
 
-/** The most items one share or one picker selection saves, like iOS. */
 const val MAX_FILES_PER_UPLOAD = 20

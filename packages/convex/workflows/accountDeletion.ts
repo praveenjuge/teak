@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { POSTHOG_DELETION_ERROR_PREFIX } from "../accountDeletionAnalytics";
+import { ACCOUNT_DELETION_STAGES } from "../accountDeletionStages";
 import { workflow } from "./manager";
 
 export function deletionFailureReason(
@@ -25,13 +26,11 @@ export function deletionFailureReason(
   return undefined;
 }
 
-// Every external operation is idempotent. Completed steps survive process failure;
-// advancing a stage is guarded against stale callbacks and changed generations.
 export const accountDeletionWorkflow = workflow.define({
   args: { stateId: v.id("accountDeletionStates"), generation: v.number() },
   returns: v.null(),
   handler: async (step, binding) => {
-    for (let stage = 0; stage < 6; stage++) {
+    for (let stage = 0; stage < ACCOUNT_DELETION_STAGES.length; stage++) {
       const state = await step.runQuery(
         internal.accountDeletionJobs.getState,
         binding

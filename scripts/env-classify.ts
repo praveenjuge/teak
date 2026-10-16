@@ -1,12 +1,3 @@
-/**
- * Derived environment classification, exposure, and derivation (issue #407).
- *
- * Every contract entry has exactly one owner (owners[0], the primary) and
- * exactly one classification. Classification and exposure are DERIVED from
- * the declared fields so they cannot drift; entries whose meaning the rules
- * misjudge carry an explicit `classification` override instead.
- */
-
 import { canonicalFor, isFrameworkAlias } from "./env-aliases.ts";
 import type {
   EnvClassification,
@@ -47,6 +38,5 @@ export const exposureOf = (entry: EnvVarSpec): EnvExposure =>
 export const primaryOwner = (entry: EnvVarSpec): string =>
   entry.owners[0] ?? "unowned";
 
-/** Canonical fact, explicit source, or "supplied" for human/provider input. */
 export const derivationRule = (entry: EnvVarSpec): string =>
   entry.derivedFrom ?? canonicalFor(entry.name) ?? "supplied";

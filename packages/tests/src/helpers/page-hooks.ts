@@ -14,7 +14,7 @@ const HOOK_PATH = "/__teak-e2e-hook/";
 
 /**
  * Records uncaught errors and unhandled rejections in every document the
- * browser opens, on any origin, like Playwright's `pageerror` event.
+ * browser opens, on any origin.
  */
 export const capturePageErrors = async (browser: Browser) => {
   const errors: string[] = [];
@@ -49,10 +49,6 @@ export const capturePageErrors = async (browser: Browser) => {
   };
 };
 
-/**
- * Records every request whose URL matches and aborts it, so a test can
- * assert that a page never fetched something (an injected image, a tracker).
- */
 export const blockAndRecordRequests = async (
   browser: Browser,
   pattern: RegExp
@@ -65,7 +61,6 @@ export const blockAndRecordRequests = async (
   return urls;
 };
 
-/** A Convex sync protocol message, parsed. */
 export type SocketMessage = Record<string, any>;
 
 /**
@@ -74,7 +69,6 @@ export type SocketMessage = Record<string, any>;
  */
 export interface SocketContext {
   state: Record<string, any>;
-  /** Delivers a message to the app as if the server had sent it. */
   toClient: (message: SocketMessage) => void;
 }
 
@@ -89,15 +83,11 @@ export type SocketInterceptor = (
 ) => SocketMessage | null;
 
 export interface SocketRouting {
-  /** Sees each message the app sends to Convex. */
   fromClient?: SocketInterceptor;
-  /** Sees each message Convex sends to the app. */
   fromServer?: SocketInterceptor;
-  /** Every Convex socket fails to connect, as when the backend is down. */
   unreachable?: boolean;
 }
 
-// Runs in the page. Wraps WebSocket for the Convex sync URL only.
 function installSocketRouting(
   config: { prefix: string; unreachable: boolean },
   fromClient: SocketInterceptor | null,
@@ -184,7 +174,6 @@ export const routeConvexSocket = async (
   );
 };
 
-/** The interceptors' `state`, as JSON. */
 export const readSocketState = <T = Record<string, unknown>>(
   browser: Browser
 ): Promise<T> =>

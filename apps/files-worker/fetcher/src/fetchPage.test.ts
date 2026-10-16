@@ -39,8 +39,6 @@ const setup = (
   return { calls, fetchPage, handle };
 };
 
-// Pages covering what the Convex parser reads: Open Graph, Twitter and plain
-// meta tags, link rels, titles, entities, tags in odd places.
 const PAGES: Record<string, string> = {
   "open graph and twitter": `<!doctype html><html><head>
     <title>Fallback title</title>
@@ -76,7 +74,6 @@ describe("page parsing parity with Convex", () => {
       const response = await fetchPage({ selectors: SELECTORS, url: PAGE });
       expect(response.status).toBe(200);
       const body = (await response.json()) as FetcherPageResponse;
-      // What Convex's fetchMetadata step computes from the same body.
       const convexSelectors = buildSelectorResultsFromHtml(
         new TextDecoder().decode(new TextEncoder().encode(page)),
         SCRAPE_ELEMENTS
@@ -130,12 +127,7 @@ describe("fetching", () => {
           status: 301,
         });
       }
-      const response = new Response("<title>Final</title>", {
-        headers: html(),
-      });
-      // undici sets this on a real response; safeFetch passes it through.
-      Object.defineProperty(response, "url", { value: url });
-      return response;
+      return new Response("<title>Final</title>", { headers: html() });
     });
     const body = (await (
       await fetchPage({ selectors: SELECTORS, url: PAGE })
@@ -261,7 +253,6 @@ describe("fetching", () => {
 });
 
 describe("decoding", () => {
-  // "Café – naïve" in windows-1252.
   const cp1252 = (prefix: string) =>
     new Uint8Array([
       ...new TextEncoder().encode(prefix),

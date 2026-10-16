@@ -59,7 +59,6 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
-/** The sidebar's New button, with its tooltip. */
 const NEW_MENU_TRIGGER_CLASS =
   "size-7 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground [&_svg]:size-4";
 
@@ -437,24 +436,20 @@ export function AddCardActions({
     ? "Speak naturally. Teak will save this as an audio card."
     : "Starting microphone...";
 
-  // `U` uploads through the New menu, which keeps no button on the page.
   const uploadRef = useRef(handleFileUpload);
   uploadRef.current = handleFileUpload;
   const isUploading = globalFileDrop?.isUploading ?? false;
-  useEffect(() => {
-    if (variant !== "header") {
-      return;
-    }
-    return registerUploadFiles(() => {
-      if (isUploading) {
-        return false;
-      }
-      uploadRef.current();
-      return true;
-    });
-  }, [isUploading, variant]);
-  // An item that moves focus (the composer, the file picker) keeps it; only
-  // Escape or a click away hands focus back to the New button.
+  useEffect(
+    () =>
+      registerUploadFiles(() => {
+        if (isUploading) {
+          return false;
+        }
+        uploadRef.current();
+        return true;
+      }),
+    [isUploading]
+  );
   const keepFocusRef = useRef(false);
 
   const triggers =
@@ -514,7 +509,6 @@ export function AddCardActions({
           <Button
             aria-keyshortcuts="U"
             aria-label="Upload files"
-            data-upload-files=""
             disabled={globalFileDrop?.isUploading}
             onClick={handleFileUpload}
             size="icon"

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, it } from "bun:test";
 import {
   buildColorFacets,
@@ -33,8 +32,6 @@ describe("colorUtils", () => {
     });
 
     it("handles invalid RGB values", () => {
-      // Regex matches but values out of range
-      // Wait, the regex \d+ matches anything.
       const color = parseColorString("rgb(300, 300, 300)");
       expect(color).toBeNull();
     });
@@ -47,7 +44,6 @@ describe("colorUtils", () => {
 
   describe("HSL/RGB conversion branches", () => {
     it("covers hue2rgb branches", () => {
-      // Colors that hit different parts of hue2rgb
       const colors = [
         "#ff0000",
         "#00ff00",
@@ -62,7 +58,6 @@ describe("colorUtils", () => {
         const backToHex = parseColorString(
           `hsl(${color?.hsl?.h}, ${color?.hsl?.s}%, ${color?.hsl?.l}%)`
         );
-        // Allow small rounding differences
         expect(backToHex).toBeDefined();
       }
     });
@@ -107,7 +102,6 @@ describe("hexToRgb", () => {
 
   it("should return null for invalid hex", () => {
     expect(hexToRgb("#GG5733")).toBeNull();
-    // "FF57" has 4 chars, which gets doubled to "FFFF5577", then sliced to "FFFF55"
     expect(hexToRgb("FF57")).toEqual({ r: 255, g: 255, b: 85 });
     expect(hexToRgb("#FF57333")).toBeNull();
     expect(hexToRgb("")).toBeNull();
@@ -145,7 +139,6 @@ describe("parseColorString", () => {
     });
 
     it("should not parse hex without hash (requires # prefix)", () => {
-      // parseColorString requires a leading # for hex colors
       const result = parseColorString("FF5733");
       expect(result).toBeNull();
     });
@@ -407,7 +400,6 @@ describe("extractPaletteColors", () => {
 
   it("should convert slug to palette name", () => {
     const result = extractPaletteColors("--bg-primary: #FF5733");
-    // formatPaletteName capitalizes each word: "bg-primary" -> "Bg Primary"
     const bgPrimary = result.find((c) => c.name === "Bg Primary");
     expect(bgPrimary).toBeDefined();
   });
@@ -448,7 +440,6 @@ describe("extractPaletteColors", () => {
   it("should preserve inferred names from CSS variables", () => {
     const result = extractPaletteColors("--text-color: #333333");
     const color = result.find((c) => c.hex === "#333333");
-    // formatPaletteName capitalizes each word
     expect(color?.name).toBe("Text Color");
   });
 
@@ -478,7 +469,6 @@ describe("getColorName", () => {
   });
 
   it("should not handle hex without hash (COLOR_NAMES values have #)", () => {
-    // COLOR_NAMES stores values with leading #, so input needs it too
     expect(getColorName("FF0000")).toBeUndefined();
     expect(getColorName("#FF0000")).toBe("red");
   });

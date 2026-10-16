@@ -13,7 +13,6 @@ import {
 
 const CAP = 100 * 1024 * 1024;
 
-/** Sends only the request head and returns the raw response text. */
 function rawRequest(head: string): Promise<string> {
   const url = new URL(RENDERER_URL);
   return new Promise((resolve, reject) => {

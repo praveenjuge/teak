@@ -54,7 +54,6 @@ const setup = async () => {
     styleFilters?: string[];
     types?: Doc<"cards">["type"][];
   }
-  /** Every match, newest first, paging through the grid's own query. */
   const grid = async (filters: Filters, numItems = 2) => {
     const found: string[] = [];
     let cursor: string | null = null;
@@ -130,7 +129,6 @@ describe("color and style search", () => {
       "Coral lily",
       "Campfire clip",
     ]);
-    // Another word for a hue finds it too.
     await insert({
       content: "Lavender",
       type: "palette",

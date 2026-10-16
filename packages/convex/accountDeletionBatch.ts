@@ -1,6 +1,10 @@
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { deleteAccountDataHandler } from "./accountDeletion";
+import {
+  deleteAccountDataHandler,
+  type OwnedCardIds,
+  takeOwnedCards,
+} from "./accountDeletion";
 import { cardStorageObjectKeys } from "./storage/r2";
 
 export type DeletionBatchKind =
@@ -15,15 +19,14 @@ export async function captureDeletionBatch(
   kind: DeletionBatchKind
 ) {
   let rows: unknown[];
+  let cardIds: OwnedCardIds | undefined;
   let keys: string[] = [];
   let aborts: { key: string; uploadId: string }[] = [];
   if (kind === "cards") {
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
-      .take(1);
-    rows = cards;
-    for (const card of cards) {
+    const owned = await takeOwnedCards(ctx, userId, 1);
+    rows = owned.cards;
+    cardIds = owned.cardIds;
+    for (const card of owned.cards) {
       const tags = await ctx.db
         .query("cardSearchTags")
         .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
@@ -100,21 +103,15 @@ export async function captureDeletionBatch(
   const fingerprint = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
-  return { rows, keys, aborts, fingerprint };
+  return { rows, keys, aborts, fingerprint, cardIds };
 }
 
 export async function commitDeletionBatch(
   ctx: MutationCtx,
-  kind: DeletionBatchKind,
-  userId: string,
-  rows: unknown[]
+  { rows, cardIds }: { rows: unknown[]; cardIds?: OwnedCardIds }
 ) {
-  if (kind === "cards") {
-    await deleteAccountDataHandler(
-      ctx,
-      userId,
-      (rows as Doc<"cards">[]).map((row) => row._id)
-    );
+  if (cardIds) {
+    await deleteAccountDataHandler(ctx, cardIds);
     return;
   }
   // Rows originate exclusively from owner-bound indexes and are re-captured in

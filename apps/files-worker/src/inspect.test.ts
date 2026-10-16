@@ -8,7 +8,7 @@ import {
   parseCentralDirectory,
   runInspect,
 } from "./inspect";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket } from "./test/testsupport";
 
 describe("zip inspection over ranged reads", () => {
   const buildWordArchive = (): Uint8Array =>
@@ -51,8 +51,6 @@ describe("zip inspection over ranged reads", () => {
   });
 
   test("reads only a bounded number of bytes for large archives", async () => {
-    // A ~4MB archive whose entries are never read; the ranged walker should
-    // touch just the EOCD tail + central directory.
     const bigEntry = new TextEncoder().encode("x".repeat(4 * 1024 * 1024));
     const bytes = zipSync({ "data.bin": bigEntry });
     const bucket = new FakeBucket();
@@ -185,14 +183,10 @@ describe("runInspect dispatch", () => {
         ":root{--brand:#ff0000;--accent:rgb(1 2 3);--plain: red;}"
       ),
     });
-    const result = await runInspect(
-      bucket,
-      "theme.css",
-      "css",
-      "tokens",
-      1024,
-      false
-    );
+    const result = await runInspect(bucket, "theme.css", {
+      maxBytes: 1024,
+      mode: "css",
+    });
     expect(result.facts?.colorVariableCount).toBe(2);
   });
 
@@ -201,8 +195,13 @@ describe("runInspect dispatch", () => {
       bytes: new TextEncoder().encode("# Notes\n\nhello"),
     });
     expect(
-      (await runInspect(bucket, "notes.md", "text", "markdown", 1024, false))
-        .text
+      (
+        await runInspect(bucket, "notes.md", {
+          maxBytes: 1024,
+          mode: "text",
+          rtf: false,
+        })
+      ).text
     ).toBe("# Notes\n\nhello");
 
     bucket.objects.set("notes.rtf", {
@@ -211,13 +210,19 @@ describe("runInspect dispatch", () => {
       ),
     });
     expect(
-      (await runInspect(bucket, "notes.rtf", "text", "rtf", 1024, true)).text
+      (
+        await runInspect(bucket, "notes.rtf", {
+          maxBytes: 1024,
+          mode: "text",
+          rtf: true,
+        })
+      ).text
     ).toBe("RTF text, line");
   });
 
   test("missing sources surface a distinct error", async () => {
     await expect(
-      runInspect(bucket, "gone.css", "css", "tokens", 1024, false)
+      runInspect(bucket, "gone.css", { maxBytes: 1024, mode: "css" })
     ).rejects.toThrow("source_not_found");
   });
 });

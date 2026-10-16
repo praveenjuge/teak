@@ -3,7 +3,6 @@ import SwiftUI
 import TeakCore
 import UniformTypeIdentifiers
 
-/// The Add tab: write a note or link, record a voice memo, or upload.
 struct AddView: View {
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
@@ -23,7 +22,6 @@ struct AddView: View {
     }
 
     #if os(macOS)
-    /// A grouped form like System Settings: each way to add has a push button.
     private var content: some View {
         Form {
             Section("Write") {
@@ -103,7 +101,6 @@ struct AddView: View {
 }
 
 #if os(macOS)
-/// One way to add on the Mac: what it is on the left, its button on the right.
 private struct AddAction<Control: View>: View {
     let title: String
     let detail: String
@@ -151,7 +148,6 @@ private struct AddRowLabel: View {
 }
 
 #if os(iOS)
-/// Takes a photo or video with the camera.
 struct CameraPicker: UIViewControllerRepresentable {
     let onCapture: (URL) -> Void
     @Environment(\.dismiss) private var dismiss

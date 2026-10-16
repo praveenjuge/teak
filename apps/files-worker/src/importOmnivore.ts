@@ -5,6 +5,7 @@ import {
   omnivoreItem,
   readOmnivoreMetadata,
 } from "@teak/convex/import/omnivore";
+import { MAX_NOTES_LENGTH } from "@teak/convex/import/sourceItems";
 import {
   FILES_IMPORT_PAGE_BYTES,
   FILES_IMPORT_PAGE_ITEMS,
@@ -20,11 +21,10 @@ import {
 
 const MAX_ITEMS = 10_000;
 const METADATA_LIMIT = 8 * 1024 * 1024;
-// Notes hold up to 100,000 characters; UTF-8 needs at most 4 bytes each.
-const HIGHLIGHTS_LIMIT = 400_000;
+const UTF8_MAX_BYTES_PER_CHARACTER = 4;
+const HIGHLIGHTS_LIMIT = MAX_NOTES_LENGTH * UTF8_MAX_BYTES_PER_CHARACTER;
 const PARALLEL_READS = 12;
 
-/** Whether the upload starts with a ZIP local file header ("PK"). */
 export async function isZipSource(
   bucket: R2Bucket,
   key: string,
@@ -37,7 +37,6 @@ export async function isZipSource(
 interface MetadataFile {
   end: number;
   entry: ZipCentralEntry;
-  /** The folder the metadata file sits in; its highlights sit beside it. */
   prefix: string;
   start: number;
 }
@@ -164,9 +163,7 @@ export async function indexOmnivoreZip(
       return decode(
         await readZipEntry(bucket, key, directory, entry, HIGHLIGHTS_LIMIT)
       );
-    } catch {
-      // Highlights are extra; the link still imports without them.
-    }
+    } catch {}
   });
 
   const items: FilesImportIndexResult["items"] = [];

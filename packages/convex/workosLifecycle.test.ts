@@ -1,40 +1,16 @@
 /// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
-import {
-  type ApiFromModules,
-  type FunctionArgs,
-  type FunctionReturnType,
-  makeFunctionReference,
-} from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
-import type { applyWorkosEvent } from "./workosLifecycle";
 import { readCanonicalWorkosProfile } from "./workosProfileRead";
-import type { linkWorkosUser } from "./workosUsers";
 
 const modules = import.meta.glob("./**/*.ts");
-type Functions = ApiFromModules<{
-  workosLifecycle: { applyWorkosEvent: typeof applyWorkosEvent };
-  workosUsers: { linkWorkosUser: typeof linkWorkosUser };
-}>;
-type EventFunction = Functions["workosLifecycle"]["applyWorkosEvent"];
-type LinkFunction = Functions["workosUsers"]["linkWorkosUser"];
-const apply = makeFunctionReference<
-  "mutation",
-  FunctionArgs<EventFunction>,
-  FunctionReturnType<EventFunction>
->("workosLifecycle:applyWorkosEvent");
-const link = makeFunctionReference<
-  "mutation",
-  FunctionArgs<LinkFunction>,
-  FunctionReturnType<LinkFunction>
->("workosUsers:linkWorkosUser");
-// The verified-event path: the component stores the profile, then Teak links
-// owners and records deletions, in one transaction.
+const apply = internal.workosLifecycle.applyWorkosEvent;
+const link = internal.workosUsers.linkWorkosUser;
 const sync = internal.workosWebhook.syncVerifiedEvent;
 const setup = () => {
   const t = convexTest(schema, modules);
@@ -94,10 +70,6 @@ const resolve = (t: Backend, workosUserId = "user_provider") =>
     verification: { kind: "connect" },
   });
 
-// Failure modes: duplicate receipts/effects; unmapped delete forgotten; deleted
-// link resurrected by external ID or bootstrap; provider changes stealing
-// canonical owners; rejected input writing state; quarantine retry duplicating
-// effects; vault deletion or scheduled cleanup.
 describe("WorkOS lifecycle linking and deletion", () => {
   beforeEach(() => {
     vi.stubEnv("SIGNUPS_DISABLED", "true");
@@ -146,10 +118,14 @@ describe("WorkOS lifecycle linking and deletion", () => {
       t.mutation(apply, original),
     ]);
     expect(
-      results.filter((result) => result.status === "applied")
+      results.filter(
+        (result: { status: string }) => result.status === "applied"
+      )
     ).toHaveLength(1);
     expect(
-      results.filter((result) => result.status === "duplicate")
+      results.filter(
+        (result: { status: string }) => result.status === "duplicate"
+      )
     ).toHaveLength(2);
     const before = await snapshot(t);
     expect(await t.mutation(apply, original)).toEqual({ status: "duplicate" });
@@ -280,7 +256,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(after.events).toMatchObject([
       { type: "user.deleted", workosUserId: "user_provider" },
     ]);
-    // Row patches are bounded; the ledger tombstone denies every mapping.
     expect(after.users.some((row) => row.workosDeletedAt !== undefined)).toBe(
       true
     );
@@ -308,8 +283,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     ]);
   });
 
-  // Optional deletion metadata is evidence only; it must never prevent a
-  // terminal denial or promote a minimally evidenced receipt into repair proof.
   test("deletion stores normalized identity evidence and hides a surviving component profile", async () => {
     const t = setup();
     await seed(t, { workosUserId: "user_provider" });
@@ -317,7 +290,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(
       await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
     ).toMatchObject({ email: "provider@example.com", externalId: "owner-a" });
-    // Teak's ledger alone: the component row is still there.
     expect(
       await t.mutation(apply, {
         ...event("evt_delete_identity", 1, "user.deleted"),
@@ -539,9 +511,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 });
 
-// A created envelope may create an owner only from the component's verified
-// profile and only when signups are open; updated envelopes never link.
-// Delivery order and repeated events must not create extra owners.
 describe("new WorkOS lifecycle owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -662,7 +631,6 @@ describe("new WorkOS lifecycle owners", () => {
       ...changed,
       data: { ...changed.data, email: "Changed@Example.com" },
     });
-    // An older delivery the component ignores must not roll the address back.
     await t.mutation(sync, freshEvent("late_update", 1, "user.updated"));
     const [owner] = (await snapshot(t)).users;
     expect(owner).toMatchObject({

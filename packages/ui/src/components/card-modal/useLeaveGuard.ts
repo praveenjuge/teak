@@ -18,33 +18,28 @@ export function useLeaveGuard({
   hasUnsavedChanges: boolean;
   saveChanges: (options: { silent: boolean }) => Promise<boolean>;
 }) {
-  const leaveFailedRef = useRef(false);
+  const failedLeaveRef = useRef<{ cardId?: string | null } | null>(null);
 
-  // A new card, or no edits left to save, starts over.
   useEffect(() => {
     if (!hasUnsavedChanges) {
-      leaveFailedRef.current = false;
+      failedLeaveRef.current = null;
     }
   }, [hasUnsavedChanges]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: resets when the card changes
-  useEffect(() => {
-    leaveFailedRef.current = false;
-  }, [cardId]);
 
   /** Call on every edit, so a changed edit is saved again before leaving. */
   const noteEdit = useCallback(() => {
-    leaveFailedRef.current = false;
+    failedLeaveRef.current = null;
   }, []);
 
   /** Whether the dialog may now close or show another card. */
   const readyToLeave = useCallback(async () => {
-    if (!hasUnsavedChanges || leaveFailedRef.current) {
+    if (!hasUnsavedChanges || failedLeaveRef.current?.cardId === cardId) {
       return true;
     }
     const saved = await saveChanges({ silent: true });
-    leaveFailedRef.current = !saved;
+    failedLeaveRef.current = saved ? null : { cardId };
     return saved;
-  }, [hasUnsavedChanges, saveChanges]);
+  }, [cardId, hasUnsavedChanges, saveChanges]);
 
   return { noteEdit, readyToLeave };
 }

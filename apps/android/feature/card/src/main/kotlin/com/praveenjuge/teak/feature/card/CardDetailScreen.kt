@@ -75,7 +75,6 @@ import kotlinx.coroutines.launch
 
 private val MaxContentWidth = 720.dp
 
-/** What the detail screen asks of its ViewModel and navigation. */
 internal class CardDetailCallbacks(
     val onBack: () -> Unit,
     val onEdit: () -> Unit,
@@ -202,7 +201,6 @@ private fun CardDetailContent(
                 .widthIn(max = MaxContentWidth)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                // Room for the floating toolbar.
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
@@ -315,7 +313,6 @@ private fun TrashToolbar(onRestore: () -> Unit, onDeleteForever: () -> Unit) {
     }
 }
 
-/** Actions that need the Android context: the clipboard, share sheet, browser and Custom Tabs. */
 internal class UiActions(
     val copy: (text: String, confirmation: String) -> Unit,
     val shareText: (ShareTarget.Text) -> Unit,
@@ -369,7 +366,6 @@ private fun Context.shareText(target: ShareTarget.Text) {
     startActivity(Intent.createChooser(send, null))
 }
 
-/** Hands a downloaded file to the share sheet with read access. */
 internal fun Context.shareFile(event: CardDetailEvent.ShareFile) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = event.mimeType

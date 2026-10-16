@@ -7,7 +7,7 @@ import {
   internalMutation,
   type MutationCtx,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaFilesWorker } from "./filesWorkerClient";
 import { getR2Url } from "./fileUrls";
@@ -283,10 +283,7 @@ export const registerArtifactHandler = async (
     await deleteObject(ctx, ref.key);
     return false;
   }
-  if (await getAccountDeletionState(ctx, card.userId)) {
-    // Account deletion owns this card's teardown; registering now would
-    // race its batches with OCC conflicts. The copied object is
-    // unreferenced, so durable deletion is safe.
+  if (await accountDeletionOwnsRows(ctx, card.userId)) {
     await deleteObject(ctx, ref.key);
     return false;
   }
@@ -354,10 +351,7 @@ export const deleteRetainedArtifactsHandler = async (
     }
   }
   const card = await ctx.db.get("cards", cardId);
-  if (card && (await getAccountDeletionState(ctx, card.userId))) {
-    // Account deletion removes the card and its artifact objects together
-    // (cardStorageObjectKeys covers workflowArtifactKeys); cleaning up here
-    // would race its batches with OCC conflicts.
+  if (await accountDeletionOwnsRows(ctx, card?.userId)) {
     return null;
   }
   const owned = card

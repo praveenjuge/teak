@@ -1,9 +1,3 @@
-/**
- * Shared HTTP primitives for the public API: response builders, rate-limit
- * errors, query/body parsers, and the request/response types every public
- * API module uses. Pure leaf — no Convex ctx, safe to import anywhere.
- * Split out of `publicApiHttp.ts`, kept behavior-identical.
- */
 import { ConvexError } from "convex/values";
 import { json } from "./publicApiMeta";
 import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
@@ -28,7 +22,6 @@ const CARD_TYPES = new Set([
 ]);
 const CARD_SORTS = new Set(["newest", "oldest", "shuffle"]);
 const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
-// Same per-tag cap as data import.
 const MAX_TAG_LENGTH = 64;
 const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
 
@@ -187,16 +180,20 @@ const parseBearerToken = (request: Request): string | null => {
   return token.trim();
 };
 
+// The whole value must be numeric: "10junk" is rejected, never truncated to
+// 10 the way parseInt would.
+const parseStrictNumber = (raw: string): number | undefined => {
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 const parseLimit = (raw: string | null): number => {
   if (!raw || raw.trim().length === 0) {
     return DEFAULT_LIMIT;
   }
 
-  // Number() parses the complete value: partial numerics such as "10junk"
-  // or "1e2" must fall back to the default instead of being truncated the
-  // way parseInt would.
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed)) {
+  const parsed = parseStrictNumber(raw);
+  if (parsed === undefined || !Number.isInteger(parsed)) {
     return DEFAULT_LIMIT;
   }
 
@@ -266,7 +263,6 @@ const RATE_LIMITED_ERROR = (retryAt?: number, limit?: number): Response =>
     buildRateLimitHeaders(retryAt, limit)
   );
 
-// Busy backend state, not a client error: safe to retry after a second.
 const SERVICE_BUSY_ERROR = (): Response =>
   errorResponse(
     503,
@@ -294,7 +290,6 @@ const RATE_LIMIT_CONTENTION_ERROR = (): Response => {
 const AUTH_INTERNAL_ERROR = (): Response =>
   errorResponse(500, "INTERNAL_ERROR", "Failed to authorize request");
 
-// Backend error codes that are not plain bad requests.
 const CONVEX_ERROR_STATUS: Partial<Record<string, number>> = {
   CONFLICT: 409,
   FOLDER_LIMIT: 409,
@@ -369,7 +364,6 @@ const truncateCardTitle = (value: unknown): unknown => {
   let title = value.trim();
   if (title.length > MAX_CARD_TITLE_LENGTH) {
     title = title.slice(0, MAX_CARD_TITLE_LENGTH);
-    // Never leave half of a surrogate pair at the cut.
     if (/[\uD800-\uDBFF]$/.test(title)) {
       title = title.slice(0, -1);
     }
@@ -470,10 +464,7 @@ const parseTimestampQuery = (value: string | null): number | undefined => {
     return Number.NaN;
   }
 
-  // Number() parses the complete value so partial numerics such as
-  // "10junk" fail validation instead of being truncated by parseInt.
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : Number.NaN;
+  return parseStrictNumber(value) ?? Number.NaN;
 };
 
 export {

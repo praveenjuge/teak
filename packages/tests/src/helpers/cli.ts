@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { env } from "./env";
 
-// Runs the CLI from this checkout against the local API.
 export const runCli = async (args: string[], apiKey: string) => {
   const proc = spawn("bun", ["apps/cli/src/index.ts", ...args], {
     cwd: new URL("../../../../", import.meta.url).pathname,

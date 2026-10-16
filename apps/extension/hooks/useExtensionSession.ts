@@ -60,7 +60,6 @@ export function useExtensionSession(): UseExtensionSessionResult {
     fetchSession();
   }, [fetchSession]);
 
-  // Refresh the display state when the background completes sign-in or sign-out.
   useEffect(() => {
     const handleChange = (
       changes: Record<string, chrome.storage.StorageChange>,

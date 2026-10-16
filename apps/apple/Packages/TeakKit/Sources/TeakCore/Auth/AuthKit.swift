@@ -1,7 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// How someone chose to sign in on the welcome screen.
 public enum SignInMethod: String, Sendable, CaseIterable {
     case apple, google, emailSignUp, emailSignIn
 
@@ -26,7 +25,6 @@ public enum SignInMethod: String, Sendable, CaseIterable {
     /// provider uses a private session, so Log Out needs no browser logout.
     public var prefersEphemeralSession: Bool { self != .apple }
 
-    /// "Apple", "Google" or "Email", for alerts.
     public var label: String {
         switch self {
         case .apple: "Apple"
@@ -36,7 +34,6 @@ public enum SignInMethod: String, Sendable, CaseIterable {
     }
 }
 
-/// One AuthKit sign-in attempt: the authorize URL plus the PKCE verifier and state to check the redirect.
 public struct AuthKitRequest: Sendable {
     public static let redirectURI = "teak://auth/callback"
     public static let callbackScheme = "teak"

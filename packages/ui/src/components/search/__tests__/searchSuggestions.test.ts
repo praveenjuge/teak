@@ -77,7 +77,6 @@ describe("buildSearchSuggestions", () => {
     const names = (token: string) =>
       buildSearchSuggestions(token, ranked).suggestions.map((s) => s.label);
     expect(names("tag:des")).toEqual(["design", "design-systems", "designer"]);
-    // Typed exactly with nothing longer to offer: the list closes.
     expect(names("tag:designer")).toEqual([]);
     expect(names("tag:design")).toEqual([
       "design",
@@ -96,13 +95,11 @@ describe("buildSearchSuggestions", () => {
     for (const token of ["#fff", "#FFF", "#3b82f6", "#bad,"]) {
       expect(buildSearchSuggestions(token, hexy).completingValue).toBe(false);
     }
-    // The tags are still offered to pick on purpose.
     expect(inserts("#bad")).toEqual([]);
     expect(
       buildSearchSuggestions("#fff", hexy).suggestions.map((s) => s.insert)
     ).toEqual(["tag:fff", "tag:fffour"]);
     expect(buildSearchSuggestions("#fffo", hexy).completingValue).toBe(true);
-    // A bare # picks the top tag on Enter, like `tag:`.
     expect(buildSearchSuggestions("#", hexy).completingValue).toBe(true);
     expect(buildSearchSuggestions("tag:", hexy).completingValue).toBe(true);
   });

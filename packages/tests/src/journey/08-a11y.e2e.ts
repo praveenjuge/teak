@@ -3,8 +3,6 @@ import { createRequire } from "node:module";
 import { createAccount, gotoApp } from "../helpers/app";
 import { type Browser, expect, type Screen, test } from "../helpers/test";
 
-// Sign-in and sign-up are hosted by WorkOS; Teak has no auth pages to scan.
-
 // axe runs inside the page. An init script is added by the driver, not the
 // page, so the app's Content-Security-Policy doesn't block it.
 const axeSource = readFileSync(
@@ -27,8 +25,6 @@ const waitForReadySurface = async (
     await expect(
       screen.getByRole("heading", "Settings", { exact: false, level: 1 })
     ).toBeVisible();
-    // Settings rows fade in over skeleton placeholders as account data
-    // arrives; scanning before they settle sees a partial page.
     await expect(
       browser.locator('[data-slot="setting-value-skeleton"]')
     ).toHaveCount(0);
@@ -57,8 +53,6 @@ const waitForReadySurface = async (
     .toBe(true);
 };
 
-// The serious and critical WCAG 2 A/AA violations on the page, with the
-// nodes each one flags.
 const seriousViolations = (browser: Browser) =>
   browser.evaluate(async () => {
     const { axe } = window as unknown as {
@@ -94,7 +88,6 @@ for (const path of ["/", "/settings"]) {
     screen,
   }) => {
     await createAccount({ browser, screen }, "a11y");
-    // From the next navigation on: only the scanned page carries axe.
     await browser.addInitScript(axeSource);
     await gotoApp(browser, path);
     await waitForReadySurface(path, browser, screen);

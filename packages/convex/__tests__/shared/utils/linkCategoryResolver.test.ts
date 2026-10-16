@@ -116,12 +116,9 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should handle subdomains", () => {
-      // raw.githubusercontent.com becomes githubusercontent.com after stripping subdomains
-      // So it doesn't match the github.com domain rule directly
       const result = resolveLinkCategory(
         "https://raw.githubusercontent.com/user/repo/main/file.js"
       );
-      // It matches "github" provider hint in hostname instead
       expect(result.category).toBe("software");
       expect(result.reason).toBe("provider_mapping");
     });
@@ -137,14 +134,12 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should categorize /episode/ (singular) as podcast", () => {
-      // The regex requires /episode/ not /episodes/
       const result = resolveLinkCategory("https://example.com/episode/123");
       expect(result.category).toBe("podcast");
       expect(result.reason).toBe("path_rule");
     });
 
     it("should categorize /episodes/ (plural) as tv (matches 'episode' in tv rule)", () => {
-      // /episodes/ matches the tv rule which looks for "episode" without word boundaries
       const result = resolveLinkCategory("https://example.com/episodes/123");
       expect(result.category).toBe("tv");
       expect(result.reason).toBe("path_rule");
@@ -224,12 +219,11 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should match spotify provider (via path rule for /track/)", () => {
-      // /track/ matches the music path rule before provider mapping
       const result = resolveLinkCategory(
         "https://myspotify.site.com/track/123"
       );
       expect(result.category).toBe("music");
-      expect(result.reason).toBe("path_rule"); // path rule takes precedence
+      expect(result.reason).toBe("path_rule");
       expect(result.provider).toBe("spotify");
     });
 
@@ -342,7 +336,6 @@ describe("resolveLinkCategory", () => {
 
   describe("priority order", () => {
     it("should prioritize domain rule over path rule", () => {
-      // github.com is a domain rule for software, /docs would be a path rule
       const result = resolveLinkCategory(
         "https://github.com/user/repo/wiki/docs"
       );
@@ -407,8 +400,6 @@ describe("resolveLinkCategory", () => {
     });
 
     it("should handle URLs with ports", () => {
-      // The path /docs/ doesn't have a trailing / after docs (it's the end)
-      // So it matches the heuristic "docs" pattern instead
       const result = resolveLinkCategory("https://localhost:3000/docs/");
       expect(result.category).toBe("software");
       expect(result.reason).toBe("heuristic");

@@ -4,7 +4,6 @@ import PDFKit
 import SwiftUI
 import TeakCore
 
-/// The hero for a card: its media or content, per type.
 struct CardPreview: View {
     let card: Card
 
@@ -67,7 +66,6 @@ struct ImagePreview: View {
     }
 }
 
-/// Plays a GIF's frames with ImageIO.
 struct AnimatedImage: View {
     let url: URL
     let fallback: [URL]
@@ -358,7 +356,6 @@ struct PalettePreview: View {
         if colors.isEmpty {
             Unavailable(label: "No colors saved", symbol: "paintpalette")
         } else {
-            // Square swatches that grow with the space, so a palette fills an iPad page too.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
                 ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
                     Button {

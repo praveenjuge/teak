@@ -34,7 +34,6 @@ const cleanName = (value?: string): string | null => {
 const comparable = (value: string) =>
   value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
-// "The Verge" names theverge.com, and "BBC" names bbc.co.uk.
 const namesHost = (key: string, hostname?: string | null) =>
   Boolean(hostname) &&
   (hostname as string)

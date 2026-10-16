@@ -28,7 +28,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-/** A small title above a group of rows, with an optional action on the right. */
 @Composable
 fun ListSectionHeader(title: String, trailing: (@Composable () -> Unit)? = null) {
     Row(
@@ -46,7 +45,6 @@ fun ListSectionHeader(title: String, trailing: (@Composable () -> Unit)? = null)
     }
 }
 
-/** Rows grouped on one rounded surface, like an inset list in the system Settings app. */
 @Composable
 fun ListGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
@@ -109,7 +107,6 @@ fun ListRow(
     )
 }
 
-/** Read-only trailing text for a [ListRow], such as a count or a plan name. */
 @Composable
 fun ListRowValue(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

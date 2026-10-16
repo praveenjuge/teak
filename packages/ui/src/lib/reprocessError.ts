@@ -1,6 +1,5 @@
 const FALLBACK_MESSAGE = "Couldn't refresh this card. Try again in a moment.";
 
-// Backend refusals the person can act on carry their own sentence.
 const USER_FACING_CODES = new Set(["CONFLICT", "NOT_FOUND", "RATE_LIMITED"]);
 
 /**

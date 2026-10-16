@@ -44,7 +44,6 @@ beforeEach(async () => {
   vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
   const jwk = await exportJWK(keys.publicKey);
-  // Provider JWKS is the only mocked boundary; signatures and database auth are real.
   vi.stubGlobal(
     "fetch",
     (input: string | URL | Request, options?: RequestInit) => {
@@ -156,9 +155,6 @@ async function setup() {
   return { t, owner, own, foreign, read, mcp };
 }
 
-// Failures: resource confusion in synthetic REST requests; spoofed resource
-// headers; ID/M2M/session tokens; refreshed credentials undo durable revocation;
-// mapping/deletion bypass; WorkOS acceptance in legacy mode; raw provider owners.
 describe("WorkOS REST and MCP token boundary", () => {
   test("API token reads its permanent vault while MCP token initializes and executes shared tools", async () => {
     const f = await setup();
@@ -236,7 +232,6 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect(
       JSON.stringify(await call("teak_v1_get_card", { cardId: id }))
     ).toContain("Updated WorkOS card");
-    // Tags are listed from the tag index, which syncs right after a save.
     await f.t.run((ctx) => syncCardSearchTagsBatchHandler(ctx, id));
     expect(JSON.stringify(await call("teak_v1_list_tags", {}))).toContain(
       "migrated"

@@ -57,14 +57,6 @@ export const UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS: ExternalToast = {
   dismissible: true,
 };
 
-/**
- * Critical/actionable upload result — stays pinned until closed.
- *
- * Used for folder rejection, offline drops, card/rate limits,
- * total failure and partial failure. Shares the manual-close semantics from
- * the existing constants but keeps its own name so we can tune copy/styling
- * for upload-specific flows without affecting auth toasts.
- */
 export const UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS: ExternalToast = {
   ...MANUAL_CLOSE_TOAST_OPTIONS,
 };

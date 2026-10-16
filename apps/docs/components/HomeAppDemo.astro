@@ -1,10 +1,10 @@
 ---
+import type { CardType } from "@teak/convex/shared/constants";
 import Icon from "blume/components/Icon.astro";
 import {
   DEMO_CARD_TYPES,
   DEMO_COLUMNS,
   type DemoCard,
-  type DemoCardType,
 } from "../lib/home-demo-cards";
 
 // Same deterministic waveform as AudioWavePreview in the web app.
@@ -37,7 +37,7 @@ const cardLabel = (card: DemoCard) =>
   `${DEMO_CARD_TYPES[card.type].label}: ${card.title ?? card.content ?? ""}`;
 
 const typeEntries = Object.entries(DEMO_CARD_TYPES) as [
-  DemoCardType,
+  CardType,
   { icon: string; label: string },
 ][];
 

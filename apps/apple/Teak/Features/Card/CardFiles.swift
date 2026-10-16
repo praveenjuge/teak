@@ -3,7 +3,6 @@ import Foundation
 import TeakCore
 import UniformTypeIdentifiers
 
-/// Downloads a card's file under its own name, for sharing and saving.
 enum CardFiles {
     static func download(_ url: URL, as fileName: String) async throws -> URL {
         let (temporary, response) = try await URLSession.shared.download(from: url)
@@ -18,11 +17,9 @@ enum CardFiles {
     }
 }
 
-/// A card's file, downloaded only when someone picks where to send it.
 struct CardFile: Transferable, Sendable {
     let fileName: String
     let contentType: UTType
-    /// Finds the file's URL; for a grid tile this loads the full card first.
     let resolve: @Sendable () async throws -> URL
 
     init(fileName: String, resolve: @escaping @Sendable () async throws -> URL) {

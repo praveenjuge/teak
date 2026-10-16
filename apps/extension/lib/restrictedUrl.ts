@@ -1,4 +1,3 @@
-// Pages where the extension cannot inject scripts, so it cannot save them.
 const RESTRICTED_PREFIXES = [
   "chrome://",
   "chrome-extension://",
@@ -62,7 +61,6 @@ export function isRestrictedUrl(url?: string): boolean {
 
 const TRY_ELSEWHERE = "Try using the extension on regular web pages.";
 
-/** The message shown when a save starts on a page the extension can't read. */
 export function restrictedUrlMessage(url?: string): string {
   if (url && isExtensionStoreUrl(url)) {
     return `Browsers don't let extensions save from add-on store pages. ${TRY_ELSEWHERE}`;

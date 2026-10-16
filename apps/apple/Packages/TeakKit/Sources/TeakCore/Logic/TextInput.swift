@@ -1,11 +1,9 @@
 import Foundation
 
-/// Tells the backend which app saved a card, for product analytics.
 public enum CardSource {
     public static let apple: ConvexValue = "apple"
 }
 
-/// How a note or pasted link is saved: a link card when there is an http(s) URL, otherwise text.
 public struct TextCardInput: Hashable, Sendable {
     public let content: String
     public let type: CardType
@@ -38,7 +36,6 @@ public enum LinkDetection {
         candidate.prefixMatch(of: /(?i)https?:\/\/[^\/?#\s]+/) != nil
     }
 
-    /// The URL in `content`, and the content to save alongside it.
     public static func extractURL(_ content: String) -> (url: String?, content: String) {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return (nil, "") }
@@ -62,7 +59,7 @@ public enum LinkDetection {
 
 /// Reads the text from a `teak://save?text=…` link straight from the raw URL,
 /// so a `#`, `&` or `%` inside the text survives exactly as the automation
-/// app sent it. Port of `textFromSaveLink`.
+/// app sent it.
 public enum SaveLink {
     public static func text(from url: String?) -> String {
         guard let url, let queryStart = url.firstIndex(of: "?") else { return "" }

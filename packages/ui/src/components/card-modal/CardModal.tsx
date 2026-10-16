@@ -116,7 +116,6 @@ function CardPreview({
   }
 }
 
-/** Where the stage pads and centres each kind of content. */
 function stageContentClass(card: CardModalCard): string {
   switch (card.type) {
     case "image":
@@ -173,6 +172,11 @@ interface CardModalProps {
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
+  /**
+   * Called as the dialog closes with the card it showed last; true when it
+   * moved focus there, so the dialog leaves focus alone.
+   */
+  returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
@@ -211,6 +215,7 @@ export function CardModal({
   isDownloading,
   isReprocessing,
   onReprocess,
+  returnFocus,
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
@@ -225,7 +230,6 @@ export function CardModal({
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
-  // The dialog grows out of the card it was opened from, when it knows it.
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
     originRef.current = {
@@ -241,7 +245,6 @@ export function CardModal({
   }
   const openOrigin = originRef.current.value;
 
-  // Edits save themselves once typing pauses.
   useEffect(() => {
     if (!(open && hasUnsavedChanges)) {
       return;
@@ -258,8 +261,6 @@ export function CardModal({
     }
   };
 
-  // Closing or moving to another card saves first. If that fails, the card
-  // stays open so the edit can be saved again; a second try leaves anyway.
   const { noteEdit, readyToLeave } = useLeaveGuard({
     cardId,
     hasUnsavedChanges,
@@ -298,8 +299,6 @@ export function CardModal({
     }
   };
 
-  // Delete, archive and restore take the card out of this view, so the
-  // dialog closes after them even if a last save fails.
   const closeAfterAction = async () => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
@@ -336,7 +335,6 @@ export function CardModal({
     if (
       event.defaultPrevented ||
       !card ||
-      // Keys from a menu or dialog opened on top belong to it.
       !contentRef.current?.contains(event.target as Node)
     ) {
       return;
@@ -394,7 +392,6 @@ export function CardModal({
   const typeLabel = card
     ? (CARD_TYPE_LABELS[card.type as CardType] ?? "Card")
     : "Card";
-  // The title field shows the resolved title until someone edits it.
   const editedTitle = getCurrentValue("metadataTitle");
   const titleValue =
     card && editedTitle !== card.metadataTitle
@@ -417,6 +414,11 @@ export function CardModal({
             openOrigin &&
               "md:data-[state=open]:zoom-in-[0.7] md:data-[state=open]:duration-200 md:data-[state=open]:ease-out"
           )}
+          onCloseAutoFocus={(event) => {
+            if (card && returnFocus?.(card._id)) {
+              event.preventDefault();
+            }
+          }}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
             // Focus the dialog itself, not its first field, so its keys
@@ -454,7 +456,6 @@ export function CardModal({
                         dir="auto"
                         maxLength={512}
                         onBlur={(event) => {
-                          // Leaving the title blank keeps the one it had.
                           if (event.target.value.trim()) {
                             commit();
                           } else {

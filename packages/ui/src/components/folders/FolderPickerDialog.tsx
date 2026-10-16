@@ -16,8 +16,9 @@ import {
 import { Input } from "@teak/ui/components/ui/input";
 import { useMutation } from "convex/react";
 import { Plus, Search } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useFolders } from "../../hooks/useFolders";
+import { useSingleFlight } from "../../hooks/useSingleFlight";
 import { cardCountLabel } from "../../lib/bulkCardActions";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
@@ -58,23 +59,17 @@ export function FolderPickerDialog({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  // Blocks a second Enter before the disabled option has rendered.
-  const creatingRef = useRef(false);
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setActiveIndex(0);
       setError(null);
-      setIsCreating(false);
-      creatingRef.current = false;
     }
   }, [open]);
 
   const matches = useMemo(
     () =>
-      // Cards can't be put in a smart folder, so it is never offered.
       filterFolders(manualFolders(folders ?? []), query).filter(
         (folder) => folder._id !== excludeFolderId
       ),
@@ -95,21 +90,17 @@ export function FolderPickerDialog({
     onPick(folder);
   };
 
-  const create = async () => {
-    if (!canCreate || creatingRef.current) {
+  const [create, isCreating] = useSingleFlight(async () => {
+    if (!canCreate) {
       return;
     }
-    creatingRef.current = true;
-    setIsCreating(true);
     setError(null);
     try {
       pick(await createFolder({ name: trimmed }));
     } catch (caught) {
       setError(folderErrorMessage(caught, "Couldn't create the folder"));
-      creatingRef.current = false;
-      setIsCreating(false);
     }
-  };
+  });
 
   const choose = (index: number) => {
     if (index < matches.length) {
@@ -119,7 +110,6 @@ export function FolderPickerDialog({
     }
   };
 
-  // Keep the highlighted option in view while arrowing through a long list.
   useEffect(() => {
     if (open) {
       document

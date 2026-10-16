@@ -5,8 +5,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Convex is the external boundary: cards and the folder dialogs only need
-// hooks that these tests never call.
 const realConvexReact = await import("convex/react");
 const mutation = () =>
   Object.assign(mock(), { withOptimisticUpdate: () => mock() });
@@ -83,8 +81,6 @@ const scrollSentinel = (inView: boolean) => {
   }
 };
 
-// Delivers until nothing is queued, the way frames keep running while the
-// grid reacts to what it was told.
 const deliverIntersections = async () => {
   for (let round = 0; round < 10; round += 1) {
     const pending = [...observers];
@@ -165,12 +161,9 @@ const visibleCardCount = () =>
 
 describe("MasonryGrid infinite scroll", () => {
   test("scrolling to the bottom shows loaded cards even when the observer's first report was out of view", async () => {
-    // 60 cards are loaded and 30 shown; the bottom is below the viewport.
     await renderGrid({ filteredCards: cards(60), onLoadMore: mock() });
     expect(visibleCardCount()).toBe(30);
 
-    // The user scrolls to the bottom before the browser delivers the
-    // observer's first report, so both arrive in one callback.
     scrollSentinel(true);
     await deliverIntersections();
 
@@ -189,7 +182,6 @@ describe("MasonryGrid infinite scroll", () => {
     await deliverIntersections();
 
     expect(visibleCardCount()).toBe(60);
-    // The bottom is still in view, so the grid asks for the next page too.
     expect(onLoadMore).toHaveBeenCalledTimes(2);
   });
 });

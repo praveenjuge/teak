@@ -21,8 +21,6 @@ afterEach(() => {
 type CardSeed = Pick<Doc<"cards">, "content" | "createdAt" | "type"> &
   Partial<Pick<Doc<"cards">, "isArchived" | "isDeleted" | "isFavorited">>;
 
-// Inserted in this order, so insertion order (`_creationTime`) and the saved
-// date (`createdAt`) disagree: "Imported" was saved long ago but added last.
 const LIBRARY: CardSeed[] = [
   { content: "Newest note", type: "text", createdAt: 3000 },
   { content: "Middle note", type: "text", createdAt: 2000 },
@@ -63,7 +61,6 @@ type Owner = Awaited<ReturnType<typeof setup>>["owner"];
 const contents = (cards: { content: string }[]) =>
   cards.map((card) => card.content);
 
-// Reads every page one card at a time, so ordering and cursors both count.
 const readAllPages = async (
   owner: Owner,
   args: Record<string, unknown> = {}
@@ -215,8 +212,6 @@ describe("library order follows the saved date", () => {
 });
 
 describe("public API and Raycast order", () => {
-  // Pages like GET /v1/cards: one row per read, resuming from the last
-  // returned card's cursor.
   const readApiPages = async (
     t: Awaited<ReturnType<typeof setup>>["t"],
     sort: "newest" | "oldest"

@@ -15,7 +15,6 @@ import {
 
 const internalWorkflow = internal as Record<string, any>;
 
-// A busy Browser Run pool usually clears within minutes.
 export const SCREENSHOT_RENDERER_MAX_RETRIES = 3;
 export const SCREENSHOT_RENDERER_RETRY_DELAY_MS = 30_000;
 export const SCREENSHOT_HTTP_MAX_RETRIES = 1;
@@ -65,8 +64,6 @@ export const screenshotWorkflowHandler = async (
   step: ScreenshotStep,
   { cardId }: { cardId: string }
 ): Promise<{ errorType?: string; success: boolean }> => {
-  // The stage lives beside the card's other stages; the mutation merges it
-  // into the status it reads, so a parallel stage is never reset.
   const recordStage = (screenshot: ProcessingStageStatus) =>
     step.runMutation(internalWorkflow.ai.mutations.updateCardProcessing, {
       cardId,

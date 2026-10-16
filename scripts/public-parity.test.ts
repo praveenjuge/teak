@@ -24,7 +24,6 @@ const names = (surface: Surface): readonly string[] =>
 
 const HTTP_METHODS = ["get", "post", "patch", "delete"] as const;
 
-/** Every operation in the OpenAPI document, with a matcher for its path. */
 const operations = Object.entries(
   openApiSpec.paths as Record<string, Record<string, { operationId?: string }>>
 ).flatMap(([path, methods]) =>
@@ -39,7 +38,6 @@ const operations = Object.entries(
   })
 );
 
-/** Whether a request path fits an OpenAPI path, where `{param}` is any segment. */
 const pathMatches = (segments: readonly string[], path: string) => {
   const parts = path.split("/");
   return (
@@ -52,7 +50,6 @@ const pathMatches = (segments: readonly string[], path: string) => {
   );
 };
 
-/** The OpenAPI operation an HTTP call reaches, or undefined. */
 const operationFor = (method: string, path: string) =>
   operations.find(
     (operation) =>
@@ -63,7 +60,6 @@ const operationFor = (method: string, path: string) =>
 const rowFor = (operationId: string): PublicParityRow | undefined =>
   PUBLIC_PARITY.find((row) => row.operationId === operationId);
 
-/** One valid input per MCP tool, enough to reach its operation. */
 const MCP_SAMPLES: Record<string, unknown> = {
   // The search and fetch pair ChatGPT connectors expect.
   fetch: { id: "card_1" },
@@ -106,7 +102,6 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_update_folder: { folderId: "folder_1", name: "Later" },
 };
 
-/** The operations an MCP tool call reaches. */
 const mcpOperations = async (tool: string) => {
   const reached: string[] = [];
   await callTeakV1Tool(
@@ -126,7 +121,6 @@ const mcpOperations = async (tool: string) => {
 
 type SdkCall = (client: ReturnType<typeof createTeakClient>) => unknown;
 
-/** One call per SDK client member, enough to reach its operation. */
 const SDK_SAMPLES = new Map<string, SdkCall>(
   Object.entries({
     "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
@@ -178,7 +172,6 @@ const recordingFetch = (reached: string[]) =>
     return Promise.resolve(Response.json({}));
   }) as typeof fetch;
 
-/** The operations an SDK member reaches. */
 const sdkOperations = async (member: string) => {
   const reached: string[] = [];
   if (member === "disconnectConnectGrant") {
@@ -204,7 +197,6 @@ const sdkOperations = async (member: string) => {
   return reached;
 };
 
-/** Every SDK client member, as `group.method` or `method`. */
 const sdkMembers = () => {
   const client = createTeakClient({
     tokenProvider: { getAccessToken: () => "token" },
@@ -216,7 +208,6 @@ const sdkMembers = () => {
   );
 };
 
-/** Every CLI command, by its full name path. */
 const cliCommands = (command: Command, prefix: string[] = []): string[] =>
   command.commands.flatMap((child) => {
     const path = [...prefix, child.name()];
@@ -290,14 +281,10 @@ describe("public surface parity", () => {
   });
 
   test("the SDK knows every error code the API returns", () => {
-    // The SDK reports a code it doesn't know as REQUEST_FAILED, which would
-    // hide it from SDK and CLI callers.
     const known = new Set<string>(ERROR_CODES);
     expect(PUBLIC_API_ERROR_CODES.filter((code) => !known.has(code))).toEqual(
       []
     );
-    // Card mutations' codes reach API callers unchanged. Only the web's
-    // multi-file picker raises TOO_MANY_FILES.
     const api = new Set<string>(PUBLIC_API_ERROR_CODES);
     expect(
       Object.values(CARD_ERROR_CODES).filter(
@@ -326,8 +313,6 @@ describe("public surface parity", () => {
 
     const ls = program.commands.find((command) => command.name() === "ls");
     const flags = new Set(ls?.options.map((option) => option.long));
-    // The CLI names the shuffle seed `--seed` and takes the search as the
-    // `search` command's argument.
     const cliFlag = (parameter: string) =>
       parameter === "shuffleSeed"
         ? "--seed"

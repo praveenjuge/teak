@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// HomePageClient hands the library to the shared screen; capture what it
-// passes so the URL wiring can be exercised without a Convex backend.
 let screenProps: Record<string, any> = {};
 const realScreens = await import("@teak/ui/screens");
 mock.module("@teak/ui/screens", () => ({
@@ -166,9 +164,12 @@ describe("library URL", () => {
     expect(history.replaceState).not.toHaveBeenCalled();
   });
 
-  test("a settled quick command leaves this page's URL before navigating", () => {
+  test("a quick command drops its search text from this page's entry before navigating, so Back shows the page without it", () => {
     render("q=trash&sort=oldest");
     const history = installWindow("?q=trash&sort=oldest");
+    const order: string[] = [];
+    history.replaceState.mockImplementation(() => order.push("replace"));
+    router.push.mockImplementation(() => order.push("push"));
     screenProps.onNavigateView("trash");
     expect(history.replaceState).toHaveBeenCalledWith(
       null,
@@ -176,6 +177,7 @@ describe("library URL", () => {
       "/?sort=oldest"
     );
     expect(router.push).toHaveBeenCalledWith("/trash");
+    expect(order).toEqual(["replace", "push"]);
   });
 
   test("opening a card keeps the search in the URL", () => {

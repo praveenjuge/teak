@@ -3,6 +3,7 @@ import {
   readImportIndexPage,
   readLegacyMarkdown,
 } from "../../import/archiveZip";
+import { asFetch } from "../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
 const prior = {
@@ -18,7 +19,7 @@ beforeEach(() => {
   process.env.FILES_BASE = "https://files.test";
   process.env.FILES_SIGNING_SECRET = "test-secret";
   process.env.R2_KEY_PREFIX = "";
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = asFetch(fetchMock);
   fetchMock.mockReset();
 });
 afterEach(() => {
@@ -61,7 +62,7 @@ describe("import worker client", () => {
       status: "failed",
       failureCode: "INVALID_UTF8",
       failureReason: "Invalid UTF-8",
-    };
+    } as const;
     fetchMock.mockResolvedValue(Response.json({ ok: true, data: failure }));
     expect(
       await readLegacyMarkdown(

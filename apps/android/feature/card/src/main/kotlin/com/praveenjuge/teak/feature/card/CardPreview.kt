@@ -42,12 +42,12 @@ import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.parseHexArgb
 import kotlin.math.ceil
 
 private val SWATCH_MIN_WIDTH = 84.dp
 private val SWATCH_HEIGHT = 128.dp
 
-/** The card itself, shown the way its type reads best. */
 @Composable
 internal fun CardPreview(
     card: Card,
@@ -157,21 +157,6 @@ private fun QuotePreview(text: String, modifier: Modifier) {
     }
 }
 
-/** "#abc" or "#aabbcc" (optionally with alpha) as a color, or null. */
-internal fun parseHexColor(hex: String): Color? {
-    val digits = hex.trim().removePrefix("#")
-    val full = when (digits.length) {
-        3 -> digits.map { "$it$it" }.joinToString("") + "ff"
-        6 -> digits + "ff"
-        8 -> digits
-        else -> return null
-    }
-    val value = full.toLongOrNull(16) ?: return null
-    // #RRGGBBAA to ARGB.
-    return Color(((value and 0xff) shl 24) or (value shr 8))
-}
-
-/** Wide swatches with their hex codes, as many per row as fit and balanced across rows. Tap to copy. */
 @Composable
 private fun PaletteSwatches(colors: List<CardColor>, onCopy: (String) -> Unit, modifier: Modifier) {
     if (colors.isEmpty()) {
@@ -194,7 +179,7 @@ private fun PaletteSwatches(colors: List<CardColor>, onCopy: (String) -> Unit, m
 
 @Composable
 private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
-    val color = parseHexColor(hex) ?: Color.Gray
+    val color = parseHexArgb(hex)?.let(::Color) ?: Color.Gray
     val labelColor = if (color.luminance() > 0.5f) Color.Black else Color.White
     Box(
         modifier
@@ -260,7 +245,6 @@ private fun LinkPreview(card: Card, modifier: Modifier) {
     }
 }
 
-/** "PDF · 4.6 MB", then anything extra like page or word counts. */
 internal fun documentFacts(card: Card): List<String> {
     val file = card.fileMetadata ?: return emptyList()
     val extension = (file.extension ?: file.fileName?.substringAfterLast('.', ""))

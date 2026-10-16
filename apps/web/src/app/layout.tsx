@@ -11,9 +11,6 @@ import {
   websiteSchema,
 } from "@/lib/jsonld";
 
-// SN Pro, every script it covers. next/font serves it from the app's own
-// origin and preloads the upright face, which nearly every page paints with.
-// The family keeps its name, so the theme's font stacks use it unchanged.
 const snPro = localFont({
   src: "../../../../packages/ui/src/fonts/SNPro-VariableRegular.woff2",
   weight: "200 900",

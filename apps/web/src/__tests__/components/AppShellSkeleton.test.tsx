@@ -4,7 +4,6 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 const { renderToStaticMarkup } = await import("react-dom/server");
 
-// The router is Next's boundary; the frame and the shared sidebar are real.
 let pathname = "/";
 const realNavigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
@@ -29,9 +28,6 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// Failure mode: the page's first paint (server-rendered while the session
-// and vault load) shows the wrong page or a sidebar that then jumps to its
-// remembered state.
 describe("the app frame while the vault opens", () => {
   test("names the page and shows its search over placeholder cards", () => {
     const frame = render("/favorites");

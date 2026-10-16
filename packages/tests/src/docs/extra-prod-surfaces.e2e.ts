@@ -171,7 +171,6 @@ for (const [index, probe] of probes.entries()) {
     const response = await fetchWithNetworkRetry(probe.url);
     const body = await response.text();
 
-    // Playwright's test.step titles become the expectations' messages.
     expect(response.status, "status is successful").toBeLessThan(400);
     expect(
       response.headers.get("content-type") ?? "",

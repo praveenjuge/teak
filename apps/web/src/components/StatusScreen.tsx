@@ -2,10 +2,6 @@ import { Button } from "@teak/ui/components/ui/button";
 import { Wordmark } from "@teak/ui/logo";
 import type { ReactNode } from "react";
 
-// The full-page message shown in place of the app: session problems, a
-// blocked account, or a crash. It fills the viewport, so it sits where the
-// loading spinner was and the page never scrolls. Extra actions go below the
-// main one as children.
 export function StatusScreen({
   message,
   action,

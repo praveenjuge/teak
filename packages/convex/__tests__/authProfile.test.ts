@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { ConvexError } from "convex/values";
 import {
@@ -9,11 +8,9 @@ import {
 import { polar } from "../billing";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
+import { noop } from "./helpers/convex.test-utils";
 import { withTestSession } from "./helpers/session.test-utils";
 
-// Fixtures for the real identity/session boundary; only provider data is mocked.
-// Email and display fields come from the WorkOS profile; this fixture gives it
-// an email and leaves the display fields empty.
 const withProfileSession = (ctx: any, readUser: () => Promise<any>) =>
   withTestSession({
     ...ctx,
@@ -88,11 +85,7 @@ describe("auth profile", () => {
       expect(result).toBeNull();
     });
 
-    it("returns null instead of throwing when the lookup errors", async () => {
-      // Regression guard for the production sign-out crash: the provider-level
-      // subscription re-runs against a just-cleared session, and a thrown
-      // result there crashed the page (Minified React error #310). The query
-      // must swallow the error and resolve to null instead of rejecting.
+    it("returns null instead of throwing when the lookup errors, so sign-out does not crash the page", async () => {
       mockSafeGetAuthUser.mockRejectedValue(
         new ConvexError("Profile lookup failed")
       );
@@ -151,9 +144,7 @@ describe("auth profile", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -186,9 +177,7 @@ describe("auth profile", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -228,9 +217,7 @@ describe("auth profile", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -305,9 +292,7 @@ describe("auth profile", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }
@@ -340,9 +325,7 @@ describe("auth profile", () => {
               if (cb) {
                 cb({
                   eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
+                    eq: noop,
                   }),
                 });
               }

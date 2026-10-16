@@ -7,9 +7,6 @@ const ENTRY_FLOWS: Record<string, "signin" | "signup" | "recovery"> = {
   "/reset-password": "recovery",
 };
 
-// WorkOS hosts sign-in, sign-up and password recovery, so Teak's entry pages
-// never render under WorkOS: signed-in visitors go to their destination and
-// everyone else goes straight to hosted AuthKit.
 export function workosEntryRedirect(
   url: Pick<URL, "origin" | "pathname" | "searchParams">,
   signedIn: boolean

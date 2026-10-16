@@ -70,8 +70,6 @@ afterEach(async () => {
 });
 afterAll(() => GlobalRegistrator.unregister());
 
-// Failures: retry does nothing, discovery outage masquerades as signed out,
-// saved credentials are ignored after recovery, or a retry opens the browser.
 test("connection recovery renders and invokes its supplied retry handler", async () => {
   let retries = 0;
   await act(async () =>

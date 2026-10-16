@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Build metadata derivation (issue #407, Phase 3).
+ * Build metadata derivation.
  *
  * Release IDs, app versions, and commit SHAs derive from provider metadata
  * instead of manual configuration. Precedence for the commit SHA:
@@ -64,9 +64,7 @@ export const resolveCommitSha = async (
     if (result.exitCode === 0 && /^[0-9a-f]{40}$/.test(sha)) {
       return { sha, source: "git" };
     }
-  } catch {
-    // No git checkout available; the caller decides how to fail.
-  }
+  } catch {}
   return null;
 };
 

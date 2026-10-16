@@ -34,7 +34,6 @@ import javax.inject.Named
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
-/** A scope that lives as long as the process, for work that must outlive any screen. */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope

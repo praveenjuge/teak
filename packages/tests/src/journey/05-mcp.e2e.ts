@@ -3,7 +3,6 @@ import { env } from "../helpers/env";
 import { connectMcp } from "../helpers/mcp";
 import { expect, retry, test } from "../helpers/test";
 
-// The account this file's tests call MCP as; no other file uses it.
 let apiKey = "";
 test.beforeAll(async () => {
   ({ apiKey } = await createApiAccount("service-mcp"));
@@ -66,7 +65,6 @@ test("MCP lists and calls every public tool", async () => {
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],
-    // A text card's own content is its text.
     ["teak_v1_get_card_content", { cardId }],
     ["teak_v1_search_cards", { q: "mcp" }],
     ["teak_v1_list_favorite_cards", {}],
@@ -107,8 +105,6 @@ test("MCP lists and calls every public tool", async () => {
     }
   }
 
-  // Library-wide tag changes run in the background, one at a time: wait for
-  // the card's tags to be listed, then for each change to finish.
   await retry(
     async () => {
       const listed: any = await client.callTool({

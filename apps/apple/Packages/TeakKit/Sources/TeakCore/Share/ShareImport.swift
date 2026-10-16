@@ -1,6 +1,5 @@
 import Foundation
 
-/// One thing shared into Teak: text or a link, or a file.
 public enum SharedItem: Sendable, Hashable {
     case text(String)
     case file(UploadItem)
@@ -24,7 +23,6 @@ public struct ShareImportResult: Sendable, Equatable {
     public var isPartial: Bool { successfulItems > 0 && !failures.isEmpty }
     public var needsSignIn: Bool { failures.contains { $0.reason == .unauthenticated } }
 
-    /// "Saved", "Saved 2 of 3" or the first failure.
     public var summary: String {
         if isComplete { return successfulItems == 1 ? "Saved to Teak" : "Saved \(successfulItems) items" }
         if isPartial { return "Saved \(successfulItems) of \(totalItems)" }
@@ -32,7 +30,7 @@ public struct ShareImportResult: Sendable, Equatable {
     }
 }
 
-/// Saves shared items one at a time. Port of `importIncomingShareItems`.
+/// Saves shared items one at a time.
 public struct ShareImporter: Sendable {
     public typealias CreateText = @Sendable (String) async throws -> String
     public typealias Upload = @Sendable (UploadItem) async throws -> String

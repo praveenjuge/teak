@@ -1,9 +1,3 @@
-/**
- * Download one remote preview asset with the same SSRF policy, address
- * pinning, limits and checks Convex applied when it downloaded assets itself.
- * The policy code is Convex's own, bundled by path, so there is one copy.
- */
-
 import {
   type DnsResolver,
   type PinnedFetch,
@@ -114,12 +108,12 @@ export const fetchRemoteAsset = async (
   };
   let response: Response;
   try {
-    response = await safeFetch(
+    ({ response } = await safeFetch(
       request.url,
       resolveDns,
       { headers: { "user-agent": USER_AGENT } },
       fetchHop
-    );
+    ));
   } catch (error) {
     if (error instanceof SsrfError) {
       return skip("blocked_url");

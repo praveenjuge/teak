@@ -6,10 +6,6 @@ interface JsonLdProps {
   schema: JsonLdSchema;
 }
 
-/**
- * Server-rendered JSON-LD structured data component for SEO.
- * Uses @graph pattern when combining multiple schemas.
- */
 export function JsonLd({ schema }: JsonLdProps) {
   const jsonLd = Array.isArray(schema)
     ? {

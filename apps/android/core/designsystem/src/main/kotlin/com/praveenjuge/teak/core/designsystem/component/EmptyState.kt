@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/** A centered icon, title and message, with an optional action, for empty or failed screens. */
 @Composable
 fun EmptyState(
     title: String,

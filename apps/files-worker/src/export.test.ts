@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { FILES_EXPORT_MANIFEST_VERSION } from "@teak/files-protocol";
 import { unzipSync } from "fflate";
 import {
   buildExportIntoBucket,
-  EXPORT_MANIFEST_VERSION,
   ExportManifestInvalid,
   ExportTooLarge,
   parseExportManifest,
 } from "./export";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng } from "./test/testsupport";
 
 const encodeBase64 = (text: string): string =>
   Buffer.from(text, "utf8").toString("base64");
 
 describe("export manifest parsing", () => {
   const valid = {
-    v: EXPORT_MANIFEST_VERSION,
+    v: FILES_EXPORT_MANIFEST_VERSION,
     maxBytes: 1024,
     entries: [{ path: "cards.json", contentBase64: encodeBase64("{}") }],
   };
@@ -55,7 +55,7 @@ describe("build-export op", () => {
     bucket.objects.set("users/a/file/a.png", { bytes: makeZipPng() });
 
     const manifest = {
-      v: EXPORT_MANIFEST_VERSION,
+      v: FILES_EXPORT_MANIFEST_VERSION,
       maxBytes: 1024 * 1024 * 1024,
       entries: [
         { path: "manifest.json", contentBase64: encodeBase64('{"ok":true}') },
@@ -99,7 +99,7 @@ describe("build-export op", () => {
   test("omits missing files after retries and reports them by path", async () => {
     const bucket = new FakeBucket();
     const manifest = {
-      v: EXPORT_MANIFEST_VERSION,
+      v: FILES_EXPORT_MANIFEST_VERSION,
       maxBytes: 1024 * 1024 * 1024,
       entries: [
         { path: "cards.json", contentBase64: encodeBase64("x") },
@@ -128,7 +128,7 @@ describe("build-export op", () => {
   test("aborts with a size error when the manifest exceeds its cap", async () => {
     const bucket = new FakeBucket();
     const manifest = {
-      v: EXPORT_MANIFEST_VERSION,
+      v: FILES_EXPORT_MANIFEST_VERSION,
       maxBytes: 10,
       entries: [
         { path: "big.bin", contentBase64: encodeBase64("0123456789abcdef") },
@@ -141,7 +141,6 @@ describe("build-export op", () => {
     await expect(
       buildExportIntoBucket(bucket, "m2.json", "out.zip", "t.zip")
     ).rejects.toBeInstanceOf(ExportTooLarge);
-    // Nothing was persisted.
     expect(bucket.multipartCompletions).toHaveLength(0);
   });
 
@@ -153,7 +152,7 @@ describe("build-export op", () => {
     bucket.objects.set("resume-manifest.json", {
       bytes: new TextEncoder().encode(
         JSON.stringify({
-          v: EXPORT_MANIFEST_VERSION,
+          v: FILES_EXPORT_MANIFEST_VERSION,
           maxBytes: 64 * 1024 * 1024,
           entries: [{ path: "large.bin", storageKey: "large.bin" }],
         })
@@ -183,5 +182,4 @@ describe("build-export op", () => {
   });
 });
 
-/** Tiny valid PNG so the zip contains real bytes. */
 const makeZipPng = (): Uint8Array => makePng(1, 1);

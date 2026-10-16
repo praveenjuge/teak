@@ -16,7 +16,6 @@ describe("backend bookmark parser", () => {
       type: "link",
       url: "https://example.com/work",
     });
-    // Folders are no longer copied into tags.
     expect(parsed[0].card?.tags).toBeUndefined();
     expect(parsed[0].card).not.toHaveProperty("icon");
   });
@@ -52,7 +51,6 @@ describe("backend bookmark parser", () => {
   });
 
   test("reads an export with hundreds of sibling folders", () => {
-    // Browsers leave <DT> and <p> unclosed; 600 folders is not deep nesting.
     let html = "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n";
     for (let index = 0; index < 600; index++) {
       html += `<DT><H3>Folder ${index}</H3>\n<DL><p>\n<DT><A HREF="https://cap.test/${index}">Link ${index}</A>\n</DL><p>\n`;

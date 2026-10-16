@@ -6,8 +6,8 @@ import {
   FILES_OPS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
-  FILES_RENDER_MAX_SOURCE_BYTES,
   FILES_SCREENSHOT_SIZE,
+  FILES_UPLOAD_MAX_BYTES,
   type FilesErrorCode,
   type FilesFinalizeImageParams,
   type FilesOpRequest,
@@ -34,7 +34,12 @@ import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
 import { generateImageMetadataForOp } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
-import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
+import {
+  extractZipEntries,
+  type InspectRequest,
+  InspectSourceMissing,
+  runInspect,
+} from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import { fetchLinkPage, parseLinkPageParams } from "./linkPage";
 import {
@@ -46,19 +51,19 @@ import {
   renderPdfPage,
 } from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import { OpFailure } from "./opFailure";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
 import {
   checkRendererHealth,
   RendererDeclined,
   RendererUnavailable,
 } from "./rendererClient";
-import { reportFilesOpFailure } from "./telemetry";
+import { reportInternalOpError } from "./telemetry";
 import {
   generateTextMetadataForOp,
   MetadataCapacityError,
   MetadataValidationError,
 } from "./textMetadata";
-import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
 import {
   embedUpsert,
@@ -96,24 +101,17 @@ export const getFilesOpObjectKey = (params: unknown): string => {
 
 export interface FilesOpsEnv extends AiGatewayEnv {
   AI?: WorkersAiBinding;
-  /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
-  /** Card embeddings for semantic search, shard 0; see files-protocol embeddings.ts. */
   CARD_VECTORS_0?: Vectorize;
   FILES_SIGNING_SECRET: string;
-  /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
-  /** Internet-enabled link fetcher Containers; see remoteAsset.ts. */
   LINK_FETCHER?: DurableObjectNamespace;
   LINK_FETCHER_INSTANCES?: string;
-  /** fetch-link-page results for a day; see linkPage.ts. */
   LINK_PAGE_CACHE?: KVNamespace;
-  /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
   MEDIA_RENDERER?: DurableObjectNamespace;
   MEDIA_RENDERER_INSTANCES?: string;
   OBJECT_GATES?: DurableObjectNamespace;
-  /** PostHog project token for error reports; set in production only. */
   POSTHOG_PROJECT_TOKEN?: string;
 }
 
@@ -198,7 +196,7 @@ const finalizeUpload = async (
     (typeof expectedSize === "number" && source.size !== expectedSize)
   ) {
     await source.body.cancel();
-    throw new Error("source_changed");
+    throw new OpFailure("source_changed");
   }
   let content: string | undefined;
   let body: ReadableStream | Uint8Array = source.body;
@@ -232,7 +230,6 @@ const finalizeUpload = async (
   };
 };
 
-/** Source and destination of a derived image, both in one user namespace. */
 const derivedImageKeys = (params: Record<string, unknown>) => {
   const sourceKey = requiredString(params, "sourceKey");
   const destinationKey = requiredString(params, "destinationKey");
@@ -249,7 +246,6 @@ const derivedImageKeys = (params: Record<string, unknown>) => {
   return { destinationKey, sourceKey };
 };
 
-/** An optional second output (a scrub sprite) beside a derived image. */
 const optionalDerivedKey = (
   params: Record<string, unknown>,
   name: string,
@@ -295,7 +291,6 @@ const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
     throw new RendererUnavailable("browser_binding_missing");
   }
   return async () => {
-    // Loaded on first use so other operations never pay its startup cost.
     const { default: puppeteer } = await import("@cloudflare/puppeteer");
     return await createBrowserAcquirer(puppeteer, binding)();
   };
@@ -310,8 +305,6 @@ const validKeyList = (value: unknown): string[] => {
   ) {
     throw new Error("invalid_keys");
   }
-  // Object keys are immutable per-card paths; reject duplicates so a single
-  // batch never double-deletes across namespaces.
   return Array.from(new Set(value as string[]));
 };
 
@@ -332,8 +325,6 @@ const dispatch = async (
     case "capabilities":
       return success(requestId, {
         operations: FILES_OPS,
-        // Import sources index-import-source reads; the deploy gate checks
-        // the backend's are all here before Convex ships a new one.
         importModes: IMPORT_MODES,
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
@@ -341,7 +332,6 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
-        // Starts a renderer when none is warm, so only deploy gates ask.
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
@@ -350,10 +340,7 @@ const dispatch = async (
       return success(requestId, await indexImportSource(env.BUCKET, params));
     case "read-import-markdown":
       return success(requestId, await readImportMarkdown(env.BUCKET, params));
-    case "transcribe-audio":
-      return success(requestId, await transcribeAudio(env, params));
     case "analyze-image":
-    case "analyze-image-content":
       return success(
         requestId,
         await analyzeImage(env, requiredString(params, "sourceKey"), origin)
@@ -366,8 +353,7 @@ const dispatch = async (
         typeof maxBytes !== "number" ||
         !Number.isSafeInteger(maxBytes) ||
         maxBytes <= 0 ||
-        maxBytes >
-          (mode === "pdf" ? FILES_RENDER_MAX_SOURCE_BYTES : MAX_INSPECT_BYTES)
+        maxBytes > (mode === "pdf" ? FILES_UPLOAD_MAX_BYTES : MAX_INSPECT_BYTES)
       ) {
         throw new Error("invalid_inspect_params");
       }
@@ -377,15 +363,23 @@ const dispatch = async (
           await extractPdfTextViaRenderer(env, validSourceKey(params), maxBytes)
         );
       }
+      let inspectRequest: InspectRequest;
+      if (mode === "zip") {
+        inspectRequest = {
+          formatId: optionalString(params, "formatId") ?? "",
+          mode,
+        };
+      } else if (mode === "css") {
+        inspectRequest = { maxBytes, mode };
+      } else {
+        inspectRequest = { maxBytes, mode, rtf: params.rtf === true };
+      }
       return success(
         requestId,
         await runInspect(
           env.BUCKET,
           requiredString(params, "sourceKey"),
-          mode,
-          optionalString(params, "formatId") ?? "",
-          maxBytes,
-          params.rtf === true
+          inspectRequest
         )
       );
     }
@@ -428,7 +422,7 @@ const dispatch = async (
       const existing = await env.BUCKET.head(requiredString(params, "key"));
       if (existing) {
         if (existing.size !== expectedSize) {
-          throw new Error("source_changed");
+          throw new OpFailure("source_changed");
         }
         return success(requestId, {
           etag: existing.httpEtag,
@@ -691,8 +685,6 @@ const dispatch = async (
       return success(
         requestId,
         await fetchLinkPage(env, parseLinkPageParams(params), {
-          // Without a browser the static result stands, as when Browser Run
-          // declines.
           ...(env.BROWSER
             ? {
                 scrape: (html: string, selectors: string[]) =>
@@ -840,51 +832,40 @@ export const handleInternalOp = async (
       );
     }
     if (
-      (error instanceof Error && error.message === "source_not_found") ||
-      error instanceof InspectSourceMissing
-    ) {
-      return fail(requestId, "NOT_FOUND", error.message, 404);
-    }
-    if (
-      (error instanceof Error && error.message === "source_too_large") ||
-      error instanceof ExportTooLarge ||
-      error instanceof ArchiveEntryTooLargeError
-    ) {
-      return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
-    }
-    if (
       error instanceof RendererUnavailable ||
-      (error instanceof Error && error.message === "browser_unavailable")
+      (error instanceof OpFailure && error.answer.retryable)
     ) {
       console.warn("[files-worker] renderer unavailable", {
         message: error.message,
         op: body.op,
         requestId,
       });
-      return fail(requestId, "RENDERER_UNAVAILABLE", error.message, 503, true);
+    }
+    if (error instanceof OpFailure) {
+      const { code, retryable, status } = error.answer;
+      return fail(requestId, code, error.message, status, retryable);
+    }
+    if (error instanceof InspectSourceMissing) {
+      return fail(requestId, "NOT_FOUND", error.message, 404);
     }
     if (
-      error instanceof RendererDeclined ||
-      (error instanceof Error &&
-        [
-          "image_transform_failed",
-          "image_dimensions_missing",
-          "not_an_image",
-          "image_dimensions_too_large",
-          "audio_decode_failed",
-        ].includes(error.message))
+      error instanceof ExportTooLarge ||
+      error instanceof ArchiveEntryTooLargeError
     ) {
+      return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
+    }
+    if (error instanceof RendererUnavailable) {
+      return fail(requestId, "RENDERER_UNAVAILABLE", error.message, 503, true);
+    }
+    if (error instanceof RendererDeclined) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);
     }
     if (error instanceof ExportManifestInvalid) {
       return fail(requestId, "INVALID_INPUT", error.message, 400);
     }
     const message = error instanceof Error ? error.message : "internal_error";
-    if (message.startsWith("invalid_") || message === "archive_parse_failed") {
+    if (message.startsWith("invalid_")) {
       return fail(requestId, "INVALID_INPUT", message, 400);
-    }
-    if (message === "source_changed") {
-      return fail(requestId, "CONFLICT", message, 409);
     }
     // Error objects serialize to {} in Workers logs, so log their fields.
     console.error("[files-worker] operation failed", {
@@ -893,12 +874,13 @@ export const handleInternalOp = async (
       requestId,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    const objectKey = getFilesOpObjectKey(body.params);
-    await reportFilesOpFailure(env, ctx, body.op, error, {
-      httpMethod: request.method,
-      httpPath: "/__ops/v1",
-      objectKey,
-    });
+    await reportInternalOpError(
+      env,
+      ctx,
+      body.op,
+      error,
+      getFilesOpObjectKey(body.params)
+    );
     return fail(requestId, "INTERNAL", "Internal operation failed", 500, true);
   }
 };

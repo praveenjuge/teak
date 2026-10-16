@@ -1,5 +1,3 @@
-/** Site constants and marketing-only structured data (FAQ / Product). */
-
 export const SITE_URL = "https://teakvault.com";
 export const SITE_NAME = "Teak";
 export const SITE_DESCRIPTION =
@@ -15,10 +13,6 @@ export const ORGANIZATION_SAME_AS = [
 export const ORGANIZATION_ID = `${SITE_URL}#organization`;
 const WEBSITE_ID = `${SITE_URL}#website`;
 
-/**
- * FAQ / WebPage graph for marketing pages. Docs pages rely on Blume's built-in
- * structuredData instead of this helper.
- */
 export function buildPageSchemas(opts: {
   title: string;
   description?: string;
