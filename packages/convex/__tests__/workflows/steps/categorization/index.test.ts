@@ -177,6 +177,35 @@ describe("categorization index", () => {
       expect(result.mode).toBe("skipped");
     });
 
+    test("a refresh re-classifies fresh metadata and refetches its JSON-LD", async () => {
+      const fetchedAt = Date.now() - 1000;
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        url: "https://example.com/a",
+        metadata: {
+          linkCategory: {
+            category: "product",
+            fetchedAt,
+            sourceUrl: "https://example.com/a",
+            raw: {
+              structured: { "@type": "Product" },
+              structuredMeta: { fetchedAt },
+            },
+          },
+        },
+      });
+
+      const result = await classifyHandler(ctx, {
+        cardId: CARD_ID,
+        refresh: true,
+      });
+      expect(result).toMatchObject({
+        mode: "classified",
+        shouldFetchStructured: true,
+      });
+    });
+
     test("does not skip if sourceUrl changed", async () => {
       const fetchedAt = Date.now() - 1000;
       mockRunQuery.mockResolvedValue({
@@ -758,6 +787,26 @@ describe("categorization index", () => {
           { structuredData: null }
         );
         expect(result.price).toEqual({ amount: 12, currency: "EUR" });
+      });
+
+      test("drops a stored price when the page is read again without one", async () => {
+        const card = linkCard({
+          url: "https://shop.example/lamp",
+          metadata: {
+            linkCategory: {
+              raw: {
+                structured: product({
+                  "@type": "Offer",
+                  price: "12.00",
+                  priceCurrency: "EUR",
+                }),
+              },
+            },
+          },
+        });
+        const result = await enrich(card, []);
+        expect(result.price).toBeUndefined();
+        expect(result.raw?.structured).toBeUndefined();
       });
 
       test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {

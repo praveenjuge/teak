@@ -66,6 +66,7 @@ export default defineConfig({
       "./onboarding.test.ts",
       "./importArchiveV2.test.ts",
       "./thumbnailOverride.test.ts",
+      "./refreshDetails.test.ts",
     ],
   },
 });

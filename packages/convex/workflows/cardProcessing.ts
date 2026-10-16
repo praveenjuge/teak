@@ -59,6 +59,7 @@ export const createMissingCardWorkflowResult = () => ({
 export const cardProcessingWorkflow: any = workflow.define({
   args: {
     cardId: v.id("cards"),
+    refresh: v.optional(v.boolean()),
   },
   returns: v.union(
     v.object({
@@ -91,7 +92,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       reason: v.literal("card_missing"),
     })
   ),
-  handler: async (step, { cardId }) => {
+  handler: async (step, { cardId, refresh }) => {
     console.info(`${PIPELINE_LOG_PREFIX} Starting`, { cardId });
 
     const initialCard = await step.runQuery(
@@ -157,7 +158,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       const categorizationOutcome = await (async () => {
         const classifyStepResult = await step.runAction(
           internalWorkflow["workflows/steps/categorization/index"].classifyStep,
-          { cardId, ...artifactOwner },
+          { cardId, ...artifactOwner, ...(refresh ? { refresh } : {}) },
           { retry: LINK_ENRICHMENT_STEP_RETRY }
         );
 
