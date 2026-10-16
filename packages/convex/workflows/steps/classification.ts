@@ -375,6 +375,12 @@ const deterministicClassify = (
   return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
 
+/** The rules' answer for a note with no URL or file; scripts/clef-eval uses it. */
+export const textCardRulesType = (card: { content?: string }): CardType =>
+  normalizeQuoteContent(card.content ?? "").removedQuotes
+    ? "quote"
+    : deterministicClassify(card).type;
+
 /**
  * The rules' text, quote or palette answer for a card with no URL or file,
  * reviewed by Clef in the Files Worker. Clef's answer replaces the rules only

@@ -87,7 +87,7 @@ const CARD_TYPE_CRITERIA: Record<CardTypeDecisionType, string> = {
   palette: "A set of colours meant to be kept together as a palette",
 };
 
-type ClefQuestion =
+export type ClefQuestion =
   | {
       type: "noul";
       instructions: unknown;
@@ -100,14 +100,14 @@ type ClefQuestion =
     }
   | { type: "score"; instructions: unknown; criteria: unknown[] };
 
-interface ClefRequest {
+export interface ClefRequest {
   images?: string[];
   model: ClefModel;
   questions: Record<string, ClefQuestion>;
   state: unknown;
 }
 
-type ClefAnswer =
+export type ClefAnswer =
   | { type: "noul"; noul: number }
   | {
       type: "choice";
@@ -122,7 +122,7 @@ type ClefAnswer =
       probabilities: Record<string, number>;
     };
 
-interface ClefReply {
+export interface ClefReply {
   answers: Record<string, ClefAnswer>;
   usage?: FilesDecisionUsage;
 }
@@ -307,16 +307,10 @@ const isLinkCategory = (value: unknown): value is LinkCategory =>
   typeof value === "string" &&
   (LINK_CATEGORIES as readonly string[]).includes(value);
 
-/**
- * Link category for a link the resolver had no domain or path rule for.
- * Clef 27B, because `other` must stay a real answer among 15. It never
- * decides `other` and never repeats the rules' answer, so `null` means keep
- * the rules.
- */
-export const decideLinkCategory = async (
-  env: FilesOpsEnv,
+/** The Clef request for a link's category; also used by scripts/clef-eval. */
+export const buildLinkCategoryRequest = (
   params: Record<string, unknown>
-): Promise<FilesLinkCategoryDecisionResult> => {
+): { request: ClefRequest; rulesCategory: LinkCategory } => {
   const url = params.url;
   const rulesCategory = params.rulesCategory;
   if (
@@ -360,19 +354,36 @@ export const decideLinkCategory = async (
       ...new Set((jsonLdTypes as string[] | undefined) ?? []),
     ].slice(0, DECISION_TEXT_LIMITS.linkJsonLdTypes),
   };
-  const model: ClefModel = "clef";
-  const reply = await runClef(env, {
-    model,
-    state,
-    questions: {
-      category: {
-        type: "choice",
-        instructions:
-          "What kind of page is this saved link? Pick the closest kind.",
-        criteria: LINK_CATEGORY_DESCRIPTIONS,
+  return {
+    rulesCategory,
+    request: {
+      model: "clef",
+      state,
+      questions: {
+        category: {
+          type: "choice",
+          instructions:
+            "What kind of page is this saved link? Pick the closest kind.",
+          criteria: LINK_CATEGORY_DESCRIPTIONS,
+        },
       },
     },
-  });
+  };
+};
+
+/**
+ * Link category for a link the resolver had no domain or path rule for.
+ * Clef 27B, because `other` must stay a real answer among 15. It never
+ * decides `other` and never repeats the rules' answer, so `null` means keep
+ * the rules.
+ */
+export const decideLinkCategory = async (
+  env: FilesOpsEnv,
+  params: Record<string, unknown>
+): Promise<FilesLinkCategoryDecisionResult> => {
+  const { request, rulesCategory } = buildLinkCategoryRequest(params);
+  const { model } = request;
+  const reply = await runClef(env, request);
   const answer = reply.answers.category;
   const base = facts(model, DECISION_VERSIONS.linkCategory, reply.usage);
   if (answer?.type !== "choice") {
@@ -398,14 +409,10 @@ const isCardTypeDecisionType = (
   typeof value === "string" &&
   (CARD_TYPE_DECISION_TYPES as readonly string[]).includes(value);
 
-/**
- * Text, quote or palette for a card with no URL or file. Text is listed first
- * so a tie keeps the card as the person wrote it.
- */
-export const decideCardType = async (
-  env: FilesOpsEnv,
+/** The Clef request for a note's type; also used by scripts/clef-eval. */
+export const buildCardTypeRequest = (
   params: Record<string, unknown>
-): Promise<FilesCardTypeDecisionResult> => {
+): { request: ClefRequest; rulesType: CardTypeDecisionType } => {
   const content = params.content;
   const rulesType = params.rulesType;
   if (typeof content !== "string" || !content.trim()) {
@@ -414,18 +421,33 @@ export const decideCardType = async (
   if (!isCardTypeDecisionType(rulesType)) {
     throw new Error("invalid_rules_type");
   }
-  const model: ClefModel = "clef-flash";
-  const reply = await runClef(env, {
-    model,
-    state: content.slice(0, DECISION_TEXT_LIMITS.cardTypeContent),
-    questions: {
-      type: {
-        type: "choice",
-        instructions: "What did the person save in this note?",
-        criteria: CARD_TYPE_CRITERIA,
+  return {
+    rulesType,
+    request: {
+      model: "clef-flash",
+      state: content.slice(0, DECISION_TEXT_LIMITS.cardTypeContent),
+      questions: {
+        type: {
+          type: "choice",
+          instructions: "What did the person save in this note?",
+          criteria: CARD_TYPE_CRITERIA,
+        },
       },
     },
-  });
+  };
+};
+
+/**
+ * Text, quote or palette for a card with no URL or file. Text is listed first
+ * so a tie keeps the card as the person wrote it.
+ */
+export const decideCardType = async (
+  env: FilesOpsEnv,
+  params: Record<string, unknown>
+): Promise<FilesCardTypeDecisionResult> => {
+  const { request, rulesType } = buildCardTypeRequest(params);
+  const { model } = request;
+  const reply = await runClef(env, request);
   const answer = reply.answers.type;
   const base = facts(model, DECISION_VERSIONS.cardType, reply.usage);
   if (answer?.type !== "choice" || !isCardTypeDecisionType(answer.choice)) {
@@ -443,6 +465,28 @@ export const decideCardType = async (
 
 export const VISUAL_STYLE_QUESTION_PREFIX = "style.";
 
+/** The Clef request for an image's styles; also used by scripts/clef-eval. */
+export const buildVisualStylesRequest = (
+  dataUrl: string,
+  title?: string | null
+): ClefRequest => {
+  const questions: Record<string, ClefQuestion> = {};
+  for (const style of VISUAL_STYLE_TAXONOMY) {
+    questions[`${VISUAL_STYLE_QUESTION_PREFIX}${style}`] = {
+      type: "noul",
+      instructions: `Is this image ${VISUAL_STYLE_DESCRIPTIONS[style]}?`,
+    };
+  }
+  return {
+    model: "clef-flash",
+    images: [dataUrl],
+    state: title
+      ? { title: title.slice(0, DECISION_TEXT_LIMITS.linkTitle) }
+      : "",
+    questions,
+  };
+};
+
 /**
  * Up to 4 styles for an image, most likely first. Each style is its own
  * yes/no question, so adding a style never changes another's answer.
@@ -457,21 +501,10 @@ export const decideVisualStylesForImage = async (
   if (image.bytes.byteLength > MAX_CLEF_IMAGE_BYTES) {
     return { ...base, styles: [] };
   }
-  const questions: Record<string, ClefQuestion> = {};
-  for (const style of VISUAL_STYLE_TAXONOMY) {
-    questions[`${VISUAL_STYLE_QUESTION_PREFIX}${style}`] = {
-      type: "noul",
-      instructions: `Is this image ${VISUAL_STYLE_DESCRIPTIONS[style]}?`,
-    };
-  }
-  const reply = await runClef(env, {
-    model,
-    images: [image.dataUrl],
-    state: title
-      ? { title: title.slice(0, DECISION_TEXT_LIMITS.linkTitle) }
-      : "",
-    questions,
-  });
+  const reply = await runClef(
+    env,
+    buildVisualStylesRequest(image.dataUrl, title)
+  );
   const styles = VISUAL_STYLE_TAXONOMY.flatMap((style) => {
     const answer = reply.answers[`${VISUAL_STYLE_QUESTION_PREFIX}${style}`];
     return answer?.type === "noul" &&
@@ -503,14 +536,12 @@ export const decideVisualStyles = async (
   );
 
 /**
- * Best match scores. The state is the search; each card is one score
- * question, evaluated on its own, so a card's score never depends on which
- * other cards share the request.
+ * The Clef request for Best match scores, one question per card in order;
+ * also used by scripts/clef-eval.
  */
-export const scoreRelevance = async (
-  env: FilesOpsEnv,
+export const buildRelevanceRequest = (
   params: Record<string, unknown>
-): Promise<FilesRelevanceResult> => {
+): { cardIds: string[]; request: ClefRequest } => {
   const query = params.query;
   const cards = params.cards;
   if (
@@ -553,17 +584,33 @@ export const scoreRelevance = async (
       criteria: [...RELEVANCE_LEVELS],
     };
   });
-  const model: ClefModel = "clef-flash";
-  const reply = await runClef(env, {
-    model,
-    state: { search: query.trim() },
-    questions,
-  });
-  const scores = (cards as Array<{ id: string }>).map((card, index) => {
+  return {
+    cardIds: [...ids],
+    request: {
+      model: "clef-flash",
+      state: { search: query.trim() },
+      questions,
+    },
+  };
+};
+
+/**
+ * Best match scores. The state is the search; each card is one score
+ * question, evaluated on its own, so a card's score never depends on which
+ * other cards share the request.
+ */
+export const scoreRelevance = async (
+  env: FilesOpsEnv,
+  params: Record<string, unknown>
+): Promise<FilesRelevanceResult> => {
+  const { cardIds, request } = buildRelevanceRequest(params);
+  const { model } = request;
+  const reply = await runClef(env, request);
+  const scores = cardIds.map((id, index) => {
     const answer = reply.answers[`card.${index}`];
     const score = answer?.type === "score" ? answer.score : 0;
     return {
-      id: card.id,
+      id,
       score: Math.min(Math.max(score, 0), RELEVANCE_MAX_SCORE),
     };
   });

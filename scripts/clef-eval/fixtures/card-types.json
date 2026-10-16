@@ -1,0 +1,67 @@
+[
+  {
+    "content": "Make it work, then make it fast. — my old teacher",
+    "label": "quote"
+  },
+  {
+    "content": "The best time to plant a tree was twenty years ago. The second best time is now. – proverb",
+    "label": "quote"
+  },
+  {
+    "content": "\"Simplicity is not the absence of clutter.\" — a design book I read",
+    "label": "quote"
+  },
+  {
+    "content": "We shape our tools and thereafter our tools shape us.\n— media scholar",
+    "label": "quote"
+  },
+  {
+    "content": "Be kind whenever possible. It is always possible. (a monk, in an interview)",
+    "label": "quote"
+  },
+  { "content": "#264653 #2a9d8f #e9c46a #f4a261 #e76f51", "label": "palette" },
+  {
+    "content": "Brand colors: primary #0F172A, accent #F97316, background #FFFBEB",
+    "label": "palette"
+  },
+  {
+    "content": "rgb(240, 98, 146)\nrgb(186, 104, 200)\nrgb(149, 117, 205)",
+    "label": "palette"
+  },
+  {
+    "content": "palette for the kitchen: sage, cream, terracotta",
+    "label": "palette"
+  },
+  {
+    "content": "Autumn palette\n- #8C2F39 burgundy\n- #B23A48 rose\n- #FCB9B2 blush",
+    "label": "palette"
+  },
+  {
+    "content": ".button { color: #ffffff; background: #000000; border: 1px solid #333; }",
+    "label": "text"
+  },
+  { "content": "\"Are you coming to dinner tonight?\"", "label": "text" },
+  { "content": "Groceries: oat milk, eggs, spinach, rice", "label": "text" },
+  {
+    "content": "Meeting notes 14 Oct\n- ship the importer\n- fix the flaky test\n- ask about the budget",
+    "label": "text"
+  },
+  { "content": "Idea: a lamp that dims as the sun sets.", "label": "text" },
+  {
+    "content": "The hex code for the bug was 0xDEADBEEF and the fix was in #4512.",
+    "label": "text"
+  },
+  {
+    "content": "const theme = { primary: \"#3B82F6\", danger: \"#EF4444\" };",
+    "label": "text"
+  },
+  { "content": "Call the dentist on Monday", "label": "text" },
+  {
+    "content": "I love the color of the sea at dusk, somewhere between blue and grey.",
+    "label": "text"
+  },
+  {
+    "content": "\"Done\" said the build bot. I didn't believe it.",
+    "label": "text"
+  }
+]

@@ -1,0 +1,212 @@
+[
+  {
+    "url": "https://kitchen-notes.example/lentil-soup",
+    "title": "Weeknight lentil soup",
+    "description": "Ingredients: red lentils, onion, cumin. Ready in 30 minutes.",
+    "jsonLdTypes": ["Recipe"],
+    "label": "recipe"
+  },
+  {
+    "url": "https://kitchen-notes.example/2026/04/bread-guide",
+    "title": "Sourdough bread for beginners",
+    "description": "A step-by-step guide with ingredient weights and bake times.",
+    "jsonLdTypes": [],
+    "label": "recipe"
+  },
+  {
+    "url": "https://grandmas-table.example/p/plum-cake",
+    "title": "Plum cake",
+    "description": "Serves 8. Flour, butter, sugar, plums.",
+    "jsonLdTypes": ["Recipe", "WebPage"],
+    "label": "recipe"
+  },
+  {
+    "url": "https://learnhub.example/courses/data-viz-101",
+    "title": "Data visualization 101",
+    "description": "Eight lessons with exercises and a certificate of completion.",
+    "jsonLdTypes": ["Course"],
+    "label": "course"
+  },
+  {
+    "url": "https://academy.example/classes/watercolor",
+    "title": "Watercolor for absolute beginners",
+    "description": "A six-week online class with weekly video lessons.",
+    "jsonLdTypes": [],
+    "label": "course"
+  },
+  {
+    "url": "https://shop.example/products/linen-shirt",
+    "title": "Washed linen shirt — Sand",
+    "description": "Relaxed fit. Free returns. $68.",
+    "jsonLdTypes": ["Product", "Offer"],
+    "label": "product"
+  },
+  {
+    "url": "https://store.example/item/ceramic-mug-12oz",
+    "title": "Speckled ceramic mug, 12 oz",
+    "description": "Dishwasher safe. Ships in 2 days.",
+    "jsonLdTypes": [],
+    "label": "product"
+  },
+  {
+    "url": "https://citydaily.example/2026/10/14/council-votes-on-transit",
+    "title": "Council votes to extend night buses",
+    "description": "The vote passed 7-2 on Tuesday evening.",
+    "jsonLdTypes": ["NewsArticle"],
+    "label": "news"
+  },
+  {
+    "url": "https://localwire.example/storm-closes-schools",
+    "title": "Storm closes schools across the region",
+    "description": "Officials expect classes to resume Thursday.",
+    "jsonLdTypes": [],
+    "label": "news"
+  },
+  {
+    "url": "https://essays.example/on-slow-software",
+    "title": "On slow software",
+    "description": "A long essay on why tools feel slower every year, and what we can do about it.",
+    "jsonLdTypes": ["BlogPosting"],
+    "label": "article"
+  },
+  {
+    "url": "https://writing.example/notes/how-we-hire",
+    "title": "How we hire designers",
+    "description": "Our process, the questions we ask, and what we learned in five years.",
+    "jsonLdTypes": [],
+    "label": "article"
+  },
+  {
+    "url": "https://journal.example/abs/2026.01234",
+    "title": "Sparse attention for long-context retrieval",
+    "description": "We propose a method and evaluate it on three benchmarks. Abstract and PDF.",
+    "jsonLdTypes": ["ScholarlyArticle"],
+    "label": "research"
+  },
+  {
+    "url": "https://lab.example/papers/coral-reef-recovery",
+    "title": "Coral reef recovery after bleaching: a 10-year study",
+    "description": "Peer-reviewed paper with methods, results and supplementary data.",
+    "jsonLdTypes": [],
+    "label": "research"
+  },
+  {
+    "url": "https://confs.example/design-week-2026",
+    "title": "Design Week 2026 — Lisbon, 12–14 May",
+    "description": "Talks, workshops and tickets.",
+    "jsonLdTypes": ["Event"],
+    "label": "event"
+  },
+  {
+    "url": "https://meetups.example/e/typescript-night",
+    "title": "TypeScript night: November meetup",
+    "description": "Thursday 7pm, doors at 6:30. RSVP required.",
+    "jsonLdTypes": [],
+    "label": "event"
+  },
+  {
+    "url": "https://booknook.example/books/the-quiet-garden",
+    "title": "The Quiet Garden — a novel",
+    "description": "Hardcover, 320 pages. Read an excerpt.",
+    "jsonLdTypes": ["Book"],
+    "label": "book"
+  },
+  {
+    "url": "https://reads.example/title/field-guide-to-moss",
+    "title": "A Field Guide to Moss",
+    "description": "By the author of Small Green Worlds. Paperback and ebook.",
+    "jsonLdTypes": [],
+    "label": "book"
+  },
+  {
+    "url": "https://films.example/title/harbor-lights",
+    "title": "Harbor Lights (2025)",
+    "description": "Drama, 1h 52m. Cast, trailer and where to watch.",
+    "jsonLdTypes": ["Movie"],
+    "label": "movie"
+  },
+  {
+    "url": "https://shows.example/series/the-long-winter",
+    "title": "The Long Winter — Season 2",
+    "description": "Episodes, cast and streaming options.",
+    "jsonLdTypes": ["TVSeries"],
+    "label": "tv"
+  },
+  {
+    "url": "https://pods.example/show/build-small/episode-41",
+    "title": "Build Small, episode 41: pricing",
+    "description": "Listen to the episode. 48 minutes.",
+    "jsonLdTypes": ["PodcastEpisode"],
+    "label": "podcast"
+  },
+  {
+    "url": "https://audiolog.example/ep/rainy-season",
+    "title": "Episode 12 — Rainy season",
+    "description": "A podcast about weather and the people who chase it.",
+    "jsonLdTypes": [],
+    "label": "podcast"
+  },
+  {
+    "url": "https://tunes.example/album/night-drives",
+    "title": "Night Drives — album",
+    "description": "11 tracks, 42 minutes. Stream or buy.",
+    "jsonLdTypes": ["MusicAlbum"],
+    "label": "music"
+  },
+  {
+    "url": "https://indie-label.example/track/glass-river",
+    "title": "Glass River (single)",
+    "description": "Listen now. Lyrics and credits.",
+    "jsonLdTypes": [],
+    "label": "music"
+  },
+  {
+    "url": "https://tooling.example/",
+    "title": "Fastlint — a linter that runs in milliseconds",
+    "description": "Install with npm. Docs, changelog and pricing.",
+    "jsonLdTypes": ["SoftwareApplication"],
+    "label": "software"
+  },
+  {
+    "url": "https://apps.example/notes-app",
+    "title": "Pocketnote — notes that sync",
+    "description": "Download for Mac, Windows and Linux.",
+    "jsonLdTypes": [],
+    "label": "software"
+  },
+  {
+    "url": "https://studio-ana.example/work/brand-for-a-bakery",
+    "title": "Brand identity for a neighborhood bakery",
+    "description": "Case study: logo, packaging and signage.",
+    "jsonLdTypes": [],
+    "label": "design_portfolio"
+  },
+  {
+    "url": "https://folio.example/projects",
+    "title": "Selected projects — product and interaction design",
+    "description": "Portfolio of a product designer.",
+    "jsonLdTypes": ["ProfilePage"],
+    "label": "design_portfolio"
+  },
+  {
+    "url": "https://hello.example/",
+    "title": "Hello",
+    "description": "",
+    "jsonLdTypes": [],
+    "label": "other"
+  },
+  {
+    "url": "https://townhall.example/contact",
+    "title": "Contact the town hall",
+    "description": "Opening hours and phone numbers.",
+    "jsonLdTypes": ["Organization"],
+    "label": "other"
+  },
+  {
+    "url": "https://weather.example/today",
+    "title": "Weather today",
+    "description": "Hourly forecast for your location.",
+    "jsonLdTypes": [],
+    "label": "other"
+  }
+]
