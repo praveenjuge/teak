@@ -643,6 +643,33 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
+  test("passes text: through to search image text", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_1" }],
+          pageInfo: { hasMore: false, nextCursor: null },
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { q: "text:4411" },
+      mcpRequest({ jsonrpc: "2.0", id: 55, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]?.query).toMatchObject({ q: "text:4411" });
+    expect(result.structuredContent).toMatchObject({
+      items: [{ id: "card_1" }],
+    });
+    const tool = TEAK_V1_TOOLS.find(
+      (candidate) => candidate.name === "teak_v1_search_cards"
+    );
+    expect(tool?.description).toContain('text:"total due"');
+  });
+
   test("passes the search mode through and reports the one that ran", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {

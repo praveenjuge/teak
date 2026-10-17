@@ -647,6 +647,9 @@ const parseCardsQueryOptions = (
           qualifiers: {
             archivedInTrash: trashed === true && parsed.archived,
             folderNames: parsed.folders,
+            ...(parsed.ocrTexts.length > 0
+              ? { ocrTexts: parsed.ocrTexts }
+              : {}),
             phrases: parsed.phrases,
             prices: parsed.prices,
             sites: parsed.sites,

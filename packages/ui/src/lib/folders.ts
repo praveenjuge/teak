@@ -224,6 +224,8 @@ export const suggestSmartFolderName = (query: string): string => {
             ? `Price ${describePriceBound(bound).toLowerCase()}`
             : "";
         }
+        case "text":
+          return `Text “${qualifier.value}”`;
         default:
           return qualifier.value;
       }

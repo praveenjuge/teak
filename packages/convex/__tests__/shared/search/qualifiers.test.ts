@@ -3,6 +3,7 @@ import {
   combineSearchQueries,
   describePriceBound,
   formatSearchQualifier,
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   parseSearchQuery,
@@ -66,6 +67,14 @@ describe("parseSearchQuery", () => {
     ["tag:a tag:A #a", "tags", ["a"]],
     ["site:a.com site:b.com", "sites", ["a.com", "b.com"]],
     ["🎨 #🎨", "tags", ["🎨"]],
+    ["text:4411", "ocrTexts", ["4411"]],
+    ['TEXT:"Total  Due"', "ocrTexts", ["Total Due"]],
+    ["text:Total text:total", "ocrTexts", ["Total"]],
+    ["text:a text:b", "ocrTexts", ["a", "b"]],
+    ["text:", "terms", []],
+    ['text:"  "', "ocrTexts", []],
+    ["text:4411", "text", ""],
+    ["text:東京駅", "ocrTexts", ["東京駅"]],
   ])("%s → %s %p", (input: string, field: string, expected: unknown) => {
     expect(parseSearchQuery(input)[field as "tags"]).toEqual(
       expected as string[]
@@ -192,6 +201,29 @@ describe("parseSearchQuery", () => {
   });
 });
 
+describe("text:", () => {
+  test("keeps its value's case and quotes in the canonical form", () => {
+    expect(
+      parseSearchQuery('receipt text:"Total due" text:4411').canonical
+    ).toBe('text:"Total due" text:4411 receipt');
+    expect(formatSearchQualifier({ key: "text", value: 'say "hi"' })).toBe(
+      'text:"say \\"hi\\""'
+    );
+  });
+
+  test("is a filter, not words to search by meaning", () => {
+    expect(semanticQueryText(parseSearchQuery("text:invoice"))).toBe("");
+  });
+
+  test("every value must appear in the image text, across line breaks", () => {
+    const text = "ACME\nInvoice 4411\nTotal   DUE";
+    expect(matchesImageText(text, ["total due", "4411"])).toBe(true);
+    expect(matchesImageText(text, ["4411", "tokyo"])).toBe(false);
+    expect(matchesImageText(undefined, ["4411"])).toBe(false);
+    expect(matchesImageText(undefined, [])).toBe(true);
+  });
+});
+
 describe("matchesSearchPhrases", () => {
   test("every phrase must appear, ignoring case", () => {
     expect(
@@ -224,6 +256,8 @@ describe("combineSearchQueries", () => {
     ["price:<100", "price:>20", "price:<100 price:>20"],
     ["price:<100", "price:<100 lamp", "price:<100 lamp"],
     ["type:link price:<100", "", "price:<100 type:link"],
+    // Image text values add up, like tags.
+    ["text:invoice", "text:4411 acme", "text:invoice text:4411 acme"],
   ])("%j with %j", (scope: string, typed: string, combined: string) => {
     expect(combineSearchQueries(scope, typed)).toBe(combined);
   });

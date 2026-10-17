@@ -65,6 +65,7 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "is", hint: "Favorites or archived" },
   { key: "mood", hint: "Images by mood" },
   { key: "price", hint: "Price under or over" },
+  { key: "text", hint: "Words in an image" },
 ];
 
 const IS_OPTIONS = [
@@ -350,6 +351,8 @@ export function describeQualifierChip(
         ? { qualifier, title: "Price", label: describePriceBound(bound) }
         : null;
     }
+    case "text":
+      return { qualifier, title: "Text in image", label: qualifier.value };
     default:
       return null;
   }

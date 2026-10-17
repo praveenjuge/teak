@@ -55,6 +55,7 @@ import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
+  searchCardsByOcrText,
 } from "./searchDocumentHelpers";
 import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
@@ -572,7 +573,7 @@ export const searchCardsPaginatedHandler = async (
     );
   }
 
-  if (searchQuery) {
+  if (searchQuery || resolved.ocrText) {
     const query = searchQuery.toLowerCase();
     const quickCommand = !(
       folderId ||
@@ -681,22 +682,42 @@ export const searchCardsPaginatedHandler = async (
     const keywordSearch = !(mode === "semantic" && ranking);
     let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
+    // `text:` reads the image-text index; plain words beside it read their
+    // own, and a card must be in both.
+    const readKeywordMatches = async (
+      options: Pick<typeof searchArgs, "limit"> & {
+        resultFilter?: typeof matchesFilters;
+      }
+    ) => {
+      const read = { ...searchArgs, ...options, searchTexts };
+      if (!resolved.ocrText) {
+        return searchCardsByDocument(ctx, read);
+      }
+      const imageMatches = await searchCardsByOcrText(ctx, {
+        ...read,
+        searchQuery: resolved.ocrText,
+      });
+      if (!searchQuery) {
+        return imageMatches;
+      }
+      const wordMatches = new Set(
+        (await searchCardsByDocument(ctx, read)).map((card) => card._id)
+      );
+      return imageMatches.filter((card) => wordMatches.has(card._id));
+    };
     try {
       if (keywordSearch) {
-        searchResults = await searchCardsByDocument(ctx, {
-          ...searchArgs,
+        searchResults = await readKeywordMatches({
+          limit: SEARCH_PAGE_CANDIDATE_LIMIT,
           resultFilter: matchesFilters,
-          searchTexts,
         });
       }
     } catch (error) {
       if (!isSearchTooBroadError(error)) {
         throw error;
       }
-      searchResults = await searchCardsByDocument(ctx, {
-        ...searchArgs,
+      searchResults = await readKeywordMatches({
         limit: SEARCH_INDEX_RESULT_LIMIT,
-        searchTexts,
       });
     }
     const uniqueResults = searchResults

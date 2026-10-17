@@ -49,6 +49,8 @@ export function tokenizeSearchInput(query: string): string[] {
     .filter(Boolean);
 }
 
+const BARE_HEX_COLOR = /^[0-9a-f]{6}$/i;
+
 export function classifySearchToken(
   rawToken: string
 ): SearchTokenClassification | null {
@@ -67,7 +69,12 @@ export function classifySearchToken(
     return { kind: "hue", value: hueFilter };
   }
 
-  const hexFilter = normalizeHexColor(token);
+  // Without `#`, only six hex digits make a color: `4411` on a receipt and
+  // words such as `bed` or `cafe` stay words.
+  const hexFilter =
+    token.startsWith("#") || BARE_HEX_COLOR.test(token)
+      ? normalizeHexColor(token)
+      : null;
   if (hexFilter) {
     return { kind: "hex", value: hexFilter };
   }

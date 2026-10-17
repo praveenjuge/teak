@@ -49,6 +49,8 @@ const createColor = (
 });
 
 export interface DefaultCardDef {
+  /** Text read from the image; dev scenario packs fill it in directly. */
+  aiOcrText?: string;
   aiSummary?: string;
   aiTags?: string[];
   aiTranscript?: string;
@@ -458,6 +460,9 @@ export const insertCompletedCards = async (
       aiTags: cardDef.aiTags,
       aiSummary: cardDef.aiSummary,
       aiTranscript: cardDef.aiTranscript,
+      ...(cardDef.aiOcrText
+        ? { aiOcrText: cardDef.aiOcrText, ocrCheckedAt: timestamp }
+        : {}),
       fileKey: cardDef.fileKey,
       fileMetadata: cardDef.fileMetadata,
       thumbnailKey: cardDef.thumbnailKey,

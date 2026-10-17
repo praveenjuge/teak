@@ -531,6 +531,7 @@ export const FOLDER_SCENARIOS = [
   "revisit-sizes",
   "save-details",
   "omnibox-titles",
+  "ocr-images",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1217,6 +1218,153 @@ const omniboxTitlesPack = (): FolderScenarioPack => {
   };
 };
 
+/** The number every receipt in `ocr-images` shows, and its twin note too. */
+export const OCR_SHARED_KEYWORD = "4411";
+
+/**
+ * Images and video thumbnails with text already read (`aiOcrText`), for
+ * `text:` and the "Text in image" block: code, memes, handwriting, receipts,
+ * Arabic, Hebrew, Japanese and Hindi signs, a 4,000-character wall of text,
+ * and photos with none. Each twin note shares a word with an image, so plain
+ * search finds both and `text:` finds only the image.
+ */
+const ocrImagesPack = (): FolderScenarioPack => {
+  const scenario = "ocr-images" as const;
+  const colors = ["#1f2937", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+  const image = (
+    index: number,
+    label: string,
+    aiOcrText: string | undefined,
+    extra: Partial<DefaultCardDef> = {}
+  ) => ({
+    ...folderScenarioCard(scenario, index, label, []),
+    type: "image" as const,
+    content: label,
+    colors: [{ hex: colors[index % colors.length] as string }],
+    fileMetadata: {
+      fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`,
+      fileSize: 0,
+      mimeType: "image/png",
+      width: 1600,
+      height: index % 3 === 0 ? 2000 : 1000,
+    },
+    ...(aiOcrText ? { aiOcrText } : {}),
+    ...extra,
+  });
+  const note = (index: number, content: string) =>
+    folderScenarioCard(scenario, index, content, []);
+  const wall = Array.from(
+    { length: 80 },
+    (_, line) =>
+      `Clause ${line + 1}. The tenant keeps the premises clean and returns every key.`
+  )
+    .join("\n")
+    .slice(0, 4000);
+  const images: [string, string | undefined][] = [
+    [
+      "Receipt ACME",
+      `ACME MARKET\nInvoice ${OCR_SHARED_KEYWORD}\nMilk 2.40\nBread 3.10\nTotal due  $5.50`,
+    ],
+    [
+      "Receipt cafe",
+      "Café Lumière\nTable 7\n2 × Espresso 6.00\nTOTAL DUE 6.00\nMerci!",
+    ],
+    [
+      "Receipt hardware",
+      "BOLT & NUT CO.\nRef 98-221\nHex bolts M6 x 40\nSubtotal 12.80\nVAT 2.56\nTotal 15.36",
+    ],
+    [
+      "Code TypeScript",
+      "export const total = (items: Item[]) => {\n  let sum = 0;\n  for (const item of items) {\n    sum += item.price;\n  }\n  return sum;\n};",
+    ],
+    [
+      "Code Python",
+      "def fizzbuzz(n):\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            print('FizzBuzz')\n        else:\n            print(i)",
+    ],
+    [
+      "Code terminal",
+      "$ bun run test\n 450 pass\n 0 fail\nRan 450 tests across 11 files.",
+    ],
+    ["Meme one does not simply", "ONE DOES NOT SIMPLY\nSHIP ON A FRIDAY"],
+    ["Meme distracted", "MY ROADMAP\nNEW SHINY FRAMEWORK\nME"],
+    [
+      "Handwritten note",
+      "Call mum on Sunday\nbuy stamps\nreturn library books by the 14th",
+    ],
+    [
+      "Whiteboard",
+      "Q4 goals:\n1. Search by image text\n2. Faster sync\n3. Fewer bugs",
+    ],
+    ["Arabic sign", "مرحبا بكم في المكتبة\nالدخول مجاني"],
+    ["Hebrew sign", "ברוכים הבאים\nיציאה"],
+    ["Japanese station", "東京駅\nTokyo Station\n丸の内北口"],
+    ["Japanese menu", "本日のおすすめ\nラーメン ８５０円\n餃子 ４００円"],
+    ["Hindi sign", "स्वागत है\nकृपया जूते बाहर उतारें"],
+    ["Korean poster", "서울 재즈 페스티벌\n2026년 5월"],
+    ["Chinese packaging", "绿茶\n净含量 250克"],
+    ["Russian street sign", "Улица Пушкина\nдом 10"],
+    ["Mixed Arabic and English", "Exit خروج\nGate 12 البوابة"],
+    ["Emoji sticker", "Good vibes only ✨🌈\n#teamteak"],
+    ["Wall of text", wall],
+    ["Slide deck title", "Why we read the text in images\nTeak · October 2026"],
+    ["Book cover", "THE QUIET ROOM\na novel\nMARA ELLISON"],
+    ["Street parking sign", "NO PARKING\n8AM – 6PM\nMON–FRI\nTow-away zone"],
+    ["Wifi card", "Network: Teak Guest\nAsk the front desk for the code"],
+    ["Ticket stub", "ADMIT ONE\nRow F Seat 22\nDoors 19:30"],
+    [
+      "Error dialog",
+      "Something went wrong\nError 0x80070005: Access is denied.\nOK",
+    ],
+    [
+      "Recipe card",
+      "Pancakes\n200 g flour\n2 eggs\n300 ml milk\nPinch of salt",
+    ],
+    ["Map label", "Old Harbour → 400 m\nLighthouse → 1.2 km"],
+    ["Price tag", "SALE\n$19.99\nwas $34.99"],
+    ["Quote poster", '"Simplicity is the ultimate sophistication."'],
+    ["Tiny caption", "fig. 3"],
+    ["Photo of a beach", undefined],
+    ["Photo of a forest", undefined],
+    ["Photo of a cat", undefined],
+    ["Abstract gradient", undefined],
+    ["Noise only", undefined],
+  ];
+  const videos: [string, string][] = [
+    ["Trailer title card", `Episode ${OCR_SHARED_KEYWORD}\nThe Long Way Home`],
+    [
+      "Conference talk",
+      "Building search that reads images\nSpeaker: A. Rivera",
+    ],
+    ["Tutorial intro", "How to brew pour-over coffee\nPart 1"],
+  ];
+  const twins = [
+    `Note about invoice ${OCR_SHARED_KEYWORD} for the shop`,
+    "Note: total due by Friday",
+    "Note on the Tokyo Station meeting point",
+    "Note: fizzbuzz interview question",
+  ];
+  let index = 1;
+  const cards = [
+    folderScenarioCard(scenario, 0, "OCR images pack", []),
+    ...images.map(([label, text]) => image(index++, label, text)),
+    ...videos.map(([label, text]) =>
+      image(index++, label, text, {
+        type: "video",
+        fileMetadata: {
+          fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.mp4`,
+          fileSize: 0,
+          mimeType: "video/mp4",
+          width: 1920,
+          height: 1080,
+          duration: 30,
+        },
+      })
+    ),
+    ...twins.map((content) => note(index++, content)),
+  ];
+  return { folders: [], cards };
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
 /** Notes with task lists for checklist sorting. */
@@ -1843,6 +1991,10 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Titles for the extension's address-bar suggestions: &, <script>, quotes, 1 < 2 > 0 in a note saved from a page, 300 characters, emoji, RTL, CJK and an empty title (shown as the host), plus a secret card that must never be suggested. Search `#scenario-omnibox-titles`; seed ordering too for many results.",
     folders: omniboxTitlesPack,
+  },
+  "ocr-images": {
+    description: `40 images and video thumbnails with their text already read: receipts, code, memes, handwriting, Arabic, Hebrew, Japanese, Hindi, Korean and Russian signs, a 4,000-character wall of text and photos with none, plus twin notes that share a word with an image (${OCR_SHARED_KEYWORD}, "total due", Tokyo Station, fizzbuzz). Compare \`${OCR_SHARED_KEYWORD}\` with \`text:${OCR_SHARED_KEYWORD}\`.`,
+    folders: ocrImagesPack,
   },
   "card-limit-199": {
     description:

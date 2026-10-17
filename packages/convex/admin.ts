@@ -745,6 +745,8 @@ export const resetCardProcessingState = internalMutation({
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
+      aiOcrText: undefined,
+      ocrCheckedAt: undefined,
       processingStatus: updatedProcessing,
       updatedAt: Date.now(),
     });

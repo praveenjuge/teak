@@ -44,6 +44,8 @@ export const initializeCardProcessingState = async (
     aiTags: undefined,
     aiSummary: undefined,
     aiTranscript: undefined,
+    aiOcrText: undefined,
+    ocrCheckedAt: undefined,
     aiBackfillAttempts: undefined,
     processingStatus: buildInitialProcessingStatus({
       now,

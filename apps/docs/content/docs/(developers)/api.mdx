@@ -251,7 +251,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, `text:"total due"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
 <ParamField query="similarTo" type="string">
@@ -380,10 +380,11 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
 | `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
 | `price:<100` | Links whose `linkPrice.amount` is under 100. Also `>`, `<=`, `>=` and `=`, with a plain number such as `9.99`. The amount is compared in any currency, links without a price never match, and the search narrows to links |
+| `text:4411`, `text:"total due"` | Images and videos whose own words (read by Teak, not returned in the card) contain that text, ignoring case and line breaks. Notes that only mention it don't match; plain words beside it must match the same card |
 | `"design system"` | Cards whose text contains that phrase |
 
 Qualifiers combine with each other and with the other parameters: tags,
-folders and price bounds must all match (`price:>20 price:<100` is a range),
+folders, `text:` values and price bounds must all match (`price:>20 price:<100` is a range),
 and several types or sites match any of them. `type:` narrows `type`, so
 `?type=link&q=type:image` returns no cards, and so do
 `?archived=exclude&q=is:archived` and `?type=image&q=price:<100`. `#` followed by a hex color (`#fff`) is a

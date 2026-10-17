@@ -420,11 +420,22 @@ export function CardsScreen({
       return;
     }
     reportedSearchKeyRef.current = searchKey;
-    captureEvent("search_performed", { zero_result: cards.length === 0 });
+    const qualifiers = Array.from(
+      new Set(
+        parseSearchQuery(queryArgs.searchQuery ?? "").qualifiers.map(
+          (qualifier) => qualifier.key
+        )
+      )
+    );
+    captureEvent("search_performed", {
+      ...(qualifiers.length > 0 ? { qualifiers } : {}),
+      zero_result: cards.length === 0,
+    });
   }, [
     cards.length,
     cardsStatus,
     isSeekingFirstMatch,
+    queryArgs.searchQuery,
     searchController.hasActiveSearch,
     searchKey,
     semanticSearch.isPending,

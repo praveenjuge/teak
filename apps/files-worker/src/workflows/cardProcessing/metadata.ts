@@ -112,10 +112,14 @@ export interface MetadataOptions {
 }
 
 interface Generated {
+  /** Text read from the image or video thumbnail, when it has any. */
+  aiOcrText?: string;
   aiSummary: string;
   aiTags: string[];
   aiTranscript?: string;
   confidence: number;
+  /** The image op ran, so the card has been read for text (or has none). */
+  ocrChecked?: boolean;
   visualStyles?: string[];
 }
 
@@ -200,6 +204,7 @@ const generateForType = async (
       return {
         ...result,
         confidence: 0.9,
+        ocrChecked: result.ocrChecked,
         visualStyles:
           result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
       };
@@ -219,6 +224,7 @@ const generateForType = async (
         generated = {
           ...result,
           confidence: 0.88,
+          ocrChecked: result.ocrChecked,
           visualStyles:
             result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
         };
@@ -387,8 +393,15 @@ export const generateCardMetadata = async (
         );
         return await deferToBackfill(job, options);
       }
-      const { aiSummary, aiTags, aiTranscript, confidence, visualStyles } =
-        generated;
+      const {
+        aiOcrText,
+        aiSummary,
+        aiTags,
+        aiTranscript,
+        confidence,
+        ocrChecked,
+        visualStyles,
+      } = generated;
       if (
         aiTags.length === 0 &&
         !aiSummary &&
@@ -407,6 +420,8 @@ export const generateCardMetadata = async (
           ...(aiTags.length > 0 ? { aiTags } : {}),
           ...(aiSummary ? { aiSummary } : {}),
           ...(aiTranscript ? { aiTranscript } : {}),
+          ...(aiOcrText ? { aiOcrText } : {}),
+          ...(ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
           ...(isVisualStyleCardType(type) && visualStyles?.length
             ? { visualStyles }
             : {}),

@@ -2,9 +2,11 @@
 
 Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is read after capture. A PDF with no usable text layer has its first 3 pages rendered and read, and that text then feeds its summary, its tags, `aiOcrText` and v1 phase 13's stored text. Both are backfilled. Phase 11 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 
+> **Owner decision (2026-10-17, phase 10):** the text Teak reads from images (`aiOcrText`) is for search only. No UI shows it, and the API, MCP, SDK and CLI never return it; plain search and the `text:` qualifier use it. Skip every step below that displays, copies or decodes OCR text, and keep only the `text:` chip.
+
 ## Depends on
 
-- [Phase 10](2026-10-14-roadmap-v2-10-ocr-images.md): `aiOcrText`, `ocrCheckedAt`, the `search_ocrText` index, `text:`, `MAX_IMAGE_OCR_CHARS` and the "Text in image" block.
+- Phase 10 (shipped): `aiOcrText`, `ocrCheckedAt`, the `search_ocrText` index, `text:`, `MAX_IMAGE_OCR_CHARS` and the "Text in image" block.
 - v1 phase 13 (stored text, shipped in #680): `cardTextContents`, `documentTextKey`, `hasExtractedText` and `GET /v1/cards/:id/content`.
 
 ## Success Criteria
@@ -85,13 +87,12 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 
 ## Web
 
-- `CardMetadataPanel.tsx`: the block title depends on the card: "Text in image", "Text in screenshot" or "Text from scanned pages". It shows a muted "First 3 pages" note when `pageCount > 3`.
-- No other UI change; search already covers `aiOcrText` from phase 10.
+- No UI change: OCR text is search-only (owner decision above), and search already covers `aiOcrText` from phase 10.
 
 ## API / MCP / SDK / CLI
 
 - `GET /v1/cards/:id/content` gains `source: "text" | "ocr"` (additive). The same goes for the MCP `teak_v1_get_card_content` result, the SDK `cards.content` type, and `teak content` with `--json`.
-- `publicApiOpenApi.ts`: document `source`. Nothing else changes; `aiOcrText` already ships.
+- `publicApiOpenApi.ts`: document `source`. Nothing else changes; `aiOcrText` stays out of the API.
 
 ## Docs
 

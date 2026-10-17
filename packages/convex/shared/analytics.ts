@@ -1,3 +1,4 @@
+import type { SearchQualifierKey } from "./search/qualifiers";
 import { ignoreTelemetryError } from "./telemetry";
 
 export type CardCreationSource =
@@ -49,7 +50,11 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
-  search_performed: { zero_result: boolean };
+  search_performed: {
+    /** The qualifier keys the search used (`text`, `tag`…), never values. */
+    qualifiers?: SearchQualifierKey[];
+    zero_result: boolean;
+  };
   signed_in: NoProperties;
   similar_search_opened: { source: "panel" };
 }

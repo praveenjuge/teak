@@ -178,12 +178,13 @@ teak ls --type image --type link --hue blue --date "last month"
 teak search "homepage" --tag design --all --json > cards.json
 ```
 
-The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. Quote the whole search for your shell:
+The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"…"`, and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. `text:` finds images and videos by the words in them. Quote the whole search for your shell:
 
 ```bash
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
 teak search 'lamp price:>20 price:<100'
+teak search 'text:"total due"'
 teak search "cozy reading nook" --mode semantic
 teak similar <card-id> --type link
 ```

@@ -107,6 +107,15 @@ describe("parseTimeSearchQuery", () => {
     });
   });
 
+  test("a four-digit number far from now is a word, not a year", () => {
+    for (const query of ["4411", "1234", "9999", "0042"]) {
+      expect(parseTimeSearchQuery(query, { now, weekStart: 0 })).toBeNull();
+    }
+    expect(parseTimeSearchQuery("1999", { now, weekStart: 0 })?.label).toBe(
+      "1999"
+    );
+  });
+
   test("parses range", () => {
     const result = parseTimeSearchQuery("June 2024 to July 2025", {
       now,

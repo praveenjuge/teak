@@ -521,6 +521,7 @@ describe("additive files ops", () => {
                   content: JSON.stringify({
                     summary: "A red square.",
                     tags: ["red", "square"],
+                    text: "STOP\n  4411",
                   }),
                 },
               },
@@ -561,6 +562,7 @@ describe("additive files ops", () => {
     );
     expect(result.tags).toEqual(["red", "square"]);
     expect(result.summary).toBe("A red square.");
+    expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",
@@ -576,6 +578,56 @@ describe("additive files ops", () => {
       width: 1600,
       "origin-auth": "share-publicly",
     });
+  });
+
+  test("generate-image-metadata keeps tags and summary when dense text keeps cutting the answer off", async () => {
+    const prompts: string[] = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const messages = args.messages as Array<{
+            content?: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt =
+            messages
+              .flatMap((message) =>
+                Array.isArray(message.content) ? message.content : []
+              )
+              .find((part) => part.type === "text")?.text ?? "";
+          prompts.push(prompt);
+          const content = prompt.includes('text set to ""')
+            ? JSON.stringify({ summary: "A menu.", tags: ["menu"], text: "" })
+            : `{"tags":["menu"],"summary":"A menu.","text":"${"本日".repeat(900)}`;
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/menu.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { generateImageMetadataForOp } = await import("./imageMetadata");
+    const result = await generateImageMetadataForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/menu.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    // No `text`: the last answer was told to leave it empty, so the image
+    // stays unread instead of counting as one without text.
+    expect(result).toEqual({ summary: "A menu.", tags: ["menu"] });
+    expect(prompts).toHaveLength(3);
+    expect(prompts[1]).toContain("at most 1000 characters");
   });
 
   test("generate-image-metadata retries transient Workers AI capacity errors", async () => {

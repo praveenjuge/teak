@@ -379,6 +379,28 @@ describe("generating metadata", () => {
       expect(fakes.calls.at(-1)?.params.sourceKey).toBe("f1");
     });
 
+    test.each([
+      ["text it read", { text: "Invoice 4411" }, true, "Invoice 4411"],
+      ["no text in the image", { text: "" }, true, undefined],
+      ["an answer without text", {}, false, undefined],
+    ])("an image with %s", async (_name, answer, read, aiOcrText) => {
+      const { generate, saved } = setup(
+        {
+          fileKey: "f1",
+          fileMetadata: { mimeType: "image/png" },
+          thumbnailKey: "t1",
+        },
+        {
+          "generate-image-metadata": {
+            data: { summary: "A receipt", tags: ["receipt"], ...answer },
+          },
+        }
+      );
+      await generate("image");
+      expect(saved()?.aiOcrText).toBe(aiOcrText);
+      expect(typeof saved()?.ocrCheckedAt === "number").toBe(read);
+    });
+
     describe("visual styles", () => {
       const imageCard = {
         fileKey: "f1",

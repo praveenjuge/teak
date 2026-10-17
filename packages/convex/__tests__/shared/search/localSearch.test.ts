@@ -136,6 +136,16 @@ describe("shared search helpers", () => {
       kind: "hex",
       value: "#663399",
     });
+    for (const word of ["4411", "bed", "cafe", "add", "12345678"]) {
+      expect(classifySearchToken(word)).toEqual({
+        kind: "keyword",
+        value: word,
+      });
+    }
+    expect(classifySearchToken("#fff")).toEqual({
+      kind: "hex",
+      value: "#FFFFFF",
+    });
     expect(classifySearchToken("mytag")).toEqual({
       kind: "keyword",
       value: "mytag",

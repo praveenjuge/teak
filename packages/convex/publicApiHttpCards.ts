@@ -362,7 +362,12 @@ const handleCardsListRequest = async (
         items,
         pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
       };
-    } else if (options.searchQuery || options.tag || similarity) {
+    } else if (
+      options.searchQuery ||
+      options.tag ||
+      options.qualifiers?.ocrTexts?.length ||
+      similarity
+    ) {
       const relevance = bestMatch
         ? await relevanceForPage(ctx, {
             cursor: options.cursor,

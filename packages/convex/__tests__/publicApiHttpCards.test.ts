@@ -132,6 +132,7 @@ describe("publicApiHttp card endpoints", () => {
           storageKey: "private-object-key",
           colors: [{ hex: "#112233", name: "Ink", rgb: { r: 1, g: 2, b: 3 } }],
           aiTranscript: "Transcript",
+          aiOcrText: "STOP",
           linkPreviewMedia: [
             { type: "image", url: "https://files.example.com/signed" },
           ],
@@ -175,6 +176,7 @@ describe("publicApiHttp card endpoints", () => {
     const item = (await response.json()).items[0];
     expect(item.colors).toEqual([{ hex: "#112233", name: "Ink" }]);
     expect(item.aiTranscript).toBe("Transcript");
+    expect(item).not.toHaveProperty("aiOcrText");
     expect(item.linkPreviewMedia).toEqual([
       { type: "image", url: "https://files.example.com/signed" },
     ]);
@@ -307,6 +309,26 @@ describe("publicApiHttp card endpoints", () => {
       scanLimit: expect.any(Number),
     });
     expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
+  });
+
+  test("listCardsV1 searches image text for text: in q", async () => {
+    const runQuery = mock().mockResolvedValue({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?mode=keyword&q=${encodeURIComponent('text:"Total due" text:4411')}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      ocrTexts: ["Total due", "4411"],
+    });
+    expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
+    expect(runQuery.mock.calls[0]?.[1].scanLimit).toBeUndefined();
   });
 
   test("listCardsV1 searches the words beside a price: bound", async () => {
@@ -692,6 +714,7 @@ describe("publicApiHttp card endpoints", () => {
         updatedAt: 2,
         colors: [{ hex: "#112233", hsl: { h: 1, s: 2, l: 3 } }],
         aiTranscript: "A transcript",
+        aiOcrText: "Invoice 4411",
         linkPreviewMedia: [
           { type: "video", url: "https://files.example.com/signed-video" },
         ],
@@ -717,6 +740,7 @@ describe("publicApiHttp card endpoints", () => {
     const card = await response.json();
     expect(card.colors).toEqual([{ hex: "#112233" }]);
     expect(card.aiTranscript).toBe("A transcript");
+    expect(card).not.toHaveProperty("aiOcrText");
     expect(card.linkPreviewMedia).toEqual([
       { type: "video", url: "https://files.example.com/signed-video" },
     ]);

@@ -107,7 +107,7 @@ bunx convex run devSeed:seedScenario '{"workosUserId":"<user>","scenario":"archi
 Packs: `card-details`, `ordering`, `archive-mix`, `tags-2000`, `tags-case`,
 `folders-one`, `folders-500`, `card-in-50-folders`, `folders-ugly`,
 `search-qualifiers`, `search-qualifiers-1000`, `smart-folders`, `export-ugly`,
-`keyboard-mixed`, `shuffle-partial`, `palette-mixed`, `focus-notes`, `checklists`, `hidden-mix`, `hidden-mix-1000`, `revisit-sizes`, `save-details`, `omnibox-titles` and `card-limit-199` (a free account one card under the limit). Large packs seed in pages: pass
+`keyboard-mixed`, `shuffle-partial`, `palette-mixed`, `focus-notes`, `checklists`, `hidden-mix`, `hidden-mix-1000`, `revisit-sizes`, `save-details`, `omnibox-titles`, `ocr-images` and `card-limit-199` (a free account one card under the limit). Large packs seed in pages: pass
 `"page": 0`, then 1, 2… until it reports `already_seeded`. A pack run twice
 adds nothing. `folders-500` fills the 500-folder cap, so run folder packs
 after it on another account. Add a pack when a feature needs data none of

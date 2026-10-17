@@ -12,6 +12,7 @@ import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   parseSearchQuery,
@@ -58,6 +59,7 @@ const searchableParts = (card: Doc<"cards">) =>
     card.notes,
     card.aiSummary,
     card.aiTranscript,
+    card.aiOcrText,
     card.metadataTitle,
     card.metadataDescription,
     ...(card.tags ?? []),
@@ -163,6 +165,9 @@ export const filterLocalCards = (
         return false;
       }
       if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
+        return false;
+      }
+      if (!matchesImageText(card.aiOcrText, parsed.ocrTexts)) {
         return false;
       }
       if (
