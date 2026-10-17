@@ -1,16 +1,4 @@
-const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
-
-export function formatBytes(bytes?: number): string {
-  if (!bytes || bytes <= 0) {
-    return "0 B";
-  }
-  const exponent = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    BYTE_UNITS.length - 1
-  );
-  const value = bytes / 1024 ** exponent;
-  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${BYTE_UNITS[exponent]}`;
-}
+export { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;

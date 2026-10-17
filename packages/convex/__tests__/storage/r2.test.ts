@@ -15,10 +15,8 @@ import {
   tryResolveImageUrl,
   tryResolveObjectUrl,
 } from "../../storage/fileUrls";
-import {
-  assertR2KeyInNamespace,
-  cardStorageObjectKeys,
-} from "../../storage/r2";
+import { cardStorageObjectKeys } from "../../storage/r2";
+import { assertR2KeyInNamespace } from "../../storage/r2Keys";
 
 const BASE = "https://files.teakvault.com";
 const {

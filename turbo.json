@@ -20,14 +20,6 @@
       "cache": false,
       "persistent": true
     },
-    "//#check": {},
-    "//#fix": {
-      "cache": false
-    },
-    "check": {
-      "dependsOn": ["^check"],
-      "cache": false
-    },
     "lint": {
       "dependsOn": ["^lint"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.jsonc"],
@@ -35,16 +27,6 @@
     },
     "test": {
       "dependsOn": ["^test"],
-      "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": []
-    },
-    "test:unit": {
-      "dependsOn": ["^test:unit"],
-      "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": []
-    },
-    "test:edge": {
-      "dependsOn": ["^test:edge"],
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },

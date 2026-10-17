@@ -105,53 +105,54 @@ describe("ImportPanel", () => {
     }
   });
 
-  test("renders active phase, progress, and non-zero counts", () => {
-    const markup = renderToStaticMarkup(
-      <ImportProgressSummary
-        job={{
-          id: "job",
-          mode: "bookmarks",
-          status: "importing",
-          createdCount: 2,
-          failedCount: 1,
-          reportAvailable: false,
-          parsedCount: 8,
-          phase: "Importing cards",
-          processedCount: 4,
-          skippedCount: 1,
-          updatedAt: 0,
-        }}
-      />
-    );
-    expect(markup).toContain("Importing cards");
-    expect(markup).toContain("2 created");
-    expect(markup).toContain("1 skipped");
-    expect(markup).toContain("1 failed");
-    expect(markup).toContain("Importing continues in the background");
+  test("shows a running import's phase and non-zero counts", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "bookmarks",
+      status: "importing",
+      createdCount: 2,
+      failedCount: 1,
+      reportAvailable: false,
+      parsedCount: 8,
+      phase: "Importing cards",
+      processedCount: 4,
+      skippedCount: 1,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("Importing cards");
+      expect(markup).toContain("2 created");
+      expect(markup).toContain("1 skipped");
+      expect(markup).toContain("1 failed");
+      expect(markup).toContain("Importing continues in the background");
+      expect(markup).toContain("Cancel import");
+    } finally {
+      importQueryResult = null;
+    }
   });
 
-  test("renders a concise completion summary", () => {
-    const markup = renderToStaticMarkup(
-      <ImportProgressSummary
-        job={{
-          id: "job",
-          mode: "archive",
-          status: "completed",
-          createdCount: 5,
-          failedCount: 2,
-          reportAvailable: true,
-          parsedCount: 10,
-          phase: "Import complete",
-          processedCount: 10,
-          skippedCount: 3,
-          updatedAt: 0,
-        }}
-      />
-    );
-    expect(markup).toContain("Import complete");
-    expect(markup).toContain("5 created");
-    expect(markup).toContain("3 skipped");
-    expect(markup).toContain("2 failed");
+  test("sums up a finished import in one line", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "archive",
+      status: "completed",
+      createdCount: 5,
+      failedCount: 2,
+      reportAvailable: true,
+      parsedCount: 10,
+      phase: "Import complete",
+      processedCount: 10,
+      skippedCount: 3,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("Last import: 5 created, 3 skipped, 2 failed");
+      expect(markup).not.toContain("Importing continues in the background");
+    } finally {
+      importQueryResult = null;
+    }
   });
 
   test("renders job-level failures without requiring report rows", () => {

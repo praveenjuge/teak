@@ -1,11 +1,5 @@
 import { buildFileSigningPayload } from "@teak/files-protocol";
 
-export interface R2GetRange {
-  length?: number;
-  offset?: number;
-  suffix?: number;
-}
-
 export type ParsedRange =
   | { kind: "offset"; offset: number; length?: number }
   | { kind: "suffix"; suffix: number };

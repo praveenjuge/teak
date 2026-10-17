@@ -288,6 +288,109 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("screenshot.jpg");
   });
 
+  test("shows a link image whose size was never stored at a fixed height", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            linkPreviewImageUrl: "https://example.com/unsized.jpg",
+            metadata: {
+              linkPreview: { status: "success", title: "Older link" },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain('src="https://example.com/unsized.jpg"');
+    expect(markup).not.toContain("aspect-ratio");
+  });
+
+  test("prefers a screenshot of known size over a preview image without one", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            linkPreviewImageUrl: "https://example.com/unsized.jpg",
+            screenshotUrl: "https://example.com/screenshot.jpg",
+            metadata: {
+              linkPreview: {
+                status: "success",
+                title: "Older link",
+                screenshotWidth: 800,
+                screenshotHeight: 600,
+              },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain('src="https://example.com/screenshot.jpg"');
+    expect(markup).not.toContain("unsized.jpg");
+    expect(markup).toContain("aspect-ratio:1.3333333333333333");
+  });
+
+  test("falls back to an unsized screenshot when the link has no other image", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            screenshotUrl: "https://example.com/screenshot.jpg",
+            metadata: {
+              linkPreview: { status: "success", title: "Screenshot only" },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain('src="https://example.com/screenshot.jpg"');
+  });
+
+  test("offers Copy Text for a note", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "text",
+            url: undefined,
+            content: "Copy me",
+          }) as any
+        }
+      />
+    );
+    expect(markup).toMatch(/Copy Text<kbd>/);
+  });
+
+  test("offers no copy for an SVG image, which the clipboard cannot hold", () => {
+    const image = (mimeType: string) =>
+      renderToStaticMarkup(
+        <Card
+          card={
+            createLinkCard({
+              type: "image",
+              url: undefined,
+              fileMetadata: { mimeType },
+            }) as any
+          }
+        />
+      );
+    expect(image("image/png")).toContain("Copy Image");
+    expect(image("image/svg+xml")).not.toContain("Copy Image");
+  });
+
+  test("offers Delete Forever only for a card in Trash", () => {
+    const active = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} />
+    );
+    const trashed = renderToStaticMarkup(
+      <Card card={createLinkCard({ isDeleted: true }) as any} />
+    );
+    expect(active).not.toContain("Delete Forever");
+    expect(trashed).toContain("Delete Forever");
+  });
+
   test("passes scrub data from the card to the video preview", () => {
     const scrub = { frames: 12, frameHeight: 90, frameWidth: 160 };
     const markup = renderToStaticMarkup(

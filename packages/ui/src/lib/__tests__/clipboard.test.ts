@@ -10,9 +10,7 @@ mock.module("sonner", () => ({
   },
 }));
 
-const { copyColorHexToClipboard } = await import(
-  "../../../../../packages/ui/src/lib/clipboard"
-);
+const { copyColorHexToClipboard } = await import("../clipboard");
 
 const originalNavigator = globalThis.navigator;
 const originalConsoleError = console.error;
@@ -20,15 +18,11 @@ const originalConsoleError = console.error;
 function setClipboard(writeText: (text: string) => Promise<void>) {
   Object.defineProperty(globalThis, "navigator", {
     configurable: true,
-    value: {
-      clipboard: {
-        writeText,
-      },
-    },
+    value: { clipboard: { writeText } },
   });
 }
 
-describe("CardMetadataPanel", () => {
+describe("copyColorHexToClipboard", () => {
   beforeEach(() => {
     toastSuccess.mockReset();
     toastError.mockReset();
@@ -43,7 +37,7 @@ describe("CardMetadataPanel", () => {
     console.error = originalConsoleError;
   });
 
-  test("copies palette hex values to the clipboard", async () => {
+  test("copies a palette hex value and confirms it", async () => {
     const writeText = mock((_text: string) => Promise.resolve());
     setClipboard(writeText);
 
@@ -54,7 +48,7 @@ describe("CardMetadataPanel", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Copied #112233");
   });
 
-  test("shows an error toast when palette copy fails", async () => {
+  test("shows an error toast when the clipboard refuses", async () => {
     const writeText = mock((_text: string) =>
       Promise.reject(new Error("clipboard failed"))
     );
@@ -64,5 +58,6 @@ describe("CardMetadataPanel", () => {
 
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(toastError).toHaveBeenCalledWith("Failed to copy");
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,12 @@
 "use node";
 
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { type ActionCtx, action } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { action } from "./_generated/server";
 import { IMPORT_PART_BYTES, IMPORT_UPLOAD_TTL_MS } from "./import/constants";
 import { importModeValidator } from "./schema";
-import { getSessionUser, type TeakUserId } from "./securitySessions";
+import { requireSessionUserId } from "./securitySessions";
 import {
   IMPORT_SOURCES,
   type ImportMode,
@@ -20,7 +21,6 @@ import {
 import { getR2Url } from "./storage/fileUrls";
 import { buildR2ObjectKey } from "./storage/r2";
 
-const internalAny = internal as Record<string, any>;
 const URL_TTL_SECONDS = 24 * 60 * 60;
 
 const partValidator = v.object({ partNumber: v.number(), url: v.string() });
@@ -30,14 +30,7 @@ const uploadResultValidator = v.object({
   uploadedParts: v.array(v.number()),
   parts: v.array(partValidator),
 });
-
-async function requireUserId(ctx: ActionCtx): Promise<TeakUserId> {
-  const identity = await getSessionUser(ctx);
-  if (!identity) {
-    throw new Error("User must be authenticated");
-  }
-  return identity.teakUserId;
-}
+type UploadResult = Infer<typeof uploadResultValidator>;
 
 function validateSource(mode: ImportMode, fileName: string, fileSize: number) {
   if (
@@ -126,20 +119,23 @@ export const createImportUpload = action({
     fileLastModified: v.number(),
   },
   returns: uploadResultValidator,
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+  handler: async (ctx, args): Promise<UploadResult> => {
+    const userId = await requireSessionUserId(ctx);
     validateSource(args.mode, args.fileName, args.fileSize);
     const sourceKey = buildR2ObjectKey({
       userId,
       role: "import-source",
       fileName: args.fileName,
     });
-    const jobId = await ctx.runMutation(internalAny.dataImport.reserveJob, {
-      ...args,
-      userId,
-      sourceKey,
-      uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
-    });
+    const jobId: Id<"importJobs"> = await ctx.runMutation(
+      internal.dataImport.reserveJob,
+      {
+        ...args,
+        userId,
+        sourceKey,
+        uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
+      }
+    );
     try {
       const creation = await callFilesWorkerJson<{ uploadId: string }>({
         op: "create-multipart",
@@ -152,7 +148,7 @@ export const createImportUpload = action({
         throw new Error("R2 did not return an upload ID");
       }
       const created = { UploadId: creation.data.uploadId };
-      await ctx.runMutation(internalAny.dataImport.attachMultipart, {
+      await ctx.runMutation(internal.dataImport.attachMultipart, {
         jobId,
         uploadId: created.UploadId,
       });
@@ -164,7 +160,7 @@ export const createImportUpload = action({
       });
       return { jobId, partSize: IMPORT_PART_BYTES, uploadedParts: [], parts };
     } catch (error) {
-      await ctx.runMutation(internalAny.dataImport.finishJob, {
+      await ctx.runMutation(internal.dataImport.finishJob, {
         jobId,
         status: "failed",
         failureClass: "upload_setup_failed",
@@ -181,11 +177,12 @@ export const resumeImportUpload = action({
     fileLastModified: v.number(),
   },
   returns: uploadResultValidator,
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    const job = await ctx.runQuery(internalAny.dataImport.findUploadForUser, {
-      userId,
-    });
+  handler: async (ctx, args): Promise<UploadResult> => {
+    const userId = await requireSessionUserId(ctx);
+    const job: Doc<"importJobs"> | null = await ctx.runQuery(
+      internal.dataImport.findUploadForUser,
+      { userId }
+    );
     if (!job?.uploadId) {
       throw new ConvexError({
         code: "NO_UPLOAD",
@@ -228,8 +225,8 @@ export const completeImportUpload = action({
   args: { jobId: v.id("importJobs") },
   returns: v.null(),
   handler: async (ctx, { jobId }) => {
-    const userId = await requireUserId(ctx);
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+    const userId = await requireSessionUserId(ctx);
+    const job = await ctx.runQuery(internal.dataImport.getJob, { jobId });
     if (
       !job ||
       job.userId !== userId ||
@@ -278,7 +275,7 @@ export const completeImportUpload = action({
         message: "Completed upload size is invalid",
       });
     }
-    await ctx.runMutation(internalAny.dataImport.markQueued, { jobId });
+    await ctx.runMutation(internal.dataImport.markQueued, { jobId });
     return null;
   },
 });
@@ -287,9 +284,9 @@ export const cancelImport = action({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ canceled: v.boolean() }),
   handler: async (ctx, { jobId }) => {
-    const userId = await requireUserId(ctx);
+    const userId = await requireSessionUserId(ctx);
     const state = await ctx.runMutation(
-      internalAny.dataImport.markCancelRequested,
+      internal.dataImport.markCancelRequested,
       { jobId, userId }
     );
     if (!state.active) {
@@ -303,7 +300,7 @@ export const cancelImport = action({
       if (result.kind !== "ok") {
         throw new Error("import_abort_unconfirmed");
       }
-      await ctx.runMutation(internalAny.dataImport.finishJob, {
+      await ctx.runMutation(internal.dataImport.finishJob, {
         jobId,
         status: "canceled",
       });
@@ -315,9 +312,12 @@ export const cancelImport = action({
 export const getImportReportUrl = action({
   args: { jobId: v.id("importJobs") },
   returns: v.string(),
-  handler: async (ctx, { jobId }) => {
-    const userId = await requireUserId(ctx);
-    const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
+  handler: async (ctx, { jobId }): Promise<string> => {
+    const userId = await requireSessionUserId(ctx);
+    const job: Doc<"importJobs"> | null = await ctx.runQuery(
+      internal.dataImport.getJob,
+      { jobId }
+    );
     if (!job || job.userId !== userId || !job.reportKey) {
       throw new Error("Import report is unavailable");
     }

@@ -2,8 +2,8 @@
 
 import { type ReactNode, useCallback, useRef } from "react";
 import type { AddCardFormProps } from "../components/forms";
+import type { CardsVisualFilters } from "../hooks/cardsSearchState";
 import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
-import type { CardsVisualFilters } from "../hooks/useCardsSearchController";
 import type { LibraryView } from "../lib/libraryViews";
 import type { SearchUrlState } from "../lib/searchUrlState";
 import { CardsReadBoundary } from "./CardsReadBoundary";

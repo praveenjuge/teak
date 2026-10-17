@@ -7,8 +7,6 @@ import { CRONS } from "../cronSchedules";
 import { catchUpHandler } from "../workosEventCatchUp";
 import { captureBackendException } from "./posthog";
 
-const internalAny = internal as Record<string, any>;
-
 export const cleanupExpiredIdempotency = internalAction({
   args: {},
   returns: v.null(),
@@ -71,7 +69,7 @@ export const cleanupAbandonedImportUploads = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.cleanupAbandonedImportUploads.name, () =>
-      ctx.runAction(internalAny["import/runImport"].cleanupExpiredUploads, {})
+      ctx.runAction(internal["import/runImport"].cleanupExpiredUploads, {})
     ),
 });
 
@@ -80,7 +78,7 @@ export const cleanupExpiredUploadSessions = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.cleanupExpiredUploadSessions.name, () =>
-      ctx.runAction(internalAny.fileUploads.cleanupExpiredMultipartUploads, {})
+      ctx.runAction(internal.fileUploads.cleanupExpiredMultipartUploads, {})
     ),
 });
 

@@ -28,19 +28,6 @@ export const resolveDeps = (
   ops: deps.ops ?? ((spec) => callFilesOp(run.env, spec)),
 });
 
-/** The op's data; throws `<failure>:<code>` when it declined. */
-export const requireOp = async <T>(
-  ops: FilesOpCaller,
-  spec: { op: FilesOp; params: Record<string, unknown> },
-  failure: string
-): Promise<T> => {
-  const outcome = await ops<T>(spec);
-  if (outcome.kind !== "ok") {
-    throw new Error(`${failure}:${outcome.code}`);
-  }
-  return outcome.data;
-};
-
 /** A step that keeps working through pages until it runs out of time. */
 export const STEP_BUDGET_MS = 60_000;
 

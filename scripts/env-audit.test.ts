@@ -277,11 +277,9 @@ describe("turbo env scoping", () => {
     }
   });
 
-  test("convex test tasks own exactly SITE_URL", () => {
+  test("the convex test task owns exactly SITE_URL", () => {
     const config = load("packages/convex/turbo.json");
-    for (const name of ["test", "test:unit", "test:edge"]) {
-      expect(config.tasks?.[name]?.env).toEqual(["SITE_URL"]);
-    }
+    expect(config.tasks?.test?.env).toEqual(["SITE_URL"]);
   });
 
   test("no turbo config declares wildcards", () => {
@@ -291,7 +289,6 @@ describe("turbo env scoping", () => {
       "apps/docs/turbo.json",
       "apps/extension/turbo.json",
       "packages/convex/turbo.json",
-      "packages/ui/turbo.json",
     ];
     for (const rel of rels) {
       if (!existsSync(join(root, rel))) {

@@ -1,4 +1,7 @@
+import { isStringList, type TagSummary } from "teak-sdk";
 import { RaycastApiError } from "./apiErrors";
+
+export type { TagSummary } from "teak-sdk";
 
 export interface RaycastCard {
   aiSummary: string | null;
@@ -26,11 +29,6 @@ export interface RaycastCard {
   type: string;
   updatedAt: number;
   url: string | null;
-}
-
-export interface TagSummary {
-  count: number;
-  name: string;
 }
 
 export interface TagsResponse {
@@ -61,9 +59,6 @@ const isJsonObject = (value: unknown): value is JsonObject =>
 const isNullableString = (value: unknown): value is string | null =>
   typeof value === "string" || value === null;
 
-const isStringArray = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.every((item) => typeof item === "string");
-
 const isRaycastCard = (value: unknown): value is RaycastCard => {
   if (!isJsonObject(value)) {
     return false;
@@ -76,8 +71,8 @@ const isRaycastCard = (value: unknown): value is RaycastCard => {
     typeof value.content === "string" &&
     isNullableString(value.notes) &&
     isNullableString(value.url) &&
-    isStringArray(value.tags) &&
-    isStringArray(value.aiTags) &&
+    isStringList(value.tags) &&
+    isStringList(value.aiTags) &&
     isNullableString(value.aiSummary) &&
     typeof value.isFavorited === "boolean" &&
     typeof value.createdAt === "number" &&

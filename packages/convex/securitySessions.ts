@@ -239,6 +239,17 @@ export async function getSessionUser(
     : null;
 }
 
+/** The signed-in user's Teak id; throws when the request has no session. */
+export async function requireSessionUserId(
+  ctx: SessionCtx
+): Promise<TeakUserId> {
+  const user = await getSessionUser(ctx);
+  if (!user) {
+    throw new Error("User must be authenticated");
+  }
+  return user.teakUserId;
+}
+
 interface SessionProfile {
   teakUserId: TeakUserId;
   user: {

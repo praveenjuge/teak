@@ -407,9 +407,7 @@ export const fetchLinkMetadata = async (
   const classificationStatus = card.processingStatus?.classify?.status;
   const classificationPending =
     classificationStatus === "pending" ||
-    classificationStatus === "in_progress" ||
-    (!classificationStatus &&
-      card.metadata?.linkCategory?.status === "pending");
+    classificationStatus === "in_progress";
   if (classificationPending) {
     throwRetryable({
       message: "Waiting for classification to finish",

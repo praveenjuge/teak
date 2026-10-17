@@ -63,6 +63,8 @@ the current session before refreshing; a late response may refer to an older tok
 
 The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `archived`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `setArchived`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `refresh`, `content`, `duplicate`, `bulk`, `changes`, `setThumbnail` (bytes and a MIME type, or `{ fileKey }` from `createThumbnailUpload`), and `resetThumbnail` (with a `folder` filter on the listings, and `folderIds` on `update`), plus `folders.list`, `get`, `create`, `update`, `delete`, `addCards`, and `removeCards`, `tags.list`, `rename`, `merge`, `delete`, and `operation`, `uploads`, `me`, and `exports.start` / `exports.latest`. Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`.
 
+`formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB` or `50 MB`.
+
 The SDK also includes the WorkOS Connect sign-in steps that the CLI, Raycast, and
 browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
 `createConnectAuthorizeUrl`, `requestConnectTokens` for code and refresh grants,

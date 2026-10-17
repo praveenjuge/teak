@@ -15,8 +15,6 @@ export const CARD_EMBEDDING_DIMENSIONS = 768;
  * cards embedded under an older version are embedded again.
  */
 export const CARD_EMBEDDING_VERSION = 1;
-/** EmbeddingGemma reads at most this many tokens and drops the rest. */
-export const CARD_EMBEDDING_MAX_INPUT_TOKENS = 512;
 
 /** Rough per-token costs, measured on EmbeddingGemma's tokenizer. */
 const ASCII_TOKEN_COST = 1 / 3;

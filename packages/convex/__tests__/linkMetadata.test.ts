@@ -9,7 +9,6 @@ const {
   getFullCardForMetadataHandler,
   getCardForLinkFetchHandler,
   getCardForScreenshotHandler,
-  getCardForMetadataHandler,
   updateCardMetadataHandler,
   updateCardScreenshotHandler,
 } = await import("../linkMetadata");
@@ -529,49 +528,6 @@ describe("linkMetadata", () => {
   });
 });
 
-test("workflow reader retains decisions without journaling customer content or provider payloads", async () => {
-  const ctx = createMockCtx();
-  const card = {
-    _id: "c1",
-    _creationTime: 1,
-    type: "link",
-    url: "https://example.com",
-    content: "content".repeat(10_000),
-    notes: "private",
-    aiTranscript: "transcript".repeat(10_000),
-    metadataStatus: "pending",
-    processingStatus: {
-      classify: { status: "completed", confidence: 0.95 },
-      metadata: { status: "pending" },
-    },
-    metadata: {
-      linkPreview: { status: "success", raw: { body: "raw".repeat(10_000) } },
-    },
-  };
-  ctx.db.get.mockResolvedValue(card);
-  const state = await getCardForMetadataHandler(ctx, {
-    cardId: testId("cards", "c1"),
-  });
-  expect(state).toMatchObject({
-    workflowPayloadVersion: 1,
-    type: "link",
-    url: card.url,
-    metadataStatus: "pending",
-    processingStatus: { classify: { status: "completed", confidence: 0.95 } },
-    metadata: { linkPreview: { status: "success" } },
-  });
-  expect(JSON.stringify(state).length).toBeLessThan(512);
-  expect(state).not.toHaveProperty("content");
-  expect(state).not.toHaveProperty("notes");
-  expect(
-    await getFullCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
-  ).toEqual<unknown>(card);
-  ctx.db.get.mockResolvedValue(null);
-  expect(
-    await getCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
-  ).toBeNull();
-});
-
 test("link fetch reader preserves classification gates and owner without unrelated payloads", async () => {
   const ctx = createMockCtx();
   const card = {
@@ -586,7 +542,6 @@ test("link fetch reader preserves classification gates and owner without unrelat
       metadata: { status: "pending" },
     },
     metadata: {
-      linkCategory: { status: "pending", reason: "large".repeat(10_000) },
       linkPreview: { status: "success", raw: { body: "raw".repeat(10_000) } },
     },
   };
@@ -598,7 +553,6 @@ test("link fetch reader preserves classification gates and owner without unrelat
     url: card.url,
     userId: "owner",
     processingStatus: { classify: { status: "in_progress" } },
-    metadata: { linkCategory: { status: "pending" } },
   });
   expect(
     await getFullCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
@@ -642,23 +596,4 @@ test("screenshot reader retains existing screenshot guard without preview raw da
   expect(
     await getCardForScreenshotHandler(ctx, { cardId: testId("cards", "c1") })
   ).toBeNull();
-});
-
-test("link fetch projection accepts legacy string categories without private payloads", async () => {
-  const ctx = createMockCtx();
-  ctx.db.get.mockResolvedValue({
-    type: "link",
-    userId: "u1",
-    url: "https://example.com",
-    metadata: { linkCategory: "article" },
-  });
-  expect(
-    await getCardForLinkFetchHandler(ctx, { cardId: testId("cards", "c1") })
-  ).toEqual({
-    type: "link",
-    userId: "u1",
-    url: "https://example.com",
-    processingStatus: undefined,
-    metadata: { linkCategory: { status: undefined } },
-  });
 });

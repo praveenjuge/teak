@@ -2,7 +2,6 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
-import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
@@ -41,24 +40,13 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import type {
-  ComponentProps,
-  ComponentType,
-  DragEvent,
-  KeyboardEvent,
-  ReactNode,
-  SyntheticEvent,
-} from "react";
-import { memo, useRef, useState } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
+import { memo, useRef } from "react";
 import { toast } from "sonner";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { focusedCardShortcuts } from "../../lib/gridKeys";
-import {
-  ariaKeyShortcut,
-  type MenuShortcut,
-} from "../../lib/keyboardShortcuts";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -66,22 +54,15 @@ import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import { CardBody } from "./CardBody";
 import {
-  CARD_SURFACE,
-  formatDuration,
-  getDisplayHostname,
-  getFileFormatBadge,
-  isCardProcessing,
-  readableTextOn,
-  splitNotePreview,
-} from "./cardDisplay";
-import { AudioWavePreview } from "./previews/AudioWavePreview";
-import { GridDocumentPreview } from "./previews/GridDocumentPreview";
-import { GridImagePreview } from "./previews/GridImagePreview";
-import { GridVideoPreview } from "./previews/GridVideoPreview";
-import { ResilientMediaImage } from "./previews/ResilientMediaImage";
-import { SiteFavicon } from "./SiteFavicon";
-import type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
+  CardMenuEntries,
+  type CardMenuEntry,
+  QuickActionButton,
+} from "./CardMenu";
+import { isCardProcessing } from "./cardDisplay";
+import { successfulLinkPreview, useLinkCardImage } from "./linkCardImage";
+import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
@@ -337,401 +318,19 @@ export const Card = memo(function Card({
     onEnterSelectionMode?.(card._id);
   };
 
-  const linkPreview =
-    card.metadata?.linkPreview?.status === "success"
-      ? (card.metadata.linkPreview as LinkPreviewMetadata)
-      : undefined;
-  const storedLinkMedia = Array.isArray(card.metadata?.linkPreview?.media)
-    ? (card.metadata.linkPreview.media as Record<string, unknown>[])
-    : [];
   const linkCardTitle = resolveLinkTitle({
     metadataTitle: card.metadataTitle,
     metadataTitleEdited: card.metadataTitleEdited,
-    previewTitle: linkPreview?.title,
+    previewTitle: successfulLinkPreview(card)?.title,
     url: card.url,
   });
-  // An image someone chose for the link comes before attached media.
-  const thumbnailOverride = card.hasThumbnailOverride
-    ? card.thumbnailOverride
-    : undefined;
-  const primaryAttachedMedia = thumbnailOverride
-    ? undefined
-    : (card.linkPreviewMedia?.find((item) => item.type === "image") ??
-      card.linkPreviewMedia?.find(
-        (item) => item.type === "video" && typeof item.posterUrl === "string"
-      ));
-  const linkCardImage =
-    primaryAttachedMedia?.type === "image"
-      ? primaryAttachedMedia.url
-      : (primaryAttachedMedia?.posterUrl ?? card.linkPreviewImageUrl);
-  const primaryStoredMedia = thumbnailOverride
-    ? undefined
-    : (storedLinkMedia.find((item) => item.type === "image") ??
-      storedLinkMedia.find(
-        (item) =>
-          item.type === "video" && typeof item.posterStorageKey === "string"
-      ));
-  const primaryLinkImageKey =
-    thumbnailOverride?.storageKey ??
-    (primaryStoredMedia?.type === "image"
-      ? primaryStoredMedia.storageKey
-      : (primaryStoredMedia?.posterStorageKey ??
-        card.metadata?.linkPreview?.imageStorageKey));
-  const screenshotStorageKey = card.metadata?.linkPreview?.screenshotStorageKey;
-  const resolvedScreenshotUrl =
-    typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
-  const [useFallbackImage, setUseFallbackImage] = useState(false);
+  const { image: linkImage, onImageError: handleLinkImageError } =
+    useLinkCardImage(card);
 
-  const attachedImageSize =
-    primaryAttachedMedia?.type === "image" &&
-    typeof primaryAttachedMedia.width === "number" &&
-    typeof primaryAttachedMedia.height === "number"
-      ? {
-          width: primaryAttachedMedia.width,
-          height: primaryAttachedMedia.height,
-        }
-      : undefined;
-  const attachedPosterSize =
-    primaryAttachedMedia?.type === "video" &&
-    typeof primaryAttachedMedia.posterWidth === "number" &&
-    typeof primaryAttachedMedia.posterHeight === "number"
-      ? {
-          width: primaryAttachedMedia.posterWidth,
-          height: primaryAttachedMedia.posterHeight,
-        }
-      : undefined;
-  const scrapedImageSize =
-    typeof linkPreview?.imageWidth === "number" &&
-    typeof linkPreview?.imageHeight === "number"
-      ? { width: linkPreview.imageWidth, height: linkPreview.imageHeight }
-      : undefined;
-  const linkPreviewImageSize = thumbnailOverride
-    ? { width: thumbnailOverride.width, height: thumbnailOverride.height }
-    : scrapedImageSize;
-  const primaryImageSize =
-    attachedImageSize ?? attachedPosterSize ?? linkPreviewImageSize;
-  const fallbackImageSize =
-    typeof linkPreview?.screenshotWidth === "number" &&
-    typeof linkPreview?.screenshotHeight === "number"
-      ? {
-          width: linkPreview.screenshotWidth,
-          height: linkPreview.screenshotHeight,
-        }
-      : undefined;
-  const hasPrimaryImage = !!(linkCardImage && primaryImageSize);
-  const hasFallbackImage = !!(resolvedScreenshotUrl && fallbackImageSize);
-  const canFallbackImage = !!resolvedScreenshotUrl;
-  const shouldUseFallback = useFallbackImage || !hasPrimaryImage;
-
-  const fallbackDisplayUrl = hasFallbackImage
-    ? resolvedScreenshotUrl
-    : undefined;
-  const primaryDisplayUrl = hasPrimaryImage ? linkCardImage : undefined;
-  const fallbackDisplaySize = hasFallbackImage ? fallbackImageSize : undefined;
-  const primaryDisplaySize = hasPrimaryImage ? primaryImageSize : undefined;
-  const displayLinkImage = shouldUseFallback
-    ? fallbackDisplayUrl
-    : primaryDisplayUrl;
-  const displayLinkImageSize = shouldUseFallback
-    ? fallbackDisplaySize
-    : primaryDisplaySize;
-  const displayLinkImageKey = shouldUseFallback
-    ? screenshotStorageKey
-    : primaryLinkImageKey;
-
-  const legacyPrimaryImage = linkCardImage;
-  const legacyFallbackImage = resolvedScreenshotUrl;
-  const legacyDisplayImage = useFallbackImage
-    ? (legacyFallbackImage ?? undefined)
-    : (legacyPrimaryImage ?? legacyFallbackImage ?? undefined);
-
-  const handleLinkImageError = (event: SyntheticEvent<HTMLImageElement>) => {
-    const target = event.currentTarget;
-    if (
-      !useFallbackImage &&
-      canFallbackImage &&
-      resolvedScreenshotUrl &&
-      target.src !== resolvedScreenshotUrl
-    ) {
-      setUseFallbackImage(true);
-    } else {
-      target.style.display = "none";
-    }
-  };
-
-  const hostname =
-    card.type === "link" ? getDisplayHostname(card.url) : undefined;
-  const linkDescription =
-    linkPreview?.description || card.metadataDescription || card.aiSummary;
-  const storedPrice = card.metadata?.linkCategory?.price;
-  const priceLabel =
-    card.type === "link" && isLinkPrice(storedPrice)
-      ? formatLinkPrice(storedPrice)
-      : undefined;
-  // Frosted so it reads over light and dark images; long amounts truncate.
-  const pricePill = priceLabel ? (
-    <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
-      {priceLabel}
-    </span>
-  ) : null;
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
   const textInsets = showFavoriteMark ? "pr-11" : "";
-
-  const linkTitleRow = (
-    <div className="flex min-w-0 items-center gap-2">
-      {hostname && <SiteFavicon className="size-4" hostname={hostname} />}
-      <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
-        {linkCardTitle}
-      </p>
-    </div>
-  );
-
-  const linkFooter = <div className="px-4 py-3">{linkTitleRow}</div>;
-
-  const renderCardContent = () => {
-    if (card.type === "text") {
-      const { heading, body } = splitNotePreview(card.content);
-      const headingText = markdownToPlainText(heading);
-      const bodyText = markdownToPlainText(body) || card.fileMetadata?.fileName;
-      return (
-        <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
-          {headingText ? (
-            <>
-              <p
-                className="line-clamp-2 break-words font-semibold leading-snug"
-                dir="auto"
-              >
-                {headingText}
-              </p>
-              <p
-                className="line-clamp-5 break-words text-muted-foreground text-sm leading-relaxed"
-                dir="auto"
-              >
-                {bodyText}
-              </p>
-            </>
-          ) : (
-            <p
-              className="line-clamp-6 break-words font-medium leading-relaxed"
-              dir="auto"
-            >
-              {bodyText}
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    if (card.type === "quote") {
-      return (
-        <figure
-          className={cn(CARD_SURFACE, "relative px-5 pt-8 pb-5", textInsets)}
-        >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute top-3 left-4 select-none font-serif text-4xl text-muted-foreground/35 leading-none"
-          >
-            &ldquo;
-          </span>
-          <blockquote
-            className="line-clamp-6 text-pretty break-words font-medium italic leading-relaxed"
-            dir="auto"
-          >
-            {markdownToPlainText(card.content)}
-          </blockquote>
-        </figure>
-      );
-    }
-
-    if (card.type === "link") {
-      if (displayLinkImage && displayLinkImageSize) {
-        return (
-          <div className={cn(CARD_SURFACE, "overflow-hidden")}>
-            <div
-              className="relative w-full overflow-hidden border-b bg-muted"
-              style={{
-                aspectRatio: Math.min(
-                  Math.max(
-                    displayLinkImageSize.width / displayLinkImageSize.height,
-                    0.5
-                  ),
-                  3
-                ),
-              }}
-            >
-              <ResilientMediaImage
-                alt={linkCardTitle}
-                cardId={card._id}
-                className="h-full w-full object-cover object-top"
-                onPermanentError={handleLinkImageError}
-                src={displayLinkImage}
-                storageKey={
-                  typeof displayLinkImageKey === "string"
-                    ? displayLinkImageKey
-                    : undefined
-                }
-              />
-              {pricePill}
-            </div>
-            {linkFooter}
-          </div>
-        );
-      }
-
-      if (legacyDisplayImage) {
-        const legacyKey = useFallbackImage
-          ? screenshotStorageKey
-          : primaryLinkImageKey;
-        return (
-          <div className={cn(CARD_SURFACE, "overflow-hidden")}>
-            <div className="relative h-32 min-h-32 overflow-hidden border-b bg-muted">
-              <ResilientMediaImage
-                alt={linkCardTitle}
-                cardId={card._id}
-                className="h-full w-full object-cover object-top"
-                onPermanentError={handleLinkImageError}
-                src={legacyDisplayImage}
-                storageKey={
-                  typeof legacyKey === "string" ? legacyKey : undefined
-                }
-              />
-              {pricePill}
-            </div>
-            {linkFooter}
-          </div>
-        );
-      }
-
-      const titleIsUrl = linkCardTitle === card.url;
-      return (
-        <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
-          <div className="flex min-w-0 items-center gap-2">
-            {hostname && <SiteFavicon className="size-4" hostname={hostname} />}
-            <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
-              {titleIsUrl
-                ? linkCardTitle.replace(/^https?:\/\/(www\.)?/, "")
-                : linkCardTitle}
-            </p>
-            {priceLabel && (
-              <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
-                {priceLabel}
-              </span>
-            )}
-          </div>
-          {linkDescription && !titleIsUrl && (
-            <p
-              className="line-clamp-2 break-words text-muted-foreground text-sm leading-relaxed"
-              dir="auto"
-            >
-              {linkDescription}
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    if (card.type === "image") {
-      return (
-        <GridImagePreview
-          altText={card.content}
-          cardId={card._id}
-          compactUrl={card.compactUrl}
-          height={card.fileMetadata?.height}
-          imageUrl={
-            card.thumbnailUrl ?? card.compactUrl ?? card.fileUrl ?? undefined
-          }
-          isPriority={isPriority}
-          placeholderColor={card.colors?.[0]?.hex}
-          storageKey={card.fileKey}
-          width={card.fileMetadata?.width}
-        />
-      );
-    }
-
-    if (card.type === "video") {
-      const isGif =
-        card.fileMetadata?.mimeType === "image/gif" ||
-        (card.fileMetadata?.fileName?.toLowerCase().endsWith(".gif") ?? false);
-      return (
-        <GridVideoPreview
-          cardId={card._id}
-          height={card.fileMetadata?.height}
-          isGif={isGif}
-          isPriority={isPriority}
-          scrub={card.fileMetadata?.scrub}
-          scrubKey={card.scrubKey}
-          scrubUrl={card.scrubUrl}
-          thumbnailKey={card.thumbnailKey}
-          thumbnailUrl={card.thumbnailUrl ?? undefined}
-          videoKey={card.fileKey}
-          videoUrl={card.fileUrl ?? undefined}
-          width={card.fileMetadata?.width}
-        />
-      );
-    }
-
-    if (card.type === "audio") {
-      return (
-        <AudioWavePreview
-          cardId={card._id}
-          durationLabel={formatDuration(card.fileMetadata?.duration)}
-          title={card.metadataTitle || fileName || "Recording"}
-          waveformGrid={card.fileMetadata?.waveform?.grid}
-        />
-      );
-    }
-
-    if (card.type === "document") {
-      return (
-        <GridDocumentPreview
-          cardId={card._id}
-          fileName={card.fileMetadata?.fileName || card.content}
-          formatBadge={getFileFormatBadge(
-            fileName,
-            card.fileMetadata?.mimeType
-          )}
-          height={card.fileMetadata?.height}
-          isPriority={isPriority}
-          thumbnailKey={card.thumbnailKey}
-          thumbnailUrl={card.thumbnailUrl ?? undefined}
-          width={card.fileMetadata?.width}
-        />
-      );
-    }
-
-    if (card.type === "palette" && card.colors?.length) {
-      return (
-        <div className={cn(CARD_SURFACE, "flex h-20 overflow-hidden")}>
-          {card.colors.slice(0, 12).map((color, index) => (
-            <div
-              className="group/swatch flex min-w-0 flex-1 items-end justify-center overflow-hidden pb-2 transition-[flex-grow] duration-300 ease-out hover:flex-[2.6] motion-reduce:transition-none"
-              // biome-ignore lint/suspicious/noArrayIndexKey: a palette may repeat a color
-              key={`${color.hex}-${index}`}
-              style={{
-                backgroundColor: color.hex,
-                color: readableTextOn(color.hex),
-              }}
-              title={color.hex}
-            >
-              <span className="whitespace-nowrap font-medium font-mono text-[10px] uppercase opacity-0 transition-opacity duration-200 group-hover/swatch:opacity-80">
-                {color.hex}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
-        <p className="line-clamp-4 break-words font-medium" dir="auto">
-          {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
-        </p>
-      </div>
-    );
-  };
 
   // A card can be dragged onto a sidebar folder to add it there. Its own
   // drag data replaces the image or link the browser would otherwise carry.
@@ -850,7 +449,7 @@ export const Card = memo(function Card({
     card.type === "image" ||
     card.type === "video" ||
     card.type === "document" ||
-    (card.type === "link" && Boolean(displayLinkImage || legacyDisplayImage)) ||
+    (card.type === "link" && Boolean(linkImage)) ||
     (card.type === "palette" && Boolean(card.colors?.length));
 
   return (
@@ -885,7 +484,18 @@ export const Card = memo(function Card({
                 <Loader2 className="size-4 animate-spin text-muted-foreground" />
               </div>
             )}
-            <CardContent className="p-0">{renderCardContent()}</CardContent>
+            <CardContent className="p-0">
+              <CardBody
+                card={card}
+                isPriority={isPriority}
+                link={{
+                  image: linkImage,
+                  onImageError: handleLinkImageError,
+                  title: linkCardTitle,
+                }}
+                textInsets={textInsets}
+              />
+            </CardContent>
             {isProcessing && (
               <div
                 aria-hidden="true"
@@ -990,95 +600,3 @@ export const Card = memo(function Card({
     </ContextMenu>
   );
 });
-
-type CardMenuEntry =
-  | "separator"
-  | {
-      destructive?: boolean;
-      disabled?: boolean;
-      icon: ComponentType<{ className?: string }>;
-      iconClassName?: string;
-      label: string;
-      onSelect: () => void;
-      shortcut?: MenuShortcut;
-    };
-
-type MenuItemComponent = ComponentType<{
-  "aria-keyshortcuts"?: string;
-  children?: ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-  variant?: "default" | "destructive";
-}>;
-
-function CardMenuEntries({
-  entries,
-  Item,
-  Separator,
-  Shortcut,
-}: {
-  entries: CardMenuEntry[];
-  Item: MenuItemComponent;
-  Separator: ComponentType;
-  Shortcut: ComponentType<{ "aria-hidden"?: boolean; children: ReactNode }>;
-}) {
-  return entries.map((entry, index) => {
-    if (entry === "separator") {
-      // biome-ignore lint/suspicious/noArrayIndexKey: separators have no identity
-      return <Separator key={`separator-${index}`} />;
-    }
-    const Icon = entry.icon;
-    return (
-      <Item
-        aria-keyshortcuts={entry.shortcut?.keys}
-        disabled={entry.disabled}
-        key={entry.label}
-        onClick={entry.onSelect}
-        variant={entry.destructive ? "destructive" : "default"}
-      >
-        <Icon className={entry.iconClassName} />
-        {entry.label}
-        {entry.shortcut && (
-          <Shortcut aria-hidden>{entry.shortcut.label}</Shortcut>
-        )}
-      </Item>
-    );
-  });
-}
-
-function QuickActionButton({
-  children,
-  label,
-  pressed,
-  ref,
-  shortcut,
-  ...props
-}: ComponentProps<"button"> & {
-  label: string;
-  pressed?: boolean;
-  /** Keys that do the same to a focused card, shown in the tooltip. */
-  shortcut?: readonly string[];
-}) {
-  const button = (
-    <button
-      aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
-      aria-label={label}
-      aria-pressed={pressed}
-      className="flex size-7 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-colors hover:bg-background data-[state=open]:bg-background dark:ring-white/10 [&_svg]:size-3.5 [&_svg]:opacity-80 [&_svg]:transition-opacity hover:[&_svg]:opacity-100"
-      ref={ref}
-      tabIndex={-1}
-      title={shortcut ? undefined : label}
-      type="button"
-      {...props}
-    >
-      {children}
-    </button>
-  );
-  return shortcut ? (
-    <ShortcutTooltip keys={shortcut} label={label}>
-      {button}
-    </ShortcutTooltip>
-  ) : (
-    button
-  );
-}

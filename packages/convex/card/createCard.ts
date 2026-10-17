@@ -4,17 +4,9 @@ import {
 } from "@teak/convex/shared/utils/colorUtils";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import {
-  internalMutation,
-  type MutationCtx,
-  mutation,
-} from "../_generated/server";
+import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
-import {
-  getSessionUser,
-  requireTeakUserId,
-  type TeakUserId,
-} from "../securitySessions";
+import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -308,21 +300,5 @@ export const createCard = mutation({
       });
       throw error;
     }
-  },
-});
-
-export const createCardForUser = internalMutation({
-  args: {
-    userId: v.string(),
-    ...createCardArgs,
-  },
-  returns: v.id("cards"),
-  handler: async (ctx, args) => {
-    const { userId, ...createArgs } = args;
-    return createCardForUserHandler(
-      ctx,
-      await requireTeakUserId(ctx, userId),
-      createArgs
-    );
   },
 });

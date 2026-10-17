@@ -102,14 +102,6 @@ export const getDeletedCards = query({
   },
 });
 
-export const getCardInternal = internalQuery({
-  args: {
-    cardId: v.id("cards"),
-  },
-  returns: v.any(),
-  handler: (ctx, args) => ctx.db.get("cards", args.cardId),
-});
-
 export const getCardForUser = internalQuery({
   args: {
     userId: v.string(),

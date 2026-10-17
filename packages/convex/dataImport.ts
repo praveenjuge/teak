@@ -7,7 +7,6 @@ import {
   internalQuery,
   type MutationCtx,
   mutation,
-  type QueryCtx,
   query,
 } from "./_generated/server";
 import { assertAccountNotDeleting } from "./accountDeletion";
@@ -27,15 +26,10 @@ import {
   colorValidator,
   importModeValidator,
 } from "./schema";
-import {
-  getSessionUser,
-  resolveStoredUserId,
-  type TeakUserId,
-} from "./securitySessions";
+import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { buildR2UserPrefix } from "./storage/r2";
 import { queueImportWorkflow } from "./workflowDispatch";
 
-const internalAny = internal as Record<string, any>;
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
 
 const summaryValidator = v.object({
@@ -95,14 +89,6 @@ const itemInputValidator = v.object({
   failureReason: v.optional(v.string()),
 });
 
-async function requireUserId(ctx: MutationCtx | QueryCtx): Promise<TeakUserId> {
-  const identity = await getSessionUser(ctx);
-  if (!identity) {
-    throw new Error("User must be authenticated");
-  }
-  return identity.teakUserId;
-}
-
 function summarize(job: Doc<"importJobs">) {
   return {
     id: job._id,
@@ -131,7 +117,7 @@ export const getLatestImport = query({
   handler: async (ctx) => {
     let userId: string;
     try {
-      userId = await requireUserId(ctx);
+      userId = await requireSessionUserId(ctx);
     } catch {
       return null;
     }
@@ -150,7 +136,7 @@ export const getImportFailureSamples = query({
     v.object({ sourceIndex: v.number(), item: v.string(), reason: v.string() })
   ),
   handler: async (ctx, { jobId }) => {
-    const userId = await requireUserId(ctx);
+    const userId = await requireSessionUserId(ctx);
     const job = await ctx.db.get(jobId);
     if (!job || job.userId !== userId) {
       throw new Error("Import job not found");
@@ -243,7 +229,7 @@ export const reserveJob = internalMutation({
     if (previous && !activeStatuses.has(previous.status)) {
       await ctx.scheduler.runAfter(
         0,
-        internalAny["import/runImport"].cleanupImportJob,
+        internal["import/runImport"].cleanupImportJob,
         { jobId: previous._id }
       );
     }
@@ -278,7 +264,7 @@ export const recordImportPart = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    const userId = await requireSessionUserId(ctx);
     const job = await ctx.db.get(args.jobId);
     if (
       !job ||
@@ -507,21 +493,6 @@ export const getPendingItems = internalQuery({
       .take(limit),
 });
 
-export const getItemsByIds = internalQuery({
-  args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
-  returns: v.any(),
-  handler: async (ctx, { jobId, itemIds }) => {
-    const items: Doc<"importJobItems">[] = [];
-    for (const itemId of itemIds) {
-      const item = await ctx.db.get(itemId);
-      if (item?.jobId === jobId) {
-        items.push(item);
-      }
-    }
-    return items;
-  },
-});
-
 export const getUnclaimedFileKeysPage = internalQuery({
   args: {
     jobId: v.id("importJobs"),
@@ -725,42 +696,6 @@ export const createPendingBatch = internalMutation({
       updatedAt: Date.now(),
     });
     return { limitReached: false };
-  },
-});
-
-export const failPendingPage = internalMutation({
-  args: {
-    jobId: v.id("importJobs"),
-    code: v.string(),
-    reason: v.string(),
-    limit: v.number(),
-  },
-  returns: v.object({ count: v.number() }),
-  handler: async (ctx, { jobId, code, reason, limit }) => {
-    const job = await ctx.db.get(jobId);
-    if (!job) {
-      return { count: 0 };
-    }
-    const items = await ctx.db
-      .query("importJobItems")
-      .withIndex("by_job_status_source", (q) =>
-        q.eq("jobId", jobId).eq("status", "pending")
-      )
-      .take(limit);
-    for (const item of items) {
-      await ctx.db.patch(item._id, {
-        status: "failed",
-        failureCode: code,
-        failureReason: reason,
-        updatedAt: Date.now(),
-      });
-    }
-    await ctx.db.patch(jobId, {
-      processedCount: job.processedCount + items.length,
-      failedCount: job.failedCount + items.length,
-      updatedAt: Date.now(),
-    });
-    return { count: items.length };
   },
 });
 

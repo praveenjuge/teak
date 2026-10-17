@@ -419,22 +419,15 @@ describe("Search scan budget", () => {
       })
     );
     expect(found).toHaveLength(1024);
-    const page = await t.query(internal.publicApi.searchCardsPageForUser, {
-      userId: "owner",
-      searchQuery: "deepsearch",
-      limit: 100,
-      cursor: btoa(JSON.stringify({ mode: "offset", offset: 200 })),
-    });
-    expect(page.items).toHaveLength(100);
-    expect(page.pageInfo.hasMore).toBe(true);
-    const past = await t.query(internal.publicApi.searchCardsPageForUser, {
-      userId: "owner",
-      searchQuery: "deepsearch",
-      limit: 100,
-      cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
-    });
-    expect(past.items).toEqual([]);
-    expect(past.pageInfo.hasMore).toBe(false);
+    // Offset cursors are no longer issued; an old one is an invalid cursor.
+    await expect(
+      t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 100,
+        cursor: btoa(JSON.stringify({ mode: "offset", offset: 200 })),
+      })
+    ).rejects.toThrow("Query parameter `cursor` is invalid");
 
     const seen: string[] = [];
     let cursor: string | undefined;

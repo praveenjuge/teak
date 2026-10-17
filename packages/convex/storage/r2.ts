@@ -15,35 +15,6 @@ export { cardStorageObjectKeys } from "./cardObjectKeys";
 import { enqueueObjectDeletion } from "../workflowDispatch";
 import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
 
-// Re-exported for backward compatibility: the signed-URL stack lives in the
-// unmocked `storage/fileUrls` leaf so tests that need real URL resolution can
-// import it without tripping over `storage/r2` mocks (see fileUrls.ts).
-export {
-  bucketedSignatureExpiry,
-  buildSignedWorkerFileUrl,
-  buildSignedWorkerImageUrl,
-  fileDownloadResponsePolicy,
-  getR2ReadBase,
-  getR2Url,
-  isStorageNamespaceError,
-  type R2ObjectKey,
-  resolveImageUrl,
-  resolveObjectUrl,
-  tryResolveImageUrl,
-  tryResolveObjectUrl,
-} from "./fileUrls";
-// Re-exported for backward compatibility: existing importers keep importing
-// these names from `storage/r2`. New code should import them from
-// `storage/r2Keys` directly so it never depends on the mocked `storage/r2`
-// surface (see r2Keys.ts).
-export {
-  assertR2KeyInNamespace,
-  buildR2ListPrefix,
-  getR2KeyPrefix,
-  hmacSha256Hex,
-  isR2KeyInNamespace,
-} from "./r2Keys";
-
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 
 export const buildR2UserPrefix = (userId: string) =>

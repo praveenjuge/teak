@@ -2,6 +2,7 @@ import {
   ignoreTelemetryError,
   ignoreTelemetryErrorAsync,
 } from "./shared/telemetry";
+import { sha256Hex } from "./storage/r2Keys";
 
 // No signal carries an email, raw user ID, token, URL, request body or
 // profile field; WorkOS subjects are hashed here before anything is logged.
@@ -23,13 +24,8 @@ const normalizeMonitoringReason = (value: unknown): string => {
 export const hashMonitoringSubject = async (
   subject: string
 ): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(subject)
-  );
-  const hex = Array.from(new Uint8Array(digest).slice(0, 8), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
+  // The first 8 bytes of the digest.
+  const hex = (await sha256Hex(subject)).slice(0, 16);
   return `s_${hex}`;
 };
 

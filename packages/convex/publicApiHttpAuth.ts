@@ -21,12 +21,12 @@ import {
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
-  sha256,
 } from "./publicApiHttpShared";
 import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
 import { ignoreTelemetryError } from "./shared/telemetry";
+import { sha256Hex } from "./storage/r2Keys";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
@@ -75,8 +75,8 @@ const maybeHandleIdempotency = async (
   }
 
   const [keyHash, requestHash] = await Promise.all([
-    sha256(`${args.userId}:${idempotencyKey}`),
-    sha256(
+    sha256Hex(`${args.userId}:${idempotencyKey}`),
+    sha256Hex(
       JSON.stringify({
         body: args.requestBody,
         method: args.method,

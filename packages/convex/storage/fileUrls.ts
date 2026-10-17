@@ -10,8 +10,7 @@
  * URL resolution (namespace containment, signed-URL vectors) therefore import
  * from this module, which MUST NEVER BE MOCKED — mocking it would poison
  * every suite file the same way. Keep every export pure and dependency-free
- * apart from `storage/r2Keys`, `shared/fileFormats`, and `env`; `storage/r2`
- * re-exports them for backward compatibility.
+ * apart from `storage/r2Keys`, `shared/fileFormats`, and `env`.
  */
 
 import {

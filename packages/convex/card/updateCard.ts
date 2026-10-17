@@ -614,24 +614,6 @@ export const updateCardField = mutation({
   },
 });
 
-export const updateCardFieldForUser = internalMutation({
-  args: {
-    userId: v.string(),
-    cardId: v.id("cards"),
-    field: updateCardFieldValidator,
-    value: v.optional(v.any()),
-    tagToRemove: v.optional(v.string()),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await updateCardFieldForUserHandler(ctx, {
-      ...args,
-      userId: await requireTeakUserId(ctx, args.userId),
-    });
-    return null;
-  },
-});
-
 /**
  * Runs the whole processing pipeline again for one card ("Refresh details"): the
  * AI summary, tags and transcript are cleared and regenerated, along with

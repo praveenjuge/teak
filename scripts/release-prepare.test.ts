@@ -41,6 +41,7 @@ const writeAppleSources = (root: string, version: string): void => {
     writeFileSync(absolute, contents);
   }
   writeManifest(join(root, appleSafariManifest), version);
+  writeManifest(join(root, "server.json"), version);
 };
 
 describe("setManifestVersion", () => {
@@ -116,6 +117,7 @@ describe("updateManifestVersions", () => {
     expect(updated).toContain("apps/web/package.json");
     expect(updated).toContain("packages/ui/package.json");
     expect(updated).toContain(appleSafariManifest);
+    expect(updated).toContain("server.json");
     for (const relative of appleVersionSources) {
       expect(updated).toContain(relative);
       expect(readFileSync(resolve(root, relative), "utf-8")).toContain(

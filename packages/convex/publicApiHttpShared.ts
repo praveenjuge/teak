@@ -216,17 +216,6 @@ const parseJsonBody = async (request: Request): Promise<unknown> => {
   }
 };
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const sha256 = async (value: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value)
-  );
-  return toHex(new Uint8Array(digest));
-};
-
 const errorMessageOf = (error: unknown): string | undefined => {
   if (error instanceof Error) {
     return error.message;
@@ -508,6 +497,5 @@ export {
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
-  sha256,
   truncateCardTitle,
 };

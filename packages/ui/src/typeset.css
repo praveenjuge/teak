@@ -384,20 +384,6 @@
       border-block-end: 1px solid var(--typeset-rule);
     }
 
-    /* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
-       flow margin. Tables shrink to fit, so widen the table to make it scroll
-       instead of compress. */
-    &:where(.typeset-scroll) {
-      margin-block-start: var(--typeset-flow);
-      overflow-x: auto;
-    }
-    &:where(.typeset-scroll > *) {
-      margin-block-start: 0;
-    }
-    &:where(.typeset-scroll table) {
-      width: max-content;
-      max-width: none;
-    }
     &:where(thead th) {
       padding: 0.65em 1em;
       font-weight: 500;

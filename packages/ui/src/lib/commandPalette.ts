@@ -2,14 +2,10 @@ import type { CardType } from "@teak/convex/shared/constants";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
 import { folderIdForPath } from "./folders";
-import { platformKey } from "./keyboardShortcuts";
 import { libraryViewForPath } from "./libraryViews";
 import { resolveLinkTitle } from "./linkTitle";
 import { markdownToPlainText } from "./markdownToPlainText";
 import { isApplePlatform } from "./platform";
-
-/** Cmd+K on Apple platforms, Ctrl+K everywhere else. */
-export const COMMAND_PALETTE_KEYS = ["Mod", "K"] as const;
 
 /** The palette searches cards once the query has this many characters. */
 export const PALETTE_MIN_CARD_QUERY_LENGTH = 2;
@@ -113,10 +109,6 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   },
   { id: "sign-out", keywords: ["log out", "logout"], label: "Sign out" },
 ];
-
-/** Shown keycaps for a row, such as `["⌘", "K"]` on a Mac. */
-export const paletteKeycaps = (keys: readonly string[], apple?: boolean) =>
-  keys.map((key) => platformKey(key, apple));
 
 /** Pages that show the library's cards and open a card from `?card=`. */
 export function isLibraryRoute(pathname: string | null | undefined): boolean {

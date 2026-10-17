@@ -17,17 +17,6 @@ export const readSignupsDisabled = (): boolean => {
   throw new Error("SIGNUPS_DISABLED must be true or false.");
 };
 
-export const readAccountChangesPaused = (): boolean => {
-  const value = env.ACCOUNT_CHANGES_PAUSED;
-  if (value === undefined || value === "false") {
-    return false;
-  }
-  if (value === "true") {
-    return true;
-  }
-  throw new Error("ACCOUNT_CHANGES_PAUSED must be true or false.");
-};
-
 export const readIsDevDeployment = (): boolean =>
   env.TEAK_DEV_DEPLOYMENT === "true";
 

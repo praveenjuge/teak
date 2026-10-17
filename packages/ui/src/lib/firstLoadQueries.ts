@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
 import type { FunctionReference } from "convex/server";
-import { initialCardsSearchQueryArgs } from "../hooks/useCardsSearchController";
+import { initialCardsSearchQueryArgs } from "../hooks/cardsSearchState";
 import { type FolderSummary, folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
 import { parseSearchUrlState } from "./searchUrlState";

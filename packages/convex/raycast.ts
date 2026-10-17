@@ -26,17 +26,23 @@ import {
   explainCardTypeMismatch,
   explainInvalidTags,
 } from "./publicApiHttpShared";
+import {
+  type ApiCardSort,
+  apiCardSortValidator,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+  MAX_QUERY_SCAN,
+  matchesCreatedAt,
+  normalizeCreatedTimestamp,
+  normalizeSearchText,
+  normalizeSort,
+  normalizeTag,
+} from "./publicApiSearch";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { isCardHidden } from "./shared/tags";
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
 const SEARCH_MULTIPLIER = 4;
-const MAX_QUERY_SCAN = 400;
-
-const sortValidator = v.union(v.literal("newest"), v.literal("oldest"));
-type RaycastSort = "newest" | "oldest";
 
 const searchArgs = {
   userId: v.string(),
@@ -46,7 +52,7 @@ const searchArgs = {
   favoritesOnly: v.optional(v.boolean()),
   createdAfter: v.optional(v.number()),
   createdBefore: v.optional(v.number()),
-  sort: v.optional(sortValidator),
+  sort: v.optional(apiCardSortValidator),
   limit: v.optional(v.number()),
 } as const;
 
@@ -97,11 +103,13 @@ interface SearchOptions {
   favoritesOnly?: boolean;
   limit?: number;
   searchQuery?: string;
-  sort?: RaycastSort;
+  sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
 }
 
+// Unlike the public API's `normalizeLimit`, 0 means the default and an
+// infinite limit clamps to the maximum.
 const normalizeLimit = (limit?: number): number => {
   if (!limit || Number.isNaN(limit)) {
     return DEFAULT_LIMIT;
@@ -109,27 +117,6 @@ const normalizeLimit = (limit?: number): number => {
 
   return Math.max(1, Math.min(limit, MAX_LIMIT));
 };
-
-const normalizeSearchText = (value?: string): string | undefined => {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-};
-
-const normalizeTag = (value?: string): string | undefined => {
-  const trimmed = value?.trim().toLowerCase();
-  return trimmed ? trimmed : undefined;
-};
-
-const normalizeCreatedTimestamp = (value?: number): number | undefined => {
-  if (!(typeof value === "number" && Number.isFinite(value))) {
-    return undefined;
-  }
-
-  return value;
-};
-
-const normalizeSort = (value?: RaycastSort): RaycastSort =>
-  value === "oldest" ? "oldest" : "newest";
 
 const normalizeTags = (tags?: string[]): string[] | undefined => {
   if (!Array.isArray(tags)) {
@@ -146,29 +133,11 @@ const normalizeTags = (tags?: string[]): string[] | undefined => {
 const compareCards = (
   left: Pick<Doc<"cards">, "createdAt">,
   right: Pick<Doc<"cards">, "createdAt">,
-  sort: RaycastSort
+  sort: ApiCardSort
 ): number =>
   sort === "oldest"
     ? left.createdAt - right.createdAt
     : right.createdAt - left.createdAt;
-
-const matchesCreatedAt = (
-  createdAt: number,
-  options: SearchOptions
-): boolean => {
-  if (options.createdAfter !== undefined && createdAt < options.createdAfter) {
-    return false;
-  }
-
-  if (
-    options.createdBefore !== undefined &&
-    createdAt > options.createdBefore
-  ) {
-    return false;
-  }
-
-  return true;
-};
 
 const matchesStructuredFilters = (
   card: Doc<"cards">,

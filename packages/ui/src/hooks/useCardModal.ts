@@ -3,7 +3,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
@@ -363,6 +363,10 @@ export function useCardModal(
     [updateField]
   );
 
+  // The card's tags as they are now, for an Undo that runs after later edits.
+  const latestTags = useRef(card?.tags);
+  latestTags.current = card?.tags;
+
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
     const currentTags = card?.tags || [];
@@ -376,7 +380,14 @@ export function useCardModal(
           toast(`Hidden. Search #${tag} to see it.`, {
             action: {
               label: "Undo",
-              onClick: () => void updateField("tags", currentTags),
+              // Remove only the tag added here, keeping any later edits.
+              onClick: () =>
+                void updateField(
+                  "tags",
+                  (latestTags.current ?? []).filter(
+                    (existing) => existing !== tag
+                  )
+                ),
             },
           });
         }

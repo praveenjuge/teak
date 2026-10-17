@@ -21,7 +21,7 @@ import {
 } from "@teak/files-protocol";
 import { env } from "../_generated/server";
 import { SAFE_FETCH_MAX_DURATION_MS } from "../linkMetadata/ssrf";
-import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
+import { assertR2KeyInNamespace, hmacSha256Hex, sha256Hex } from "./r2Keys";
 
 // Op URLs are minted per action invocation; a short TTL bounds the replay
 // window (the worker additionally rejects exps further than 15 min out).
@@ -153,16 +153,6 @@ export const putObjectViaFilesWorker = async ({
     throw new Error(`files_worker_upload_error:${response.status}`);
   }
   return envelope.data;
-};
-
-const sha256Hex = async (value: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value)
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
 };
 
 export interface SignedWorkerOpRequest {
@@ -343,22 +333,6 @@ export const callFilesWorkerJson = async <T>(spec: {
   }
   return { kind: "ok", data: envelope.data };
 };
-
-export interface FilesWorkerImageAnalysisResult {
-  /** Camera facts from the original's EXIF, when present. */
-  exif?: {
-    exposureTime?: number;
-    fNumber?: number;
-    focalLength?: number;
-    iso?: number;
-    make?: string;
-    model?: string;
-    takenAt?: number;
-  };
-  height: number;
-  palette: string[];
-  width: number;
-}
 
 /** Trusted image facts returned by the finalize-image-upload op. */
 export type FilesWorkerFinalizeImageResult = FilesFinalizeImageResult;

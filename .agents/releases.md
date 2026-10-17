@@ -8,7 +8,8 @@ bun run release:prepare <version>
 ```
 
 It validates the next patch, updates every tracked `package.json`, the Safari
-WebExtension manifest, and the Apple app's marketing version, synchronizes
+WebExtension manifest, the MCP registry's `server.json`, and the Apple app's
+marketing version, synchronizes
 `bun.lock` (and `apps/raycast/package-lock.json` when present),
 then verifies with a frozen install and the lockstep validator. Review the
 diff and commit every package manifest and lockfile together as one scoped
@@ -18,7 +19,7 @@ it with the same version plus `--resume` to continue from the install step.
 Manual fallback (same steps the script performs):
 
 1. Update the `version` field in every tracked `package.json` to the same next patch version.
-2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
+2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
 3. Run `bun install` from the repository root to synchronize `bun.lock`.
 4. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts --workspaces=false` to synchronize both version fields in `package-lock.json` without traversing the Bun workspace packages.
 5. From the repository root, run `bun install --frozen-lockfile` and `node scripts/release-version.mjs lockstep <version>`. Both commands must exit successfully without changing files.
@@ -27,6 +28,8 @@ Manual fallback (same steps the script performs):
 The preparation is complete when the working tree contains the intended version-only diff and the lockstep validator confirms every package manifest, npm lockfile, and Apple version source uses the target version.
 
 Keep published version tags immutable. The `Version Tag` workflow creates the tag after the version change reaches `main`; do not create or move it manually during the normal release path.
+
+Release scripts that workflows run with plain `node`, often before Bun is installed (`release-version`, `apple-*`, `sdk-release`, `watch-release-run`), are dependency-free `.mjs` files. Every other script in `scripts/` is TypeScript run with Bun.
 
 ## Public SDK publication
 

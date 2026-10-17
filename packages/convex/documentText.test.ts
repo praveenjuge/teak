@@ -20,7 +20,6 @@ import { cardStorageObjectKeys } from "./storage/r2";
 
 const modules = import.meta.glob("./**/*.ts");
 const documentText = (internal as any)["card/documentText"];
-const backfill = (internal as any)["migration/backfillDocumentText"];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -344,62 +343,5 @@ describe("getCardTextSource", () => {
       text: "A written note",
     });
     expect(await source(image)).toBeNull();
-  });
-});
-
-describe("backfillDocumentText", () => {
-  test("a dry run counts documents without text and schedules nothing", async () => {
-    const { t, insert, save } = await setup();
-    await insert();
-    await insert();
-    const done = await insert();
-    await save(done, PDF_TEXT);
-    await insert({ isDeleted: true, deletedAt: 1 });
-    await insert({ fileKey: undefined });
-    await insert({ type: "text", fileKey: undefined, content: "note" });
-
-    const result = await t.mutation(backfill.backfillDocumentText, {});
-    expect(result).toMatchObject({
-      dryRun: true,
-      isDone: true,
-      totals: { examined: 5, cardsToExtract: 2, skippedDeletingAccounts: 0 },
-    });
-    const scheduled = await t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").collect()
-    );
-    expect(
-      scheduled.filter((job) => job.name.startsWith("migration/"))
-    ).toEqual([]);
-  });
-
-  test("a real run spaces one extraction per card and resumes page by page", async () => {
-    const { t, insert } = await setup();
-    const ids = [await insert(), await insert(), await insert()];
-    const first = await t.mutation(backfill.backfillDocumentText, {
-      dryRun: false,
-      batchSize: 2,
-      spacingMs: 1000,
-    });
-    expect(first).toMatchObject({
-      isDone: false,
-      continuationScheduled: true,
-      batch: { cardsToExtract: 2 },
-    });
-    const scheduled = await t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").collect()
-    );
-    const extractions = scheduled.filter((job) =>
-      job.name.includes("extractDocumentText")
-    );
-    expect(extractions.map((job) => (job.args[0] as any).cardId)).toEqual(
-      ids.slice(0, 2)
-    );
-    const times = extractions.map((job) => job.scheduledTime);
-    expect((times[1] ?? 0) - (times[0] ?? 0)).toBe(1000);
-    const next = scheduled.find((job) =>
-      job.name.includes("backfillDocumentText")
-    );
-    expect(next?.scheduledTime).toBe((times[0] ?? 0) + 2000);
-    expect((next?.args[0] as any)?.cursor).toBe(first.continueCursor);
   });
 });

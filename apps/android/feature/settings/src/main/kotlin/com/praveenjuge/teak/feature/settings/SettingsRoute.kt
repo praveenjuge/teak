@@ -119,7 +119,7 @@ fun SettingsScreen(
                 ListRow(
                     label = if (state.isDeleting) "Deleting…" else "Delete Account",
                     icon = Icons.Outlined.DeleteForever,
-                    enabled = !state.isDeleting && !state.accountChangesPaused,
+                    enabled = !state.isDeleting,
                     destructive = true,
                     onClick = onDelete,
                 )
