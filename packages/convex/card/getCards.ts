@@ -487,8 +487,14 @@ export const searchCardsPaginatedHandler = async (
       segment: 0,
       page: null,
     };
+    // Leaving hidden cards out filters the walk too, so it reads within a
+    // row budget however many hidden cards a segment holds.
     const filtered = Boolean(
-      keep || walk.favoritesOnly || walk.types?.length || walk.createdAt
+      keep ||
+        walk.favoritesOnly ||
+        walk.types?.length ||
+        walk.createdAt ||
+        !includeHidden
     );
     const result = await pageShuffleWalk(
       ctx,
