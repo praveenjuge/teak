@@ -24,9 +24,9 @@ describe("buildEmbeddingText", () => {
   });
 
   test("a card with only image text is embedded from it", () => {
-    expect(buildEmbeddingText({ aiOcrText: "  SCALING POSTGRES  ", content: "" })).toBe(
-      "SCALING POSTGRES"
-    );
+    expect(
+      buildEmbeddingText({ aiOcrText: "  SCALING POSTGRES  ", content: "" })
+    ).toBe("SCALING POSTGRES");
   });
 
   test("image text is cut like the body, so the body still fits", () => {
