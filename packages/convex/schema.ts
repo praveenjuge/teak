@@ -509,6 +509,10 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
+  /** Text read from an image or video thumbnail, up to MAX_IMAGE_OCR_CHARS. */
+  aiOcrText: v.optional(v.string()),
+  /** When the image op last read the card for text, found or not. */
+  ocrCheckedAt: v.optional(v.number()),
   documentTextKey: v.optional(r2KeyValidator),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
@@ -942,6 +946,8 @@ export default defineSchema({
     cardId: v.id("cards"),
     userId: v.string(),
     searchableText: v.string(),
+    /** The card's aiOcrText, for `text:` searches. */
+    ocrText: v.optional(v.string()),
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
@@ -954,6 +960,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+        "urlHost",
+        "isHidden",
+      ],
+    })
+    .searchIndex("search_ocrText", {
+      searchField: "ocrText",
       filterFields: [
         "userId",
         "isDeleted",

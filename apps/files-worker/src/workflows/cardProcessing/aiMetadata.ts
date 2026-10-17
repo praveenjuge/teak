@@ -4,6 +4,7 @@ import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
+  normalizeImageOcrText,
   readFilesAiGenerationFacts,
   readVisualStylesDecision,
   TEXT_METADATA_MODEL_ID,
@@ -138,10 +139,13 @@ export const generateImageMetadataForStoredKey = async (
   title?: string,
   /** With telemetry, the op also asks Clef for the image's visual styles. */
   options: { telemetry?: WorkflowTelemetry } = {}
-): Promise<GeneratedMetadata & { visualStyles?: VisualStyle[] }> => {
+): Promise<
+  GeneratedMetadata & { aiOcrText?: string; visualStyles?: VisualStyle[] }
+> => {
   const outcome = await job.deps.filesOp<{
     summary: string;
     tags: string[];
+    text?: unknown;
     visualStyles?: unknown;
   }>({
     op: "generate-image-metadata",
@@ -163,9 +167,15 @@ export const generateImageMetadataForStoredKey = async (
         outcome.data.visualStyles
       )
     : undefined;
+  // The op already tidies the text; an older worker sends none.
+  const aiOcrText =
+    typeof outcome.data.text === "string"
+      ? normalizeImageOcrText(outcome.data.text)
+      : undefined;
   return {
     aiSummary: outcome.data.summary,
     aiTags: normalizeAiTags(outcome.data.tags),
+    ...(aiOcrText ? { aiOcrText } : {}),
     ...(visualStyles ? { visualStyles } : {}),
   };
 };

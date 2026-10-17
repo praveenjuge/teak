@@ -521,6 +521,7 @@ describe("additive files ops", () => {
                   content: JSON.stringify({
                     summary: "A red square.",
                     tags: ["red", "square"],
+                    text: "STOP\n  4411",
                   }),
                 },
               },
@@ -561,6 +562,7 @@ describe("additive files ops", () => {
     );
     expect(result.tags).toEqual(["red", "square"]);
     expect(result.summary).toBe("A red square.");
+    expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",

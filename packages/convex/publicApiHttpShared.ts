@@ -91,6 +91,8 @@ interface CardsQueryOptions {
   qualifiers?: {
     archivedInTrash?: boolean;
     folderNames?: string[];
+    /** `text:` values, each matched in a card's image text. */
+    ocrTexts?: string[];
     phrases?: string[];
     prices?: import("./shared/search/qualifiers").PriceBound[];
     sites?: string[];

@@ -35,6 +35,7 @@ import {
   ListFilter,
   Palette,
   Quote,
+  ScanText,
   Search,
   Sparkles,
   Star,
@@ -161,6 +162,7 @@ export const QUALIFIER_ICONS = {
   like: Sparkles,
   mood: Aperture,
   price: Banknote,
+  text: ScanText,
 } as const;
 
 const suggestionIcon = (suggestion: SearchSuggestion) => {

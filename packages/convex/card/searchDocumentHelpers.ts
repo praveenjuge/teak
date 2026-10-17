@@ -26,6 +26,7 @@ const SEARCH_FIELDS = [
   "notes",
   "aiSummary",
   "aiTranscript",
+  "aiOcrText",
   "metadataTitle",
   "metadataDescription",
 ] as const;
@@ -290,6 +291,7 @@ export const syncCardSearchDocumentHandler = async (
     cardId,
     userId: card.userId,
     searchableText: buildCardSearchText(card),
+    ocrText: card.aiOcrText,
     isDeleted: card.isDeleted,
     type: card.type,
     isFavorited: card.isFavorited,
@@ -302,6 +304,7 @@ export const syncCardSearchDocumentHandler = async (
     if (
       existing.userId !== value.userId ||
       existing.searchableText !== value.searchableText ||
+      existing.ocrText !== value.ocrText ||
       existing.isDeleted !== value.isDeleted ||
       existing.type !== value.type ||
       existing.isFavorited !== value.isFavorited ||
@@ -726,75 +729,89 @@ export const searchCardsByExactTag = async (
   return Array.from(cardsById.values());
 };
 
-export const searchCardsByDocument = async (
-  ctx: QueryCtx,
-  args: {
-    userId: string;
-    searchQuery: string;
-    isDeleted?: boolean;
-    isFavorited?: boolean;
-    /** Archived cards to match outside Trash; defaults to `"exclude"`. */
-    archived?: ArchivedFilter;
-    type?: Doc<"cards">["type"];
-    /** Only cards on this normalized host (`site:`). */
-    urlHost?: string;
-    limit: number;
-    scanBudget?: {
-      remaining: number;
-      hitSearchLimit?: boolean;
-      /** File-text rows left to read (FILE_TEXT_SEARCH_LIMIT to start). */
-      textRemaining?: number;
-    };
-    /**
-     * Keeps a card; gets the card's search text too, with its file text
-     * when that is what matched (quoted phrases check it).
-     */
-    resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
-    /** Filled with each kept card's search text, for filtering later. */
-    searchTexts?: Map<Id<"cards">, string>;
-    /** Hidden cards too: the search names a reserved tag. */
-    includeHidden?: boolean;
+interface DocumentSearchArgs {
+  /** Archived cards to match outside Trash; defaults to `"exclude"`. */
+  archived?: ArchivedFilter;
+  /** Hidden cards too: the search names a reserved tag. */
+  includeHidden?: boolean;
+  isDeleted?: boolean;
+  isFavorited?: boolean;
+  limit: number;
+  /**
+   * Keeps a card; gets the card's search text too, with its file text
+   * when that is what matched (quoted phrases check it).
+   */
+  resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
+  scanBudget?: {
+    remaining: number;
+    hitSearchLimit?: boolean;
+    /** File-text rows left to read (FILE_TEXT_SEARCH_LIMIT to start). */
+    textRemaining?: number;
+  };
+  searchQuery: string;
+  /** Filled with each kept card's search text, for filtering later. */
+  searchTexts?: Map<Id<"cards">, string>;
+  type?: Doc<"cards">["type"];
+  /** Only cards on this normalized host (`site:`). */
+  urlHost?: string;
+  userId: string;
+}
+
+const searchTooBroad = () =>
+  new ConvexError({
+    code: "INVALID_INPUT",
+    message: "Search is too broad. Add a type or date filter.",
+  });
+
+/**
+ * Narrows a search index read to the args' view: the user, Trash or not,
+ * archived, type, favorites, site and hidden cards. Both search indexes
+ * share these filter fields.
+ */
+const filterSearchIndex = (
+  query: any,
+  args: DocumentSearchArgs,
+  archived: true | undefined | "any"
+) => {
+  let filtered = query
+    .eq("userId", args.userId)
+    .eq("isDeleted", args.isDeleted);
+  if (archived !== "any") {
+    filtered = filtered.eq("isArchived", archived);
   }
-): Promise<Doc<"cards">[]> => {
-  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
-  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  if (args.type !== undefined) {
+    filtered = filtered.eq("type", args.type);
+  }
+  if (args.isFavorited !== undefined) {
+    filtered = filtered.eq("isFavorited", args.isFavorited ? true : undefined);
+  }
+  if (args.urlHost !== undefined) {
+    filtered = filtered.eq("urlHost", args.urlHost);
+  }
+  if (!args.includeHidden) {
+    filtered = filtered.eq("isHidden", undefined);
+  }
+  return filtered;
+};
+
+/**
+ * Cards whose search documents match, read from one search index, with the
+ * shared limits: at most 1,024 rows from the scan budget, and "Search is
+ * too broad" when the read is full before enough cards are kept.
+ */
+const keepSearchDocuments = async (
+  ctx: QueryCtx,
+  args: DocumentSearchArgs,
+  scanBudget: NonNullable<DocumentSearchArgs["scanBudget"]>,
+  read: (sourceLimit: number) => Promise<Doc<"cardSearchDocuments">[]>
+) => {
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
   const matchLimit = Math.min(1024, Math.max(1, args.limit));
   const sourceLimit = Math.min(1024, scanBudget.remaining);
   if (sourceLimit <= 0) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Search is too broad. Add a type or date filter.",
-    });
+    throw searchTooBroad();
   }
-  const documents = await ctx.db
-    .query("cardSearchDocuments")
-    .withSearchIndex("search_searchableText", (query) => {
-      let filtered = query
-        .search("searchableText", args.searchQuery)
-        .eq("userId", args.userId)
-        .eq("isDeleted", args.isDeleted);
-      if (archived !== "any") {
-        filtered = filtered.eq("isArchived", archived);
-      }
-      if (args.type !== undefined) {
-        filtered = filtered.eq("type", args.type);
-      }
-      if (args.isFavorited !== undefined) {
-        filtered = filtered.eq(
-          "isFavorited",
-          args.isFavorited ? true : undefined
-        );
-      }
-      if (args.urlHost !== undefined) {
-        filtered = filtered.eq("urlHost", args.urlHost);
-      }
-      if (!args.includeHidden) {
-        filtered = filtered.eq("isHidden", undefined);
-      }
-      return filtered;
-    })
-    .take(sourceLimit);
+  const documents = await read(sourceLimit);
   scanBudget.remaining -= documents.length;
   if (documents.length === sourceLimit) {
     scanBudget.hitSearchLimit = true;
@@ -816,18 +833,61 @@ export const searchCardsByDocument = async (
   // Convex checks its 1,024-result cap before probing exhaustion, so a
   // saturated search cannot prove that all post-filter matches were examined.
   if (documents.length === sourceLimit && cardsById.size < matchLimit) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Search is too broad. Add a type or date filter.",
-    });
+    throw searchTooBroad();
   }
-  if (cardsById.size < matchLimit) {
-    await addCardsFoundByFileText(ctx, args, archived, scanBudget, {
-      cardsById,
-      matchLimit,
-    });
+  return { cardsById, matchLimit };
+};
+
+export const searchCardsByDocument = async (
+  ctx: QueryCtx,
+  args: DocumentSearchArgs
+): Promise<Doc<"cards">[]> => {
+  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  const found = await keepSearchDocuments(ctx, args, scanBudget, (limit) =>
+    ctx.db
+      .query("cardSearchDocuments")
+      .withSearchIndex("search_searchableText", (query) =>
+        filterSearchIndex(
+          query.search("searchableText", args.searchQuery),
+          args,
+          archived
+        )
+      )
+      .take(limit)
+  );
+  if (found.cardsById.size < found.matchLimit) {
+    await addCardsFoundByFileText(ctx, args, archived, scanBudget, found);
   }
-  return Array.from(cardsById.values());
+  return Array.from(found.cardsById.values());
+};
+
+/**
+ * Cards whose image text (`aiOcrText`) matches `searchQuery`, for `text:`.
+ * The same view filters, limits and errors as `searchCardsByDocument`;
+ * `searchTexts` gets each card's whole search text, for phrase checks.
+ */
+export const searchCardsByOcrText = async (
+  ctx: QueryCtx,
+  args: Omit<DocumentSearchArgs, "scanBudget"> & {
+    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
+  }
+): Promise<Doc<"cards">[]> => {
+  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  const found = await keepSearchDocuments(ctx, args, scanBudget, (limit) =>
+    ctx.db
+      .query("cardSearchDocuments")
+      .withSearchIndex("search_ocrText", (query) =>
+        filterSearchIndex(
+          query.search("ocrText", args.searchQuery),
+          args,
+          archived
+        )
+      )
+      .take(limit)
+  );
+  return Array.from(found.cardsById.values());
 };
 
 /**

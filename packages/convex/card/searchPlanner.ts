@@ -3,6 +3,7 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
   combineSearchQueries,
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   type ParsedSearchQuery,
@@ -53,6 +54,11 @@ export interface ResolvedSearch {
    * phrases then match too.
    */
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
+  /**
+   * `text:` values joined, for the image-text index; empty without any.
+   * Each value must appear in a card's `aiOcrText` (`matches` checks).
+   */
+  ocrText: string;
   phrases: string[];
   /** `price:` bounds a card's link price must all meet. */
   prices: PriceBound[];
@@ -211,7 +217,7 @@ export const resolveSearch = async (
   const tags = Array.from(
     new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
   ).filter(Boolean);
-  const { sites, phrases, prices } = parsed;
+  const { sites, phrases, prices, ocrTexts } = parsed;
   const includeHidden = revealsHidden(tags);
 
   const matches = (card: Doc<"cards">, searchableText?: string) => {
@@ -248,6 +254,9 @@ export const resolveSearch = async (
     ) {
       return false;
     }
+    if (!matchesImageText(card.aiOcrText, ocrTexts)) {
+      return false;
+    }
     return matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
       phrases
@@ -264,9 +273,11 @@ export const resolveSearch = async (
       tags.length > 1 ||
       sites.length > 0 ||
       phrases.length > 0 ||
-      prices.length > 0,
+      prices.length > 0 ||
+      ocrTexts.length > 0,
     includeHidden,
     matches,
+    ocrText: ocrTexts.join(" "),
     phrases,
     similarity: parsed.similarity ?? null,
     prices,

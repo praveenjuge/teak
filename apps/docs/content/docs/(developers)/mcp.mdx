@@ -141,7 +141,7 @@ type CardFilters = {
   - Input: `CardFilters`
   - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`. Items are full cards unless you narrow `include`.
 - `teak_v1_search_cards`
-  - Input: `CardFilters`. `q` accepts the [search qualifiers](/docs/api#search-qualifiers): `tag:design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `price:<100` (also `>`, `<=`, `>=` and `=`; `price:>20 price:<100` is a range), and `"quoted phrases"`. Results include cards related by meaning, not just exact words; `mode: "keyword"` turns that off.
+  - Input: `CardFilters`. `q` accepts the [search qualifiers](/docs/api#search-qualifiers): `tag:design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `price:<100` (also `>`, `<=`, `>=` and `=`; `price:>20 price:<100` is a range), `text:"total due"` (the words in an image or a video's thumbnail, which cards carry as `aiOcrText`), and `"quoted phrases"`. Results include cards related by meaning, not just exact words; `mode: "keyword"` turns that off.
   - A product link's card has `linkPrice: { amount, currency }`, read from the page; `price:` compares `amount` in any currency, and cards without a price have `linkPrice: null` and never match it.
   - Output: `{ items: Card[], total: number, pageInfo, searchMode }`, where `total` is the number of items on this page and `searchMode` is the mode that ran (`keyword` when meaning search was unavailable)
 - `teak_v1_find_similar_cards`

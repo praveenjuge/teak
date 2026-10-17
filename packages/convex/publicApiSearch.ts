@@ -23,6 +23,7 @@ import {
   loadSemanticMatches,
   searchCardsByDocument,
   searchCardsByExactTag,
+  searchCardsByOcrText,
 } from "./card/searchDocumentHelpers";
 import { cardUrlHost } from "./card/searchPlanner";
 import {
@@ -48,6 +49,7 @@ import {
 } from "./search/semanticCache";
 import type { TeakUserId } from "./securitySessions";
 import {
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   type PriceBound,
@@ -90,6 +92,8 @@ export interface SearchOptions {
   /** Best match: keep the search's own order instead of sorting by date. */
   keepSearchOrder?: boolean;
   limit?: number;
+  /** `text:` values: each must be in a card's image text (`aiOcrText`). */
+  ocrTexts?: string[];
   phrases?: string[];
   /** `price:` bounds a card's link price must all meet. */
   prices?: PriceBound[];
@@ -246,6 +250,13 @@ export const matchesStructuredFilters = (
   }
 
   if (
+    options.ocrTexts?.length &&
+    !matchesImageText(card.aiOcrText, options.ocrTexts)
+  ) {
+    return false;
+  }
+
+  if (
     options.phrases?.length &&
     !matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
@@ -318,7 +329,8 @@ export const searchCardsByQuery = async (
     };
   }
   const searchQuery = normalizeSearchText(options.searchQuery);
-  if (!searchQuery) {
+  const ocrText = options.ocrTexts?.join(" ") ?? "";
+  if (!(searchQuery || ocrText)) {
     return { cards: [], hitScanBudget: false };
   }
 
@@ -337,16 +349,34 @@ export const searchCardsByQuery = async (
   const keywordSearch = semantic?.mode !== "semantic";
   const found: Doc<"cards">[][] = [];
   for (const type of keywordSearch ? typeGroups : []) {
+    const read = {
+      ...indexFilters,
+      searchQuery: searchQuery ?? "",
+      type,
+      limit: SEARCH_CANDIDATE_LIMIT,
+      scanBudget,
+      resultFilter: (card: Doc<"cards">, searchableText: string) =>
+        matchesStructuredFilters(card, options, searchableText),
+    };
+    if (!ocrText) {
+      found.push(await searchCardsByDocument(ctx, read));
+      continue;
+    }
+    // `text:` reads the image-text index; plain words beside it read their
+    // own, and a card must be in both.
+    const imageMatches = await searchCardsByOcrText(ctx, {
+      ...read,
+      searchQuery: ocrText,
+    });
+    const wordMatches = searchQuery
+      ? new Set(
+          (await searchCardsByDocument(ctx, read)).map((card) => card._id)
+        )
+      : null;
     found.push(
-      await searchCardsByDocument(ctx, {
-        ...indexFilters,
-        searchQuery,
-        type,
-        limit: SEARCH_CANDIDATE_LIMIT,
-        scanBudget,
-        resultFilter: (card, searchableText) =>
-          matchesStructuredFilters(card, options, searchableText),
-      })
+      wordMatches
+        ? imageMatches.filter((card) => wordMatches.has(card._id))
+        : imageMatches
     );
   }
   const unique = Array.from(
@@ -458,6 +488,7 @@ export const normalizeCardsQueryOptions = (args: {
   archivedInTrash?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
+  ocrTexts?: string[];
   phrases?: string[];
   prices?: PriceBound[];
   sites?: string[];
@@ -484,6 +515,7 @@ export const normalizeCardsQueryOptions = (args: {
     archivedInTrash: args.archivedInTrash === true && args.showTrashOnly,
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
+    ocrTexts: args.ocrTexts?.length ? args.ocrTexts : undefined,
     phrases: args.phrases?.length ? args.phrases : undefined,
     prices: args.prices?.length ? args.prices : undefined,
     sites: args.sites?.length ? args.sites : undefined,

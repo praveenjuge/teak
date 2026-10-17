@@ -38,6 +38,8 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   // possibly a Browser Run render.
   "fetch-link-page": 300_000,
   "freeze-object": 90_000,
+  // Gemma reads the image, then writes tags, a summary and its text.
+  "generate-image-metadata": 120_000,
   "generate-link-metadata": 90_000,
   "generate-text-metadata": 90_000,
   "probe-media": 90_000,
@@ -354,13 +356,6 @@ export interface FilesWorkerHeadObjectResult {
   etag?: string;
   exists: boolean;
   size?: number;
-}
-
-export interface FilesWorkerImageMetadataResult {
-  summary: string;
-  tags: string[];
-  /** Clef's styles, when asked for and Clef answered; see decisions. */
-  visualStyles?: unknown;
 }
 
 export interface FilesWorkerListedObject {

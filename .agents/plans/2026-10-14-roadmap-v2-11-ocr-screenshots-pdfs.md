@@ -4,7 +4,7 @@ Extend OCR to link screenshots and scanned PDFs. A link's rendered screenshot is
 
 ## Depends on
 
-- [Phase 10](2026-10-14-roadmap-v2-10-ocr-images.md): `aiOcrText`, `ocrCheckedAt`, the `search_ocrText` index, `text:`, `MAX_IMAGE_OCR_CHARS` and the "Text in image" block.
+- Phase 10 (shipped): `aiOcrText`, `ocrCheckedAt`, the `search_ocrText` index, `text:`, `MAX_IMAGE_OCR_CHARS` and the "Text in image" block.
 - v1 phase 13 (stored text, shipped in #680): `cardTextContents`, `documentTextKey`, `hasExtractedText` and `GET /v1/cards/:id/content`.
 
 ## Success Criteria

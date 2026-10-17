@@ -4,7 +4,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 
 ## Depends on
 
-- [Phase 10](2026-10-14-roadmap-v2-10-ocr-images.md): `aiOcrText` goes into the embedded text.
+- Phase 10 (shipped): `aiOcrText` goes into the embedded text.
 - v1 phase 13 (stored text, shipped in #680): the `cardTextContents.text` prefix.
 
 ## Success Criteria

@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
+import { routeConvexSocket } from "../helpers/page-hooks";
 import { expect, test } from "./fixtures";
 
 const REPO = "Qualifier repo on the site";
@@ -125,4 +126,92 @@ test("suggestions turn qualifiers into chips that survive a reload", async ({
     screen.getByText("No folder named nowhere", { exact: false })
   ).toBeVisible();
   await expect(card(FILED)).not.toBeVisible();
+});
+
+test("text: is a chip that survives a reload and matches only image text", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const id = await library.client.mutation(api.cards.createCard, {
+    content: "A note about the total due on invoice 4411",
+    type: "text",
+  });
+  library.ids.push(id);
+
+  await gotoApp(browser, "/");
+  const search = screen.getByRole("combobox");
+  await search.fill("te");
+  await expect(
+    screen.getByRole("option", "text:", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+  await search.fill('text:"total due"');
+  await search.press("Enter");
+  const chip = screen.getByRole("button", "Remove text in image total due");
+  await expect(chip).toBeVisible();
+  await expect(browser).toHaveURL(/q=text%3A%22total(\+|%20)due%22/);
+  // The note says "total due", but not in an image.
+  await expect(
+    screen.getByText("Nothing found matching your filters")
+  ).toBeVisible();
+
+  await browser.reload();
+  await expect(chip).toBeVisible({ timeout: 30_000 });
+  await chip.click();
+  await search.fill("total due");
+  await search.press("Enter");
+  await expect(
+    screen.getByRole("button", ": A note about the total due", {
+      exact: false,
+    })
+  ).toBeVisible({ timeout: 30_000 });
+});
+
+test("a card with image text shows it in the details panel", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const id = await library.client.mutation(api.cards.createCard, {
+    content: "Text in image panel check",
+    type: "text",
+  });
+  library.ids.push(id);
+  // The local stack runs no AI, so the card gets its image text on the way
+  // to the page.
+  await routeConvexSocket(browser, {
+    fromServer: (message) => {
+      if (message.type !== "Transition") {
+        return message;
+      }
+      const visit = (value: unknown) => {
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visit(item);
+          }
+        } else if (value && typeof value === "object") {
+          const record = value as Record<string, unknown>;
+          if (record.content === "Text in image panel check") {
+            record.aiOcrText = "ACME MARKET\nInvoice 4411\nTotal due 5.50";
+          }
+          for (const key of Object.keys(record)) {
+            visit(record[key]);
+          }
+        }
+      };
+      for (const modification of message.modifications ?? []) {
+        if (modification.type === "QueryUpdated") {
+          visit(modification.value);
+        }
+      }
+      return message;
+    },
+  });
+
+  await gotoApp(browser, `/?card=${id}`);
+  const dialog = screen.getByRole("dialog", "Note");
+  const block = dialog.getByRole("region", "Text in image");
+  await expect(block).toBeVisible({ timeout: 30_000 });
+  await expect(block.getByText("Invoice 4411", { exact: false })).toBeVisible();
+  await expect(block.getByRole("button", "Copy text in image")).toBeVisible();
 });

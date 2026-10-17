@@ -152,6 +152,7 @@ export const searchCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -207,7 +208,7 @@ export const searchCardsPageForUser = internalQuery({
     let pageItems: Doc<"cards">[];
     let hasMore: boolean;
 
-    if (options.searchQuery || options.similarity) {
+    if (options.searchQuery || options.ocrTexts || options.similarity) {
       const result = await searchCardsByQuery(ctx, userId, options);
       const remaining = anchor
         ? result.cards.filter((card) => isAfterMatchAnchor(card, anchor, sort))
@@ -271,6 +272,7 @@ export const shuffleCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -379,7 +381,7 @@ export const shuffleCardsPageForUser = internalQuery({
     };
     const types = options.type ? [options.type] : options.types;
 
-    if (options.searchQuery || options.similarity) {
+    if (options.searchQuery || options.ocrTexts || options.similarity) {
       return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
     }
     const tag = normalizeTag(options.tag);
@@ -468,6 +470,7 @@ export const scanCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
   },

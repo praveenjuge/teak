@@ -11,12 +11,19 @@ export const updateCardAI = internalMutation({
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
+    aiOcrText: v.optional(v.string()),
+    ocrCheckedAt: v.optional(v.number()),
     visualStyles: v.optional(v.array(v.string())),
     processingStatus: processingStatusValidator,
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const { cardId, processingStatus, ...updates } = args;
+    const { cardId, processingStatus, aiOcrText, ...rest } = args;
+    // Text that came back empty is stored as none.
+    const updates = {
+      ...rest,
+      ...(aiOcrText === undefined ? {} : { aiOcrText: aiOcrText || undefined }),
+    };
     const card = await ctx.db.get("cards", cardId);
     if (!card) {
       return false;

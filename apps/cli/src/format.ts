@@ -40,7 +40,7 @@ export const formatCardLine = (
   return `${card.id}  ${card.type.padEnd(8)}  ${snippet}  ${tags}  ${age}${hidden}`.trim();
 };
 
-const TRANSCRIPT_PREVIEW_CHARS = 600;
+const TEXT_PREVIEW_CHARS = 600;
 
 const fileLine = (card: Card) => {
   if (!card.fileName) {
@@ -50,16 +50,16 @@ const fileLine = (card: Card) => {
   return `file: ${card.fileName}${size}`;
 };
 
-const transcriptBlock = (transcript: string | null | undefined) => {
-  if (!transcript?.trim()) {
+const textBlock = (heading: string, value: string | null | undefined) => {
+  if (!value?.trim()) {
     return [];
   }
-  const text = transcript.trim();
+  const text = value.trim();
   return [
     "",
-    "Transcript:",
-    text.length > TRANSCRIPT_PREVIEW_CHARS
-      ? `${text.slice(0, TRANSCRIPT_PREVIEW_CHARS)}… (full text with --json)`
+    heading,
+    text.length > TEXT_PREVIEW_CHARS
+      ? `${text.slice(0, TEXT_PREVIEW_CHARS)}… (full text with --json)`
       : text,
   ];
 };
@@ -98,7 +98,8 @@ export const formatDetail = (card: Card) =>
     `open: ${card.appUrl}`,
     "",
     card.content,
-    ...transcriptBlock(card.aiTranscript),
+    ...textBlock("Text in image:", card.aiOcrText),
+    ...textBlock("Transcript:", card.aiTranscript),
   ]
     .filter((line) => line !== null)
     .join("\n");

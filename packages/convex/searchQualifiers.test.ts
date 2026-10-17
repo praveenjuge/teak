@@ -851,3 +851,394 @@ describe("public API qualifiers", () => {
     ]);
   });
 });
+
+describe("text:", () => {
+  const seedImageText = async (
+    insert: Awaited<ReturnType<typeof setup>>["insert"]
+  ) => {
+    await insert({
+      content: "Receipt screenshot",
+      type: "image",
+      aiOcrText: "ACME Market\nInvoice 4411\nTotal due  $12.40",
+      ocrCheckedAt: 1,
+    });
+    await insert({ content: "Note about invoice 4411" });
+    await insert({
+      content: "Station sign",
+      type: "image",
+      aiOcrText: "東京駅\nTokyo Station",
+      ocrCheckedAt: 1,
+    });
+    await insert({
+      content: "Video title card",
+      type: "video",
+      aiOcrText: "Episode 4411 trailer",
+      ocrCheckedAt: 1,
+    });
+  };
+
+  test("plain words find image text; text: finds only image text", async () => {
+    const { insert, search } = await setup();
+    await seedImageText(insert);
+    expect((await search("4411")).sort()).toEqual([
+      "Note about invoice 4411",
+      "Receipt screenshot",
+      "Video title card",
+    ]);
+    expect((await search("text:4411")).sort()).toEqual([
+      "Receipt screenshot",
+      "Video title card",
+    ]);
+    expect(await search("text:4411 type:image")).toEqual([
+      "Receipt screenshot",
+    ]);
+    expect(await search("text:東京駅")).toEqual(["Station sign"]);
+    expect(await search("text:nothing-here")).toEqual([]);
+  });
+
+  test("quoted values match across line breaks; every value must match", async () => {
+    const { insert, search } = await setup();
+    await seedImageText(insert);
+    expect(await search('text:"total due"')).toEqual(["Receipt screenshot"]);
+    expect(await search('text:"invoice 4411 total"')).toEqual([
+      "Receipt screenshot",
+    ]);
+    expect(await search("text:invoice text:acme")).toEqual([
+      "Receipt screenshot",
+    ]);
+    expect(await search("text:invoice text:tokyo")).toEqual([]);
+  });
+
+  test("plain words beside text: must also match the card", async () => {
+    const { insert, search } = await setup();
+    await seedImageText(insert);
+    expect(await search("receipt text:4411")).toEqual(["Receipt screenshot"]);
+    expect(await search("trailer text:4411")).toEqual(["Video title card"]);
+    expect(await search("station text:4411")).toEqual([]);
+  });
+
+  test("text: keeps to the owner's live, unhidden cards", async () => {
+    const { owner, insert, search, stranger } = await setup();
+    const trashed = await insert({
+      content: "Trashed receipt",
+      type: "image",
+      aiOcrText: "Invoice 9001",
+    });
+    await owner.mutation(api.cards.updateCardField, {
+      cardId: trashed,
+      field: "delete",
+    });
+    await insert({
+      content: "Archived receipt",
+      type: "image",
+      aiOcrText: "Invoice 9001",
+      isArchived: true,
+    });
+    await insert({
+      content: "Secret receipt",
+      type: "image",
+      aiOcrText: "Invoice 9001",
+      tags: ["secret"],
+    });
+    await insert(
+      { content: "Their receipt", type: "image", aiOcrText: "Invoice 9001" },
+      "stranger"
+    );
+    expect(await search("text:9001")).toEqual([]);
+    expect(await search("text:9001", { showTrashOnly: true })).toEqual([
+      "Trashed receipt",
+    ]);
+    expect(await search("text:9001 is:archived")).toEqual(["Archived receipt"]);
+    expect(await search("text:9001 #secret")).toEqual(["Secret receipt"]);
+    expect(await search("text:9001", {}, stranger)).toEqual(["Their receipt"]);
+  });
+
+  test("a smart folder's text: joins the typed search", async () => {
+    const { owner, insert, search } = await setup();
+    await seedImageText(insert);
+    const folder = await owner.mutation(api.folders.createFolder, {
+      name: "Invoices",
+      kind: "smart",
+      query: "text:invoice",
+    });
+    expect(await search("", { folderId: folder._id })).toEqual([
+      "Receipt screenshot",
+    ]);
+    expect(await search("text:tokyo", { folderId: folder._id })).toEqual([]);
+  });
+
+  test("refreshing image text resyncs the search document", async () => {
+    const { t, insert, search, searchDocument } = await setup();
+    const id = await insert({
+      content: "Poster",
+      type: "image",
+      aiOcrText: "Concert 2026",
+    });
+    expect((await searchDocument(id))?.ocrText).toBe("Concert 2026");
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: id,
+      aiOcrText: "",
+      ocrCheckedAt: 2,
+    });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: id,
+      aiSummary: "A poster",
+    });
+    expect((await searchDocument(id))?.ocrText).toBeUndefined();
+    expect(await search("text:concert")).toEqual([]);
+    expect(await search("concert")).toEqual([]);
+  });
+
+  test("the API's search, scan and shuffle pages take text: values", async () => {
+    const { t, insert, runScheduled } = await setup();
+    await seedImageText(insert);
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content).sort();
+    const ocrTexts = ["4411"];
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          ocrTexts,
+        })
+      )
+    ).toEqual(["Receipt screenshot", "Video title card"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "receipt",
+          ocrTexts,
+        })
+      )
+    ).toEqual(["Receipt screenshot"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          ocrTexts,
+        })
+      )
+    ).toEqual(["Receipt screenshot", "Video title card"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          ocrTexts,
+        })
+      )
+    ).toEqual(["Receipt screenshot", "Video title card"]);
+  });
+});
+
+describe("backfillImageOcr", () => {
+  const seedImages = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
+    t.run(async (ctx) => {
+      const insert = (fields: Partial<Doc<"cards">>) =>
+        ctx.db.insert("cards", {
+          userId: "owner",
+          type: "image",
+          content: "",
+          createdAt: 1,
+          updatedAt: 1,
+          ...fields,
+        });
+      return {
+        unread: await insert({
+          content: "Unread receipt",
+          thumbnailKey: "thumb/receipt.jpg",
+          aiSummary: "A receipt",
+          aiTags: ["receipt"],
+        }),
+        read: await insert({
+          content: "Read already",
+          thumbnailKey: "thumb/read.jpg",
+          ocrCheckedAt: 5,
+        }),
+        tiny: await insert({
+          content: "Icon",
+          fileKey: "icon.png",
+          fileMetadata: {
+            fileName: "icon.png",
+            fileSize: 1,
+            mimeType: "image/png",
+            width: 8,
+            height: 8,
+          },
+        }),
+        trashed: await insert({
+          content: "Trashed",
+          thumbnailKey: "thumb/trashed.jpg",
+          isDeleted: true,
+        }),
+        video: await insert({
+          type: "video",
+          content: "Trailer",
+          thumbnailKey: "thumb/trailer.jpg",
+          fileMetadata: {
+            fileName: "trailer.mp4",
+            fileSize: 1,
+            mimeType: "video/mp4",
+          },
+        }),
+        note: await insert({ type: "text", content: "A note" }),
+      };
+    });
+
+  const stubImageOp = (text: (sourceKey: string) => unknown) => {
+    const calls: Record<string, any>[] = [];
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "ocr-test-secret");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: unknown, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body));
+        calls.push(body);
+        return Response.json({
+          ok: true,
+          version: 1,
+          requestId: "r",
+          data: {
+            summary: "Rewritten summary",
+            tags: ["rewritten"],
+            text: text(body.params.sourceKey),
+          },
+        });
+      })
+    );
+    return calls;
+  };
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  test("a dry run counts the cards and writes nothing", async () => {
+    const { t, card, runScheduled } = await setup();
+    const ids = await seedImages(t);
+    const result = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { batchSize: 4 }
+    );
+    expect(result).toMatchObject({ dryRun: true, continuationScheduled: true });
+    await runScheduled();
+    const done = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { batchSize: 50, once: true }
+    );
+    expect(done.batch).toEqual({
+      examined: 6,
+      alreadyRead: 1,
+      noSource: 1,
+      trashed: 1,
+      queued: 2,
+      skippedDeletingAccounts: 0,
+    });
+    expect((await card(ids.unread))?.ocrCheckedAt).toBeUndefined();
+  });
+
+  test("a real run stores only the text, and pages resume", async () => {
+    const calls = stubImageOp((key) =>
+      key === "thumb/receipt.jpg" ? "Invoice\r\n4411" : ""
+    );
+    const { t, card, search, runScheduled } = await setup();
+    const ids = await seedImages(t);
+    const first = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { dryRun: false, batchSize: 3, once: true }
+    );
+    expect(first.batch.queued).toBe(1);
+    await runScheduled();
+    await t.mutation(internal.migration.backfillImageOcr.backfillImageOcr, {
+      dryRun: false,
+      batchSize: 3,
+      cursor: first.continueCursor,
+    });
+    await runScheduled();
+
+    expect(
+      calls
+        .filter((call) => call.op === "generate-image-metadata")
+        .map((call) => call.params)
+    ).toEqual([
+      { sourceKey: "thumb/receipt.jpg" },
+      { sourceKey: "thumb/trailer.jpg", title: "trailer.mp4" },
+    ]);
+    const unread = await card(ids.unread);
+    expect(unread).toMatchObject({
+      aiOcrText: "Invoice\n4411",
+      aiSummary: "A receipt",
+      aiTags: ["receipt"],
+    });
+    expect(unread?.ocrCheckedAt).toBeTypeOf("number");
+    const video = await card(ids.video);
+    expect(video?.aiOcrText).toBeUndefined();
+    expect(video?.ocrCheckedAt).toBeTypeOf("number");
+    expect(await search("text:4411")).toEqual(["Unread receipt"]);
+
+    const again = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { batchSize: 50, once: true }
+    );
+    expect(again.batch).toMatchObject({ alreadyRead: 3, queued: 0 });
+  });
+
+  test("a Files Worker that sends no text leaves the card unread", async () => {
+    stubImageOp(() => undefined);
+    const { t, card } = await setup();
+    const ids = await seedImages(t);
+    expect(
+      await t.action(internal.migration.backfillImageOcr.backfillImageOcrCard, {
+        cardId: ids.unread,
+      })
+    ).toBe("failed");
+    expect((await card(ids.unread))?.ocrCheckedAt).toBeUndefined();
+  });
+
+  test("a card processed again while its text was read keeps the newer run", async () => {
+    stubImageOp(() => "Old text");
+    const { t, card } = await setup();
+    const ids = await seedImages(t);
+    const candidate = await t.query(
+      internal.migration.backfillImageOcr.getImageOcrCandidate,
+      { cardId: ids.unread }
+    );
+    await t.run((ctx) =>
+      ctx.db.patch("cards", ids.unread, { processingRev: 7 })
+    );
+    expect(
+      await t.mutation(internal.migration.backfillImageOcr.storeImageOcr, {
+        cardId: ids.unread,
+        processingRev: candidate?.processingRev,
+        aiOcrText: "Old text",
+      })
+    ).toBe(false);
+    expect((await card(ids.unread))?.aiOcrText).toBeUndefined();
+  });
+
+  test("skips accounts being deleted", async () => {
+    const { t } = await setup();
+    await seedImages(t);
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: "owner",
+        startedAt: 1,
+        stage: 3,
+        generation: 1,
+      })
+    );
+    const result = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { batchSize: 50, once: true }
+    );
+    expect(result.batch).toMatchObject({
+      queued: 0,
+      skippedDeletingAccounts: 2,
+    });
+  });
+});

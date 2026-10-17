@@ -109,6 +109,7 @@ const serializeDisplayMetadata = (card: any) => ({
 });
 
 const serializeCard = (card: any, requestUrl: string) => ({
+  aiOcrText: card.aiOcrText ?? null,
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
@@ -206,6 +207,7 @@ const serializeListCard = (
       : {}),
     ...(include.has("processing")
       ? {
+          aiOcrText: card.aiOcrText ?? null,
           aiTranscript: card.aiTranscript ?? null,
           metadataStatus: card.metadataStatus ?? null,
           processingStatus: card.processingStatus ?? null,
@@ -647,6 +649,9 @@ const parseCardsQueryOptions = (
           qualifiers: {
             archivedInTrash: trashed === true && parsed.archived,
             folderNames: parsed.folders,
+            ...(parsed.ocrTexts.length > 0
+              ? { ocrTexts: parsed.ocrTexts }
+              : {}),
             phrases: parsed.phrases,
             prices: parsed.prices,
             sites: parsed.sites,

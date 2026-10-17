@@ -14,6 +14,7 @@ import {
   type FolderScenario,
   HIDDEN_MIX_VOLUME_SIZE,
   hiddenMixVolumeCard,
+  OCR_SHARED_KEYWORD,
   OMNIBOX_HIDDEN_TITLE,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
@@ -792,6 +793,38 @@ describe("devSeed folder packs", () => {
     expect(
       cards.find((card) => card.metadataTitle === OMNIBOX_HIDDEN_TITLE)?.tags
     ).toContain("secret");
+  });
+
+  test("ocr-images seeds image text and twin notes for text:", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-images")).toMatchObject({
+      status: "seeded",
+      cards: 45,
+    });
+    const cards = await cardsOf(t);
+    const read = cards.filter((card) => card.aiOcrText);
+    expect(read).toHaveLength(35);
+    expect(read.every((card) => card.ocrCheckedAt !== undefined)).toBe(true);
+    expect(
+      cards.filter(
+        (card) =>
+          (card.type === "image" || card.type === "video") && !card.aiOcrText
+      )
+    ).toHaveLength(5);
+    expect(Math.max(...read.map((card) => card.aiOcrText?.length ?? 0))).toBe(
+      4000
+    );
+    const shared = cards.filter((card) =>
+      [card.aiOcrText, card.content].some((text) =>
+        text?.includes(OCR_SHARED_KEYWORD)
+      )
+    );
+    expect(shared.map((card) => card.type).sort()).toEqual([
+      "image",
+      "text",
+      "video",
+    ]);
   });
 
   test("save-details seeds text from pages and a page already saved", async () => {

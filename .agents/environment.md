@@ -124,6 +124,15 @@ metadata with a `GIT_SHA` override. The E2E suite's WorkOS emulator values are
 plain constants in `packages/tests/src/stack/config.ts`. Do not add a contract entry
 for a value that is constant across deployments.
 
+## Rules set outside the repository
+
+- `api.teakvault.com/.well-known/agent-skills/index.json` is a Cloudflare
+  redirect rule (308) to `teakvault.com/.well-known/agent-skills/index.json`,
+  which the docs site serves (`apps/docs/scripts/generate-skills.ts`). Agent
+  docs (`ai-agents.mdx`) list both addresses, and
+  `packages/tests/src/docs/extra-prod-surfaces.e2e.ts` probes both, so keep
+  the rule when changing the zone's redirects.
+
 ## Cloud credentials and OIDC (evaluated 2026-09)
 
 - `CONVEX_DEPLOY_KEY` (Backend Deploy): Convex non-interactive auth has no OIDC

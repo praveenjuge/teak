@@ -14,6 +14,7 @@ export const SEARCH_QUALIFIER_KEYS = [
   "like",
   "mood",
   "price",
+  "text",
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
@@ -43,7 +44,9 @@ export type SearchQualifier =
   /** Images whose description matches this text by meaning. */
   | { key: "mood"; value: string }
   /** The bound written the canonical way: `<100`, `>=9.99`. */
-  | { key: "price"; value: string };
+  | { key: "price"; value: string }
+  /** Words that must appear in the text read from an image, as typed. */
+  | { key: "text"; value: string };
 
 /** What a search finds by meaning instead of by its words (one at most). */
 export type SearchSimilarity =
@@ -52,6 +55,8 @@ export type SearchSimilarity =
 
 /** Longest `mood:` text kept. */
 const MAX_MOOD_LENGTH = 200;
+/** Longest `text:` value kept. */
+const MAX_OCR_TEXT_LENGTH = 200;
 /** A Convex document id: lowercase letters and digits. */
 const CARD_ID_PATTERN = /^[0-9a-z]{31,37}$/;
 
@@ -64,6 +69,8 @@ export interface ParsedSearchQuery {
   favorite: boolean;
   /** `folder:` names, trimmed and lowercased like a folder's name key. */
   folders: string[];
+  /** `text:` values, as typed: each must appear in a card's image text. */
+  ocrTexts: string[];
   /** Quoted phrases, matched as written (ignoring case) in a card's text. */
   phrases: string[];
   /** `price:` bounds; a card's amount must meet every one. */
@@ -293,6 +300,10 @@ const parseQualifier = (
       const bound = parsePriceBound(value);
       return bound ? { key, value: formatPriceBound(bound) } : null;
     }
+    case "text": {
+      const text = value.replace(/\s+/g, " ").slice(0, MAX_OCR_TEXT_LENGTH);
+      return text.trim() ? { key, value: text.trim() } : null;
+    }
     default:
       return null;
   }
@@ -301,11 +312,13 @@ const parseQualifier = (
 const isSimilarityKey = (key: SearchQualifierKey) =>
   key === "like" || key === "mood";
 
-// Folder names and moods match whatever their case: `mood:Calm` and
-// `mood:calm` are one anchor.
+// Folder names, moods and image text match whatever their case:
+// `mood:Calm` and `mood:calm` are one anchor.
 const qualifierIdentity = (qualifier: SearchQualifier): string =>
   `${qualifier.key}:${
-    qualifier.key === "folder" || qualifier.key === "mood"
+    qualifier.key === "folder" ||
+    qualifier.key === "mood" ||
+    qualifier.key === "text"
       ? qualifier.value.toLowerCase()
       : qualifier.value
   }`;
@@ -333,8 +346,8 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
 
 /**
  * Reads a search: qualifiers (`tag:`, `#tag`, `type:`, `is:fav`,
- * `is:archived`, `site:`, `folder:`, `price:<100`, `like:<card id>`,
- * `mood:"…"`), quoted phrases and plain words. Keys
+ * `is:archived`, `site:`, `folder:`, `price:<100`, `text:"total due"`,
+ * `like:<card id>`, `mood:"…"`), quoted phrases and plain words. Keys
  * ignore case and take quoted values (`folder:"Reading list"`). A value a
  * key cannot use, an unknown key and a valid hex color after `#` stay plain
  * words. Every surface reads searches with this one parser.
@@ -423,6 +436,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   const sites: string[] = [];
   const folders: string[] = [];
   const prices: PriceBound[] = [];
+  const ocrTexts: string[] = [];
   const is = new Set<SearchIsValue>();
   let similarity: SearchSimilarity | null = null;
   for (const qualifier of qualifiers) {
@@ -443,6 +457,8 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       if (bound) {
         prices.push(bound);
       }
+    } else if (qualifier.key === "text") {
+      ocrTexts.push(qualifier.value);
     } else {
       is.add(qualifier.value);
     }
@@ -460,6 +476,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     phrases,
     text: [...terms, ...phrases].join(" ").trim(),
     tags,
+    ocrTexts,
     types,
     favorite: is.has("fav"),
     archived: is.has("archived"),
@@ -475,7 +492,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
  * One search that matches what both `scope` and `typed` match, written the
  * canonical way, or null when nothing can match both. Within one search
  * `type:` and `site:` match any of their values, so across the two they
- * intersect; tags, folders, prices, phrases, words and `is:` add up, so
+ * intersect; tags, folders, prices, image text, phrases, words and `is:` add up, so
  * `price:>20` and `price:<100` make a range. A smart folder's stored query
  * is the scope and the search box's text is typed.
  */
@@ -572,4 +589,26 @@ export const matchesSearchPhrases = (
   }
   const text = searchableText.toLowerCase();
   return phrases.every((phrase) => text.includes(phrase.toLowerCase()));
+};
+
+const WHITESPACE_RUNS = /\s+/g;
+
+/**
+ * Whether a card's image text contains every `text:` value, ignoring case
+ * and how the text breaks across lines.
+ */
+export const matchesImageText = (
+  imageText: string | null | undefined,
+  values: readonly string[]
+) => {
+  if (values.length === 0) {
+    return true;
+  }
+  if (!imageText) {
+    return false;
+  }
+  const text = imageText.replace(WHITESPACE_RUNS, " ").toLowerCase();
+  return values.every((value) =>
+    text.includes(value.replace(WHITESPACE_RUNS, " ").toLowerCase())
+  );
 };

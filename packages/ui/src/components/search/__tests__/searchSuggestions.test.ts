@@ -52,6 +52,14 @@ describe("buildSearchSuggestions", () => {
     });
   });
 
+  test("text: is offered while typing te", () => {
+    expect(buildSearchSuggestions("te", sources).suggestions[0]).toMatchObject({
+      insert: "text:",
+      detail: "Words in an image",
+      complete: false,
+    });
+  });
+
   test("a word suggests keys, tags, folders and sites that match", () => {
     expect(inserts("de")).toEqual([
       "tag:design",
@@ -162,6 +170,7 @@ describe("describeQualifierChip", () => {
     ["price:<100", "Price", "Under 100"],
     ["price:>=1250.5", "Price", "1,250.5 or more"],
     ["price:=0", "Price", "Exactly 0"],
+    ['text:"Total due"', "Text in image", "Total due"],
   ])("%s", (chip: string, title: string, label: string) => {
     expect(describeQualifierChip(chip)).toMatchObject({ title, label });
   });

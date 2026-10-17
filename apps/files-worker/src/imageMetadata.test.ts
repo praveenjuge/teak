@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { MAX_IMAGE_OCR_CHARS } from "@teak/files-protocol";
 import { parseImageMetadata } from "./imageMetadata";
 
 test.each([
@@ -12,6 +13,46 @@ test.each([
   ["a blank summary", '{"tags":["red"],"summary":"   "}', null],
   ["an array", '[{"tags":["red"],"summary":"A."}]', null],
   ["text that is not JSON", "A red square.", null],
+  [
+    "an answer without text, from an older prompt",
+    '{"tags":["red"],"summary":"A red square."}',
+    { summary: "A red square.", tags: ["red"] },
+  ],
+  [
+    "an empty text",
+    '{"tags":["red"],"summary":"A red square.","text":""}',
+    { summary: "A red square.", tags: ["red"] },
+  ],
+  [
+    "text that is only noise",
+    '{"tags":["red"],"summary":"A red square.","text":" — · "}',
+    { summary: "A red square.", tags: ["red"] },
+  ],
+  [
+    "text read from a receipt, tidied",
+    '{"tags":["receipt"],"summary":"A receipt.","text":"Invoice   4411\\r\\nTotal due: $12  "}',
+    {
+      summary: "A receipt.",
+      tags: ["receipt"],
+      text: "Invoice 4411\nTotal due: $12",
+    },
+  ],
+  [
+    "fenced text",
+    '```json\n{"tags":["sign"],"summary":"A sign.","text":"出口 Exit"}\n```',
+    { summary: "A sign.", tags: ["sign"], text: "出口 Exit" },
+  ],
+  ["text that is a number", '{"tags":["red"],"summary":"A.","text":42}', null],
+  ["text that is null", '{"tags":["red"],"summary":"A.","text":null}', null],
 ])("image metadata from %s", (_name, raw, expected) => {
   expect(parseImageMetadata(raw)).toEqual(expected);
+});
+
+test("text longer than the cap is cut, not rejected", () => {
+  const text = "word ".repeat(1000);
+  const parsed = parseImageMetadata(
+    JSON.stringify({ summary: "A wall of text.", tags: ["text"], text })
+  );
+  expect(parsed?.text).toHaveLength(MAX_IMAGE_OCR_CHARS - 1);
+  expect(parsed?.text?.startsWith("word word")).toBe(true);
 });

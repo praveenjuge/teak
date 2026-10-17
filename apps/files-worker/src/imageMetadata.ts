@@ -1,4 +1,9 @@
-import { parseTextMetadata } from "@teak/files-protocol";
+import {
+  type FilesImageMetadataResult,
+  MAX_IMAGE_OCR_CHARS,
+  normalizeImageOcrText,
+  validateTextMetadata,
+} from "@teak/files-protocol";
 import { aiRunOptions } from "./aiGateway";
 import { meteredAiRun } from "./aiUsage";
 import {
@@ -10,7 +15,9 @@ import type { Env } from "./index";
 import { OpFailure } from "./opFailure";
 
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
-export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 768;
+// Room for up to MAX_IMAGE_OCR_CHARS of text read from the image beside the
+// tags and summary; a cut-off answer fails validation and is retried.
+export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 2048;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
 const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
 const MAX_PROMPT_CHARS = 6000;
@@ -18,21 +25,20 @@ const CAPACITY_RETRY_BASE_DELAY_MS = 250;
 const WORKERS_AI_CAPACITY_ERROR =
   /(?:\b3040\b.*capacity|capacity temporarily exceeded)/iu;
 
-export const IMAGE_ANALYSIS_SYSTEM_PROMPT = `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image. Answer directly without thinking step by step.
+export const IMAGE_ANALYSIS_SYSTEM_PROMPT = `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image, and read any text in it. Answer directly without thinking step by step.
 
 Guidelines:
 - Tags should be 5-6 single words describing objects, scenes, concepts, emotions (no spaces, no hyphens)
 - Summary should be 1-2 sentences describing what the image shows
 - Focus on the main visual elements and context
 - Use clear, searchable language
+- Text is every legible word, number and symbol in the image, copied exactly as written, in reading order, with its line breaks, up to ${MAX_IMAGE_OCR_CHARS} characters. Keep the original language and script; do not translate or correct it.
+- Never describe the image in text. If the image has no legible text, text is "".
 
 Respond with a single JSON object using exactly this shape and no other keys:
-{"tags": ["word", "word"], "summary": "..."}`;
+{"tags": ["word", "word"], "summary": "...", "text": "..."}`;
 
-export interface ImageMetadataResult {
-  summary: string;
-  tags: string[];
-}
+export type ImageMetadataResult = FilesImageMetadataResult;
 
 const boundPrompt = (content: string): string => {
   if (content.length <= MAX_PROMPT_CHARS) {
@@ -44,7 +50,7 @@ const boundPrompt = (content: string): string => {
 const validationRetryPrompt = (prompt: string, attempt: number): string =>
   attempt === 0
     ? prompt
-    : `JSON validation retry ${attempt}: Return only the required JSON object with tags and summary. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
+    : `JSON validation retry ${attempt}: Return only the required JSON object with tags, summary and text. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
 
 const stripJsonFences = (text: string): string => {
   const trimmed = text.trim();
@@ -52,12 +58,30 @@ const stripJsonFences = (text: string): string => {
   return fenced?.[1]?.trim() ?? trimmed;
 };
 
+const parseJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export const parseImageMetadata = (raw: string): ImageMetadataResult | null => {
-  const metadata = parseTextMetadata(stripJsonFences(raw));
+  const value = parseJson(stripJsonFences(raw));
+  const metadata = validateTextMetadata(value);
   const summary = metadata?.summary.trim();
-  return metadata?.tags.length && summary
-    ? { summary, tags: metadata.tags }
-    : null;
+  if (!(metadata?.tags.length && summary)) {
+    return null;
+  }
+  // `text` is optional, so an older prompt's answer still parses; any other
+  // type fails validation and is retried.
+  const rawText = (value as { text?: unknown }).text;
+  if (rawText !== undefined && typeof rawText !== "string") {
+    return null;
+  }
+  const text =
+    rawText === undefined ? undefined : normalizeImageOcrText(rawText);
+  return { summary, tags: metadata.tags, ...(text ? { text } : {}) };
 };
 
 const extractMessageText = (response: unknown): string | null => {
@@ -166,8 +190,8 @@ export const generateImageMetadataForOp = async (
 
   const basePrompt = boundPrompt(
     title
-      ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
-      : "Analyze this image and generate tags and summary:"
+      ? `Image title: ${title}\n\nAnalyze this image, generate tags and summary, and read its text:`
+      : "Analyze this image, generate tags and summary, and read its text:"
   );
   let capacityAttempt = 0;
   let validationAttempt = 0;
