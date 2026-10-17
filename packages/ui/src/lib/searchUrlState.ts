@@ -6,18 +6,43 @@ import {
 import { type CardType, isCardType } from "@teak/convex/shared/constants";
 
 /**
+ * How the library is shown: a list order, or Revisit, a deck of 20 cards
+ * from a Shuffle of the view. Revisit exists only in the app; it queries
+ * as Shuffle.
+ */
+export type LibrarySort = CardListSort | "revisit";
+
+/** Sorts that carry a seed: Shuffle, and Revisit, which deals from one. */
+export const isSeededSort = (sort: LibrarySort): boolean =>
+  sort === "shuffle" || sort === "revisit";
+
+/** The order a view is queried in: Revisit reads a Shuffle. */
+export const queryOrder = (state: {
+  seed?: number;
+  sort: LibrarySort;
+}): { shuffleSeed?: number; sort: CardListSort } =>
+  isSeededSort(state.sort)
+    ? {
+        ...(state.seed === undefined ? {} : { shuffleSeed: state.seed }),
+        sort: "shuffle",
+      }
+    : { sort: normalizeCardListSort(state.sort) };
+
+/**
  * The search a library URL carries: `?q=`, `?sort=oldest` (or
- * `?sort=shuffle&seed=42`), the card types picked in the sidebar as
- * `?type=link,image`, and a sidebar tag as `?tag=design`.
+ * `?sort=shuffle&seed=42`, or `?sort=revisit&seed=42`), the card types
+ * picked in the sidebar as `?type=link,image`, and a sidebar tag as
+ * `?tag=design`.
  */
 export interface SearchUrlState {
   q: string;
   /**
    * Shuffle's seed, so a shared link or Back shows the same order. Only
-   * read with `sort: "shuffle"`; missing there means "pick one".
+   * read with `sort: "shuffle"` or `"revisit"`; missing there means "pick
+   * one".
    */
   seed?: number;
-  sort: CardListSort;
+  sort: LibrarySort;
   /** A tag, lowercased like the tag list; empty or missing for none. */
   tag?: string;
   types: CardType[];
@@ -60,11 +85,16 @@ export function parseCardTypesParam(value: string | null): CardType[] {
   return types;
 }
 
+/** `?sort=` as the library reads it; unknown values are newest. */
+export const parseLibrarySort = (value: string | null): LibrarySort =>
+  value === "revisit" ? value : normalizeCardListSort(value);
+
 /** Reads the search from a URL. Unknown or malformed values fall back. */
 export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
-  const sort = normalizeCardListSort(params.get("sort"));
-  const seed =
-    sort === "shuffle" ? parseShuffleSeed(params.get("seed")) : undefined;
+  const sort = parseLibrarySort(params.get("sort"));
+  const seed = isSeededSort(sort)
+    ? parseShuffleSeed(params.get("seed"))
+    : undefined;
   return {
     q: (params.get("q") ?? "").trim().slice(0, MAX_URL_SEARCH_LENGTH),
     ...(seed === undefined ? {} : { seed }),
@@ -75,7 +105,7 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
 }
 
 const shuffleSeedOf = (state: SearchUrlState): number | undefined =>
-  normalizeCardListSort(state.sort) === "shuffle" ? state.seed : undefined;
+  isSeededSort(parseLibrarySort(state.sort)) ? state.seed : undefined;
 
 /**
  * Writes the search into a copy of `params` and returns the query string.
@@ -93,7 +123,11 @@ export function serializeSearchUrlState(
   } else {
     next.delete("q");
   }
-  if (state.sort === "oldest" || state.sort === "shuffle") {
+  if (
+    state.sort === "oldest" ||
+    state.sort === "shuffle" ||
+    state.sort === "revisit"
+  ) {
     next.set("sort", state.sort);
   } else {
     next.delete("sort");
@@ -127,7 +161,7 @@ export const isSameSearchUrlState = (
   right: SearchUrlState
 ): boolean =>
   left.q.trim() === right.q.trim() &&
-  normalizeCardListSort(left.sort) === normalizeCardListSort(right.sort) &&
+  parseLibrarySort(left.sort) === parseLibrarySort(right.sort) &&
   shuffleSeedOf(left) === shuffleSeedOf(right) &&
   parseTagParam(left.tag ?? null) === parseTagParam(right.tag ?? null) &&
   sameTypes(left.types, right.types);

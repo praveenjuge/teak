@@ -52,10 +52,14 @@ import {
   preloadLibraryDialogs,
   TagManagementModal,
 } from "../components/lazyDialogs";
+import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
+import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
+import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
+import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
@@ -337,25 +341,15 @@ export function CardsScreen({
       timeFilter,
     });
   }, [hexFilters, hueFilters, onVisualFiltersChange, styleFilters, timeFilter]);
-  // An empty library view or folder may be empty because its cards are
-  // hidden; one row read tells, and the empty state then says how to see them.
-  let hiddenHintView: LibraryView = view ?? "all";
-  if (hiddenHintView === "all" && showArchivedOnly) {
-    hiddenHintView = "archive";
-  }
-  const asksForHiddenHint =
-    displayCards.length === 0 &&
-    hasNoSearchFilters &&
-    cardsStatus !== "LoadingFirstPage" &&
-    !(isFolderView && (folder === undefined || isSmartFolder));
-  const hiddenHintArgs = folder
-    ? { folderId: folder._id }
-    : { view: hiddenHintView };
-  const viewHasHiddenCards =
-    useQuery(
-      api.cards.viewHasHiddenCards,
-      asksForHiddenHint ? hiddenHintArgs : "skip"
-    ) === true;
+  const viewHasHiddenCards = useViewHasHiddenCards({
+    asks:
+      displayCards.length === 0 &&
+      hasNoSearchFilters &&
+      cardsStatus !== "LoadingFirstPage" &&
+      !(isFolderView && (folder === undefined || isSmartFolder)),
+    folderId: folder?._id,
+    view: (view ?? "all") === "all" && showArchivedOnly ? "archive" : view,
+  });
   const hiddenCardsHint = viewHasHiddenCards ? (
     <p className="text-muted-foreground text-xs">
       Some cards are hidden. Search #secret or #hidden to see them.
@@ -486,6 +480,18 @@ export function CardsScreen({
     },
     [runBulkAction]
   );
+
+  const revisit = useRevisitMode({
+    archiveOrTrash: showArchivedOnly || showTrashOnly,
+    cardOpen: selectedCardId !== null,
+    empty: displayCards.length === 0 && cardsStatus !== "LoadingFirstPage",
+    librarySort: searchController.librarySort,
+    replaceNextSortChange: urlSync.replaceNextSortChange,
+    reshuffle: searchController.reshuffle,
+    runBulkAction,
+    setSort: searchController.setSort,
+    urlDriven,
+  });
 
   const handleToggleFavorite = useCallback(
     (cardId: string) => {
@@ -824,11 +830,13 @@ export function CardsScreen({
             ? undefined
             : () => setFolderDialog({ mode: "save", query: saveableQuery })
         }
+        onSortChange={revisit.onSortChange}
         placeholder={
           folder
             ? `Search ${clipName(folder.name)}`
             : LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view ?? "all"]
         }
+        revisit={revisit.offer}
         similarAnchorTitle={similarAnchorTitle}
         title={title}
       />
@@ -895,6 +903,17 @@ export function CardsScreen({
         </>
       )}
 
+      {revisit.revisiting && (
+        <ConnectedRevisitDeck
+          onArchive={revisit.onArchive}
+          onExit={revisit.exit}
+          onOpenCard={onOpenCard}
+          onStartOver={revisit.startOver}
+          onUnarchive={revisit.onUnarchive}
+          queryArgs={isFolderView && !folder ? null : queryArgs}
+        />
+      )}
+
       <ConnectedCardModal
         card={selectedCard}
         cardId={selectedCardId}
@@ -915,7 +934,7 @@ export function CardsScreen({
         }
         onTagClick={handleTagClick}
         open={!!selectedCardId}
-        returnFocus={returnFocusToGrid}
+        returnFocus={revisit.revisiting ? focusRevisitDeck : returnFocusToGrid}
       />
 
       <FolderNameDialog

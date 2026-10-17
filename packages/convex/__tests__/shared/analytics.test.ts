@@ -35,6 +35,23 @@ describe("product analytics catalog", () => {
     ]);
   });
 
+  test("sends Revisit's counts and nothing about the cards", () => {
+    const capture = mock();
+    configureAnalytics({ capture });
+
+    captureEvent("revisit_started");
+    captureEvent("revisit_finished", {
+      archived: 3,
+      completed: true,
+      kept: 17,
+    });
+
+    expect(capture.mock.calls).toEqual([
+      ["revisit_started", {}],
+      ["revisit_finished", { archived: 3, completed: true, kept: 17 }],
+    ]);
+  });
+
   test("keeps a failing recorder away from the product flow", () => {
     configureAnalytics({
       capture: () => {

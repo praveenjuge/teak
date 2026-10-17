@@ -27,6 +27,18 @@ describe("createSearchUrlSync", () => {
     ).toBe(true);
   });
 
+  test("can replace the next sort change instead of adding history", () => {
+    const sync = createSearchUrlSync(search({ seed: 1, sort: "revisit" }));
+    sync.replaceNextSortChange();
+    expect(sync.searchSettled(search({ seed: 2, sort: "revisit" }))).toEqual({
+      sortChanged: false,
+      tagChanged: false,
+      typesChanged: false,
+    });
+    // Only the next change: the one after adds history again.
+    expect(sync.searchSettled(search())?.sortChanged).toBe(true);
+  });
+
   test("never echoes the page's own search back from the URL", () => {
     const sync = createSearchUrlSync(search());
     expect(sync.searchSettled(search({ q: "teak" }))).toEqual({

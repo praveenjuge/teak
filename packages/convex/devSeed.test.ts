@@ -18,6 +18,7 @@ import {
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
   PALETTE_MIXED_SMART_FOLDERS,
+  REVISIT_SIZE_GROUPS,
   SEARCH_QUALIFIER_HOSTS,
   SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
   SEARCH_QUALIFIERS_VOLUME_SIZE,
@@ -739,6 +740,39 @@ describe("devSeed folder packs", () => {
     expect(
       cards.find((card) => card.aiTags?.includes("hidden"))?.isHidden
     ).toBeUndefined();
+  });
+
+  test("revisit-sizes seeds its tag groups once, each with one hidden card", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "revisit-sizes")).toMatchObject({
+      status: "seeded",
+      cards: 67,
+      folders: 0,
+    });
+    expect(await seedFolders(t, "revisit-sizes")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const cards = await cardsOf(t);
+    for (const size of REVISIT_SIZE_GROUPS) {
+      const group = cards.filter((card) => card.tags?.includes(`rv${size}`));
+      expect(group.filter((card) => card.isHidden !== true)).toHaveLength(size);
+      expect(group.filter((card) => card.isHidden === true)).toHaveLength(1);
+    }
+    const types = new Set(
+      cards.filter((card) => card.tags?.includes("rv21")).map((c) => c.type)
+    );
+    expect([...types].sort()).toEqual([
+      "audio",
+      "document",
+      "image",
+      "link",
+      "palette",
+      "quote",
+      "text",
+      "video",
+    ]);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

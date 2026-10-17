@@ -15,6 +15,7 @@ import {
   isOnboardingCard,
   ONBOARDING_CARDS,
 } from "./card/defaultCards";
+import { AUDIO_WAVEFORM } from "./card/onboarding/processed";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
 import {
@@ -526,6 +527,7 @@ export const FOLDER_SCENARIOS = [
   "focus-notes",
   "checklists",
   "hidden-mix",
+  "revisit-sizes",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1219,6 +1221,138 @@ const hiddenMixPack = (): FolderScenarioPack => {
   };
 };
 
+/** Revisit's tag groups, by size: `#rv0` holds only a hidden card. */
+export const REVISIT_SIZE_GROUPS = [0, 1, 19, 20, 21] as const;
+
+const REVISIT_START = Date.UTC(2019, 2, 1);
+const REVISIT_SHAPES = [
+  "text",
+  "quote",
+  "link",
+  "palette",
+  "image",
+  "very tall image",
+  "video",
+  "audio",
+  "document",
+  "long title",
+] as const;
+
+const revisitCard = (
+  shape: (typeof REVISIT_SHAPES)[number],
+  label: string
+): Partial<DefaultCardDef> & Pick<DefaultCardDef, "content" | "type"> => {
+  const color = { hex: "#4d96ff" };
+  const file = (
+    fileName: string,
+    mimeType: string,
+    size: { duration?: number; height?: number; width?: number }
+  ) => ({ fileMetadata: { fileName, fileSize: 0, mimeType, ...size } });
+  switch (shape) {
+    case "quote":
+      return { type: "quote", content: `${label}: keep what still matters.` };
+    case "link": {
+      const url = `https://revisit.example/${encodeURIComponent(label)}`;
+      return { type: "link", content: url, url, metadataTitle: label };
+    }
+    case "palette":
+      return {
+        type: "palette",
+        content: label,
+        colors: [{ hex: "#ff6b6b" }, { hex: "#ffd93d" }, { hex: "#6bcb77" }],
+      };
+    case "image":
+      return {
+        type: "image",
+        content: label,
+        colors: [color],
+        ...file(`${label}.png`, "image/png", { width: 1600, height: 1000 }),
+      };
+    case "very tall image":
+      return {
+        type: "image",
+        content: label,
+        colors: [{ hex: "#6bcb77" }],
+        ...file(`${label}.png`, "image/png", { width: 400, height: 2400 }),
+      };
+    case "video":
+      return {
+        type: "video",
+        content: label,
+        metadataTitle: `${label}.mp4`,
+        ...file(`${label}.mp4`, "video/mp4", {
+          width: 1920,
+          height: 1080,
+          duration: 12,
+        }),
+      };
+    case "audio":
+      return {
+        type: "audio",
+        content: label,
+        metadataTitle: `${label}.m4a`,
+        fileMetadata: {
+          ...file(`${label}.m4a`, "audio/mp4", { duration: 17.8 }).fileMetadata,
+          waveform: AUDIO_WAVEFORM,
+        },
+      };
+    case "document":
+      return {
+        type: "document",
+        content: label,
+        ...file(`${label}.pdf`, "application/pdf", {}),
+      };
+    case "long title":
+      return {
+        type: "text",
+        content:
+          `${label} ${"a very long first line that keeps going ".repeat(8)}`.slice(
+            0,
+            300
+          ),
+      };
+    default:
+      return { type: "text", content: `${label}\nA note saved years ago.` };
+  }
+};
+
+/**
+ * Revisit's deck sizes: tag groups `#rv1`, `#rv19`, `#rv20` and `#rv21`
+ * mixing every card type (a very tall image, video, audio, a 300-character
+ * title), and one hidden card in each group, which a deck must never deal;
+ * `#rv0` holds only a hidden card.
+ */
+const revisitSizesPack = (): FolderScenarioPack => {
+  const scenario = "revisit-sizes" as const;
+  const cards: FolderScenarioCard[] = [
+    folderScenarioCard(scenario, 0, "Revisit sizes pack", []),
+  ];
+  let index = 1;
+  for (const size of REVISIT_SIZE_GROUPS) {
+    const tag = `rv${size}`;
+    for (let position = 1; position <= size; position += 1) {
+      const shape =
+        REVISIT_SHAPES[(position - 1) % REVISIT_SHAPES.length] ?? "text";
+      cards.push({
+        ...revisitCard(shape, `${tag} ${position} of ${size} (${shape})`),
+        createdAt: REVISIT_START + index * 86_400_000 * 11,
+        folders: [],
+        tags: [`scenario-${scenario}`, tag],
+      });
+      index += 1;
+    }
+    cards.push({
+      type: "text",
+      content: `${tag} hidden: Revisit must never deal this card`,
+      createdAt: REVISIT_START + index * 86_400_000 * 11,
+      folders: [],
+      tags: [`scenario-${scenario}`, tag, "secret"],
+    });
+    index += 1;
+  }
+  return { folders: [], cards };
+};
+
 export const HIDDEN_MIX_VOLUME_SIZE = ORDERING_SCENARIO_SIZE;
 
 /** The ordering pack's 1,000 cards with every fifth tagged `secret`. */
@@ -1548,6 +1682,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Cards hidden by secret and hidden tags in odd case and spacing: a favorite, an archived, a trashed, a foldered and a site: one, smart folders with and without #secret, and a card whose hidden is only an AI tag. Seed it on two accounts to test ownership.",
     folders: hiddenMixPack,
+  },
+  "revisit-sizes": {
+    description:
+      "Revisit deck sizes: tags rv1, rv19, rv20 and rv21 mixing every card type (a very tall image, video, audio, a 300-character title), each with one secret card a deck must never deal; rv0 holds only that hidden card. Seed ordering too for 1,000 cards.",
+    folders: revisitSizesPack,
   },
   "hidden-mix-1000": {
     description:

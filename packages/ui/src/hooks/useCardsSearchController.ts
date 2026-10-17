@@ -26,7 +26,12 @@ import {
   libraryViewFlags,
   quickCommandTarget,
 } from "../lib/libraryViews";
-import type { SearchUrlState } from "../lib/searchUrlState";
+import {
+  isSeededSort,
+  type LibrarySort,
+  queryOrder,
+  type SearchUrlState,
+} from "../lib/searchUrlState";
 import {
   addChips,
   applyBackspaceToCardsSearchState,
@@ -111,10 +116,15 @@ export interface UseCardsSearchControllerResult {
   /** True while typed text waits for the debounce before querying remotely. */
   isSearchPending: boolean;
   keywordTags: string[];
+  /** The sort as chosen, Revisit included; `sort` is how it queries. */
+  librarySort: LibrarySort;
   qualifierChips: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
-  /** Shuffle again with a new seed (switching to Shuffle if needed). */
+  /**
+   * Shuffle again with a new seed (switching to Shuffle if needed); in
+   * Revisit, deal again from a new seed.
+   */
   reshuffle: () => void;
   searchBarProps: SearchBarProps;
   searchQuery: string;
@@ -128,12 +138,12 @@ export interface UseCardsSearchControllerResult {
     cards: Doc<"cards">[] | undefined,
     remoteQueryKey?: string
   ) => void;
-  setSort: (sort: CardListSort) => void;
+  setSort: (sort: LibrarySort) => void;
   setTimeFilter: (timeFilter: TimeFilter | null) => void;
   showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
-  /** Shuffle's seed while the sort is Shuffle. */
+  /** Shuffle's seed while the sort is Shuffle (or Revisit). */
   shuffleSeed?: number;
   sort: CardListSort;
   styleFilters: VisualStyle[];
@@ -180,21 +190,22 @@ export function useCardsSearchController(
   // Whether the person chose an order during this search; Best match stays
   // the default until they do.
   const [sortPicked, setSortPicked] = useState(false);
-  const setSort = useCallback((next: CardListSort) => {
+  const setSort = useCallback((next: LibrarySort) => {
     setSortPicked(true);
     setOrder((prev) => {
       if (prev.sort === next) {
         return prev;
       }
-      return next === "shuffle"
+      return isSeededSort(next)
         ? { seed: nextShuffleSeed(), sort: next }
         : { sort: next };
     });
   }, []);
   const reshuffle = useCallback(() => {
     setOrder((prev) => ({
-      seed: nextShuffleSeed(prev.sort === "shuffle" ? prev.seed : undefined),
-      sort: "shuffle",
+      seed: nextShuffleSeed(isSeededSort(prev.sort) ? prev.seed : undefined),
+      // Revisit deals again from the new seed; anything else shuffles.
+      sort: prev.sort === "revisit" ? "revisit" : "shuffle",
     }));
   }, []);
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
@@ -304,9 +315,8 @@ export function useCardsSearchController(
     () => effectiveCardsOrder(order, canSortByRelevance, sortPicked),
     [canSortByRelevance, order, sortPicked]
   );
-  const sort = effectiveOrder.sort;
-  const shuffleSeed =
-    effectiveOrder.sort === "shuffle" ? effectiveOrder.seed : undefined;
+  const librarySort = effectiveOrder.sort;
+  const { shuffleSeed, sort } = queryOrder(effectiveOrder);
 
   const queryArgs = useMemo(
     () => ({
@@ -326,16 +336,16 @@ export function useCardsSearchController(
     () => ({
       q: remoteSearchTerms,
       ...(shuffleSeed === undefined ? {} : { seed: shuffleSeed }),
-      sort,
+      sort: librarySort,
       tag: searchState.tagFilter,
       types: searchState.filterTags,
     }),
     [
+      librarySort,
       remoteSearchTerms,
       searchState.filterTags,
       searchState.tagFilter,
       shuffleSeed,
-      sort,
     ]
   );
 
@@ -644,7 +654,7 @@ export function useCardsSearchController(
           tagFilter: "",
         })),
       onClearAll: clearAllFilters,
-      sort,
+      sort: librarySort,
       canSortByRelevance,
       onSortChange: setSort,
       onReshuffle: reshuffle,
@@ -653,18 +663,19 @@ export function useCardsSearchController(
       addQualifier,
       canSortByRelevance,
       clearAllFilters,
+      librarySort,
       onKeyDown,
       onSearchChange,
       reshuffle,
       searchState,
       setSort,
-      sort,
     ]
   );
 
   return {
     searchQuery: searchState.searchQuery,
     keywordTags: searchState.keywordTags,
+    librarySort,
     qualifierChips: searchState.qualifierChips,
     filterTags: searchState.filterTags,
     styleFilters: searchState.styleFilters,
