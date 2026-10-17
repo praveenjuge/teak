@@ -109,32 +109,49 @@ export function buildSuggestions(
   });
 }
 
+const NOTICES: Partial<Record<OmniboxOutcome["kind"], string>> = {
+  empty: "No matching cards",
+  error: "Couldn't reach Teak",
+  rateLimited: "Too many searches, slow down",
+};
+const SIGN_IN = "Sign in to Teak to search";
+
 /**
- * The default row, the one Enter on the typed text picks. `%s` is the
- * browser's placeholder for that text.
+ * The default row, the one Enter on the typed text picks. In Chromium `%s`
+ * is the typed text and the notice follows it. Firefox shows the typed text
+ * beside the row itself, doesn't fill in `%s`, and keeps the row it had when
+ * typing began, so its notices come as a row of their own (`noticeRow`).
  */
 export function defaultSuggestion(
   outcome: OmniboxOutcome,
   flavor: OmniboxFlavor
 ): string {
-  const dim = (text: string) =>
-    flavor === "chromium" ? ` <dim>${text}</dim>` : ` — ${text}`;
-  const search =
-    flavor === "chromium"
-      ? "Search Teak for <match>%s</match>"
-      : "Search Teak for %s";
-  switch (outcome.kind) {
-    case "signedOut":
-      return "Sign in to Teak to search";
-    case "empty":
-      return `${search}${dim("No matching cards")}`;
-    case "error":
-      return `${search}${dim("Couldn't reach Teak")}`;
-    case "rateLimited":
-      return `${search}${dim("Too many searches, slow down")}`;
-    default:
-      return search;
+  if (outcome.kind === "signedOut") {
+    return SIGN_IN;
   }
+  if (flavor === "firefox") {
+    return "Search Teak";
+  }
+  const notice = NOTICES[outcome.kind];
+  const search = "Search Teak for <match>%s</match>";
+  return notice ? `${search} <dim>${notice}</dim>` : search;
+}
+
+/**
+ * Firefox's notice as a suggestion: choosing it searches the typed text, as
+ * Enter does. Chromium shows its notices on the default row instead.
+ */
+export function noticeRow(
+  outcome: OmniboxOutcome,
+  text: string,
+  flavor: OmniboxFlavor
+): OmniboxSuggestion | null {
+  const notice = outcome.kind === "signedOut" ? SIGN_IN : NOTICES[outcome.kind];
+  // Firefox drops a row whose content is exactly the typed text; the space
+  // keeps it, and Enter trims it off.
+  return flavor === "firefox" && notice && text.trim()
+    ? { content: `${text.trim()} `, description: notice }
+    : null;
 }
 
 /**

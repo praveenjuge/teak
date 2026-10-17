@@ -19,6 +19,7 @@ interface UseExtensionSessionResult {
   isPending: boolean;
   notice?: string;
   pendingCount: number;
+  privateSession: boolean;
   refetch: () => void;
 }
 
@@ -29,6 +30,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasPendingFlow, setHasPendingFlow] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [privateSession, setPrivateSession] = useState(false);
 
   const fetchSession = useCallback(async () => {
     setError(null);
@@ -47,6 +49,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
       setNotice(typeof state.notice === "string" ? state.notice : undefined);
       setHasPendingFlow(Boolean(state.pending));
       setPendingCount(state.pendingCount ?? 0);
+      setPrivateSession(Boolean(state.privateSession));
       setData(state.authenticated && state.user ? { user: state.user } : null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Unknown error"));
@@ -83,6 +86,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
     hasPendingFlow,
     notice,
     pendingCount,
+    privateSession,
     isPending,
     refetch: fetchSession,
   };

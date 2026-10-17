@@ -383,13 +383,18 @@ const getIconMarkup = (state: ButtonState): string => {
   return ICONS[state];
 };
 
+/** The icon's fixed markup, parsed in an inert document instead of assigned as HTML. */
+const iconNodes = (markup: string): Node[] => [
+  ...new DOMParser().parseFromString(markup, "text/html").body.childNodes,
+];
+
 const setButtonState = (
   button: HTMLButtonElement,
   state: ButtonState,
   errorMessage?: string
 ) => {
   button.dataset.state = state;
-  button.innerHTML = getIconMarkup(state);
+  button.replaceChildren(...iconNodes(getIconMarkup(state)));
   const label =
     state === "error" && errorMessage
       ? `${STATE_LABELS[state]}: ${errorMessage}`

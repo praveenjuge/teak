@@ -1,5 +1,6 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import { Button } from "@teak/ui/components/ui/button";
+import { cn } from "@teak/ui/lib/utils";
 import { Wordmark } from "@teak/ui/logo";
 import {
   ArrowUpRight,
@@ -24,8 +25,35 @@ import {
   type PopupStatus,
   type PopupTone,
 } from "../../lib/popupStatus";
+import { isPrivateSession } from "../../lib/privateSession";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
 import { SaveDetails } from "./SaveDetails";
+
+// Firefox closes the toolbar popup as its file picker opens, and the chosen
+// file with it, so there "Upload file" opens this page in a window of its own.
+const UPLOAD_HASH = "#upload";
+const UPLOADS_IN_WINDOW = import.meta.env.BROWSER === "firefox";
+const IS_UPLOAD_WINDOW = window.location.hash === UPLOAD_HASH;
+if (IS_UPLOAD_WINDOW) {
+  document.body.classList.replace("w-90", "w-full");
+}
+
+const UPLOAD_PROMPT: PopupStatus = {
+  autoClose: false,
+  detail: "Up to 100 MB",
+  title: "Choose a file to save",
+  tone: "info",
+};
+
+const openUploadWindow = async () => {
+  await chrome.windows.create({
+    height: 400,
+    type: "popup",
+    url: chrome.runtime.getURL(`popup.html${UPLOAD_HASH}`),
+    width: 400,
+  });
+  window.close();
+};
 
 const TONES: Record<PopupTone, { className: string; icon: LucideIcon }> = {
   error: { className: "bg-destructive/10 text-destructive", icon: X },
@@ -64,6 +92,7 @@ function App() {
     hasPendingFlow,
     pendingCount,
     notice,
+    privateSession,
   } = useExtensionSession();
 
   if (isPending) {
@@ -102,11 +131,18 @@ function App() {
         isFinishingSignIn={hasPendingFlow}
         notice={notice}
         pendingCount={pendingCount}
+        privateSession={privateSession}
       />
     );
   }
 
-  return <AuthenticatedPopup pendingCount={pendingCount} user={session.user} />;
+  return (
+    <AuthenticatedPopup
+      pendingCount={pendingCount}
+      privateSession={privateSession}
+      user={session.user}
+    />
+  );
 }
 
 function StatusView({
@@ -139,6 +175,26 @@ function StatusView({
       {children}
     </div>
   );
+}
+
+function PrivateSessionNotice({
+  className,
+  show,
+}: {
+  className?: string;
+  show: boolean;
+}) {
+  return show ? (
+    <p
+      className={cn(
+        "text-balance text-center text-muted-foreground text-xs",
+        className
+      )}
+    >
+      Firefox is in private browsing mode, so Teak forgets your sign-in and
+      unsent saves when it closes.
+    </p>
+  ) : null;
 }
 
 function PendingSavesNotice({ count }: { count: number }) {
@@ -207,10 +263,12 @@ function AuthPanel({
   isFinishingSignIn,
   pendingCount,
   notice,
+  privateSession,
 }: {
   isFinishingSignIn: boolean;
   pendingCount: number;
   notice?: string;
+  privateSession: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const handleSignIn = async () => {
@@ -237,6 +295,7 @@ function AuthPanel({
         </p>
       </div>
       <PendingSavesNotice count={pendingCount} />
+      <PrivateSessionNotice show={privateSession} />
       {notice ? (
         <p className="text-muted-foreground" role="status">
           {notice}
@@ -271,12 +330,17 @@ function AuthPanel({
 function AuthenticatedPopup({
   user,
   pendingCount,
+  privateSession,
 }: {
   user: SessionUser;
   pendingCount: number;
+  privateSession: boolean;
 }) {
-  const { state: contextMenuState, isRecentSave } = useContextMenuSave();
-  const autoSave = useAutoSaveUrl(!isRecentSave);
+  const { state: contextMenuState, isRecentSave: recentMenuSave } =
+    useContextMenuSave();
+  // The upload window saves only the file it's given.
+  const isRecentSave = recentMenuSave && !IS_UPLOAD_WINDOW;
+  const autoSave = useAutoSaveUrl(!(isRecentSave || IS_UPLOAD_WINDOW));
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [detailsTouched, setDetailsTouched] = useState(false);
@@ -287,7 +351,7 @@ function AuthenticatedPopup({
     state: FileUploadState;
   }>({ state: "idle" });
 
-  const status = getPopupStatus({
+  const baseStatus = getPopupStatus({
     autoSave: {
       code: autoSave.code,
       error: autoSave.error,
@@ -298,6 +362,7 @@ function AuthenticatedPopup({
     detailsTouched,
     fileUpload,
   });
+  const status = baseStatus ?? (IS_UPLOAD_WINDOW ? UPLOAD_PROMPT : null);
   // Tags and a note, once the page is saved or found already saved.
   const detailsCardId =
     !isRecentSave &&
@@ -333,21 +398,25 @@ function AuthenticatedPopup({
     let result: TeakSaveResponse;
     try {
       const id = crypto.randomUUID();
-      await storePendingSave({
-        ownerId: user.id,
-        id,
-        createdAt: Date.now(),
-        kind: "file",
-        input: {
-          bytes: file,
-          fileName,
-          mimeType: file.type,
-          source: "popup-file",
-        },
-      });
+      // A private session can't store the file here, so it goes along.
+      const inPrivate = isPrivateSession();
+      if (!inPrivate) {
+        await storePendingSave({
+          ownerId: user.id,
+          id,
+          createdAt: Date.now(),
+          kind: "file",
+          input: {
+            bytes: file,
+            fileName,
+            mimeType: file.type,
+            source: "popup-file",
+          },
+        });
+      }
       result = await chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.SAVE_FILE,
-        payload: { id },
+        payload: inPrivate ? { file, id } : { id },
       });
     } catch {
       fail("Could not save the file. Please try again.");
@@ -439,6 +508,8 @@ function AuthenticatedPopup({
         </p>
       ) : null}
 
+      <PrivateSessionNotice className="px-6 pb-3" show={privateSession} />
+
       <footer className="flex items-center gap-1 border-t py-2 pr-2 pl-4">
         <span
           className="min-w-0 flex-1 truncate text-muted-foreground text-xs"
@@ -456,28 +527,41 @@ function AuthenticatedPopup({
         >
           Sign out
         </Button>
-        <Button
-          aria-disabled={isUploading}
-          asChild
-          className={
-            isUploading ? "pointer-events-none opacity-50" : "cursor-pointer"
-          }
-          size="sm"
-          variant="outline"
-        >
-          <label>
+        {UPLOADS_IN_WINDOW && !IS_UPLOAD_WINDOW ? (
+          <Button
+            onClick={() => {
+              void openUploadWindow();
+            }}
+            size="sm"
+            variant="outline"
+          >
             <Upload />
             Upload file
-            <input
-              className="sr-only"
-              disabled={isUploading}
-              onChange={(event) => {
-                void handleFileSelected(event);
-              }}
-              type="file"
-            />
-          </label>
-        </Button>
+          </Button>
+        ) : (
+          <Button
+            aria-disabled={isUploading}
+            asChild
+            className={
+              isUploading ? "pointer-events-none opacity-50" : "cursor-pointer"
+            }
+            size="sm"
+            variant="outline"
+          >
+            <label>
+              <Upload />
+              Upload file
+              <input
+                className="sr-only"
+                disabled={isUploading}
+                onChange={(event) => {
+                  void handleFileSelected(event);
+                }}
+                type="file"
+              />
+            </label>
+          </Button>
+        )}
       </footer>
     </div>
   );

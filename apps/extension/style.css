@@ -4,6 +4,8 @@
 
 @source "../../packages/ui/src/logo.tsx";
 @source "../../packages/ui/src/components/ui/button.tsx";
+/* Test strings are not styles; AMO's rebuild from the sources zip has no tests. */
+@source not "./__tests__";
 
 /*
  * The popup window follows the page's height. The shared styles stretch html

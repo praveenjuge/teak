@@ -8,6 +8,7 @@ import {
 const originalFetch = globalThis.fetch;
 const originalChrome = globalThis.chrome;
 const originalToken = process.env.WXT_POSTHOG_PROJECT_TOKEN;
+const originalBrowser = process.env.BROWSER;
 let fetchMock: ReturnType<typeof mock>;
 
 const sentEvents = () =>
@@ -33,6 +34,11 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   globalThis.chrome = originalChrome;
+  if (originalBrowser === undefined) {
+    delete process.env.BROWSER;
+  } else {
+    process.env.BROWSER = originalBrowser;
+  }
   if (originalToken === undefined) {
     delete process.env.WXT_POSTHOG_PROJECT_TOKEN;
   } else {
@@ -43,6 +49,14 @@ afterEach(() => {
 describe("extension telemetry", () => {
   test("development builds without a token send nothing", async () => {
     delete process.env.WXT_POSTHOG_PROJECT_TOKEN;
+    await captureExtensionEvent("extension_card_saved", { via: "content" });
+    await captureExtensionException(new Error("boom"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("the Firefox build sends nothing, even with a token", async () => {
+    process.env.BROWSER = "firefox";
+    process.env.WXT_POSTHOG_PROJECT_TOKEN = "phc_test";
     await captureExtensionEvent("extension_card_saved", { via: "content" });
     await captureExtensionException(new Error("boom"));
     expect(fetchMock).not.toHaveBeenCalled();
