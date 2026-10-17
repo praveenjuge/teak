@@ -127,6 +127,9 @@ function runPendingSave(
           { request }
         );
       }
+      // A private session keeps an asset save as one, since session storage
+      // can't hold the downloaded file; a retry downloads it again.
+      const keepsFile = !(isPrivateSession() && save.kind === "asset");
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
         if ("status" in file) {
@@ -140,7 +143,9 @@ function runPendingSave(
           kind: "file",
           input: file,
         };
-        await updatePendingSave(save);
+        if (keepsFile) {
+          await updatePendingSave(save);
+        }
       }
       const fileSave = save;
       return saveFileToTeak(
@@ -149,7 +154,9 @@ function runPendingSave(
           request,
           onUploaded: async (uploaded) => {
             fileSave.input.uploaded = uploaded;
-            await updatePendingSave(fileSave);
+            if (keepsFile) {
+              await updatePendingSave(fileSave);
+            }
           },
         }
       );
@@ -175,7 +182,11 @@ function runPendingSave(
     if (
       result.status === "saved" ||
       result.status === "duplicate" ||
-      (result.status === "error" && permanentCodes.includes(result.code ?? ""))
+      (result.status === "error" &&
+        permanentCodes.includes(result.code ?? "")) ||
+      // A private session can't keep a file past its upload; the upload
+      // window shows how it ended.
+      (pending.kind === "file" && isPrivateSession())
     ) {
       await removePendingSave(save.id);
     }

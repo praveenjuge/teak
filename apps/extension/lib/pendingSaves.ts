@@ -15,8 +15,31 @@ export type PendingSave = {
 
 const MAX_PENDING_SAVES = 20;
 const TOO_MANY_PENDING = "Finish your pending saves before adding more.";
-// In a private session (see isPrivateSession), saves wait here instead.
-const memory = new Map<string, PendingSave>();
+
+// A private session (see isPrivateSession) can't open IndexedDB. Text and
+// asset saves wait in session storage instead, which outlives the background
+// page until Firefox closes. A file can't go there, so it waits in memory for
+// its own upload only (runPendingSave drops it once that upload ends).
+const SESSION_KEY = "teakPendingSaves";
+type SessionSaves = Record<string, PendingSave>;
+const files = new Map<string, PendingSave>();
+const readSession = async () =>
+  ((await chrome.storage.session.get(SESSION_KEY))[SESSION_KEY] ??
+    {}) as SessionSaves;
+let sessionWrites: Promise<unknown> = Promise.resolve();
+const editSession = (edit: (saves: SessionSaves) => void) => {
+  const write = sessionWrites.then(async () => {
+    const saves = await readSession();
+    edit(saves);
+    await chrome.storage.session.set({ [SESSION_KEY]: saves });
+  });
+  sessionWrites = write.catch(() => undefined);
+  return write;
+};
+const privateIds = async () => [
+  ...Object.keys(await readSession()),
+  ...files.keys(),
+];
 
 // IndexedDB preserves file Blobs across popup closure and worker restarts.
 // It belongs to the extension origin; page content scripts cannot access it.
@@ -51,7 +74,7 @@ async function transaction<T>(
 
 export const listPendingSaveIds = async () =>
   isPrivateSession()
-    ? [...memory.keys()]
+    ? await privateIds()
     : ((await transaction("readonly", (store) =>
         store.getAllKeys()
       )) as string[]);
@@ -61,13 +84,16 @@ export const waitingSaveIds = (
 ) => ids.filter((id) => !running.has(id));
 export const getPendingSave = async (id: string) =>
   isPrivateSession()
-    ? memory.get(id)
+    ? (files.get(id) ?? (await readSession())[id])
     : ((await transaction("readonly", (store) => store.get(id))) as
         | PendingSave
         | undefined);
 export const removePendingSave = async (id: string) => {
   if (isPrivateSession()) {
-    memory.delete(id);
+    files.delete(id);
+    await editSession((saves) => {
+      delete saves[id];
+    });
   } else {
     await transaction("readwrite", (store) => store.delete(id));
   }
@@ -75,7 +101,13 @@ export const removePendingSave = async (id: string) => {
 };
 export const updatePendingSave = async (save: PendingSave) => {
   if (isPrivateSession()) {
-    memory.set(save.id, save);
+    if (save.kind === "file") {
+      files.set(save.id, save);
+    } else {
+      await editSession((saves) => {
+        saves[save.id] = save;
+      });
+    }
     return;
   }
   await transaction("readwrite", (store) => store.put(save));
@@ -85,10 +117,19 @@ const notifyQueueChange = () =>
 
 export async function storePendingSave(save: PendingSave) {
   if (isPrivateSession()) {
-    if (memory.size >= MAX_PENDING_SAVES) {
-      throw new Error(TOO_MANY_PENDING);
+    if (save.kind === "file") {
+      if ((await privateIds()).length >= MAX_PENDING_SAVES) {
+        throw new Error(TOO_MANY_PENDING);
+      }
+      files.set(save.id, save);
+    } else {
+      await editSession((saves) => {
+        if (Object.keys(saves).length + files.size >= MAX_PENDING_SAVES) {
+          throw new Error(TOO_MANY_PENDING);
+        }
+        saves[save.id] = save;
+      });
     }
-    memory.set(save.id, save);
     await notifyQueueChange();
     return;
   }
