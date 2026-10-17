@@ -49,6 +49,7 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  onInteractOutside,
   overlayClassName,
   showCloseButton = true,
   ...props
@@ -75,6 +76,16 @@ function DialogContent({
           className
         )}
         data-slot="dialog-content"
+        onInteractOutside={(event) => {
+          // A toast's action, such as Undo, is used without closing the dialog.
+          if (
+            event.target instanceof Element &&
+            event.target.closest("[data-sonner-toaster]")
+          ) {
+            event.preventDefault();
+          }
+          onInteractOutside?.(event);
+        }}
         {...props}
       >
         {children}

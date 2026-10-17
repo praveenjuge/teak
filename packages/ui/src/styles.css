@@ -221,6 +221,12 @@
   border-radius: 1.25rem;
 }
 
+/* An open dialog turns off pointer events on the page; a toast's Undo still
+   takes a click. */
+[data-sonner-toaster] [data-sonner-toast] {
+  pointer-events: auto;
+}
+
 [data-sonner-toaster] .sonner-loading-bar {
   background: var(--teak-toast-text);
 }
