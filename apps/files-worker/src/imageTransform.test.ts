@@ -88,7 +88,7 @@ describe("Cloudflare image transformations", () => {
         anim: true,
         fit: "scale-down",
         format: "avif",
-        height: 512,
+        height: 4096,
         metadata: "none",
         "origin-auth": "share-publicly",
         quality: 80,
@@ -274,7 +274,7 @@ describe("Cloudflare image transformations", () => {
           anim: true,
           fit: "scale-down",
           format: "avif",
-          height: edge,
+          height: edge * 8,
           metadata: "none",
           "origin-auth": "share-publicly",
           quality: rendition === "tiny" ? 60 : 80,
@@ -328,7 +328,7 @@ describe("Cloudflare image transformations", () => {
     expect(response.headers.get("cache-control")).toContain("private");
     expect(response.headers.get("etag")).toMatch(/-grid"$/u);
     expect(transforms).toEqual([
-      { fit: "scale-down", height: 512, sharpen: 1, width: 512 },
+      { fit: "scale-down", height: 4096, sharpen: 1, width: 512 },
     ]);
     expect(outputs).toEqual([
       { anim: true, format: "image/avif", quality: 80 },
