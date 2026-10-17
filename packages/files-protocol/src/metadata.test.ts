@@ -20,7 +20,11 @@ describe("text read from an image", () => {
       "Invoice 4411\n  Paid",
     ],
     ["drops control characters", "Exit\u0007 now", "Exit now"],
-    ["keeps right-to-left marks and joiners", "‏שלום‏", "‏שלום‏"],
+    [
+      "keeps right-to-left marks and joiners",
+      "\u200Fשלום\u200F",
+      "\u200Fשלום\u200F",
+    ],
     ["keeps non-Latin scripts", "東京駅 出口", "東京駅 出口"],
   ])("%s", (_name, input, expected) => {
     expect(normalizeImageOcrText(input)).toBe(expected);

@@ -79,9 +79,15 @@ export const parseImageMetadata = (raw: string): ImageMetadataResult | null => {
   if (rawText !== undefined && typeof rawText !== "string") {
     return null;
   }
+  // A read that found nothing is `""`, so callers can tell it from an
+  // answer without `text` (an older Worker).
   const text =
-    rawText === undefined ? undefined : normalizeImageOcrText(rawText);
-  return { summary, tags: metadata.tags, ...(text ? { text } : {}) };
+    rawText === undefined ? undefined : (normalizeImageOcrText(rawText) ?? "");
+  return {
+    summary,
+    tags: metadata.tags,
+    ...(text === undefined ? {} : { text }),
+  };
 };
 
 const extractMessageText = (response: unknown): string | null => {

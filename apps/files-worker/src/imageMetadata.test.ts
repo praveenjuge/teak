@@ -21,12 +21,12 @@ test.each([
   [
     "an empty text",
     '{"tags":["red"],"summary":"A red square.","text":""}',
-    { summary: "A red square.", tags: ["red"] },
+    { summary: "A red square.", tags: ["red"], text: "" },
   ],
   [
     "text that is only noise",
     '{"tags":["red"],"summary":"A red square.","text":" — · "}',
-    { summary: "A red square.", tags: ["red"] },
+    { summary: "A red square.", tags: ["red"], text: "" },
   ],
   [
     "text read from a receipt, tidied",
