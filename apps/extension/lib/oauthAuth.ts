@@ -70,9 +70,9 @@ export const reachTeak = <T>(request: Promise<T>) =>
   });
 
 function fetchAuth(url: string, init: RequestInit) {
-  // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   return reachTeak(
+    // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
     fetch(validateOAuthUrl(url, LOCAL).href, {
       ...init,
       credentials: "omit",

@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import fs from "node:fs";
-import path from "node:path";
 
-const workflow = fs.readFileSync(
-  path.resolve(import.meta.dir, "../.github/workflows/extension-release.yml"),
-  "utf8"
-);
+const workflow = await Bun.file(
+  new URL("../.github/workflows/extension-release.yml", import.meta.url)
+).text();
 const firefox = workflow.slice(workflow.indexOf("\n  firefox:\n"));
 const expression = (value: string) => `\${{ ${value} }}`;
 const shellVariable = (name: string) => `\${${name}}`;
