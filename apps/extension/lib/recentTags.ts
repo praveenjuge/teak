@@ -51,7 +51,11 @@ export async function rememberTags(
   if (used.length === 0) {
     return;
   }
-  const tags = mergeRecentTags(used, await readRecentTags(userId));
+  // Callers pass a card's whole tag list, which ends with the tags just added.
+  const tags = mergeRecentTags(
+    [...used].reverse(),
+    await readRecentTags(userId)
+  );
   await chrome.storage.local.set({
     [recentTagsKey()]: { tags, userId } satisfies StoredRecentTags,
   });

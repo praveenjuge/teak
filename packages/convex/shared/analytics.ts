@@ -36,6 +36,8 @@ export interface ClientEventCatalog {
   export_failed: { error_class?: string };
   export_started: NoProperties;
   extension_card_saved: { card_type?: string; via?: string };
+  /** Enter in the address bar's Teak mode: a suggested card, or the search. */
+  extension_omnibox_used: { result: "card" | "search" };
   file_upload_completed: { bucket: string; size_bucket: SizeBucket };
   file_upload_failed: {
     bucket: string;

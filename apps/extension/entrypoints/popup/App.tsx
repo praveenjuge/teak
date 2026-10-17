@@ -1,4 +1,3 @@
-import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import { Button } from "@teak/ui/components/ui/button";
 import { Wordmark } from "@teak/ui/logo";
@@ -17,6 +16,7 @@ import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
+import { APP_URL } from "../../lib/appUrl";
 import { storePendingSave } from "../../lib/pendingSaves";
 import {
   type FileUploadState,
@@ -26,10 +26,6 @@ import {
 } from "../../lib/popupStatus";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
 import { SaveDetails } from "./SaveDetails";
-
-const APP_URL = import.meta.env.DEV
-  ? resolveTeakDevAppUrl(import.meta.env)
-  : "https://app.teakvault.com";
 
 const TONES: Record<PopupTone, { className: string; icon: LucideIcon }> = {
   error: { className: "bg-destructive/10 text-destructive", icon: X },

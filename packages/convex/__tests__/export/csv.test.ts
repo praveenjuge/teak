@@ -90,14 +90,23 @@ describe("buildCardsCsv", () => {
       "false",
       "2026-10-01T00:00:00.000Z",
       "",
+      "",
     ]);
   });
 
-  test("ends a sourced card's row with its page", () => {
+  test("ends a sourced card's row with its page and the page's title", () => {
     const rows = parse(
-      buildCardsCsv([card({ sourceUrl: "https://example.com/essay" })])
+      buildCardsCsv([
+        card({
+          sourceTitle: "On simplicity",
+          sourceUrl: "https://example.com/essay",
+        }),
+      ])
     );
-    expect(rows[1]?.at(-1)).toBe("https://example.com/essay");
+    expect(rows[1]?.slice(-2)).toEqual([
+      "https://example.com/essay",
+      "On simplicity",
+    ]);
   });
 
   test("an empty library is just the header", () => {

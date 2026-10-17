@@ -14,6 +14,7 @@ import {
   type FolderScenario,
   HIDDEN_MIX_VOLUME_SIZE,
   hiddenMixVolumeCard,
+  OMNIBOX_HIDDEN_TITLE,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
@@ -774,6 +775,23 @@ describe("devSeed folder packs", () => {
       "text",
       "video",
     ]);
+  });
+
+  test("omnibox-titles seeds titles to escape and one hidden card", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "omnibox-titles")).toMatchObject({
+      status: "seeded",
+      cards: 11,
+    });
+    const cards = await cardsOf(t);
+    const titles = cards.map((card) => card.metadataTitle);
+    expect(titles).toContain("Omnibox <script>alert(1)</script>");
+    expect(titles).toContain("");
+    expect(titles.some((title) => title?.length === 300)).toBe(true);
+    expect(
+      cards.find((card) => card.metadataTitle === OMNIBOX_HIDDEN_TITLE)?.tags
+    ).toContain("secret");
   });
 
   test("save-details seeds text from pages and a page already saved", async () => {

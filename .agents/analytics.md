@@ -19,7 +19,7 @@ Split any insight by `$lib`.
 | Web server | `teak-web-server` | Render, route and action errors | `apps/web/src/instrumentation.ts` |
 | Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures | `packages/convex/telemetry/posthog.ts` |
 | Files worker | `teak-files-worker` | Op failures, uncaught errors, non-retryable background (workflow, queue) failures, and card processing's `$ai_generation` and `card_processing_completed` | `apps/files-worker/src/telemetry.ts`, `src/workflows/telemetry.ts` |
-| Browser extension | `teak-extension` | Errors, `extension_card_saved`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
+| Browser extension | `teak-extension` | Errors, `extension_card_saved`, `extension_omnibox_used`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
 | Apple app | `posthog-ios` | Lifecycle events, identify, crashes (main app only; Share and Safari extensions send nothing) | `apps/apple/Teak/App/PostHogReporting.swift` |
 | Android app | `posthog-android` | Lifecycle events, identify, crashes | `apps/android/.../TeakApplication.kt` |
 
@@ -39,6 +39,7 @@ Client events (`captureEvent`):
 - `export_started`, `export_completed` (download), `export_failed` {error_class}
 - `checkout_started`, `checkout_opened`
 - `signed_in`, `extension_card_saved` {via}
+- `extension_omnibox_used` {result: `card` or `search`}: Enter in the address bar's Teak mode opened a suggested card or the web search. The query text is never sent
 
 Server events (`captureBackendEvent`):
 

@@ -509,6 +509,29 @@ test("development cannot read or clear production credentials", async () => {
   expect(storage.teakOAuthOwner).toBe("production-owner");
 });
 
+test("a caller's abort signal cancels its request", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 60_000,
+    ...workosBinding,
+  };
+  globalThis.fetch = withDiscovery(((_input, init) => {
+    const signal = init?.signal;
+    return new Promise<Response>((_resolve, reject) => {
+      signal?.addEventListener("abort", () => reject(signal.reason));
+    });
+  }) as typeof fetch);
+  const auth = await load();
+  const controller = new AbortController();
+  const request = auth.oauthRequest("/v1/cards?q=design", {
+    signal: controller.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  controller.abort();
+  await expect(request).rejects.toThrow();
+});
+
 test("a successful refresh reuses discovery and a rejected refresh fetches it again", async () => {
   storage[tokenKey] = {
     accessToken,

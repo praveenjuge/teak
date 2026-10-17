@@ -1,4 +1,5 @@
 import { API_IDEMPOTENCY_KEY_TTL_MS } from "@teak/convex/shared/constants";
+import { APP_URL } from "../lib/appUrl";
 import { getCaptureOwner } from "../lib/captureOwner";
 import {
   createDraftKeeper,
@@ -13,6 +14,17 @@ import {
   oauthRequest,
   signOutOAuth,
 } from "../lib/oauthAuth";
+import {
+  buildSuggestions,
+  cardUrlFrom,
+  createOmniboxSearch,
+  defaultSuggestion,
+  type OmniboxFlavor,
+  type OmniboxOutcome,
+  searchOmnibox,
+  searchUrl,
+  stillSignedOut,
+} from "../lib/omnibox";
 import {
   getPendingSave,
   listPendingSaveIds,
@@ -351,6 +363,81 @@ export default defineBackground(() => {
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
   chrome.runtime.onMessage.addListener(handleRuntimeMessage);
   chrome.runtime.onConnect.addListener(handleSaveDetailsPort);
+  listenToOmnibox();
+
+  // `teak <query>` in the address bar: suggestions from the library, Enter
+  // on a suggestion opens its card, Enter on the text opens the search.
+  function listenToOmnibox() {
+    const flavor: OmniboxFlavor =
+      import.meta.env.BROWSER === "firefox" ? "firefox" : "chromium";
+    let suggest:
+      | ((suggestions: chrome.omnibox.SuggestResult[]) => void)
+      | undefined;
+    let signedOut = false;
+    const showDefault = (outcome: OmniboxOutcome) =>
+      chrome.omnibox.setDefaultSuggestion({
+        description: defaultSuggestion(
+          signedOut ? { kind: "signedOut" } : outcome,
+          flavor
+        ),
+      });
+    const search = createOmniboxSearch({
+      search: (text, signal) =>
+        searchOmnibox(text, signal, (path, init) => oauthRequest(path, init)),
+      show: (_text, outcome) => {
+        signedOut = stillSignedOut(signedOut, outcome);
+        showDefault(outcome);
+        suggest?.(
+          outcome.kind === "results"
+            ? buildSuggestions(outcome.cards, flavor)
+            : []
+        );
+      },
+    });
+
+    chrome.omnibox.onInputStarted.addListener(() => {
+      search.reset();
+      signedOut = false;
+      showDefault({ kind: "short" });
+      void getOAuthState()
+        .then((state) => {
+          if (!state.authenticated) {
+            signedOut = true;
+            showDefault({ kind: "signedOut" });
+          }
+        })
+        .catch(() => undefined);
+    });
+    chrome.omnibox.onInputChanged.addListener((text, callback) => {
+      suggest = callback;
+      search.input(text);
+    });
+    chrome.omnibox.onInputCancelled.addListener(() => search.reset());
+    chrome.omnibox.onInputEntered.addListener((text, disposition) => {
+      search.reset();
+      suggest = undefined;
+      void (async () => {
+        const state = await getOAuthState().catch(() => undefined);
+        if (state && !state.authenticated) {
+          await beginOAuthSignIn().catch(() => undefined);
+          return;
+        }
+        const card = cardUrlFrom(text, APP_URL);
+        const url = card ?? searchUrl(APP_URL, text);
+        if (disposition === "currentTab") {
+          await chrome.tabs.update({ url });
+        } else {
+          await chrome.tabs.create({
+            url,
+            active: disposition === "newForegroundTab",
+          });
+        }
+        await captureExtensionEvent("extension_omnibox_used", {
+          result: card ? "card" : "search",
+        });
+      })();
+    });
+  }
 
   // The popup's tags and note still unsaved when it closes land from here.
   function handleSaveDetailsPort(port: chrome.runtime.Port) {

@@ -55,3 +55,10 @@ describe("wxt build", () => {
     expect(runBuildBeforeHook).not.toThrow();
   });
 });
+
+describe("manifest", () => {
+  test("claims the `teak` keyword for address-bar search", () => {
+    const manifest = config.manifest as { omnibox?: { keyword?: string } };
+    expect(manifest.omnibox?.keyword).toBe("teak");
+  });
+});

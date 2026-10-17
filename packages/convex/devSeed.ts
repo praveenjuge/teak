@@ -530,6 +530,7 @@ export const FOLDER_SCENARIOS = [
   "hidden-mix",
   "revisit-sizes",
   "save-details",
+  "omnibox-titles",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1166,6 +1167,56 @@ const saveDetailsPack = (): FolderScenarioPack => {
   };
 };
 
+/** A card the address-bar search must never suggest. */
+export const OMNIBOX_HIDDEN_TITLE = "Omnibox hidden card";
+
+/**
+ * Titles the address-bar suggestions must escape or cut: XML characters,
+ * quotes, 300 characters, emoji, RTL, CJK and none at all (shown as the
+ * host), plus a hidden card. `#scenario-omnibox-titles` finds them all.
+ */
+const omniboxTitlesPack = (): FolderScenarioPack => {
+  const scenario = "omnibox-titles" as const;
+  const titled = (
+    index: number,
+    metadataTitle: string,
+    extra: Partial<DefaultCardDef> = {}
+  ) => {
+    const url = `https://omnibox-titles.example/${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", [], extra),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle,
+    };
+  };
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Omnibox plain title", []),
+      titled(1, "Omnibox Tom & Jerry"),
+      titled(2, "Omnibox <script>alert(1)</script>"),
+      titled(3, `Omnibox "double" and 'single' quotes`),
+      folderScenarioCard(
+        scenario,
+        4,
+        "Omnibox note: 1 < 2 > 0, saved from a page",
+        [],
+        { sourceUrl: "https://www.example.com/omnibox-source" }
+      ),
+      titled(5, longName("Omnibox")),
+      titled(6, "Omnibox 🧪🚀 emoji ✨"),
+      titled(7, "Omnibox عنوان عربي من اليمين إلى اليسار"),
+      titled(8, "Omnibox 東京の小さな喫茶店"),
+      titled(9, ""),
+      titled(10, OMNIBOX_HIDDEN_TITLE, {
+        tags: [`scenario-${scenario}`, "secret"],
+      }),
+    ],
+  };
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
 /** Notes with task lists for checklist sorting. */
@@ -1787,6 +1838,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   "save-details": {
     description: `Text saved from pages (one at www.example.com, a 300-character and an RTL page title, an international host), a link with a source beside its own URL, and ${SAVE_DETAILS_SAVED_URL} already saved with tags and a note for the extension's duplicate check.`,
     folders: saveDetailsPack,
+  },
+  "omnibox-titles": {
+    description:
+      "Titles for the extension's address-bar suggestions: &, <script>, quotes, 1 < 2 > 0 in a note saved from a page, 300 characters, emoji, RTL, CJK and an empty title (shown as the host), plus a secret card that must never be suggested. Search `#scenario-omnibox-titles`; seed ordering too for many results.",
+    folders: omniboxTitlesPack,
   },
   "card-limit-199": {
     description:
