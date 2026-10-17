@@ -73,7 +73,7 @@ const hideCardA = async () => {
   write = mock(async () => null);
   const view = await renderHook("card_a", ["work"]);
   await act(() => view.hook().setTagInput("secret"));
-  await act(async () => {
+  await act(() => {
     view.hook().addTag();
   });
   expect(undo).toBeDefined();

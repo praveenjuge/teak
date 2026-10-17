@@ -8,6 +8,7 @@ import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
+import { revealsHidden } from "./card/hiddenCards";
 import {
   type ArchivedFilter,
   archivedFilterMatch,
@@ -23,7 +24,6 @@ import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
-import { revealsHidden } from "./card/hiddenCards";
 import { cardUrlHost } from "./card/searchPlanner";
 import {
   isSimilarAnchorAvailable,
