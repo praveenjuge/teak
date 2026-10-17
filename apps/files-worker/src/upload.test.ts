@@ -499,10 +499,12 @@ describe("additive files ops", () => {
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
     let capturedImageUrl: unknown;
+    const capturedTemplateKwargs: unknown[] = [];
     const aiEnv = withObjectGates({
       AI: {
         run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
+          capturedTemplateKwargs.push(args.chat_template_kwargs);
           const messages = args.messages as Array<{
             content?: Array<{ image_url?: unknown; type?: string }>;
           }>;
@@ -564,6 +566,11 @@ describe("additive files ops", () => {
     expect(result.summary).toBe("A red square.");
     expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
+    // Thinking shares the output cap and left dense images with no answer.
+    expect(capturedTemplateKwargs).toEqual([
+      { enable_thinking: false },
+      { enable_thinking: false },
+    ]);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",
     });
