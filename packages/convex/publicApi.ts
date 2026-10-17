@@ -412,6 +412,7 @@ export const shuffleCardsPageForUser = internalQuery({
     const walk = {
       userId,
       seed,
+      includeHidden: options.includeHidden,
       trash: options.showTrashOnly,
       archived: options.archived,
       favoritesOnly: options.favorited === true,

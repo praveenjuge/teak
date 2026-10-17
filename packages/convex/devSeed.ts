@@ -525,6 +525,7 @@ export const FOLDER_SCENARIOS = [
   "palette-mixed",
   "focus-notes",
   "checklists",
+  "hidden-mix",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1146,6 +1147,108 @@ const checklistsPack = (): FolderScenarioPack => {
   };
 };
 
+/**
+ * Hidden cards: reserved tags in odd case and spacing, a hidden card in every
+ * library state, in a folder, matched by smart folders and on a `site:`
+ * host, and a card whose only `hidden` is an AI tag (not hidden).
+ */
+const hiddenMixPack = (): FolderScenarioPack => {
+  const scenario = "hidden-mix" as const;
+  const tagged = (...tags: string[]) => ({
+    tags: [`scenario-${scenario}`, ...tags],
+  });
+  const card = (
+    index: number,
+    label: string,
+    folders: number[],
+    extra: Partial<DefaultCardDef> = {}
+  ) => folderScenarioCard(scenario, index, label, folders, extra);
+  const hostLink = (index: number, title: string, tags: string[]) => {
+    const url = `https://hidden-mix.example/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...card(index, "", [], tagged(...tags)),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle: title,
+    };
+  };
+  return {
+    folders: [
+      { name: "Hidden mix folder", color: "violet" },
+      { name: "Hidden mix smart", query: `tag:scenario-${scenario}` },
+      {
+        name: "Hidden mix secret",
+        color: "gray",
+        query: `#secret tag:scenario-${scenario}`,
+      },
+    ],
+    cards: [
+      card(0, "Hidden mix pack", []),
+      card(1, "Hidden: tagged Secret", [], tagged("Secret")),
+      card(
+        2,
+        "Hidden: tagged HIDDEN with a trailing space",
+        [],
+        tagged("HIDDEN ")
+      ),
+      card(
+        3,
+        "Hidden: tagged hidden with a leading space",
+        [],
+        tagged(" hidden")
+      ),
+      card(4, "Hidden: a favorite", [], {
+        ...tagged("secret"),
+        isFavorited: true,
+      }),
+      card(5, "Hidden: archived", [], {
+        ...tagged("secret"),
+        isArchived: true,
+      }),
+      card(6, "Hidden: in Trash", [], {
+        ...tagged("secret"),
+        isDeleted: true,
+      }),
+      card(7, "Hidden: in a folder", [0], tagged("secret")),
+      hostLink(8, "Hidden: a link on hidden-mix.example", ["secret"]),
+      card(9, "Shown: hidden is only an AI tag", [], { aiTags: ["hidden"] }),
+      card(10, "Shown: in the folder", [0]),
+      hostLink(11, "Shown: a link on hidden-mix.example", []),
+    ],
+  };
+};
+
+export const HIDDEN_MIX_VOLUME_SIZE = ORDERING_SCENARIO_SIZE;
+
+/** The ordering pack's 1,000 cards with every fifth tagged `secret`. */
+export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
+  const ordering = orderingScenarioCard(position);
+  const index = orderingIndexAt(position);
+  const hidden = index % 5 === 0;
+  return {
+    ...ordering,
+    ...(ordering.url
+      ? {
+          url: ordering.url.replace("/ordering/", "/hidden-mix-1000/"),
+          content: ordering.url.replace("/ordering/", "/hidden-mix-1000/"),
+        }
+      : {}),
+    tags: ["scenario-hidden-mix-1000", ...(hidden ? ["secret"] : [])],
+  };
+};
+
+const hiddenMixVolumePage = (page: number): DefaultCardDef[] => {
+  const start = page * ORDERING_SCENARIO_PAGE_SIZE;
+  const end = Math.min(
+    start + ORDERING_SCENARIO_PAGE_SIZE,
+    HIDDEN_MIX_VOLUME_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    hiddenMixVolumeCard(start + offset)
+  );
+};
+
 const seedFolderScenario = async (
   ctx: MutationCtx,
   userId: string,
@@ -1440,6 +1543,16 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Task lists for checklist sorting: 10 and 200 items, 5 levels of nesting, bullets beside tasks, all done, odd spacing and a table (both open as literal Markdown), and a checklist in a blockquote.",
     folders: checklistsPack,
+  },
+  "hidden-mix": {
+    description:
+      "Cards hidden by secret and hidden tags in odd case and spacing: a favorite, an archived, a trashed, a foldered and a site: one, smart folders with and without #secret, and a card whose hidden is only an AI tag. Seed it on two accounts to test ownership.",
+    folders: hiddenMixPack,
+  },
+  "hidden-mix-1000": {
+    description:
+      "The ordering pack's 1,000 cards with every fifth (200) tagged secret, for paging and Shuffle past hidden cards. 200 per page.",
+    cards: hiddenMixVolumePage,
   },
   "export-ugly": {
     description:

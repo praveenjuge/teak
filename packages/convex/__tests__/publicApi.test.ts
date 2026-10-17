@@ -41,6 +41,8 @@ const buildSinglePaginateContext = (page: unknown) => {
   let invocationPaginateCalls = 0;
   const query = mock(() => {
     const baseQuery = {
+      // The read leaves hidden cards out with a filter on the index range.
+      filter: mock(() => baseQuery),
       order: mock(() => ({
         paginate: mock(
           ({
@@ -169,8 +171,9 @@ describe("publicApi", () => {
     };
     const ctx = {
       db: withSearchSyncDb({
-        query: mock(() => ({
-          withIndex: mock().mockReturnValue({
+        query: mock(() => {
+          const indexed = {
+            filter: mock(() => indexed),
             order: mock().mockReturnValue({
               paginate: mock(({ cursor }: { cursor: string | null }) => {
                 invocationPaginateCalls += 1;
@@ -183,8 +186,9 @@ describe("publicApi", () => {
                 return Promise.resolve(pagesByCursor[cursor ?? "start"]);
               }),
             }),
-          }),
-        })),
+          };
+          return { withIndex: mock().mockReturnValue(indexed) };
+        }),
       }),
     } as any;
     const handler =

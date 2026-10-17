@@ -4,7 +4,7 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
 
 ## Depends on
 
-- Nothing in v2. Phases ship in order, so [phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md) (`isHidden` on `cardSearchDocuments`) is already live, and the new search index copies its filter fields.
+- Nothing in v2. Phases ship in order, so phase 4 (hidden cards, shipped) (`isHidden` on `cardSearchDocuments`) is already live, and the new search index copies its filter fields.
 
 ## Success Criteria
 
@@ -144,7 +144,7 @@ Read the text inside images and video thumbnails in the same Gemma vision call t
   - Refresh after the text was removed clears `aiOcrText`.
   - Refresh details twice while the first vision call is still running: only the newest run's text and summary are stored.
   - An old worker without `text`, and an old Convex with the new worker.
-  - `text:` on another user's cards; on trashed, archived and hidden cards; `text:` together with `#private`.
+  - `text:` on another user's cards; on trashed, archived and hidden cards; `text:` together with `#secret`.
   - The backfill dry-run counts; a resume after `once: true`; it skips accounts that are being deleted and never changes `aiSummary`.
 
 ## Tests

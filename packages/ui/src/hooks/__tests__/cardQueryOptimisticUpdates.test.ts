@@ -35,6 +35,18 @@ describe("card query optimistic updates", () => {
     );
   });
 
+  it("drops a hidden card unless the query names its reserved tag", () => {
+    const hidden = card({ tags: ["secret"], isHidden: true });
+    expect(cardMatchesSearchQuery(hidden, {})).toBe(false);
+    expect(cardMatchesSearchQuery(hidden, { searchQuery: "secret" })).toBe(
+      false
+    );
+    expect(cardMatchesSearchQuery(hidden, { searchQuery: "#secret" })).toBe(
+      true
+    );
+    expect(cardMatchesSearchQuery(hidden, { tag: "Secret" })).toBe(true);
+  });
+
   it("removes an unfavorited card from every active Favorites query", () => {
     const values: Doc<"cards">[][] = [];
     let getAllQueriesCall = 0;

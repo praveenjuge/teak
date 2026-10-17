@@ -25,6 +25,10 @@ afterEach(() => {
   }
 });
 
+/** A hand-built index read that also takes the hidden-card filter. */
+const filterable = <Q extends object>(query: Q): Q =>
+  Object.assign(query, { filter: () => query });
+
 const buildQuery = (cards: any[] = []) =>
   ({
     async *[Symbol.asyncIterator]() {
@@ -132,9 +136,7 @@ describe("card/getCards.ts", () => {
       const orderMock = mock().mockReturnValue({ take: takeMock });
 
       const query = {
-        withIndex: mock().mockReturnValue({
-          order: orderMock,
-        }),
+        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
       } as any;
 
       const ctx = withTestSession({
@@ -155,7 +157,7 @@ describe("card/getCards.ts", () => {
       const orderMock = mock().mockReturnValue({ take: takeMock });
 
       const query = {
-        withIndex: mock().mockReturnValue({ order: orderMock }),
+        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
       } as any;
 
       const ctx = withTestSession({
@@ -175,7 +177,7 @@ describe("card/getCards.ts", () => {
       const orderMock = mock().mockReturnValue({ take: takeMock });
 
       const query = {
-        withIndex: mock().mockReturnValue({ order: orderMock }),
+        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
       } as any;
 
       const ctx = withTestSession({

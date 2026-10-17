@@ -1,8 +1,8 @@
 ---
 title: "October 2026"
-description: Jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-16"
+date: "2026-10-17"
 changelog:
   category: Product updates
 ---
@@ -20,6 +20,13 @@ changelog:
 ## Done items sink to the bottom of checklists
 
 - On the web, ticking an item in a note's checklist slides it below the open items in its list, so what's left to do stays at the top. Checkboxes are redrawn too, with a check that pops in. Unticking it moves it back up, and `⌘Z` (`Ctrl+Z` on Windows and Linux) undoes both. Items in a nested list move only within their own list.
+
+## Hide cards with a secret or hidden tag
+
+- Tag a card `secret` or `hidden` to keep it out of your library, Favorites, Archive, Trash, folders, search, and Shuffle, on the web, iPhone, iPad, Mac, Raycast, and the API. Cards you had already tagged this way are now hidden too.
+- To see them, search for the tag: `#secret`, `tag:hidden`, or the tag from the **Tags** page. Searching the word `secret` doesn't show them, and tags Teak adds never hide a card. Remove the tag and the card is back.
+- On the web, adding the tag shows **Undo**, and the card's tags show **Hidden**. Hidden cards still count toward your card limit. See [Hidden cards](/docs/features#hidden-cards).
+- **API, MCP, SDK, and CLI:** lists and searches leave hidden cards out unless the search names one of those tags. Cards include `isHidden`, and `teak ls` marks them `hidden`. See the [API guide](/docs/api#hidden-cards).
 
 ## Find similar cards
 

@@ -8,6 +8,7 @@ import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
+import { revealsHidden } from "./card/hiddenCards";
 import {
   type ArchivedFilter,
   archivedFilterMatch,
@@ -62,6 +63,7 @@ import {
   SEMANTIC_MIN_SCORE,
   type SearchMode,
 } from "./shared/search/semantic";
+import { isCardHidden } from "./shared/tags";
 
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 100;
@@ -83,6 +85,8 @@ export interface SearchOptions {
   folderIds?: Id<"folders">[];
   hexFilters?: string[];
   hueFilters?: string[];
+  /** The search names a reserved tag, so hidden cards are in it. */
+  includeHidden?: boolean;
   /** Best match: keep the search's own order instead of sorting by date. */
   keepSearchOrder?: boolean;
   limit?: number;
@@ -180,6 +184,9 @@ export const matchesStructuredFilters = (
   options: SearchOptions,
   searchableText?: string
 ): boolean => {
+  if (!options.includeHidden && isCardHidden(card)) {
+    return false;
+  }
   if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
     return false;
   }
@@ -323,6 +330,7 @@ export const searchCardsByQuery = async (
     archived: options.archived,
     isFavorited: options.favorited,
     urlHost: options.sites?.length === 1 ? options.sites[0] : undefined,
+    includeHidden: options.includeHidden,
   };
   const { semantic } = options;
   // Semantic mode reads only meaning matches once it has them.
@@ -429,6 +437,7 @@ export const searchCardsByTag = async (
         limit: limit + 1,
         scanBudget,
         sort,
+        includeHidden: options.includeHidden,
         resultFilter: (card) =>
           matchesStructuredFilters(card, options) &&
           (!anchor || isAfterMatchAnchor(card, anchor, sort)),
@@ -479,6 +488,7 @@ export const normalizeCardsQueryOptions = (args: {
     prices: args.prices?.length ? args.prices : undefined,
     sites: args.sites?.length ? args.sites : undefined,
     tags: tags.length ? tags : undefined,
+    includeHidden: revealsHidden([args.tag, ...tags]),
     showTrashOnly: args.showTrashOnly,
     ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -573,10 +583,12 @@ const createBaseQuery = (
       host,
       archived: options.archived === "only" ? "only" : "exclude",
       createdAt: { gte: lower, lte: upper },
+      includeHidden: options.includeHidden,
     });
   }
   return buildCardListQuery(ctx, {
     userId,
+    includeHidden: options.includeHidden,
     trash: options.showTrashOnly,
     archived: options.archived,
     favoritesOnly: options.favorited === true,

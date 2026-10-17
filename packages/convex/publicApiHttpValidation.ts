@@ -44,6 +44,7 @@ import {
 } from "./shared/search/qualifiers";
 import { isSearchMode, semanticRequestFor } from "./shared/search/semantic";
 import { parseShuffleSeed } from "./shared/search/shuffle";
+import { isCardHidden } from "./shared/tags";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -125,6 +126,7 @@ const serializeCard = (card: any, requestUrl: string) => ({
   folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
   isFavorited: Boolean(card.isFavorited),
+  isHidden: isCardHidden(card),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
   metadataDescription: card.metadataDescription ?? null,
   metadataStatus: card.metadataStatus ?? null,
@@ -156,6 +158,7 @@ const serializeListCard = (
     id: card._id,
     isArchived: Boolean(card.isArchived),
     isFavorited: Boolean(card.isFavorited),
+    isHidden: isCardHidden(card),
     metadataDescription: card.metadataDescription ?? null,
     metadataTitle: card.metadataTitle ?? null,
     tags: card.tags ?? [],

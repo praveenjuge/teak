@@ -21,6 +21,7 @@ export const formatCardLine = (
         content?: string;
         createdAt: number;
         id: string;
+        isHidden?: boolean;
         tags?: string[];
         type: string;
       }
@@ -35,7 +36,8 @@ export const formatCardLine = (
     .map((tag) => `#${tag}`)
     .join(" ");
   const age = relativeAge(Date.now() - card.createdAt);
-  return `${card.id}  ${card.type.padEnd(8)}  ${snippet}  ${tags}  ${age}`.trim();
+  const hidden = card.isHidden ? "  hidden" : "";
+  return `${card.id}  ${card.type.padEnd(8)}  ${snippet}  ${tags}  ${age}${hidden}`.trim();
 };
 
 const TRANSCRIPT_PREVIEW_CHARS = 600;
@@ -70,6 +72,7 @@ export const formatDetail = (card: Card) =>
     `created: ${new Date(card.createdAt).toISOString()}`,
     `updated: ${new Date(card.updatedAt).toISOString()}`,
     card.isFavorited ? "favorite: yes" : null,
+    card.isHidden ? "hidden: yes (search #secret or #hidden)" : null,
     card.isDeleted ? "in trash: yes" : null,
     card.url ? `url: ${card.url}` : null,
     card.linkPrice

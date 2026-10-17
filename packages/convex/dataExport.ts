@@ -457,6 +457,7 @@ export const getExportCardsPage = internalQuery({
         aiSummary: card.aiSummary,
         metadataTitle: card.metadataTitle,
         isArchived: card.isArchived,
+        isHidden: card.isHidden,
         folderIds: card.folderIds,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,

@@ -7,6 +7,7 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
+import { withHiddenFlag } from "./hiddenCards";
 
 export const CARD_USAGE_SCAN_LIMIT = FREE_TIER_LIMIT + 1;
 export const CARD_USAGE_BASE_SHARDS = 16;
@@ -407,14 +408,15 @@ export const recordActiveCardCreated = async (
  * keyed by the new card's id, so the count follows the insert; at the limit
  * the card is deleted again before the error propagates, because callers that
  * catch CARD_LIMIT_REACHED per item (bulk create, import) would otherwise
- * commit it uncounted (Convex has no savepoints).
+ * commit it uncounted (Convex has no savepoints). `isHidden` is derived from
+ * the card's tags here, for every path that creates cards.
  */
 export const insertCountedCard = async (
   ctx: MutationCtx,
   card: WithoutSystemFields<Doc<"cards">>,
   options: { hasPremium?: boolean } = {}
 ): Promise<Id<"cards">> => {
-  const cardId = await ctx.db.insert("cards", card);
+  const cardId = await ctx.db.insert("cards", withHiddenFlag(card));
   try {
     await recordActiveCardCreated(ctx, card.userId, cardId, options);
   } catch (error) {

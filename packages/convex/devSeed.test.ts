@@ -12,6 +12,8 @@ import {
   DEV_SEED_CARDS,
   EXPORT_UGLY_FOLDER_NAMES,
   type FolderScenario,
+  HIDDEN_MIX_VOLUME_SIZE,
+  hiddenMixVolumeCard,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
@@ -712,6 +714,33 @@ describe("devSeed folder packs", () => {
     );
   });
 
+  test("hidden-mix seeds once and flags only the reserved user tags", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "hidden-mix")).toMatchObject({
+      status: "seeded",
+      cards: 12,
+      folders: 3,
+    });
+    expect(await seedFolders(t, "hidden-mix")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const cards = await cardsOf(t);
+    const hidden = cards.filter((card) => card.isHidden === true);
+    expect(hidden).toHaveLength(8);
+    expect(
+      hidden.every(
+        (card) =>
+          card.metadataTitle?.startsWith("Hidden") ||
+          card.content.startsWith("Hidden")
+      )
+    ).toBe(true);
+    expect(
+      cards.find((card) => card.aiTags?.includes("hidden"))?.isHidden
+    ).toBeUndefined();
+  });
+
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
@@ -795,6 +824,26 @@ describe("devSeed folder packs", () => {
     expect(cards.filter((card) => card.aiSummary)).toHaveLength(6);
     expect(cards.filter((card) => card.type === "link")).toHaveLength(8);
     expect(cards.filter((card) => card.type === "quote")).toHaveLength(1);
+  });
+
+  test("hidden-mix-1000 tags 200 of the ordering pack's cards secret", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "hidden-mix-1000",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 200 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = Array.from({ length: HIDDEN_MIX_VOLUME_SIZE }, (_, index) =>
+      hiddenMixVolumeCard(index)
+    );
+    expect(cards.filter((card) => card.tags?.includes("secret"))).toHaveLength(
+      200
+    );
   });
 
   test("search-qualifiers-1000 seeds in pages", async () => {

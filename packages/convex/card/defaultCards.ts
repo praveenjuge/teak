@@ -7,6 +7,7 @@ import { insertFolder } from "../folder/folders";
 import type { CardType } from "../schema";
 import { type FolderColor, folderNameKey } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
+import { isHiddenTagList } from "../shared/tags";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
@@ -464,6 +465,7 @@ export const insertCompletedCards = async (
       ...(cardDef.isArchived
         ? { isArchived: true as const, archivedAt: timestamp }
         : {}),
+      ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
       ...(cardDef.runProcessing
         ? {
             processingStatus: buildInitialProcessingStatus({

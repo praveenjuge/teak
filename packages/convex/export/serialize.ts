@@ -5,6 +5,7 @@
  * thumbnails/screenshots/preview media stay out.
  */
 
+import { isHiddenTagList } from "../shared/tags";
 import {
   APP_NAME,
   EXPORT_QUOTA_WINDOW_MS,
@@ -44,6 +45,7 @@ export interface ExportableCard {
   isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
+  isHidden?: boolean;
   metadataTitle?: string;
   notes?: string;
   tags?: string[];
@@ -83,6 +85,8 @@ export interface SerializedCard {
   id: string;
   isArchived: boolean;
   isFavorited: boolean;
+  /** A reserved tag (`secret`, `hidden`) hides it in Teak's lists. */
+  isHidden: boolean;
   /** The card's title, when it has one (schema v2). */
   metadataTitle?: string;
   notes?: string;
@@ -172,6 +176,7 @@ export function serializeCard(
     folders,
     isFavorited: card.isFavorited === true,
     isArchived: card.isArchived === true,
+    isHidden: card.isHidden === true || isHiddenTagList(card.tags),
     createdAt: toDualTimestamp(card.createdAt),
     updatedAt: toDualTimestamp(card.updatedAt),
   };

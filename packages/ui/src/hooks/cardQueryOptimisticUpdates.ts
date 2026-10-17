@@ -26,6 +26,7 @@ export function cardMatchesSearchQuery(
       showArchivedOnly: args.showArchivedOnly,
       showTrashOnly: args.showTrashOnly,
       styleFilters: args.styleFilters,
+      tag: args.tag,
       types: args.types,
     }).length === 1
   );

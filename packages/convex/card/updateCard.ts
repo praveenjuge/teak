@@ -22,6 +22,7 @@ import {
   recordActiveCardRemoved,
   restoreCountedCard,
 } from "./cardUsage";
+import { withHiddenFlag } from "./hiddenCards";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -474,13 +475,15 @@ export const updateCardFieldsForUserHandler = async (
   await ctx.db.patch(
     "cards",
     cardId,
-    withUrlHost({
-      ...state.updateData,
-      ...(state.processingStatus
-        ? { processingStatus: state.processingStatus }
-        : {}),
-      updatedAt: now,
-    })
+    withHiddenFlag(
+      withUrlHost({
+        ...state.updateData,
+        ...(state.processingStatus
+          ? { processingStatus: state.processingStatus }
+          : {}),
+        updatedAt: now,
+      })
+    )
   );
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);

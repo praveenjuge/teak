@@ -103,6 +103,12 @@ export interface Card {
   isArchived: boolean;
   isDeleted: boolean;
   isFavorited: boolean;
+  /**
+   * Tagged `secret` or `hidden`: left out of lists and searches unless the
+   * search names one of those tags (`#secret`). Servers that
+   * predate hidden cards leave it out.
+   */
+  isHidden?: boolean;
   linkAuthor: string | null;
   linkFacts: Array<{ label: string; value: string }>;
   linkPreviewImageUrl: string | null;

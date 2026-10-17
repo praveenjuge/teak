@@ -30,6 +30,8 @@ import {
   similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
+import { isCardHidden } from "../shared/tags";
+import { keepVisible } from "./hiddenCards";
 import {
   type ArchivedFilter,
   buildCardListQuery,
@@ -168,7 +170,9 @@ export const getCards = query({
       types: args.type ? [args.type] : undefined,
     });
 
-    const cards = await query.order("desc").take(clampSearchLimit(args.limit));
+    const cards = keepVisible(
+      await query.order("desc").take(clampSearchLimit(args.limit))
+    );
 
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
@@ -229,12 +233,15 @@ export const searchCards = query({
         })
           .order(order)
           .take(limit);
-        const filteredFavorites = applyCardLevelFilters(favorites, {
-          types,
-          favoritesOnly: true,
-          createdAtRange,
-          visualFilters,
-        }).slice(0, limit);
+        const filteredFavorites = applyCardLevelFilters(
+          keepVisible(favorites),
+          {
+            types,
+            favoritesOnly: true,
+            createdAtRange,
+            visualFilters,
+          }
+        ).slice(0, limit);
         const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
         return applyQuoteFormattingToList(favoritesWithUrls);
       }
@@ -246,7 +253,7 @@ export const searchCards = query({
         })
           .order(order)
           .take(limit);
-        const filteredTrashed = applyCardLevelFilters(trashed, {
+        const filteredTrashed = applyCardLevelFilters(keepVisible(trashed), {
           types,
           favoritesOnly,
           createdAtRange,
@@ -308,18 +315,20 @@ export const searchCards = query({
       return applyQuoteFormattingToList(visualResultsWithUrls);
     }
 
-    const cards = await buildCardListQuery(ctx, {
-      userId: user.teakUserId,
-      trash: showTrashOnly,
-      archived,
-      favoritesOnly,
-      types,
-      createdAt: createdAtRange
-        ? { gte: createdAtRange.start, lt: createdAtRange.end }
-        : undefined,
-    })
-      .order(order)
-      .take(limit);
+    const cards = keepVisible(
+      await buildCardListQuery(ctx, {
+        userId: user.teakUserId,
+        trash: showTrashOnly,
+        archived,
+        favoritesOnly,
+        types,
+        createdAt: createdAtRange
+          ? { gte: createdAtRange.start, lt: createdAtRange.end }
+          : undefined,
+      })
+        .order(order)
+        .take(limit)
+    );
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
   },
@@ -378,11 +387,11 @@ export const searchCardsPaginatedHandler = async (
   args: SearchCardsPaginatedArgs,
   options: { gridOnly?: boolean; summariesOnly?: boolean } = {}
 ) => {
-  let attachListUrls = attachFileUrls;
+  let attachUrls = attachFileUrls;
   if (options.summariesOnly) {
-    attachListUrls = attachCardSummaryUrls;
+    attachUrls = attachCardSummaryUrls;
   } else if (options.gridOnly) {
-    attachListUrls = attachGridFileUrls;
+    attachUrls = attachGridFileUrls;
   }
   const user = await getSessionUser(ctx);
   if (!user) {
@@ -422,7 +431,11 @@ export const searchCardsPaginatedHandler = async (
   if (!resolved) {
     return emptyPage;
   }
-  const { archived, types, sites } = resolved;
+  const { archived, types, sites, includeHidden } = resolved;
+  // Every page passes through here, so a hidden card the backfill hasn't
+  // flagged yet never reaches the client, whichever read found it.
+  const attachListUrls = (listCtx: QueryCtx, cards: Doc<"cards">[]) =>
+    attachUrls(listCtx, keepVisible(cards, includeHidden));
   const favoritesOnly = resolved.favoritesOnly || undefined;
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
@@ -474,12 +487,18 @@ export const searchCardsPaginatedHandler = async (
       segment: 0,
       page: null,
     };
+    // Leaving hidden cards out filters the walk too, so it reads within a
+    // row budget however many hidden cards a segment holds.
     const filtered = Boolean(
-      keep || walk.favoritesOnly || walk.types?.length || walk.createdAt
+      keep ||
+        walk.favoritesOnly ||
+        walk.types?.length ||
+        walk.createdAt ||
+        !includeHidden
     );
     const result = await pageShuffleWalk(
       ctx,
-      { ...walk, seed, userId: user.teakUserId },
+      { ...walk, includeHidden, seed, userId: user.teakUserId },
       position,
       {
         numItems: keep
@@ -650,6 +669,7 @@ export const searchCardsPaginatedHandler = async (
       isFavorited: favoritesOnly ? true : undefined,
       type: types?.length === 1 ? types[0] : undefined,
       urlHost: sites.length === 1 ? sites[0] : undefined,
+      includeHidden,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
     };
     // Semantic mode with no cached meaning matches falls back to keyword.
@@ -995,6 +1015,56 @@ export const searchCardsPaginatedHandler = async (
     page: applyQuoteFormattingToList(cardsWithUrls),
   };
 };
+
+/**
+ * Whether an empty library view or folder is empty because its cards are
+ * hidden, for the empty state's hint. The caller asks only when the view
+ * shows no cards, so any card left in its index range is a hidden one: one
+ * row read answers it.
+ */
+export const viewHasHiddenCards = query({
+  args: {
+    view: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("favorites"),
+        v.literal("archive"),
+        v.literal("trash")
+      )
+    ),
+    folderId: v.optional(v.id("folders")),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const user = await getSessionUser(ctx);
+    if (!user) {
+      return false;
+    }
+    if (args.folderId) {
+      const folder = await ctx.db.get("folders", args.folderId);
+      if (!folder || folder.userId !== user.teakUserId) {
+        return false;
+      }
+      const row = await buildFolderCardListQuery(ctx, {
+        folderId: folder._id,
+      })
+        .order("desc")
+        .first();
+      const card = row ? await ctx.db.get("cards", row.cardId) : null;
+      return card !== null && isCardHidden(card);
+    }
+    const card = await buildCardListQuery(ctx, {
+      userId: user.teakUserId,
+      includeHidden: true,
+      favoritesOnly: args.view === "favorites",
+      archived: args.view === "archive" ? "only" : "exclude",
+      trash: args.view === "trash",
+    })
+      .order("desc")
+      .first();
+    return card !== null && isCardHidden(card);
+  },
+});
 
 export const searchCardsPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,

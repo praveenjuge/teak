@@ -465,6 +465,11 @@ export const cardValidator = v.object({
   deletedAt: v.optional(v.number()),
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
+  /**
+   * Derived from `tags` (shared/tags.ts `isHiddenTagList`): the card carries
+   * a reserved tag and is left out of lists until a search names that tag.
+   */
+  isHidden: v.optional(v.literal(true)),
   folderIds: v.optional(v.array(v.id("folders"))),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
@@ -934,6 +939,7 @@ export default defineSchema({
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
+    isHidden: v.optional(v.literal(true)),
     urlHost: v.optional(v.string()),
     sourceUpdatedAt: v.number(),
   })
@@ -948,6 +954,7 @@ export default defineSchema({
         "type",
         "isFavorited",
         "urlHost",
+        "isHidden",
       ],
     }),
   cardTextContents: defineTable({

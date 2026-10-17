@@ -62,7 +62,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 | Similarity | `like:<cardId>`, a "More like this" button, `mood:"…"` for images, and `similarTo` in the API. It covers every card type |
 | OCR | Comes from the same Gemma vision call, for images, video thumbnails, link screenshots and scanned PDFs. Searchable through plain search and `text:`. Backfilled |
 | Transcripts | YouTube and Vimeo use their own caption tracks (never a video download). Podcasts are transcribed with Whisper up to the 100 MB audio cap. Uploaded videos are covered by v1 phase 13 |
-| Hidden cards | User tags `private`, `nsfw` and `hidden` hide a card from the grid, search, Shuffle and Revisit, folders, smart folders and the API, MCP and CLI. Searching that tag is the only way to show them. AI tags never hide anything |
+| Hidden cards | User tags `secret` and `hidden` hide a card from the grid, search, Shuffle and Revisit, folders, smart folders and the API, MCP and CLI. Searching that tag is the only way to show them. AI tags never hide anything |
 | Revisit | A fourth entry in the sort menu: 20 random cards from the current view, ← archives, → keeps |
 | Email-in | Cloudflare Email Routing to an Email Worker. Personal address `save+<token>@in.teakvault.com`. Smart split into cards, every card tagged `email`, emails over the free limit silently dropped |
 | Not doing | A reader mode (v1-14 was dropped too), library chat, X sync, PWA share target, pinned cards strip, rediscover email, privacy-promise pages, offline library, webhooks, achievements, labs page, reader themes, pinned sites, date-grouped list, highlights, new importers, sending page HTML from the extension, "gather dust", tidy-up, Notion sync, GitHub stars, comparison pages, MCP progressive reads, command palette recents |
@@ -152,7 +152,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 1 | Command palette (⌘K): shipped in #732, plan deleted | Quick wins | — |
 | 2 | Focus mode for text cards: shipped in #734, plan deleted | Quick wins | — |
 | 3 | Ticked checklist items move down: built, plan deleted | Quick wins | — |
-| 4 | [Hidden cards via reserved tags](2026-10-14-roadmap-v2-04-hidden-cards.md) | Quick wins | — |
+| 4 | Hidden cards via reserved tags: built, plan deleted | Quick wins | — |
 | 5 | [Revisit view](2026-10-14-roadmap-v2-05-revisit.md) | Quick wins | 4 |
 | 6 | [Extension: tags and note after saving, source for Save Text](2026-10-14-roadmap-v2-06-extension-save-details.md) | Quick wins | — |
 | 7 | [Extension address-bar search](2026-10-14-roadmap-v2-07-extension-omnibox.md) | Quick wins | 4 |
@@ -219,7 +219,8 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 1 | ⌘K does nothing while another dialog or menu is open, the card modal included, like every other shortcut |
 | 2 | The composer's full-screen note and Focus mode become one feature, on ⌘E, for new and existing notes |
 | 3 | Ticked checklist items move down on the web only. The Apple and Android editors (phases 29 and 31) keep today's order; matching them is not part of those phases unless the owner adds it |
-| 4 | No announcement for cards that already carry `private`, `nsfw` or `hidden`; the normal changelog entry covers it |
+| 4 | The reserved tags are `secret` and `hidden`, not `private` or `nsfw`, so Teak doesn't copy another app's words |
+| 4 | No announcement for cards that already carry `secret` or `hidden`; the normal changelog entry covers it |
 | 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |
 | 15 | Done states are for link cards only |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

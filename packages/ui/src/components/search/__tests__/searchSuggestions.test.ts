@@ -116,6 +116,23 @@ describe("buildSearchSuggestions", () => {
     expect(inserts("#dev")).toEqual(["tag:devops"]);
   });
 
+  test("a reserved tag says it shows hidden cards", () => {
+    const withSecret = {
+      tags: [
+        { name: "secret", count: 4 },
+        { name: "secrets", count: 2 },
+      ],
+    };
+    expect(
+      buildSearchSuggestions("#secr", withSecret).suggestions.map(
+        (suggestion) => [suggestion.label, suggestion.detail]
+      )
+    ).toEqual([
+      ["secret", "Shows hidden cards · 4"],
+      ["secrets", "2"],
+    ]);
+  });
+
   test("a value typed exactly closes the list", () => {
     expect(inserts("site:github.com")).toEqual([]);
   });

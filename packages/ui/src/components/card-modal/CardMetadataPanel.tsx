@@ -1,8 +1,9 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Button } from "@teak/ui/components/ui/button";
-import { Copy, RotateCcw, Sparkles, Trash, X } from "lucide-react";
+import { Copy, EyeOff, RotateCcw, Sparkles, Trash, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -230,7 +231,20 @@ export function CardMetadataPanel({
       )}
 
       {!(card.isDeleted && userTags.length + aiTags.length === 0) && (
-        <PanelSection title="Tags">
+        <PanelSection
+          action={
+            isCardHidden(card) && (
+              <span
+                className="inline-flex items-center gap-1 text-muted-foreground text-xs"
+                title="Only a search for #secret or #hidden shows this card"
+              >
+                <EyeOff aria-hidden="true" className="size-3" />
+                Hidden
+              </span>
+            )
+          }
+          title="Tags"
+        >
           <div className="flex flex-wrap items-center gap-1">
             {userTags.map((tag) => (
               <span

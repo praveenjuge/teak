@@ -139,6 +139,10 @@ Both commands accept several card IDs and try every one, even if some fail. They
 
 `teak archive` hides cards from your library without deleting them, and `teak unarchive` brings them back. `teak ls --archived` lists archived cards. Like `teak rm`, both accept several IDs and report the ones that failed.
 
+### Hidden cards
+
+Cards tagged `secret` or `hidden` stay out of `teak ls` and `teak search` until you search for one of those tags: `teak search "#secret"` or `teak ls --tag hidden`. Their lines end with `hidden`, `--json` includes `isHidden`, and `teak cards get` still shows them.
+
 ### Folders
 
 `teak folders` lists your folders with how many cards each holds, and `teak folders get <folder>` shows one. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.

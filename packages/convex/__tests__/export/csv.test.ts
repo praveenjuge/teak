@@ -13,6 +13,7 @@ const card = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   folders: ["Reading"],
   isFavorited: false,
   isArchived: false,
+  isHidden: false,
   createdAt: toDualTimestamp(Date.UTC(2026, 9, 1)),
   updatedAt: toDualTimestamp(Date.UTC(2026, 9, 2)),
   ...overrides,

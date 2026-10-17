@@ -1,8 +1,9 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
@@ -131,9 +132,14 @@ export function useCardModal(
       }
 
       case "tags": {
+        const tags =
+          Array.isArray(value) && value.length > 0 ? value : undefined;
+        // A reserved tag hides the card: lists that don't reveal hidden
+        // cards drop it until the server answers.
         const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
-          tags: Array.isArray(value) && value.length > 0 ? value : undefined,
+          tags,
+          isHidden: isHiddenTagList(tags) ? true : undefined,
           updatedAt: now,
         });
         updateCardInSearchQueries(localStore, updateCardId, updateTags);
@@ -357,16 +363,43 @@ export function useCardModal(
     [updateField]
   );
 
+  // The open card and its tags as they are now, for an Undo that runs after
+  // later edits; the dialog may since show another card, or none.
+  const latestTags = useRef<{ cardId?: string | null; tags?: string[] }>({});
+  latestTags.current = { cardId, tags: card?.tags };
+
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
     const currentTags = card?.tags || [];
 
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
+      const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
       setTagInput("");
-      void updateField("tags", newTags);
+      void updateField("tags", newTags).then((didUpdate) => {
+        if (didUpdate && hides && isHiddenTagList([tag])) {
+          toast(`Hidden. Search #${tag} to see it.`, {
+            action: {
+              label: "Undo",
+              // Remove only the tag added here. While the dialog still shows
+              // this card, keep its later edits; otherwise start from the
+              // tags this edit wrote. `updateField` is this card's.
+              onClick: () => {
+                const base =
+                  latestTags.current.cardId === cardId
+                    ? (latestTags.current.tags ?? [])
+                    : newTags;
+                void updateField(
+                  "tags",
+                  base.filter((existing) => existing !== tag)
+                );
+              },
+            },
+          });
+        }
+      });
     }
-  }, [card?.tags, tagInput, updateField]);
+  }, [card, cardId, tagInput, updateField]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {

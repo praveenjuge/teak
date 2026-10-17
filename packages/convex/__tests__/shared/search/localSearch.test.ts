@@ -660,3 +660,37 @@ describe("filterLocalCards textMatchedByServer", () => {
     ).toEqual([]);
   });
 });
+
+describe("filterLocalCards hidden cards", () => {
+  const cards = [
+    makeCard({ _id: "shown", content: "beach", tags: ["trip"] }),
+    makeCard({
+      _id: "flagged",
+      content: "beach",
+      tags: ["Secret"],
+      isHidden: true,
+    }),
+    // Hidden in another tab: the cache has the tag before the flag.
+    makeCard({ _id: "unflagged", content: "beach", tags: [" HIDDEN "] }),
+    makeCard({ _id: "ai-only", content: "beach", aiTags: ["hidden"] }),
+  ];
+  const ids = (filters: Parameters<typeof filterLocalCards>[1]) =>
+    filterLocalCards(cards, filters)
+      .map((card) => String(card._id))
+      .sort();
+
+  it("drops them from instant results", () => {
+    expect(ids({})).toEqual(["ai-only", "shown"]);
+    expect(ids({ searchTerms: "beach" })).toEqual(["ai-only", "shown"]);
+    expect(ids({ searchTerms: "secret" })).toEqual([]);
+  });
+
+  it("keeps them when a searched tag is a reserved one", () => {
+    expect(ids({ searchTerms: "#secret" })).toEqual(["flagged"]);
+    expect(ids({ searchTerms: "tag:hidden beach" })).toEqual([
+      "ai-only",
+      "unflagged",
+    ]);
+    expect(ids({ tag: "Secret" })).toEqual(["flagged"]);
+  });
+});

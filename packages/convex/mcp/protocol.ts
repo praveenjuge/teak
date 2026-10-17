@@ -144,7 +144,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_list_cards",
     description:
-      "List full cards with cursor pagination and the same filters as search: type, tag, favorites, Trash, visual style, color hue or hex, and dates.",
+      "List full cards with cursor pagination and the same filters as search: type, tag, favorites, Trash, visual style, color hue or hex, and dates. Cards tagged secret or hidden (isHidden: true) are left out unless tag names one of those tags.",
     annotations: { title: "List cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
@@ -351,7 +351,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only) and "quoted phrases"; tags, folders and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only) and "quoted phrases"; tags, folders and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
@@ -380,7 +380,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_list_favorite_cards",
     description:
-      "List favorited cards, optionally filtered by text and the list_cards filters.",
+      "List favorited cards, optionally filtered by text and the list_cards filters. Hidden cards (tagged secret or hidden) are left out unless the search names one of those tags.",
     annotations: { title: "List favorites", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },

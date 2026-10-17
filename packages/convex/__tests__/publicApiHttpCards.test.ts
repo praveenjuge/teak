@@ -222,6 +222,44 @@ describe("publicApiHttp card endpoints", () => {
     });
   });
 
+  test("listCardsV1 marks hidden cards and passes a reserved tag in q on", async () => {
+    const runQuery = mock().mockResolvedValue({
+      items: [
+        {
+          _id: "card_1",
+          type: "text",
+          content: "Hidden note",
+          tags: ["Secret"],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          _id: "card_2",
+          type: "text",
+          content: "AI-tagged only",
+          tags: ["work"],
+          aiTags: ["hidden"],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?q=${encodeURIComponent("#Secret")}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({ tag: "secret" });
+    const payload = await response.json();
+    expect(
+      payload.items.map((item: { isHidden: boolean }) => item.isHidden)
+    ).toEqual([true, false]);
+  });
+
   test("listCardsV1 scans when q holds only qualifiers without text or tags", async () => {
     const runQuery = mock().mockResolvedValue({
       itemCursors: [],
@@ -686,6 +724,30 @@ describe("publicApiHttp card endpoints", () => {
     expect(card.linkPublishedAt).toBe("2026-09-23");
     expect(card.linkPrice).toBeNull();
     expect(JSON.stringify(card)).not.toContain("secret");
+  });
+
+  test("cardByIdV1 returns a hidden card with isHidden", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        type: "text",
+        content: "Hidden note",
+        tags: ["hidden"],
+        isHidden: true,
+        createdAt: 1,
+        updatedAt: 2,
+      });
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized("https://example.com/v1/cards/card_1")
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      content: "Hidden note",
+      isHidden: true,
+    });
   });
 
   test("cardByIdV1 patches card fields", async () => {
