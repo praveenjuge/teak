@@ -354,6 +354,8 @@ const getCardsForUser = async (
   } else {
     const baseQuery = buildCardListQuery(ctx, {
       userId,
+      // Hidden rows count toward the scan limit; the loop's filter skips them.
+      includeHidden: true,
       favoritesOnly: normalizedOptions.favoritesOnly,
       types: normalizedOptions.type ? [normalizedOptions.type] : undefined,
       createdAt: {
