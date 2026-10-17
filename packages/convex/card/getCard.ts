@@ -8,7 +8,7 @@ import {
 } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
-import { keepVisible } from "./hiddenCards";
+import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import { attachFileUrls } from "./queryUtils";
 import {
   applyQuoteDisplayFormatting,
@@ -82,11 +82,15 @@ export const getDeletedCards = query({
       return [];
     }
 
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.teakUserId).eq("isDeleted", true)
-      )
+    // Flagged hidden cards are skipped while reading, so they never use up
+    // the limit; `keepVisible` below catches any the backfill hasn't flagged.
+    const cards = await excludeHiddenRows(
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) =>
+          q.eq("userId", user.teakUserId).eq("isDeleted", true)
+        )
+    )
       .order("desc")
       .take(clampSearchLimit(args.limit));
 

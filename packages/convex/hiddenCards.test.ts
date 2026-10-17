@@ -580,6 +580,19 @@ test("a backfill past the tracked-user cap counts a floor and keeps its args bou
   });
 });
 
+test("hidden cards in Trash never use up the trash list's limit", async () => {
+  const { owner, insert, runScheduled } = await setup();
+  await insert({ content: "older visible", isDeleted: true });
+  for (const content of ["hidden one", "hidden two"]) {
+    await insert({ content, tags: ["secret"], isDeleted: true });
+  }
+  await runScheduled();
+  const trash = await owner.query(api.cards.getDeletedCards, { limit: 1 });
+  expect(trash.map((card: { content: string }) => card.content)).toEqual([
+    "older visible",
+  ]);
+});
+
 describe("viewHasHiddenCards", () => {
   test("an empty folder or library is told apart from one whose cards are hidden", async () => {
     const { owner, insert, runScheduled } = await setup();

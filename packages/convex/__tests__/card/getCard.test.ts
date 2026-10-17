@@ -27,6 +27,7 @@ afterEach(() => {
 
 const buildQuery = (cards: any[]) => ({
   withIndex: mock().mockImplementation(() => buildQuery(cards)),
+  filter: mock().mockImplementation(() => buildQuery(cards)),
   order: mock().mockImplementation(() => buildQuery(cards)),
   take: mock().mockResolvedValue(cards),
 });
@@ -200,6 +201,7 @@ describe("card/getCard.ts", () => {
       }));
       const query = {
         withIndex: () => query,
+        filter: () => query,
         order: () => query,
         take: async (count: number) => cards.slice(0, count),
       };
