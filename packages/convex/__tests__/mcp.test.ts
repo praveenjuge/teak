@@ -643,13 +643,13 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
-  test("searches image text with text: and returns it as aiOcrText", async () => {
+  test("passes text: through to search image text", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
-          items: [{ id: "card_1", aiOcrText: "Invoice 4411" }],
+          items: [{ id: "card_1" }],
           pageInfo: { hasMore: false, nextCursor: null },
         })
       );
@@ -662,7 +662,7 @@ describe("Convex MCP endpoint", () => {
     );
     expect(captured[0]?.query).toMatchObject({ q: "text:4411" });
     expect(result.structuredContent).toMatchObject({
-      items: [{ id: "card_1", aiOcrText: "Invoice 4411" }],
+      items: [{ id: "card_1" }],
     });
     const tool = TEAK_V1_TOOLS.find(
       (candidate) => candidate.name === "teak_v1_search_cards"

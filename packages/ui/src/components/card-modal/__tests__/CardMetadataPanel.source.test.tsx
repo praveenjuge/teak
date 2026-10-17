@@ -63,35 +63,3 @@ test("a card without a source, or with an unsafe one, has no From row", () => {
     ">From<"
   );
 });
-
-const imageCard = (aiOcrText?: string) =>
-  textCard({ aiOcrText, content: "", type: "image" });
-
-test("an image with text shows it in a Text in image block with a copy button", () => {
-  const markup = render(imageCard("Invoice 4411\nTotal due"));
-  expect(markup).toContain('aria-label="Text in image"');
-  expect(markup).toContain("Invoice 4411\nTotal due");
-  expect(markup).toContain('aria-label="Copy text in image"');
-  expect(markup).toContain('dir="auto"');
-  expect(markup).not.toContain(">Show all<");
-  expect(markup).not.toContain("line-clamp-6");
-});
-
-test("long image text folds to six lines; code keeps a monospace font", () => {
-  const long = render(
-    imageCard(Array.from({ length: 9 }, (_, line) => `line ${line}`).join("\n"))
-  );
-  expect(long).toContain("line-clamp-6");
-  expect(long).toContain(">Show all<");
-  expect(long).not.toContain("font-mono");
-
-  const code = render(
-    imageCard("function total(items) {\n  let sum = 0;\n  return sum;\n}")
-  );
-  expect(code).toContain("font-mono");
-});
-
-test("an image without text has no Text in image block", () => {
-  expect(render(imageCard())).not.toContain("Text in image");
-  expect(render(imageCard("   "))).not.toContain("Text in image");
-});

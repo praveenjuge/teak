@@ -17,7 +17,6 @@ const API_KEY = "teak_test_key";
 
 const card = (id: string, overrides: Record<string, unknown> = {}) => ({
   aiSummary: null,
-  aiOcrText: null,
   aiTags: [],
   aiTranscript: null,
   appUrl: `https://app.teakvault.com/?card=${id}`,
@@ -215,20 +214,6 @@ describe("teak cards", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("file: notes.pdf (4.6 MB)");
-  });
-
-  test("get prints the text read from an image", async () => {
-    routes.set("GET /v1/cards/card_a", () =>
-      json(
-        card("card_a", { aiOcrText: "Invoice 4411\nTotal due", type: "image" })
-      )
-    );
-
-    const result = await teak("cards", "get", "card_a");
-
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("Text in image:\nInvoice 4411\nTotal due");
-    expect(result.stdout).not.toContain("Transcript:");
   });
 
   test("delete moves every id to trash and says so", async () => {

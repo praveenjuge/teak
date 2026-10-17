@@ -19,7 +19,6 @@ import { FolderDot } from "../folders/FolderDot";
 import { ShortcutKeys } from "../shortcuts/ShortcutTooltip";
 import { type CardDetailField, getCardDetailSections } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
-import { isLongImageText, looksLikeCode } from "./imageText";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
@@ -122,7 +121,6 @@ export function CardMetadataPanel({
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
   const [isFoldersOpen, setIsFoldersOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const [isImageTextOpen, setIsImageTextOpen] = useState(false);
   const folders = useFolders();
   const cardFolderIds = useMemo(
     () => (card.folderIds ?? []) as string[],
@@ -145,8 +143,6 @@ export function CardMetadataPanel({
   const aiTags = (card.aiTags ?? []).filter((tag) => !userTags.includes(tag));
   const summary = getCurrentValue("aiSummary");
   const isLongSummary = (summary?.length ?? 0) > SUMMARY_FOLD_LENGTH;
-  const imageText = card.aiOcrText?.trim();
-  const isLongText = imageText ? isLongImageText(imageText) : false;
   const sections = getCardDetailSections(card);
   const safeUrl = sanitizeExternalUrl(card.url);
   const safeSourceUrl = sanitizeExternalUrl(card.sourceUrl);
@@ -235,43 +231,6 @@ export function CardMetadataPanel({
               type="button"
             >
               {isSummaryOpen ? "Show less" : "Show more"}
-            </button>
-          )}
-        </PanelSection>
-      )}
-
-      {imageText && (
-        <PanelSection
-          action={
-            <button
-              aria-label="Copy text in image"
-              className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-              onClick={() => void copyText(imageText, "Copied text")}
-              title="Copy text"
-              type="button"
-            >
-              <Copy className="size-3.5" />
-            </button>
-          }
-          title="Text in image"
-        >
-          <p
-            className={cn(
-              "whitespace-pre-wrap break-words text-foreground/80 text-sm leading-relaxed",
-              looksLikeCode(imageText) && "font-mono text-xs",
-              isLongText && !isImageTextOpen && "line-clamp-6"
-            )}
-            dir="auto"
-          >
-            {imageText}
-          </p>
-          {isLongText && (
-            <button
-              className="font-medium text-muted-foreground text-xs hover:text-foreground"
-              onClick={() => setIsImageTextOpen((value) => !value)}
-              type="button"
-            >
-              {isImageTextOpen ? "Show less" : "Show all"}
             </button>
           )}
         </PanelSection>

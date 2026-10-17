@@ -9,6 +9,8 @@ Bring the v2 card and search features to the native Apple app on iPhone, iPad an
 - read-only `[[` link pills
 - OCR text and the `text:` qualifier
 
+> **Owner decision (2026-10-17, phase 10):** the text Teak reads from images (`aiOcrText`) is for search only. No UI shows it, and the API, MCP, SDK and CLI never return it; plain search and the `text:` qualifier use it. Skip every step below that displays, copies or decodes OCR text, and keep only the `text:` chip.
+
 Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 
 ## Depends on

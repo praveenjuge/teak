@@ -57,7 +57,7 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (words read from an image or a video thumbnail, in aiOcrText), and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (words in an image or a video thumbnail only), and "quoted phrases". Qualifiers combine with the other filters.',
   },
   similarTo: {
     type: "string",
@@ -358,7 +358,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (words read from an image or a video thumbnail; images carry them as aiOcrText) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (words in an image or a video thumbnail only) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },

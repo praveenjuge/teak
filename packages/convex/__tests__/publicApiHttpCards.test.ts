@@ -176,7 +176,7 @@ describe("publicApiHttp card endpoints", () => {
     const item = (await response.json()).items[0];
     expect(item.colors).toEqual([{ hex: "#112233", name: "Ink" }]);
     expect(item.aiTranscript).toBe("Transcript");
-    expect(item.aiOcrText).toBe("STOP");
+    expect(item).not.toHaveProperty("aiOcrText");
     expect(item.linkPreviewMedia).toEqual([
       { type: "image", url: "https://files.example.com/signed" },
     ]);
@@ -740,7 +740,7 @@ describe("publicApiHttp card endpoints", () => {
     const card = await response.json();
     expect(card.colors).toEqual([{ hex: "#112233" }]);
     expect(card.aiTranscript).toBe("A transcript");
-    expect(card.aiOcrText).toBe("Invoice 4411");
+    expect(card).not.toHaveProperty("aiOcrText");
     expect(card.linkPreviewMedia).toEqual([
       { type: "video", url: "https://files.example.com/signed-video" },
     ]);
