@@ -26,7 +26,7 @@ reject content over 512 KiB in UTF-8. Table insertion and table controls are exc
 
 Slash commands, standard formatting shortcuts, and Cmd/Ctrl K for links work
 alongside contextual formatting. There are no block movement controls or shortcuts.
-Cmd/Ctrl Enter saves; Cmd/Ctrl E opens fullscreen creation where supplied.
+Cmd/Ctrl Enter saves; Cmd/Ctrl E opens Focus where supplied. A ticked task item moves below the open items in its list, and back up when unticked, in one undo step.
 Existing card save-on-close behavior is preserved. Composer fullscreen close
 returns to the unsaved compact draft.
 

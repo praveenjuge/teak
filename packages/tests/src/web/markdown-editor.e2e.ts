@@ -296,6 +296,49 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await expect.poll(() => library.read(id)).toContain("- [x] Pending");
   });
 
+  test("a ticked item moves below the open ones, and undo puts it back", async ({
+    browser,
+    library,
+  }) => {
+    const before =
+      "# Chores\n\n- [ ] Water plants\n- [ ] Buy milk\n- [ ] Call home";
+    const after =
+      "# Chores\n\n- [ ] Buy milk\n- [ ] Call home\n- [x] Water plants";
+    const id = await library.create(before);
+    const dialog = await library.open(id);
+    const firstItem = () => dialog.getByRole("checkbox").first();
+    await dialog
+      .getByRole("checkbox", "Water plants", { exact: false })
+      .check();
+    await expect(firstItem()).toHaveAttribute(
+      "aria-label",
+      "Task item checkbox for Buy milk"
+    );
+    await expect.poll(() => library.read(id)).toBe(after);
+
+    // One undo restores both the tick and the position.
+    await browser.keyboard.press("ControlOrMeta+z");
+    await expect(firstItem()).toHaveAttribute(
+      "aria-label",
+      "Task item checkbox for Water plants"
+    );
+    await expect(firstItem()).not.toBeChecked();
+    await expect.poll(() => library.read(id)).toBe(before);
+
+    // Tick again; the card reopens with the stored order.
+    await dialog
+      .getByRole("checkbox", "Water plants", { exact: false })
+      .check();
+    await expect.poll(() => library.read(id)).toBe(after);
+    await browser.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    const reopened = await library.open(id);
+    await expect(reopened.getByRole("checkbox").first()).toHaveAttribute(
+      "aria-label",
+      "Task item checkbox for Buy milk"
+    );
+  });
+
   test("rejects oversized ASCII and Unicode edits without losing the draft", async ({
     screen,
     webAccount: _signedIn,

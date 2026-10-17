@@ -36,3 +36,145 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+/* Task checkboxes: a rounded box that fills with the brand colour, and a
+ * check that pops in. Sized in em so it follows the editor's font size, and
+ * centred on the first line of the item (line-height 1.65). */
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label {
+  display: flex;
+  margin-top: 0.3em;
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"] {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  background-color: var(--background);
+  /* White check, scaled from nothing when ticked. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0% 0%;
+  border: 1.5px solid
+    color-mix(in oklch, var(--muted-foreground) 65%, transparent);
+  border-radius: 0.3em;
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    background-size 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 100ms ease-out;
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:hover {
+  border-color: var(--primary);
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:checked {
+  background-color: var(--primary);
+  background-size: 80% 80%;
+  border-color: var(--primary);
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:active {
+  transform: scale(0.85);
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Done text dims and its strike-through fades in, rather than appearing. */
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > div
+  > p {
+  text-decoration-line: line-through;
+  text-decoration-color: transparent;
+  transition:
+    color 200ms ease-out,
+    text-decoration-color 200ms ease-out;
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  ul[data-type="taskList"]
+  li[data-checked="true"]
+  > div
+  > p {
+  color: var(--muted-foreground);
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teak-markdown-editor
+    .block-editor-content
+    .ProseMirror
+    ul[data-type="taskList"]
+    li
+    > label
+    input[type="checkbox"],
+  .teak-markdown-editor
+    .block-editor-content
+    .ProseMirror
+    ul[data-type="taskList"]
+    li
+    > div
+    > p {
+    transition: none;
+  }
+}
