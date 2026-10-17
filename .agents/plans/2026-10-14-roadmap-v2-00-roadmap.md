@@ -17,6 +17,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 
 - On 2026-10-14 the owner reviewed a list of candidate features against Teak's current code and picked the ones in this roadmap through a Q&A.
 - Local `main` was at `cbc71d2` (v1 phase 10, Shuffle) when this roadmap was written.
+- These facts are a snapshot from that day. The phases built since (see the table below) changed some of them, for example search now has embeddings and Vectorize, so check a fact against the code before relying on it.
 - Verified facts several phases rely on:
   - **Search:**
     - Search runs on one Convex full-text index, `cardSearchDocuments.search_searchableText`. Its filter fields are userId, isDeleted, isArchived, type, isFavorited and urlHost.
