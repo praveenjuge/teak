@@ -276,6 +276,7 @@ const searchCardsByQuery = async (
       isDeleted: undefined,
       isFavorited: options.favoritesOnly ? true : undefined,
       type: options.type,
+      includeHidden: revealsHidden([options.tag]),
       limit: searchLimit,
       resultFilter: (card) => matchesStructuredFilters(card, options),
     })

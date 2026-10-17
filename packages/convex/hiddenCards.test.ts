@@ -7,6 +7,7 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import { MAX_TRACKED_USERS } from "./migration/backfillHiddenCards";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -361,6 +362,9 @@ describe.each([
     ]);
     expect(await raycast({ tag: "trip" })).toEqual(["beach shown"]);
     expect(await raycast({ tag: "Secret" })).toEqual(["beach hidden"]);
+    expect(await raycast({ searchQuery: "beach", tag: "secret" })).toEqual([
+      "beach hidden",
+    ]);
     expect(
       contents(
         await t.query(internal.raycast.favoriteCardsForUser, {
@@ -555,6 +559,24 @@ describe("backfillHiddenCards", () => {
       searchDocumentsToUpdate: 0,
       skippedDeletingAccounts: 1,
     });
+  });
+});
+
+test("a backfill past the tracked-user cap counts a floor and keeps its args bounded", async () => {
+  const context = await setup();
+  await context.insert({ content: "a", tags: ["secret"] });
+  const tracked = Array.from(
+    { length: MAX_TRACKED_USERS },
+    (_, index) => `earlier-user-${index}`
+  );
+  const result = await context.t.mutation(
+    internal.migration.backfillHiddenCards.backfillHiddenCards,
+    { batchSize: 200, affectedUserIds: tracked }
+  );
+  expect(result.totals).toMatchObject({
+    hiddenCards: 1,
+    affectedUsers: MAX_TRACKED_USERS,
+    affectedUsersCapped: true,
   });
 });
 

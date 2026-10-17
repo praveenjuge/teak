@@ -6,6 +6,11 @@ import { HIDDEN_TAG_KEYS, isHiddenTagList, tagKey } from "../shared/tags";
 
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 200;
+/**
+ * Most user ids carried from batch to batch to count affected users: a
+ * Convex array holds at most 8,192 values. Past it, the count is a floor.
+ */
+export const MAX_TRACKED_USERS = 4000;
 
 const tagCountsValidator = v.object({
   secret: v.number(),
@@ -21,8 +26,10 @@ const totalsValidator = v.object({
   skippedDeletingAccounts: v.number(),
   /** Hidden cards carrying each reserved tag (a card can count twice). */
   tags: tagCountsValidator,
-  /** Users with at least one hidden card. */
+  /** Users with at least one hidden card (at least this many when capped). */
   affectedUsers: v.number(),
+  /** More users were affected than the run could track. */
+  affectedUsersCapped: v.optional(v.boolean()),
 });
 
 type Totals = Infer<typeof totalsValidator>;
@@ -126,8 +133,13 @@ export const backfillHiddenCards = internalMutation({
       }
     }
     batch.affectedUsers = batchUsers.size;
+    let affectedUsersCapped = args.totals?.affectedUsersCapped === true;
     for (const userId of batchUsers) {
-      affectedUserIds.add(userId);
+      if (affectedUserIds.size < MAX_TRACKED_USERS) {
+        affectedUserIds.add(userId);
+      } else if (!affectedUserIds.has(userId)) {
+        affectedUsersCapped = true;
+      }
     }
 
     const previous = args.totals ?? emptyTotals();
@@ -144,6 +156,7 @@ export const backfillHiddenCards = internalMutation({
         hidden: previous.tags.hidden + batch.tags.hidden,
       },
       affectedUsers: affectedUserIds.size,
+      ...(affectedUsersCapped ? { affectedUsersCapped: true } : {}),
     };
     const isDone = page.isDone;
     const continuationScheduled = !(isDone || args.once);
