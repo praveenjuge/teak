@@ -1138,6 +1138,7 @@ describe("backfillImageOcr", () => {
       trashed: 1,
       queued: 2,
       skippedDeletingAccounts: 0,
+      skippedAiDisabled: 0,
     });
     expect((await card(ids.unread))?.ocrCheckedAt).toBeUndefined();
   });
@@ -1219,6 +1220,55 @@ describe("backfillImageOcr", () => {
       })
     ).toBe(false);
     expect((await card(ids.unread))?.aiOcrText).toBeUndefined();
+  });
+
+  test("never sends images of accounts with AI off, or while AI is paused", async () => {
+    const calls = stubImageOp(() => "Invoice 4411");
+    const { t, card } = await setup();
+    const ids = await seedImages(t);
+    await t.run((ctx) =>
+      ctx.db.insert("adminUserFlags", {
+        teakUserId: "owner",
+        internal: false,
+        aiDisabled: true,
+        updatedAt: 1,
+      })
+    );
+    const result = await t.mutation(
+      internal.migration.backfillImageOcr.backfillImageOcr,
+      { batchSize: 50, once: true }
+    );
+    expect(result.batch).toMatchObject({ queued: 0, skippedAiDisabled: 2 });
+    expect(
+      await t.action(internal.migration.backfillImageOcr.backfillImageOcrCard, {
+        cardId: ids.unread,
+      })
+    ).toBe("skipped");
+
+    await t.run(async (ctx) => {
+      const flags = await ctx.db.query("adminUserFlags").first();
+      if (flags) {
+        await ctx.db.delete("adminUserFlags", flags._id);
+      }
+      await ctx.db.insert("adminSettings", {
+        key: "global",
+        signupsPaused: false,
+        aiPaused: true,
+        linkFetchPaused: false,
+        weeklyGrowthTargetPct: 0,
+        primaryMetric: "mrr",
+        updatedAt: 1,
+      });
+    });
+    expect(
+      await t.action(internal.migration.backfillImageOcr.backfillImageOcrCard, {
+        cardId: ids.unread,
+      })
+    ).toBe("skipped");
+    expect(
+      calls.filter((call) => call.op === "generate-image-metadata")
+    ).toEqual([]);
+    expect((await card(ids.unread))?.ocrCheckedAt).toBeUndefined();
   });
 
   test("skips accounts being deleted", async () => {

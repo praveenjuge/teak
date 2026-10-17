@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { MAX_IMAGE_OCR_CHARS } from "@teak/files-protocol";
-import { parseImageMetadata } from "./imageMetadata";
+import {
+  MAX_IMAGE_METADATA_VALIDATION_RETRIES,
+  parseImageMetadata,
+  validationRetryPrompt,
+} from "./imageMetadata";
 
 test.each([
   [
@@ -55,4 +59,14 @@ test("text longer than the cap is cut, not rejected", () => {
   );
   expect(parsed?.text).toHaveLength(MAX_IMAGE_OCR_CHARS - 1);
   expect(parsed?.text?.startsWith("word word")).toBe(true);
+});
+
+test("a retry asks for less text, and the last one for none", () => {
+  expect(validationRetryPrompt("Analyze", 0)).toBe("Analyze");
+  expect(validationRetryPrompt("Analyze", 1)).toContain(
+    "text cut to at most 1000 characters"
+  );
+  expect(
+    validationRetryPrompt("Analyze", MAX_IMAGE_METADATA_VALIDATION_RETRIES)
+  ).toContain('text set to ""');
 });

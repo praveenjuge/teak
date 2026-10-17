@@ -11,6 +11,7 @@ import {
   internalQuery,
 } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion";
+import { readUserFlags } from "../adminAccess";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { resolveImageAnalysisKey } from "../shared/imageAnalysis";
 import {
@@ -34,6 +35,8 @@ const totalsValidator = v.object({
   /** Cards scheduled (a dry run counts what it would schedule). */
   queued: v.number(),
   skippedDeletingAccounts: v.number(),
+  /** Cards of accounts with AI turned off, never sent to the model. */
+  skippedAiDisabled: v.number(),
 });
 
 type Totals = typeof totalsValidator.type;
@@ -45,6 +48,7 @@ const emptyTotals = (): Totals => ({
   trashed: 0,
   queued: 0,
   skippedDeletingAccounts: 0,
+  skippedAiDisabled: 0,
 });
 
 /**
@@ -65,7 +69,9 @@ export const imageOcrSourceKey = (
  * Reads the text inside images and video thumbnails saved before Teak read
  * it, one vision call per card, 2 s apart. It writes only `aiOcrText` and
  * `ocrCheckedAt`, never the summary or tags, and skips cards in Trash and
- * accounts being deleted. A card is done once `ocrCheckedAt` is set, so a
+ * accounts being deleted or with AI turned off, and each card checks the AI
+ * gate again before its call, so a pause stops the work. A card is done once
+ * `ocrCheckedAt` is set, so a
  * stopped run picks up where it left off.
  *
  * A dry run (the default) writes nothing and reports what a real run would
@@ -117,6 +123,7 @@ export const backfillImageOcr = internalMutation({
 
     const batch = emptyTotals();
     const accountDeleting = createAccountDeletionGate(ctx);
+    const aiDisabled = new Map<string, boolean>();
     for (const card of page.page) {
       batch.examined += 1;
       if (card.type !== "image" && card.type !== "video") {
@@ -136,6 +143,15 @@ export const backfillImageOcr = internalMutation({
       }
       if (await accountDeleting(card.userId)) {
         batch.skippedDeletingAccounts += 1;
+        continue;
+      }
+      let disabled = aiDisabled.get(card.userId);
+      if (disabled === undefined) {
+        disabled = Boolean((await readUserFlags(ctx, card.userId))?.aiDisabled);
+        aiDisabled.set(card.userId, disabled);
+      }
+      if (disabled) {
+        batch.skippedAiDisabled += 1;
         continue;
       }
       if (!dryRun) {
@@ -196,6 +212,7 @@ export const getImageOcrCandidate = internalQuery({
       processingRev: v.optional(v.number()),
       sourceKey: v.string(),
       title: v.optional(v.string()),
+      userId: v.string(),
     })
   ),
   handler: async (ctx, { cardId }) => {
@@ -211,6 +228,7 @@ export const getImageOcrCandidate = internalQuery({
     return {
       processingRev: card.processingRev,
       sourceKey,
+      userId: card.userId,
       ...(title ? { title } : {}),
     };
   },
@@ -263,6 +281,14 @@ export const backfillImageOcrCard = internalAction({
       { cardId }
     );
     if (!candidate) {
+      return "skipped";
+    }
+    // AI paused from the console, or turned off by the user: no model call,
+    // and the card stays unread for a later run.
+    const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
+      userId: candidate.userId,
+    });
+    if (aiGate !== "allowed") {
       return "skipped";
     }
     let aiOcrText: string | undefined;

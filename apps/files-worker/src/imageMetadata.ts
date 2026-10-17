@@ -15,8 +15,8 @@ import type { Env } from "./index";
 import { OpFailure } from "./opFailure";
 
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
-// Room for up to MAX_IMAGE_OCR_CHARS of text read from the image beside the
-// tags and summary; a cut-off answer fails validation and is retried.
+// Room for most images' text beside the tags and summary. Dense text can
+// still run past it; validationRetryPrompt then asks for less.
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 2048;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
 const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
@@ -47,10 +47,27 @@ const boundPrompt = (content: string): string => {
   return `${content.slice(0, MAX_PROMPT_CHARS)}\n\n[Content truncated]`;
 };
 
-const validationRetryPrompt = (prompt: string, attempt: number): string =>
-  attempt === 0
-    ? prompt
-    : `JSON validation retry ${attempt}: Return only the required JSON object with tags, summary and text. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
+/** Text a retry asks for, so an answer cut off at the token cap fits. */
+const RETRY_IMAGE_OCR_CHARS = 1000;
+
+/**
+ * The prompt for a validation attempt. Dense text (CJK, code) can run past
+ * the output cap and cut the JSON off, so a retry asks for less text, and
+ * the last one for none: the tags and summary still save.
+ */
+export const validationRetryPrompt = (
+  prompt: string,
+  attempt: number
+): string => {
+  if (attempt === 0) {
+    return prompt;
+  }
+  const text =
+    attempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES
+      ? 'text set to ""'
+      : `text cut to at most ${RETRY_IMAGE_OCR_CHARS} characters`;
+  return `JSON validation retry ${attempt}: your last answer was not valid JSON, possibly cut off. Return only the required JSON object with tags, summary and ${text}. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
+};
 
 const stripJsonFences = (text: string): string => {
   const trimmed = text.trim();
