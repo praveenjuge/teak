@@ -66,7 +66,11 @@ function fetchAuth(url: string, init: RequestInit) {
     ...init,
     credentials: "omit",
     redirect: "error",
-    signal: AbortSignal.timeout(10_000),
+    // A caller's own signal (address-bar search cancels stale requests)
+    // still applies beside the timeout.
+    signal: init.signal
+      ? AbortSignal.any([init.signal, AbortSignal.timeout(10_000)])
+      : AbortSignal.timeout(10_000),
   });
 }
 const refreshDiscoveryAfterFailure = () =>

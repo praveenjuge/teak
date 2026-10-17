@@ -4,7 +4,7 @@ Publish the Teak extension for Firefox on addons.mozilla.org (AMO), with every f
 
 ## Depends on
 
-- Phase 6 (tags and note after saving, source for Save Text; built) and [phase 7](2026-10-14-roadmap-v2-07-extension-omnibox.md) (address-bar search). Firefox launches with the full feature set.
+- Phase 6 (tags and note after saving, source for Save Text; built) and phase 7 (address-bar search; built). Firefox launches with the full feature set.
 
 ## Success Criteria
 

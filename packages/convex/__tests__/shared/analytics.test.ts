@@ -52,6 +52,21 @@ describe("product analytics catalog", () => {
     ]);
   });
 
+  test("records address-bar search by what Enter opened, never the query", () => {
+    const capture = mock();
+    configureAnalytics({ capture });
+
+    captureEvent("extension_omnibox_used", { result: "card" });
+    captureEvent("extension_omnibox_used", { result: "search" });
+    // @ts-expect-error the query text is not part of the event
+    captureEvent("extension_omnibox_used", { query: "design" });
+
+    expect(capture.mock.calls.slice(0, 2)).toEqual([
+      ["extension_omnibox_used", { result: "card" }],
+      ["extension_omnibox_used", { result: "search" }],
+    ]);
+  });
+
   test("keeps a failing recorder away from the product flow", () => {
     configureAnalytics({
       capture: () => {

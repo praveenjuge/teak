@@ -43,6 +43,8 @@ export default defineConfig({
       "scripting",
     ],
     host_permissions: ["<all_urls>"],
+    // `teak` then Space or Tab searches Teak from the address bar.
+    omnibox: { keyword: "teak" },
     action: {
       default_title: "Save to Teak",
     },
