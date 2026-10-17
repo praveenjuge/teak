@@ -7,7 +7,7 @@ import {
   validateFileName,
 } from "@teak/convex/shared/file-formats";
 import type { TeakSaveResponse } from "../types/messages";
-import { oauthRequest } from "./oauthAuth";
+import { oauthRequest, reachTeak } from "./oauthAuth";
 import {
   restResult,
   type SaveSource,
@@ -140,11 +140,13 @@ export async function saveFileToTeak(
         throw new Error("Invalid upload response.");
       }
       const fetchImpl = dependencies.fetchImpl ?? fetch;
-      const uploadResponse = await fetchImpl(upload.uploadUrl, {
-        body: input.bytes,
-        headers: { "Content-Type": mimeType },
-        method: "PUT",
-      });
+      const uploadResponse = await reachTeak(
+        fetchImpl(upload.uploadUrl, {
+          body: input.bytes,
+          headers: { "Content-Type": mimeType },
+          method: "PUT",
+        })
+      );
       if (!uploadResponse.ok) {
         return errorResponse(
           `Upload failed with status ${uploadResponse.status}`

@@ -6,6 +6,7 @@ const APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
+const FIREFOX_ADDONS_URL = "https://addons.mozilla.org/firefox/addon/teak/";
 const MAC_APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989?mt=12";
 const API_DOCS_URL = "/docs/api";
@@ -17,7 +18,7 @@ const RAYCAST_INSTALL_BUTTON_URL =
   "https://www.raycast.com/praveenjuge/teak-raycast/install_button@2x.png?v=1.1";
 
 // The platform keys the detection script below matches against.
-type Platform = "ios" | "mac" | "android" | "web" | "chrome";
+type Platform = "ios" | "mac" | "android" | "web" | "chrome" | "firefox";
 
 interface Badge {
   alt: string;
@@ -117,6 +118,20 @@ const browserCards: AppCard[] = [
       src: "/badges/chrome-web-store-badge.svg",
       alt: "Available in the Chrome Web Store",
       width: 160,
+      height: 45,
+    },
+  },
+  {
+    platform: "firefox",
+    name: "Firefox Extension",
+    copy: "Everything the Chrome extension does, in Firefox: save pages, images, and text, and search Teak from the address bar.",
+    iconAlt: "Firefox icon",
+    iconSrc: "/platform-icons/firefox.svg",
+    href: FIREFOX_ADDONS_URL,
+    badge: {
+      src: "/badges/firefox-addons-badge.svg",
+      alt: "Get the add-on for Firefox",
+      width: 129,
       height: 45,
     },
   },
@@ -315,11 +330,11 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
 </div>
 
 <script>
-  type Platform = "ios" | "mac" | "android" | "web" | "chrome";
+  type Platform = "ios" | "mac" | "android" | "web" | "chrome" | "firefox";
 
   const detectPlatform = (): Platform => {
     const override = new URLSearchParams(location.search).get("platform");
-    if (override && ["ios", "mac", "android", "web", "chrome"].includes(override)) {
+    if (override && ["ios", "mac", "android", "web", "chrome", "firefox"].includes(override)) {
       return override as Platform;
     }
     const nav = navigator as Navigator & {
@@ -334,6 +349,7 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     if (isIOS) return "ios";
     if (/Android/i.test(ua)) return "android";
     if (/mac/i.test(platform)) return "mac";
+    if (/Firefox\//.test(ua)) return "firefox";
     const isChromium = nav.userAgentData?.brands?.some(({ brand }) =>
       /Chromium|Google Chrome/.test(brand)
     );

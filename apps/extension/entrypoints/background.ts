@@ -19,6 +19,7 @@ import {
   cardUrlFrom,
   createOmniboxSearch,
   defaultSuggestion,
+  noticeRow,
   type OmniboxFlavor,
   type OmniboxOutcome,
   searchOmnibox,
@@ -35,6 +36,7 @@ import {
   waitingSaveIds,
 } from "../lib/pendingSaves";
 import { toContextMenuStatus } from "../lib/popupStatus";
+import { isPrivateSession } from "../lib/privateSession";
 import { clearRecentTags, rememberTags } from "../lib/recentTags";
 import { isRestrictedUrl, restrictedUrlMessage } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
@@ -60,6 +62,10 @@ import {
   isSupportedInlineSaveHost,
 } from "../types/social";
 
+/** The popup, or in Firefox its upload window (`popup.html#upload`). */
+const isPopupPage = (url: string | undefined) =>
+  url?.split("#")[0] === chrome.runtime.getURL("popup.html");
+
 const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
 const queuePatch = createPatchQueue();
 
@@ -67,8 +73,8 @@ const queuePatch = createPatchQueue();
 async function patchCard(payload: PatchCardPayload) {
   const result = await queuePatch(payload);
   const owner = await getCaptureOwner();
-  if (result.status === "updated" && payload.tags && owner) {
-    await rememberTags(owner, payload.tags);
+  if (result.status === "updated" && payload.added && owner) {
+    await rememberTags(owner, payload.added);
   }
   return result;
 }
@@ -104,13 +110,13 @@ function runPendingSave(
           "ACCOUNT_MISMATCH"
         );
       }
-      if (!save.ownerId) {
-        save.ownerId = state.user.id;
+      if (!(save.ownerId && save.firstAttemptAt)) {
+        save.ownerId ??= state.user.id;
+        save.firstAttemptAt ??= Date.now();
         await updatePendingSave(save);
-      }
-      if (!save.firstAttemptAt) {
-        save.firstAttemptAt = Date.now();
-        await updatePendingSave(save);
+        // Firefox can't read a stored file through a Blob read before its
+        // record was rewritten, so read the record again.
+        save = (await getPendingSave(save.id)) ?? save;
       }
       const ownerId = save.ownerId;
       const request = (path: string, init?: RequestInit) =>
@@ -121,6 +127,9 @@ function runPendingSave(
           { request }
         );
       }
+      // A private session keeps an asset save as one, since session storage
+      // can't hold the downloaded file; a retry downloads it again.
+      const keepsFile = !(isPrivateSession() && save.kind === "asset");
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
         if ("status" in file) {
@@ -134,7 +143,9 @@ function runPendingSave(
           kind: "file",
           input: file,
         };
-        await updatePendingSave(save);
+        if (keepsFile) {
+          await updatePendingSave(save);
+        }
       }
       const fileSave = save;
       return saveFileToTeak(
@@ -143,7 +154,9 @@ function runPendingSave(
           request,
           onUploaded: async (uploaded) => {
             fileSave.input.uploaded = uploaded;
-            await updatePendingSave(fileSave);
+            if (keepsFile) {
+              await updatePendingSave(fileSave);
+            }
           },
         }
       );
@@ -169,7 +182,11 @@ function runPendingSave(
     if (
       result.status === "saved" ||
       result.status === "duplicate" ||
-      (result.status === "error" && permanentCodes.includes(result.code ?? ""))
+      (result.status === "error" &&
+        permanentCodes.includes(result.code ?? "")) ||
+      // A private session can't keep a file past its upload; the upload
+      // window shows how it ended.
+      (pending.kind === "file" && isPrivateSession())
     ) {
       await removePendingSave(save.id);
     }
@@ -329,7 +346,10 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
     candidate.length <= limit;
   switch (type) {
     case MESSAGE_TYPES.SAVE_FILE:
-      return boundedString(value.id, 128);
+      return (
+        boundedString(value.id, 128) &&
+        (value.file === undefined || value.file instanceof File)
+      );
     case MESSAGE_TYPES.SAVE_CONTENT:
       return (
         boundedString(value.content, 512 * 1024) &&
@@ -384,14 +404,19 @@ export default defineBackground(() => {
     const search = createOmniboxSearch({
       search: (text, signal) =>
         searchOmnibox(text, signal, (path, init) => oauthRequest(path, init)),
-      show: (_text, outcome) => {
+      show: (text, outcome) => {
         signedOut = stillSignedOut(signedOut, outcome);
         showDefault(outcome);
-        suggest?.(
-          outcome.kind === "results"
-            ? buildSuggestions(outcome.cards, flavor)
-            : []
+        if (outcome.kind === "results") {
+          suggest?.(buildSuggestions(outcome.cards, flavor));
+          return;
+        }
+        const notice = noticeRow(
+          signedOut ? { kind: "signedOut" } : outcome,
+          text,
+          flavor
         );
+        suggest?.(notice ? [notice] : []);
       },
     });
 
@@ -444,7 +469,7 @@ export default defineBackground(() => {
     if (
       port.name !== SAVE_DETAILS_PORT ||
       port.sender?.id !== chrome.runtime.id ||
-      port.sender?.url !== chrome.runtime.getURL("popup.html")
+      !isPopupPage(port.sender?.url)
     ) {
       port.disconnect();
       return;
@@ -488,6 +513,13 @@ export default defineBackground(() => {
 
     const action = info.menuItemId as ContextMenuAction;
     let errorCode: string | undefined;
+    // Firefox opens the popup only while the click is being handled, so it
+    // opens now and follows the save through storage. The record is queued
+    // first, so the popup reads it instead of saving the page itself.
+    void chrome.storage.local.set({
+      contextMenuSave: { action, timestamp: Date.now(), status: "saving" },
+    });
+    void chrome.action.openPopup().catch(() => undefined);
 
     try {
       if (isRestrictedUrl(tab.url)) {
@@ -501,16 +533,6 @@ export default defineBackground(() => {
       if (!content) {
         throw new Error("Could not access the selected asset URL");
       }
-
-      const contextMenuState = {
-        action,
-        timestamp: Date.now(),
-        status: "saving",
-      };
-
-      await chrome.storage.local.set({
-        contextMenuSave: contextMenuState,
-      });
 
       const saveResult =
         action === "save-asset"
@@ -527,8 +549,8 @@ export default defineBackground(() => {
               },
             });
       if (saveResult.status === "unauthenticated") {
+        // The open popup shows sign-in.
         await chrome.storage.local.remove("contextMenuSave");
-        void chrome.action.openPopup();
         return;
       }
 
@@ -554,8 +576,6 @@ export default defineBackground(() => {
         },
       });
     }
-
-    void chrome.action.openPopup();
   }
 
   function handleRuntimeMessage(
@@ -573,8 +593,7 @@ export default defineBackground(() => {
       return;
     }
     const trustedPopup =
-      sender.id === chrome.runtime.id &&
-      sender.url === chrome.runtime.getURL("popup.html");
+      sender.id === chrome.runtime.id && isPopupPage(sender.url);
     const ownPage =
       sender.id === chrome.runtime.id &&
       Boolean(sender.tab?.id) &&
@@ -638,7 +657,22 @@ export default defineBackground(() => {
             return;
           }
           if (message.type === MESSAGE_TYPES.SAVE_FILE) {
-            const save = await getPendingSave(message.payload.id);
+            const { file, id } = message.payload;
+            if (file) {
+              await storePendingSave({
+                id,
+                createdAt: Date.now(),
+                ownerId: await getCaptureOwner(),
+                kind: "file",
+                input: {
+                  bytes: file,
+                  fileName: file.name,
+                  mimeType: file.type,
+                  source: "popup-file",
+                },
+              });
+            }
+            const save = await getPendingSave(id);
             if (save?.kind !== "file") {
               throw new Error("Pending file not found.");
             }
@@ -666,7 +700,11 @@ export default defineBackground(() => {
           const state = await getOAuthState();
           sendResponse(
             trustedPopup
-              ? { ...state, pendingCount: (await listWaitingSaveIds()).length }
+              ? {
+                  ...state,
+                  pendingCount: (await listWaitingSaveIds()).length,
+                  ...(isPrivateSession() ? { privateSession: true } : {}),
+                }
               : { authenticated: state.authenticated }
           );
           return;

@@ -90,6 +90,10 @@ describe("isPatchCardPayload", () => {
     ["tags", { cardId: "abc123", tags: ["design"] }],
     ["a note", { cardId: "abc123", notes: "x".repeat(10_000) }],
     ["a cleared note", { cardId: "abc123", notes: null }],
+    [
+      "tags with the ones added",
+      { added: ["Lamps"], cardId: "abc123", tags: ["design", "lamps"] },
+    ],
   ])("accepts %s", (_label, payload) => {
     expect(isPatchCardPayload(payload)).toBe(true);
   });
@@ -102,6 +106,14 @@ describe("isPatchCardPayload", () => {
     ["too many tags", { cardId: "abc", tags: new Array(101).fill("t") }],
     ["a huge note", { cardId: "abc", notes: "x".repeat(100_001) }],
     ["tags that aren't strings", { cardId: "abc", tags: [1] }],
+    [
+      "an added tag the change doesn't set",
+      { added: ["other"], cardId: "abc", tags: ["design"] },
+    ],
+    [
+      "added tags without tags",
+      { added: ["design"], cardId: "abc", notes: "x" },
+    ],
   ])("refuses %s", (_label, payload) => {
     expect(isPatchCardPayload(payload)).toBe(false);
   });

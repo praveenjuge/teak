@@ -116,7 +116,13 @@ test("Enter in the tag input saves the tags at once", async () => {
   await type(input, "to read");
   await press(input, "Enter");
   await settle();
-  expect(patches).toEqual([{ cardId: "card_1", tags: ["design", "to read"] }]);
+  expect(patches).toEqual([
+    {
+      added: ["design", "to read"],
+      cardId: "card_1",
+      tags: ["design", "to read"],
+    },
+  ]);
   expect(container.textContent).toContain("to read");
 });
 
@@ -182,7 +188,11 @@ test("a failed save hands the change back to the background", async () => {
   await type(input, "design");
   await press(input, "Enter");
   await settle();
-  expect(drafts.at(-1)).toEqual({ cardId: "card_1", tags: ["design"] });
+  expect(drafts.at(-1)).toEqual({
+    added: ["design"],
+    cardId: "card_1",
+    tags: ["design"],
+  });
 });
 
 test("a tag over 64 characters is refused before any request", async () => {
@@ -250,7 +260,10 @@ test("a page already saved fills in its own tags and note", async () => {
   await type(input, "lamps");
   await press(input, "Enter");
   await settle();
-  expect(patches).toEqual([{ cardId: "card_1", tags: ["design", "lamps"] }]);
+  // Only the tag added here is remembered as recent, not the card's own.
+  expect(patches).toEqual([
+    { added: ["lamps"], cardId: "card_1", tags: ["design", "lamps"] },
+  ]);
 });
 
 test("a page already saved shows no fields when its tags can't load", async () => {

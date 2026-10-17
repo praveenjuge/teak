@@ -13,5 +13,11 @@ export const missingBuildEnvError = (
     ? null
     : "VITE_PUBLIC_CONVEX_SITE_URL is not set, so this extension build couldn't reach Teak. Run 'bun run setup --target extension' (or export the variable), then build again.";
 
+/**
+ * Firefox's install prompt declares no technical data, so the Firefox build
+ * sends no error reports or events.
+ */
 export const getPostHogProjectToken = (): string | undefined =>
-  import.meta.env.WXT_POSTHOG_PROJECT_TOKEN?.trim() || undefined;
+  import.meta.env.BROWSER === "firefox"
+    ? undefined
+    : import.meta.env.WXT_POSTHOG_PROJECT_TOKEN?.trim() || undefined;

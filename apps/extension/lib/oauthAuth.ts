@@ -18,6 +18,7 @@ import {
 } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
+import { isPrivateSession } from "./privateSession";
 import { captureExtensionEvent } from "./telemetry";
 
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
@@ -59,19 +60,30 @@ async function readJson(response: Response) {
   }
   return JSON.parse(text);
 }
-function fetchAuth(url: string, init: RequestInit) {
-  // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  return fetch(validateOAuthUrl(url, LOCAL).href, {
-    ...init,
-    credentials: "omit",
-    redirect: "error",
-    // A caller's own signal (address-bar search cancels stale requests)
-    // still applies beside the timeout.
-    signal: init.signal
-      ? AbortSignal.any([init.signal, AbortSignal.timeout(10_000)])
-      : AbortSignal.timeout(10_000),
+export const UNREACHABLE_MESSAGE =
+  "Couldn't reach Teak. Check your connection and try again.";
+/** Each browser words a network failure differently ("Failed to fetch",
+ * "NetworkError when attempting to fetch resource."); this says it once. */
+export const reachTeak = <T>(request: Promise<T>) =>
+  request.catch((error: unknown) => {
+    throw error instanceof TypeError ? new Error(UNREACHABLE_MESSAGE) : error;
   });
+
+function fetchAuth(url: string, init: RequestInit) {
+  return reachTeak(
+    // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+    fetch(validateOAuthUrl(url, LOCAL).href, {
+      ...init,
+      credentials: "omit",
+      redirect: "error",
+      // A caller's own signal (address-bar search cancels stale requests)
+      // still applies beside the timeout.
+      signal: init.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(10_000)])
+        : AbortSignal.timeout(10_000),
+    })
+  );
 }
 const refreshDiscoveryAfterFailure = () =>
   discovery(true).then(
@@ -127,12 +139,17 @@ async function firefoxCredentials<T>(
   }
 }
 
+// A private session can't open IndexedDB; its session storage, which Firefox
+// never shows content scripts, holds the sign-in until Firefox closes.
+const credentialArea = () =>
+  isPrivateSession() ? chrome.storage.session : chrome.storage.local;
+
 async function readCredentials(): Promise<Credentials | null> {
   await initializeAuth();
   const record = (
-    IS_FIREFOX
+    IS_FIREFOX && !isPrivateSession()
       ? await firefoxCredentials("readonly", (store) => store.get(tokenKey()))
-      : (await chrome.storage.local.get(tokenKey()))[tokenKey()]
+      : (await credentialArea().get(tokenKey()))[tokenKey()]
   ) as Partial<Credentials> | undefined;
   return record &&
     typeof record.accessToken === "string" &&
@@ -145,11 +162,14 @@ async function readCredentials(): Promise<Credentials | null> {
 }
 
 async function writeCredentials(credentials: Credentials | null) {
+  const inDatabase = IS_FIREFOX && !isPrivateSession();
   if (credentials) {
-    if (IS_FIREFOX) {
+    if (inDatabase) {
       await firefoxCredentials("readwrite", (store) =>
         store.put(credentials, tokenKey())
       );
+    } else if (isPrivateSession()) {
+      await chrome.storage.session.set({ [tokenKey()]: credentials });
     }
     await chrome.storage.local.set({
       ...(IS_FIREFOX ? {} : { [tokenKey()]: credentials }),
@@ -157,10 +177,10 @@ async function writeCredentials(credentials: Credentials | null) {
         ? { [captureOwnerKey()]: credentials.userId }
         : {}),
     });
-  } else if (IS_FIREFOX) {
+  } else if (inDatabase) {
     await firefoxCredentials("readwrite", (store) => store.delete(tokenKey()));
   } else {
-    await chrome.storage.local.remove(tokenKey());
+    await credentialArea().remove(tokenKey());
   }
   await chrome.storage.local.set({
     [AUTH_STATE_KEY]: {
@@ -381,7 +401,7 @@ export async function oauthRequest(
   ) {
     throw new Error("Invalid Teak API path.");
   }
-  const credentials = await credentialsForRequest();
+  const credentials = await reachTeak(credentialsForRequest());
   if (!credentials) {
     return null;
   }

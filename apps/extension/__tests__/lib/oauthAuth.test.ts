@@ -222,6 +222,51 @@ describe("Chrome OAuth background credentials", () => {
     await expect(auth.initializeAuth()).resolves.toBeUndefined();
     expect(storage[tokenKey]).toBeUndefined();
   });
+  test("Firefox's private mode keeps the sign-in in session storage", async () => {
+    process.env.BROWSER = "firefox";
+    Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
+    // IndexedDB can't open in a private session; Bun has none to open.
+    const session: Record<string, unknown> = {};
+    Object.assign(chrome, {
+      extension: { inIncognitoContext: true },
+      storage: {
+        ...chrome.storage,
+        session: {
+          get: async (key: string) => ({ [key]: session[key] }),
+          set: (values: Record<string, unknown>) => {
+            Object.assign(session, values);
+            return Promise.resolve();
+          },
+          remove: (key: string) => {
+            delete session[key];
+            return Promise.resolve();
+          },
+        },
+      },
+    });
+    globalThis.fetch = withDiscovery(((input) => {
+      const url = String(input);
+      if (url.endsWith("/oauth2/token")) {
+        return Promise.resolve(tokenResponse());
+      }
+      if (url.endsWith("/v1/oauth/disconnect")) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        Response.json({ data: { id: "owner", email: "owner@example.com" } })
+      );
+    }) as typeof fetch);
+    const auth = await load();
+    await auth.beginOAuthSignIn();
+    expect(session[tokenKey]).toMatchObject({ accessToken, userId: "owner" });
+    expect(storage[tokenKey]).toBeUndefined();
+    expect(await auth.getOAuthState()).toMatchObject({
+      authenticated: true,
+      user: { id: "owner" },
+    });
+    await auth.signOutOAuth();
+    expect(session[tokenKey]).toBeUndefined();
+  });
   test("Firefox uses its registered client and native redirect URI", async () => {
     process.env.BROWSER = "firefox";
     Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
@@ -530,6 +575,30 @@ test("a caller's abort signal cancels its request", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
   controller.abort();
   await expect(request).rejects.toThrow();
+});
+
+test("a network failure reads the same in every browser", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 60_000,
+    ...workosBinding,
+  };
+  for (const message of [
+    "Failed to fetch",
+    "NetworkError when attempting to fetch resource.",
+  ]) {
+    const offline = (() =>
+      Promise.reject(new TypeError(message))) as unknown as typeof fetch;
+    // The API alone, then discovery and the token endpoint as well.
+    for (const transport of [withDiscovery(offline), offline]) {
+      globalThis.fetch = transport;
+      const auth = await load();
+      await expect(auth.oauthRequest("/v1/me")).rejects.toThrow(
+        "Couldn't reach Teak. Check your connection and try again."
+      );
+    }
+  }
 });
 
 test("a successful refresh reuses discovery and a rejected refresh fetches it again", async () => {

@@ -58,6 +58,8 @@ export interface SaveDetailsDraftMessage {
 
 /** The tags (replacing the card's own) and note the popup sets on a card. */
 export interface PatchCardPayload {
+  /** Tags in `tags` that this change adds, which the extension remembers as recent. */
+  added?: string[];
   cardId: string;
   notes?: string | null;
   tags?: string[];
@@ -82,7 +84,11 @@ export type TeakRuntimeRequest =
         | typeof MESSAGE_TYPES.RETRY_PENDING
         | typeof MESSAGE_TYPES.DISCARD_PENDING;
     }
-  | { type: typeof MESSAGE_TYPES.SAVE_FILE; payload: { id: string } }
+  | {
+      type: typeof MESSAGE_TYPES.SAVE_FILE;
+      // `file` comes along only from a private session, which can't store it.
+      payload: { file?: File; id: string };
+    }
   | GetAuthStateRequest
   | SaveAssetRequest
   | SaveContentRequest
@@ -94,6 +100,8 @@ export interface AuthStateResponse {
   authenticated: boolean;
   pending?: boolean;
   pendingCount?: number;
+  /** Firefox forgets the sign-in and unsent saves when it closes. */
+  privateSession?: boolean;
   user?: { id: string; email: string; name?: string };
 }
 

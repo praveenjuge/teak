@@ -51,7 +51,7 @@ export async function rememberTags(
   if (used.length === 0) {
     return;
   }
-  // Callers pass a card's whole tag list, which ends with the tags just added.
+  // Callers pass the tags a change added, in the order they were added.
   const tags = mergeRecentTags(
     [...used].reverse(),
     await readRecentTags(userId)

@@ -2,6 +2,10 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 import { missingBuildEnvError } from "./lib/env";
 
+/** Pins the Chrome extension id, so OAuth redirects and the store item match. */
+const CHROME_KEY =
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkgJrENYninAOCgkpb9LcU6i5/lDbBjNjWBi0VF8iRg+Ha91Gx/0S9jtL1h36kAGXetcNvxXeJ95UE+HG9Dd8UfyhM9kuBh+o6/zsu8L7vFdVOH1EdVPvO15jVoa2e8DOYz/f0EN/FJ7G6QDm411110NHxVleQc0SEe35FZwTDTX6T1lC9XeYtE+y6eU+fUlLZF1/JJL+lIlXjaLnB4QQTJhK9KQvOi2LVtFUHUYVYV/Jebj3VFdj8gOVS2iTIfYrcb0oInFCwxnBStflQR9604XAqZBUt2KEWgO9V/cUHmdfoHHmXZ7k/1+d498nA7tKg1O9+0eZUUDlxmtv5jOM4QIDAQAB";
+
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifestVersion: 3,
@@ -21,18 +25,28 @@ export default defineConfig({
       console.warn(`\n⚠ ${error}\n`);
     },
   },
-  manifest: {
+  // Firefox gets no Chrome `key` or object `author` (it accepts only a
+  // string), and declares the data it sends for its install prompt.
+  manifest: ({ browser }) => ({
     name: "Teak",
     description:
       "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.",
     // version intentionally omitted. WXT reads it from package.json so the
     // monorepo version bump drives extension releases.
-    author: {
-      email: "hi@praveenjuge.com",
-    },
+    ...(browser === "firefox"
+      ? {}
+      : { author: { email: "hi@praveenjuge.com" } }),
     homepage_url: "https://teakvault.com",
     browser_specific_settings: {
-      gecko: { id: "teak@teakvault.com", strict_min_version: "140.0" },
+      gecko: {
+        id: "teak@teakvault.com",
+        strict_min_version: "140.0",
+        // Saved pages and text, the URL of the page being saved or checked,
+        // and address-bar searches go to Teak. Firefox sends no error reports.
+        data_collection_permissions: {
+          required: ["websiteContent", "browsingActivity", "searchTerms"],
+        },
+      },
     },
     permissions: [
       "identity",
@@ -47,8 +61,11 @@ export default defineConfig({
     omnibox: { keyword: "teak" },
     action: {
       default_title: "Save to Teak",
+      // Firefox otherwise keeps the button in the extensions menu, a click
+      // further away than Chrome's pinned button.
+      ...(browser === "firefox" ? { default_area: "navbar" } : {}),
     },
-    key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkgJrENYninAOCgkpb9LcU6i5/lDbBjNjWBi0VF8iRg+Ha91Gx/0S9jtL1h36kAGXetcNvxXeJ95UE+HG9Dd8UfyhM9kuBh+o6/zsu8L7vFdVOH1EdVPvO15jVoa2e8DOYz/f0EN/FJ7G6QDm411110NHxVleQc0SEe35FZwTDTX6T1lC9XeYtE+y6eU+fUlLZF1/JJL+lIlXjaLnB4QQTJhK9KQvOi2LVtFUHUYVYV/Jebj3VFdj8gOVS2iTIfYrcb0oInFCwxnBStflQR9604XAqZBUt2KEWgO9V/cUHmdfoHHmXZ7k/1+d498nA7tKg1O9+0eZUUDlxmtv5jOM4QIDAQAB",
+    ...(browser === "firefox" ? {} : { key: CHROME_KEY }),
     icons: {
       16: "icon/16.png",
       32: "icon/32.png",
@@ -56,6 +73,34 @@ export default defineConfig({
       96: "icon/96.png",
       128: "icon/128.png",
     },
+  }),
+  // AMO rebuilds the Firefox add-on from this archive, so it holds the
+  // workspace packages the bundle imports and every workspace manifest the
+  // lockfile names. `release.md` has the build steps for reviewers.
+  zip: {
+    sourcesRoot: "../..",
+    includeSources: [
+      "package.json",
+      "bun.lock",
+      "bunfig.toml",
+      "LICENSE",
+      "apps/*/package.json",
+      "packages/*/package.json",
+      "apps/extension/**",
+      "packages/convex/**",
+      "packages/files-protocol/**",
+      "packages/ui/**",
+    ],
+    excludeSources: [
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/node_modules/**",
+      "apps/extension/.output/**",
+      "packages/convex/_generated/ai/**",
+      // Onboarding sample media; nothing in the extension imports it.
+      "packages/convex/card/onboarding/**",
+    ],
   },
   vite: () => ({
     plugins: [tailwindcss()] as any,

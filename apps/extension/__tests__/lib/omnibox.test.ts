@@ -6,6 +6,7 @@ import {
   createInputThrottle,
   createOmniboxSearch,
   defaultSuggestion,
+  noticeRow,
   OMNIBOX_RATE_LIMIT_PAUSE_MS,
   type OmniboxCard,
   type OmniboxOutcome,
@@ -190,10 +191,35 @@ describe("default suggestion", () => {
     ).toBe(description);
   });
 
-  test("is plain text in Firefox", () => {
-    expect(defaultSuggestion({ kind: "empty" }, "firefox")).toBe(
-      "Search Teak for %s — No matching cards"
+  test("Firefox, which fills in no %s, reads Search Teak", () => {
+    expect(defaultSuggestion({ kind: "empty" }, "firefox")).toBe("Search Teak");
+    expect(defaultSuggestion({ kind: "signedOut" }, "firefox")).toBe(
+      "Sign in to Teak to search"
     );
+  });
+});
+
+describe("noticeRow", () => {
+  test.each<[OmniboxOutcome["kind"], string | null]>([
+    ["empty", "No matching cards"],
+    ["error", "Couldn't reach Teak"],
+    ["rateLimited", "Too many searches, slow down"],
+    ["signedOut", "Sign in to Teak to search"],
+    ["short", null],
+    ["results", null],
+  ])("Firefox shows %s as a row that searches the text", (kind, notice) => {
+    const outcome = { kind, cards: [] } as OmniboxOutcome;
+    expect(noticeRow(outcome, " design ", "firefox")).toEqual(
+      notice ? { content: "design ", description: notice } : null
+    );
+  });
+
+  test("Chromium keeps notices on the default row", () => {
+    expect(noticeRow({ kind: "empty" }, "design", "chromium")).toBeNull();
+  });
+
+  test("no text, no row", () => {
+    expect(noticeRow({ kind: "empty" }, "  ", "firefox")).toBeNull();
   });
 });
 
