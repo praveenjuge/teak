@@ -241,6 +241,29 @@ describe("Connect credential validation", () => {
     }
   );
 
+  test("reports expiry only for a token WorkOS signed", async () => {
+    const past = Math.floor(Date.now() / 1000) - 600;
+    let expired = 0;
+    const onExpired = () => {
+      expired += 1;
+    };
+    const forged = await token(
+      { iat: past, exp: past + 300 },
+      wrongKeys.privateKey
+    );
+    expect(
+      await verifyWorkosConnectToken(forged, { ...config, onExpired })
+    ).toBeNull();
+    expect(expired).toBe(0);
+    expect(
+      await verifyWorkosConnectToken(await issuedFor(past, 300), {
+        ...config,
+        onExpired,
+      })
+    ).toBeNull();
+    expect(expired).toBe(1);
+  });
+
   test("fails closed when provider keys cannot be loaded", async () => {
     expect(
       await verifyWorkosConnectToken(await token(), {
