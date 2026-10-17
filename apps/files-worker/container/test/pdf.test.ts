@@ -91,6 +91,7 @@ describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
     );
     expect(second.status).toBe(200);
     expect(second.manifest?.pages).toBe(60);
+    expect(second.manifest?.pageNumber).toBe(2);
     expect(darkPixels(second.parts.page)).toBeGreaterThan(0);
     expect(Buffer.from(second.parts.page)).not.toEqual(
       Buffer.from(first.parts.page)

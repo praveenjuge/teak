@@ -658,10 +658,17 @@ describe("process-audio", () => {
 
 describe("ocr-pdf-pages", () => {
   const PDF = "users/u/cards/c/file/scan.pdf";
-  const pageAnswer = (pages: number) => () =>
-    rendererResponse({ page: { height: 1600, width: 1237 }, pages }, [
-      { bytes: PNG_BYTES, name: "page", type: "image/png" },
-    ]);
+  const pageAnswer = (pages: number) => (call: RendererCall) =>
+    rendererResponse(
+      {
+        page: { height: 1600, width: 1237 },
+        pageNumber: Number(
+          new URL(call.path, "http://r").searchParams.get("page") ?? 1
+        ),
+        pages,
+      },
+      [{ bytes: PNG_BYTES, name: "page", type: "image/png" }]
+    );
   const fakeAi = (answers: string[]) => {
     const prompts: string[] = [];
     return {
@@ -724,6 +731,33 @@ describe("ocr-pdf-pages", () => {
       { maxPages: 1, sourceKey: PDF }
     );
     expect(capped.calls).toHaveLength(1);
+  });
+
+  test("a renderer image that ignores page reads page 1 only", async () => {
+    // Before `page`, the renderer drew page 1 for any page and said nothing
+    // about which page it drew.
+    const { calls, env } = await setup(
+      () =>
+        rendererResponse({ page: { height: 1600, width: 1237 }, pages: 5 }, [
+          { bytes: PNG_BYTES, name: "page", type: "image/png" },
+        ]),
+      PDF
+    );
+    const { body } = await callOp(
+      {
+        ...env,
+        AI: fakeAi(['{"text":"Cover page"}', '{"text":"Cover page"}'])
+          .AI as never,
+      },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(body.data).toEqual({
+      pageCount: 5,
+      pagesRead: 1,
+      text: "Cover page",
+    });
+    expect(calls).toHaveLength(2);
   });
 
   test("a page the model never reads validly counts as no text", async () => {

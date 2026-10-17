@@ -90,7 +90,9 @@ export async function pdfPageJob(
   return {
     facts: null,
     parts: [{ name: "page", type: "image/png", bytes }],
-    extra: { page: size, pages },
+    // The page drawn, so a caller can tell this renderer apart from one that
+    // ignores `page` and always draws page 1.
+    extra: { page: size, pageNumber: params.page, pages },
   };
 }
 

@@ -242,6 +242,10 @@ export const renderPdfPageBytes = async (
   if (!(width && height)) {
     throw new RendererDeclined("page_size_missing");
   }
+  // A renderer image from before `page` draws page 1 for any page.
+  if (page > 1 && result.manifest.pageNumber !== page) {
+    throw new RendererDeclined("page_not_supported");
+  }
   return {
     height,
     pageCount: positiveInteger(result.manifest.pages, 1_000_000),
