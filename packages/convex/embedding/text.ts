@@ -7,6 +7,7 @@ const MAX_TEXT_CHARS = 8000;
 
 export type EmbeddableCard = Pick<
   Doc<"cards">,
+  | "aiOcrText"
   | "aiSummary"
   | "aiTags"
   | "aiTranscript"
@@ -25,9 +26,10 @@ const clean = (value: string | undefined) => value?.trim() || undefined;
 /**
  * The text a card is embedded from, most telling first, since the model
  * reads only its first ~500 tokens: title, summary, tags, notes, visual
- * styles, then the start of the card's body (its content, else the text
- * extracted from its file, else its transcript). Empty when the card has no
- * text yet, as an image still waiting for AI.
+ * styles, the text read from its image, screenshot or scan, then the start
+ * of the card's body (its content, else the text extracted from its file,
+ * else its transcript). Empty when the card has no text yet, as an image
+ * still waiting for AI.
  */
 export const buildEmbeddingText = (
   card: EmbeddableCard,
@@ -51,6 +53,7 @@ export const buildEmbeddingText = (
     card.visualStyles?.length
       ? `Style: ${card.visualStyles.join(", ")}`
       : undefined,
+    clean(card.aiOcrText)?.slice(0, BODY_CHARS),
     body?.slice(0, BODY_CHARS),
   ]
     .filter((part): part is string => Boolean(part))
