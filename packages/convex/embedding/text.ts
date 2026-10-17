@@ -1,5 +1,6 @@
 import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
+import { sha256Hex } from "../storage/r2Keys";
 
 const BODY_CHARS = 2000;
 const MAX_TEXT_CHARS = 8000;
@@ -61,15 +62,5 @@ export const buildEmbeddingText = (
  * Identifies what a vector was made from, including the embedding version,
  * and the card type it carries as metadata.
  */
-export const embeddingHash = async (
-  text: string,
-  type: string
-): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(`${CARD_EMBEDDING_VERSION}\n${type}\n${text}`)
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-};
+export const embeddingHash = (text: string, type: string): Promise<string> =>
+  sha256Hex(`${CARD_EMBEDDING_VERSION}\n${type}\n${text}`);

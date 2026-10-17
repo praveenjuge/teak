@@ -17,7 +17,6 @@ import { markTagSummaryDirty } from "../tag/tagSummary";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 import { deleteCardTextContents } from "./textContents";
 
-const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
 
 const SEARCH_FIELDS = [
@@ -80,7 +79,7 @@ export const scheduleCardSearchTagSync = async (
 ) => {
   await ctx.scheduler.runAfter(
     0,
-    internalAny["card/searchDocuments"].syncCardSearchTagsBatch,
+    internal["card/searchDocuments"].syncCardSearchTagsBatch,
     { cardId, userId, generation }
   );
 };

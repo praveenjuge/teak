@@ -44,7 +44,7 @@ import "@teak/ui/styles.css";
 
 Re-exported shadcn/ui + Radix primitives. Available components:
 
-`alert` · `avatar` · `badge` · `button` · `card` · `checkbox` · `context-menu` · `dialog` · `dropdown-menu` · `input` · `label` · `progress` · `select` · `separator` · `skeleton` · `sonner` · `spinner` · `table` · `textarea`
+`alert` · `badge` · `button` · `card` · `checkbox` · `command` · `confirm-dialog` · `context-menu` · `dialog` · `dropdown-menu` · `input` · `kbd` · `label` · `select` · `separator` · `sheet` · `sidebar` · `skeleton` · `sonner` · `spinner` · `tabs` · `textarea` · `tooltip`
 
 ```tsx
 import { Button } from "@teak/ui/components/ui/button";
@@ -58,16 +58,6 @@ import { Badge } from "@teak/ui/components/ui/badge";
 ```tsx
 import { Card, isOptimisticCard } from "@teak/ui/cards";
 import type { CardProps, CardWithUrls, LinkPreviewMetadata } from "@teak/ui/cards";
-
-// Card preview sub-components
-import {
-  AudioWavePreview,
-  GridDocumentPreview,
-  GridImagePreview,
-  GridVideoPreview,
-  LinkCardWithImage,
-  LinkImageDisplay,
-} from "@teak/ui/cards/previews";
 ```
 
 **Card modal** (detail view with actions):
@@ -147,28 +137,6 @@ import { SearchBar, CardsSearchHeader } from "@teak/ui/search";
 
 ---
 
-### Modals
-
-```tsx
-import {
-  MoreInformationModal,
-  NotesEditModal,
-  TagManagementModal,
-} from "@teak/ui/modals";
-```
-
----
-
-### Selection
-
-```tsx
-import { BulkActionBar } from "@teak/ui/selection";
-```
-
-Bulk-action toolbar shown when multiple cards are selected.
-
----
-
 ### Settings Components
 
 ```tsx
@@ -201,28 +169,11 @@ import { SettingsShell } from "@teak/ui/screens";
 ### Feedback / Loading States
 
 ```tsx
-import {
-  CardSkeleton,
-  CardsGridSkeleton,
-  EmptyState,
-  ErrorBoundary,
-  GlobalFileDropOverlay,
-  Loading,
-  PageErrorState,
-  PageLoadingState,
-} from "@teak/ui/feedback";
-
-// Or per-component paths:
+import { CardSkeleton } from "@teak/ui/feedback/CardSkeleton";
+import { CardsGridSkeleton } from "@teak/ui/feedback/CardsGridSkeleton";
 import { GlobalFileDropOverlay } from "@teak/ui/feedback/GlobalFileDropOverlay";
 import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
-```
-
----
-
-### Icons
-
-```tsx
-import { AppleIcon, GoogleIcon } from "@teak/ui/icons";
+import { VaultSetupState } from "@teak/ui/feedback/VaultSetupState";
 ```
 
 ---
@@ -250,9 +201,7 @@ import {
   configureFileUploadErrorCapture,
   GlobalFileDropProvider,
   useGlobalFileDrop,
-  useInfiniteScroll,
   useNetworkStatus,
-  useObjectState,
 } from "@teak/ui/hooks";
 ```
 
@@ -267,9 +216,7 @@ import {
 | `useFileUpload` | File upload helper bound to the Convex mutations |
 | `GlobalFileDropProvider` | Authenticated-only provider that owns drop, queue, and upload toasts |
 | `useGlobalFileDrop` | Read provider state (queue size, `enqueueFiles`) from descendants |
-| `useInfiniteScroll` | Intersection-observer-based infinite scroll trigger |
 | `useNetworkStatus` | Online / offline network state |
-| `useObjectState` | `useState` variant for partial object updates |
 
 ---
 
@@ -296,9 +243,7 @@ import { openCustomerPortal } from "@teak/ui/lib/customerPortal";
 ### Constants
 
 ```tsx
-import { PRO_FEATURES, THEME_OPTIONS } from "@teak/ui/constants/settings";
-import type { ThemeValue } from "@teak/ui/constants/settings";
-
+import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS, AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 ```
 

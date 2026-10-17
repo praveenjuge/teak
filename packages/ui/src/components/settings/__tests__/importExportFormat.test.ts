@@ -1,24 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatBytes,
-  formatCountdown,
-  formatRelativeTime,
-} from "../importExportFormat";
-
-describe("formatBytes", () => {
-  test("handles zero and negatives", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(undefined)).toBe("0 B");
-    expect(formatBytes(-5)).toBe("0 B");
-  });
-
-  test("scales through units", () => {
-    expect(formatBytes(512)).toBe("512 B");
-    expect(formatBytes(1024)).toBe("1.0 KB");
-    expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
-    expect(formatBytes(3 * 1024 * 1024 * 1024)).toBe("3.0 GB");
-  });
-});
+import { formatCountdown, formatRelativeTime } from "../importExportFormat";
 
 describe("formatCountdown", () => {
   const minute = 60_000;

@@ -23,7 +23,7 @@ import {
   httpAction,
   internalMutation,
 } from "./_generated/server";
-import { hmacSha256Hex } from "./storage/r2Keys";
+import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 import { isWorkflowRpcFunction } from "./workflowRpcAllowlist";
 
 // The Files Worker's workflows and queues read and write Convex through this
@@ -40,12 +40,6 @@ const json = (status: number, body: unknown): Response =>
       "Content-Type": "application/json; charset=utf-8",
     },
   });
-
-const sha256Hex = async (value: ArrayBuffer): Promise<string> =>
-  Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", value)),
-    (byte) => byte.toString(16).padStart(2, "0")
-  ).join("");
 
 const isCurrentExpiry = (expiresAt: string): boolean => {
   const expiry = Number(expiresAt);

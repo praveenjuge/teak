@@ -232,9 +232,6 @@ final class AppModel {
     }
 
     func deleteAccount() async throws {
-        if authMode?.accountChangesPaused == true {
-            throw TeakError(message: TeakMessages.accountChangesPaused)
-        }
         let _: ConvexVoid = try await backend.mutation("accountDeletion:deleteMyAccount", [:])
         await session.clear()
     }

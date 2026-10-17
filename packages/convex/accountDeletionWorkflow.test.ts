@@ -1130,26 +1130,6 @@ test("local consent cleanup yields and resumes atomically across action retries"
   expect(sibling?.revokedAt).toBeUndefined();
 });
 
-test("account-change pause denies fresh deletion and acknowledges an existing durable request", async () => {
-  const { t, signed } = await fixture();
-  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
-  await expect(
-    signed.mutation(api.accountDeletion.deleteMyAccount, {})
-  ).rejects.toThrow("Account changes are paused");
-  expect(
-    await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
-  ).toEqual([]);
-  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
-  await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
-  await expect(
-    signed.mutation(api.accountDeletion.deleteMyAccount, {})
-  ).resolves.toBeNull();
-  expect(
-    await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
-  ).toHaveLength(1);
-});
-
 test("legacy deletion removes every retained Better Auth row and redacts the owner", async () => {
   const { t, signed, ownerId } = await fixture(true);
   const seed = (model: string, data: Record<string, unknown>) =>

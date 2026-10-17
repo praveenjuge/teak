@@ -46,7 +46,6 @@ export const MCP_TRANSPORT = "streamable-http";
 
 export { PUBLIC_API_CORS_HEADERS } from "./shared/publicApiHeaders";
 
-const PROD_PUBLIC_API_URL = "https://teakvault.com/api";
 const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
 const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
 
@@ -69,19 +68,6 @@ const readPublicOrigin = (): string | undefined => {
 
 const isLocalApiHost = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname);
-
-export const getPublicApiUrl = (requestUrl: string): string => {
-  const publicOrigin = readPublicOrigin();
-  if (publicOrigin) {
-    return `${publicOrigin}/api`;
-  }
-
-  const { hostname, origin } = new URL(requestUrl);
-  const devApiOrigin = resolveTeakDevApiUrl(env);
-  return isLocalApiHost(hostname) || origin === devApiOrigin
-    ? origin
-    : PROD_PUBLIC_API_URL;
-};
 
 export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
   getPublicMcpUrl(requestUrl);

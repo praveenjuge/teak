@@ -1,5 +1,4 @@
-export const DEFAULT_LIMIT = 50;
-export const MAX_LIMIT = 100;
+import { buildCardsSearchParams as buildSdkCardsSearchParams } from "teak-sdk";
 
 const KNOWN_ERROR_CODES = [
   "BAD_REQUEST",
@@ -54,81 +53,26 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
   }
 };
 
-export const normalizeLimit = (limit?: number): number => {
-  if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
-  }
-
-  const clamped = Math.trunc(limit ?? DEFAULT_LIMIT);
-  return Math.max(1, Math.min(clamped, MAX_LIMIT));
-};
-
-export const buildCardsSearchParams = (input: {
-  createdAfter?: number;
-  createdBefore?: number;
-  cursor?: string;
-  favorited?: boolean;
-  hex?: string[];
-  hue?: string[];
-  include?: string;
-  limit?: number;
-  query?: string;
-  sort?: "newest" | "oldest";
-  style?: string[];
-  tag?: string;
-  trashed?: boolean;
-  type?: string;
-}): string => {
-  const search = new URLSearchParams();
-  const trimmedQuery = input.query?.trim();
-
-  if (trimmedQuery) {
-    search.set("q", trimmedQuery);
-  }
-
-  if (input.type?.trim()) {
-    search.set("type", input.type.trim());
-  }
-
-  if (input.tag?.trim()) {
-    search.set("tag", input.tag.trim());
-  }
-
-  if (input.favorited) {
-    search.set("favorited", "true");
-  }
-
+// teak-sdk 1.0.81 builds every listing parameter except the Trash and color
+// filters, which arrived in a later SDK. Raycast adds those two itself until
+// it moves to a release that has them.
+export const buildCardsSearchParams = (
+  input: Parameters<typeof buildSdkCardsSearchParams>[0] & {
+    hex?: string[];
+    hue?: string[];
+    style?: string[];
+    trashed?: boolean;
+  },
+): string => {
+  const search = new URLSearchParams(buildSdkCardsSearchParams(input));
   if (input.trashed) {
     search.set("trashed", "true");
   }
-
   for (const name of ["style", "hue", "hex"] as const) {
     for (const value of input[name] ?? []) {
       search.append(name, value);
     }
   }
-
-  if (input.cursor) {
-    search.set("cursor", input.cursor);
-  }
-
-  if (input.sort === "oldest") {
-    search.set("sort", "oldest");
-  }
-
-  if (typeof input.createdAfter === "number") {
-    search.set("createdAfter", String(input.createdAfter));
-  }
-
-  if (typeof input.createdBefore === "number") {
-    search.set("createdBefore", String(input.createdBefore));
-  }
-
-  if (input.include?.trim()) {
-    search.set("include", input.include.trim());
-  }
-
-  search.set("limit", String(normalizeLimit(input.limit)));
   return search.toString();
 };
 

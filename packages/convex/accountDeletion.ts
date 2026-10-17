@@ -13,10 +13,8 @@ import {
 } from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextContents } from "./card/textContents";
-import { readAccountChangesPaused } from "./env";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
-import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { queueAccountDeletionWorkflow } from "./workflowDispatch";
 import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
@@ -221,9 +219,6 @@ export const initiateAccountDeletion = async (
   }
   if (owner.deletedAt !== undefined) {
     return null;
-  }
-  if (readAccountChangesPaused()) {
-    throw new ConvexError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
   }
   const legacy = await findLegacyBetterAuthUser(ctx, owner);
   const target = await currentWorkosDeletionTarget();

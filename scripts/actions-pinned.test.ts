@@ -53,4 +53,14 @@ describe("actions pinned", () => {
       labels.set(use.ref, use.label ?? "");
     }
   });
+
+  test("every action runs one release across all workflows", () => {
+    const pins = new Map<string, string>();
+    for (const use of listThirdPartyUses()) {
+      const action = use.ref.slice(0, use.ref.lastIndexOf("@"));
+      const seen = pins.get(action);
+      expect(seen ?? use.ref, `${use.file}: ${action}`).toBe(use.ref);
+      pins.set(action, use.ref);
+    }
+  });
 });

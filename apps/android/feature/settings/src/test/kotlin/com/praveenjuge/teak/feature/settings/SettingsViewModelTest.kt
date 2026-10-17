@@ -2,9 +2,7 @@ package com.praveenjuge.teak.feature.settings
 
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
-import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
-import com.praveenjuge.teak.core.model.TeakMessages
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakePreferencesRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
@@ -57,16 +55,6 @@ class SettingsViewModelTest {
         assertFalse(account.deleted)
         viewModel.confirmDelete("  Delete Account ")
         assertTrue(account.deleted)
-    }
-
-    @Test
-    fun `deleting is blocked while account changes are paused`() = runTest {
-        account.authMode.value = AuthMode("workos", signupsDisabled = false, accountChangesPaused = true, authKitClientId = "client_1")
-        val viewModel = newViewModel()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        viewModel.requestDelete()
-        assertEquals(DeleteStep.None, viewModel.uiState.value.deleteStep)
-        assertEquals(TeakMessages.ACCOUNT_CHANGES_PAUSED, viewModel.uiState.value.error)
     }
 
     @Test

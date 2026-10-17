@@ -13,8 +13,7 @@
         "!**/packages/convex/_generated/**",
         "!**/packages/convex/__tests__/**",
         "!**/packages/convex/**/*.test.ts",
-        "!**/packages/convex/securitySessions.ts",
-        "!**/packages/convex/ensureUser.ts"
+        "!**/packages/convex/securitySessions.ts"
       ]
     },
     {
@@ -110,8 +109,33 @@
       }
     },
     {
+      // Flags source files that have grown past the point of being easy to
+      // review, so a split happens before the next feature lands in them.
+      // Tests, generated code and vendored shadcn primitives are exempt.
       "includes": [
-        "packages/convex/authNative.ts",
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!**/*.e2e.ts",
+        "!**/__tests__/**",
+        "!**/_generated/**",
+        "!**/*.d.ts",
+        "!packages/ui/src/components/ui/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noExcessiveLinesPerFile": {
+              "level": "warn",
+              "options": { "maxLines": 1000, "skipBlankLines": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
         "packages/convex/linkMetadata/ssrf.ts",
         "packages/convex/shared/utils/colorUtils.ts",
         "packages/convex/apiKeys.ts",
@@ -259,14 +283,14 @@
         "useFilenamingConvention": "off",
         "useDestructuring": "off",
         "noIncrementDecrement": "off",
-        // Requires ES2022 lib (`Array.at`) in the Convex tsconfig for 2 sites.
+        // Requires ES2022 lib (`Array.at`) in the Convex tsconfig.
         "useAtIndex": "off",
-        // Requires threading the caught error through 26 throw sites; tracked
+        // Requires threading the caught error through every rethrow; tracked
         // as a separate error-handling pass.
         "useErrorCause": "off"
       },
       "complexity": {
-        // ~44 functions over the threshold; refactors tracked separately.
+        // Many functions are over the threshold; refactors tracked separately.
         "noExcessiveCognitiveComplexity": "off",
         "noVoid": "off"
       },
@@ -287,7 +311,8 @@
         "useImportExtensions": "off"
       },
       "suspicious": {
-        // ~1,250 occurrences; burn down gradually before enabling.
+        // Widespread in tests and Convex glue; burn down gradually before
+        // enabling.
         "noExplicitAny": "off",
         // Standard `{condition && <jsx/>}` render pattern; the falsy-leak
         // concern is handled by our shared UI primitives.
@@ -295,8 +320,8 @@
         // Optional chaining and redundant-condition checks are defensive
         // against future shape changes, especially in tests.
         "noUnnecessaryConditions": "off",
-        // Shadowed loop/parameter names; renaming risks churn across 14 files
-        // for a readability-only win.
+        // Shadowed loop/parameter names; renaming risks churn across many
+        // files for a readability-only win.
         "noShadow": "off",
         // Biome flags any Astro file without script-y frontmatter (and
         // comment-only generated bundles) as an empty source.
@@ -311,7 +336,7 @@
     "actions": {
       "source": {
         // Ultracite 7.9+ enables useSortedKeys; it would reorder object keys
-        // across ~393 files. Key order is often semantic (configs, route
+        // across hundreds of files. Key order is often semantic (configs, route
         // definitions) and the churn/blame noise isn't worth it.
         "useSortedKeys": "off"
       }

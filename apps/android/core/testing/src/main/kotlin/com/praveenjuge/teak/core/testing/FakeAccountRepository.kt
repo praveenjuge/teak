@@ -16,7 +16,7 @@ class FakeAccountRepository(
     val user = SessionUser(id = "user_1", email = "ada@example.com", emailVerified = true, name = "Ada", teakUserId = "teak_1")
     override val session = MutableStateFlow<SessionState>(if (signedIn) SessionState.SignedIn(user) else SessionState.SignedOut)
     override val authMode = MutableStateFlow<AuthMode?>(
-        AuthMode(primary = "workos", signupsDisabled = false, accountChangesPaused = false, authKitClientId = "client_123"),
+        AuthMode(primary = "workos", signupsDisabled = false, authKitClientId = "client_123"),
     )
     val currentUserFlow = MutableStateFlow<Result<CurrentUser?>>(
         Result.success(CurrentUser(id = "teak_1", email = "ada@example.com", cardCount = 12.0)),

@@ -27,6 +27,18 @@ describe("env-contract-report", () => {
     expect(report.version).toBe(1);
   });
 
+  test("classification counts cover every entry", () => {
+    const report = buildContractReport();
+    const counted = Object.values(report.byClassification).reduce(
+      (sum, count) => sum + count,
+      0
+    );
+    expect(counted).toBe(ENV_CONTRACT.length);
+    expect(report.byClassification.secret).toBe(
+      ENV_CONTRACT.filter((entry) => entry.secret).length
+    );
+  });
+
   test("generated aliases are not manually supplied", () => {
     const alias = spec("NEXT_PUBLIC_CONVEX_URL", {
       owners: ["@teak/web"],

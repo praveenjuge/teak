@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { parseSearchQuery } from "@teak/convex/shared";
-import type { CardsSearchState } from "../useCardsSearchController";
+import type { CardsSearchState } from "../cardsSearchState";
 import {
   applyBackspaceToCardsSearchState,
   applyEnterToCardsSearchState,
@@ -10,11 +10,11 @@ import {
   cardsSearchStateFromQuery,
   createInitialCardsSearchState,
   isSameSearch,
-} from "../useCardsSearchController";
+} from "../cardsSearchState";
 
 const baseState = (): CardsSearchState => createInitialCardsSearchState();
 
-describe("useCardsSearchController helpers", () => {
+describe("cardsSearchState", () => {
   it("parses quick favorites command on Enter", () => {
     const next = applyEnterToCardsSearchState({
       ...baseState(),

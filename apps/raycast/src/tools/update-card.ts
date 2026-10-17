@@ -1,4 +1,5 @@
 import type { Tool } from "@raycast/api";
+import { parseTags } from "teak-sdk";
 import { getCardById, updateCard } from "../lib/api";
 
 type Input = {
@@ -12,11 +13,7 @@ type Input = {
   notes?: string;
 };
 
-const clean = (tags: string | undefined) =>
-  (tags ?? "")
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+const clean = (tags: string | undefined) => parseTags(tags) ?? [];
 
 export default async function tool(input: Input) {
   const cardId = input.cardId?.trim();

@@ -19,6 +19,7 @@ when to read each guide; this is the full list.
 | `convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
 | `self-driving.md` | run the daily production check (it holds that routine's log) |
 | `migrations/workos/README.md` | touch the retained Better Auth data or Connect disconnects |
+| `sunset.md` | keep code only for old clients or old data, or remove some |
 
 ## Plans
 

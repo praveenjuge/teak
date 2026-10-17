@@ -1,4 +1,4 @@
-import { CARD_TYPES } from "teak-sdk";
+import { type CardType, isCardType } from "teak-sdk";
 
 export const SORT_OPTIONS = ["newest", "oldest"] as const;
 
@@ -37,7 +37,7 @@ export const STYLE_OPTIONS = [
   "futuristic",
 ] as const;
 
-export type RaycastCardType = (typeof CARD_TYPES)[number];
+export type RaycastCardType = CardType;
 export type RaycastSort = (typeof SORT_OPTIONS)[number];
 
 export interface ParsedSearchFilters {
@@ -78,20 +78,13 @@ const formatDateFilter = (timestamp: number): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-const CARD_TYPE_SET = new Set<string>(CARD_TYPES);
-
 const normalizeString = (value?: string): string | undefined => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 };
 
-const normalizeType = (value?: string): RaycastCardType | undefined => {
-  if (!(value && CARD_TYPE_SET.has(value))) {
-    return undefined;
-  }
-
-  return value as RaycastCardType;
-};
+const normalizeType = (value?: string): RaycastCardType | undefined =>
+  value && isCardType(value) ? value : undefined;
 
 const normalizeSort = (value?: string): RaycastSort =>
   value === "oldest" ? "oldest" : "newest";

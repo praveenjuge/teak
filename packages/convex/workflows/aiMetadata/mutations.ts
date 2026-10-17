@@ -36,27 +36,6 @@ export const updateCardAI = internalMutation({
   },
 });
 
-export const resetCardAI = internalMutation({
-  args: {
-    cardId: v.id("cards"),
-    metadataStatus: v.optional(
-      v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
-    ),
-  },
-  handler: async (ctx, { cardId, metadataStatus }) => {
-    await patchCardWithSearchSync(ctx, cardId, {
-      aiTags: undefined,
-      aiSummary: undefined,
-      aiTranscript: undefined,
-      visualStyles: undefined,
-      aiBackfillAttempts: undefined,
-      metadataStatus: metadataStatus ?? "pending",
-      processingStatus: undefined,
-      updatedAt: Date.now(),
-    });
-  },
-});
-
 export const updateCardColors = internalMutation({
   args: {
     cardId: v.id("cards"),

@@ -92,10 +92,6 @@ export const withBackendTelemetryScope = async <T>(
   }
 };
 
-/** The card or workflow the current action works on, for AI trace grouping. */
-export const currentTelemetryTraceId = (): string | undefined =>
-  activeScope?.workflowId ?? activeScope?.cardId;
-
 export const captureBackendEvent = <Name extends ServerEventName>(
   event: Name,
   distinctId: string | undefined,
@@ -178,21 +174,4 @@ export const withBackendErrorCapture = <T>(
       }
       throw error;
     }
-  });
-
-/** Reports a failure the caller handles itself (it does not rethrow). */
-export const recordBackendHandledFailure = (
-  error: unknown,
-  input: {
-    attributes?: TelemetryAttributes;
-    operation: string;
-    stage?: TelemetryStage;
-  }
-): Promise<void> =>
-  captureBackendException(error, {
-    properties: {
-      ...input.attributes,
-      operation: input.operation,
-      stage: input.stage,
-    },
   });

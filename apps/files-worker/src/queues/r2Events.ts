@@ -27,8 +27,6 @@ export interface PendingUploadCheck {
   uploadedAt: number;
 }
 
-export type R2EventMessage = PendingUploadCheck | R2EventNotification;
-
 export const PENDING_UPLOAD_SEGMENT = "/cards/upload-pending-v2/";
 export const PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 /** Queues delays a message by at most 12 hours. */

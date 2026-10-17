@@ -169,3 +169,36 @@ test("a note has More like this but no image actions", async () => {
   expect(menuItem("More like this")).toBeDefined();
   expect(menuItem("Replace image")).toBeUndefined();
 });
+
+const downloadControls = () =>
+  Array.from(document.querySelectorAll("button, [role='menuitem']")).filter(
+    (element) => element.textContent?.trim() === "Download"
+  );
+
+test.each([
+  ["image", true],
+  ["video", true],
+  ["audio", true],
+  ["document", true],
+  ["text", false],
+  ["link", false],
+] as const)(
+  "a %s card with a stored file offers Download: %p",
+  async (type, offered) => {
+    await render(
+      linkCard({
+        fileKey: "users/user_1/cards/card_1/file",
+        type,
+        url: undefined,
+      } as Partial<CardModalCard>)
+    );
+    await openMenu();
+    expect(downloadControls().length > 0).toBe(offered);
+  }
+);
+
+test("a file card with nothing stored offers no Download", async () => {
+  await render(linkCard({ type: "image", url: undefined }));
+  await openMenu();
+  expect(downloadControls()).toEqual([]);
+});

@@ -11,7 +11,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { env, httpAction, internalQuery } from "./_generated/server";
-import { hmacSha256Hex } from "./storage/r2Keys";
+import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 
 export const lookup = internalQuery({
   // Exactly one of the two; parseEdgeIdentityLookup guarantees it.
@@ -38,17 +38,6 @@ export const lookup = internalQuery({
     return user?.teakUserId ?? null;
   },
 });
-
-const sha256Hex = async (value: string | ArrayBuffer): Promise<string> =>
-  Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest(
-        "SHA-256",
-        typeof value === "string" ? new TextEncoder().encode(value) : value
-      )
-    ),
-    (byte) => byte.toString(16).padStart(2, "0")
-  ).join("");
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {

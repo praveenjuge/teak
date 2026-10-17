@@ -22,8 +22,8 @@
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
-    "convex": "1.46.0",
-    "fflate": "^0.8.2",
+    "convex": "^1.46.0",
+    "fflate": "^0.8.3",
     "htmlparser2": "^12.0.0"
   },
   "devDependencies": {

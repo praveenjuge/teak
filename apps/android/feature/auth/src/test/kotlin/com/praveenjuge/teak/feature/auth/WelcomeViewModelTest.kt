@@ -44,7 +44,7 @@ class WelcomeViewModelTest {
 
     @Test
     fun `hides sign-up when sign-ups are paused`() = runTest {
-        account.authMode.value = AuthMode("workos", signupsDisabled = true, accountChangesPaused = false, authKitClientId = "client_1")
+        account.authMode.value = AuthMode("workos", signupsDisabled = true, authKitClientId = "client_1")
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         assertTrue(viewModel.uiState.value.signupsDisabled)
     }

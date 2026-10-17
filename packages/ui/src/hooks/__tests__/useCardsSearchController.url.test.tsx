@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { Root } from "react-dom/client";
 import type { SearchUrlState } from "../../lib/searchUrlState";
-import type { CardsVisualFilters } from "../useCardsSearchController";
+import type { CardsVisualFilters } from "../cardsSearchState";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

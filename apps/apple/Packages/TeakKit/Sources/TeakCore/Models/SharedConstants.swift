@@ -13,7 +13,6 @@ public struct SharedConstants: Decodable, Sendable {
 
     public struct Messages: Decodable, Sendable {
         public let signupsPaused: String
-        public let accountChangesPaused: String
     }
 
     public let cardTypes: [String]
@@ -49,7 +48,6 @@ public enum TeakLimits {
 
 public enum TeakMessages {
     public static var signupsPaused: String { SharedConstants.shared.messages.signupsPaused }
-    public static var accountChangesPaused: String { SharedConstants.shared.messages.accountChangesPaused }
     public static let verifyEmail = "Verify your email before opening your vault."
     public static let vaultUnavailable = "Unable to open your vault. Please try again or contact support."
     public static let genericFailure = "Something went wrong. Please try again."

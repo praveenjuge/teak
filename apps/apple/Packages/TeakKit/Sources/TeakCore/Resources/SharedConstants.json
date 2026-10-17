@@ -27,8 +27,7 @@
     "markdownContentMaxBytes": 524288
   },
   "messages": {
-    "signupsPaused": "New sign-ups are paused right now. Please try again later.",
-    "accountChangesPaused": "Account changes are paused right now. Please try again later."
+    "signupsPaused": "New sign-ups are paused right now. Please try again later."
   },
   "cardErrorMessages": {
     "CARD_LIMIT_REACHED": "Card limit reached. Please upgrade to Pro for unlimited cards.",

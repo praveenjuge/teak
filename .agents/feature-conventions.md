@@ -38,7 +38,8 @@ Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
   `false` and missing can't disagree in an index.
 - Stay backward compatible: new arguments are optional, and every client
   tolerates enum values it doesn't know. The native apps update on their own
-  schedule.
+  schedule. Code kept only for old clients or old data gets an entry in
+  `.agents/sunset.md` saying when it can go.
 - A new user table, per-card row or R2 key is removed by account deletion
   (`accountDeletionData.ts` `ancillaryPage`, per-card rows in
   `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete
@@ -71,7 +72,8 @@ A backfill is a hand-written, self-scheduling, paged internal mutation in
 `packages/convex/migration/` whose `dryRun` defaults to `true` (see
 `backfillUrlHost.ts`). It needs the owner's approval
 (`packages/convex/AGENTS.md`). Run the dry run, read its counts, then run the
-pages. Production runs are the owner's.
+pages. Production runs are the owner's. Once the production run finishes,
+delete the backfill and its tests in the next PR; git history keeps them.
 
 ## Deploys
 

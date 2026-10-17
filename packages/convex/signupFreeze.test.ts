@@ -36,19 +36,17 @@ const retainedUser = (t: TestBackend, email: string) =>
     })
   );
 
-test("public auth mode reports WorkOS and the pause flags without exposing credentials", async () => {
+test("public auth mode reports WorkOS and the sign-up flag without exposing credentials", async () => {
   vi.stubEnv("WORKOS_CLIENT_ID", "client_TEST");
   vi.stubEnv("WORKOS_API_KEY", "must-not-reach-clients");
-  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
   const t = setup();
   expect(await t.query(api.auth.getAuthMode, {})).toEqual({
     primary: "workos",
     signupsDisabled: true,
-    accountChangesPaused: true,
+    accountChangesPaused: false,
     authKitClientId: "client_TEST",
   });
   vi.stubEnv("SIGNUPS_DISABLED", "false");
-  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", undefined);
   expect(await t.query(api.auth.getAuthMode, {})).toEqual({
     primary: "workos",
     signupsDisabled: false,
@@ -57,13 +55,12 @@ test("public auth mode reports WorkOS and the pause flags without exposing crede
   });
 });
 
-test.each(["SIGNUPS_DISABLED", "ACCOUNT_CHANGES_PAUSED"])(
-  "public auth mode fails closed on malformed %s",
-  async (name) => {
-    vi.stubEnv(name, "invalid");
-    await expect(setup().query(api.auth.getAuthMode, {})).rejects.toThrow(name);
-  }
-);
+test("public auth mode fails closed on malformed SIGNUPS_DISABLED", async () => {
+  vi.stubEnv("SIGNUPS_DISABLED", "invalid");
+  await expect(setup().query(api.auth.getAuthMode, {})).rejects.toThrow(
+    "SIGNUPS_DISABLED"
+  );
+});
 
 test("the backup exports retained Better Auth rows unchanged", async () => {
   const t = setup();

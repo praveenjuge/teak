@@ -1,6 +1,5 @@
 {
   "extends": ["//"],
-  "tags": ["app"],
   "tasks": {
     "build": {
       "outputs": []

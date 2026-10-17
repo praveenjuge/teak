@@ -44,6 +44,7 @@ describe("release versions", () => {
         "apps/web/package.json",
         "packages/ui/package.json",
         "apps/apple/SafariExtension/Resources/manifest.json",
+        "server.json",
       ]) {
         fs.writeFileSync(
           path.join(root, relative),
@@ -76,6 +77,7 @@ describe("release versions", () => {
         "apps/web/package.json",
         "package.json",
         "packages/ui/package.json",
+        "server.json",
       ]);
       expect(npmLockFiles(root)).toEqual([]);
       expect(() => assertLockstep(root, "1.0.60")).not.toThrow();
@@ -103,6 +105,18 @@ describe("release versions", () => {
       );
       fs.writeFileSync(
         path.join(root, "apps/apple/SafariExtension/Resources/manifest.json"),
+        `${JSON.stringify({ version: "1.0.60" })}\n`
+      );
+
+      fs.writeFileSync(
+        path.join(root, "server.json"),
+        `${JSON.stringify({ version: "1.0.54" })}\n`
+      );
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        "server.json: 1.0.54"
+      );
+      fs.writeFileSync(
+        path.join(root, "server.json"),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
 

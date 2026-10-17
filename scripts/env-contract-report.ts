@@ -4,15 +4,21 @@
  * Baseline metrics report for the environment contract.
  *
  * Records total entries, required values, secrets, implicit values, bindings,
- * generated aliases, and per-target/profile manual-supply counts from
+ * generated aliases, classification counts, and per-target/profile
+ * manual-supply counts from
  * ./env-contract.ts. Names and metadata only, never values.
  *
  * Usage: bun run scripts/env-contract-report.ts [--json] [--target <t>] [--profile <p>]
  */
 
 import { isFrameworkAlias } from "./env-aliases.ts";
+import { classify } from "./env-classify.ts";
 import { ENV_CONTRACT } from "./env-contract.ts";
-import type { EnvValidation, EnvVarSpec } from "./env-contract-types.ts";
+import type {
+  EnvClassification,
+  EnvValidation,
+  EnvVarSpec,
+} from "./env-contract-types.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import { isSupportedTarget, type SupportedTarget } from "./env-targets.ts";
 
@@ -28,6 +34,7 @@ export interface TargetProfileCounts {
 export interface ContractReport {
   aliases: number;
   bindings: number;
+  byClassification: Partial<Record<EnvClassification, number>>;
   byTargetProfile: TargetProfileCounts[];
   implicit: number;
   required: number;
@@ -43,7 +50,11 @@ export const buildContractReport = (
   entries: EnvVarSpec[] = ENV_CONTRACT
 ): ContractReport => {
   const combos = new Map<string, TargetProfileCounts>();
+  const byClassification: Partial<Record<EnvClassification, number>> = {};
   for (const entry of entries) {
+    const classification = classify(entry);
+    byClassification[classification] =
+      (byClassification[classification] ?? 0) + 1;
     for (const target of entry.targets) {
       for (const profile of entry.requiredIn ?? []) {
         const key = `${target}/${profile}`;
@@ -69,6 +80,7 @@ export const buildContractReport = (
     implicit: entries.filter((entry) => entry.implicit).length,
     bindings: entries.filter((entry) => entry.kind === "binding").length,
     aliases: entries.filter((entry) => isFrameworkAlias(entry.name)).length,
+    byClassification,
     byTargetProfile: [...combos.values()].sort((a, b) =>
       `${a.target}/${a.profile}`.localeCompare(`${b.target}/${b.profile}`)
     ),
@@ -212,6 +224,9 @@ const main = (): void => {
   console.log(
     [
       `contract: ${report.total} entries, ${report.required} required, ${report.secrets} secrets, ${report.implicit} implicit, ${report.bindings} bindings, ${report.aliases} generated aliases.`,
+      `  by classification: ${Object.entries(report.byClassification)
+        .map(([classification, count]) => `${count} ${classification}`)
+        .join(", ")}.`,
       ...report.byTargetProfile.map(
         (counts) =>
           `  ${counts.target}/${counts.profile}: ${counts.required} required (${counts.manualRequired} manual).`

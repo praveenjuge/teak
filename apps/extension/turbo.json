@@ -1,6 +1,5 @@
 {
   "extends": ["//"],
-  "tags": ["app"],
   "tasks": {
     "build": {
       "env": ["VITE_PUBLIC_CONVEX_SITE_URL", "WXT_POSTHOG_PROJECT_TOKEN"],

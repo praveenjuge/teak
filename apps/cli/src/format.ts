@@ -1,5 +1,6 @@
 import type { Card } from "@teak/convex/sdk";
 import { formatLinkPrice } from "@teak/convex/shared/price";
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 
 const relativeAge = (ms: number) => {
   const minutes = Math.max(1, Math.floor(ms / 60_000));
@@ -45,20 +46,6 @@ const fileLine = (card: Card) => {
   }
   const size = card.fileSize ? ` (${formatBytes(card.fileSize)})` : "";
   return `file: ${card.fileName}${size}`;
-};
-
-export const formatBytes = (bytes: number) => {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(1)} ${units[unit]}`;
 };
 
 const transcriptBlock = (transcript: string | null | undefined) => {

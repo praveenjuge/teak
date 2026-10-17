@@ -28,12 +28,10 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
-import { getSessionUser, type TeakUserId } from "./securitySessions";
+import { requireSessionUserId } from "./securitySessions";
 import { MAX_FOLDERS_PER_USER } from "./shared/folders";
 import { getR2Url } from "./storage/fileUrls";
 import { enqueueObjectDeletion, queueExportWorkflow } from "./workflowDispatch";
-
-const internalAny = internal as Record<string, any>;
 
 const RECENT_JOBS_SCAN = 50;
 
@@ -69,14 +67,6 @@ const startResultValidator = v.object({
   quotaResetMs: v.optional(v.number()),
   job: v.optional(exportSummaryValidator),
 });
-
-async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<TeakUserId> {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new Error("User must be authenticated");
-  }
-  return user.teakUserId;
-}
 
 interface ExportJobDoc {
   _id: Id<"exportJobs">;
@@ -220,7 +210,7 @@ export const getLatestExport = query({
   handler: async (ctx) => {
     let userId: string;
     try {
-      userId = await requireUserId(ctx);
+      userId = await requireSessionUserId(ctx);
     } catch {
       return null;
     }
@@ -232,7 +222,7 @@ export const startExport = mutation({
   args: {},
   returns: startResultValidator,
   handler: async (ctx, _args) =>
-    await startExportJob(ctx, await requireUserId(ctx)),
+    await startExportJob(ctx, await requireSessionUserId(ctx)),
 });
 
 export const getLatestExportForUser = internalQuery({
@@ -251,7 +241,7 @@ export const cancelExport = mutation({
   args: { jobId: v.id("exportJobs") },
   returns: v.object({ canceled: v.boolean() }),
   handler: async (ctx, { jobId }) => {
-    const userId = await requireUserId(ctx);
+    const userId = await requireSessionUserId(ctx);
     const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
     if (!job || job.userId !== userId) {
       throw new Error("Export job not found");
@@ -279,7 +269,7 @@ export async function readExportDownloadUrl(
   userId: string,
   jobId: Id<"exportJobs">
 ): Promise<{ url: string; expiresInSeconds: number } | null> {
-  const job = (await ctx.runQuery(internalAny.dataExport.getJob, {
+  const job = (await ctx.runQuery(internal.dataExport.getJob, {
     jobId,
   })) as ExportJobDoc | null;
 
@@ -309,13 +299,8 @@ export const getExportDownloadUrl = action({
   handler: async (
     ctx,
     { jobId }
-  ): Promise<{ url: string; expiresInSeconds: number } | null> => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-    return await readExportDownloadUrl(ctx, user.teakUserId, jobId);
-  },
+  ): Promise<{ url: string; expiresInSeconds: number } | null> =>
+    await readExportDownloadUrl(ctx, await requireSessionUserId(ctx), jobId),
 });
 
 export const getJob = internalQuery({

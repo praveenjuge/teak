@@ -8,13 +8,11 @@ import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.ConvexApi
-import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
-import com.praveenjuge.teak.core.model.TeakMessages
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.builtins.nullable
 import dev.convex.android.ConvexClientWithAuth
@@ -112,9 +110,6 @@ class ConvexAccountRepository @Inject constructor(
     }
 
     override suspend fun deleteAccount() {
-        if (_authMode.value?.accountChangesPaused == true) {
-            throw TeakException(null, TeakMessages.ACCOUNT_CHANGES_PAUSED)
-        }
         convex.mutation("accountDeletion:deleteMyAccount")
         clearLocalSession()
     }

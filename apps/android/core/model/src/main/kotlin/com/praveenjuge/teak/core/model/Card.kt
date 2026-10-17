@@ -181,7 +181,6 @@ data class CurrentUser(
 data class AuthMode(
     val primary: String,
     val signupsDisabled: Boolean,
-    val accountChangesPaused: Boolean,
     val authKitClientId: String? = null,
 ) {
     /** The client ID, if the deployment sent a well-formed one. */
@@ -207,7 +206,6 @@ enum class ColorHue(val wireName: String, val label: String, val hex: Long) {
 
 object TeakMessages {
     const val SIGNUPS_PAUSED = "New sign-ups are paused right now. Please try again later."
-    const val ACCOUNT_CHANGES_PAUSED = "Account changes are paused right now. Please try again later."
 }
 
 /** 100 MB, the backend's upload limit. */

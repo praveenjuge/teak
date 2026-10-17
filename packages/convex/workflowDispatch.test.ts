@@ -20,7 +20,9 @@ const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date"] });
+  // Enqueueing schedules a flush. Holding timers keeps those scheduled flushes
+  // from running later, in another test, against that test's fetch stub.
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   vi.setSystemTime(NOW);
 });
 afterEach(() => {

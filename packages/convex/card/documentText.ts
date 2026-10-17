@@ -13,6 +13,7 @@ import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 import { buildR2UserPrefix, deleteObject } from "../storage/r2";
+import { sha256Hex } from "../storage/r2Keys";
 import {
   documentTextObjectKey,
   isExtractedTextTruncated,
@@ -29,13 +30,6 @@ export {
 const MAX_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 
 const encoder = new TextEncoder();
-
-const sha256Hex = async (text: string): Promise<string> => {
-  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(text));
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-};
 
 export const documentTextKey = (
   card: Pick<Doc<"cards">, "_id" | "userId">,

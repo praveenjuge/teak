@@ -3,7 +3,6 @@ import { type QueryCtx, query } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { polar } from "./billing";
 import { getActiveCardCount } from "./card/cardUsage";
-import { readAccountChangesPaused } from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
@@ -35,7 +34,9 @@ export interface PublicAuthMode {
   signupsDisabled: boolean;
 }
 
-// Published mobile clients still read this to start hosted AuthKit.
+// Published mobile clients still read this to start hosted AuthKit. Released
+// Apple and Android builds decode `accountChangesPaused` as a required field,
+// so it stays in the response, always false, until those builds are retired.
 export const getAuthMode = query({
   args: {},
   returns: v.object({
@@ -47,7 +48,7 @@ export const getAuthMode = query({
   handler: async (ctx): Promise<PublicAuthMode> => ({
     primary: "workos",
     signupsDisabled: await readSignupsPaused(ctx),
-    accountChangesPaused: readAccountChangesPaused(),
+    accountChangesPaused: false,
     ...(process.env.WORKOS_CLIENT_ID
       ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
       : {}),

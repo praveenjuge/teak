@@ -67,8 +67,8 @@ const extractFileTextForKey = async (
 };
 
 /**
- * Extracts and stores one document card's text, for the document backfill
- * (migration/backfillDocumentText.ts). Cards that already have stored text,
+ * Extracts and stores one document card's text; the onboarding cards in
+ * `card/defaultCards.ts` schedule it. Cards that already have stored text,
  * have no file, or are in an unsupported format are left alone; a failure
  * is logged and the card stays without text, so a rerun picks it up again.
  */
@@ -103,7 +103,7 @@ export const extractDocumentText = internalAction({
       const { stored } = await storeDocumentText(ctx, card, extracted);
       return stored ? "stored" : "empty";
     } catch (error) {
-      console.warn("[backfillDocumentText] extraction failed", {
+      console.warn("[extractDocumentText] extraction failed", {
         cardId,
         message: error instanceof Error ? error.message : String(error),
       });

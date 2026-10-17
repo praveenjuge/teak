@@ -11,33 +11,15 @@
  *   import { r2Mocks } from "../helpers/r2Mock.test-utils";
  *   // in a test: r2Mocks.deleteObject.mockResolvedValueOnce(...);
  *
- * The factory deliberately does NOT provide `resolveObjectUrl`,
- * `resolveImageUrl`, or `getR2Url`: Bun merges this factory over the real
- * module and overwrites bindings in place through `storage/r2`'s re-export
- * of the `storage/fileUrls` leaf, so provisioning mocks under those names
- * would hijack the leaf's real implementations suite-wide. URL resolution
- * is always real; tests that need deterministic URLs set `FILES_BASE` /
- * `FILES_SIGNING_SECRET` and assert real signed-URL shapes instead.
+ * URL signing and resolution live in the unmocked `storage/fileUrls` leaf and
+ * key-namespace helpers in `storage/r2Keys`, so they are always real; tests
+ * that need deterministic URLs set `FILES_BASE` / `FILES_SIGNING_SECRET` and
+ * assert real signed-URL shapes instead.
  */
 
 import { mock } from "bun:test";
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
-import {
-  bucketedSignatureExpiry,
-  buildSignedWorkerFileUrl,
-  buildSignedWorkerImageUrl,
-  getR2ReadBase,
-  isStorageNamespaceError,
-  tryResolveImageUrl,
-  tryResolveObjectUrl,
-} from "../../storage/fileUrls";
 import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
-import {
-  assertR2KeyInNamespace,
-  buildR2ListPrefix,
-  getR2KeyPrefix,
-  isR2KeyInNamespace,
-} from "../../storage/r2Keys";
 
 const buildR2UserPrefix = (userId: string) => filesCardKeyPrefix("", userId);
 
@@ -67,19 +49,7 @@ export const r2Mocks = {
 };
 
 export const r2MockModuleFactory = () => ({
-  // Pure key-namespace helpers pass through from the dependency-free leaf
-  // module so mocked importers never hit a named-export link error.
-  assertR2KeyInNamespace,
-  buildR2ListPrefix,
-  getR2KeyPrefix,
-  isR2KeyInNamespace,
   PENDING_UPLOAD_CARD_ID,
-  // Pure URL-signing helpers pass through so files importing them alongside
-  // the mocked module never hit a named-export link error.
-  bucketedSignatureExpiry,
-  buildSignedWorkerFileUrl,
-  buildSignedWorkerImageUrl,
-  getR2ReadBase,
   // Faithful port of the real cardStorageObjectKeys so tests that receive the
   // mocked module still observe identical key collection semantics.
   cardStorageObjectKeys: (card: {
@@ -115,18 +85,6 @@ export const r2MockModuleFactory = () => ({
     );
   },
   deleteObject: r2Mocks.deleteObject,
-  // Real HMAC helper: filesWorkerClient signs op payloads through this export,
-  // so keep it available even when the rest of the module is mocked.
-  hmacSha256Hex: async (secret: string, message: string): Promise<string> => {
-    const { createHmac } = await import("node:crypto");
-    return createHmac("sha256", secret).update(message).digest("hex");
-  },
-  // Imported from the unmocked `storage/fileUrls` leaf (never from the mocked
-  // `storage/r2` surface): capturing real `storage/r2` functions here would
-  // rebind their internal calls to the mock's siblings.
-  tryResolveImageUrl,
-  tryResolveObjectUrl,
-  isStorageNamespaceError,
   storeObject: r2Mocks.storeObject,
   generateUploadUrl: r2Mocks.generateUploadUrl,
   getFileUrl: r2Mocks.getFileUrl,
