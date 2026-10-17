@@ -8,12 +8,22 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// The side panel reads tags and folders from Convex; the header's done
-// button is what these tests cover.
-const realPanel = await import("../CardMetadataPanel");
-mock.module("../CardMetadataPanel", () => ({
-  ...realPanel,
-  CardMetadataPanel: () => null,
+// Convex is the boundary: the side panel's folder and tag reads stay
+// loading, and the header's done button is what these tests cover.
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useConvex: () => ({}),
+  useMutation: () =>
+    Object.assign(async () => null, {
+      withOptimisticUpdate: () => async () => null,
+    }),
+  useQuery: () => undefined,
+}));
+const realCacheHooks = await import("convex-helpers/react/cache/hooks");
+mock.module("convex-helpers/react/cache/hooks", () => ({
+  ...realCacheHooks,
+  useQuery: () => undefined,
 }));
 
 const { act } = await import("react");

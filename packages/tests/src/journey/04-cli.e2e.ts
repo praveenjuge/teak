@@ -83,17 +83,16 @@ test("CLI marks a link done, finds it with is:done, and undoes it", async () => 
   );
   expect(done.completedAt).toEqual(expect.any(Number));
 
-  const found = JSON.parse(
-    await runCli(["--json", "cards", "search", "is:done"], apiKey)
-  );
-  expect(
-    (found.items ?? []).some(
-      (card: { id?: string }) => card.id === created.cardId
-    )
-  ).toBe(true);
+  const listsDone = async () =>
+    (
+      JSON.parse(await runCli(["--json", "cards", "search", "is:done"], apiKey))
+        .items ?? []
+    ).some((card: { id?: string }) => card.id === created.cardId);
+  expect(await listsDone()).toBe(true);
 
   const undone = JSON.parse(
     await runCli(["--json", "cards", "done", created.cardId, "--undo"], apiKey)
   );
   expect(undone.completedAt).toBeNull();
+  expect(await listsDone()).toBe(false);
 });

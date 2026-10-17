@@ -888,6 +888,26 @@ describe("marking a link done", () => {
     expect(await setDone(true)).toBe(false);
     expect(await setDone(false)).toBe(true);
     expect(await setDone(false)).toBe(false);
+
+    const note = await insert({ content: "A note" });
+    await expect(
+      t.mutation(internal.raycast.setCardDoneForUser, {
+        userId: "owner",
+        cardId: note,
+        done: true,
+      })
+    ).rejects.toThrow("Only link cards");
+    const theirs = await insert(
+      { content: "Theirs", url: "https://read.example/s" },
+      "stranger"
+    );
+    await expect(
+      t.mutation(internal.raycast.setCardDoneForUser, {
+        userId: "owner",
+        cardId: theirs,
+        done: true,
+      })
+    ).rejects.toThrow("Card not found");
   });
 
   test("refuses notes, cards in Trash, and other people's cards", async () => {

@@ -222,8 +222,9 @@
 }
 
 /* An open dialog turns off pointer events on the page; a toast's Undo still
-   takes a click. */
-[data-sonner-toaster] [data-sonner-toast] {
+   takes a click. Only a shown toast: hidden and leaving ones stay click-through. */
+[data-sonner-toaster]
+[data-sonner-toast][data-visible="true"]:not([data-removed="true"]) {
   pointer-events: auto;
 }
 
