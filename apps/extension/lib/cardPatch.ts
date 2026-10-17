@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 import type { PatchCardPayload } from "../types/messages";
 
 // Read by the popup as well as the background, so it imports no sign-in code.
@@ -18,7 +18,7 @@ export const isPatchCardPayload = (
   if (!value || typeof value !== "object") {
     return false;
   }
-  const { cardId, notes, tags } = value as Record<string, unknown>;
+  const { added, cardId, notes, tags } = value as Record<string, unknown>;
   const validTags =
     tags === undefined ||
     (Array.isArray(tags) &&
@@ -29,6 +29,18 @@ export const isPatchCardPayload = (
           tag.trim().length > 0 &&
           tag.trim().length <= MAX_TAG_NAME_LENGTH
       ));
+  // Only tags the change really sets can be remembered as recent.
+  const validAdded =
+    added === undefined ||
+    (validTags &&
+      Array.isArray(tags) &&
+      Array.isArray(added) &&
+      added.length <= MAX_PATCH_TAGS &&
+      added.every(
+        (tag) =>
+          typeof tag === "string" &&
+          tags.some((name) => tagKey(String(name)) === tagKey(tag))
+      ));
   const validNotes =
     notes === undefined ||
     notes === null ||
@@ -36,6 +48,7 @@ export const isPatchCardPayload = (
   return (
     isCardId(cardId) &&
     validTags &&
+    validAdded &&
     validNotes &&
     (tags !== undefined || notes !== undefined)
   );

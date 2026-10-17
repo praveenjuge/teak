@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 import { Button } from "@teak/ui/components/ui/button";
 import { Check, X } from "lucide-react";
 import {
@@ -143,6 +143,11 @@ export function SaveDetails({
       const change: PatchCardPayload = { cardId };
       if (!sameTags(next.tags, base.tags)) {
         change.tags = next.tags;
+        const before = new Set(base.tags.map(tagKey));
+        const added = next.tags.filter((tag) => !before.has(tagKey(tag)));
+        if (added.length > 0) {
+          change.added = added;
+        }
       }
       if (next.notes !== base.notes) {
         change.notes = next.notes;

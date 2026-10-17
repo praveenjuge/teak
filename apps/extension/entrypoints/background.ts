@@ -67,8 +67,8 @@ const queuePatch = createPatchQueue();
 async function patchCard(payload: PatchCardPayload) {
   const result = await queuePatch(payload);
   const owner = await getCaptureOwner();
-  if (result.status === "updated" && payload.tags && owner) {
-    await rememberTags(owner, payload.tags);
+  if (result.status === "updated" && payload.added && owner) {
+    await rememberTags(owner, payload.added);
   }
   return result;
 }

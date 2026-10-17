@@ -58,6 +58,8 @@ export interface SaveDetailsDraftMessage {
 
 /** The tags (replacing the card's own) and note the popup sets on a card. */
 export interface PatchCardPayload {
+  /** Tags in `tags` that this change adds, which the extension remembers as recent. */
+  added?: string[];
   cardId: string;
   notes?: string | null;
   tags?: string[];
