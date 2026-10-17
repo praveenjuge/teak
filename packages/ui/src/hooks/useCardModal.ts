@@ -95,14 +95,16 @@ export function useCardModal(
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
-  /** The done state just asked for, shown until the card catches up. */
-  const [pendingDone, setPendingDone] = useState<boolean | undefined>();
-  const doneInFlight = useRef(false);
+  /**
+   * The done state just asked for, shown until the card catches up. Keyed by
+   * card: Previous/Next and a toast's Undo can outlive the card it was for.
+   */
+  const [pendingDone, setPendingDone] = useState<Record<string, boolean>>({});
+  const doneInFlight = useRef(new Set<string>());
 
   if (editsCardId !== cardId) {
     setEditsCardId(cardId);
     setPendingChanges({});
-    setPendingDone(undefined);
     setSavedValues({});
     setTagInput("");
     setIsSaved(false);
@@ -383,13 +385,16 @@ export function useCardModal(
    */
   const setDone = useCallback(
     async (done: boolean, { isUndo = false } = {}) => {
-      if (!(cardId && card?.type === "link") || doneInFlight.current) {
+      if (
+        !(cardId && card?.type === "link") ||
+        doneInFlight.current.has(cardId)
+      ) {
         return;
       }
       const category = card.metadata?.linkCategory?.category;
       const verb = doneActionLabel(category);
-      doneInFlight.current = true;
-      setPendingDone(done);
+      doneInFlight.current.add(cardId);
+      setPendingDone((pending) => ({ ...pending, [cardId]: done }));
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -415,8 +420,11 @@ export function useCardModal(
         toast.error("Couldn't update. Try again.");
         config.onError?.(error as Error, "update done state");
       } finally {
-        doneInFlight.current = false;
-        setPendingDone(undefined);
+        doneInFlight.current.delete(cardId);
+        setPendingDone((pending) => {
+          const { [cardId]: _settled, ...rest } = pending;
+          return rest;
+        });
       }
     },
     [card, cardId, config.onError, updateCardField]
@@ -426,7 +434,7 @@ export function useCardModal(
     if (!card) {
       return;
     }
-    const isDone = pendingDone ?? card.completedAt !== undefined;
+    const isDone = pendingDone[card._id] ?? card.completedAt !== undefined;
     void setDone(!isDone);
   }, [card, pendingDone, setDone]);
 
@@ -641,8 +649,9 @@ export function useCardModal(
       return null;
     }
     let completedAt = card.completedAt;
-    if (pendingDone !== undefined) {
-      completedAt = pendingDone ? (card.completedAt ?? Date.now()) : undefined;
+    const pending = pendingDone[card._id];
+    if (pending !== undefined) {
+      completedAt = pending ? (card.completedAt ?? Date.now()) : undefined;
     }
     return {
       ...card,

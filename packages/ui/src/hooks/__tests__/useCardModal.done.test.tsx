@@ -48,10 +48,10 @@ afterEach(async () => {
   toasts.length = 0;
 });
 
-const filmLink = (completedAt?: number) =>
+const filmLink = (completedAt?: number, id = "card_a") =>
   ({
     _creationTime: 1,
-    _id: "card_a",
+    _id: id,
     completedAt,
     content: "https://example.com/film",
     createdAt: 1,
@@ -69,16 +69,21 @@ const filmLink = (completedAt?: number) =>
     userId: "user_a",
   }) as never;
 
+let hook = {} as ReturnType<typeof useCardModal>;
+function Harness({ card }: { card: { _id: string } }) {
+  hook = useCardModal(card._id, { card: card as never });
+  return null;
+}
+
 async function renderHook(card: unknown) {
-  let hook = {} as ReturnType<typeof useCardModal>;
-  function Harness() {
-    hook = useCardModal("card_a", { card: card as never });
-    return null;
-  }
   root = createRoot(document.createElement("div"));
-  await act(() => root?.render(<Harness />));
+  await act(() => root?.render(<Harness card={card as never} />));
   return () => hook;
 }
+
+/** Previous/Next: the same dialog, now showing another card. */
+const showCard = (card: unknown) =>
+  act(() => root?.render(<Harness card={card as never} />));
 
 test("marking a film done writes it, says Marked as watched, and Undo unmarks it", async () => {
   write = mock(async () => null);
@@ -171,4 +176,35 @@ test("a note can't be marked done", async () => {
     hook().toggleDone();
   });
   expect(write).not.toHaveBeenCalled();
+});
+
+test("a write still saving for one card doesn't show on, or block, the next card", async () => {
+  const finishes: (() => void)[] = [];
+  write = mock(
+    () =>
+      new Promise((resolve) => {
+        finishes.push(() => resolve(null));
+      })
+  );
+  const hook = await renderHook(filmLink());
+  await act(() => {
+    hook().toggleDone();
+  });
+  await showCard(filmLink(undefined, "card_b"));
+  expect(hook().card?.completedAt).toBeUndefined();
+
+  await act(() => {
+    hook().toggleDone();
+  });
+  expect(write.mock.calls.map(([args]) => args)).toEqual([
+    { cardId: "card_a", field: "done" },
+    { cardId: "card_b", field: "done" },
+  ]);
+  expect(hook().card?.completedAt).toEqual(expect.any(Number));
+  await act(async () => {
+    for (const finish of finishes) {
+      finish();
+    }
+    await Promise.resolve();
+  });
 });
