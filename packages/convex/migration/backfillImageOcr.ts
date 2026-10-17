@@ -309,7 +309,8 @@ export const backfillImageOcrCard = internalAction({
       }
       const { text } = outcome.data;
       if (typeof text !== "string") {
-        // A Worker from before image text reads none; leave the card unread.
+        // A Worker from before image text sends none, and so does one whose
+        // answer kept running past the output cap; leave the card unread.
         console.warn("[backfillImageOcr] the Files Worker sent no text", {
           cardId,
         });

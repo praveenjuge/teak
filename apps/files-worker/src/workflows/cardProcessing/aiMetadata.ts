@@ -140,7 +140,11 @@ export const generateImageMetadataForStoredKey = async (
   /** With telemetry, the op also asks Clef for the image's visual styles. */
   options: { telemetry?: WorkflowTelemetry } = {}
 ): Promise<
-  GeneratedMetadata & { aiOcrText?: string; visualStyles?: VisualStyle[] }
+  GeneratedMetadata & {
+    aiOcrText?: string;
+    ocrChecked: boolean;
+    visualStyles?: VisualStyle[];
+  }
 > => {
   const outcome = await job.deps.filesOp<{
     summary: string;
@@ -167,15 +171,17 @@ export const generateImageMetadataForStoredKey = async (
         outcome.data.visualStyles
       )
     : undefined;
-  // The op already tidies the text; an older worker sends none.
+  // The op already tidies the text. It sends none when its answer ran past
+  // the output cap, so the image counts as read only when `text` came back.
+  const text =
+    typeof outcome.data.text === "string" ? outcome.data.text : undefined;
   const aiOcrText =
-    typeof outcome.data.text === "string"
-      ? normalizeImageOcrText(outcome.data.text)
-      : undefined;
+    text === undefined ? undefined : normalizeImageOcrText(text);
   return {
     aiSummary: outcome.data.summary,
     aiTags: normalizeAiTags(outcome.data.tags),
     ...(aiOcrText ? { aiOcrText } : {}),
+    ocrChecked: text !== undefined,
     ...(visualStyles ? { visualStyles } : {}),
   };
 };

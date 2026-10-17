@@ -623,11 +623,9 @@ describe("additive files ops", () => {
       Math.floor(Date.now() / 1000),
       fakeFetch
     );
-    expect(result).toMatchObject({
-      summary: "A menu.",
-      tags: ["menu"],
-      text: "",
-    });
+    // No `text`: the last answer was told to leave it empty, so the image
+    // stays unread instead of counting as one without text.
+    expect(result).toEqual({ summary: "A menu.", tags: ["menu"] });
     expect(prompts).toHaveLength(3);
     expect(prompts[1]).toContain("at most 1000 characters");
   });

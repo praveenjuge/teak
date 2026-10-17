@@ -267,6 +267,12 @@ export const generateImageMetadataForOp = async (
       if (!parsed) {
         throw new Error("invalid_image_metadata_output");
       }
+      if (validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES) {
+        // The last attempt asked for no text, so its answer can't say the
+        // image has none. Without `text`, callers leave the image unread.
+        const { text: _skipped, ...withoutText } = parsed;
+        return withoutText;
+      }
       return parsed;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

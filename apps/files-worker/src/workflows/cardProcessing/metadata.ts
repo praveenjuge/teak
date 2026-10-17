@@ -204,7 +204,7 @@ const generateForType = async (
       return {
         ...result,
         confidence: 0.9,
-        ocrChecked: true,
+        ocrChecked: result.ocrChecked,
         visualStyles:
           result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
       };
@@ -224,7 +224,7 @@ const generateForType = async (
         generated = {
           ...result,
           confidence: 0.88,
-          ocrChecked: true,
+          ocrChecked: result.ocrChecked,
           visualStyles:
             result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
         };
