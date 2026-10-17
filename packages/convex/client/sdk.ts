@@ -82,15 +82,15 @@ export interface Card {
   appUrl: string;
   /** When the card was archived, or null. */
   archivedAt: number | null;
+  /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
+  audioWaveform: { detail: number[]; grid: number[] } | null;
+  colors: Array<{ hex: string; name?: string }>;
+  compactUrl: string | null;
   /**
    * When the link was marked read, watched, bought or done, or null.
    * Servers that predate done states leave it out.
    */
   completedAt?: number | null;
-  /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
-  audioWaveform: { detail: number[]; grid: number[] } | null;
-  colors: Array<{ hex: string; name?: string }>;
-  compactUrl: string | null;
   content: string;
   createdAt: number;
   detailUrl: string | null;
@@ -115,6 +115,11 @@ export interface Card {
    */
   isHidden?: boolean;
   linkAuthor: string | null;
+  /**
+   * What a link is (`article`, `movie`, `product`…), or null. A plain
+   * string: new categories are added over time.
+   */
+  linkCategory?: string | null;
   linkFacts: Array<{ label: string; value: string }>;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
@@ -133,11 +138,6 @@ export interface Card {
    * ISO 4217 code or null. Null for cards without a price.
    */
   linkPrice: { amount: number; currency: string | null } | null;
-  /**
-   * What a link is (`article`, `movie`, `product`…), or null. A plain
-   * string: new categories are added over time.
-   */
-  linkCategory?: string | null;
   linkPublishedAt: string | null;
   linkPublisher: string | null;
   linkSiteName: string | null;

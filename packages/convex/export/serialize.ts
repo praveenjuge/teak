@@ -28,6 +28,7 @@ export interface ExportableCard {
     rgb?: { r: number; g: number; b: number };
     hsl?: { h: number; s: number; l: number };
   }>;
+  completedAt?: number;
   content?: string;
   createdAt: number;
   deletedAt?: number;
@@ -41,7 +42,6 @@ export interface ExportableCard {
     height?: number;
     recordingTimestamp?: number;
   };
-  completedAt?: number;
   folderIds?: string[];
   isArchived?: boolean;
   isDeleted?: boolean;

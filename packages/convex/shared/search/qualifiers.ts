@@ -86,15 +86,15 @@ export interface ParsedSearchQuery {
   sites: string[];
   /** `tag:` and `#tag` values, lowercased. */
   tags: string[];
+  /** Plain words, as typed (hex colors like `#fff` stay words). */
+  terms: string[];
+  /** The words to give the full-text index: plain words and phrase words. */
+  text: string;
   /**
    * True with `is:todo`: links in a category worth finishing (a book, a
    * film, a product) that aren't done yet.
    */
   todo: boolean;
-  /** Plain words, as typed (hex colors like `#fff` stay words). */
-  terms: string[];
-  /** The words to give the full-text index: plain words and phrase words. */
-  text: string;
   /** `type:` card types. */
   types: CardType[];
 }

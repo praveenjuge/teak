@@ -83,6 +83,8 @@ export interface SearchOptions {
   archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
+  /** `is:done`: only cards marked done. */
+  done?: boolean;
   favorited?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
@@ -93,8 +95,6 @@ export interface SearchOptions {
   /** Best match: keep the search's own order instead of sorting by date. */
   keepSearchOrder?: boolean;
   limit?: number;
-  /** `is:done`: only cards marked done. */
-  done?: boolean;
   /** `text:` values: each must be in a card's image text (`aiOcrText`). */
   ocrTexts?: string[];
   phrases?: string[];
