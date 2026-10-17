@@ -109,7 +109,9 @@ describe("SearchBar filter chips", () => {
       qualifierChips: ["is:done", "is:todo", "is:archived"],
     });
     const icons = [
-      ...markup.matchAll(/aria-label="Remove ([^"]+)"[^]*?lucide-([a-z-]+)/g),
+      ...markup.matchAll(
+        /aria-label="Remove ([^"]+)"[\s\S]*?lucide-([a-z-]+)/g
+      ),
     ].map((match) => [match[1], match[2]]);
     expect(icons).toEqual([
       ["show Done", "circle-check"],
