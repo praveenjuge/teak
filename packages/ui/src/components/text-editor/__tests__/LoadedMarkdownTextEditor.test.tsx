@@ -1,4 +1,12 @@
-import { afterEach, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -64,8 +72,11 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
 });
 
-test("a tick reports the reordered list, not the list before the move", async () => {
-  const onChange = mock((_next: string) => undefined);
+/** Renders a checklist in the rich editor; returns a way to tick an item. */
+async function renderChecklist(
+  value: string,
+  onChange = (_next: string) => {}
+) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -74,24 +85,100 @@ test("a tick reports the reordered list, not the list before the move", async ()
       <LoadedMarkdownTextEditor
         ariaLabel="Markdown content"
         onChange={onChange}
-        value={"- [ ] A\n- [ ] B"}
+        value={value}
       />
     )
   );
-  let checkbox: HTMLInputElement | null = null;
-  for (let tick = 0; tick < 50 && !checkbox; tick++) {
-    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
-    checkbox = container.querySelector<HTMLInputElement>(
-      "input[aria-label='Task item checkbox for A']"
+  const checkboxFor = (text: string) =>
+    container.querySelector<HTMLInputElement>(
+      `input[aria-label='Task item checkbox for ${text}']`
     );
+  for (let wait = 0; wait < 50 && !container.querySelector("ul"); wait++) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
   }
-  if (!checkbox) {
-    throw new Error("The rich editor never showed the task list");
-  }
-  const box = checkbox;
-  await act(() => {
-    box.checked = true;
-    box.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  return {
+    itemFor: (text: string) => checkboxFor(text)?.closest("li") ?? null,
+    tick: async (text: string) => {
+      const box = checkboxFor(text);
+      if (!box) {
+        throw new Error(`No checkbox for ${text}`);
+      }
+      await act(() => {
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    },
+  };
+}
+
+test("a tick reports the reordered list, not the list before the move", async () => {
+  const onChange = mock((_next: string) => undefined);
+  const list = await renderChecklist("- [ ] A\n- [ ] B", onChange);
+  await list.tick("A");
   expect(onChange.mock.lastCall?.[0]).toBe("- [ ] B\n- [x] A");
+});
+
+describe("the move slides", () => {
+  // No layout here: each list item reports a top of 20px per place in its
+  // list, so a move shows as a change in that number.
+  const rowTop = (element: Element) =>
+    element.tagName === "LI" && element.parentElement
+      ? Array.prototype.indexOf.call(element.parentElement.children, element) *
+        20
+      : 0;
+  const animate = mock(function (this: Element, keyframes: Keyframe[]) {
+    return { keyframes, target: this } as unknown as Animation;
+  });
+  const realRect = HTMLElement.prototype.getBoundingClientRect;
+  const realAnimate = HTMLElement.prototype.animate;
+  const realGetAnimations = HTMLElement.prototype.getAnimations;
+  const realMatchMedia = window.matchMedia;
+  let reducedMotion = false;
+
+  beforeEach(() => {
+    animate.mockClear();
+    reducedMotion = false;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      return { top: rowTop(this) } as DOMRect;
+    };
+    HTMLElement.prototype.animate = animate as unknown as typeof realAnimate;
+    HTMLElement.prototype.getAnimations = () => [];
+    window.matchMedia = ((query: string) => ({
+      matches: reducedMotion && query.includes("reduce"),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterAll(() => {
+    HTMLElement.prototype.getBoundingClientRect = realRect;
+    HTMLElement.prototype.animate = realAnimate;
+    HTMLElement.prototype.getAnimations = realGetAnimations;
+    window.matchMedia = realMatchMedia;
+  });
+
+  const slides = () =>
+    animate.mock.calls.map((call, index) => ({
+      text: (animate.mock.contexts[index] as Element).textContent,
+      from: (call[0] as Keyframe[])[0].transform,
+    }));
+
+  test("each item in the moved run from its old place to its new one", async () => {
+    const list = await renderChecklist("- [ ] A\n- [ ] B\n- [ ] C");
+    await list.tick("A");
+    // A goes from the top to the bottom; B and C each move up one place.
+    expect(slides()).toEqual([
+      { text: expect.stringContaining("B"), from: "translateY(20px)" },
+      { text: expect.stringContaining("C"), from: "translateY(20px)" },
+      { text: expect.stringContaining("A"), from: "translateY(-40px)" },
+    ]);
+  });
+
+  test("not when the reader prefers reduced motion", async () => {
+    reducedMotion = true;
+    const list = await renderChecklist("- [ ] A\n- [ ] B");
+    await list.tick("A");
+    expect(list.itemFor("A")?.parentElement?.lastElementChild).toBe(
+      list.itemFor("A")
+    );
+    expect(animate).not.toHaveBeenCalled();
+  });
 });

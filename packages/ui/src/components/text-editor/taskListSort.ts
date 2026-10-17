@@ -14,9 +14,25 @@ import {
   Mapping,
   ReplaceAroundStep,
 } from "@tiptap/pm/transform";
+import type { EditorView } from "@tiptap/pm/view";
 
 const TASK_ITEM = "taskItem";
 const TASK_LIST = "taskList";
+
+/** How long a moved item takes to slide into its new place. */
+export const TASK_SLIDE_MS = 220;
+
+/** What a move changed, for the slide: the list and the reordered run. */
+interface TaskMove {
+  first: number;
+  last: number;
+  /** The list's position in the document after the move. */
+  listPos: number;
+  /** Each new index's old index. */
+  order: number[];
+}
+
+const taskListSortKey = new PluginKey<TaskMove | null>("teakTaskListSort");
 
 /**
  * Where the task item that `tr` ticked or unticked now sits in `tr.doc`, or
@@ -167,15 +183,66 @@ export function moveToggledTaskItem(
   if (tr.getMeta("addToHistory") === false) {
     move.setMeta("addToHistory", false);
   }
-  return move;
+  const taskMove: TaskMove = { listPos: $item.before(), first, last, order };
+  return move.setMeta(taskListSortKey, taskMove);
 }
 
-const taskListSortKey = new PluginKey("teakTaskListSort");
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+/** The list's item elements, in order, while the view shows `pos`'s list. */
+function itemElements(view: EditorView, pos: number): HTMLElement[] | null {
+  const list = view.nodeDOM(pos);
+  if (!(list instanceof HTMLElement)) {
+    return null;
+  }
+  return Array.from(list.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement
+  );
+}
+
+/**
+ * Slides each item of the moved run from where it was drawn to its new place
+ * (FLIP). The Web Animations API leaves the editor's DOM and styles alone.
+ */
+function slide(elements: HTMLElement[], before: number[], move: TaskMove) {
+  for (let at = move.first; at <= move.last; at++) {
+    const element = elements[at];
+    const was = before[move.order[at]];
+    if (
+      !element ||
+      was === undefined ||
+      typeof element.animate !== "function"
+    ) {
+      continue;
+    }
+    for (const running of element.getAnimations()) {
+      running.cancel();
+    }
+    const offset = was - element.getBoundingClientRect().top;
+    if (Math.abs(offset) < 0.5) {
+      continue;
+    }
+    element.animate(
+      [{ transform: `translateY(${offset}px)` }, { transform: "none" }],
+      { duration: TASK_SLIDE_MS, easing: "cubic-bezier(0.2, 0, 0, 1)" }
+    );
+  }
+}
 
 /** Moves a ticked item below the open ones in its list, and back on untick. */
 export function taskListSortPlugin(): Plugin {
+  let editorView: EditorView | null = null;
+  // Where the run's items were drawn just before a move, until it renders.
+  let pending: { move: TaskMove; before: number[] } | null = null;
   return new Plugin({
     key: taskListSortKey,
+    state: {
+      init: () => null,
+      // The last move applied, so the view only slides a move that landed.
+      apply: (tr, last) => tr.getMeta(taskListSortKey) ?? last,
+    },
     appendTransaction(transactions, _oldState, newState) {
       // The user's change comes first; plugins may have appended others.
       const [toggle, ...rest] = transactions;
@@ -183,7 +250,40 @@ export function taskListSortPlugin(): Plugin {
       for (const appended of rest) {
         later.appendMapping(appended.mapping);
       }
-      return moveToggledTaskItem(newState, toggle, later);
+      const move = moveToggledTaskItem(newState, toggle, later);
+      const taskMove = move?.getMeta(taskListSortKey) as TaskMove | undefined;
+      // The view still shows the list before the move: measure it now. A
+      // tick only changes an attribute, so the list sits at the same place.
+      if (taskMove && editorView && !prefersReducedMotion()) {
+        const elements = itemElements(editorView, taskMove.listPos);
+        if (elements?.length === taskMove.order.length) {
+          pending = {
+            move: taskMove,
+            before: elements.map((item) => item.getBoundingClientRect().top),
+          };
+        }
+      }
+      return move;
+    },
+    view(view) {
+      editorView = view;
+      return {
+        update(updated) {
+          const slid = pending;
+          pending = null;
+          if (!slid || taskListSortKey.getState(updated.state) !== slid.move) {
+            return;
+          }
+          const elements = itemElements(updated, slid.move.listPos);
+          if (elements) {
+            slide(elements, slid.before, slid.move);
+          }
+        },
+        destroy() {
+          editorView = null;
+          pending = null;
+        },
+      };
     },
   });
 }
