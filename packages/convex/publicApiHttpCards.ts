@@ -729,6 +729,8 @@ const handleCardsByIdV1Request = async (
     normalizedCardId,
     route.operation === "restore" ||
       route.operation === "refresh" ||
+      route.operation === "done" ||
+      route.operation === "undone" ||
       // A card in Trash answers 409, not 404.
       route.operation.startsWith("thumbnail-") ||
       (route.operation === "delete" && permanent === "true")
@@ -789,6 +791,34 @@ const handleCardsByIdV1Request = async (
       });
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to refresh card");
+    }
+  }
+
+  if (route.operation === "done" || route.operation === "undone") {
+    const done = route.operation === "done";
+    try {
+      const result = await ctx.runMutation(
+        internal.raycast.setCardDoneForUser,
+        {
+          cardId: normalizedCardId as Id<"cards">,
+          done,
+          userId: auth.validated.userId,
+        }
+      );
+      if (!result) {
+        return errorResponse(404, "NOT_FOUND", "Card not found");
+      }
+      // Only a change is counted: a repeated call is a no-op.
+      if (result.changed) {
+        await captureBackendEvent("card_done_toggled", auth.validated.userId, {
+          category: result.card.metadata?.linkCategory?.category ?? "none",
+          done,
+          source: "api",
+        });
+      }
+      return json(200, serializeCard(result.card, request.url));
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to update done state");
     }
   }
 

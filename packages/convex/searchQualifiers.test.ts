@@ -661,6 +661,285 @@ describe("price:", () => {
   });
 });
 
+const categoryMetadata = (
+  url: string,
+  category: "article" | "book" | "movie" | "repo"
+) => ({
+  linkCategory: { category, fetchedAt: 1, sourceUrl: url },
+});
+
+describe("is:done and is:todo", () => {
+  const seedReading = async (
+    insert: Awaited<ReturnType<typeof setup>>["insert"]
+  ) => {
+    const link = (
+      content: string,
+      category: "article" | "book" | "movie" | "repo" | undefined,
+      extra: Partial<Doc<"cards">> = {}
+    ) => {
+      const url = `https://read.example/${encodeURIComponent(content)}`;
+      return insert({
+        content,
+        url,
+        ...(category ? { metadata: categoryMetadata(url, category) } : {}),
+        ...extra,
+      });
+    };
+    const ids = {
+      read: await link("Read article", "article", { completedAt: 5 }),
+      unread: await link("Unread article", "article"),
+      film: await link("Film to watch", "movie"),
+      repo: await link("A repository", "repo"),
+      pending: await link("A link still being read", undefined),
+      archived: await link("Archived read book", "book", {
+        completedAt: 5,
+        isArchived: true,
+      }),
+      trashed: await link("Trashed read article", "article", {
+        completedAt: 5,
+        isDeleted: true,
+      }),
+    };
+    // A text card with a stray date is still not a link.
+    await insert({ content: "A note", completedAt: 5 });
+    return ids;
+  };
+
+  test("is:done lists done links, is:todo what is left to finish", async () => {
+    const { insert, search } = await setup();
+    await seedReading(insert);
+    expect(await search("is:done")).toEqual(["Read article"]);
+    expect(await search("is:todo")).toEqual([
+      "Film to watch",
+      "Unread article",
+    ]);
+    expect(await search("is:todo film")).toEqual(["Film to watch"]);
+    expect(await search("is:done is:todo")).toEqual([]);
+    expect(await search("is:todo type:image")).toEqual([]);
+    expect(await search("is:todo", { types: ["text"] })).toEqual([]);
+    expect(await search("is:done is:archived")).toEqual(["Archived read book"]);
+    expect(await search("is:done", { showTrashOnly: true })).toEqual([
+      "Trashed read article",
+    ]);
+  });
+
+  test("is:todo pages through more cards than one batch", async () => {
+    const { insert, search } = await setup();
+    const url = "https://read.example/oldest";
+    await insert({
+      content: "oldest to read",
+      url,
+      metadata: categoryMetadata(url, "article"),
+    });
+    for (let index = 0; index < 230; index += 1) {
+      const noiseUrl = `https://noise.example/${index}`;
+      await insert({
+        content: `noise ${index}`,
+        url: noiseUrl,
+        metadata: categoryMetadata(noiseUrl, "repo"),
+      });
+    }
+    const newestUrl = "https://read.example/newest";
+    await insert({
+      content: "newest to read",
+      url: newestUrl,
+      metadata: categoryMetadata(newestUrl, "movie"),
+    });
+    expect(await search("is:todo")).toEqual([
+      "newest to read",
+      "oldest to read",
+    ]);
+  });
+
+  test("a smart folder of what is left in Reading list", async () => {
+    const { owner, insert, search } = await setup();
+    const ids = await seedReading(insert);
+    const reading = await owner.mutation(api.folders.createFolder, {
+      name: "Reading list",
+    });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: reading._id,
+      cardIds: [ids.read, ids.unread, ids.repo],
+    });
+    const left = await owner.mutation(api.folders.createFolder, {
+      name: "Left to read",
+      kind: "smart",
+      query: 'is:todo folder:"Reading list"',
+    });
+    expect(await search("", { folderId: left._id })).toEqual([
+      "Unread article",
+    ]);
+    expect(await search("is:done", { folderId: left._id })).toEqual([]);
+  });
+
+  test("the API's search and scan pages take done and todo", async () => {
+    const { t, insert, runScheduled } = await setup();
+    await seedReading(insert);
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          type: "link",
+          todo: true,
+        })
+      )
+    ).toEqual(["Film to watch", "Unread article"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "article",
+          type: "link",
+          done: true,
+        })
+      )
+    ).toEqual(["Read article"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          type: "link",
+          todo: true,
+        })
+      ).sort()
+    ).toEqual(["Film to watch", "Unread article"]);
+    // Without a type, the scan still lists only links: the note's stray
+    // date is not "done".
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          done: true,
+        })
+      )
+    ).toEqual(["Read article"]);
+    // One card a page: every page holds a to-do link, and none repeats.
+    const shuffled: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await t.query(internal.publicApi.shuffleCardsPageForUser, {
+        userId: "owner",
+        shuffleSeed: 3,
+        limit: 1,
+        cursor,
+        type: "link",
+        todo: true,
+      });
+      shuffled.push(...contents(page));
+      cursor = page.pageInfo.nextCursor ?? undefined;
+    } while (cursor);
+    expect(shuffled.sort()).toEqual(["Film to watch", "Unread article"]);
+  });
+});
+
+describe("marking a link done", () => {
+  test("done sets completedAt once, undone clears it, and both repeat safely", async () => {
+    const { owner, insert, card, search } = await setup();
+    const url = "https://read.example/a";
+    const cardId = await insert({
+      content: "An article",
+      url,
+      metadata: categoryMetadata(url, "article"),
+    });
+    vi.setSystemTime(10_000);
+    await owner.mutation(api.cards.updateCardField, { cardId, field: "done" });
+    expect((await card(cardId))?.completedAt).toBe(10_000);
+    vi.setSystemTime(20_000);
+    await owner.mutation(api.cards.updateCardField, { cardId, field: "done" });
+    expect((await card(cardId))?.completedAt).toBe(10_000);
+    expect(await search("is:done")).toEqual(["An article"]);
+
+    await owner.mutation(api.cards.updateCardField, {
+      cardId,
+      field: "undone",
+    });
+    expect((await card(cardId))?.completedAt).toBeUndefined();
+    await owner.mutation(api.cards.updateCardField, {
+      cardId,
+      field: "undone",
+    });
+    expect(await search("is:todo")).toEqual(["An article"]);
+  });
+
+  test("the API's done write says whether it changed anything", async () => {
+    const { t, insert } = await setup();
+    const url = "https://read.example/api";
+    const cardId = await insert({
+      content: "An article",
+      url,
+      metadata: categoryMetadata(url, "article"),
+    });
+    const setDone = async (done: boolean) =>
+      (
+        await t.mutation(internal.raycast.setCardDoneForUser, {
+          userId: "owner",
+          cardId,
+          done,
+        })
+      )?.changed;
+    expect(await setDone(true)).toBe(true);
+    expect(await setDone(true)).toBe(false);
+    expect(await setDone(false)).toBe(true);
+    expect(await setDone(false)).toBe(false);
+
+    const note = await insert({ content: "A note" });
+    await expect(
+      t.mutation(internal.raycast.setCardDoneForUser, {
+        userId: "owner",
+        cardId: note,
+        done: true,
+      })
+    ).rejects.toThrow("Only link cards");
+    const theirs = await insert(
+      { content: "Theirs", url: "https://read.example/s" },
+      "stranger"
+    );
+    await expect(
+      t.mutation(internal.raycast.setCardDoneForUser, {
+        userId: "owner",
+        cardId: theirs,
+        done: true,
+      })
+    ).rejects.toThrow("Card not found");
+  });
+
+  test("refuses notes, cards in Trash, and other people's cards", async () => {
+    const { owner, insert } = await setup();
+    const note = await insert({ content: "A note" });
+    const trashed = await insert({
+      content: "Trashed",
+      url: "https://read.example/t",
+      isDeleted: true,
+    });
+    const theirs = await insert(
+      { content: "Theirs", url: "https://read.example/s" },
+      "stranger"
+    );
+    await expect(
+      owner.mutation(api.cards.updateCardField, { cardId: note, field: "done" })
+    ).rejects.toThrow("Only link cards");
+    await expect(
+      owner.mutation(api.cards.updateCardField, {
+        cardId: trashed,
+        field: "done",
+      })
+    ).rejects.toThrow("Restore this card");
+    await expect(
+      owner.mutation(api.cards.updateCardField, {
+        cardId: theirs,
+        field: "done",
+      })
+    ).rejects.toThrow("Card not found");
+  });
+});
+
 describe("listTopSites", () => {
   test("counts recent links by host, most saved first", async () => {
     const { owner, stranger, insert } = await setup();

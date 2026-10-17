@@ -164,10 +164,10 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 12 | Embedding infrastructure: built, plan deleted | Search & AI | 10, v1-13 |
 | 13 | Blended search everywhere: built, plan deleted | Search & AI | 12, 4 |
 | 14 | More like this, `like:` and `mood:`: built, plan deleted | Search & AI | 13 |
-| 15 | [Read, watch and buy states](2026-10-14-roadmap-v2-15-done-states.md) | Smarter cards | — |
+| 15 | Read, watch and buy states: built, plan deleted | Smarter cards | — |
 | 16 | Structured price: built, plan deleted | Smarter cards | — |
 | 17 | Replace a link card's thumbnail: built, plan deleted | Smarter cards | — |
-| 18 | New link categories: built except the done wording for app and game, which moved into phase 15; plan deleted | Smarter cards | 15 |
+| 18 | New link categories: built, plan deleted | Smarter cards | 15 |
 | 19 | Fetchers for social posts: built, plan deleted | Smarter cards | 18 |
 | 20 | [Richer details for more sites](2026-10-14-roadmap-v2-20-rich-sites.md) | Smarter cards | 18 |
 | 21 | [YouTube and Vimeo transcripts](2026-10-14-roadmap-v2-21-video-captions.md) | Smarter cards | v1-13 |
@@ -205,7 +205,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 
 | Phase | Decision | Default in the plan |
 |---|---|---|
-| 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC (shipped this way) |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
@@ -224,4 +223,5 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 6 | The page a card came from is `sourceUrl` and `sourceTitle` in `POST /v1/cards`, beside the existing `source` label |
 | 12 | The privacy policy wording for search by meaning is approved, and shipped with phase 12 |
 | 15 | Done states are for link cards only |
+| 15 | Marking done is `POST`/`DELETE /v1/cards/{cardId}/done`, not `PATCH` like favorite |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

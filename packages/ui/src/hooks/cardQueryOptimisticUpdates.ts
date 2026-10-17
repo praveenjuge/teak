@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { filterLocalCards } from "@teak/convex/shared";
+import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
 import type { OptimisticLocalStore } from "convex/browser";
 import type { FunctionArgs } from "convex/server";
 
@@ -13,7 +13,19 @@ export function cardMatchesSearchQuery(
   card: Doc<"cards">,
   args: SearchFilterArgs
 ): boolean {
-  if (args.folderId && !(card.folderIds ?? []).includes(args.folderId)) {
+  // A smart folder is its search, as on the server; a manual one holds cards.
+  const isSmartFolder = args.folderQuery !== undefined;
+  if (
+    args.folderId &&
+    !isSmartFolder &&
+    !(card.folderIds ?? []).includes(args.folderId)
+  ) {
+    return false;
+  }
+  const searchTerms = isSmartFolder
+    ? combineSearchQueries(args.folderQuery ?? "", args.searchQuery ?? "")
+    : args.searchQuery;
+  if (searchTerms === null) {
     return false;
   }
   return (
@@ -22,7 +34,7 @@ export function cardMatchesSearchQuery(
       favoritesOnly: args.favoritesOnly,
       hexFilters: args.hexFilters,
       hueFilters: args.hueFilters,
-      searchTerms: args.searchQuery,
+      searchTerms,
       showArchivedOnly: args.showArchivedOnly,
       showTrashOnly: args.showTrashOnly,
       styleFilters: args.styleFilters,

@@ -168,6 +168,15 @@ const favoriteCard = async (
   write(options.json ? card : formatCardLine(card), options);
 };
 
+const markCardDone = async (
+  id: string,
+  undo: boolean,
+  options: GlobalOptions
+) => {
+  const card = await client(options).cards.setDone(id, !undo);
+  write(options.json ? card : formatCardLine(card), options);
+};
+
 const createCard = async (
   content: string | undefined,
   options: ClientOptions & {
@@ -452,6 +461,17 @@ cards
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+cards
+  .command("done")
+  .argument("<id>")
+  .description("Mark a link read, watched, bought or done")
+  .option("--undo", "mark it not done")
+  .action(async (id, options) => {
+    await markCardDone(id, options.undo === true, {
+      ...program.opts(),
+      ...options,
+    });
   });
 cards
   .command("bulk")
@@ -746,6 +766,17 @@ program
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+program
+  .command("done")
+  .argument("<id>")
+  .description("Mark a link read, watched, bought or done")
+  .option("--undo", "mark it not done")
+  .action(async (id, options) => {
+    await markCardDone(id, options.undo === true, {
+      ...program.opts(),
+      ...options,
+    });
   });
 
 export const run = (argv = process.argv) => {

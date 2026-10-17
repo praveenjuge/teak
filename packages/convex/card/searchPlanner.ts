@@ -3,6 +3,7 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
   combineSearchQueries,
+  matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
@@ -150,7 +151,8 @@ export const expandFolderSearch = async (
 
 /**
  * Merges a parsed search into a view's filters: `type:` narrows the view's
- * types, `price:` narrows them to links, `is:fav` turns on favorites,
+ * types, `price:`, `is:done` and `is:todo` narrow them to links (only links
+ * can be done), `is:fav` turns on favorites,
  * `is:archived` reads Archive (or the archived cards in Trash), and
  * `folder:` names resolve to the user's folders. The server re-reads every search this way and never trusts a
  * client's chips.
@@ -172,8 +174,12 @@ export const resolveSearch = async (
       return null;
     }
   }
-  // Only links have a price.
-  if (parsed.prices.length > 0) {
+  // A card can't be both done and still to do.
+  if (parsed.done && parsed.todo) {
+    return null;
+  }
+  // Only links have a price, and only links are marked done.
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
     if (types && !types.includes("link")) {
       return null;
     }
@@ -257,6 +263,9 @@ export const resolveSearch = async (
     if (!matchesImageText(card.aiOcrText, ocrTexts)) {
       return false;
     }
+    if (!matchesDoneState(card, parsed)) {
+      return false;
+    }
     return matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
       phrases
@@ -274,7 +283,9 @@ export const resolveSearch = async (
       sites.length > 0 ||
       phrases.length > 0 ||
       prices.length > 0 ||
-      ocrTexts.length > 0,
+      ocrTexts.length > 0 ||
+      parsed.done ||
+      parsed.todo,
     includeHidden,
     matches,
     ocrText: ocrTexts.join(" "),

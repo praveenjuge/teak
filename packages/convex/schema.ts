@@ -428,6 +428,7 @@ export const importJobItemValidator = v.object({
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),
@@ -472,6 +473,11 @@ export const cardValidator = v.object({
   deletedAt: v.optional(v.number()),
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
+  /**
+   * When the person marked this link read, watched, bought or otherwise
+   * done (`is:done`). Not the processing stages' `completedAt`.
+   */
+  completedAt: v.optional(v.number()),
   /**
    * Derived from `tags` (shared/tags.ts `isHiddenTagList`): the card carries
    * a reserved tag and is left out of lists until a search names that tag.

@@ -13,6 +13,7 @@ const renderSearchBar = (
     onReshuffle,
     onSortChange,
     onToggleFilter,
+    qualifierChips,
     sort,
   }: {
     filterTags?: CardType[];
@@ -20,6 +21,7 @@ const renderSearchBar = (
     onReshuffle?: () => void;
     onSortChange?: (sort: CardListSort) => void;
     onToggleFilter?: (filter: CardType) => void;
+    qualifierChips?: string[];
     sort?: CardListSort;
   } = {}
 ) =>
@@ -43,6 +45,7 @@ const renderSearchBar = (
       onSortChange={onSortChange}
       onToggleFilter={onToggleFilter}
       placeholder="Search favorites"
+      qualifierChips={qualifierChips}
       searchQuery={searchQuery}
       sort={sort}
       styleFilters={[]}
@@ -99,6 +102,22 @@ describe("SearchBar filter chips", () => {
     });
     expect(chipNames(markup)).toEqual(["design", "type Link"]);
     expect(markup).toContain('aria-label="Clear all"');
+  });
+
+  test("gives done, to do and archived their own icons", () => {
+    const markup = renderSearchBar("", {
+      qualifierChips: ["is:done", "is:todo", "is:archived"],
+    });
+    const icons = [
+      ...markup.matchAll(
+        /aria-label="Remove ([^"]+)"[\s\S]*?lucide-([a-z-]+)/g
+      ),
+    ].map((match) => [match[1], match[2]]);
+    expect(icons).toEqual([
+      ["show Done", "circle-check"],
+      ["show To do", "circle"],
+      ["show Archived", "archive"],
+    ]);
   });
 
   test("folds chips past the third into a +N menu", () => {

@@ -125,7 +125,7 @@ export const executePublicApiOperation = (
       request.method === "PATCH" ||
       request.method === "PUT" ||
       (request.method === "POST" &&
-        /^\/v1\/cards\/[^/]+\/(?:restore|refresh|thumbnail\/upload)$/.test(
+        /^\/v1\/cards\/[^/]+\/(?:restore|refresh|done|thumbnail\/upload)$/.test(
           pathname
         )))
   ) {

@@ -28,6 +28,7 @@ export interface ExportableCard {
     rgb?: { r: number; g: number; b: number };
     hsl?: { h: number; s: number; l: number };
   }>;
+  completedAt?: number;
   content?: string;
   createdAt: number;
   deletedAt?: number;
@@ -79,6 +80,8 @@ export interface SerializedCard {
   /** Tags AI added, apart from the user's own `tags` (schema v2). */
   aiTags: string[];
   colors?: Array<{ hex: string; name?: string }>;
+  /** When a link was marked read, watched, bought or done, if it was. */
+  completedAt?: DualTimestamp;
   content: string;
   createdAt: DualTimestamp;
   file?: SerializedCardFile;
@@ -189,6 +192,9 @@ export function serializeCard(
 
   if (typeof card.url === "string" && card.url.length > 0) {
     serialized.url = card.url;
+  }
+  if (typeof card.completedAt === "number") {
+    serialized.completedAt = toDualTimestamp(card.completedAt);
   }
   if (typeof card.notes === "string" && card.notes.length > 0) {
     serialized.notes = card.notes;

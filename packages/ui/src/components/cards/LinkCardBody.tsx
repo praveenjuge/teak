@@ -1,4 +1,6 @@
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
+import { CircleCheck } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { cn } from "../../lib/utils";
 import { CARD_SURFACE, getDisplayHostname } from "./cardDisplay";
@@ -43,6 +45,14 @@ export function LinkCardBody({
   const favicon = hostname && (
     <SiteFavicon className="size-4" hostname={hostname} />
   );
+  // Quiet, and never squeezed: the title truncates first.
+  const doneMark = card.completedAt !== undefined && (
+    <CircleCheck
+      aria-label={`Marked as ${doneActionLabel(card.metadata?.linkCategory?.category)}`}
+      className="size-4 shrink-0 text-muted-foreground"
+      role="img"
+    />
+  );
 
   if (image) {
     return (
@@ -79,6 +89,7 @@ export function LinkCardBody({
             <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
               {title}
             </p>
+            {doneMark}
           </div>
         </div>
       </div>
@@ -97,6 +108,7 @@ export function LinkCardBody({
         <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
           {titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title}
         </p>
+        {doneMark}
         {priceLabel && (
           <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
             {priceLabel}

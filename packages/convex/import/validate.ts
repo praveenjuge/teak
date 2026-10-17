@@ -37,6 +37,8 @@ export interface ImportFileInput {
 
 export interface ImportCardInput {
   colors?: Array<{ hex: string; name?: string }>;
+  /** Archive schema v2: when a link was marked done. */
+  completedAt?: number;
   content: string;
   createdAt?: number;
   file?: ImportFileInput;
@@ -265,6 +267,8 @@ export function validateImportCard(raw: unknown): ImportCardInput {
     folders: importFolderNames(value.folders),
     colors: rawColors as ImportCardInput["colors"],
     createdAt: parseImportedTimestamp(value.createdAt),
+    completedAt:
+      type === "link" ? parseImportedTimestamp(value.completedAt) : undefined,
     file,
   };
 }

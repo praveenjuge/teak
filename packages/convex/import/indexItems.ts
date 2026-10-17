@@ -59,6 +59,7 @@ export function normalizeIndexItem(
       folders: card.folders,
       colors: card.colors,
       importedCreatedAt: card.createdAt,
+      importedCompletedAt: card.completedAt,
       filePath: card.file?.path,
       fileName: card.file?.fileName,
       fileSize: card.file

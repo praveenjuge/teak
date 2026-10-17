@@ -18,6 +18,16 @@ export type CardCreationSource =
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
+/** Where a link was marked done: its card dialog, or the public API. */
+export type CardDoneSource = "panel" | "api";
+
+/** A link marked done or not. `category` is its link category, or "none". */
+interface CardDoneToggled {
+  category: string;
+  done: boolean;
+  source: CardDoneSource;
+}
+
 /** How a link's image was replaced: on the web, or through the public API. */
 export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
@@ -29,6 +39,7 @@ export interface ClientEventCatalog {
     source: CardCreationSource;
     via?: string;
   };
+  card_done_toggled: CardDoneToggled;
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };
   card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
@@ -79,6 +90,7 @@ export interface ServerEventCatalog {
     source: string;
   };
   card_created: { card_type: string; source: string };
+  card_done_toggled: CardDoneToggled;
   card_processing_completed: { card_type: string; duration_ms: number };
   card_processing_failed: {
     card_type?: string;

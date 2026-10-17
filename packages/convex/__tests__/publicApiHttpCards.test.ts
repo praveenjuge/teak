@@ -331,6 +331,32 @@ describe("publicApiHttp card endpoints", () => {
     expect(runQuery.mock.calls[0]?.[1].scanLimit).toBeUndefined();
   });
 
+  test.each([
+    ["is:todo", { todo: true }],
+    ["is:done", { done: true }],
+  ])(
+    "listCardsV1 reads %s in q as links filtered by done state",
+    async (q, filter) => {
+      const runQuery = mock().mockResolvedValue({
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+        itemCursors: [],
+        nextCursor: null,
+        scannedRows: 0,
+      });
+      const response = await runHandler(
+        listCardsV1,
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        authorized(`https://example.com/v1/cards?q=${encodeURIComponent(q)}`)
+      );
+      expect(response.status).toBe(200);
+      expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+        type: "link",
+        ...filter,
+      });
+    }
+  );
+
   test("listCardsV1 searches the words beside a price: bound", async () => {
     const runQuery = mock().mockResolvedValue({
       items: [],
@@ -355,6 +381,8 @@ describe("publicApiHttp card endpoints", () => {
     ["is:archived", "archived=exclude"],
     ["price:<50", "type=image"],
     ["price:<50 type:text", "limit=5"],
+    ["is:done is:todo", "limit=5"],
+    ["is:todo", "type=image"],
   ])("listCardsV1 answers %s with %s with no cards", async (q, param) => {
     const runQuery = mock();
     const response = await runHandler(
@@ -1152,6 +1180,85 @@ describe("publicApiHttp card endpoints", () => {
     });
   });
 
+  const doneRequest = (method: "POST" | "DELETE") =>
+    new Request("https://example.com/v1/cards/card_1/done", {
+      method,
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    });
+  const linkCard = {
+    _id: "card_1",
+    userId: "user_1",
+    type: "link",
+    content: "https://example.com",
+    url: "https://example.com",
+    createdAt: 1,
+    updatedAt: 1,
+    metadata: {
+      linkCategory: {
+        category: "movie",
+        fetchedAt: 1,
+        sourceUrl: "https://example.com",
+      },
+    },
+  };
+
+  test.each([
+    ["POST", true, 1_700_000_000_000],
+    ["DELETE", false, null],
+  ] as const)(
+    "%s /done sets done to %p and returns the card",
+    async (method, done, completedAt) => {
+      const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+        card: { ...linkCard, ...(completedAt ? { completedAt } : {}) },
+        changed: true,
+      });
+      const response = await runHandler(
+        cardByIdV1,
+        {
+          runMutation,
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce(linkCard),
+        },
+        doneRequest(method)
+      );
+      expect(response.status).toBe(200);
+      expect(runMutation.mock.calls[1]?.[1]).toEqual({
+        cardId: "card_1",
+        done,
+        userId: "user_1",
+      });
+      expect(await response.json()).toMatchObject({
+        completedAt,
+        id: "card_1",
+        linkCategory: "movie",
+      });
+    }
+  );
+
+  test.each([
+    ["TYPE_MISMATCH", "Only link cards can be marked done", 400],
+    ["CONFLICT", "Restore this card from Trash before marking it done", 409],
+  ])("/done maps %s to %p", async (code, message, status) => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
+          new ConvexError({ code, message })
+        ),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ ...linkCard, isDeleted: true }),
+      },
+      doneRequest("POST")
+    );
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error: message });
+  });
+
   const refreshRequest = (cardId = "card_1") =>
     new Request(`https://example.com/v1/cards/${cardId}/refresh`, {
       method: "POST",
@@ -1271,6 +1378,37 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ status: "queued" });
   });
+
+  test.each(["POST", "DELETE"])(
+    "%s /done is reachable through executePublicApiOperation, as MCP calls it",
+    async (method) => {
+      const link = { _id: "card_1", userId: "user_1", type: "link" };
+      const response = await executePublicApiOperation(
+        mockActionCtx(
+          withMappedOwner({
+            runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+              card: { ...link, completedAt: method === "POST" ? 1 : undefined },
+              changed: true,
+            }),
+            runQuery: mock()
+              .mockResolvedValueOnce("card_1")
+              .mockResolvedValueOnce(link),
+          })
+        ),
+        {
+          method,
+          path: "/v1/cards/card_1/done",
+          headers: {
+            Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+          },
+        }
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        completedAt: method === "POST" ? 1 : null,
+      });
+    }
+  );
 
   test("a permanent delete of an active card asks to trash it first", async () => {
     const runMutation = buildAuthorizedMutationMock();

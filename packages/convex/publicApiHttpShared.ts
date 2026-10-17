@@ -90,6 +90,8 @@ interface CardsQueryOptions {
   /** Qualifiers from `q` beyond what the plain parameters carry. */
   qualifiers?: {
     archivedInTrash?: boolean;
+    /** `is:done`: cards marked done. */
+    done?: boolean;
     folderNames?: string[];
     /** `text:` values, each matched in a card's image text. */
     ocrTexts?: string[];
@@ -97,6 +99,8 @@ interface CardsQueryOptions {
     prices?: import("./shared/search/qualifiers").PriceBound[];
     sites?: string[];
     tags?: string[];
+    /** `is:todo`: actionable links that aren't done. */
+    todo?: boolean;
   };
   searchQuery?: string;
   /** What `q` asks the vector service for; null when nothing. */

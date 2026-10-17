@@ -86,6 +86,11 @@ export interface Card {
   audioWaveform: { detail: number[]; grid: number[] } | null;
   colors: Array<{ hex: string; name?: string }>;
   compactUrl: string | null;
+  /**
+   * When the link was marked read, watched, bought or done, or null.
+   * Servers that predate done states leave it out.
+   */
+  completedAt?: number | null;
   content: string;
   createdAt: number;
   detailUrl: string | null;
@@ -110,6 +115,11 @@ export interface Card {
    */
   isHidden?: boolean;
   linkAuthor: string | null;
+  /**
+   * What a link is (`article`, `movie`, `product`…), or null. A plain
+   * string: new categories are added over time.
+   */
+  linkCategory?: string | null;
   linkFacts: Array<{ label: string; value: string }>;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
@@ -995,6 +1005,16 @@ export const createTeakClient = (options: {
         await putFile(upload.uploadUrl, bytes, mimeType);
         return applyThumbnail(id, upload.fileKey);
       },
+      /**
+       * Marks a link card read, watched, bought or done (`done: true`), or
+       * not; repeating a call changes nothing. Only link cards can be marked.
+       */
+      setDone: (id: string, done: boolean) =>
+        request(
+          `${cardPath(id)}/done`,
+          { method: done ? "POST" : "DELETE" },
+          asCard
+        ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
           `${cardPath(id)}/favorite`,
