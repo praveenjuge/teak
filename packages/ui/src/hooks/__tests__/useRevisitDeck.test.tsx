@@ -2,7 +2,11 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 import type { CardsSearchQueryArgs } from "../cardsSearchState";
-import type { LoadRevisitPage, RevisitCard } from "../useRevisitDeck";
+import type {
+  LoadRevisitPage,
+  RevisitCard,
+  RevisitPage,
+} from "../useRevisitDeck";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -61,9 +65,12 @@ const { configureAnalytics, resetAnalytics } = await import(
 );
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { REVISIT_WALK_LIMIT, dealRevisitCards, useRevisitDeck } = await import(
-  "../useRevisitDeck"
-);
+const {
+  REVISIT_MAX_REQUESTS,
+  REVISIT_WALK_LIMIT,
+  dealRevisitCards,
+  useRevisitDeck,
+} = await import("../useRevisitDeck");
 
 const dealt = async (
   loadPage: LoadRevisitPage,
@@ -109,6 +116,34 @@ describe("dealRevisitCards", () => {
       expect(new Set(seen).size).toBe(size);
     }
   );
+
+  test("follows the cursor past an empty Shuffle page", async () => {
+    const pages: Record<string, RevisitPage> = {
+      start: { continueCursor: "1", isDone: false, page: [] },
+      "1": { continueCursor: "2", isDone: false, page: [card("a")] },
+      "2": { continueCursor: null, isDone: true, page: [card("b")] },
+    };
+    const loadPage: LoadRevisitPage = (cursor) =>
+      Promise.resolve(pages[cursor ?? "start"] as RevisitPage);
+    expect(await dealt(loadPage)).toEqual({
+      exhausted: true,
+      ids: ["a", "b"],
+    });
+  });
+
+  test("stops after its request cap when pages stay empty", async () => {
+    let requests = 0;
+    const empty: LoadRevisitPage = (cursor) => {
+      requests += 1;
+      return Promise.resolve({
+        continueCursor: String(Number(cursor ?? 0) + 1),
+        isDone: false,
+        page: [],
+      });
+    };
+    expect(await dealt(empty)).toEqual({ exhausted: true, ids: [] });
+    expect(requests).toBe(REVISIT_MAX_REQUESTS);
+  });
 
   test("an empty view deals nothing", async () => {
     view = fakeView([]);
@@ -290,6 +325,32 @@ describe("useRevisitDeck", () => {
       0,
       false,
     ]);
+  });
+
+  test("an archive that lands after the view changed leaves the new deal alone", async () => {
+    let release: () => void = () => undefined;
+    const archiveGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { onUnarchive, render } = await mountDeck(ids("c", 4), {
+      archiveGate,
+    });
+    let archiving: Promise<void> | undefined;
+    await act(() => {
+      archiving = deck.archive();
+    });
+    // A new seed deals afresh while the archive is on its way.
+    await render(1);
+    expect(deck.current?._id).toBe("c3");
+    release();
+    await act(async () => {
+      await archiving;
+    });
+    await settle();
+    expect([deck.position, deck.archived, deck.canUndo]).toEqual([1, 0, false]);
+    // Z has nothing of the new deal's to take back.
+    await step(() => deck.undo());
+    expect(onUnarchive).not.toHaveBeenCalled();
   });
 
   test("20 more deals the next unseen cards; then Start over takes a new seed", async () => {

@@ -19,6 +19,13 @@ export const REVISIT_DECK_SIZE = 20;
  */
 export const REVISIT_WALK_LIMIT = SEARCH_MAX_OFFSET;
 
+/**
+ * Most page reads in one deal. A Shuffle page can come back empty with a
+ * cursor to follow (its segment held no matching card), so the walk counts
+ * requests as well as cards.
+ */
+export const REVISIT_MAX_REQUESTS = 60;
+
 export interface RevisitPage {
   continueCursor: string | null;
   isDone: boolean;
@@ -48,7 +55,11 @@ export async function dealRevisitCards(
   const dealt = new Set<string>();
   let cursor: string | null = null;
   let scanned = 0;
-  while (scanned < REVISIT_WALK_LIMIT) {
+  for (
+    let requests = 0;
+    scanned < REVISIT_WALK_LIMIT && requests < REVISIT_MAX_REQUESTS;
+    requests += 1
+  ) {
     // Pages follow each other: each needs the cursor before it.
     // react-doctor-disable-next-line react-doctor/async-await-in-loop
     const { continueCursor, isDone, page } = await loadPage(cursor);
@@ -64,7 +75,7 @@ export async function dealRevisitCards(
         return { cards, exhausted: lastOfView };
       }
     }
-    if (isDone || continueCursor === null || page.length === 0) {
+    if (isDone || continueCursor === null) {
       return { cards, exhausted: true };
     }
     cursor = continueCursor;
@@ -168,6 +179,8 @@ export function useRevisitDeck({
   // Archived cards, last on top: kept here too, so Z right after an archive
   // sees it before the next render.
   const archivedStack = useRef<string[]>([]);
+  // Bumped by every new deal, so an archive from an older one is ignored.
+  const dealGeneration = useRef(0);
   // Whether this deal's analytics session was reported.
   const session = useRef<{ finished: boolean } | null>(null);
   const stateRef = useRef(state);
@@ -192,6 +205,7 @@ export function useRevisitDeck({
     if (key === null) {
       return;
     }
+    dealGeneration.current += 1;
     if (seen.current.key !== key) {
       seen.current = { ids: new Set(), key };
     }
@@ -260,6 +274,7 @@ export function useRevisitDeck({
     if (busy.current || !card || status !== "ready") {
       return;
     }
+    const generation = dealGeneration.current;
     busy.current = true;
     setPending(true);
     const request = onArchive(card._id).catch(() => false);
@@ -268,8 +283,9 @@ export function useRevisitDeck({
     inFlight.current = null;
     busy.current = false;
     setPending(false);
-    // A failed archive leaves the card on top.
-    if (!archivedOk) {
+    // A failed archive leaves the card on top; one from an older deal (the
+    // view changed meanwhile) has nothing left to move.
+    if (!archivedOk || generation !== dealGeneration.current) {
       return;
     }
     archivedStack.current = [...archivedStack.current, card._id];

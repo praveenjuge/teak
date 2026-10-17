@@ -483,6 +483,7 @@ export function CardsScreen({
 
   const revisit = useRevisitMode({
     archiveOrTrash: showArchivedOnly || showTrashOnly,
+    cardOpen: selectedCardId !== null,
     empty: displayCards.length === 0 && cardsStatus !== "LoadingFirstPage",
     librarySort: searchController.librarySort,
     replaceNextSortChange: urlSync.replaceNextSortChange,

@@ -34,6 +34,28 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
       tags: [TAG, "secret"],
     })
   );
+  // Let card processing finish first: on a slow local backend, its writes
+  // re-run the tag view's query until it times out.
+  const stillProcessing = async () => {
+    let busy = 0;
+    for (const id of idsByText.values()) {
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop
+      const saved = await library.client.query(api.cards.getCard, { id });
+      const stages: ({ status?: string } | undefined)[] = Object.values(
+        saved?.processingStatus ?? {}
+      );
+      if (
+        stages.some(
+          (stage) =>
+            stage?.status === "pending" || stage?.status === "in_progress"
+        )
+      ) {
+        busy += 1;
+      }
+    }
+    return busy;
+  };
+  await expect.poll(stillProcessing, { timeout: 120_000 }).toBe(0);
   const isArchived = async (text: string) => {
     const id = idsByText.get(text);
     return id
@@ -149,4 +171,39 @@ test("Esc goes Back to the order Revisit was picked from", async ({
   await expect(deck.getByText("1 of 1", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
+});
+
+test("Esc after a card's details still returns to the order Revisit was picked from", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  library.ids.push(
+    await library.client.mutation(api.cards.createCard, {
+      content: "Revisit details card",
+      type: "text",
+      tags: [`${TAG}-details`],
+    })
+  );
+  await gotoApp(browser, `/?tag=${TAG}-details&sort=oldest`);
+  await expect(
+    screen.getByRole("button", "Text: Revisit details card", { exact: false })
+  ).toBeVisible({ timeout: 30_000 });
+  await screen.getByRole("button", "View", { exact: false }).click();
+  await screen.getByRole("menuitemradio", "Revisit").click();
+  const deck = screen.getByRole("dialog", "Revisit");
+  await expect(deck.getByText("1 of 1", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // Space opens the details (their own history entry); Esc closes them.
+  await browser.keyboard.press(" ");
+  await expect.poll(() => paramOf(browser.url(), "card")).not.toBeNull();
+  await browser.keyboard.press("Escape");
+  await expect.poll(() => paramOf(browser.url(), "card")).toBeNull();
+  await expect(deck.getByText("1 of 1", { exact: true })).toBeVisible();
+
+  await browser.keyboard.press("Escape");
+  await expect(deck).toBeHidden();
+  await expect.poll(() => paramOf(browser.url(), "sort")).toBe("oldest");
 });

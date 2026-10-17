@@ -30,6 +30,7 @@ async function mountMode(
 ) {
   const props: UseRevisitModeOptions = {
     archiveOrTrash: false,
+    cardOpen: false,
     empty: false,
     replaceNextSortChange: mock(() => undefined),
     reshuffle: mock(() => undefined),
@@ -73,6 +74,22 @@ describe("useRevisitMode", () => {
     await act(() => mode.exit());
     expect(back).toHaveBeenCalledTimes(1);
     expect(props.replaceNextSortChange).not.toHaveBeenCalled();
+  });
+
+  test("after a card's details were opened, leaving replaces the URL with the order before", async () => {
+    const back = mock(() => undefined);
+    window.history.back = back;
+    const { props, render } = await mountMode({ librarySort: "oldest" });
+    await act(() => mode.onSortChange("revisit"));
+    await render({ librarySort: "revisit" });
+    // Space opens the details (a pushed ?card= entry); closing replaces it.
+    await render({ cardOpen: true, librarySort: "revisit" });
+    await render({ cardOpen: false, librarySort: "revisit" });
+
+    await act(() => mode.exit());
+    expect(back).not.toHaveBeenCalled();
+    expect(props.replaceNextSortChange).toHaveBeenCalledTimes(1);
+    expect(props.setSort).toHaveBeenLastCalledWith("oldest");
   });
 
   test("leaving a deck opened from a link replaces the URL with the default order", async () => {

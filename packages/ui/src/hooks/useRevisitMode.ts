@@ -6,6 +6,8 @@ import type { BulkActionOptions } from "./useBulkCardActions";
 export interface UseRevisitModeOptions {
   /** Archive and Trash leave Revisit out: archiving makes no sense there. */
   archiveOrTrash: boolean;
+  /** A card's details are open (they add a history entry of their own). */
+  cardOpen: boolean;
   /** The view shows no cards, so there is nothing to deal. */
   empty: boolean;
   librarySort: LibrarySort;
@@ -31,6 +33,7 @@ export interface UseRevisitModeOptions {
  */
 export function useRevisitMode({
   archiveOrTrash,
+  cardOpen,
   empty,
   librarySort,
   replaceNextSortChange,
@@ -42,12 +45,18 @@ export function useRevisitMode({
   // The order Revisit was picked from in this page; null when opened from
   // the URL (a reload or a shared link).
   const pickedFrom = useRef<LibrarySort | null>(null);
+  // Opening a card's details adds a history entry (closing only replaces
+  // it), so Back would land on the deck again rather than the order before.
+  const openedCard = useRef(false);
   const revisiting = librarySort === "revisit" && !archiveOrTrash;
   useEffect(() => {
     if (librarySort !== "revisit") {
       pickedFrom.current = null;
+      openedCard.current = false;
+    } else if (cardOpen) {
+      openedCard.current = true;
     }
-  }, [librarySort]);
+  }, [cardOpen, librarySort]);
 
   const onSortChange = useCallback(
     (next: LibrarySort) => {
@@ -62,7 +71,7 @@ export function useRevisitMode({
   const exit = useCallback(() => {
     const previous = pickedFrom.current;
     pickedFrom.current = null;
-    if (previous !== null && urlDriven) {
+    if (previous !== null && urlDriven && !openedCard.current) {
       window.history.back();
       return;
     }

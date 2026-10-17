@@ -187,12 +187,17 @@ export function RevisitDeck({
   useEffect(() => {
     const previous = shown.current;
     shown.current = card;
+    // Only a card replaced by the next one slides away; past the last card,
+    // or stepping back, nothing does.
     if (
       previous &&
-      previous._id !== card?._id &&
+      card &&
+      previous._id !== card._id &&
       (deck.move === "archive" || deck.move === "keep")
     ) {
       setLeaving({ card: previous, move: deck.move });
+    } else if (!card || deck.move === "back") {
+      setLeaving(null);
     }
   }, [card, deck.move]);
 
