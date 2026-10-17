@@ -72,3 +72,28 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
   );
   await runCli(["--json", "cards", "delete", created.cardId], apiKey);
 });
+
+test("CLI marks a link done, finds it with is:done, and undoes it", async () => {
+  const url = `https://example.com/cli-done-${Date.now()}`;
+  const created = JSON.parse(
+    await runCli(["--json", "cards", "create", url], apiKey)
+  );
+  const done = JSON.parse(
+    await runCli(["--json", "done", created.cardId], apiKey)
+  );
+  expect(done.completedAt).toEqual(expect.any(Number));
+
+  const found = JSON.parse(
+    await runCli(["--json", "cards", "search", "is:done"], apiKey)
+  );
+  expect(
+    (found.items ?? []).some(
+      (card: { id?: string }) => card.id === created.cardId
+    )
+  ).toBe(true);
+
+  const undone = JSON.parse(
+    await runCli(["--json", "cards", "done", created.cardId, "--undo"], apiKey)
+  );
+  expect(undone.completedAt).toBeNull();
+});

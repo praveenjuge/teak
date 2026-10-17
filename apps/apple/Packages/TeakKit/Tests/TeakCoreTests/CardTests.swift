@@ -241,3 +241,28 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(FileFormats.infer(fileName: "clip.mp4", mimeType: "video/mp4")?.type == .video)
     }
 }
+
+@Suite struct CardDecodingTests {
+    @Test func decodesACardMarkedDoneInACategoryItDoesNotKnow() throws {
+        let json = """
+        {
+          "_id": "card_1",
+          "_creationTime": 1782000000000,
+          "type": "link",
+          "content": "https://example.com/game",
+          "url": "https://example.com/game",
+          "completedAt": 1782000500000,
+          "metadata": {
+            "linkCategory": {
+              "category": "a-category-from-the-future",
+              "fetchedAt": 1,
+              "sourceUrl": "https://example.com/game"
+            }
+          }
+        }
+        """
+        let card = try JSONDecoder().decode(Card.self, from: Data(json.utf8))
+        #expect(card.id == "card_1")
+        #expect(card.metadata?.linkCategory?.category == "a-category-from-the-future")
+    }
+}

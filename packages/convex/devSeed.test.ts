@@ -875,6 +875,53 @@ describe("devSeed folder packs", () => {
     ).toHaveLength(2);
   });
 
+  test("done-states seeds every category, half done, and a to-do smart folder", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "done-states")).toMatchObject({
+      status: "seeded",
+      cards: 28,
+      folders: 2,
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-done-states")
+    );
+    const categories = new Set(
+      cards.map((card) => card.metadata?.linkCategory?.category)
+    );
+    expect(categories.size).toBe(22); // 21 categories, and none
+    expect(cards.filter((card) => card.completedAt)).toHaveLength(15);
+    expect(cards.some((card) => card.completedAt && card.isDeleted)).toBe(true);
+    expect(cards.some((card) => card.completedAt && card.isArchived)).toBe(
+      true
+    );
+    expect(
+      (await foldersOf(t)).find((folder) => folder.kind === "smart")?.query
+    ).toBe('is:todo folder:"Reading list"');
+  });
+
+  test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "done-states-images",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 201 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(cards.filter((card) => card.type === "image")).toHaveLength(200);
+    expect(cards.filter((card) => card.metadata?.linkCategory)).toHaveLength(0);
+  });
+
   test("save-details seeds text from pages and a page already saved", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();

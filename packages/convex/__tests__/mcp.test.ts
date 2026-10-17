@@ -804,6 +804,13 @@ describe("Convex MCP endpoint", () => {
 
     await call("teak_v1_list_cards", { archived: "only" });
     expect(captured[7]?.query).toMatchObject({ archived: "only" });
+
+    await call("teak_v1_set_card_done", { cardId: "card_1", done: true });
+    await call("teak_v1_set_card_done", { cardId: "card_1", done: false });
+    expect(captured.slice(8, 10)).toMatchObject([
+      { method: "POST", path: "/v1/cards/card_1/done" },
+      { method: "DELETE", path: "/v1/cards/card_1/done" },
+    ]);
   });
 
   test("tag tools start tag changes and poll their progress", async () => {

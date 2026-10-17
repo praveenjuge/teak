@@ -389,6 +389,26 @@ describe("@teak/convex/sdk", () => {
     expect(buildCardsSearchParams({ archived: "exclude" })).toBe("limit=50");
   });
 
+  test("marks a link done with POST and not done with DELETE", async () => {
+    const sent: Array<{ method: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        sent.push({ method: String(init?.method), url: String(url) });
+        return Promise.resolve(
+          Response.json({ id: "c1", content: "x", completedAt: 5 })
+        );
+      }) as typeof fetch,
+    });
+    expect((await client.cards.setDone("c1", true)).completedAt).toBe(5);
+    await client.cards.setDone("c1", false);
+    expect(sent).toEqual([
+      { method: "POST", url: "https://api.example/v1/cards/c1/done" },
+      { method: "DELETE", url: "https://api.example/v1/cards/c1/done" },
+    ]);
+  });
+
   test("starts tag changes and polls their progress", async () => {
     const sent: Array<{ body: unknown; method: string; url: string }> = [];
     const operation: TagOperation = {

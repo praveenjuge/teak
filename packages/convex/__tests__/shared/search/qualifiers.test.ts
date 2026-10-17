@@ -3,6 +3,7 @@ import {
   combineSearchQueries,
   describePriceBound,
   formatSearchQualifier,
+  matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
@@ -48,6 +49,11 @@ describe("parseSearchQuery", () => {
     ["is:favourites", "favorite", true],
     ["is:starred", "favorite", true],
     ["is:archived", "archived", true],
+    ["is:done", "done", true],
+    ["is:Completed", "done", true],
+    ["is:finished", "done", true],
+    ["is:todo", "todo", true],
+    ["is:to-do", "todo", true],
     ["is:nope", "terms", ["is:nope"]],
     ["site:www.Example.com", "sites", ["example.com"]],
     ["site:https://example.com/path:8080", "sites", ["example.com"]],
@@ -258,6 +264,12 @@ describe("combineSearchQueries", () => {
     ["type:link price:<100", "", "price:<100 type:link"],
     // Image text values add up, like tags.
     ["text:invoice", "text:4411 acme", "text:invoice text:4411 acme"],
+    // `is:` values add up: a to-do smart folder searched for done links.
+    [
+      'is:todo folder:"Reading list"',
+      "is:done",
+      'is:todo folder:"Reading list" is:done',
+    ],
   ])("%j with %j", (scope: string, typed: string, combined: string) => {
     expect(combineSearchQueries(scope, typed)).toBe(combined);
   });
@@ -381,5 +393,33 @@ describe("like: and mood:", () => {
       'mood:"Calm Blue"'
     );
     expect(parseSearchQuery("mood:Calm mood:calm").terms).toEqual([]);
+  });
+});
+
+describe("is:done and is:todo", () => {
+  test("write the one canonical way", () => {
+    expect(parseSearchQuery("IS:Finished is:TO-DO lamp").canonical).toBe(
+      "is:done is:todo lamp"
+    );
+  });
+
+  const link = (category: string | undefined, completedAt?: number) => ({
+    completedAt,
+    metadata: category ? { linkCategory: { category } } : undefined,
+  });
+
+  test.each([
+    ["a done film", link("movie", 1), { done: true }, true],
+    ["a film to watch", link("movie"), { done: true }, false],
+    ["a film to watch", link("movie"), { todo: true }, true],
+    ["a done film", link("movie", 1), { todo: true }, false],
+    ["a repository", link("repo"), { todo: true }, false],
+    ["a done repository", link("repo", 1), { done: true }, true],
+    ["a link with no category yet", link(undefined), { todo: true }, false],
+    ["anything", link("movie"), {}, true],
+  ])("%s with %j", (_name, card, query, matches) => {
+    expect(matchesDoneState(card, { done: false, todo: false, ...query })).toBe(
+      matches
+    );
   });
 });

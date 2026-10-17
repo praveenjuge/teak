@@ -515,6 +515,26 @@ describe("Cards/Card redesign", () => {
     expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
   });
 
+  test.each([
+    [true, "Marked as bought"],
+    [false, "Marked as bought"],
+  ])("marks a done link, with or without an image (%p)", (withImage, label) => {
+    const card = {
+      ...pricedLink({ amount: 24.99, currency: "USD" }, withImage),
+      completedAt: 1,
+    };
+    const markup = renderToStaticMarkup(<Card card={card as any} />);
+    expect(markup).toContain(`aria-label="${label}"`);
+    expect(markup).toContain('role="img"');
+  });
+
+  test("shows no done mark on a link that isn't done", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(undefined) as any} />
+    );
+    expect(markup).not.toContain("Marked as");
+  });
+
   test("offers open, favorite and more actions on an active card", () => {
     const markup = renderToStaticMarkup(
       <Card

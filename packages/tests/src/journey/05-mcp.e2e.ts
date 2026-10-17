@@ -47,6 +47,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_restore_card",
       "teak_v1_search_cards",
       "teak_v1_set_card_archived",
+      "teak_v1_set_card_done",
       "teak_v1_set_card_favorite",
       "teak_v1_set_card_thumbnail",
       "teak_v1_update_card",
@@ -65,6 +66,11 @@ test("MCP lists and calls every public tool", async () => {
   });
   expect(folder.isError).not.toBe(true);
   const folderId = folder.structuredContent.id;
+  const link: any = await client.callTool({
+    name: "teak_v1_create_card",
+    arguments: { content: `https://example.com/mcp-done-${Date.now()}` },
+  });
+  const linkId = link.structuredContent.cardId;
   // teak_v1_create_upload needs Files storage, which the local stack lacks.
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
@@ -76,6 +82,9 @@ test("MCP lists and calls every public tool", async () => {
     ["teak_v1_set_card_favorite", { cardId, isFavorited: true }],
     ["teak_v1_set_card_archived", { cardId, isArchived: true }],
     ["teak_v1_set_card_archived", { cardId, isArchived: false }],
+    ["teak_v1_set_card_done", { cardId: linkId, done: true }],
+    ["teak_v1_search_cards", { q: "is:done" }],
+    ["teak_v1_set_card_done", { cardId: linkId, done: false }],
     ["teak_v1_refresh_card", { cardId }],
     ["teak_v1_list_folders", {}],
     ["teak_v1_get_folder", { folderId }],
