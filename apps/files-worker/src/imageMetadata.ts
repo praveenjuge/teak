@@ -242,6 +242,10 @@ const runVisionJson = async <T>(
                 },
               ],
               response_format: { type: "json_object" },
+              // Gemma 4 thinks by default, and its reasoning shares
+              // max_tokens: on dense images it spent the whole cap and
+              // answered with empty or cut-off content.
+              chat_template_kwargs: { enable_thinking: false },
             },
             aiRunOptions(env)
           )
