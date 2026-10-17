@@ -149,7 +149,6 @@ import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_tools from "../mcp/tools.js";
 import type * as migration_backfillEmbeddings from "../migration/backfillEmbeddings.js";
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
-import type * as migration_backfillImageOcr from "../migration/backfillImageOcr.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_extractDocumentText from "../migration/extractDocumentText.js";
@@ -425,7 +424,6 @@ declare const fullApi: ApiFromModules<{
   "mcp/tools": typeof mcp_tools;
   "migration/backfillEmbeddings": typeof migration_backfillEmbeddings;
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
-  "migration/backfillImageOcr": typeof migration_backfillImageOcr;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/extractDocumentText": typeof migration_extractDocumentText;
