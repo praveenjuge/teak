@@ -78,6 +78,7 @@ const itemInputValidator = v.object({
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),
@@ -627,6 +628,7 @@ export const createPendingBatch = internalMutation({
           {
             importedVisibleFields: {
               createdAt: item.importedCreatedAt,
+              completedAt: item.importedCompletedAt,
               isFavorited: item.isFavorited,
               isArchived: item.isArchived === true,
               metadataTitle: importedBookmarkTitle(job.mode, item),

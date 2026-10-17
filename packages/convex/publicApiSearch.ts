@@ -261,12 +261,14 @@ export const matchesStructuredFilters = (
     return false;
   }
 
+  // Only links can be done, whatever types the caller asked for.
   if (
     (options.done || options.todo) &&
-    !matchesDoneState(card, {
-      done: options.done === true,
-      todo: options.todo === true,
-    })
+    (card.type !== "link" ||
+      !matchesDoneState(card, {
+        done: options.done === true,
+        todo: options.todo === true,
+      }))
   ) {
     return false;
   }

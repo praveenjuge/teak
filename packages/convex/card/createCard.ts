@@ -86,6 +86,8 @@ interface CreateCardArgs {
 }
 
 interface ImportedVisibleFields {
+  /** Kept only on a link: only links can be marked done. */
+  completedAt?: number;
   createdAt?: number;
   isArchived?: boolean;
   isFavorited?: boolean;
@@ -264,6 +266,10 @@ export const createCardForUserHandler = async (
     updatedAt: now,
     shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
+    ...(cardType === "link" &&
+      options.importedVisibleFields?.completedAt !== undefined && {
+        completedAt: options.importedVisibleFields.completedAt,
+      }),
     ...(options.importedVisibleFields?.isArchived
       ? { isArchived: true as const, archivedAt: now }
       : {}),

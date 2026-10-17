@@ -141,7 +141,7 @@ type CardFilters = {
   - Input: `CardFilters`
   - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`. Items are full cards unless you narrow `include`.
 - `teak_v1_search_cards`
-  - Input: `CardFilters`. `q` accepts the [search qualifiers](/docs/api#search-qualifiers): `tag:design`, `type:link`, `is:fav`, `is:archived`, `is:done` (links marked done), `is:todo` (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `price:<100` (also `>`, `<=`, `>=` and `=`; `price:>20 price:<100` is a range), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and `"quoted phrases"`. Results include cards related by meaning, not just exact words; `mode: "keyword"` turns that off.
+  - Input: `CardFilters`. `q` accepts the [search qualifiers](/docs/api#search-qualifiers): `tag:design`, `type:link`, `is:fav`, `is:archived`, `is:done` (links marked done), `is:todo` (articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `price:<100` (also `>`, `<=`, `>=` and `=`; `price:>20 price:<100` is a range), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and `"quoted phrases"`. Results include cards related by meaning, not just exact words; `mode: "keyword"` turns that off.
   - A product link's card has `linkPrice: { amount, currency }`, read from the page; `price:` compares `amount` in any currency, and cards without a price have `linkPrice: null` and never match it.
   - Output: `{ items: Card[], total: number, pageInfo, searchMode }`, where `total` is the number of items on this page and `searchMode` is the mode that ran (`keyword` when meaning search was unavailable)
 - `teak_v1_find_similar_cards`
@@ -199,7 +199,7 @@ type CardFilters = {
   - Output: updated card object
 - `teak_v1_set_card_done`
   - Input: `{ cardId: string, done: boolean }`
-  - Marks a link card read, watched, bought or done (the word follows its `linkCategory`), or not done; `completedAt` says when. Only link cards can be marked; repeating a call changes nothing.
+  - Marks a link card read, watched, listened, bought, cooked, played or done (the word follows its `linkCategory`), or not done; `completedAt` says when. Only link cards can be marked; repeating a call changes nothing.
   - Output: updated card object
 - `teak_v1_set_card_archived`
   - Input: `{ cardId: string, isArchived: boolean }`

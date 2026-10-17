@@ -798,6 +798,44 @@ describe("is:done and is:todo", () => {
         })
       )
     ).toEqual(["Read article"]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          type: "link",
+          todo: true,
+        })
+      ).sort()
+    ).toEqual(["Film to watch", "Unread article"]);
+    // Without a type, the scan still lists only links: the note's stray
+    // date is not "done".
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          done: true,
+        })
+      )
+    ).toEqual(["Read article"]);
+    // One card a page: every page holds a to-do link, and none repeats.
+    const shuffled: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await t.query(internal.publicApi.shuffleCardsPageForUser, {
+        userId: "owner",
+        shuffleSeed: 3,
+        limit: 1,
+        cursor,
+        type: "link",
+        todo: true,
+      });
+      shuffled.push(...contents(page));
+      cursor = page.pageInfo.nextCursor ?? undefined;
+    } while (cursor);
+    expect(shuffled.sort()).toEqual(["Film to watch", "Unread article"]);
   });
 });
 
@@ -828,6 +866,28 @@ describe("marking a link done", () => {
       field: "undone",
     });
     expect(await search("is:todo")).toEqual(["An article"]);
+  });
+
+  test("the API's done write says whether it changed anything", async () => {
+    const { t, insert } = await setup();
+    const url = "https://read.example/api";
+    const cardId = await insert({
+      content: "An article",
+      url,
+      metadata: categoryMetadata(url, "article"),
+    });
+    const setDone = async (done: boolean) =>
+      (
+        await t.mutation(internal.raycast.setCardDoneForUser, {
+          userId: "owner",
+          cardId,
+          done,
+        })
+      )?.changed;
+    expect(await setDone(true)).toBe(true);
+    expect(await setDone(true)).toBe(false);
+    expect(await setDone(false)).toBe(true);
+    expect(await setDone(false)).toBe(false);
   });
 
   test("refuses notes, cards in Trash, and other people's cards", async () => {

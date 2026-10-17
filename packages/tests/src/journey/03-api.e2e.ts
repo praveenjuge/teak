@@ -116,7 +116,7 @@ test("a link is marked done and found with is:done; a note can't be", async () =
   const marked = await apiFetch(donePath, apiKey, { method: "POST" });
   expect(marked.status).toBe(200);
   const markedCard = await marked.json();
-  openapi.validate(donePath, "POST", 200, markedCard);
+  openapi.validate("/v1/cards/{cardId}/done", "POST", 200, markedCard);
   expect(markedCard.completedAt).toEqual(expect.any(Number));
   // Marking it again keeps the first date.
   const again = await (
@@ -131,7 +131,9 @@ test("a link is marked done and found with is:done; a note can't be", async () =
 
   const cleared = await apiFetch(donePath, apiKey, { method: "DELETE" });
   expect(cleared.status).toBe(200);
-  expect((await cleared.json()).completedAt).toBeNull();
+  const clearedCard = await cleared.json();
+  openapi.validate("/v1/cards/{cardId}/done", "DELETE", 200, clearedCard);
+  expect(clearedCard.completedAt).toBeNull();
   expect((await apiFetch(donePath, apiKey, { method: "DELETE" })).status).toBe(
     200
   );

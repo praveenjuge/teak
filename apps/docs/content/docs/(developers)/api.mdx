@@ -481,7 +481,7 @@ You can refresh a card once a minute and up to six cards a minute. Past that, th
 
 ## Mark a link done
 
-`POST /v1/cards/:cardId/done` marks a link card done and returns the card with `completedAt` set. Marking it again keeps the first `completedAt`. `DELETE /v1/cards/:cardId/done` clears it and returns the card; a card that isn't done is returned unchanged. Both are safe to retry. Teak's apps word it by the card's `linkCategory`: read for an article, watched for a film, bought for a product, played for a game, and done for anything else. Find what's left with `q=is:todo` and what's finished with `q=is:done`.
+`POST /v1/cards/:cardId/done` marks a link card done and returns the card with `completedAt` set. Marking it again keeps the first `completedAt`. `DELETE /v1/cards/:cardId/done` clears it and returns the card; a card that isn't done is returned unchanged. Both are safe to retry. Teak's apps word it by the card's `linkCategory`: read for books, articles, news and research; watched for films and TV; listened for podcasts and music; bought for products; cooked for recipes; played for games; and done for everything else. Find what's left with `q=is:todo` and what's finished with `q=is:done`.
 
 | Status | Code | When |
 | --- | --- | --- |

@@ -541,16 +541,25 @@ export const setCardFavoriteForUser = internalMutation({
 });
 
 /** Marks a link done (`POST /done`) or not (`DELETE /done`); idempotent. */
+/** `changed` is false for a repeat, read in the same transaction as the write. */
 export const setCardDoneForUser = internalMutation({
   args: setCardDoneForUserArgs,
-  returns: v.union(v.null(), cardReturnValidator),
+  returns: v.union(
+    v.null(),
+    v.object({ card: cardReturnValidator, changed: v.boolean() })
+  ),
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
+    const before = await ctx.db.get("cards", args.cardId);
     await updateCardFieldForUserHandler(ctx, {
       userId,
       cardId: args.cardId,
       field: args.done ? "done" : "undone",
     });
-    return getCardForUserHandler(ctx, userId, args.cardId);
+    const card = await getCardForUserHandler(ctx, userId, args.cardId);
+    if (!card) {
+      return null;
+    }
+    return { card, changed: (before?.completedAt !== undefined) !== args.done };
   },
 });

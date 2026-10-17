@@ -911,6 +911,9 @@ describe("devSeed folder packs", () => {
       });
     expect(await seed(0)).toEqual({ status: "seeded", cards: 201 });
     expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    for (const page of [1, 2, 3, 4]) {
+      expect(await seed(page)).toEqual({ status: "seeded", cards: 201 });
+    }
     expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
     const cards = await t.run((ctx) =>
       ctx.db
@@ -918,9 +921,9 @@ describe("devSeed folder packs", () => {
         .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
-    expect(cards.filter((card) => card.type === "image")).toHaveLength(200);
+    expect(cards.filter((card) => card.type === "image")).toHaveLength(1000);
     expect(cards.filter((card) => card.metadata?.linkCategory)).toHaveLength(0);
-  });
+  }, 60_000);
 
   test("save-details seeds text from pages and a page already saved", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");

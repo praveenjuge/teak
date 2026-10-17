@@ -13,6 +13,7 @@ test("a link is marked done from its card, Undo clears it, and is:done finds it"
   const cardId = await library.client.mutation(api.cards.createCard, {
     content: url,
   });
+  library.ids.push(cardId);
   const completedAt = async () =>
     (await library.client.query(api.cards.getCard, { id: cardId }))
       ?.completedAt;
@@ -47,8 +48,28 @@ test("a link is marked done from its card, Undo clears it, and is:done finds it"
   await search.fill("is:todo");
   await search.press("Enter");
   await expect(grid.getByText("Nothing left to do.")).toBeVisible();
+});
 
-  await library.client.mutation(api.cards.permanentDeleteCard, {
-    id: cardId,
+test("an empty to-do smart folder says there is nothing left to do", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const folder = await library.client.mutation(api.folders.createFolder, {
+    name: `Left to read ${Date.now()}`,
+    kind: "smart",
+    query: "is:todo",
   });
+  try {
+    await gotoApp(browser, `/f/${folder._id}`);
+    const grid = screen.getByRole("main");
+    await expect(grid.getByText("Nothing left to do.")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(grid.getByRole("button", "Edit search")).toBeVisible();
+  } finally {
+    await library.client.mutation(api.folders.deleteFolder, {
+      folderId: folder._id,
+    });
+  }
 });

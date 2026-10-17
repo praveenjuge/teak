@@ -797,7 +797,7 @@ const handleCardsByIdV1Request = async (
   if (route.operation === "done" || route.operation === "undone") {
     const done = route.operation === "done";
     try {
-      const updated = await ctx.runMutation(
+      const result = await ctx.runMutation(
         internal.raycast.setCardDoneForUser,
         {
           cardId: normalizedCardId as Id<"cards">,
@@ -805,18 +805,18 @@ const handleCardsByIdV1Request = async (
           userId: auth.validated.userId,
         }
       );
-      if (!updated) {
+      if (!result) {
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
       // Only a change is counted: a repeated call is a no-op.
-      if (Boolean(currentCard.completedAt) !== done) {
+      if (result.changed) {
         await captureBackendEvent("card_done_toggled", auth.validated.userId, {
-          category: currentCard.metadata?.linkCategory?.category ?? "none",
+          category: result.card.metadata?.linkCategory?.category ?? "none",
           done,
           source: "api",
         });
       }
-      return json(200, serializeCard(updated, request.url));
+      return json(200, serializeCard(result.card, request.url));
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update done state");
     }

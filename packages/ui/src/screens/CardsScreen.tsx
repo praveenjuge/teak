@@ -659,7 +659,11 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <FolderSearch aria-hidden="true" className="size-4" />
           </span>
-          <p>No cards match this smart folder.</p>
+          <p>
+            {listsTodo
+              ? "Nothing left to do."
+              : "No cards match this smart folder."}
+          </p>
           <Button onClick={editSmartFolder} variant="outline">
             <Pencil />
             Edit search

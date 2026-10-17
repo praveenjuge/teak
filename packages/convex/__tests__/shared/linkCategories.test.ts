@@ -228,21 +228,31 @@ describe("LINK_CATEGORY_DEFAULT_CONFIDENCE", () => {
 });
 
 describe("done states", () => {
-  it("gives every category a done verb", () => {
-    for (const category of LINK_CATEGORIES) {
-      expect(LINK_CATEGORY_DONE_VERB[category]).toBeTruthy();
-    }
-    expect(LINK_CATEGORY_DONE_VERB).toMatchObject({
-      article: "read",
+  it("gives every category its done verb", () => {
+    expect(Object.keys(LINK_CATEGORY_DONE_VERB).sort()).toEqual(
+      [...LINK_CATEGORIES].sort()
+    );
+    expect(LINK_CATEGORY_DONE_VERB).toEqual({
       book: "read",
       movie: "watched",
       tv: "watched",
+      article: "read",
+      news: "read",
       podcast: "listened",
       music: "listened",
       product: "bought",
       recipe: "cooked",
-      game: "played",
+      course: "done",
+      research: "read",
+      event: "done",
+      software: "done",
+      design_portfolio: "done",
+      place: "done",
+      typeface: "done",
+      social_post: "done",
       app: "done",
+      game: "played",
+      repo: "done",
       other: "done",
     });
   });

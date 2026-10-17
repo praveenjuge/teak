@@ -1212,8 +1212,8 @@ describe("publicApiHttp card endpoints", () => {
     "%s /done sets done to %p and returns the card",
     async (method, done, completedAt) => {
       const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
-        ...linkCard,
-        ...(completedAt ? { completedAt } : {}),
+        card: { ...linkCard, ...(completedAt ? { completedAt } : {}) },
+        changed: true,
       });
       const response = await runHandler(
         cardByIdV1,
@@ -1387,8 +1387,8 @@ describe("publicApiHttp card endpoints", () => {
         mockActionCtx(
           withMappedOwner({
             runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
-              ...link,
-              completedAt: method === "POST" ? 1 : undefined,
+              card: { ...link, completedAt: method === "POST" ? 1 : undefined },
+              changed: true,
             }),
             runQuery: mock()
               .mockResolvedValueOnce("card_1")
