@@ -123,6 +123,15 @@ const decodePunycodeLabel = (input: string): string | null => {
   return String.fromCodePoint(...output);
 };
 
+/**
+ * The site a card is on: its link's host, or for a card saved from a page
+ * (a text card with `sourceUrl`), that page's host.
+ */
+export const cardSiteHost = (card: {
+  sourceUrl?: string | null;
+  url?: string | null;
+}): string | null => normalizeUrlHost(card.url ?? card.sourceUrl);
+
 /** A normalized host as people read it: punycode labels in Unicode. */
 export const hostForDisplay = (host: string): string =>
   host

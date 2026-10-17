@@ -246,6 +246,7 @@
         "apps/extension/**",
         "!apps/extension/entrypoints/background.ts",
         "!apps/extension/lib/oauthAuth.ts",
+        "!apps/extension/lib/cardDetails.ts",
         "!apps/extension/lib/saveToTeak.ts",
         "!apps/extension/lib/saveFileToTeak.ts",
         "!apps/extension/__tests__/**"

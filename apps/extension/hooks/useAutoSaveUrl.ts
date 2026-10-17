@@ -26,6 +26,10 @@ export interface DuplicateCard {
 }
 
 export interface UseAutoSaveUrlResult {
+  /** The saved card, or the card already saved for this page. */
+  cardId?: string;
+  /** The API's code for a failed save, such as `CARD_LIMIT_REACHED`. */
+  code?: string;
   currentUrl?: string;
   duplicateCard?: DuplicateCard | null;
   error?: string;
@@ -63,6 +67,8 @@ export const useAutoSaveUrl = (
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
+  const [cardId, setCardId] = useState<string>();
+  const [code, setCode] = useState<string>();
   const hasCheckedRef = useRef(false);
   const [duplicateCard, setDuplicateCard] = useState<DuplicateCard | null>(
     null
@@ -134,12 +140,14 @@ export const useAutoSaveUrl = (
         );
 
         if (response.status === "saved") {
+          setCardId(response.cardId);
           setState("success");
           hasCheckedRef.current = true;
           return;
         }
 
         if (response.status === "duplicate") {
+          setCardId(response.cardId);
           setDuplicateCard(null);
           setState("duplicate");
           hasCheckedRef.current = true;
@@ -155,6 +163,7 @@ export const useAutoSaveUrl = (
 
         setState("error");
         setError(response.message);
+        setCode(response.code);
         hasCheckedRef.current = true;
       } catch (err) {
         setState("error");
@@ -170,6 +179,8 @@ export const useAutoSaveUrl = (
   }, [isAuthenticated]);
 
   return {
+    cardId,
+    code,
     state,
     error,
     currentUrl,

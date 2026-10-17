@@ -2,6 +2,10 @@ import { env, httpAction } from "./_generated/server";
 import { resolveTeakDevApiUrl } from "./devUrls";
 import { MAX_TAG_LENGTH } from "./publicApiHttpShared";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
+import {
+  MAX_SOURCE_TITLE_LENGTH,
+  MAX_SOURCE_URL_LENGTH,
+} from "./shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
 import {
   FOLDER_COLORS,
@@ -209,6 +213,16 @@ const cardProperties = {
     type: ["string", "null"],
   },
   screenshotUrl: { type: ["string", "null"] },
+  sourceTitle: {
+    description:
+      "The title of the page the card was saved from, beside `sourceUrl`.",
+    type: ["string", "null"],
+  },
+  sourceUrl: {
+    description:
+      "The page the card was saved from, such as the page a quote was selected on. Set when the card is created; `site:` matches its host when the card has no `url`. Not the same as `source`, the free label sent at create.",
+    type: ["string", "null"],
+  },
   tags: { items: { type: "string" }, type: "array" },
   thumbnailOverridden: {
     description:
@@ -308,6 +322,8 @@ const components = {
         metadataStatus: cardProperties.metadataStatus,
         processingStatus: cardProperties.processingStatus,
         screenshotUrl: { type: ["string", "null"] },
+        sourceTitle: cardProperties.sourceTitle,
+        sourceUrl: cardProperties.sourceUrl,
         tags: { items: { type: "string" }, type: "array" },
         thumbnailOverridden: cardProperties.thumbnailOverridden,
         thumbnailUrl: { type: ["string", "null"] },
@@ -365,7 +381,20 @@ const components = {
         fileSize: { type: "number" },
         mimeType: { type: "string" },
         notes: { type: ["string", "null"] },
-        source: { type: "string" },
+        source: {
+          description:
+            "A free label for what saved the card, kept in its metadata. To record the page a card came from, use `sourceUrl`.",
+          type: "string",
+        },
+        sourceTitle: {
+          description: `The title of the page in \`sourceUrl\`. Trimmed, and cut to ${MAX_SOURCE_TITLE_LENGTH} characters. Needs \`sourceUrl\`.`,
+          type: "string",
+        },
+        sourceUrl: {
+          description: `The page the card was saved from, such as the page a quote was selected on: an http or https URL of at most ${MAX_SOURCE_URL_LENGTH} characters. Unlike \`url\`, it never makes the card a link, and it isn't part of the duplicate check. Not allowed with \`fileKey\`.`,
+          example: "https://example.com/essay",
+          type: "string",
+        },
         tags: tagListSchema,
         url: { type: "string" },
       },
@@ -406,7 +435,7 @@ const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
-          description: `Up to 100 items. \`create\` items take content, url, notes, tags and cardType; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
+          description: `Up to 100 items. \`create\` items take content, url, notes, tags, cardType, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
           type: "array",
         },
@@ -1901,7 +1930,7 @@ export const openApiSpec = {
         operationId: "startExport",
         summary: "Start a ZIP export of every card and original file",
         description:
-          "One export can run at a time, and one can be started every 7 days. Poll GET /v1/exports/latest for progress and the download URL. The ZIP holds manifest.json, cards.json, the original files under files/, bookmarks.html (Netscape bookmark format) and cards.csv. manifest.json reports `schemaVersion: 2`: each card in cards.json also has `aiTags`, `aiSummary`, `metadataTitle`, `isArchived` and `folders` (names).",
+          "One export can run at a time, and one can be started every 7 days. Poll GET /v1/exports/latest for progress and the download URL. The ZIP holds manifest.json, cards.json, the original files under files/, bookmarks.html (Netscape bookmark format) and cards.csv. manifest.json reports `schemaVersion: 2`: each card in cards.json also has `aiTags`, `aiSummary`, `metadataTitle`, `isArchived` and `folders` (names). A card saved from a page also has `sourceUrl` and `sourceTitle`.",
         security: apiKeySecurity,
         responses: {
           202: {

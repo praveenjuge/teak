@@ -13,7 +13,7 @@ import {
   syncCardFolderRows,
 } from "../folder/folderRows";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { cardSiteHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
 import { withHiddenFlag } from "./hiddenCards";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
@@ -189,18 +189,23 @@ export const restartCardSearchTagSync = async (
 };
 
 /**
- * A card write with `urlHost` kept beside a changed `url`, so the site
- * lands in the same write (the search sync repairs any write without it).
+ * A card write with `urlHost` kept beside a changed `url` or `sourceUrl`, so
+ * the site lands in the same write. A write that clears `url` without
+ * naming `sourceUrl` drops the host; the search sync then restores it from
+ * the card's `sourceUrl`.
  */
 export const withUrlHost = <T extends object>(value: T): T => {
-  if (!("url" in value)) {
+  if (!("url" in value || "sourceUrl" in value)) {
     return value;
   }
-  const { url } = value as { url?: unknown };
+  const { sourceUrl, url } = value as { sourceUrl?: unknown; url?: unknown };
   return {
     ...value,
     urlHost:
-      normalizeUrlHost(typeof url === "string" ? url : undefined) ?? undefined,
+      cardSiteHost({
+        sourceUrl: typeof sourceUrl === "string" ? sourceUrl : undefined,
+        url: typeof url === "string" ? url : undefined,
+      }) ?? undefined,
   };
 };
 
@@ -227,6 +232,7 @@ export const patchCardWithSearchSync = async (
     "createdAt",
     "folderIds",
     "url",
+    "sourceUrl",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await syncCardSearch(ctx, cardId, undefined, card ?? undefined);
@@ -274,7 +280,7 @@ export const syncCardSearchDocumentHandler = async (
     await syncCardFolderRows(ctx, cardId, card);
   }
 
-  const urlHost = normalizeUrlHost(card.url) ?? undefined;
+  const urlHost = cardSiteHost(card) ?? undefined;
   const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
   if (card.urlHost !== urlHost || card.isHidden !== isHidden) {
     await ctx.db.patch("cards", cardId, { urlHost, isHidden });
@@ -937,4 +943,4 @@ const matchesSearchIndexFilters = (
   (args.isFavorited === undefined ||
     card.isFavorited === (args.isFavorited ? true : undefined)) &&
   (args.urlHost === undefined ||
-    (normalizeUrlHost(card.url) ?? undefined) === args.urlHost);
+    (cardSiteHost(card) ?? undefined) === args.urlHost);

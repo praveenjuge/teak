@@ -19,6 +19,7 @@ import {
   orderingScenarioCard,
   PALETTE_MIXED_SMART_FOLDERS,
   REVISIT_SIZE_GROUPS,
+  SAVE_DETAILS_SAVED_URL,
   SEARCH_QUALIFIER_HOSTS,
   SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
   SEARCH_QUALIFIERS_VOLUME_SIZE,
@@ -773,6 +774,65 @@ describe("devSeed folder packs", () => {
       "text",
       "video",
     ]);
+  });
+
+  test("save-details seeds text from pages and a page already saved", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "save-details")).toMatchObject({
+      status: "seeded",
+      cards: 7,
+    });
+    expect(await seedFolders(t, "save-details")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = await cardsOf(t);
+    const sourced = cards.filter(
+      (card) => card.type === "text" && card.sourceUrl
+    );
+    expect(sourced.map((card) => card.urlHost).sort()).toEqual([
+      "example.com",
+      "example.net",
+      "example.org",
+      "xn--r8jz45g.jp",
+    ]);
+    expect(
+      sourced.find((card) => card.urlHost === "example.org")?.sourceTitle
+    ).toHaveLength(300);
+    expect(
+      cards.find((card) => card.url === SAVE_DETAILS_SAVED_URL)
+    ).toMatchObject({ notes: "Saved earlier, with a note." });
+    expect(
+      cards.find((card) => card.url === "https://github.com/acme/design-system")
+    ).toMatchObject({
+      sourceUrl: "https://example.com/where-i-found-it",
+      urlHost: "github.com",
+    });
+  });
+
+  test("card-limit-199 fills the library to one under the free limit", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
+    // Cards in Trash don't count toward the limit.
+    const active = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted", (q) =>
+            q.eq("userId", "teak_dev").eq("isDeleted", undefined)
+          )
+          .take(300)
+      );
+    const before = (await active()).length;
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "card-limit-199",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 199 - before });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await active()).toHaveLength(199);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

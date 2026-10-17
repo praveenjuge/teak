@@ -143,6 +143,98 @@ describe("urlHost", () => {
   });
 });
 
+describe("sourceUrl", () => {
+  const saveQuote = (
+    t: Awaited<ReturnType<typeof setup>>["t"],
+    args: Record<string, unknown>
+  ) =>
+    t.mutation(internal.raycast.quickSaveForUser, {
+      userId: "owner",
+      cardType: "text",
+      ...args,
+    });
+
+  test("a text card saved from a page is on that page's site", async () => {
+    const { t, owner, card, searchDocument, search } = await setup();
+    const { cardId } = await saveQuote(t, {
+      content: "A quote from the essay",
+      sourceTitle: "An essay",
+      sourceUrl: "https://www.Example.com/essay",
+    });
+    expect(await card(cardId)).toMatchObject({
+      sourceTitle: "An essay",
+      sourceUrl: "https://www.Example.com/essay",
+      type: "text",
+      urlHost: "example.com",
+    });
+    expect((await card(cardId))?.url).toBeUndefined();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await searchDocument(cardId))?.urlHost).toBe("example.com");
+    expect(await search("site:example.com")).toEqual([
+      "A quote from the essay",
+    ]);
+    expect(await search("site:example.com quote")).toEqual([
+      "A quote from the essay",
+    ]);
+    expect(await owner.query(api.cards.listTopSites, {})).toEqual([
+      { host: "example.com", label: "example.com", count: 1 },
+    ]);
+  });
+
+  test("the duplicate check never matches a card's sourceUrl", async () => {
+    const { t } = await setup();
+    await saveQuote(t, {
+      content: "Quoted",
+      sourceUrl: "https://example.com/essay",
+    });
+    expect(
+      await t.query(internal.card.findDuplicateCard.findDuplicateCardForUser, {
+        userId: "owner",
+        url: "https://example.com/essay",
+      })
+    ).toBeNull();
+  });
+
+  test("a link's own url decides its site", async () => {
+    const { t, card } = await setup();
+    const { cardId } = await t.mutation(internal.raycast.quickSaveForUser, {
+      userId: "owner",
+      sourceUrl: "https://found-it-here.example",
+      url: "https://github.com/acme",
+    });
+    expect(await card(cardId)).toMatchObject({
+      sourceUrl: "https://found-it-here.example",
+      urlHost: "github.com",
+    });
+  });
+
+  test("clearing a card's url falls back to its sourceUrl's site", async () => {
+    const { t, insert, card, searchDocument } = await setup();
+    const id = await insert({
+      content: "Was a link",
+      sourceUrl: "https://example.com/a",
+      url: "https://github.com/acme",
+    });
+    expect((await card(id))?.urlHost).toBe("github.com");
+    await t.run((ctx) => patchCardWithSearchSync(ctx, id, { url: undefined }));
+    expect((await card(id))?.urlHost).toBe("example.com");
+    expect((await searchDocument(id))?.urlHost).toBe("example.com");
+  });
+
+  test("refuses an unsafe or oversized sourceUrl", async () => {
+    const { t } = await setup();
+    await expect(
+      saveQuote(t, { content: "x", sourceUrl: "javascript:alert(1)" })
+    ).rejects.toThrow("`sourceUrl` must use the http or https scheme");
+    await expect(
+      saveQuote(t, {
+        content: "x",
+        sourceUrl: `https://example.com/${"a".repeat(3000)}`,
+      })
+    ).rejects.toThrow("`sourceUrl` must be at most 2048 characters");
+  });
+});
+
 const seedLibrary = async (
   insert: Awaited<ReturnType<typeof setup>>["insert"]
 ) => {

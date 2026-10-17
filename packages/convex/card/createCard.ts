@@ -8,8 +8,12 @@ import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
+import { normalizeCardSource } from "../shared/cardSource";
 import { normalizeErrorClass } from "../shared/telemetry";
-import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import {
+  assertSafeExternalUrl,
+  isSafeExternalUrl,
+} from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
@@ -65,6 +69,8 @@ interface CreateCardArgs {
   fileKey?: string;
   metadata?: unknown;
   notes?: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
   tags?: string[];
   thumbnailKey?: string;
   type?:
@@ -222,6 +228,12 @@ export const createCardForUserHandler = async (
   }
   const { colorHexes, colorHues } = buildColorFacets(resolvedColors);
 
+  // Callers validate the source; this keeps an unsafe URL out regardless.
+  const cardSource = normalizeCardSource({
+    sourceTitle: args.sourceTitle,
+    sourceUrl: isSafeExternalUrl(args.sourceUrl) ? args.sourceUrl : undefined,
+  });
+
   const importedTitle = options.importedVisibleFields?.metadataTitle
     ?.trim()
     .slice(0, MAX_IMPORTED_TITLE_LENGTH);
@@ -231,7 +243,8 @@ export const createCardForUserHandler = async (
     content: finalContent,
     type: cardType,
     url: finalUrl,
-    urlHost: normalizeUrlHost(finalUrl) ?? undefined,
+    ...cardSource,
+    urlHost: normalizeUrlHost(finalUrl ?? cardSource.sourceUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
     tags: args.tags,

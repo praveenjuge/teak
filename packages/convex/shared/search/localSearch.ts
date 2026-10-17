@@ -9,7 +9,7 @@ import {
 import { isCardHidden, isHiddenTagList } from "../tags";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
-import { normalizeUrlHost } from "../utils/urlHost";
+import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
   matchesPriceBounds,
@@ -190,7 +190,7 @@ export const filterLocalCards = (
       }
 
       if (parsed.sites.length > 0) {
-        const host = normalizeUrlHost(card.url);
+        const host = cardSiteHost(card);
         if (!(host && parsed.sites.includes(host))) {
           return false;
         }

@@ -79,6 +79,8 @@ export const addCard = async (
   options: ClientOptions & {
     file?: string;
     notes?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
     tags?: string;
     type?: string;
     url?: string;
@@ -90,6 +92,11 @@ export const addCard = async (
   const { candidate, raw } = await resolveAddInput(input, options.file);
   const uploadFile = candidate ? getUploadFileInfo(candidate) : null;
   if (candidate && uploadFile) {
+    if (options.sourceUrl || options.sourceTitle) {
+      throw new InvalidArgumentError(
+        "--source-url and --source-title are for text and links, not files"
+      );
+    }
     const { fileName, fileSize, mimeType } = uploadFile;
     const upload = await api.uploads.create({
       fileName,
@@ -126,6 +133,8 @@ export const addCard = async (
     content,
     notes: options.notes,
     source: "cli",
+    sourceTitle: options.sourceTitle,
+    sourceUrl: options.sourceUrl,
     tags,
     url,
   });

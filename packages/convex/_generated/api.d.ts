@@ -183,6 +183,7 @@ import type * as shared_analytics from "../shared/analytics.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_authErrors from "../shared/authErrors.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
+import type * as shared_cardSource from "../shared/cardSource.js";
 import type * as shared_cardTitle from "../shared/cardTitle.js";
 import type * as shared_client_telemetry from "../shared/client_telemetry.js";
 import type * as shared_constants from "../shared/constants.js";
@@ -457,6 +458,7 @@ declare const fullApi: ApiFromModules<{
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/authErrors": typeof shared_authErrors;
   "shared/boundedResponse": typeof shared_boundedResponse;
+  "shared/cardSource": typeof shared_cardSource;
   "shared/cardTitle": typeof shared_cardTitle;
   "shared/client_telemetry": typeof shared_client_telemetry;
   "shared/constants": typeof shared_constants;

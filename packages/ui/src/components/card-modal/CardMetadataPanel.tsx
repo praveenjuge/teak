@@ -2,6 +2,10 @@ import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import {
+  hostForDisplay,
+  normalizeUrlHost,
+} from "@teak/convex/shared/utils/urlHost";
 import { Button } from "@teak/ui/components/ui/button";
 import { Copy, EyeOff, RotateCcw, Sparkles, Trash, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
@@ -141,6 +145,8 @@ export function CardMetadataPanel({
   const isLongSummary = (summary?.length ?? 0) > SUMMARY_FOLD_LENGTH;
   const sections = getCardDetailSections(card);
   const safeUrl = sanitizeExternalUrl(card.url);
+  const safeSourceUrl = sanitizeExternalUrl(card.sourceUrl);
+  const sourceHost = normalizeUrlHost(safeSourceUrl);
 
   const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if ((event.key === "Enter" || event.key === ",") && tags.tagInput.trim()) {
@@ -387,6 +393,24 @@ export function CardMetadataPanel({
               {CARD_TYPE_LABELS[card.type as CardType] ?? "Card"}
             </button>
           </PropertyRow>
+          {safeSourceUrl && sourceHost && (
+            <PropertyRow label="From">
+              <a
+                className="block truncate hover:underline hover:underline-offset-2"
+                dir="auto"
+                href={safeSourceUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+                title={
+                  card.sourceTitle
+                    ? `${card.sourceTitle}\n${safeSourceUrl}`
+                    : safeSourceUrl
+                }
+              >
+                {hostForDisplay(sourceHost)}
+              </a>
+            </PropertyRow>
+          )}
           <DetailRows fields={sections.details} />
           <DetailRows fields={sections.source} />
           <DetailRows fields={sections.camera} />

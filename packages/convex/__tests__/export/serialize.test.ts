@@ -111,6 +111,24 @@ const folderNames = new Map([
 ]);
 
 describe("serializeCard", () => {
+  test("keeps the page a text card was saved from", () => {
+    const out = serializeCard({
+      _id: "card_q",
+      content: "A quote",
+      createdAt: 1,
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+      type: "text",
+      updatedAt: 1,
+    });
+    expect(out.sourceUrl).toBe("https://example.com/essay");
+    expect(out.sourceTitle).toBe("An essay");
+    expect(out).not.toHaveProperty("url");
+    expect(
+      serializeCard({ ...baseCard, sourceTitle: "Orphan" })
+    ).not.toHaveProperty("sourceTitle");
+  });
+
   test("includes only the allow-listed fields", () => {
     const out = serializeCard(baseCard, { includeFile: true, folderNames });
     expect(out).toEqual({

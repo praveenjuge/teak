@@ -447,6 +447,8 @@ export const getExportCardsPage = internalQuery({
         type: card.type,
         content: card.content,
         url: card.url,
+        sourceUrl: card.sourceUrl,
+        sourceTitle: card.sourceTitle,
         notes: card.notes,
         tags: card.tags,
         isFavorited: card.isFavorited,

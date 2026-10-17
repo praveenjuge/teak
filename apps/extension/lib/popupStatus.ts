@@ -26,9 +26,21 @@ export interface PopupStatus {
 }
 
 export interface PopupStatusInput {
-  autoSave: { error?: string; state: AutoSaveState; url?: string };
+  autoSave: {
+    code?: string;
+    error?: string;
+    state: AutoSaveState;
+    url?: string;
+  };
   contextMenu?: ContextMenuSaveState;
-  fileUpload: { error?: string; fileName?: string; state: FileUploadState };
+  /** Someone started adding tags or a note: the popup stays open. */
+  detailsTouched?: boolean;
+  fileUpload: {
+    code?: string;
+    error?: string;
+    fileName?: string;
+    state: FileUploadState;
+  };
 }
 
 const UPGRADE_STATUS: PopupStatus = {
@@ -38,11 +50,18 @@ const UPGRADE_STATUS: PopupStatus = {
   tone: "upgrade",
 };
 
-const isCardLimitError = (message?: string) =>
+// The REST API sends the code beside its message; older saves carried it in
+// the message.
+const isCardLimitError = (message?: string, code?: string) =>
+  code === CARD_ERROR_CODES.CARD_LIMIT_REACHED ||
   Boolean(message?.includes(CARD_ERROR_CODES.CARD_LIMIT_REACHED));
 
-const errorStatus = (title: string, message?: string): PopupStatus =>
-  isCardLimitError(message)
+const errorStatus = (
+  title: string,
+  message?: string,
+  code?: string
+): PopupStatus =>
+  isCardLimitError(message, code)
     ? UPGRADE_STATUS
     : { autoClose: false, detail: message, title, tone: "error" };
 
@@ -69,7 +88,14 @@ export function toContextMenuStatus(
   return result.status === "duplicate" ? "duplicate" : "error";
 }
 
-export function getPopupStatus({
+export function getPopupStatus(input: PopupStatusInput): PopupStatus | null {
+  const status = baseStatus(input);
+  return status && input.detailsTouched
+    ? { ...status, autoClose: false }
+    : status;
+}
+
+function baseStatus({
   autoSave,
   contextMenu,
   fileUpload,
@@ -97,7 +123,11 @@ export function getPopupStatus({
         tone: "existing",
       };
     case "error":
-      return errorStatus("Couldn't upload file", fileUpload.error);
+      return errorStatus(
+        "Couldn't upload file",
+        fileUpload.error,
+        fileUpload.code
+      );
     default:
       break;
   }
@@ -119,7 +149,11 @@ export function getPopupStatus({
           tone: "existing",
         };
       default:
-        return errorStatus("Couldn't save", contextMenu.error);
+        return errorStatus(
+          "Couldn't save",
+          contextMenu.error,
+          contextMenu.code
+        );
     }
   }
 
@@ -147,7 +181,11 @@ export function getPopupStatus({
         tone: "existing",
       };
     case "error":
-      return errorStatus("Couldn't save this page", autoSave.error);
+      return errorStatus(
+        "Couldn't save this page",
+        autoSave.error,
+        autoSave.code
+      );
     case "invalid-url":
       return {
         autoClose: false,

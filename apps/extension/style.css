@@ -4,3 +4,12 @@
 
 @source "../../packages/ui/src/logo.tsx";
 @source "../../packages/ui/src/components/ui/button.tsx";
+
+/*
+ * The popup window follows the page's height. The shared styles stretch html
+ * to the window, so the popup could grow (tag suggestions opening) but never
+ * shrink back; let it size to its content.
+ */
+html {
+  min-height: 0;
+}

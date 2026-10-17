@@ -68,6 +68,10 @@ import {
 import { cardTypeValidator } from "./schema";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import {
+  explainInvalidCardSource,
+  normalizeCardSource,
+} from "./shared/cardSource";
 import { type CardType, cardTypes } from "./shared/constants";
 import { rateLimiter } from "./shared/rateLimits";
 import {
@@ -727,6 +731,11 @@ const performBulkUpdate = async (
   return result.pipelineDelayMs;
 };
 
+const bulkCardSource = (payload: Record<string, unknown>) => ({
+  sourceTitle: payload.sourceTitle as string | undefined,
+  sourceUrl: payload.sourceUrl as string | undefined,
+});
+
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
   const content =
     typeof payload.content === "string" ? payload.content : undefined;
@@ -761,11 +770,21 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     });
   }
 
+  for (const key of ["sourceUrl", "sourceTitle"] as const) {
+    if (payload[key] !== undefined && typeof payload[key] !== "string") {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `Each create item \`${key}\` must be a string`,
+      });
+    }
+  }
+
   const tags = Array.isArray(payload.tags)
     ? payload.tags.filter((value): value is string => typeof value === "string")
     : undefined;
   const createError =
     explainInvalidTags(tags) ??
+    explainInvalidCardSource(bulkCardSource(payload)) ??
     (url
       ? null
       : explainCardTypeMismatch({
@@ -847,6 +866,7 @@ export const executeBulkCardsForUser = internalMutation({
                 url: typeof payload.url === "string" ? payload.url : undefined,
                 notes:
                   typeof payload.notes === "string" ? payload.notes : undefined,
+                ...normalizeCardSource(bulkCardSource(payload)),
                 tags: Array.isArray(payload.tags)
                   ? payload.tags.filter(
                       (value): value is string => typeof value === "string"

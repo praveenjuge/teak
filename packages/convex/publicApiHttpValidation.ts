@@ -21,6 +21,10 @@ import {
   parseTimestampQuery,
   truncateCardTitle,
 } from "./publicApiHttpShared";
+import {
+  explainInvalidCardSource,
+  normalizeCardSource,
+} from "./shared/cardSource";
 import { parseCardTitle } from "./shared/cardTitle";
 import {
   normalizeColorHueBucket,
@@ -135,6 +139,8 @@ const serializeCard = (card: any, requestUrl: string) => ({
   notes: card.notes ?? null,
   processingStatus: card.processingStatus ?? null,
   screenshotUrl: card.screenshotUrl ?? null,
+  sourceTitle: card.sourceTitle ?? null,
+  sourceUrl: card.sourceUrl ?? null,
   tags: card.tags ?? [],
   placeholderUrl: card.placeholderUrl ?? null,
   thumbnailUrl: card.thumbnailUrl ?? null,
@@ -161,6 +167,8 @@ const serializeListCard = (
     isHidden: isCardHidden(card),
     metadataDescription: card.metadataDescription ?? null,
     metadataTitle: card.metadataTitle ?? null,
+    sourceTitle: card.sourceTitle ?? null,
+    sourceUrl: card.sourceUrl ?? null,
     tags: card.tags ?? [],
     type: card.type,
     updatedAt: card.updatedAt,
@@ -244,6 +252,8 @@ const CREATE_KEYS = new Set([
   "mimeType",
   "notes",
   "source",
+  "sourceTitle",
+  "sourceUrl",
   "tags",
   "url",
 ]);
@@ -256,6 +266,8 @@ const CREATE_STRING_KEYS = [
   "fileName",
   "mimeType",
   "source",
+  "sourceTitle",
+  "sourceUrl",
   "url",
 ] as const;
 
@@ -288,6 +300,10 @@ const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   const cardType = parseOptionalString(source.cardType);
   const notes = parseOptionalNullableString(source.notes);
   const sourceValue = parseOptionalString(source.source);
+  const cardSource = {
+    sourceTitle: source.sourceTitle as string | undefined,
+    sourceUrl: source.sourceUrl as string | undefined,
+  };
   const tags =
     source.tags === undefined ? undefined : parseStringArray(source.tags);
 
@@ -300,6 +316,10 @@ const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   }
   if (url !== undefined && !isSafeExternalUrl(url)) {
     return { error: "`url` must use the http or https scheme" };
+  }
+  const sourceError = explainInvalidCardSource(cardSource);
+  if (sourceError) {
+    return { error: sourceError };
   }
   if (cardType !== undefined && !CARD_TYPES.has(cardType)) {
     return {
@@ -327,6 +347,9 @@ const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
     }
     if (url) {
       return { error: "Send either `fileKey` or `url`, not both" };
+    }
+    if (cardSource.sourceUrl !== undefined) {
+      return { error: "`sourceUrl` can't be sent with an uploaded `fileKey`" };
     }
     return {
       payload: {
@@ -366,6 +389,7 @@ const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
       content,
       notes,
       source: sourceValue,
+      ...normalizeCardSource(cardSource),
       tags,
       url,
     },

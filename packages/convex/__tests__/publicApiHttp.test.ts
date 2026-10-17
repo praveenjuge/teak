@@ -124,6 +124,86 @@ describe("publicApiHttp create endpoints", () => {
     });
   });
 
+  test("createCardV1 saves a text card's page and returns it in the card", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    runMutation.mockImplementation((_ref: unknown, args: any) =>
+      Promise.resolve(
+        args?.content === "A quote"
+          ? {
+              status: "created",
+              cardId: "card_1",
+              card: {
+                _id: "card_1",
+                content: "A quote",
+                createdAt: 1,
+                sourceTitle: args.sourceTitle,
+                sourceUrl: args.sourceUrl,
+                type: "text",
+                updatedAt: 1,
+              },
+            }
+          : null
+      )
+    );
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cardType: "text",
+          content: "A quote",
+          sourceTitle: " An essay ",
+          sourceUrl: "https://example.com/essay",
+        }),
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(
+      runMutation.mock.calls.find(
+        ([, args]) => args?.content === "A quote"
+      )?.[1]
+    ).toMatchObject({
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+    });
+    expect((await response.json()).card).toMatchObject({
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+      url: null,
+    });
+  });
+
+  test("createCardV1 refuses an unsafe sourceUrl before saving", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: "x",
+          sourceUrl: "javascript:alert(1)",
+        }),
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "`sourceUrl` must use the http or https scheme",
+    });
+  });
+
   test("an auth write race on another table is a retryable 503, not a 500", async () => {
     const runMutation = mock().mockRejectedValueOnce(
       new Error(

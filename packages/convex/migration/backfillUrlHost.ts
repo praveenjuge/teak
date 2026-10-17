@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { cardSiteHost } from "../shared/utils/urlHost";
 
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 200;
@@ -60,7 +60,7 @@ export const backfillUrlHost = internalMutation({
     const accountDeleting = createAccountDeletionGate(ctx);
     for (const card of page.page) {
       batch.examined += 1;
-      const urlHost = normalizeUrlHost(card.url) ?? undefined;
+      const urlHost = cardSiteHost(card) ?? undefined;
       const searchDocument = await ctx.db
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", card._id))

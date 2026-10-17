@@ -126,6 +126,17 @@ const response = await fetch("{{api-url}}/cards", {
 
 An explicit `cardType` must fit the card. `image`, `video`, `audio`, and `document` need an uploaded file (see [Upload files](#upload-files)), and `palette` needs at least one color Teak can read, such as `#ff5500`. Each tag can be up to 64 characters. A rejected request returns `400 INVALID_INPUT` with an `error` message that names the problem.
 
+`sourceUrl` and `sourceTitle` record the page a card came from, such as the page a quote was selected on. Unlike `url`, `sourceUrl` never turns text into a link, and the duplicate check (`GET /v1/cards/duplicate`) ignores it. It must be an `http` or `https` URL of at most 2,048 characters; `sourceTitle` is trimmed and cut to 300 characters, and needs a `sourceUrl`. Both are set only when the card is created, come back on the card, and are included in exports. `site:` matches the page's site when the card has no `url` of its own. They are separate from `source`, a free label for what saved the card.
+
+```json
+{
+  "content": "Simplicity is a great virtue, but it requires hard work to achieve it.",
+  "cardType": "text",
+  "sourceUrl": "https://example.com/essays/simplicity",
+  "sourceTitle": "On simplicity"
+}
+```
+
 <AutoTypeTable path="types/create-card.ts" name="CreateCardBody" />
 
 A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.

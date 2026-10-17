@@ -60,7 +60,7 @@ Special tokens work automatically:
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
 | **Type** | `type:link`, `type:images` | Cards of that type |
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
-| **Site** | `site:github.com` | Links from that website |
+| **Site** | `site:github.com` | Links from that website, and text saved from its pages |
 | **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
 | **Price** | `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, `price:=0` | Product links whose price is under, over or exactly that amount |
 | **Phrase** | `"design system"` | Those words together, in that order |
@@ -83,6 +83,7 @@ As you type, the search box suggests filters, your tags and folders, and the sit
 A few details:
 
 - `site:` matches the website exactly. `www.` and capital letters don't matter, so `site:www.GitHub.com` is the same as `site:github.com`, but `site:example.com` doesn't include `blog.example.com`.
+- Text saved from a page with the browser extension's **Save Text to Teak** keeps that page as its source. Its details show **From** and the site, `site:` finds it, and the site shows under the text in your library.
 - `price:` compares the amount only, whatever the currency, so `price:<100` includes both $90 and ¥90. Links without a price never match.
 - `#` followed by a color code, like `#fff` or `#3B82F6`, is a color. Use `tag:fff` for a tag that looks like one.
 - Quoted phrases also match the text inside your documents.

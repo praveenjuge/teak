@@ -1,5 +1,6 @@
 import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import { z } from "zod";
+import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
   FOLDER_COLORS,
@@ -153,6 +154,8 @@ const createCardInputSchema = z
     mimeType: nonEmptyString.optional(),
     notes: z.string().or(z.null()).optional(),
     source: nonEmptyString.optional(),
+    sourceTitle: z.string().optional(),
+    sourceUrl: nonEmptyString.max(MAX_SOURCE_URL_LENGTH).optional(),
     tags: z.array(z.string()).optional(),
     url: nonEmptyString.optional(),
     idempotencyKey: nonEmptyString.optional(),
