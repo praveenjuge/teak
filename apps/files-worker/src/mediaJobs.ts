@@ -213,25 +213,48 @@ export const extractAnimationPalette = async (
   return { palette: readPalette(result.manifest.palette) ?? [] };
 };
 
+/**
+ * One PDF page as PNG bytes, held in memory, with the PDF's page count.
+ * `RendererDeclined` for a page past the end, a password, or no pages.
+ */
+export const renderPdfPageBytes = async (
+  env: MediaJobsEnv,
+  sourceKey: string,
+  page = 1
+): Promise<{
+  height: number;
+  pageCount: number | null;
+  png: Uint8Array;
+  width: number;
+}> => {
+  const result = await callRenderer(env, {
+    openSource: r2SourceOpener(env.BUCKET, sourceKey),
+    outputs: {
+      page: { kind: "png", maxBytes: MAX_PAGE_BYTES, required: true },
+    },
+    // Page 1 keeps the path an older renderer image already serves.
+    path: `/pdf/page?max=${MAX_RENDER_DIMENSION}${page > 1 ? `&page=${page}` : ""}`,
+    timeoutMs: JOB_TIMEOUT_MS.pdf,
+  });
+  const size = result.manifest.page as Record<string, unknown> | undefined;
+  const width = positiveInteger(size?.width, MAX_IMAGE_SIDE);
+  const height = positiveInteger(size?.height, MAX_IMAGE_SIDE);
+  if (!(width && height)) {
+    throw new RendererDeclined("page_size_missing");
+  }
+  return {
+    height,
+    pageCount: positiveInteger(result.manifest.pages, 1_000_000),
+    png: result.parts.get("page") as Uint8Array,
+    width,
+  };
+};
+
 export const renderPdfPage = async (
   env: MediaJobsEnv,
   keys: { destinationKey: string; sourceKey: string }
 ): Promise<FilesPdfThumbnailResult> => {
-  const result = await callRenderer(env, {
-    openSource: r2SourceOpener(env.BUCKET, keys.sourceKey),
-    outputs: {
-      page: { kind: "png", maxBytes: MAX_PAGE_BYTES, required: true },
-    },
-    path: `/pdf/page?max=${MAX_RENDER_DIMENSION}`,
-    timeoutMs: JOB_TIMEOUT_MS.pdf,
-  });
-  const page = result.manifest.page as Record<string, unknown> | undefined;
-  const width = positiveInteger(page?.width, MAX_IMAGE_SIDE);
-  const height = positiveInteger(page?.height, MAX_IMAGE_SIDE);
-  if (!(width && height)) {
-    throw new RendererDeclined("page_size_missing");
-  }
-  const png = result.parts.get("page") as Uint8Array;
+  const { height, png, width } = await renderPdfPageBytes(env, keys.sourceKey);
   await env.BUCKET.put(keys.destinationKey, png, {
     httpMetadata: { contentType: "image/png" },
   });

@@ -60,7 +60,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 | Docs | Each phase updates `features.mdx` and the month's changelog, plus the API, MCP and CLI docs when it touches them |
 | Semantic search | Cloudflare Vectorize with `@cf/baai/bge-m3` (1024 dimensions). One vector per card, filtered by a `userId` metadata index (per-user namespaces would hit Vectorize's 50,000-namespace cap). Results are blended into normal search everywhere with reciprocal rank fusion, then the chosen sort is applied |
 | Similarity | `like:<cardId>`, a "More like this" button, `mood:"…"` for images, and `similarTo` in the API. It covers every card type |
-| OCR | Comes from the same Gemma vision call, for images, video thumbnails, link screenshots and scanned PDFs. Searchable through plain search and `text:`. Backfilled |
+| OCR | Comes from the same Gemma vision call for images and video thumbnails, and from a text-only Gemma call for a link's `og:image` and screenshot and a scanned PDF's first 3 pages. Search-only (never shown or returned by the API, MCP, SDK or CLI): plain search and `text:`. Backfilled |
 | Transcripts | YouTube and Vimeo use their own caption tracks (never a video download). Podcasts are transcribed with Whisper up to the 100 MB audio cap. Uploaded videos are covered by v1 phase 13 |
 | Hidden cards | User tags `secret` and `hidden` hide a card from the grid, search, Shuffle and Revisit, folders, smart folders and the API, MCP and CLI. Searching that tag is the only way to show them. AI tags never hide anything |
 | Revisit | A fourth entry in the sort menu: 20 random cards from the current view, ← archives, → keeps |
@@ -159,7 +159,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 8 | Firefox release: built, plan deleted | Quick wins | — |
 | 9 | Agent-skill discovery checks: built with phase 10, plan deleted | Quick wins | — |
 | 10 | OCR in images and video thumbnails: built, plan deleted | Search & AI | — |
-| 11 | [OCR: link screenshots and scanned PDFs](2026-10-14-roadmap-v2-11-ocr-screenshots-pdfs.md) | Search & AI | 10, v1-13 |
+| 11 | OCR in link images, screenshots and scanned PDFs: built, plan deleted | Search & AI | 10, v1-13 |
 | 12 | [Embedding infrastructure](2026-10-14-roadmap-v2-12-embeddings.md) | Search & AI | 10, v1-13 |
 | 13 | [Blended search everywhere](2026-10-14-roadmap-v2-13-hybrid-search.md) | Search & AI | 12, 4 |
 | 14 | [More like this, `like:` and `mood:`](2026-10-14-roadmap-v2-14-similar-and-mood.md) | Search & AI | 13 |
@@ -204,7 +204,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 
 | Phase | Decision | Default in the plan |
 |---|---|---|
-| 11 | Should OCR also read the link's `og:image`? The page screenshot is taken with network blocked, so images and fonts don't render | Ask before building |
 | 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { encodeManifest, jobResponse } from "./manifest";
-import { audioParams, pdfTextParams, videoParams } from "./params";
+import {
+  audioParams,
+  pdfPageParams,
+  pdfTextParams,
+  videoParams,
+} from "./params";
 
 const facts = {
   format: "mp4",
@@ -112,6 +117,7 @@ describe("query params", () => {
       maxPages: 50,
       maxChars: 524_288,
     });
+    expect(pdfPageParams(query(""))).toEqual({ max: 1600, page: 1 });
   });
 
   test("accept values at the edges of each range", () => {
@@ -125,6 +131,10 @@ describe("query params", () => {
     expect(audioParams(query("peaks=1,1000,5,7&whisper=always"))).toEqual({
       peaks: [1, 1000, 5, 7],
       whisper: "always",
+    });
+    expect(pdfPageParams(query("max=64&page=3"))).toEqual({
+      max: 64,
+      page: 3,
     });
   });
 
@@ -142,6 +152,8 @@ describe("query params", () => {
     ["whisper=AUTO", audioParams],
     ["maxPages=501", pdfTextParams],
     ["maxChars=4194305", pdfTextParams],
+    ["page=0", pdfPageParams],
+    ["page=4", pdfPageParams],
   ])("reject %s with bad_request", (search, parse) => {
     expect(() => parse(query(search))).toThrow(
       expect.objectContaining({ code: "bad_request", status: 400 })

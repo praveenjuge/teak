@@ -31,6 +31,7 @@ import {
   keepPreviewAfterFailedRefresh,
   parseLinkMetadataRetryableError,
 } from "./linkMetadata";
+import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
 import {
   extractPaletteFromImage,
@@ -40,8 +41,9 @@ import {
 import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 
 // Card processing: classify, link metadata, categorize, then AI metadata
-// and renderables, then a link's screenshot. Step names are durable history:
-// never rename one, and add new steps after the existing ones.
+// and renderables, then a link's screenshot and the text in its images.
+// Step names are durable history: never rename one, and add new steps after
+// the existing ones.
 
 export interface CardProcessingParams {
   cardId: string;
@@ -59,6 +61,8 @@ const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);
 const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
+/** Two Gemma calls; a busy Workers AI waits 30 s, then 60 s. */
+const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
 
 /** Attempts for any metadata failure but Workers AI capacity. */
 const METADATA_ATTEMPTS = 8;
@@ -383,6 +387,18 @@ const processCard = async (
         });
         return null;
       });
+    // Then the text in its preview image and screenshot, for search. A
+    // failure leaves the card unread for the backfill and the run goes on.
+    await step
+      .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
+      .catch((error: unknown) => {
+        rethrowSuperseded(error);
+        console.warn("[cardProcessing] Link image text failed", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
   }
 
   await step
@@ -444,6 +460,7 @@ const runMetadataStep = (
               // The last attempt leaves a card Workers AI still can't take
               // to the backfill.
               capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
+              lastAttempt: ctx.attempt >= METADATA_ATTEMPTS,
               restorePendingOnDefer: true,
             })
           );

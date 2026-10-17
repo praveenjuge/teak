@@ -13,8 +13,10 @@ import {
   FILES_UPLOAD_MAX_BYTES,
   type FilesInspectMode,
   type FilesMediaProbeResult,
+  type FilesPdfOcrResult,
   type FilesProcessAudioResult,
   filesCardKeyPrefix,
+  normalizeImageOcrText,
 } from "@teak/files-protocol";
 import { sha256Hex } from "../../lib";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
@@ -289,6 +291,25 @@ export const extractFileTextForKey = async (
     text: outcome.data.text ?? "",
     ...(typeof pageCount === "number" && { pageCount }),
   };
+};
+
+/**
+ * The text Gemma reads on a scanned PDF's first pages, `""` when none is
+ * legible or the renderer declines the PDF. It feeds search, the summary
+ * and the tags, and is never stored as the card's document text. A busy
+ * renderer or Workers AI throws, so the step retries.
+ */
+export const readScannedPdfText = async (
+  job: CardJob,
+  sourceKey: string
+): Promise<string> => {
+  const outcome = await job.deps.filesOp<FilesPdfOcrResult>({
+    op: "ocr-pdf-pages",
+    params: { sourceKey },
+  });
+  return outcome.kind === "ok"
+    ? (normalizeImageOcrText(outcome.data.text) ?? "")
+    : "";
 };
 
 /**

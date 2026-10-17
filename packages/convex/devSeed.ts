@@ -532,6 +532,8 @@ export const FOLDER_SCENARIOS = [
   "save-details",
   "omnibox-titles",
   "ocr-images",
+  "ocr-documents",
+  "ocr-links",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1365,6 +1367,192 @@ const ocrImagesPack = (): FolderScenarioPack => {
   return { folders: [], cards };
 };
 
+/** The phrase on page 2 of the scanned lease in `ocr-documents`. */
+export const OCR_LEASE_PHRASE = "lease agreement";
+
+/**
+ * Scanned PDFs with their first pages already read (`aiOcrText`), for plain
+ * search and `text:`: a lease whose page 2 says "Lease agreement", a
+ * 300-page scan read to page 3, a scan with only a "Scanned by" footer,
+ * Arabic and Chinese scans, and controls that weren't read (a PDF with a
+ * text layer, a password-protected PDF). A twin note mentions the lease.
+ */
+const ocrDocumentsPack = (): FolderScenarioPack => {
+  const scenario = "ocr-documents" as const;
+  const pdf = (
+    index: number,
+    label: string,
+    aiOcrText: string | undefined,
+    aiSummary: string,
+    fileSize = 2_400_000
+  ) => ({
+    ...folderScenarioCard(scenario, index, label, []),
+    type: "document" as const,
+    content: "",
+    aiSummary,
+    aiTags: ["document", "scan"],
+    fileMetadata: {
+      fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`,
+      fileSize,
+      mimeType: "application/pdf",
+    },
+    ...(aiOcrText ? { aiOcrText } : {}),
+  });
+  const pages = (...texts: string[]) => texts.join("\n\n");
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "OCR documents pack", []),
+      pdf(
+        index++,
+        "Scanned lease",
+        pages(
+          "RESIDENTIAL TENANCY\nPrepared for Dana Reyes",
+          "LEASE AGREEMENT\nThis lease is made on 1 May 2026 between\nHarbour Homes Ltd (landlord) and Dana Reyes (tenant).",
+          "Rent: $1,450 per month, due on the 1st.\nDeposit: $2,900"
+        ),
+        "A residential lease between Harbour Homes and Dana Reyes, with rent and deposit terms."
+      ),
+      pdf(
+        index++,
+        "Board minutes archive 1998",
+        pages(
+          "MINUTES OF THE BOARD\nVolume 12 · 1998",
+          "Present: J. Okafor, M. Lindqvist, R. Patel\nApologies: none",
+          "1. The treasurer reported a surplus of 4,210."
+        ),
+        "The first pages of a 300-page archive of 1998 board minutes.",
+        99_000_000
+      ),
+      pdf(
+        index++,
+        "Scan with a footer",
+        pages(
+          "Delivery note 55-1902\nReceived in good condition",
+          "Signed: P. Moreau"
+        ),
+        "A signed delivery note scanned to PDF."
+      ),
+      pdf(
+        index++,
+        "Arabic contract scan",
+        "عقد إيجار\nالطرف الأول: شركة الميناء\nالإيجار الشهري: ٥٠٠٠",
+        "A rental contract in Arabic."
+      ),
+      pdf(
+        index++,
+        "Chinese invoice scan",
+        "发票\n客户：茶叶有限公司\n金额：￥1,280",
+        "An invoice in Chinese for a tea company."
+      ),
+      pdf(
+        index++,
+        "Mixed PDF",
+        undefined,
+        "A report with a text first page; its own text is already searchable."
+      ),
+      pdf(
+        index++,
+        "Locked PDF",
+        undefined,
+        "A password-protected PDF that couldn't be opened."
+      ),
+      pdf(
+        index++,
+        "Lease template",
+        undefined,
+        "A blank lease template with a text layer."
+      ),
+      folderScenarioCard(
+        scenario,
+        index++,
+        `Note: send the ${OCR_LEASE_PHRASE} to Dana`,
+        []
+      ),
+    ],
+  };
+};
+
+/**
+ * Links whose preview image and screenshot were already read (`aiOcrText`):
+ * a talk whose preview image shows its slide title, a docs page, a
+ * code-heavy blog post, an RTL news site, and a single-page app whose
+ * screenshot rendered blank. A twin note shares the talk's title.
+ */
+const ocrLinksPack = (): FolderScenarioPack => {
+  const scenario = "ocr-links" as const;
+  const link = (
+    index: number,
+    url: string,
+    title: string,
+    aiOcrText: string | undefined
+  ) => {
+    const markedUrl = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", []),
+      type: "link" as const,
+      content: markedUrl,
+      url: markedUrl,
+      metadataTitle: title,
+      metadata: {
+        linkPreview: {
+          source: "scenario",
+          status: "success",
+          fetchedAt: Date.UTC(2026, 9, 1),
+          url: markedUrl,
+          finalUrl: markedUrl,
+          title,
+        } as never,
+      },
+      ...(aiOcrText ? { aiOcrText } : {}),
+    };
+  };
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "OCR links pack", []),
+      link(
+        index++,
+        "https://example.com/talks/postgres",
+        "Conference talk recording",
+        "SCALING POSTGRES\nto a million users\nA. Rivera · PGDay 2026"
+      ),
+      link(
+        index++,
+        "https://docs.example.com/getting-started",
+        "Getting started",
+        "Docs › Getting started\nInstall the CLI\nnpm install -g teak-cli"
+      ),
+      link(
+        index++,
+        "https://blog.example.com/fast-json",
+        "Parsing JSON faster",
+        "for (const byte of buffer) {\n  if (byte === QUOTE) inString = !inString;\n}"
+      ),
+      link(
+        index++,
+        "https://news.example.com/ar/harbour",
+        "أخبار الميناء",
+        "افتتاح الميناء الجديد\nالأحد ١٢ أكتوبر"
+      ),
+      link(
+        index++,
+        "https://app.example.com/dashboard",
+        "Single-page app",
+        undefined
+      ),
+      folderScenarioCard(
+        scenario,
+        index++,
+        "Note: watch the scaling postgres talk",
+        []
+      ),
+    ],
+  };
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
 /** Notes with task lists for checklist sorting. */
@@ -1995,6 +2183,15 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   "ocr-images": {
     description: `40 images and video thumbnails with their text already read: receipts, code, memes, handwriting, Arabic, Hebrew, Japanese, Hindi, Korean and Russian signs, a 4,000-character wall of text and photos with none, plus twin notes that share a word with an image (${OCR_SHARED_KEYWORD}, "total due", Tokyo Station, fizzbuzz). Compare \`${OCR_SHARED_KEYWORD}\` with \`text:${OCR_SHARED_KEYWORD}\`.`,
     folders: ocrImagesPack,
+  },
+  "ocr-documents": {
+    description: `Scanned PDFs with their first pages already read: a lease whose page 2 says "Lease agreement", a 300-page archive, a scan with only a "Scanned by" footer, Arabic and Chinese scans, and unread controls (a text PDF, a password-protected PDF), plus a twin note. Compare \`${OCR_LEASE_PHRASE}\` with \`text:lease\`.`,
+    folders: ocrDocumentsPack,
+  },
+  "ocr-links": {
+    description:
+      'Links whose preview image and screenshot were already read: a talk\'s slide title, a docs page, a code-heavy blog post, an RTL news site, and a single-page app that rendered blank, plus a twin note. Compare `scaling postgres` with `text:"scaling postgres"`.',
+    folders: ocrLinksPack,
   },
   "card-limit-199": {
     description:

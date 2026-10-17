@@ -184,7 +184,21 @@ export const createCardConvex = (
     }),
     "linkMetadata:updateCardScreenshot": write(
       "updateCardScreenshot",
-      () => null
+      (args) => {
+        const metadata = (card as FakeCard).metadata as
+          | { linkPreview?: object }
+          | undefined;
+        Object.assign(card as FakeCard, {
+          metadata: {
+            ...metadata,
+            linkPreview: {
+              ...metadata?.linkPreview,
+              screenshotStorageKey: args.screenshotStorageKey,
+            },
+          },
+        });
+        return null;
+      }
     ),
     "storage/ownership:registerObject": write("registerObject", () => true),
     "workflowDispatch:complete": () => null,

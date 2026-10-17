@@ -4,6 +4,7 @@ import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
   buildFilesOpSigningPayload,
   FILES_OPS,
+  FILES_PDF_OCR_MAX_PAGES,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
   FILES_SCREENSHOT_SIZE,
@@ -41,7 +42,11 @@ import {
 } from "./export";
 import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
-import { generateImageMetadataForOp, loadImageForAi } from "./imageMetadata";
+import {
+  extractImageTextForOp,
+  generateImageMetadataForOp,
+  loadImageForAi,
+} from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import {
   extractZipEntries,
@@ -61,6 +66,7 @@ import {
 } from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
 import { OpFailure } from "./opFailure";
+import { ocrPdfPages } from "./pdfOcr";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
 import {
   checkRendererHealth,
@@ -656,6 +662,32 @@ const dispatch = async (
         ...metadata,
         ...(visualStyles ? { visualStyles } : {}),
       });
+    }
+    case "extract-image-text":
+      return success(
+        requestId,
+        await extractImageTextForOp(env, {
+          origin,
+          sourceKey: requiredString(params, "sourceKey"),
+        })
+      );
+    case "ocr-pdf-pages": {
+      const maxPages = params.maxPages ?? FILES_PDF_OCR_MAX_PAGES;
+      if (
+        !Number.isInteger(maxPages) ||
+        (maxPages as number) < 1 ||
+        (maxPages as number) > FILES_PDF_OCR_MAX_PAGES
+      ) {
+        throw new Error("invalid_max_pages");
+      }
+      return success(
+        requestId,
+        await ocrPdfPages(
+          env,
+          requiredString(params, "sourceKey"),
+          maxPages as number
+        )
+      );
     }
     case "decide-card-type":
       return success(requestId, await decideCardType(env, params));

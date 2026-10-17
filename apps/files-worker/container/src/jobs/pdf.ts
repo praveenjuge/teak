@@ -3,7 +3,7 @@ import { pdfInfoCommand, pdfPageCommand, pdfTextCommand } from "../args";
 import { toolFailure, unsupported } from "../errors";
 import { run } from "../exec";
 import type { JobResult } from "../manifest";
-import type { PdfTextParams } from "../params";
+import type { PdfPageParams, PdfTextParams } from "../params";
 import { type JobContext, readOutput } from "./context";
 
 const PAGES_LINE = /^Pages:\s+(\d+)\s*$/m;
@@ -70,12 +70,15 @@ async function pageCount(ctx: JobContext): Promise<number> {
 
 export async function pdfPageJob(
   ctx: JobContext,
-  params: { max: number }
+  params: PdfPageParams
 ): Promise<JobResult> {
   const pages = await pageCount(ctx);
+  if (params.page > pages) {
+    throw unsupported(`The PDF has no page ${params.page}`);
+  }
   const prefix = join(ctx.dir, "page");
   const result = await run(
-    pdfPageCommand(ctx.dir, ctx.input, params.max, prefix),
+    pdfPageCommand(ctx.dir, ctx.input, params.max, prefix, params.page),
     { deadlineEpochMs: ctx.deadlineEpochMs }
   );
   const bytes =

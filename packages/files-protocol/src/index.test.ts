@@ -17,6 +17,7 @@ import {
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  isScannedPdf,
   parseCardObjectKey,
   truncateForEmbedding,
   vectorNamespaceForUser,
@@ -112,6 +113,33 @@ test.each([
 ])("rejects invalid AI diagnostics %p", (value) => {
   expect(readFilesAiGenerationFacts(value)).toBeNull();
 });
+test.each([
+  ["no page count", { text: "" }, false],
+  ["one page, no text layer", { pageCount: 1, text: "" }, true],
+  [
+    "two pages with only a footer",
+    { pageCount: 2, text: "Scanned by OfficeScan 3000\n\fScanned by" },
+    true,
+  ],
+  [
+    "a one-page letter",
+    { pageCount: 1, text: "Dear tenant, the lease renews on 1 May." },
+    false,
+  ],
+  [
+    "300 pages, 3 short lines",
+    { pageCount: 300, text: "a b c ".repeat(30) },
+    true,
+  ],
+  [
+    "a 900-page text PDF read to 500 pages",
+    { pageCount: 900, text: "word ".repeat(2600) },
+    false,
+  ],
+])("a PDF with %s is scanned: %p", (_name, pdf, scanned) => {
+  expect(isScannedPdf(pdf)).toBe(scanned);
+});
+
 test("copies only numeric AI diagnostics", () => {
   expect(
     readFilesAiGenerationFacts({

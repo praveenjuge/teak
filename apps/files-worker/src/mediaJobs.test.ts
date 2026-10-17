@@ -655,3 +655,127 @@ describe("process-audio", () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe("ocr-pdf-pages", () => {
+  const PDF = "users/u/cards/c/file/scan.pdf";
+  const pageAnswer = (pages: number) => () =>
+    rendererResponse({ page: { height: 1600, width: 1237 }, pages }, [
+      { bytes: PNG_BYTES, name: "page", type: "image/png" },
+    ]);
+  const fakeAi = (answers: string[]) => {
+    const prompts: string[] = [];
+    return {
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const [, user] = args.messages as Array<{
+            content: Array<{ image_url?: { url: string }; text?: string }>;
+          }>;
+          prompts.push(user?.content[0]?.text ?? "");
+          expect(user?.content[1]?.image_url?.url).toStartWith(
+            "data:image/png;base64,"
+          );
+          const content = answers.shift() ?? '{"text":""}';
+          return Promise.resolve({ choices: [{ message: { content } }] });
+        },
+      },
+      prompts,
+    };
+  };
+
+  test("reads the first 3 pages one at a time", async () => {
+    const { calls, env } = await setup(pageAnswer(300), PDF);
+    const ai = fakeAi([
+      '{"text":"LEASE AGREEMENT"}',
+      '{"text":"Tenant: Dana Reyes\\nRent: $1,450"}',
+      '{"text":""}',
+    ]);
+    const { body, status } = await callOp(
+      { ...env, AI: ai.AI as never },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(status).toBe(200);
+    expect(body.data).toEqual({
+      pageCount: 300,
+      pagesRead: 3,
+      text: "LEASE AGREEMENT\n\nTenant: Dana Reyes\nRent: $1,450",
+    });
+    expect(calls.map((call) => call.path)).toEqual([
+      "/pdf/page?max=1600",
+      "/pdf/page?max=1600&page=2",
+      "/pdf/page?max=1600&page=3",
+    ]);
+  });
+
+  test("stops at the PDF's last page and at maxPages", async () => {
+    const short = await setup(pageAnswer(2), PDF);
+    const { body } = await callOp(
+      { ...short.env, AI: fakeAi(['{"text":"Page one"}']).AI as never },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(body.data).toMatchObject({ pageCount: 2, pagesRead: 2 });
+    expect(short.calls).toHaveLength(2);
+
+    const capped = await setup(pageAnswer(9), PDF);
+    await callOp(
+      { ...capped.env, AI: fakeAi([]).AI as never },
+      "ocr-pdf-pages",
+      { maxPages: 1, sourceKey: PDF }
+    );
+    expect(capped.calls).toHaveLength(1);
+  });
+
+  test("a page the model never reads validly counts as no text", async () => {
+    const { env } = await setup(pageAnswer(2), PDF);
+    const ai = fakeAi([
+      '{"text":"cut off',
+      '{"text":"cut off',
+      '{"text":"cut off',
+      '{"text":"Second page"}',
+    ]);
+    const { body } = await callOp(
+      { ...env, AI: ai.AI as never },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(body.data).toEqual({
+      pageCount: 2,
+      pagesRead: 2,
+      text: "Second page",
+    });
+    expect(ai.prompts[1]).toContain("at most 1000 characters");
+  });
+
+  test("a PDF the renderer declines reads as nothing, in the full shape", async () => {
+    const { env } = await setup(() => rendererError(415, "unsupported"), PDF);
+    const { body, status } = await callOp(
+      { ...env, AI: fakeAi([]).AI as never },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(status).toBe(200);
+    expect(body.data).toEqual({ pageCount: null, pagesRead: 0, text: "" });
+  });
+
+  test("a busy renderer fails the op so the caller retries", async () => {
+    const { env } = await setup(() => rendererError(503, "busy"), PDF);
+    const { body, status } = await callOp(
+      { ...env, AI: fakeAi([]).AI as never },
+      "ocr-pdf-pages",
+      { sourceKey: PDF }
+    );
+    expect(status).toBe(503);
+    expect(body.error?.retryable).toBe(true);
+  });
+
+  test.each([0, 4, 1.5, "2"])("rejects maxPages %p", async (maxPages) => {
+    const { env } = await setup(pageAnswer(3), PDF);
+    const { body, status } = await callOp(env, "ocr-pdf-pages", {
+      maxPages,
+      sourceKey: PDF,
+    });
+    expect(status).toBe(400);
+    expect(body.error?.code).toBe("INVALID_INPUT");
+  });
+});

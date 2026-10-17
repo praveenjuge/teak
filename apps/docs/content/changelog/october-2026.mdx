@@ -1,15 +1,17 @@
 ---
 title: "October 2026"
-description: Find screenshots by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Find screenshots and scanned PDFs by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-17"
 changelog:
   category: Product updates
 ---
 
-## Find screenshots by the words in them
+## Find screenshots and scanned PDFs by the words in them
 
 - Teak now reads the words in the images and videos you save: receipts, screenshots, signs, slides and code. Search finds an image by any word in it, and `text:` searches only those words, so `text:4411` finds the receipt and not the note that mentions it. See [Smart search](/docs/features#smart-search).
+- Scanned PDFs are searchable too. Teak reads the first 3 pages of a PDF that has no text of its own, so search finds a scanned lease by a phrase on page 2, and its summary and tags describe what the scan says instead of only its file name.
+- Links count as well: Teak reads the words in a link's preview image and in its screenshot, such as a talk's slide title.
 - **API, MCP, SDK, and CLI:** `q` takes `text:"…"` too. See [Search qualifiers](/docs/api#search-qualifiers).
 
 ## Teak for Firefox

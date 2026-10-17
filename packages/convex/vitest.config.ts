@@ -73,6 +73,7 @@ export default defineConfig({
       "./bestMatch.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./ocrBackfills.test.ts",
       "./hiddenCards.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",

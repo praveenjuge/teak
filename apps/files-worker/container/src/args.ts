@@ -340,14 +340,15 @@ export function pdfPageCommand(
   jobDir: string,
   input: string,
   max: number,
-  outputPrefix: string
+  outputPrefix: string,
+  page = 1
 ): ToolCommand {
   return toolCommand([
     "pdftoppm",
     "-f",
-    "1",
+    String(page),
     "-l",
-    "1",
+    String(page),
     "-singlefile",
     "-png",
     "-scale-to",

@@ -380,7 +380,7 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
 | `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
 | `price:<100` | Links whose `linkPrice.amount` is under 100. Also `>`, `<=`, `>=` and `=`, with a plain number such as `9.99`. The amount is compared in any currency, links without a price never match, and the search narrows to links |
-| `text:4411`, `text:"total due"` | Images and videos whose own words (read by Teak, not returned in the card) contain that text, ignoring case and line breaks. Notes that only mention it don't match; plain words beside it must match the same card |
+| `text:4411`, `text:"total due"` | Images, videos, links and scanned PDFs whose own words (read by Teak from the image, the link's preview image and screenshot, or a scan's first 3 pages, and not returned in the card) contain that text, ignoring case and line breaks. Notes that only mention it don't match; plain words beside it must match the same card |
 | `"design system"` | Cards whose text contains that phrase |
 
 Qualifiers combine with each other and with the other parameters: tags,
