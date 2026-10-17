@@ -994,7 +994,7 @@ export const openApiSpec = {
             in: "query",
             name: "q",
             description:
-              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (words in an image or a video thumbnail only) and `"quoted phrases"`. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret`. The plain word `secret` does not show them.',
+              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and `"quoted phrases"`. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret`. The plain word `secret` does not show them.',
             schema: { type: "string" },
           },
           {

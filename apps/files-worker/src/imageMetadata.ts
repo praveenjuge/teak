@@ -21,6 +21,8 @@ export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 2048;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
 const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
 const MAX_PROMPT_CHARS = 6000;
+/** A vision answer that never parsed, after its validation retries. */
+export const INVALID_IMAGE_OUTPUT = "invalid_image_metadata_output";
 const CAPACITY_RETRY_BASE_DELAY_MS = 250;
 const WORKERS_AI_CAPACITY_ERROR =
   /(?:\b3040\b.*capacity|capacity temporarily exceeded)/iu;
@@ -126,7 +128,7 @@ const extractMessageText = (response: unknown): string | null => {
   return typeof message?.content === "string" ? message.content : null;
 };
 
-const toDataUrl = (bytes: Uint8Array, mediaType: string): string => {
+export const toDataUrl = (bytes: Uint8Array, mediaType: string): string => {
   let binary = "";
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
@@ -186,36 +188,30 @@ export const loadImageForAi = async (
   return { bytes, contentType, dataUrl: toDataUrl(bytes, contentType) };
 };
 
-export const generateImageMetadataForOp = async (
-  env: Env,
-  {
-    image,
-    origin,
-    sourceKey,
-    title,
-  }: {
-    /** Already loaded with `loadImageForAi`, so it isn't transformed twice. */
-    image?: { dataUrl: string };
-    origin: string;
-    sourceKey: string;
-    title?: string | null;
-  },
-  now = Math.floor(Date.now() / 1000),
-  imageFetch: typeof fetch = fetch as typeof fetch
-): Promise<ImageMetadataResult> => {
-  const { dataUrl: imageDataUrl } =
-    image ?? (await loadImageForAi(env, origin, sourceKey, now, imageFetch));
+interface VisionJsonRequest<T> {
+  functionId: string;
+  imageDataUrl: string;
+  /** Undefined when the answer doesn't have the expected shape. */
+  parse: (raw: string) => T | null;
+  /** The user prompt for a validation attempt (0 is the first try). */
+  prompt: (validationAttempt: number) => string;
+  system: string;
+}
 
+/**
+ * One vision call that answers JSON, with the capacity and validation
+ * retries every image op shares. Returns the parsed answer and the
+ * validation attempt that produced it. Throws `invalid_image_output` once
+ * no attempt parses.
+ */
+const runVisionJson = async <T>(
+  env: Env,
+  request: VisionJsonRequest<T>
+): Promise<{ validationAttempt: number; value: T }> => {
   const ai = env.AI;
   if (!ai) {
     throw new Error("workers_ai_not_configured");
   }
-
-  const basePrompt = boundPrompt(
-    title
-      ? `Image title: ${title}\n\nAnalyze this image, generate tags and summary, and read its text:`
-      : "Analyze this image, generate tags and summary, and read its text:"
-  );
   let capacityAttempt = 0;
   let validationAttempt = 0;
   while (true) {
@@ -223,7 +219,7 @@ export const generateImageMetadataForOp = async (
       const response = await meteredAiRun(
         env,
         {
-          functionId: "teak.ai.metadata.image",
+          functionId: request.functionId,
           isCapacity: isWorkersAiCapacityError,
           model: IMAGE_METADATA_MODEL_ID,
         },
@@ -233,21 +229,12 @@ export const generateImageMetadataForOp = async (
             {
               max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
               messages: [
-                {
-                  content: IMAGE_ANALYSIS_SYSTEM_PROMPT,
-                  role: "system",
-                },
+                { content: request.system, role: "system" },
                 {
                   content: [
+                    { text: request.prompt(validationAttempt), type: "text" },
                     {
-                      text: validationRetryPrompt(
-                        basePrompt,
-                        validationAttempt
-                      ),
-                      type: "text",
-                    },
-                    {
-                      image_url: { url: imageDataUrl },
+                      image_url: { url: request.imageDataUrl },
                       type: "image_url",
                     },
                   ],
@@ -267,17 +254,11 @@ export const generateImageMetadataForOp = async (
       if (text === null) {
         throw new Error("malformed_workers_ai_response");
       }
-      const parsed = parseImageMetadata(text);
-      if (!parsed) {
-        throw new Error("invalid_image_metadata_output");
+      const value = request.parse(text);
+      if (value === null) {
+        throw new Error(INVALID_IMAGE_OUTPUT);
       }
-      if (validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES) {
-        // The last attempt asked for no text, so its answer can't say the
-        // image has none. Without `text`, callers leave the image unread.
-        const { text: _skipped, ...withoutText } = parsed;
-        return withoutText;
-      }
-      return parsed;
+      return { validationAttempt, value };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (
@@ -290,14 +271,115 @@ export const generateImageMetadataForOp = async (
       }
       if (
         validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
-        ![
-          "invalid_image_metadata_output",
-          "malformed_workers_ai_response",
-        ].includes(message)
+        ![INVALID_IMAGE_OUTPUT, "malformed_workers_ai_response"].includes(
+          message
+        )
       ) {
         throw error;
       }
       validationAttempt += 1;
     }
   }
+};
+
+export const generateImageMetadataForOp = async (
+  env: Env,
+  {
+    image,
+    origin,
+    sourceKey,
+    title,
+  }: {
+    /** Already loaded with `loadImageForAi`, so it isn't transformed twice. */
+    image?: { dataUrl: string };
+    origin: string;
+    sourceKey: string;
+    title?: string | null;
+  },
+  now = Math.floor(Date.now() / 1000),
+  imageFetch: typeof fetch = fetch as typeof fetch
+): Promise<ImageMetadataResult> => {
+  const { dataUrl: imageDataUrl } =
+    image ?? (await loadImageForAi(env, origin, sourceKey, now, imageFetch));
+  const basePrompt = boundPrompt(
+    title
+      ? `Image title: ${title}\n\nAnalyze this image, generate tags and summary, and read its text:`
+      : "Analyze this image, generate tags and summary, and read its text:"
+  );
+  const { validationAttempt, value } = await runVisionJson(env, {
+    functionId: "teak.ai.metadata.image",
+    imageDataUrl,
+    parse: parseImageMetadata,
+    prompt: (attempt) => validationRetryPrompt(basePrompt, attempt),
+    system: IMAGE_ANALYSIS_SYSTEM_PROMPT,
+  });
+  if (validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES) {
+    // The last attempt asked for no text, so its answer can't say the
+    // image has none. Without `text`, callers leave the image unread.
+    const { text: _skipped, ...withoutText } = value;
+    return withoutText;
+  }
+  return value;
+};
+
+export const IMAGE_TEXT_SYSTEM_PROMPT = `You read the text in images. Answer directly without thinking step by step.
+
+- Copy every legible word, number and symbol exactly as written, in reading order, with its line breaks, up to ${MAX_IMAGE_OCR_CHARS} characters.
+- Keep the original language and script; do not translate or correct it.
+- Never describe the image. If it has no legible text, text is "".
+
+Respond with a single JSON object using exactly this shape and no other keys:
+{"text": "..."}`;
+
+const IMAGE_TEXT_PROMPT = "Read the text in this image:";
+
+/** A text-only retry asks for less, since a long answer may have been cut. */
+const imageTextRetryPrompt = (attempt: number): string =>
+  attempt === 0
+    ? IMAGE_TEXT_PROMPT
+    : `JSON validation retry ${attempt}: your last answer was not valid JSON, possibly cut off. Return only the JSON object with text cut to at most ${RETRY_IMAGE_OCR_CHARS} characters. Do not include markdown, commentary, or any other keys.\n\n${IMAGE_TEXT_PROMPT}`;
+
+/** `{ text }` from the text-only prompt, tidied; `""` when none is legible. */
+export const parseImageText = (raw: string): { text: string } | null => {
+  const value = parseJson(stripJsonFences(raw));
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const { text } = value as { text?: unknown };
+  return typeof text === "string"
+    ? { text: normalizeImageOcrText(text) ?? "" }
+    : null;
+};
+
+/** The legible text in an image, already loaded as a data URL. */
+export const readImageText = async (
+  env: Env,
+  imageDataUrl: string,
+  functionId: string
+): Promise<string> => {
+  const { value } = await runVisionJson(env, {
+    functionId,
+    imageDataUrl,
+    parse: parseImageText,
+    prompt: imageTextRetryPrompt,
+    system: IMAGE_TEXT_SYSTEM_PROMPT,
+  });
+  return value.text;
+};
+
+/** `extract-image-text`: the text in a stored image, nothing else. */
+export const extractImageTextForOp = async (
+  env: Env,
+  { origin, sourceKey }: { origin: string; sourceKey: string },
+  now = Math.floor(Date.now() / 1000),
+  imageFetch: typeof fetch = fetch as typeof fetch
+): Promise<{ text: string }> => {
+  const { dataUrl } = await loadImageForAi(
+    env,
+    origin,
+    sourceKey,
+    now,
+    imageFetch
+  );
+  return { text: await readImageText(env, dataUrl, "teak.ai.ocr.image") };
 };

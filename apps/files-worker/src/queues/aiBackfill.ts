@@ -8,6 +8,7 @@ import {
   type CardProcessingDeps,
   createCardProcessingDeps,
 } from "../workflows/cardProcessing/context";
+import { readLinkImageText } from "../workflows/cardProcessing/linkText";
 import { generateCardMetadata } from "../workflows/cardProcessing/metadata";
 import { isSuperseded } from "../workflows/cardProcessing/run";
 import { captureScreenshotStep } from "../workflows/cardProcessing/screenshot";
@@ -139,6 +140,16 @@ const runMessage = async (
         });
       }
     );
+    // Then the text in its images, for search; a failure leaves it unread.
+    await readLinkImageText(job).catch((error: unknown) => {
+      if (isSuperseded(error)) {
+        return;
+      }
+      console.warn("[aiBackfill] link image text failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 };
 

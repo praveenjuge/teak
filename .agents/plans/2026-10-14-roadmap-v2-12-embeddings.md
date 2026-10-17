@@ -23,7 +23,7 @@ Give every card one semantic vector in Cloudflare Vectorize, embedded with `@cf/
 - `cardProcessingWorkflow` (`workflows/cardProcessing.ts`):
   - It ends after metadata and renderables, then emits completion telemetry.
   - Its `returns` validator is a strict `v.object`, so a new step must not add result keys (or must add them as optional).
-  - The link screenshot runs in a separate workflow (`workflows/screenshot.ts`) and can add `aiOcrText` after phase 11.
+  - A link's screenshot, then the text in its preview image and screenshot, run after the metadata step (`apps/files-worker/src/workflows/cardProcessing/run.ts`), so `aiOcrText` can change after the card is first embedded.
 - Content edits rerun the whole pipeline (`updateCard` → `reserveEditReprocess` → `startCardProcessingWorkflow`). Notes, tags and title edits do not, but they all pass through `patchCardWithSearchSync`, and so through `syncCardSearchDocumentHandler`, which compares the old and new `searchableText`.
 - Hard delete:
   - `permanentDeleteCard` and `permanentDeleteCardForUser` share a handler in `card/deleteCard.ts`.

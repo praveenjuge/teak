@@ -637,6 +637,59 @@ describe("additive files ops", () => {
     expect(prompts[1]).toContain("at most 1000 characters");
   });
 
+  test("extract-image-text reads only the text, and retries a cut-off answer for less", async () => {
+    const calls: Array<{ prompt: string; system: string }> = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const [system, user] = args.messages as Array<{
+            content: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt = Array.isArray(user?.content)
+            ? (user.content.find((part) => part.type === "text")?.text ?? "")
+            : "";
+          calls.push({ prompt, system: String(system?.content) });
+          expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
+          const content =
+            calls.length === 1
+              ? `{"text":"${"Slide ".repeat(900)}`
+              : JSON.stringify({ text: "Q3 roadmap\nShip OCR" });
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/og.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { extractImageTextForOp, IMAGE_TEXT_SYSTEM_PROMPT } = await import(
+      "./imageMetadata"
+    );
+    const result = await extractImageTextForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/og.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result).toEqual({ text: "Q3 roadmap\nShip OCR" });
+    expect(calls.map((call) => call.system)).toEqual([
+      IMAGE_TEXT_SYSTEM_PROMPT,
+      IMAGE_TEXT_SYSTEM_PROMPT,
+    ]);
+    expect(IMAGE_TEXT_SYSTEM_PROMPT).not.toContain("tags");
+    expect(calls[1]?.prompt).toContain("at most 1000 characters");
+  });
+
   test("generate-image-metadata retries transient Workers AI capacity errors", async () => {
     let calls = 0;
     const aiEnv = withObjectGates({

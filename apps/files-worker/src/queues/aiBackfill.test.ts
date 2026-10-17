@@ -223,7 +223,7 @@ describe("handleAiBackfillBatch", () => {
     expect(convex.calls).toEqual([]);
   });
 
-  test("a backfilled link gets its screenshot", async () => {
+  test("a backfilled link gets its screenshot, then its images' text", async () => {
     const card = makeCard({
       metadata: { linkPreview: { status: "success", title: "A page" } },
       type: "link",
@@ -241,10 +241,15 @@ describe("handleAiBackfillBatch", () => {
           source: "static",
         },
       },
+      "extract-image-text": { data: { text: "A page heading" } },
       "generate-link-metadata": textMetadataAnswer(["page"]),
     });
     expect(outcomes).toEqual([{ acked: true }]);
-    expect(fakes.opsCalled()).toContain("capture-screenshot");
+    expect(fakes.opsCalled().slice(-2)).toEqual([
+      "capture-screenshot",
+      "extract-image-text",
+    ]);
     expect(card.processingStatus?.screenshot?.status).toBe("completed");
+    expect(card.aiOcrText).toBe("A page heading");
   });
 });

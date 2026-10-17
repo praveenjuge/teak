@@ -55,7 +55,7 @@ describe("buildSearchSuggestions", () => {
   test("text: is offered while typing te", () => {
     expect(buildSearchSuggestions("te", sources).suggestions[0]).toMatchObject({
       insert: "text:",
-      detail: "Words in an image",
+      detail: "Words in images and scans",
       complete: false,
     });
   });

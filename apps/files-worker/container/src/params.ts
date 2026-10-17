@@ -88,8 +88,17 @@ export function audioParams(query: URLSearchParams): AudioParams {
   return { peaks: peakCountsParam(query), whisper: whisperParam(query) };
 }
 
-export function pdfPageParams(query: URLSearchParams): { max: number } {
-  return { max: intParam(query, "max", 1600, 64, 4096) };
+export interface PdfPageParams {
+  max: number;
+  /** The page to draw: the thumbnail is page 1, text reading goes to 3. */
+  page: number;
+}
+
+export function pdfPageParams(query: URLSearchParams): PdfPageParams {
+  return {
+    max: intParam(query, "max", 1600, 64, 4096),
+    page: intParam(query, "page", 1, 1, 3),
+  };
 }
 
 export interface PdfTextParams {

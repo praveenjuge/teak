@@ -3,6 +3,7 @@ import { MAX_IMAGE_OCR_CHARS } from "@teak/files-protocol";
 import {
   MAX_IMAGE_METADATA_VALIDATION_RETRIES,
   parseImageMetadata,
+  parseImageText,
   validationRetryPrompt,
 } from "./imageMetadata";
 
@@ -69,4 +70,21 @@ test("a retry asks for less text, and the last one for none", () => {
   expect(
     validationRetryPrompt("Analyze", MAX_IMAGE_METADATA_VALIDATION_RETRIES)
   ).toContain('text set to ""');
+});
+
+test.each([
+  [
+    "a receipt, tidied",
+    '{"text":"Total   due\\r\\n$12  "}',
+    { text: "Total due\n$12" },
+  ],
+  ["fenced text", '```json\n{"text":"出口 Exit"}\n```', { text: "出口 Exit" }],
+  ["no text", '{"text":""}', { text: "" }],
+  ["noise", '{"text":" — · "}', { text: "" }],
+  ["text that is a number", '{"text":42}', null],
+  ["no text key", '{"summary":"A sign."}', null],
+  ["an array", '[{"text":"Exit"}]', null],
+  ["not JSON", "Exit", null],
+])("image text from %s", (_name, raw, expected) => {
+  expect(parseImageText(raw)).toEqual(expected);
 });

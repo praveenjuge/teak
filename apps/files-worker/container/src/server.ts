@@ -10,7 +10,7 @@
 //   POST /probe                   facts only                        (15 s)
 //   POST /video?frameMax&scrubFrames&scrubMax    frame [+ scrub]    (60 s)
 //   POST /audio?peaks=45,200&whisper=auto|never|always  [whisper]   (120 s)
-//   POST /pdf/page?max            page                              (30 s)
+//   POST /pdf/page?max&page       page                              (30 s)
 //   POST /pdf/text?maxPages&maxChars             text               (30 s)
 //   POST /animation/palette?frames               palette only       (30 s)
 //

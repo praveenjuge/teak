@@ -288,6 +288,9 @@ describe("job commands", () => {
       INPUT,
       "-",
     ]);
+    expect<string[]>(
+      pdfPageCommand(DIR, INPUT, 1600, `${DIR}/page`, 3).slice(1, 5)
+    ).toEqual(["-f", "3", "-l", "3"]);
     expect(() => pdfPageCommand(DIR, INPUT, 1600, "/tmp/page")).toThrow();
   });
 });
