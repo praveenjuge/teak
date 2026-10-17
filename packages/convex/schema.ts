@@ -473,6 +473,11 @@ export const cardValidator = v.object({
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
   /**
+   * When the person marked this link read, watched, bought or otherwise
+   * done (`is:done`). Not the processing stages' `completedAt`.
+   */
+  completedAt: v.optional(v.number()),
+  /**
    * Derived from `tags` (shared/tags.ts `isHiddenTagList`): the card carries
    * a reserved tag and is left out of lists until a search names that tag.
    */

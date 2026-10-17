@@ -98,6 +98,12 @@ const setCardFavoriteForUserArgs = {
   isFavorited: v.boolean(),
 } as const;
 
+const setCardDoneForUserArgs = {
+  userId: v.string(),
+  cardId: v.id("cards"),
+  done: v.boolean(),
+} as const;
+
 const cardReferenceArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
@@ -529,6 +535,21 @@ export const setCardFavoriteForUser = internalMutation({
       cardId: args.cardId,
       field: "isFavorited",
       value: args.isFavorited,
+    });
+    return getCardForUserHandler(ctx, userId, args.cardId);
+  },
+});
+
+/** Marks a link done (`POST /done`) or not (`DELETE /done`); idempotent. */
+export const setCardDoneForUser = internalMutation({
+  args: setCardDoneForUserArgs,
+  returns: v.union(v.null(), cardReturnValidator),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    await updateCardFieldForUserHandler(ctx, {
+      userId,
+      cardId: args.cardId,
+      field: args.done ? "done" : "undone",
     });
     return getCardForUserHandler(ctx, userId, args.cardId);
   },

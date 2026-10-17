@@ -49,6 +49,7 @@ import {
 } from "./search/semanticCache";
 import type { TeakUserId } from "./securitySessions";
 import {
+  matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
@@ -92,6 +93,8 @@ export interface SearchOptions {
   /** Best match: keep the search's own order instead of sorting by date. */
   keepSearchOrder?: boolean;
   limit?: number;
+  /** `is:done`: only cards marked done. */
+  done?: boolean;
   /** `text:` values: each must be in a card's image text (`aiOcrText`). */
   ocrTexts?: string[];
   phrases?: string[];
@@ -108,6 +111,8 @@ export interface SearchOptions {
   styleFilters?: string[];
   tag?: string;
   tags?: string[];
+  /** `is:todo`: only actionable links that aren't done. */
+  todo?: boolean;
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }
@@ -252,6 +257,16 @@ export const matchesStructuredFilters = (
   if (
     options.ocrTexts?.length &&
     !matchesImageText(card.aiOcrText, options.ocrTexts)
+  ) {
+    return false;
+  }
+
+  if (
+    (options.done || options.todo) &&
+    !matchesDoneState(card, {
+      done: options.done === true,
+      todo: options.todo === true,
+    })
   ) {
     return false;
   }
@@ -488,8 +503,10 @@ export const normalizeCardsQueryOptions = (args: {
   archivedInTrash?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
+  done?: boolean;
   ocrTexts?: string[];
   phrases?: string[];
+  todo?: boolean;
   prices?: PriceBound[];
   sites?: string[];
   tags?: string[];
@@ -515,6 +532,8 @@ export const normalizeCardsQueryOptions = (args: {
     archivedInTrash: args.archivedInTrash === true && args.showTrashOnly,
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
+    done: args.done === true || undefined,
+    todo: args.todo === true || undefined,
     ocrTexts: args.ocrTexts?.length ? args.ocrTexts : undefined,
     phrases: args.phrases?.length ? args.phrases : undefined,
     prices: args.prices?.length ? args.prices : undefined,

@@ -184,6 +184,24 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     cli: ["cards thumbnail"],
   },
   {
+    operationId: "markCardDone",
+    feature: "Mark a link done",
+    mcp: ["teak_v1_set_card_done"],
+    sdk: ["cards.setDone"],
+    cli: ["cards done", "done"],
+  },
+  {
+    operationId: "unmarkCardDone",
+    feature: "Unmark a link done",
+    mcp: {
+      none: "teak_v1_set_card_done with done: false calls it; one tool sets both states",
+    },
+    sdk: {
+      none: "cards.setDone(id, false) calls it; one method sets both states",
+    },
+    cli: ["cards done", "done"],
+  },
+  {
     operationId: "setCardFavorite",
     feature: "Favorite a card",
     mcp: ["teak_v1_set_card_favorite"],

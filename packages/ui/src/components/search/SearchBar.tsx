@@ -22,6 +22,8 @@ import {
   Aperture,
   Archive,
   Banknote,
+  Circle,
+  CircleCheck,
   CircleSlash,
   Clock,
   Droplets,
@@ -165,12 +167,19 @@ export const QUALIFIER_ICONS = {
   text: ScanText,
 } as const;
 
+/** `is:` values with their own icon; favorites use the star. */
+const IS_ICONS: Partial<Record<string, typeof Tag>> = {
+  archived: Archive,
+  done: CircleCheck,
+  todo: Circle,
+};
+
 const suggestionIcon = (suggestion: SearchSuggestion) => {
   if (suggestion.type) {
     return getFilterIcon(suggestion.type);
   }
-  if (suggestion.key === "is" && suggestion.insert === "is:archived") {
-    return Archive;
+  if (suggestion.key === "is") {
+    return IS_ICONS[suggestion.insert.slice("is:".length)] ?? Star;
   }
   return QUALIFIER_ICONS[suggestion.key];
 };
@@ -409,8 +418,8 @@ export function SearchBar({
     let Icon: typeof Tag = QUALIFIER_ICONS[qualifier.key];
     if (qualifier.key === "type") {
       Icon = getFilterIcon(qualifier.value);
-    } else if (qualifier.key === "is" && qualifier.value === "archived") {
-      Icon = Archive;
+    } else if (qualifier.key === "is") {
+      Icon = IS_ICONS[qualifier.value] ?? Star;
     } else if (unknownFolder) {
       Icon = CircleSlash;
     }

@@ -62,6 +62,8 @@ Special tokens work automatically:
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
 | **Type** | `type:link`, `type:images` | Cards of that type |
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
+| **Done** | `is:done` | Links you marked read, watched, bought or done |
+| **To do** | `is:todo` | Articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done |
 | **Site** | `site:github.com` | Links from that website, and text saved from its pages |
 | **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
 | **Price** | `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, `price:=0` | Product links whose price is under, over or exactly that amount |
@@ -146,6 +148,12 @@ Deleted cards go to trash first. Restore them, or delete permanently (including 
 ### Archive
 
 Archive a card to keep it out of your library without deleting it. Right-click it in the grid, or open it and choose **Archive**. Open **Archive** from the sidebar (or type `archive` and press Enter) to see archived cards, and **Unarchive** to bring one back. Archived cards stay out of search, favorites, filters, and tags until you return them, and they still count toward your card limit. Moving an archived card to Trash and restoring it puts it back in Archive.
+
+### Read, watch and buy
+
+Mark a link done when you've finished with it. Open the link and click the circle beside the heart: it says **Mark as read** for an article or book, **Mark as watched** for a film or show, **Mark as listened** for a podcast or music, **Mark as bought** for a product, **Mark as cooked** for a recipe, **Mark as played** for a game, and **Mark as done** for anything else. A toast lets you undo it, and the link's tile shows a check.
+
+Search `is:todo` to see what's left: the articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done. When there's nothing left, Teak says **Nothing left to do.** Search `is:done` to see what you've finished. Both work in smart folders too, so `is:todo folder:"Reading list"` is a folder of what's left to read there. Only links can be marked done.
 
 ### Hidden cards
 

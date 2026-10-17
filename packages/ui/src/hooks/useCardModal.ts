@@ -1,5 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { captureEvent } from "@teak/convex/shared/analytics";
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
@@ -93,10 +95,14 @@ export function useCardModal(
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
+  /** The done state just asked for, shown until the card catches up. */
+  const [pendingDone, setPendingDone] = useState<boolean | undefined>();
+  const doneInFlight = useRef(false);
 
   if (editsCardId !== cardId) {
     setEditsCardId(cardId);
     setPendingChanges({});
+    setPendingDone(undefined);
     setSavedValues({});
     setTagInput("");
     setIsSaved(false);
@@ -128,6 +134,21 @@ export function useCardModal(
           updatedAt: now,
         });
         updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
+        break;
+      }
+
+      case "done":
+      case "undone": {
+        const setDone = (card: Doc<"cards">): Doc<"cards"> =>
+          card.type === "link"
+            ? {
+                ...card,
+                completedAt:
+                  field === "done" ? (card.completedAt ?? now) : undefined,
+                updatedAt: now,
+              }
+            : card;
+        updateCardInSearchQueries(localStore, updateCardId, setDone);
         break;
       }
 
@@ -356,6 +377,59 @@ export function useCardModal(
     });
   }, [card, config.onCardUpdate, updateField]);
 
+  /**
+   * Marks a link read, watched, bought or done, or not, at once, with an
+   * undo toast. A failed write puts the toggle back.
+   */
+  const setDone = useCallback(
+    async (done: boolean, { isUndo = false } = {}) => {
+      if (!(cardId && card?.type === "link") || doneInFlight.current) {
+        return;
+      }
+      const category = card.metadata?.linkCategory?.category;
+      const verb = doneActionLabel(category);
+      doneInFlight.current = true;
+      setPendingDone(done);
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: done ? "done" : "undone",
+        });
+        captureEvent("card_done_toggled", {
+          category: category ?? "none",
+          done,
+          source: "panel",
+        });
+        if (!isUndo) {
+          toast.success(done ? `Marked as ${verb}` : `Marked as not ${verb}`, {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                void setDone(!done, { isUndo: true });
+              },
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Failed to update done state:", error);
+        toast.error("Couldn't update. Try again.");
+        config.onError?.(error as Error, "update done state");
+      } finally {
+        doneInFlight.current = false;
+        setPendingDone(undefined);
+      }
+    },
+    [card, cardId, config.onError, updateCardField]
+  );
+
+  const toggleDone = useCallback(() => {
+    if (!card) {
+      return;
+    }
+    const isDone = pendingDone ?? card.completedAt !== undefined;
+    void setDone(!isDone);
+  }, [card, pendingDone, setDone]);
+
   const removeAiTag = useCallback(
     (tagToRemove: string) => {
       void updateField("removeAiTag", undefined, tagToRemove);
@@ -566,14 +640,19 @@ export function useCardModal(
     if (!card) {
       return null;
     }
+    let completedAt = card.completedAt;
+    if (pendingDone !== undefined) {
+      completedAt = pendingDone ? (card.completedAt ?? Date.now()) : undefined;
+    }
     return {
       ...card,
+      completedAt,
       isFavorited:
         pendingChanges.isFavorited === undefined
           ? card.isFavorited
           : pendingChanges.isFavorited,
     } satisfies CardWithUrls;
-  }, [card, pendingChanges.isFavorited]);
+  }, [card, pendingChanges.isFavorited, pendingDone]);
 
   return {
     card: cardWithOptimisticUpdates,
@@ -585,6 +664,7 @@ export function useCardModal(
     updateTitle,
     updateAiSummary,
     toggleFavorite,
+    toggleDone,
     removeAiTag,
     addTag,
     removeTag,

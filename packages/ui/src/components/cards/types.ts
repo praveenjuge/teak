@@ -40,6 +40,8 @@ export interface CardWithUrls {
   aiSummary?: string;
   colors?: Array<{ hex: string }>;
   compactUrl?: string;
+  /** When a link was marked read, watched, bought or done. */
+  completedAt?: number;
   content?: string;
   detailUrl?: string;
   fileKey?: string;
@@ -63,6 +65,7 @@ export interface CardWithUrls {
   metadata?: {
     linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
     linkCategory?: {
+      category?: string;
       facts?: Array<{ label: string; value: string }>;
       price?: { amount: number; currency?: string };
     };

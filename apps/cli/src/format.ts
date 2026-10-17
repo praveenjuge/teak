@@ -72,6 +72,7 @@ export const formatDetail = (card: Card) =>
     `created: ${new Date(card.createdAt).toISOString()}`,
     `updated: ${new Date(card.updatedAt).toISOString()}`,
     card.isFavorited ? "favorite: yes" : null,
+    card.completedAt ? `done: ${new Date(card.completedAt).toISOString()}` : null,
     card.isHidden ? "hidden: yes (search #secret or #hidden)" : null,
     card.isDeleted ? "in trash: yes" : null,
     card.url ? `url: ${card.url}` : null,

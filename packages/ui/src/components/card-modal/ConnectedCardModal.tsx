@@ -63,6 +63,7 @@ export function ConnectedCardModal({
     updateNotes,
     updateTitle,
     toggleFavorite,
+    toggleDone,
     addTag,
     removeTag,
     removeAiTag,
@@ -156,6 +157,7 @@ export function ConnectedCardModal({
         tagInput,
       }}
       toggleArchive={toggleArchive}
+      toggleDone={toggleDone}
       toggleFavorite={toggleFavorite}
       updateContent={updateContent}
       updateNotes={updateNotes}

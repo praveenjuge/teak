@@ -31,6 +31,7 @@ import {
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { LINK_CATEGORIES, type LinkCategory } from "./shared/linkCategories";
 import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
@@ -534,6 +535,7 @@ export const FOLDER_SCENARIOS = [
   "ocr-images",
   "ocr-documents",
   "ocr-links",
+  "done-states",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1553,6 +1555,127 @@ const ocrLinksPack = (): FolderScenarioPack => {
   };
 };
 
+/** When the done-states pack marks its done links done. */
+const DONE_STATES_DONE_AT = Date.UTC(2026, 9, 10);
+
+/**
+ * Links for read, watched and bought states: one per link category, every
+ * other one done; done links in Trash and in Archive; a link still waiting
+ * for its category; done links with 300-character, RTL and CJK titles; and
+ * a "Reading list" folder with a smart folder for what's left in it.
+ */
+const doneStatesPack = (): FolderScenarioPack => {
+  const scenario = "done-states" as const;
+  const link = (
+    index: number,
+    title: string,
+    category: LinkCategory | undefined,
+    extra: Partial<DefaultCardDef> = {},
+    folders: number[] = []
+  ) => {
+    const url = `https://example.com/${scenario}/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", folders, extra),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle: title,
+      ...(category
+        ? {
+            metadata: {
+              linkCategory: {
+                category,
+                fetchedAt: Date.UTC(2026, 9, 1),
+                sourceUrl: url,
+              },
+            },
+          }
+        : {}),
+    };
+  };
+  const done = { completedAt: DONE_STATES_DONE_AT };
+  let index = 1;
+  return {
+    folders: [
+      { name: "Reading list", color: "blue" },
+      {
+        name: "Left to read",
+        color: "green",
+        query: 'is:todo folder:"Reading list"',
+      },
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Done states pack", []),
+      ...LINK_CATEGORIES.map((category, position) =>
+        link(
+          index++,
+          `A ${category.replace("_", " ")} link${position % 2 ? " (done)" : ""}`,
+          category,
+          position % 2 ? done : {},
+          category === "article" || category === "book" ? [0] : []
+        )
+      ),
+      link(index++, "A done article in Trash", "article", {
+        ...done,
+        isDeleted: true,
+      }),
+      link(index++, "A done film in Archive", "movie", {
+        ...done,
+        isArchived: true,
+      }),
+      link(index++, "A link still being read", undefined),
+      link(index++, "x".repeat(300), "book", done),
+      link(index++, "مقالة مقروءة عن تصميم الخطوط", "article", done),
+      link(index++, "読み終えた長編小説の感想", "book", done),
+    ],
+  };
+};
+export const DONE_STATES_IMAGES_SIZE = 1000;
+const DONE_STATES_IMAGES_PAGE_SIZE = 200;
+
+/**
+ * 1,000 images, so `is:todo` has nothing to list. Each page starts with a
+ * link that has no category (never to do), which marks the page as seeded.
+ */
+const doneStatesImagesPage = (page: number): DefaultCardDef[] => {
+  const start = page * DONE_STATES_IMAGES_PAGE_SIZE;
+  const end = Math.min(
+    start + DONE_STATES_IMAGES_PAGE_SIZE,
+    DONE_STATES_IMAGES_SIZE
+  );
+  if (end <= start) {
+    return [];
+  }
+  const marker = `https://example.com/done-states-images#${SCENARIO_MARKER}-${page}`;
+  const images = Array.from({ length: end - start }, (_, offset) => {
+    const index = start + offset;
+    return {
+      type: "image" as const,
+      content: `Image ${String(index).padStart(4, "0")}`,
+      createdAt: FOLDER_SCENARIO_START + index * 60_000,
+      tags: ["scenario-done-states-images"],
+      colors: [{ hex: index % 2 ? "#3b82f6" : "#f59e0b" }],
+      fileMetadata: {
+        fileName: `done-states-${index}.png`,
+        fileSize: 0,
+        mimeType: "image/png",
+        width: 1200,
+        height: 900,
+      },
+    };
+  });
+  return [
+    {
+      type: "link",
+      content: marker,
+      url: marker,
+      metadataTitle: `Done states images, page ${page + 1}`,
+      tags: ["scenario-done-states-images"],
+    },
+    ...images,
+  ];
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
 /** Notes with task lists for checklist sorting. */
@@ -2226,6 +2349,16 @@ const SCENARIOS: Record<string, ScenarioPack> = {
         keyboardMixedScenarioCard(index)
       )
     ),
+  },
+  "done-states": {
+    description:
+      'One link per category, every other one marked done; done links in Trash and Archive; a link with no category yet; done links with 300-character, RTL and CJK titles; and a smart folder `is:todo folder:"Reading list"`.',
+    folders: doneStatesPack,
+  },
+  "done-states-images": {
+    description:
+      "1,000 image cards and no links, so `is:todo` lists nothing. Seed it on an account without links. 200 per page.",
+    cards: doneStatesImagesPage,
   },
   "shuffle-partial": {
     description:

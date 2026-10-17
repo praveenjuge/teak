@@ -1,4 +1,5 @@
 import { type CardType, cardTypes } from "../constants";
+import { ACTIONABLE_LINK_CATEGORIES } from "../linkCategories";
 import { MAX_TAG_KEY_LENGTH, tagKey } from "../tags";
 import { normalizeHexColor } from "../utils/colorUtils";
 import { hostForDisplay, normalizeUrlHost } from "../utils/urlHost";
@@ -18,7 +19,7 @@ export const SEARCH_QUALIFIER_KEYS = [
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
-export type SearchIsValue = "fav" | "archived";
+export type SearchIsValue = "fav" | "archived" | "done" | "todo";
 
 export type PriceComparison = "<" | ">" | "<=" | ">=" | "=";
 
@@ -65,6 +66,8 @@ export interface ParsedSearchQuery {
   archived: boolean;
   /** The query written the one way every surface writes it. */
   canonical: string;
+  /** True with `is:done`: cards marked read, watched, bought or done. */
+  done: boolean;
   /** True with `is:fav`. */
   favorite: boolean;
   /** `folder:` names, trimmed and lowercased like a folder's name key. */
@@ -83,6 +86,11 @@ export interface ParsedSearchQuery {
   sites: string[];
   /** `tag:` and `#tag` values, lowercased. */
   tags: string[];
+  /**
+   * True with `is:todo`: links in a category worth finishing (a book, a
+   * film, a product) that aren't done yet.
+   */
+  todo: boolean;
   /** Plain words, as typed (hex colors like `#fff` stay words). */
   terms: string[];
   /** The words to give the full-text index: plain words and phrase words. */
@@ -103,6 +111,8 @@ const FAVORITE_WORDS = new Set([
   "starred",
 ]);
 const ARCHIVED_WORDS = new Set(["archived", "archive"]);
+const DONE_WORDS = new Set(["done", "completed", "finished"]);
+const TODO_WORDS = new Set(["todo", "to-do"]);
 
 interface RawToken {
   prefix: string;
@@ -282,6 +292,12 @@ const parseQualifier = (
       if (FAVORITE_WORDS.has(word)) {
         return { key, value: "fav" };
       }
+      if (DONE_WORDS.has(word)) {
+        return { key, value: "done" };
+      }
+      if (TODO_WORDS.has(word)) {
+        return { key, value: "todo" };
+      }
       return ARCHIVED_WORDS.has(word) ? { key, value: "archived" } : null;
     }
     case "site": {
@@ -346,7 +362,7 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
 
 /**
  * Reads a search: qualifiers (`tag:`, `#tag`, `type:`, `is:fav`,
- * `is:archived`, `site:`, `folder:`, `price:<100`, `text:"total due"`,
+ * `is:archived`, `is:done`, `is:todo`, `site:`, `folder:`, `price:<100`, `text:"total due"`,
  * `like:<card id>`, `mood:"…"`), quoted phrases and plain words. Keys
  * ignore case and take quoted values (`folder:"Reading list"`). A value a
  * key cannot use, an unknown key and a valid hex color after `#` stay plain
@@ -480,6 +496,8 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     types,
     favorite: is.has("fav"),
     archived: is.has("archived"),
+    done: is.has("done"),
+    todo: is.has("todo"),
     sites,
     folders,
     similarity,
@@ -592,6 +610,31 @@ export const matchesSearchPhrases = (
 };
 
 const WHITESPACE_RUNS = /\s+/g;
+
+/**
+ * `is:done`: the card is marked done. `is:todo`: it isn't, and its link
+ * category is one worth finishing (a book, a film, a product).
+ */
+export const matchesDoneState = (
+  card: {
+    completedAt?: number;
+    metadata?: { linkCategory?: { category?: string } };
+  },
+  parsed: Pick<ParsedSearchQuery, "done" | "todo">
+): boolean => {
+  if (parsed.done && card.completedAt === undefined) {
+    return false;
+  }
+  if (parsed.todo) {
+    const category = card.metadata?.linkCategory?.category;
+    return (
+      card.completedAt === undefined &&
+      category !== undefined &&
+      ACTIONABLE_LINK_CATEGORIES.has(category)
+    );
+  }
+  return true;
+};
 
 /**
  * Whether a card's image text contains every `text:` value, ignoring case

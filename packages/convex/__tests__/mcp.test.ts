@@ -66,6 +66,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
+  "teak_v1_set_card_done",
   "teak_v1_set_card_favorite",
   "teak_v1_set_card_thumbnail",
   "teak_v1_update_card",

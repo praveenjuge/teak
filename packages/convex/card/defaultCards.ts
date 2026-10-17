@@ -55,6 +55,8 @@ export interface DefaultCardDef {
   aiTags?: string[];
   aiTranscript?: string;
   colors?: ReturnType<typeof createColor>[];
+  /** Dev scenario packs only: when the link was marked done. */
+  completedAt?: number;
   content: string;
   /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
@@ -476,6 +478,9 @@ export const insertCompletedCards = async (
       ...(cardDef.isArchived
         ? { isArchived: true as const, archivedAt: timestamp }
         : {}),
+      ...(cardDef.completedAt === undefined
+        ? {}
+        : { completedAt: cardDef.completedAt }),
       ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
       ...(cardDef.runProcessing
         ? {

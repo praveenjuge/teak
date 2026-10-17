@@ -83,6 +83,8 @@ const serializeDisplayMetadata = (card: any) => ({
       })
     ) ?? [],
   linkPreviewTitle: card.metadata?.linkPreview?.title ?? null,
+  /** A plain string: categories are added over time. */
+  linkCategory: card.metadata?.linkCategory?.category ?? null,
   linkPrice: serializeLinkPrice(card.metadata?.linkCategory?.price),
   linkFaviconUrl: card.metadata?.linkPreview?.faviconUrl ?? null,
   fileWidth: card.fileMetadata?.width ?? null,
@@ -127,6 +129,7 @@ const serializeCard = (card: any, requestUrl: string) => ({
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   archivedAt: card.archivedAt ?? null,
+  completedAt: card.completedAt ?? null,
   folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
   isFavorited: Boolean(card.isFavorited),
@@ -159,6 +162,7 @@ const serializeListCard = (
   const base = {
     aiTags: card.aiTags ?? [],
     appUrl: getCardAppUrl(requestUrl, card._id),
+    completedAt: card.completedAt ?? null,
     createdAt: card.createdAt,
     folderIds: card.folderIds ?? [],
     id: card._id,
@@ -597,7 +601,8 @@ const parseCardsQueryOptions = (
 
   // Qualifiers in `q` merge with the plain parameters: `type:` narrows
   // `type`, `tag:` adds to `tag`, `is:fav` sets `favorited`, `is:archived`
-  // reads Archive (or the archived cards in Trash).
+  // reads Archive (or the archived cards in Trash), and `is:done` and
+  // `is:todo` keep links by whether they are done.
   const parsed = parseSearchQuery(query ?? "");
   let resolvedTypes = uniqueTypes;
   let matchesNothing = false;
@@ -607,8 +612,10 @@ const parseCardsQueryOptions = (
       : parsed.types;
     matchesNothing = resolvedTypes.length === 0;
   }
-  // `price:` narrows to links: only they have a price.
-  if (parsed.prices.length > 0) {
+  // `price:`, `is:done` and `is:todo` narrow to links: only they have a
+  // price or are marked done. A card can't be both done and to do.
+  matchesNothing ||= parsed.done && parsed.todo;
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
     matchesNothing ||=
       resolvedTypes.length > 0 && !resolvedTypes.includes("link");
     resolvedTypes = ["link"];
@@ -646,6 +653,7 @@ const parseCardsQueryOptions = (
       ? {
           qualifiers: {
             archivedInTrash: trashed === true && parsed.archived,
+            ...(parsed.done ? { done: true } : {}),
             folderNames: parsed.folders,
             ...(parsed.ocrTexts.length > 0
               ? { ocrTexts: parsed.ocrTexts }
@@ -654,6 +662,7 @@ const parseCardsQueryOptions = (
             prices: parsed.prices,
             sites: parsed.sites,
             tags: tags.slice(1),
+            ...(parsed.todo ? { todo: true } : {}),
           },
         }
       : {}),
@@ -695,6 +704,7 @@ const parseCardRoute = (
   operation:
     | "content"
     | "delete"
+    | "done"
     | "favorite"
     | "get"
     | "patch"
@@ -702,7 +712,8 @@ const parseCardRoute = (
     | "restore"
     | "thumbnail-reset"
     | "thumbnail-set"
-    | "thumbnail-upload";
+    | "thumbnail-upload"
+    | "undone";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -730,6 +741,16 @@ const parseCardRoute = (
 
   if (request.method === "DELETE" && segments.length === 3) {
     return { cardId, operation: "delete" };
+  }
+
+  if (segments.length === 4 && segments[3] === "done") {
+    if (request.method === "POST") {
+      return { cardId, operation: "done" };
+    }
+    if (request.method === "DELETE") {
+      return { cardId, operation: "undone" };
+    }
+    return null;
   }
 
   if (segments.length === 4 && segments[3] === "thumbnail") {

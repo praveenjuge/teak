@@ -12,6 +12,7 @@ import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
+  matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
@@ -168,6 +169,12 @@ export const filterLocalCards = (
         return false;
       }
       if (!matchesImageText(card.aiOcrText, parsed.ocrTexts)) {
+        return false;
+      }
+      if (
+        (parsed.done || parsed.todo) &&
+        !(card.type === "link" && matchesDoneState(card, parsed))
+      ) {
         return false;
       }
       if (

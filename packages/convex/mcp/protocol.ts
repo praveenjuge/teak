@@ -57,7 +57,7 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". Qualifiers combine with the other filters.',
   },
   similarTo: {
     type: "string",
@@ -358,7 +358,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
@@ -475,6 +475,19 @@ export const TEAK_V1_TOOLS = [
         isArchived: { type: "boolean" },
       },
       ["cardId", "isArchived"]
+    ),
+  },
+  {
+    name: "teak_v1_set_card_done",
+    description:
+      "Mark a link card read, watched, listened, bought, cooked, played or done (the word follows its linkCategory), or not done. Only link cards can be marked; completedAt says when. Find what is left with is:todo and what is finished with is:done.",
+    annotations: { title: "Set done", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        done: { type: "boolean" },
+      },
+      ["cardId", "done"]
     ),
   },
   {

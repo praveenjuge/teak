@@ -236,6 +236,7 @@ and replace your local copy.
 | `/v1/cards/:cardId/thumbnail/upload` | Start uploading a new image for a link card with POST |
 | `/v1/cards/:cardId/thumbnail` | Use an uploaded image as a link card's image with PUT, or reset it with DELETE |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
+| `/v1/cards/:cardId/done` | Mark a link done with POST, or not done with DELETE |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
 | `/v1/exports` | Start a ZIP export of your cards with POST |
 | `/v1/exports/latest` | Read the latest export and its download link |
@@ -251,7 +252,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, `text:"total due"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, `text:"total due"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
 <ParamField query="similarTo" type="string">
@@ -377,6 +378,8 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `type:link` | Cards of that type; plurals such as `type:links` work too |
 | `is:fav` | Favorites only, like `favorited=true` |
 | `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
+| `is:done` | Links marked done (`completedAt` set). The search narrows to links |
+| `is:todo` | Links not marked done whose `linkCategory` is `article`, `book`, `movie`, `tv`, `news`, `podcast`, `music`, `product`, `recipe`, `course`, `event`, `app` or `game`. The search narrows to links; `is:done is:todo` returns no cards |
 | `site:github.com` | Links from that host. `www.`, capitals, a port, and a path are ignored, and Unicode hosts match their punycode form; subdomains are separate sites |
 | `folder:Inbox` | Cards in the folder with that name, ignoring case. An unknown name, or a smart folder's, matches no cards |
 | `price:<100` | Links whose `linkPrice.amount` is under 100. Also `>`, `<=`, `>=` and `=`, with a plain number such as `9.99`. The amount is compared in any currency, links without a price never match, and the search narrows to links |
@@ -475,6 +478,16 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 `POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
 
 You can refresh a card once a minute and up to six cards a minute. Past that, the API answers `429 RATE_LIMITED` with `retryAt` and a `Retry-After` header. A card in Trash returns `409 CONFLICT`; restore it first.
+
+## Mark a link done
+
+`POST /v1/cards/:cardId/done` marks a link card done and returns the card with `completedAt` set. Marking it again keeps the first `completedAt`. `DELETE /v1/cards/:cardId/done` clears it and returns the card; a card that isn't done is returned unchanged. Both are safe to retry. Teak's apps word it by the card's `linkCategory`: read for an article, watched for a film, bought for a product, played for a game, and done for anything else. Find what's left with `q=is:todo` and what's finished with `q=is:done`.
+
+| Status | Code | When |
+| --- | --- | --- |
+| `400` | `TYPE_MISMATCH` | The card isn't a link |
+| `404` | `NOT_FOUND` | Another account's card |
+| `409` | `CONFLICT` | The card is in Trash |
 
 ## Replace a link's image
 
