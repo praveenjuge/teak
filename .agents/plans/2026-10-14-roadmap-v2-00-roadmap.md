@@ -205,7 +205,7 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | Phase | Decision | Default in the plan |
 |---|---|---|
 | 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
-| 17 | Replace a link card's thumbnail: built, plan deleted | Smarter cards | — |
+| 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC (shipped this way) |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
 
@@ -221,6 +221,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 5 | Revisit is not offered in Archive or Trash |
 | 5 | "Revisit 20 more" continues the same seed with no repeats; only "Start over" picks a new seed |
 | 6 | The page a card came from is `sourceUrl` and `sourceTitle` in `POST /v1/cards`, beside the existing `source` label |
-| 12 | Embedding infrastructure: built, plan deleted | Search & AI | 10, v1-13 |
+| 12 | The privacy policy wording for search by meaning is approved, and shipped with phase 12 |
 | 15 | Done states are for link cards only |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |
