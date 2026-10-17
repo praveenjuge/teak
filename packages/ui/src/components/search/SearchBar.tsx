@@ -1,4 +1,4 @@
-import type { CardListSort, TimeFilter } from "@teak/convex/shared";
+import type { TimeFilter } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
@@ -52,6 +52,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { LibrarySort } from "../../lib/searchUrlState";
 import { PageHeader } from "../../screens/PageHeader";
 import {
   buildSearchSuggestions,
@@ -102,16 +103,21 @@ export interface SearchBarProps {
   onSaveSearch?: () => void;
   onSearchChange: (value: string) => void;
   /** Shows the sort menu when set. */
-  onSortChange?: (sort: CardListSort) => void;
+  onSortChange?: (sort: LibrarySort) => void;
   /** Shows the card type filter when set. */
   onToggleFilter?: (filter: CardType) => void;
   placeholder?: string;
   /** Accepted qualifiers, each a removable chip. */
   qualifierChips?: string[];
+  /**
+   * Offers Revisit in the sort menu; `"empty"` shows it disabled, for a view
+   * with no cards to deal.
+   */
+  revisit?: "empty" | "ready";
   searchQuery: string;
   /** The title on a `like:` chip: its card's, or why it can't be shown. */
   similarAnchorTitle?: string;
-  sort?: CardListSort;
+  sort?: LibrarySort;
   styleFilters: VisualStyle[];
   /**
    * Tags, folders and sites to suggest while typing. Leave the lists
@@ -259,6 +265,7 @@ export function SearchBar({
   placeholder = "Search everything",
   sort = "newest",
   canSortByRelevance,
+  revisit,
   onSaveSearch,
   onSortChange,
   onReshuffle,
@@ -539,6 +546,7 @@ export function SearchBar({
                 onSaveSearch={onSaveSearch}
                 onSortChange={onSortChange}
                 onToggleType={onToggleFilter}
+                revisit={revisit}
                 sort={sort}
               />
             </div>

@@ -1,6 +1,5 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
-  type CardListSort,
   classifySearchToken,
   formatSearchQualifier,
   parseSearchQuery,
@@ -16,7 +15,12 @@ import type {
   VisualStyle,
 } from "@teak/convex/shared/constants";
 import { type LibraryView, libraryViewFlags } from "../lib/libraryViews";
-import type { SearchUrlState } from "../lib/searchUrlState";
+import {
+  isSeededSort,
+  type LibrarySort,
+  queryOrder,
+  type SearchUrlState,
+} from "../lib/searchUrlState";
 import { semanticSearchText } from "./useSemanticSearch";
 
 /*
@@ -425,7 +429,7 @@ export function applyBackspaceToCardsSearchState(
 
 export interface CardsOrder {
   seed?: number;
-  sort: CardListSort;
+  sort: LibrarySort;
 }
 
 export const nextShuffleSeed = (previous?: number): number => {
@@ -438,12 +442,12 @@ export const orderFromUrl = (
   previous?: CardsOrder
 ): CardsOrder => {
   const sort = state?.sort ?? "newest";
-  if (sort !== "shuffle") {
+  if (!isSeededSort(sort)) {
     return { sort };
   }
   const seed =
     state?.seed ??
-    (previous?.sort === "shuffle" ? previous.seed : undefined) ??
+    (previous && isSeededSort(previous.sort) ? previous.seed : undefined) ??
     nextShuffleSeed();
   return { seed, sort };
 };
@@ -451,11 +455,12 @@ export const orderFromUrl = (
 export const orderQueryArgs = (
   order: CardsOrder
 ): Pick<CardsSearchQueryArgs, "shuffleSeed" | "sort"> => {
-  if (order.sort === "shuffle") {
-    return { shuffleSeed: order.seed, sort: "shuffle" };
+  const { shuffleSeed, sort } = queryOrder(order);
+  if (sort === "shuffle") {
+    return { shuffleSeed, sort };
   }
-  if (order.sort === "oldest" || order.sort === "relevance") {
-    return { sort: order.sort };
+  if (sort === "oldest" || sort === "relevance") {
+    return { sort };
   }
   return {};
 };
@@ -491,13 +496,13 @@ export const initialCardsSearchState = (
 /**
  * The cards query a library view asks for on its first render, before
  * anyone types: the same arguments `useCardsSearchController` starts with.
- * Null for Shuffle without a seed, which picks its seed at random.
+ * Null for Shuffle (or Revisit) without a seed, which picks its seed at random.
  */
 export function initialCardsSearchQueryArgs(
   view: LibraryView,
   urlState?: SearchUrlState
 ): CardsSearchQueryArgs | null {
-  if (urlState?.sort === "shuffle" && urlState.seed === undefined) {
+  if (urlState && isSeededSort(urlState.sort) && urlState.seed === undefined) {
     return null;
   }
   return {

@@ -208,6 +208,30 @@ test("choosing Shuffle picks a seed and reshuffle picks another", async () => {
   expect(controller.urlState).not.toHaveProperty("seed");
 });
 
+test("Revisit queries a Shuffle of its seed and keeps revisit in the URL", async () => {
+  await mount({ q: "", seed: 42, sort: "revisit", tag: "rv20", types: [] });
+  expect(controller.librarySort).toBe("revisit");
+  expect(controller.searchBarProps.sort).toBe("revisit");
+  expect(controller.queryArgs).toMatchObject({
+    shuffleSeed: 42,
+    sort: "shuffle",
+    tag: "rv20",
+  });
+  expect(controller.urlState).toMatchObject({ seed: 42, sort: "revisit" });
+
+  // Start over: a new seed, still revisiting.
+  await act(() => controller.reshuffle());
+  expect(controller.librarySort).toBe("revisit");
+  expect(controller.queryArgs.shuffleSeed).not.toBe(42);
+  expect(controller.urlState.seed).toBe(controller.queryArgs.shuffleSeed);
+
+  // Picking Revisit from Shuffle deals from a new seed.
+  await act(() => controller.setSort("shuffle"));
+  const shuffleSeed = controller.queryArgs.shuffleSeed;
+  await act(() => controller.setSort("revisit"));
+  expect(controller.queryArgs.shuffleSeed).not.toBe(shuffleSeed);
+});
+
 test("shuffle keeps the server's order of cards", async () => {
   await mount({ q: "", seed: 7, sort: "shuffle", types: [] });
   await act(() =>

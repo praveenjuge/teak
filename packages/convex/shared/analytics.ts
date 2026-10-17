@@ -45,6 +45,8 @@ export interface ClientEventCatalog {
   import_completed: NoProperties;
   import_failed: { error_class?: string };
   import_started: NoProperties;
+  revisit_finished: { archived: number; completed: boolean; kept: number };
+  revisit_started: NoProperties;
   search_performed: { zero_result: boolean };
   signed_in: NoProperties;
   similar_search_opened: { source: "panel" };

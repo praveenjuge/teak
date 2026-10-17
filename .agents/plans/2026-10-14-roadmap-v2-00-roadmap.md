@@ -153,7 +153,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 2 | Focus mode for text cards: shipped in #734, plan deleted | Quick wins | — |
 | 3 | Ticked checklist items move down: built, plan deleted | Quick wins | — |
 | 4 | Hidden cards via reserved tags: built, plan deleted | Quick wins | — |
-| 5 | [Revisit view](2026-10-14-roadmap-v2-05-revisit.md) | Quick wins | 4 |
+| 5 | Revisit view: built, plan deleted | Quick wins | — |
 | 6 | [Extension: tags and note after saving, source for Save Text](2026-10-14-roadmap-v2-06-extension-save-details.md) | Quick wins | — |
 | 7 | [Extension address-bar search](2026-10-14-roadmap-v2-07-extension-omnibox.md) | Quick wins | 4 |
 | 8 | [Firefox release](2026-10-14-roadmap-v2-08-firefox-release.md) | Quick wins | 6, 7 |
@@ -204,7 +204,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 
 | Phase | Decision | Default in the plan |
 |---|---|---|
-| 5 | Is Revisit offered in Archive and Trash? | No |
 | 6 | Field names next to the existing `source` key in `POST /v1/cards` | `sourceUrl`, `sourceTitle` |
 | 11 | Should OCR also read the link's `og:image`? The page screenshot is taken with network blocked, so images and fonts don't render | Ask before building |
 | 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
@@ -221,6 +220,8 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 3 | Ticked checklist items move down on the web only. The Apple and Android editors (phases 29 and 31) keep today's order; matching them is not part of those phases unless the owner adds it |
 | 4 | The reserved tags are `secret` and `hidden`, not `private` or `nsfw`, so Teak doesn't copy another app's words |
 | 4 | No announcement for cards that already carry `secret` or `hidden`; the normal changelog entry covers it |
+| 5 | Revisit is not offered in Archive or Trash |
+| 5 | "Revisit 20 more" continues the same seed with no repeats; only "Start over" picks a new seed |
 | 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |
 | 15 | Done states are for link cards only |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

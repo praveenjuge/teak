@@ -1,4 +1,3 @@
-import type { CardListSort } from "@teak/convex/shared";
 import {
   CARD_TYPE_LABELS,
   type CardType,
@@ -28,6 +27,7 @@ import {
   FileText,
   FolderSearch,
   Image,
+  Layers,
   Link as LinkIcon,
   type LucideIcon,
   Palette,
@@ -36,12 +36,14 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
+import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
 
-export const SORT_LABELS: Record<CardListSort, string> = {
+export const SORT_LABELS: Record<LibrarySort, string> = {
   newest: "Newest first",
   oldest: "Oldest first",
   relevance: "Best match",
+  revisit: "Revisit",
   shuffle: "Shuffle",
 };
 
@@ -65,25 +67,32 @@ interface ViewMenuProps {
   /** Offers "Save as smart folder…" while there is a search to keep. */
   onSaveSearch?: () => void;
   /** Shows the Sort section when set. */
-  onSortChange?: (sort: CardListSort) => void;
+  onSortChange?: (sort: LibrarySort) => void;
   /** Shows the card type section when set. */
   onToggleType?: (type: CardType) => void;
-  sort?: CardListSort;
+  /**
+   * Offers Revisit in the Sort section; `"empty"` shows it disabled, as
+   * there are no cards to deal.
+   */
+  revisit?: "empty" | "ready";
+  sort?: LibrarySort;
 }
 
 /**
  * What the View button reads as: "View: Link, Image, oldest first" (or
- * "shuffled").
+ * "shuffled", or "revisiting").
  */
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
-  sort: CardListSort = "newest"
+  sort: LibrarySort = "newest"
 ): string => {
   const parts = activeTypes.map((type) => CARD_TYPE_LABELS[type]);
   if (sort === "oldest") {
     parts.push("oldest first");
   } else if (sort === "shuffle") {
     parts.push("shuffled");
+  } else if (sort === "revisit") {
+    parts.push("revisiting");
   }
   return parts.length > 0 ? `View: ${parts.join(", ")}` : "View";
 };
@@ -101,6 +110,7 @@ export function ViewMenu({
   onSaveSearch,
   onSortChange,
   onToggleType,
+  revisit,
   sort = "newest",
 }: ViewMenuProps) {
   const count = activeTypes.length;
@@ -178,7 +188,7 @@ export function ViewMenu({
               Sort
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup
-              onValueChange={(value) => onSortChange(value as CardListSort)}
+              onValueChange={(value) => onSortChange(value as LibrarySort)}
               value={sort}
             >
               {canSortByRelevance && (
@@ -195,6 +205,21 @@ export function ViewMenu({
               <DropdownMenuRadioItem value="shuffle">
                 {SORT_LABELS.shuffle}
               </DropdownMenuRadioItem>
+              {revisit && (
+                <DropdownMenuRadioItem
+                  className="flex-wrap"
+                  disabled={revisit === "empty"}
+                  value="revisit"
+                >
+                  {SORT_LABELS.revisit}
+                  <Layers className="ml-auto text-muted-foreground" />
+                  {revisit === "empty" && (
+                    <span className="w-full text-muted-foreground text-xs">
+                      Nothing to revisit here
+                    </span>
+                  )}
+                </DropdownMenuRadioItem>
+              )}
             </DropdownMenuRadioGroup>
           </>
         )}

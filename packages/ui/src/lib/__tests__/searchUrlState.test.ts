@@ -4,6 +4,7 @@ import {
   isSameSearchUrlState,
   MAX_URL_SEARCH_LENGTH,
   parseSearchUrlState,
+  queryOrder,
   serializeSearchUrlState,
 } from "../searchUrlState";
 
@@ -90,6 +91,49 @@ describe("shuffle seeds in the URL", () => {
       false
     );
     expect(isSameSearchUrlState(shuffled, { ...shuffled })).toBe(true);
+  });
+});
+
+describe("Revisit in the URL", () => {
+  test("round-trips with its seed, so a reload deals from the same seed", () => {
+    const state = parse("sort=revisit&seed=42&tag=rv20");
+    expect(state).toEqual({
+      q: "",
+      seed: 42,
+      sort: "revisit",
+      tag: "rv20",
+      types: [],
+    });
+    expect(serializeSearchUrlState(state)).toBe(
+      "sort=revisit&seed=42&tag=rv20"
+    );
+  });
+
+  test.each([
+    ["no seed", "sort=revisit"],
+    ["a negative seed", "sort=revisit&seed=-1"],
+    ["text", "sort=revisit&seed=abc"],
+  ])("drops %s and keeps Revisit, for the screen to pick one", (_, query) => {
+    const state = parse(query);
+    expect(state.sort).toBe("revisit");
+    expect(state).not.toHaveProperty("seed");
+  });
+
+  test("queries as a Shuffle of its seed", () => {
+    expect(queryOrder({ seed: 42, sort: "revisit" })).toEqual({
+      shuffleSeed: 42,
+      sort: "shuffle",
+    });
+    expect(queryOrder({ seed: 42, sort: "oldest" })).toEqual({
+      sort: "oldest",
+    });
+  });
+
+  test("is a different search from a Shuffle of the same seed", () => {
+    const revisit = { q: "", seed: 7, sort: "revisit" as const, types: [] };
+    expect(isSameSearchUrlState(revisit, { ...revisit, sort: "shuffle" })).toBe(
+      false
+    );
   });
 });
 

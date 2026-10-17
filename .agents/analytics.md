@@ -32,6 +32,7 @@ Client events (`captureEvent`):
 - `card_create_submitted` {card_type, source, via}
 - `search_performed` {zero_result}
 - `similar_search_opened` {source}: "More like this" in a card's details
+- `revisit_started` and `revisit_finished` {archived, kept, completed}: a Revisit deck opened, then closed or finished. The counts are cards, 0 to 20; `completed` is true when the deck reached its end screen
 - `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog
 - `file_upload_completed` {bucket, size_bucket} and `file_upload_failed` {bucket, size_bucket, error_class}
 - `import_started`, `import_completed`, `import_failed` {error_class}

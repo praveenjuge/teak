@@ -49,6 +49,7 @@ const fromUrl = (
 export function createSearchUrlSync(initial?: SearchUrlState) {
   let read: SearchUrlState | null = initial ?? null;
   let synced: SearchUrlState | null = initial ?? null;
+  let replaceNext = false;
   return {
     /**
      * The router reported `state`. Only a URL that differs from the last one
@@ -89,7 +90,19 @@ export function createSearchUrlSync(initial?: SearchUrlState) {
         return null;
       }
       synced = state;
-      return searchUrlChange(previous, state);
+      const change = searchUrlChange(previous, state);
+      if (replaceNext) {
+        replaceNext = false;
+        return { ...change, sortChanged: false };
+      }
+      return change;
+    },
+    /**
+     * The next settled sort change replaces the URL instead of adding a
+     * history entry: leaving Revisit from a link, or dealing a new seed.
+     */
+    replaceNextSortChange(): void {
+      replaceNext = true;
     },
   };
 }
