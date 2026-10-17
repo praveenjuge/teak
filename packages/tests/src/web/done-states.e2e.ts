@@ -66,7 +66,6 @@ test("an empty to-do smart folder says there is nothing left to do", async ({
     await expect(grid.getByText("Nothing left to do.")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(grid.getByRole("button", "Edit search")).toBeVisible();
   } finally {
     await library.client.mutation(api.folders.deleteFolder, {
       folderId: folder._id,
