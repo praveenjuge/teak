@@ -847,6 +847,22 @@ describe("generating metadata", () => {
       expect(convex.callsTo("card/documentText:saveDocumentText")).toEqual([]);
     });
 
+    test("a scan the model can't describe still keeps the text read from it", async () => {
+      aiResult = { summary: "", tags: [] };
+      const { generate, saved } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": {
+          data: { pageCount: 2, pagesRead: 2, text: "Form 7 · Box 3" },
+        },
+      });
+      await generate("document");
+      expect(saved()).toMatchObject({
+        aiOcrText: "Form 7 · Box 3",
+        aiTags: [],
+        ocrCheckedAt: expect.any(Number),
+      });
+    });
+
     test("a scan with only a short footer is still read", async () => {
       const { fakes, generate } = setup(pdfCard, {
         inspect: {
