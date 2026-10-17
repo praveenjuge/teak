@@ -66,22 +66,6 @@ export const getObjectsPage = internalQuery({
       .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
       .take(100),
 });
-export const forgetObjects = internalMutation({
-  args: { userId: v.string(), ids: v.array(v.id("accountStorageObjects")) },
-  returns: v.null(),
-  handler: async (ctx, { userId, ids }) => {
-    if (ids.length > 100) {
-      throw new Error("storage_cleanup_batch_limit");
-    }
-    for (const id of ids) {
-      const row = await ctx.db.get("accountStorageObjects", id);
-      if (row?.userId === userId) {
-        await ctx.db.delete("accountStorageObjects", id);
-      }
-    }
-    return null;
-  },
-});
 
 export const ensureObjectOwnership = async (
   ctx: Pick<ActionCtx, "runMutation">,

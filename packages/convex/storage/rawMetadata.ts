@@ -4,6 +4,7 @@ import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaFilesWorker } from "./filesWorkerClient";
 import { getR2Url } from "./fileUrls";
 import { buildR2UserPrefix } from "./r2";
+import { sha256Hex } from "./r2Keys";
 
 export const RAW_METADATA_MAX_BYTES = 512 * 1024;
 export type RawMetadataKind = "linkPreview" | "linkCategory";
@@ -50,15 +51,8 @@ export const serializeArchivableRaw = (raw: unknown): string | null => {
     : null;
 };
 
-export const hashRawMetadata = async (json: string): Promise<string> => {
-  const bytes = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(json)
-  );
-  return Array.from(new Uint8Array(bytes), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-};
+export const hashRawMetadata = (json: string): Promise<string> =>
+  sha256Hex(json);
 
 export const rawMetadataKey = (
   card: Pick<Doc<"cards">, "_id" | "userId">,

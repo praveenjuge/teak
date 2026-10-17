@@ -10,7 +10,6 @@ const app = defineApp({
   env: {
     PUBLIC_ORIGIN: v.optional(v.string()),
     SIGNUPS_DISABLED: v.optional(v.string()),
-    ACCOUNT_CHANGES_PAUSED: v.optional(v.string()),
     WORKOS_API_BASE_URL: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_RESOURCE_ORIGIN: v.optional(v.string()),

@@ -97,7 +97,6 @@ struct AccountSection: View {
                 }
                 #if os(iOS)
                 deleteButton
-                pausedNotice
                 logOutButton
                 errorText
                 #endif
@@ -109,7 +108,6 @@ struct AccountSection: View {
                     Spacer()
                     logOutButton
                 }
-                pausedNotice
                 errorText
             }
             #endif
@@ -138,25 +136,15 @@ struct AccountSection: View {
 
     private var deleteButton: some View {
         Button(isWorking ? "Deleting…" : "Delete Account", role: .destructive) {
-            if app.authMode?.accountChangesPaused == true {
-                error = TeakMessages.accountChangesPaused
-            } else {
-                confirmDelete = true
-            }
+            confirmDelete = true
         }
-        .disabled(isWorking || app.authMode?.accountChangesPaused == true)
+        .disabled(isWorking)
     }
 
     private var logOutButton: some View {
         Button("Log Out") { confirmLogOut = true }
             .tint(.primary)
             .accessibilityIdentifier("settings.logOut")
-    }
-
-    @ViewBuilder private var pausedNotice: some View {
-        if app.authMode?.accountChangesPaused == true {
-            Text(TeakMessages.accountChangesPaused).font(.footnote).foregroundStyle(.secondary)
-        }
     }
 
     @ViewBuilder private var errorText: some View {
@@ -189,8 +177,6 @@ struct AccountSection: View {
             defer { isWorking = false }
             do {
                 try await app.deleteAccount()
-            } catch let failure as TeakError where failure.message == TeakMessages.accountChangesPaused {
-                error = failure.message
             } catch {
                 self.error = "Something went wrong while deleting your account."
             }

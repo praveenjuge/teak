@@ -6,6 +6,7 @@ import {
   takeOwnedCards,
 } from "./accountDeletion";
 import { cardStorageObjectKeys } from "./storage/r2";
+import { sha256Hex } from "./storage/r2Keys";
 
 export type DeletionBatchKind =
   | "cards"
@@ -96,13 +97,9 @@ export async function captureDeletionBatch(
     keys = objects.map((row) => row.key);
   }
   keys = [...new Set(keys)];
-  const bytes = new TextEncoder().encode(
+  const fingerprint = await sha256Hex(
     JSON.stringify({ kind, rows, keys, aborts })
   );
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const fingerprint = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
   return { rows, keys, aborts, fingerprint, cardIds };
 }
 

@@ -102,5 +102,3 @@ export function createUploadQueue(
     },
   };
 }
-
-export type UploadQueue = ReturnType<typeof createUploadQueue>;

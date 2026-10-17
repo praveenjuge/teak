@@ -29,15 +29,13 @@ describe("skills drift", () => {
     expect(existsSync(join(ROOT, ".agents/skills"))).toBe(true);
   });
 
-  test("every locked convex skill resolves to the canonical source", () => {
+  test("every locked skill is installed in the canonical source", () => {
     const lock = JSON.parse(
       readFileSync(join(ROOT, "skills-lock.json"), "utf-8")
     ) as { skills: Record<string, { ref?: string; source?: string }> };
-    const convex = Object.entries(lock.skills).filter(([, skill]) =>
-      skill.source?.startsWith("get-convex/")
-    );
-    expect(convex.length).toBeGreaterThan(0);
-    for (const [name] of convex) {
+    const names = Object.keys(lock.skills);
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
       expect(
         existsSync(join(ROOT, ".agents/skills", name, "SKILL.md")),
         `${name} is locked but missing from .agents/skills`

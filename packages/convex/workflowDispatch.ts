@@ -35,7 +35,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "./storage/filesWorkerClient";
-import { hmacSha256Hex, isR2KeyInNamespace } from "./storage/r2Keys";
+import { hmacSha256Hex, isR2KeyInNamespace, sha256Hex } from "./storage/r2Keys";
 
 // Background work runs on Cloudflare Workflows and Queues in the Files
 // Worker. Mutations record it here, in the same transaction as the change
@@ -391,14 +391,6 @@ export const release = internalMutation({
 
 /** A dispatch proof stays valid this long. */
 const DISPATCH_PROOF_TTL_SECONDS = 120;
-
-const sha256Hex = async (text: string): Promise<string> =>
-  Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
-    ),
-    (byte) => byte.toString(16).padStart(2, "0")
-  ).join("");
 
 /**
  * Proves to the Worker that this deployment sent the items, so it only

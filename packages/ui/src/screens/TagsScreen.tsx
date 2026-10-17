@@ -54,7 +54,7 @@ const SORT_LABELS: Record<TagSort, string> = {
   name: "Name",
 };
 
-export const libraryTagHref = (name: string) =>
+const libraryTagHref = (name: string) =>
   `${LIBRARY_VIEW_PATHS.all}?${new URLSearchParams({ tag: name })}`;
 
 export interface TagsScreenProps {

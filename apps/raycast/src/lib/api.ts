@@ -1,8 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
+import type {
+  CreateCardInput,
+  UpdateCardInput as SdkUpdateCardInput,
+} from "teak-sdk";
 import {
   buildCardsSearchParams,
-  DEFAULT_LIMIT,
   RaycastApiError,
   type RaycastApiErrorCode,
   toErrorCode,
@@ -63,26 +66,11 @@ export interface CardSearchInput {
 
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
-export interface CreateCardInput {
-  cardType?: RaycastCardType;
-  content?: string;
-  fileEtag?: string;
-  fileKey?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-  notes?: string | null;
-  source?: string;
-  tags?: string[];
-  url?: string;
-}
+export type { CreateCardInput } from "teak-sdk";
 
-export interface UpdateCardInput {
-  content?: string;
-  notes?: string | null;
+// teak-sdk 1.0.81 predates removing Teak's own tags on update.
+export interface UpdateCardInput extends SdkUpdateCardInput {
   removeAiTags?: string[];
-  tags?: string[];
-  url?: string;
 }
 
 const getErrorCodeFromResponse = (
@@ -346,7 +334,6 @@ export const searchCards = (
     `/cards?${buildCardsSearchParams({
       ...input,
       include: CARD_DETAIL_INCLUDE,
-      limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
     parseCardsPageResponse,
     {
@@ -364,7 +351,6 @@ export const getFavoriteCards = (
       ...input,
       favorited: true,
       include: CARD_DETAIL_INCLUDE,
-      limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
     parseCardsPageResponse,
     {

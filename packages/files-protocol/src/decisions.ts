@@ -139,10 +139,6 @@ export interface FilesRelevanceResult extends FilesDecisionFacts {
   scores: Array<{ id: string; score: number }>;
 }
 
-/** Clef question ids: letters, digits, `_`, `.`, `-`, at most 100. */
-export const isDecisionQuestionId = (value: string): boolean =>
-  /^[A-Za-z0-9_.-]{1,100}$/u.test(value);
-
 const isFiniteProbability = (value: unknown): value is number =>
   typeof value === "number" &&
   Number.isFinite(value) &&

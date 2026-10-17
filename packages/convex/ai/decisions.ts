@@ -17,7 +17,6 @@ import { aiUsageParams } from "./usage";
  * rules' answer, so a decision can never fail a card or a search.
  */
 export const CARD_PROCESSING_DECISION_TIMEOUT_MS = 3000;
-export const SEARCH_DECISION_TIMEOUT_MS = 1500;
 
 type DecisionOp = Extract<
   FilesOp,

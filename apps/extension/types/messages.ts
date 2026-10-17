@@ -12,9 +12,6 @@ export const MESSAGE_TYPES = {
   SAVE_POST: "TEAK_SAVE_POST",
 } as const;
 
-export type TeakMessageType =
-  (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
-
 export type SaveContentSource = "popup-auto-save" | "context-menu";
 
 export interface GetAuthStateRequest {

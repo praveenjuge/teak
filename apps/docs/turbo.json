@@ -1,6 +1,5 @@
 {
   "extends": ["//"],
-  "tags": ["app"],
   "tasks": {
     "build": {
       "env": ["TEAK_DEV_API_URL"],

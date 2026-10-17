@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { sha256 } from "./publicApiHttpShared";
 import { workosIssuer } from "./shared/workosApi";
+import { sha256Hex } from "./storage/r2Keys";
 
 export const workosDeletionTargetValidator = v.object({
   environmentId: v.string(),
@@ -28,7 +28,7 @@ export interface WorkosDeletionTarget {
 }
 
 export const workosCredentialFingerprint = (apiKey: string): Promise<string> =>
-  sha256(apiKey);
+  sha256Hex(apiKey);
 
 export async function currentWorkosDeletionTarget(): Promise<
   WorkosDeletionTarget | undefined

@@ -1,13 +1,13 @@
 /**
- * Leaf storage primitives: R2 key-namespace helpers and HMAC signing.
+ * Leaf storage primitives: R2 key-namespace helpers, SHA-256 hashing and
+ * HMAC signing.
  *
  * This module must not import from any other `storage/*` module.
  * `storage/r2` is heavily mocked in tests (see
  * `__tests__/helpers/r2Mock.test-utils.ts`) while `storage/filesWorkerClient`
  * is imported for real alongside those mocks, so anything imported from the
  * mocked surface risks a named-export link error depending on test execution
- * order. Keep every export here pure and dependency-free; `storage/r2`
- * re-exports them for backward compatibility.
+ * order. Keep every export here pure and dependency-free.
  */
 
 import { filesExportKeyRoot, filesUserKeyRoot } from "@teak/files-protocol";
@@ -53,6 +53,15 @@ const hexEncode = (buffer: ArrayBuffer): string =>
   Array.from(new Uint8Array(buffer), (byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
+
+/** Lowercase hex SHA-256 of a string (as UTF-8) or of raw bytes. */
+export const sha256Hex = async (value: string | ArrayBuffer): Promise<string> =>
+  hexEncode(
+    await crypto.subtle.digest(
+      "SHA-256",
+      typeof value === "string" ? new TextEncoder().encode(value) : value
+    )
+  );
 
 export const hmacSha256Hex = async (
   secret: string,

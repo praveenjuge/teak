@@ -20,6 +20,7 @@ import {
 } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
+import { sha256Hex } from "./storage/r2Keys";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
 const API_KEY_ACCESS = "full_access" as const;
@@ -170,16 +171,6 @@ const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
 // only re-check, read-only, that the key is still active. Revoking through
 // this module also deletes the key's cache rows.
 const API_KEY_AUTH_CACHE_TTL_MS = 60_000;
-
-const sha256Hex = async (value: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value)
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-};
 
 const forgetApiKeyAuth = async (
   ctx: MutationCtx,

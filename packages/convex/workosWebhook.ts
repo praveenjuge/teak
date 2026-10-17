@@ -10,6 +10,7 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
+import { sha256Hex } from "./storage/r2Keys";
 import { authKit } from "./workosAuthKit";
 import { INVALID_WORKOS_EVENT, parseWorkosEvent } from "./workosLifecycle";
 
@@ -84,14 +85,7 @@ const deadLetterKey = async (id: unknown) => {
   if (typeof id === "string" && id.length > 0 && id.length <= 256) {
     return id;
   }
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(JSON.stringify(id) ?? String(id))
-  );
-  const hex = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-  return `sha256:${hex}`;
+  return `sha256:${await sha256Hex(JSON.stringify(id) ?? String(id))}`;
 };
 
 export const ingestWorkosEvent = async (

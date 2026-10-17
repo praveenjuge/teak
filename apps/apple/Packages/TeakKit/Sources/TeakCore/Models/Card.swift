@@ -376,13 +376,11 @@ public struct CurrentUser: Decodable, Sendable, Hashable {
 public struct AuthMode: Codable, Sendable, Hashable {
     public let primary: String
     public let signupsDisabled: Bool
-    public let accountChangesPaused: Bool
     public let authKitClientId: String?
 
-    public init(primary: String = "workos", signupsDisabled: Bool, accountChangesPaused: Bool, authKitClientId: String?) {
+    public init(primary: String = "workos", signupsDisabled: Bool, authKitClientId: String?) {
         self.primary = primary
         self.signupsDisabled = signupsDisabled
-        self.accountChangesPaused = accountChangesPaused
         self.authKitClientId = authKitClientId
     }
 

@@ -1,3 +1,4 @@
+export { formatBytes } from "../shared/utils/formatBytes";
 export {
   type AuthDiscovery,
   discoverAuthServer,
@@ -231,16 +232,38 @@ export interface FolderCardsResult {
   updatedIds: string[];
 }
 export interface CreateCardInput {
+  /**
+   * Optional card type: `text`, `link`, `image`, `video`, `audio`,
+   * `document`, `palette` or `quote`. Set it to `text` to store raw Markdown
+   * exactly; omit it to keep automatic URL, quote, and palette detection.
+   * @default inferred
+   */
   cardType?: CardType;
+  /**
+   * Markdown or plain text body for the card. Prefer this for notes; use `url`
+   * when saving a link.
+   */
   content?: string;
+  /** The `ETag` the upload `PUT` returned, for a file card. */
   fileEtag?: string;
+  /** The `fileKey` from `uploads.create`, for a file card. */
   fileKey?: string;
+  /** The uploaded file's name, for a file card. */
   fileName?: string;
+  /** The uploaded file's size in bytes, for a file card. */
   fileSize?: number;
+  /** The uploaded file's MIME type, for a file card. */
   mimeType?: string;
+  /** Free-form notes attached to the card. */
   notes?: string | null;
+  /** Where the card was saved from (extension, CLI, API, and so on). */
   source?: string;
+  /** Tags to apply on create. */
   tags?: string[];
+  /**
+   * URL to save as a link card. Teak may classify the type automatically when
+   * `cardType` is omitted.
+   */
   url?: string;
 }
 export interface UpdateCardInput {

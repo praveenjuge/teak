@@ -8,7 +8,6 @@
  */
 import { resolve } from "node:path";
 import {
-  ACCOUNT_CHANGES_PAUSED_MESSAGE,
   CARD_ERROR_MESSAGES,
   CARD_TYPE_LABELS,
   COLOR_HUE_ALIAS_MAP,
@@ -52,7 +51,6 @@ export const buildSharedConstants = () => ({
   },
   messages: {
     signupsPaused: SIGNUPS_PAUSED_MESSAGE,
-    accountChangesPaused: ACCOUNT_CHANGES_PAUSED_MESSAGE,
   },
   cardErrorMessages: CARD_ERROR_MESSAGES,
   visualStyles: [...VISUAL_STYLE_TAXONOMY],

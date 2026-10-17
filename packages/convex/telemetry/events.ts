@@ -71,20 +71,3 @@ export const emitCardProcessingFailed = internalAction({
     return null;
   },
 });
-
-// Run as a workflow step, so its name and arguments stay stable for journals.
-export const emitWorkflowCompletion = internalAction({
-  args: {
-    cardId: v.string(),
-    cardType: v.string(),
-    durationMs: v.number(),
-  },
-  returns: v.object({ sent: v.boolean() }),
-  handler: async (_ctx, args) => {
-    await captureBackendEvent("card_processing_completed", undefined, {
-      card_type: args.cardType,
-      duration_ms: args.durationMs,
-    });
-    return { sent: true };
-  },
-});

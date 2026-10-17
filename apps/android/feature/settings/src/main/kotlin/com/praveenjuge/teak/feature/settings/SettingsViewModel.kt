@@ -9,7 +9,6 @@ import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.model.CurrentUser
-import com.praveenjuge.teak.core.model.TeakMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +26,6 @@ data class SettingsUiState(
     val email: String? = null,
     val usage: String? = null,
     val plan: String? = null,
-    val accountChangesPaused: Boolean = false,
     val deleteStep: DeleteStep = DeleteStep.None,
     val isDeleting: Boolean = false,
     val isSigningOut: Boolean = false,
@@ -50,8 +48,7 @@ class SettingsViewModel @Inject constructor(
         preferences.theme,
         account.session,
         account.currentUser,
-        account.authMode,
-    ) { local, theme, session, user, mode ->
+    ) { local, theme, session, user ->
         val current: CurrentUser? = user.getOrNull()
         local.copy(
             theme = theme,
@@ -62,7 +59,6 @@ class SettingsViewModel @Inject constructor(
                 else -> current.usageLabel
             },
             plan = current?.plan,
-            accountChangesPaused = mode?.accountChangesPaused == true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -83,10 +79,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun requestDelete() {
-        if (uiState.value.accountChangesPaused) {
-            local.update { it.copy(error = TeakMessages.ACCOUNT_CHANGES_PAUSED) }
-            return
-        }
         local.update { it.copy(deleteStep = DeleteStep.Warning, error = null) }
     }
 
@@ -101,12 +93,9 @@ class SettingsViewModel @Inject constructor(
             catchingFailures { account.deleteAccount() }
                 .onSuccess { local.update { it.copy(isDeleting = false) } }
                 .onFailure {
-                    val message = if (uiState.value.accountChangesPaused) {
-                        TeakMessages.ACCOUNT_CHANGES_PAUSED
-                    } else {
-                        "Something went wrong while deleting your account."
+                    local.update {
+                        it.copy(isDeleting = false, error = "Something went wrong while deleting your account.")
                     }
-                    local.update { it.copy(isDeleting = false, error = message) }
                 }
         }
     }

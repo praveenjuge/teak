@@ -7,8 +7,6 @@
 
 import type { FilesScrapeResult } from "./rendering";
 
-/** Largest page body read; larger pages fail with `too_large`. */
-export const FILES_LINK_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 export const FILES_LINK_PAGE_MAX_URL_LENGTH = 4096;
 
 export interface FilesLinkPageParams {

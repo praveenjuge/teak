@@ -3,7 +3,6 @@ import {
   buildCardsSearchParams,
   getRecoveryHint,
   getUserFacingErrorMessage,
-  normalizeLimit,
   RaycastApiError,
   toErrorCode,
 } from "../lib/apiErrors";
@@ -36,10 +35,27 @@ describe("raycast api helpers", () => {
     ).toBe("include=content%2Cmetadata&limit=10");
   });
 
-  test("normalizeLimit clamps limits to backend contract", () => {
-    expect(normalizeLimit(0)).toBe(1);
-    expect(normalizeLimit(101)).toBe(100);
-    expect(normalizeLimit(Number.NaN)).toBe(50);
+  test.each([
+    [0, "limit=1"],
+    [101, "limit=100"],
+    [Number.NaN, "limit=50"],
+    [undefined, "limit=50"],
+  ])("buildCardsSearchParams clamps limit %p to %s", (limit, params) => {
+    expect(buildCardsSearchParams({ limit })).toBe(params);
+  });
+
+  test("buildCardsSearchParams keeps Trash and color filters", () => {
+    expect(
+      buildCardsSearchParams({
+        hex: ["#112233"],
+        hue: ["blue", "teal"],
+        limit: 20,
+        style: ["minimal"],
+        trashed: true,
+      }),
+    ).toBe(
+      "limit=20&trashed=true&style=minimal&hue=blue&hue=teal&hex=%23112233",
+    );
   });
 
   test("toErrorCode falls back for unknown values", () => {

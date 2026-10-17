@@ -1,6 +1,5 @@
 /** Canonical text/link metadata policy shared by Convex and Files Worker. */
 export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
-export const LINK_METADATA_MODEL_ID = TEXT_METADATA_MODEL_ID;
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;

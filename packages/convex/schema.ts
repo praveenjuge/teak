@@ -597,8 +597,7 @@ export default defineSchema({
     externalId: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_eventId", ["eventId"])
-    .index("by_workosUserId_and_type", ["workosUserId", "type"])
-    .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+    .index("by_workosUserId_and_type", ["workosUserId", "type"]),
   workosApplicationDisconnects: defineTable({
     recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     operationId: v.string(),
@@ -637,11 +636,6 @@ export default defineSchema({
     disconnectCompletedAt: v.optional(v.number()),
   })
     .index("by_consentId", ["consentId"])
-    .index("by_workosUserId_and_clientId_and_revokedAt", [
-      "workosUserId",
-      "clientId",
-      "revokedAt",
-    ])
     .index("by_workosUserId_and_clientId_and_disconnectCompletedAt", [
       "workosUserId",
       "clientId",
@@ -649,10 +643,7 @@ export default defineSchema({
     ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
-    .index("by_type_derivative_version", ["type", "derivativeVersion"])
-    .index("by_type_derivative_checked", ["type", "derivativeCheckedAt"])
     .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
-    .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
     .index("by_user_deleted_archived_created", [
@@ -762,9 +753,7 @@ export default defineSchema({
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
-    .index("by_userId_and_dueAt", ["userId", "dueAt"])
-    .index("by_dueAt", ["dueAt"])
-    .index("by_pendingVectorDeleteAt", ["pendingVectorDeleteAt"]),
+    .index("by_userId_and_dueAt", ["userId", "dueAt"]),
   vectorShards: defineTable({
     userId: v.string(),
     shard: v.number(),
@@ -929,17 +918,14 @@ export default defineSchema({
     generation: v.optional(v.number()),
     nextAttemptAt: v.optional(v.number()),
     failureCode: v.optional(v.string()),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_nextAttemptAt", ["nextAttemptAt"]),
+  }).index("by_userId", ["userId"]),
   accountStorageObjects: defineTable({
     userId: v.string(),
     key: v.string(),
     exportJobId: v.optional(v.id("exportJobs")),
   })
     .index("by_userId_and_key", ["userId", "key"])
-    .index("by_key", ["key"])
-    .index("by_exportJobId", ["exportJobId"]),
+    .index("by_key", ["key"]),
   cardSearchDocuments: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
@@ -1001,34 +987,6 @@ export default defineSchema({
       "cardCreatedAt",
       "cardId",
     ])
-    .index("by_user_tag_deleted_type", [
-      "userId",
-      "tag",
-      "isDeleted",
-      "type",
-      "cardCreatedAt",
-      "cardId",
-    ])
-    .index("by_user_tag_deleted_favorited", [
-      "userId",
-      "tag",
-      "isDeleted",
-      "isFavorited",
-      "cardCreatedAt",
-      "cardId",
-    ])
-    .index("by_user_tag_deleted_type_favorited", [
-      "userId",
-      "tag",
-      "isDeleted",
-      "type",
-      "isFavorited",
-      "cardCreatedAt",
-      "cardId",
-    ])
-    // Library and Archive tag reads. Trash and "archived and not" reads keep
-    // the indexes above, which ignore isArchived; those are dropped once the
-    // readers move here (roadmap Phase 19).
     .index("by_user_tag_deleted_archived_created_v2", [
       "userId",
       "tag",
@@ -1088,7 +1046,6 @@ export default defineSchema({
     tagCountsChanged: v.optional(v.boolean()),
   })
     .index("by_cardId", ["cardId"])
-    .index("by_pending", ["pending"])
     .index("by_userId_and_pending", ["userId", "pending"]),
   operationalRetentionStates: defineTable({
     kind: v.literal("idempotency"),
@@ -1146,13 +1103,6 @@ export default defineSchema({
       "fileSize",
       "fileLastModified",
     ])
-    .index("by_identity_file", [
-      "identityKey",
-      "fileName",
-      "fileSize",
-      "fileLastModified",
-    ])
-    .index("by_identity_status", ["identityKey", "status"])
     .index("by_source_key", ["sourceKey"])
     .index("by_expires_at", ["expiresAt"]),
   adminAuditLog: defineTable({

@@ -101,15 +101,3 @@ export const callFilesOp = async <T>(
     `files_worker_error:${code}:${String(response.status)}:${requestId}`
   );
 };
-
-/** The op's data, or throws when it declined. */
-export const requireFilesOp = async <T>(
-  env: FilesOpsEnv,
-  spec: { op: FilesOp; params: Record<string, unknown> }
-): Promise<T> => {
-  const outcome = await callFilesOp<T>(env, spec);
-  if (outcome.kind === "fallback") {
-    throw new Error(`files_worker_fallback:${outcome.code}:${outcome.message}`);
-  }
-  return outcome.data;
-};

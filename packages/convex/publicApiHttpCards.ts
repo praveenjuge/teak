@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { readDocumentText } from "./card/documentText";
-import { relevanceCursorRanked } from "./publicApi";
+import { relevanceCursorRanked } from "./publicApiCursors";
 import {
   completeIdempotencyResponse,
   type IdempotencyState,

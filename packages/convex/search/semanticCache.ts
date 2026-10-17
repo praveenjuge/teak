@@ -8,6 +8,7 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { SEMANTIC_TOP_K } from "../shared/search/semantic";
+import { sha256Hex } from "../storage/r2Keys";
 
 /**
  * A search's meaning matches, kept briefly so every page, re-render and
@@ -41,15 +42,8 @@ export interface SemanticEntry {
  * version, so the table never holds what someone searched for and a new
  * model never reuses an old ranking.
  */
-export const semanticSearchKey = async (text: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(`${CARD_EMBEDDING_VERSION}\n${text}`)
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-};
+export const semanticSearchKey = (text: string): Promise<string> =>
+  sha256Hex(`${CARD_EMBEDDING_VERSION}\n${text}`);
 
 const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
   ctx.db

@@ -199,6 +199,23 @@ describe("teak cards", () => {
     expect(bare.stdout).toContain("price: 24.5");
   });
 
+  test("get prints a file card's name and readable size", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", {
+          fileName: "notes.pdf",
+          fileSize: 4_812_000,
+          type: "document",
+        })
+      )
+    );
+
+    const result = await teak("cards", "get", "card_a");
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("file: notes.pdf (4.6 MB)");
+  });
+
   test("delete moves every id to trash and says so", async () => {
     routes.set(
       "DELETE /v1/cards/card_a",

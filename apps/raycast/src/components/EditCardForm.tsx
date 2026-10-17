@@ -8,6 +8,7 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useMemo, useState } from "react";
+import { parseTags } from "teak-sdk";
 import type { RaycastCard } from "../lib/api";
 import {
   getRecoveryHint,
@@ -28,16 +29,6 @@ interface EditCardFormValues {
 }
 
 const EDITABLE_CONTENT_TYPES = new Set(["text", "quote"]);
-
-const parseTags = (value: string): string[] =>
-  Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-    ),
-  );
 
 export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
   const { pop } = useNavigation();
@@ -79,7 +70,7 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
           content,
           notes: values.notes.trim() ? values.notes.trim() : null,
           removeAiTags: removeAiTags.length > 0 ? removeAiTags : undefined,
-          tags: parseTags(values.tags),
+          tags: parseTags(values.tags) ?? [],
         },
         "prompt",
       );

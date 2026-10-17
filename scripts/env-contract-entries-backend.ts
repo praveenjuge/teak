@@ -12,17 +12,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Migration sign-up freeze. Unset means sign-ups remain open.",
   }),
-  spec("ACCOUNT_CHANGES_PAUSED", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "enum",
-    allowedValues: ["true", "false"],
-    providers: ["convex-dashboard"],
-    required: false,
-    note: "Migration account-change pause. Unset means account changes remain available.",
-  }),
   spec("WORKOS_CLIENT_ID", {
     owners: ["@teak/convex", "@teak/web"],
     targets: ["convex", "web"],
