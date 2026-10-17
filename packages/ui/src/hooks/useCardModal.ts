@@ -363,9 +363,10 @@ export function useCardModal(
     [updateField]
   );
 
-  // The card's tags as they are now, for an Undo that runs after later edits.
-  const latestTags = useRef(card?.tags);
-  latestTags.current = card?.tags;
+  // The open card and its tags as they are now, for an Undo that runs after
+  // later edits; the dialog may since show another card, or none.
+  const latestTags = useRef<{ cardId?: string | null; tags?: string[] }>({});
+  latestTags.current = { cardId, tags: card?.tags };
 
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
@@ -380,20 +381,25 @@ export function useCardModal(
           toast(`Hidden. Search #${tag} to see it.`, {
             action: {
               label: "Undo",
-              // Remove only the tag added here, keeping any later edits.
-              onClick: () =>
+              // Remove only the tag added here. While the dialog still shows
+              // this card, keep its later edits; otherwise start from the
+              // tags this edit wrote. `updateField` is this card's.
+              onClick: () => {
+                const base =
+                  latestTags.current.cardId === cardId
+                    ? (latestTags.current.tags ?? [])
+                    : newTags;
                 void updateField(
                   "tags",
-                  (latestTags.current ?? []).filter(
-                    (existing) => existing !== tag
-                  )
-                ),
+                  base.filter((existing) => existing !== tag)
+                );
+              },
             },
           });
         }
       });
     }
-  }, [card, tagInput, updateField]);
+  }, [card, cardId, tagInput, updateField]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
