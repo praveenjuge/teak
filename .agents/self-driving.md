@@ -36,3 +36,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - **Backend Deploy failed on main** (#712, run 38792427700): `tsc --noEmit` error in `accountDeletionStorage.test.ts(444)` (test-only; `runMutation` stub typed `never`). Blocks every backend deploy until fixed; prod backend lacked #712. Fixed by a test typing PR. Lesson: the Backend Deploy typecheck covers test files; check `list_workflow_runs` for Backend Deploy on main every run.
 - Files worker `$exception`s: Vectorize `returnMetadata: expected value` (10 events, 17:31–17:32 IST on 10-15) predates the fix in #711 (19:37 IST), none after. `VECTOR_UPSERT_ERROR 40041 Too Many Requests` (4, backfill burst) — transient, watch for repeats; consider backoff in the backfill if it recurs. Two web `searchCardsPaginated` Server Errors likely the same Vectorize issue.
 - Check tomorrow: Backend Deploy green on main; zero `VECTOR_QUERY_ERROR`; any more 40041.
+
+### 2026-10-17
+- Inbox empty. Backend Deploy green on main (latest run 38955390547). Product health (24h): 17 `card_created`, 192 `card_processing_completed`, zero failure events.
+- Exceptions: 19 `VECTOR_UPSERT_ERROR 40041` from one burst at 07:57 UTC on 10-16, before the batching/retry fix merged at 09:31 UTC (`fix(convex): batch card embeds`, `vectors.ts` retry); none since. Check as measured: fix held. One transient Durable Object "Connection closed" in the files worker; watch for repeats.
+- Tip: `last` is a reserved word in HogQL; alias it `lastseen`. The GitHub `actions_list` output is huge; read the saved file with python.
+- Nothing fixed, nothing merged. Check tomorrow: zero 40041 after 10-16 09:31 UTC; DO "Connection closed" recurrence.
