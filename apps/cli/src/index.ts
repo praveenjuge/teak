@@ -173,6 +173,8 @@ const createCard = async (
   options: ClientOptions & {
     file?: string;
     notes?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
     tags?: string;
     type?: string;
     url?: string;
@@ -291,6 +293,11 @@ const withAddOptions = (command: Command) =>
     .option("--file <path>", "upload a file")
     .option("--tags <tags>", "comma-separated tags")
     .option("--notes <notes>", "notes to add to the card")
+    .option(
+      "--source-url <url>",
+      "the page the text came from; it stays text, not a link"
+    )
+    .option("--source-title <title>", "the title of that page")
     .option(
       "--type <type>",
       "card type; omit to let Teak detect links, quotes, and palettes",

@@ -1064,6 +1064,42 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
+  test("create_card sends the page a text card came from", async () => {
+    const captured: Array<{ body?: unknown }> = [];
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        return Response.json({ cardId: "card_1", status: "created" });
+      }
+    );
+    const tool = TEAK_V1_TOOLS.find(
+      (entry) => entry.name === "teak_v1_create_card"
+    );
+    expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual(
+      expect.arrayContaining(["sourceTitle", "sourceUrl"])
+    );
+
+    const result = await callTeakV1Tool(
+      "teak_v1_create_card",
+      {
+        cardType: "text",
+        content: "A quote",
+        sourceTitle: "An essay",
+        sourceUrl: "https://example.com/essay",
+      },
+      mcpRequest({ jsonrpc: "2.0", id: 42, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(captured[0]?.body).toEqual({
+      cardType: "text",
+      content: "A quote",
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+    });
+  });
+
   test("returns a validation error for incomplete file-card input", async () => {
     const executor = mock(async () =>
       Response.json({ status: "created", cardId: "unexpected" })

@@ -18,6 +18,7 @@ import {
 import { AUDIO_WAVEFORM } from "./card/onboarding/processed";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
+import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
   CLOUD_DEV_ACCOUNT_EMAIL_RANGE,
@@ -528,6 +529,7 @@ export const FOLDER_SCENARIOS = [
   "checklists",
   "hidden-mix",
   "revisit-sizes",
+  "save-details",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1097,6 +1099,73 @@ const focusNotesPack = (): FolderScenarioPack => {
   };
 };
 
+/** The page the extension's duplicate check finds, with tags and a note. */
+export const SAVE_DETAILS_SAVED_URL = "https://example.com/already-saved";
+
+/**
+ * Text saved from pages (Save Text), for the "From" row, the grid footer and
+ * `site:`; a link with its own page beside a source; and a page already saved
+ * with tags and a note, which the popup fills in.
+ */
+const saveDetailsPack = (): FolderScenarioPack => {
+  const scenario = "save-details" as const;
+  const quote = (
+    index: number,
+    content: string,
+    sourceUrl: string,
+    sourceTitle?: string
+  ) =>
+    folderScenarioCard(scenario, index, content, [], {
+      sourceTitle,
+      sourceUrl,
+    });
+  const link = (
+    index: number,
+    url: string,
+    extra: Partial<DefaultCardDef> = {}
+  ) => ({
+    ...folderScenarioCard(scenario, index, "", [], extra),
+    type: "link" as const,
+    content: url,
+    url,
+  });
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Save details pack", []),
+      quote(
+        1,
+        "Simplicity is a great virtue, but it requires hard work to achieve it.",
+        "https://www.example.com/essays/simplicity",
+        "On simplicity"
+      ),
+      quote(
+        2,
+        "A selection from a page whose title runs to 300 characters.",
+        "https://example.org/a-very-long-title",
+        longName("Title")
+      ),
+      quote(
+        3,
+        "اقتباس قصير من صفحة مكتوبة من اليمين إلى اليسار.",
+        "https://example.net/rtl",
+        "عنوان الصفحة باللغة العربية"
+      ),
+      quote(4, "A line from an international site.", "https://例え.jp/page"),
+      link(5, SAVE_DETAILS_SAVED_URL, {
+        metadataTitle: "A page already saved",
+        notes: "Saved earlier, with a note.",
+        tags: [`scenario-${scenario}`, "design", "reading"],
+      }),
+      link(6, "https://github.com/acme/design-system", {
+        metadataTitle: "A link found on another page",
+        sourceTitle: "Where I found it",
+        sourceUrl: "https://example.com/where-i-found-it",
+      }),
+    ],
+  };
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
 /** Notes with task lists for checklist sorting. */
@@ -1607,7 +1676,34 @@ const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
 type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DefaultCardDef[] }
   | { folders: () => FolderScenarioPack }
+  /** Tops the library up to this many active cards. */
+  | { fillTo: number }
 );
+
+const FILL_START = Date.UTC(2025, 0, 1);
+
+/** Text cards that bring the library to `target` active cards, at most. */
+const fillScenarioCards = async (
+  ctx: MutationCtx,
+  userId: string,
+  target: number
+) => {
+  const active = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q) =>
+      q.eq("userId", userId).eq("isDeleted", undefined)
+    )
+    .take(target);
+  return Array.from(
+    { length: Math.max(0, target - active.length) },
+    (_, index): DefaultCardDef => ({
+      type: "text",
+      content: `Filler card ${index + 1}`,
+      createdAt: FILL_START + index * 60_000,
+      tags: ["scenario-card-limit"],
+    })
+  );
+};
 
 const firstPageOnly = (cards: DefaultCardDef[]) => (page: number) =>
   page === 0 ? cards : [];
@@ -1688,6 +1784,15 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "Revisit deck sizes: tags rv1, rv19, rv20 and rv21 mixing every card type (a very tall image, video, audio, a 300-character title), each with one secret card a deck must never deal; rv0 holds only that hidden card. Seed ordering too for 1,000 cards.",
     folders: revisitSizesPack,
   },
+  "save-details": {
+    description: `Text saved from pages (one at www.example.com, a 300-character and an RTL page title, an international host), a link with a source beside its own URL, and ${SAVE_DETAILS_SAVED_URL} already saved with tags and a note for the extension's duplicate check.`,
+    folders: saveDetailsPack,
+  },
+  "card-limit-199": {
+    description:
+      "Fills a free account's library to 199 cards, one under the free limit, so the next save is its last. Run it again after saving and it adds nothing.",
+    fillTo: FREE_TIER_LIMIT - 1,
+  },
   "hidden-mix-1000": {
     description:
       "The ordering pack's 1,000 cards with every fifth (200) tagged secret, for paging and Shuffle past hidden cards. 200 per page.",
@@ -1762,6 +1867,20 @@ export const seedScenario = internalMutation({
     }
     if ("folders" in pack) {
       return await seedFolderScenario(ctx, owner.teakUserId, pack.folders());
+    }
+    if ("fillTo" in pack) {
+      const filler = await fillScenarioCards(
+        ctx,
+        owner.teakUserId,
+        pack.fillTo
+      );
+      if (filler.length === 0) {
+        return { status: "already_seeded" as const, cards: 0 };
+      }
+      await insertCompletedCards(ctx, owner.teakUserId, filler, {
+        ignoreCardLimit: true,
+      });
+      return { status: "seeded" as const, cards: filler.length };
     }
     const cards = pack.cards(page);
     if (cards.length === 0) {

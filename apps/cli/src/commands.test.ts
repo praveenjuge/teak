@@ -679,6 +679,28 @@ describe("teak batch and fallback behavior", () => {
     });
   });
 
+  test("add --source-url keeps a quote as text and sends its page", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_q", status: "created" })
+    );
+    const result = await teak(
+      "add",
+      "A line worth keeping",
+      "--source-url",
+      "https://example.com/essay",
+      "--source-title",
+      "An essay"
+    );
+    expect(result.code).toBe(0);
+    const body = JSON.parse(requests[0]?.body ?? "{}");
+    expect(body).toMatchObject({
+      content: "A line worth keeping",
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+    });
+    expect(body).not.toHaveProperty("url");
+  });
+
   test("add with only a URL argument sends no duplicate content", async () => {
     routes.set("POST /v1/cards", () =>
       json({ appUrl: "https://app/", cardId: "card_l", status: "created" })

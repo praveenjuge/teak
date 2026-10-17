@@ -191,6 +191,38 @@ describe("@teak/convex/sdk", () => {
     });
   });
 
+  test("create sends a text card's sourceUrl and sourceTitle", async () => {
+    let requestBody: unknown;
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_url, init) => {
+        requestBody = JSON.parse(String(init?.body));
+        return Promise.resolve(
+          Response.json({
+            appUrl: "https://app.example/?card=card_1",
+            cardId: "card_1",
+            status: "created",
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    await client.cards.create({
+      cardType: "text",
+      content: "A quote",
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+    });
+
+    expect(requestBody).toEqual({
+      cardType: "text",
+      content: "A quote",
+      sourceTitle: "An essay",
+      sourceUrl: "https://example.com/essay",
+    });
+  });
+
   test("search uses the canonical list transport with full-card fields", async () => {
     const seenUrls: string[] = [];
     const client = createTeakClient({

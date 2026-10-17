@@ -573,6 +573,23 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain(">Oat milk, lemons, basil<");
   });
 
+  test("shows the site a note was saved from under it", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "text",
+            url: undefined,
+            content: "A line worth keeping",
+            sourceUrl: "https://www.example.com/essay?ref=1",
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">example.com<");
+    expect(markup).not.toContain("ref=1");
+  });
+
   test("names an audio card's recording and its length", () => {
     const markup = renderToStaticMarkup(
       <Card

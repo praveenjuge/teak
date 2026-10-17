@@ -139,6 +139,16 @@ export interface Card {
   placeholderUrl: string | null;
   processingStatus: Record<string, unknown> | null;
   screenshotUrl: string | null;
+  /**
+   * The title of the page in `sourceUrl`. Servers that predate sources
+   * leave it out.
+   */
+  sourceTitle?: string | null;
+  /**
+   * The page the card was saved from, such as the page a quote was selected
+   * on. Servers that predate sources leave it out.
+   */
+  sourceUrl?: string | null;
   tags: string[];
   /** True when linkPreviewImageUrl is an image chosen for the link. */
   thumbnailOverridden: boolean;
@@ -262,8 +272,19 @@ export interface CreateCardInput {
   mimeType?: string;
   /** Free-form notes attached to the card. */
   notes?: string | null;
-  /** Where the card was saved from (extension, CLI, API, and so on). */
+  /**
+   * A free label for what saved the card (extension, CLI, API, and so on),
+   * kept in its metadata. For the page the card came from, use `sourceUrl`.
+   */
   source?: string;
+  /** The page's title, beside `sourceUrl`; cut to 300 characters. */
+  sourceTitle?: string;
+  /**
+   * The page the card came from, such as the page a quote was selected on:
+   * an http or https URL of at most 2,048 characters. Unlike `url`, it never
+   * makes the card a link.
+   */
+  sourceUrl?: string;
   /** Tags to apply on create. */
   tags?: string[];
   /**

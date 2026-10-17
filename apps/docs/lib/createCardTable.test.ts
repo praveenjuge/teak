@@ -22,6 +22,8 @@ describe("API guide create-card table", () => {
       "content",
       "notes",
       "source",
+      "sourceTitle",
+      "sourceUrl",
       "tags",
       "url",
     ]);

@@ -4,6 +4,7 @@
 // `notifications/*` and `tools/list` at the edge with exactly what
 // mcp/httpServer.ts answers (apps/files-worker/src/mcpEdge.ts).
 
+import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
   FOLDER_COLORS,
@@ -202,7 +203,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_create_card",
     description:
-      "Create a card from text, a URL, or a completed file upload. cardType is optional and inferred when omitted; Teak detects links, quotes and palettes. Pass idempotencyKey to make retries safe.",
+      "Create a card from text, a URL, or a completed file upload. cardType is optional and inferred when omitted; Teak detects links, quotes and palettes. sourceUrl and sourceTitle record the page a text or quote came from without making it a link. Pass idempotencyKey to make retries safe.",
     annotations: { title: "Create card", ...WRITES },
     inputSchema: inputSchema({
       cardType: { enum: MCP_CARD_TYPES },
@@ -215,6 +216,12 @@ export const TEAK_V1_TOOLS = [
       mimeType: { type: "string", minLength: 1 },
       notes: { type: ["string", "null"] },
       source: { type: "string", minLength: 1 },
+      sourceTitle: { type: "string" },
+      sourceUrl: {
+        type: "string",
+        minLength: 1,
+        maxLength: MAX_SOURCE_URL_LENGTH,
+      },
       tags: { type: "array", items: { type: "string" } },
       url: { type: "string", minLength: 1 },
     }),

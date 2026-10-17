@@ -151,6 +151,99 @@ describe("parseCreatePayload", () => {
   });
 });
 
+describe("parseCreatePayload: sourceUrl and sourceTitle", () => {
+  test("keeps a text card's page, trimmed, with its title", () => {
+    expect(
+      parseCreatePayload({
+        cardType: "text",
+        content: "A quote worth keeping",
+        sourceTitle: "  An essay  ",
+        sourceUrl: " https://example.com/essay ",
+      })
+    ).toMatchObject({
+      payload: {
+        sourceTitle: "An essay",
+        sourceUrl: "https://example.com/essay",
+      },
+    });
+  });
+
+  test("cuts a long title to 300 characters", () => {
+    const result = parseCreatePayload({
+      content: "x",
+      sourceTitle: "t".repeat(500),
+      sourceUrl: "https://example.com",
+    });
+    expect("payload" in result && result.payload.sourceTitle).toBe(
+      "t".repeat(300)
+    );
+  });
+
+  test("leaves out a blank title", () => {
+    const result = parseCreatePayload({
+      content: "x",
+      sourceTitle: "   ",
+      sourceUrl: "https://example.com",
+    });
+    expect("payload" in result && "sourceTitle" in result.payload).toBe(false);
+  });
+
+  test("allows a page beside a link's url", () => {
+    expect(
+      parseCreatePayload({
+        sourceUrl: "https://example.com/where-i-found-it",
+        url: "https://example.org/the-link",
+      })
+    ).toMatchObject({
+      payload: {
+        sourceUrl: "https://example.com/where-i-found-it",
+        url: "https://example.org/the-link",
+      },
+    });
+  });
+
+  test.each([
+    [
+      "a javascript: sourceUrl",
+      { content: "x", sourceUrl: "javascript:alert(1)" },
+      "`sourceUrl` must use the http or https scheme",
+    ],
+    [
+      "a 3,000-character sourceUrl",
+      { content: "x", sourceUrl: `https://example.com/${"a".repeat(3000)}` },
+      "`sourceUrl` must be at most 2048 characters",
+    ],
+    [
+      "a sourceUrl that isn't a string",
+      { content: "x", sourceUrl: 42 },
+      "`sourceUrl` must be a string",
+    ],
+    [
+      "a blank sourceUrl",
+      { content: "x", sourceUrl: "  " },
+      "`sourceUrl` cannot be blank",
+    ],
+    [
+      "a title without a sourceUrl",
+      { content: "x", sourceTitle: "An essay" },
+      "`sourceTitle` needs a `sourceUrl`",
+    ],
+    [
+      "a sourceUrl with an uploaded file",
+      {
+        fileKey: "uploads/abc",
+        fileName: "a.pdf",
+        mimeType: "application/pdf",
+        sourceUrl: "https://example.com",
+      },
+      "`sourceUrl` can't be sent with an uploaded `fileKey`",
+    ],
+  ])("explains %s", (_label: string, payload: unknown, error: string) => {
+    const result = parseCreatePayload(payload);
+    expect("error" in result && result.error).toBe(error);
+  });
+});
+
 describe("validateUploadPayload", () => {
   test("accepts a named file with a size and type", () => {
     expect(

@@ -80,6 +80,8 @@ export interface CardWithUrls {
   screenshotUrl?: string;
   scrubKey?: string;
   scrubUrl?: string;
+  /** The page a text card was saved from. */
+  sourceUrl?: string;
   thumbnailKey?: string;
   thumbnailOverride?: { height: number; storageKey: string; width: number };
   thumbnailUrl?: string;

@@ -75,6 +75,9 @@ export const formatDetail = (card: Card) =>
     card.isHidden ? "hidden: yes (search #secret or #hidden)" : null,
     card.isDeleted ? "in trash: yes" : null,
     card.url ? `url: ${card.url}` : null,
+    card.sourceUrl
+      ? `from: ${card.sourceTitle ? `${card.sourceTitle} <${card.sourceUrl}>` : card.sourceUrl}`
+      : null,
     card.linkPrice
       ? `price: ${formatLinkPrice(
           {

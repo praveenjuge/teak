@@ -1,6 +1,12 @@
 import { API_IDEMPOTENCY_KEY_TTL_MS } from "@teak/convex/shared/constants";
 import { getCaptureOwner } from "../lib/captureOwner";
 import {
+  createDraftKeeper,
+  createPatchQueue,
+  loadSaveDetails,
+} from "../lib/cardDetails";
+import { isCardId, isPatchCardPayload } from "../lib/cardPatch";
+import {
   beginOAuthSignIn,
   getOAuthState,
   initializeAuth,
@@ -17,6 +23,7 @@ import {
   waitingSaveIds,
 } from "../lib/pendingSaves";
 import { toContextMenuStatus } from "../lib/popupStatus";
+import { clearRecentTags, rememberTags } from "../lib/recentTags";
 import { isRestrictedUrl, restrictedUrlMessage } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
@@ -24,9 +31,13 @@ import { captureExtensionEvent, reportUncaughtErrors } from "../lib/telemetry";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
+  type CardPatchResponse,
   MESSAGE_TYPES,
+  type PatchCardPayload,
+  SAVE_DETAILS_PORT,
   type SaveAssetRequest,
   type SaveContentRequest,
+  type SaveDetailsResponse,
   type SavePostRequest,
   type TeakRuntimeRequest,
   type TeakSaveResponse,
@@ -38,6 +49,17 @@ import {
 } from "../types/social";
 
 const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
+const queuePatch = createPatchQueue();
+
+/** Sends a popup's tags and note, and remembers the tags it used. */
+async function patchCard(payload: PatchCardPayload) {
+  const result = await queuePatch(payload);
+  const owner = await getCaptureOwner();
+  if (result.status === "updated" && payload.tags && owner) {
+    await rememberTags(owner, payload.tags);
+  }
+  return result;
+}
 const RETRY_SAFE_WINDOW_MS = API_IDEMPOTENCY_KEY_TTL_MS - 60 * 60 * 1000;
 
 function runPendingSave(
@@ -309,6 +331,10 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
         boundedString(value.platform, 64) &&
         boundedString(value.postKey, 8192)
       );
+    case MESSAGE_TYPES.PATCH_CARD:
+      return isPatchCardPayload(value);
+    case MESSAGE_TYPES.LOAD_SAVE_DETAILS:
+      return isCardId(value.cardId) && typeof value.existing === "boolean";
     default:
       return false;
   }
@@ -324,6 +350,24 @@ export default defineBackground(() => {
 
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
   chrome.runtime.onMessage.addListener(handleRuntimeMessage);
+  chrome.runtime.onConnect.addListener(handleSaveDetailsPort);
+
+  // The popup's tags and note still unsaved when it closes land from here.
+  function handleSaveDetailsPort(port: chrome.runtime.Port) {
+    if (
+      port.name !== SAVE_DETAILS_PORT ||
+      port.sender?.id !== chrome.runtime.id ||
+      port.sender?.url !== chrome.runtime.getURL("popup.html")
+    ) {
+      port.disconnect();
+      return;
+    }
+    const keeper = createDraftKeeper(patchCard);
+    port.onMessage.addListener((message) => keeper.update(message));
+    port.onDisconnect.addListener(() => {
+      void keeper.flush().catch(() => undefined);
+    });
+  }
 
   function createContextMenus() {
     chrome.contextMenus.removeAll(() => {
@@ -356,6 +400,7 @@ export default defineBackground(() => {
     }
 
     const action = info.menuItemId as ContextMenuAction;
+    let errorCode: string | undefined;
 
     try {
       if (isRestrictedUrl(tab.url)) {
@@ -385,7 +430,14 @@ export default defineBackground(() => {
           ? await queueSave({ kind: "asset", assetUrl: content })
           : await queueSave({
               kind: "content",
-              input: { content, source: "context-menu" },
+              input: {
+                content,
+                source: "context-menu",
+                // A selection keeps the page it came from.
+                ...(action === "save-text"
+                  ? { sourceTitle: tab.title, sourceUrl: tab.url }
+                  : {}),
+              },
             });
       if (saveResult.status === "unauthenticated") {
         await chrome.storage.local.remove("contextMenuSave");
@@ -395,6 +447,7 @@ export default defineBackground(() => {
 
       const status = toContextMenuStatus(saveResult);
       if (status === "error") {
+        errorCode = saveResult.status === "error" ? saveResult.code : undefined;
         throw new Error(buildContextMenuErrorMessage(saveResult));
       }
       await chrome.storage.local.set({
@@ -410,6 +463,7 @@ export default defineBackground(() => {
           timestamp: Date.now(),
           status: "error",
           error: errorMessage,
+          ...(errorCode ? { code: errorCode } : {}),
         },
       });
     }
@@ -420,7 +474,13 @@ export default defineBackground(() => {
   function handleRuntimeMessage(
     message: unknown,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: AuthStateResponse | TeakSaveResponse) => void
+    sendResponse: (
+      response?:
+        | AuthStateResponse
+        | CardPatchResponse
+        | SaveDetailsResponse
+        | TeakSaveResponse
+    ) => void
   ): boolean | undefined {
     if (!isRuntimeRequest(message)) {
       return;
@@ -504,6 +564,7 @@ export default defineBackground(() => {
           }
           if (message.type === MESSAGE_TYPES.SIGN_OUT) {
             await signOutOAuth();
+            await clearRecentTags();
           } else {
             await beginOAuthSignIn();
             await resumePendingSaves();
@@ -521,6 +582,16 @@ export default defineBackground(() => {
               ? { ...state, pendingCount: (await listWaitingSaveIds()).length }
               : { authenticated: state.authenticated }
           );
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.PATCH_CARD) {
+          sendResponse(await patchCard(message.payload));
+          return;
+        }
+
+        if (message.type === MESSAGE_TYPES.LOAD_SAVE_DETAILS) {
+          sendResponse(await loadSaveDetails(message.payload));
           return;
         }
 

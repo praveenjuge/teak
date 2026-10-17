@@ -31,6 +31,14 @@ When you open either extension popup, Teak automatically saves the current page.
 
 In Chrome and Chromium browsers, choose **Upload file** in the popup to save a supported local file up to 100 MB.
 
+### Add tags and a note after saving
+
+In Chrome and Chromium browsers, once the page is saved, the popup shows **Add tags** and **Add a note** under it. If the page was already in your library, they show its current tags and note so you can change them.
+
+- Type a tag and press Enter or comma. Your most used tags, and the ones you used last in the extension, are suggested as you type.
+- Tags and the note save when you press Enter, leave the field, or close the popup. The popup stays open once you click into either field.
+- Tags can be up to 64 characters. If a change can't be saved, the popup keeps what you typed and offers **Retry**.
+
 ## Chrome and Chromium Features
 
 ### Context Menu
@@ -40,8 +48,10 @@ Right-click anywhere on a page to access quick-save actions:
 | Menu item              | What it saves                                      |
 | ---------------------- | -------------------------------------------------- |
 | **Save Page to Teak**  | The current URL                                    |
-| **Save Text to Teak**  | The selected text (creates a text card)            |
+| **Save Text to Teak**  | The selected text, as a text card that links back to its page |
 | **Save Asset to Teak** | A safely downloadable image, video, audio, or file |
+
+Text saved this way keeps the page it came from. The card shows **From** and the site in its details, the site shows under the text in your library, and `site:` searches find it. Selected text that is only a URL is saved as a link instead.
 
 Context menu saves are available on standard web pages. Teak does not attempt to download local, private-network, `file:`, or `blob:` URLs; use **Upload file** when you own a local file.
 

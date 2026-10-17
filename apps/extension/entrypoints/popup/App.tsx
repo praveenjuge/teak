@@ -25,6 +25,7 @@ import {
   type PopupTone,
 } from "../../lib/popupStatus";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
+import { SaveDetails } from "./SaveDetails";
 
 const APP_URL = import.meta.env.DEV
   ? resolveTeakDevAppUrl(import.meta.env)
@@ -282,7 +283,9 @@ function AuthenticatedPopup({
   const autoSave = useAutoSaveUrl(!isRecentSave);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [detailsTouched, setDetailsTouched] = useState(false);
   const [fileUpload, setFileUpload] = useState<{
+    code?: string;
     error?: string;
     fileName?: string;
     state: FileUploadState;
@@ -290,13 +293,22 @@ function AuthenticatedPopup({
 
   const status = getPopupStatus({
     autoSave: {
+      code: autoSave.code,
       error: autoSave.error,
       state: autoSave.state,
       url: autoSave.currentUrl,
     },
     contextMenu: isRecentSave ? contextMenuState : undefined,
+    detailsTouched,
     fileUpload,
   });
+  // Tags and a note, once the page is saved or found already saved.
+  const detailsCardId =
+    !isRecentSave &&
+    fileUpload.state === "idle" &&
+    (autoSave.state === "success" || autoSave.state === "duplicate")
+      ? autoSave.cardId
+      : undefined;
   const autoClose = Boolean(status?.autoClose);
 
   useEffect(() => {
@@ -315,8 +327,8 @@ function AuthenticatedPopup({
     }
 
     const fileName = file.name;
-    const fail = (error: string) =>
-      setFileUpload({ error, fileName, state: "error" });
+    const fail = (error: string, code?: string) =>
+      setFileUpload({ code, error, fileName, state: "error" });
     setFileUpload({ fileName, state: "saving" });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
       fail("File is empty or too large.");
@@ -357,7 +369,7 @@ function AuthenticatedPopup({
       setFileUpload({ fileName, state: "duplicate" });
       return;
     }
-    fail(result.message);
+    fail(result.message, result.code);
   };
 
   const handleSignOut = async () => {
@@ -397,7 +409,7 @@ function AuthenticatedPopup({
         <PendingSavesNotice count={pendingCount} />
       </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-8 py-8">
+      <main className="flex flex-1 flex-col items-center justify-center gap-5 px-8 py-8">
         {status ? (
           <StatusView status={status}>
             {status.tone === "upgrade" ? (
@@ -413,6 +425,15 @@ function AuthenticatedPopup({
               </Button>
             ) : null}
           </StatusView>
+        ) : null}
+        {detailsCardId ? (
+          <SaveDetails
+            cardId={detailsCardId}
+            existing={autoSave.state === "duplicate"}
+            key={detailsCardId}
+            onTouched={() => setDetailsTouched(true)}
+            userId={user.id}
+          />
         ) : null}
       </main>
 

@@ -13,6 +13,12 @@ export interface SaveToTeakInput {
   enforceAllowedHosts?: boolean;
   idempotencyKey?: string;
   source: SaveSource;
+  /**
+   * The page a text save came from. Sent only when the content is saved as
+   * text; a pending save stored by an older build has neither.
+   */
+  sourceTitle?: string;
+  sourceUrl?: string;
 }
 export interface SaveToTeakDependencies {
   fetchImpl?: typeof fetch;
@@ -38,6 +44,26 @@ const parseContentAsUrl = (content: string): URL | null => {
 
 const isAllowedInlineHost = (hostname: string): boolean =>
   isSupportedInlineSaveHost(hostname.toLowerCase());
+
+const MAX_SOURCE_URL_LENGTH = 2048;
+const MAX_SOURCE_TITLE_LENGTH = 300;
+
+/** The page fields a text card keeps, or none when the page has no web URL. */
+export const textSource = ({
+  sourceTitle,
+  sourceUrl,
+}: Pick<SaveToTeakInput, "sourceTitle" | "sourceUrl">) => {
+  const url = sourceUrl?.trim();
+  if (!(url && parseContentAsUrl(url)) || url.length > MAX_SOURCE_URL_LENGTH) {
+    return {};
+  }
+  // Cut by code point, so an emoji at the limit isn't split in half.
+  const title = [...(sourceTitle?.trim() ?? "")]
+    .slice(0, MAX_SOURCE_TITLE_LENGTH)
+    .join("")
+    .trim();
+  return title ? { sourceTitle: title, sourceUrl: url } : { sourceUrl: url };
+};
 
 export async function restResult(
   response: Response | null
@@ -112,7 +138,9 @@ export async function saveToTeak(
           "Idempotency-Key": input.idempotencyKey ?? crypto.randomUUID(),
         },
         body: JSON.stringify(
-          parsedUrl ? { url: content } : { content, cardType: "text" }
+          parsedUrl
+            ? { url: content }
+            : { content, cardType: "text", ...textSource(input) }
         ),
       })
     );

@@ -49,6 +49,62 @@ describe("OAuth content saving", () => {
       cardType: "text",
     });
   });
+  test("keeps the page a text selection came from", async () => {
+    const request = mock(async (_path: string, _init?: RequestInit) =>
+      Response.json({ cardId: "text-card" })
+    );
+    await saveToTeak(
+      {
+        content: "A line worth keeping",
+        source: "context-menu",
+        sourceTitle: `  ${"t".repeat(320)}  `,
+        sourceUrl: "https://example.com/essay",
+      },
+      { request }
+    );
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      cardType: "text",
+      content: "A line worth keeping",
+      sourceTitle: "t".repeat(300),
+      sourceUrl: "https://example.com/essay",
+    });
+  });
+  test("a selection that is a bare URL saves as a link, with no source", async () => {
+    const request = mock(async (path: string, _init?: RequestInit) =>
+      path.startsWith("/v1/cards/duplicate")
+        ? Response.json({ cardId: null })
+        : Response.json({ cardId: "link-card" })
+    );
+    await saveToTeak(
+      {
+        content: "https://example.org/linked",
+        source: "context-menu",
+        sourceTitle: "Where it was",
+        sourceUrl: "https://example.com/page",
+      },
+      { request }
+    );
+    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
+      url: "https://example.org/linked",
+    });
+  });
+  test.each([
+    "chrome://extensions",
+    "javascript:alert(1)",
+    `https://example.com/${"a".repeat(2100)}`,
+  ])("leaves out a source page it can't keep: %p", async (sourceUrl) => {
+    const request = mock(async (_path: string, _init?: RequestInit) =>
+      Response.json({ cardId: "text-card" })
+    );
+    await saveToTeak(
+      { content: "Quote", source: "context-menu", sourceUrl },
+      { request }
+    );
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      cardType: "text",
+      content: "Quote",
+    });
+  });
   test("returns the existing card without creating a duplicate", async () => {
     const request = mock(async () =>
       Response.json({ cardId: "existing-card" })

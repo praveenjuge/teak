@@ -1,11 +1,17 @@
 ---
 title: "October 2026"
-description: Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Tags and a note right after saving in Chrome, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-17"
 changelog:
   category: Product updates
 ---
+
+## Tags and a note right after saving, and text that remembers its page
+
+- In the Chrome extension, once the popup saves a page, add tags and a note right there. Your most used tags and the ones you used last are suggested, and changes save when you press Enter, leave the field, or close the popup. For a page you'd already saved, the popup shows its tags and note so you can change them. See [Add tags and a note after saving](/docs/extension#add-tags-and-a-note-after-saving).
+- **Save Text to Teak** now keeps the page the text came from. The card shows **From** and the site in its details, the site appears under the text in your library, and `site:` searches find it.
+- **API, MCP, SDK, and CLI:** send `sourceUrl` and `sourceTitle` when creating a card, or use `teak add --source-url <url> --source-title <title>`. Cards and exports include them. See the [API guide](/docs/api#create-behavior).
 
 ## Revisit: 20 random cards, keep or archive
 

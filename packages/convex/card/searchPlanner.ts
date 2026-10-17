@@ -9,7 +9,7 @@ import {
   type PriceBound,
 } from "../shared/search/qualifiers";
 import { isCardHidden } from "../shared/tags";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { cardSiteHost } from "../shared/utils/urlHost";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
 import {
@@ -74,8 +74,9 @@ const cardHasTag = (card: Doc<"cards">, tag: string) =>
   );
 
 /** The site a card is on, read from its URL so unsynced cards match too. */
-export const cardUrlHost = (card: Pick<Doc<"cards">, "url" | "urlHost">) =>
-  normalizeUrlHost(card.url) ?? card.urlHost ?? null;
+export const cardUrlHost = (
+  card: Pick<Doc<"cards">, "sourceUrl" | "url" | "urlHost">
+) => cardSiteHost(card) ?? card.urlHost ?? null;
 
 /**
  * The user's folders for `folder:` name keys (trimmed, lowercased names),

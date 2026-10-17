@@ -80,6 +80,7 @@ teak add "A note from the terminal" --tags research
 teak add --url https://example.com --tags research,web
 teak add --file ./screenshot.png --notes "Inspiration" --tags inspiration
 teak add --file ./component.tsx --tags source
+teak add "A line worth keeping" --source-url https://example.com/essay --source-title "An essay"
 teak ls
 teak search "blue buttons"
 teak cards get <card-id>
@@ -109,7 +110,9 @@ example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
 scripting. Text given with `--url` (for example
 `teak add "Read before Friday" --url https://example.com`) is saved with the
-link as the card's content.
+link as the card's content. `--source-url` and `--source-title` keep the page
+a text came from without making it a link; `teak cards get` shows it as
+`from:`, and `site:` searches find it.
 
 File uploads support the same formats as the web app (source files, Markdown and MDX, ZIP archives, documents, images, audio, and video — see [Features](/docs/features)), up to 100 MB. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document.
 

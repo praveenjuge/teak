@@ -9,7 +9,7 @@ import { type FolderColor, folderNameKey } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import { isHiddenTagList } from "../shared/tags";
 import { buildColorFacets } from "../shared/utils/colorUtils";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { cardSiteHost } from "../shared/utils/urlHost";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
@@ -85,6 +85,9 @@ export interface DefaultCardDef {
    * saved before Shuffle). Normally a fresh random key.
    */
   shuffleKey?: number | null;
+  /** The page a text card was saved from (see `cards.sourceUrl`). */
+  sourceTitle?: string;
+  sourceUrl?: string;
   tags?: string[];
   thumbnailKey?: string;
   type: CardType;
@@ -440,7 +443,10 @@ export const insertCompletedCards = async (
       type: cardDef.type,
       content: cardDef.content,
       url: cardDef.url,
-      urlHost: normalizeUrlHost(cardDef.url) ?? undefined,
+      ...(cardDef.sourceUrl
+        ? { sourceUrl: cardDef.sourceUrl, sourceTitle: cardDef.sourceTitle }
+        : {}),
+      urlHost: cardSiteHost(cardDef) ?? undefined,
       ...(cardDef.shuffleKey === null
         ? {}
         : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),

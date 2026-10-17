@@ -48,6 +48,8 @@ export interface ExportableCard {
   isHidden?: boolean;
   metadataTitle?: string;
   notes?: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
   tags?: string[];
   type: string;
   updatedAt: number;
@@ -90,6 +92,10 @@ export interface SerializedCard {
   /** The card's title, when it has one (schema v2). */
   metadataTitle?: string;
   notes?: string;
+  /** The page's title, beside `sourceUrl`, when it had one. */
+  sourceTitle?: string;
+  /** The page a text card was saved from. */
+  sourceUrl?: string;
   tags: string[];
   type: string;
   updatedAt: DualTimestamp;
@@ -186,6 +192,14 @@ export function serializeCard(
   }
   if (typeof card.notes === "string" && card.notes.length > 0) {
     serialized.notes = card.notes;
+  }
+  const sourceUrl = nonEmpty(card.sourceUrl);
+  if (sourceUrl !== undefined) {
+    serialized.sourceUrl = sourceUrl;
+    const sourceTitle = nonEmpty(card.sourceTitle);
+    if (sourceTitle !== undefined) {
+      serialized.sourceTitle = sourceTitle;
+    }
   }
   const title = nonEmpty(card.metadataTitle);
   if (title !== undefined) {

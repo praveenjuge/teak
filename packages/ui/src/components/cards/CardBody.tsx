@@ -1,3 +1,7 @@
+import {
+  hostForDisplay,
+  normalizeUrlHost,
+} from "@teak/convex/shared/utils/urlHost";
 import type { SyntheticEvent } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
@@ -100,8 +104,19 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
           {bodyText}
         </p>
       )}
+      <SourceFooter sourceUrl={card.sourceUrl} />
     </div>
   );
+}
+
+/** The site a text was saved from, muted under it. */
+function SourceFooter({ sourceUrl }: { sourceUrl?: string }) {
+  const host = normalizeUrlHost(sourceUrl);
+  return host ? (
+    <p className="truncate pt-1 text-muted-foreground text-xs" dir="ltr">
+      {hostForDisplay(host)}
+    </p>
+  ) : null;
 }
 
 function QuoteCardBody({ card, textInsets }: TextBodyProps) {
@@ -119,6 +134,11 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
       >
         {markdownToPlainText(card.content)}
       </blockquote>
+      {card.sourceUrl && (
+        <figcaption>
+          <SourceFooter sourceUrl={card.sourceUrl} />
+        </figcaption>
+      )}
     </figure>
   );
 }

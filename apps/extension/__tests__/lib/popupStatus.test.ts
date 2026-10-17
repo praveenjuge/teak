@@ -14,6 +14,17 @@ const status = (input: Partial<PopupStatusInput>) =>
   getPopupStatus({ ...IDLE, ...input });
 
 describe("getPopupStatus", () => {
+  test("stays open once someone starts adding tags or a note", () => {
+    const saved = {
+      autoSave: { state: "success" as const, url: "https://example.com" },
+    };
+    expect(status(saved)?.autoClose).toBe(true);
+    expect(status({ ...saved, detailsTouched: true })).toMatchObject({
+      autoClose: false,
+      title: "Saved to Teak",
+    });
+  });
+
   test("shows a page already in the library as already saved and stays open", () => {
     expect(
       status({
@@ -124,6 +135,28 @@ describe("getPopupStatus", () => {
       contextMenu: {
         error: "CARD_LIMIT_REACHED: limit",
         status: "error",
+      },
+    },
+    // The REST API sends the code apart from its message.
+    {
+      autoSave: {
+        code: "CARD_LIMIT_REACHED",
+        error: "Card limit reached. Please upgrade to Pro for unlimited cards.",
+        state: "error",
+      },
+    },
+    {
+      contextMenu: {
+        code: "CARD_LIMIT_REACHED",
+        error: "Card limit reached.",
+        status: "error",
+      },
+    },
+    {
+      fileUpload: {
+        code: "CARD_LIMIT_REACHED",
+        error: "Card limit reached.",
+        state: "error",
       },
     },
   ] as Partial<PopupStatusInput>[])(

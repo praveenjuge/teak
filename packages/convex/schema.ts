@@ -449,6 +449,13 @@ export const cardValidator = v.object({
   type: cardTypeValidator,
   url: v.optional(v.string()),
   urlHost: v.optional(v.string()),
+  /**
+   * The page a text card was saved from (the extension's Save Text, or
+   * `sourceUrl` on `POST /v1/cards`). Set only at create; `urlHost` falls back
+   * to it, but the duplicate-URL check reads `url` alone.
+   */
+  sourceUrl: v.optional(v.string()),
+  sourceTitle: v.optional(v.string()),
   shuffleKey: v.optional(v.number()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),

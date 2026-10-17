@@ -40,6 +40,10 @@ import {
 } from "./publicApiSearch";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import {
+  explainInvalidCardSource,
+  normalizeCardSource,
+} from "./shared/cardSource";
 import { isCardHidden } from "./shared/tags";
 
 const SEARCH_MULTIPLIER = 4;
@@ -70,6 +74,8 @@ const createCardForUserArgs = {
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
   source: v.optional(v.string()),
+  sourceUrl: v.optional(v.string()),
+  sourceTitle: v.optional(v.string()),
 } as const;
 
 const patchCardForUserArgs = {
@@ -368,6 +374,7 @@ export const quickSaveForUser = internalMutation({
 
     const createError =
       explainInvalidTags(normalizedTags) ??
+      explainInvalidCardSource(args) ??
       explainCardTypeMismatch({
         cardType: args.cardType,
         content: submittedContent,
@@ -382,6 +389,7 @@ export const quickSaveForUser = internalMutation({
       content,
       metadata: normalizedSource ? { source: normalizedSource } : undefined,
       notes: normalizedNotes,
+      ...normalizeCardSource(args),
       tags: normalizedTags,
       type: args.cardType ?? (normalizedUrl ? "link" : undefined),
       url: normalizedUrl,

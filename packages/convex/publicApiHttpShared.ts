@@ -120,6 +120,8 @@ interface CreateCardPayload {
   mimeType?: string;
   notes?: string | null;
   source?: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
   tags?: string[];
   url?: string;
 }
