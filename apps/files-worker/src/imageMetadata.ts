@@ -4,6 +4,7 @@ import { meteredAiRun } from "./aiUsage";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
+  IMAGE_RENDITIONS,
 } from "./imageTransform";
 import type { Env } from "./index";
 import { OpFailure } from "./opFailure";
@@ -97,9 +98,10 @@ const waitForCapacityRetry = (attempt: number): Promise<void> =>
   });
 
 /**
- * The canonical `detail` rendition as one broadly supported raster frame, for
- * models that read images. Animated originals and formats Workers AI cannot
- * decode come back as a single JPEG frame.
+ * The `detail` rendition as one broadly supported raster frame, for models
+ * that read images. Animated originals and formats Workers AI cannot decode
+ * come back as a single JPEG frame. Unlike the display rendition, the height
+ * keeps the same bound as the width, so a tall image stays a small input.
  */
 export const loadImageForAi = async (
   env: Env,
@@ -116,6 +118,7 @@ export const loadImageForAi = async (
       ...buildImageTransformOptions("detail"),
       anim: false,
       format: "jpeg",
+      height: IMAGE_RENDITIONS.detail.edge,
     },
     imageFetch as never,
     now

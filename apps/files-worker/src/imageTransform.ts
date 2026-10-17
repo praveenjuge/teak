@@ -25,6 +25,12 @@ const BROWSER_SAFE_TRANSCODE_TYPES = new Set([
 const imageEdgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
+// Each rendition bounds the width at `edge`. Grid columns and the detail view
+// fit images to their width, so a tall screenshot bounded on its long side
+// would come back too narrow and blur when it is scaled up. Height gets room
+// for very tall images, up to this many times the width.
+const MAX_RENDITION_ASPECT = 8;
+
 export const IMAGE_RENDITIONS = {
   tiny: { edge: 48, quality: 60 },
   compact: { edge: 256, quality: 80 },
@@ -69,6 +75,13 @@ export const fetchPrivateImageSource = async (
   });
 };
 
+const renditionBounds = (
+  rendition: FilesImageRendition
+): { height: number; width: number } => {
+  const { edge } = IMAGE_RENDITIONS[rendition];
+  return { height: edge * MAX_RENDITION_ASPECT, width: edge };
+};
+
 export const buildImageTransformOptions = (
   rendition: FilesImageRendition,
   accept?: string | null
@@ -78,11 +91,10 @@ export const buildImageTransformOptions = (
   return {
     anim: true,
     fit: "scale-down",
-    height: preset.edge,
     metadata: "none",
     quality: preset.quality,
     sharpen: 1,
-    width: preset.edge,
+    ...renditionBounds(rendition),
     ...(format ? { format } : {}),
   };
 };
@@ -171,9 +183,8 @@ export const transformViaBinding = (
         .input(object.body)
         .transform({
           fit: "scale-down",
-          height: preset.edge,
           sharpen: 1,
-          width: preset.edge,
+          ...renditionBounds(rendition),
         })
         .output({
           anim: true,
@@ -193,13 +204,15 @@ export const transformViaBinding = (
   );
 };
 
+// Bump `binding` whenever rendition sizes change, so the edge cache stops
+// serving renditions made with the old bounds.
 export const buildBindingCacheKey = (
   url: URL,
   sourceEtag: string,
   format: "avif" | "webp"
 ): Request =>
   new Request(
-    `${url.origin}${url.pathname}?binding=1&etag=${encodeURIComponent(sourceEtag)}&fmt=${format}`,
+    `${url.origin}${url.pathname}?binding=2&etag=${encodeURIComponent(sourceEtag)}&fmt=${format}`,
     { method: "GET" }
   );
 
