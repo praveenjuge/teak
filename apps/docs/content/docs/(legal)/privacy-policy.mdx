@@ -3,7 +3,7 @@ title: Privacy Policy
 description: Privacy policy for Teak apps, API, and integrations
 ---
 
-**Effective date:** October 16, 2026
+**Effective date:** October 17, 2026
 
 ## Overview
 
@@ -74,7 +74,7 @@ Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) for produ
 - **Session replays (web only):** a sample of web sessions, and sessions where an error occurs, are recorded so we can see what went wrong. Replays mask all text and typed input and block images and media, so your cards and notes are never visible in them.
 - **Feedback surveys (web only):** if you answer an in-app survey, your answer is stored in PostHog.
 - **What it never receives:** the content of your cards, files, notes or searches, or AI prompts and results. Search text is masked in page addresses before anything is sent.
-- **Where it doesn't run:** the Share and Safari extensions on Apple devices, the content scripts the browser extension adds to web pages, Raycast, and the CLI send nothing.
+- **Where it doesn't run:** the Share and Safari extensions on Apple devices, the Firefox extension, the content scripts the Chrome extension adds to web pages, Raycast, and the CLI send nothing.
 
 ## Sharing & Disclosure
 
@@ -132,7 +132,7 @@ Teak stores your account, content and files in the United States. Some providers
 - **Web:** essential cookies for your sign-in session and sidebar layout; local storage for your theme; a first-party cookie and local storage entries that hold your PostHog analytics ID, account ID and email.
 - **iPhone, iPad and Mac apps:** sign-in credentials stored in the Keychain; camera (iPhone and iPad) and microphone only when you capture a photo or record audio; photos only through the system picker, which shares just the items you choose; crash reports and app open and close events through PostHog.
 - **Android app:** camera and microphone only when you use them; photos through the system picker; a notification while uploads finish in the background; crash reports and app open and close events through PostHog.
-- **Browser extension:** reads the current tab's address, title, or selected content when you save. To add save buttons on supported sites (such as X, Hacker News, Instagram and Pinterest), it has access to the pages you visit, but it only acts on supported sites and sends nothing until you click save. It doesn't track your browsing. Error reports and a "card saved" event go to PostHog directly from the extension, without any remote code.
+- **Browser extension:** reads the current tab's address, title, or selected content when you save. To add save buttons on supported sites (such as X, Hacker News, Instagram and Pinterest), it has access to the pages you visit, but it only acts on supported sites and sends nothing until you click save. It doesn't track your browsing. In Chrome, error reports and a "card saved" event go to PostHog directly from the extension, without any remote code. The Firefox extension sends neither.
 - **CLI, Raycast, API, MCP:** authenticate with browser sign-in or an API key you control; revoke keys and connected apps anytime in Settings.
 
 ## Cookies

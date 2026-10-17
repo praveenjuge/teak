@@ -37,6 +37,29 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
+  extension-firefox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the Firefox extension
+        working-directory: apps/extension
+        env:
+          VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
+          VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+        run: bun run build:firefox
+      # AMO runs the same linter on every upload; errors fail here first.
+      - name: Lint the Firefox build (web-ext)
+        run: npx -y web-ext@8 lint --source-dir apps/extension/.output/firefox-mv3
+
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 40

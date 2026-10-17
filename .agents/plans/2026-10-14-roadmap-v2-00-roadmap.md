@@ -156,7 +156,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 5 | Revisit view: built, plan deleted | Quick wins | — |
 | 6 | Extension tags and note after saving, source for Save Text: built, plan deleted | Quick wins | — |
 | 7 | Extension address-bar search: built, plan deleted | Quick wins | — |
-| 8 | [Firefox release](2026-10-14-roadmap-v2-08-firefox-release.md) | Quick wins | 6, 7 |
+| 8 | Firefox release: built, plan deleted | Quick wins | — |
 | 9 | [Agent-skill discovery address (mostly shipped; lock it in)](2026-10-14-roadmap-v2-09-agent-skill-index.md) | Quick wins | — |
 | 10 | [OCR: images and video thumbnails](2026-10-14-roadmap-v2-10-ocr-images.md) | Search & AI | — |
 | 11 | [OCR: link screenshots and scanned PDFs](2026-10-14-roadmap-v2-11-ocr-screenshots-pdfs.md) | Search & AI | 10, v1-13 |

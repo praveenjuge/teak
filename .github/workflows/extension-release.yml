@@ -182,8 +182,155 @@ jobs:
           RELEASE_ZIP: ${{ steps.zip.outputs.release_zip_path }}
         run: |
           version="${TAG_NAME#v}"
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "$RELEASE_ZIP" --clobber
-          else
-            gh release create "$TAG_NAME" "$RELEASE_ZIP" --title "$version" --verify-tag
+          # The Firefox job may create the release at the same moment.
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --title "$version" --verify-tag || true
           fi
+          gh release upload "$TAG_NAME" "$RELEASE_ZIP" --clobber
+
+  firefox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check if version already released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          version="${TAG_NAME#v}"
+          expected_asset="teak-extension-${version}-firefox.zip"
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
+            echo "Release $TAG_NAME already contains $expected_asset — skipping the Firefox release."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Bun
+        if: steps.check.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Node
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Verify extension version matches tag
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: apps/extension
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          tag_version="${TAG_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "Tag version ($tag_version) does not match apps/extension/package.json version ($pkg_version)." >&2
+            echo "Bump every package.json in the monorepo to $tag_version before tagging." >&2
+            exit 1
+          fi
+
+      # No PostHog token: the Firefox build sends no telemetry (lib/env.ts).
+      - name: Build extension (Firefox, production)
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: apps/extension
+        env:
+          VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
+          VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+        run: bun run zip:firefox
+
+      - name: Locate built ZIPs
+        id: zip
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: apps/extension
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          version="${TAG_NAME#v}"
+          zip_path="$(find .output -maxdepth 1 -type f -name '*-firefox.zip' -print -quit)"
+          sources_path="$(find .output -maxdepth 1 -type f -name '*-sources.zip' -print -quit)"
+          if [ -z "$zip_path" ] || [ -z "$sources_path" ]; then
+            echo "Could not find the built Firefox zip and sources zip under apps/extension/.output" >&2
+            ls -la .output >&2 || true
+            exit 1
+          fi
+          release_zip="teak-extension-${version}-firefox.zip"
+          sources_zip="teak-extension-${version}-sources.zip"
+          cp "$zip_path" ".output/${release_zip}"
+          cp "$sources_path" ".output/${sources_zip}"
+          {
+            echo "release_zip_path=apps/extension/.output/${release_zip}"
+            echo "sources_zip_path=apps/extension/.output/${sources_zip}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Lint the Firefox build (web-ext)
+        if: steps.check.outputs.should_run == 'true'
+        run: npx -y web-ext@8 lint --source-dir apps/extension/.output/firefox-mv3
+
+      - name: Verify AMO credentials
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          missing=()
+          for name in AMO_JWT_ISSUER AMO_JWT_SECRET; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required AMO secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      # Every listed version ships its sources for AMO's review. web-ext
+      # returns once AMO accepts the upload; review continues on AMO.
+      - name: Submit to AMO (listed)
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          SOURCES_ZIP: ${{ steps.zip.outputs.sources_zip_path }}
+        run: |
+          set -o pipefail
+          log="$(mktemp)"
+          if npx -y web-ext@8 sign \
+            --channel=listed \
+            --source-dir apps/extension/.output/firefox-mv3 \
+            --artifacts-dir "$RUNNER_TEMP/amo" \
+            --upload-source-code "$SOURCES_ZIP" \
+            --approval-timeout 0 2>&1 | tee "$log"; then
+            exit 0
+          fi
+          if grep -qi "version .* already exists" "$log"; then
+            echo "AMO already has this version — nothing to submit."
+            exit 0
+          fi
+          exit 1
+
+      - name: Publish GitHub release assets
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+          RELEASE_ZIP: ${{ steps.zip.outputs.release_zip_path }}
+          SOURCES_ZIP: ${{ steps.zip.outputs.sources_zip_path }}
+        run: |
+          version="${TAG_NAME#v}"
+          # The Chrome job may create the release at the same moment.
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --title "$version" --verify-tag || true
+          fi
+          gh release upload "$TAG_NAME" "$RELEASE_ZIP" "$SOURCES_ZIP" --clobber
