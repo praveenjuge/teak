@@ -1,6 +1,6 @@
 {
   "name": "@teak/files-worker",
-  "version": "1.0.86",
+  "version": "1.0.87",
   "private": true,
   "scripts": {
     "cf-typegen": "wrangler types",
