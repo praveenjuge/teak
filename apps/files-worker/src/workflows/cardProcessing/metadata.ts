@@ -363,13 +363,23 @@ const generateForType = async (
   }
 };
 
-const completeWithoutAi = async (job: CardJob): Promise<MetadataResult> => {
+/**
+ * Completes the stage with no tags or summary. Text read from the card, and
+ * the mark that it was read, are kept: a scan the model can't describe is
+ * still found by its words.
+ */
+const completeWithoutAi = async (
+  job: CardJob,
+  read: Pick<Generated, "aiOcrText" | "ocrChecked"> = {}
+): Promise<MetadataResult> => {
   await job.deps.convex.mutation(
     internal.workflows.aiMetadata.mutations.updateCardAI,
     {
       aiTags: [],
       cardId: job.cardId,
       processingStatus: { metadata: stageCompleted(Date.now(), 0) },
+      ...(read.aiOcrText ? { aiOcrText: read.aiOcrText } : {}),
+      ...(read.ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
     },
     guardOf(job)
   );
@@ -470,7 +480,7 @@ export const generateCardMetadata = async (
         !aiTranscript &&
         !visualStyles?.length
       ) {
-        return await completeWithoutAi(job);
+        return await completeWithoutAi(job, { aiOcrText, ocrChecked });
       }
       const saved = await job.deps.convex.mutation(
         internal.workflows.aiMetadata.mutations.updateCardAI,

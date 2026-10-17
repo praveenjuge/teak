@@ -284,6 +284,25 @@ describe("embedding cards", () => {
     ]);
   });
 
+  test("text read from an image embeds a card that had none, and new text re-embeds it", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "");
+    await editCard(t, cardId, { type: "image" });
+    await runScheduled(t);
+    expect(upserts(calls)).toEqual([]);
+
+    await editCard(t, cardId, { aiOcrText: "Invoice 4411\nTotal due" });
+    await runScheduled(t);
+    await editCard(t, cardId, { aiOcrText: "Invoice 4412\nTotal due" });
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "Invoice 4411\nTotal due", type: "image" }],
+      [{ id: cardId, text: "Invoice 4412\nTotal due", type: "image" }],
+    ]);
+  });
+
   test("a failing Worker is retried with backoff, then left for the backfill", async () => {
     const calls = stubWorker({ fail: ["embed-upsert"] });
     const t = setup();

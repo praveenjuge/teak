@@ -17,6 +17,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 
 - On 2026-10-14 the owner reviewed a list of candidate features against Teak's current code and picked the ones in this roadmap through a Q&A.
 - Local `main` was at `cbc71d2` (v1 phase 10, Shuffle) when this roadmap was written.
+- These facts are a snapshot from that day. The phases built since (see the table below) changed some of them, for example search now has embeddings and Vectorize, so check a fact against the code before relying on it.
 - Verified facts several phases rely on:
   - **Search:**
     - Search runs on one Convex full-text index, `cardSearchDocuments.search_searchableText`. Its filter fields are userId, isDeleted, isArchived, type, isFavorited and urlHost.
@@ -160,14 +161,14 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 9 | Agent-skill discovery checks: built with phase 10, plan deleted | Quick wins | — |
 | 10 | OCR in images and video thumbnails: built, plan deleted | Search & AI | — |
 | 11 | OCR in link images, screenshots and scanned PDFs: built, plan deleted | Search & AI | 10, v1-13 |
-| 12 | [Embedding infrastructure](2026-10-14-roadmap-v2-12-embeddings.md) | Search & AI | 10, v1-13 |
-| 13 | [Blended search everywhere](2026-10-14-roadmap-v2-13-hybrid-search.md) | Search & AI | 12, 4 |
-| 14 | [More like this, `like:` and `mood:`](2026-10-14-roadmap-v2-14-similar-and-mood.md) | Search & AI | 13 |
+| 12 | Embedding infrastructure: built, plan deleted | Search & AI | 10, v1-13 |
+| 13 | Blended search everywhere: built, plan deleted | Search & AI | 12, 4 |
+| 14 | More like this, `like:` and `mood:`: built, plan deleted | Search & AI | 13 |
 | 15 | [Read, watch and buy states](2026-10-14-roadmap-v2-15-done-states.md) | Smarter cards | — |
-| 16 | [Structured price](2026-10-14-roadmap-v2-16-structured-price.md) | Smarter cards | — |
-| 17 | [Replace a link card's thumbnail](2026-10-14-roadmap-v2-17-replace-thumbnail.md) | Smarter cards | — |
-| 18 | [New link categories](2026-10-14-roadmap-v2-18-new-categories.md) | Smarter cards | 15 |
-| 19 | [Fetchers for social posts](2026-10-14-roadmap-v2-19-social-posts.md) | Smarter cards | 18 |
+| 16 | Structured price: built, plan deleted | Smarter cards | — |
+| 17 | Replace a link card's thumbnail: built, plan deleted | Smarter cards | — |
+| 18 | New link categories: built except the done wording for app and game, which moved into phase 15; plan deleted | Smarter cards | 15 |
+| 19 | Fetchers for social posts: built, plan deleted | Smarter cards | 18 |
 | 20 | [Richer details for more sites](2026-10-14-roadmap-v2-20-rich-sites.md) | Smarter cards | 18 |
 | 21 | [YouTube and Vimeo transcripts](2026-10-14-roadmap-v2-21-video-captions.md) | Smarter cards | v1-13 |
 | 22 | [Podcast transcripts](2026-10-14-roadmap-v2-22-podcast-transcripts.md) | Smarter cards | 21 |
@@ -191,7 +192,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 - **RSS feeds were dropped.** Phase 25 extends v1 phase 17's feeds, and phase 22 reuses its feed parser to find a podcast episode's audio. v1 phase 17 was never built, so phase 25 needs feeds built first (or a new scope), and phase 22 needs its own feed parsing.
 - **Native apps and blended search.** `searchMobileCardSummariesPaginated` is a reactive query and cannot call the worker. So the iPhone, iPad, Mac and Android apps get semantic results only once they call the new search action (phases 29 and 31). Raycast already searches through `GET /v1/cards`, so it gets blending from phase 13.
 - **Phase 9 has mostly shipped.** The docs site already serves `/.well-known/agent-skills/index.json` with its digest, and the API domain redirects to it. Phase 9 is now only checks and a build guard, and can be folded into another PR.
-- **Search speed and cost.** Blended search adds a Workers AI embedding call and a Vectorize query to every search. Measure p95 latency and cost on the dev deployment before phase 13 merges. Keep keyword results reactive, and merge the semantic results in as they arrive.
+- **Search speed and cost.** Blended search adds a Workers AI embedding call and a Vectorize query to every search. Phase 13 merged in #714 without a p95 latency measurement, so that measurement and the cost check are still a follow-up. Keyword results stay reactive, and the semantic results merge in as they arrive.
 - **Vectorize consistency.** Vectorize is a second store. Card hard delete and account deletion must remove vectors, and a periodic orphan sweep should compare vector IDs against cards.
 - **Native category handling.** Phase 18 adds new link categories. Apple (`Card.swift`) and Android (`Card.kt`) already decode the category as a plain string, so no client update has to ship first. Phase 18 adds Swift and Kotlin tests to keep it that way.
 - **YouTube captions.** The timed-text endpoints are undocumented and can change, so the transcript step must fail soft.
@@ -205,7 +206,7 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | Phase | Decision | Default in the plan |
 |---|---|---|
 | 15 | `POST`/`DELETE /done`, or `PATCH` like favorite? | `POST`/`DELETE` |
-| 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC |
+| 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC (shipped this way) |
 | 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
 
@@ -221,6 +222,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 5 | Revisit is not offered in Archive or Trash |
 | 5 | "Revisit 20 more" continues the same seed with no repeats; only "Start over" picks a new seed |
 | 6 | The page a card came from is `sourceUrl` and `sourceTitle` in `POST /v1/cards`, beside the existing `source` label |
-| 12 | The privacy policy wording in the phase 12 plan is approved and ships in that PR |
+| 12 | The privacy policy wording for search by meaning is approved, and shipped with phase 12 |
 | 15 | Done states are for link cards only |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |
