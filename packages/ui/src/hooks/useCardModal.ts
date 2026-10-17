@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -131,9 +132,14 @@ export function useCardModal(
       }
 
       case "tags": {
+        const tags =
+          Array.isArray(value) && value.length > 0 ? value : undefined;
+        // A reserved tag hides the card: lists that don't reveal hidden
+        // cards drop it until the server answers.
         const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
-          tags: Array.isArray(value) && value.length > 0 ? value : undefined,
+          tags,
+          isHidden: isHiddenTagList(tags) ? true : undefined,
           updatedAt: now,
         });
         updateCardInSearchQueries(localStore, updateCardId, updateTags);
@@ -363,10 +369,20 @@ export function useCardModal(
 
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
+      const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
       setTagInput("");
-      void updateField("tags", newTags);
+      void updateField("tags", newTags).then((didUpdate) => {
+        if (didUpdate && hides && isHiddenTagList([tag])) {
+          toast(`Hidden. Search #${tag} to see it.`, {
+            action: {
+              label: "Undo",
+              onClick: () => void updateField("tags", currentTags),
+            },
+          });
+        }
+      });
     }
-  }, [card?.tags, tagInput, updateField]);
+  }, [card, tagInput, updateField]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {

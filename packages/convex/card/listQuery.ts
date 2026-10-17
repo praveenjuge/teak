@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
+import { excludeHiddenRows } from "./hiddenCards";
 
 export {
   type CardListSort,
@@ -66,6 +67,12 @@ export interface CardListQueryOptions {
   createdAt?: CreatedAtBounds;
   /** Only favorites. `false` means "no favorite filter", like `undefined`. */
   favoritesOnly?: boolean;
+  /**
+   * Hidden cards too (card/hiddenCards.ts). Without it, flagged cards are
+   * filtered out of the read; callers still drop loaded cards with
+   * `keepVisible` for the ones the backfill hasn't reached.
+   */
+  includeHidden?: boolean;
   /** List Trash instead of the library. */
   trash?: boolean;
   /** One type uses its own index; several are filtered while reading. */
@@ -109,12 +116,15 @@ const withCreatedAt = (
  * public API, Raycast): the most selective index for the filters, ordered by
  * `createdAt`. Archived cards are left out unless `archived` asks for them;
  * Trash includes them. Callers choose the direction with `.order()`:
- * `"desc"` for newest, `"asc"` for oldest.
+ * `"desc"` for newest, `"asc"` for oldest. Hidden cards are left out unless
+ * `includeHidden` asks for them.
  */
 export const buildCardListQuery = (
   ctx: QueryCtx,
   options: CardListQueryOptions
-) => {
+) => excludeHiddenRows(cardListIndexQuery(ctx, options), options.includeHidden);
+
+const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
   const { userId, createdAt } = options;
   const types = options.types?.length ? options.types : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
@@ -199,7 +209,8 @@ export const buildCardListQuery = (
  * Cards on one site (`site:`), newest or oldest first: active cards, or
  * archived ones with `archived: "only"`. `host` is a normalized host
  * (shared/utils/urlHost.ts). Trash and "archived and not" read the plain
- * list instead, since this index needs one archive state.
+ * list instead, since this index needs one archive state. Hidden cards are
+ * left out unless `includeHidden` asks for them.
  */
 export const buildHostCardListQuery = (
   ctx: QueryCtx,
@@ -207,26 +218,31 @@ export const buildHostCardListQuery = (
     archived?: "exclude" | "only";
     createdAt?: CreatedAtBounds;
     host: string;
+    includeHidden?: boolean;
     userId: string;
   }
 ) =>
-  ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted_archived_host_created", (q) =>
-      withCreatedAt(
-        q
-          .eq("userId", options.userId)
-          .eq("isDeleted", undefined)
-          .eq("isArchived", options.archived === "only" ? true : undefined)
-          .eq("urlHost", options.host),
-        options.createdAt
-      )
-    );
+  excludeHiddenRows(
+    ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted_archived_host_created", (q) =>
+        withCreatedAt(
+          q
+            .eq("userId", options.userId)
+            .eq("isDeleted", undefined)
+            .eq("isArchived", options.archived === "only" ? true : undefined)
+            .eq("urlHost", options.host),
+          options.createdAt
+        )
+      ),
+    options.includeHidden
+  );
 
 /**
  * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
  * Archive like the library: active cards by default, archived ones with
- * `archived: "only"`, trashed ones with `trash`. Callers load each row's card.
+ * `archived: "only"`, trashed ones with `trash`. Callers load each row's card,
+ * and drop hidden ones with `keepVisible` (the rows don't carry the flag).
  */
 export const buildFolderCardListQuery = (
   ctx: QueryCtx,
@@ -277,7 +293,8 @@ export const buildFolderCardListQuery = (
 /**
  * Cards with one tag, from the tag index in date order: Trash, Archive or
  * the library. `tag` is the lowercase name the index stores. Types and
- * favorites narrow the index range; other filters apply to the cards.
+ * favorites narrow the index range; other filters apply to the cards,
+ * hidden ones included: callers drop them with `keepVisible`.
  */
 export const buildTagCardListQuery = (
   ctx: QueryCtx,

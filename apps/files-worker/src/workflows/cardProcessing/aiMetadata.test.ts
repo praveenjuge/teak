@@ -170,6 +170,12 @@ describe("normalizeAiTags", () => {
       "blue",
     ]);
   });
+
+  test("drops the reserved tags that would hide a card", () => {
+    expect(
+      normalizeAiTags(["SECRET", " secret", "Hidden ", "beach", "secrets"])
+    ).toEqual(["beach", "secrets"]);
+  });
 });
 
 describe("sanitizeTranscript", () => {

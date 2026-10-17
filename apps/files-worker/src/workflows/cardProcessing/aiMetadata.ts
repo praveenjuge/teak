@@ -1,4 +1,5 @@
 import { isVisualStyle, type VisualStyle } from "@teak/convex/shared/constants";
+import { HIDDEN_TAG_KEYS } from "@teak/convex/shared/tags";
 import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
@@ -40,7 +41,8 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
 
 /**
  * Normalize AI-generated tags the same way tag search does (trim and
- * lowercase), drop empty entries, and de-duplicate while keeping the model's
+ * lowercase), drop empty entries and the reserved tags that hide a card
+ * (`secret`, `hidden`), and de-duplicate while keeping the model's
  * order. Duplicate tags otherwise reach the UI as duplicate React keys.
  */
 export const normalizeAiTags = (tags: readonly string[]): string[] =>
@@ -49,7 +51,9 @@ export const normalizeAiTags = (tags: readonly string[]): string[] =>
       tags
         .filter((tag): tag is string => typeof tag === "string")
         .map((tag) => tag.trim().toLowerCase())
-        .filter(Boolean)
+        .filter(
+          (tag) => tag && !(HIDDEN_TAG_KEYS as readonly string[]).includes(tag)
+        )
     )
   );
 

@@ -4,7 +4,7 @@ Search Teak from the browser's address bar. Type `teak`, a space, and a query to
 
 ## Depends on
 
-- [Phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md): hidden cards stay out of the suggestions because `GET /v1/cards` leaves them out.
+- Phase 4 (hidden cards, shipped: `packages/convex/card/hiddenCards.ts`): hidden cards stay out of the suggestions because `GET /v1/cards` leaves them out.
 
 ## Success Criteria
 

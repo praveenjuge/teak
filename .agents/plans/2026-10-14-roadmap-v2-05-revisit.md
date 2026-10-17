@@ -4,7 +4,7 @@ Add Revisit, a fourth entry in the View menu's sort section. It opens a full-scr
 
 ## Depends on
 
-- [Phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md): hidden cards stay out of the deck because the server leaves them out.
+- Phase 4 (hidden cards, shipped: `packages/convex/card/hiddenCards.ts`): hidden cards stay out of the deck because the server leaves them out.
 
 ## Success Criteria
 

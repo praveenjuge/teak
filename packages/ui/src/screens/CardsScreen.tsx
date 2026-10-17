@@ -337,6 +337,30 @@ export function CardsScreen({
       timeFilter,
     });
   }, [hexFilters, hueFilters, onVisualFiltersChange, styleFilters, timeFilter]);
+  // An empty library view or folder may be empty because its cards are
+  // hidden; one row read tells, and the empty state then says how to see them.
+  let hiddenHintView: LibraryView = view ?? "all";
+  if (hiddenHintView === "all" && showArchivedOnly) {
+    hiddenHintView = "archive";
+  }
+  const asksForHiddenHint =
+    displayCards.length === 0 &&
+    hasNoSearchFilters &&
+    cardsStatus !== "LoadingFirstPage" &&
+    !(isFolderView && (folder === undefined || isSmartFolder));
+  const hiddenHintArgs = folder
+    ? { folderId: folder._id }
+    : { view: hiddenHintView };
+  const viewHasHiddenCards =
+    useQuery(
+      api.cards.viewHasHiddenCards,
+      asksForHiddenHint ? hiddenHintArgs : "skip"
+    ) === true;
+  const hiddenCardsHint = viewHasHiddenCards ? (
+    <p className="text-muted-foreground text-xs">
+      Some cards are hidden. Search #secret or #hidden to see them.
+    </p>
+  ) : null;
   const showVaultSetup =
     vaultSetup === "settingUp" &&
     hasNoFilters &&
@@ -627,6 +651,7 @@ export function CardsScreen({
             <Folder aria-hidden="true" className="size-4" />
           </span>
           <p>No cards in this folder yet.</p>
+          {hiddenCardsHint}
           {onAddCardsToFolder && (
             <Button
               onClick={() => onAddCardsToFolder(folder._id)}
@@ -654,6 +679,7 @@ export function CardsScreen({
             <Icon aria-hidden="true" className="size-4" />
           </span>
           <p>{text}</p>
+          {hiddenCardsHint}
         </div>
       );
     }
@@ -667,10 +693,15 @@ export function CardsScreen({
         return <CardsGridSkeleton />;
       }
       return (
-        <AddCardEmptyState
-          UpgradeLinkComponent={UpgradeLinkComponent}
-          upgradeUrl={upgradeUrl}
-        />
+        <>
+          <AddCardEmptyState
+            UpgradeLinkComponent={UpgradeLinkComponent}
+            upgradeUrl={upgradeUrl}
+          />
+          {hiddenCardsHint && (
+            <div className="mt-4 text-center">{hiddenCardsHint}</div>
+          )}
+        </>
       );
     }
 

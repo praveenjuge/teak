@@ -8,7 +8,9 @@ import {
   type ParsedSearchQuery,
   type PriceBound,
 } from "../shared/search/qualifiers";
+import { isCardHidden } from "../shared/tags";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
 import {
   buildCardSearchText,
@@ -39,6 +41,11 @@ export interface ResolvedSearch {
   folderIds: Id<"folders">[];
   /** Whether a card read from a driver index still needs `matches`. */
   hasCardFilters: boolean;
+  /**
+   * The search names a reserved tag (`#secret`), so hidden cards are in
+   * it; otherwise `matches` drops them and every read leaves them out.
+   */
+  includeHidden: boolean;
   /** Every qualifier and view filter that a card itself can answer. */
   /**
    * `searchableText` is the card's search document text when the caller has
@@ -204,9 +211,13 @@ export const resolveSearch = async (
     new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
   ).filter(Boolean);
   const { sites, phrases, prices } = parsed;
+  const includeHidden = revealsHidden(tags);
 
   const matches = (card: Doc<"cards">, searchableText?: string) => {
     if (card.userId !== userId) {
+      return false;
+    }
+    if (!includeHidden && isCardHidden(card)) {
       return false;
     }
     if (archivedInTrash && card.isArchived !== true) {
@@ -253,6 +264,7 @@ export const resolveSearch = async (
       sites.length > 0 ||
       phrases.length > 0 ||
       prices.length > 0,
+    includeHidden,
     matches,
     phrases,
     similarity: parsed.similarity ?? null,

@@ -77,6 +77,7 @@ export default defineConfig({
       "./linkCategoriesBackfill.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./hiddenCards.test.ts",
       "./linkPriceBackfill.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",

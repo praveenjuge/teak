@@ -47,6 +47,18 @@ describe("teak cli formatting", () => {
     expect(line).toContain("#design #cli");
   });
 
+  test("marks a hidden card in one-line output", () => {
+    const card = {
+      content: "Secret note",
+      createdAt: Date.now() - 120_000,
+      id: "card_2",
+      tags: ["secret"],
+      type: "text",
+    };
+    expect(formatCardLine({ ...card, isHidden: true })).toMatch(/ hidden$/);
+    expect(formatCardLine(card)).not.toContain("hidden");
+  });
+
   test("maps file extensions and MIME types for uploads", () => {
     expect(mimeFor("/tmp/a.png")).toBe("image/png");
     expect(mimeFor("/tmp/component.tsx")).toBe("text/tsx");

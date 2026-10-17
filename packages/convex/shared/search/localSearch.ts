@@ -6,6 +6,7 @@ import {
   normalizeHueFilters,
   normalizeVisualStyleFilters,
 } from "../constants";
+import { isCardHidden, isHiddenTagList } from "../tags";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { normalizeUrlHost } from "../utils/urlHost";
@@ -132,6 +133,8 @@ export const filterLocalCards = (
   const tagKeys = [tag?.trim().toLowerCase() ?? "", ...parsed.tags].filter(
     Boolean
   );
+  // Hidden cards show only when a searched tag is a reserved one.
+  const revealsHidden = isHiddenTagList(tagKeys);
   const archivedOnly = showArchivedOnly || parsed.archived;
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
@@ -139,6 +142,9 @@ export const filterLocalCards = (
 
   return cards
     .filter((card) => {
+      if (!revealsHidden && isCardHidden(card)) {
+        return false;
+      }
       if (showTrashOnly) {
         if (card.isDeleted !== true) {
           return false;

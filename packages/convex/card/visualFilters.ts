@@ -17,6 +17,7 @@ import {
   type CardListSort,
   compareCardsByCreatedAt,
 } from "../shared/search/sort";
+import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
 import { type ArchivedFilter, buildCardListQuery } from "./listQuery";
 
@@ -181,6 +182,8 @@ export const findVisualMatches = async (
     visualFilters: VisualFilterState;
     limit: number;
     sort?: CardListSort;
+    /** Hidden cards too: the search names a reserved tag. */
+    includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
   if (!options.visualFilters.hasVisualFilters) {
@@ -195,6 +198,8 @@ export const findVisualMatches = async (
         trash: options.showTrashOnly,
         archived: options.archived,
         favoritesOnly: options.favoritesOnly,
+        // Hidden cards count toward the scan limit, so the loop skips them.
+        includeHidden: true,
         types: [type],
         createdAt: options.createdAtRange
           ? {
@@ -207,7 +212,10 @@ export const findVisualMatches = async (
       let read = 0;
       for await (const card of cards) {
         read += 1;
-        if (doesCardMatchVisualFilters(card, options.visualFilters)) {
+        if (
+          (options.includeHidden || !isCardHidden(card)) &&
+          doesCardMatchVisualFilters(card, options.visualFilters)
+        ) {
           matches.push(card);
         }
         if (matches.length >= options.limit || read >= VISUAL_SCAN_LIMIT) {

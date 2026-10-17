@@ -3,6 +3,7 @@ import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
+import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import {
   type ArchivedFilter,
   archivedFilterMatch,
@@ -16,6 +17,8 @@ export interface ShuffleWalkOptions {
   archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
+  /** Hidden cards too: the search names a reserved tag. */
+  includeHidden?: boolean;
   seed: number;
   trash?: boolean;
   types?: readonly CardType[];
@@ -58,9 +61,8 @@ export const buildShuffleSegmentQuery = (
   const firstHalf = segment % 2 === 0;
   const fromStart = firstHalf;
   const upperRange = descends ? !fromStart : fromStart;
-  const query = ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted_archived_shuffle", (q) => {
+  const query = excludeHiddenRows(
+    ctx.db.query("cards").withIndex("by_user_deleted_archived_shuffle", (q) => {
       const base = q
         .eq("userId", options.userId)
         .eq("isDeleted", options.trash ? true : undefined)
@@ -68,8 +70,9 @@ export const buildShuffleSegmentQuery = (
       return upperRange
         ? base.gte("shuffleKey", start)
         : base.lt("shuffleKey", start);
-    })
-    .order(descends ? "desc" : "asc");
+    }),
+    options.includeHidden
+  ).order(descends ? "desc" : "asc");
   const types = options.types?.length ? options.types : undefined;
   const bounds = options.createdAt;
   const filtered =
@@ -143,7 +146,7 @@ export const pageShuffleWalk = async (
   } else {
     next = null;
   }
-  return { cards: result.page, next };
+  return { cards: keepVisible(result.page, options.includeHidden), next };
 };
 
 const WALK_CURSOR_VERSION = 1;

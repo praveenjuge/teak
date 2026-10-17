@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   explainInvalidTagName,
+  isCardHidden,
+  isHiddenTagList,
   rewriteTagList,
   tagExistsMessage,
   tagKey,
@@ -106,5 +108,31 @@ describe("tag names", () => {
     expect(tagExistsMessage(" web ")).toBe(
       'A tag named "web" already exists. Merge into it instead.'
     );
+  });
+});
+
+describe("hidden tags", () => {
+  test.each([
+    [["secret"], true],
+    [["Secret"], true],
+    [[" HIDDEN "], true],
+    [["work", "  hidden"], true],
+    [["secrets", "hidden-ish", "hide"], false],
+    [[], false],
+    [undefined, false],
+  ] as const)("%p hides a card: %p", (tags, hidden) => {
+    expect(isHiddenTagList(tags)).toBe(hidden);
+  });
+
+  test("a card is hidden by its flag or its user tags, never by AI tags", () => {
+    expect(isCardHidden({ isHidden: true, tags: [] })).toBe(true);
+    // Not yet backfilled: the tag alone hides it.
+    expect(isCardHidden({ tags: ["Hidden"] })).toBe(true);
+    expect(isCardHidden({ tags: ["work"] })).toBe(false);
+    expect(
+      isCardHidden({ tags: ["work"], aiTags: ["secret"] } as {
+        tags: string[];
+      })
+    ).toBe(false);
   });
 });

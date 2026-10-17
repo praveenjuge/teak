@@ -431,3 +431,5 @@ export function isCardType(value: unknown): value is CardType {
 }
 
 export { TEAK_FILES_ORIGINS } from "./filesOrigins";
+
+export { HIDDEN_TAG_KEYS, isCardHidden, isHiddenTagList } from "./tags";

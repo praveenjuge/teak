@@ -126,6 +126,7 @@ describe("serializeCard", () => {
       folders: ['Design, "refs"', "Reading"],
       isFavorited: true,
       isArchived: true,
+      isHidden: false,
       colors: [{ hex: "#ffffff", name: "White" }, { hex: "#000000" }],
       file: {
         path: "files/card_1-My-Photo-1-.PNG",

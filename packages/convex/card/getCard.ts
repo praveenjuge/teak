@@ -8,6 +8,7 @@ import {
 } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
+import { keepVisible } from "./hiddenCards";
 import { attachFileUrls } from "./queryUtils";
 import {
   applyQuoteDisplayFormatting,
@@ -90,7 +91,9 @@ export const getDeletedCards = query({
       .take(clampSearchLimit(args.limit));
 
     return applyQuoteFormattingToList(
-      cards.map(({ workflowArtifactKeys: _internalKeys, ...card }) => card)
+      keepVisible(cards).map(
+        ({ workflowArtifactKeys: _internalKeys, ...card }) => card
+      )
     );
   },
 });

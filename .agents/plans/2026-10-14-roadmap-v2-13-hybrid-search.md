@@ -5,13 +5,13 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
 ## Depends on
 
 - [Phase 12](2026-10-14-roadmap-v2-12-embeddings.md): vectors and `vector-query`.
-- [Phase 4](2026-10-14-roadmap-v2-04-hidden-cards.md): `isHidden` and its `includeHidden` reveal rule, which the semantic side follows exactly like the keyword side.
+- Phase 4 (hidden cards, shipped: `packages/convex/card/hiddenCards.ts`): `isHidden` and its `includeHidden` reveal rule, which the semantic side follows exactly like the keyword side.
 
 ## Success Criteria
 
 - Searching `cozy reading nook` finds a photo summarized as "armchair by a window with books", even though no keyword matches. Typos (`typograhpy`) and cross-language queries (`猫` for cat photos) find related cards. Exact keyword hits are still found.
 - Keyword results appear as fast as today. Semantic matches merge in when they arrive (target p95 under 700 ms on dev), with no layout jump.
-- Every view behaves the same: Trash, Archive, favorites, folders, smart folders, tags, types and visual filters all hold, and hidden cards come from the semantic side only when the search reveals them (`#private`, `#nsfw`, `#hidden`), exactly as on the keyword side.
+- Every view behaves the same: Trash, Archive, favorites, folders, smart folders, tags, types and visual filters all hold, and hidden cards come from the semantic side only when the search reveals them (`#secret`, `#hidden`), exactly as on the keyword side.
 - `GET /v1/cards?q=…` blends by default, so the MCP tools, the SDK, the CLI and Raycast (which calls the API) all blend too. `mode=keyword` gives today's results exactly. Responses carry `searchMode`.
 - If the vector service is down, slow (over 1.5 s) or rate-limited, search quietly falls back to keyword results and reports `searchMode: "keyword"`.
 
@@ -136,7 +136,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
   - 390px and 1440px, light and dark.
 - Backend:
   - Another user's cards never appear.
-  - Hidden cards never come from the semantic side without a reveal tag. With one, a hidden card that matches only by meaning is returned: `#private cozy reading nook` finds a private card titled "Window seat".
+  - Hidden cards never come from the semantic side without a reveal tag. With one, a hidden card that matches only by meaning is returned: `#secret cozy reading nook` finds a secret card titled "Window seat".
   - Trash only shows trashed cards.
   - A cache entry expires between API pages: later pages still use the frozen session, so nothing is skipped or repeated.
   - A session expires between pages: `400 CURSOR_EXPIRED` reaches SDK and MCP callers unchanged (no silent restart, no repeated cards), and `teak cards search --all` restarts the whole listing once with a notice.
@@ -166,7 +166,7 @@ Blend semantic matches into normal search everywhere. A search runs the keyword 
 ## Proof before the PR
 
 - Video 1: on dev, search `cozy reading nook` and watch the photo merge in. Then switch to oldest, then Shuffle.
-- Video 2: the nastiest case, a smart folder plus a typed query plus Trash, with a hidden match that must not appear, then the same query with `#private` added, where it must appear.
+- Video 2: the nastiest case, a smart folder plus a typed query plus Trash, with a hidden match that must not appear, then the same query with `#secret` added, where it must appear.
 - Screenshots of the grid with the hint, the empty state and the fallback: light and dark, 390px and 1440px.
 - Captured `GET /v1/cards?q=…` with each mode, the MCP `teak_v1_search_cards` output, `teak cards search "cozy reading nook" --mode semantic`, and a p50/p95 latency table from dev.
 

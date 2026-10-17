@@ -12,6 +12,7 @@ import {
   type CardType,
   cardTypes,
 } from "@teak/convex/shared/constants";
+import { isHiddenTagList } from "@teak/convex/shared/tags";
 
 /** What the search box can suggest from: cached lists the app already has. */
 export interface SearchSuggestionSources {
@@ -172,7 +173,10 @@ const valueSuggestions = (
           { key: "tag", value: tag.name },
           "Tags",
           tag.name,
-          countLabel(tag.count)
+          // A reserved tag's search is the one way to see hidden cards.
+          isHiddenTagList([tag.name])
+            ? `Shows hidden cards · ${countLabel(tag.count)}`
+            : countLabel(tag.count)
         )
       );
     case "type":

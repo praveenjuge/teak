@@ -13,6 +13,7 @@ const link = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   folders: [],
   isFavorited: false,
   isArchived: false,
+  isHidden: false,
   createdAt: toDualTimestamp(1_700_000_000_000),
   updatedAt: toDualTimestamp(1_700_000_500_000),
   ...overrides,

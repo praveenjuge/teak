@@ -619,6 +619,30 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
+  test("search passes a reserved tag on and keeps isHidden on each card", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_1", isHidden: true }],
+          pageInfo: { hasMore: false, nextCursor: null },
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { q: "#secret" },
+      mcpRequest({ jsonrpc: "2.0", id: 54, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]?.query).toMatchObject({ q: "#secret" });
+    expect(result.structuredContent).toMatchObject({
+      items: [{ id: "card_1", isHidden: true }],
+      total: 1,
+    });
+  });
+
   test("passes the search mode through and reports the one that ran", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {

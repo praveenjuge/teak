@@ -12,8 +12,10 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
+import { withHiddenFlag } from "./hiddenCards";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 import { deleteCardTextContents } from "./textContents";
 
@@ -213,7 +215,7 @@ export const patchCardWithSearchSync = async (
   if (await accountDeletionOwnsRows(ctx, card?.userId)) {
     return false;
   }
-  await ctx.db.patch("cards", cardId, withUrlHost(value));
+  await ctx.db.patch("cards", cardId, withHiddenFlag(withUrlHost(value)));
   const searchableFields = [
     ...SEARCH_FIELDS,
     "tags",
@@ -274,8 +276,9 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   const urlHost = normalizeUrlHost(card.url) ?? undefined;
-  if (card.urlHost !== urlHost) {
-    await ctx.db.patch("cards", cardId, { urlHost });
+  const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
+  if (card.urlHost !== urlHost || card.isHidden !== isHidden) {
+    await ctx.db.patch("cards", cardId, { urlHost, isHidden });
   }
 
   const value = {
@@ -286,6 +289,7 @@ export const syncCardSearchDocumentHandler = async (
     type: card.type,
     isFavorited: card.isFavorited,
     isArchived: card.isArchived === true ? (true as const) : undefined,
+    isHidden,
     urlHost,
     sourceUpdatedAt: card.updatedAt,
   };
@@ -297,6 +301,7 @@ export const syncCardSearchDocumentHandler = async (
       existing.type !== value.type ||
       existing.isFavorited !== value.isFavorited ||
       existing.isArchived !== value.isArchived ||
+      existing.isHidden !== value.isHidden ||
       existing.urlHost !== value.urlHost
     ) {
       await ctx.db.replace("cardSearchDocuments", existing._id, value);
@@ -617,12 +622,15 @@ export const searchCardsByExactTag = async (
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     sort: "newest" | "oldest";
     resultFilter?: (card: Doc<"cards">) => boolean;
+    /** Hidden cards too; a search for a reserved tag always includes them. */
+    includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
   const tag = normalizeCardSearchTag(args.tag);
   if (!tag) {
     return [];
   }
+  const includeHidden = args.includeHidden || isHiddenTagList([tag]);
   const { isFavorited, type } = args;
   const favorited = isFavorited === true ? true : undefined;
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
@@ -699,7 +707,11 @@ export const searchCardsByExactTag = async (
       continue;
     }
     const card = await ctx.db.get("cards", document.cardId);
-    if (card && (!args.resultFilter || args.resultFilter(card))) {
+    if (
+      card &&
+      (includeHidden || !isCardHidden(card)) &&
+      (!args.resultFilter || args.resultFilter(card))
+    ) {
       cardsById.set(card._id, card);
       if (cardsById.size >= matchLimit) {
         break;
@@ -735,6 +747,8 @@ export const searchCardsByDocument = async (
     resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
     /** Filled with each kept card's search text, for filtering later. */
     searchTexts?: Map<Id<"cards">, string>;
+    /** Hidden cards too: the search names a reserved tag. */
+    includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
   const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
@@ -770,6 +784,9 @@ export const searchCardsByDocument = async (
       if (args.urlHost !== undefined) {
         filtered = filtered.eq("urlHost", args.urlHost);
       }
+      if (!args.includeHidden) {
+        filtered = filtered.eq("isHidden", undefined);
+      }
       return filtered;
     })
     .take(sourceLimit);
@@ -781,6 +798,7 @@ export const searchCardsByDocument = async (
     const card = await ctx.db.get("cards", document.cardId);
     if (
       card &&
+      (args.includeHidden || !isCardHidden(card)) &&
       (!args.resultFilter || args.resultFilter(card, document.searchableText))
     ) {
       cardsById.set(card._id, card);
@@ -818,7 +836,13 @@ export const loadSemanticMatches = async (
   ctx: QueryCtx,
   args: Pick<
     Parameters<typeof searchCardsByDocument>[1],
-    "userId" | "isDeleted" | "isFavorited" | "archived" | "type" | "urlHost"
+    | "userId"
+    | "isDeleted"
+    | "isFavorited"
+    | "archived"
+    | "type"
+    | "urlHost"
+    | "includeHidden"
   >,
   ranking: readonly { cardId: Id<"cards">; score: number }[],
   cardsById: Map<Id<"cards">, Doc<"cards">>,
@@ -902,10 +926,11 @@ const matchesSearchIndexFilters = (
   card: Doc<"cards">,
   args: Pick<
     Parameters<typeof searchCardsByDocument>[1],
-    "isDeleted" | "isFavorited" | "type" | "urlHost"
+    "isDeleted" | "isFavorited" | "type" | "urlHost" | "includeHidden"
   >,
   archived: true | undefined | "any"
 ): boolean =>
+  (args.includeHidden || !isCardHidden(card)) &&
   card.isDeleted === args.isDeleted &&
   (archived === "any" ||
     (card.isArchived === true ? true : undefined) === archived) &&

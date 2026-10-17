@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
 import { hostForDisplay } from "../shared/utils/urlHost";
+import { keepVisible } from "./hiddenCards";
 import { buildCardListQuery } from "./listQuery";
 import { cardUrlHost } from "./searchPlanner";
 
@@ -35,7 +36,7 @@ export const listTopSites = query({
       .order("desc")
       .take(TOP_SITES_SCAN_LIMIT);
     const counts = new Map<string, number>();
-    for (const card of links) {
+    for (const card of keepVisible(links)) {
       const host = cardUrlHost(card);
       if (host) {
         counts.set(host, (counts.get(host) ?? 0) + 1);

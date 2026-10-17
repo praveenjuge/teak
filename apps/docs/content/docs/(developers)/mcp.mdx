@@ -111,7 +111,7 @@ MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in statele
 
 Every tool carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`), so clients can skip confirmation for reads and ask before writes.
 
-The list and search tools share these filters, matching `GET /v1/cards` in the [API](/docs/api):
+The list and search tools share these filters, matching `GET /v1/cards` in the [API](/docs/api). They leave out cards tagged `secret` or `hidden` unless the search names one of those tags (`q: "#secret"` or `tag: "hidden"`); those cards carry `isHidden: true`, and `teak_v1_get_card` still returns them.
 
 ```ts
 type CardFilters = {

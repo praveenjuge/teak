@@ -8,6 +8,7 @@ import {
 import { createCardForUserHandler } from "./card/createCard";
 import { getCardForUserHandler } from "./card/getCard";
 import { cardReturnValidator } from "./card/getCards";
+import { revealsHidden } from "./card/hiddenCards";
 import { buildCardListQuery } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -27,6 +28,7 @@ import {
 } from "./publicApiHttpShared";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import { isCardHidden } from "./shared/tags";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -172,6 +174,11 @@ const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions
 ): boolean => {
+  // Hidden cards show only when the tag searched is a reserved one.
+  if (isCardHidden(card) && !revealsHidden([options.tag])) {
+    return false;
+  }
+
   if (options.type && card.type !== options.type) {
     return false;
   }

@@ -25,6 +25,29 @@ export const TAG_ERROR_MESSAGES = {
 /** The tag as matched everywhere: trimmed and lowercased. */
 export const tagKey = (tag: string): string => tag.trim().toLowerCase();
 
+/**
+ * Reserved tag keys: a card with one of them as a user tag is hidden from
+ * every list and search until a search names one of them (`#secret`).
+ */
+export const HIDDEN_TAG_KEYS = ["secret", "hidden"] as const;
+
+const hiddenTagKeys: ReadonlySet<string> = new Set(HIDDEN_TAG_KEYS);
+
+/** Whether a tag list holds a reserved tag, in any case or spacing. */
+export const isHiddenTagList = (
+  tags: readonly string[] | null | undefined
+): boolean => (tags ?? []).some((tag) => hiddenTagKeys.has(tagKey(tag)));
+
+/**
+ * Whether a loaded card is hidden. Only user tags count; AI tags never hide
+ * a card. The tag check also covers a card the `isHidden` backfill hasn't
+ * reached yet.
+ */
+export const isCardHidden = (card: {
+  isHidden?: true;
+  tags?: readonly string[];
+}): boolean => card.isHidden === true || isHiddenTagList(card.tags);
+
 /** Why a tag name is refused, or null when it is fine. */
 export const explainInvalidTagName = (name: string): string | null => {
   const trimmed = name.trim();
