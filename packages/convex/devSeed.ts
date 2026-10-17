@@ -1517,7 +1517,7 @@ const ocrLinksPack = (): FolderScenarioPack => {
         index++,
         "https://example.com/talks/postgres",
         "Conference talk recording",
-        "SCALING POSTGRES\nto a million users\nA. Rivera · PGDay 2026"
+        "SCALING POSTGRES\nto a million users\nA. Rivera · Data Day 2026"
       ),
       link(
         index++,

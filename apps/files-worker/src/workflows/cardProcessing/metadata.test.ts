@@ -850,7 +850,7 @@ describe("generating metadata", () => {
     test("a scan with only a short footer is still read", async () => {
       const { fakes, generate } = setup(pdfCard, {
         inspect: {
-          data: { facts: { pageCount: 2 }, text: "Scanned by OfficeScan" },
+          data: { facts: { pageCount: 2 }, text: "Scanned by Copier 2" },
         },
         "ocr-pdf-pages": { data: { pageCount: 2, pagesRead: 2, text: "" } },
       });

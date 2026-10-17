@@ -118,7 +118,7 @@ test.each([
   ["one page, no text layer", { pageCount: 1, text: "" }, true],
   [
     "two pages with only a footer",
-    { pageCount: 2, text: "Scanned by OfficeScan 3000\n\fScanned by" },
+    { pageCount: 2, text: "Scanned by Copier 2 on floor 3\n\fScanned by" },
     true,
   ],
   [

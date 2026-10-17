@@ -292,7 +292,7 @@ describe("backfillPdfOcr", () => {
     }
     if (key.endsWith("footer.pdf")) {
       return {
-        data: { facts: { pageCount: 2 }, text: "Scanned by OfficeScan" },
+        data: { facts: { pageCount: 2 }, text: "Scanned by Copier 2" },
       };
     }
     return {
