@@ -36,7 +36,7 @@ Each export is a ZIP with every card outside Trash, archived cards included:
 | `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folder names, favorite and archive state, and dates. Teak imports this file back. |
 | `files/` | The original file attached to each image, video, audio, and document card. |
 | `bookmarks.html` | Your link cards in the bookmark format Chrome, Firefox, and Safari import. Links in no folder come first; each folder is its own bookmarks folder, and a link in several folders appears in each. Your tags are kept where the browser supports them. |
-| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, and `createdAt`. Tags and folders are separated by commas. |
+| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `createdAt`, and, for text saved from a page, `sourceUrl` and `sourceTitle`. Tags and folders are separated by commas. |
 | `manifest.json` | When the archive was made, its card and file counts, and its format version (`schemaVersion` 2). |
 
 `cards.csv` is safe to open in a spreadsheet: a cell that starts with `=`, `+`, `-`, or `@` begins with an apostrophe so it shows as text instead of running as a formula.

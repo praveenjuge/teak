@@ -39,9 +39,17 @@ describe("mergeRecentTags", () => {
 describe("remembered tags", () => {
   test("belong to the signed-in user", async () => {
     await rememberTags("user_a", ["design"]);
-    await rememberTags("user_a", ["reading", "design"]);
+    await rememberTags("user_a", ["design", "reading"]);
     expect(await readRecentTags("user_a")).toEqual(["reading", "design"]);
     expect(await readRecentTags("user_b")).toEqual([]);
+  });
+
+  test("keep the tag just added to a card that already has many", async () => {
+    const existing = Array.from({ length: 25 }, (_, index) => `old-${index}`);
+    await rememberTags("user_a", [...existing, "new"]);
+    const recent = await readRecentTags("user_a");
+    expect(recent[0]).toBe("new");
+    expect(recent).toHaveLength(MAX_RECENT_TAGS);
   });
 
   test("are cleared on sign out", async () => {

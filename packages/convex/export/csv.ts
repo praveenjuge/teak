@@ -25,6 +25,7 @@ export const CSV_COLUMNS = [
   "isArchived",
   "createdAt",
   "sourceUrl",
+  "sourceTitle",
 ] as const;
 
 const BOM = "﻿";
@@ -52,6 +53,7 @@ const row = (card: SerializedCard): string[] => [
   String(card.isArchived),
   card.createdAt.iso,
   card.sourceUrl ?? "",
+  card.sourceTitle ?? "",
 ];
 
 /** Builds the CSV file: a header row, then one row per card in order. */
