@@ -113,15 +113,16 @@ const setup = (
       ? callFilesOp(env, spec)
       : fakes.ops(spec);
   const siteRequests: string[] = [];
+  const site = (url: string) => {
+    siteRequests.push(url);
+    return Promise.resolve(
+      network(url) ?? new Response("missing", { status: 404 })
+    );
+  };
   const job = testJob(
     env,
     testDeps(env, convex.fetcher, ops, {
-      pinnedFetch: (url: string) => {
-        siteRequests.push(url);
-        return Promise.resolve(
-          network(url) ?? new Response("missing", { status: 404 })
-        );
-      },
+      podcastFetch: { episode: site, feed: site },
     })
   );
   const run = () => transcribePodcastEpisode(job, createWorkflowTelemetry(env));

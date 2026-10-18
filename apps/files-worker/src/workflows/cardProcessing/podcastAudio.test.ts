@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { createContainerStreamingFetch } from "../../pinnedHop";
+import { createContainerNetwork } from "../../test/cardProcessingKit";
 import { FakeBucket } from "../../test/testsupport";
 import {
   downloadEpisodeToR2,
+  EPISODE_DOWNLOAD_TIMEOUT_MS,
   EPISODE_MAX_REDIRECTS,
   episodeContentType,
 } from "./podcastAudio";
@@ -294,5 +297,34 @@ describe("downloadEpisodeToR2", () => {
     ).toEqual({ reason: "blocked", stored: false });
     expect(bucket.multipartUploads.size).toBe(0);
     expect(bucket.objects.has(KEY)).toBe(false);
+  });
+
+  test("an episode through the link fetcher Container is stored whole", async () => {
+    const network = createContainerNetwork((url) =>
+      url === EPISODE
+        ? audio(streamed(12, MiB), { "content-type": "audio/mpeg" })
+        : undefined
+    );
+    const bucket = new FakeBucket();
+    const result = await downloadEpisodeToR2(
+      bucket as unknown as R2Bucket,
+      KEY,
+      EPISODE,
+      {
+        pinnedFetch: createContainerStreamingFetch(network.env, {
+          maxBytes: 100 * MiB,
+          timeoutMs: EPISODE_DOWNLOAD_TIMEOUT_MS,
+        }),
+        resolveDns: () => Promise.resolve(["93.184.216.34"]),
+      }
+    );
+    expect(result).toEqual({
+      bytes: 12 * MiB,
+      contentType: "audio/mpeg",
+      stored: true,
+    });
+    expect(network.requests).toEqual([
+      { addresses: ["93.184.216.34"], url: EPISODE },
+    ]);
   });
 });

@@ -1,12 +1,22 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { DnsResolver, PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
-import { buildCardObjectKey, filesUserKeyRoot } from "@teak/files-protocol";
+import { PODCAST_LOOKUP_MAX_BYTES } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
+import {
+  buildCardObjectKey,
+  FILES_UPLOAD_MAX_BYTES,
+  filesUserKeyRoot,
+} from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../../convexRpc";
-import { createContainerPinnedFetch, createDohResolver } from "../../pinnedHop";
+import {
+  createContainerPinnedFetch,
+  createContainerStreamingFetch,
+  createDohResolver,
+} from "../../pinnedHop";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import type { BackgroundEnv } from "../runtime";
+import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
 
 /** The boundaries card processing reaches, replaceable in tests. */
 export interface CardProcessingDeps {
@@ -15,6 +25,11 @@ export interface CardProcessingDeps {
   filesOp: FilesOpCaller;
   /** Hops to user URLs, pinned to the addresses `resolveDns` checked. */
   pinnedFetch: PinnedFetch;
+  /**
+   * The same hops for podcasts: a show's lookup and feed, which run past the
+   * default hop's 1 MiB, and the episode's audio, streamed rather than held.
+   */
+  podcastFetch: { episode: PinnedFetch; feed: PinnedFetch };
   resolveDns: DnsResolver;
 }
 
@@ -26,6 +41,15 @@ export const createCardProcessingDeps = (
   convex: overrides.convex ?? createConvexRpc(env, convexSiteUrl),
   filesOp: overrides.filesOp ?? ((spec) => callFilesOp(env, spec)),
   pinnedFetch: overrides.pinnedFetch ?? createContainerPinnedFetch(env),
+  podcastFetch: overrides.podcastFetch ?? {
+    episode: createContainerStreamingFetch(env, {
+      maxBytes: FILES_UPLOAD_MAX_BYTES,
+      timeoutMs: EPISODE_DOWNLOAD_TIMEOUT_MS,
+    }),
+    feed: createContainerPinnedFetch(env, {
+      maxBytes: PODCAST_LOOKUP_MAX_BYTES,
+    }),
+  },
   resolveDns: overrides.resolveDns ?? createDohResolver(),
 });
 

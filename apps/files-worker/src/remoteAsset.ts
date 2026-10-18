@@ -33,7 +33,7 @@ export interface RemoteAssetEnv {
 
 const DEFAULT_POOL_SIZE = 2;
 const MAX_POOL_SIZE = 16;
-const FETCHER_START_ALLOWANCE_MS = 30_000;
+export const FETCHER_START_ALLOWANCE_MS = 30_000;
 const FETCH_TIMEOUT_MS =
   SAFE_FETCH_MAX_DURATION_MS + FETCHER_START_ALLOWANCE_MS;
 const MAX_CONTENT_TYPE_LENGTH = 255;
@@ -129,7 +129,9 @@ export const postToFetcher = async (
   env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
   path: string,
   body: unknown,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  /** Covers reading the response too; a streamed hop passes its own. */
+  timeoutMs = FETCH_TIMEOUT_MS
 ): Promise<Response> => {
   const namespace = env.LINK_FETCHER;
   if (!namespace) {
@@ -144,7 +146,7 @@ export const postToFetcher = async (
           body: JSON.stringify(body),
           headers: { "content-type": "application/json" },
           method: "POST",
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          signal: AbortSignal.timeout(timeoutMs),
         })
       );
     } catch (error) {

@@ -16,9 +16,9 @@ const setup = (respond: (url: string) => Response) => {
     // A hop never resolves names: the Worker sends the addresses.
     resolveDns: () => Promise.reject(new Error("unexpected lookup")),
   });
-  const hop = (body: Record<string, unknown>) =>
+  const send = (path: string, body: Record<string, unknown>) =>
     handle(
-      new Request("http://fetcher/hop", {
+      new Request(`http://fetcher${path}`, {
         body: JSON.stringify({
           addresses: [PUBLIC],
           headers: { accept: "application/json" },
@@ -30,7 +30,30 @@ const setup = (respond: (url: string) => Response) => {
         method: "POST",
       })
     );
-  return { calls, hop };
+  const hop = (body: Record<string, unknown>) => send("/hop", body);
+  const stream = (body: Record<string, unknown>) => send("/hop-stream", body);
+  return { calls, hop, stream };
+};
+
+const MiB = 1024 * 1024;
+
+/** An upstream body of `chunks` 1 MiB pieces that records a cancel. */
+const upstream = (chunks: number) => {
+  const state = { cancelled: false, pulled: 0 };
+  const body = new ReadableStream<Uint8Array>({
+    cancel() {
+      state.cancelled = true;
+    },
+    pull(controller) {
+      if (state.pulled === chunks) {
+        controller.close();
+        return;
+      }
+      state.pulled += 1;
+      controller.enqueue(new Uint8Array(MiB).fill(state.pulled));
+    },
+  });
+  return { body, state };
 };
 
 describe("fetcher hop", () => {
@@ -119,5 +142,75 @@ describe("fetcher hop", () => {
       error: "skipped",
       reason: "fetch_failed",
     });
+  });
+});
+
+describe("fetcher streamed hop", () => {
+  test("streams a body larger than a buffered hop may carry", async () => {
+    const { hop, stream } = setup(
+      () =>
+        new Response(upstream(6).body, {
+          headers: { "content-type": "audio/mpeg" },
+        })
+    );
+    expect((await hop({ maxBytes: 10 * MiB })).status).toBe(400);
+
+    const response = await stream({ maxBytes: 10 * MiB });
+    expect(response.status).toBe(200);
+    expect(response.headers.get(FETCHER_HOP_RESPONSE_HEADERS.contentType)).toBe(
+      "audio/mpeg"
+    );
+    expect((await response.arrayBuffer()).byteLength).toBe(6 * MiB);
+  });
+
+  test("stops one byte past the cap and cancels the upstream", async () => {
+    const source = upstream(50);
+    const { stream } = setup(() => new Response(source.body));
+    const response = await stream({ maxBytes: 2 * MiB });
+    expect((await response.arrayBuffer()).byteLength).toBe(2 * MiB + 1);
+    expect(source.state.cancelled).toBe(true);
+    expect(source.state.pulled).toBeLessThan(50);
+  });
+
+  test("one stream at a time, and the slot comes back when its body ends", async () => {
+    const { hop, stream } = setup(() => new Response(upstream(4).body));
+    const first = await stream({ maxBytes: 10 * MiB });
+    expect((await stream({ maxBytes: 10 * MiB })).status).toBe(503);
+    // Buffered hops for page details keep working meanwhile.
+    expect((await hop({})).status).toBe(200);
+
+    expect((await first.arrayBuffer()).byteLength).toBe(4 * MiB);
+    expect((await stream({ maxBytes: 10 * MiB })).status).toBe(200);
+  });
+
+  test("a cancelled body gives back the slot", async () => {
+    const sources: ReturnType<typeof upstream>[] = [];
+    const { stream } = setup(() => {
+      const source = upstream(20);
+      sources.push(source);
+      return new Response(source.body);
+    });
+    const first = await stream({ maxBytes: 50 * MiB });
+    await first.body?.cancel();
+    expect(sources[0]?.state.cancelled).toBe(true);
+    expect((await stream({ maxBytes: 50 * MiB })).status).toBe(200);
+  });
+
+  test("a refused address answers 422 and gives back the slot", async () => {
+    const { calls, stream } = setup(() => new Response("secret"));
+    const refused = await stream({ addresses: ["10.0.0.7"] });
+    expect(refused.status).toBe(422);
+    expect(await refused.json()).toEqual({
+      error: "skipped",
+      reason: "blocked_url",
+    });
+    expect(calls).toEqual([]);
+    expect((await stream({})).status).toBe(200);
+  });
+
+  test("refuses more than the upload cap or five minutes", async () => {
+    const { stream } = setup(() => new Response("ok"));
+    expect((await stream({ maxBytes: 100 * MiB + 1 })).status).toBe(400);
+    expect((await stream({ timeoutMs: 5 * 60 * 1000 + 1 })).status).toBe(400);
   });
 });

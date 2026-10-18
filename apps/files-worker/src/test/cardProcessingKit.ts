@@ -389,10 +389,17 @@ export const testEnv = (fields: Partial<BackgroundEnv> = {}): BackgroundEnv =>
     ...fields,
   }) as BackgroundEnv;
 
+const unexpectedRequest = () =>
+  Promise.reject(new Error("unexpected network request"));
+
 export const noNetwork = {
-  pinnedFetch: () => Promise.reject(new Error("unexpected network request")),
+  pinnedFetch: unexpectedRequest,
+  podcastFetch: { episode: unexpectedRequest, feed: unexpectedRequest },
   resolveDns: () => Promise.resolve(["93.184.216.34"]),
-} satisfies Pick<CardProcessingDeps, "pinnedFetch" | "resolveDns">;
+} satisfies Pick<
+  CardProcessingDeps,
+  "pinnedFetch" | "podcastFetch" | "resolveDns"
+>;
 
 /** Deps for the fake deployment and ops. */
 export const testDeps = (

@@ -13,7 +13,8 @@ import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 /** Tracking redirects stack up in front of episodes; each hop is checked. */
 export const EPISODE_MAX_REDIRECTS = 8;
 const PART_BYTES = 8 * 1024 * 1024;
-const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+/** The whole download, body included. */
+export const EPISODE_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export type EpisodeDownload =
@@ -50,7 +51,7 @@ export const downloadEpisodeToR2 = async (
   deps: EpisodeDownloadDeps,
   maxBytes = FILES_UPLOAD_MAX_BYTES
 ): Promise<EpisodeDownload> => {
-  const timeoutMs = deps.timeoutMs ?? DOWNLOAD_TIMEOUT_MS;
+  const timeoutMs = deps.timeoutMs ?? EPISODE_DOWNLOAD_TIMEOUT_MS;
   let response: Response;
   try {
     // The hop limit runs while the body streams, so it is the whole

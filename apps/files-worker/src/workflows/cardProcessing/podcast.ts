@@ -117,7 +117,7 @@ export const transcribePodcastEpisode = async (
   const page = await pageData(job, loaded);
   const enclosure = await resolveEnclosure(
     { ...page, sourceUrl: card.url },
-    { pinnedFetch: job.deps.pinnedFetch, resolveDns: job.deps.resolveDns }
+    { pinnedFetch: job.deps.podcastFetch.feed, resolveDns: job.deps.resolveDns }
   );
   if (!enclosure) {
     return miss("no_enclosure");
@@ -149,7 +149,7 @@ export const transcribePodcastEpisode = async (
       key,
       enclosure.url,
       {
-        pinnedFetch: job.deps.pinnedFetch,
+        pinnedFetch: job.deps.podcastFetch.episode,
         resolveDns: job.deps.resolveDns,
       }
     );
