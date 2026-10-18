@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   headCommit,
+  leaseHolder,
   leaseStatus,
 } from "../../../../scripts/convex-push-lease.ts";
 import {
@@ -38,14 +39,20 @@ const checkWeb = async (appOrigin: string) => {
       signal: AbortSignal.timeout(30_000),
     });
     const location = response.headers.get("location") ?? "";
-    if (response.status >= 400) {
-      report("fail", `web: ${appOrigin}/ answered ${response.status}`);
-    } else if (response.status >= 300 && !location) {
-      report("fail", `web: ${appOrigin}/ redirected without a location`);
-    } else {
+    // No session is sent, so a healthy app redirects to its sign-in route.
+    if (
+      response.status >= 300 &&
+      response.status < 400 &&
+      new URL(location, appOrigin).pathname === "/sign-in"
+    ) {
       report(
         "ok",
-        `web: ${appOrigin}/ answered ${response.status}${location ? " (redirects anonymous visitors to sign-in)" : ""}`
+        `web: ${appOrigin}/ answered ${response.status}, redirecting anonymous visitors to sign-in`
+      );
+    } else {
+      report(
+        "fail",
+        `web: anonymous ${appOrigin}/ answered ${response.status}${location ? ` to ${location}` : ""}, not a redirect to /sign-in`
       );
     }
   } catch (error) {
@@ -95,15 +102,23 @@ const checkBackend = async (pushing: boolean) => {
             "packages/convex",
           ])
         ).exitCode;
-  if (changed === 0) {
+  // The lease records a push's commit, not its working tree, so only a push
+  // from this checkout is known to carry exactly this checkout's code.
+  const self = await leaseHolder(ROOT);
+  if (changed !== 0) {
+    report(
+      "warn",
+      `backend: live code is ${last.label} at ${last.commit}, and this checkout's packages/convex differs from it. Backend changes here are not live; take over with \`bun run dev --stop && bun run dev --detach --push\` before verifying them.`
+    );
+  } else if (last.label === self.label) {
     report(
       "ok",
-      `backend: live code matches this checkout's packages/convex (pushed by ${last.label} at ${last.commit})`
+      `backend: live code is this checkout's packages/convex (pushed at ${last.commit})`
     );
   } else {
     report(
       "warn",
-      `backend: live code is ${last.label} at ${last.commit}, and this checkout's packages/convex differs from it. Backend changes here are not live; take over with \`bun run dev --stop && bun run dev --detach --push\` before verifying them.`
+      `backend: live code was pushed by ${last.label} at ${last.commit}. Its committed packages/convex matches this checkout's, but it may include that checkout's uncommitted changes. Fine for frontend work; for backend work take over with \`bun run dev --stop && bun run dev --detach --push\`.`
     );
   }
 };
