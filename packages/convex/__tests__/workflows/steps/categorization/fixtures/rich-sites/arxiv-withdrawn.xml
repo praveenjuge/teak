@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/zgi83mK0aVpTzYEimxiOfA6sz64</id>
+  <title>arXiv Query: search_query=&amp;id_list=0910.4008&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-18T03:38:40Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=0910.4008" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/0910.4008v2</id>
+    <title>Characterising weakly almost periodic functionals on the measure algebra</title>
+    <updated>2009-11-11T09:24:00Z</updated>
+    <link href="https://arxiv.org/abs/0910.4008v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/0910.4008v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  This paper has been withdrawn, as it should not have been a new submission. Please instead see the latest version of arXiv:0904.0436.</summary>
+    <category term="math.FA" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2009-10-21T07:34:21Z</published>
+    <arxiv:comment>Withdrawn</arxiv:comment>
+    <arxiv:primary_category term="math.FA"/>
+    <author>
+      <name>Matthew Daws</name>
+    </author>
+  </entry>
+</feed>

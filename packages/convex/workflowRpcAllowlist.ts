@@ -32,6 +32,7 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "storage/ownership:registerObject",
   "workflows/aiMetadata/mutations:updateCardAI",
   "workflows/aiMetadata/mutations:updateCardColors",
+  "workflows/steps/categorization/mutations:takeArxivSlot",
   "workflows/steps/categorization/mutations:updateCategorization",
   "workflows/steps/classificationMutations:recordClassification",
   "workflows/steps/renderables/mutations:markCardRenderablesFailed",

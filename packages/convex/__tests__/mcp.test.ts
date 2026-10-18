@@ -64,6 +64,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_rename_tag",
   "teak_v1_reset_card_thumbnail",
   "teak_v1_restore_card",
+  "teak_v1_save_card_pdf",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
   "teak_v1_set_card_done",
@@ -811,6 +812,12 @@ describe("Convex MCP endpoint", () => {
       { method: "POST", path: "/v1/cards/card_1/done" },
       { method: "DELETE", path: "/v1/cards/card_1/done" },
     ]);
+
+    await call("teak_v1_save_card_pdf", { cardId: "card_1" });
+    expect(captured[10]).toMatchObject({
+      method: "POST",
+      path: "/v1/cards/card_1/save-pdf",
+    });
   });
 
   test("tag tools start tag changes and poll their progress", async () => {

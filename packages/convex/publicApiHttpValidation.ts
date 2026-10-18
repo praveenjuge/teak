@@ -710,6 +710,7 @@ const parseCardRoute = (
     | "patch"
     | "refresh"
     | "restore"
+    | "save-pdf"
     | "thumbnail-reset"
     | "thumbnail-set"
     | "thumbnail-upload"
@@ -786,6 +787,14 @@ const parseCardRoute = (
     segments[3] === "refresh"
   ) {
     return { cardId, operation: "refresh" };
+  }
+
+  if (
+    request.method === "POST" &&
+    segments.length === 4 &&
+    segments[3] === "save-pdf"
+  ) {
+    return { cardId, operation: "save-pdf" };
   }
 
   if (request.method !== "PATCH") {

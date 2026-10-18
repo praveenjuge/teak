@@ -200,7 +200,7 @@ const storeRemoteAsset = async (
   }
 };
 
-const storeLinkPreviewImage = async (
+export const storeLinkPreviewImage = async (
   job: CardJob,
   loaded: LoadedCard,
   imageUrl: string,

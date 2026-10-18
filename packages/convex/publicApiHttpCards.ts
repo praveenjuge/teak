@@ -553,6 +553,45 @@ const ensureCardExistsForUser = (
       card?.isDeleted && !includeDeleted ? null : card
     );
 
+// Save PDF's own refusals; anything else maps as every card route maps it.
+const SAVE_PDF_ERROR_STATUS: Partial<Record<string, number>> = {
+  FILE_TOO_LARGE: 413,
+  IN_PROGRESS: 409,
+  SERVICE_UNAVAILABLE: 503,
+  UNSUPPORTED_TYPE: 415,
+};
+
+/**
+ * Saves an arXiv link's PDF as a document card: 201 with the new card, or
+ * 200 with `created: false` when an earlier save made it.
+ */
+const handleSavePdfRequest = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+): Promise<Response> => {
+  try {
+    const result = await ctx.runAction(
+      internal.card.saveLinkedPdf.saveLinkedPdfForUser,
+      { cardId, userId }
+    );
+    if (result.created) {
+      await captureBackendEvent("link_pdf_saved", userId, { source: "api" });
+    }
+    return json(result.created ? 201 : 200, result);
+  } catch (error) {
+    const data = error instanceof ConvexError ? error.data : undefined;
+    const status =
+      typeof data?.code === "string"
+        ? SAVE_PDF_ERROR_STATUS[data.code]
+        : undefined;
+    if (status) {
+      return json(status, { code: data.code, error: data.message });
+    }
+    return mapConvexErrorToResponse(error, "Failed to save the PDF");
+  }
+};
+
 /**
  * A card's full stored text: the document text Teak extracted from its file
  * (read from R2), else its transcript, else a text or quote card's content.
@@ -731,6 +770,7 @@ const handleCardsByIdV1Request = async (
       route.operation === "refresh" ||
       route.operation === "done" ||
       route.operation === "undone" ||
+      route.operation === "save-pdf" ||
       // A card in Trash answers 409, not 404.
       route.operation.startsWith("thumbnail-") ||
       (route.operation === "delete" && permanent === "true")
@@ -820,6 +860,14 @@ const handleCardsByIdV1Request = async (
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update done state");
     }
+  }
+
+  if (route.operation === "save-pdf") {
+    return await handleSavePdfRequest(
+      ctx,
+      auth.validated.userId,
+      normalizedCardId as Id<"cards">
+    );
   }
 
   if (route.operation === "delete" || route.operation === "restore") {

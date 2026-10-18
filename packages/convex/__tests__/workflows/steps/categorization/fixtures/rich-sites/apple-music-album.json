@@ -1,0 +1,17 @@
+{
+  "@context": "http://schema.org",
+  "@type": "MusicAlbum",
+  "name": "Example Album",
+  "description": "Listen to Example Album by Example Artist on Apple Music. 2023. 12 Songs.",
+  "url": "https://music.apple.com/us/album/example-album/1700000000",
+  "image": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/00/00/00/example.jpg/1200x630bb.jpg",
+  "genre": ["Pop", "Music"],
+  "datePublished": "2023-10-27",
+  "byArtist": [
+    {
+      "@type": "MusicGroup",
+      "url": "https://music.apple.com/us/artist/example-artist/100000000",
+      "name": "Example Artist"
+    }
+  ]
+}

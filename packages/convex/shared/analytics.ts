@@ -28,6 +28,9 @@ interface CardDoneToggled {
   source: CardDoneSource;
 }
 
+/** Where Save PDF ran: a card's dialog, or the public API (MCP and CLI too). */
+export type LinkPdfSaveSource = "panel" | "api";
+
 /** How a link's image was replaced: on the web, or through the public API. */
 export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
@@ -59,6 +62,8 @@ export interface ClientEventCatalog {
   import_completed: NoProperties;
   import_failed: { error_class?: string };
   import_started: NoProperties;
+  /** An arXiv paper's PDF saved as a document card from its link. */
+  link_pdf_saved: { source: LinkPdfSaveSource };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
   search_performed: {
@@ -101,6 +106,7 @@ export interface ServerEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
+  link_pdf_saved: { source: LinkPdfSaveSource };
   mcp_tool_called: {
     duration_ms: number;
     outcome: "ok" | "error" | "unauthorized";

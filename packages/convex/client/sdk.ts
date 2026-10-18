@@ -36,6 +36,7 @@ export const ERROR_CODES = [
   "FILE_TOO_LARGE",
   "FOLDER_LIMIT",
   "FORBIDDEN",
+  "IN_PROGRESS",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
@@ -378,6 +379,13 @@ export interface RefreshCardResponse {
   requestedAt: number;
   status: "queued";
 }
+/** An arXiv link's PDF saved as a document card (POST /v1/cards/:id/save-pdf). */
+export interface SavedPdf {
+  /** The document card holding the PDF. */
+  cardId: string;
+  /** False when an earlier save already made that card. */
+  created: boolean;
+}
 /** A card's full stored text (GET /v1/cards/:id/content). */
 export interface CardContent {
   cardId: string;
@@ -704,6 +712,16 @@ const asRefresh = (value: unknown): RefreshCardResponse => {
   }
   return value as unknown as RefreshCardResponse;
 };
+const asSavedPdf = (value: unknown): SavedPdf => {
+  if (
+    !isObject(value) ||
+    typeof value.cardId !== "string" ||
+    typeof value.created !== "boolean"
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return { cardId: value.cardId, created: value.created };
+};
 const asCardContent = (value: unknown): CardContent => {
   if (
     !isObject(value) ||
@@ -1009,6 +1027,12 @@ export const createTeakClient = (options: {
        * Marks a link card read, watched, bought or done (`done: true`), or
        * not; repeating a call changes nothing. Only link cards can be marked.
        */
+      /**
+       * Saves an arXiv link's paper as its own document card. Saving the same
+       * link again returns that card with `created: false`.
+       */
+      savePdf: (id: string) =>
+        request(`${cardPath(id)}/save-pdf`, { method: "POST" }, asSavedPdf),
       setDone: (id: string, done: boolean) =>
         request(
           `${cardPath(id)}/done`,

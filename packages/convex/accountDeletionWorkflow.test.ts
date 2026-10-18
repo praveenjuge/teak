@@ -818,6 +818,16 @@ describe("durable deletion admission and tombstones", () => {
         charCount: 7,
         truncated: false,
       });
+      await ctx.db.insert("linkedPdfs", {
+        userId: "permanent-owner",
+        sourceCardId: card,
+        pdfUrl: "https://arxiv.org/pdf/1706.03762",
+        status: "pending",
+        fileKey: "users/exact/linked.pdf",
+        claimToken: "claim",
+        createdAt: 1,
+        updatedAt: 1,
+      });
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",
         items: [{ name: "private", count: 1 }],
@@ -959,6 +969,7 @@ describe("durable deletion admission and tombstones", () => {
       "cardSearchDocuments",
       "cardSearchTags",
       "cardTextContents",
+      "linkedPdfs",
       "userTagSummaries",
       "tagSummaryRefreshes",
       "tagOperations",

@@ -366,6 +366,34 @@ describe("teak parity commands", () => {
     expect(detail.stdout).toContain("done: 2026-10-17T00:00:00.000Z");
   });
 
+  test("cards save-pdf saves a paper once and says when it already has", async () => {
+    let created = true;
+    routes.set("POST /v1/cards/paper/save-pdf", () => {
+      const body = { cardId: "doc_1", created };
+      created = false;
+      return json(body, body.created ? 201 : 200);
+    });
+    routes.set("POST /v1/cards/note/save-pdf", () =>
+      json(
+        { code: "INVALID_INPUT", error: "This card has no PDF to save." },
+        400
+      )
+    );
+
+    const first = await teak("cards", "save-pdf", "paper");
+    const again = await teak("cards", "save-pdf", "paper", "--json");
+    const refused = await teak("cards", "save-pdf", "note");
+
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain("Saved the PDF as doc_1");
+    expect(JSON.parse(again.stdout)).toEqual({
+      cardId: "doc_1",
+      created: false,
+    });
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("This card has no PDF to save.");
+  });
+
   test("trash lists Trash and restore brings cards back", async () => {
     routes.set("GET /v1/cards", emptyPage);
     routes.set("POST /v1/cards/card_a/restore", noContent);

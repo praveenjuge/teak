@@ -9,7 +9,10 @@ import {
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
-import { isScannedPdf } from "@teak/files-protocol";
+import {
+  isScannedPdf,
+  MAX_AI_METADATA_INPUT_CHARS,
+} from "@teak/files-protocol";
 import { runWithAiUsage } from "../../aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
@@ -32,6 +35,7 @@ import {
   readScannedPdfText,
   storeDocumentText,
 } from "./files";
+import { hydrateArchivedMetadata } from "./rawMetadata";
 
 // The AI summary, tags and transcript for one card. The card-processing
 // workflow and the AI backfill queue both run it.
@@ -45,11 +49,19 @@ interface LinkPreviewFields {
   title?: string;
 }
 
-export const buildLinkContentParts = (card: {
-  content?: string;
-  metadata?: { linkPreview?: LinkPreviewFields };
-  url?: string;
-}): string[] => {
+/**
+ * The preview's fields, then the site's own summary (a Wikipedia extract or
+ * an arXiv abstract), cut so the whole input fits the model's
+ * {@link MAX_AI_METADATA_INPUT_CHARS}.
+ */
+export const buildLinkContentParts = (
+  card: {
+    content?: string;
+    metadata?: { linkPreview?: LinkPreviewFields };
+    url?: string;
+  },
+  siteSummary?: string
+): string[] => {
   const preview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -76,7 +88,54 @@ export const buildLinkContentParts = (card: {
       contentParts.push(`URL: ${urlFallback}`);
     }
   }
+  const summary = siteSummary?.trim();
+  if (summary) {
+    // Each part is joined with a newline.
+    const used = contentParts.reduce(
+      (total, part) => total + part.length + 1,
+      0
+    );
+    const room = MAX_AI_METADATA_INPUT_CHARS - used - SUMMARY_LABEL.length;
+    if (room > 0) {
+      contentParts.push(`${SUMMARY_LABEL}${summary.slice(0, room)}`);
+    }
+  }
   return contentParts;
+};
+
+const SUMMARY_LABEL = "Summary: ";
+
+/**
+ * The extract or abstract categorization kept from the link's site, read
+ * back from R2 when the details were archived there. Undefined when there
+ * is none or it can't be read.
+ */
+const linkSiteSummary = async (
+  job: CardJob,
+  loaded: LoadedCard
+): Promise<string | undefined> => {
+  const { card } = loaded;
+  const linkCategory = card.metadata?.linkCategory;
+  if (!linkCategory) {
+    return;
+  }
+  try {
+    const hydrated = await hydrateArchivedMetadata(job.env, loaded.keyPrefix, {
+      _id: card._id,
+      metadata: { linkCategory },
+      userId: card.userId,
+    });
+    const raw = hydrated.metadata?.linkCategory?.raw as
+      | { remote?: { summary?: unknown } }
+      | undefined;
+    const summary = raw?.remote?.summary;
+    return typeof summary === "string" ? summary : undefined;
+  } catch (error) {
+    console.warn("[cardProcessing/metadata] site summary unavailable", {
+      cardId: job.cardId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 };
 
 /** Facts about what the step stored, never the text itself. */
@@ -284,7 +343,10 @@ const generateForType = async (
       return { ...result, aiTranscript: transcript, confidence: 0.85 };
     }
     case "link": {
-      const content = buildLinkContentParts(card).join("\n");
+      const content = buildLinkContentParts(
+        card,
+        await linkSiteSummary(job, loaded)
+      ).join("\n");
       if (!content.trim()) {
         return empty;
       }

@@ -46,6 +46,7 @@ const STRUCTURED_DATA_FIELDS = [
   "operatingSystem",
   "applicationCategory",
   "gamePlatform",
+  "isbn",
 ];
 
 const PLACE_TYPES = [

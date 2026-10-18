@@ -61,6 +61,15 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 20,
   },
+  // arXiv's API asks for at most one request every 3 seconds per client;
+  // the whole deployment shares it (workflows/steps/categorization).
+  arxivApi: {
+    kind: "token bucket",
+    rate: 20,
+    period: MINUTE,
+    capacity: 1,
+    maxReserved: 3,
+  },
 } as const;
 
 export const rateLimiter = new RateLimiter(

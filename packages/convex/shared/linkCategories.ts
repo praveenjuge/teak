@@ -163,6 +163,8 @@ export interface LinkCategoryMetadata {
   facts?: LinkCategoryDetail[];
   fetchedAt: number;
   imageUrl?: string;
+  /** An arXiv paper's PDF on arxiv.org, which Save PDF stores as a document. */
+  pdfUrl?: string;
   /** A product's price, from JSON-LD or the provider's page selectors. */
   price?: LinkPrice;
   raw?: Record<string, unknown>;

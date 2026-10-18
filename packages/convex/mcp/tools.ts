@@ -698,6 +698,17 @@ const toolConfigs: Record<string, ToolConfig> = {
     summary: (_payload, input) =>
       `Card ${input.cardId} marked ${input.done ? "done" : "not done"}`,
   },
+  teak_v1_save_card_pdf: {
+    schema: cardIdInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: `${cardPath(input.cardId)}/save-pdf`,
+    }),
+    summary: (payload) =>
+      payload.created
+        ? `Saved the PDF as card ${String(payload.cardId)}`
+        : `The PDF is already card ${String(payload.cardId)}`,
+  },
   teak_v1_delete_card: {
     schema: deleteCardInputSchema,
     operation: (input) => ({ method: "DELETE", path: cardPath(input.cardId) }),

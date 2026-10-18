@@ -16,6 +16,7 @@ import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
 import { withHiddenFlag } from "./hiddenCards";
+import { deleteLinkedPdfRows } from "./linkedPdfRows";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 import { deleteCardTextContents } from "./textContents";
 
@@ -267,6 +268,7 @@ export const syncCardSearchDocumentHandler = async (
     if (!previousCard || previousCard.hasExtractedText) {
       await deleteCardTextContents(ctx, cardId);
     }
+    await deleteLinkedPdfRows(ctx, cardId, previousCard);
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
