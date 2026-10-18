@@ -655,6 +655,8 @@ describe("additive files ops", () => {
             : "";
           calls.push({ prompt, system: String(system?.content) });
           expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
+          // Text-only reads copy dense pages, where words really repeat.
+          expect(args.frequency_penalty).toBeUndefined();
           const content =
             calls.length === 1
               ? `{"text":"${"Slide ".repeat(900)}`
