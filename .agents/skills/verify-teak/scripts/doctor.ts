@@ -65,28 +65,40 @@ const checkWeb = async (appOrigin: string) => {
 
 /**
  * The newest modification time (ms) among the uncommitted paths in
- * `git status --porcelain --untracked-files=all` output, or 0 when there are
- * none. A deleted path has no file to stat, so it counts by its nearest
+ * `git status --porcelain -z --untracked-files=all` output, or 0 when there
+ * are none. NUL-separated records keep paths with spaces or " -> " whole; a
+ * rename or copy record is followed by its old path, which is skipped. A deleted path has no file to stat, so it counts by its nearest
  * existing parent directory, whose time changes when something in it is
  * removed (a whole deleted directory counts by the directory above it).
  */
-export const newestEdit = (porcelain: string, root = ROOT): number =>
-  porcelain
-    .split("\n")
-    .map((line) => line.slice(3).split(" -> ").pop()?.trim() ?? "")
-    .filter(Boolean)
-    .reduce((newest, path) => {
-      for (let candidate = path; ; candidate = dirname(candidate)) {
-        try {
-          return Math.max(newest, statSync(join(root, candidate)).mtimeMs);
-        } catch {
-          // Gone: try its parent directory next.
-        }
-        if (candidate === dirname(candidate)) {
-          return newest;
-        }
+export const changedPaths = (porcelainZ: string): string[] => {
+  const records = porcelainZ.split("\0");
+  const paths: string[] = [];
+  for (let i = 0; i < records.length; i += 1) {
+    const record = records[i] ?? "";
+    if (record.length > 3) {
+      paths.push(record.slice(3));
+      if (record[0] === "R" || record[0] === "C") {
+        i += 1;
       }
-    }, 0);
+    }
+  }
+  return paths;
+};
+
+export const newestEdit = (porcelainZ: string, root = ROOT): number =>
+  changedPaths(porcelainZ).reduce((newest, path) => {
+    for (let candidate = path; ; candidate = dirname(candidate)) {
+      try {
+        return Math.max(newest, statSync(join(root, candidate)).mtimeMs);
+      } catch {
+        // Gone: try its parent directory next.
+      }
+      if (candidate === dirname(candidate)) {
+        return newest;
+      }
+    }
+  }, 0);
 
 const git = (args: string[]) =>
   runCommand(["git", ...args], { cwd: ROOT, timeoutMs: 10_000 });
@@ -98,6 +110,7 @@ const checkBackend = async (pushing: boolean) => {
     git([
       "status",
       "--porcelain",
+      "-z",
       "--untracked-files=all",
       "--",
       "packages/convex",

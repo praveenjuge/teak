@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   backendVerdict,
+  changedPaths,
   latestPushFailed,
   newestEdit,
 } from "../.agents/skills/verify-teak/scripts/doctor.ts";
@@ -110,7 +111,7 @@ describe("verify-teak doctor: newest uncommitted edit", () => {
       writeFileSync(join(root, "newdir/foo.ts"), "x");
       utimesSync(join(root, "newdir"), at(1000), at(1000));
       utimesSync(join(root, "newdir/foo.ts"), at(2000), at(2000));
-      expect(newestEdit("?? newdir/foo.ts\n", root)).toBe(2_000_000);
+      expect(newestEdit("?? newdir/foo.ts\0", root)).toBe(2_000_000);
     });
   });
 
@@ -118,7 +119,7 @@ describe("verify-teak doctor: newest uncommitted edit", () => {
     withTree((root) => {
       mkdirSync(join(root, "dir"));
       utimesSync(join(root, "dir"), at(3000), at(3000));
-      expect(newestEdit(" D dir/gone.ts\n", root)).toBe(3_000_000);
+      expect(newestEdit(" D dir/gone.ts\0", root)).toBe(3_000_000);
     });
   });
 
@@ -126,11 +127,21 @@ describe("verify-teak doctor: newest uncommitted edit", () => {
     withTree((root) => {
       mkdirSync(join(root, "dir"));
       utimesSync(join(root, "dir"), at(4000), at(4000));
-      expect(newestEdit(" D dir/gone/a.ts\n", root)).toBe(4_000_000);
+      expect(newestEdit(" D dir/gone/a.ts\0", root)).toBe(4_000_000);
     });
   });
 
   test("no uncommitted paths means no edit", () => {
     expect(newestEdit("")).toBe(0);
+  });
+});
+
+describe("verify-teak doctor: git status -z records", () => {
+  test("keeps paths with spaces and arrows whole, and skips a rename's old path", () => {
+    expect(
+      changedPaths(
+        " M my file.ts\0?? a -> b.ts\0R  new.ts\0old.ts\0 D gone.ts\0"
+      )
+    ).toEqual(["my file.ts", "a -> b.ts", "new.ts", "gone.ts"]);
   });
 });
