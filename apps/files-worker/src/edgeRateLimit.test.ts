@@ -22,7 +22,6 @@ const keyFor = (suffix: string) =>
 const KEY_A = keyFor("0001");
 const KEY_B = keyFor("0002");
 const STRANGER_KEY = keyFor("9999");
-/** KEY_A's owner, as the edge identity charged for the request. */
 const KNOWN_USER = { key: "user:teak-user-1", source: "api_key" };
 
 const streamedMcpPost = (body: ReadableStream<Uint8Array>): Request =>

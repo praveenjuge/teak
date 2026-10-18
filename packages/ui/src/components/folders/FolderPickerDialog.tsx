@@ -32,7 +32,6 @@ import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
 
 interface FolderPickerDialogProps {
-  /** A folder to leave out, such as the one being viewed when moving. */
   excludeFolderId?: string;
   mode: "add" | "move";
   onOpenChange: (open: boolean) => void;
@@ -41,10 +40,6 @@ interface FolderPickerDialogProps {
   selectedCount: number;
 }
 
-/**
- * Picks the folder a bulk Add or Move puts cards in. Typing filters the
- * folders; a name that matches none can be created on the spot.
- */
 export function FolderPickerDialog({
   excludeFolderId,
   mode,

@@ -7,7 +7,6 @@ import type { ExportState } from "./ExportPanel";
 import { ImportExportDialog } from "./ImportExportDialog";
 import { SettingRow } from "./SettingRow";
 
-/** Asks the section to open its dialog on a tab; a new `id` asks again. */
 export interface ImportExportOpenRequest {
   id: number;
   tab: SettingsDialogTab;

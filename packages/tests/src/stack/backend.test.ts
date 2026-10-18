@@ -5,7 +5,6 @@ import { join } from "node:path";
 import type { RunCommandResult } from "../../../../scripts/proc.ts";
 import {
   convexDevOnce,
-  isLocalSelection,
   isTransientPushFailure,
   summarizePushFailure,
 } from "./backend";
@@ -502,14 +501,5 @@ describe("selected anonymous backend shutdown recovery", () => {
       expect(result.ok).toBe(false);
       expect(runs).toBe(3);
     });
-  });
-});
-
-describe("isLocalSelection", () => {
-  test("no deployment and local backends are local", () => {
-    expect(isLocalSelection(undefined)).toBe(true);
-    expect(isLocalSelection("anonymous:anonymous-agent")).toBe(true);
-    expect(isLocalSelection("local:teak")).toBe(true);
-    expect(isLocalSelection("dev:happy-otter-123")).toBe(false);
   });
 });

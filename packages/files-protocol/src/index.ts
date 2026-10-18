@@ -4,10 +4,6 @@ export const FILES_OP_PATH = "/__ops/v1" as const;
 export const FILES_IMAGE_PATH = "/__images/v1" as const;
 export const FILES_IMAGE_SOURCE_PATH = "/__image-source/v1" as const;
 
-// Renditions are an allowlist: dimensions, crop, and quality stay
-// server-controlled so clients can never request arbitrary transform
-// combinations. `tiny` doubles as the loading placeholder and `compact`
-// serves small/mobile cards; `grid` and `detail` keep their historical roles.
 export const FILES_IMAGE_RENDITIONS = [
   "tiny",
   "compact",
@@ -24,8 +20,12 @@ export const isFilesImageRendition = (
 
 export const FILES_UPLOAD_PATH = "/__upload/v1" as const;
 
-/** Upper bound for single-file upload URL validity, enforced by the worker. */
 export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;
+
+/** Upper bound for a signed op request's validity, enforced by the worker. */
+export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
+/** Validity Convex gives each signed op request it mints. */
+export const FILES_OP_TTL_SECONDS = 10 * 60;
 
 export const FILES_OPS = [
   "capabilities",
@@ -42,9 +42,7 @@ export const FILES_OPS = [
   "finalize-image-upload",
   "finalize-upload",
   "generate-image-metadata",
-  // The text in a stored image, nothing else; see ./metadata.
   "extract-image-text",
-  // The text on a scanned PDF's first pages, read in memory.
   "ocr-pdf-pages",
   "generate-text-metadata",
   "generate-link-metadata",
@@ -58,30 +56,17 @@ export const FILES_OPS = [
   "capture-screenshot",
   "scrape-html",
   "probe-media",
-  // Palette of an animated GIF from frames across it; stores nothing.
   "extract-animation-palette",
-  // Waveform, media facts and transcript in one pass.
   "process-audio",
-  // Downloads a remote preview asset through the fetcher Container straight
-  // into R2; see ./remoteAsset.
   "store-remote-asset",
-  // Save PDF: an arXiv paper's PDF straight into R2, from arxiv.org only;
-  // see ./linkedPdf.
   "store-linked-pdf",
-  // Fetches and scrapes a link's page through the fetcher Container, with a
-  // Browser Run fallback; see ./linkPage.
   "fetch-link-page",
-  // Card embeddings in Vectorize, one namespace per user; see ./embeddings.
   "embed-upsert",
   "vector-delete",
   "vector-get",
   "vector-query",
   "vector-similar",
-  // Starts Cloudflare Workflow instances and queues object deletions; see
-  // ./workflows.
   "dispatch",
-  // Clef decision models; see ./decisions. Each returns `null` (or no
-  // styles) when Clef isn't sure, so callers keep their rules' answer.
   "decide-card-type",
   "decide-link-category",
   "decide-visual-styles",
@@ -136,7 +121,6 @@ export interface FilesSuccessEnvelope<T> {
 
 export type FilesEnvelope<T> = FilesErrorEnvelope | FilesSuccessEnvelope<T>;
 
-/** Trusted facts returned after an uploaded image has been verified and stored. */
 export interface FilesFinalizeImageResult {
   content?: undefined;
   decodedFormat: string;
@@ -263,23 +247,13 @@ export const buildImageSourceSigningPayload = ({
 export const FILES_TRANSCRIPTION_MODEL =
   "@cf/openai/whisper-large-v3-turbo" as const;
 export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
-/**
- * Text the inspect op extracts from a document: at most this many characters
- * (UTF-8 bytes for the text and archive modes), from at most
- * FILES_PDF_TEXT_MAX_PAGES pages of a PDF. Teak stores it as the card's text.
- */
 export const FILES_EXTRACTED_TEXT_MAX_CHARACTERS = 512 * 1024;
+export const FILES_EXTRACTED_TEXT_MAX_BYTES = 512 * 1024;
 export const FILES_PDF_TEXT_MAX_PAGES = 500;
 
-/** Letters or digits a page of text averages below which a PDF is a scan. */
 export const FILES_SCANNED_PDF_MIN_CHARS_PER_PAGE = 20;
 const LETTER_OR_DIGIT = /[\p{L}\p{N}]/gu;
 
-/**
- * A PDF is scanned when its page count is known and its text layer
- * averages under 20 letters or digits a page across the pages read, so a
- * "Scanned by …" footer alone still counts as a scan.
- */
 export const isScannedPdf = ({
   pageCount,
   text,
@@ -346,6 +320,7 @@ export type FilesImportMarkdownResult =
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
+export * from "./inspect";
 export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";

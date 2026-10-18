@@ -40,20 +40,14 @@ type CardWithUrls = Doc<"cards"> & {
   hasThumbnailOverride?: true;
 };
 
-/** Lets the preview take a dropped image as the link's new image. */
 export interface LinkPreviewThumbnail {
   onFile: (file: File) => void;
-  /** The image being uploaded, shown with a shimmer until it is applied. */
   uploadingPreviewUrl?: string;
 }
 
 const hasFiles = (event: DragEvent) =>
   Array.from(event.dataTransfer?.types ?? []).includes("Files");
 
-/**
- * A drop target for a new image, outlined while a file is dragged over it.
- * Drop-only: the card menu's Replace image item is the keyboard path.
- */
 function ThumbnailDropZone({
   children,
   className,
@@ -77,9 +71,7 @@ function ThumbnailDropZone({
       if (!hasFiles(event)) {
         return false;
       }
-      // Keep the drop from the browser and from the library's drop-to-save.
       event.preventDefault();
-      event.stopPropagation();
       return true;
     };
     const handleDragEnter = (event: DragEvent) => {
@@ -127,6 +119,7 @@ function ThumbnailDropZone({
         className
       )}
       data-drop-target={isOver ? "active" : undefined}
+      data-no-drop=""
       ref={ref}
     >
       {children}
@@ -144,7 +137,6 @@ interface LinkPreviewProps {
     children: React.ReactNode;
   }>;
   showScreenshot?: boolean;
-  /** Set where the link's image can be replaced (the card dialog). */
   thumbnail?: LinkPreviewThumbnail;
 }
 
@@ -243,8 +235,6 @@ export function LinkPreview({
     );
   }
 
-  // With no image, the dialog offers a quiet place to drop one, outside the
-  // link so a click never opens the site.
   const emptyDropArea =
     thumbnail && !image ? (
       <ThumbnailDropZone onFile={thumbnail.onFile}>

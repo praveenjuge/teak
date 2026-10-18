@@ -1,24 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Single entrypoint for local dev.
- *
- *   bun run dev           # the web stack on this checkout's ports
- *   bun run dev --push    # also take over pushing the backend
- *   bun run dev --detach  # start the web stack in the background, return once ready
- *   bun run dev --stop    # stop this checkout's web stack
- *   bun run dev --status  # this checkout's ports, URLs and sign-in
- *   bun run dev docs      # another surface (Turbo)
- *   bun run dev --all     # every surface (Turbo)
- *   bun run dev --check   # print what would run
- *
- * The web stack runs setup, then the web app against the shared cloud dev
- * deployment (scripts/dev-stack.ts), signed in through WorkOS staging as this
- * checkout's seeded account. The checkout holding the push lease also pushes
- * its backend. Every worktree gets its own web ports
- * (scripts/worktree-env.ts), so several run at once. Other surfaces run
- * through `turbo watch`; `--headless` streams their output for agents and CI.
- */
-
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -253,10 +233,6 @@ export const describeStatus = (
     "  A running stack records its URLs and sign-in in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
   ].join("\n");
 
-/**
- * This checkout's ports for the surfaces Turbo runs, and the dev deployment's
- * API for the docs proxy. Each app's turbo.json passes its variables through.
- */
 const surfaceEnv = async (): Promise<Record<string, string>> => {
   const ports = await resolveWorktree(ROOT);
   return {

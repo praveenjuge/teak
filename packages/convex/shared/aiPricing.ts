@@ -1,6 +1,3 @@
-// Workers AI list prices, shared by Convex's AI telemetry and the Files
-// Worker's Analytics Engine usage points. Pure: no Convex server imports.
-
 import {
   CLEF_FLASH_MODEL_ID,
   CLEF_INPUT_USD_PER_MILLION,
@@ -26,7 +23,6 @@ export const WORKERS_AI_PRICING_USD_PER_MILLION = {
 export type PricedWorkersAiModel =
   keyof typeof WORKERS_AI_PRICING_USD_PER_MILLION;
 
-/** The call's list price, or undefined for a model without a token price. */
 export const estimateWorkersAiCostUsd = (input: {
   inputTokens?: number;
   model: string;

@@ -22,10 +22,9 @@
  */
 
 import { cloudflareClient } from "./cloudflare-waf";
+import { CLOUDFLARE_ACCOUNT_ID } from "./files-worker-dev-boundary";
 
 export const R2_RULE_PREFIX = "teak-";
-/** The account in both Wrangler configs. */
-const DEFAULT_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 const DAY_SECONDS = 24 * 60 * 60;
 
 interface AgeCondition {
@@ -55,7 +54,6 @@ export interface LiveNotificationRule extends Partial<NotificationRule> {
 
 export interface BucketConfig {
   lifecycle: LifecycleRule[];
-  /** Notification rules by the queue they send to. */
   notifications: Record<string, NotificationRule[]>;
 }
 
@@ -101,7 +99,6 @@ export const R2_BUCKETS: Record<string, BucketConfig> = {
       ],
     },
   },
-  // The isolated development Worker's bucket (keys keep the `dev/` prefix).
   "teak-files-development-20261006": {
     lifecycle: [
       expire(`${R2_RULE_PREFIX}expire-dev-exports`, "dev/exports/", 8),
@@ -239,7 +236,7 @@ export const syncR2Buckets = async (options: {
   log?: (line: string) => void;
   token: string;
 }): Promise<BucketPlan[]> => {
-  const accountId = options.accountId ?? DEFAULT_ACCOUNT_ID;
+  const accountId = options.accountId ?? CLOUDFLARE_ACCOUNT_ID;
   const log = options.log ?? console.log;
   const { call } = cloudflareClient(options.token, options.fetcher ?? fetch);
   const plans: BucketPlan[] = [];

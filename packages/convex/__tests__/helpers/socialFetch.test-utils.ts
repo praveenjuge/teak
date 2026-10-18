@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { SocialFetchDeps } from "../../linkMetadata/socialPostHelpers";
 
-/** A public address the SSRF guard accepts; nothing is ever dialed. */
 export const PUBLIC_ADDRESS = "93.184.216.34";
 
 export const jsonResponse = (body: unknown, init?: ResponseInit) =>
@@ -11,7 +10,6 @@ export const jsonResponse = (body: unknown, init?: ResponseInit) =>
     headers: { "content-type": "application/json", ...init?.headers },
   });
 
-/** A recorded-shape API payload from `__tests__/linkMetadata/fixtures/social`. */
 export const socialFixture = <T = any>(name: string): T =>
   JSON.parse(
     readFileSync(
@@ -20,11 +18,6 @@ export const socialFixture = <T = any>(name: string): T =>
     )
   );
 
-/**
- * Social fetch dependencies for the real `safeFetch`: DNS answers with a
- * public address (or `addresses`), and the pinned transport answers from
- * `route` (404 when it returns nothing) and records every URL it was asked.
- */
 export const socialFetch = (
   route: (
     url: string,
@@ -45,7 +38,6 @@ export const socialFetch = (
   return { deps, requests };
 };
 
-/** A request that never answers until its signal gives up on it. */
 export const hangUntilAborted = (init: RequestInit) =>
   new Promise<Response>((_resolve, reject) => {
     init.signal?.addEventListener("abort", () =>

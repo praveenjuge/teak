@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Replaces one App Store version's screenshot set with the committed images and
-# waits until Apple holds exactly those files, in order, by checksum.
-#   bash scripts/store-assets/publish-apple.sh <apple-iphone|apple-ipad|apple-mac> <version-id>
-# The sets belong to the native Apple app (apps/apple), whose release workflow
-# runs them through apps/apple/scripts/apply-store-metadata.sh.
 set -euo pipefail
 export LC_ALL=C
 PLATFORM="${1:?Platform required: apple-iphone, apple-ipad, or apple-mac}"

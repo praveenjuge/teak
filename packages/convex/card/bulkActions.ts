@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { requireFolderForUser } from "../folder/folders";
+import { folderNotFound, requireFolderForUser } from "../folder/folders";
 import {
   applyFolderMembership,
   type FolderMembershipAction,
@@ -16,9 +16,7 @@ import {
   updateCardFieldsForUserHandler,
 } from "./updateCard";
 
-/** Most cards one bulk call may change; callers split larger selections. */
 export const MAX_BULK_CARD_IDS = 100;
-/** Most tags one Add tags or Remove tags call may name. */
 export const MAX_BULK_TAGS = 20;
 
 export const bulkCardActionValidator = v.union(
@@ -47,11 +45,6 @@ const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
     moveToFolder: "move",
   };
 
-/**
- * Trims and de-duplicates (ignoring case) the tags an Add tags or Remove tags
- * action names, and rejects a list that is empty, too long or has an
- * over-long tag.
- */
 export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
   const seen = new Set<string>();
   const normalized: string[] = [];
@@ -108,12 +101,6 @@ const tagEdits = (
   return edits;
 };
 
-/**
- * Applies one bulk action to one card the user owns. Repeating an action is
- * a no-op (archiving an archived card, restoring one not in Trash), so a
- * retried call never fails on cards an earlier attempt already changed.
- * Throws NOT_FOUND for a missing card or one another user owns.
- */
 export const applyCardAction = async (
   ctx: MutationCtx,
   {
@@ -121,15 +108,13 @@ export const applyCardAction = async (
     cardId,
     action,
     tags = [],
-    folderId,
-    fromFolderId,
+    folder,
+    fromFolder,
   }: {
     action: BulkCardAction;
     cardId: Id<"cards">;
-    /** The folder a folder action targets; the caller checked it is the user's. */
-    folderId?: Id<"folders">;
-    /** For a move: the folder the card leaves (the one being viewed). */
-    fromFolderId?: Id<"folders">;
+    folder?: Doc<"folders">;
+    fromFolder?: Doc<"folders">;
     tags?: readonly string[];
     userId: TeakUserId;
   }
@@ -182,17 +167,23 @@ export const applyCardAction = async (
     case "addToFolder":
     case "removeFromFolder":
     case "moveToFolder": {
-      if (!folderId) {
+      if (!folder) {
         throw new ConvexError({
           code: "INVALID_INPUT",
           message: "Choose a folder",
         });
       }
+      if (
+        folder.userId !== userId ||
+        (fromFolder && fromFolder.userId !== userId)
+      ) {
+        throw folderNotFound();
+      }
       await applyFolderMembership(ctx, {
         action: FOLDER_ACTIONS[action] as FolderMembershipAction,
         cardId,
-        folderId,
-        fromFolderId,
+        folderId: folder._id,
+        fromFolderId: fromFolder?._id,
         userId,
       });
       return;
@@ -202,12 +193,6 @@ export const applyCardAction = async (
   }
 };
 
-/**
- * Applies one action to up to MAX_BULK_CARD_IDS cards. Each card succeeds or
- * fails on its own: cards that are missing, owned by someone else or refused
- * (for example by the card limit on restore) come back in `failedIds` and
- * are left unchanged.
- */
 export const applyBulkCardAction = async (
   ctx: MutationCtx,
   args: {
@@ -267,8 +252,8 @@ export const applyBulkCardAction = async (
         cardId,
         action,
         tags,
-        folderId: folder?._id,
-        fromFolderId: action === "moveToFolder" ? fromFolder?._id : undefined,
+        folder,
+        fromFolder: action === "moveToFolder" ? fromFolder : undefined,
       });
       updatedIds.push(cardId);
     } catch {

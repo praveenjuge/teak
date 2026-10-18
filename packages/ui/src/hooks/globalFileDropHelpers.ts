@@ -16,14 +16,8 @@ export interface BatchSummary {
 }
 
 /**
- * Determine whether a single `DataTransferItem` points at a folder/directory.
- *
- * We only have reliable folder detection when `webkitGetAsEntry` is available
- * (all modern browsers). On that path a directory entry yields
+ * Folder detection needs `webkitGetAsEntry`: a directory entry yields
  * `isDirectory === true` or a null file from `getAsFile()`.
- *
- * When `webkitGetAsEntry` is absent we conservatively treat the item as a
- * non-folder so we don't block normal file drops.
  */
 export function isDataTransferItemFolder(item: DataTransferItem): boolean {
   if (item.kind !== "file") {
@@ -49,12 +43,6 @@ export function isDataTransferItemFolder(item: DataTransferItem): boolean {
   return false;
 }
 
-/**
- * Inspect a `DataTransfer` payload and return plain files plus a folder flag.
- *
- * Caller decides what to do with `rejectedFolder`; this helper never touches
- * toasts so it stays pure.
- */
 export function extractFilesFromDataTransfer(
   dataTransfer: DataTransfer | null | undefined
 ): ExtractFilesResult {
@@ -92,13 +80,7 @@ export function extractFilesFromDataTransfer(
   return { files, rejectedFolder };
 }
 
-/**
- * Does a `DataTransfer` carry anything that looks like a file?
- *
- * The rework only intercepts file drops; URL/text/plain drops fall through
- * to browser defaults. We inspect `types` because it's populated during the
- * `dragover` phase on every major engine.
- */
+/** `types` is populated during the `dragover` phase on every major engine. */
 export function dataTransferHasFiles(
   dataTransfer: DataTransfer | null | undefined
 ): boolean {
@@ -142,13 +124,6 @@ const BLOCKED_SELECTORS = [
   '[role="combobox"]',
 ];
 
-/**
- * Should drops at this DOM target bypass the global provider?
- *
- * We bail out over text inputs, textareas, any contenteditable, open dialogs,
- * menus, and anything explicitly marked `data-no-drop`. This preserves native
- * paste/drop-into-input behavior and avoids fighting shadcn dialogs.
- */
 export function isBlockedDropTarget(target: EventTarget | null): boolean {
   if (!target || typeof (target as Element).closest !== "function") {
     return false;
@@ -159,12 +134,6 @@ export function isBlockedDropTarget(target: EventTarget | null): boolean {
   return BLOCKED_SELECTORS.some((selector) => element.closest(selector));
 }
 
-/**
- * Clip a batch of incoming files so the queue never exceeds `maxTotal`.
- *
- * Returns the files that fit and a count of the rejected ones so the caller
- * can surface a single "too many files" toast if needed.
- */
 export function capBatchForQueue(
   incoming: File[],
   currentQueueSize: number,
@@ -187,9 +156,6 @@ export function capBatchForQueue(
   };
 }
 
-/**
- * Summarize a batch of upload results into the fields the toast layer needs.
- */
 export function summarizeBatchResults(
   results: UploadMultipleFilesResultItem[]
 ): BatchSummary {
@@ -223,12 +189,6 @@ export function formatPartialFailureMessage(summary: BatchSummary): string {
   return `${base} First failure: ${firstFailure.file} — ${reason}`;
 }
 
-/**
- * Tells people that files over the per-upload cap were left out.
- *
- * Example: "5 files were skipped. You can upload up to 20 at a time."
- * Empty when nothing was skipped.
- */
 export function formatSkippedNote(
   skippedCount: number,
   maxFiles: number

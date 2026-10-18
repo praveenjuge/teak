@@ -89,7 +89,6 @@ export const describeWorkosError = (error: unknown): string => {
   return parts.join(" ");
 };
 
-/** Seals tokens the way authkit-nextjs saves a session after its callback. */
 export const sealSessionCookie = async (
   auth: Pick<
     AuthenticationResponse,

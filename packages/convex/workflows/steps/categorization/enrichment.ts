@@ -12,7 +12,6 @@ import {
   type RawSelectorMap,
 } from "./providers/common";
 
-/** Variants whose offers a ProductGroup keeps; the price reads up to 50. */
 const MAX_STORED_VARIANTS = 50;
 
 const ISO_DURATION_REGEX = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i;
@@ -159,7 +158,6 @@ const normalizeImage = (value: any): string | undefined => {
   }
 };
 
-/** A schema.org address as one line: "1 Main St, Springfield, IL 62701, US". */
 const formatAddress = (value: any): string | undefined => {
   if (typeof value === "string") {
     return value.trim() || undefined;
@@ -470,8 +468,6 @@ export const enrichWithStructuredData = (
       }
       addFact("Brand", valueToText(product.brand));
       raw = pickFields(product, STRUCTURED_DATA_FIELDS);
-      // A ProductGroup prices its variants; keep only their offers, so a
-      // later pass can price the card without fetching the page again.
       if (raw && Array.isArray(product.hasVariant)) {
         raw.hasVariant = product.hasVariant
           .slice(0, MAX_STORED_VARIANTS)

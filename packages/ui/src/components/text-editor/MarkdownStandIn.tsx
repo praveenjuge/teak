@@ -15,12 +15,10 @@ import {
 import { escapeTypedHtml } from "./typedHtml";
 import type { MarkdownTextEditorProps } from "./types";
 
-/** Whether the stand-in has focus, so the rich editor takes the caret over. */
 export interface StandInFocus {
   current: boolean;
 }
 
-/** The editor's frame, shared by the rich editor and its stand-in. */
 export function EditorFieldset({
   ariaLabel = "Markdown note",
   children,
@@ -51,10 +49,6 @@ export function EditorFieldset({
   );
 }
 
-/**
- * A plain textarea that edits the same Markdown string while the rich
- * editor's code loads, with its save and full-screen shortcuts and limit.
- */
 export function MarkdownStandIn({
   ariaLabel = "Markdown note",
   autoFocus,

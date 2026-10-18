@@ -1,9 +1,3 @@
-// The MCP protocol answers that need no Convex: the tool list, the
-// initialize result and the JSON-RPC envelopes. Pure (no Convex server or
-// zod imports), so the Files Worker answers `initialize`, `ping`,
-// `notifications/*` and `tools/list` at the edge with exactly what
-// mcp/httpServer.ts answers (apps/files-worker/src/mcpEdge.ts).
-
 import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
@@ -125,7 +119,6 @@ const cardFilterProperties = {
   },
 };
 
-// MCP tool annotations let clients decide when to ask before a call.
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -652,7 +645,6 @@ export const jsonRpcError = (
   error: { code, message },
 });
 
-/** The `initialize` result: the client's protocol version is echoed. */
 export const buildInitializeResult = (params: unknown) => ({
   protocolVersion:
     typeof (params as { protocolVersion?: unknown } | null)?.protocolVersion ===
@@ -689,7 +681,6 @@ export const answerProtocolMessage = (
   switch (rpc.method) {
     case "initialize":
       return jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params));
-    // MCP's ping answers an empty result.
     case "ping":
       return jsonRpcResponse(rpc.id, {});
     case "tools/list":

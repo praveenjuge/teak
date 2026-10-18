@@ -30,6 +30,7 @@ import {
   getPendingSave,
   listPendingSaveIds,
   type PendingSave,
+  pendingSaveStore,
   removePendingSave,
   storePendingSave,
   updatePendingSave,
@@ -69,12 +70,11 @@ const isPopupPage = (url: string | undefined) =>
 const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
 const queuePatch = createPatchQueue();
 
-/** Sends a popup's tags and note, and remembers the tags it used. */
 async function patchCard(payload: PatchCardPayload) {
   const result = await queuePatch(payload);
   const owner = await getCaptureOwner();
-  if (result.status === "updated" && payload.added && owner) {
-    await rememberTags(owner, payload.added);
+  if (result.status === "updated" && payload.addedTags && owner) {
+    await rememberTags(owner, payload.addedTags);
   }
   return result;
 }
@@ -127,9 +127,7 @@ function runPendingSave(
           { request }
         );
       }
-      // A private session keeps an asset save as one, since session storage
-      // can't hold the downloaded file; a retry downloads it again.
-      const keepsFile = !(isPrivateSession() && save.kind === "asset");
+      const keepsFile = pendingSaveStore().retainsFiles;
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
         if ("status" in file) {
@@ -184,9 +182,7 @@ function runPendingSave(
       result.status === "duplicate" ||
       (result.status === "error" &&
         permanentCodes.includes(result.code ?? "")) ||
-      // A private session can't keep a file past its upload; the upload
-      // window shows how it ended.
-      (pending.kind === "file" && isPrivateSession())
+      (pending.kind === "file" && !pendingSaveStore().retainsFiles)
     ) {
       await removePendingSave(save.id);
     }
@@ -348,7 +344,7 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
     case MESSAGE_TYPES.SAVE_FILE:
       return (
         boundedString(value.id, 128) &&
-        (value.file === undefined || value.file instanceof File)
+        (!("file" in value) || value.file instanceof File)
       );
     case MESSAGE_TYPES.SAVE_CONTENT:
       return (
@@ -366,7 +362,7 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
     case MESSAGE_TYPES.PATCH_CARD:
       return isPatchCardPayload(value);
     case MESSAGE_TYPES.LOAD_SAVE_DETAILS:
-      return isCardId(value.cardId) && typeof value.existing === "boolean";
+      return isCardId(value.cardId) && typeof value.alreadySaved === "boolean";
     default:
       return false;
   }
@@ -385,8 +381,6 @@ export default defineBackground(() => {
   chrome.runtime.onConnect.addListener(handleSaveDetailsPort);
   listenToOmnibox();
 
-  // `teak <query>` in the address bar: suggestions from the library, Enter
-  // on a suggestion opens its card, Enter on the text opens the search.
   function listenToOmnibox() {
     const flavor: OmniboxFlavor =
       import.meta.env.BROWSER === "firefox" ? "firefox" : "chromium";
@@ -464,7 +458,6 @@ export default defineBackground(() => {
     });
   }
 
-  // The popup's tags and note still unsaved when it closes land from here.
   function handleSaveDetailsPort(port: chrome.runtime.Port) {
     if (
       port.name !== SAVE_DETAILS_PORT ||
@@ -542,14 +535,12 @@ export default defineBackground(() => {
               input: {
                 content,
                 source: "context-menu",
-                // A selection keeps the page it came from.
                 ...(action === "save-text"
                   ? { sourceTitle: tab.title, sourceUrl: tab.url }
                   : {}),
               },
             });
       if (saveResult.status === "unauthenticated") {
-        // The open popup shows sign-in.
         await chrome.storage.local.remove("contextMenuSave");
         return;
       }
@@ -657,8 +648,9 @@ export default defineBackground(() => {
             return;
           }
           if (message.type === MESSAGE_TYPES.SAVE_FILE) {
-            const { file, id } = message.payload;
-            if (file) {
+            const { id } = message.payload;
+            if ("file" in message.payload) {
+              const { file } = message.payload;
               await storePendingSave({
                 id,
                 createdAt: Date.now(),

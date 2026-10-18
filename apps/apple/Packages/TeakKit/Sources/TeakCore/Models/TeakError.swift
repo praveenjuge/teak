@@ -17,11 +17,11 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
     public static let unsupportedType = "UNSUPPORTED_TYPE"
     public static let offlineCode = "OFFLINE"
     public static let unauthenticatedCode = "UNAUTHENTICATED"
+    public static let invalidCursorCode = "INVALID_CURSOR"
 
     public static let offline = TeakError(code: offlineCode, message: TeakMessages.offline)
     public static let signedOut = TeakError(code: unauthenticatedCode, message: "Please sign in again.")
 
-    /// The server's message for a card error code, falling back to `message`.
     public static func card(code: String?, message: String?, fallback: String = TeakMessages.genericFailure) -> TeakError {
         let known = code.flatMap { SharedConstants.shared.cardErrorMessages[$0] }
         return TeakError(code: code, message: message?.nonEmpty ?? known ?? fallback)
@@ -29,6 +29,8 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
 
     public var isCardLimit: Bool { code == Self.cardLimitReached }
     public var isOffline: Bool { code == Self.offlineCode }
+    public var isInvalidCursor: Bool { code == Self.invalidCursorCode }
+    public var isSignedOut: Bool { code == Self.unauthenticatedCode }
 }
 
 public extension Error {

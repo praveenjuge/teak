@@ -14,7 +14,7 @@ export default async function tool(content: string) {
       source: "raycast_ai_tool",
       url: url ?? undefined,
     },
-    "stored",
+    "silent",
   );
 
   return `Saved to Teak: ${result.cardId}`;

@@ -27,7 +27,7 @@ export default async function tool(input: Input) {
     throw new Error("Provide tags to add or remove, or new notes");
   }
 
-  const card = await getCardById(cardId, "stored");
+  const card = await getCardById(cardId, "silent");
   const tags = Array.from(new Set([...card.tags, ...addTags])).filter(
     (tag) => !isRemoved(tag),
   );
@@ -41,7 +41,7 @@ export default async function tool(input: Input) {
         ? {}
         : { notes: input.notes.trim() ? input.notes.trim() : null }),
     },
-    "stored",
+    "silent",
   );
 
   return {

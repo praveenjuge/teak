@@ -1,6 +1,9 @@
+import { RATE_LIMIT_CONFIG } from "@teak/convex/shared/rateLimits";
 import { apiFetch } from "../helpers/api";
 import { createAccount, deleteAccountViaUi } from "../helpers/app";
 import { expect, test } from "../helpers/test";
+
+const CARD_CREATION_SUPPORTED_CONCURRENCY = 8;
 
 test("parallel card operations stay coherent under contention", {
   timeout: 240_000,
@@ -75,8 +78,6 @@ test("parallel card operations stay coherent under contention", {
         const targetCard = payload.items?.find(
           (card: { id?: string }) => card.id === target
         );
-        // The local stack has no AI provider, so the metadata stage stays
-        // pending; renderables is the last stage that runs without it.
         const status = targetCard?.processingStatus?.renderables?.status;
         return status ?? "missing";
       },
@@ -116,30 +117,29 @@ test("parallel card operations stay coherent under contention", {
   );
   expect(deletions.every((response) => response.status === 204)).toBe(true);
 
-  // Card creation is a 30-per-minute token bucket. Keep creating in batches
-  // until it refuses, so a slow runner that lets the bucket refill between
-  // requests still reaches the limit; four bucket capacities is the cap.
   const rateChecks: Response[] = [];
-  const rateCheckConcurrency = 8;
+  const maxRateChecks = 4 * RATE_LIMIT_CONFIG.cardCreation.capacity;
+  const refused = () => rateChecks.some((response) => response.status === 429);
   for (
     let offset = 0;
-    offset < 120 && !rateChecks.some((response) => response.status === 429);
-    offset += rateCheckConcurrency
+    offset < maxRateChecks && !refused();
+    offset += CARD_CREATION_SUPPORTED_CONCURRENCY
   ) {
-    // Keep the harness parallel within the limiter's supported
-    // eight-request contention envelope.
     const batch = await Promise.all(
-      Array.from({ length: rateCheckConcurrency }, (_, batchIndex) => {
-        const index = offset + batchIndex;
-        return apiFetch("/v1/cards", apiKey, {
-          body: JSON.stringify({ content: `${marker} rate-${index}` }),
-          method: "POST",
-        });
-      })
+      Array.from(
+        { length: CARD_CREATION_SUPPORTED_CONCURRENCY },
+        (_, batchIndex) => {
+          const index = offset + batchIndex;
+          return apiFetch("/v1/cards", apiKey, {
+            body: JSON.stringify({ content: `${marker} rate-${index}` }),
+            method: "POST",
+          });
+        }
+      )
     );
     rateChecks.push(...batch);
   }
-  expect(rateChecks.some((response) => response.status === 429)).toBe(true);
+  expect(refused()).toBe(true);
   expect(rateChecks.every((response) => response.status !== 500)).toBe(true);
   await deleteAccountViaUi(surface, account);
 });

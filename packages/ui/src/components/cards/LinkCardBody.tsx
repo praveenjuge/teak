@@ -11,7 +11,6 @@ import type { CardWithUrls } from "./types";
 
 const URL_SCHEME_REGEX = /^https?:\/\/(www\.)?/;
 
-/** Keeps very wide or very tall images from making odd tiles. */
 const tileAspectRatio = ({
   width,
   height,
@@ -20,10 +19,6 @@ const tileAspectRatio = ({
   width: number;
 }) => Math.min(Math.max(width / height, 0.5), 3);
 
-/**
- * A link in the grid: its image (when it has one) over the favicon and
- * title, or the title and description on their own.
- */
 export function LinkCardBody({
   card,
   image,
@@ -45,7 +40,6 @@ export function LinkCardBody({
   const favicon = hostname && (
     <SiteFavicon className="size-4" hostname={hostname} />
   );
-  // Quiet, and never squeezed: the title truncates first.
   const doneMark = card.completedAt !== undefined && (
     <CircleCheck
       aria-label={`Marked as ${doneActionLabel(card.metadata?.linkCategory?.category)}`}
@@ -76,7 +70,6 @@ export function LinkCardBody({
             src={image.src}
             storageKey={image.storageKey}
           />
-          {/* Frosted so it reads over light and dark images; long amounts truncate. */}
           {priceLabel && (
             <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
               {priceLabel}

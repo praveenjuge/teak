@@ -1,25 +1,11 @@
-// The Convex functions the Files Worker's workflows and queues may call over
-// the workflow RPC gateway (workflowGateway.ts). Anything else is refused,
-// so the signing secret can't reach the rest of the backend's internal
-// functions. Names are `path:export`, as `getFunctionName` gives them.
-// Worker tests check every name they call is listed here.
-
 export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
-  // Workflow lifecycle (workflowDispatch.ts).
   "workflowDispatch:complete",
   "workflowDispatch:listStale",
   "workflowDispatch:pruneFinished",
-  // Cron heartbeats for the tasks Cloudflare runs.
   "adminHealth:recordCronRun",
-  // Hourly AI usage rollup from Analytics Engine (src/aiUsageRollup.ts).
   "adminUsage:replaceDailyUsage",
-  // WorkOS events the webhook queue gave up on (src/queues/workosEvents.ts).
   "workosWebhook:recordUndeliverableWebhook",
-  // The categorize step's arXiv API slot: a deployment-wide rate limit, not
-  // tied to a card (workflows/steps/categorization/mutations.ts).
   "workflows/steps/categorization/mutations:takeArxivSlot",
-  // Card processing (apps/files-worker/src/workflows/cardProcessing) and the
-  // AI backfill queue. Every mutation runs guarded by the card's revision.
   "adminAccess:getAiGate",
   "adminAccess:isLinkFetchPaused",
   "ai/backfill:claimAiBackfillCards",
@@ -42,8 +28,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "workflows/steps/renderables/mutations:updateCardFilePreview",
   "workflows/steps/renderables/mutations:updateCardMediaFacts",
   "workflows/steps/renderables/mutations:updateCardThumbnail",
-  // Exports (src/workflows/export.ts). Archive writes also register each
-  // object first with storage/ownership:registerObject, listed above.
   "dataExport:completeExport",
   "dataExport:deleteJobItemsPage",
   "dataExport:failExport",
@@ -53,7 +37,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "dataExport:markRunning",
   "dataExport:recordExportProgress",
   "dataExport:recordSnapshotPage",
-  // Imports (src/workflows/import.ts).
   "dataImport:createPendingBatch",
   "dataImport:failItems",
   "dataImport:finishJob",
@@ -65,8 +48,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "dataImport:setExtractedFile",
   "dataImport:setPhase",
   "import/sourceVersion:bind",
-  // Account deletion (src/workflows/accountDeletion.ts). Stages that need
-  // provider credentials stay in the runStage action.
   "accountDeletion:beginAccountDataDeletion",
   "accountDeletion:removeAccountCardUsage",
   "accountDeletionActions:runStage",
@@ -81,7 +62,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "accountDeletionJobs:recordFailure",
   "embedding/state:accountEmbeddingsPage",
   "embedding/state:forgetAccountEmbeddings",
-  // Maintenance (src/workflows/maintenance.ts).
   "card/trashCleanup:cleanupDeletedCard",
   "card/trashCleanup:getCardsPendingCleanup",
   "dataExport:expireJob",

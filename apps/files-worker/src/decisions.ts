@@ -39,10 +39,6 @@ const MAX_CLEF_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_CLEF_CAPACITY_RETRIES = 2;
 const CAPACITY_RETRY_BASE_DELAY_MS = 250;
 
-/**
- * One line per category, used as Clef's choice criteria. `Record` keeps it
- * exhaustive: a new category fails the typecheck until it is described here.
- */
 export const LINK_CATEGORY_DESCRIPTIONS: Record<LinkCategory, string> = {
   other: "None of the kinds below, or a general website or home page",
   book: "A page about one specific book or ebook",
@@ -70,7 +66,6 @@ export const LINK_CATEGORY_DESCRIPTIONS: Record<LinkCategory, string> = {
   repo: "A code repository on GitHub, GitLab or a similar host",
 };
 
-/** Each style as a yes/no question about the image. */
 export const VISUAL_STYLE_DESCRIPTIONS: Record<VisualStyle, string> = {
   abstract: "abstract, without a recognisable real subject",
   cinematic: "cinematic, like a still from a film",
@@ -151,10 +146,6 @@ const isProbabilityMap = (value: unknown): value is Record<string, number> =>
   !Array.isArray(value) &&
   Object.values(value).every(isProbability);
 
-/**
- * Checks one answer against the question it answers. Any mismatch fails the
- * whole reply: a partial decision is never used.
- */
 const readAnswer = (
   question: ClefQuestion,
   value: unknown
@@ -251,7 +242,6 @@ const waitForCapacityRetry = (attempt: number): Promise<void> =>
     setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
   });
 
-/** One Clef call, with the same capacity retries as the metadata models. */
 export const runClef = async (
   env: FilesOpsEnv,
   request: ClefRequest
@@ -267,7 +257,6 @@ export const runClef = async (
   for (let attempt = 0; ; attempt += 1) {
     try {
       const model = CLEF_MODEL_IDS[request.model];
-      // Counted in the owner's daily AI usage when a card step runs it.
       const response = await meteredAiRun(
         env,
         { functionId: "teak.ai.decision", isCapacity: isCapacityError, model },
@@ -322,7 +311,6 @@ const isLinkCategory = (value: unknown): value is LinkCategory =>
   typeof value === "string" &&
   (LINK_CATEGORIES as readonly string[]).includes(value);
 
-/** The Clef request for a link's category; also used by scripts/clef-eval. */
 export const buildLinkCategoryRequest = (
   params: Record<string, unknown>
 ): { request: ClefRequest; rulesCategory: LinkCategory } => {
@@ -386,12 +374,6 @@ export const buildLinkCategoryRequest = (
   };
 };
 
-/**
- * Link category for a link the resolver had no domain or path rule for.
- * Clef 27B, because `other` must stay a real answer among 15. It never
- * decides `other` and never repeats the rules' answer, so `null` means keep
- * the rules.
- */
 export const decideLinkCategory = async (
   env: FilesOpsEnv,
   params: Record<string, unknown>
@@ -424,7 +406,6 @@ const isCardTypeDecisionType = (
   typeof value === "string" &&
   (CARD_TYPE_DECISION_TYPES as readonly string[]).includes(value);
 
-/** The Clef request for a note's type; also used by scripts/clef-eval. */
 export const buildCardTypeRequest = (
   params: Record<string, unknown>
 ): { request: ClefRequest; rulesType: CardTypeDecisionType } => {
@@ -480,7 +461,6 @@ export const decideCardType = async (
 
 export const VISUAL_STYLE_QUESTION_PREFIX = "style.";
 
-/** The Clef request for an image's styles; also used by scripts/clef-eval. */
 export const buildVisualStylesRequest = (
   dataUrl: string,
   title?: string | null
@@ -502,10 +482,6 @@ export const buildVisualStylesRequest = (
   };
 };
 
-/**
- * Up to 4 styles for an image, most likely first. Each style is its own
- * yes/no question, so adding a style never changes another's answer.
- */
 export const decideVisualStylesForImage = async (
   env: FilesOpsEnv,
   image: { bytes: Uint8Array; dataUrl: string },
@@ -549,10 +525,6 @@ export const decideVisualStyles = async (
     title
   );
 
-/**
- * The Clef request for Best match scores, one question per card in order;
- * also used by scripts/clef-eval.
- */
 export const buildRelevanceRequest = (
   params: Record<string, unknown>
 ): { cardIds: string[]; request: ClefRequest } => {
@@ -608,11 +580,6 @@ export const buildRelevanceRequest = (
   };
 };
 
-/**
- * Best match scores. The state is the search; each card is one score
- * question, evaluated on its own, so a card's score never depends on which
- * other cards share the request.
- */
 export const scoreRelevance = async (
   env: FilesOpsEnv,
   params: Record<string, unknown>

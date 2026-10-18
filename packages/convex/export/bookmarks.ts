@@ -1,11 +1,4 @@
-/**
- * `bookmarks.html` for the export ZIP: the Netscape bookmark format that
- * Chrome, Firefox and Safari import.
- *
- * Only link cards with a safe web URL are written. Links in no folder come
- * first; then each folder is an `<H3>` section, and a card in several folders
- * appears in each.
- */
+// The Netscape bookmark format that Chrome, Firefox and Safari import.
 
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { SerializedCard } from "./serialize";
@@ -18,7 +11,6 @@ const ENTITIES: Record<string, string> = {
   "'": "&#39;",
 };
 
-/** Escapes text and attribute values alike. */
 export const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (char) => ENTITIES[char] ?? char);
 
@@ -60,10 +52,6 @@ const linkLine = (link: BookmarkLink, indent: string): string => {
   return `${indent}<DT><A HREF="${escapeHtml(link.url)}" ADD_DATE="${link.addDate}" LAST_MODIFIED="${link.lastModified}"${tags}>${escapeHtml(link.title)}</A>`;
 };
 
-/**
- * Builds the bookmarks file from serialized cards, keeping their order
- * within each section. Folders are sorted by name, as in the sidebar.
- */
 export function buildBookmarksHtml(cards: readonly SerializedCard[]): string {
   const unfiled: BookmarkLink[] = [];
   const byFolder = new Map<string, BookmarkLink[]>();

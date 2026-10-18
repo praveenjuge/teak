@@ -94,7 +94,6 @@ type CardCreationDeps = NonNullable<
   Parameters<typeof authorizeCardCreation>[2]
 >;
 
-// Polar and the rate limiter are boundaries; only the fields quota reads.
 const depsWith = (subscription: typeof PREMIUM_SUBSCRIPTION | null) =>
   ({
     getSubscription: async () => subscription,

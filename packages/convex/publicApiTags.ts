@@ -20,7 +20,6 @@ export const startTagOperationForApi = internalMutation({
     startTagOperationForUser(ctx, await requireTeakUserId(ctx, userId), args),
 });
 
-/** The user's operation for an id from a URL, or null when it is not theirs. */
 export const getTagOperationForApi = internalQuery({
   args: { userId: v.string(), operationId: v.string() },
   returns: v.union(tagOperationReturnValidator, v.null()),

@@ -188,7 +188,7 @@ describe("raycast request handling", () => {
         },
         method: "GET",
       },
-      "prompt",
+      "interactive",
     );
 
     expect(capturedHeaders?.get("authorization")).toBe("Bearer valid-test-key");
@@ -204,7 +204,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -258,7 +258,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -274,7 +274,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -290,7 +290,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -306,7 +306,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -334,7 +334,7 @@ describe("raycast request handling", () => {
     );
 
     try {
-      await searchCards({ limit: 1 }, "prompt");
+      await searchCards({ limit: 1 }, "interactive");
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(RaycastApiError);
@@ -361,7 +361,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const updated = await setCardFavorite("card_123", false, "prompt");
+    const updated = await setCardFavorite("card_123", false, "interactive");
 
     expect(capturedUrl).toContain("/cards/card_123/favorite");
     expect(capturedMethod).toBe("PATCH");
@@ -381,7 +381,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    await softDeleteCard("card_123", "prompt");
+    await softDeleteCard("card_123", "interactive");
 
     expect(capturedUrl).toContain("/cards/card_123");
     expect(capturedMethod).toBe("DELETE");
@@ -409,7 +409,7 @@ describe("raycast request handling", () => {
         tags: ["design"],
         url: "https://teakvault.com",
       },
-      "prompt",
+      "interactive",
     );
 
     expect(capturedBody).toEqual({
@@ -437,7 +437,7 @@ describe("raycast request handling", () => {
 
     await createCard(
       { cardType: "text", content, source: "raycast_test" },
-      "prompt",
+      "interactive",
     );
 
     expect(capturedBody).toEqual({
@@ -457,7 +457,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    const result = await getCardById("card_123", "prompt");
+    const result = await getCardById("card_123", "interactive");
 
     expect(capturedMethod).toBe("GET");
     expect(result.id).toBe("card_123");
@@ -484,7 +484,7 @@ describe("raycast request handling", () => {
         notes: "Updated note",
         tags: ["design"],
       },
-      "prompt",
+      "interactive",
     );
 
     expect(capturedMethod).toBe("PATCH");
@@ -505,7 +505,7 @@ describe("raycast request handling", () => {
     });
     globalThis.fetch = withDiscovery(fetchMock as unknown as typeof fetch);
 
-    await searchCards({ limit: 1 }, "prompt");
+    await searchCards({ limit: 1 }, "interactive");
 
     expect(authorizeMock).toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalled();
@@ -520,7 +520,9 @@ describe("raycast request handling", () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response(null, { status: 503 })),
     ) as unknown as typeof fetch;
-    await expect(searchCards({ limit: 1 }, "prompt")).rejects.toMatchObject({
+    await expect(
+      searchCards({ limit: 1 }, "interactive"),
+    ).rejects.toMatchObject({
       code: "NETWORK_ERROR",
     });
     expect(authorizeMock).not.toHaveBeenCalled();
@@ -546,7 +548,9 @@ describe("raycast request handling", () => {
       }
       return discovered(input, init);
     }) as typeof fetch;
-    await expect(searchCards({ limit: 1 }, "prompt")).rejects.toMatchObject({
+    await expect(
+      searchCards({ limit: 1 }, "interactive"),
+    ).rejects.toMatchObject({
       code: "NETWORK_ERROR",
     });
     expect(apiCalls).toBe(1);
@@ -570,7 +574,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
 
-    await searchCards({ limit: 1 }, "prompt");
+    await searchCards({ limit: 1 }, "interactive");
 
     expect(seenTokens).toEqual(["Bearer stale-token", "Bearer fresh-token"]);
   });
@@ -689,7 +693,7 @@ describe("raycast file saves and Trash", () => {
     const saved = await saveFileCard(
       filePath,
       { source: "raycast_finder" },
-      "prompt",
+      "interactive",
     );
 
     expect(saved.cardId).toBe("card_f");
@@ -710,13 +714,36 @@ describe("raycast file saves and Trash", () => {
     });
   });
 
+  test("searches Trash and color filters with full card details", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = withDiscovery(
+      mock((input: RequestInfo | URL) => {
+        urls.push(String(input));
+        return createCardsResponse(200);
+      }) as unknown as typeof fetch,
+    );
+    await searchCards(
+      {
+        hex: ["#112233"],
+        hue: ["blue", "teal"],
+        limit: 20,
+        style: ["minimal"],
+        trashed: true,
+      },
+      "interactive",
+    );
+    expect(urls).toEqual([
+      "https://teakvault.com/api/v1/cards?style=minimal&hue=blue&hue=teal&hex=%23112233&include=content%2Cmetadata%2Cprocessing&trashed=true&limit=20",
+    ]);
+  });
+
   test("restores a card from Trash", async () => {
     const urls: string[] = [];
     globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
       urls.push(`${init?.method} ${String(input)}`);
       return Promise.resolve(createEmptyResponse(204));
     }) as unknown as typeof fetch;
-    await restoreCard("card_123", "prompt");
+    await restoreCard("card_123", "interactive");
     expect(urls).toEqual([
       "POST https://teakvault.com/api/v1/cards/card_123/restore",
     ]);

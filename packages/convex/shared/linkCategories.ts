@@ -86,7 +86,6 @@ export type LinkDoneVerb =
   | "played"
   | "done";
 
-/** What finishing a link of each category is called: "Mark as read". */
 export const LINK_CATEGORY_DONE_VERB: Record<LinkCategory, LinkDoneVerb> = {
   book: "read",
   movie: "watched",
@@ -111,7 +110,6 @@ export const LINK_CATEGORY_DONE_VERB: Record<LinkCategory, LinkDoneVerb> = {
   other: "done",
 };
 
-/** Link categories `is:todo` lists: things saved to read, watch or buy. */
 export const ACTIONABLE_LINK_CATEGORIES: ReadonlySet<string> =
   new Set<LinkCategory>([
     "book",
@@ -129,17 +127,11 @@ export const ACTIONABLE_LINK_CATEGORIES: ReadonlySet<string> =
     "game",
   ]);
 
-/** The done verb for a link's category; "done" when it has none or isn't known. */
 export const doneActionLabel = (category?: string | null): LinkDoneVerb =>
   category && isLinkCategory(category)
     ? LINK_CATEGORY_DONE_VERB[category]
     : "done";
 
-/**
- * Mastodon instances whose `/@user/<id>` paths the URL rules trust as posts.
- * The path alone is not enough (any blog can use it); other instances are
- * confirmed through their status API when the link's metadata is fetched.
- */
 export const MASTODON_HOSTS = [
   "mastodon.social",
   "mastodon.online",
@@ -163,9 +155,7 @@ export interface LinkCategoryMetadata {
   facts?: LinkCategoryDetail[];
   fetchedAt: number;
   imageUrl?: string;
-  /** An arXiv paper's PDF on arxiv.org, which Save PDF stores as a document. */
   pdfUrl?: string;
-  /** A product's price, from JSON-LD or the provider's page selectors. */
   price?: LinkPrice;
   raw?: Record<string, unknown>;
   rawHasStructured?: boolean;

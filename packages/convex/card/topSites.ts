@@ -7,17 +7,10 @@ import { buildCardListQuery } from "./listQuery";
 import { cardUrlHost } from "./searchPlanner";
 
 const TOP_SITES_SCAN_LIMIT = 500;
-/** Recent text cards read for the pages they were saved from. */
 const TOP_SITES_TEXT_SCAN_LIMIT = 200;
 const TOP_SITES_DEFAULT_LIMIT = 8;
 const TOP_SITES_MAX_LIMIT = 20;
 
-/**
- * The sites the user saves most, for `site:` suggestions: counted over
- * their most recent links and the pages their recent text cards were saved
- * from (`sourceUrl`), most saved first. `host` is what `site:` takes;
- * `label` is the host as people read it.
- */
 export const listTopSites = query({
   args: { limit: v.optional(v.number()) },
   returns: v.array(

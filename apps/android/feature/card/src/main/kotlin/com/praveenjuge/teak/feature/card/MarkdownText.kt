@@ -116,7 +116,6 @@ private fun inlineStyles(): InlineStyles {
 
 private const val ESCAPABLE = "\\`*_[]()#+-.!>"
 
-/** Bold, italics, inline code and links in one line of Markdown. Unsafe links stay plain text. */
 internal fun inlineMarkdown(text: String, styles: InlineStyles): AnnotatedString =
     buildAnnotatedString { appendInline(text, styles) }
 
@@ -172,7 +171,6 @@ private fun strongSpan(text: String, start: Int): Int? {
     return text.indexOf(marker, start + 2).takeIf { it > start + 2 }
 }
 
-/** The index of the closing `*` or `_`, skipping doubled markers and snake_case words. */
 private fun emphasisSpan(text: String, start: Int): Int? {
     val marker = text[start]
     if (text.getOrNull(start + 1)?.isWhitespace() != false) return null

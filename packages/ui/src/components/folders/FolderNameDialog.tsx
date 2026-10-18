@@ -40,27 +40,15 @@ import {
 import { cn } from "../../lib/utils";
 
 interface FolderNameDialogProps {
-  /** Put the cursor in the search field (editing a smart folder's search). */
   focusQuery?: boolean;
-  /** The folder to rename; omit to create one. */
   folder?: FolderSummary | null;
   onOpenChange: (open: boolean) => void;
-  /** Called with the folder once it is saved. */
   onSaved?: (folder: FolderSummary) => void;
   open: boolean;
-  /**
-   * Creating a smart folder: the search to save, which the dialog shows
-   * for editing and names the folder after.
-   */
   query?: string;
-  /** A note under the search, such as filters a smart folder can't keep. */
   queryNote?: string;
 }
 
-/**
- * Names a new folder, or renames and recolors an existing one. A smart
- * folder (one being saved from a search, or edited) also has its search.
- */
 export function FolderNameDialog({
   folder,
   focusQuery = false,

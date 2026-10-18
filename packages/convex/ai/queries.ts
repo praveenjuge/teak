@@ -3,7 +3,6 @@ import type { Id } from "../_generated/dataModel";
 import { internalQuery, type QueryCtx } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
-// Cards younger than this may still be in their first processing run.
 const AI_BACKFILL_GRACE_MS = 5 * 60 * 1000;
 const AI_BACKFILL_INDEX =
   "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt" as const;
@@ -13,18 +12,11 @@ export const getCardForAI = internalQuery({
   handler: async (ctx, { cardId }) => await ctx.db.get("cards", cardId),
 });
 
-/**
- * Cards past their first processing run that still have no AI output: up to
- * one backfill batch, oldest first.
- */
 export const findCardsMissingAiCandidates = async (
   ctx: QueryCtx
 ): Promise<{ cardId: Id<"cards"> }[]> => {
   const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
 
-  // Query both active-card representations directly through the compound
-  // index. This keeps reads bounded without repeatedly restarting behind a
-  // persistent prefix of deleted or partially processed cards.
   const findActiveCards = async (
     isDeleted: boolean | undefined,
     limit: number

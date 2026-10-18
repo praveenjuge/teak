@@ -115,7 +115,6 @@ describe("enqueueAiBackfill", () => {
   });
 
   test("gives the attempts back when the queue refuses the batch", async () => {
-    // The deployment counts an attempt per claim and gives it back on release.
     const attempts: Record<string, number> = { c1: 0, c2: 2 };
     const convex = createFakeConvex({
       "ai/backfill:claimAiBackfillCards": () => {
@@ -159,7 +158,6 @@ describe("handleAiBackfillBatch", () => {
     expect(card.aiTags).toEqual(["note"]);
     const save = convex.callsTo("workflows/aiMetadata/mutations:updateCardAI");
     expect(save[0]?.guard).toEqual({ cardId: CARD_ID, rev: 1 });
-    // The backfill never marks the stage in progress.
     expect(convex.callsTo("card/processingRpc:markStagesInProgress")).toEqual(
       []
     );

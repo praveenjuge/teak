@@ -36,17 +36,16 @@ export const getFullCardForMetadata = internalQuery({
   handler: getFullCardForMetadataHandler,
 });
 
-// Account deletion fences the patch and leaves the card unchanged; then the
-// objects this write introduced are the orphans, not the ones it replaced.
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   patch: Parameters<typeof patchCardWithSearchSync>[2],
   storage: { introduced: string[]; replaced: string[] }
 ): Promise<boolean> => {
-  const patched = await patchCardWithSearchSync(ctx, cardId, patch);
+  const committed = await patchCardWithSearchSync(ctx, cardId, patch);
+  const orphans = committed ? storage.replaced : storage.introduced;
   await Promise.all(
-    (patched ? storage.replaced : storage.introduced).map(async (key) => {
+    orphans.map(async (key) => {
       try {
         await deleteObject(ctx, key);
       } catch (error) {
@@ -57,7 +56,7 @@ const commitCardStorageSwap = async (
       }
     })
   );
-  return patched;
+  return committed;
 };
 
 export const getCardForLinkFetchHandler = async (
@@ -123,7 +122,6 @@ export const updateCardMetadataHandler = async (
   }
 
   const previousLinkPreview = existingCard.metadata?.linkPreview;
-  // A refresh that can't read the page keeps the preview it already has.
   if (
     refresh &&
     status === "failed" &&

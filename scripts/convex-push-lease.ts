@@ -55,9 +55,7 @@ export const parseRunOutput = (stdout: string): unknown => {
     }
     try {
       return JSON.parse(lines.slice(i).join("\n"));
-    } catch {
-      // A log line that only looks like JSON; try the next candidate.
-    }
+    } catch {}
   }
   throw new Error("no JSON result");
 };

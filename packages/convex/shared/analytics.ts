@@ -18,20 +18,16 @@ export type CardCreationSource =
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
-/** Where a link was marked done: its card dialog, or the public API. */
 export type CardDoneSource = "panel" | "api";
 
-/** A link marked done or not. `category` is its link category, or "none". */
 interface CardDoneToggled {
   category: string;
   done: boolean;
   source: CardDoneSource;
 }
 
-/** Where Save PDF ran: a card's dialog, or the public API (MCP and CLI too). */
 export type LinkPdfSaveSource = "panel" | "api";
 
-/** How a link's image was replaced: on the web, or through the public API. */
 export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
@@ -51,7 +47,6 @@ export interface ClientEventCatalog {
   export_failed: { error_class?: string };
   export_started: NoProperties;
   extension_card_saved: { card_type?: string; via?: string };
-  /** Enter in the address bar's Teak mode: a suggested card, or the search. */
   extension_omnibox_used: { result: "card" | "search" };
   file_upload_completed: { bucket: string; size_bucket: SizeBucket };
   file_upload_failed: {
@@ -62,12 +57,10 @@ export interface ClientEventCatalog {
   import_completed: NoProperties;
   import_failed: { error_class?: string };
   import_started: NoProperties;
-  /** An arXiv paper's PDF saved as a document card from its link. */
   link_pdf_saved: { source: LinkPdfSaveSource };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
   search_performed: {
-    /** The qualifier keys the search used (`text`, `tag`…), never values. */
     qualifiers?: SearchQualifierKey[];
     zero_result: boolean;
   };

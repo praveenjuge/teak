@@ -9,10 +9,8 @@ import { createWorkosClient } from "./shared/workosClient";
 import { authKit } from "./workosAuthKit";
 import { ingestWorkosEvent } from "./workosWebhook";
 
-// WorkOS retries webhooks for a while, then gives up. This replays user events
-// from the Events API through the same ingest as the webhook, so a missed
-// delivery still reaches both the component and Teak. Already applied events
-// are skipped by their event ID.
+// WorkOS retries webhooks for a while, then gives up, so a missed delivery is
+// replayed from the Events API.
 
 const CURSOR = "user-events";
 const PAGE_SIZE = 100;

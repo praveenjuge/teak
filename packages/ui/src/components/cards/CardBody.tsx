@@ -24,11 +24,9 @@ interface CardBodyProps {
     onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;
     title: string;
   };
-  /** Room kept clear on text tiles for the favorite mark. */
   textInsets: string;
 }
 
-/** What a card shows in the grid, by its type. */
 export function CardBody({
   card,
   isPriority,
@@ -74,7 +72,6 @@ interface TextBodyProps {
   textInsets: string;
 }
 
-/** A note: its first line as a heading over the rest, or just its text. */
 function TextCardBody({ card, textInsets }: TextBodyProps) {
   const { heading, body } = splitNotePreview(card.content);
   const headingText = markdownToPlainText(heading);
@@ -109,7 +106,6 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   );
 }
 
-/** The site a text was saved from, muted under it. */
 function SourceFooter({ sourceUrl }: { sourceUrl?: string }) {
   const host = normalizeUrlHost(sourceUrl);
   return host ? (
@@ -143,7 +139,6 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
   );
 }
 
-/** Up to 12 swatches; hovering one widens it and shows its hex. */
 function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
   return (
     <div className={cn(CARD_SURFACE, "flex h-20 overflow-hidden")}>
@@ -167,7 +162,6 @@ function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
   );
 }
 
-/** A card of no known type, or a palette with no colors yet. */
 function PlainCardBody({ card, textInsets }: TextBodyProps) {
   return (
     <div className={cn(CARD_SURFACE, "p-4", textInsets)}>

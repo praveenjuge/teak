@@ -17,10 +17,6 @@ function stageFor(type?: string): Stage {
   return "compact";
 }
 
-/**
- * The card dialog's frame for a card of `type`. Shared by the dialog and the
- * stand-in shown while its code loads, so one replaces the other in place.
- */
 export function cardModalFrameClass(type?: string): string {
   const stage = stageFor(type);
   return cn(

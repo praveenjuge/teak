@@ -1,19 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Web session smoke for the running dev stack.
- *
- * Proves the WorkOS AuthKit gate of the locally running web app: anonymous
- * requests to `/` redirect to `/sign-in`, and a real WorkOS staging session
- * reaches `/`. The session comes from the headless flow in
- * ./lib/workos-test-session.ts: a throwaway verified user signs in with a
- * random password and is always deleted afterwards. Its tokens are sealed
- * into the AuthKit cookie. Settings come from the web target's declared
- * dotenv file. Reports status and names; emails, passwords, tokens and
- * cookies are never printed.
- *
- * Usage: bun run smoke:web [--base-url <url>] [--json]
- */
-
 import { loadTargetEnv } from "./env-loader.ts";
 import {
   cookieHeader,
@@ -139,7 +124,7 @@ const authenticatedStep = async (
 };
 
 const webSettings = (): ReadonlyMap<string, string> =>
-  loadTargetEnv("web", "local").values;
+  loadTargetEnv("web").values;
 
 export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
   const steps: SmokeStep[] = [];

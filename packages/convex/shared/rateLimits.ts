@@ -40,8 +40,6 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 60,
     shards: 6,
   },
-  // Vector searches a user's searches start, counted only when the meaning
-  // matches are not cached; past it, search is keyword-only for a while.
   semanticSearch: {
     kind: "token bucket",
     rate: 60,
@@ -54,22 +52,20 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 5,
   },
-  // Replacing or resetting a link's image (card/thumbnailOverride.ts).
   thumbnailReplace: {
     kind: "token bucket",
     rate: 20,
     period: MINUTE,
     capacity: 20,
   },
-  // Save PDF downloads (card/linkedPdfs.ts): a paper's PDF is up to 100 MB.
   savePdf: {
     kind: "token bucket",
     rate: 10,
     period: MINUTE,
     capacity: 10,
   },
-  // arXiv's API asks for at most one request every 3 seconds per client;
-  // the whole deployment shares it (workflows/steps/categorization).
+  // arXiv's API terms ask for at most one request every 3 seconds:
+  // https://info.arxiv.org/help/api/tou.html
   arxivApi: {
     kind: "token bucket",
     rate: 20,

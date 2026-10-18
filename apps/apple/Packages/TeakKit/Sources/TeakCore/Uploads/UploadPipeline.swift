@@ -50,8 +50,6 @@ public struct URLSessionFileUpload: FileUploadTransport {
     }
 }
 
-/// `uploadAndCreateCard`, a signed PUT, then `finalizeUploadedCard`, like
-/// `uploadFileFromUri` in the web and iPhone apps.
 public struct UploadPipeline: Sendable {
     struct Prepared: Decodable, Sendable {
         let success: Bool
@@ -79,8 +77,6 @@ public struct UploadPipeline: Sendable {
         self.retryDelays = retryDelays
     }
 
-    /// Checks a file before any network work: a supported format, at most 100 MB.
-    /// Returns the format and the MIME type to upload with.
     public static func validate(_ item: UploadItem) throws -> (format: FileFormat, mimeType: String, size: Int) {
         guard let format = FileFormats.infer(fileName: item.fileName, mimeType: item.mimeType),
               let mimeType = FileFormats.uploadMimeType(fileName: item.fileName, mimeType: item.mimeType)
@@ -93,7 +89,6 @@ public struct UploadPipeline: Sendable {
         return (format, mimeType, size)
     }
 
-    /// Uploads one file and returns the new card's ID.
     public func upload(_ item: UploadItem) async throws -> String {
         let (format, mimeType, size) = try Self.validate(item)
         var prepareArgs: ConvexArgs = [
@@ -104,7 +99,7 @@ public struct UploadPipeline: Sendable {
             "content": .string(item.fileName),
         ]
         if let metadata = item.additionalMetadata { prepareArgs["additionalMetadata"] = metadata }
-        let prepared: Prepared = try await convex.mutation("cards:uploadAndCreateCard", prepareArgs)
+        let prepared = try await convex.mutation(ConvexFunctions.uploadAndCreateCard, prepareArgs)
         guard prepared.success, let key = prepared.uploadKey, let rawURL = prepared.uploadUrl,
               let uploadURL = URL(string: rawURL)
         else { throw TeakError.card(code: prepared.errorCode, message: prepared.error, fallback: "Failed to prepare upload") }
@@ -115,7 +110,7 @@ public struct UploadPipeline: Sendable {
         finalizeArgs["fileKey"] = .string(key)
         if let etag { finalizeArgs["fileEtag"] = .string(etag) }
         finalizeArgs["source"] = CardSource.apple
-        let finalized: Finalized = try await convex.action("cards:finalizeUploadedCard", finalizeArgs)
+        let finalized = try await convex.action(ConvexFunctions.finalizeUploadedCard, finalizeArgs)
         guard finalized.success, let cardId = finalized.cardId else {
             throw TeakError.card(code: finalized.errorCode, message: finalized.error, fallback: "Failed to create card")
         }
@@ -123,19 +118,38 @@ public struct UploadPipeline: Sendable {
     }
 
     func put(_ file: URL, to url: URL, contentType: String) async throws -> String? {
-        var attempt = 0
-        while true {
-            do {
-                let (status, etag) = try await transport.put(file, to: url, contentType: contentType)
-                if (200..<300).contains(status) { return etag }
-                guard status == 408 || status == 429 || status >= 500, attempt < retryDelays.count else {
-                    throw TeakError(message: "Upload failed with status \(status)")
-                }
-            } catch let error as URLError where error.code != .cancelled && attempt < retryDelays.count {
-                // A dropped connection is retried below, like a 5xx.
-            }
-            try await Task.sleep(for: retryDelays[attempt])
-            attempt += 1
+        for delay in retryDelays {
+            if case let .uploaded(etag) = try await attemptPut(file, to: url, contentType: contentType) { return etag }
+            try await Task.sleep(for: delay)
         }
+        switch try await attemptPut(file, to: url, contentType: contentType) {
+        case let .uploaded(etag): return etag
+        case let .retryable(error): throw error
+        }
+    }
+
+    private enum PutAttempt {
+        case uploaded(etag: String?)
+        case retryable(any Error)
+    }
+
+    private func attemptPut(_ file: URL, to url: URL, contentType: String) async throws -> PutAttempt {
+        do {
+            let (status, etag) = try await transport.put(file, to: url, contentType: contentType)
+            if (200..<300).contains(status) { return .uploaded(etag: etag) }
+            let failure = TeakError(message: "Upload failed with status \(status)")
+            guard Self.isRetryable(status: status) else { throw failure }
+            return .retryable(failure)
+        } catch let error as URLError where Self.isRetryable(error) {
+            return .retryable(error)
+        }
+    }
+
+    static func isRetryable(status: Int) -> Bool {
+        status == 408 || status == 429 || status >= 500
+    }
+
+    static func isRetryable(_ error: URLError) -> Bool {
+        error.code != .cancelled
     }
 }

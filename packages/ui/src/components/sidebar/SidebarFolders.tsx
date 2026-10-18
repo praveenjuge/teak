@@ -66,7 +66,6 @@ const folderSkeletonRows = SKELETON_WIDTHS.map((width) => (
   </SidebarMenuItem>
 ));
 
-/** The Folders group while the app signs in, before its folders load. */
 export function SidebarFoldersSkeleton() {
   return (
     <SidebarGroup className="pt-3">
@@ -79,20 +78,10 @@ export function SidebarFoldersSkeleton() {
 interface SidebarFoldersProps {
   activeFolderId: string | null;
   LinkComponent: SidebarLinkComponent;
-  /** Called when the open folder is deleted, to leave its page. */
   onActiveFolderDeleted?: () => void;
-  /** Called before a folder link navigates (e.g. to remember scroll). */
   onNavigate?: () => void;
 }
 
-/**
- * The Folders group in the sidebar: every folder with its color dot and
- * card count, a New folder button that names one in place, and a menu (or
- * right-click) to rename, recolor or delete. Smart folders show a search
- * icon, no count (their cards are found when opened) and Edit search.
- * Dropping a card on a folder adds it. Deleting offers Undo for a few
- * seconds.
- */
 export function SidebarFolders({
   activeFolderId,
   LinkComponent,

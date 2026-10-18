@@ -19,16 +19,12 @@ const tagCountsValidator = v.object({
 
 const totalsValidator = v.object({
   examined: v.number(),
-  /** Cards with a reserved user tag, flagged already or not. */
   hiddenCards: v.number(),
   cardsToUpdate: v.number(),
   searchDocumentsToUpdate: v.number(),
   skippedDeletingAccounts: v.number(),
-  /** Hidden cards carrying each reserved tag (a card can count twice). */
   tags: tagCountsValidator,
-  /** Users with at least one hidden card (at least this many when capped). */
   affectedUsers: v.number(),
-  /** More users were affected than the run could track. */
   affectedUsersCapped: v.optional(v.boolean()),
 });
 
@@ -44,28 +40,13 @@ const emptyTotals = (): Totals => ({
   affectedUsers: 0,
 });
 
-/**
- * Sets `isHidden` on every card whose user tags hold a reserved tag, and on
- * its search document, and clears it where it no longer belongs (new writes
- * keep it through `patchCardWithSearchSync` and the search sync). Reads hide
- * these cards by their tags from the deploy on, so this only fills in the
- * flag the indexes filter on. A dry run (the default) writes nothing and
- * reports the counts per tag and how many users have hidden cards. Each
- * batch schedules the next until the table is done, and the last one logs
- * the totals.
- *
- *   npx convex run migration/backfillHiddenCards:backfillHiddenCards
- *   npx convex run migration/backfillHiddenCards:backfillHiddenCards '{"dryRun":false}'
- */
 export const backfillHiddenCards = internalMutation({
   args: {
     cursor: v.optional(v.union(v.string(), v.null())),
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
-    /** Stop after this batch instead of scheduling the next. */
     once: v.optional(v.boolean()),
     totals: v.optional(totalsValidator),
-    /** Users counted in `totals.affectedUsers` so far. */
     affectedUserIds: v.optional(v.array(v.string())),
   },
   returns: v.object({

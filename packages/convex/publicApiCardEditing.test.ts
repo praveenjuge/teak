@@ -419,7 +419,6 @@ describe("Search scan budget", () => {
       })
     );
     expect(found).toHaveLength(1024);
-    // Offset cursors are no longer issued; an old one is an invalid cursor.
     await expect(
       t.query(internal.publicApi.searchCardsPageForUser, {
         userId: "owner",
@@ -557,7 +556,6 @@ describe("Public API AI tag removal", () => {
   });
 });
 
-/** The card-processing runs queued in the dispatch outbox, oldest first. */
 const scheduledWorkflowStarts = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
   t.run(async (ctx) =>
     (await ctx.db.query("workflowDispatches").collect()).filter(
@@ -593,7 +591,6 @@ describe("Multi-field edits", () => {
     expect(jobs.every((job) => job.reset === true)).toBe(true);
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.content).toBe("Third edit");
-    // Each queued run owns the revision it bumped to; the latest wins.
     expect(card?.processingRev).toBe(jobs[jobs.length - 1]?.rev);
   });
 
@@ -933,6 +930,32 @@ describe("Card changes feed", () => {
         userId: "owner",
         since: 0,
         cursor: btoa(JSON.stringify({ v: 2, phase: "nope" })),
+      })
+    ).rejects.toThrow("Query parameter `cursor` is invalid");
+  });
+
+  test("rejects a bare card-page cursor from before tombstones", async () => {
+    const { t } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "second",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    const first = await t.query(internal.publicApi.listCardChangesForUser, {
+      userId: "owner",
+      since: 0,
+      limit: 1,
+    });
+    const { cursor } = JSON.parse(atob(first.pageInfo.nextCursor ?? ""));
+    await expect(
+      t.query(internal.publicApi.listCardChangesForUser, {
+        userId: "owner",
+        since: 0,
+        cursor,
       })
     ).rejects.toThrow("Query parameter `cursor` is invalid");
   });

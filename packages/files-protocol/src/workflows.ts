@@ -1,30 +1,10 @@
-/**
- * Background work runs on Cloudflare Workflows and Queues inside the Files
- * Worker; Convex stays the database. The two talk in both directions:
- *
- * - Convex → Worker: the `dispatch` Files op starts workflow instances and
- *   queues object deletions. Like every Files op it is signed with the files
- *   signing secret, and its params also carry a proof signed with the
- *   deployment's workflow RPC secret, so it can only start work that reports
- *   to the deployment that sent it.
- * - Worker → Convex: `POST /__workflow/v1` runs one allowlisted internal
- *   query, mutation or action, signed with that deployment's workflow RPC
- *   secret.
- *
- * Each deployment's workflow RPC secret is derived from a root secret that
- * only the Worker holds, so the development deployment (which shares the
- * files signing secret with production) can never sign for production. Every
- * payload starts with its own label and names the deployment, so a signature
- * is never valid for another purpose or another deployment.
- */
-
 export const WORKFLOW_RPC_PATH = "/__workflow/v1" as const;
 
-/** Longest a signed RPC stays valid, in seconds. */
 export const WORKFLOW_RPC_MAX_TTL_SECONDS = 5 * 60;
 
-/** Largest RPC request body Convex accepts, in bytes. */
 export const WORKFLOW_RPC_MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+export const MAX_DAILY_USAGE_ROWS = 200;
 
 export const WORKFLOW_RPC_HEADERS = {
   expiresAt: "x-teak-expires-at",
@@ -32,11 +12,6 @@ export const WORKFLOW_RPC_HEADERS = {
   signature: "x-teak-signature",
 } as const;
 
-/**
- * What the Worker signs with its root secret to get a deployment's workflow
- * RPC secret (hex HMAC-SHA256). `bun scripts/workflow-rpc-secret.ts` prints
- * it for a deployment's Convex environment.
- */
 export const buildWorkflowRpcSecretPayload = (convexSiteUrl: string): string =>
   ["workflow-rpc-secret", "1", convexSiteUrl].join("\n");
 
@@ -88,11 +63,8 @@ export interface WorkflowRpcRequest {
   name: string;
 }
 
-/** Error codes the gateway returns for a request it refused to run. */
 export const WORKFLOW_RPC_ERROR_CODES = [
-  /** The guard's card no longer exists. */
   "card_missing",
-  /** The guard's revision is not the card's current processing revision. */
   "stale_processing_revision",
 ] as const;
 export type WorkflowRpcErrorCode = (typeof WORKFLOW_RPC_ERROR_CODES)[number];
@@ -107,7 +79,6 @@ export type WorkflowRpcResponse =
 const RPC_KINDS = new Set<string>(["action", "mutation", "query"]);
 const FUNCTION_NAME = /^[A-Za-z0-9_/.-]{1,200}:[A-Za-z0-9_]{1,100}$/u;
 
-/** The request in a body, or null when the body is not one valid request. */
 export const parseWorkflowRpcRequest = (
   value: unknown
 ): WorkflowRpcRequest | null => {
@@ -149,7 +120,6 @@ export const parseWorkflowRpcRequest = (
   return { args, kind: kind as WorkflowRpcKind, name };
 };
 
-/** The Cloudflare Workflows Convex can start through `dispatch`. */
 export const WORKFLOW_NAMES = [
   "card-processing",
   "export",
@@ -163,18 +133,15 @@ export const isWorkflowName = (value: unknown): value is WorkflowName =>
   typeof value === "string" &&
   (WORKFLOW_NAMES as readonly string[]).includes(value);
 
-/** Instance IDs: letters, digits, `-` and `_`, at most 100 characters. */
 const INSTANCE_ID = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$/u;
 
 export const isWorkflowInstanceId = (value: unknown): value is string =>
   typeof value === "string" && INSTANCE_ID.test(value);
 
-/** One card-processing run per card and processing revision. */
 export const cardProcessingInstanceId = (cardId: string, rev: number) =>
   `card-${cardId}-${rev}`;
 export const exportInstanceId = (jobId: string) => `export-${jobId}`;
 export const importInstanceId = (jobId: string) => `import-${jobId}`;
-/** A failed account deletion run is started again under the next attempt. */
 export const accountDeletionInstanceId = (
   stateId: string,
   generation: number,
@@ -188,7 +155,6 @@ export type DispatchItem =
   | {
       id: string;
       params: Record<string, unknown>;
-      /** Instances this one replaces; stopped first, best effort. */
       terminate?: string[];
       type: "workflow";
       workflow: WorkflowName;
@@ -196,25 +162,17 @@ export type DispatchItem =
   | { keys: string[]; type: "delete-objects" };
 
 export interface DispatchParams {
-  /**
-   * The dispatching deployment's HTTP actions origin. Workflows call back the
-   * deployment that started them; the Worker only accepts origins it lists
-   * in `CONVEX_SITE_URLS`.
-   */
   convexSiteUrl: string;
   /** Unix seconds; the proof is refused after this. */
   expiresAt: string;
   items: DispatchItem[];
-  /** Hex HMAC of `buildWorkflowDispatchSigningPayload`. */
   signature: string;
 }
 
-/** Every workflow's params carry the deployment it reports to. */
 export interface WorkflowOriginParams {
   convexSiteUrl: string;
 }
 
-/** Normalizes an origin for comparison; null when it isn't an http(s) origin. */
 export const normalizeConvexSiteUrl = (value: unknown): string | null => {
   if (typeof value !== "string" || value.length > 300) {
     return null;
@@ -237,7 +195,6 @@ export const normalizeConvexSiteUrl = (value: unknown): string | null => {
   }
 };
 
-/** The origins listed in a comma-separated `CONVEX_SITE_URLS` value. */
 export const parseConvexSiteUrls = (value: string | undefined): string[] => [
   ...new Set(
     (value ?? "")
@@ -248,7 +205,6 @@ export const parseConvexSiteUrls = (value: string | undefined): string[] => [
 ];
 
 export interface DispatchItemResult {
-  /** Why the item was not accepted; retry it later. */
   error?: string;
   index: number;
   ok: boolean;
@@ -258,7 +214,6 @@ export interface DispatchResult {
   results: DispatchItemResult[];
 }
 
-/** Statuses Cloudflare reports for an instance. */
 export type WorkflowInstanceState =
   | "complete"
   | "errored"
@@ -270,5 +225,4 @@ export type WorkflowInstanceState =
   | "waiting"
   | "waitingForPause";
 
-/** What a workflow reports to Convex when it ends. */
 export type WorkflowCompletionStatus = "complete" | "errored";

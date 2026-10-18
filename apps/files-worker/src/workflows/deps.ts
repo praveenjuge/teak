@@ -10,11 +10,6 @@ export type FilesOpCaller = <T>(spec: {
   params: Record<string, unknown>;
 }) => Promise<FilesOpOutcome<T>>;
 
-/**
- * What a workflow reaches outside itself. Production uses the run's
- * deployment and this Worker's own ops; tests pass a fake Convex and may wrap
- * the ops.
- */
 export interface WorkflowDeps {
   convex?: ConvexRpc;
   ops?: FilesOpCaller;
@@ -28,16 +23,11 @@ export const resolveDeps = (
   ops: deps.ops ?? ((spec) => callFilesOp(run.env, spec)),
 });
 
-/** A step that keeps working through pages until it runs out of time. */
 export const STEP_BUDGET_MS = 60_000;
 
 export const withinBudget = (startedAt: number, budgetMs = STEP_BUDGET_MS) =>
   Date.now() - startedAt < budgetMs;
 
-/**
- * A Convex function that threw gave its answer; retrying the step would ask
- * again. Only transport failures (`convex_rpc_unavailable`) retry.
- */
 export const settleConvexErrors = async <T>(
   callback: () => Promise<T>
 ): Promise<T> => {
@@ -51,6 +41,5 @@ export const settleConvexErrors = async <T>(
   }
 };
 
-/** Convex or the network was briefly out of reach; the step should retry. */
 export const isTransientError = (error: unknown): boolean =>
   error instanceof Error && error.message.startsWith("convex_rpc_unavailable");

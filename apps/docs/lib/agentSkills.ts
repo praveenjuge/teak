@@ -4,7 +4,6 @@
  * a build warning. The docs build checks them first and fails instead.
  */
 
-/** Lowercase letters and digits in words joined by single hyphens. */
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const SKILL_NAME_MAX = 64;
 /** The Agent Skills spec caps `description` at 1,024 characters. */
@@ -35,12 +34,6 @@ const readFrontMatter = (markdown: string): Record<string, unknown> | null => {
   }
 };
 
-/**
- * Checks a public skill: `dir` is its directory name, `markdown` its
- * `SKILL.md`, and `files` every file in the directory. It needs front matter
- * with a `name` equal to the directory and a `description` of at most 1,024
- * characters. Errors read as sentences.
- */
 export const validatePublicSkill = (
   dir: string,
   markdown: string,

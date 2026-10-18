@@ -25,7 +25,6 @@ export const listFoldersForApi = internalQuery({
     listFoldersForUser(ctx, await requireTeakUserId(ctx, args.userId)),
 });
 
-/** The user's folder for an id from a URL, or null when it is not theirs. */
 export const getFolderForApi = internalQuery({
   args: { userId: v.string(), folderId: v.string() },
   returns: v.union(folderReturnValidator, v.null()),
@@ -76,10 +75,6 @@ export const deleteFolderForApi = internalMutation({
     ),
 });
 
-/**
- * Adds or removes cards. Ids that are not card ids fail like missing cards,
- * so one bad id never fails the whole call.
- */
 export const changeFolderCardsForApi = internalMutation({
   args: {
     userId: v.string(),

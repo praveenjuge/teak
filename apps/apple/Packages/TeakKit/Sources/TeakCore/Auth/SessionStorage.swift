@@ -18,15 +18,12 @@ public struct WorkOSSession: Hashable, Sendable {
     public let user: SessionUser
     let record: StoredSession
 
-    /// False when `other` belongs to a different WorkOS user, session, or linked Teak account.
     func isSameAccount(as other: WorkOSSession) -> Bool {
         other.user.id == user.id && other.sessionId == sessionId
             && (user.teakUserId == nil || other.user.teakUserId == user.teakUserId)
     }
 }
 
-/// What the keychain holds: the parts of WorkOS's authenticate response the
-/// session needs, re-validated on every load.
 struct StoredSession: Codable, Hashable, Sendable {
     struct User: Codable, Hashable, Sendable {
         let id: String
@@ -63,8 +60,6 @@ enum SessionParser {
         let user: StoredSession.User
     }
 
-    /// These claims describe the client cache, not authorization. Convex verifies the
-    /// signed token, the live session, verified email and the vault mapping.
     static func parse(_ stored: StoredSession, clientId: String) throws -> WorkOSSession {
         guard stored.clientId == clientId, !stored.access_token.isEmpty, !stored.refresh_token.isEmpty,
               stored.access_token.count <= maxLength, stored.refresh_token.count <= maxLength,

@@ -100,7 +100,6 @@ describe("findIsbn", () => {
         sourceUrl: "https://example.com/dp/0140328726",
       })
     ).toBeUndefined();
-    // An ASIN that isn't an ISBN.
     expect(
       findIsbn({
         entities: [],

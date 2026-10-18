@@ -29,10 +29,6 @@ interface Image {
   width: number | null;
 }
 
-/**
- * The Files Worker. finalize-image-upload answers with `image` (or refuses
- * with `refuse`); `onFinalize` runs before it answers.
- */
 const stubWorker = () => {
   const state: {
     calls: WorkerCall[];
@@ -106,7 +102,6 @@ const stubWorker = () => {
   return state;
 };
 
-/** Every key the worker was asked to delete. */
 const deletedKeys = (calls: WorkerCall[]) =>
   calls.flatMap((call) => {
     if (call.op === "delete-objects") {
@@ -115,7 +110,6 @@ const deletedKeys = (calls: WorkerCall[]) =>
     return call.op === "delete-object" ? [call.params.key as string] : [];
   });
 
-/** The error code a rejected call carries. */
 const codeOf = async (promise: Promise<unknown>) => {
   try {
     await promise;
@@ -170,7 +164,6 @@ const setup = async () => {
   const card = (cardId: Id<"cards">) =>
     t.run((ctx) => ctx.db.get("cards", cardId));
 
-  /** Upload URL, then apply: what the web does after the PUT. */
   const replace = async (
     cardId: Id<"cards">,
     image: Partial<Image> = {},
@@ -193,7 +186,6 @@ const setup = async () => {
       changeId,
     });
 
-  /** Runs what is due in the next `ms`, without reaching later jobs. */
   const runFor = async (ms: number) => {
     const end = Date.now() + ms;
     while (Date.now() < end) {
@@ -202,7 +194,6 @@ const setup = async () => {
     }
   };
   const runAll = () => t.finishAllScheduledFunctions(vi.runAllTimers);
-  /** Keys queued for deletion through the dispatch outbox. */
   const queuedDeletes = () => queuedObjectDeletions(t);
 
   return {
@@ -428,7 +419,6 @@ describe("replacing a link's image", () => {
   test("deletes the finalized image when the card can't take it any more", async () => {
     const { t, insertCard, card, replace, worker } = await setup();
     const cardId = await insertCard();
-    // The card goes to Trash while the worker decodes the image.
     worker.onFinalize = async () => {
       await t.run((ctx) =>
         ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 1 })
@@ -447,7 +437,6 @@ describe("replacing a link's image", () => {
   test("allows 20 changes a minute", async () => {
     const { t, owner, insertCard, replace, worker } = await setup();
     const cardId = await insertCard();
-    // An upload made before the limit is reached can't be applied past it.
     const early = await owner.mutation(
       api.card.thumbnailOverride.createThumbnailUploadUrl,
       { cardId, fileSize: 10, mimeType: "image/gif" }
@@ -567,7 +556,6 @@ describe("the undo window", () => {
     });
     expect((await card(cardId))?.thumbnailOverride).toEqual(c);
 
-    // A and B both go once their windows pass; C stays.
     await runAll();
     const deleted = await queuedDeletes();
     expect(deleted).toContain(b);
@@ -631,7 +619,6 @@ describe("resetting a link's image", () => {
     expect(again.changeId).toEqual(expect.any(String));
     await runAll();
     expect(await queuedDeletes()).toContain(chosen?.storageKey);
-    // Its window closed, so there is nothing left to undo.
     expect((await card(cardId))?.previousThumbnailOverride).toBeUndefined();
   });
 

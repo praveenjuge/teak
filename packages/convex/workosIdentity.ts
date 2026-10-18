@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
-import { logResolverDenial, type ResolverVerification } from "./authMonitoring";
+import {
+  logResolverDenial,
+  type ResolverDenialReason,
+  type ResolverVerification,
+} from "./authMonitoring";
 import { readComponentUser } from "./securitySessions";
 import { type ProviderProfile, toProviderProfile } from "./workosProfileRead";
 
@@ -12,18 +16,8 @@ export interface ResolveArgs {
 
 export type ResolvedOwner =
   | { status: "ok"; teakUserId: string; profile: ProviderProfile }
-  | { status: "denied"; reason: DenialReason };
-type DenialReason =
-  | "missing_mapping"
-  | "duplicate_mapping"
-  | "deleted_user"
-  | "workos_deleted_user"
-  | "deleting_user"
-  | "external_id_mismatch"
-  | "verify_email";
+  | { status: "denied"; reason: ResolverDenialReason };
 
-// Queries and mutations call this in their own transaction. Actions have no
-// database, so they go through the resolveWorkosOwner internal query below.
 export async function resolveOwner(
   ctx: Pick<QueryCtx, "db" | "runQuery">,
   args: ResolveArgs

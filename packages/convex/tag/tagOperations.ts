@@ -26,22 +26,9 @@ import {
   tagKey,
 } from "../shared/tags";
 
-/** Cards one batch rewrites before it schedules the next. */
 export const TAG_OPERATION_BATCH_SIZE = 25;
-/**
- * Passes over the tag index at most. A pass that changed cards is followed
- * by another, a little later, to catch cards the index had not caught up
- * with: one tagged just before the change started, or one restored from
- * Trash behind the cursor. The change completes after a pass changes none.
- */
 export const TAG_OPERATION_MAX_PASSES = 4;
-/** How long to wait before the next pass, so pending tag syncs land. */
 export const TAG_OPERATION_PASS_DELAY_MS = 2000;
-/**
- * Extra passes an operation makes while the user's tag syncs are still
- * running (a card tagged just before it may not be in the index yet), so a
- * stuck sync delays completion by at most half a minute.
- */
 export const TAG_OPERATION_MAX_SYNC_WAITS = 15;
 const hasPendingTagSync = async (ctx: MutationCtx, userId: string) =>
   (await ctx.db
@@ -139,11 +126,6 @@ const runningOperation = (ctx: QueryCtx, userId: string) =>
     )
     .first();
 
-/**
- * Starts renaming, merging or deleting a tag on every card the user has,
- * including cards in Trash and Archive, and returns the operation to poll.
- * One operation runs at a time per user.
- */
 export const startTagOperationForUser = async (
   ctx: MutationCtx,
   userId: string,
@@ -244,7 +226,6 @@ export const startTagOperationForUser = async (
   return toTagOperationSummary(operation);
 };
 
-/** The user's operation for an id, or null when it is not theirs. */
 export const getTagOperationForUser = async (
   ctx: QueryCtx,
   userId: string,
@@ -260,10 +241,6 @@ export const getTagOperationForUser = async (
     : null;
 };
 
-/**
- * Rewrites the tag on the next batch of cards. Reads each card fresh and
- * changes only its tags, so edits made meanwhile are kept.
- */
 export const runTagOperationBatchHandler = async (
   ctx: MutationCtx,
   operationId: Id<"tagOperations">
@@ -432,11 +409,6 @@ export const getTagOperation = query({
   },
 });
 
-/**
- * The user's latest operation, running or finished. A reloaded page picks a
- * running one's progress back up, and shows a just-finished one in the tag
- * list until the background counts catch up.
- */
 export const getLatestTagOperation = query({
   args: {},
   returns: v.union(tagOperationReturnValidator, v.null()),

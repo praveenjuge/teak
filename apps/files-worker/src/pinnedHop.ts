@@ -12,12 +12,7 @@ import {
 } from "../fetcher/src/protocol";
 import { postToFetcher, type RemoteAssetEnv } from "./remoteAsset";
 
-// `safeFetch` (packages/convex/linkMetadata/ssrf.ts) runs in the Worker for
-// the requests card processing makes to user URLs: social post APIs and the
-// link's own host. It resolves each hop's host with DNS over HTTPS, checks
-// every address, and sends the hop to the link fetcher Container, which
-// checks the addresses again and connects only to them. A Worker's own
-// `fetch` cannot pin a connection to an address.
+// A Worker's own `fetch` cannot pin a connection to an address.
 
 const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const DOH_TIMEOUT_MS = 5000;
@@ -59,11 +54,6 @@ const lookup = async (
   ).map((answer) => answer.data as string);
 };
 
-/**
- * Every A and AAAA address a host resolves to, from Cloudflare's DNS over
- * HTTPS. Fails when neither lookup answers, so the guard never mistakes an
- * outage for a host with no addresses.
- */
 export const createDohResolver =
   (fetcher: typeof fetch = fetch): DnsResolver =>
   async (hostname) => {
@@ -79,10 +69,8 @@ export const createDohResolver =
     );
   };
 
-/** The longest body a hop brings back by default: a social post's JSON. */
 const DEFAULT_HOP_MAX_BYTES = 1024 * 1024;
 
-// Statuses whose responses cannot carry a body.
 const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 
 const hopHeaders = (init: RequestInit): FetcherHopRequest["headers"] => {
@@ -123,11 +111,6 @@ const abortable = <T>(
   });
 };
 
-/**
- * A `PinnedFetch` that makes each hop from the link fetcher Container. Only
- * `accept` and `user-agent` travel with the request, and at most `maxBytes`
- * (plus one, so `readBodyWithLimit` sees an overflow) come back.
- */
 export const createContainerPinnedFetch =
   (
     env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,

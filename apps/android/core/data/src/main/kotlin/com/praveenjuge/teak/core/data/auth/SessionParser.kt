@@ -9,10 +9,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import java.util.Base64
 
-/**
- * Builds a session from a WorkOS authenticate response and checks the token's claims, like iOS.
- * These checks guard the local cache; Convex verifies the signed token itself.
- */
 object SessionParser {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -58,7 +54,6 @@ object SessionParser {
         )
     }
 
-    /** Parses the raw JSON body of `POST /user_management/authenticate`. */
     fun parseResponse(clientId: String, body: String): AuthSession {
         val root = try {
             json.parseToJsonElement(body).jsonObject

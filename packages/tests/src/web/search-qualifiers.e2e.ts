@@ -149,7 +149,6 @@ test("text: is a chip that survives a reload and matches only image text", async
   const chip = screen.getByRole("button", "Remove text in image total due");
   await expect(chip).toBeVisible();
   await expect(browser).toHaveURL(/q=text%3A%22total(\+|%20)due%22/);
-  // The note says "total due", but not in an image.
   await expect(
     screen.getByText("Nothing found matching your filters")
   ).toBeVisible();

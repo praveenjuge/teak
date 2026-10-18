@@ -14,12 +14,6 @@ interface BookmarkList {
   pendingFolder?: string;
 }
 
-/**
- * Parse Netscape bookmark exports without constructing a DOM for the 20 MiB
- * source. Each link keeps the folder it sits in, nested paths flattened to
- * "Parent / Child"; the browser's own Bookmarks bar and Other bookmarks
- * folders count as the top level.
- */
 export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];
   const lists: BookmarkList[] = [];

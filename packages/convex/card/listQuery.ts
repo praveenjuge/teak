@@ -16,10 +16,6 @@ export const cardListSortValidator = v.union(
   v.literal("oldest")
 );
 
-/**
- * The grid's sorts: by date, Shuffle with a seed (card/shuffle.ts), or Best
- * match for a search (shared/search/relevance.ts).
- */
 export const cardListSortWithShuffleValidator = v.union(
   v.literal("newest"),
   v.literal("oldest"),
@@ -40,10 +36,6 @@ export const archivedFilterValidator = v.union(
   v.literal("include")
 );
 
-/**
- * The `isArchived` value an index or search filter should match, or `"any"`
- * when the read must not constrain it (Trash, or archived and not).
- */
 export const archivedFilterMatch = (
   archived: ArchivedFilter | undefined,
   trash?: boolean
@@ -54,7 +46,6 @@ export const archivedFilterMatch = (
   return archived === "only" ? true : undefined;
 };
 
-/** Bounds on `createdAt`. A missing bound leaves that side open. */
 export interface CreatedAtBounds {
   gte?: number;
   lt?: number;
@@ -62,20 +53,13 @@ export interface CreatedAtBounds {
 }
 
 export interface CardListQueryOptions {
-  /** Archived cards to return outside Trash; defaults to `"exclude"`. */
   archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
-  /** Only favorites. `false` means "no favorite filter", like `undefined`. */
   favoritesOnly?: boolean;
-  /**
-   * Hidden cards too (card/hiddenCards.ts). Without it, flagged cards are
-   * filtered out of the read; callers still drop loaded cards with
-   * `keepVisible` for the ones the backfill hasn't reached.
-   */
+  // Callers still drop loaded cards with `keepVisible` for the ones the
+  // `isHidden` backfill hasn't reached.
   includeHidden?: boolean;
-  /** List Trash instead of the library. */
   trash?: boolean;
-  /** One type uses its own index; several are filtered while reading. */
   types?: readonly CardType[];
   userId: string;
 }
@@ -89,7 +73,6 @@ interface DateBoundRange<Field extends string> extends UpperBoundRange<Field> {
   gte: (field: Field, value: number) => UpperBoundRange<Field>;
 }
 
-/** Bounds an index range on its date field, the field after its equalities. */
 const withDateBounds = <Field extends string>(
   range: DateBoundRange<Field>,
   field: Field,
@@ -111,14 +94,6 @@ const withCreatedAt = (
   bounds?: CreatedAtBounds
 ) => withDateBounds(range, "createdAt", bounds);
 
-/**
- * The one query behind every library listing (web grid, mobile summaries,
- * public API, Raycast): the most selective index for the filters, ordered by
- * `createdAt`. Archived cards are left out unless `archived` asks for them;
- * Trash includes them. Callers choose the direction with `.order()`:
- * `"desc"` for newest, `"asc"` for oldest. Hidden cards are left out unless
- * `includeHidden` asks for them.
- */
 export const buildCardListQuery = (
   ctx: QueryCtx,
   options: CardListQueryOptions
@@ -205,13 +180,6 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
     : query;
 };
 
-/**
- * Cards on one site (`site:`), newest or oldest first: active cards, or
- * archived ones with `archived: "only"`. `host` is a normalized host
- * (shared/utils/urlHost.ts). Trash and "archived and not" read the plain
- * list instead, since this index needs one archive state. Hidden cards are
- * left out unless `includeHidden` asks for them.
- */
 export const buildHostCardListQuery = (
   ctx: QueryCtx,
   options: {
@@ -238,12 +206,6 @@ export const buildHostCardListQuery = (
     options.includeHidden
   );
 
-/**
- * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
- * Archive like the library: active cards by default, archived ones with
- * `archived: "only"`, trashed ones with `trash`. Callers load each row's card,
- * and drop hidden ones with `keepVisible` (the rows don't carry the flag).
- */
 export const buildFolderCardListQuery = (
   ctx: QueryCtx,
   options: {
@@ -290,12 +252,7 @@ export const buildFolderCardListQuery = (
     : dated;
 };
 
-/**
- * Cards with one tag, from the tag index in date order: Trash, Archive or
- * the library. `tag` is the lowercase name the index stores. Types and
- * favorites narrow the index range; other filters apply to the cards,
- * hidden ones included: callers drop them with `keepVisible`.
- */
+// Hidden cards are included: callers drop them with `keepVisible`.
 export const buildTagCardListQuery = (
   ctx: QueryCtx,
   options: {

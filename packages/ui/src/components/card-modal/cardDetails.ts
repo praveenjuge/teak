@@ -15,7 +15,6 @@ export function formatCardDate(timestamp: number) {
 export interface CardDetailsSource {
   content?: string;
   createdAt: number;
-  /** Characters of text Teak extracted from the card's document. */
   extractedTextCharCount?: number;
   fileMetadata?: {
     exif?: ImageExif;
@@ -53,7 +52,6 @@ const present = (fields: Array<{ label: string; value?: string | null }>) =>
     Boolean(field.value?.trim())
   );
 
-/** The facts the card dialog's Details section lists, grouped as it shows them. */
 export function getCardDetailSections(card: CardDetailsSource) {
   const file = card.fileMetadata;
   const linkPreview =

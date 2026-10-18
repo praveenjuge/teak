@@ -79,10 +79,6 @@ export const getFileUrl = query({
   },
 });
 
-/**
- * A signed URL that saves the card's file under its original name. The browser
- * downloads it directly, so the web app never buffers the file in memory.
- */
 export const getFileDownloadUrl = query({
   args: { cardId: v.id("cards") },
   returns: v.union(v.string(), v.null()),
@@ -137,7 +133,6 @@ export const getAuthorizedMedia = internalQuery({
   },
 });
 
-/** Mint a fresh signed URL after a browser-visible media request fails. */
 export const refreshCardMediaUrl = action({
   args: {
     key: v.string(),

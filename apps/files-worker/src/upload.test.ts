@@ -569,8 +569,6 @@ describe("additive files ops", () => {
     expect(result.summary).toBe("A red square.");
     expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
-    // Thinking shares the output cap and left dense images with no answer;
-    // without the penalty some images repeat a line until the cap.
     const sampling = {
       chat_template_kwargs: { enable_thinking: false },
       frequency_penalty: 0.3,
@@ -635,8 +633,6 @@ describe("additive files ops", () => {
       Math.floor(Date.now() / 1000),
       fakeFetch
     );
-    // No `text`: the last answer was told to leave it empty, so the image
-    // stays unread instead of counting as one without text.
     expect(result).toEqual({ summary: "A menu.", tags: ["menu"] });
     expect(prompts).toHaveLength(3);
     expect(prompts[1]).toContain("at most 1000 characters");
@@ -655,7 +651,6 @@ describe("additive files ops", () => {
             : "";
           calls.push({ prompt, system: String(system?.content) });
           expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
-          // Text-only reads copy dense pages, where words really repeat.
           expect(args.frequency_penalty).toBeUndefined();
           const content =
             calls.length === 1

@@ -1,6 +1,8 @@
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
+const FONT_SWAP_SHIFT_ALLOWANCE = 0.01;
+
 test("settings loads without shifting its layout", async ({
   browser,
   screen,
@@ -39,8 +41,5 @@ test("settings loads without shifting its layout", async ({
         );
       })
   );
-  // The old jump scored about 0.066. A cold first visit can still nudge a
-  // few pixels while the web font swaps in (font-display: swap), so allow
-  // that much and no more.
-  expect(shift).toBeLessThan(0.01);
+  expect(shift).toBeLessThan(FONT_SWAP_SHIFT_ALLOWANCE);
 });

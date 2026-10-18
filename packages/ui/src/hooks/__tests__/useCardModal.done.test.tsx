@@ -81,7 +81,6 @@ async function renderHook(card: unknown) {
   return () => hook;
 }
 
-/** Previous/Next: the same dialog, now showing another card. */
 const showCard = (card: unknown) =>
   act(() => root?.render(<Harness card={card as never} />));
 
@@ -108,7 +107,6 @@ test("marking a film done writes it, says Marked as watched, and Undo unmarks it
     cardId: "card_a",
     field: "undone",
   });
-  // Undoing shows no second toast to undo.
   expect(toasts).toHaveLength(1);
 });
 

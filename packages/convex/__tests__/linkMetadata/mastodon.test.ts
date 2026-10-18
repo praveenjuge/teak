@@ -63,8 +63,6 @@ describe("fetchMastodonStatus", () => {
       platform: "mastodon",
       categoryHint: "social_post",
     });
-    // The image, the gifv as an MP4 with its poster, and only the preview of
-    // a streamed video; audio is skipped.
     expect(post?.media).toEqual([
       {
         type: "image",

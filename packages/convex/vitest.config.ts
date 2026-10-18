@@ -6,8 +6,6 @@ const cloudflareModules = new URL(
 ).pathname;
 
 export default defineConfig({
-  // Suites that run the Files Worker in-process (see
-  // __tests__/helpers/filesWorker.test-utils.ts) need its runtime modules.
   resolve: {
     alias: {
       "cloudflare:workers": cloudflareModules,

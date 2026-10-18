@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-/** Below Tailwind's `md` breakpoint the sidebar becomes a drawer. */
 export const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile() {

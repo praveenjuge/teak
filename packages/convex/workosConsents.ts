@@ -134,7 +134,6 @@ const connectionNames: Record<string, string> = {
   firefox: "Firefox extension",
 };
 
-// Pagination preserves empty pages of revoked records; clients must honor isDone.
 export const listConnections = query({
   args: {
     paginationOpts: paginationOptsValidator,

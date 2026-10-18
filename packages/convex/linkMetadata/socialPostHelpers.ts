@@ -1,3 +1,4 @@
+import { Parser } from "htmlparser2";
 import { sanitizeText } from "./parsing";
 import type {
   ParsedLinkPreview,
@@ -12,11 +13,9 @@ import {
   safeFetch,
 } from "./ssrf";
 
-/** The SSRF-checked transport every social post request goes through. */
 export interface SocialFetchDeps {
   pinnedFetch?: PinnedFetch;
   resolveDns: DnsResolver;
-  /** Per-request timeout; defaults to {@link SOCIAL_FETCH_TIMEOUT_MS}. */
   timeoutMs?: number;
 }
 
@@ -28,24 +27,14 @@ export const SOCIAL_DESCRIPTION_MAX_LENGTH = 4000;
 const SOCIAL_USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 const MP4_PATH_REGEX = /\.mp4$/i;
-const SCRIPT_OR_STYLE_REGEX = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
-const BLOCK_BREAK_REGEX = /<br\s*\/?>|<\/p\s*>/gi;
-const TAG_REGEX = /<[^>]+>/g;
-const HEX_ENTITY_REGEX = /&#x([0-9a-f]+);/gi;
-const DECIMAL_ENTITY_REGEX = /&#([0-9]+);/g;
+const HIDDEN_TAGS = new Set(["script", "style"]);
 const TRAILING_SLASH_REGEX = /\/+$/;
 
 export interface SocialJsonResult<T> {
   data: T | null;
-  /** The HTTP status, or 0 when the request never got an answer. */
   status: number;
 }
 
-/**
- * GET a JSON document through `safeFetch` (every hop checked against the
- * SSRF policy, connections pinned), with a 10 s timeout and a 1 MiB body
- * cap. Never throws: any failure reads as `data: null`.
- */
 export const fetchSocialJson = async <T>(
   url: string,
   deps: SocialFetchDeps
@@ -85,42 +74,42 @@ export const fetchSocialJson = async <T>(
   }
 };
 
-const decodeHtmlEntities = (value: string): string =>
-  value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(HEX_ENTITY_REGEX, (_, hex) =>
-      String.fromCodePoint(Number.parseInt(hex, 16))
-    )
-    .replace(DECIMAL_ENTITY_REGEX, (_, num) =>
-      String.fromCodePoint(Number.parseInt(num, 10))
-    )
-    .replace(/&amp;/gi, "&");
-
-/** Post HTML (Mastodon `content`) as plain text; scripts and styles drop. */
 export const htmlToText = (html: string | undefined): string | undefined => {
   if (!html) {
     return;
   }
-  // Strip until nothing changes: one pass over `<scr<script>…</script>ipt>`
-  // would leave a tag behind.
-  let stripped = html;
-  let previous: string;
-  do {
-    previous = stripped;
-    stripped = stripped
-      .replace(SCRIPT_OR_STYLE_REGEX, " ")
-      .replace(BLOCK_BREAK_REGEX, "\n")
-      .replace(TAG_REGEX, "");
-  } while (stripped !== previous);
-  const text = decodeHtmlEntities(stripped).trim();
-  return text || undefined;
+  let text = "";
+  let hiddenDepth = 0;
+  const parser = new Parser(
+    {
+      onopentag(name) {
+        if (HIDDEN_TAGS.has(name)) {
+          hiddenDepth += 1;
+        } else if (name === "br") {
+          text += "\n";
+        }
+      },
+      ontext(data) {
+        if (hiddenDepth === 0) {
+          text += data;
+        }
+      },
+      onclosetag(name) {
+        if (HIDDEN_TAGS.has(name)) {
+          hiddenDepth = Math.max(0, hiddenDepth - 1);
+          text += " ";
+        } else if (name === "p") {
+          text += "\n";
+        }
+      },
+    },
+    { decodeEntities: true }
+  );
+  parser.write(html);
+  parser.end();
+  return text.trim() || undefined;
 };
 
-/** A date as ISO 8601, or undefined when it doesn't parse. */
 export const toIsoDate = (
   value: string | number | undefined
 ): string | undefined => {
@@ -138,7 +127,6 @@ const BYLINE_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-/** "Ada (@ada) on Bluesky · June 1, 2026", as X posts read. */
 export const formatSocialByline = ({
   authorName,
   authorHandle,
@@ -173,10 +161,6 @@ export const formatSocialByline = ({
   );
 };
 
-/**
- * The title is the post text cut at 512 characters. The description is the
- * whole text (up to 4,000) when the title had to cut it, else the byline.
- */
 export const buildSocialPostText = (
   text: string | undefined,
   byline: string | undefined
@@ -190,7 +174,6 @@ export const buildSocialPostText = (
   };
 };
 
-/** A direct MP4 file (not an HLS or DASH manifest). */
 export const isDirectMp4Url = (url: string | undefined): url is string => {
   if (!url) {
     return false;
@@ -206,7 +189,6 @@ export const isDirectMp4Url = (url: string | undefined): url is string => {
   }
 };
 
-/** Only http(s) media URLs, at most ten of them. */
 export const limitSocialMedia = (
   media: SocialPostMedia[]
 ): SocialPostMedia[] | undefined => {
@@ -223,7 +205,6 @@ export const limitSocialMedia = (
   return kept.length ? kept : undefined;
 };
 
-/** Host and path compared without case on the host, query, hash or a trailing slash. */
 export const sameSocialUrl = (left: string, right: string): boolean => {
   try {
     const a = new URL(left);
@@ -238,11 +219,6 @@ export const sameSocialUrl = (left: string, right: string): boolean => {
   }
 };
 
-/**
- * A post from the Open Graph tags the page scrape read: `og:description` is
- * the text (or the title, where the site puts the text there) and `og:image`
- * its one image. Null without text, which is what a login wall leaves.
- */
 export const openGraphSocialPost = (
   url: string,
   parsed: ParsedLinkPreview,
@@ -290,7 +266,6 @@ export const openGraphSocialPost = (
   };
 };
 
-/** The fields every API-backed post shares; the caller supplies the rest. */
 export const socialPostBase = (
   url: string,
   post: Pick<

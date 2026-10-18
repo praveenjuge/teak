@@ -28,7 +28,6 @@ function PlayOverlay() {
   );
 }
 
-/** Frame under the pointer: `x` px into an element `width` px wide, clamped to the strip. */
 export function scrubFrameIndex(
   x: number,
   width: number,
@@ -164,19 +163,14 @@ function HoverVideoPreview({
     }
 
     if (isHovering) {
-      void video.play().catch(() => {
-        // Autoplay may be blocked; keep the idle thumbnail/frame visible.
-      });
+      void video.play().catch(() => {});
       return;
     }
 
     video.pause();
     try {
-      // Seek slightly into the clip so idle frames aren't a leading black frame.
       video.currentTime = 0.1;
-    } catch {
-      // Ignore seek errors before metadata is ready.
-    }
+    } catch {}
   }, [isHovering, shouldLoadVideo]);
 
   return (

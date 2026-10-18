@@ -47,22 +47,16 @@ import { registerUploadFiles } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 interface AddCardActionsProps {
-  /** Starts a note (or a pasted link) in the composer; offered in the menu. */
   onNewNote?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
-  /**
-   * `toolbar` renders icon buttons; `header` renders one New button for the
-   * sidebar's top row whose menu holds every way to add a card.
-   */
   variant?: "toolbar" | "header";
 }
 
 const NEW_MENU_TRIGGER_CLASS =
   "size-7 rounded-md text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent [&_svg]:size-4 [&_svg]:opacity-60 [&_svg]:transition-opacity hover:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100";
 
-/** The sidebar's New button while the app signs in: it looks the same. */
 export function NewMenuPlaceholder() {
   return (
     <Button
@@ -399,8 +393,6 @@ export function AddCardActions({
           source: "web",
           via: "file_upload",
         });
-        // Uploads run sequentially so we can stop early when the card limit is
-        // hit and surface per-file progress in order.
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const result = await uploadFile(file, { content: "" });
 
@@ -471,7 +463,6 @@ export function AddCardActions({
             <DropdownMenuItem
               onSelect={() => {
                 keepFocusRef.current = true;
-                // After the menu has closed, so its focus trap lets go.
                 setTimeout(onNewNote, 0);
               }}
             >

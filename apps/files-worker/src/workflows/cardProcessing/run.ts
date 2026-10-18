@@ -40,19 +40,12 @@ import {
 } from "./renderables";
 import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 
-// Card processing: classify, link metadata, categorize, then AI metadata
-// and renderables, then a link's screenshot and the text in its images.
 // Step names are durable history: never rename one, and add new steps after
 // the existing ones.
 
 export interface CardProcessingParams {
   cardId: string;
-  /** Only regenerate the AI metadata (the admin's AI backfill retry). */
   metadataOnly?: boolean;
-  /**
-   * A person asked to refresh the card ("Refresh details"): the link preview
-   * and category are read again even when the stored ones worked.
-   */
   refresh?: boolean;
   rev: number;
 }
@@ -61,19 +54,12 @@ const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);
 const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
-/** Two Gemma calls; a busy Workers AI waits 30 s, then 60 s. */
 const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
 
-/** Attempts for any metadata failure but Workers AI capacity. */
 const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
-/** Workers AI capacity retries in the step before the backfill takes over. */
 export const AI_CAPACITY_RETRIES = 10;
 
-/**
- * Workers AI capacity (`rate limit reached 429`) backs off 30 s more each
- * attempt; anything else backs off exponentially for its 8 attempts.
- */
 export const METADATA_STEP: StepConfig = {
   retries: {
     delay: ({ ctx, error }) =>
@@ -85,7 +71,6 @@ export const METADATA_STEP: StepConfig = {
   timeout: "15 minutes",
 };
 
-/** A newer revision (an edit) or a deletion took the card from this run. */
 export const isSuperseded = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -235,7 +220,6 @@ const processCard = async (
   const cardType = classified.type;
 
   if (metadataOnly) {
-    // Every other stage keeps what the card's earlier runs left.
     const metadata = classified.shouldGenerateMetadata
       ? await runMetadataStep(job, step, reported, cardType)
       : null;
@@ -256,8 +240,6 @@ const processCard = async (
         })
       );
     } catch (error) {
-      // A refresh that still can't read the page keeps the preview the card
-      // has and goes on; an automatic run fails as before.
       const failure = job.refresh
         ? parseLinkMetadataRetryableError(error)
         : null;
@@ -347,7 +329,6 @@ const processCard = async (
     ]);
   }
 
-  // A link's screenshot follows the AI metadata it was stored with.
   if (cardType === "link" && metadata?.mode === "completed") {
     await step
       .do(
@@ -358,15 +339,11 @@ const processCard = async (
         )
       )
       .catch(async (error: unknown) => {
-        // The screenshot is its own stage: a failure is recorded on it and
-        // does not fail the card's run.
         rethrowSuperseded(error);
         console.error("[cardProcessing] Screenshot failed", {
           cardId: job.cardId,
           error: error instanceof Error ? error.message : String(error),
         });
-        // A failure the step gave up on without recording (a final error)
-        // must not leave the stage in progress.
         await step.do("mark screenshot failed", CONVEX_STEP, async () => {
           const loaded = await loadCard(job);
           const status = loaded?.card.processingStatus?.screenshot?.status;
@@ -387,8 +364,6 @@ const processCard = async (
         });
         return null;
       });
-    // Then the text in its preview image and screenshot, for search. A
-    // failure leaves the card unread for the backfill and the run goes on.
     await step
       .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
       .catch((error: unknown) => {
@@ -457,8 +432,6 @@ const runMetadataStep = (
           await markInProgress(job, ["metadata"]);
           return await withWorkflowTelemetry(job.env, (telemetry) =>
             generateCardMetadata(job, telemetry, cardType, {
-              // The last attempt leaves a card Workers AI still can't take
-              // to the backfill.
               capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
               lastAttempt: ctx.attempt >= METADATA_ATTEMPTS,
               restorePendingOnDefer: true,

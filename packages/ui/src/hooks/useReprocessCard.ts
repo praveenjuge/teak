@@ -5,11 +5,6 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getReprocessErrorMessage } from "../lib/reprocessError";
 
-/**
- * "Refresh details" for one card at a time: regenerates the summary, tags and
- * transcript (and link metadata) in the background. Repeat clicks while a
- * request is in flight are ignored; the backend limits the rest.
- */
 export function useReprocessCard() {
   const reprocessCard = useMutation(api.cards.reprocessCard);
   const inFlight = useRef(new Set<string>());

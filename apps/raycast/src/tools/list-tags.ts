@@ -8,7 +8,7 @@ type Input = {
 };
 
 export default async function tool(input: Input = {}) {
-  const { items } = await listTags("stored");
+  const { items } = await listTags("silent");
 
   const normalizedFilter = input.filter?.trim().toLowerCase();
   const filtered = normalizedFilter

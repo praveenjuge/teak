@@ -750,7 +750,6 @@ export const resetCardProcessingState = internalMutation({
       processingStatus: updatedProcessing,
       updatedAt: Date.now(),
     });
-    // An admin refresh reads link details again, like "Refresh details".
     await queueCardProcessing(ctx, cardId, { refresh: true, reset: true });
 
     return {

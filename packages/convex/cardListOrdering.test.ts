@@ -250,7 +250,7 @@ describe("public API and Raycast order", () => {
   test("a cursor from the old insertion-order index is refused as invalid input", async () => {
     const { t } = await setup();
     const legacy = btoa(
-      JSON.stringify({ mode: "index", cursor: "not-a-cursor", pageOffset: 0 })
+      JSON.stringify({ mode: "index", cursor: null, pageOffset: 0 })
     );
     await expect(
       t.query(internal.publicApi.scanCardsPageForUser, {

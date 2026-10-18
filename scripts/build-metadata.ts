@@ -1,17 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Build metadata derivation.
- *
- * Release IDs, app versions, and commit SHAs derive from provider metadata
- * instead of manual configuration. Precedence for the commit SHA:
- * explicit GIT_SHA override, GitHub, Vercel, then the local git checkout.
- * Names and metadata only; SHAs are not secrets but are still never logged
- * beyond the release identifiers that need them.
- *
- * Usage: bun run scripts/build-metadata.ts --json
- *        bun run scripts/build-metadata.ts --release <prefix>
- */
-
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCommand } from "./proc.ts";

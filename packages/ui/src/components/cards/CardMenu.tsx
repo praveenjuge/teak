@@ -6,7 +6,7 @@ import {
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 export type CardMenuEntry =
-  | "separator"
+  | { separator: string }
   | {
       destructive?: boolean;
       disabled?: boolean;
@@ -25,10 +25,6 @@ type MenuItemComponent = ComponentType<{
   variant?: "default" | "destructive";
 }>;
 
-/**
- * A card's actions, rendered with the context menu's or the dropdown's own
- * item, separator and shortcut components so both menus list the same.
- */
 export function CardMenuEntries({
   entries,
   Item,
@@ -40,10 +36,9 @@ export function CardMenuEntries({
   Separator: ComponentType;
   Shortcut: ComponentType<{ "aria-hidden"?: boolean; children: ReactNode }>;
 }) {
-  return entries.map((entry, index) => {
-    if (entry === "separator") {
-      // biome-ignore lint/suspicious/noArrayIndexKey: separators have no identity
-      return <Separator key={`separator-${index}`} />;
+  return entries.map((entry) => {
+    if ("separator" in entry) {
+      return <Separator key={`separator-${entry.separator}`} />;
     }
     const Icon = entry.icon;
     return (
@@ -64,7 +59,6 @@ export function CardMenuEntries({
   });
 }
 
-/** A round button in the card's hover actions. */
 export function QuickActionButton({
   children,
   label,
@@ -75,7 +69,6 @@ export function QuickActionButton({
 }: ComponentProps<"button"> & {
   label: string;
   pressed?: boolean;
-  /** Keys that do the same to a focused card, shown in the tooltip. */
   shortcut?: readonly string[];
 }) {
   const button = (

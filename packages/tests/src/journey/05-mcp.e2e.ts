@@ -98,7 +98,6 @@ test("MCP lists and calls every public tool", async () => {
   });
   expect(noPdf.isError).toBe(true);
   expect(JSON.stringify(noPdf.content)).toContain("INVALID_INPUT");
-  // teak_v1_create_upload needs Files storage, which the local stack lacks.
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],

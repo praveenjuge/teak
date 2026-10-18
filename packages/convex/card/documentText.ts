@@ -10,6 +10,7 @@ import {
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
+import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 import { buildR2UserPrefix, deleteObject } from "../storage/r2";
@@ -40,11 +41,6 @@ export const documentTextKey = (
 const digestOfKey = (key: string): string | null =>
   /\/document-text\/([a-f0-9]{64})\.txt$/.exec(key)?.[1] ?? null;
 
-/**
- * Stores a card's extracted text: the full text in R2, then its searchable
- * prefix. Empty text stores nothing, so a scan without a text layer, or a
- * failed extraction, never replaces text the card already has.
- */
 export const storeDocumentText = async (
   ctx: {
     runMutation: (reference: any, args: any) => Promise<unknown>;
@@ -57,7 +53,7 @@ export const storeDocumentText = async (
     return { charCount: 0, stored: false };
   }
   const key = documentTextKey(card, await sha256Hex(text));
-  const charCount = Array.from(text).length;
+  const charCount = codePointLength(text);
   if (card.documentTextKey !== key) {
     await putObjectViaFilesWorker({
       body: encoder.encode(text),
@@ -167,11 +163,6 @@ const cardTextSourceValidator = v.union(
   })
 );
 
-/**
- * Where a card's text lives, for the owner only: extracted document text
- * (its prefix here, the rest in R2), else its transcript, else the written
- * content of a text or quote card. Null when the card has none.
- */
 export const getCardTextSource = internalQuery({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: cardTextSourceValidator,
@@ -201,7 +192,7 @@ export const getCardTextSource = internalQuery({
         cardId,
         kind: "transcript" as const,
         text: card.aiTranscript,
-        charCount: Array.from(card.aiTranscript).length,
+        charCount: codePointLength(card.aiTranscript),
         truncated: false,
       };
     }
@@ -210,7 +201,7 @@ export const getCardTextSource = internalQuery({
         cardId,
         kind: "content" as const,
         text: card.content,
-        charCount: Array.from(card.content).length,
+        charCount: codePointLength(card.content),
         truncated: false,
       };
     }
@@ -221,10 +212,6 @@ export const getCardTextSource = internalQuery({
 const isLocalHost = (hostname: string) =>
   hostname === "localhost" || hostname === "127.0.0.1";
 
-/**
- * Reads a card's full extracted text from R2 through the signed read
- * endpoint and checks it against the digest its key is named by.
- */
 export const readDocumentText = async (key: string): Promise<string> => {
   const digest = digestOfKey(key);
   if (!digest) {

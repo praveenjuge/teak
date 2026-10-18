@@ -25,9 +25,7 @@ function parseTags(raw: string): string[] {
 /**
  * Instapaper's CSV export: `URL, Title, Selection, Folder, Timestamp` and,
  * in newer exports, `Tags`. Folder is "Unread", "Archive", "Starred" or a
- * folder of the user's: Archive and Starred become archive state and
- * favorites, other folders become Teak folders. Selection (the highlighted
- * passage) becomes the card's note.
+ * folder of the user's. Selection is the highlighted passage.
  */
 export function parseInstapaperCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);

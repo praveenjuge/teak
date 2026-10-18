@@ -11,7 +11,6 @@ import {
 } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 
-/** Every stage a card-processing run can leave unfinished. */
 export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [
   "classify",
   "categorize",
@@ -20,10 +19,6 @@ export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [
   "screenshot",
 ];
 
-/**
- * Clears a card's AI output and resets its stages before a new processing
- * run, keeping a classification that already completed.
- */
 export const initializeCardProcessingState = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -35,7 +30,6 @@ export const initializeCardProcessingState = async (
   }
   const now = Date.now();
   const cardType = (card.type ?? "text") as CardType;
-  // A refresh fetches the link preview again even when the stored one worked.
   const awaitingLinkMetadata =
     cardType === "link" &&
     (options.refresh === true ||
@@ -60,10 +54,6 @@ export const initializeCardProcessingState = async (
 
 const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);
 
-/**
- * Marks the stages a failed or stopped run still owned as failed. Stages
- * that already finished, completed or failed, are left as they are.
- */
 export const markUnfinishedCardStagesFailed = async (
   ctx: MutationCtx,
   context: { cardId: Id<"cards">; stages: ProcessingStageKey[] },

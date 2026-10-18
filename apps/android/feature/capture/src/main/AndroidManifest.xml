@@ -4,7 +4,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Teak works without a camera or microphone; those rows only ask for them when used. -->
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -13,7 +12,6 @@
         android:required="false" />
 
     <application>
-        <!-- "Save to Teak" from any app's share sheet, the text selection menu, or a teak://save link. -->
         <activity
             android:name=".share.ShareActivity"
             android:excludeFromRecents="true"

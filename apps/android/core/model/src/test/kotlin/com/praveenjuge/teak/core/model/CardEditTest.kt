@@ -22,7 +22,7 @@ class CardEditTest {
     @Test
     fun `turns each edit into the field update the web makes`() {
         val draft = CardEditDraft(
-            content = "Rewritten",
+            editableContent = "Rewritten",
             notes = "  ",
             tags = listOf("keep", "new"),
             aiTags = listOf("Design"),
@@ -42,7 +42,7 @@ class CardEditTest {
     fun `leaves content alone for types that can't be rewritten`() {
         val link = card.copy(type = CardType.Link)
         val draft = CardEdit.draftFor(link)
-        assertEquals(null, draft.content)
+        assertEquals(null, draft.editableContent)
         assertEquals(emptyList(), CardEdit.changes(link, draft))
     }
 

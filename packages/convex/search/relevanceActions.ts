@@ -23,25 +23,14 @@ import {
 } from "../storage/filesWorkerClient";
 import { fetchSemanticRanking } from "./semanticActions";
 
-/**
- * Best match. Only actions can call Clef, so the grid starts
- * `requestRelevanceScores` beside its search and the API scores before it
- * reads a page. Both send the search's top results to the Files Worker's
- * `score-relevance` op and cache the scores.
- */
-
 export const API_RELEVANCE_TIMEOUT_MS = 1500;
 const GRID_RELEVANCE_TIMEOUT_MS = 3000;
-/** The grid also waits for the meaning side, as `requestSemanticResults`. */
 const GRID_SEMANTIC_TIMEOUT_MS = 5000;
 
 export type RelevanceOutcome =
-  /** Every candidate has a current score. */
   | "ok"
-  /** No free words, no candidates, or AI turned off. */
   | "skipped"
   | "rate_limited"
-  /** The Files Worker or Clef failed, timed out or is not configured. */
   | "unavailable";
 
 const outcomeValidator = v.union(
@@ -66,11 +55,6 @@ type CandidateCard = Pick<
   | "urlHost"
 >;
 
-/**
- * Scores the candidates that have no current score and caches them. A
- * search spends one `semanticSearch` token in all: pass `spentToken` when its
- * meaning lookup already took one.
- */
 export const ensureRelevanceScores = async (
   ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   {
@@ -126,7 +110,6 @@ export const ensureRelevanceScores = async (
     const outcome = await callFilesWorkerJson<unknown>({
       op: "score-relevance",
       params: {
-        // The Worker charges the scoring to the searcher's AI usage.
         ...aiUsageParams(userId),
         query: text,
         cards: missing.map((card) => ({
@@ -164,7 +147,6 @@ export const ensureRelevanceScores = async (
     internal.search.relevanceCache.storeScores,
     { userId, key, scores: fresh }
   );
-  // Refused (the account is being deleted): the grid would read no scores.
   if (!stored) {
     return { outcome: "unavailable", scores: cached };
   }
@@ -181,12 +163,6 @@ export const ensureRelevanceScores = async (
 const { paginationOpts: _paginationOpts, ...gridSearchArgs } =
   searchCardsPaginatedArgsValidator.fields;
 
-/**
- * Starts Best match for a grid search. Pass the grid's own search arguments
- * (any sort): this scores the search's top results, and the grid then reads
- * `searchCardsPaginated` with `sort: "relevance"` and `useRelevanceScores`.
- * Returns how it went.
- */
 export const requestRelevanceScores = action({
   args: gridSearchArgs,
   returns: v.object({ outcome: outcomeValidator }),
@@ -204,7 +180,6 @@ export const requestRelevanceScores = action({
           : { folderQuery: args.folderQuery }),
       }
     );
-    // Best match scores free words; `like:` and `mood:` lists keep their order.
     if (search?.request?.kind !== "text") {
       return { outcome: "skipped" };
     }

@@ -24,7 +24,6 @@ private func request() -> AuthKitRequest {
         #expect(items["redirect_uri"] == "teak://auth/callback")
         #expect(items["provider"] == "GoogleOAuth")
         #expect(items["code_challenge_method"] == "S256")
-        // openssl dgst -sha256 -binary | base64url of the verifier.
         #expect(items["code_challenge"] == "7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM")
         #expect(items["client_secret"] == nil)
         let email = AuthKitRequest(clientId: Fixture.clientId, method: .emailSignUp).url.absoluteString
@@ -58,7 +57,7 @@ private func request() -> AuthKitRequest {
         }
         let session = makeSession(storage, transport)
         let attempt = await session.beginSignIn()
-        #expect(try await session.exchangeCode("code-1", request: request(), attempt: attempt))
+        #expect(try await session.exchangeCode("code-1", request: request(), attempt: attempt) == .signedIn)
         #expect(storage.json?["clientId"] as? String == Fixture.clientId)
         #expect(storage.json?["oauth_tokens"] == nil)
         #expect((storage.json?["user"] as? [String: Any])?["external_id"] as? String == "permanent-vault")
@@ -174,7 +173,6 @@ private func request() -> AuthKitRequest {
         #expect(await session.state == .signedOut)
     }
 
-    /// iOS kills a process suspended while holding the lock (0xdead10cc).
     @Test func runningOutOfBackgroundTimeMidRefreshGivesBackTheLockAndKeepsTheSession() async throws {
         let directory = Fixture.tempDirectory()
         let storage = MemoryStorage(Fixture.stored(refresh: "old"))
@@ -220,7 +218,7 @@ private func request() -> AuthKitRequest {
         let session = makeSession(storage, transport)
         let attempt = await session.beginSignIn()
         await session.clear()
-        #expect(try await session.exchangeCode("code-1", request: request(), attempt: attempt) == false)
+        #expect(try await session.exchangeCode("code-1", request: request(), attempt: attempt) == .superseded)
         #expect(transport.count == 0)
         #expect(storage.json == nil)
     }

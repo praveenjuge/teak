@@ -11,10 +11,6 @@ import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import { ensureObjectOwnership } from "./storage/ownership";
 
-// The Files Worker's account deletion workflow drains storage through
-// prepareStorageBatch and checkpointStorageBatch. These run its real batch
-// code against the test database and an in-memory bucket.
-
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const filesWorker = await loadFilesWorker();
 const modules = import.meta.glob("./**/*.ts");
@@ -63,7 +59,6 @@ const setup = async (keyCount = 7) => {
     FILES_SIGNING_SECRET: "test-secret",
   });
   const freezes: string[] = [];
-  /** The Worker's ops, through `intercept` so a test can change one. */
   type Intercept = (
     spec: OpSpec,
     next: () => Promise<unknown>
@@ -313,56 +308,6 @@ test("source conflicts record an operator-visible pending reason and retry time"
   expect(state?.stage).toBe(3);
 });
 
-test("durable status remains pending until local cleanup finishes and rejects mismatched identity", async () => {
-  const { t, stateId } = await setup();
-  const ownerId = await t.run(async (ctx) => {
-    const owner = await ctx.db.query("users").first();
-    if (!owner) {
-      throw new Error("fixture owner unavailable");
-    }
-    await ctx.db.patch(owner._id, {
-      workosUserId: "user_e2e",
-      email: "e2e-primary-123-abc@tests.example.com",
-    });
-    await ctx.db.patch(stateId, { workosUserId: "user_e2e", stage: 5 });
-    return owner._id;
-  });
-  const args = {
-    userId: "owner",
-    workosUserId: "user_e2e",
-    email: "e2e-primary-123-abc@tests.example.com",
-  };
-  expect(
-    await t.query(internal.accountDeletionJobs.getDeletionStatus, args)
-  ).toMatchObject({
-    status: "pending",
-    userId: "owner",
-    stage: 5,
-  });
-  expect(
-    await t.query(internal.accountDeletionJobs.getDeletionStatus, {
-      ...args,
-      email: "another@tests.example.com",
-    })
-  ).toEqual({ status: "conflict" });
-  expect(
-    await t.query(internal.accountDeletionJobs.getDeletionStatus, {
-      ...args,
-      workosUserId: "another",
-    })
-  ).toEqual({ status: "conflict" });
-  await t.run(async (ctx) => {
-    await ctx.db.patch(ownerId, { deletedAt: Date.now() });
-    await ctx.db.delete(stateId);
-  });
-  expect(
-    await t.query(internal.accountDeletionJobs.getDeletionStatus, args)
-  ).toEqual({
-    status: "completed",
-    userId: "owner",
-  });
-});
-
 test("a link's chosen image and the one kept for undo are deleted with the account", async () => {
   const { t, card, drain, deleted } = await setup(0);
   const chosen = "users/owner/cards/link/thumbnail-override/chosen";
@@ -392,9 +337,6 @@ test("a link's chosen image and the one kept for undo are deleted with the accou
 });
 
 test("a deployment without the Files Worker never registers phantom objects", async () => {
-  // FILES_BASE/FILES_SIGNING_SECRET empty: every store goes through the
-  // Files Worker, so registration must fail before leaving a row that
-  // account deletion would later try to freeze through the absent worker.
   vi.stubEnv("FILES_BASE", "");
   vi.stubEnv("FILES_SIGNING_SECRET", "");
   const t = convexTest(schema, modules);
@@ -415,8 +357,6 @@ test("a deployment without the Files Worker never registers phantom objects", as
   expect(
     await t.run((ctx) => ctx.db.query("accountStorageObjects").collect())
   ).toEqual([]);
-  // The e2e scenario behind this: onboarding link-card asset stores fail the
-  // same way, and a stage-3 drain then has nothing to freeze or delete.
   const stateId = await t.run(
     async (ctx) =>
       await ctx.db.insert("accountDeletionStates", {

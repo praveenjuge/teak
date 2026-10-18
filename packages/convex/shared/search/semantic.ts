@@ -1,39 +1,25 @@
+import {
+  VECTOR_QUERY_MAX_CHARS,
+  VECTOR_QUERY_MAX_TOP_K,
+} from "@teak/files-protocol";
 import { normalizeHexColor } from "../utils/colorUtils";
 import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
 
-/**
- * How a search finds cards: `hybrid` blends keyword and meaning matches,
- * `keyword` matches words only (search before meaning), `semantic` matches
- * meaning only. Every mode applies the same filters and sort.
- */
 export const SEARCH_MODES = ["hybrid", "keyword", "semantic"] as const;
 export type SearchMode = (typeof SEARCH_MODES)[number];
 
 export const isSearchMode = (value: unknown): value is SearchMode =>
   (SEARCH_MODES as readonly unknown[]).includes(value);
 
-/**
- * Cosine score a meaning-only match needs. Real matches score about 0.4 to
- * 0.5 with EmbeddingGemma; unrelated cards about 0.15 to 0.3.
- */
+// EmbeddingGemma scores real matches about 0.4 to 0.5 and unrelated cards
+// about 0.15 to 0.3.
 export const SEMANTIC_MIN_SCORE = 0.35;
-/** Meaning matches one search asks for (Vectorize's limit). */
-export const SEMANTIC_TOP_K = 100;
-/** Reciprocal rank fusion's constant: a lower rank weighs less, slowly. */
+export const SEMANTIC_TOP_K = VECTOR_QUERY_MAX_TOP_K;
 export const RRF_K = 60;
-/** Longest text a search embeds (the worker's `vector-query` limit). */
-export const SEMANTIC_QUERY_MAX_CHARS = 500;
-/** Shortest text worth embedding. */
+export const SEMANTIC_QUERY_MAX_CHARS = VECTOR_QUERY_MAX_CHARS;
 const SEMANTIC_QUERY_MIN_CHARS = 2;
 
-/**
- * The free words of a search, as embedded: plain words and quoted phrases,
- * without qualifiers or hex colors, lowercased and with whitespace collapsed.
- * Empty when there is nothing to search by meaning, so a qualifier-only
- * search never calls the vector service.
- */
 export const semanticQueryText = (parsed: ParsedSearchQuery): string => {
-  // `#fff` is a color filter; a bare `bed` or `red` is a word.
   const words = parsed.terms.filter(
     (term) => !(term.startsWith("#") && normalizeHexColor(term))
   );
@@ -52,13 +38,6 @@ export interface SemanticMatch<Id extends string = string> {
   score: number;
 }
 
-/**
- * The ids a search keeps, best first. `keyword` is the keyword side's
- * relevance order; `semantic` is Vectorize's score order. Hybrid adds
- * `1 / (k + rank)` from each side a card is on (reciprocal rank fusion) and
- * drops meaning-only matches below `minScore`; ties keep the keyword order,
- * then the semantic order.
- */
 export const fuseRankings = <Id extends string>(
   keyword: readonly Id[],
   semantic: readonly SemanticMatch<Id>[],
@@ -124,11 +103,6 @@ export const fuseRankings = <Id extends string>(
     .map(([id]) => id);
 };
 
-/**
- * What a search asks the vector service for, and the text its cached ranking
- * is keyed by: a `like:` card's neighbors, a `mood:` among images, or the
- * free words. Null when there is nothing to search by meaning.
- */
 export type SemanticRequest =
   | { kind: "text"; text: string; cacheText: string }
   | { kind: "like"; cardId: string; cacheText: string }
@@ -167,5 +141,4 @@ export const semanticRequestFor = (
   return text ? { kind: "text", text, cacheText: text } : null;
 };
 
-/** Cards one similarity search lists at most. */
 export const SIMILAR_CARDS_LIMIT = 100;

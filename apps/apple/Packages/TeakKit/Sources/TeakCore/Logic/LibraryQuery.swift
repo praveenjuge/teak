@@ -104,8 +104,6 @@ public enum SearchTokens {
         return SearchToken(kind: .keyword, value: trimmed, label: trimmed)
     }
 
-    /// Splits typed text into tokens, keeping multi-word dates ("last week",
-    /// "from June 5 2024 to July 6 2025") together.
     public static func parse(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
         let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
         let words = input.split(whereSeparator: \.isWhitespace).map { String($0).trimmingCharacters(in: punctuation) }
@@ -185,7 +183,6 @@ public struct LibraryQuery: Hashable, Sendable {
         return base == "Home" && narrowing ? "Filtered" : base
     }
 
-    /// Arguments for `cards:searchMobileCardSummariesPaginated`, without pagination.
     public func searchArgs(now: Date = Date(), timeZone: TimeZone = .current) -> ConvexArgs {
         let effective = effectiveFilters
         var args: ConvexArgs = [:]
@@ -219,7 +216,7 @@ public struct LibraryQuery: Hashable, Sendable {
         if !hues.isEmpty { args["hueFilters"] = .array(hues.map { .string($0) }) }
         if !styles.isEmpty { args["styleFilters"] = .array(styles.map { .string($0) }) }
         if !hexes.isEmpty { args["hexFilters"] = .array(hexes.map { .string($0) }) }
-        if let range { args["createdAtRange"] = ["start": .number(range.start), "end": .number(range.end)] }
+        if let range { args["createdAtRange"] = ["start": .number(range.lowerBound), "end": .number(range.upperBound)] }
         if !words.isEmpty { args["searchQuery"] = .string(words.joined(separator: " ")) }
         return args
     }

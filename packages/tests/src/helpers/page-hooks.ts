@@ -8,14 +8,8 @@ import type { Browser } from "./test";
  * test process answers. Each takes effect from the next navigation on.
  */
 
-// Same-origin, so the app's connect-src allows it; the route answers it
-// before anything reaches a server.
 const HOOK_PATH = "/__teak-e2e-hook/";
 
-/**
- * Records uncaught errors and unhandled rejections in every document the
- * browser opens, on any origin.
- */
 export const capturePageErrors = async (browser: Browser) => {
   const errors: string[] = [];
   await browser.route(new RegExp(`${HOOK_PATH}page-error$`), async (route) => {
@@ -45,6 +39,39 @@ export const capturePageErrors = async (browser: Browser) => {
     /** The messages so far; reports from a page still unloading may follow. */
     get errors(): readonly string[] {
       return errors;
+    },
+  };
+};
+
+export const recordToasts = async (browser: Browser) => {
+  const toasts: string[] = [];
+  await browser.route(new RegExp(`${HOOK_PATH}toast$`), async (route) => {
+    toasts.push(route.request.postData ?? "");
+    await route.fulfill({ status: 204, body: "" });
+  });
+  await browser.evaluate((hookPath: string) => {
+    new MutationObserver((mutations) => {
+      for (const node of mutations.flatMap((m) => [...m.addedNodes])) {
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+        const added = node.matches("[data-sonner-toast]")
+          ? [node]
+          : node.querySelectorAll("[data-sonner-toast]");
+        for (const toast of added) {
+          fetch(`${location.origin}${hookPath}toast`, {
+            body: toast.textContent ?? "",
+            keepalive: true,
+            method: "POST",
+          }).catch(() => undefined);
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+    return null;
+  }, HOOK_PATH);
+  return {
+    get toasts(): readonly string[] {
+      return toasts;
     },
   };
 };

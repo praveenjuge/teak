@@ -94,7 +94,6 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      // A patch merges, so a field it leaves out is kept as it was.
       const [, , patch] = ctx.db.patch.mock.calls[0];
       expect(patch).not.toHaveProperty("thumbnailOverride");
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_og");

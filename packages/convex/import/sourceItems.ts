@@ -6,7 +6,6 @@ import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { parseImportedTimestamp } from "./validate";
 
-/** What every import source can say about one saved link. */
 export interface SourceLink {
   createdAt?: number;
   folders?: string[];
@@ -22,11 +21,6 @@ const MAX_TAGS = 50;
 const MAX_TAG_LENGTH = 64;
 export const MAX_NOTES_LENGTH = 100_000;
 
-/**
- * Tags as a card accepts them: trimmed, without blanks or tags longer than
- * 64 characters, deduped, at most 50. Sources are loose about tags, so a bad
- * one is dropped instead of failing the whole card.
- */
 export function cleanTags(tags: Iterable<string>): string[] | undefined {
   const seen = new Set<string>();
   for (const raw of tags) {
@@ -43,11 +37,6 @@ export function cleanTags(tags: Iterable<string>): string[] | undefined {
 
 const characters = (text: string) => Array.from(text).length;
 
-/**
- * A nested folder as one Teak folder name: "Work / Design / Fonts". A path
- * longer than a folder name allows keeps its deepest folders behind
- * "… / ", and a single over-long name is cut, so the card keeps a folder.
- */
 export function folderPath(segments: Iterable<string>): string | undefined {
   const parts: string[] = [];
   for (const segment of segments) {
@@ -67,11 +56,6 @@ export function folderPath(segments: Iterable<string>): string | undefined {
   return Array.from(name).slice(0, MAX_FOLDER_NAME_LENGTH).join("").trim();
 }
 
-/**
- * A saved date from a source: unix seconds or milliseconds (as a number or
- * digits), or an ISO-like date string ("2024-03-01 10:00:00+00:00" too).
- * Out-of-range or unreadable dates are dropped.
- */
 export function parseSourceDate(
   raw: string | number | undefined | null
 ): number | undefined {
@@ -83,7 +67,6 @@ export function parseSourceDate(
     if (!Number.isFinite(value) || value <= 0) {
       return;
     }
-    // Ten-digit values are seconds; thirteen-digit ones milliseconds.
     return parseImportedTimestamp(value < 1e11 ? value * 1000 : value);
   }
   const text = raw.trim();
@@ -95,10 +78,6 @@ export function parseSourceDate(
   );
 }
 
-/**
- * One saved link as an import item: a link card, or an item that fails with
- * a reason when its URL can't be imported.
- */
 export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
   const rawUrl = link.url.trim();
   const url = sanitizeExternalUrl(rawUrl);
@@ -131,8 +110,6 @@ export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
   };
 }
 
-/** Throws the error every parser raises for a file from the wrong source. */
-/** The source holds more items than one import takes. */
 export class ImportLimitExceeded extends Error {
   override name = "ImportLimitExceeded";
 }

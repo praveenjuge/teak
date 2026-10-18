@@ -2,9 +2,6 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// NOTE: bun:test's mock.module() registrations leak across test files that run
-// in the same `bun test` process. Every factory below spreads the real module
-// so a leaked mock still exposes the full export surface.
 const realTeakConvex = await import("@teak/convex");
 const realConvexReact = await import("convex/react");
 const realCardUi = await import("@teak/ui/components/ui/card");

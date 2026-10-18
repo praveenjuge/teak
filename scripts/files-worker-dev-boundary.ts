@@ -1,14 +1,11 @@
 import { join } from "node:path";
+import { TEAK_DEV_DEPLOYMENT_NAME } from "../packages/convex/devUrls.ts";
 import {
   classifyDevStorage,
   DEVELOPMENT_STORAGE_BUCKET,
   parseConvexEnvOutput,
 } from "./check-cloudflare";
 
-// Pinned like packages/convex/devUrls.ts: `--deployment dev` follows the
-// caller's personal selection, which differs per checkout and worktree.
-// `--deployment-name` selects exactly this deployment.
-export const DEVELOPMENT_DEPLOYMENT = "reminiscent-kangaroo-59";
 export const DEVELOPMENT_FILES_WORKER = "teak-files-development";
 export const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 
@@ -19,10 +16,6 @@ export interface DevelopmentFilesRouting {
   signingSecret: string | undefined;
 }
 
-/**
- * The isolated development Worker may only start or receive a key once Convex
- * dev has switched to it. Messages never include the supplied values.
- */
 export const assertIsolatedDevelopmentFiles = (
   routing: DevelopmentFilesRouting
 ): string => {
@@ -100,7 +93,7 @@ export const readDevelopmentFilesRouting = async (
         "get",
         name,
         "--deployment-name",
-        DEVELOPMENT_DEPLOYMENT,
+        TEAK_DEV_DEPLOYMENT_NAME,
       ],
       { cwd: join(root, "packages/convex"), env }
     );

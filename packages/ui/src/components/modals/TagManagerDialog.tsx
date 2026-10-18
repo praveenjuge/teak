@@ -13,6 +13,7 @@ import { Input } from "@teak/ui/components/ui/input";
 import { Label } from "@teak/ui/components/ui/label";
 import { Check, Search, Tag } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import type { StartTagOperationInput } from "../../hooks/useTagOperations";
 import {
@@ -30,13 +31,10 @@ export type TagManagerMode = "rename" | "merge" | "delete";
 const MERGE_LIST_LIMIT = 200;
 
 interface TagManagerDialogProps {
-  /** The tag merge starts with selected (from "Merge instead"). */
   initialTarget?: string;
-  /** Rename, merge or delete. Kept while the dialog closes. */
   mode: TagManagerMode | null;
   onModeChange: (mode: TagManagerMode, target?: string) => void;
   onOpenChange: (open: boolean) => void;
-  /** Starts the change; rejects with the server's error when refused. */
   onStart: (input: StartTagOperationInput) => Promise<unknown>;
   open: boolean;
   tag: TagSummaryItem | null;
@@ -46,10 +44,6 @@ interface TagManagerDialogProps {
 const cardsLabel = (count: number) =>
   `${count.toLocaleString()} card${count === 1 ? "" : "s"}`;
 
-/**
- * Renames, merges or deletes a tag across the whole library. The change
- * runs in the background; this dialog only starts it.
- */
 export function TagManagerDialog({
   mode,
   open,
@@ -60,7 +54,11 @@ export function TagManagerDialog({
   onOpenChange,
   onStart,
 }: TagManagerDialogProps) {
-  if (!(tag && mode)) {
+  const shown = useRetainedWhileClosing(
+    tag && mode ? { initialTarget, mode, tag } : null,
+    open
+  );
+  if (!shown) {
     return null;
   }
   return (
@@ -68,17 +66,17 @@ export function TagManagerDialog({
       <DialogContent
         className={cn(
           "sm:max-w-sm",
-          mode === "merge" && "gap-0 overflow-hidden p-0"
+          shown.mode === "merge" && "gap-0 overflow-hidden p-0"
         )}
       >
         <TagManagerForm
-          initialTarget={initialTarget}
-          key={`${mode}:${tag.name}:${initialTarget ?? ""}`}
-          mode={mode}
+          initialTarget={shown.initialTarget}
+          key={`${shown.mode}:${shown.tag.name}:${shown.initialTarget ?? ""}`}
+          mode={shown.mode}
           onModeChange={onModeChange}
           onOpenChange={onOpenChange}
           onStart={onStart}
-          tag={tag}
+          tag={shown.tag}
           tags={tags}
         />
       </DialogContent>

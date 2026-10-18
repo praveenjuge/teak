@@ -5,8 +5,6 @@ import type {
   PinnedFetch,
 } from "../../../../packages/convex/linkMetadata/ssrf";
 
-// The SSRF guard takes its resolver as an argument so it stays free of Node
-// built-ins and bundles for any Convex runtime.
 export const nodeDnsResolver: DnsResolver = async (hostname) => {
   const records = await lookup(hostname, { all: true, verbatim: true });
   return records.map((record) => record.address);

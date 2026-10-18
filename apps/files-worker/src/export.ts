@@ -277,7 +277,6 @@ export const buildExportIntoBucket = async (
   if (fill > 0) {
     await flushPart(buffer.subarray(0, fill));
   } else if (uploadedParts.length === 0) {
-    // Degenerate empty archive: still emit a valid (tiny) final part.
     await flushPart(buffer.subarray(0, 0));
   }
 

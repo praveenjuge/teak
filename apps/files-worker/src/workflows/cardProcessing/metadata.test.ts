@@ -30,10 +30,6 @@ import {
 } from "./metadata";
 import { rawMetadataKey } from "./rawMetadata";
 
-// AI metadata, as card processing and the AI backfill run it. The text and
-// link ops run for real against a fake Workers AI binding; the other ops
-// (images, audio, documents) answer from fakes.
-
 const WAVEFORM = {
   detail: Array.from({ length: 200 }, () => 50),
   grid: Array.from({ length: 45 }, () => 50),

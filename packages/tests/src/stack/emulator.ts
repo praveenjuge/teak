@@ -13,6 +13,7 @@ import { emulatorSeed, type StackPorts, stackUrls } from "./config";
 // (https://workos.com/docs/authkit/session-resilience). The emulator rotates
 // with no grace window, so a small proxy in front of it adds production's.
 const REFRESH_GRACE_MS = 30_000;
+const APPLE_APP_REDIRECT_URI = "teak://auth/callback";
 
 interface Forwarded {
   body: string;
@@ -62,18 +63,16 @@ const forward = async (
   };
 };
 
-// The emulator itself listens on the next port, behind the proxy.
 export const startEmulator = async (ports: StackPorts) => {
-  const upstream = `http://localhost:${ports.emulator + 1}`;
+  const upstream = `http://localhost:${ports.emulatorUpstream}`;
   // Hosted AuthKit asks for the password after the email, and its tokens
   // name api.workos.com as the issuer; the emulator does both when told to.
   const emulator = await createEmulator({
-    port: ports.emulator + 1,
+    port: ports.emulatorUpstream,
     seed: emulatorSeed(ports),
     issuer: "https://api.workos.com",
     interactiveAuth: { password: true },
-    // The Apple app's sign-in returns to teak://auth/callback.
-    allowedRedirectHosts: ["auth"],
+    allowedRedirectHosts: [new URL(APPLE_APP_REDIRECT_URI).host],
   });
   const replays = new Map<string, Forwarded & { expiresAt: number }>();
   // node:http rather than Bun.serve: the emulator's Hono adapter replaces the

@@ -51,11 +51,6 @@ export function SettingsIconTile({
   );
 }
 
-/**
- * Shared frame for every settings dialog: a featured icon, title and
- * supporting text, a close button inside the panel, a body and an optional
- * footer of equal-width actions.
- */
 export function SettingsDialog({
   children,
   className,
@@ -98,7 +93,6 @@ export function SettingsDialog({
             {footer}
           </div>
         ) : null}
-        {/* Last in the DOM so initial focus lands on the dialog's own content. */}
         <DialogPrimitive.Close className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>

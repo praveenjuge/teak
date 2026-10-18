@@ -15,7 +15,6 @@ const { CardsReadBoundary } = await import("../CardsReadBoundary");
 const { Component } = await import("react");
 
 let root: Root | undefined;
-// React logs every error a boundary catches; keep test output readable.
 const consoleError = console.error;
 
 afterEach(() => {

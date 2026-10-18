@@ -56,10 +56,8 @@ export interface SaveDetailsDraftMessage {
   draft: PatchCardPayload | null;
 }
 
-/** The tags (replacing the card's own) and note the popup sets on a card. */
 export interface PatchCardPayload {
-  /** Tags in `tags` that this change adds, which the extension remembers as recent. */
-  added?: string[];
+  addedTags?: string[];
   cardId: string;
   notes?: string | null;
   tags?: string[];
@@ -71,10 +69,11 @@ export interface PatchCardRequest {
 }
 
 export interface LoadSaveDetailsRequest {
-  /** True for a page that was already saved: its tags and note load too. */
-  payload: { cardId: string; existing: boolean };
+  payload: { alreadySaved: boolean; cardId: string };
   type: typeof MESSAGE_TYPES.LOAD_SAVE_DETAILS;
 }
+
+export type SaveFilePayload = { id: string } | { file: File; id: string };
 
 export type TeakRuntimeRequest =
   | {
@@ -86,8 +85,7 @@ export type TeakRuntimeRequest =
     }
   | {
       type: typeof MESSAGE_TYPES.SAVE_FILE;
-      // `file` comes along only from a private session, which can't store it.
-      payload: { file?: File; id: string };
+      payload: SaveFilePayload;
     }
   | GetAuthStateRequest
   | SaveAssetRequest
@@ -100,7 +98,6 @@ export interface AuthStateResponse {
   authenticated: boolean;
   pending?: boolean;
   pendingCount?: number;
-  /** Firefox forgets the sign-in and unsent saves when it closes. */
   privateSession?: boolean;
   user?: { id: string; email: string; name?: string };
 }
@@ -138,9 +135,7 @@ export type CardPatchResponse =
 
 export type SaveDetailsResponse =
   | {
-      /** The card's own tags and note; only for a page already saved. */
       card?: { notes: string; tags: string[] };
-      /** The library's most used tags, most used first. */
       libraryTags: string[];
       status: "ok";
     }

@@ -1,11 +1,12 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
   internalAction,
   internalMutation,
   internalQuery,
+  type MutationCtx,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { ensureObjectOwnership } from "./ownership";
@@ -13,6 +14,8 @@ import { cardStorageObjectKeys, deleteObject } from "./r2";
 import {
   copyAndVerifyRaw,
   hashRawMetadata,
+  RAW_METADATA_KINDS,
+  type RawMetadataKind,
   rawArchivalConfigured,
   rawMetadataKey,
   serializeArchivableRaw,
@@ -24,12 +27,107 @@ const kindValidator = v.union(
   v.literal("linkPreview"),
   v.literal("linkCategory")
 );
+const ARCHIVE_PAGE_TIME_BUDGET_MS = 4 * 60_000;
 
 export const getRawCard = internalQuery({
   args: { cardId: v.id("cards") },
   returns: v.any(),
   handler: (ctx, { cardId }) => ctx.db.get("cards", cardId),
 });
+
+type CommitOutcome =
+  | "card_gone"
+  | "account_deleting"
+  | "mismatched_copy"
+  | "raw_changed"
+  | "already_committed"
+  | "committed";
+
+const retainUnreferencedArchiveKey = async (
+  ctx: MutationCtx,
+  card: Doc<"cards">,
+  key: string
+) => {
+  if (!cardStorageObjectKeys(card).includes(key)) {
+    await ctx.db.patch("cards", card._id, {
+      workflowArtifactKeys: [...(card.workflowArtifactKeys ?? []), key],
+    });
+  }
+};
+
+const commitArchiveOutcome = async (
+  ctx: MutationCtx,
+  {
+    cardId,
+    kind,
+    expectedJson,
+    key,
+    digest,
+  }: {
+    cardId: Id<"cards">;
+    kind: RawMetadataKind;
+    expectedJson: string;
+    key: string;
+    digest: string;
+  }
+): Promise<CommitOutcome> => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card) {
+    await deleteObject(ctx, key);
+    return "card_gone";
+  }
+  if (await accountDeletionOwnsRows(ctx, card.userId)) {
+    if (card.metadata?.[kind]?.rawStorageKey !== key) {
+      await deleteObject(ctx, key);
+    }
+    return "account_deleting";
+  }
+  if (
+    key !== rawMetadataKey(card, kind, digest) ||
+    (await hashRawMetadata(expectedJson)) !== digest
+  ) {
+    return "mismatched_copy";
+  }
+  const part = card.metadata?.[kind];
+  if (
+    part?.raw === undefined &&
+    part?.rawStorageKey === key &&
+    part?.rawSha256 === digest
+  ) {
+    return "already_committed";
+  }
+  if (
+    !part ||
+    part.raw === undefined ||
+    serializeRawMetadata(part.raw) !== expectedJson
+  ) {
+    await retainUnreferencedArchiveKey(ctx, card, key);
+    return "raw_changed";
+  }
+  const archived = {
+    ...part,
+    raw: undefined,
+    rawStorageKey: key,
+    rawSha256: digest,
+  };
+  if (kind === "linkCategory") {
+    const raw = part.raw as {
+      structured?: unknown;
+      structuredMeta?: { fetchedAt?: unknown };
+    };
+    Object.assign(archived, {
+      rawHasStructured: Boolean(raw?.structured),
+      rawStructuredFetchedAt:
+        typeof raw?.structuredMeta?.fetchedAt === "number"
+          ? raw.structuredMeta.fetchedAt
+          : undefined,
+    });
+  }
+  await ctx.db.patch("cards", cardId, {
+    metadata: { ...card.metadata, [kind]: archived },
+  });
+  return "committed";
+};
 
 export const commitArchive = internalMutation({
   args: {
@@ -40,82 +138,66 @@ export const commitArchive = internalMutation({
     digest: v.string(),
   },
   returns: v.boolean(),
-  handler: async (ctx, { cardId, kind, expectedJson, key, digest }) => {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card) {
-      // The card vanished (for example account deletion already removed
-      // it) after the archive copy was made; the copy is unreferenced, so
-      // remove it rather than leak it.
-      await deleteObject(ctx, key);
-      return false;
-    }
-    if (await accountDeletionOwnsRows(ctx, card.userId)) {
-      // Let a failed enqueue reject: archiveCard retains the immutable key in
-      // a commit retry rather than acknowledging cleanup never recorded.
-      if (card.metadata?.[kind]?.rawStorageKey !== key) {
-        await deleteObject(ctx, key);
-      }
-      return false;
-    }
-    const part = card?.metadata?.[kind];
-    if (
-      key !== rawMetadataKey(card, kind, digest) ||
-      (await hashRawMetadata(expectedJson)) !== digest
-    ) {
-      return false;
-    }
-    if (
-      !part ||
-      part.raw === undefined ||
-      serializeRawMetadata(part.raw) !== expectedJson
-    ) {
-      const alreadyCommitted =
-        part?.raw === undefined &&
-        part?.rawStorageKey === key &&
-        part?.rawSha256 === digest;
-      if (!(alreadyCommitted || cardStorageObjectKeys(card).includes(key))) {
-        // Content-addressed keys may be referenced by a later archive of
-        // the same payload. Retain stale copies in the card's internal
-        // storage inventory instead of racing a queued deletion. Account
-        // deletion and orphan sweeping already collect these tracked keys.
-        await ctx.db.patch("cards", cardId, {
-          workflowArtifactKeys: [...(card.workflowArtifactKeys ?? []), key],
-        });
-      }
-      return alreadyCommitted;
-    }
-    const archived = {
-      ...part,
-      raw: undefined,
-      rawStorageKey: key,
-      rawSha256: digest,
-    };
-    if (kind === "linkCategory") {
-      const raw = part.raw as {
-        structured?: unknown;
-        structuredMeta?: { fetchedAt?: unknown };
-      };
-      Object.assign(archived, {
-        rawHasStructured: Boolean(raw?.structured),
-        rawStructuredFetchedAt:
-          typeof raw?.structuredMeta?.fetchedAt === "number"
-            ? raw.structuredMeta.fetchedAt
-            : undefined,
-      });
-    }
-    // No search sync or updatedAt churn: customer-visible card fields are identical.
-    await ctx.db.patch("cards", cardId, {
-      metadata: { ...card.metadata, [kind]: archived },
-    });
-    return true;
+  handler: async (ctx, args) => {
+    const outcome = await commitArchiveOutcome(ctx, args);
+    return outcome === "committed" || outcome === "already_committed";
   },
 });
+
+const COMMIT_RETRY_DELAY_MS = 60_000;
+const CARD_RETRY_DELAY_MS = 60_000;
+const MAX_ARCHIVE_ATTEMPT = 2;
+
+type KindOutcome =
+  | { kind: "archived" }
+  | { kind: "skipped" }
+  | { kind: "commit_failed"; error: unknown };
+
+const archiveKind = async (
+  ctx: ActionCtx,
+  card: Doc<"cards">,
+  kind: RawMetadataKind
+): Promise<KindOutcome> => {
+  const json = serializeArchivableRaw(card.metadata?.[kind]?.raw);
+  if (json === null) {
+    return { kind: "skipped" };
+  }
+  const digest = await hashRawMetadata(json);
+  const key = rawMetadataKey(card, kind, digest);
+  await ensureObjectOwnership(ctx, card.userId, key);
+  await copyAndVerifyRaw(card, kind, json, digest);
+  const commitArgs = {
+    cardId: card._id,
+    kind,
+    expectedJson: json,
+    key,
+    digest,
+  };
+  try {
+    const committed = await ctx.runMutation(
+      functions().commitArchive,
+      commitArgs
+    );
+    return { kind: committed ? "archived" : "skipped" };
+  } catch (error) {
+    await ctx.scheduler.runAfter(
+      COMMIT_RETRY_DELAY_MS,
+      functions().commitArchive,
+      commitArgs
+    );
+    return { kind: "commit_failed", error };
+  }
+};
 
 export const archiveCardHandler = async (
   ctx: ActionCtx,
   { cardId, attempt = 0 }: { cardId: Id<"cards">; attempt?: number }
 ): Promise<{ archived: number; skipped: number }> => {
-  if (!Number.isInteger(attempt) || attempt < 0 || attempt > 2) {
+  if (
+    !Number.isInteger(attempt) ||
+    attempt < 0 ||
+    attempt > MAX_ARCHIVE_ATTEMPT
+  ) {
     throw new Error("invalid_archive_attempt");
   }
   let archived = 0;
@@ -123,73 +205,40 @@ export const archiveCardHandler = async (
   if (!rawArchivalConfigured()) {
     return { archived, skipped: 1 };
   }
-  let commitError: unknown;
-  let hasCommitError = false;
+  let commitFailure: { error: unknown } | null = null;
   try {
-    const card = await ctx.runQuery(functions().getRawCard, { cardId });
+    const card: Doc<"cards"> | null = await ctx.runQuery(
+      functions().getRawCard,
+      { cardId }
+    );
     if (!card) {
       return { archived, skipped: 1 };
     }
-    for (const kind of ["linkPreview", "linkCategory"] as const) {
-      const raw = card.metadata?.[kind]?.raw;
-      if (raw === undefined) {
+    for (const kind of RAW_METADATA_KINDS) {
+      if (card.metadata?.[kind]?.raw === undefined) {
         continue;
       }
-      const json = serializeArchivableRaw(raw);
-      if (json === null) {
-        skipped += 1;
-        continue;
-      }
-      const digest = await hashRawMetadata(json);
-      const key = rawMetadataKey(card, kind, digest);
-      await ensureObjectOwnership(ctx, card.userId, key);
-      await copyAndVerifyRaw(card, kind, json, digest);
-      const commitArgs = { cardId, kind, expectedJson: json, key, digest };
-      let committed: boolean;
-      try {
-        committed = await ctx.runMutation(
-          functions().commitArchive,
-          commitArgs
-        );
-      } catch (error) {
-        // The copy already exists. Retain its immutable key durably and
-        // retry only the commit/cleanup, not the upload or card lookup. This
-        // still cleans the copy if account deletion has removed the card.
-        await ctx.scheduler.runAfter(
-          60_000,
-          functions().commitArchive,
-          commitArgs
-        );
-        if (!hasCommitError) {
-          commitError = error;
-        }
-        hasCommitError = true;
-        continue;
-      }
-      if (committed) {
+      const outcome = await archiveKind(ctx, card, kind);
+      if (outcome.kind === "archived") {
         archived += 1;
-      } else {
+      } else if (outcome.kind === "skipped") {
         skipped += 1;
+      } else {
+        commitFailure ??= outcome;
       }
     }
   } catch (error) {
-    // A failed copy/verification retains the entire inline payload. Retry
-    // boundedly; later explicit maintenance can retry exhausted items.
-    // Query/copy/enqueue failures still retry the full card so later kinds
-    // are not stranded inline. Retained commit errors are surfaced below.
-    if (attempt < 2) {
+    if (attempt < MAX_ARCHIVE_ATTEMPT) {
       await ctx.scheduler.runAfter(
-        60_000 * (attempt + 1),
+        CARD_RETRY_DELAY_MS * (attempt + 1),
         functions().archiveCard,
         { cardId, attempt: attempt + 1 }
       );
     }
     throw error;
   }
-  // Attempt every kind before surfacing a retained commit failure to
-  // archivePage. Each failed commit has its own key-preserving retry.
-  if (hasCommitError) {
-    throw commitError;
+  if (commitFailure) {
+    throw commitFailure.error;
   }
   return { archived, skipped };
 };
@@ -241,8 +290,6 @@ export const pageInlineRaw = internalQuery({
   },
 });
 
-// One explicit bounded page per call. Default is read-only; never schedules a
-// whole-table migration or runs automatically on deployment.
 export const archivePage = internalAction({
   args: {
     cursor: v.optional(v.string()),
@@ -278,9 +325,7 @@ export const archivePage = internalAction({
     const startedAt = Date.now();
     if (!dryRun) {
       for (const { cardId } of page.cards) {
-        // Leave time for a card's bounded network requests. Return every
-        // unattempted ID so operators can retry it without losing the cursor.
-        if (Date.now() - startedAt >= 4 * 60_000) {
+        if (Date.now() - startedAt >= ARCHIVE_PAGE_TIME_BUDGET_MS) {
           failed.push({ cardId, error: "time_budget" });
           continue;
         }
@@ -289,8 +334,6 @@ export const archivePage = internalAction({
           archived += result.archived;
           skipped += result.skipped;
         } catch {
-          // Inline raw is retained and the card schedules its bounded retry.
-          // One bad object must not prevent the rest of a page progressing.
           failed.push({ cardId, error: "archive_failed" });
         }
       }

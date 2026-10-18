@@ -18,12 +18,8 @@ export default function LoadedMarkdownTextEditor({
   standInFocus,
   ...props
 }: MarkdownTextEditorProps & {
-  /** Set while the stand-in has focus. */
   standInFocus?: StandInFocus;
 }) {
-  // Someone is typing in the stand-in as this code arrives. Focus moves to a
-  // stand-in here, then to the editor once Tiptap has made it, each within
-  // one commit: a keystroke never lands on the page in between and is lost.
   const [handOver] = useState(() => Boolean(standInFocus?.current));
   const [editor, setEditor] = useState<Editor | null>(null);
   const standIn = useRef<HTMLTextAreaElement>(null);

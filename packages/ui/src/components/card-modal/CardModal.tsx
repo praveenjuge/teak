@@ -41,10 +41,11 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
+import { useGlobalFileDrop } from "../../hooks/GlobalFileDropProvider";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
+import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
@@ -82,9 +83,9 @@ import {
 import { cardModalKeyAction } from "./cardModalKeys";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
+import { useCloseAfterPaint } from "./useCloseAfterPaint";
 import { useLeaveGuard } from "./useLeaveGuard";
 
-/** How long typing pauses before an edit saves on its own. */
 export const AUTOSAVE_DELAY_MS = 800;
 
 function CardPreview({
@@ -184,7 +185,6 @@ const SAVE_STATE_LABELS: Record<CardSaveState, string> = {
 
 interface CardModalProps {
   card?: CardModalCard | null;
-  /** The card being opened, before its data arrives. */
   cardId?: string | null;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
@@ -194,33 +194,22 @@ interface CardModalProps {
   hasUnsavedChanges: boolean;
   isDownloading?: boolean;
   isReprocessing?: boolean;
-  /** Replaces or resets a link card's image. */
   linkThumbnail?: LinkThumbnailControl;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
-  /** Lists the cards closest in meaning to a card (`like:<id>`). */
   onMoreLikeThis?: (cardId: string) => void;
-  /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
-  /** Shows the previous card in the grid; absent on the first card. */
   onPrevious?: () => void;
   onReprocess?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
-  /**
-   * Called as the dialog closes with the card it showed last; true when it
-   * moved focus there, so the dialog leaves focus alone.
-   */
   returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
-  /** Saves an arXiv link's PDF as a document card; arXiv links only. */
   savePdf?: SavePdfControl;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
-  /** Archives or unarchives the card; the dialog then closes. */
   toggleArchive?: () => void;
-  /** Marks a link read, watched, bought or done, or not; links only. */
   toggleDone?: () => void;
   toggleFavorite: () => void;
   updateContent: (value: string) => void;
@@ -263,18 +252,10 @@ export function CardModal({
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
-  // Closing clears the open card in the same render; keep showing the last
-  // one so the dialog never flashes the loading layout on its way out.
-  const lastCardRef = useRef(cardProp);
-  if (cardProp) {
-    lastCardRef.current = cardProp;
-  }
-  const card = open ? cardProp : (cardProp ?? lastCardRef.current);
+  const card = useRetainedWhileClosing(cardProp, open);
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
-  // The menu's "Replace image" opens this picker; it stays mounted while the
-  // menu closes.
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
@@ -302,32 +283,28 @@ export function CardModal({
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
 
-  // A link's image can be replaced or reset; not from Trash.
   const imageControl =
     card?.type === "link" && !card.isDeleted ? linkThumbnail : undefined;
 
-  // Pasting an image while a link is open replaces its image, unless a text
-  // field has focus. Capture runs before the library's paste-to-save.
   const canPasteImage = Boolean(open && imageControl);
+  const claimPaste = useGlobalFileDrop()?.claimPaste;
   useEffect(() => {
-    if (!(canPasteImage && linkThumbnail)) {
+    if (!(canPasteImage && linkThumbnail && claimPaste)) {
       return;
     }
-    const handlePaste = (event: ClipboardEvent) => {
+    return claimPaste((event) => {
       if (isTextEntryTarget(event.target)) {
-        return;
+        return false;
       }
       const file = imageFromClipboard(event.clipboardData);
       if (!file) {
-        return;
+        return false;
       }
       event.preventDefault();
-      event.stopPropagation();
       linkThumbnail.replace(file, "paste");
-    };
-    document.addEventListener("paste", handlePaste, true);
-    return () => document.removeEventListener("paste", handlePaste, true);
-  }, [canPasteImage, linkThumbnail]);
+      return true;
+    });
+  }, [canPasteImage, claimPaste, linkThumbnail]);
 
   const commit = () => {
     if (hasUnsavedChanges) {
@@ -353,23 +330,11 @@ export function CardModal({
     updateTitle(value);
   };
 
-  // Closing re-renders the whole grid behind the dialog, so the dialog
-  // hides itself and paints first, then tells the page.
-  const [hidden, setHidden] = useState(false);
-  if (hidden && !open) {
-    setHidden(false);
-  }
-  const leave = () => {
-    if (!onCancel) {
-      return;
-    }
-    flushSync(() => setHidden(true));
-    requestAnimationFrame(() => setTimeout(onCancel, 0));
-  };
+  const { closeAfterPaint, hidden } = useCloseAfterPaint(open, onCancel);
 
   const handleClose = async () => {
     if (await readyToLeave()) {
-      leave();
+      closeAfterPaint();
     }
   };
 
@@ -377,7 +342,7 @@ export function CardModal({
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
     }
-    leave();
+    closeAfterPaint();
   };
 
   const goTo = async (show?: () => void) => {
@@ -495,8 +460,6 @@ export function CardModal({
           }}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
-            // Focus the dialog itself, not its first field, so its keys
-            // work at once and nothing starts in edit mode.
             event.preventDefault();
             contentRef.current?.focus();
           }}
@@ -665,7 +628,6 @@ export function CardModal({
                       data-testid="link-image-input"
                       onChange={(event) => {
                         const file = firstFile(event.target.files);
-                        // The same file can be picked again after a failure.
                         event.target.value = "";
                         if (file) {
                           imageControl.replace(file, "pick");
@@ -898,11 +860,6 @@ async function copyToClipboard(text: string, message: string) {
   }
 }
 
-/**
- * "Mark as read" until the link is done, then "Read", pressed. The word
- * follows the link's category ("watched" for a film, "bought" for a
- * product) and is "done" without one.
- */
 export function DoneButton({
   category,
   done,
@@ -934,7 +891,6 @@ function HeaderIconButton({
   children: ReactNode;
   label: string;
   pressed?: boolean;
-  /** Keys that do the same, shown on the right of the button's tooltip. */
   shortcut?: readonly string[];
 }) {
   const button = (

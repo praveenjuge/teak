@@ -20,17 +20,11 @@ const NO_DECISION = {
   version: 1,
 };
 
-// The card the fake deployment holds for the next classification.
 let given: Record<string, unknown> | null | undefined = null;
 const givenCard = (card: Record<string, unknown> | null | undefined) => {
   given = card;
 };
 
-/**
- * Classifies `given` against a fake deployment and replays the writes it
- * made (besides marking the stage in progress) into `mutations`, as
- * `[name, args]` calls.
- */
 const classify = async (mutations: ReturnType<typeof mock>) => {
   const card = given
     ? ({ userId: USER_ID, ...given } as unknown as FakeCard)
@@ -40,7 +34,6 @@ const classify = async (mutations: ReturnType<typeof mock>) => {
   const job: CardJob = {
     cardId: (card?._id ?? "c1") as CardJob["cardId"],
     convexSiteUrl: TEST_CONVEX_SITE_URL,
-    // Clef has no opinion, so the rules decide.
     deps: testDeps(
       env,
       convex.fetcher,
@@ -117,7 +110,6 @@ describe("classification step", () => {
       expect(result.shouldCategorize).toBe(false);
       expect(result.shouldGenerateRenderables).toBe(false);
       expect(result.needsLinkMetadata).toBe(false);
-      // The step marked the stage in progress, so it records it again.
       expect(mockRunMutation.mock.calls).toEqual([
         [
           "workflows/steps/classificationMutations:recordClassification",
@@ -913,7 +905,6 @@ describe("classification stage completion", () => {
 });
 
 describe("card type review by Clef", () => {
-  // The `decide-card-type` op runs for real against a fake Workers AI.
   const review = async (
     fields: { content: string; type?: string; url?: string },
     options: {
@@ -987,7 +978,6 @@ describe("card type review by Clef", () => {
       expect.objectContaining({ confidence: 0.92, type: "quote" }),
     ]);
     expect(aiCalls).toHaveLength(1);
-    // The call is charged to the card's owner.
     expect(points.map((point) => point.indexes)).toEqual([[USER_ID]]);
     expect(points[0]?.blobs?.slice(1, 3)).toEqual([
       "@cf/cloudflare/clef-flash",

@@ -83,7 +83,6 @@ export type HopOutcome =
     }
   | { ok: false; reason: FetcherHopFailureReason };
 
-/** At most `limit` bytes of the body; the rest is never read. */
 const readAtMost = async (
   response: Response,
   limit: number
@@ -113,13 +112,6 @@ const readAtMost = async (
   return bytes;
 };
 
-/**
- * Makes one request for the Worker's `safeFetch`. The Worker resolved the
- * host and checked its addresses; they are checked here again with the same
- * policy, so this endpoint never reaches a private address whatever it is
- * sent. The connection is pinned to those addresses, and a redirect comes
- * back as it is, for the Worker to check its target before the next hop.
- */
 export const performHop = async (
   request: FetcherHopRequest,
   { pinnedFetch }: Pick<FetchAssetDeps, "pinnedFetch">

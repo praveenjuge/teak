@@ -1,26 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Idempotent local bootstrap for agents and developers.
- *
- * 1. Check the Bun and Node versions pinned by package.json.
- * 2. Run `bun ci` when node_modules is stale.
- * 3. Select the shared cloud dev deployment (scripts/dev-deployment.ts),
- *    reached with your Convex login or a cloud session's dev deploy key, and
- *    refuse any production or other deployment.
- * 4. Read the WorkOS staging credentials the web app needs from the dev
- *    deployment. Setup never writes deployment variables.
- * 5. Derive the target's ignored local configuration from canonical facts.
- *    Setup never overwrites a value a person set, but refreshes generated
- *    values (loopback URLs from an earlier local stack, synced credentials).
- *
- * Never uses production, Apple, Cloudflare, billing, or release credentials.
- * Every step is check-then-act, so re-running setup changes nothing once the
- * tree is ready. `--check` reports without changing state; `--json` emits a
- * stable machine-readable report with capabilities.
- *
- * Usage: bun run setup [--target <target>] [--convex cloud|skip] [--check] [--json]
- */
-
 import { join } from "node:path";
 import {
   type Capabilities,

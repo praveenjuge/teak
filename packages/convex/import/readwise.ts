@@ -27,9 +27,8 @@ export function parseReaderTags(raw: string): string[] {
 
 /**
  * Readwise Reader's library CSV: `Title, URL, ID, Document tags, Saved date,
- * Reading progress, Location, Seen`. Feed items (RSS Reader added on its
- * own) are skipped; Location "archive" becomes archive state, and a
- * "shortlist" Location or tag (Reader's Shortlist workflow) a favorite.
+ * Reading progress, Location, Seen`. Feed items are RSS that Reader added on
+ * its own; "shortlist" is Reader's Shortlist workflow.
  */
 export function parseReadwiseCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv, { maxRows: MAX_ROWS });

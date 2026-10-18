@@ -14,9 +14,11 @@ export interface WorktreePorts {
   convex: number;
   convexSite: number;
   docs: number;
-  /** The E2E suite's WorkOS emulator; its upstream listens on the next port. */
   emulator: number;
+  emulatorUpstream: number;
   extension: number;
+  filesWorker: number;
+  filesWorkerInspector: number;
   namespace: string;
   namespaced: boolean;
   siteUrl: string;
@@ -28,6 +30,9 @@ export const MAIN_PORTS = {
   convex: 3210,
   convexSite: 3211,
   emulator: 4100,
+  emulatorUpstream: 4101,
+  filesWorker: 4102,
+  filesWorkerInspector: 4103,
   docs: 3001,
   extension: 3003,
 } as const;
@@ -45,7 +50,9 @@ export const stackPorts = (ports: WorktreePorts): number[] => [
   ports.convex,
   ports.convexSite,
   ports.emulator,
-  ports.emulator + 1,
+  ports.emulatorUpstream,
+  ports.filesWorker,
+  ports.filesWorkerInspector,
 ];
 
 // Slots that would reuse a main checkout port, or a port macOS keeps open for
@@ -90,6 +97,9 @@ export const slotPorts = (slot: number): WorktreePorts => {
     convex: web + 10,
     convexSite: web + 11,
     emulator: web + 20,
+    emulatorUpstream: web + 21,
+    filesWorker: web + 22,
+    filesWorkerInspector: web + 23,
     siteUrl: `http://localhost:${web}`,
   };
 };

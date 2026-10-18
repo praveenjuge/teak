@@ -50,8 +50,6 @@ final class AppModel {
         return authMode == nil ? .loading : .signedOut
     }
 
-    // MARK: Starting
-
     func start() {
         guard tasks.isEmpty else { return }
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -87,14 +85,13 @@ final class AppModel {
     }
 
     #if DEBUG
-    /// `TEAK_UI_TEST_RESET` signs out first; `TEAK_UI_TEST_SESSION` (a base64
-    /// WorkOS authenticate response) signs in without a browser.
     private func prepareForUITests() async {
         let environment = ProcessInfo.processInfo.environment
         if environment["TEAK_UI_TEST_RESET"] == "1" { await session.clear() }
-        if let encoded = environment["TEAK_UI_TEST_SESSION"], let data = Data(base64Encoded: encoded),
+        if let encoded = environment["TEAK_UI_TEST_SESSION"],
+           let workosAuthenticateResponse = Data(base64Encoded: encoded),
            let clientId = environment["TEAK_UI_TEST_CLIENT_ID"] {
-            try? await session.adoptForTesting(data, clientId: clientId)
+            try? await session.adoptForTesting(workosAuthenticateResponse, clientId: clientId)
         }
     }
     #endif
@@ -123,8 +120,6 @@ final class AppModel {
         }
     }
 
-    // MARK: Sign-in configuration
-
     private var modeCacheKey: String { "teak.auth-mode.\(config.convexURL.absoluteString)" }
 
     private func cachedAuthMode() -> AuthMode? {
@@ -135,8 +130,8 @@ final class AppModel {
     private func watchAuthMode() async {
         while !Task.isCancelled {
             do {
-                for try await raw in backend.subscribe("auth:getAuthMode", [:], as: AuthModeValue.self) {
-                    await accept(raw.data)
+                for try await mode in backend.subscribe(ConvexFunctions.getAuthMode) {
+                    try await accept(JSONEncoder().encode(mode))
                 }
             } catch {
                 configurationError = "Unable to load sign-in configuration"
@@ -150,7 +145,6 @@ final class AppModel {
             configurationError = "Unable to load sign-in configuration"
             return
         }
-        // A deployment that switched WorkOS clients can't use the old client's session.
         if let current = await session.clientId, current != next.authKitClientId {
             await session.clear()
         }
@@ -173,8 +167,6 @@ final class AppModel {
         isOnline = pathMonitor.currentPath.status == .satisfied
     }
 
-    // MARK: Convex
-
     private func authenticateConvex() {
         authenticateTask?.cancel()
         authenticateTask = Task {
@@ -193,10 +185,7 @@ final class AppModel {
         tokenTask = Task { await backend.keepTokenFresh() }
     }
 
-    // MARK: Signing in and out
-
-    /// Returns false when the person cancelled.
-    func signIn(_ method: SignInMethod, using webAuthentication: WebAuthenticationSession) async throws -> Bool {
+    func signIn(_ method: SignInMethod, using webAuthentication: WebAuthenticationSession) async throws {
         guard let clientId = authMode?.authKitClientId else {
             throw TeakError(message: "Unable to load sign-in configuration")
         }
@@ -210,38 +199,27 @@ final class AppModel {
                 preferredBrowserSession: method.prefersEphemeralSession ? .ephemeral : .shared,
                 additionalHeaderFields: [:])
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
-            return false
+            return
         }
-        guard case let .code(code) = try request.callback(from: callback) else { return false }
-        guard try await session.exchangeCode(code, request: request, attempt: attempt) else { return false }
+        guard case let .code(code) = try request.callback(from: callback),
+              try await session.exchangeCode(code, request: request, attempt: attempt) == .signedIn
+        else { return }
         authenticateConvex()
-        return true
     }
 
-    /// Revokes this device's session on the server first, so signing out ends
-    /// the WorkOS session without a browser. Keeps the credentials if that fails.
     func signOut() async throws {
         guard try await session.accessToken() != nil else {
             await session.clear()
             return
         }
         guard let sessionId = await session.sessionId else { throw TeakError.signedOut }
-        let _: ConvexVoid = try await backend.action("securitySessions:revokeAuthkitSession",
+        let _: ConvexVoid = try await backend.action(ConvexFunctions.revokeAuthkitSession,
                                                      ["sessionId": .string(sessionId)])
         await session.clear()
     }
 
     func deleteAccount() async throws {
-        let _: ConvexVoid = try await backend.mutation("accountDeletion:deleteMyAccount", [:])
+        let _: ConvexVoid = try await backend.mutation(ConvexFunctions.deleteMyAccount)
         await session.clear()
-    }
-}
-
-struct AuthModeValue: Decodable, Sendable {
-    let data: Data
-
-    init(from decoder: any Decoder) throws {
-        let mode = try AuthMode(from: decoder)
-        data = try JSONEncoder().encode(mode)
     }
 }

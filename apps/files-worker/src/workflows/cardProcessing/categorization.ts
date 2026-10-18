@@ -37,19 +37,9 @@ import {
 } from "./linkMetadata";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
-// Categorization: what kind of thing a link is (a recipe, a repo, a
-// product) and the facts its page states, from the URL, the preview and the
-// page's JSON-LD (the rules in @teak/convex/.../categorization/rules). Clef
-// reviews a category the rules only guessed.
-
 const MAX_FETCH_BODY_SIZE = 250_000;
 const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
-/**
- * JSON-LD from the link's page, read from the same `fetch-link-page` result
- * the preview used (the op keeps it for a day). Null when the page cannot be
- * read.
- */
 const fetchStructuredData = async (
   job: CardJob,
   url: string
@@ -75,10 +65,6 @@ const fetchStructuredData = async (
   }
 };
 
-/**
- * Lets Clef pick the category when the resolver only guessed it. The rules'
- * classification stands when Clef is unsure, the call fails or AI is off.
- */
 const reviewLinkCategoryWithClef = async (
   job: CardJob,
   card: CategorizationContextCard,
@@ -104,7 +90,6 @@ const reviewLinkCategoryWithClef = async (
   return applyLinkCategoryDecision(classification, result);
 };
 
-/** Longer than this for an arXiv slot and the lookup is skipped. */
 const MAX_ARXIV_WAIT_MS = 10_000;
 
 /**
@@ -125,11 +110,6 @@ const takeArxivSlot = async (job: CardJob): Promise<boolean> => {
   return true;
 };
 
-/**
- * What the link's own site says about it (Wikipedia, arXiv, Spotify, Apple
- * Music, Open Library), or null for any other link and whenever the site
- * can't answer.
- */
 const lookUpSiteDetails = async (
   job: CardJob,
   card: CategorizationContextCard,
@@ -147,10 +127,6 @@ const lookUpSiteDetails = async (
   });
 };
 
-/**
- * Stores the site's image as the link's preview image when the page had
- * none of its own (a book cover from Open Library, say).
- */
 const storeSiteImage = async (
   job: CardJob,
   loaded: LoadedCard,
@@ -183,10 +159,6 @@ export interface CategorizationResult {
   mode: "categorized" | "missing";
 }
 
-/**
- * Classifies a link card's category, reads its page's structured data when
- * the stored copy is missing or stale, and saves the merged result.
- */
 export const categorizeLink = async (
   job: CardJob
 ): Promise<CategorizationResult> => {
@@ -201,8 +173,6 @@ export const categorizeLink = async (
     );
   }
   await markInProgress(job, ["categorize"]);
-  // "Refresh details": the 30-day cache is ignored, so the link is
-  // classified again and its page's JSON-LD read again.
   const refresh = job.refresh === true;
 
   const contextCard = projectCategorizationSnapshot(

@@ -41,7 +41,6 @@ const buildSinglePaginateContext = (page: unknown) => {
   let invocationPaginateCalls = 0;
   const query = mock(() => {
     const baseQuery = {
-      // The read leaves hidden cards out with a filter on the index range.
       filter: mock(() => baseQuery),
       order: mock(() => ({
         paginate: mock(

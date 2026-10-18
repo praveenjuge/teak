@@ -57,7 +57,6 @@ export function AppShell({
       if (isCardsPage) {
         rememberHomeScroll();
       }
-      // Opening a card over this page keeps its scroll.
       const samePage = pathname !== null && href.startsWith(`${pathname}?`);
       router.push(href, samePage ? { scroll: false } : undefined);
     },

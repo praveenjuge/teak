@@ -115,8 +115,6 @@ const handleJsonRpcMessage = async (
     return jsonRpcError(rpc.id, -32_600, "Invalid Request");
   }
 
-  // initialize, ping, tools/list and notifications; the Files Worker
-  // answers these at the edge with the same builders.
   const answered = answerProtocolMessage(rpc);
   if (answered !== undefined) {
     return answered;
@@ -257,8 +255,6 @@ const validateMcpBearer = async (
   ctx: ActionCtx,
   request: Request
 ): Promise<Response | null> => {
-  // Validate even protocol-only requests against live credentials. A previous
-  // successful request must not keep a disconnected app or revoked key usable.
   const authError = await validatePublicApiBearer(ctx, request, "mcp");
   if (authError) {
     return authError.status === 401

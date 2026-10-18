@@ -1,5 +1,5 @@
 import {
-  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
+  FILES_EXTRACTED_TEXT_MAX_BYTES,
   FILES_PDF_TEXT_MAX_PAGES,
 } from "@teak/files-protocol";
 import {
@@ -17,7 +17,6 @@ export {
   rangeRead,
 } from "./zip";
 
-const MAX_AI_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS;
 export const MAX_PDF_TEXT_PAGES = FILES_PDF_TEXT_MAX_PAGES;
 export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
@@ -135,7 +134,7 @@ export const inspectZipRanged = async (
 
     if (
       !shouldReadText ||
-      textBytes >= MAX_AI_TEXT_BYTES ||
+      textBytes >= FILES_EXTRACTED_TEXT_MAX_BYTES ||
       entry.uncompressedSize > MAX_ARCHIVE_ENTRY_BYTES
     ) {
       continue;
@@ -152,7 +151,7 @@ export const inspectZipRanged = async (
       continue;
     }
     textBytes += entryBytes.byteLength;
-    if (textBytes <= MAX_AI_TEXT_BYTES) {
+    if (textBytes <= FILES_EXTRACTED_TEXT_MAX_BYTES) {
       const decoded = decodeXmlText(decoder.decode(entryBytes));
       if (decoded) {
         textParts.push(decoded);
@@ -197,7 +196,9 @@ export const runInspect = async (
       },
     };
   }
-  const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
+  const decoded = new TextDecoder().decode(
+    bytes.slice(0, FILES_EXTRACTED_TEXT_MAX_BYTES)
+  );
   const text = request.rtf ? extractRtfText(decoded).trim() : decoded.trim();
   return { facts: textFacts(text), text };
 };

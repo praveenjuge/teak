@@ -120,7 +120,6 @@ describe("workflow RPC gateway", () => {
 
   test.each([
     ["a different secret", { secret: "wrong-secret" }],
-    // Development shares the files signing secret with production.
     ["the files signing secret", { secret: FILES_SECRET }],
     [
       "a signature for another deployment",

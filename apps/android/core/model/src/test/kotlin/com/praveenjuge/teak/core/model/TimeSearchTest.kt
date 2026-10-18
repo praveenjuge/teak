@@ -18,7 +18,7 @@ class TimeSearchTest {
         val result = TimeSearch.parse(query, tuesdayNoon)!!
         assertEquals(label, result.label, query)
         assertEquals(start, day(result.range.start), query)
-        assertEquals(end, day(result.range.end), query)
+        assertEquals(end, day(result.range.endExclusive), query)
     }
 
     @Test

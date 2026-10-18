@@ -44,6 +44,23 @@ export class EditorLibrary {
     return dialog;
   }
 
+  async waitForProcessing(ids: Iterable<Id<"cards">>): Promise<void> {
+    const cardIds = [...ids];
+    const isProcessing = async (id: Id<"cards">) => {
+      const card = await this.client.query(api.cards.getCard, { id });
+      const stages: ({ status?: string } | undefined)[] = Object.values(
+        card?.processingStatus ?? {}
+      );
+      return stages.some(
+        (stage) =>
+          stage?.status === "pending" || stage?.status === "in_progress"
+      );
+    };
+    const processing = async () =>
+      (await Promise.all(cardIds.map(isProcessing))).filter(Boolean).length;
+    await expect.poll(processing, { timeout: 120_000 }).toBe(0);
+  }
+
   async cleanup(): Promise<void> {
     const results = await Promise.allSettled(
       this.ids.map((id) =>
@@ -64,11 +81,6 @@ export class EditorLibrary {
 
 export const DIALOG_EDITOR =
   '[role="dialog"] [role="textbox"][aria-label="Markdown content"]';
-/**
- * CSS for the block editor inside the composer form, which stays in the page
- * behind an open dialog. The editor's group is a `<fieldset>`, so it has no
- * `role` attribute to select on.
- */
 export const COMPOSER_EDITOR =
   'form[data-card-creation-status] [role="textbox"][aria-label="Markdown content"]';
 

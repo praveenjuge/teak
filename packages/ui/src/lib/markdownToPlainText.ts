@@ -56,11 +56,6 @@ const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|>])/g;
 const PLACEHOLDER_BASE = "".charCodeAt(0);
 const PLACEHOLDER = /[-]/g;
 
-/**
- * Runs `strip` with backslash-escaped punctuation (`my\_file`) swapped for
- * private-use placeholders, so no rule reads an escaped marker as markup,
- * then puts the punctuation back as plain characters.
- */
 function withEscapedPunctuation(
   text: string,
   strip: (text: string) => string
@@ -75,17 +70,6 @@ function withEscapedPunctuation(
   );
 }
 
-/**
- * Convert markdown to plain text for compact card previews.
- *
- * Grid cards only show a line or two, so this favours readable text over a
- * faithful markdown render: block markers (headings, list bullets,
- * blockquotes, horizontal rules), inline emphasis, links/images, inline code,
- * HTML tags and comments are stripped, and whitespace is collapsed to single
- * spaces. Backslash escapes are shown as the literal character. Only a
- * short prefix is processed since the preview is clamped; pass a larger
- * `maxLength` (such as `Infinity`) to read the whole note.
- */
 export function markdownToPlainText(
   input?: string | null,
   { maxLength = MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}

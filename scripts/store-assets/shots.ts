@@ -1,9 +1,3 @@
-/**
- * Every store image: which raw capture it uses and its headline. Order sets
- * the store order (file names carry a numeric prefix). To change a headline,
- * edit it here and re-render; to change what a screen shows, recapture it.
- */
-
 export type StoreId = "android" | "apple-iphone" | "apple-ipad" | "apple-mac";
 
 export interface Shot {

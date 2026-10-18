@@ -25,7 +25,6 @@ interface Item {
   url?: string;
 }
 
-/** Convex's import job and items, in memory. */
 const importBackend = (job: Record<string, unknown> = {}) => {
   const state = {
     cancelRequested: false,
@@ -224,7 +223,6 @@ describe("runImport", () => {
       status: "completed",
     });
     expect(backend.state.failureClass).toBeUndefined();
-    // Markdown documents in an archive become text cards.
     expect(backend.created).toEqual(["A note", "", "# Notes"]);
     const fileKey = importFileKey(USER_PREFIX, "job-1", "item-1", "paper.pdf");
     expect(backend.items[1]?.extractedFileKey).toBe(fileKey);
@@ -250,7 +248,6 @@ describe("runImport", () => {
       content: `Card ${String(index)}`,
       type: "text",
     }));
-    // The user cancels once the first page is stored.
     const insert = backend.handlers["dataImport:insertItems"];
     backend.handlers["dataImport:insertItems"] = (args, request) => {
       backend.state.cancelRequested = true;
@@ -311,7 +308,6 @@ describe("runImport", () => {
     for (let index = 0; index < 8; index += 1) {
       backend.items.push(pendingItem(index));
     }
-    // The user cancels while the first batch is being created.
     backend.setCreateBatch((ids) => {
       for (const id of ids) {
         const item = backend.items.find((entry) => entry._id === id);

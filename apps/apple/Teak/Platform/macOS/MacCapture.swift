@@ -206,6 +206,10 @@ private struct QuickCaptureView: View {
     }
 }
 
+private func fourCharCode(_ code: String) -> OSType {
+    code.utf8.reduce(0) { $0 << 8 | OSType($1) }
+}
+
 /// The global ⌃⌥⌘T shortcut. SwiftUI has no system-wide hotkey, so this uses Carbon.
 @MainActor
 final class QuickCaptureHotKey {
@@ -224,7 +228,7 @@ final class QuickCaptureHotKey {
             Task { @MainActor in QuickCapturePanel.shared.show() }
             return noErr
         }, 1, &spec, nil, &handler)
-        let id = EventHotKeyID(signature: OSType(0x5445_414B), id: 1) // "TEAK"
+        let id = EventHotKeyID(signature: fourCharCode("TEAK"), id: 1)
         RegisterEventHotKey(UInt32(kVK_ANSI_T), UInt32(controlKey | optionKey | cmdKey), id,
                             GetApplicationEventTarget(), 0, &hotKey)
     }

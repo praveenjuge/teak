@@ -9,8 +9,9 @@ import {
 } from "./workosDeletionCompletion";
 
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
-const invalid = (message: string) =>
+const permanentEventError = (message: string) =>
   new ConvexError({ code: INVALID_WORKOS_EVENT, message });
+const retryableEventError = (message: string) => new Error(message);
 
 const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(value);
@@ -21,7 +22,7 @@ const eventTime = (raw: string): number => {
       raw
     );
   if (!parts || raw.length > 64) {
-    throw invalid("Invalid WorkOS event timestamp");
+    throw permanentEventError("Invalid WorkOS event timestamp");
   }
   const [, year, month, day, hour, minute, second, offset] = parts;
   const calendar = new Date(`${year}-${month}-${day}T00:00:00Z`);
@@ -39,11 +40,10 @@ const eventTime = (raw: string): number => {
     !(validCalendar && validClock && validOffset && Number.isFinite(time)) ||
     time < 0
   ) {
-    throw invalid("Invalid WorkOS event timestamp");
+    throw permanentEventError("Invalid WorkOS event timestamp");
   }
-  // Clock skew passes with time, so WorkOS keeps retrying this one.
   if (time > Date.now() + 300_000) {
-    throw new Error("WorkOS event timestamp is in the future");
+    throw retryableEventError("WorkOS event timestamp is in the future");
   }
   return time;
 };
@@ -61,7 +61,7 @@ export const parseWorkosEvent = (event: {
     Object.keys(event.data).length > 64 ||
     JSON.stringify(event.data).length > 64 * 1024
   ) {
-    throw invalid("Invalid WorkOS event input");
+    throw permanentEventError("Invalid WorkOS event input");
   }
   const deleting = event.event === "user.deleted";
   const email =
@@ -77,7 +77,7 @@ export const parseWorkosEvent = (event: {
       (event.data.updatedAt !== undefined &&
         typeof event.data.updatedAt !== "string"))
   ) {
-    throw invalid("Invalid WorkOS event user");
+    throw permanentEventError("Invalid WorkOS event user");
   }
   const profile = {
     email,
@@ -95,19 +95,19 @@ export const parseWorkosEvent = (event: {
     profile.profilePictureUrl,
   ]) {
     if (!deleting && value !== null && typeof value !== "string") {
-      throw invalid("Invalid WorkOS event profile");
+      throw permanentEventError("Invalid WorkOS event profile");
     }
   }
   if (!deleting) {
     if (!isStorableEmail(email)) {
-      throw invalid("Invalid WorkOS event email");
+      throw permanentEventError("Invalid WorkOS event email");
     }
     for (const name of [profile.name, profile.firstName, profile.lastName]) {
       if (
         typeof name === "string" &&
         (name.length > 1024 || /\p{Cc}/u.test(name))
       ) {
-        throw invalid("Invalid WorkOS event name");
+        throw permanentEventError("Invalid WorkOS event name");
       }
     }
     if (typeof profile.profilePictureUrl === "string") {
@@ -123,7 +123,7 @@ export const parseWorkosEvent = (event: {
         url.password ||
         profile.profilePictureUrl.length > 4096
       ) {
-        throw invalid("Invalid WorkOS event image");
+        throw permanentEventError("Invalid WorkOS event image");
       }
     }
   }

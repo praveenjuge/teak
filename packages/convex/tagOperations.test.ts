@@ -636,8 +636,6 @@ describe("tag listings with many small tags", () => {
   }, 30_000);
 
   test("one snapshot page counts a page of rows, however many small tags they hold", async () => {
-    // Counting tag by tag took a seek and a range query per tag: a page of
-    // 500 small tags ran four to five seconds and timed out under load.
     const { t } = await setup();
     const distinct = 1200;
     await t.run(async (ctx) => {

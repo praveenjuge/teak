@@ -4,7 +4,6 @@ import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWork
 
 const required = [
   "extract-animation-palette",
-  // Text in link images and scanned PDFs (roadmap v2 phase 11).
   "extract-image-text",
   "ocr-pdf-pages",
   "process-audio",
@@ -18,14 +17,12 @@ const required = [
   "freeze-object",
   "fetch-link-page",
   "store-remote-asset",
-  // Save PDF for arXiv links (roadmap v2 phase 20).
   "store-linked-pdf",
   "embed-upsert",
   "vector-delete",
   "vector-get",
   "vector-query",
   "vector-similar",
-  // Convex hands background work to Cloudflare Workflows and Queues with it.
   "dispatch",
   "decide-card-type",
   "decide-link-category",
@@ -60,15 +57,15 @@ if (process.argv.includes("--prod")) {
   );
 }
 
+const RENDERER_ROLLOUT_MS = 20 * 60_000;
 const deadline =
-  // A new renderer image builds and rolls out after the Worker deploys.
-  Date.now() + (process.argv.includes("--wait") ? 20 * 60_000 : 0);
+  Date.now() + (process.argv.includes("--wait") ? RENDERER_ROLLOUT_MS : 0);
 for (;;) {
   let ready = false;
+  let failedWith: string | undefined;
   try {
     const signed = await buildSignedWorkerOpRequest({
       op: "capabilities",
-      // Starts a renderer Container when none is warm.
       params: { checkRenderer: true },
     });
     const response = await fetch(signed.url, {
@@ -105,8 +102,11 @@ for (;;) {
       result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
-  } catch {
-    // Never log signed URLs, request headers, or deployment secrets.
+  } catch (error) {
+    failedWith =
+      error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)
+        ? error.name
+        : "an error";
   }
   if (ready) {
     console.log(
@@ -114,9 +114,12 @@ for (;;) {
     );
     break;
   }
+  const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
   if (Date.now() >= deadline) {
-    throw new Error("Files worker is not ready; backend deployment blocked.");
+    throw new Error(
+      `Files worker is not ready${reason}; backend deployment blocked.`
+    );
   }
-  console.log("Waiting for files-worker deployment readiness…");
+  console.log(`Waiting for files-worker deployment readiness…${reason}`);
   await Bun.sleep(15_000);
 }

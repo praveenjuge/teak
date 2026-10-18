@@ -20,10 +20,6 @@ const MAX_REQUEST_BYTES = 16 * 1024;
 const json = (status: number, body: unknown): Response =>
   Response.json(body, { status });
 
-/**
- * One Container serves a few downloads and page fetches at once. Only the Files Worker reaches
- * it, through its Durable Object; nothing else can connect to the port.
- */
 export const createFetcherHandler = (deps: FetchAssetDeps) => {
   let inFlight = 0;
   return async (request: Request): Promise<Response> => {

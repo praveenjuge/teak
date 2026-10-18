@@ -14,6 +14,11 @@ import {
   type FilesVideoFrameResult,
   type FilesVideoScrub,
 } from "@teak/files-protocol";
+import {
+  MAX_UTF8_BYTES_PER_CHAR,
+  RENDERER_JOBS,
+  type RendererJob,
+} from "../container/src/protocol";
 import type { WorkersAiBinding } from "./aiGateway";
 import { meteredAiRun } from "./aiUsage";
 import { MAX_PDF_TEXT_PAGES, textFacts } from "./inspect";
@@ -39,17 +44,15 @@ const MAX_FRAME_BYTES = 10 * 1024 * 1024;
 const MAX_SCRUB_BYTES = 4 * 1024 * 1024;
 const MAX_PAGE_BYTES = 20 * 1024 * 1024;
 const MAX_WHISPER_BYTES = 32 * 1024 * 1024;
-const MAX_PDF_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
+const MAX_PDF_TEXT_BYTES =
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS * MAX_UTF8_BYTES_PER_CHAR;
 const MAX_SCRUB_FRAME_COUNT = 20;
 const MAX_IMAGE_SIDE = 8192;
 
-const JOB_TIMEOUT_MS = {
-  animation: 30_000,
-  audio: 120_000,
-  pdf: 30_000,
-  probe: 15_000,
-  video: 60_000,
-} as const;
+const rendererJob = (job: RendererJob, query = "") => ({
+  path: `${RENDERER_JOBS[job].path}${query}`,
+  timeoutMs: RENDERER_JOBS[job].wallClockMs,
+});
 
 export const r2SourceOpener = (
   bucket: R2Bucket,
@@ -123,8 +126,7 @@ export const probeMediaObject = async (
   const result = await callRenderer(env, {
     openSource: r2SourceOpener(env.BUCKET, sourceKey),
     outputs: {},
-    path: "/probe",
-    timeoutMs: JOB_TIMEOUT_MS.probe,
+    ...rendererJob("probe"),
   });
   return readMediaFacts(result.manifest.facts);
 };
@@ -168,8 +170,10 @@ export const extractVideoFrame = async (
       frame: { kind: "jpeg", maxBytes: MAX_FRAME_BYTES, required: true },
       scrub: { kind: "jpeg", maxBytes: MAX_SCRUB_BYTES, required: false },
     },
-    path: `/video?frameMax=${MAX_RENDER_DIMENSION}&scrubFrames=${scrubFrames}&scrubMax=${MAX_SCRUB_FRAME_DIMENSION}`,
-    timeoutMs: JOB_TIMEOUT_MS.video,
+    ...rendererJob(
+      "video",
+      `?frameMax=${MAX_RENDER_DIMENSION}&scrubFrames=${scrubFrames}&scrubMax=${MAX_SCRUB_FRAME_DIMENSION}`
+    ),
   });
   const facts = readMediaFacts(result.manifest.facts);
   const frame = result.parts.get("frame") as Uint8Array;
@@ -207,16 +211,11 @@ export const extractAnimationPalette = async (
   const result = await callRenderer(env, {
     openSource: r2SourceOpener(env.BUCKET, sourceKey),
     outputs: {},
-    path: `/animation/palette?frames=${ANIMATION_PALETTE_FRAMES}`,
-    timeoutMs: JOB_TIMEOUT_MS.animation,
+    ...rendererJob("animationPalette", `?frames=${ANIMATION_PALETTE_FRAMES}`),
   });
   return { palette: readPalette(result.manifest.palette) ?? [] };
 };
 
-/**
- * One PDF page as PNG bytes, held in memory, with the PDF's page count.
- * `RendererDeclined` for a page past the end, a password, or no pages.
- */
 export const renderPdfPageBytes = async (
   env: MediaJobsEnv,
   sourceKey: string,
@@ -233,8 +232,10 @@ export const renderPdfPageBytes = async (
       page: { kind: "png", maxBytes: MAX_PAGE_BYTES, required: true },
     },
     // Page 1 keeps the path an older renderer image already serves.
-    path: `/pdf/page?max=${MAX_RENDER_DIMENSION}${page > 1 ? `&page=${page}` : ""}`,
-    timeoutMs: JOB_TIMEOUT_MS.pdf,
+    ...rendererJob(
+      "pdfPage",
+      `?max=${MAX_RENDER_DIMENSION}${page > 1 ? `&page=${page}` : ""}`
+    ),
   });
   const size = result.manifest.page as Record<string, unknown> | undefined;
   const width = positiveInteger(size?.width, MAX_IMAGE_SIDE);
@@ -289,8 +290,10 @@ export const extractPdfTextViaRenderer = async (
       outputs: {
         text: { kind: "text", maxBytes: MAX_PDF_TEXT_BYTES, required: false },
       },
-      path: `/pdf/text?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`,
-      timeoutMs: JOB_TIMEOUT_MS.pdf,
+      ...rendererJob(
+        "pdfText",
+        `?maxPages=${MAX_PDF_TEXT_PAGES}&maxChars=${FILES_EXTRACTED_TEXT_MAX_CHARACTERS}`
+      ),
     });
   } catch (error) {
     if (error instanceof RendererDeclined) {
@@ -364,8 +367,10 @@ const convertForWhisper = async (
       outputs: {
         whisper: { kind: "mp3", maxBytes: MAX_WHISPER_BYTES, required: true },
       },
-      path: `/audio?peaks=${FILES_WAVEFORM_BARS.grid}&whisper=always`,
-      timeoutMs: JOB_TIMEOUT_MS.audio,
+      ...rendererJob(
+        "audio",
+        `?peaks=${FILES_WAVEFORM_BARS.grid}&whisper=always`
+      ),
     });
     return result.parts.get("whisper") ?? null;
   } catch (error) {
@@ -431,8 +436,10 @@ export const processAudio = async (
     outputs: {
       whisper: { kind: "mp3", maxBytes: MAX_WHISPER_BYTES, required: false },
     },
-    path: `/audio?peaks=${FILES_WAVEFORM_BARS.grid},${FILES_WAVEFORM_BARS.detail}&whisper=${params.transcribe ? "auto" : "never"}`,
-    timeoutMs: JOB_TIMEOUT_MS.audio,
+    ...rendererJob(
+      "audio",
+      `?peaks=${FILES_WAVEFORM_BARS.grid},${FILES_WAVEFORM_BARS.detail}&whisper=${params.transcribe ? "auto" : "never"}`
+    ),
   });
   const facts = readMediaFacts(result.manifest.facts);
   const peaks = readWaveform(result.manifest.peaks);

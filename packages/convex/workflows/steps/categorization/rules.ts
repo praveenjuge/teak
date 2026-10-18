@@ -20,16 +20,13 @@ import {
   mergeFacts,
   pickFields,
 } from "./enrichment";
+import type { ProviderEnrichmentResult } from "./providers/common";
 import { enrichProvider, providerSupportsCategory } from "./providers/index";
 import {
   fillFacts,
   type RemoteDetails,
   type RemoteLookupInput,
 } from "./remote/index";
-
-// What kind of thing a link is (a recipe, a repo, a product) and the facts
-// its page states, from the URL, the preview and the page's JSON-LD. Pure:
-// the Files Worker's categorization step and Convex's Clef backfill share it.
 
 const PREVIEW_HINT_CONFIDENCE = 0.95;
 const STRUCTURED_DATA_MAX_ITEMS = 8;
@@ -141,8 +138,6 @@ export const classifyLinkCategory = (
     title: linkPreview?.title || linkPreview?.description,
   });
 
-  // A post confirmed by its site's API (a Mastodon status on any instance,
-  // say) outranks what the URL alone suggests.
   const hint = linkPreview?.categoryHint;
   if (typeof hint === "string" && isLinkCategory(hint)) {
     return {
@@ -216,10 +211,14 @@ const enrichmentSourceUrl = (card: CategorizationContextCard): string => {
   return card.url || linkPreview?.finalUrl || linkPreview?.url || "";
 };
 
-/**
- * What the remote layer needs to pick a site and ask it about the link: the
- * page's scraped tags and its JSON-LD (read this run, else stored).
- */
+const linkCategoryStoredFor = (
+  card: CategorizationContextCard,
+  sourceUrl: string
+) => {
+  const linkCategory = card.metadata?.linkCategory;
+  return linkCategory?.sourceUrl === sourceUrl ? linkCategory : undefined;
+};
+
 export const remoteLookupInput = (
   card: CategorizationContextCard,
   classification: CategoryClassificationResult,
@@ -230,12 +229,7 @@ export const remoteLookupInput = (
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
-  // JSON-LD stored for another URL describes another page.
-  const linkCategory = card.metadata?.linkCategory;
-  const stored =
-    linkCategory?.sourceUrl === sourceUrl
-      ? linkCategory.raw?.structured
-      : undefined;
+  const stored = linkCategoryStoredFor(card, sourceUrl)?.raw?.structured;
   return {
     category: classification.category,
     entities: structuredData?.entities ?? (stored ? [stored] : []),
@@ -247,7 +241,36 @@ export const remoteLookupInput = (
 
 type StoredRemoteDetails = RemoteDetails & { sourceUrl: string };
 
-/** Site details an earlier pass stored for this same URL. */
+type StructuredSource =
+  | {
+      kind: "read_this_run";
+      enriched: ProviderEnrichmentResult;
+      meta: StructuredDataResult["meta"];
+    }
+  | { kind: "reread_without_self"; meta: StructuredDataResult["meta"] }
+  | { kind: "stored_from_earlier_pass"; structured: unknown }
+  | { kind: "none" };
+
+const structuredSourceFor = (
+  category: LinkCategory,
+  structured: StructuredDataResult | null,
+  raw: Record<string, unknown> | undefined
+): StructuredSource => {
+  const enriched = structured?.entities?.length
+    ? enrichWithStructuredData(category, structured.entities)
+    : null;
+  if (enriched) {
+    return { kind: "read_this_run", enriched, meta: structured?.meta };
+  }
+  if (structured) {
+    return { kind: "reread_without_self", meta: structured.meta };
+  }
+  if (raw?.structured) {
+    return { kind: "stored_from_earlier_pass", structured: raw.structured };
+  }
+  return { kind: "none" };
+};
+
 const storedRemoteDetails = (
   raw: Record<string, unknown> | undefined,
   sourceUrl: string
@@ -264,13 +287,7 @@ export const enrichLinkCategory = (
   card: CategorizationContextCard,
   classification: CategoryClassificationResult,
   options: {
-    /**
-     * What the link's site said this run (Wikipedia, arXiv, Spotify, Apple
-     * Music, Open Library). Null or absent keeps what an earlier pass
-     * stored, so a site that is down never takes facts away.
-     */
     remote?: RemoteDetails | null;
-    /** JSON-LD read from the page this run; null or absent when not read. */
     structuredData?: StructuredDataResult | null;
   } = {}
 ): LinkCategoryMetadata => {
@@ -322,13 +339,14 @@ export const enrichLinkCategory = (
     };
   }
 
-  const structured = options.structuredData ?? null;
-
   let structuredPrice: LinkPrice | undefined;
-  const enriched = structured?.entities?.length
-    ? enrichWithStructuredData(classification.category, structured.entities)
-    : null;
-  if (enriched) {
+  const structured = structuredSourceFor(
+    classification.category,
+    options.structuredData ?? null,
+    raw
+  );
+  if (structured.kind === "read_this_run") {
+    const { enriched } = structured;
     if (enriched.imageUrl && !imageUrl) {
       imageUrl = enriched.imageUrl;
     }
@@ -337,20 +355,16 @@ export const enrichLinkCategory = (
     raw = {
       ...(raw ?? {}),
       structured: enriched.raw,
-      structuredMeta: structured?.meta,
+      structuredMeta: structured.meta,
     };
-  } else if (structured) {
-    // The page was read again and no longer describes itself, so what an
-    // earlier pass stored (a price the shop removed, say) is dropped.
+  } else if (structured.kind === "reread_without_self") {
     if (raw && "structured" in raw) {
-      const { structured: _stale, ...rest } = raw;
+      const { structured: _noLongerOnPage, ...rest } = raw;
       raw = { ...rest, structuredMeta: structured.meta };
     }
-  } else if (raw?.structured) {
-    // JSON-LD read on an earlier pass and not read again (skipped, or the
-    // fetch failed): its facts and price come from what was stored.
+  } else if (structured.kind === "stored_from_earlier_pass") {
     const stored = enrichWithStructuredData(classification.category, [
-      raw.structured,
+      structured.structured,
     ]);
     if (stored?.imageUrl && !imageUrl) {
       imageUrl = stored.imageUrl;
@@ -359,11 +373,10 @@ export const enrichLinkCategory = (
     structuredPrice =
       stored?.price ??
       (classification.category === "product"
-        ? (parseStructuredPrice(raw.structured) ?? undefined)
+        ? (parseStructuredPrice(structured.structured) ?? undefined)
         : undefined);
   }
 
-  // A site's own details fill what the page left out.
   const remote = options.remote ?? storedRemoteDetails(raw, sourceUrl);
   if (remote) {
     fillFacts(facts, remote.facts);
@@ -372,12 +385,10 @@ export const enrichLinkCategory = (
     }
     raw = { ...(raw ?? {}), remote: { ...remote, sourceUrl } };
   } else if (raw && "remote" in raw) {
-    // Stored for another URL: its summary mustn't feed this page's AI input.
-    const { remote: _stale, ...rest } = raw;
+    const { remote: _storedForOtherUrl, ...rest } = raw;
     raw = rest;
   }
 
-  // The page's JSON-LD states the price more reliably than its selectors.
   const price = structuredPrice ?? providerEnrichment?.price;
 
   const metadata: LinkCategoryMetadata = {
@@ -405,11 +416,7 @@ export const enrichLinkCategory = (
   return metadata;
 };
 
-// Clef review of the rules' category. The decision itself runs wherever the
-// caller is (a Worker step, a Convex action); these pieces are shared.
-
-/** Rule tiers Clef may overrule; domain and path rules are final. */
-const CLEF_REVIEWED_REASONS = new Set([
+export const CLEF_REVIEWED_REASONS = new Set([
   "provider_mapping",
   "heuristic",
   "fallback",
@@ -444,11 +451,6 @@ export const jsonLdTypesFrom = (...sources: unknown[]): string[] => {
   return [...types].slice(0, DECISION_TEXT_LIMITS.linkJsonLdTypes);
 };
 
-/**
- * The `decide-link-category` params for a category the resolver only guessed
- * (provider mapping, keyword or the `other` fallback), or null when the
- * rules' answer is final.
- */
 export const linkCategoryDecisionParams = (
   card: CategorizationContextCard,
   classification: CategoryClassificationResult,
@@ -481,17 +483,11 @@ export const linkCategoryDecisionParams = (
   };
 };
 
-/** Reads a `decide-link-category` reply; null keeps the rules. */
 export const readLinkCategoryReply = (
   data: unknown
 ): FilesLinkCategoryDecisionResult | null =>
   readLinkCategoryDecision(data, isLinkCategory);
 
-/**
- * Clef's category in place of the rules' guess. Without a decision the
- * rules' classification is returned unchanged (the same object). A provider
- * whose facts need the rules' category keeps it, so its facts survive.
- */
 export const applyLinkCategoryDecision = (
   classification: CategoryClassificationResult,
   result: FilesLinkCategoryDecisionResult | null

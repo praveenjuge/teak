@@ -22,21 +22,14 @@ const app = defineApp({
     WORKOS_ACTION_SECRET: v.optional(v.string()),
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
-    // This deployment's own secret for the Files Worker's workflow RPCs and
-    // dispatch proofs; `bun scripts/workflow-rpc-secret.ts` derives it.
     WORKFLOW_RPC_SECRET: v.optional(v.string()),
     R2_BUCKET: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),
-    // PostHog product analytics and error reports; set in production only.
-    // A validator for the env var name, not a token value.
     // nosemgrep: codacy.yaml.security.hard-coded-tokens
     POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
     POSTHOG_QUERY_API_KEY: v.optional(v.string()),
-    // Personal API key (person:write) that deletes a deleted owner's PostHog
-    // person, events and recordings. Required wherever POSTHOG_PROJECT_TOKEN
-    // is set, or account deletion retries until it is.
     POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),

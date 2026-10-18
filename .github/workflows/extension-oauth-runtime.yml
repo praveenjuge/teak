@@ -35,7 +35,6 @@ on:
 
 permissions:
   contents: read
-  # The e2e GitHub reporter posts the results on the pull request.
   pull-requests: write
 
 concurrency:

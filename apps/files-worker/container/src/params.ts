@@ -90,7 +90,6 @@ export function audioParams(query: URLSearchParams): AudioParams {
 
 export interface PdfPageParams {
   max: number;
-  /** The page to draw: the thumbnail is page 1, text reading goes to 3. */
   page: number;
 }
 

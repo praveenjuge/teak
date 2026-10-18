@@ -48,13 +48,6 @@ interface XSyndicationResponse {
   user?: XSyndicationUser;
 }
 
-// X posts share the social post shape (socialPost.ts); these names stay for
-// existing callers.
-export type {
-  SocialPostMedia as XStatusMedia,
-  SocialPostMetadata as XStatusMetadata,
-} from "./socialPost";
-
 export const isXHostname = (hostname: string): boolean =>
   X_HOSTNAMES.some(
     (candidate) => hostname === candidate || hostname.endsWith(`.${candidate}`)

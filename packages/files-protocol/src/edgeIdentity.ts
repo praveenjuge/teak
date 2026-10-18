@@ -1,18 +1,5 @@
-/**
- * The edge identity lookup: the Files Worker asks Convex which Teak user a
- * credential belongs to, so edge rate limits follow the user rather than the
- * credential or the client's address. The Worker never sends the API key
- * itself, only its SHA-256 hex digest, and sends a WorkOS user ID only after
- * it has verified the access token that carries it.
- *
- * Requests are signed with the shared files signing secret over a payload
- * that starts with its own label, so a signed Files op can never be replayed
- * as a lookup or the other way round.
- */
-
 export const EDGE_IDENTITY_PATH = "/edge/v1/identity" as const;
 
-/** Longest a signed lookup stays valid, in seconds. */
 export const EDGE_IDENTITY_MAX_TTL_SECONDS = 60;
 
 export type EdgeIdentityLookup =
@@ -27,7 +14,6 @@ export interface EdgeIdentityResult {
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 const WORKOS_USER_ID = /^user_[0-9A-Za-z]{1,64}$/u;
 
-/** The lookup in a request body, or null when the body is not exactly one valid lookup. */
 export const parseEdgeIdentityLookup = (
   value: unknown
 ): EdgeIdentityLookup | null => {
@@ -75,7 +61,6 @@ export const buildEdgeIdentitySigningPayload = ({
  */
 export const EDGE_RATE_LIMIT_HEADER = "x-teak-edge-rate-limit" as const;
 
-/** Longest an attestation stays valid, in seconds. */
 export const EDGE_RATE_LIMIT_MAX_TTL_SECONDS = 60;
 
 export const buildEdgeRateLimitSigningPayload = ({

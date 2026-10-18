@@ -52,8 +52,14 @@ export const workflowBinding = (
   }
 };
 
+/** Workflows' `get` throws for an ID it has no instance for. */
+export const isMissingInstance = (error: unknown): boolean =>
+  /not[\s._-]?found|does not exist/iu.test(
+    error instanceof Error ? error.message : String(error)
+  );
+
 /** createBatch reports an ID that already exists, or repeats, with these. */
-const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
+export const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
 
 const parseItem = (value: unknown): DispatchItem | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -150,7 +156,6 @@ const hasValidDispatchProof = async (
   );
 };
 
-/** Stops replaced runs; an instance that is gone or already ended is fine. */
 const terminateInstances = async (binding: Workflow, ids: string[]) => {
   await Promise.all(
     ids.map(async (id) => {
@@ -164,17 +169,11 @@ const terminateInstances = async (binding: Workflow, ids: string[]) => {
         ) {
           await instance.terminate();
         }
-      } catch {
-        // Missing or already finished; the revision guard covers the rest.
-      }
+      } catch {}
     })
   );
 };
 
-/**
- * Starts workflow instances and queues object deletions for Convex. Each
- * item succeeds or fails on its own; Convex sends the failures again.
- */
 export const runDispatch = async (
   env: WorkflowBindingsEnv,
   params: Record<string, unknown>,

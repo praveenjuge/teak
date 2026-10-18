@@ -12,12 +12,6 @@ import {
 } from "../telemetry";
 import type { CardJob } from "./context";
 
-/**
- * Clef decisions inside card-processing steps. The decision ops own their
- * prompts and thresholds; this only sends the inputs, honours the owner's AI
- * gate, charges the call to the owner and swallows every failure: `null`
- * means keep the rules' answer, so a decision never fails a card.
- */
 export const CARD_PROCESSING_DECISION_TIMEOUT_MS = 3000;
 
 export type DecisionOp = Extract<
@@ -55,7 +49,6 @@ export const runDecision = async <T>(
     op: DecisionOp;
     params: Record<string, unknown>;
     read: (data: unknown) => T | null;
-    /** The step's batch; without one, the decision sends its own. */
     telemetry?: WorkflowTelemetry;
     timeoutMs?: number;
     userId: string | undefined;
@@ -94,8 +87,6 @@ export const runDecision = async <T>(
           return result;
         }
       );
-    // Counted in the owner's daily AI usage. Inside a step that already
-    // charges its owner (metadata), the call adds to that.
     const metered = (batch: WorkflowTelemetry) =>
       currentAiUsageContext()
         ? decide(batch)

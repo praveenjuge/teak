@@ -1,11 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
-import type {
-  CreateCardInput,
-  UpdateCardInput as SdkUpdateCardInput,
-} from "teak-sdk";
 import {
   buildCardsSearchParams,
+  type CreateCardInput,
+  type UpdateCardInput,
+} from "teak-sdk";
+import {
   RaycastApiError,
   type RaycastApiErrorCode,
   toErrorCode,
@@ -34,7 +34,6 @@ import { grandfatheredApiKey } from "./preferences";
 import type { RaycastCardType, RaycastSort } from "./searchFilters";
 
 export {
-  buildCardsSearchParams,
   getRecoveryHint,
   getUserFacingErrorMessage,
   RaycastApiError,
@@ -66,12 +65,7 @@ export interface CardSearchInput {
 
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
-export type { CreateCardInput } from "teak-sdk";
-
-// teak-sdk 1.0.81 predates removing Teak's own tags on update.
-export interface UpdateCardInput extends SdkUpdateCardInput {
-  removeAiTags?: string[];
-}
+export type { CreateCardInput, UpdateCardInput } from "teak-sdk";
 
 const getErrorCodeFromResponse = (
   payloadCode: string | undefined,
@@ -157,9 +151,7 @@ interface ResolvedBearer {
   token: string;
 }
 
-// "prompt" may open the browser sign-in overlay; "stored" uses only a saved,
-// refreshable session, for commands and AI tools that run without a view.
-export type AuthMode = "prompt" | "stored";
+export type AuthMode = "interactive" | "silent";
 
 const resolveBearerToken = async (auth: AuthMode): Promise<ResolvedBearer> => {
   const apiKey = grandfatheredApiKey();
@@ -169,7 +161,7 @@ const resolveBearerToken = async (auth: AuthMode): Promise<ResolvedBearer> => {
 
   try {
     const accessToken =
-      auth === "stored"
+      auth === "silent"
         ? await getStoredTeakAccessToken()
         : await authorizeTeak();
     if (!accessToken) {
@@ -257,7 +249,7 @@ export const request = async <T>(
   if (
     response.status === 401 &&
     bearer.source === "oauth" &&
-    auth === "prompt"
+    auth === "interactive"
   ) {
     let refreshedToken: string;
     try {
@@ -512,9 +504,7 @@ export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-// The upload link comes from the Teak API. Send files only to a web address,
-// so a bad response can't point the upload at another scheme or local host.
-const uploadUrl = (url: string): URL => {
+const requireWebUrl = (url: string): URL => {
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
@@ -549,7 +539,7 @@ export const saveFileCard = async (
     auth,
   );
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const uploaded = await fetch(uploadUrl(upload.uploadUrl), {
+  const uploaded = await fetch(requireWebUrl(upload.uploadUrl), {
     body: await readFile(filePath),
     headers: {
       "Content-Length": String(fileSize),

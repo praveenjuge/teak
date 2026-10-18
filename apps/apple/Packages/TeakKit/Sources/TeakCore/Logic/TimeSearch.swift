@@ -1,15 +1,7 @@
 import Foundation
 
-/// A created-at range in epoch milliseconds: `start` inclusive, `end` exclusive.
-public struct CreatedAtRange: Hashable, Sendable {
-    public let start: Double
-    public let end: Double
-
-    public init(start: Double, end: Double) {
-        self.start = start
-        self.end = end
-    }
-}
+public typealias EpochMillis = Double
+public typealias CreatedAtRange = Range<EpochMillis>
 
 public struct TimeFilter: Hashable, Sendable {
     public let label: String
@@ -33,7 +25,6 @@ public enum TimeSearch {
         "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7, "august": 8, "aug": 8, "september": 9,
         "sep": 9, "sept": 9, "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12, "dec": 12,
     ]
-    /// Bare month names. Three-letter abbreviations stay text searches.
     private static let fullMonths: Set<String> = [
         "january", "february", "march", "april", "may", "june", "july", "august", "september", "sept",
         "october", "november", "december",
@@ -79,8 +70,7 @@ public enum TimeSearch {
     }
 
     private static func range(_ start: Date, _ end: Date) -> CreatedAtRange {
-        CreatedAtRange(start: (start.timeIntervalSince1970 * 1000).rounded(),
-                       end: (end.timeIntervalSince1970 * 1000).rounded())
+        (start.timeIntervalSince1970 * 1000).rounded()..<(end.timeIntervalSince1970 * 1000).rounded()
     }
 
     private static func single(_ query: String, today: Date, calendar: Calendar) -> DayRange? {

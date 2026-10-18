@@ -7,7 +7,19 @@ public protocol CredentialLock: Sendable {
     func withLock<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T
     /// Changes on every sign-out, so a refresh that started before it never saves.
     func epoch() -> String
-    func advanceEpoch()
+    func invalidatePendingSaves()
+}
+
+extension CredentialLock {
+    func isCurrent(_ epoch: String) -> Bool { self.epoch() == epoch }
+
+    func saveUnlessSignedOut(since epoch: String, _ save: @escaping @Sendable () throws -> Void) async throws -> Bool {
+        try await withLock {
+            guard self.isCurrent(epoch) else { return false }
+            try save()
+            return true
+        }
+    }
 }
 
 /// An exclusive `flock` on a file in the app group container, held only while
@@ -55,7 +67,7 @@ public struct FileCredentialLock: CredentialLock {
         (try? String(contentsOf: epochURL, encoding: .utf8)) ?? ""
     }
 
-    public func advanceEpoch() {
+    public func invalidatePendingSaves() {
         try? Data(UUID().uuidString.utf8).write(to: epochURL, options: .atomic)
     }
 }
@@ -73,8 +85,6 @@ private final class LockHold: @unchecked Sendable {
     private var cancel: (@Sendable () -> Void)?
     private var expired = false
 
-    /// Tries the `flock` once. Taking and recording it is one step, so expiry
-    /// either sees the lock it must give back or stops it from being taken.
     func lock(_ descriptor: Int32) -> Attempt {
         mutex.withLock {
             guard !expired else { return .failed }

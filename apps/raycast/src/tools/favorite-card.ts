@@ -14,7 +14,7 @@ export default async function tool(input: Input) {
     throw new Error("cardId is required");
   }
 
-  const updated = await setCardFavorite(cardId, input.isFavorited, "stored");
+  const updated = await setCardFavorite(cardId, input.isFavorited, "silent");
 
   return {
     appUrl: updated.appUrl,

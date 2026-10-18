@@ -590,7 +590,6 @@ test("a network failure reads the same in every browser", async () => {
   ]) {
     const offline = (() =>
       Promise.reject(new TypeError(message))) as unknown as typeof fetch;
-    // The API alone, then discovery and the token endpoint as well.
     for (const transport of [withDiscovery(offline), offline]) {
       globalThis.fetch = transport;
       const auth = await load();

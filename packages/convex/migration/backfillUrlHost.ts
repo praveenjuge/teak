@@ -14,22 +14,11 @@ const totalsValidator = v.object({
   skippedDeletingAccounts: v.number(),
 });
 
-/**
- * Sets `urlHost` on every card with a URL, and on its search document, for
- * cards saved before `site:` existed (new writes keep it through the search
- * sync). A dry run (the default) writes nothing and reports what a real run
- * would change. Each batch schedules the next until the table is done, and
- * the last one logs the totals.
- *
- *   npx convex run migration/backfillUrlHost:backfillUrlHost
- *   npx convex run migration/backfillUrlHost:backfillUrlHost '{"dryRun":false}'
- */
 export const backfillUrlHost = internalMutation({
   args: {
     cursor: v.optional(v.union(v.string(), v.null())),
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
-    /** Stop after this batch instead of scheduling the next. */
     once: v.optional(v.boolean()),
     totals: v.optional(totalsValidator),
   },

@@ -10,7 +10,6 @@ import { probeMedia } from "./probe";
 
 export type WhisperPlan = "native" | "converted" | "skipped";
 
-/** MP3 and PCM go to Workers AI as they are; anything else is converted. */
 export function whisperPlan(
   mode: WhisperMode,
   audioCodec: string | null

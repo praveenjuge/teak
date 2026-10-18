@@ -1,4 +1,7 @@
-import { buildFileSigningPayload } from "@teak/files-protocol";
+import {
+  buildFileSigningPayload,
+  FILES_OP_MAX_TTL_SECONDS,
+} from "@teak/files-protocol";
 
 export type ParsedRange =
   | { kind: "offset"; offset: number; length?: number }
@@ -168,8 +171,6 @@ export const verifyBodySignature = async (
     ? { ok: true }
     : { ok: false, status: 403 };
 };
-
-export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
 
 export type FileRequestVerification =
   | { ok: true }

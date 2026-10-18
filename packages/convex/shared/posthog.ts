@@ -4,12 +4,6 @@ import {
   scrubTelemetryValue,
 } from "./telemetry";
 
-/**
- * Dependency-free PostHog capture for surfaces that must not load an SDK:
- * Convex functions, the files worker, the browser extension, and Next.js
- * server hooks. Pure on purpose: no Node, DOM, or Convex runtime imports.
- */
-
 export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
@@ -35,13 +29,11 @@ export interface PostHogCaptureInput {
   distinctId?: string;
   event: string;
   properties?: PostHogProperties;
-  /** Person properties, sent unscrubbed: they carry the account email. */
   set?: PostHogProperties;
 }
 
 export interface PostHogExceptionInput {
   distinctId?: string;
-  /** Whether the app caught the error itself (true) or it escaped (false). */
   handled?: boolean;
   properties?: PostHogProperties;
 }
@@ -198,10 +190,8 @@ export const buildExceptionProperties = (
 export interface PostHogBatchOptions {
   fetch?: typeof fetch;
   host?: string;
-  /** Sent as `$lib` so dashboards can split events by surface. */
   lib: string;
   libVersion?: string;
-  /** Stack frame platform, for example `node:javascript` or `web:javascript`. */
   platform?: string;
   timeoutMs?: number;
   token: string | undefined;
@@ -211,15 +201,10 @@ export interface PostHogBatch {
   capture: (input: PostHogCaptureInput) => void;
   captureException: (error: unknown, input?: PostHogExceptionInput) => void;
   readonly enabled: boolean;
-  /** Sends every queued event in one request. Never throws. */
   flush: () => Promise<boolean>;
   readonly size: number;
 }
 
-/**
- * Queues events and sends them as one `/batch/` request per unit of work.
- * Without a token every call is a no-op and nothing is ever fetched.
- */
 export const createPostHogBatch = (
   options: PostHogBatchOptions
 ): PostHogBatch => {

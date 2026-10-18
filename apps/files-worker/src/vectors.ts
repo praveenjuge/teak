@@ -277,11 +277,6 @@ export const vectorGet = async (
   };
 };
 
-/**
- * The cards closest to one card, by its stored vector: no Workers AI call.
- * The vector must be in the caller's namespace, so one user can never search
- * with (or learn about) another user's card.
- */
 export const vectorSimilar = async (
   env: FilesOpsEnv,
   { id, namespace, shard, topK }: FilesVectorSimilarParams
@@ -296,7 +291,6 @@ export const vectorSimilar = async (
     namespace,
     returnMetadata: "none",
     returnValues: false,
-    // The card itself is the closest match; ask for one more.
     topK: Math.min(topK + 1, VECTOR_QUERY_MAX_TOP_K),
   });
   return {

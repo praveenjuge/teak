@@ -126,7 +126,7 @@ export const saveFilesWithFeedback = async (
       toast.message = `${index + 1} of ${paths.length}`;
     }
     try {
-      saved.push(await saveFileCard(path, { source }, "stored"));
+      saved.push(await saveFileCard(path, { source }, "silent"));
     } catch (error) {
       lastError = error;
     }
@@ -159,7 +159,7 @@ export const saveFilesWithFeedback = async (
 export const showIfAlreadySaved = async (url: string): Promise<boolean> => {
   let cardId: string | null = null;
   try {
-    cardId = await findSavedCardId(url, "stored");
+    cardId = await findSavedCardId(url, "silent");
   } catch {
     return false;
   }
@@ -191,7 +191,7 @@ export const saveCardWithFeedback = async (
   });
 
   try {
-    const result = await createCard(input, "stored");
+    const result = await createCard(input, "silent");
 
     const appUrl = result.appUrl;
     if (appUrl) {

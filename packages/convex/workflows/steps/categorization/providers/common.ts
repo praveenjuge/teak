@@ -3,7 +3,6 @@ import type { LinkCategoryDetail, LinkPrice } from "@teak/convex/shared";
 export interface ProviderEnrichmentResult {
   facts?: LinkCategoryDetail[];
   imageUrl?: string;
-  /** A product's price, when the page states one. */
   price?: LinkPrice;
   raw?: Record<string, unknown>;
 }

@@ -128,7 +128,6 @@ async function authorize(
     state,
   }).toString();
   let callback: URL | undefined;
-  // The redirect URI and anything after it; the URI has no glob characters.
   const callbackRoute = `${redirectUri}*`;
   await browser.route(callbackRoute, async (route) => {
     callback = new URL(route.request.url);

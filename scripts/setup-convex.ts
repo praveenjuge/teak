@@ -26,7 +26,6 @@ export const readConvexDotenvUrls = (
   };
 };
 
-/** Reads one deployment variable. The value is returned, never logged. */
 export const readDeploymentVar = async (
   name: string,
   cwd: string = convexProjectDir()
@@ -61,7 +60,6 @@ export const readDeploymentVar = async (
   }
 };
 
-/** Every deployment variable, read with one CLI call. Values are never logged. */
 export const listDeploymentVars = async (
   cwd: string = convexProjectDir()
 ): Promise<

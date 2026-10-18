@@ -3,13 +3,7 @@ import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildWorkflowRpcSecretPayload } from "@teak/files-protocol";
-import type { WorktreePorts } from "../../../../scripts/worktree-env.ts";
-import {
-  filesWorkerOrigin,
-  filesWorkerPort,
-  type StackPorts,
-  stackUrls,
-} from "./config";
+import { filesWorkerOrigin, type StackPorts, stackUrls } from "./config";
 
 // The Files Worker on the E2E stack: `wrangler dev` in local mode, with
 // Workflows, Queues, R2, KV, Durable Objects and Analytics Engine emulated by
@@ -23,21 +17,17 @@ const ROOT = join(import.meta.dir, "../../../..");
 const WORKER_DIR = join(ROOT, "apps/files-worker");
 const STATE_DIR = join(ROOT, ".agents/.state/e2e-files-worker");
 
-/** Test-only; shared with the local backend's FILES_SIGNING_SECRET. */
 export const E2E_FILES_SIGNING_SECRET =
   "teak-e2e-files-signing-secret-local-only-0001";
 
-/** Test-only; the Worker derives the local backend's RPC secret from it. */
 export const E2E_WORKFLOW_RPC_ROOT_SECRET =
   "teak-e2e-workflow-rpc-root-secret-local-only-0001";
 
-/** The workflow RPC secret the Worker expects from the deployment at `origin`. */
 export const e2eWorkflowRpcSecret = (origin: string) =>
   createHmac("sha256", E2E_WORKFLOW_RPC_ROOT_SECRET)
     .update(buildWorkflowRpcSecretPayload(origin))
     .digest("hex");
 
-/** Backend variables that point the local Convex backend at this Worker. */
 export const filesWorkerDeploymentVars = (ports: StackPorts) => ({
   FILES_BASE: filesWorkerOrigin(ports),
   FILES_SIGNING_SECRET: E2E_FILES_SIGNING_SECRET,
@@ -66,12 +56,9 @@ const QUEUE_ROLES = [
 
 const queueName = (role: string) => `teak-e2e-${role}`;
 
-/** The two Wrangler configs the E2E stack runs, as plain data. */
-export const filesWorkerConfigs = (
-  ports: Pick<WorktreePorts, "convexSite" | "emulator" | "web">
-) => {
+export const filesWorkerConfigs = (ports: StackPorts) => {
   const compatibilityDate = readCompatibilityDate();
-  const urls = stackUrls(ports as WorktreePorts);
+  const urls = stackUrls(ports);
   const worker = {
     name: "teak-files-e2e",
     main: join(WORKER_DIR, "src/index.ts"),
@@ -166,11 +153,7 @@ export const filesWorkerConfigs = (
       FILES_PUBLIC_ORIGIN: filesWorkerOrigin(ports),
       FILES_SIGNING_SECRET: E2E_FILES_SIGNING_SECRET,
       WORKFLOW_RPC_ROOT_SECRET: E2E_WORKFLOW_RPC_ROOT_SECRET,
-      // `localhost` is the public site here: its /api and /mcp proxy to the
-      // local backend. Files use 127.0.0.1, which the proxy leaves alone
-      // (any other path on the API host is forwarded to its origin, which
-      // would be this Worker again).
-      API_PUBLIC_HOST: "localhost",
+      API_PUBLIC_HOST: new URL(urls.appOrigin).hostname,
       API_UPSTREAM_ORIGIN: urls.apiOrigin,
       MEDIA_RENDERER_INSTANCES: "1",
       LINK_FETCHER_INSTANCES: "1",
@@ -189,12 +172,8 @@ export interface RunningFilesWorker {
   origin: string;
 }
 
-/**
- * Starts the Worker with fresh local state (R2, queues, workflow instances)
- * so each stack run is hermetic. The caller owns the process group.
- */
 export const startFilesWorker = (
-  ports: Pick<WorktreePorts, "convexSite" | "emulator" | "web">,
+  ports: StackPorts,
   log: NodeJS.WritableStream
 ): RunningFilesWorker => {
   rmSync(STATE_DIR, { force: true, recursive: true });
@@ -217,9 +196,9 @@ export const startFilesWorker = (
       "--ip",
       "127.0.0.1",
       "--port",
-      String(filesWorkerPort(ports)),
+      String(ports.filesWorker),
       "--inspector-port",
-      String(filesWorkerPort(ports) + 1),
+      String(ports.filesWorkerInspector),
       "--persist-to",
       join(STATE_DIR, "state"),
       "--show-interactive-dev-session=false",

@@ -4,7 +4,6 @@ const signInButton = document.getElementById("sign-in");
 const retryButton = document.getElementById("retry");
 const signOutButton = document.getElementById("sign-out");
 
-// Native feedback is always shown as plain text.
 const setState = (state, nextTitle, nextMessage) => {
   document.body.dataset.state = state;
   title.textContent = nextTitle;

@@ -10,15 +10,9 @@ import {
   handleWorkosEventsDeadLetters,
 } from "./workosEvents";
 
-/** The queue a batch came from, without its `teak-`, `teak-dev-` or `teak-e2e-` prefix. */
 export const queueRole = (queue: string): string =>
   queue.replace(/^teak-(?:dev-|e2e-)?/u, "");
 
-/**
- * Routes each consumer batch (wrangler.jsonc `queues.consumers`) to its
- * handler. Unknown queues are acknowledged and logged, so a stray binding
- * cannot retry forever.
- */
 export const handleQueueBatch = (
   batch: MessageBatch<unknown>,
   env: BackgroundEnv,

@@ -10,32 +10,19 @@ import { type FilesOpsEnv, runFilesOp } from "../ops";
 import { retryingReads } from "../r2Retry";
 
 /**
- * Workflow steps run Files ops in-process, with the same contract Convex's
- * `callFilesWorkerJson` gives them over HTTP, so ported step code keeps its
- * fallback and retry behavior:
- * - ok: the op succeeded
- * - fallback: the op deliberately declined (missing source, too large,
- *   unsupported, or one of `fallbackCodes`)
- *
- * Everything else throws: `files_worker_ai: rate limit reached 429` and
- * `files_worker_ai: failed to validate JSON` for the AI codes, otherwise
- * `files_worker_error:<CODE>:<status>:<requestId>`, so step retries apply.
+ * An op that neither succeeds nor declines throws, so step retries apply.
+ * An error that leaves `step.do` keeps its name and message but not its
+ * class, so the code travels in the message:
+ * `files_worker_ai: rate limit reached 429`,
+ * `files_worker_ai: failed to validate JSON`, or
+ * `files_worker_error:<CODE>:<status>:<requestId>`.
  */
 export type FilesOpOutcome<T> =
   | { kind: "ok"; data: T }
   | { kind: "fallback"; code: FilesErrorCode; message: string };
 
-/**
- * In-process ops still need the Worker's public origin: large images are
- * transformed by URL through this Worker's own image-source route.
- */
 const DEFAULT_PUBLIC_ORIGIN = "https://files.teakvault.com";
 
-/**
- * The env an op sees over HTTP: writes pass the object deletion gates, so
- * account deletion's freeze fences them, and reads retry. Workflows writing
- * to the bucket directly use it too. Without gates (tests) it is unchanged.
- */
 export const gatedEnv = <Env extends FilesOpsEnv>(env: Env): Env =>
   env.OBJECT_GATES
     ? {

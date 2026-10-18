@@ -18,13 +18,9 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
-  /** Lists the cards closest in meaning to a card. */
   onMoreLikeThis?: (cardId: string) => void;
-  /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
-  /** Shows another card, such as the document Save PDF made. */
   onOpenCard?: (cardId: string) => void;
-  /** Shows the previous card in the grid; absent on the first card. */
   onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;

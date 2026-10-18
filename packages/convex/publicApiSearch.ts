@@ -1,9 +1,3 @@
-/**
- * Search, filter, sort and page-scan helpers behind the public API's card
- * listings (`publicApi.ts`); the Raycast endpoints (`raycast.ts`) share the
- * normalizers. This module registers no Convex functions.
- */
-
 import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -83,35 +77,27 @@ export interface SearchOptions {
   archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
-  /** `is:done`: only cards marked done. */
   done?: boolean;
   favorited?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
   hexFilters?: string[];
   hueFilters?: string[];
-  /** The search names a reserved tag, so hidden cards are in it. */
   includeHidden?: boolean;
-  /** Best match: keep the search's own order instead of sorting by date. */
   keepSearchOrder?: boolean;
   limit?: number;
-  /** `text:` values: each must be in a card's image text (`aiOcrText`). */
   ocrTexts?: string[];
   phrases?: string[];
-  /** `price:` bounds a card's link price must all meet. */
   prices?: PriceBound[];
   searchQuery?: string;
-  /** Meaning matches to fuse with the keyword ones, and how. */
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
-  /** `like:` or `mood:`: list only these meaning matches. */
   similarity?: { similarity: SearchSimilarity; ranking: SemanticRanking };
   sites?: string[];
   sort?: ApiCardSort;
   styleFilters?: string[];
   tag?: string;
   tags?: string[];
-  /** `is:todo`: only actionable links that aren't done. */
   todo?: boolean;
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
@@ -261,7 +247,6 @@ export const matchesStructuredFilters = (
     return false;
   }
 
-  // Only links can be done, whatever types the caller asked for.
   if (
     (options.done || options.todo) &&
     (card.type !== "link" ||
@@ -362,7 +347,6 @@ export const searchCardsByQuery = async (
     includeHidden: options.includeHidden,
   };
   const { semantic } = options;
-  // Semantic mode reads only meaning matches once it has them.
   const keywordSearch = semantic?.mode !== "semantic";
   const found: Doc<"cards">[][] = [];
   for (const type of keywordSearch ? typeGroups : []) {
@@ -379,8 +363,6 @@ export const searchCardsByQuery = async (
       found.push(await searchCardsByDocument(ctx, read));
       continue;
     }
-    // `text:` reads the image-text index; plain words beside it read their
-    // own, and a card must be in both.
     const imageMatches = await searchCardsByOcrText(ctx, {
       ...read,
       searchQuery: ocrText,
@@ -409,8 +391,6 @@ export const searchCardsByQuery = async (
     };
   }
 
-  // Fusion picks which cards are in the set; the sort orders it. Each type
-  // group is in relevance order, so they interleave by rank.
   const keywordOrder: Id<"cards">[] = [];
   const longest = Math.max(0, ...found.map((group) => group.length));
   for (let rank = 0; rank < longest; rank += 1) {
@@ -569,7 +549,6 @@ export const normalizeCardsQueryOptions = (args: {
   return normalized;
 };
 
-/** A `price:` bound from `q` (shared/search/qualifiers.ts). */
 export const priceBoundValidator = v.object({
   op: v.union(
     v.literal("<"),
@@ -581,15 +560,9 @@ export const priceBoundValidator = v.object({
   amount: v.number(),
 });
 
-/**
- * A search's meaning matches, which the HTTP handler fetched first (queries
- * cannot call the vector service), and the search mode. Without a ranking a
- * search is keyword-only, whatever the mode.
- */
 export const semanticSearchArgs = {
   semanticRanking: v.optional(semanticRankingValidator),
   mode: v.optional(searchModeValidator),
-  /** With `semanticRanking`, a `like:` or `mood:` search: list only those. */
   similarity: v.optional(
     v.union(
       v.object({ kind: v.literal("like"), cardId: v.string() }),
@@ -752,9 +725,6 @@ export const scanCardsWithBaseQuery = async (
     throw invalidCursorError();
   }
   if (options.folderId) {
-    if (decodedCursor.mode === "index") {
-      throw invalidCursorError();
-    }
     return scanFolderCards(
       ctx,
       { ...options, folderId: options.folderId },
@@ -766,14 +736,8 @@ export const scanCardsWithBaseQuery = async (
   const sort = normalizeSort(options.sort);
   const anchor =
     decodedCursor.mode === "list" ? decodedCursor.anchor : undefined;
-  let pageCursor: string | null = null;
-  if (decodedCursor.mode === "list") {
-    pageCursor = decodedCursor.page ?? null;
-  } else if (decodedCursor.mode === "index") {
-    pageCursor = decodedCursor.cursor;
-  }
-  const pageOffset =
-    decodedCursor.mode === "index" ? decodedCursor.pageOffset : 0;
+  const pageCursor =
+    decodedCursor.mode === "list" ? (decodedCursor.page ?? null) : null;
 
   let page: PaginationResult<Doc<"cards">>;
   try {
@@ -789,7 +753,6 @@ export const scanCardsWithBaseQuery = async (
   }
   const matches: Doc<"cards">[] = [];
   const itemCursors: string[] = [];
-  let filteredIndex = 0;
 
   for (const card of page.page) {
     if (
@@ -799,13 +762,6 @@ export const scanCardsWithBaseQuery = async (
       continue;
     }
 
-    // Legacy index cursors skip the matches they already served.
-    if (filteredIndex < pageOffset) {
-      filteredIndex += 1;
-      continue;
-    }
-
-    filteredIndex += 1;
     matches.push(card);
     itemCursors.push(
       encodeCursor({ mode: "list", anchor: listAnchorOf(card) })
@@ -827,11 +783,6 @@ export const scanCardsWithBaseQuery = async (
   };
 };
 
-/**
- * One page of a Best match search. The order is the search's own, scored
- * first when scores are given; the cursor carries whether it was scored, so
- * a pagination never switches order between pages.
- */
 export const relevancePage = async (
   ctx: QueryCtx,
   userId: TeakUserId,

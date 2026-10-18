@@ -46,6 +46,13 @@ function DialogOverlay({
   );
 }
 
+function isInsideToaster(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("[data-sonner-toaster]") !== null
+  );
+}
+
 function DialogContent({
   className,
   children,
@@ -77,11 +84,7 @@ function DialogContent({
         )}
         data-slot="dialog-content"
         onInteractOutside={(event) => {
-          // A toast's action, such as Undo, is used without closing the dialog.
-          if (
-            event.target instanceof Element &&
-            event.target.closest("[data-sonner-toaster]")
-          ) {
+          if (isInsideToaster(event.target)) {
             event.preventDefault();
           }
           onInteractOutside?.(event);

@@ -50,6 +50,7 @@ import {
   attachGridFileUrls,
   ensureValidRange,
   isCreatedAtInRange,
+  linkPreviewImageFields,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
@@ -99,14 +100,7 @@ export const cardReturnValidator = v.object({
       })
     )
   ),
-  linkPreviewImageUrl: v.optional(v.string()),
-  /** linkPreviewImageUrl is an image someone chose for the link. */
-  hasThumbnailOverride: v.optional(v.literal(true)),
-  /**
-   * A search result matched by meaning (shared/search/semantic.ts), which
-   * need not contain the searched words; clients keep it when they narrow
-   * results to the words.
-   */
+  ...linkPreviewImageFields,
   matchedByMeaning: v.optional(v.literal(true)),
 });
 
@@ -126,7 +120,6 @@ const createdAtRangeValidator = v.object({
 });
 
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
-/** The most results one search index query returns. */
 const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
 const isSearchTooBroadError = (error: unknown): boolean =>
@@ -341,38 +334,17 @@ export const searchCardsPaginatedArgsValidator = v.object({
   types: v.optional(v.array(cardTypeValidator)),
   favoritesOnly: v.optional(v.boolean()),
   showTrashOnly: v.optional(v.boolean()),
-  /** The Archive view: archived cards that are not in Trash. */
   showArchivedOnly: v.optional(v.boolean()),
   styleFilters: v.optional(v.array(v.string())),
   hueFilters: v.optional(v.array(v.string())),
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
   sort: v.optional(cardListSortWithShuffleValidator),
-  /** Shuffle's seed: the same seed gives the same order. Defaults to 0. */
   shuffleSeed: v.optional(v.number()),
-  /** Only cards in this folder (the folder view). */
   folderId: v.optional(v.id("folders")),
-  /**
-   * For a smart folder, the search the client last read for it. The view
-   * runs this search, so a page's cursor always belongs to the search that
-   * issued it and editing the folder starts a new query; without it, the
-   * stored search. Any search the user could type is fine here.
-   */
   folderQuery: v.optional(v.string()),
-  /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
-  /**
-   * How a search finds cards (shared/search/semantic.ts); hybrid when
-   * missing. Meaning matches come from `requestSemanticResults`, which the
-   * client starts with the same search: this query merges them in when they
-   * are cached, and stays keyword-only until then.
-   */
   mode: v.optional(searchModeValidator),
-  /**
-   * With `sort: "relevance"`, order the search by the Best match scores that
-   * `requestRelevanceScores` cached. The client sets it once per search, when
-   * the scores arrived in time; false keeps the unscored search order.
-   */
   useRelevanceScores: v.optional(v.boolean()),
   /**
    * Ignored. A client retrying a failed read sends a new one, so its cached
@@ -483,7 +455,6 @@ export const searchCardsPaginatedHandler = async (
     walk: Omit<ShuffleWalkOptions, "seed" | "userId">,
     keep?: (cards: Doc<"cards">[]) => Doc<"cards">[]
   ) => {
-    // A cursor from another walk (an older format) starts over.
     const position = decodeShuffleWalkCursor(seed, paginationOpts.cursor) ?? {
       segment: 0,
       page: null,
@@ -519,8 +490,6 @@ export const searchCardsPaginatedHandler = async (
     };
   };
 
-  // `like:` and `mood:` list the cached meaning matches, filtered by the
-  // view and the other qualifiers; until they are cached, nothing.
   if (resolved.similarity) {
     const { similarity } = resolved;
     const request = similarityRequest(similarity);
@@ -673,7 +642,6 @@ export const searchCardsPaginatedHandler = async (
       includeHidden,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
     };
-    // Semantic mode with no cached meaning matches falls back to keyword.
     const mode = args.mode ?? "hybrid";
     const semanticText = mode === "keyword" ? "" : semanticQueryText(parsed);
     const ranking = semanticText
@@ -682,8 +650,6 @@ export const searchCardsPaginatedHandler = async (
     const keywordSearch = !(mode === "semantic" && ranking);
     let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
-    // `text:` reads the image-text index; plain words beside it read their
-    // own, and a card must be in both.
     const readKeywordMatches = async (
       options: Pick<typeof searchArgs, "limit"> & {
         resultFilter?: typeof matchesFilters;
@@ -727,7 +693,6 @@ export const searchCardsPaginatedHandler = async (
     let filteredResults = uniqueResults;
     const matchedByMeaning = new Set<Id<"cards">>();
     if (ranking) {
-      // Fusion picks which cards are in the set; the sort below orders it.
       const cardsById = new Map(
         uniqueResults.map((card) => [card._id, card] as const)
       );
@@ -750,9 +715,6 @@ export const searchCardsPaginatedHandler = async (
       ).flatMap((cardId) => cardsById.get(cardId) ?? []);
     }
 
-    // Best match keeps the search's own order, scored first when the client
-    // asks for the cached scores (it decides once per search, so a page
-    // never reorders when late scores land).
     const relevanceText = sort === "relevance" ? semanticQueryText(parsed) : "";
     let sortedResults: Doc<"cards">[];
     if (shuffle) {
@@ -919,10 +881,11 @@ export const searchCardsPaginatedHandler = async (
   }
 
   if (resolved.hasCardFilters || visualFilters.hasVisualFilters) {
-    const scanTypes = visualFilterTypes(types, visualFilters);
-    if (scanTypes?.length === 0) {
+    const visualScanTypes = visualFilterTypes(types, visualFilters);
+    if (visualScanTypes === "none") {
       return emptyPage;
     }
+    const scanTypes = visualScanTypes === "any" ? undefined : visualScanTypes;
     const host =
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]

@@ -18,14 +18,13 @@ import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
 import { APP_URL } from "../../lib/appUrl";
-import { storePendingSave } from "../../lib/pendingSaves";
+import { pendingSaveStore, storePendingSave } from "../../lib/pendingSaves";
 import {
   type FileUploadState,
   getPopupStatus,
   type PopupStatus,
   type PopupTone,
 } from "../../lib/popupStatus";
-import { isPrivateSession } from "../../lib/privateSession";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
 import { SaveDetails } from "./SaveDetails";
 
@@ -338,7 +337,6 @@ function AuthenticatedPopup({
 }) {
   const { state: contextMenuState, isRecentSave: recentMenuSave } =
     useContextMenuSave();
-  // The upload window saves only the file it's given.
   const isRecentSave = recentMenuSave && !IS_UPLOAD_WINDOW;
   const autoSave = useAutoSaveUrl(!(isRecentSave || IS_UPLOAD_WINDOW));
   const [signOutLoading, setSignOutLoading] = useState(false);
@@ -363,7 +361,6 @@ function AuthenticatedPopup({
     fileUpload,
   });
   const status = baseStatus ?? (IS_UPLOAD_WINDOW ? UPLOAD_PROMPT : null);
-  // Tags and a note, once the page is saved or found already saved.
   const detailsCardId =
     !isRecentSave &&
     fileUpload.state === "idle" &&
@@ -398,9 +395,8 @@ function AuthenticatedPopup({
     let result: TeakSaveResponse;
     try {
       const id = crypto.randomUUID();
-      // A private session can't store the file here, so it goes along.
-      const inPrivate = isPrivateSession();
-      if (!inPrivate) {
+      const retainsFiles = pendingSaveStore().retainsFiles;
+      if (retainsFiles) {
         await storePendingSave({
           ownerId: user.id,
           id,
@@ -416,7 +412,7 @@ function AuthenticatedPopup({
       }
       result = await chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.SAVE_FILE,
-        payload: inPrivate ? { file, id } : { id },
+        payload: retainsFiles ? { id } : { file, id },
       });
     } catch {
       fail("Could not save the file. Please try again.");
@@ -493,10 +489,10 @@ function AuthenticatedPopup({
         ) : null}
         {detailsCardId ? (
           <SaveDetails
+            alreadySaved={autoSave.state === "duplicate"}
             cardId={detailsCardId}
-            existing={autoSave.state === "duplicate"}
             key={detailsCardId}
-            onTouched={() => setDetailsTouched(true)}
+            onKeepOpen={() => setDetailsTouched(true)}
             userId={user.id}
           />
         ) : null}

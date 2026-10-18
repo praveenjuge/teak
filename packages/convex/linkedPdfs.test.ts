@@ -10,9 +10,6 @@ import type { Doc, Id } from "./_generated/dataModel";
 import schema from "./schema";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 
-// Save PDF (card/linkedPdfs.ts, card/saveLinkedPdf.ts): one document per
-// arXiv link, whatever the retries, races and deletions.
-
 const modules = import.meta.glob("./**/*.ts");
 const PAPER = "https://arxiv.org/abs/1706.03762";
 const PDF = "https://arxiv.org/pdf/1706.03762";
@@ -33,7 +30,6 @@ const STORED: StoreAnswer = {
   stored: true,
 };
 
-/** The Files Worker: `store-linked-pdf` answers `answer()`; anything else ok. */
 const stubWorker = (
   answer: (call: WorkerCall) => StoreAnswer | Promise<StoreAnswer> = () =>
     STORED
@@ -222,7 +218,6 @@ describe("Save PDF", () => {
     await expect(save(await paper({}, { pdfUrl: null }))).rejects.toMatchObject(
       refusal("INVALID_INPUT")
     );
-    // Only arxiv.org/pdf/<id> is ever downloaded.
     await expect(
       save(await paper({}, { pdfUrl: "https://evil.example/pdf/1706.03762" }))
     ).rejects.toMatchObject(refusal("INVALID_INPUT"));
@@ -264,7 +259,6 @@ describe("Save PDF", () => {
     const link = await paper();
 
     const first = save(link);
-    // The first save holds the claim while its PDF downloads.
     await vi.waitFor(() => expect(pdfCalls(calls)).toHaveLength(1));
     await expect(save(link)).rejects.toMatchObject(refusal("IN_PROGRESS"));
     release();
@@ -288,7 +282,6 @@ describe("Save PDF", () => {
     const calls = stubWorker();
     const { paper, save, t } = await setup();
     const link = await paper();
-    // A save that claimed, stored its PDF and never finished.
     const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
       cardId: link,
       userId: "owner",
@@ -318,7 +311,6 @@ describe("Save PDF", () => {
       storedMimeType: "application/pdf",
       userId: "owner",
     });
-    // Replaying the finish (a retried mutation) changes nothing.
     expect(
       await t.mutation(internal.card.linkedPdfs.completeLinkedPdf, {
         claimToken: claim.claimToken,
@@ -432,7 +424,6 @@ describe("Save PDF", () => {
     await vi.waitFor(() => expect(pdfCalls(calls)).toHaveLength(1));
     const fileKey = pdfCalls(calls)[0]?.params.destinationKey;
     await trashThenDelete(link);
-    // The delete queued then ran before the PDF was stored.
     await t.run(async (ctx) => {
       for (const row of await ctx.db.query("workflowDispatches").collect()) {
         await ctx.db.delete("workflowDispatches", row._id);
@@ -459,7 +450,6 @@ describe("Save PDF", () => {
 
     expect(second.created).toBe(true);
     expect(second.cardId).not.toBe(first.cardId);
-    // Its own object, so emptying Trash can't take the new document's file.
     const secondKey = (await rows())[0]?.fileKey;
     expect(secondKey).not.toBe(firstKey);
     expect(
@@ -477,7 +467,6 @@ describe("Save PDF", () => {
       userId: "owner",
     });
 
-    // The download may run 150 s.
     vi.advanceTimersByTime(150 * 1000);
 
     await expect(save(link)).rejects.toMatchObject(refusal("IN_PROGRESS"));
@@ -510,7 +499,6 @@ describe("Save PDF", () => {
     expect(next.fileKey).not.toBe(old.fileKey);
     expect(await queuedObjectDeletions(t)).toEqual([old.fileKey]);
 
-    // The old save's PDF lands after that delete ran, then the save fails.
     await t.run(async (ctx) => {
       for (const row of await ctx.db.query("workflowDispatches").collect()) {
         await ctx.db.delete("workflowDispatches", row._id);

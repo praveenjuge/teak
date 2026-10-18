@@ -43,9 +43,6 @@ import {
   objectKey,
 } from "./context";
 
-// The link preview: title, description, image and media, read from the
-// page (through the link fetcher Container) or from a social site's API.
-
 export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
 
@@ -60,7 +57,6 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
-/** The page fetch failure a retryable error carries, or null for any other. */
 export const parseLinkMetadataRetryableError = (
   error: unknown
 ): LinkMetadataRetryableError | null => {
@@ -79,11 +75,6 @@ export const parseLinkMetadataRetryableError = (
   }
 };
 
-/**
- * A refresh that still can't read the page after its retries: records the
- * failure with `refresh`, so Convex keeps the preview the card already has,
- * and the run goes on.
- */
 export const keepPreviewAfterFailedRefresh = async (
   job: CardJob,
   failure: LinkMetadataRetryableError
@@ -104,7 +95,6 @@ export const keepPreviewAfterFailedRefresh = async (
   );
 };
 
-/** What the step reports: facts only, never the stored preview. */
 export interface LinkMetadataResult {
   errorType?: string;
   status: "failed" | "skipped" | "success";
@@ -112,7 +102,6 @@ export interface LinkMetadataResult {
 
 type PersistableLinkMedia = SocialPostMedia | InstagramPostMedia;
 
-/** The page HTML the op returned, gzipped and base64-encoded. */
 export const gunzipBase64 = async (value: string): Promise<string> => {
   const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
   return await new Response(
@@ -120,10 +109,6 @@ export const gunzipBase64 = async (value: string): Promise<string> => {
   ).text();
 };
 
-/**
- * The link's page with Teak's scrape selectors. The op keeps a page for a
- * day, so categorization and the screenshot read the same fetch.
- */
 export const fetchLinkPageForCard = (job: CardJob, url: string) =>
   job.deps.filesOp<FilesLinkPageResult>({
     op: "fetch-link-page",
@@ -355,10 +340,6 @@ export const isDefinitiveHttpClientError = (status: number | undefined) =>
 const scrapeHttpStatus = (payload: ScrapeResponse): number | undefined =>
   payload.errors?.find((error) => typeof error?.code === "number")?.code;
 
-/**
- * Fetches and stores a link card's preview. Transient failures throw a
- * retryable error for the step; permanent ones store an error preview.
- */
 export const fetchLinkMetadata = async (
   job: CardJob
 ): Promise<LinkMetadataResult> => {
@@ -372,7 +353,6 @@ export const fetchLinkMetadata = async (
       {
         cardId: job.cardId,
         linkPreview,
-        // A refresh that can't read the page keeps the stored preview.
         ...(job.refresh ? { refresh: true } : {}),
         status,
       },
@@ -447,8 +427,6 @@ export const fetchLinkMetadata = async (
     throw error;
   }
 
-  // Remote assets need the owner and key prefix; load them only when a
-  // preview has something to store.
   let loaded: LoadedCard | null = null;
   const owner = async (): Promise<LoadedCard> => {
     loaded ??= await loadCard(job);
@@ -458,8 +436,6 @@ export const fetchLinkMetadata = async (
     return loaded;
   };
 
-  // A post read from its site: store its media, then save it the way a
-  // scraped page is saved.
   const saveSocialPost = async (
     post: SocialPostMetadata,
     pageUrl: string
@@ -485,8 +461,6 @@ export const fetchLinkMetadata = async (
       }
     }
 
-    // Bluesky, Mastodon, Reddit and TikTok answer from their APIs; anything
-    // they can't (private, deleted, rate-limited) falls through to the page.
     const socialPost = await fetchSocialPostMetadata(normalizedUrl, {
       pinnedFetch: job.deps.pinnedFetch,
       resolveDns: job.deps.resolveDns,
@@ -525,7 +499,6 @@ export const fetchLinkMetadata = async (
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
-    // Threads, LinkedIn and Substack Notes posts come from the same scrape.
     const openGraphPost = mapOpenGraphSocialPost(normalizedUrl, parsed);
     if (openGraphPost) {
       return await saveSocialPost(openGraphPost, pageUrl);

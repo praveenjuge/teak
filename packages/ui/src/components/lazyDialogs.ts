@@ -30,7 +30,6 @@ export const TagManagementModal = onDemand(() =>
   )
 );
 
-/** Loads every library dialog, so the first open of each is instant. */
 export function preloadLibraryDialogs(): Promise<unknown> {
   return Promise.all(
     [

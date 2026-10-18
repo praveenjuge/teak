@@ -566,7 +566,9 @@ export const openBrowser = (url: string): Promise<boolean> => {
 };
 
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
-  const signoutEpoch = readLogoutMarker(options);
+  const logoutEpochAtStart = readLogoutMarker(options);
+  const signInCancelledByLogout = () =>
+    readLogoutMarker(options) !== logoutEpochAtStart;
   const auth = await discovery(options, true);
   const saved = readCredentials(options);
   if (
@@ -685,10 +687,8 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
           });
         }
       );
-      // Discarding a failed sign-in must not revoke the same app on other
-      // installations. Only explicit logout owns that access change.
       await credentialOperation(options, async () => {
-        if (readLogoutMarker(options) !== signoutEpoch) {
+        if (signInCancelledByLogout()) {
           throw new Error(
             "Sign-in was cancelled by logout. Run teak login again."
           );

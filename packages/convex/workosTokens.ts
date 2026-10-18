@@ -18,8 +18,6 @@ export interface WorkosConnectPrincipal extends WorkosPrincipal {
   consentId: string;
 }
 
-// An expired token still proves which grant it was issued for, which is
-// enough to revoke that grant and nothing more.
 export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
   tokenExpiresAt: number;
 }
@@ -27,7 +25,6 @@ export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
 interface ConnectTokenConfig {
   audience: string;
   issuer: string;
-  // Called when a correctly signed token has expired.
   onExpired?: () => void;
   onUnavailable?: () => void;
 }

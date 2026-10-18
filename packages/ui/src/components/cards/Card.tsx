@@ -93,10 +93,6 @@ export async function resolveImageCopyUrl({
 
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
-/**
- * Name for a card in the grid, read by screen readers: its type plus the
- * title, text or file name the grid shows.
- */
 export function getCardAccessibleLabel(
   card: Pick<
     CardWithUrls,
@@ -201,9 +197,6 @@ export const Card = memo(function Card({
       (card.type === "image" &&
         card.fileMetadata?.mimeType !== "image/svg+xml"));
 
-  // Cards act as buttons: Enter or Space opens them (or toggles selection).
-  // Cmd+C (Ctrl+C) copies what Copy in the menu copies, unless some text
-  // on the page is selected: that copy is the browser's.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) {
       return;
@@ -332,8 +325,6 @@ export const Card = memo(function Card({
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
   const textInsets = showFavoriteMark ? "pr-11" : "";
 
-  // A card can be dragged onto a sidebar folder to add it there. Its own
-  // drag data replaces the image or link the browser would otherwise carry.
   const canDrag = !(isOptimistic || isSelectionMode || card.isDeleted);
   const handleDragStart = (event: DragEvent<HTMLElement>) => {
     event.dataTransfer.clearData();
@@ -364,7 +355,7 @@ export const Card = memo(function Card({
     ...(card.isDeleted
       ? [
           { icon: RotateCcw, label: "Restore", onSelect: handleRestore },
-          "separator" as const,
+          { separator: "before-delete-forever" },
           {
             destructive: true,
             icon: Trash,
@@ -431,7 +422,7 @@ export const Card = memo(function Card({
                 },
               ]
             : []),
-          "separator" as const,
+          { separator: "before-delete" },
           {
             icon: Trash2,
             label: "Delete",
@@ -508,8 +499,6 @@ export const Card = memo(function Card({
 
           {isSelectionMode && !isOptimistic && (
             <div className="pointer-events-none absolute -top-2 -left-2 z-10">
-              {/* Decorative: the card itself is the toggle (aria-pressed),
-                  so the box stays out of the Tab order. */}
               <Checkbox
                 aria-hidden="true"
                 checked={isSelected}

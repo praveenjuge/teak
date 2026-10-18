@@ -88,7 +88,6 @@ const patchCardForUserArgs = {
   tags: v.optional(v.array(v.string())),
   removeAiTags: v.optional(v.array(v.string())),
   isArchived: v.optional(v.boolean()),
-  /** Replaces the card's folders; every id must be one of the user's folders. */
   folderIds: v.optional(v.array(v.string())),
 } as const;
 
@@ -120,9 +119,7 @@ interface SearchOptions {
   type?: Doc<"cards">["type"];
 }
 
-// Unlike the public API's `normalizeLimit`, 0 means the default and an
-// infinite limit clamps to the maximum.
-const normalizeLimit = (limit?: number): number => {
+const normalizeRaycastLimit = (limit?: number): number => {
   if (!limit || Number.isNaN(limit)) {
     return DEFAULT_LIMIT;
   }
@@ -155,7 +152,6 @@ const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions
 ): boolean => {
-  // Hidden cards show only when the tag searched is a reserved one.
   if (isCardHidden(card) && !revealsHidden([options.tag])) {
     return false;
   }
@@ -188,7 +184,7 @@ const sortAndLimitCards = (
   options: SearchOptions
 ): Doc<"cards">[] => {
   const sort = normalizeSort(options.sort);
-  const limit = normalizeLimit(options.limit);
+  const limit = normalizeRaycastLimit(options.limit);
   return cards
     .sort((left, right) => compareCards(left, right, sort))
     .slice(0, limit);
@@ -199,7 +195,7 @@ const collectFromBaseQuery = async (
   options: SearchOptions
 ): Promise<Doc<"cards">[]> => {
   const sort = normalizeSort(options.sort);
-  const limit = normalizeLimit(options.limit);
+  const limit = normalizeRaycastLimit(options.limit);
   const pageSize = Math.min(Math.max(limit * 2, 50), 100);
   const matches: Doc<"cards">[] = [];
   let cursor: string | null = null;
@@ -246,8 +242,8 @@ const searchCardsByQuery = async (
   }
 
   const searchLimit = Math.max(
-    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
-    normalizeLimit(options.limit) + 20
+    normalizeRaycastLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeRaycastLimit(options.limit) + 20
   );
 
   const unique = (
@@ -277,8 +273,8 @@ const searchCardsByTag = async (
   }
 
   const searchLimit = Math.max(
-    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
-    normalizeLimit(options.limit) + 20
+    normalizeRaycastLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeRaycastLimit(options.limit) + 20
   );
 
   const unique = (
@@ -309,7 +305,7 @@ const getCardsForUser = async (
     createdAfter: normalizeCreatedTimestamp(options.createdAfter),
     createdBefore: normalizeCreatedTimestamp(options.createdBefore),
     favoritesOnly: Boolean(options.favoritesOnly),
-    limit: normalizeLimit(options.limit),
+    limit: normalizeRaycastLimit(options.limit),
     searchQuery: normalizeSearchText(options.searchQuery),
     sort: normalizeSort(options.sort),
     tag: normalizeTag(options.tag),
@@ -540,8 +536,6 @@ export const setCardFavoriteForUser = internalMutation({
   },
 });
 
-/** Marks a link done (`POST /done`) or not (`DELETE /done`); idempotent. */
-/** `changed` is false for a repeat, read in the same transaction as the write. */
 export const setCardDoneForUser = internalMutation({
   args: setCardDoneForUserArgs,
   returns: v.union(

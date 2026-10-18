@@ -23,7 +23,6 @@ export interface OmnivoreItem {
   url?: unknown;
 }
 
-/** Reads one metadata file's JSON list, or throws for anything else. */
 export function readOmnivoreMetadata(json: string): OmnivoreItem[] {
   let parsed: unknown;
   try {
@@ -71,7 +70,6 @@ export function omnivoreItem(
   });
 }
 
-/** A single metadata JSON file uploaded on its own. */
 export function parseOmnivoreJson(json: string): ParsedBookmarkItem[] {
   return readOmnivoreMetadata(json).map((item) => omnivoreItem(item));
 }

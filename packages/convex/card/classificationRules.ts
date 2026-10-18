@@ -1,4 +1,3 @@
-import type { Doc } from "../_generated/dataModel";
 import type { CardType } from "../shared/constants";
 import { inferFileFormat } from "../shared/fileFormats";
 import {
@@ -8,9 +7,6 @@ import {
   parseColorString,
 } from "../shared/utils/colorUtils";
 import { normalizeQuoteContent } from "./quoteFormatting";
-
-// A card's type from its file, URL and text, without AI. Pure, so the Files
-// Worker's classification step and scripts/clef-eval share one copy.
 
 export interface PaletteSource {
   content?: unknown;
@@ -111,30 +107,27 @@ const hasPaletteHint = (card: PaletteSource): boolean => {
   return paletteHints.some((hint) => text.includes(hint)) || tagHints;
 };
 
-// Function arguments are bounded so unclosed "rgb(" text cannot make the
-// scan quadratic.
-const COLOR_CODE_PATTERN =
-  /#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\b|rgba?\([^()]{0,64}\)|hsla?\([^()]{0,64}\)/gi;
-// "Primary: #0F4C81", "--bg-primary: #FF5733" or "Accent - rgb(…)". A dash
-// separates only when spaced, so hyphenated labels stay whole.
+export const MAX_COLOR_FN_ARG_CHARS = 64;
+const COLOR_FN_ARGS = `\\([^()]{0,${MAX_COLOR_FN_ARG_CHARS}}\\)`;
+const COLOR_CODE_PATTERN = new RegExp(
+  `#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})\\b|rgba?${COLOR_FN_ARGS}|hsla?${COLOR_FN_ARGS}`,
+  "gi"
+);
 const COLOR_LABEL_PATTERN =
   /^(?:--[\w-]+\s*[:=]\s*|[a-z][\w\s-]{0,32}?(?:\s*[:=]\s*|\s+[-–]\s+))(.+)$/iu;
 const COLOR_WORD_DELIMITER_PATTERN = /\s+/;
 const PLAIN_WORD_PATTERN = /^[a-z]+$/iu;
-const FUNCTIONAL_COLOR_PATTERN = /^(?:rgba?|hsla?)\([^()]{0,64}\)$/iu;
+const FUNCTIONAL_COLOR_PATTERN = new RegExp(
+  `^(?:rgba?|hsla?)${COLOR_FN_ARGS}$`,
+  "iu"
+);
 const NUMERIC_REFERENCE_PATTERN = /^#\d{3,4}$/u;
 const REPEATED_DIGIT_PATTERN = /^#(\d)\1+$/u;
 const NUMERIC_REFERENCE_IN_TEXT_PATTERN = /#\d{3,4}\b/gu;
 
-// "#123" or "#1234" in a note is far more often an issue or ticket number
-// than a colour. Repeated digits ("#000", "#333") stay colours.
 const isNumericReference = (token: string): boolean =>
   NUMERIC_REFERENCE_PATTERN.test(token) && !REPEATED_DIGIT_PATTERN.test(token);
 
-// parseColorString finds rgb()/hsl() anywhere in a string, so a token with
-// parentheses must be exactly one functional colour.
-// extractPaletteColors reads "#123" as #112233, so drop references before
-// extracting swatches.
 export const extractCardColors = (text: string, maxColors?: number): Color[] =>
   extractPaletteColors(
     text.replace(NUMERIC_REFERENCE_IN_TEXT_PATTERN, (match) =>
@@ -167,8 +160,6 @@ const countColorCodes = (text: string): number => {
   return hexes.size;
 };
 
-// Splits on commas, semicolons and line breaks in one pass. Commas inside
-// rgb()/hsl() belong to the value, not the list.
 const splitColorList = (content: string): string[] => {
   const parts: string[] = [];
   let depth = 0;
@@ -201,8 +192,6 @@ const isColorValue = (value: string): boolean => {
   if (isColorToken(trimmed)) {
     return true;
   }
-  // "red green blue" or "light blue red" lists several colours separated by
-  // spaces. Read multi-word names first, as colour extraction does.
   const words = trimmed.split(COLOR_WORD_DELIMITER_PATTERN);
   let index = 0;
   while (index < words.length) {
@@ -224,9 +213,6 @@ const isColorValue = (value: string): boolean => {
   return true;
 };
 
-// True when the content is nothing but colours, optionally labelled
-// ("Primary: #0F4C81"). Prose that only mentions a colour word, such as
-// "dark green cabinets", is not a colour list.
 const isColorList = (content: unknown): content is string => {
   if (typeof content !== "string") {
     return false;
@@ -247,16 +233,14 @@ const isColorList = (content: unknown): content is string => {
   );
 };
 
+const colorListSwatches = (content: unknown): Color[] =>
+  isColorList(content) ? extractCardColors(content) : [];
+
 export const isProbablyPalette = (card: PaletteSource): boolean => {
-  // A list such as "mint cream" parses as a colour name but yields no
-  // swatches, so a colour list must also produce at least one colour.
-  if (isColorList(card.content) && extractCardColors(card.content).length > 0) {
+  if (colorListSwatches(card.content).length > 0) {
     return true;
   }
 
-  // Colour names in prose are ordinary words, so outside a colour list only
-  // explicit colour codes (hex, rgb, hsl) count, unless the card says it is
-  // a palette.
   const text = buildPaletteAnalysisText(card);
   const codeCount = countColorCodes(text);
   if (codeCount >= 2) {
@@ -290,8 +274,16 @@ const classifyFile = (
   return format ? { type: format.cardType, confidence } : null;
 };
 
+interface ClassifiableFileMetadata {
+  duration?: number;
+  fileName?: string;
+  height?: number;
+  mimeType?: string;
+  width?: number;
+}
+
 const classifyByFileMetadata = (
-  metadata: Doc<"cards">["fileMetadata"]
+  metadata: ClassifiableFileMetadata | undefined
 ): { type: CardType; confidence: number } | null => {
   if (!metadata) {
     return null;
@@ -320,10 +312,11 @@ const classifyByFileMetadata = (
   return { type: "document", confidence: MEDIUM_CONFIDENCE };
 };
 
-export type ClassifiableCard = Partial<
-  Pick<Doc<"cards">, "fileKey" | "fileMetadata" | "url">
-> &
-  PaletteSource;
+export interface ClassifiableCard extends PaletteSource {
+  fileKey?: string;
+  fileMetadata?: ClassifiableFileMetadata;
+  url?: string;
+}
 
 export const deterministicClassify = (
   card: ClassifiableCard
@@ -357,7 +350,6 @@ export const deterministicClassify = (
   return { type: "text", confidence: DEFAULT_CONFIDENCE };
 };
 
-/** The rules' answer for a note with no URL or file; scripts/clef-eval uses it. */
 export const textCardRulesType = (card: { content?: string }): CardType =>
   normalizeQuoteContent(card.content ?? "").removedQuotes
     ? "quote"

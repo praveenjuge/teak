@@ -33,7 +33,6 @@ export interface PopupStatusInput {
     url?: string;
   };
   contextMenu?: ContextMenuSaveState;
-  /** Someone started adding tags or a note: the popup stays open. */
   detailsTouched?: boolean;
   fileUpload: {
     code?: string;
@@ -50,18 +49,15 @@ const UPGRADE_STATUS: PopupStatus = {
   tone: "upgrade",
 };
 
-// The REST API sends the code beside its message; older saves carried it in
-// the message.
-const isCardLimitError = (message?: string, code?: string) =>
-  code === CARD_ERROR_CODES.CARD_LIMIT_REACHED ||
-  Boolean(message?.includes(CARD_ERROR_CODES.CARD_LIMIT_REACHED));
+const isCardLimitError = (code?: string) =>
+  code === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
 
 const errorStatus = (
   title: string,
   message?: string,
   code?: string
 ): PopupStatus =>
-  isCardLimitError(message, code)
+  isCardLimitError(code)
     ? UPGRADE_STATUS
     : { autoClose: false, detail: message, title, tone: "error" };
 

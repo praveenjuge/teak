@@ -16,18 +16,13 @@ import { type ReactNode, useCallback, useEffect } from "react";
 import { getConvexUrl } from "@/lib/public-env";
 import { fetchSessionToken } from "@/lib/session-token";
 
-// One client for the page's lifetime, created before the first render so the
-// socket opens without waiting for an effect. The client is lazy, so server
-// rendering never connects. It is never closed: React replays effects in
-// development and hides routes with Activity, and closing a client that
-// mounted auth or subscription effects still use would break them.
-// No unsaved-changes prompt: the client raises it for any request in flight,
-// and here that is mostly reads such as Settings' device list, so it warned
-// people who were only navigating or signing out. Writes are short mutations.
-// The first token comes fresh from the page load (AuthKit's eagerAuth), so
-// the client keeps it until it nears expiry instead of fetching another at
-// once, which would make the server run every query a second time. The
-// option is experimental in Convex.
+// Never closed: React replays effects in development and hides routes with
+// Activity, and closing a client that mounted auth or subscription effects
+// still use would break them. Convex raises its unsaved-changes prompt for
+// any request in flight, reads included. The first token comes fresh from the
+// page load (AuthKit's eagerAuth), so initialAuthTokenReuse keeps it until it
+// nears expiry instead of fetching another at once, which would make the
+// server run every query a second time; the option is experimental in Convex.
 const convex = new ConvexReactClient(getConvexUrl(), {
   expectAuth: true,
   initialAuthTokenReuse: true,
@@ -36,12 +31,10 @@ const convex = new ConvexReactClient(getConvexUrl(), {
 
 const FIRST_LOAD_QUERY_HOLD_MS = 30_000;
 
-// In the browser, subscribe to the page's first queries as this module
-// loads. That opens the socket while the page hydrates, and the queries go
-// out with the client's sign-in, so the profile, sidebar and first cards
-// arrive together instead of each waiting for the component before it.
-// Only signed-in pages load this module; signed out, they wait unanswered.
-if (typeof window !== "undefined") {
+function prewarmFirstLoadQueries() {
+  if (typeof window === "undefined") {
+    return;
+  }
   for (const { query, args } of firstLoadQueries(
     new URL(window.location.href)
   )) {
@@ -52,14 +45,10 @@ if (typeof window !== "undefined") {
     });
   }
 }
+prewarmFirstLoadQueries();
 
 const INTENT_QUERY_HOLD_MS = 15_000;
 
-/**
- * Subscribes to the queries the page at `href` first asks for, as a link to
- * it is hovered, focused or touched, so its cards are often in by the click.
- * A query already open (the sidebar's) is shared, not sent again.
- */
 export function prewarmRouteQueries(href: string) {
   const url = new URL(href, window.location.href);
   if (url.origin !== window.location.origin) {
@@ -76,7 +65,6 @@ export function prewarmRouteQueries(href: string) {
   }
 }
 
-// The sidebar's folder list if it has arrived; a failed load reads as none.
 function loadedFolders() {
   try {
     return convex.watchQuery(api.folders.listFolders, {}).localQueryResult();

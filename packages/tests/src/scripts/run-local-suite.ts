@@ -1,15 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Runs the E2E suite against this checkout's local stack: the WorkOS
- * emulator, a local Convex backend and the web app. Used the same way locally,
- * in any worktree, and in CI.
- *
- *   bun run --cwd packages/tests e2e                # warm up, Chromium suite, WebKit matrix
- *   bun run --cwd packages/tests e2e -- <e2e args>  # warm up, then `e2e run <args>`
- *   bun run --cwd packages/tests e2e:stack          # keep the stack up
- *
- * With the stack up, run `bunx e2e run` in packages/tests directly.
- */
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import {
@@ -41,7 +30,6 @@ const e2e = (args: string[]) =>
   new Promise<number>((resolve) => {
     const child = spawn("bunx", ["e2e", "run", ...args], {
       cwd: TESTS,
-      // The CLI sends usage telemetry unless this is set.
       env: { ...process.env, E2E_TELEMETRY_DISABLED: "1" },
       stdio: "inherit",
     });

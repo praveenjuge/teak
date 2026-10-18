@@ -39,6 +39,7 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { LINK_CATEGORIES } from "./shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "./shared/markdown";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -114,7 +115,6 @@ describe("devSeed", () => {
           (card) => card.processingStatus?.metadata?.status === "completed"
         )
     ).toBe(true);
-    // Only the links are processed: one queued run each.
     const runs = await t.run((ctx) =>
       ctx.db.query("workflowDispatches").collect()
     );
@@ -889,7 +889,7 @@ describe("devSeed folder packs", () => {
     const categories = new Set(
       cards.map((card) => card.metadata?.linkCategory?.category)
     );
-    expect(categories.size).toBe(22); // 21 categories, and none
+    expect(categories).toEqual(new Set([...LINK_CATEGORIES, undefined]));
     expect(cards.filter((card) => card.completedAt)).toHaveLength(15);
     expect(cards.some((card) => card.completedAt && card.isDeleted)).toBe(true);
     expect(cards.some((card) => card.completedAt && card.isArchived)).toBe(
@@ -932,7 +932,6 @@ describe("devSeed folder packs", () => {
       label: "Publisher",
       value: "Example Press",
     });
-    // The page's own ISBN tag shows; Open Library was never asked.
     expect(byTitle("A book whose ISBN check digit is wrong")?.facts).toEqual([
       { label: "ISBN", value: "9780140328722" },
     ]);
@@ -1006,7 +1005,6 @@ describe("devSeed folder packs", () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
     await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
-    // Cards in Trash don't count toward the limit.
     const active = () =>
       t.run((ctx) =>
         ctx.db

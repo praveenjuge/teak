@@ -15,15 +15,8 @@ const fail = (code: string): never => {
   throw new Error(`${POSTHOG_DELETION_ERROR_PREFIX}${code}`);
 };
 
-/**
- * Deletes the owner's PostHog person, their events and their session
- * recordings. The owner's canonical Teak user id is their PostHog distinct id
- * on every surface.
- *
- * Idempotent: once the person is gone, PostHog matches nothing and answers
- * 202 again, and it never queues a second deletion for the same person.
- * Every failure throws so the workflow step retries it.
- */
+// Once the person is gone, PostHog matches nothing and answers 202 again, and
+// it never queues a second deletion for the same person.
 export const deletePostHogPerson = async (
   distinctId: string
 ): Promise<"deleted" | "skipped"> => {

@@ -19,7 +19,6 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-/** The View menu, opened, as a library view shows it. */
 async function openMenu(
   options: { revisit?: "empty" | "ready"; sort?: LibrarySort } = {}
 ) {

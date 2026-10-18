@@ -1,15 +1,3 @@
-// Color palettes, shared by the Files Worker (still images) and this
-// container (video and GIF frames). It is pure TypeScript with no runtime
-// APIs so both bundles can import it; it lives here because the container
-// image is built from this directory alone.
-//
-// Opaque pixels are binned at 5 bits per channel, the bins are clustered with
-// weighted k-means in OKLab (where distance tracks how different two colors
-// look), and clusters that would read as one color are merged. The palette
-// takes the largest colors that differ from each other, so it spans the image
-// instead of listing shades of its biggest area, and keeps one slot for a
-// vivid accent that covers too little to rank on size alone.
-
 export interface PaletteSwatch {
   hex: string;
   weight: number;
@@ -20,13 +8,10 @@ export const MAX_PALETTE_COLORS = 5;
 const MAX_CLUSTERS = 12;
 const MAX_ITERATIONS = 12;
 const MIN_ALPHA = 128;
-/** OKLab distance under which two colors read as one swatch. */
 const MERGE_DISTANCE = 0.08;
 const ACCENT_MIN_CHROMA = 0.12;
 const ACCENT_MIN_WEIGHT = 0.01;
-/** An accent's hue must be this far from every vivid pick's (30°). */
 const ACCENT_MIN_HUE_GAP = Math.PI / 6;
-/** Colors closer than this to one already picked count for less. */
 const DISTINCT_DISTANCE = 0.25;
 
 interface Lab {
@@ -310,10 +295,6 @@ const swapInAccent = (
   return [...kept, accent].sort(byWeight);
 };
 
-/**
- * The image's main colors from RGBA bytes, largest share first. Pixels under
- * half opacity are ignored; an image with no opaque pixels has no palette.
- */
 export const extractPalette = (
   pixels: Uint8Array,
   maxColors = MAX_PALETTE_COLORS

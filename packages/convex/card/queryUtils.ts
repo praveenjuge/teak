@@ -1,4 +1,5 @@
 import type { FilesImageRendition } from "@teak/files-protocol";
+import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
@@ -8,12 +9,9 @@ export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   detailUrl?: string;
   thumbnailUrl?: string;
-  /** 256px rendition for small/mobile cards. */
   compactUrl?: string;
-  /** 48px loading placeholder rendition. */
   placeholderUrl?: string;
   screenshotUrl?: string;
-  /** Video hover scrub sprite; see fileMetadata.scrub. */
   scrubUrl?: string;
   linkPreviewMedia?: Array<{
     contentType?: string;
@@ -27,8 +25,12 @@ export type CardWithUrls = Doc<"cards"> & {
     width?: number;
   }>;
   linkPreviewImageUrl?: string;
-  /** Set when linkPreviewImageUrl is an image someone chose for the link. */
   hasThumbnailOverride?: true;
+};
+
+export const linkPreviewImageFields = {
+  linkPreviewImageUrl: v.optional(v.string()),
+  hasThumbnailOverride: v.optional(v.literal(true)),
 };
 
 export const isCreatedAtInRange = (
@@ -230,7 +232,6 @@ export const attachFileUrls = async (
       linkPreviewMedia?.find((item) => item.type === "video")?.posterUrl;
 
     const imageUrls = imageRenditions.get(card._id);
-    // A chosen image wins over the scraped one and the attached media.
     const overrideUrl = ids.thumbnailOverrideKey
       ? gridUrlMap.get(ids.thumbnailOverrideKey)
       : undefined;

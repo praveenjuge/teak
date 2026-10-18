@@ -5,7 +5,7 @@ import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
 } from "./getCards";
-import type { CardWithUrls } from "./queryUtils";
+import { type CardWithUrls, linkPreviewImageFields } from "./queryUtils";
 
 const CONTENT_PREVIEW_LENGTH = 280;
 const WWW_PREFIX = /^www\./;
@@ -17,10 +17,8 @@ const mobileCardSummaryValidator = v.object({
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
   fileName: v.optional(v.string()),
-  /** linkPreviewImageUrl is an image someone chose for the link. */
-  hasThumbnailOverride: v.optional(v.literal(true)),
   isFavorited: v.optional(v.boolean()),
-  linkPreviewImageUrl: v.optional(v.string()),
+  ...linkPreviewImageFields,
   placeholderUrl: v.optional(v.string()),
   previewText: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),

@@ -17,6 +17,7 @@ import {
   THUMBNAIL_MAX_BYTES,
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
+import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { InvalidArgumentError } from "commander";
 import { mimeFor } from "./files";
 import {
@@ -31,6 +32,11 @@ import {
 
 type PageFetcher = (cursor?: string) => Promise<CardsPage>;
 
+const mergeSearchMode = (
+  listing: CardsPage["searchMode"],
+  page: CardsPage["searchMode"]
+) => (page === "keyword" ? "keyword" : listing);
+
 export const collectPages = async (
   fetchPage: PageFetcher,
   all: boolean
@@ -41,23 +47,20 @@ export const collectPages = async (
   }
   const items = [...first.items];
   let cursor: string | null = first.pageInfo.nextCursor;
-  const { relevanceRanked } = first;
   let { searchMode } = first;
   while (cursor) {
     const page = await fetchPage(cursor);
     items.push(...page.items);
     cursor = page.pageInfo.nextCursor;
-    // One page that fell back makes the listing a partial blend.
-    if (page.searchMode === "keyword") {
-      searchMode = "keyword";
-    }
+    searchMode = mergeSearchMode(searchMode, page.searchMode);
   }
   return {
     items,
     pageInfo: { hasMore: false, nextCursor: null },
     ...(searchMode ? { searchMode } : {}),
-    // The first page decides Best match for every page of the listing.
-    ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
+    ...(first.relevanceRanked === undefined
+      ? {}
+      : { relevanceRanked: first.relevanceRanked }),
     ...(first.similarity ? { similarity: first.similarity } : {}),
   };
 };
@@ -106,8 +109,6 @@ const failureJson = ({ error, id }: CardFailure) => ({
   message: failureMessage(error),
 });
 
-// Prints what succeeded, lists failures on stderr, and exits non-zero (with
-// the first failure's code) when any card failed.
 const writeBatch = (
   output: unknown,
   failed: CardFailure[],
@@ -218,10 +219,6 @@ export const setCardsArchived = async (
   );
 };
 
-/**
- * Replaces a link card's image with an image file, or with `reset` goes back
- * to the image Teak found for the link.
- */
 export const setCardThumbnail = async (
   id: string,
   file: string | undefined,
@@ -283,11 +280,6 @@ export const findDuplicateCard = async (
   write(options.json ? { cardId } : cardId, options);
 };
 
-/**
- * Prints a card's stored text (document text, transcript or a text card's
- * content); `--json` prints the whole response. A note on stderr says when
- * the text isn't whole, so piped text stays clean.
- */
 export const showCardContent = async (id: string, options: GlobalOptions) => {
   const content = await client(options).cards.content(id);
   write(options.json ? content : content.text, options);
@@ -321,30 +313,16 @@ const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
   writeFileSync(target, bytes);
 };
 
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-// File and export links come from the Teak API. Follow only web links, so a
-// bad response can't point the CLI at another scheme or an internal host.
-const downloadUrl = (url: string) => {
-  let parsed: URL | null = null;
-  try {
-    parsed = new URL(url);
-  } catch {}
-  if (
-    parsed?.protocol === "https:" ||
-    (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
-  ) {
-    return parsed;
-  }
-  throw new TeakApiError(
-    "REQUEST_FAILED",
-    "Teak returned a download link that isn't a web address"
-  );
-};
-
 const fetchBytes = async (url: string) => {
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(downloadUrl(url));
+  const response = await fetchWebUrl(
+    url,
+    undefined,
+    () =>
+      new TeakApiError(
+        "REQUEST_FAILED",
+        "Teak returned a download link that isn't a web address"
+      )
+  );
   if (!response.ok) {
     throw new TeakApiError(
       "REQUEST_FAILED",
@@ -389,7 +367,6 @@ export const authStatus = async (options: GlobalOptions, source: string) => {
   );
 };
 
-/** Adds tags, or removes them from both the card's own tags and AI tags. */
 export const editTags = async (
   id: string,
   names: string[],
@@ -550,7 +527,6 @@ export const resolveFolder = async (
   return match;
 };
 
-/** id, card count (a dash for smart folders), name, and a smart search. */
 export const formatFolderLine = (folder: Folder) =>
   [
     folder.id,
@@ -586,10 +562,6 @@ export const createFolder = async (
   write(options.json ? folder : formatFolderLine(folder), options);
 };
 
-/**
- * Renames a folder, recolors it ("none" clears the color), changes a smart
- * folder's search, or any of these at once.
- */
 export const updateFolder = async (
   ref: string,
   name: string | undefined,
@@ -673,14 +645,18 @@ export const changeFolderCards = async (
           .join("\n")}\n`
       );
     }
-    // Not found wins when any card is missing; a run where every failure is
-    // the per-card folder limit exits like the API's FOLDER_LIMIT error.
-    process.exitCode = exitCodeFor(
-      new TeakApiError(
-        failedIds.some((id) => !limited.has(id)) ? "NOT_FOUND" : "FOLDER_LIMIT"
-      )
-    );
+    process.exitCode = batchFolderExitCode(failedIds, limited);
   }
+};
+
+const batchFolderExitCode = (
+  failedIds: string[],
+  folderLimitIds: Set<string>
+) => {
+  const anyNotFound = failedIds.some((id) => !folderLimitIds.has(id));
+  return exitCodeFor(
+    new TeakApiError(anyNotFound ? "NOT_FOUND" : "FOLDER_LIMIT")
+  );
 };
 
 const cardsLabel = (count: number) => `${count} card${count === 1 ? "" : "s"}`;

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeVisualFilterArgs } from "../../card/visualFilters";
+import {
+  normalizeVisualFilterArgs,
+  visualFilterTypes,
+} from "../../card/visualFilters";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../../shared/search/constants";
 
 describe("card/visualFilters normalizeVisualFilterArgs", () => {
@@ -39,5 +42,27 @@ describe("card/visualFilters normalizeVisualFilterArgs", () => {
     expect(result.hexFilters).toBeUndefined();
     expect(result.hueFilters).toBeUndefined();
     expect(result.styleFilters).toBeUndefined();
+  });
+});
+
+describe("card/visualFilters visualFilterTypes", () => {
+  const colors = normalizeVisualFilterArgs({ hueFilters: ["blue"] });
+  const none = normalizeVisualFilterArgs({});
+
+  test("any type can match without visual filters or requested types", () => {
+    expect(visualFilterTypes(undefined, none)).toBe("any");
+    expect(visualFilterTypes([], none)).toBe("any");
+  });
+
+  test("keeps the requested types without visual filters", () => {
+    expect(visualFilterTypes(["link"], none)).toEqual(["link"]);
+  });
+
+  test("narrows the requested types to those that carry colors", () => {
+    expect(visualFilterTypes(["image", "link"], colors)).toEqual(["image"]);
+  });
+
+  test("no type can match when none of the requested types carry colors", () => {
+    expect(visualFilterTypes(["link", "text"], colors)).toBe("none");
   });
 });

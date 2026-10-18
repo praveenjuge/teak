@@ -1,26 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Read-only Cloudflare / R2 configuration parity check.
- * Reports names and parity status without exposing secret values.
- *
- * Checks:
- * - Wrangler top-level bindings (R2, Images, AI) and removal of development env
- * - Local .dev.vars presence (ignored, per-surface; never blocks)
- * - Expected Convex env names and their parity if deployments are reachable
- * - Development storage state: the current shared production Worker/bucket
- *   (prefix-only separation) or the isolated development target. Credential
- *   parity follows that state; a mix of both blocks.
- *
- * Exit code is 1 when a blocking finding exists (missing or mismatched
- * repository or deployment configuration). Warnings for unreachable
- * deployments and the per-developer .dev.vars file never block.
- *
- * --only checks one deployment, for a deploy key scoped to that deployment.
- *
- * Usage: bun run check:cloudflare [--only prod|dev]
- *        bun run scripts/check-cloudflare.ts [--only prod|dev]
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/filesOrigins";
@@ -95,7 +73,6 @@ export const PRODUCTION_FILES_BASE = TEAK_FILES_ORIGINS.production;
 export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
 export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
-/** workers.dev origin of the dedicated `teak-files-development` Worker. */
 export const DEVELOPMENT_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 
 export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>

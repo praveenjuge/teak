@@ -1,11 +1,3 @@
-/**
- * Embeds the getting-started files (packages/convex/card/onboarding) into
- * packages/convex/card/onboarding/files.ts, so every deployment, self-hosted
- * ones included, can give new accounts their first image, voice memo, PDF,
- * and video without fetching anything at sign-up.
- *
- * Usage: bun run scripts/onboarding-files.ts [--check]
- */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 

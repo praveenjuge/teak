@@ -2,15 +2,13 @@ import {
   cardSiteHost,
   hostForDisplay,
 } from "@teak/convex/shared/utils/urlHost";
+import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 
-/** Typing `teak` and Space or Tab in the address bar enters Teak mode. */
 export const OMNIBOX_KEYWORD = "teak";
 export const OMNIBOX_MIN_CHARS = 2;
 export const OMNIBOX_RESULT_LIMIT = 5;
 export const OMNIBOX_TITLE_LIMIT = 80;
-/** Longer queries are cut before they're sent; the full text still searches on Enter. */
 export const OMNIBOX_MAX_QUERY_LENGTH = 500;
-/** After a 429, inputs inside this window keep the notice and send nothing. */
 export const OMNIBOX_RATE_LIMIT_PAUSE_MS = 5000;
 
 /** Chromium reads suggestion descriptions as XML; Firefox shows plain text. */
@@ -50,19 +48,13 @@ const XML_ESCAPES: Record<string, string> = {
 export const escapeOmniboxXml = (text: string): string =>
   text.replace(/[&<>"']/g, (char) => XML_ESCAPES[char] ?? char);
 
-/** Cuts by code point so an emoji or surrogate pair is never split. */
 export const truncateTitle = (
   text: string,
   limit = OMNIBOX_TITLE_LIMIT
-): string => {
-  const chars = Array.from(text);
-  return chars.length > limit
-    ? `${chars
-        .slice(0, limit - 1)
-        .join("")
-        .trimEnd()}…`
-    : text;
-};
+): string =>
+  truncateCodePoints(text, limit) === text
+    ? text
+    : `${truncateCodePoints(text, limit - 1).trimEnd()}…`;
 
 // Control characters would also break the XML Chromium parses.
 const collapse = (value: string | null | undefined) =>
@@ -73,10 +65,6 @@ const displayHost = (card: OmniboxCard) => {
   return host ? hostForDisplay(host) : "";
 };
 
-/**
- * A card's page title, else its first words, else its site, else its type.
- * A link's content is its URL, so a link without a title shows its host.
- */
 export const omniboxCardTitle = (card: OmniboxCard): string => {
   const content = collapse(card.content);
   return (
@@ -95,7 +83,6 @@ export function buildSuggestions(
   return cards.map((card) => {
     const title = truncateTitle(omniboxCardTitle(card));
     const host = displayHost(card);
-    // A card named by its host doesn't repeat it.
     const details = [card.type, host === title ? "" : host]
       .filter(Boolean)
       .join(" · ");
@@ -154,11 +141,6 @@ export function noticeRow(
     : null;
 }
 
-/**
- * Whether the session is still signed out after `outcome`. Only an answer
- * from Teak changes it: a short input or a paused search after a 429 says
- * nothing about the account.
- */
 export function stillSignedOut(
   signedOut: boolean,
   outcome: OmniboxOutcome
@@ -175,7 +157,6 @@ export function stillSignedOut(
   }
 }
 
-/** The web app's search for `text`, or the library itself for no text. */
 export const searchUrl = (appUrl: string, text: string): string => {
   const url = new URL("/", appUrl);
   if (text.trim()) {
@@ -184,11 +165,6 @@ export const searchUrl = (appUrl: string, text: string): string => {
   return url.href;
 };
 
-/**
- * A suggestion's `appUrl`, if `text` is one: on the app's own origin and
- * naming a card. Anything else, a forged or typed URL included, is search
- * text.
- */
 export function cardUrlFrom(text: string, appUrl: string): string | null {
   let url: URL;
   try {
@@ -220,11 +196,6 @@ const systemClock: Clock = {
   setTimeout: (run, ms) => setTimeout(run, ms),
 };
 
-/**
- * Sends the latest text once typing pauses for `debounceMs`, and at most once
- * every `minIntervalMs` while it doesn't, so steady typing still updates the
- * suggestions about once a second. Text equal to the last sent is skipped.
- */
 export function createInputThrottle(
   { debounceMs, minIntervalMs }: { debounceMs: number; minIntervalMs: number },
   send: (text: string) => void,
@@ -261,27 +232,27 @@ export function createInputThrottle(
       pending = text;
       pendingSince ??= now;
       stop();
+      const debounceDeadline = now + debounceMs;
+      const maxWaitDeadline = pendingSince + minIntervalMs;
+      const cooldownEnd = lastSentAt + minIntervalMs;
       const due = Math.max(
-        Math.min(now + debounceMs, pendingSince + minIntervalMs),
-        lastSentAt + minIntervalMs
+        Math.min(debounceDeadline, maxWaitDeadline),
+        cooldownEnd
       );
       timer = clock.setTimeout(fire, Math.max(0, due - now));
     },
-    /** Drops text waiting to be sent. */
     cancel() {
       stop();
       pending = undefined;
       pendingSince = undefined;
     },
-    /** Drops waiting text and forgets what was sent, for a new session. */
     reset() {
       stop();
       pending = undefined;
       pendingSince = undefined;
       lastSent = undefined;
     },
-    /** Lets `text` be sent again, as when its request was cancelled. */
-    forget(text: string) {
+    allowResend(text: string) {
       if (lastSent === text) {
         lastSent = undefined;
       }
@@ -289,7 +260,6 @@ export function createInputThrottle(
   };
 }
 
-/** Reads `GET /v1/cards` for the omnibox. `request` is `oauthRequest` in the background. */
 export async function searchOmnibox(
   text: string,
   signal: AbortSignal,
@@ -302,7 +272,7 @@ export async function searchOmnibox(
     // the last keystroke; ranking by meaning often takes longer, so the
     // suggestions match words. Enter opens the full search.
     mode: "keyword",
-    q: Array.from(text.trim()).slice(0, OMNIBOX_MAX_QUERY_LENGTH).join(""),
+    q: truncateCodePoints(text.trim(), OMNIBOX_MAX_QUERY_LENGTH),
   });
   let response: Response | null;
   try {
@@ -341,11 +311,6 @@ export async function searchOmnibox(
   return cards.length > 0 ? { kind: "results", cards } : { kind: "empty" };
 }
 
-/**
- * One address-bar session: throttles input, cancels a request when the text
- * moves on, shows only the latest text's answer, and reuses the answer for
- * text already searched.
- */
 export function createOmniboxSearch({
   clock = systemClock,
   search,
@@ -365,7 +330,7 @@ export function createOmniboxSearch({
       return;
     }
     inflight.controller.abort();
-    throttle.forget(inflight.text);
+    throttle.allowResend(inflight.text);
     inflight = undefined;
   };
 
@@ -391,7 +356,7 @@ export function createOmniboxSearch({
           if (outcome.kind === "results" || outcome.kind === "empty") {
             answered = { outcome, text };
           } else {
-            throttle.forget(text);
+            throttle.allowResend(text);
           }
           if (current === text) {
             show(text, outcome);
@@ -433,7 +398,6 @@ export function createOmniboxSearch({
       }
       throttle.input(text);
     },
-    /** Ends the session: nothing waits, nothing is in flight, nothing is kept. */
     reset() {
       throttle.reset();
       abort();

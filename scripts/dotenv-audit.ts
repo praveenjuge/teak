@@ -1,16 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Name-only audit of local dotenv state.
- *
- * Scans the dotenv files owned by ./env-targets.ts plus legacy root dotenv
- * files. Reports NAMES only: deleted aliases, production selectors in local
- * profiles, credentials in the wrong scope, and stale keys. Values are read
- * only for shape checks (non-empty, `prod:` prefix) and never printed,
- * returned, or embedded in any finding.
- *
- * Usage: bun run scripts/dotenv-audit.ts [--json]
- */
-
 import { join } from "node:path";
 import {
   ENV_VAR_NAMES,

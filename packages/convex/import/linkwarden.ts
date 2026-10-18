@@ -39,11 +39,9 @@ const ids = (value: unknown): Set<unknown> =>
 
 /**
  * Linkwarden's JSON backup: `{ collections: [{ id, name, parentId, links:
- * [{ name, url, description, tags: [{ name }], createdAt }] }] }`. Each
- * collection becomes a Teak folder, nested collections flattened to
- * "Parent / Child"; a link's description becomes its note. The backup is
- * the exporting user's record, so a link they pinned (in their
- * `pinnedLinks`, or with them in its `pinnedBy`) becomes a favorite.
+ * [{ name, url, description, tags: [{ name }], createdAt }] }] }`. The backup
+ * is the exporting user's record, so a link they pinned is in their
+ * `pinnedLinks`, or has them in its `pinnedBy`.
  */
 export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
   let parsed: unknown;

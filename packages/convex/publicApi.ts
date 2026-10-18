@@ -163,10 +163,6 @@ export const searchCardsPageForUser = internalQuery({
     sort: v.optional(apiCardSortValidator),
     limit: v.optional(v.number()),
     ...semanticSearchArgs,
-    /**
-     * Best match for a search: keep the search's own order, scored first
-     * when `scores` (fetched by the HTTP handler) are given.
-     */
     relevance: v.optional(
       v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
     ),
@@ -192,7 +188,6 @@ export const searchCardsPageForUser = internalQuery({
     const decodedCursor = decodeCursor(args.cursor);
     if (
       decodedCursor.mode === "list" ||
-      decodedCursor.mode === "index" ||
       (decodedCursor.mode === "relevance" && !args.relevance)
     ) {
       throw invalidCursorError();
@@ -1065,8 +1060,6 @@ const toRateLimitResult = (
       : undefined,
 });
 
-// Only a credential's validation mutation mints one, from the identity it
-// validated, so a raw bearer token can never key the limiter.
 export type ValidatedRateLimitKey = string & {
   readonly __brand: "ValidatedRateLimitKey";
 };

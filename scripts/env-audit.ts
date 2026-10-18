@@ -1,15 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Environment audit: the contract in ./env-contract.ts against the repo.
- *
- * Scans process.env / import.meta.env reads, Worker bindings, workflows, and
- * Turbo declarations. Fails on undeclared variables, stale contract entries,
- * secret values reachable from diagnostics, or deleted aliases returning.
- * Reports variable names only, never values.
- *
- * Usage: bun run scripts/env-audit.ts
- */
-
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
@@ -212,14 +201,14 @@ export const extractShellUses = (content: string): NameUse[] => {
       firstAssignLine.set(assign[1], lineOf(assign.index ?? 0));
     }
   }
-  // A ${NAME...} expansion inherits external input only when it appears on
-  // or before the name's first assignment (the `NAME="${NAME:-default}"`
-  // idiom). Later brace reads are local self-transforms.
+  const isReadBeforeAssignment = (name: string, line: number) => {
+    const firstLine = firstAssignLine.get(name);
+    return firstLine === undefined || line <= firstLine;
+  };
   const externalBrace = new Set<string>();
   const braceRe = /\$\{([A-Za-z_][A-Za-z0-9_]*)/g;
   for (const brace of content.matchAll(braceRe)) {
-    const firstLine = firstAssignLine.get(brace[1]);
-    if (firstLine === undefined || lineOf(brace.index ?? 0) <= firstLine) {
+    if (isReadBeforeAssignment(brace[1], lineOf(brace.index ?? 0))) {
       externalBrace.add(brace[1]);
     }
   }

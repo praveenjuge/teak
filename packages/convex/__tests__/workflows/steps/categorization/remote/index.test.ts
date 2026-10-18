@@ -15,9 +15,6 @@ import {
 } from "../../../../../workflows/steps/categorization/rules";
 import { socialFetch } from "../../../../helpers/socialFetch.test-utils";
 
-// The remote layer: which site a link asks, and how its answer merges with
-// the page's own facts.
-
 const ARTICLE = "https://en.wikipedia.org/wiki/Ada_Lovelace";
 const BOOK = "https://www.goodreads.com/book/show/6693";
 
@@ -267,7 +264,6 @@ describe("enrichLinkCategory with site details", () => {
     );
 
     expect(result.facts).toHaveLength(MAX_LINK_FACTS);
-    // "Length" already says how many pages.
     expect(result.facts?.map((fact) => fact.label)).not.toContain("Pages");
     expect(result.facts?.map((fact) => fact.label)).toContain("Publisher");
   });
@@ -300,7 +296,6 @@ describe("enrichLinkCategory with site details", () => {
     const second = enrichLinkCategory(card, article, {});
 
     expect(second.facts).toBeUndefined();
-    // Nor does its summary reach the AI input for the new page.
     expect(second.raw?.remote).toBeUndefined();
   });
 

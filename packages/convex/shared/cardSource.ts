@@ -1,8 +1,7 @@
+import { truncateCodePoints } from "./utils/codePoints";
 import { isSafeExternalUrl } from "./utils/safeUrl";
 
-/** The longest `sourceUrl` a card keeps. */
 export const MAX_SOURCE_URL_LENGTH = 2048;
-/** `sourceTitle` is trimmed and cut to this many characters. */
 export const MAX_SOURCE_TITLE_LENGTH = 300;
 
 export interface CardSource {
@@ -10,10 +9,6 @@ export interface CardSource {
   sourceUrl?: string;
 }
 
-/**
- * Explains why a card's source can't be saved, or returns null. The URL must
- * be http or https and at most 2,048 characters; a title needs a URL.
- */
 export const explainInvalidCardSource = ({
   sourceTitle,
   sourceUrl,
@@ -34,22 +29,17 @@ export const explainInvalidCardSource = ({
   return null;
 };
 
-/**
- * The fields a valid source stores: the trimmed URL, and the trimmed title
- * cut to 300 characters (left out when blank).
- */
 export const normalizeCardSource = ({
   sourceTitle,
   sourceUrl,
 }: CardSource): CardSource => {
   const url = sourceUrl?.trim();
-  if (!url) {
+  if (!(url && isSafeExternalUrl(url))) {
     return {};
   }
-  // Cut by code point, so an emoji at the limit isn't split in half.
-  const title = [...(sourceTitle?.trim() ?? "")]
-    .slice(0, MAX_SOURCE_TITLE_LENGTH)
-    .join("")
-    .trim();
+  const title = truncateCodePoints(
+    sourceTitle?.trim() ?? "",
+    MAX_SOURCE_TITLE_LENGTH
+  ).trim();
   return title ? { sourceTitle: title, sourceUrl: url } : { sourceUrl: url };
 };

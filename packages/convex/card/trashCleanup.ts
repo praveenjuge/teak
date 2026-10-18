@@ -4,9 +4,6 @@ import { recordCardTombstone } from "../publicApiTombstones";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import { syncCardSearch } from "./searchDocumentHelpers";
 
-// Hard-deletes cards that stayed in Trash past their retention. The Files
-// Worker's maintenance workflow pages through them once a day.
-
 const LOG_PREFIX = "[card/trashCleanup]";
 
 export const getCardsPendingCleanup = internalQuery({

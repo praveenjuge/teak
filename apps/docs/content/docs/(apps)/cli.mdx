@@ -174,7 +174,7 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 | `--created-after` / `--created-before` | Millisecond timestamps |
 | `--mode hybrid\|keyword\|semantic` | How the search text finds cards: words and meaning (the default), words only, or meaning only. When meaning search is unavailable, the CLI prints `mode: keyword` to stderr (`searchMode` with `--json`). |
 | `--sort newest\|oldest\|relevance\|shuffle`, `--limit`, `--cursor` | Order and paging. `relevance` (Best match, with `--query`) puts the best matches first; the CLI prints `relevance: unranked` when it couldn't score them. |
-| `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). |
+| `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). To get the next page of a shuffle, pass its seed again with `--cursor`: a cursor works only with the seed that issued it. |
 | `--include content,metadata,processing` | Extra fields (`content` by default) |
 | `--all` | Fetch every page |
 

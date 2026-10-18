@@ -52,12 +52,11 @@ public enum CardGrid {
         }
     }
 
-    /// `reserved` is space already taken at the top of each column, such as the composer tile.
-    public static func distribute<T>(_ items: [T], columns: Int, gap: Double = gap, reserved: [Double] = [],
+    public static func distribute<T>(_ items: [T], columns: Int, gap: Double = gap, reservedTopHeights: [Double] = [],
                                       estimate: (T) -> Double) -> [[T]] {
         let count = max(1, columns)
         var result = Array(repeating: [T](), count: count)
-        var heights = (0..<count).map { $0 < reserved.count ? reserved[$0] : 0 }
+        var heights = (0..<count).map { $0 < reservedTopHeights.count ? reservedTopHeights[$0] : 0 }
         for item in items {
             var shortest = 0
             for index in 1..<count where heights[index] < heights[shortest] { shortest = index }
@@ -80,7 +79,6 @@ public enum CardGrid {
     }
 }
 
-/// One `cards:updateCardField` call.
 public enum CardFieldChange: Hashable, Sendable {
     case content(String)
     case notes(String?)
@@ -97,15 +95,14 @@ public enum CardFieldChange: Hashable, Sendable {
     }
 }
 
-/// What the edit screen holds. `content` is nil for types whose content isn't editable.
 public struct CardEditDraft: Hashable, Sendable {
-    public var content: String?
+    public var editableContent: String?
     public var notes: String
     public var tags: [String]
     public var aiTags: [String]
 
-    public init(content: String?, notes: String, tags: [String], aiTags: [String]) {
-        self.content = content
+    public init(editableContent: String?, notes: String, tags: [String], aiTags: [String]) {
+        self.editableContent = editableContent
         self.notes = notes
         self.tags = tags
         self.aiTags = aiTags
@@ -117,7 +114,6 @@ public enum CardEdit {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    /// Adds typed tags (comma separated) without duplicates.
     public static func adding(_ input: String, to tags: [String]) -> [String] {
         var result = tags
         for part in input.split(separator: ",") {
@@ -130,14 +126,13 @@ public enum CardEdit {
     public static func canEditContent(_ type: CardType) -> Bool { type == .text || type == .quote }
 
     public static func draft(for card: Card) -> CardEditDraft {
-        CardEditDraft(content: canEditContent(card.type) ? card.content : nil,
+        CardEditDraft(editableContent: canEditContent(card.type) ? card.content : nil,
                       notes: card.notes ?? "", tags: card.tags ?? [], aiTags: card.aiTags ?? [])
     }
 
-    /// The field updates that turn `card` into `draft`, in save order. Only changed fields are sent.
     public static func changes(from card: Card, to draft: CardEditDraft) -> [CardFieldChange] {
         var changes: [CardFieldChange] = []
-        if let content = draft.content, content != card.content { changes.append(.content(content)) }
+        if let content = draft.editableContent, content != card.content { changes.append(.content(content)) }
         let notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if notes != (card.notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines) {
             changes.append(.notes(notes.isEmpty ? nil : notes))
@@ -148,7 +143,7 @@ public enum CardEdit {
     }
 
     public static func validationError(for card: Card, draft: CardEditDraft) -> String? {
-        if card.type == .quote, (draft.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if card.type == .quote, (draft.editableContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return "A quote can't be empty."
         }
         return nil

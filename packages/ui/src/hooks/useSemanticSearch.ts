@@ -6,16 +6,10 @@ import {
   semanticRequestFor,
 } from "@teak/convex/shared";
 import { useAction } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-/** How long an empty grid waits for meaning matches before saying so. */
 export const SEMANTIC_EMPTY_STATE_WAIT_MS = 1500;
 
-/**
- * What a grid search asks by meaning (its words, a `like:` card or a
- * `mood:`), from the typed search and a smart folder's, as the server
- * combines them. Empty when there is nothing to search by meaning.
- */
 export const semanticSearchText = (
   searchQuery: string,
   folderQuery?: string
@@ -29,7 +23,6 @@ export const semanticSearchText = (
     : (semanticRequestFor(parseSearchQuery(combined))?.cacheText ?? "");
 };
 
-/** How the latest request went (see `requestSemanticResults`). */
 export type SemanticSearchOutcome =
   | "ok"
   | "skipped"
@@ -38,12 +31,6 @@ export type SemanticSearchOutcome =
   | "pending"
   | "anchor_unavailable";
 
-/**
- * Starts the meaning side of a grid search beside its query. The grid query
- * merges the matches in by itself once they are cached, so the answer is
- * not used; `isPending` only holds an empty grid's "No cards found" for a
- * moment, so a search that matches by meaning alone never flashes it.
- */
 export function useSemanticSearch(args: {
   enabled?: boolean;
   folderId?: Id<"folders">;
@@ -60,7 +47,6 @@ export function useSemanticSearch(args: {
   const { enabled = true, folderId, folderQuery } = args;
   const searchQuery = args.searchQuery ?? "";
   const text = enabled ? semanticSearchText(searchQuery, folderQuery) : "";
-  // The search the latest request was for; a slower older one can't clear it.
   const [pendingFor, setPendingFor] = useState<string | null>(null);
   const [answer, setAnswer] = useState<{
     key: string;
@@ -72,35 +58,30 @@ export function useSemanticSearch(args: {
     ? JSON.stringify([searchQuery, folderId ?? null, folderQuery ?? null])
     : null;
 
-  // `attempt` asks again (Retry) for the same search.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt is the explicit retry trigger.
+  const request = useMemo(
+    () => (requestKey ? { attempt, key: requestKey } : null),
+    [attempt, requestKey]
+  );
+
   useEffect(() => {
-    if (!requestKey) {
+    if (!request) {
       setPendingFor(null);
       return;
     }
-    setPendingFor(requestKey);
+    setPendingFor(request.key);
     const settle = () =>
-      setPendingFor((current) => (current === requestKey ? null : current));
+      setPendingFor((current) => (current === request.key ? null : current));
     const timeout = setTimeout(settle, SEMANTIC_EMPTY_STATE_WAIT_MS);
-    // Down, slow or rate-limited, the search stays keyword-only.
     requestSemanticResults({
       searchQuery,
       ...(folderId ? { folderId } : {}),
       ...(folderQuery === undefined ? {} : { folderQuery }),
     })
-      .then(({ outcome }) => setAnswer({ key: requestKey, outcome }))
-      .catch(() => setAnswer({ key: requestKey, outcome: "unavailable" }))
+      .then(({ outcome }) => setAnswer({ key: request.key, outcome }))
+      .catch(() => setAnswer({ key: request.key, outcome: "unavailable" }))
       .finally(settle);
     return () => clearTimeout(timeout);
-  }, [
-    attempt,
-    folderId,
-    folderQuery,
-    requestKey,
-    requestSemanticResults,
-    searchQuery,
-  ]);
+  }, [folderId, folderQuery, request, requestSemanticResults, searchQuery]);
 
   return {
     isPending: requestKey !== null && pendingFor === requestKey,

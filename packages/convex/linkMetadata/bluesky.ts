@@ -13,6 +13,7 @@ import {
 const BLUESKY_HOSTS = ["bsky.app", "www.bsky.app"];
 const BLUESKY_API = "https://public.api.bsky.app/xrpc";
 const BLUESKY_POST_PATH_REGEX = /^\/profile\/([^/]+)\/post\/([a-z0-9]+)\/?$/i;
+// Bluesky's label on a post its author keeps from signed-out viewers.
 const NO_UNAUTHENTICATED_LABEL = "!no-unauthenticated";
 
 interface BlueskyLabel {
@@ -57,7 +58,6 @@ export interface BlueskyPostRef {
   rkey: string;
 }
 
-/** `bsky.app/profile/<handle or did>/post/<rkey>`. */
 export const parseBlueskyPostUrl = (url: string): BlueskyPostRef | null => {
   try {
     const parsed = new URL(url);
@@ -140,11 +140,6 @@ const resolveBlueskyDid = async (
     : null;
 };
 
-/**
- * A public Bluesky post from the AppView API: resolve the handle, then read
- * the post with no replies or parents. Private (`!no-unauthenticated`),
- * deleted and unreachable posts return null.
- */
 export const fetchBlueskyPost = async (
   url: string,
   deps: SocialFetchDeps

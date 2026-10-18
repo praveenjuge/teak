@@ -1,24 +1,6 @@
-/**
- * Leaf storage primitives: R2 key-namespace helpers, SHA-256 hashing and
- * HMAC signing.
- *
- * This module must not import from any other `storage/*` module.
- * `storage/r2` is heavily mocked in tests (see
- * `__tests__/helpers/r2Mock.test-utils.ts`) while `storage/filesWorkerClient`
- * is imported for real alongside those mocks, so anything imported from the
- * mocked surface risks a named-export link error depending on test execution
- * order. Keep every export here pure and dependency-free.
- */
-
 import { filesExportKeyRoot, filesUserKeyRoot } from "@teak/files-protocol";
 import { env } from "../_generated/server";
 
-/**
- * Internal R2 key prefix for environment isolation.
- * - Production: unset -> "users/..."
- * - Development: "dev/" -> "dev/users/..."
- * This is protection against routine mistakes; shared credentials retain bucket-wide authority.
- */
 export const getR2KeyPrefix = (): string => {
   const raw = env.R2_KEY_PREFIX ?? "";
   const trimmed = raw.trim();
@@ -32,11 +14,8 @@ export const getR2KeyPrefix = (): string => {
 export const buildR2ListPrefix = (): string =>
   filesUserKeyRoot(getR2KeyPrefix());
 
-/**
- * Export archives live outside `users/` under their own top-level prefix, so
- * an R2 lifecycle rule on `exports/` (and `dev/exports/`) can expire every
- * artifact, sidecar and leftover manifest without per-user prefixes.
- */
+// The R2 lifecycle rule on `exports/` (and `dev/exports/`) expires every
+// artifact, sidecar and leftover manifest under this prefix.
 export const buildR2ExportPrefix = (): string =>
   filesExportKeyRoot(getR2KeyPrefix());
 
@@ -54,7 +33,6 @@ const hexEncode = (buffer: ArrayBuffer): string =>
     byte.toString(16).padStart(2, "0")
   ).join("");
 
-/** Lowercase hex SHA-256 of a string (as UTF-8) or of raw bytes. */
 export const sha256Hex = async (value: string | ArrayBuffer): Promise<string> =>
   hexEncode(
     await crypto.subtle.digest(

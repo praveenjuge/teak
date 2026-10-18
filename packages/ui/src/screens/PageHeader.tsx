@@ -8,16 +8,9 @@ interface PageHeaderProps {
   children?: ReactNode;
   className?: string;
   leading?: ReactNode;
-  /** The page's name (an h1), with its count or controls. */
   title?: ReactNode;
 }
 
-/**
- * The bar at the top of every app page: the page's name on the left, search
- * in the middle and its controls on the right, as tall as the sidebar's
- * header. It stays on screen while the page scrolls, and its bottom edge
- * shows only once there is something under it.
- */
 export function PageHeader({
   actions,
   children,
@@ -52,7 +45,6 @@ export function PageHeader({
   );
 }
 
-/** A page's name in the header: small, one line, with an optional icon. */
 export function PageTitle({
   children,
   className,
@@ -62,10 +54,8 @@ export function PageTitle({
 }: {
   children: ReactNode;
   className?: string;
-  /** Shown muted after the name, such as a card count. */
   count?: ReactNode;
   icon?: ReactNode;
-  /** After the name and count, such as an Edit search button. */
   trailing?: ReactNode;
 }) {
   return (

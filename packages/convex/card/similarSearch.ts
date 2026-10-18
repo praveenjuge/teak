@@ -11,14 +11,6 @@ import {
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { buildCardSearchText } from "./searchDocumentHelpers";
 
-/**
- * `like:` and `mood:` searches list meaning matches only, from the cached
- * ranking (search/semanticCache.ts): the other qualifiers and the view filter
- * them, and the search's words must all appear in a card (they narrow, they
- * don't add). The caller sorts.
- */
-
-/** Whether a `like:` card is the user's and outside Trash. */
 export const isSimilarAnchorAvailable = async (
   ctx: QueryCtx,
   userId: string,
@@ -42,14 +34,10 @@ export const loadSimilarCards = async (
     similarity: SearchSimilarity;
     ranking: SemanticRanking;
     keep: (card: Doc<"cards">) => boolean;
-    /** The search's words, which a card's text must all contain. */
     text: string;
   }
 ): Promise<Doc<"cards">[]> => {
-  // Split as the keyword search splits, so `chair,` and `(chair)` are `chair`.
   const words = tokenizeSearchInput(text).map((word) => word.toLowerCase());
-  // A card's neighbors are the answer, however close; a mood needs a real
-  // match, as free text does.
   const minScore = similarity.kind === "mood" ? SEMANTIC_MIN_SCORE : 0;
   const anchorId = similarity.kind === "like" ? similarity.cardId : null;
   const cards: Doc<"cards">[] = [];
@@ -83,7 +71,6 @@ export const loadSimilarCards = async (
 
 const ANCHOR_TITLE_MAX = 300;
 
-/** A card's display title for the `like:` chip. */
 const anchorTitle = (card: Doc<"cards">): string => {
   const title =
     (card.metadata?.linkPreview?.status === "success"
@@ -97,11 +84,6 @@ const anchorTitle = (card: Doc<"cards">): string => {
   return title.slice(0, ANCHOR_TITLE_MAX);
 };
 
-/**
- * The `like:` chip's label: the card's title while it can anchor a search,
- * `pending` before its first vector, and `unavailable` for a card that is
- * gone, in Trash or someone else's (never their title).
- */
 export const similarAnchorSummary = query({
   args: { cardId: v.string() },
   returns: v.object({

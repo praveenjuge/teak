@@ -67,24 +67,15 @@ import {
 import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
-  /** Offers Best match in the sort menu: the search has words to match. */
   canSortByRelevance?: boolean;
   filterTags: CardType[];
-  /** Controls at the end of the bar, such as the sort menu. */
   HeaderActions?: ReactNode;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
-  /** Shown first in the header, such as the sidebar toggle. */
   leading?: ReactNode;
-  /**
-   * Read-only chips at the start of the field, such as a smart folder's own
-   * search, which the typed search narrows further.
-   */
   lockedChips?: ReactNode;
-  /** Called when the search box is first focused, to load suggestions. */
   onActivate?: () => void;
-  /** Turns a picked suggestion (`site:github.com`) into a chip. */
   onAddQualifier?: (qualifier: string) => void;
   onClearAll: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -94,44 +85,23 @@ export interface SearchBarProps {
   onRemoveKeyword: (keyword: string) => void;
   onRemoveQualifier?: (qualifier: string) => void;
   onRemoveStyleFilter: (style: VisualStyle) => void;
-  /** Clears the sidebar tag; shown when `tagFilter` is set. */
   onRemoveTagFilter?: () => void;
   onRemoveTimeFilter: () => void;
-  /** Shuffles again; shown beside the View menu while the sort is Shuffle. */
   onReshuffle?: () => void;
-  /**
-   * Saves what is on screen as a smart folder; offered in the sort menu
-   * while set (there is a search to save).
-   */
   onSaveSearch?: () => void;
   onSearchChange: (value: string) => void;
-  /** Shows the sort menu when set. */
   onSortChange?: (sort: LibrarySort) => void;
-  /** Shows the card type filter when set. */
   onToggleFilter?: (filter: CardType) => void;
   placeholder?: string;
-  /** Accepted qualifiers, each a removable chip. */
   qualifierChips?: string[];
-  /**
-   * Offers Revisit in the sort menu; `"empty"` shows it disabled, for a view
-   * with no cards to deal.
-   */
   revisit?: "empty" | "ready";
   searchQuery: string;
-  /** The title on a `like:` chip: its card's, or why it can't be shown. */
   similarAnchorTitle?: string;
   sort?: LibrarySort;
   styleFilters: VisualStyle[];
-  /**
-   * Tags, folders and sites to suggest while typing. Leave the lists
-   * undefined while they load; a missing folder list also keeps `folder:`
-   * chips from reading as unknown.
-   */
   suggestionSources?: SearchSuggestionSources;
-  /** A tag picked in the sidebar, shown as a removable chip. */
   tagFilter?: string;
   timeFilter?: TimeFilter | null;
-  /** The page's name at the start of the header (a PageTitle). */
   title?: ReactNode;
 }
 
@@ -167,7 +137,6 @@ export const QUALIFIER_ICONS = {
   text: ScanText,
 } as const;
 
-/** `is:` values with their own icon; favorites use the star. */
 const IS_ICONS: Partial<Record<string, typeof Tag>> = {
   archived: Archive,
   done: CircleCheck,
@@ -191,13 +160,11 @@ export const searchFieldClassName =
 
 interface FilterChip {
   ariaLabel: string;
-  /** A folder the search names that doesn't exist. */
   dashed?: boolean;
   icon: ReactNode;
   key: string;
   label: string;
   onRemove: () => void;
-  /** Muted text before the label, such as "Site". */
   prefix?: string;
 }
 
@@ -229,11 +196,9 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
 }
 
 // Declarative WebMCP attributes (draft spec:
-// https://webmachinelearning.github.io/webmcp/). Browsers without WebMCP
-// ignore them. Spread keeps the non-standard attributes past the JSX types.
-// The name must stay distinct from the imperative tools in apps/web: WebMCP
-// rejects duplicate tool names. toolautosubmit lets agent fills submit
-// without a submit button, which this search box has no room for.
+// https://webmachinelearning.github.io/webmcp/); browsers without WebMCP
+// ignore them. WebMCP rejects duplicate tool names, so this one must differ
+// from the imperative tools in apps/web.
 const webMcpSearchAttributes = {
   toolname: "teak_search_form",
   tooldescription:
@@ -386,8 +351,6 @@ export function SearchBar({
   const optionId = (index: number) => `${listId}-option-${index}`;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    // Typing already filters live; committing on submit keeps Enter and
-    // declarative WebMCP form fills applying the same search path.
     e.preventDefault();
     const query = new FormData(e.currentTarget).get("q");
     if (typeof query === "string") {

@@ -16,30 +16,14 @@ export type PendingSave = {
 const MAX_PENDING_SAVES = 20;
 const TOO_MANY_PENDING = "Finish your pending saves before adding more.";
 
-// A private session (see isPrivateSession) can't open IndexedDB. Text and
-// asset saves wait in session storage instead, which outlives the background
-// page until Firefox closes. A file can't go there, so it waits in memory for
-// its own upload only (runPendingSave drops it once that upload ends).
-const SESSION_KEY = "teakPendingSaves";
-type SessionSaves = Record<string, PendingSave>;
-const files = new Map<string, PendingSave>();
-const readSession = async () =>
-  ((await chrome.storage.session.get(SESSION_KEY))[SESSION_KEY] ??
-    {}) as SessionSaves;
-let sessionWrites: Promise<unknown> = Promise.resolve();
-const editSession = (edit: (saves: SessionSaves) => void) => {
-  const write = sessionWrites.then(async () => {
-    const saves = await readSession();
-    edit(saves);
-    await chrome.storage.session.set({ [SESSION_KEY]: saves });
-  });
-  sessionWrites = write.catch(() => undefined);
-  return write;
-};
-const privateIds = async () => [
-  ...Object.keys(await readSession()),
-  ...files.keys(),
-];
+interface PendingSaveStore {
+  add: (save: PendingSave) => Promise<void>;
+  get: (id: string) => Promise<PendingSave | undefined>;
+  ids: () => Promise<string[]>;
+  put: (save: PendingSave) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  retainsFiles: boolean;
+}
 
 // IndexedDB preserves file Blobs across popup closure and worker restarts.
 // It belongs to the extension origin; page content scripts cannot access it.
@@ -72,93 +56,123 @@ async function transaction<T>(
   }
 }
 
-export const listPendingSaveIds = async () =>
-  isPrivateSession()
-    ? await privateIds()
-    : ((await transaction("readonly", (store) =>
-        store.getAllKeys()
-      )) as string[]);
-export const waitingSaveIds = (
-  ids: readonly string[],
-  running: { has: (id: string) => boolean }
-) => ids.filter((id) => !running.has(id));
-export const getPendingSave = async (id: string) =>
-  isPrivateSession()
-    ? (files.get(id) ?? (await readSession())[id])
-    : ((await transaction("readonly", (store) => store.get(id))) as
-        | PendingSave
-        | undefined);
-export const removePendingSave = async (id: string) => {
-  if (isPrivateSession()) {
+const durableStore: PendingSaveStore = {
+  retainsFiles: true,
+  ids: async () =>
+    (await transaction("readonly", (store) => store.getAllKeys())) as string[],
+  get: async (id) =>
+    (await transaction("readonly", (store) => store.get(id))) as
+      | PendingSave
+      | undefined,
+  put: async (save) => {
+    await transaction("readwrite", (store) => store.put(save));
+  },
+  remove: async (id) => {
+    await transaction("readwrite", (store) => store.delete(id));
+  },
+  add: async (save) => {
+    const database = await openDatabase();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = database.transaction("saves", "readwrite");
+        const store = tx.objectStore("saves");
+        const count = store.count();
+        let failure: Error | null = null;
+        count.onsuccess = () => {
+          if (count.result >= MAX_PENDING_SAVES) {
+            failure = new Error(TOO_MANY_PENDING);
+            tx.abort();
+          } else {
+            store.add(save);
+          }
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () =>
+          reject(
+            failure ??
+              tx.error ??
+              new Error("Could not preserve the pending save.")
+          );
+      });
+    } finally {
+      database.close();
+    }
+  },
+};
+
+const SESSION_KEY = "teakPendingSaves";
+type SessionSaves = Record<string, PendingSave>;
+const files = new Map<string, PendingSave>();
+const readSession = async () =>
+  ((await chrome.storage.session.get(SESSION_KEY))[SESSION_KEY] ??
+    {}) as SessionSaves;
+let sessionWrites: Promise<unknown> = Promise.resolve();
+const editSession = (edit: (saves: SessionSaves) => void) => {
+  const write = sessionWrites.then(async () => {
+    const saves = await readSession();
+    edit(saves);
+    await chrome.storage.session.set({ [SESSION_KEY]: saves });
+  });
+  sessionWrites = write.catch(() => undefined);
+  return write;
+};
+
+const privateSessionStore: PendingSaveStore = {
+  retainsFiles: false,
+  ids: async () => [...Object.keys(await readSession()), ...files.keys()],
+  get: async (id) => files.get(id) ?? (await readSession())[id],
+  put: async (save) => {
+    if (save.kind === "file") {
+      files.set(save.id, save);
+      return;
+    }
+    await editSession((saves) => {
+      saves[save.id] = save;
+    });
+  },
+  remove: async (id) => {
     files.delete(id);
     await editSession((saves) => {
       delete saves[id];
     });
-  } else {
-    await transaction("readwrite", (store) => store.delete(id));
-  }
+  },
+  add: async (save) => {
+    if (save.kind === "file") {
+      if ((await privateSessionStore.ids()).length >= MAX_PENDING_SAVES) {
+        throw new Error(TOO_MANY_PENDING);
+      }
+      files.set(save.id, save);
+      return;
+    }
+    await editSession((saves) => {
+      if (Object.keys(saves).length + files.size >= MAX_PENDING_SAVES) {
+        throw new Error(TOO_MANY_PENDING);
+      }
+      saves[save.id] = save;
+    });
+  },
+};
+
+export const pendingSaveStore = (): PendingSaveStore =>
+  isPrivateSession() ? privateSessionStore : durableStore;
+
+export const listPendingSaveIds = () => pendingSaveStore().ids();
+export const waitingSaveIds = (
+  ids: readonly string[],
+  running: { has: (id: string) => boolean }
+) => ids.filter((id) => !running.has(id));
+export const getPendingSave = (id: string) => pendingSaveStore().get(id);
+export const removePendingSave = async (id: string) => {
+  await pendingSaveStore().remove(id);
   await notifyQueueChange();
 };
-export const updatePendingSave = async (save: PendingSave) => {
-  if (isPrivateSession()) {
-    if (save.kind === "file") {
-      files.set(save.id, save);
-    } else {
-      await editSession((saves) => {
-        saves[save.id] = save;
-      });
-    }
-    return;
-  }
-  await transaction("readwrite", (store) => store.put(save));
-};
+export const updatePendingSave = (save: PendingSave) =>
+  pendingSaveStore().put(save);
 const notifyQueueChange = () =>
   chrome.storage.local.set({ teakPendingSaveChanged: Date.now() });
 
 export async function storePendingSave(save: PendingSave) {
-  if (isPrivateSession()) {
-    if (save.kind === "file") {
-      if ((await privateIds()).length >= MAX_PENDING_SAVES) {
-        throw new Error(TOO_MANY_PENDING);
-      }
-      files.set(save.id, save);
-    } else {
-      await editSession((saves) => {
-        if (Object.keys(saves).length + files.size >= MAX_PENDING_SAVES) {
-          throw new Error(TOO_MANY_PENDING);
-        }
-        saves[save.id] = save;
-      });
-    }
-    await notifyQueueChange();
-    return;
-  }
-  const database = await openDatabase();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = database.transaction("saves", "readwrite");
-      const store = tx.objectStore("saves");
-      const count = store.count();
-      let failure: Error | null = null;
-      count.onsuccess = () => {
-        if (count.result >= MAX_PENDING_SAVES) {
-          failure = new Error(TOO_MANY_PENDING);
-          tx.abort();
-        } else {
-          store.add(save);
-        }
-      };
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () =>
-        reject(
-          failure ??
-            tx.error ??
-            new Error("Could not preserve the pending save.")
-        );
-    });
-  } finally {
-    database.close();
-  }
+  await pendingSaveStore().add(save);
   await notifyQueueChange();
 }

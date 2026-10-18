@@ -53,7 +53,6 @@ export const accountDeletionOwnsRows = async (
 ): Promise<boolean> =>
   userId !== undefined && Boolean(await getAccountDeletionState(ctx, userId));
 
-/** `accountDeletionOwnsRows`, read once per user for a batch of many cards. */
 export const createAccountDeletionGate = (ctx: DatabaseReaderCtx) => {
   const owned = new Map<string, Promise<boolean>>();
   return (userId: string): Promise<boolean> => {
@@ -93,7 +92,6 @@ export const beginAccountDeletion = async (
 
 declare const ownerIndexBrand: unique symbol;
 
-/** Card ids read from one owner's `by_user_deleted` index. */
 export type OwnedCardIds = Id<"cards">[] & {
   readonly [ownerIndexBrand]: true;
 };
@@ -157,12 +155,9 @@ export const deleteAccountDataHandler = async (
       await ctx.db.delete("cards", cardId);
       deletedCards += 1;
     } catch (error) {
-      // Only the already-deleted race is skippable. Anything else (backend
-      // failure, invalid ID) must surface so the deletion action retries or
-      // fails loudly instead of reporting progress it did not make. The
-      // production backend says "Delete on nonexistent document ID ..."
-      // while convex-test says "Delete on non-existent doc", so match both
-      // spellings.
+      // Reading the card first would widen Convex's OCC read set. The
+      // production backend says "Delete on nonexistent document ID ..." and
+      // convex-test says "Delete on non-existent doc".
       if (
         !(
           error instanceof Error &&

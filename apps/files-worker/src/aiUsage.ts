@@ -1,16 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { estimateWorkersAiCostUsd } from "@teak/convex/shared/aiPricing";
 
-/**
- * Whose Workers AI call this is. Workflow steps and queue consumers run the
- * AI ops for one card at a time inside `runWithAiUsage`, so each call can be
- * charged to its owner in Workers Analytics Engine without threading the
- * owner through every op. The store is per async context, so concurrent
- * steps in one isolate never mix up owners.
- */
 export interface AiUsageContext {
   cardId?: string;
-  /** The deployment the card belongs to; one dataset serves several. */
   convexSiteUrl: string;
   userId: string;
 }
@@ -27,7 +19,6 @@ export const currentAiUsageContext = (): AiUsageContext | undefined =>
 
 export interface AiUsageEnv {
   AI?: unknown;
-  /** Workers Analytics Engine dataset for AI usage (`teak_ai_usage`). */
   AI_USAGE?: AnalyticsEngineDataset;
 }
 
@@ -64,14 +55,32 @@ export const readAiTokenUsage = (
   };
 };
 
-/**
- * One Analytics Engine data point per Workers AI call, charged to the card
- * owner in the current `runWithAiUsage` context. Calls outside one (the
- * public API's search, Convex's own op calls) are not charged to anyone.
- * Layout, read back by the hourly rollup (aiUsageRollup.ts):
- * indexes [userId]; blobs [convexSiteUrl, model, functionId, outcome];
- * doubles [calls, errors, inputTokens, outputTokens, costUsd, latencyMs].
- */
+export const AI_USAGE_BLOBS = [
+  "convexSiteUrl",
+  "model",
+  "functionId",
+  "outcome",
+] as const;
+
+export const AI_USAGE_DOUBLES = [
+  "calls",
+  "errors",
+  "inputTokens",
+  "outputTokens",
+  "costUsd",
+  "latencyMs",
+] as const;
+
+type AiUsageBlob = (typeof AI_USAGE_BLOBS)[number];
+type AiUsageDouble = (typeof AI_USAGE_DOUBLES)[number];
+
+export const aiUsageColumn = (name: AiUsageBlob | AiUsageDouble): string => {
+  const blob = AI_USAGE_BLOBS.indexOf(name as AiUsageBlob);
+  return blob >= 0
+    ? `blob${String(blob + 1)}`
+    : `double${String(AI_USAGE_DOUBLES.indexOf(name as AiUsageDouble) + 1)}`;
+};
+
 export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
   const context = currentAiUsageContext();
   const dataset = env.AI_USAGE;
@@ -79,25 +88,28 @@ export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
     return;
   }
   try {
-    dataset.writeDataPoint({
-      blobs: [
-        context.convexSiteUrl,
-        facts.model,
-        facts.functionId,
-        facts.outcome,
-      ],
-      doubles: [
-        1,
-        facts.outcome === "ok" ? 0 : 1,
-        facts.inputTokens,
-        facts.outputTokens,
+    const blobs: Record<AiUsageBlob, string> = {
+      convexSiteUrl: context.convexSiteUrl,
+      functionId: facts.functionId,
+      model: facts.model,
+      outcome: facts.outcome,
+    };
+    const doubles: Record<AiUsageDouble, number> = {
+      calls: 1,
+      costUsd:
         estimateWorkersAiCostUsd({
           inputTokens: facts.inputTokens,
           model: facts.model,
           outputTokens: facts.outputTokens,
         }) ?? 0,
-        facts.latencyMs,
-      ],
+      errors: facts.outcome === "ok" ? 0 : 1,
+      inputTokens: facts.inputTokens,
+      latencyMs: facts.latencyMs,
+      outputTokens: facts.outputTokens,
+    };
+    dataset.writeDataPoint({
+      blobs: AI_USAGE_BLOBS.map((name) => blobs[name]),
+      doubles: AI_USAGE_DOUBLES.map((name) => doubles[name]),
       indexes: [context.userId],
     });
   } catch (error) {
@@ -107,11 +119,6 @@ export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
   }
 };
 
-/**
- * Runs one Workers AI call and records it. `isCapacity` tells a capacity
- * refusal from other failures; the call's own result or error is returned
- * or rethrown unchanged.
- */
 export const meteredAiRun = async <T>(
   env: AiUsageEnv,
   call: {

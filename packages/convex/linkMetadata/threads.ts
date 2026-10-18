@@ -7,7 +7,6 @@ const THREADS_POST_PATH_REGEX = /^\/@([^/]+)\/post\/[^/]+\/?$/;
 // og:title reads "Ada Lovelace (@ada) on Threads".
 const THREADS_TITLE_REGEX = /^(.+?)\s*\(@[^)]+\)\s+on Threads/i;
 
-/** The author's handle from `threads.net/@<user>/post/<id>`. */
 export const parseThreadsPostUrl = (url: string): string | null => {
   try {
     const parsed = new URL(url);
@@ -23,10 +22,7 @@ export const parseThreadsPostUrl = (url: string): string | null => {
 export const isThreadsPostUrl = (url: string): boolean =>
   parseThreadsPostUrl(url) !== null;
 
-/**
- * A Threads post from its Open Graph tags. Threads' oEmbed needs an app
- * token, so the page scrape is the only source.
- */
+// Threads' oEmbed needs an app token.
 export const mapThreadsOpenGraph = (
   url: string,
   parsed: ParsedLinkPreview

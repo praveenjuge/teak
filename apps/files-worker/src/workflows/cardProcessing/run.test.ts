@@ -47,7 +47,6 @@ const clefAnswer = (decision: null) => ({
   data: { decision, model: "@cf/cloudflare/clef", version: 1 },
 });
 
-/** Clef reviews notes and guessed link categories; here it never objects. */
 const NO_DECISIONS: Partial<Record<FilesOp, OpAnswer>> = {
   "decide-card-type": clefAnswer(null),
   "decide-link-category": clefAnswer(null),
@@ -85,7 +84,6 @@ const setup = (
   return { convex, fakeStep, ops, run };
 };
 
-/** Each stage's writes, in order, e.g. classify: in_progress → completed. */
 const stageHistory = (
   writes: Array<{ stage: string; status: string }>,
   stage: string
@@ -180,7 +178,6 @@ describe("card processing", () => {
       "emit completion",
       "report complete",
     ]);
-    // The screenshot's text, for search.
     const screenshotKey = (
       card.metadata as { linkPreview: { screenshotStorageKey: string } }
     ).linkPreview.screenshotStorageKey;
@@ -202,8 +199,6 @@ describe("card processing", () => {
       "in_progress",
       "completed",
     ]);
-    // The page is read once per step from the op (cached for a day there):
-    // the preview, the JSON-LD and the screenshot HTML.
     expect(ops.opsCalled().filter((op) => op === "fetch-link-page")).toEqual([
       "fetch-link-page",
       "fetch-link-page",
@@ -329,7 +324,6 @@ describe("card processing", () => {
     );
 
     expect(await run()).toMatchObject({ mode: "completed" });
-    // The preview fetch was retried before giving up.
     expect(
       ops.opsCalled().filter((op) => op === "fetch-link-page").length
     ).toBeGreaterThan(2);
@@ -338,7 +332,6 @@ describe("card processing", () => {
     expect(
       (card.metadata as { linkPreview: { title: string } }).linkPreview.title
     ).toBe("Stored title");
-    // The run went on past the preview to categorize the link.
     expect(card.processingStatus?.categorize?.status).toBe("completed");
     expect(reported(convex)).toEqual(["complete"]);
   });
@@ -547,8 +540,6 @@ describe("card processing", () => {
     const generating = new Promise<void>((resolve) => {
       metadataStarted = resolve;
     });
-    // Each side waits until the other has started: run one after the
-    // other, they would never finish.
     const answers = createFakeOps({
       "generate-text-metadata": textMetadataAnswer(["report"]),
       inspect: {
@@ -729,8 +720,6 @@ describe("card processing", () => {
       { "generate-text-metadata": textMetadataAnswer() },
       {
         handlers: {
-          // The edit lands while the metadata step reads the AI gate (the
-          // classify step's Clef review reads it first).
           "adminAccess:getAiGate": () => {
             gateReads += 1;
             if (gateReads === 2) {

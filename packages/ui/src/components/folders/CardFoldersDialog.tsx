@@ -33,17 +33,11 @@ import { FolderDot } from "./FolderDot";
 
 interface CardFoldersDialogProps {
   cardId: string | null;
-  /** The card's folders when the dialog opens. */
   folderIds: readonly string[];
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
 
-/**
- * The Folders checklist for one card: each tick adds the card to a folder
- * or takes it out at once, and a typed name that matches no folder can be
- * created and ticked in one step.
- */
 export function CardFoldersDialog({
   cardId,
   folderIds,
@@ -79,7 +73,6 @@ function CardFoldersChecklist({
   });
   const [query, setQuery] = useState("");
   const [checked, setCheckedState] = useState(() => [...initialFolderIds]);
-  // Ticks can land faster than renders; each one builds on the latest list.
   const checkedRef = useRef(checked);
   const setChecked = (next: string[]) => {
     checkedRef.current = next;

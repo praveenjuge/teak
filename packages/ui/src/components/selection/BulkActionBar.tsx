@@ -29,30 +29,18 @@ import { selectionShortcut } from "../../lib/gridKeys";
 import type { MenuShortcut } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-/** Which grid the selection is in; it decides the bar's actions. */
 export type BulkBarView = "library" | "archive" | "trash";
 
-/** A bar action: a bulk card action, or copying the selection's links. */
 export type BulkBarAction = BulkCardAction | "copyLinks";
 
-/** A folder the bar acts on: the one being viewed, or the one being filled. */
 export interface BulkBarFolder {
   id: string;
   name: string;
 }
 
 interface BulkActionBarProps {
-  /**
-   * Choosing cards for this folder ("Add cards" from an empty folder): the
-   * bar's one action adds the selection to it.
-   */
   addToFolder?: BulkBarFolder;
-  /**
-   * Whether every selected card is a favorite: then F removes them from
-   * favorites rather than adding them, and the menu shows F there.
-   */
   allFavorited?: boolean;
-  /** The folder being viewed, which Remove from folder takes cards out of. */
   folder?: BulkBarFolder;
   isBusy?: boolean;
   onAction: (action: BulkBarAction) => void;
@@ -111,9 +99,6 @@ export function BulkActionBar({
     </Button>
   );
 
-  // Takes the page header's place across the top of the content column
-  // (beside the sidebar), the same height, so selecting swaps the bar in
-  // place; like the toasts at the bottom, it never covers the sidebar.
   return (
     <div className="fade-in-0 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background pt-[env(safe-area-inset-top)] transition-[left] duration-150 ease-out">
       <div className="mx-auto flex h-13 max-w-7xl items-center gap-2 px-4">

@@ -17,7 +17,6 @@ interface WorkerCall {
   params: Record<string, any>;
 }
 
-/** The Files Worker's vector ops: `vector-similar` and `vector-query`. */
 const stubWorker = (answers: {
   similar?: { found: boolean; matches: { id: string; score: number }[] };
   query?: { matches: { id: string; score: number }[] };
@@ -85,7 +84,6 @@ const setup = async () => {
       return id;
     });
   };
-  /** Caches a ranking under a search's cache text, as the action would. */
   const cache = async (
     cacheText: string,
     matches: { id: string; score: number }[],
@@ -121,7 +119,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** An anchor, its neighbors, and neighbors that each break a rule. */
 const seedNeighbors = async (env: Awaited<ReturnType<typeof setup>>) => {
   const anchor = await env.insert({ content: "Concrete brutalist tower" });
   const near = await env.insert({ content: "Raw concrete stairwell" });
@@ -147,7 +144,6 @@ const seedNeighbors = async (env: Awaited<ReturnType<typeof setup>>) => {
     { id: trashed, score: 0.6 },
     { id: archived, score: 0.6 },
     { id: stranger, score: 0.6 },
-    // A neighbor is a neighbor however far: no score threshold.
     { id: far, score: 0.1 },
   ]);
   return cards;
@@ -186,7 +182,6 @@ describe("like: in the grid", () => {
     expect(await env.grid({ searchQuery: `${like} stairwell` })).toEqual([
       cards.near,
     ]);
-    // Words are split as the keyword search splits them.
     expect(await env.grid({ searchQuery: `${like} (Stairwell),` })).toEqual([
       cards.near,
     ]);
@@ -285,7 +280,6 @@ describe("requestSemanticResults for like: and mood:", () => {
         searchQuery: `like:${anchor}`,
       });
     expect(await request()).toEqual({ outcome: "pending" });
-    // Cached as pending: a retry right away asks nothing.
     expect(await request()).toEqual({ outcome: "pending" });
     expect(calls).toHaveLength(1);
     vi.advanceTimersByTime(16_000);
@@ -320,7 +314,6 @@ describe("requestSemanticResults for like: and mood:", () => {
       query: {
         matches: [
           { id: photo, score: 0.45 },
-          // A vector written before vectors carried a type.
           { id: note, score: 0.5 },
         ],
       },
@@ -398,7 +391,6 @@ describe("similarAnchorSummary", () => {
     expect(
       await env.owner.query(api.cards.similarAnchorSummary, { cardId: mine })
     ).toEqual({ status: "pending", title: "Concrete tower" });
-    // Its first embed lands.
     await env.t.run(async (ctx) => {
       const row = await ctx.db
         .query("cardEmbeddings")

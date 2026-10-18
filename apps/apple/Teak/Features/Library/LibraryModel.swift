@@ -34,8 +34,6 @@ final class LibraryModel {
         let isCardLimit: Bool
     }
 
-    // MARK: Query
-
     var query: LibraryQuery {
         LibraryQuery(text: debouncedText, tokens: tokens, filters: filters)
     }
@@ -112,8 +110,6 @@ final class LibraryModel {
         await pager.refresh()
     }
 
-    // MARK: Status
-
     func show(_ text: String, isError: Bool = false, isCardLimit: Bool = false) {
         statusTask?.cancel()
         let message = StatusMessage(text: text, isError: isError, isCardLimit: isCardLimit)
@@ -130,12 +126,10 @@ final class LibraryModel {
         PostHogReporting.capture(error)
     }
 
-    // MARK: Card actions
-
     func setFavorite(_ card: CardSummary, _ favorite: Bool) async -> Bool {
         favoriteOverrides[card.id] = favorite
         do {
-            let _: ConvexVoid = try await backend.mutation("cards:updateCardField", [
+            let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, [
                 "cardId": .string(card.id), "field": "isFavorited", "value": .bool(favorite),
             ])
             return true
@@ -148,21 +142,21 @@ final class LibraryModel {
 
     func moveToTrash(_ id: String) async -> Bool {
         await hide(id, success: "Card deleted. Find it in Trash.") {
-            let _: ConvexVoid = try await self.backend.mutation("cards:updateCardField",
+            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
                                                                 ["cardId": .string(id), "field": "delete"])
         }
     }
 
     func restore(_ id: String) async -> Bool {
         await hide(id, success: "Card restored") {
-            let _: ConvexVoid = try await self.backend.mutation("cards:updateCardField",
+            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
                                                                 ["cardId": .string(id), "field": "restore"])
         }
     }
 
     func deleteForever(_ id: String) async -> Bool {
         await hide(id, success: "Card deleted forever") {
-            let _: ConvexVoid = try await self.backend.mutation("cards:permanentDeleteCard", ["id": .string(id)])
+            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(id)])
         }
     }
 
@@ -178,8 +172,6 @@ final class LibraryModel {
             return false
         }
     }
-
-    // MARK: Selection
 
     var isSelecting: Bool { selection != nil }
 
@@ -220,7 +212,7 @@ final class LibraryModel {
         }
     }
 
-    /// Runs one mutation per selected card, like the iPhone app, then reports any that failed.
+    /// Runs one mutation per selected card, then reports any that failed.
     func run(_ action: BulkAction) async {
         let chosen = selectedCards
         guard !chosen.isEmpty, !isRunningBulkAction else { return }
@@ -234,17 +226,17 @@ final class LibraryModel {
                 case .favorite, .unfavorite:
                     let favorite = action == .favorite
                     favoriteOverrides[id] = favorite
-                    let _: ConvexVoid = try await backend.mutation("cards:updateCardField", [
+                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, [
                         "cardId": .string(id), "field": "isFavorited", "value": .bool(favorite),
                     ])
                 case .trash, .restore:
                     hiddenIds.insert(id)
-                    let _: ConvexVoid = try await backend.mutation("cards:updateCardField", [
+                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, [
                         "cardId": .string(id), "field": action == .trash ? "delete" : "restore",
                     ])
                 case .deleteForever:
                     hiddenIds.insert(id)
-                    let _: ConvexVoid = try await backend.mutation("cards:permanentDeleteCard", ["id": .string(id)])
+                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(id)])
                 }
             } catch {
                 failed += 1

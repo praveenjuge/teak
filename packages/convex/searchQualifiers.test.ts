@@ -514,7 +514,6 @@ describe("price:", () => {
       { amount: 10, currency: "USD" },
       { isArchived: true }
     );
-    // A text card with a price in its metadata is still not a product.
     await insert({
       content: "Lamp shopping note",
       metadata: productMetadata("https://x.example", { amount: 5 }),
@@ -555,7 +554,6 @@ describe("price:", () => {
     expect(await search("desk price:<100")).toEqual(["Desk lamp"]);
     expect(await search("price:<100", { types: ["text"] })).toEqual([]);
     expect(await search("price:<100 type:text")).toEqual([]);
-    // A malformed bound is a word no card holds.
     expect(await search("price:cheap")).toEqual([]);
   });
 
@@ -700,7 +698,6 @@ describe("is:done and is:todo", () => {
         isDeleted: true,
       }),
     };
-    // A text card with a stray date is still not a link.
     await insert({ content: "A note", completedAt: 5 });
     return ids;
   };
@@ -809,8 +806,6 @@ describe("is:done and is:todo", () => {
         })
       ).sort()
     ).toEqual(["Film to watch", "Unread article"]);
-    // Without a type, the scan still lists only links: the note's stray
-    // date is not "done".
     expect(
       contents(
         await t.query(internal.publicApi.scanCardsPageForUser, {
@@ -820,7 +815,6 @@ describe("is:done and is:todo", () => {
         })
       )
     ).toEqual(["Read article"]);
-    // One card a page: every page holds a to-do link, and none repeats.
     const shuffled: string[] = [];
     let cursor: string | undefined;
     do {

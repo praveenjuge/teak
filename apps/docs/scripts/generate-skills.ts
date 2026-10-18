@@ -10,7 +10,6 @@ const outDir = join(root, ".generated/agent-skills");
 
 export const PUBLIC_SKILLS = ["teak"] as const;
 
-/** Every reason the public skills can't be published as they are. */
 export const checkPublicSkills = async (
   skillsDir: string,
   names: readonly string[]
@@ -30,7 +29,6 @@ export const checkPublicSkills = async (
   if (errors.length > 0) {
     return errors;
   }
-  // Blume skips a skill it can't publish with only a warning.
   const { skills, warnings } = await collectSkills(skillsDir);
   const published = new Set(skills.map((skill) => skill.name));
   return [

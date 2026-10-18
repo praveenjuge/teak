@@ -13,33 +13,20 @@ import { cardTypeValidator } from "../schema";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildEmbeddingText } from "./text";
 
-/**
- * The `cardEmbeddings` ledger: one row per card that has, or is due for, a
- * vector. A row is written before its first upsert and removed only after
- * its vector is deleted, so every vector in the index has a row.
- *
- * `dueAt` is set exactly while an `embedDue` job is scheduled for the card,
- * and it doubles as a fence: a job records its result only if `dueAt` still
- * holds the value it read, so an older job can never mark a newer edit done.
- *
- * Every save schedules its own job, so a burst of saves (an import, a bulk
- * edit, a reprocessing run) would make one small Vectorize write per card,
- * which Vectorize answers with 429s. Instead the first job to run claims the
- * owner's due cards (`leaseUntil`) and writes them in batches; the burst's
- * other jobs find their cards claimed and stop.
- */
+// `dueAt` is set exactly while an `embedDue` job is scheduled for the card,
+// and it doubles as a fence: a job records its result only if `dueAt` still
+// holds the value it read, so an older job can never mark a newer edit done.
+//
+// Vectorize answers a burst of small writes with 429s, so the first job to
+// run claims the owner's due cards (`leaseUntil`) and writes them in batches.
 
-/** Edits within this window are embedded once, after the last one. */
 export const EMBED_DEBOUNCE_MS = 30_000;
-/** After this many failed attempts the card waits for the backfill. */
 export const MAX_EMBED_ATTEMPTS = 5;
 export const MAX_VECTOR_DELETE_ATTEMPTS = 5;
-/** Cards one job claims: two `embed-upsert` calls' worth. */
 export const EMBED_CLAIM_MAX_CARDS = EMBED_UPSERT_MAX_ITEMS * 2;
-/** A job that claims cards owns them this long, an action's longest run. */
 export const EMBED_CLAIM_LEASE_MS = 10 * 60_000;
-/** Due cards past one job's claim go to the next job after this gap. */
 export const EMBED_CLAIM_GAP_MS = 3000;
+export const LOST_EMBED_JOB_MS = 60 * 60 * 1000;
 
 const embedRef = () => internal.embedding.embedCard;
 
@@ -52,11 +39,33 @@ const rowFor = (ctx: QueryCtx, cardId: Id<"cards">) =>
 const isClaimed = (row: Doc<"cardEmbeddings">, now: number) =>
   row.leaseUntil !== undefined && row.leaseUntil > now;
 
-/**
- * Embed the card about EMBED_DEBOUNCE_MS from now. Called by the search sync
- * whenever a card's searchable text changes, so a burst of edits costs one
- * embedding. Does nothing without a Files Worker (the local E2E stack).
- */
+export type EmbeddingRowState =
+  | "deleting"
+  | "pending"
+  | "lost_job"
+  | "failed"
+  | "embedded"
+  | "missing";
+
+export const classifyEmbeddingRow = (
+  row: Doc<"cardEmbeddings"> | null,
+  now: number
+): EmbeddingRowState => {
+  if (!row) {
+    return "missing";
+  }
+  if (row.pendingVectorDeleteAt !== undefined) {
+    return "deleting";
+  }
+  if (row.dueAt !== undefined) {
+    return row.dueAt > now - LOST_EMBED_JOB_MS ? "pending" : "lost_job";
+  }
+  if (row.lastError !== undefined) {
+    return "failed";
+  }
+  return row.hash === undefined ? "missing" : "embedded";
+};
+
 export const markCardForEmbedding = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -87,12 +96,6 @@ export const markCardForEmbedding = async (
   });
 };
 
-/**
- * Mark a card the backfill found without a current vector as due at
- * `dueAt`. The backfill schedules one `embedDue` per batch of these, since a
- * row it re-queues may have lost its job. `forgetHash` makes the job write
- * the vector even when its text and type are unchanged.
- */
 export const queueCardEmbedding = async (
   ctx: MutationCtx,
   row: Doc<"cardEmbeddings"> | null,
@@ -113,10 +116,6 @@ export const queueCardEmbedding = async (
   }
 };
 
-/**
- * The card is gone: mark its vector for deletion and schedule the delete.
- * The row stays until the delete succeeds, so a failed delete stays visible.
- */
 export const tombstoneCardEmbedding = async (
   ctx: MutationCtx,
   cardId: Id<"cards">
@@ -140,13 +139,9 @@ export const tombstoneCardEmbedding = async (
 };
 
 /**
- * A job finished after the row moved on. An edit made while it ran set a
- * later `dueAt` that no job is waiting for (`markCardForEmbedding` schedules
- * only when none is due), so schedule one. If this job wrote a vector, the
- * stored hash no longer says what the index holds (the vector may have
- * landed on top of a newer one, or the text may since have been reverted to
- * the hashed text): forget it so the next job embeds for real. Either way
- * the job lets go of its claim, so the job it hands off to can take it.
+ * A job finished after the row moved on. If it wrote a vector, the stored
+ * hash no longer says what the index holds: forget it so the next job
+ * embeds for real.
  */
 const handOffStaleJob = async (
   ctx: MutationCtx,
@@ -182,13 +177,6 @@ const embeddingRowValidator = v.object({
   userId: v.string(),
 });
 
-/**
- * Claim the due cards among `cardIds` for the calling job, together with the
- * same owners' other due cards, up to EMBED_CLAIM_MAX_CARDS. A card another
- * job has claimed is skipped: that job records it or schedules its retry.
- * Due cards past the cap go to a follow-up job. `later` lists cards whose
- * `dueAt` an edit pushed back, for the caller to schedule.
- */
 export const claimDueEmbeddings = internalMutation({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.object({
@@ -262,7 +250,6 @@ export const claimDueEmbeddings = internalMutation({
   },
 });
 
-/** The due cards' rows and current text; skips gone cards and deletions. */
 export const loadForEmbedding = internalQuery({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.array(embeddingRowValidator),
@@ -303,11 +290,6 @@ export const loadForEmbedding = internalQuery({
   },
 });
 
-/**
- * Record an embed (or, with no hash, a cleared vector) if the row's `dueAt`
- * is still the one the job read. A card deleted meanwhile gets its vector
- * deleted; a job overtaken by a newer completed one re-embeds current text.
- */
 export const recordEmbedded = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -362,11 +344,6 @@ export const recordEmbedded = internalMutation({
   },
 });
 
-/**
- * Count a failed attempt. Returns the delay before the card's retry, or null
- * when it gets none: out of retries (left for the backfill) or overtaken by
- * a newer job.
- */
 const recordOneFailure = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -402,12 +379,8 @@ const recordOneFailure = async (
   return delay;
 };
 
-/**
- * Back off and retry the cards of one failed attempt, or leave them for the
- * backfill after the last try. Cards retried after the same delay go out in
- * one job, so a failed batched write is retried as a batch: one job per card
- * would be the burst of small writes Vectorize rate-limits.
- */
+// One job per retried card would be the burst of small writes Vectorize
+// rate-limits, so cards retried after the same delay go out in one job.
 export const recordEmbedFailures = internalMutation({
   args: {
     error: v.string(),
@@ -434,7 +407,6 @@ export const recordEmbedFailures = internalMutation({
   },
 });
 
-/** Tombstoned rows of these cards, with where their vectors are. */
 export const loadTombstones = internalQuery({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.array(v.object({ cardId: v.id("cards"), shard: v.number() })),
@@ -450,7 +422,6 @@ export const loadTombstones = internalQuery({
   },
 });
 
-/** Remove tombstoned rows once their vectors are deleted. */
 export const forgetDeletedVectors = internalMutation({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
@@ -465,7 +436,6 @@ export const forgetDeletedVectors = internalMutation({
   },
 });
 
-/** A page of an account's rows, for account deletion. */
 export const accountEmbeddingsPage = internalQuery({
   args: { userId: v.string() },
   returns: v.array(

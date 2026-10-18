@@ -156,7 +156,6 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.savePdf": (c) => c.cards.savePdf("card_1"),
     "cards.setDone": (c) => c.cards.setDone("card_1", true),
     "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
-    // Bytes would upload first; a finished upload reaches only the PUT.
     "cards.setThumbnail": (c) =>
       c.cards.setThumbnail("card_1", { fileKey: "key_1" }),
     "cards.update": (c) => c.cards.update("card_1", { notes: "n" }),

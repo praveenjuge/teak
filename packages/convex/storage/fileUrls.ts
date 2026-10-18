@@ -1,18 +1,3 @@
-/**
- * Leaf storage primitives: signed file/image URL minting and resolution.
- *
- * This module must not import from `storage/r2`. `storage/r2` is heavily
- * mocked in tests (see `__tests__/helpers/r2Mock.test-utils.ts`), and Bun's
- * `mock.module` registry is process-global with last-registration-wins
- * semantics: any function imported from the mocked surface observes the
- * *mock's* siblings for its internal calls, and any export missing from an
- * inline mock breaks every importer with a link error. Tests that need real
- * URL resolution (namespace containment, signed-URL vectors) therefore import
- * from this module, which MUST NEVER BE MOCKED — mocking it would poison
- * every suite file the same way. Keep every export pure and dependency-free
- * apart from `storage/r2Keys`, `shared/fileFormats`, and `env`.
- */
-
 import {
   buildFileSigningPayload,
   buildImageSigningPayload,
@@ -30,10 +15,6 @@ import {
 
 const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
 
-/**
- * Deterministic expiry for the current bucket window: every call made within
- * the same window returns an identical exp string.
- */
 export const bucketedSignatureExpiry = (
   nowSeconds = Math.floor(Date.now() / 1000)
 ): number =>
@@ -202,7 +183,6 @@ export const resolveObjectUrl = async (
   );
 };
 
-/** A signed URL that downloads the object as `fileName` instead of showing it. */
 export const resolveDownloadUrl = async (key: string, fileName: string) =>
   await getR2Url(key, {
     contentType: fileDownloadResponsePolicy(fileName).contentType,
@@ -232,10 +212,6 @@ export const resolveImageUrl = async (
 export const isStorageNamespaceError = (error: unknown): boolean =>
   error instanceof Error && error.message === "invalid_storage_key_namespace";
 
-/**
- * Resolve a file URL, treating an out-of-namespace key as an absent object.
- * All other errors (misconfiguration, signing failures) still throw.
- */
 export const tryResolveObjectUrl = async (
   key?: string,
   fileName?: string | null
@@ -250,10 +226,6 @@ export const tryResolveObjectUrl = async (
   }
 };
 
-/**
- * Resolve an image rendition URL, treating an out-of-namespace key as an
- * absent object. All other errors still throw.
- */
 export const tryResolveImageUrl = async (
   key: string | undefined,
   rendition: FilesImageRendition

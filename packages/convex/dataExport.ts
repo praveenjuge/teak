@@ -309,7 +309,6 @@ export const getJob = internalQuery({
   handler: async (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
-/** Starts a job's run; the archive goes to `artifactKey`. */
 export const markRunning = internalMutation({
   args: { jobId: v.id("exportJobs"), workflowId: v.optional(v.string()) },
   returns: v.object({

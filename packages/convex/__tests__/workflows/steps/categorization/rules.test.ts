@@ -10,8 +10,6 @@ import {
   projectCategorizationSnapshot,
 } from "../../../../workflows/steps/categorization/rules";
 
-// The pure categorization rules the Files Worker's step runs.
-
 const linkCard = (
   fields: Partial<CategorizationContextCard>
 ): CategorizationContextCard => ({ _id: "card_1", type: "link", ...fields });
@@ -447,7 +445,6 @@ describe("enrichLinkCategory", () => {
         product({ "@type": "Offer", price: "89.00", priceCurrency: "CAD" }),
       ]);
       expect(result.price).toEqual({ amount: 89, currency: "CAD" });
-      // Both prices stay as facts.
       expect(
         result.facts?.filter((fact) => fact.label === "Price").length
       ).toBe(2);
@@ -509,7 +506,6 @@ describe("enrichLinkCategory", () => {
     });
 
     test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {
-      // How Shopify stores describe a product with sizes.
       const group = {
         "@type": "ProductGroup",
         name: "T-shirt",
@@ -533,7 +529,6 @@ describe("enrichLinkCategory", () => {
         label: "Price",
         value: "€39.99",
       });
-      // Only the variants' offers are kept.
       const stored = result.raw?.structured as { hasVariant: unknown[] };
       expect(stored.hasVariant[0]).toEqual({
         offers: group.hasVariant[0]?.offers,

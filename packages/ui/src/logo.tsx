@@ -63,7 +63,6 @@ interface LogoMarkProps extends Omit<SVGProps<SVGSVGElement>, "color"> {
   title?: string;
 }
 
-/** The stacked "te/ak" mark from the app icon, for square spaces. */
 export function LogoMark({
   width = 24,
   height = 24,

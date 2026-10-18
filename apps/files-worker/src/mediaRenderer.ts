@@ -1,9 +1,8 @@
-export const RENDERER_PORT = 8080;
-export const RENDERER_PROTOCOL = 1;
+import { RENDERER_PORT, RENDERER_PROTOCOL } from "../container/src/protocol";
+
 const READY_TIMEOUT_MS = 20_000;
 const HEALTH_POLL_MS = 250;
 const HEALTH_REQUEST_TIMEOUT_MS = 1000;
-// Long enough to reuse a warm instance across a card's video or audio steps.
 export const RENDERER_INACTIVITY_TIMEOUT_MS = 90_000;
 
 export interface RendererContainer {

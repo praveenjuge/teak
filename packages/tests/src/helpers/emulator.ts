@@ -27,8 +27,6 @@ const emulatorFetch = async (path: string, init: RequestInit = {}) => {
   return response;
 };
 
-// Creating the user sends a signed user.created webhook to the local backend,
-// which is what gives the address a Teak account.
 export const createEmulatorUser = async (options: {
   email: string;
   emailVerified: boolean;

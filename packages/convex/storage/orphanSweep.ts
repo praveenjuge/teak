@@ -2,11 +2,6 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { buildR2ListPrefix } from "./r2Keys";
 
-// Reads for the weekly orphaned-object report. The Files Worker's maintenance
-// workflow pages the cards, lists the bucket under `listPrefix` and logs what
-// no row references. It never deletes.
-
-/** This deployment's user-object prefix in the shared bucket. */
 export const listPrefix = internalQuery({
   args: {},
   returns: v.string(),
@@ -59,7 +54,6 @@ export const pageSweepCards = internalQuery({
         previewKey: card.previewKey,
         scrubKey: card.scrubKey,
         thumbnailKey: card.thumbnailKey,
-        // A chosen link image, and the one kept for its undo window.
         ...(card.thumbnailOverride
           ? {
               thumbnailOverride: {
@@ -98,7 +92,6 @@ export const collectNonCardReferencedKeys = internalQuery({
         keys.push(job.reportKey);
       }
     }
-    // A Save PDF claim's object, kept for a retry before any card has it.
     for await (const row of ctx.db.query("linkedPdfs")) {
       keys.push(row.fileKey);
     }

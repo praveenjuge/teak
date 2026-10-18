@@ -537,7 +537,7 @@ test.each([false, true])(
         return await transport(input, init);
       }) as typeof fetch;
       await expect(
-        request("/cards", (payload) => payload, {}, "prompt"),
+        request("/cards", (payload) => payload, {}, "interactive"),
       ).rejects.toThrow("Sign Out before reconnecting");
     }
     expect(stores.get(key)).toBe(saved);

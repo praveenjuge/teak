@@ -133,9 +133,8 @@ export function WorkosAuthBoundary({
       runBootstrap(identity, () => true);
     }
   };
-  // A refresh can fail while Convex still holds a valid token, for example on
-  // a dropped connection. Convex keeps retrying, so an open vault stays open.
-  if (failed || (tokenError && !auth.isAuthenticated)) {
+  const authLost = failed || (tokenError && !auth.isAuthenticated);
+  if (authLost) {
     return (
       <AuthUnavailable
         retry={() => {

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -17,6 +17,9 @@ import {
 import { archiveCardHandler } from "./storage/rawMetadataMaintenance";
 
 const modules = import.meta.glob("./**/*.ts");
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -196,13 +199,7 @@ describe("raw metadata archival", () => {
       internal.storage.rawMetadataMaintenance.commitArchive,
       args
     );
-    // Two copies, each written then read back. A background outbox flush
-    // left by an earlier test may also call the ops endpoint; it isn't one.
-    expect(
-      fetchMock.mock.calls.filter(
-        ([url]) => new URL(url).pathname !== "/__ops/v1"
-      )
-    ).toHaveLength(4);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(ctx.runMutation).toHaveBeenCalledTimes(4);
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(

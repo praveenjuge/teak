@@ -144,7 +144,6 @@ const reserveEditReprocess = async (
   return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
 };
 
-/** Checks both limits before spending either, so one's refusal never spends the other. */
 const spendCardReprocessLimits = async (
   ctx: MutationCtx,
   userId: string,
@@ -418,7 +417,6 @@ const applyCardFieldEdit = (
   }
 };
 
-/** Only link cards outside Trash can be marked read, watched or done. */
 const assertCanMarkDone = (card: Doc<"cards">) => {
   if (card.isDeleted) {
     throw new ConvexError({
@@ -453,11 +451,6 @@ const loadOwnedCard = async (
   return card;
 };
 
-/**
- * Applies several field edits to one card as a single update: every value is
- * validated first, the reprocess rate limit is charged at most once, and the
- * card is written with one patch. Nothing is written if any edit is invalid.
- */
 export const updateCardFieldsForUserHandler = async (
   ctx: MutationCtx,
   {
@@ -584,8 +577,6 @@ export const updateCardFieldForUserHandler = async (
       updateData.archivedAt = undefined;
       break;
 
-    // A retried "done" keeps the first date; neither touches a card already
-    // in the state asked for.
     case "done":
     case "undone":
       assertCanMarkDone(card);
@@ -645,12 +636,6 @@ export const updateCardField = mutation({
   },
 });
 
-/**
- * Runs the whole processing pipeline again for one card ("Refresh details"): the
- * AI summary, tags and transcript are cleared and regenerated, along with
- * link metadata and previews. Checks ownership, Trash and both reprocess
- * limits before writing anything, so a refused request changes nothing.
- */
 export const reprocessCardForUserHandler = async (
   ctx: MutationCtx,
   { userId, cardId }: { cardId: Id<"cards">; userId: TeakUserId }
@@ -681,11 +666,6 @@ const REPROCESS_REFUSAL_CODES = new Set([
   "RATE_LIMITED",
 ]);
 
-/**
- * "Refresh details" from the app. Refusals (rate limited, in Trash, not found) are
- * returned rather than thrown, so the app shows them as a message instead of
- * a failed request.
- */
 export const reprocessCard = mutation({
   args: { cardId: v.id("cards") },
   returns: v.union(

@@ -4,7 +4,6 @@ import type { ProcessingStageKey } from "./card/processingStatus";
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;
 export const ACTIVATION_WINDOW_DAYS = 7;
-// A deletion whose next attempt is this late is no longer being driven.
 const OVERDUE_RETRY_MS = 60 * 60 * 1000;
 const STAGE_KEYS: ProcessingStageKey[] = [
   "classify",
@@ -202,11 +201,6 @@ const MONTHS_PER_INTERVAL: Record<string, number> = {
 export const POLAR_FEE_RATE = 0.04;
 export const POLAR_FEE_FIXED_MINOR = 40;
 
-/**
- * What one subscription brings in per month, in minor units, after a
- * discount that keeps applying (`forever` or `repeating`). One-time discounts
- * only touch the first invoice, so they are left out.
- */
 export const monthlyAmount = (subscription: SubscriptionLike): number => {
   const months =
     (MONTHS_PER_INTERVAL[subscription.recurringInterval] ?? 1) *

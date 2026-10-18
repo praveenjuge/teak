@@ -100,7 +100,7 @@ export default function QuickSaveCommand() {
           content: values.content,
           source: "raycast_quick_save",
         },
-        "prompt",
+        "interactive",
       );
       addSuccessActions(toast, result);
       toast.style = Toast.Style.Success;

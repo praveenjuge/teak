@@ -12,10 +12,6 @@ export interface TextCardResolution {
 const URL_ONLY_PATTERN = /^https?:\/\/[^\s]+$/;
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/;
 
-// Markdown editors (the web composer's Tiptap serializer) backslash-escape
-// punctuation like `_` and `*` and HTML-encode `&`, `<`, and `>` in text. A
-// real URL never contains a raw backslash, and WHATWG parsing treats `\` as
-// `/`, so keeping the escapes would fetch the wrong page.
 const MARKDOWN_ESCAPE_PATTERN = /\\([!-/:-@[-`{-~])/g;
 const HTML_ENTITY_PATTERN = /&(amp|lt|gt);/g;
 const HTML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">" };

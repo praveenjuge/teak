@@ -78,7 +78,6 @@ describe("Convex public API metadata", () => {
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
       "PATCH"
     );
-    // PUT /v1/cards/:cardId/thumbnail
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
       "PUT"
     );

@@ -27,7 +27,6 @@ test("a secret tag hides a card, Undo brings it back, and #secret shows it", asy
   await expect(dialog.getByText("Hidden", { exact: true })).toBeVisible();
   await expect.poll(tagsOf).toEqual(["secret"]);
 
-  // The open card stays; behind it, the grid has let it go.
   await browser.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(grid.getByText(hidden)).not.toBeVisible();
@@ -37,7 +36,6 @@ test("a secret tag hides a card, Undo brings it back, and #secret shows it", asy
   await expect.poll(tagsOf).toEqual(undefined);
   await expect(grid.getByText(hidden)).toBeVisible();
 
-  // Hidden again; only a search for its tag shows it.
   await library.client.mutation(api.cards.updateCardField, {
     cardId: hiddenId,
     field: "tags",

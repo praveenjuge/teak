@@ -6,12 +6,3 @@
 @source "../../packages/ui/src/components/ui/button.tsx";
 /* Test strings are not styles; AMO's rebuild from the sources zip has no tests. */
 @source not "./__tests__";
-
-/*
- * The popup window follows the page's height. The shared styles stretch html
- * to the window, so the popup could grow (tag suggestions opening) but never
- * shrink back; let it size to its content.
- */
-html {
-  min-height: 0;
-}

@@ -11,9 +11,7 @@ import {
   type RemoteDetails,
 } from "./common";
 
-// An Apple Music link's artist, type and release date from the page's own
-// JSON-LD, and its cover from Open Graph. Apple Music has no public oEmbed,
-// so nothing is fetched.
+// Apple Music has no public oEmbed.
 
 const MUSIC_TYPES = ["MusicAlbum", "MusicRecording", "MusicPlaylist"];
 const PATH_TYPES: [RegExp, string][] = [

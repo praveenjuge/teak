@@ -1680,7 +1680,6 @@ describe("listCardsV1 search modes", () => {
   };
   const ranking = [{ cardId: "card_meaning", score: 0.5 }];
 
-  // The worker answers `vector-query` with `answer`, or fails.
   const withWorker = async (
     answer: "ok" | "fail",
     run: (calls: string[]) => Promise<void>
@@ -1724,7 +1723,6 @@ describe("listCardsV1 search modes", () => {
     }
   };
 
-  // Dispatches by function: the shard and cache lookups, then the page.
   const ctxFor = () => {
     const pageArgs: any[] = [];
     const runQuery = mock((ref: any, args: any): Promise<unknown> => {
@@ -1748,7 +1746,6 @@ describe("listCardsV1 search modes", () => {
         authorized = true;
         return authorize(ref, args);
       }
-      // The rate limiter's component function has no plain name.
       let name = "";
       try {
         name = getFunctionName(ref);
@@ -1876,7 +1873,6 @@ describe("listCardsV1 search modes", () => {
         type: "image",
       });
 
-      // The anchor check says no: nothing is read.
       const missing = ctxFor();
       missing.ctx.runQuery.mockImplementation((ref: any) =>
         Promise.resolve(

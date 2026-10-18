@@ -107,47 +107,30 @@ const clipName = (name: string) =>
 export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
-  /**
-   * Choosing cards for this folder (`?addTo=` on the library): the grid
-   * opens in selection mode with "Add to <folder>" as its action.
-   */
   addToFolderId?: string;
   contentContainerClassName?: string;
-  /** A folder view: the folder id from the route, valid or not. */
   folderId?: string;
   headerLeading?: ReactNode;
-  /** Filters to start with, kept from before a failed read was retried. */
   initialVisualFilters?: CardsVisualFilters;
-  /** Starts choosing cards to add to an (empty) folder. */
   onAddCardsToFolder?: (folderId: string) => void;
-  /** Leaves "choose cards for a folder", after adding or on Cancel. */
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onCloseCard: () => void;
-  /**
-   * Called when the settled search changes, to mirror it into the URL.
-   * `sortChanged` marks a deliberate change worth its own history entry.
-   */
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
-  /** Opens a folder's view, such as a smart folder just saved. */
   onOpenFolder?: (folderId: string) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
     change: SearchUrlChange
   ) => void;
-  /** Shows another card in the open dialog, for previous and next. */
   onSwitchCard?: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
-  /** Called when the in-memory filters change, so a retry can keep them. */
   onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
   queryRetryKey?: string;
-  /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
   UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
-  /** The routed library view; quick commands navigate between views. */
   view?: LibraryView;
 }
 
@@ -267,8 +250,6 @@ export function CardsScreen({
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
   const reportedSearchKeyRef = useRef<string | null>(null);
-  // Best match: scores that arrive in time order this search; until then
-  // (at most a moment) the grid waits instead of reordering later.
   const relevance = useRelevanceRanking({
     ...queryArgs,
     enabled: !(isFolderView && !folder),
@@ -288,19 +269,16 @@ export function CardsScreen({
         },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
-  // Meaning matches merge into the query above once they are cached.
   const semanticSearch = useSemanticSearch({
     ...queryArgs,
     enabled: !(isFolderView && !folder),
   });
-  // A typed `like:` chip reads "Similar to" and its card's title.
   const similarity = useMemo(
     () => parseSearchQuery(queryArgs.searchQuery ?? "").similarity ?? null,
     [queryArgs.searchQuery]
   );
   const anchorCardId =
     similarity?.kind === "like" ? similarity.cardId : undefined;
-  // `is:todo` typed or in the smart folder: an empty grid means all done.
   const listsTodo = useMemo(
     () =>
       parseSearchQuery(queryArgs.searchQuery ?? "").todo ||
@@ -404,9 +382,14 @@ export function CardsScreen({
     []
   );
 
-  useEffect(() => {
+  const [fedResults, setFedResults] = useState<{
+    cards: typeof cards;
+    key: string;
+  } | null>(null);
+  if (fedResults?.cards !== cards || fedResults.key !== searchKey) {
+    setFedResults({ cards, key: searchKey });
     setRemoteCards(cards, searchKey);
-  }, [cards, searchKey, setRemoteCards]);
+  }
 
   const { isSeekingFirstMatch, requestMore: requestMoreCards } =
     useLoadUntilMatches({
@@ -593,8 +576,6 @@ export function CardsScreen({
     onCloseModal: onCloseCard,
   });
 
-  // "More like this": the library lists the card's neighbors, in the
-  // current order; Back returns to the card.
   const handleMoreLikeThis = useCallback(
     (cardId: string) => {
       onCloseCard();
@@ -713,11 +694,7 @@ export function CardsScreen({
     }
 
     if (displayCards.length === 0 && hasNoFilters) {
-      // Until a new account's cards land, show them on their way rather
-      // than an empty library. Cards that have arrived reach the grid an
-      // effect later, so they are on their way too: an empty library here
-      // would mount its composer and take focus for that one render.
-      if (vaultSetup === "loading" || cards.length > 0) {
+      if (vaultSetup === "loading") {
         return <CardsGridSkeleton />;
       }
       return (

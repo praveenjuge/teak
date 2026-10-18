@@ -1,23 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { buildWorkflowRpcSecretPayload } from "@teak/files-protocol";
+import { hmacSha256Hex } from "../apps/files-worker/src/lib";
 import { deriveWorkflowRpcSecret } from "./workflow-rpc-secret";
 
-/** The Worker's derivation (`workflowRpcSecret`), with Web Crypto as it uses. */
-const workerDerivation = async (root: string, origin: string) => {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(root),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(buildWorkflowRpcSecretPayload(origin))
-  );
-  return Buffer.from(signature).toString("hex");
-};
+const workerDerivation = (root: string, origin: string) =>
+  hmacSha256Hex(root, buildWorkflowRpcSecretPayload(origin));
 
 describe("deriveWorkflowRpcSecret", () => {
   test("matches the secret the Worker derives for the deployment", async () => {

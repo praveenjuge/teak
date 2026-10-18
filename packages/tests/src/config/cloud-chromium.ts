@@ -106,7 +106,6 @@ export const cloudChromiumPath = (): string | undefined => {
     .at(-1);
 };
 
-/** The engine's `connect` option, launching the image's Chromium once. */
 export const cloudChromiumConnect = (
   executablePath: string
 ): WebConnectOptions => ({

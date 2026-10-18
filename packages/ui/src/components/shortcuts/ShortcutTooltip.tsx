@@ -12,11 +12,6 @@ import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { platformKey } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 
-/**
- * Keycaps for keys pressed together, as this platform labels them (`Mod`
- * is ⌘ or Ctrl). Decorative: the control names its keys with
- * `aria-keyshortcuts`.
- */
 export function ShortcutKeys({
   className,
   keys,
@@ -34,20 +29,16 @@ export function ShortcutKeys({
   );
 }
 
-/** For `ShortcutKeys` inside a primary button: keycaps on its fill. */
 export const PRIMARY_BUTTON_KEYS_CLASS =
   "max-sm:hidden [&_kbd]:border-transparent [&_kbd]:bg-primary-foreground/20 [&_kbd]:text-primary-foreground";
 
 interface ShortcutTooltipProps {
-  /** The control the tooltip names; it should set `aria-keyshortcuts`. */
   children: ReactElement;
-  /** Keys pressed together, such as `["Mod", "B"]`; none shows the label alone. */
   keys?: readonly string[];
   label: string;
   side?: ComponentProps<typeof TooltipContent>["side"];
 }
 
-/** A control's name on the left of its tooltip and its keys on the right. */
 export function ShortcutTooltip({
   children,
   keys,

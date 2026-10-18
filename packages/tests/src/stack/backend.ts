@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { readConvexSelection } from "../../../../scripts/capabilities.ts";
 import {
   DEV_DEPLOYMENT,
+  isLocalSelection,
   writeConvexSelection,
 } from "../../../../scripts/dev-deployment.ts";
 import { readDotenvFile } from "../../../../scripts/env-loader.ts";
@@ -17,11 +18,6 @@ import {
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
 import { filesWorkerDeploymentVars } from "./filesWorker";
-
-export const isLocalSelection = (deployment: string | undefined): boolean =>
-  !deployment ||
-  deployment.startsWith("anonymous:") ||
-  deployment.startsWith("local:");
 
 /**
  * Local backends keep their state in packages/convex/.convex, inside the
@@ -235,10 +231,6 @@ export const convexDevOnce = async (
   return { detail, ok: false };
 };
 
-/**
- * Set several variables with one CLI call. The values go through a private
- * temporary file that is removed right after; they are never logged.
- */
 const setDeploymentVars = async (
   values: Record<string, string>,
   cwd: string
@@ -350,8 +342,6 @@ export const setupBackend = async (
     }
   };
 
-  // Provision first when nothing is selected: the first push may fail on
-  // missing variables, which the next step configures before the stack's push.
   if (!selection.deployment) {
     const provision = await convexDevOnce(convexDir, { ports });
     await settle();
@@ -364,7 +354,6 @@ export const setupBackend = async (
   ensureLocalStateMarker(convexDir);
   const listed = await listDeploymentVars(convexDir);
   await settle();
-  // auth.config.ts reads the WorkOS values, so they are set before the push.
   const vars = await ensureDeploymentVars(
     convexDir,
     {

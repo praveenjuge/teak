@@ -226,7 +226,6 @@ http.route({
   handler: cardByIdV1,
 });
 
-// PUT /v1/cards/:cardId/thumbnail
 http.route({
   pathPrefix: "/v1/cards/",
   method: "PUT",

@@ -1,4 +1,5 @@
 import { parseCardObjectKey } from "@teak/files-protocol";
+import { DELETE_OBJECTS_MAX_KEYS } from "../ops";
 import { reportBackgroundError } from "../telemetry";
 import { isValidUploadKey } from "../upload";
 import type { FilesOpCaller } from "../workflows/deps";
@@ -6,12 +7,6 @@ import type { ObjectDeletionMessage } from "../workflows/dispatch";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { sendInBatches } from "./sendBatch";
-
-// Storage objects whose rows are gone. Convex queues them through `dispatch`
-// (its outbox); workflows in this Worker queue them directly.
-
-/** delete-objects takes at most this many keys per call. */
-const MAX_KEYS_PER_DELETE = 100;
 
 const chunk = <T>(items: T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -28,10 +23,6 @@ const messageKeys = (body: unknown): string[] | null => {
     : null;
 };
 
-/**
- * Queues objects for deletion. Without the queue binding (local runs) they
- * are deleted at once. Returns how many keys were accepted.
- */
 export const queueObjectDeletions = async (
   env: BackgroundEnv,
   keys: readonly (string | undefined)[],
@@ -44,7 +35,7 @@ export const queueObjectDeletions = async (
       )
     ),
   ];
-  const batches = chunk(usable, MAX_KEYS_PER_DELETE);
+  const batches = chunk(usable, DELETE_OBJECTS_MAX_KEYS);
   if (env.OBJECT_DELETIONS) {
     const failed = await sendInBatches(
       env.OBJECT_DELETIONS,
@@ -68,11 +59,6 @@ export const queueObjectDeletions = async (
   return usable.length;
 };
 
-/**
- * Deletes each message's keys. A message whose delete fails is retried by
- * the queue, then dead-lettered; R2 treats a missing key as deleted, so a
- * retry repeats nothing harmful.
- */
 export const handleObjectDeletionBatch = async (
   batch: MessageBatch<unknown>,
   env: BackgroundEnv,
@@ -88,7 +74,10 @@ export const handleObjectDeletionBatch = async (
       });
     }
     try {
-      for (const keyBatch of chunk([...new Set(usable)], MAX_KEYS_PER_DELETE)) {
+      for (const keyBatch of chunk(
+        [...new Set(usable)],
+        DELETE_OBJECTS_MAX_KEYS
+      )) {
         const outcome = await ops({
           op: "delete-objects",
           params: { keys: keyBatch },
@@ -109,7 +98,6 @@ export const handleObjectDeletionBatch = async (
   }
 };
 
-/** Deletions the queue gave up on: reported, then dropped. */
 export const handleObjectDeletionDeadLetters = async (
   batch: MessageBatch<unknown>,
   env: BackgroundEnv,
@@ -117,7 +105,6 @@ export const handleObjectDeletionDeadLetters = async (
 ): Promise<void> => {
   for (const message of batch.messages) {
     const keys = messageKeys(message.body) ?? [];
-    // Keys name users and files; logs carry only the card and role of one.
     const sample = keys[0] ? parseCardObjectKey(keys[0]) : {};
     console.error("[queues/object-deletions] gave up deleting objects", {
       id: message.id,

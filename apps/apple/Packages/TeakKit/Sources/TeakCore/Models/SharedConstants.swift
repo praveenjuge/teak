@@ -1,7 +1,5 @@
 import Foundation
 
-/// The backend's shared constants, read from `SharedConstants.json`, which
-/// `apps/apple/scripts/shared-constants.ts` exports from `packages/convex/shared`.
 public struct SharedConstants: Decodable, Sendable {
     public struct Limits: Decodable, Sendable {
         public let freeTierCards: Int

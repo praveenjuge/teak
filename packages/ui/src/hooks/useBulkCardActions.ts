@@ -18,22 +18,11 @@ import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 export interface BulkActionOptions {
   folder?: BulkFolderTarget;
-  /**
-   * For folder actions: the folders each card was in before, by card ID, so
-   * Undo puts back exactly what changed.
-   */
   priorFolderIds?: ReadonlyMap<string, readonly string[]>;
-  /** Skip the progress and success toasts (errors still show). */
   silent?: boolean;
   tags?: string[];
 }
 
-/**
- * Runs bulk bar actions on any number of cards: the grid updates at once,
- * the server work goes in chunks of 100 with one progress toast, and the
- * result toast offers Undo (archive, unarchive, delete) or Retry for cards
- * that couldn't be changed. Resolves with the cards that failed.
- */
 export function useBulkCardActions(toastIdPrefix = "cards") {
   const bulkUpdate = useMutation(
     api.cards.bulkUpdateCards
@@ -113,8 +102,6 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
       }
       const runUndo = async (steps: BulkUndoStep[]) => {
         for (const [index, step] of steps.entries()) {
-          // Steps run in order; only the last one reports, so a move's Undo
-          // shows one toast.
           // react-doctor-disable-next-line react-doctor/async-await-in-loop
           await run(step.action, step.cardIds, {
             folder: step.folder,

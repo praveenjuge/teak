@@ -15,8 +15,12 @@ import {
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
+import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 import { withHiddenFlag } from "./hiddenCards";
-import { deleteLinkedPdfRows } from "./linkedPdfRows";
+import {
+  deleteLinkedPdfRowsAsDocument,
+  deleteLinkedPdfRowsAsLink,
+} from "./linkedPdfRows";
 import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
 import { deleteCardTextContents } from "./textContents";
 
@@ -32,10 +36,6 @@ const SEARCH_FIELDS = [
   "metadataDescription",
 ] as const;
 
-/**
- * The text a card is found by: its own fields, then, when given, the
- * searchable prefix of text extracted from its file (card/documentText.ts).
- */
 export const buildCardSearchText = (
   card: Doc<"cards">,
   extractedText?: string
@@ -268,7 +268,12 @@ export const syncCardSearchDocumentHandler = async (
     if (!previousCard || previousCard.hasExtractedText) {
       await deleteCardTextContents(ctx, cardId);
     }
-    await deleteLinkedPdfRows(ctx, cardId, previousCard);
+    if (!previousCard || previousCard.type === "link") {
+      await deleteLinkedPdfRowsAsLink(ctx, cardId);
+    }
+    if (!previousCard || previousCard.type === "document") {
+      await deleteLinkedPdfRowsAsDocument(ctx, cardId);
+    }
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
@@ -319,7 +324,6 @@ export const syncCardSearchDocumentHandler = async (
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
   }
-  // A vector carries its card's type, which `mood:` filters on.
   if (
     existing?.searchableText !== value.searchableText ||
     existing.type !== value.type
@@ -328,9 +332,8 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   const currentTags = JSON.stringify(buildCardSearchTags(card));
-  // An edit that changes no tag-sync field skips the tag-sync state: even
-  // reading that row puts it in the caller's OCC set and races the running
-  // tag chain.
+  // Even reading the tag-sync state row puts it in this transaction's OCC
+  // read set, where it races the running tag chain.
   if (
     existing &&
     previousCard &&
@@ -345,8 +348,7 @@ export const syncCardSearchDocumentHandler = async (
     return null;
   }
 
-  // Text changes do not require rewriting every exact-tag row. The snapshot
-  // also repairs older states that predate snapshot-based synchronization.
+  // The snapshot also repairs states written before snapshot-based sync.
   const tagState = await ctx.db
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -405,12 +407,6 @@ const cardSyncSourceFromState = (
   };
 };
 
-/**
- * Every restart schedules the tag sync with a new generation, so an invocation
- * scheduled before the latest restart is stale. So is one whose state row was
- * pruned after scheduling (deleted card or account deletion): recreating a
- * generation-1 row would fence its continuation against its own row forever.
- */
 export const isStaleTagSyncInvocation = (
   state: Pick<Doc<"cardSearchTagSyncStates">, "generation"> | null,
   generation: number | undefined
@@ -432,10 +428,8 @@ export const syncCardSearchTagsBatchHandler = async (
     return { complete: true, processed: 0, writes: 0 };
   }
 
-  // Sync from the snapshot recorded on the state row when one exists, so the
-  // hot path never reads the cards table and cannot conflict with concurrent
-  // card writes; rows written before snapshots existed fall back to reading
-  // the card.
+  // The state row's snapshot keeps the cards table out of this transaction's
+  // read set; rows written before snapshots existed fall back to the card.
   let card: CardSyncSource | null = state
     ? cardSyncSourceFromState(state)
     : null;
@@ -443,9 +437,6 @@ export const syncCardSearchTagsBatchHandler = async (
     card = await ctx.db.get("cards", cardId);
   }
 
-  // The card row, its sync state, and its tag rows are removed atomically by
-  // the deletion batch, so a missing card with leftover rows means the batch
-  // has not reached this card yet and the owner can still be resolved.
   let ownerId = card?.userId ?? state?.userId;
   if (!ownerId) {
     const searchDocument = await ctx.db
@@ -623,7 +614,6 @@ export const searchCardsByExactTag = async (
     tag: string;
     isDeleted?: boolean;
     isFavorited?: boolean;
-    /** Archived cards to match outside Trash; defaults to `"exclude"`. */
     archived?: ArchivedFilter;
     type?: Doc<"cards">["type"];
     createdAfter?: number;
@@ -632,7 +622,6 @@ export const searchCardsByExactTag = async (
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     sort: "newest" | "oldest";
     resultFilter?: (card: Doc<"cards">) => boolean;
-    /** Hidden cards too; a search for a reserved tag always includes them. */
     includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
@@ -732,29 +721,20 @@ export const searchCardsByExactTag = async (
 };
 
 interface DocumentSearchArgs {
-  /** Archived cards to match outside Trash; defaults to `"exclude"`. */
   archived?: ArchivedFilter;
-  /** Hidden cards too: the search names a reserved tag. */
   includeHidden?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
   limit: number;
-  /**
-   * Keeps a card; gets the card's search text too, with its file text
-   * when that is what matched (quoted phrases check it).
-   */
   resultFilter?: (card: Doc<"cards">, searchableText: string) => boolean;
   scanBudget?: {
     remaining: number;
     hitSearchLimit?: boolean;
-    /** File-text rows left to read (FILE_TEXT_SEARCH_LIMIT to start). */
     textRemaining?: number;
   };
   searchQuery: string;
-  /** Filled with each kept card's search text, for filtering later. */
   searchTexts?: Map<Id<"cards">, string>;
   type?: Doc<"cards">["type"];
-  /** Only cards on this normalized host (`site:`). */
   urlHost?: string;
   userId: string;
 }
@@ -765,11 +745,6 @@ const searchTooBroad = () =>
     message: "Search is too broad. Add a type or date filter.",
   });
 
-/**
- * Narrows a search index read to the args' view: the user, Trash or not,
- * archived, type, favorites, site and hidden cards. Both search indexes
- * share these filter fields.
- */
 const filterSearchIndex = (
   query: any,
   args: DocumentSearchArgs,
@@ -796,11 +771,6 @@ const filterSearchIndex = (
   return filtered;
 };
 
-/**
- * Cards whose search documents match, read from one search index, with the
- * shared limits: at most 1,024 rows from the scan budget, and "Search is
- * too broad" when the read is full before enough cards are kept.
- */
 const keepSearchDocuments = async (
   ctx: QueryCtx,
   args: DocumentSearchArgs,
@@ -864,11 +834,6 @@ export const searchCardsByDocument = async (
   return Array.from(found.cardsById.values());
 };
 
-/**
- * Cards whose image text (`aiOcrText`) matches `searchQuery`, for `text:`.
- * The same view filters, limits and errors as `searchCardsByDocument`;
- * `searchTexts` gets each card's whole search text, for phrase checks.
- */
 export const searchCardsByOcrText = async (
   ctx: QueryCtx,
   args: Omit<DocumentSearchArgs, "scanBudget"> & {
@@ -892,13 +857,6 @@ export const searchCardsByOcrText = async (
   return Array.from(found.cardsById.values());
 };
 
-/**
- * A search's meaning matches that belong in its results, in ranking order:
- * the user's cards that pass the keyword side's index filters and `keep`.
- * `cardsById` holds the keyword matches; a match with a score under
- * `minScore` counts only when it is one of them, so weak matches are never
- * read. Cards read here are added to `cardsById`.
- */
 export const loadSemanticMatches = async (
   ctx: QueryCtx,
   args: Pick<
@@ -939,12 +897,9 @@ export const loadSemanticMatches = async (
   return kept;
 };
 
-/**
- * Text rows one search request reads, across all its calls. A row holds up
- * to 32 KiB, so a search stays far inside a transaction's read limit
- * however many files match; past it, only the closest matches are found.
- */
-export const FILE_TEXT_SEARCH_LIMIT = 128;
+const FILE_TEXT_SEARCH_READ_BUDGET_BYTES = 4 * 1024 * 1024;
+export const FILE_TEXT_SEARCH_LIMIT =
+  FILE_TEXT_SEARCH_READ_BUDGET_BYTES / SEARCH_PREFIX_MAX_BYTES;
 
 const addCardsFoundByFileText = async (
   ctx: QueryCtx,

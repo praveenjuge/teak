@@ -17,7 +17,6 @@ vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const filesWorker = await loadFilesWorker();
 const { FakeBucket, withObjectGates, worker } = filesWorker;
 const modules = import.meta.glob("./**/*.ts");
-/** The Files Worker's account deletion drains one batch of import storage. */
 const drainImports = (
   t: ReturnType<typeof convexTest>,
   env: Record<string, unknown>,

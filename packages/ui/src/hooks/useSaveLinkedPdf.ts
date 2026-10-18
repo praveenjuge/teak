@@ -17,7 +17,6 @@ const SAVE_PDF_ERRORS: Record<string, string> = {
 };
 const SAVE_PDF_FAILED = "Couldn't save the PDF. Try again.";
 
-/** What a refused save says; anything unexpected reads as a retry. */
 export const savePdfErrorMessage = (error: unknown): string => {
   const code = (error as { data?: { code?: unknown } } | null)?.data?.code;
   return (typeof code === "string" && SAVE_PDF_ERRORS[code]) || SAVE_PDF_FAILED;
@@ -29,14 +28,9 @@ const withoutCard = (cardIds: ReadonlySet<string>, cardId: string) => {
   return next;
 };
 
-/**
- * Save PDF for an arXiv link: the paper becomes its own document card. One
- * save per card at a time; the toast's Open shows the document.
- */
 export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
   const savePdf = useAction(api.card.saveLinkedPdf.saveLinkedPdf);
   const inFlight = useRef(new Set<string>());
-  // Every card still saving, so switching cards mid-save shows each one right.
   const [savingCardIds, setSavingCardIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );

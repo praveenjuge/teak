@@ -148,8 +148,14 @@ describe("enrichAmazon", () => {
     });
   });
 
-  it.each([
-    // [store, price text, og:price:currency, expected]
+  it.each<
+    [
+      store: string,
+      priceText: string,
+      ogPriceCurrency: string | undefined,
+      expected: { amount: number; currency: string },
+    ]
+  >([
     ["amazon.com", "$24.99", undefined, { amount: 24.99, currency: "USD" }],
     ["amazon.de", "1.299,00 €", "EUR", { amount: 1299, currency: "EUR" }],
     [
@@ -162,14 +168,14 @@ describe("enrichAmazon", () => {
     ["amazon.ca", "$15.00", "CAD", { amount: 15, currency: "CAD" }],
   ])(
     "returns the structured price on %s",
-    (_store, text, currency, expected) => {
+    (_store, priceText, ogPriceCurrency, expected) => {
       const map = createMap([
-        [".a-price .a-offscreen", { text }],
-        ...(currency
+        [".a-price .a-offscreen", { text: priceText }],
+        ...(ogPriceCurrency
           ? [
               [
                 "meta[property='og:price:currency']",
-                { attributes: [{ name: "content", value: currency }] },
+                { attributes: [{ name: "content", value: ogPriceCurrency }] },
               ] as [string, { attributes: { name: string; value: string }[] }],
             ]
           : []),

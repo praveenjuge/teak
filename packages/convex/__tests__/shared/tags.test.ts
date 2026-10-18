@@ -126,7 +126,6 @@ describe("hidden tags", () => {
 
   test("a card is hidden by its flag or its user tags, never by AI tags", () => {
     expect(isCardHidden({ isHidden: true, tags: [] })).toBe(true);
-    // Not yet backfilled: the tag alone hides it.
     expect(isCardHidden({ tags: ["Hidden"] })).toBe(true);
     expect(isCardHidden({ tags: ["work"] })).toBe(false);
     expect(

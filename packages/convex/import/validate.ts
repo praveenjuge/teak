@@ -37,17 +37,13 @@ export interface ImportFileInput {
 
 export interface ImportCardInput {
   colors?: Array<{ hex: string; name?: string }>;
-  /** Archive schema v2: when a link was marked done. */
   completedAt?: number;
   content: string;
   createdAt?: number;
   file?: ImportFileInput;
-  /** Folder names (archive schema v2), trimmed and deduped by name. */
   folders?: string[];
-  /** Archive schema v2: the card was archived when exported. */
   isArchived?: boolean;
   isFavorited?: boolean;
-  /** Archive schema v2: the card's title. */
   metadataTitle?: string;
   notes?: string;
   tags?: string[];

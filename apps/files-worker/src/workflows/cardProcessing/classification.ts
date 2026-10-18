@@ -21,10 +21,6 @@ import {
 } from "./context";
 import { runDecision } from "./decisions";
 
-// Classification: the card's type from its file, URL and text (the rules in
-// @teak/convex/card/classificationRules). Clef reviews the rules' answer for
-// a note with no URL or file.
-
 const MAX_PALETTE_COLORS = 12;
 
 export interface CompletedClassification {
@@ -41,11 +37,6 @@ export type ClassificationResult =
   | CompletedClassification
   | { mode: "skipped" };
 
-/**
- * The rules' text, quote or palette answer for a card with no URL or file,
- * reviewed by Clef in the Files Worker. Clef's answer replaces the rules only
- * when it is confident, and a palette must still yield a colour.
- */
 const reviewTextCardType = async (
   job: CardJob,
   card: CardDoc,
@@ -128,24 +119,21 @@ const completed = (
   type,
 });
 
-/**
- * Classifies a card and records the result. Every exit records the classify
- * stage, because steps gated on it (link metadata) wait while it is pending.
- */
-export const classifyCard = async (
-  job: CardJob
-): Promise<ClassificationResult> => {
-  const loaded = await loadCard(job);
-  if (!loaded) {
-    return { mode: "skipped" };
-  }
-  await markInProgress(job, ["classify"]);
-  const { card } = loaded;
+interface Classification {
+  recorded: { confidence: number; type?: CardType };
+  result: CompletedClassification;
+}
 
+const decideClassification = async (
+  job: CardJob,
+  card: CardDoc
+): Promise<Classification> => {
   if (card.type === "quote" && !card.url && !card.fileKey) {
     const confidence = card.processingStatus?.classify?.confidence ?? 0.95;
-    await recordClassification(job, { confidence });
-    return completed("quote", confidence);
+    return {
+      recorded: { confidence },
+      result: completed("quote", confidence),
+    };
   }
 
   const quoteNormalization = normalizeQuoteContent(card.content ?? "");
@@ -157,11 +145,10 @@ export const classifyCard = async (
       : null;
   if (reviewed ? reviewed.type === "quote" : heuristicQuote) {
     const quoteConfidence = reviewed?.confidence ?? 0.95;
-    await recordClassification(job, {
-      confidence: quoteConfidence,
-      type: "quote",
-    });
-    return completed("quote", quoteConfidence);
+    return {
+      recorded: { confidence: quoteConfidence, type: "quote" },
+      result: completed("quote", quoteConfidence),
+    };
   }
 
   const { type: resultType, confidence: resultConfidence } =
@@ -183,21 +170,31 @@ export const classifyCard = async (
     shouldForceLink ||
     (normalizedType !== card.type && normalizedConfidence >= 0.6);
 
-  if (shouldUpdateType) {
-    await recordClassification(job, {
-      confidence: normalizedConfidence,
-      type: normalizedType,
-    });
-    await maybeUpdatePaletteColors(job, card, normalizedType);
-  } else {
-    // The stage was marked in progress, so it is always recorded.
-    await recordClassification(job, { confidence: normalizedConfidence });
-  }
+  return {
+    recorded: shouldUpdateType
+      ? { confidence: normalizedConfidence, type: normalizedType }
+      : { confidence: normalizedConfidence },
+    result: completed(
+      normalizedType,
+      normalizedConfidence,
+      normalizedType === "link" &&
+        card.metadata?.linkPreview?.status !== "success"
+    ),
+  };
+};
 
-  return completed(
-    normalizedType,
-    normalizedConfidence,
-    normalizedType === "link" &&
-      card.metadata?.linkPreview?.status !== "success"
-  );
+export const classifyCard = async (
+  job: CardJob
+): Promise<ClassificationResult> => {
+  const loaded = await loadCard(job);
+  if (!loaded) {
+    return { mode: "skipped" };
+  }
+  await markInProgress(job, ["classify"]);
+  const { recorded, result } = await decideClassification(job, loaded.card);
+  await recordClassification(job, recorded);
+  if (recorded.type) {
+    await maybeUpdatePaletteColors(job, loaded.card, recorded.type);
+  }
+  return result;
 };

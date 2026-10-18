@@ -14,11 +14,9 @@ const moduleSpecifier = (node: ts.Expression) =>
     ? ts.factory.createStringLiteral(`${node.text}.js`)
     : node;
 
-// Declaration imports resolve to the emitted .d.ts files under NodeNext as
-// well as Bundler resolution. This changes only the distribution's output.
-const declarations: ts.TransformerFactory<ts.SourceFile | ts.Bundle> = (
-  context
-) => {
+const addJsExtensionsToRelativeSpecifiers: ts.TransformerFactory<
+  ts.SourceFile | ts.Bundle
+> = (context) => {
   const visit: ts.Visitor = (node) => {
     if (ts.isImportDeclaration(node)) {
       return ts.factory.updateImportDeclaration(
@@ -57,7 +55,7 @@ const program = ts.createProgram([source], {
   skipLibCheck: true,
 });
 const emitted = program.emit(undefined, undefined, undefined, true, {
-  afterDeclarations: [declarations],
+  afterDeclarations: [addJsExtensionsToRelativeSpecifiers],
 });
 const diagnostics = [
   ...ts.getPreEmitDiagnostics(program),

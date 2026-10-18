@@ -1,25 +1,8 @@
+import { AUDIO_WAVE_BARS, getAudioWaveHeight } from "@teak/ui/lib/audioWave";
 import { Play } from "lucide-react";
 import { CARD_SURFACE } from "../cardDisplay";
 
-const AUDIO_WAVE_BARS = 45;
 const AUDIO_WAVE_BAR_WIDTH_PX = 2;
-const AUDIO_WAVE_MIN_HEIGHT = 20;
-const AUDIO_WAVE_MAX_VARIATION = 60;
-
-function seededRandom(seed: string, index: number): number {
-  const hash = seed.split("").reduce((acc, char) => {
-    const next = (acc << 5) - acc + char.charCodeAt(0);
-    return next & next;
-  }, index);
-  return Math.abs(Math.sin(hash)) * 0.6 + 0.2;
-}
-
-function getAudioWaveHeight(seed: string, index: number): string {
-  const height =
-    seededRandom(seed, index) * AUDIO_WAVE_MAX_VARIATION +
-    AUDIO_WAVE_MIN_HEIGHT;
-  return `${Number(height.toFixed(3))}%`;
-}
 
 const AUDIO_WAVE_DETAIL_BARS = 200;
 const REAL_WAVE_MIN_HEIGHT = 10;
@@ -53,10 +36,8 @@ function getWaveformBarHeights(
 
 interface AudioWavePreviewProps {
   cardId: string;
-  /** How long the recording runs, such as `1:24`. */
   durationLabel?: string;
   title?: string;
-  /** Real 45-value waveform; hash-based bars are drawn when absent or invalid. */
   waveformGrid?: number[];
 }
 
@@ -102,11 +83,10 @@ export function AudioWavePreview({
   );
 }
 
+export { AUDIO_WAVE_BARS, getAudioWaveHeight } from "@teak/ui/lib/audioWave";
 export {
   AUDIO_WAVE_BAR_WIDTH_PX,
-  AUDIO_WAVE_BARS,
   AUDIO_WAVE_DETAIL_BARS,
-  getAudioWaveHeight,
   getWaveformBarHeights,
   isWaveformBars,
 };

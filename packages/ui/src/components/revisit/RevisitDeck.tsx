@@ -33,17 +33,10 @@ import {
 } from "../cards/linkCardImage";
 import type { CardWithUrls } from "../cards/types";
 
-/** How far a swipe must travel, in pixels, to archive or keep. */
 export const REVISIT_SWIPE_THRESHOLD = 96;
 
-/** The keys the deck answers, by what they do. */
 export type RevisitKeyAction = "archive" | "details" | "keep" | "undo";
 
-/**
- * What a key press does in the deck. A held key repeats without acting, so
- * holding ← archives one card, not a run of them; modified keys belong to
- * the browser.
- */
 export function revisitKeyAction(event: {
   altKey: boolean;
   ctrlKey: boolean;
@@ -73,10 +66,6 @@ export function revisitKeyAction(event: {
   }
 }
 
-/**
- * Puts focus back on an open deck, as a card's details close over it, so
- * its keys work again. False when no deck is open.
- */
 export function focusRevisitDeck(): boolean {
   const deck = document.querySelector<HTMLElement>("[data-revisit-deck]");
   deck?.focus({ preventScroll: true });
@@ -85,7 +74,6 @@ export function focusRevisitDeck(): boolean {
 
 const savedDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
-/** Media keeps its shape and fits the viewport: tall images included. */
 const mediaWidth = (card: CardWithUrls): string | undefined => {
   const isMedia =
     card.type === "image" || card.type === "video" || card.type === "document";
@@ -152,20 +140,12 @@ interface LeavingCard {
 
 export interface RevisitDeckProps {
   deck: RevisitDeckState;
-  /** Leaves the deck: Esc, the close button and Done. */
   onExit: () => void;
-  /** Opens a card's details over the deck. */
   onOpenCard: (cardId: string) => void;
-  /** Deals again from a new seed. */
   onStartOver: () => void;
   open: boolean;
 }
 
-/**
- * Revisit: one card at a time from a Shuffle of the view. ← (or A, or a
- * swipe left) archives it, → (K, a swipe right) keeps it, Space opens its
- * details, Z takes back the last archive and Esc leaves.
- */
 export function RevisitDeck({
   deck,
   onExit,
@@ -174,7 +154,6 @@ export function RevisitDeck({
   open,
 }: RevisitDeckProps) {
   const snapshot = deck.current;
-  // The card as it is now: archived in another tab, say.
   const live = useQuery(
     api.cards.getCard,
     snapshot ? { id: snapshot._id } : "skip"
@@ -187,8 +166,6 @@ export function RevisitDeck({
   useEffect(() => {
     const previous = shown.current;
     shown.current = card;
-    // Only a card replaced by the next one slides away; past the last card,
-    // or stepping back, nothing does.
     if (
       previous &&
       card &&
@@ -218,7 +195,6 @@ export function RevisitDeck({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const action = revisitKeyAction(event);
-    // The end screen's buttons keep Space; only Z works there.
     if (
       !action ||
       deck.status !== "ready" ||
@@ -226,7 +202,6 @@ export function RevisitDeck({
     ) {
       return;
     }
-    // Space and the arrows act on the deck, not on a focused button.
     event.preventDefault();
     act(action);
   };
@@ -369,7 +344,6 @@ export function RevisitDeck({
           )}
           key={card._id}
           onClickCapture={(event) => {
-            // A swipe that comes back short is not a click.
             if (dragged.current) {
               event.stopPropagation();
               dragged.current = false;
@@ -438,8 +412,6 @@ export function RevisitDeck({
         data-revisit-deck=""
         onKeyDown={handleKeyDown}
         onOpenAutoFocus={(event) => {
-          // The deck itself takes focus, so its keys work at once and Space
-          // doesn't press a button.
           event.preventDefault();
           contentRef.current?.focus();
         }}
@@ -514,7 +486,6 @@ export function RevisitDeck({
               </div>
             )}
           </main>
-          {/* Room for toasts (an archive's Undo) below the buttons. */}
           <div aria-hidden="true" className="h-20 shrink-0" />
         </div>
       </DialogContent>

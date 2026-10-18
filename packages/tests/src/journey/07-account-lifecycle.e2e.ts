@@ -10,14 +10,12 @@ import {
 } from "../helpers/app";
 import { resetPasswordThroughEmail } from "../helpers/emulator";
 import { E2E_PASSWORD, env } from "../helpers/env";
+import { recordToasts } from "../helpers/page-hooks";
 import { describe, expect, test } from "../helpers/test";
 
 let email = "";
 let apiKey = "";
 let password = E2E_PASSWORD;
-
-// Toasts report here from the page; the route answers before any server.
-const TOAST_HOOK = "/__teak-e2e-hook/toast";
 
 describe("account lifecycle", { serial: true, timeout: 180_000 }, () => {
   test("a new account signs up with an API key", async ({
@@ -57,40 +55,13 @@ describe("account lifecycle", { serial: true, timeout: 180_000 }, () => {
     await gotoApp(browser, "/settings");
     await expect(screen.getByRole("heading", "Settings")).toBeVisible();
 
-    // The page leaves for hosted AuthKit right after the click, so a toast is
-    // gone before an assertion could find it. Record each one as it appears.
-    const toasts: string[] = [];
-    await browser.route(new RegExp(`${TOAST_HOOK}$`), async (route) => {
-      toasts.push(route.request.postData ?? "");
-      await route.fulfill({ status: 204, body: "" });
-    });
-    await browser.evaluate((hookPath: string) => {
-      new MutationObserver((mutations) => {
-        for (const node of mutations.flatMap((m) => [...m.addedNodes])) {
-          if (!(node instanceof HTMLElement)) {
-            continue;
-          }
-          const added = node.matches("[data-sonner-toast]")
-            ? [node]
-            : node.querySelectorAll("[data-sonner-toast]");
-          for (const toast of added) {
-            // keepalive lets the report finish while the page unloads.
-            fetch(`${location.origin}${hookPath}`, {
-              body: toast.textContent ?? "",
-              keepalive: true,
-              method: "POST",
-            }).catch(() => undefined);
-          }
-        }
-      }).observe(document.body, { childList: true, subtree: true });
-      return null;
-    }, TOAST_HOOK);
+    const recorded = await recordToasts(browser);
 
     await screen.getByRole("button", "Sign out").click();
 
     await expectHostedSignIn(surface);
     await expect(screen.getByText(/couldn't load/i)).toHaveCount(0);
-    expect(toasts).toEqual([]);
+    expect(recorded.toasts).toEqual([]);
     await gotoApp(browser, "/settings");
     await expectHostedSignIn(surface);
   });

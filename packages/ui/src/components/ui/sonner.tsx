@@ -7,10 +7,6 @@ import { Toaster as Sonner, type ToasterProps } from "sonner";
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
 
-  // Toasts are small pills centered at the bottom of the content column
-  // (beside the app sidebar), or of the window while a dialog is open; the
-  // layout lives with the --teak-toast-* tokens in styles.css. The
-  // bulk-action bar uses the top edge, so neither covers the other.
   return (
     <Sonner
       className="toaster group"

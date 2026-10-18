@@ -11,6 +11,8 @@ interface CardRow {
 const FOCUS_EDITOR =
   '[data-focus-editor] [role="textbox"][aria-label="Markdown content"]';
 
+const wordCount = (text: string) => `${text.trim().split(/\s+/).length} words`;
+
 test("Focus on an existing note: write, leave with Esc, and the edit saves", async ({
   browser,
   screen,
@@ -20,7 +22,6 @@ test("Focus on an existing note: write, leave with Esc, and the edit saves", asy
   const id = await library.create(marker);
   const cardDialog = await library.open(id);
 
-  // Cmd/Ctrl+E anywhere in the open card enters Focus.
   await browser.keyboard.press("ControlOrMeta+e");
   const focus = screen.getByRole("dialog", "Focus");
   await expect(focus).toBeVisible();
@@ -28,30 +29,27 @@ test("Focus on an existing note: write, leave with Esc, and the edit saves", asy
   await goToEnd(browser, FOCUS_EDITOR);
   await focusEditor.pressSequentially(" written in focus");
 
-  // Esc leaves Focus only: the card stays open with the edit, and it saves.
   await browser.keyboard.press("Escape");
   await expect(focus).toBeHidden();
   await expect(cardDialog).toBeVisible();
   await expect(cardDialog.getByRole("textbox", "Markdown content")).toHaveText(
     `${marker} written in focus`
   );
-  // Focus goes back to what had it on entering: here, the card dialog.
   await expect(cardDialog).toBeFocused();
   await expect.poll(() => library.read(id)).toBe(`${marker} written in focus`);
 
-  // The Focus button, then Save in the bar.
   await cardDialog.getByRole("button", "Focus").click();
   await expect(focus).toBeVisible();
   await goToEnd(browser, FOCUS_EDITOR);
   await (await getBlockEditor(focus)).pressSequentially(" again");
-  // "Focus note content <time>" plus four more words.
-  await expect(focus.getByText("8 words")).toBeVisible();
+  await expect(
+    focus.getByText(wordCount(`${marker} written in focus again`))
+  ).toBeVisible();
   await focus.getByRole("button", "Save", { exact: false }).click();
   await expect
     .poll(() => library.read(id))
     .toBe(`${marker} written in focus again`);
 
-  // Esc with the link editor open closes only the link editor.
   await goToEnd(browser, FOCUS_EDITOR);
   await browser.keyboard.press("Shift+ArrowLeft");
   await browser.keyboard.press("ControlOrMeta+k");
@@ -60,7 +58,6 @@ test("Focus on an existing note: write, leave with Esc, and the edit saves", asy
   await expect(screen.getByRole("textbox", "Link URL")).toBeHidden();
   await expect(focus).toBeVisible();
 
-  // So does Esc with the slash menu open.
   await goToEnd(browser, FOCUS_EDITOR);
   await browser.keyboard.press("Enter");
   await browser.keyboard.type("/");
@@ -70,7 +67,6 @@ test("Focus on an existing note: write, leave with Esc, and the edit saves", asy
   await expect(slashMenu).toBeHidden();
   await expect(focus).toBeVisible();
 
-  // Cmd/Ctrl+E inside Focus leaves it too.
   await (await getBlockEditor(focus)).focus();
   await browser.keyboard.press("ControlOrMeta+e");
   await expect(focus).toBeHidden();
@@ -96,8 +92,7 @@ test("the composer's Focus is the same Focus, and Save creates the card", async 
   await expect(focus).toBeVisible();
   await goToEnd(browser, FOCUS_EDITOR);
   await (await getBlockEditor(focus)).pressSequentially(" finished");
-  // After a pause, the word count: "Focus composer content <time> finished".
-  await expect(focus.getByText("5 words")).toBeVisible();
+  await expect(focus.getByText(wordCount(`${marker} finished`))).toBeVisible();
 
   await focus.getByRole("button", "Save", { exact: false }).click();
   await expect(focus).toBeHidden();
