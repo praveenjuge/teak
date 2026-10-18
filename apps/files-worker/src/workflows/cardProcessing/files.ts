@@ -116,30 +116,19 @@ class TranscriptUnavailable extends Error {
 }
 
 /**
- * Process an audio card in one pass (`process-audio`): record its duration
- * and waveform, and return its transcript, or null when the audio has no
- * speech or could not be transcribed. Audio the renderer cannot decode
- * leaves the card unchanged. A busy or unavailable renderer throws, so the
- * metadata step retries.
- *
- * A video's soundtrack goes through the same pass; pass `recordFacts: false`
- * to keep its waveform and duration off the card.
+ * Runs `process-audio` with transcription on a stored object: its facts and
+ * Whisper's text, or null text when the audio has no speech or could not be
+ * transcribed. Audio the renderer cannot decode gives no result. A busy or
+ * unavailable renderer throws, so the step retries.
  */
-export const processAudioCard = async (
+export const transcribeStoredAudio = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,
-  loaded: LoadedCard,
-  { recordFacts = true }: { recordFacts?: boolean } = {}
-): Promise<{ durationSeconds?: number; transcript: string | null }> => {
-  const { card } = loaded;
-  const known = card.fileMetadata ?? {};
-  if (!card.fileKey) {
-    return { durationSeconds: known.duration, transcript: null };
-  }
-  const sourceKey = card.fileKey;
-  if (!isKeyInUserNamespace(loaded.keyPrefix, sourceKey)) {
-    throw new Error("invalid_storage_key_namespace");
-  }
+  { mimeType, sourceKey }: { mimeType?: string; sourceKey: string }
+): Promise<{
+  processed: FilesProcessAudioResult | null;
+  text: string | null;
+}> => {
   let processed: FilesProcessAudioResult | null = null;
   let text: string | null = null;
   try {
@@ -156,7 +145,7 @@ export const processAudioCard = async (
           params: {
             sourceKey,
             transcribe: true,
-            ...(known.mimeType && { mimeType: known.mimeType }),
+            ...(mimeType && { mimeType }),
           },
         });
         if (outcome.kind !== "ok") {
@@ -183,7 +172,39 @@ export const processAudioCard = async (
       reason: error.message,
     });
   }
-  const result = processed as FilesProcessAudioResult | null;
+  return { processed, text };
+};
+
+/**
+ * Process an audio card in one pass (`process-audio`): record its duration
+ * and waveform, and return its transcript, or null when the audio has no
+ * speech or could not be transcribed. Audio the renderer cannot decode
+ * leaves the card unchanged. A busy or unavailable renderer throws, so the
+ * metadata step retries.
+ *
+ * A video's soundtrack goes through the same pass; pass `recordFacts: false`
+ * to keep its waveform and duration off the card.
+ */
+export const processAudioCard = async (
+  job: CardJob,
+  telemetry: WorkflowTelemetry,
+  loaded: LoadedCard,
+  { recordFacts = true }: { recordFacts?: boolean } = {}
+): Promise<{ durationSeconds?: number; transcript: string | null }> => {
+  const { card } = loaded;
+  const known = card.fileMetadata ?? {};
+  if (!card.fileKey) {
+    return { durationSeconds: known.duration, transcript: null };
+  }
+  const sourceKey = card.fileKey;
+  if (!isKeyInUserNamespace(loaded.keyPrefix, sourceKey)) {
+    throw new Error("invalid_storage_key_namespace");
+  }
+  const { processed: result, text } = await transcribeStoredAudio(
+    job,
+    telemetry,
+    { mimeType: known.mimeType, sourceKey }
+  );
   if (!result) {
     return { durationSeconds: known.duration, transcript: null };
   }

@@ -33,6 +33,7 @@ import {
 } from "./linkMetadata";
 import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
+import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
 import {
   extractPaletteFromImage,
   generateRenderables,
@@ -61,6 +62,11 @@ const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);
 const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
+/**
+ * Download, Whisper and a summary: a busy renderer or Workers AI gets one
+ * more try a minute later.
+ */
+const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
 /** Two Gemma calls; a busy Workers AI waits 30 s, then 60 s. */
 const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
 
@@ -103,6 +109,8 @@ const rethrowSuperseded = (error: unknown): void => {
 interface InitialFacts {
   classification: CompletedClassification | null;
   creationTime: number;
+  /** The link's stored category, for a metadata-only run's podcast check. */
+  linkCategory?: string;
   rev: number;
 }
 
@@ -209,6 +217,9 @@ const processCard = async (
               }
             : null,
         creationTime: card._creationTime,
+        ...(card.metadata?.linkCategory?.category
+          ? { linkCategory: card.metadata.linkCategory.category }
+          : {}),
         rev: card.processingRev ?? 0,
       };
     }
@@ -239,6 +250,13 @@ const processCard = async (
     const metadata = classified.shouldGenerateMetadata
       ? await runMetadataStep(job, step, reported, cardType)
       : null;
+    // An episode whose first run had no AI metadata wasn't transcribed.
+    if (
+      isPodcastLink(cardType, initial.linkCategory) &&
+      metadata?.mode === "completed"
+    ) {
+      await transcribePodcastStep(job, step, { keepTranscript: true });
+    }
     return completedResult(classified, cardType, metadata, null);
   }
 
@@ -411,6 +429,15 @@ const processCard = async (
     })
     .catch(() => null);
 
+  // A podcast episode's transcript comes after the card is complete: no
+  // stage waits on it, and a miss or an error never fails the card.
+  if (
+    isPodcastLink(cardType, categorization?.category) &&
+    metadata?.mode === "completed"
+  ) {
+    await transcribePodcastStep(job, step);
+  }
+
   return {
     ...completedResult(classified, cardType, metadata, renderables),
     ...(categorization ? { categorization } : {}),
@@ -438,6 +465,32 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
+
+/** The podcast transcript, logged; only a superseded run's error escapes. */
+const transcribePodcastStep = (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"],
+  options: { keepTranscript?: boolean } = {}
+) =>
+  step
+    .do("transcribe podcast", PODCAST_STEP, () =>
+      withWorkflowTelemetry(job.env, async (telemetry) => {
+        const outcome = await transcribePodcastEpisode(job, telemetry, options);
+        console.log("[cardProcessing] podcast transcript", {
+          cardId: job.cardId,
+          ...outcome,
+        });
+        return outcome;
+      })
+    )
+    .catch((error: unknown) => {
+      rethrowSuperseded(error);
+      console.warn("[cardProcessing] Podcast transcript failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
 
 const runMetadataStep = (
   job: CardJob,

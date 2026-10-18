@@ -32,6 +32,17 @@ describe("readAppleMusicDetails", () => {
     });
   });
 
+  test("reads an album nested under @graph", () => {
+    const details = readAppleMusicDetails(ALBUM, ogImage(OG_IMAGE), [
+      { "@graph": [richSiteJson("apple-music-album.json")] },
+    ]);
+
+    expect(details?.facts).toContainEqual({
+      label: "Artist",
+      value: "Example Artist",
+    });
+  });
+
   test("an album URL that opens one song is a song", () => {
     const details = readAppleMusicDetails(
       `${ALBUM}?i=1700000001`,

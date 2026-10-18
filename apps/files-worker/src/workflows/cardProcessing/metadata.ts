@@ -10,6 +10,11 @@ import {
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import {
+  fetchVideoCaptions,
+  hasCaptionSource,
+  type VideoCaptions,
+} from "@teak/convex/workflows/steps/captions/index";
+import {
   buildLinkMetadataPrompt,
   isScannedPdf,
   MAX_AI_METADATA_INPUT_CHARS,
@@ -52,8 +57,9 @@ interface LinkPreviewFields {
 
 /**
  * The preview's fields, then the site's own summary (a Wikipedia extract or
- * an arXiv abstract), cut so the whole prompt, with its instructions and the
- * URL, fits the model's {@link MAX_AI_METADATA_INPUT_CHARS} untruncated.
+ * an arXiv abstract), then what the video says, each cut so the whole
+ * prompt, with its instructions and the URL, fits the model's
+ * {@link MAX_AI_METADATA_INPUT_CHARS} untruncated.
  */
 export const buildLinkContentParts = (
   card: {
@@ -61,7 +67,8 @@ export const buildLinkContentParts = (
     metadata?: { linkPreview?: LinkPreviewFields };
     url?: string;
   },
-  siteSummary?: string
+  siteSummary?: string,
+  transcript?: string
 ): string[] => {
   const preview =
     card.metadata?.linkPreview?.status === "success"
@@ -89,31 +96,35 @@ export const buildLinkContentParts = (
       contentParts.push(`URL: ${urlFallback}`);
     }
   }
-  const summary = siteSummary?.trim();
-  if (summary) {
-    // Each part is joined with a newline; the prompt wraps the content in
-    // instructions and the URL.
+  // The prompt wraps the content in instructions and the URL.
+  const promptOverhead = buildLinkMetadataPrompt(
+    "",
+    card.url || card.content
+  ).length;
+  for (const [label, text] of [
+    [SUMMARY_LABEL, siteSummary],
+    [TRANSCRIPT_LABEL, transcript],
+  ] as const) {
+    const trimmed = text?.trim();
+    if (!trimmed) {
+      continue;
+    }
+    // Each part is joined with a newline.
     const used = contentParts.reduce(
       (total, part) => total + part.length + 1,
       0
     );
-    const promptOverhead = buildLinkMetadataPrompt(
-      "",
-      card.url || card.content
-    ).length;
     const room =
-      MAX_AI_METADATA_INPUT_CHARS -
-      promptOverhead -
-      used -
-      SUMMARY_LABEL.length;
+      MAX_AI_METADATA_INPUT_CHARS - promptOverhead - used - label.length;
     if (room > 0) {
-      contentParts.push(`${SUMMARY_LABEL}${summary.slice(0, room)}`);
+      contentParts.push(`${label}${trimmed.slice(0, room)}`);
     }
   }
   return contentParts;
 };
 
 const SUMMARY_LABEL = "Summary: ";
+const TRANSCRIPT_LABEL = "Transcript: ";
 
 /**
  * The extract or abstract categorization kept from the link's site, read
@@ -136,8 +147,12 @@ const linkSiteSummary = async (
       userId: card.userId,
     });
     const raw = hydrated.metadata?.linkCategory?.raw as
-      | { remote?: { summary?: unknown } }
+      | { remote?: { sourceUrl?: unknown; summary?: unknown } }
       | undefined;
+    // Details a site gave for the link's earlier URL describe another page.
+    if (raw?.remote?.sourceUrl !== (card.url || linkCategory.sourceUrl)) {
+      return;
+    }
     const summary = raw?.remote?.summary;
     return typeof summary === "string" ? summary : undefined;
   } catch (error) {
@@ -202,6 +217,25 @@ interface Generated {
   ocrChecked?: boolean;
   visualStyles?: string[];
 }
+
+/**
+ * A video link's captions as its transcript (Vimeo), or undefined for any
+ * other link and whenever the site has none or can't be reached.
+ */
+const videoCaptions = async (
+  job: CardJob,
+  card: CardDoc
+): Promise<VideoCaptions | undefined> => {
+  if (!hasCaptionSource(card.url)) {
+    return;
+  }
+  return (
+    (await fetchVideoCaptions(card.url as string, {
+      pinnedFetch: job.deps.pinnedFetch,
+      resolveDns: job.deps.resolveDns,
+    })) ?? undefined
+  );
+};
 
 const transcribeVideo = async (
   job: CardJob,
@@ -353,12 +387,14 @@ const generateForType = async (
       return { ...result, aiTranscript: transcript, confidence: 0.85 };
     }
     case "link": {
+      const captions = await videoCaptions(job, card);
       const content = buildLinkContentParts(
         card,
-        await linkSiteSummary(job, loaded)
+        await linkSiteSummary(job, loaded),
+        captions?.text
       ).join("\n");
       if (!content.trim()) {
-        return empty;
+        return captions ? { ...empty, aiTranscript: captions.text } : empty;
       }
       const result = await generateLinkMetadata(
         job,
@@ -366,7 +402,11 @@ const generateForType = async (
         content,
         card.url || card.content
       );
-      return { ...result, confidence: 0.9 };
+      return {
+        ...result,
+        confidence: 0.9,
+        ...(captions ? { aiTranscript: captions.text } : {}),
+      };
     }
     case "document": {
       const contentParts: string[] = [];

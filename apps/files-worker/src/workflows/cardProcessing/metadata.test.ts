@@ -87,9 +87,21 @@ const setup = (
   fields: Partial<FakeCard> | null,
   answers: Partial<Record<FilesOp, OpAnswer>> = {},
   envFields: Partial<Parameters<typeof testEnv>[0]> = {},
-  handlers: Parameters<typeof createCardConvex>[1] = {}
+  handlers: Parameters<typeof createCardConvex>[1] = {},
+  network?: (url: string) => Response | undefined
 ) => {
   const card = fields ? makeCard({ content: "", ...fields }) : null;
+  const siteRequests: string[] = [];
+  const pinned = network
+    ? {
+        pinnedFetch: (url: string) => {
+          siteRequests.push(url);
+          return Promise.resolve(
+            network(url) ?? new Response("{}", { status: 404 })
+          );
+        },
+      }
+    : {};
   const convex = createCardConvex(card, handlers);
   const fakes = createFakeOps(answers);
   const env = testEnv({
@@ -105,7 +117,7 @@ const setup = (
     spec.op === "generate-text-metadata" || spec.op === "generate-link-metadata"
       ? callFilesOp(env, spec)
       : fakes.ops(spec);
-  const job = testJob(env, testDeps(env, convex.fetcher, ops));
+  const job = testJob(env, testDeps(env, convex.fetcher, ops, pinned));
   const generateWith = (
     telemetry: WorkflowTelemetry,
     cardType: string,
@@ -115,7 +127,7 @@ const setup = (
     generateWith(createWorkflowTelemetry(env), cardType, options);
   const saved = () =>
     convex.callsTo("workflows/aiMetadata/mutations:updateCardAI").at(-1)?.args;
-  return { card, convex, fakes, generate, generateWith, saved };
+  return { card, convex, fakes, generate, generateWith, saved, siteRequests };
 };
 
 beforeEach(() => {
@@ -785,7 +797,13 @@ describe("generating metadata", () => {
           linkCategory: {
             category: "research",
             fetchedAt: 1,
-            raw: { remote: { source: "arxiv", summary: "We propose X." } },
+            raw: {
+              remote: {
+                source: "arxiv",
+                sourceUrl: "https://arxiv.org/abs/1706.03762",
+                summary: "We propose X.",
+              },
+            },
             sourceUrl: "https://arxiv.org/abs/1706.03762",
           },
           linkPreview: { status: "success", title: "A paper" },
@@ -797,10 +815,157 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Summary: We propose X.");
     });
 
+    describe("video captions", () => {
+      const VIMEO = "https://vimeo.com/76979871";
+      const CONFIG = "https://player.vimeo.com/video/76979871/config";
+      const TRACK = "https://captions.vimeo.com/captions/140662.vtt?sig=x";
+      const vtt = (cues: string[]) =>
+        `WEBVTT\n\n${cues
+          .map(
+            (cue, i) =>
+              `${i + 1}\n00:00:0${i}.000 --> 00:00:0${i + 1}.000\n${cue}`
+          )
+          .join("\n\n")}\n`;
+      const vimeoSite =
+        (body: string) =>
+        (url: string): Response | undefined => {
+          if (url === CONFIG) {
+            return Response.json({
+              request: {
+                text_tracks: [{ kind: "subtitles", lang: "en", url: TRACK }],
+              },
+            });
+          }
+          if (url === TRACK) {
+            return new Response(body, {
+              headers: { "content-type": "text/vtt" },
+            });
+          }
+        };
+      const vimeoCard = {
+        metadata: {
+          linkPreview: { status: "success", title: "A talk" },
+        },
+        type: "link",
+        url: VIMEO,
+      } as const;
+
+      test("a Vimeo link keeps its captions as the transcript and summarizes them", async () => {
+        const { generate, saved, siteRequests } = setup(
+          vimeoCard,
+          {},
+          {},
+          {},
+          vimeoSite(
+            vtt(["<i>Hello and welcome.</i>", "Today we talk about leaves."])
+          )
+        );
+
+        const result = await generate("link");
+
+        expect(siteRequests).toEqual([CONFIG, TRACK]);
+        expect(saved()).toMatchObject({
+          aiTranscript: "Hello and welcome. Today we talk about leaves.",
+        });
+        expect(result.hasTranscript).toBe(true);
+        expect(aiPrompts[0]).toContain(
+          "Transcript: Hello and welcome. Today we talk about leaves."
+        );
+      });
+
+      test("a long transcript keeps the whole prompt within the input limit", async () => {
+        const cues = Array.from(
+          { length: 9 },
+          (_, i) => `${"word ".repeat(400)}cue${i}`
+        );
+        const { generate, saved } = setup(
+          vimeoCard,
+          {},
+          {},
+          {},
+          vimeoSite(vtt(cues))
+        );
+
+        await generate("link");
+
+        expect(aiPrompts[0]?.length).toBeLessThanOrEqual(
+          MAX_AI_METADATA_INPUT_CHARS
+        );
+        expect(aiPrompts[0]).not.toContain("[Content truncated");
+        // The stored transcript is whole; only the AI input is cut.
+        expect(String(saved()?.aiTranscript)).toContain("cue8");
+      });
+
+      test.each([
+        ["a private video", () => new Response("Sorry", { status: 403 })],
+        [
+          "a site that can't be reached",
+          () => {
+            throw new Error("connect failed");
+          },
+        ],
+      ])("%s completes without a transcript", async (_name, respond) => {
+        const { generate, saved } = setup(vimeoCard, {}, {}, {}, () =>
+          respond()
+        );
+
+        const result = await generate("link");
+
+        expect(result.mode).toBe("completed");
+        expect(saved()?.aiTranscript).toBeUndefined();
+        expect(aiPrompts[0]).not.toContain("Transcript:");
+      });
+
+      test("a YouTube link asks for no captions", async () => {
+        const { generate, siteRequests } = setup(
+          {
+            ...vimeoCard,
+            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          },
+          {},
+          {},
+          {},
+          () => undefined
+        );
+
+        await generate("link");
+
+        expect(siteRequests).toEqual([]);
+      });
+    });
+
+    test("ignores a summary kept for the link's earlier URL", async () => {
+      const { generate } = setup({
+        metadata: {
+          linkCategory: {
+            category: "research",
+            fetchedAt: 1,
+            raw: {
+              remote: {
+                source: "arxiv",
+                sourceUrl: "https://arxiv.org/abs/1706.03762",
+                summary: "We propose X.",
+              },
+            },
+            sourceUrl: "https://arxiv.org/abs/1706.03762",
+          },
+          linkPreview: { status: "success", title: "Another page" },
+        },
+        url: "https://example.com/another-page",
+      });
+      await generate("link");
+      expect(aiPrompts[0]).toContain("Title: Another page");
+      expect(aiPrompts[0]).not.toContain("Summary:");
+    });
+
     test("reads an archived summary back from R2", async () => {
       const { bucket } = createMemoryBucket();
       const raw = JSON.stringify({
-        remote: { source: "wikipedia", summary: "Leaves make sugar." },
+        remote: {
+          source: "wikipedia",
+          sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+          summary: "Leaves make sugar.",
+        },
       });
       const digest = await sha256Hex(raw);
       const card = makeCard({});

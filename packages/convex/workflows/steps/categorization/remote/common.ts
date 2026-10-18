@@ -6,7 +6,7 @@ import { readBodyWithLimit, safeFetch } from "../../../../linkMetadata/ssrf";
 // Site lookups that add facts to a link's category details (Wikipedia,
 // arXiv, Spotify, Apple Music, Open Library). Each request goes through
 // `safeFetch` (every hop checked against the SSRF policy, connections
-// pinned), with a 10 s timeout and a 256 KiB body cap. A lookup never throws:
+// pinned), with a 10 s timeout and a 256 KiB default body cap. A lookup never throws:
 // a site that is down, slow or rate-limited leaves the card as it was.
 
 /** The same SSRF-checked transport the social post lookups use. */
@@ -57,14 +57,18 @@ export interface RemoteResponse {
 export const fetchRemoteText = async (
   url: string,
   deps: RemoteFetchDeps,
-  { accept, maxBytes = REMOTE_MAX_BYTES }: { accept: string; maxBytes?: number }
+  {
+    accept,
+    headers,
+    maxBytes = REMOTE_MAX_BYTES,
+  }: { accept: string; headers?: Record<string, string>; maxBytes?: number }
 ): Promise<RemoteResponse> => {
   try {
     const { response } = await safeFetch(
       url,
       deps.resolveDns,
       {
-        headers: { accept, "user-agent": USER_AGENT },
+        headers: { ...headers, accept, "user-agent": USER_AGENT },
         signal: AbortSignal.timeout(deps.timeoutMs ?? REMOTE_FETCH_TIMEOUT_MS),
       },
       deps.pinnedFetch
@@ -154,3 +158,16 @@ export const buildFacts = (
   );
   return facts.length > 0 ? facts : undefined;
 };
+
+/**
+ * JSON-LD nodes, with the ones a page nests under `@graph` brought up: a list
+ * of nodes, or a single node object.
+ */
+export const jsonLdNodes = (entities: unknown[]): unknown[] =>
+  entities.flatMap((entity) => {
+    const graph = (entity as Record<string, unknown> | null)?.["@graph"];
+    if (Array.isArray(graph)) {
+      return [entity, ...graph];
+    }
+    return graph && typeof graph === "object" ? [entity, graph] : [entity];
+  });

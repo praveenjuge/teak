@@ -14,6 +14,10 @@ import { enrichGithub } from "../../../../../workflows/steps/categorization/prov
 import { enrichGoodreads } from "../../../../../workflows/steps/categorization/providers/goodreads";
 import { enrichImdb } from "../../../../../workflows/steps/categorization/providers/imdb";
 import { enrichProvider } from "../../../../../workflows/steps/categorization/providers/index";
+import {
+  enrichYoutube,
+  formatVideoLength,
+} from "../../../../../workflows/steps/categorization/providers/youtube";
 
 const createMap = (
   entries: [
@@ -806,6 +810,56 @@ describe("enrichDribbble", () => {
 
   it("returns null if no enrichment", () => {
     expect(enrichDribbble(new Map())).toBeNull();
+  });
+});
+
+describe("enrichYoutube", () => {
+  const watchPage = (entries: Record<string, string>): RawSelectorMap =>
+    createMap(
+      Object.entries(entries).map(([selector, value]) => [
+        selector,
+        { attributes: [{ name: "content", value }] },
+      ])
+    );
+
+  it("reads the channel, length and upload date", () => {
+    const result = enrichYoutube(
+      watchPage({
+        "link[itemprop='name']": "Example Channel",
+        "meta[itemprop='duration']": "PT3M34S",
+        "meta[itemprop='uploadDate']": "2009-10-24T23:57:33-07:00",
+      })
+    );
+
+    expect(result?.facts).toEqual([
+      { label: "Channel", value: "Example Channel" },
+      { label: "Length", value: "3m 34s" },
+      { label: "Uploaded", value: "Oct 24, 2009" },
+    ]);
+  });
+
+  it.each([
+    ["PT63M3S", "1h 3m 3s"],
+    ["PT1H0M5S", "1h 5s"],
+    ["PT10H0M0S", "10h"],
+    ["PT45S", "45s"],
+    ["P1DT2H", "26h"],
+    ["PT0M0S", undefined],
+    ["3:34", undefined],
+  ])("formats %s as %p", (iso, expected) => {
+    expect(formatVideoLength(iso)).toBe(expected);
+  });
+
+  it("a page without the microdata gives nothing", () => {
+    expect(enrichYoutube(createMap([]))).toBeNull();
+  });
+
+  it("applies to videos, films and courses, not to articles", () => {
+    const page = watchPage({ "link[itemprop='name']": "Example Channel" });
+    expect(enrichProvider("youtube", "tv", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "movie", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "course", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "article", page)).toBeNull();
   });
 });
 

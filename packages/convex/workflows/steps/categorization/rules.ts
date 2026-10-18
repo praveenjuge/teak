@@ -20,6 +20,7 @@ import {
   mergeFacts,
   pickFields,
 } from "./enrichment";
+import { getRawAttribute } from "./providers/common";
 import { enrichProvider, providerSupportsCategory } from "./providers/index";
 import {
   fillFacts,
@@ -32,6 +33,20 @@ import {
 // the Files Worker's categorization step and Convex's Clef backfill share it.
 
 const PREVIEW_HINT_CONFIDENCE = 0.95;
+const PAGE_AUDIO_CONFIDENCE = 0.8;
+const PAGE_AUDIO_SELECTORS = [
+  "meta[property='og:audio']",
+  "meta[property='og:audio:secure_url']",
+];
+
+const hasPageAudio = (
+  raw: Parameters<typeof buildRawSelectorMap>[0] | undefined
+): boolean => {
+  const map = buildRawSelectorMap(raw);
+  return PAGE_AUDIO_SELECTORS.some((selector) =>
+    Boolean(getRawAttribute(map, selector, "content")?.trim())
+  );
+};
 const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 const TRAILING_SLASH_REGEX = /\/+$/;
@@ -150,6 +165,22 @@ export const classifyLinkCategory = (
       confidence: PREVIEW_HINT_CONFIDENCE,
       providerHint: resolution.provider,
       reason: "preview_hint",
+    };
+  }
+
+  // A page that carries its own audio, where only the path or a guess put
+  // it elsewhere, is a podcast episode: hosts serve them at /episodes/<slug>,
+  // which reads as TV. Sites known by domain, and songs, keep their category.
+  if (
+    resolution.reason !== "domain_rule" &&
+    resolution.category !== "music" &&
+    hasPageAudio(linkPreview?.raw)
+  ) {
+    return {
+      category: "podcast",
+      confidence: PAGE_AUDIO_CONFIDENCE,
+      providerHint: resolution.provider,
+      reason: "page_audio",
     };
   }
 

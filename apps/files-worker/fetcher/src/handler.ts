@@ -4,15 +4,22 @@ import {
   parseFetcherRequest,
 } from "./fetchAsset";
 import { fetchLinkPage, parseFetcherPageRequest } from "./fetchPage";
-import { parseFetcherHopRequest, performHop } from "./hop";
+import {
+  HOP_LIMITS,
+  parseFetcherHopRequest,
+  performHop,
+  performStreamedHop,
+} from "./hop";
 import {
   FETCHER_HEADERS,
   FETCHER_HOP_PATH,
   FETCHER_HOP_RESPONSE_HEADERS,
   FETCHER_MAX_IN_FLIGHT,
+  FETCHER_MAX_STREAMS,
   FETCHER_PAGE_PATH,
   FETCHER_PATH,
   FETCHER_PROTOCOL,
+  FETCHER_STREAM_PATH,
 } from "./protocol";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -20,12 +27,40 @@ const MAX_REQUEST_BYTES = 16 * 1024;
 const json = (status: number, body: unknown): Response =>
   Response.json(body, { status });
 
+/** A hop's upstream status and headers, under the names the Worker reads. */
+const hopHeaders = (
+  facts: {
+    contentLength: string | null;
+    contentType: string | null;
+    location: string | null;
+    status: number;
+  },
+  base: Record<string, string>
+): Headers => {
+  const headers = new Headers({
+    ...base,
+    "content-type": "application/octet-stream",
+    [FETCHER_HOP_RESPONSE_HEADERS.status]: String(facts.status),
+  });
+  for (const [name, value] of [
+    [FETCHER_HOP_RESPONSE_HEADERS.contentLength, facts.contentLength],
+    [FETCHER_HOP_RESPONSE_HEADERS.contentType, facts.contentType],
+    [FETCHER_HOP_RESPONSE_HEADERS.location, facts.location],
+  ] as const) {
+    if (value !== null) {
+      headers.set(name, value);
+    }
+  }
+  return headers;
+};
+
 /**
  * One Container serves a few downloads and page fetches at once. Only the Files Worker reaches
  * it, through its Durable Object; nothing else can connect to the port.
  */
 export const createFetcherHandler = (deps: FetchAssetDeps) => {
   let inFlight = 0;
+  let streams = 0;
   return async (request: Request): Promise<Response> => {
     const { pathname } = new URL(request.url);
     if (request.method === "GET" && pathname === "/health") {
@@ -36,7 +71,8 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
       !(
         pathname === FETCHER_PATH ||
         pathname === FETCHER_PAGE_PATH ||
-        pathname === FETCHER_HOP_PATH
+        pathname === FETCHER_HOP_PATH ||
+        pathname === FETCHER_STREAM_PATH
       )
     ) {
       return json(404, { error: "not_found" });
@@ -65,27 +101,38 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
         if (!outcome.ok) {
           return json(422, { error: "skipped", reason: outcome.reason });
         }
-        const headers = new Headers({
-          "content-length": String(outcome.body.byteLength),
-          "content-type": "application/octet-stream",
-          [FETCHER_HOP_RESPONSE_HEADERS.status]: String(outcome.status),
-        });
-        for (const [name, value] of [
-          [FETCHER_HOP_RESPONSE_HEADERS.contentLength, outcome.contentLength],
-          [FETCHER_HOP_RESPONSE_HEADERS.contentType, outcome.contentType],
-          [FETCHER_HOP_RESPONSE_HEADERS.location, outcome.location],
-        ] as const) {
-          if (value !== null) {
-            headers.set(name, value);
-          }
-        }
         return new Response(new Uint8Array(outcome.body), {
-          headers,
+          headers: hopHeaders(outcome, {
+            "content-length": String(outcome.body.byteLength),
+          }),
           status: 200,
         });
       } finally {
         inFlight -= 1;
       }
+    }
+    if (pathname === FETCHER_STREAM_PATH) {
+      const hopRequest = parseFetcherHopRequest(parsed, HOP_LIMITS.streamed);
+      if (!hopRequest) {
+        return json(400, { error: "invalid_request" });
+      }
+      if (inFlight >= FETCHER_MAX_IN_FLIGHT || streams >= FETCHER_MAX_STREAMS) {
+        return json(503, { error: "busy" });
+      }
+      inFlight += 1;
+      streams += 1;
+      // The slot is held until the body ends, not just until it starts.
+      const outcome = await performStreamedHop(hopRequest, deps, () => {
+        inFlight -= 1;
+        streams -= 1;
+      });
+      if (!outcome.ok) {
+        return json(422, { error: "skipped", reason: outcome.reason });
+      }
+      return new Response(outcome.body, {
+        headers: hopHeaders(outcome, {}),
+        status: 200,
+      });
     }
     if (pathname === FETCHER_PAGE_PATH) {
       const pageRequest = parseFetcherPageRequest(parsed);

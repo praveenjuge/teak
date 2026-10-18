@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { createFetcherHandler } from "./handler";
 import { nodeDnsResolver, pinnedFetch } from "./pinnedFetch";
 import { FETCHER_PORT } from "./protocol";
@@ -31,7 +32,11 @@ const server = createServer(async (incoming, outgoing) => {
     const response = await handle(request);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body) {
-      Readable.fromWeb(response.body as never).pipe(outgoing);
+      // pipeline, unlike pipe, cancels the body when the Worker hangs up, so
+      // a streamed hop gives back its slot.
+      await pipeline(Readable.fromWeb(response.body as never), outgoing).catch(
+        () => undefined
+      );
     } else {
       outgoing.end();
     }

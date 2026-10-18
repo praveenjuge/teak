@@ -5,8 +5,10 @@ import type {
 } from "./types";
 
 const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
-const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
-const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
+// `meta` or `link` with one or more `[attr='value']` conditions, like
+// `meta[itemprop='duration']` or `link[rel='alternate'][type='...']`.
+const TAG_SELECTOR_REGEX = /^(meta|link)((?:\[[\w:-]+=['"][^'"]+['"]\])+)$/i;
+const CONDITION_REGEX = /\[([\w:-]+)=['"]([^'"]+)['"]\]/g;
 
 const NAMED_ENTITIES: Record<string, string> = {
   amp: "&",
@@ -84,29 +86,24 @@ export const buildSelectorResultsFromHtml = (
 
   return selectors.map(({ selector }) => {
     const normalizedSelector = selector.trim();
-    const metaMatch = normalizedSelector.match(META_SELECTOR_REGEX);
-    if (metaMatch) {
-      const attrName = metaMatch[1].toLowerCase();
-      const expectedValue = metaMatch[2].toLowerCase();
-      const results = metaTags.filter((item) => {
+    const tagMatch = normalizedSelector.match(TAG_SELECTOR_REGEX);
+    if (tagMatch) {
+      const conditions = [...tagMatch[2].matchAll(CONDITION_REGEX)].map(
+        ([, name, value]) => ({
+          name: name.toLowerCase(),
+          value: value.toLowerCase(),
+        })
+      );
+      const tags = tagMatch[1].toLowerCase() === "meta" ? metaTags : linkTags;
+      const results = tags.filter((item) => {
         const attributes = item.attributes ?? [];
-        const matchAttr = attributes.find(
-          (attr) => attr.name.toLowerCase() === attrName
+        return conditions.every(
+          (condition) =>
+            attributes
+              .find((attr) => attr.name.toLowerCase() === condition.name)
+              ?.value?.trim()
+              .toLowerCase() === condition.value
         );
-        return matchAttr?.value?.toLowerCase() === expectedValue;
-      });
-      return { selector: normalizedSelector, results };
-    }
-
-    const linkMatch = normalizedSelector.match(LINK_SELECTOR_REGEX);
-    if (linkMatch) {
-      const expectedValue = linkMatch[1].toLowerCase();
-      const results = linkTags.filter((item) => {
-        const attributes = item.attributes ?? [];
-        const matchAttr = attributes.find(
-          (attr) => attr.name.toLowerCase() === "rel"
-        );
-        return matchAttr?.value?.trim().toLowerCase() === expectedValue;
       });
       return { selector: normalizedSelector, results };
     }

@@ -17,11 +17,14 @@ import {
   testEnv,
   testJob,
 } from "../../test/cardProcessingKit";
+import { createWorkflowTelemetry } from "../telemetry";
 import type { CardDoc } from "./context";
 import {
   buildFilePreviewFactsForKey,
   extractFileTextForKey,
+  processAudioCard,
   recordMediaFacts,
+  transcribeStoredAudio,
 } from "./files";
 
 const setup = (
@@ -108,6 +111,90 @@ describe("recordMediaFacts", () => {
       { "probe-media": answer }
     );
     await recordMediaFacts(job, card, "video");
+    expect(factWrites()).toEqual([]);
+  });
+});
+
+describe("audio transcription", () => {
+  const AUDIO_KEY = "users/user_1/cards/c5/file/a.mp3";
+  const processed: OpAnswer = {
+    data: {
+      facts: {
+        container: "mp3",
+        durationSeconds: 61.4,
+        hasAudio: true,
+        hasVideo: false,
+        height: null,
+        videoCodec: null,
+        width: null,
+      },
+      peaks: {
+        detail: Array.from({ length: 200 }, () => 50),
+        grid: Array.from({ length: 45 }, () => 50),
+      },
+      transcript: { status: "completed", text: "Hello there." },
+    },
+  };
+
+  test("transcribing stored audio writes no facts to the card", async () => {
+    const { factWrites, fakes, job } = setup(
+      { type: "link" },
+      {
+        "process-audio": processed,
+      }
+    );
+
+    const { processed: result, text } = await transcribeStoredAudio(
+      job,
+      createWorkflowTelemetry(job.env),
+      { mimeType: "audio/mpeg", sourceKey: AUDIO_KEY }
+    );
+
+    expect(text).toBe("Hello there.");
+    expect(result?.facts.durationSeconds).toBe(61.4);
+    expect(fakes.calls).toEqual([
+      {
+        op: "process-audio",
+        params: {
+          mimeType: "audio/mpeg",
+          sourceKey: AUDIO_KEY,
+          transcribe: true,
+        },
+      },
+    ]);
+    expect(factWrites()).toEqual([]);
+  });
+
+  test("an audio card still records its duration and waveform", async () => {
+    const { card, factWrites, job } = setup(
+      { fileKey: AUDIO_KEY, fileMetadata: { mimeType: "audio/mpeg" } },
+      { "process-audio": processed }
+    );
+
+    const { transcript } = await processAudioCard(
+      job,
+      createWorkflowTelemetry(job.env),
+      { card, keyPrefix: "" }
+    );
+
+    expect(transcript).toBe("Hello there.");
+    expect(factWrites()).toEqual([
+      expect.objectContaining({ cardId: CARD_ID, duration: 61.4 }),
+    ]);
+    expect(factWrites()[0]?.waveform).toBeDefined();
+  });
+
+  test("audio the renderer can't decode gives no result and no facts", async () => {
+    const { factWrites, job } = setup(
+      {},
+      { "process-audio": { fallback: "UNSUPPORTED_TYPE" } }
+    );
+
+    expect(
+      await transcribeStoredAudio(job, createWorkflowTelemetry(job.env), {
+        sourceKey: AUDIO_KEY,
+      })
+    ).toEqual({ processed: null, text: null });
     expect(factWrites()).toEqual([]);
   });
 });
