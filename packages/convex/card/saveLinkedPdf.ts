@@ -91,10 +91,12 @@ export const saveLinkedPdfFor = async (
     });
   } catch (error) {
     // Free the claim so an immediate retry starts over instead of waiting
-    // for it to expire. A PDF already stored stays for that retry.
+    // for it to expire. A PDF already stored stays for that retry, unless
+    // the link was deleted for good meanwhile.
     await ctx
       .runMutation(internal.card.linkedPdfs.failLinkedPdf, {
         claimToken: claim.claimToken,
+        fileKey: claim.fileKey,
         linkedPdfId: claim.linkedPdfId,
       })
       .catch(() => undefined);

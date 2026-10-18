@@ -112,6 +112,14 @@ describe("remoteSourceFor", () => {
     ).toBeNull();
     expect(sourceFor(BOOK)).toBeNull();
   });
+
+  test("an Amazon book asks Open Library by the ISBN in its link", () => {
+    expect(
+      sourceFor("https://www.amazon.com/Fantastic-Mr-Fox/dp/0140328726/")
+    ).toBe("open_library");
+    expect(sourceFor("https://www.amazon.com/dp/0140328727")).toBeNull();
+    expect(sourceFor("https://www.amazon.com/dp/B08N5WRWNW")).toBeNull();
+  });
 });
 
 describe("fetchRemoteDetails", () => {

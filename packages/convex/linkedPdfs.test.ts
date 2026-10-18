@@ -416,6 +416,73 @@ describe("Save PDF", () => {
     expect(await queuedObjectDeletions(t)).toContain(claim.fileKey);
   });
 
+  test("deleting the link mid-download drops the PDF that lands after", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls = stubWorker(async () => {
+      await gate;
+      return STORED;
+    });
+    const { paper, save, rows, t, trashThenDelete } = await setup();
+    const link = await paper();
+
+    const saving = save(link);
+    await vi.waitFor(() => expect(pdfCalls(calls)).toHaveLength(1));
+    const fileKey = pdfCalls(calls)[0]?.params.destinationKey;
+    await trashThenDelete(link);
+    // The delete queued then ran before the PDF was stored.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("workflowDispatches").collect()) {
+        await ctx.db.delete("workflowDispatches", row._id);
+      }
+    });
+    release();
+
+    await expect(saving).rejects.toMatchObject(refusal("NOT_FOUND"));
+    expect(await rows()).toEqual([]);
+    expect(await queuedObjectDeletions(t)).toContain(fileKey);
+  });
+
+  test("a document in Trash isn't saved: saving again makes a new one", async () => {
+    stubWorker();
+    const { paper, save, rows, t } = await setup();
+    const link = await paper();
+    const first = await save(link);
+    const firstKey = (await rows())[0]?.fileKey;
+    await t.run((ctx) =>
+      ctx.db.patch("cards", first.cardId, { isDeleted: true, deletedAt: 1 })
+    );
+
+    const second = await save(link);
+
+    expect(second.created).toBe(true);
+    expect(second.cardId).not.toBe(first.cardId);
+    // Its own object, so emptying Trash can't take the new document's file.
+    const secondKey = (await rows())[0]?.fileKey;
+    expect(secondKey).not.toBe(firstKey);
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", second.cardId)))?.fileKey
+    ).toBe(secondKey);
+  });
+
+  test("a save slower than two minutes still holds its claim", async () => {
+    vi.useFakeTimers();
+    stubWorker();
+    const { paper, save, t } = await setup();
+    const link = await paper();
+    await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+      cardId: link,
+      userId: "owner",
+    });
+
+    // The download may run 150 s.
+    vi.advanceTimersByTime(150 * 1000);
+
+    await expect(save(link)).rejects.toMatchObject(refusal("IN_PROGRESS"));
+  });
+
   test("deleting the link keeps the document it made", async () => {
     stubWorker();
     const { paper, save, rows, card, t, trashThenDelete } = await setup();
