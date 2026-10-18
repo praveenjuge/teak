@@ -54,6 +54,7 @@ async function render({
     }
   );
   const drafts: unknown[] = [];
+  const portDead = { current: false };
   const dropPort: { current: () => void } = { current: () => undefined };
   const connect = mock(() => {
     const listeners: (() => void)[] = [];
@@ -67,7 +68,12 @@ async function render({
       onDisconnect: {
         addListener: (listener: () => void) => listeners.push(listener),
       },
-      postMessage: (message: { draft: unknown }) => drafts.push(message.draft),
+      postMessage: (message: { draft: unknown }) => {
+        if (portDead.current) {
+          throw new Error("Attempting to use a disconnected port object");
+        }
+        drafts.push(message.draft);
+      },
     };
   });
   Object.assign(globalThis.chrome, { runtime: { connect, sendMessage } });
@@ -86,7 +92,15 @@ async function render({
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  return { connect, container, drafts, dropPort, onKeepOpen, patches };
+  return {
+    connect,
+    container,
+    drafts,
+    dropPort,
+    onKeepOpen,
+    patches,
+    portDead,
+  };
 }
 
 const settle = () =>
@@ -307,4 +321,18 @@ test("a dropped background port reconnects and hands over the unsaved draft", as
     cardId: "card_1",
     notes: "kept across a restart",
   });
+});
+
+test("a dead background port doesn't stop typing or saving", async () => {
+  const { container, patches, portDead } = await render();
+  portDead.current = true;
+  const note = noteField(container) as HTMLTextAreaElement;
+  await act(() => note.focus());
+  await type(note, "typed while the port is dead");
+  expect(note.value).toBe("typed while the port is dead");
+  await act(() => note.blur());
+  await settle();
+  expect(patches).toEqual([
+    { cardId: "card_1", notes: "typed while the port is dead" },
+  ]);
 });

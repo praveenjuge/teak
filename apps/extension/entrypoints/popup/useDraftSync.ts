@@ -21,6 +21,18 @@ interface Snapshots {
 const EMPTY: CardFields = { notes: "", tags: [] };
 const MAX_PORT_RECONNECTS = 3;
 
+const tryPost = (
+  port: chrome.runtime.Port,
+  message: SaveDetailsDraftMessage
+): boolean => {
+  try {
+    port.postMessage(message);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const sameTags = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((tag, index) => tag === b[index]);
 
@@ -119,7 +131,9 @@ export function useDraftSync({
     const message: SaveDetailsDraftMessage = {
       draft: changeSince(snapshots.current.confirmed),
     };
-    port.current?.postMessage(message);
+    if (port.current) {
+      tryPost(port.current, message);
+    }
   }, [changeSince]);
   repostDraft.current = postDraft;
 
