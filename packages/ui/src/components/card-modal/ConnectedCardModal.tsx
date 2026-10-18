@@ -6,6 +6,7 @@ import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
+import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import type { CardModalCard } from "./types";
@@ -21,6 +22,8 @@ export interface ConnectedCardModalProps {
   onMoreLikeThis?: (cardId: string) => void;
   /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
+  /** Shows another card, such as the document Save PDF made. */
+  onOpenCard?: (cardId: string) => void;
   /** Shows the previous card in the grid; absent on the first card. */
   onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
@@ -37,6 +40,7 @@ export function ConnectedCardModal({
   onCardUpdate,
   onInvalidCard,
   onNext,
+  onOpenCard,
   onPrevious,
   onTagClick,
   onMoreLikeThis,
@@ -84,6 +88,7 @@ export function ConnectedCardModal({
   });
 
   const linkThumbnail = useLinkThumbnail(card?._id);
+  const { save: savePdf, savingCardId } = useSaveLinkedPdf(onOpenCard);
 
   const runBulkAction = useBulkCardActions("card-modal");
   const toggleArchive = useCallback(() => {
@@ -148,6 +153,14 @@ export function ConnectedCardModal({
       openLink={openLink}
       returnFocus={returnFocus}
       saveChanges={saveChanges}
+      savePdf={
+        card?.type === "link" && card.metadata?.linkCategory?.pdfUrl
+          ? {
+              isSaving: savingCardId === card._id,
+              save: () => void savePdf(card._id),
+            }
+          : undefined
+      }
       saveState={saveState}
       tags={{
         addTag,

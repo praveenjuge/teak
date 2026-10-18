@@ -96,3 +96,17 @@ test("CLI marks a link done, finds it with is:done, and undoes it", async () => 
   expect(undone.completedAt).toBeNull();
   expect(await listsDone()).toBe(false);
 });
+
+test("CLI save-pdf refuses a note", async () => {
+  const note = JSON.parse(
+    await runCli(
+      ["--json", "cards", "create", `cli save pdf ${Date.now()}`],
+      apiKey
+    )
+  );
+  const refused = await runCli(["cards", "save-pdf", note.cardId], apiKey).then(
+    () => "",
+    (error: Error) => error.message
+  );
+  expect(refused).toContain("This card has no PDF to save.");
+});

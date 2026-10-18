@@ -151,6 +151,28 @@ test("a link is marked done and found with is:done; a note can't be", async () =
   expect(await refused.json()).toMatchObject({ code: "TYPE_MISMATCH" });
 });
 
+test("Save PDF refuses a card that isn't an arXiv paper, and another account's card", async () => {
+  const openapi = await loadOpenApi();
+  const note = await (
+    await apiFetch("/v1/cards", apiKey, {
+      method: "POST",
+      body: JSON.stringify({ content: `save pdf note ${Date.now()}` }),
+    })
+  ).json();
+  const refused = await apiFetch(`/v1/cards/${note.cardId}/save-pdf`, apiKey, {
+    method: "POST",
+  });
+  expect(refused.status).toBe(400);
+  const body = await refused.json();
+  expect(body).toMatchObject({ code: "INVALID_INPUT" });
+  openapi.validate("/v1/cards/{cardId}/save-pdf", "POST", 400, body);
+
+  const missing = await apiFetch("/v1/cards/not-a-card/save-pdf", apiKey, {
+    method: "POST",
+  });
+  expect(missing.status).toBe(404);
+});
+
 test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {
   const marker = `api-markdown-${Date.now()}`;
   const original = `\uFEFF  # ${marker}\r\n\r\n- [ ] task  \r\nhttps://example.com  `;

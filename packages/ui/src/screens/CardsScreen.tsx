@@ -951,6 +951,7 @@ export function CardsScreen({
             ? () => onSwitchCard(nextCardId)
             : undefined
         }
+        onOpenCard={onSwitchCard ?? onOpenCard}
         onPrevious={
           onSwitchCard && previousCardId
             ? () => onSwitchCard(previousCardId)

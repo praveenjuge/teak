@@ -900,6 +900,46 @@ describe("devSeed folder packs", () => {
     ).toBe('is:todo folder:"Reading list"');
   });
 
+  test("rich-sites seeds links with their sites' details, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "rich-sites")).toMatchObject({
+      status: "seeded",
+      cards: 19,
+    });
+    expect(await seedFolders(t, "rich-sites")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-rich-sites")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title)?.metadata
+        ?.linkCategory;
+    expect(byTitle("Mercury")?.facts).toContainEqual({
+      label: "Page",
+      value: "Disambiguation",
+    });
+    expect(byTitle("A paper with a PDF to save")).toMatchObject({
+      category: "research",
+      pdfUrl: "https://arxiv.org/pdf/1706.03762",
+    });
+    expect(byTitle("A withdrawn paper")?.pdfUrl).toBeUndefined();
+    expect(byTitle("A book with an ISBN-13")?.facts).toContainEqual({
+      label: "Publisher",
+      value: "Example Press",
+    });
+    // The page's own ISBN tag shows; Open Library was never asked.
+    expect(byTitle("A book whose ISBN check digit is wrong")?.facts).toEqual([
+      { label: "ISBN", value: "9780140328722" },
+    ]);
+    expect(
+      cards.every(
+        (card) => (card.metadata?.linkCategory?.facts?.length ?? 0) <= 8
+      )
+    ).toBe(true);
+  });
+
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
