@@ -1022,6 +1022,62 @@ describe("devSeed folder packs", () => {
     ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
 
+  test("email-in seeds cards as Save by email makes them, and turns it on", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "email-in")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+    });
+    expect(await seedFolders(t, "email-in")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter(
+      (card) =>
+        card.tags?.includes("scenario-email-in") && card.tags.includes("email")
+    );
+    expect(cards).toHaveLength(7);
+    for (const card of cards) {
+      expect(card.metadata?.source).toBe("email");
+    }
+    const newsletter = cards.find((card) =>
+      card.content.startsWith("# The Weekly Leaf")
+    );
+    expect(newsletter?.content).toContain("https://example.com/maples");
+    expect(newsletter?.content).not.toContain("track.example.com");
+    expect(newsletter?.content).not.toContain("utm_source");
+    expect(cards.find((card) => card.type === "link")).toMatchObject({
+      notes: "Worth a read:",
+      url: "https://example.com/essays/slow-reading",
+    });
+    const settings = await t.run((ctx) =>
+      ctx.db.query("inboundEmailSettings").collect()
+    );
+    expect(settings).toEqual([
+      expect.objectContaining({
+        enabled: true,
+        lastReceivedAt: expect.any(Number),
+      }),
+    ]);
+  });
+
+  test("email-attachments seeds a body note and its files as cards", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "email-attachments")).toMatchObject({
+      status: "seeded",
+      cards: 9,
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-email-attachments")
+    );
+    expect(
+      cards
+        .filter((card) => card.type === "document")
+        .map((card) => card.fileMetadata?.fileName)
+    ).toEqual(expect.arrayContaining(["Scan.pdf", "Scan.pdf", "請求書.pdf"]));
+  });
+
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();

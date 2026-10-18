@@ -203,6 +203,7 @@ export function InboundEmailSection(props: InboundEmailPanelProps) {
           <SettingValueSkeleton className="w-10" />
         ) : (
           <Button
+            aria-label={`Save by email: ${props.state?.enabled ? "On" : "Off"}`}
             disabled={props.state === null}
             onClick={() => setOpen(true)}
             size="sm"

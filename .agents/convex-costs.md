@@ -77,6 +77,15 @@ after Whisper. Whisper runs are bounded by the `podcastTranscription` rate
 limit (20 episodes an hour per account). Raw metadata archival calls only the
 configured signed Files Worker.
 
+Save by email (`apps/email-worker`, `packages/convex/inbound/`) costs one
+`findSender` query per delivered email, and one mutation only for an account
+that turned it on (at most 60 an hour each, `inboundEmailPerAccount`). Mail
+that fails DMARC or comes from an unknown address is refused in the Worker
+before Convex is called. Attachment bytes never pass through Convex: the
+Worker PUTs them to the Files Worker's signed upload URLs, and Convex only
+mints those and finalizes. Receipts are pruned after 30 days by the daily
+`cleanup-inbound-email-receipts` cron.
+
 ## Scheduled and edge work on Cloudflare
 
 The Files Worker's Cron Triggers run the daily card and export cleanups, the

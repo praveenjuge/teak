@@ -6,6 +6,8 @@ import {
 } from "./payload";
 import type { Deps } from "./types";
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
 // Signed requests to Convex. A message is retried a few times here; when
 // Convex still can't take it, the handler throws so the sending server tries
 // again later (Email Routing tells it to). Convex keeps a receipt per message,
@@ -68,7 +70,12 @@ const isUpload = (value: unknown): value is PlannedUpload => {
     return false;
   }
   try {
-    return new URL(uploadUrl).protocol === "https:";
+    const url = new URL(uploadUrl);
+    // Plain http only to this machine: the local E2E stack's Files Worker.
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname))
+    );
   } catch {
     return false;
   }

@@ -42,3 +42,4 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 ## Not mapped yet
 
 Add a file here when a change touches one of these: import and export (Settings), the browser extension (`.agents/cloud.md` has the load steps), Raycast, the docs site, the Apple and Android apps (no macOS or Android SDK in cloud sessions), and billing ("Upgrade to Pro" with Polar's sandbox).
+- [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.

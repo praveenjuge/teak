@@ -296,3 +296,14 @@ If a site is down or slow, the card keeps the details it had. Links you saved be
 Everything syncs in real time — pick your apps on the [Apps page](/apps).
 
 Sign in with your browser, or create a long-lived key under **Settings → Security → API keys**.
+
+### Save by email
+
+Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
+
+- An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. Anything else becomes a note, headed with the subject. Tracking images and redirect wrappers are removed, and a forwarded email's "Fwd:" and forwarding header are dropped.
+- Attachments become their own cards, with the same formats as uploads. An email can carry about 18 MB of attachments in total.
+- Every card is tagged `email`.
+- Mail from any other address isn't saved, and neither is mail that fails its domain's sender checks (DMARC); your mail app shows it was refused. Forwarding from a work account only works if that's the email you sign in with.
+- Mail past 60 emails an hour, or once a free account has 200 cards, is dropped without a reply.
+

@@ -55,6 +55,9 @@ Server events (`captureBackendEvent`):
 - `card_thumbnail_replaced` {source: `api`} and `card_thumbnail_reset`, when the public API (and so MCP, the SDK and the CLI) replaces or resets a link's image
 - `card_done_toggled` {done, category, source: `api`}, when the public API (and so MCP, the SDK and the CLI) marks a link done or not
 - `link_pdf_saved` {source: `api`}, when the public API (and so MCP, the SDK and the CLI) saves an arXiv link's PDF as a document card
+- `email_save_toggled` {enabled}: Save by email turned on or off in Settings
+- `email_received` {outcome}: one email from an account's owner reached Save by email. `outcome` is `saved`, `duplicate` (a redelivery), `empty`, `dropped_limit` (the free card limit), `dropped_rate` (over 60 an hour) or `deferred_rate` (the card creation limit; the sender retries). Mail Teak refuses at delivery never reaches Convex and has no event
+- `email_attachment_saved` {kind, size_bucket} and `email_attachment_skipped` {reason: `format`, `size`, `limit` or `upload_failed`}: an emailed attachment made, or didn't make, its own card. `card_created` with `source: "email"` is sent for every card Save by email makes
 - `$ai_generation` with `$ai_model`, `$ai_provider`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_latency` (seconds), `$ai_total_cost_usd`, `$ai_trace_id` (workflow or card id), `$ai_span_name`, `$ai_is_error`. Prompts and outputs are never sent.
 
 Exceptions are `$exception` events built by `buildExceptionProperties` in `packages/convex/shared/posthog.ts` (raw frames, scrubbed with `scrubTelemetryValue`). Backend retryable errors (rate limits, validation retries) are not reported; workflow retries own them.

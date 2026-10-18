@@ -126,12 +126,12 @@ export interface ServerEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
-  /** Save by email: what happened to one email from an account's owner. */
-  email_received: { outcome: EmailReceivedOutcome };
   /** A file attached to a saved email became its own card. */
   email_attachment_saved: { kind: string; size_bucket: SizeBucket };
   /** An attachment that wasn't saved, and why. */
   email_attachment_skipped: { reason: EmailAttachmentSkipReason };
+  /** Save by email: what happened to one email from an account's owner. */
+  email_received: { outcome: EmailReceivedOutcome };
   /** Save by email turned on or off in Settings. */
   email_save_toggled: { enabled: boolean };
   link_pdf_saved: { source: LinkPdfSaveSource };

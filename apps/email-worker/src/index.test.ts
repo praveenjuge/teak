@@ -389,6 +389,23 @@ describe("handleEmail: attachments", () => {
     expect(net.requests.map((request) => request.method)).toEqual(["POST"]);
   });
 
+  test("plain http is followed only to this machine (the local stack)", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    const net = fakeDeps((request) =>
+      request.url === INGEST_URL
+        ? json(200, {
+            receiptKey: "receipt_1",
+            status: "saved",
+            uploads: [
+              { fileKey: "k", index: 0, uploadUrl: "http://127.0.0.1:4102/up" },
+            ],
+          })
+        : json(200, { status: "saved" })
+    );
+    await handleEmail(message, TEST_ENV, net.deps);
+    expect(net.requests.map((request) => request.method)).toContain("PUT");
+  });
+
   test("an upload URL that isn't https is ignored", async () => {
     const { message } = messageOf(fixture("attachments.eml"));
     const net = fakeDeps((request) =>

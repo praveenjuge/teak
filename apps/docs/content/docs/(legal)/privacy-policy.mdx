@@ -21,6 +21,7 @@ The short version: your cards are private to you, we don't sell your data or use
 - **Usage and diagnostic data:** which features you use (for example, that you saved a card or ran a search), page views, performance timings, error and crash reports, and device, browser and app version details. These are linked to your Teak account ID and email.
 - **Billing data:** your plan, subscription status, and the email used for checkout. Payment card details go directly to our payment provider, Polar; we never see or store them.
 - **Capture data:** the page URL, title, or text you choose to save from the browser extension, share sheets, Raycast, the CLI, the API, or MCP.
+- **Email you send to Teak:** when you turn on Save by email, the messages you send or forward from your sign-in email to save@in.teakvault.com: the sender, subject, date, body and attachments. We keep what becomes cards; the rest of the message isn't stored.
 - **Support messages:** anything you send us by email.
 
 ## How We Use Your Data
@@ -56,7 +57,7 @@ We use these providers to run Teak. Each handles only the data it needs for its 
 | Provider | Purpose | Data involved |
 | --- | --- | --- |
 | [Convex](https://www.convex.dev) | Database and backend | Account data, your content, generated data |
-| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, search index, image, video and document processing, page rendering, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, search words and result descriptions for Best match, embeddings of card text, saved page content, API and MCP requests including the content they carry |
+| [Cloudflare](https://www.cloudflare.com) | File storage, AI processing, search index, image, video and document processing, page rendering, receiving email for Save by email, and routing and rate-limiting API and MCP requests | Uploaded files, card content sent for AI processing, search words and result descriptions for Best match, embeddings of card text, saved page content, email you send to Save by email, API and MCP requests including the content they carry |
 | [Vercel](https://vercel.com) | Hosts the web app and website | Requests to the web app and website |
 | [WorkOS](https://workos.com) | Sign-in and sign-in emails | Name, email, sign-in details, session and device information |
 | [Polar](https://polar.sh) | Payments, as merchant of record | Email, Teak account ID, payment details, billing address, subscription history |
