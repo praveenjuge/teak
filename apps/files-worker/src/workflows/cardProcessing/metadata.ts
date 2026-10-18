@@ -10,6 +10,7 @@ import {
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import {
+  buildLinkMetadataPrompt,
   isScannedPdf,
   MAX_AI_METADATA_INPUT_CHARS,
 } from "@teak/files-protocol";
@@ -51,8 +52,8 @@ interface LinkPreviewFields {
 
 /**
  * The preview's fields, then the site's own summary (a Wikipedia extract or
- * an arXiv abstract), cut so the whole input fits the model's
- * {@link MAX_AI_METADATA_INPUT_CHARS}.
+ * an arXiv abstract), cut so the whole prompt, with its instructions and the
+ * URL, fits the model's {@link MAX_AI_METADATA_INPUT_CHARS} untruncated.
  */
 export const buildLinkContentParts = (
   card: {
@@ -90,12 +91,21 @@ export const buildLinkContentParts = (
   }
   const summary = siteSummary?.trim();
   if (summary) {
-    // Each part is joined with a newline.
+    // Each part is joined with a newline; the prompt wraps the content in
+    // instructions and the URL.
     const used = contentParts.reduce(
       (total, part) => total + part.length + 1,
       0
     );
-    const room = MAX_AI_METADATA_INPUT_CHARS - used - SUMMARY_LABEL.length;
+    const promptOverhead = buildLinkMetadataPrompt(
+      "",
+      card.url || card.content
+    ).length;
+    const room =
+      MAX_AI_METADATA_INPUT_CHARS -
+      promptOverhead -
+      used -
+      SUMMARY_LABEL.length;
     if (room > 0) {
       contentParts.push(`${SUMMARY_LABEL}${summary.slice(0, room)}`);
     }

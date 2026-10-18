@@ -381,12 +381,15 @@ describe("teak parity commands", () => {
     );
 
     const first = await teak("cards", "save-pdf", "paper");
-    const again = await teak("cards", "save-pdf", "paper", "--json");
+    const again = await teak("cards", "save-pdf", "paper");
+    const againJson = await teak("cards", "save-pdf", "paper", "--json");
     const refused = await teak("cards", "save-pdf", "note");
 
     expect(first.code).toBe(0);
     expect(first.stdout).toContain("Saved the PDF as doc_1");
-    expect(JSON.parse(again.stdout)).toEqual({
+    expect(again.code).toBe(0);
+    expect(again.stdout).toContain("Already saved as doc_1");
+    expect(JSON.parse(againJson.stdout)).toEqual({
       cardId: "doc_1",
       created: false,
     });

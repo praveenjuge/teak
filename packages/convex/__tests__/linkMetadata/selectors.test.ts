@@ -3,6 +3,7 @@ import {
   DESCRIPTION_SOURCES,
   IMAGE_SOURCES,
   SCRAPE_ELEMENTS,
+  SPOTIFY_SOURCES,
   TITLE_SOURCES,
 } from "../../../convex/linkMetadata/selectors";
 
@@ -23,6 +24,13 @@ describe("linkMetadata selectors", () => {
   test("includes image sources in scrape elements", () => {
     const selectors = new Set(SCRAPE_ELEMENTS.map((entry) => entry.selector));
     for (const source of IMAGE_SOURCES) {
+      expect(selectors.has(source.selector)).toBe(true);
+    }
+  });
+
+  test("scrapes the artist Spotify's pages name", () => {
+    const selectors = new Set(SCRAPE_ELEMENTS.map((entry) => entry.selector));
+    for (const source of SPOTIFY_SOURCES) {
       expect(selectors.has(source.selector)).toBe(true);
     }
   });

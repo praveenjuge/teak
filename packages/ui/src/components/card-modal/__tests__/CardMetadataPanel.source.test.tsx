@@ -68,7 +68,9 @@ test("a card without a source, or with an unsafe one, has no From row", () => {
   );
 });
 
-test("an arXiv link offers Save PDF, and says Saving PDF… while it saves", () => {
+// Which cards get Save PDF is up to ConnectedCardModal; the panel shows the
+// control it is given.
+test("a Save PDF control shows Save PDF, and Saving PDF… while it saves", () => {
   const paper = textCard({ type: "link", url: "https://arxiv.org/abs/1" });
   const idle = render(paper, { isSaving: false, save: () => undefined });
   expect(idle).toContain("Save PDF");
@@ -80,7 +82,7 @@ test("an arXiv link offers Save PDF, and says Saving PDF… while it saves", () 
   expect(saving).toContain('disabled=""');
 });
 
-test("without a PDF, or in Trash, there is no Save PDF", () => {
+test("without a Save PDF control, or in Trash, there is no Save PDF", () => {
   expect(render(textCard({ type: "link" }))).not.toContain("Save PDF");
   expect(
     render(textCard({ type: "link", isDeleted: true }), {

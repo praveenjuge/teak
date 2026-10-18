@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { requireTeakUserId } from "../securitySessions";
+import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
 import { buildR2ObjectKey, deleteObject } from "../storage/r2";
 import {
   isArxivPdfUrl,
@@ -26,6 +27,7 @@ export const SAVE_PDF_ERROR_MESSAGES = {
   IN_PROGRESS: "This PDF is already being saved. Try again in a moment.",
   NO_PDF: "This card has no PDF to save.",
   NOT_FOUND: "Card not found",
+  RATE_LIMITED: "You're saving quickly. Try again in a minute.",
   TRASHED: "Restore this card from Trash before saving its PDF.",
 } as const;
 
@@ -33,8 +35,12 @@ export const SAVE_PDF_ERROR_MESSAGES = {
 const linkedPdfFileName = (pdfUrl: string) =>
   `${(parseArxivId(pdfUrl) ?? "paper").replace(/\//g, "-")}.pdf`;
 
-const fail = (code: string, message: string): never => {
-  throw new ConvexError({ code, message });
+const fail = (
+  code: string,
+  message: string,
+  extra: Record<string, unknown> = {}
+): never => {
+  throw new ConvexError({ code, message, ...extra });
 };
 
 export const linkedPdfSourceValidator = v.union(
@@ -109,6 +115,17 @@ export const claimLinkedPdf = internalMutation({
     // Refused here rather than after the download; the document's own
     // creation checks again.
     await ensureCardQuotaAvailable(ctx, userId);
+    // Each claim downloads a PDF of up to 100 MB.
+    const allowed = await rateLimiter.limit(ctx, "savePdf", {
+      key: userId,
+      throws: false,
+    });
+    if (!allowed.ok) {
+      fail("RATE_LIMITED", SAVE_PDF_ERROR_MESSAGES.RATE_LIMITED, {
+        limit: RATE_LIMIT_CONFIG.savePdf.capacity,
+        retryAt: Date.now() + allowed.retryAfter,
+      });
+    }
 
     const claimToken = crypto.randomUUID();
     const fileName = linkedPdfFileName(pdfUrl);
@@ -125,6 +142,10 @@ export const claimLinkedPdf = internalMutation({
             fileName,
           });
     let linkedPdfId: Id<"linkedPdfs">;
+    if (row && row.status !== "done" && row.fileKey !== fileKey) {
+      // A PDF stored for the link's earlier paper is no one's now.
+      await deleteObject(ctx, row.fileKey);
+    }
     if (row) {
       await ctx.db.patch("linkedPdfs", row._id, {
         cardId: undefined,

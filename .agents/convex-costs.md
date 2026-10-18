@@ -68,9 +68,9 @@ there too (`fetch-link-page`); Convex gets back the selector results, and the
 page itself only as a gzipped copy for the Instagram media parser. Never fetch
 a user-supplied URL anywhere without that policy and pinning. Save PDF's
 `store-linked-pdf` is the one exception: it fetches only
-`https://arxiv.org/pdf/<id>` (redirects must stay on arxiv.org) from the
-Worker itself, straight into R2. Raw metadata
-archival calls only the configured signed Files Worker.
+`https://arxiv.org/pdf/<id>` (redirects must stay on arxiv.org or
+export.arxiv.org, over https) from the Worker itself, straight into R2. Raw
+metadata archival calls only the configured signed Files Worker.
 
 ## Scheduled and edge work on Cloudflare
 

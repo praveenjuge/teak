@@ -113,6 +113,22 @@ describe("remoteSourceFor", () => {
     expect(sourceFor(BOOK)).toBeNull();
   });
 
+  test("an Apple Books page with an ISBN asks Open Library", () => {
+    const input = {
+      entities: [],
+      provider: "apple",
+      rawMap: buildRawSelectorMap(isbnPreview("9780140328721").linkPreview.raw),
+      sourceUrl: "https://books.apple.com/us/book/x/id1",
+    };
+
+    expect(remoteSourceFor({ ...input, category: "book" })).toBe(
+      "open_library"
+    );
+    expect(remoteSourceFor({ ...input, category: "music" })).toBe(
+      "apple_music"
+    );
+  });
+
   test("an Amazon book asks Open Library by the ISBN in its link", () => {
     expect(
       sourceFor("https://www.amazon.com/Fantastic-Mr-Fox/dp/0140328726/")
@@ -284,6 +300,33 @@ describe("enrichLinkCategory with site details", () => {
     const second = enrichLinkCategory(card, article, {});
 
     expect(second.facts).toBeUndefined();
+    // Nor does its summary reach the AI input for the new page.
+    expect(second.raw?.remote).toBeUndefined();
+  });
+
+  test("a book's stored ISBN isn't used for another URL", () => {
+    const book = {
+      category: "book",
+      confidence: 0.98,
+      providerHint: "goodreads",
+    } as const;
+    const stored = (url: string) =>
+      linkCard(url, {
+        metadata: {
+          linkPreview: { status: "success" },
+          linkCategory: {
+            category: "book",
+            fetchedAt: 1,
+            raw: { structured: { "@type": "Book", isbn: "9780140328721" } },
+            sourceUrl: BOOK,
+          },
+        },
+      });
+    const sourceFor = (url: string) =>
+      remoteSourceFor(remoteLookupInput(stored(url), book, null));
+
+    expect(sourceFor(BOOK)).toBe("open_library");
+    expect(sourceFor("https://www.goodreads.com/book/show/1")).toBeNull();
   });
 
   test("an arXiv paper offers its PDF, and loses it once withdrawn", () => {

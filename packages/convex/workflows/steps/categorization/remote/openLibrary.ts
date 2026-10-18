@@ -104,25 +104,29 @@ export const findIsbn = ({
   }
 };
 
+/** The first authors' names, with "et al." when the edition lists more. */
 const authorNames = async (
   edition: OpenLibraryEdition,
   deps: RemoteFetchDeps
-): Promise<string[]> => {
+): Promise<string | undefined> => {
   const keys = (edition.authors ?? [])
     .map((author) => author?.key)
-    .filter((key): key is string => !!key && AUTHOR_KEY_REGEX.test(key))
-    .slice(0, MAX_AUTHOR_LOOKUPS);
+    .filter((key): key is string => !!key && AUTHOR_KEY_REGEX.test(key));
   const authors = await Promise.all(
-    keys.map((key) =>
-      fetchRemoteJson<{ name?: unknown }>(
-        `https://openlibrary.org${key}.json`,
-        deps
+    keys
+      .slice(0, MAX_AUTHOR_LOOKUPS)
+      .map((key) =>
+        fetchRemoteJson<{ name?: unknown }>(
+          `https://openlibrary.org${key}.json`,
+          deps
+        )
       )
-    )
   );
-  return authors
+  const names = authors
     .map(({ data }) => data?.name)
     .filter((name): name is string => typeof name === "string");
+  const listed = formatAuthors(names);
+  return listed && keys.length > names.length ? `${listed} et al.` : listed;
 };
 
 export const fetchOpenLibraryDetails = async (
@@ -136,12 +140,12 @@ export const fetchOpenLibraryDetails = async (
   if (!edition || typeof edition !== "object") {
     return null;
   }
-  const names = await authorNames(edition, deps);
+  const authors = await authorNames(edition, deps);
   const pages = edition.number_of_pages;
   const details: RemoteDetails = {
     source: "open_library",
     facts: buildFacts([
-      ["Authors", factValue(formatAuthors(names))],
+      ["Authors", factValue(authors)],
       [
         "Pages",
         Number.isSafeInteger(pages) && (pages as number) > 0

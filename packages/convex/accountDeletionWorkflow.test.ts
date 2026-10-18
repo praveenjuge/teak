@@ -698,6 +698,7 @@ describe("durable deletion admission and tombstones", () => {
       "exports/exact/export-2.zip.checkpoint.json",
       "users/exact/unclaimed.pdf",
       "users/exact/document-text/digest.txt",
+      "users/exact/linked.pdf",
     ]) {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
@@ -827,6 +828,11 @@ describe("durable deletion admission and tombstones", () => {
         claimToken: "claim",
         createdAt: 1,
         updatedAt: 1,
+      });
+      // Save PDF registers its key before the download (ensureObjectOwnership).
+      await ctx.db.insert("accountStorageObjects", {
+        userId: "permanent-owner",
+        key: "users/exact/linked.pdf",
       });
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",

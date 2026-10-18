@@ -230,7 +230,12 @@ export const remoteLookupInput = (
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
-  const stored = card.metadata?.linkCategory?.raw?.structured;
+  // JSON-LD stored for another URL describes another page.
+  const linkCategory = card.metadata?.linkCategory;
+  const stored =
+    linkCategory?.sourceUrl === sourceUrl
+      ? linkCategory.raw?.structured
+      : undefined;
   return {
     category: classification.category,
     entities: structuredData?.entities ?? (stored ? [stored] : []),
@@ -366,6 +371,10 @@ export const enrichLinkCategory = (
       imageUrl = remote.imageUrl;
     }
     raw = { ...(raw ?? {}), remote: { ...remote, sourceUrl } };
+  } else if (raw && "remote" in raw) {
+    // Stored for another URL: its summary mustn't feed this page's AI input.
+    const { remote: _stale, ...rest } = raw;
+    raw = rest;
   }
 
   // The page's JSON-LD states the price more reliably than its selectors.

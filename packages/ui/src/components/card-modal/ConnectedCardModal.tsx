@@ -88,7 +88,7 @@ export function ConnectedCardModal({
   });
 
   const linkThumbnail = useLinkThumbnail(card?._id);
-  const { save: savePdf, savingCardId } = useSaveLinkedPdf(onOpenCard);
+  const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
   const runBulkAction = useBulkCardActions("card-modal");
   const toggleArchive = useCallback(() => {
@@ -156,7 +156,7 @@ export function ConnectedCardModal({
       savePdf={
         card?.type === "link" && card.metadata?.linkCategory?.pdfUrl
           ? {
-              isSaving: savingCardId === card._id,
+              isSaving: isSavingPdf(card._id),
               save: () => void savePdf(card._id),
             }
           : undefined

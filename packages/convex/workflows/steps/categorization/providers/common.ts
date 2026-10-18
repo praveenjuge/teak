@@ -110,9 +110,11 @@ export const formatDate = (value: string | undefined): string | undefined => {
   if (Number.isNaN(date.getTime())) {
     return undefined;
   }
+  // UTC, so a date-only value ("2023-10-27") keeps its day wherever it runs.
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 };

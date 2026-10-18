@@ -924,6 +924,9 @@ describe("devSeed folder packs", () => {
       category: "research",
       pdfUrl: "https://arxiv.org/pdf/1706.03762",
     });
+    expect(byTitle("A withdrawn paper")).toMatchObject({
+      category: "research",
+    });
     expect(byTitle("A withdrawn paper")?.pdfUrl).toBeUndefined();
     expect(byTitle("A book with an ISBN-13")?.facts).toContainEqual({
       label: "Publisher",

@@ -98,6 +98,10 @@ export const collectNonCardReferencedKeys = internalQuery({
         keys.push(job.reportKey);
       }
     }
+    // A Save PDF claim's object, kept for a retry before any card has it.
+    for await (const row of ctx.db.query("linkedPdfs")) {
+      keys.push(row.fileKey);
+    }
     for await (const job of ctx.db.query("exportJobs")) {
       if (!job.artifactKey) {
         continue;

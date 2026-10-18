@@ -171,6 +171,18 @@ test("Save PDF refuses a card that isn't an arXiv paper, and another account's c
     method: "POST",
   });
   expect(missing.status).toBe(404);
+
+  // Another account's card reads as missing, not as a card with no PDF.
+  const other = await createApiAccount("service-api-other");
+  const strangers = await apiFetch(
+    `/v1/cards/${note.cardId}/save-pdf`,
+    other.apiKey,
+    {
+      method: "POST",
+    }
+  );
+  expect(strangers.status).toBe(404);
+  expect(await strangers.json()).toMatchObject({ code: "NOT_FOUND" });
 });
 
 test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {

@@ -22,7 +22,9 @@ mock.module("@teak/convex/shared/analytics", () => ({
   },
 }));
 const toasts: { kind: string; message: string; open?: () => void }[] = [];
+const realSonner = await import("sonner");
 mock.module("sonner", () => ({
+  ...realSonner,
   toast: Object.assign(() => undefined, {
     error: (message: string) => {
       toasts.push({ kind: "error", message });
@@ -100,7 +102,7 @@ test("a second click while saving makes one request", async () => {
   await act(() => {
     first = hook.save("card_a");
   });
-  expect(hook.savingCardId).toBe("card_a");
+  expect(hook.isSaving("card_a")).toBe(true);
   await act(() => hook.save("card_a"));
   await act(async () => {
     finish({ cardId: "doc_1", created: true });
@@ -108,13 +110,47 @@ test("a second click while saving makes one request", async () => {
   });
 
   expect(save).toHaveBeenCalledTimes(1);
-  expect(hook.savingCardId).toBeNull();
+  expect(hook.isSaving("card_a")).toBe(false);
+});
+
+test("two cards saving at once each stay saving until their own save ends", async () => {
+  const finishers = new Map<string, (value: unknown) => void>();
+  save = mock(
+    (args: unknown) =>
+      new Promise((resolve) => {
+        finishers.set((args as { cardId: string }).cardId, resolve);
+      })
+  );
+  await render();
+
+  let firstSave: Promise<void> | undefined;
+  await act(() => {
+    firstSave = hook.save("card_a");
+  });
+  let secondSave: Promise<void> | undefined;
+  await act(() => {
+    secondSave = hook.save("card_b");
+  });
+  await act(async () => {
+    finishers.get("card_b")?.({ cardId: "doc_b", created: true });
+    await secondSave;
+  });
+
+  expect(hook.isSaving("card_a")).toBe(true);
+  expect(hook.isSaving("card_b")).toBe(false);
+  await act(async () => {
+    finishers.get("card_a")?.({ cardId: "doc_a", created: true });
+    await firstSave;
+  });
+  expect(hook.isSaving("card_a")).toBe(false);
 });
 
 test.each([
   ["CARD_LIMIT_REACHED", "Free card limit reached"],
   ["RATE_LIMITED", "You're saving quickly. Try again in a minute."],
   ["IN_PROGRESS", "This PDF is already being saved. Try again in a moment."],
+  ["FILE_TOO_LARGE", "This PDF is too large. Teak keeps files up to 100 MB."],
+  ["UNSUPPORTED_TYPE", "arXiv didn't send a PDF for this paper."],
   ["SERVICE_UNAVAILABLE", "Couldn't save the PDF. Try again."],
 ])("%s says %p", async (code, message) => {
   save = mock(() =>
@@ -125,7 +161,7 @@ test.each([
   await act(() => hook.save("card_a"));
 
   expect(toasts).toEqual([{ kind: "error", message }]);
-  expect(hook.savingCardId).toBeNull();
+  expect(hook.isSaving("card_a")).toBe(false);
 });
 
 test("a dropped connection says try again", async () => {

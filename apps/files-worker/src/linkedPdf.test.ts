@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import {
+  buildFilesOpSigningPayload,
+  FILES_PROTOCOL_VERSION,
+} from "@teak/files-protocol";
+import { hmacSha256Hex, sha256Hex } from "./lib";
 import { parseLinkedPdfParams, storeLinkedPdf } from "./linkedPdf";
+import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { FakeBucket } from "./test/testsupport";
 
 // Save PDF's download: arxiv.org only, a PDF only, up to 100 MiB, straight
@@ -165,5 +171,74 @@ describe("storeLinkedPdf", () => {
       reason: "fetch_failed",
       stored: false,
     });
+  });
+});
+
+describe("the store-linked-pdf op", () => {
+  const SECRET = "test-secret";
+
+  const sendOp = async (bucket: FakeBucket, params: unknown) => {
+    const body = JSON.stringify({
+      op: "store-linked-pdf",
+      params,
+      version: FILES_PROTOCOL_VERSION,
+    });
+    const requestId = crypto.randomUUID();
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+    const response = await handleInternalOp(
+      new Request("https://files.teakvault.com/__ops/v1", {
+        body,
+        headers: {
+          "x-teak-expires-at": expiresAt,
+          "x-teak-request-id": requestId,
+          "x-teak-signature": await hmacSha256Hex(
+            SECRET,
+            buildFilesOpSigningPayload({
+              bodySha256: await sha256Hex(body),
+              expiresAt,
+              requestId,
+            })
+          ),
+        },
+        method: "POST",
+      }),
+      { BUCKET: bucket as never, FILES_SIGNING_SECRET: SECRET } as FilesOpsEnv
+    );
+    return {
+      body: (await response.json()) as { data?: unknown },
+      status: response.status,
+    };
+  };
+
+  test("answers with the stored PDF", async () => {
+    const bucket = new FakeBucket();
+    await bucket.put(KEY, BYTES, {
+      httpMetadata: { contentType: "application/pdf" },
+    });
+
+    const { body, status } = await sendOp(bucket, {
+      destinationKey: KEY,
+      url: PDF,
+    });
+
+    expect(status).toBe(200);
+    expect(body.data).toEqual({
+      contentType: "application/pdf",
+      reused: true,
+      size: BYTES.length,
+      stored: true,
+    });
+  });
+
+  test("refuses a URL off arXiv and writes nothing", async () => {
+    const bucket = new FakeBucket();
+
+    const { status } = await sendOp(bucket, {
+      destinationKey: KEY,
+      url: "https://evil.example/pdf/1706.03762",
+    });
+
+    expect(status).toBe(400);
+    expect(bucket.puts).toEqual([]);
   });
 });

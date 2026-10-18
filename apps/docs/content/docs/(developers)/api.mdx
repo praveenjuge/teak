@@ -503,8 +503,8 @@ You can refresh a card once a minute and up to six cards a minute. Past that, th
 | `409` | `IN_PROGRESS` | A save of this PDF is still running; try again in a moment |
 | `413` | `FILE_TOO_LARGE` | The PDF is over 100 MB |
 | `415` | `UNSUPPORTED_TYPE` | arXiv didn't answer with a PDF |
-| `429` | `RATE_LIMITED` | 30 new cards a minute; `retryAt` and `Retry-After` say when to try again |
-| `503` | `SERVICE_UNAVAILABLE` | arXiv couldn't be reached |
+| `429` | `RATE_LIMITED` | 10 PDF saves and 30 new cards a minute; `retryAt` and `Retry-After` say when to try again |
+| `503` | `SERVICE_UNAVAILABLE` | Teak couldn't get the PDF: arXiv or Teak's file service didn't answer. Try again later |
 
 ## Replace a link's image
 

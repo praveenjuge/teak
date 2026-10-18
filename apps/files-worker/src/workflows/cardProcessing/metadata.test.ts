@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import {
+  buildLinkMetadataPrompt,
   type FilesOp,
   MAX_AI_METADATA_INPUT_CHARS,
 } from "@teak/files-protocol";
@@ -175,7 +176,8 @@ describe("link content for the prompt", () => {
     ).toEqual(["Title: T", "Summary: An abstract."]);
   });
 
-  test("cuts the site's summary so the input fits the model", () => {
+  test("cuts the site's summary so the whole prompt fits the model", () => {
+    const url = `https://en.wikipedia.org/wiki/${"x".repeat(500)}`;
     const parts = buildLinkContentParts(
       {
         metadata: {
@@ -185,11 +187,17 @@ describe("link content for the prompt", () => {
             title: "T",
           },
         },
+        url,
       },
       "s".repeat(9000)
     );
-    expect(parts.join("\n")).toHaveLength(MAX_AI_METADATA_INPUT_CHARS);
+    const prompt = buildLinkMetadataPrompt(parts.join("\n"), url);
+
+    expect(prompt).toHaveLength(MAX_AI_METADATA_INPUT_CHARS);
+    expect(prompt).not.toContain("[Content truncated");
     expect(parts.at(-1)).toStartWith("Summary: sss");
+    expect(prompt).toContain(parts.at(-1) ?? "missing");
+    expect(prompt).toContain(`URL: ${url}`);
   });
 });
 
@@ -824,20 +832,42 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Summary: Leaves make sugar.");
     });
 
-    test("an archived summary that can't be read is left out", async () => {
-      const { generate } = setup({
-        metadata: {
-          linkCategory: {
-            category: "article",
-            fetchedAt: 1,
-            rawSha256: "a".repeat(64),
-            rawStorageKey: "archived",
-            sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+    test.each([
+      ["is missing", false],
+      ["doesn't match its digest", true],
+    ])("an archived summary that %s is left out", async (_name, stored) => {
+      const { bucket } = createMemoryBucket();
+      const digest = await sha256Hex("the archived details");
+      const card = makeCard({});
+      const key = rawMetadataKey(
+        "",
+        { _id: card._id, userId: card.userId },
+        "linkCategory",
+        digest
+      );
+      if (stored) {
+        await bucket.put(
+          key,
+          JSON.stringify({ remote: { summary: "Tampered summary." } })
+        );
+      }
+      const { generate } = setup(
+        {
+          metadata: {
+            linkCategory: {
+              category: "article",
+              fetchedAt: 1,
+              rawSha256: digest,
+              rawStorageKey: key,
+              sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+            },
+            linkPreview: { status: "success", title: "Leaf" },
           },
-          linkPreview: { status: "success", title: "Leaf" },
+          url: "https://en.wikipedia.org/wiki/Leaf",
         },
-        url: "https://en.wikipedia.org/wiki/Leaf",
-      });
+        {},
+        { BUCKET: bucket }
+      );
       expect((await generate("link")).mode).toBe("completed");
       expect(aiPrompts[0]).not.toContain("Summary:");
     });

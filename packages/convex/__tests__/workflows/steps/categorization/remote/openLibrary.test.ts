@@ -176,7 +176,27 @@ describe("fetchOpenLibraryDetails", () => {
     ]);
     expect(details?.facts?.[0]).toEqual({
       label: "Authors",
-      value: "Writer 1, Writer 3",
+      value: "Writer 1, Writer 3 et al.",
+    });
+  });
+
+  test("a failed author lookup beside one that answered reads et al.", async () => {
+    const { deps } = socialFetch((url) => {
+      if (url === EDITION) {
+        return jsonResponse({
+          authors: [{ key: "/authors/OL1A" }, { key: "/authors/OL2A" }],
+        });
+      }
+      return url.endsWith("OL1A.json")
+        ? jsonResponse({ name: "Writer 1" })
+        : new Response("down", { status: 503 });
+    });
+
+    const details = await fetchOpenLibraryDetails(ISBN_13, deps);
+
+    expect(details?.facts?.[0]).toEqual({
+      label: "Authors",
+      value: "Writer 1 et al.",
     });
   });
 

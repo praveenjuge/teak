@@ -483,6 +483,68 @@ describe("Save PDF", () => {
     await expect(save(link)).rejects.toMatchObject(refusal("IN_PROGRESS"));
   });
 
+  test("a link whose paper changed drops the PDF stored for the old one", async () => {
+    const { paper, t } = await setup();
+    const link = await paper();
+    const claim = (cardId: Id<"cards">) =>
+      t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+        cardId,
+        userId: "owner",
+      });
+    const old = await claim(link);
+    await t.run((ctx) =>
+      ctx.db.patch("cards", link, {
+        metadata: {
+          linkCategory: {
+            category: "research",
+            fetchedAt: 2,
+            pdfUrl: "https://arxiv.org/pdf/2401.00001",
+            sourceUrl: PAPER,
+          },
+        },
+      })
+    );
+
+    const next = await claim(link);
+
+    expect(next.fileKey).not.toBe(old.fileKey);
+    expect(await queuedObjectDeletions(t)).toEqual([old.fileKey]);
+  });
+
+  test("the eleventh download in a minute is rate limited", async () => {
+    const { paper, t } = await setup();
+    const outcomes: string[] = [];
+    for (let i = 0; i < 11; i++) {
+      const link = await paper({}, { url: `${PAPER}?v=${i}` });
+      outcomes.push(
+        await t
+          .mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+            cardId: link,
+            userId: "owner",
+          })
+          .then(
+            () => "claimed",
+            (error) => error.data.code
+          )
+      );
+    }
+
+    expect(outcomes.filter((o) => o === "claimed")).toHaveLength(10);
+    expect(outcomes[10]).toBe("RATE_LIMITED");
+  });
+
+  test("a claim's PDF isn't reported as orphaned", async () => {
+    const { paper, t } = await setup();
+    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+      cardId: await paper(),
+      userId: "owner",
+    });
+
+    expect(
+      await t.query(internal.storage.orphanSweep.collectNonCardReferencedKeys)
+    ).toContain(claim.fileKey);
+  });
+
   test("deleting the link keeps the document it made", async () => {
     stubWorker();
     const { paper, save, rows, card, t, trashThenDelete } = await setup();

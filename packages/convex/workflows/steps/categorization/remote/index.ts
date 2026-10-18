@@ -39,7 +39,10 @@ export const remoteSourceFor = (
     case "spotify":
       return "spotify";
     case "apple":
-      return input.category === "music" ? "apple_music" : null;
+      if (input.category === "music") {
+        return "apple_music";
+      }
+      break;
     // Amazon files books under products; an ISBN in the link marks a book.
     case "amazon":
       return findIsbn(input) ? "open_library" : null;

@@ -12,6 +12,8 @@ const SAVE_PDF_ERRORS: Record<string, string> = {
   [CARD_ERROR_CODES.RATE_LIMITED]:
     "You're saving quickly. Try again in a minute.",
   IN_PROGRESS: "This PDF is already being saved. Try again in a moment.",
+  FILE_TOO_LARGE: "This PDF is too large. Teak keeps files up to 100 MB.",
+  UNSUPPORTED_TYPE: "arXiv didn't send a PDF for this paper.",
 };
 const SAVE_PDF_FAILED = "Couldn't save the PDF. Try again.";
 
@@ -21,6 +23,12 @@ export const savePdfErrorMessage = (error: unknown): string => {
   return (typeof code === "string" && SAVE_PDF_ERRORS[code]) || SAVE_PDF_FAILED;
 };
 
+const withoutCard = (cardIds: ReadonlySet<string>, cardId: string) => {
+  const next = new Set(cardIds);
+  next.delete(cardId);
+  return next;
+};
+
 /**
  * Save PDF for an arXiv link: the paper becomes its own document card. One
  * save per card at a time; the toast's Open shows the document.
@@ -28,7 +36,10 @@ export const savePdfErrorMessage = (error: unknown): string => {
 export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
   const savePdf = useAction(api.card.saveLinkedPdf.saveLinkedPdf);
   const inFlight = useRef(new Set<string>());
-  const [savingCardId, setSavingCardId] = useState<string | null>(null);
+  // Every card still saving, so switching cards mid-save shows each one right.
+  const [savingCardIds, setSavingCardIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
 
   const save = useCallback(
     async (cardId: string) => {
@@ -36,7 +47,7 @@ export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
         return;
       }
       inFlight.current.add(cardId);
-      setSavingCardId(cardId);
+      setSavingCardIds((current) => new Set(current).add(cardId));
       try {
         const saved = await savePdf({ cardId: cardId as Id<"cards"> });
         if (saved.created) {
@@ -56,11 +67,16 @@ export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
         toast.error(savePdfErrorMessage(error));
       } finally {
         inFlight.current.delete(cardId);
-        setSavingCardId((current) => (current === cardId ? null : current));
+        setSavingCardIds((current) => withoutCard(current, cardId));
       }
     },
     [onOpenCard, savePdf]
   );
 
-  return { save, savingCardId };
+  const isSaving = useCallback(
+    (cardId: string) => savingCardIds.has(cardId),
+    [savingCardIds]
+  );
+
+  return { isSaving, save };
 }

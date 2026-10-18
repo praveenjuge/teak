@@ -1024,15 +1024,15 @@ export const createTeakClient = (options: {
         return applyThumbnail(id, upload.fileKey);
       },
       /**
-       * Marks a link card read, watched, bought or done (`done: true`), or
-       * not; repeating a call changes nothing. Only link cards can be marked.
-       */
-      /**
        * Saves an arXiv link's paper as its own document card. Saving the same
        * link again returns that card with `created: false`.
        */
       savePdf: (id: string) =>
         request(`${cardPath(id)}/save-pdf`, { method: "POST" }, asSavedPdf),
+      /**
+       * Marks a link card read, watched, bought or done (`done: true`), or
+       * not; repeating a call changes nothing. Only link cards can be marked.
+       */
       setDone: (id: string, done: boolean) =>
         request(
           `${cardPath(id)}/done`,
