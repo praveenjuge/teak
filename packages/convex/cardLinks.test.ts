@@ -483,6 +483,35 @@ describe("backlinks", () => {
     expect(result.backlinksTruncated).toBe(true);
   });
 
+  test("a backlink's title shows the linked card's current title, or the saved one once it's in Trash", async () => {
+    const { insert, move, owner, setContent, t } = await setup();
+    const hub = await insert({ content: "Garden plan" });
+    const source = await insert();
+    await setContent(source, `See ${link("Garden plan", hub)}\n\nTomatoes`);
+    await setContent(hub, "Garden plan for spring\n\nBy the fence");
+
+    const backlinkTitles = async () => [
+      (await owner.query(api.cards.getCardBacklinks, { cardId: hub }))
+        .backlinks[0]?.title,
+      (
+        await t.query(internal["card/cardLinks"].getCardLinksForUser, {
+          cardId: hub,
+          userId: "owner",
+        })
+      ).backlinks[0]?.title,
+    ];
+    expect(await backlinkTitles()).toEqual([
+      "See Garden plan for spring",
+      "See Garden plan for spring",
+    ]);
+
+    await move(hub, "delete");
+    expect(await backlinkTitles()).toEqual([
+      "See Garden plan",
+      "See Garden plan",
+    ]);
+  });
+
   test("another user's card shows nothing", async () => {
     const { insert, setContent, stranger } = await setup();
     const hub = await insert({ content: "Hub" });
@@ -514,7 +543,13 @@ describe("backlinks", () => {
     );
     expect(result).toEqual({
       backlinks: [
-        { id: source, missing: false, title: "Src Note", type: "text" },
+        // The link shows the note's current title, not the "Note" it was saved with.
+        {
+          id: source,
+          missing: false,
+          title: "Src Theirs A Gone",
+          type: "text",
+        },
       ],
       backlinksTruncated: false,
       links: [

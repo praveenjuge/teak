@@ -1,5 +1,5 @@
 import type { Doc } from "../_generated/dataModel";
-import { cardLinkTokensToText } from "../shared/cardLinks";
+import { replaceCardLinkTokens } from "../shared/cardLinks";
 
 const CONTENT_PREVIEW_LENGTH = 280;
 const WWW_PREFIX = /^www\./;
@@ -34,12 +34,18 @@ const linkHostname = (url?: string): string | undefined => {
   }
 };
 
-/** The start of a card's text, with `[[…]]` links shown as their titles. */
-export const cardPreviewText = (card: TitledCard): string | undefined =>
+/**
+ * The start of a card's text, with `[[…]]` links shown as their saved titles,
+ * or as what `linkTitle` returns for each one.
+ */
+export const cardPreviewText = (
+  card: TitledCard,
+  linkTitle: (title: string, id: string) => string = (title) => title
+): string | undefined =>
   compactText(
     card.type === "audio"
       ? card.aiTranscript
-      : cardLinkTokensToText(card.content ?? "")
+      : replaceCardLinkTokens(card.content ?? "", linkTitle)
   );
 
 /**

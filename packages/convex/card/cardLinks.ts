@@ -21,7 +21,7 @@ import {
   parseCardLinkIds,
 } from "../shared/cardLinks";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
-import { cardDisplayTitle } from "./displayTitle";
+import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
 
 const DELETE_PAGE_SIZE = 500;
 const SUGGESTION_LIMIT = 8;
@@ -30,6 +30,8 @@ const SUGGESTION_SCAN_LIMIT = 40;
 const BACKLINK_SCAN_LIMIT = 500;
 export const BACKLINK_PANEL_LIMIT = 50;
 export const API_LINK_LIMIT = 100;
+/** Links read live per listed card: only its first line becomes its title. */
+const TITLE_LINK_LIMIT = 10;
 
 const linkTargetValidator = v.object({
   id: v.string(),
@@ -47,11 +49,36 @@ const linkedCardValidator = v.object({
 export type CardLinkTarget = typeof linkTargetValidator.type;
 export type LinkedCard = typeof linkedCardValidator.type;
 
-const linkedCard = (card: Doc<"cards">): LinkedCard => ({
-  id: card._id,
-  title: cardDisplayTitle(card),
-  type: card.type,
-});
+/**
+ * A linked card's title, with any links in its first line shown as their
+ * targets' current titles, so a rename shows wherever the card is listed.
+ * A target in Trash or gone keeps the title saved in the link.
+ */
+const linkedCard = async (
+  ctx: Pick<QueryCtx, "db">,
+  card: Doc<"cards">
+): Promise<LinkedCard> => {
+  const firstLine = (card.content ?? "").trimStart().split("\n", 1)[0];
+  const ids = parseCardLinkIds(firstLine).slice(0, TITLE_LINK_LIMIT);
+  const titles = new Map<string, string>();
+  await Promise.all(
+    ids.map(async (rawId) => {
+      const id = ctx.db.normalizeId("cards", rawId);
+      const target = id ? await ctx.db.get("cards", id) : null;
+      if (target && target.userId === card.userId && !target.isDeleted) {
+        titles.set(rawId, cardDisplayTitle(target));
+      }
+    })
+  );
+  return {
+    id: card._id,
+    title: cardDisplayTitle(
+      card,
+      cardPreviewText(card, (title, id) => titles.get(id) ?? title)
+    ),
+    type: card.type,
+  };
+};
 
 /**
  * A link target as the user sees it: their own card that isn't in Trash, or
@@ -67,7 +94,7 @@ const resolveTarget = async (
   if (!card || card.userId !== userId || card.isDeleted) {
     return { id: rawId, missing: true, title: null, type: null };
   }
-  return { ...linkedCard(card), missing: false };
+  return { ...(await linkedCard(ctx, card)), missing: false };
 };
 
 export const scheduleCardLinkSync = async (
@@ -279,7 +306,7 @@ export const searchCardLinkSuggestions = query({
       ) {
         continue;
       }
-      results.push(linkedCard(card));
+      results.push(await linkedCard(ctx, card));
       if (results.length >= SUGGESTION_LIMIT) {
         break;
       }
@@ -348,7 +375,9 @@ const loadBacklinks = async (
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return {
-    backlinks: visible.slice(0, limit).map(linkedCard),
+    backlinks: await Promise.all(
+      visible.slice(0, limit).map((card) => linkedCard(ctx, card))
+    ),
     truncated: visible.length > limit || rows.length === BACKLINK_SCAN_LIMIT,
   };
 };
