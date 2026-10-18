@@ -141,4 +141,18 @@ test("teak links lists a card's links and the notes that link to it", async () =
     },
     { timeout: 30_000 }
   );
+
+  await runCli(
+    [
+      "cards",
+      "update",
+      target.cardId,
+      "--content",
+      `cli-link-renamed-${stamp}`,
+    ],
+    apiKey
+  );
+  expect(await runCli(["links", target.cardId], apiKey)).toContain(
+    `${note.cardId}  text      See cli-link-renamed-${stamp} ${stamp}`
+  );
 });

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { TITLE_LOOKUP_LIMIT } from "./card/cardLinks";
 import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
 import {
   type CardFieldEdit,
@@ -279,6 +280,35 @@ describe("link targets", () => {
   });
 });
 
+describe("live titles inside titles", () => {
+  test("one query reads at most 100 linked cards; past that, links keep their saved titles", async () => {
+    const { owner, t } = await setup();
+    const targets = await t.run(async (ctx) => {
+      const ids: Id<"cards">[] = [];
+      for (let index = 0; index <= TITLE_LOOKUP_LIMIT; index++) {
+        const card = (content: string) =>
+          ctx.db.insert("cards", {
+            content,
+            createdAt: index,
+            shuffleKey: 0.5,
+            type: "text",
+            updatedAt: index,
+            userId: "owner",
+          });
+        ids.push(await card(link("Saved", await card("Current"))));
+      }
+      return ids;
+    });
+    const titles: (string | null)[] = (
+      await owner.query(api.cards.getCardLinkTargets, { cardIds: targets })
+    ).map((target: { title: string | null }) => target.title);
+    expect(titles.filter((title) => title === "Current")).toHaveLength(
+      TITLE_LOOKUP_LIMIT
+    );
+    expect(titles.filter((title) => title === "Saved")).toHaveLength(1);
+  });
+});
+
 describe("suggestions", () => {
   test("matches the user's cards, leaving out trash and the card being edited", async () => {
     const { insert, owner } = await setup();
@@ -483,6 +513,35 @@ describe("backlinks", () => {
     expect(result.backlinksTruncated).toBe(true);
   });
 
+  test("a backlink's title shows the linked card's current title, or the saved one once it's in Trash", async () => {
+    const { insert, move, owner, setContent, t } = await setup();
+    const hub = await insert({ content: "Garden plan" });
+    const source = await insert();
+    await setContent(source, `See ${link("Garden plan", hub)}\n\nTomatoes`);
+    await setContent(hub, "Garden plan for spring\n\nBy the fence");
+
+    const backlinkTitles = async () => [
+      (await owner.query(api.cards.getCardBacklinks, { cardId: hub }))
+        .backlinks[0]?.title,
+      (
+        await t.query(internal["card/cardLinks"].getCardLinksForUser, {
+          cardId: hub,
+          userId: "owner",
+        })
+      ).backlinks[0]?.title,
+    ];
+    expect(await backlinkTitles()).toEqual([
+      "See Garden plan for spring",
+      "See Garden plan for spring",
+    ]);
+
+    await move(hub, "delete");
+    expect(await backlinkTitles()).toEqual([
+      "See Garden plan",
+      "See Garden plan",
+    ]);
+  });
+
   test("another user's card shows nothing", async () => {
     const { insert, setContent, stranger } = await setup();
     const hub = await insert({ content: "Hub" });
@@ -514,7 +573,13 @@ describe("backlinks", () => {
     );
     expect(result).toEqual({
       backlinks: [
-        { id: source, missing: false, title: "Src Note", type: "text" },
+        // The link shows the note's current title, not the "Note" it was saved with.
+        {
+          id: source,
+          missing: false,
+          title: "Src Theirs A Gone",
+          type: "text",
+        },
       ],
       backlinksTruncated: false,
       links: [

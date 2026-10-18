@@ -40,7 +40,9 @@ test("[[ links a card: the pill follows a rename, opens the card, shows Missing 
   const target = screen.getByRole("dialog");
   await expect(target.getByText("Tomatoes by the fence.")).toBeVisible();
   const linkedFrom = target.getByRole("region", "Linked from");
-  await expect(linkedFrom.getByRole("button", /Linking note/)).toBeVisible();
+  await expect(
+    linkedFrom.getByRole("button", ` see ${title} renamed`, { exact: false })
+  ).toBeVisible();
 
   await linkedFrom.getByRole("button", /Linking note/).click();
   await expect(

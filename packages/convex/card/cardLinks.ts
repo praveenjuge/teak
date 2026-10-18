@@ -21,7 +21,7 @@ import {
   parseCardLinkIds,
 } from "../shared/cardLinks";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
-import { cardDisplayTitle } from "./displayTitle";
+import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
 
 const DELETE_PAGE_SIZE = 500;
 const SUGGESTION_LIMIT = 8;
@@ -30,6 +30,8 @@ const SUGGESTION_SCAN_LIMIT = 40;
 const BACKLINK_SCAN_LIMIT = 500;
 export const BACKLINK_PANEL_LIMIT = 50;
 export const API_LINK_LIMIT = 100;
+/** Distinct cards one query reads to show live titles inside other titles. */
+export const TITLE_LOOKUP_LIMIT = 100;
 
 const linkTargetValidator = v.object({
   id: v.string(),
@@ -47,11 +49,67 @@ const linkedCardValidator = v.object({
 export type CardLinkTarget = typeof linkTargetValidator.type;
 export type LinkedCard = typeof linkedCardValidator.type;
 
-const linkedCard = (card: Doc<"cards">): LinkedCard => ({
-  id: card._id,
-  title: cardDisplayTitle(card),
-  type: card.type,
-});
+/** The current title of a user's card, or undefined to keep the saved one. */
+type TitleLookup = (rawId: string) => Promise<string | undefined>;
+
+/**
+ * One query's title lookup: each card is read once, and after
+ * `TITLE_LOOKUP_LIMIT` distinct cards the rest keep their saved titles, so a
+ * long list costs a bounded number of reads. A card in Trash or gone keeps
+ * its saved title too.
+ */
+const titleLookup = (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string
+): TitleLookup => {
+  const titles = new Map<string, Promise<string | undefined>>();
+  const read = async (rawId: string) => {
+    const id = ctx.db.normalizeId("cards", rawId);
+    const card = id ? await ctx.db.get("cards", id) : null;
+    return card && card.userId === userId && !card.isDeleted
+      ? cardDisplayTitle(card)
+      : undefined;
+  };
+  return (rawId) => {
+    let title = titles.get(rawId);
+    if (!title) {
+      if (titles.size >= TITLE_LOOKUP_LIMIT) {
+        return Promise.resolve(undefined);
+      }
+      title = read(rawId);
+      titles.set(rawId, title);
+    }
+    return title;
+  };
+};
+
+/**
+ * A linked card's title, with any links in its first line shown as their
+ * targets' current titles, so a rename shows wherever the card is listed.
+ */
+const linkedCard = async (
+  card: Doc<"cards">,
+  lookup: TitleLookup
+): Promise<LinkedCard> => {
+  const firstLine = (card.content ?? "").trimStart().split("\n", 1)[0];
+  const titles = new Map<string, string>();
+  await Promise.all(
+    parseCardLinkIds(firstLine).map(async (id) => {
+      const title = await lookup(id);
+      if (title !== undefined) {
+        titles.set(id, title);
+      }
+    })
+  );
+  return {
+    id: card._id,
+    title: cardDisplayTitle(
+      card,
+      cardPreviewText(card, (title, id) => titles.get(id) ?? title)
+    ),
+    type: card.type,
+  };
+};
 
 /**
  * A link target as the user sees it: their own card that isn't in Trash, or
@@ -60,14 +118,15 @@ const linkedCard = (card: Doc<"cards">): LinkedCard => ({
 const resolveTarget = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
-  rawId: string
+  rawId: string,
+  lookup: TitleLookup
 ): Promise<CardLinkTarget> => {
   const id = ctx.db.normalizeId("cards", rawId);
   const card = id ? await ctx.db.get("cards", id) : null;
   if (!card || card.userId !== userId || card.isDeleted) {
     return { id: rawId, missing: true, title: null, type: null };
   }
-  return { ...linkedCard(card), missing: false };
+  return { ...(await linkedCard(card, lookup)), missing: false };
 };
 
 export const scheduleCardLinkSync = async (
@@ -222,8 +281,9 @@ export const getCardLinkTargets = query({
       return [];
     }
     const unique = Array.from(new Set(cardIds)).slice(0, MAX_CARD_LINKS);
+    const lookup = titleLookup(ctx, user.teakUserId);
     return await Promise.all(
-      unique.map((id) => resolveTarget(ctx, user.teakUserId, id))
+      unique.map((id) => resolveTarget(ctx, user.teakUserId, id, lookup))
     );
   },
 });
@@ -269,6 +329,7 @@ export const searchCardLinkSuggestions = query({
           .order("desc")
           .take(SUGGESTION_SCAN_LIMIT);
 
+    const lookup = titleLookup(ctx, userId);
     const results: LinkedCard[] = [];
     for (const card of candidates) {
       if (
@@ -279,7 +340,7 @@ export const searchCardLinkSuggestions = query({
       ) {
         continue;
       }
-      results.push(linkedCard(card));
+      results.push(await linkedCard(card, lookup));
       if (results.length >= SUGGESTION_LIMIT) {
         break;
       }
@@ -326,7 +387,8 @@ const loadBacklinks = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
   cardId: Id<"cards">,
-  limit: number
+  limit: number,
+  lookup: TitleLookup
 ): Promise<{ backlinks: LinkedCard[]; truncated: boolean }> => {
   const rows = await ctx.db
     .query("cardLinks")
@@ -348,7 +410,9 @@ const loadBacklinks = async (
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return {
-    backlinks: visible.slice(0, limit).map(linkedCard),
+    backlinks: await Promise.all(
+      visible.slice(0, limit).map((card) => linkedCard(card, lookup))
+    ),
     truncated: visible.length > limit || rows.length === BACKLINK_SCAN_LIMIT,
   };
 };
@@ -359,11 +423,14 @@ export const getCardLinksHandler = async (
   limit = API_LINK_LIMIT
 ): Promise<CardLinks> => {
   const ids = card.type === "text" ? parseCardLinkIds(card.content) : [];
+  const lookup = titleLookup(ctx, card.userId);
   const [links, backlinks] = await Promise.all([
     Promise.all(
-      ids.slice(0, limit).map((id) => resolveTarget(ctx, card.userId, id))
+      ids
+        .slice(0, limit)
+        .map((id) => resolveTarget(ctx, card.userId, id, lookup))
     ),
-    loadBacklinks(ctx, card.userId, card._id, limit),
+    loadBacklinks(ctx, card.userId, card._id, limit, lookup),
   ]);
   return {
     backlinks: backlinks.backlinks.map((card) => ({
@@ -393,7 +460,8 @@ export const getCardBacklinks = query({
       ctx,
       user.teakUserId,
       card._id,
-      BACKLINK_PANEL_LIMIT
+      BACKLINK_PANEL_LIMIT,
+      titleLookup(ctx, user.teakUserId)
     );
     return { backlinks, hasMore: truncated };
   },
