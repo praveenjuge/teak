@@ -122,6 +122,14 @@ describe("verify-teak doctor: newest uncommitted edit", () => {
     });
   });
 
+  test("a file in a deleted directory counts by the nearest existing parent", () => {
+    withTree((root) => {
+      mkdirSync(join(root, "dir"));
+      utimesSync(join(root, "dir"), at(4000), at(4000));
+      expect(newestEdit(" D dir/gone/a.ts\n", root)).toBe(4_000_000);
+    });
+  });
+
   test("no uncommitted paths means no edit", () => {
     expect(newestEdit("")).toBe(0);
   });

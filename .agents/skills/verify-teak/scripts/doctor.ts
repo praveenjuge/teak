@@ -66,8 +66,9 @@ const checkWeb = async (appOrigin: string) => {
 /**
  * The newest modification time (ms) among the uncommitted paths in
  * `git status --porcelain --untracked-files=all` output, or 0 when there are
- * none. A deleted path has no file to stat, so it counts by its parent
- * directory, whose time changes when a file in it is removed.
+ * none. A deleted path has no file to stat, so it counts by its nearest
+ * existing parent directory, whose time changes when something in it is
+ * removed (a whole deleted directory counts by the directory above it).
  */
 export const newestEdit = (porcelain: string, root = ROOT): number =>
   porcelain
@@ -75,14 +76,16 @@ export const newestEdit = (porcelain: string, root = ROOT): number =>
     .map((line) => line.slice(3).split(" -> ").pop()?.trim() ?? "")
     .filter(Boolean)
     .reduce((newest, path) => {
-      for (const candidate of [path, dirname(path)]) {
+      for (let candidate = path; ; candidate = dirname(candidate)) {
         try {
           return Math.max(newest, statSync(join(root, candidate)).mtimeMs);
         } catch {
           // Gone: try its parent directory next.
         }
+        if (candidate === dirname(candidate)) {
+          return newest;
+        }
       }
-      return newest;
     }, 0);
 
 const git = (args: string[]) =>
