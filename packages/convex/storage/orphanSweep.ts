@@ -6,6 +6,9 @@ import { buildR2ListPrefix } from "./r2Keys";
 // workflow pages the cards, lists the bucket under `listPrefix` and logs what
 // no row references. It never deletes.
 
+/** Matches the report's grace for new objects (Files Worker maintenance). */
+const LINKED_PDF_CLAIM_LIVE_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** This deployment's user-object prefix in the shared bucket. */
 export const listPrefix = internalQuery({
   args: {},
@@ -100,11 +103,16 @@ export const collectNonCardReferencedKeys = internalQuery({
     }
     // A Save PDF claim's object, kept for a retry before any card has it. A
     // finished claim's object is its document's, which the card pass counts.
+    // A claim untouched for longer than the report's grace is abandoned, so
+    // its object shows in the report.
+    const liveSince = Date.now() - LINKED_PDF_CLAIM_LIVE_MS;
     for (const status of ["pending", "failed"] as const) {
       for await (const row of ctx.db
         .query("linkedPdfs")
         .withIndex("by_status", (q) => q.eq("status", status))) {
-        keys.push(row.fileKey);
+        if (row.updatedAt >= liveSince) {
+          keys.push(row.fileKey);
+        }
       }
     }
     for await (const job of ctx.db.query("exportJobs")) {

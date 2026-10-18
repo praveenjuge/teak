@@ -602,6 +602,29 @@ describe("Save PDF", () => {
     ).toContain(claim.fileKey);
   });
 
+  test("an abandoned claim's PDF is reported as orphaned", async () => {
+    const { paper, t } = await setup();
+    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+      cardId: await paper(),
+      userId: "owner",
+    });
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("linkedPdfs")
+        .withIndex("by_status", (q) => q.eq("status", "pending"))
+        .unique();
+      if (row) {
+        await ctx.db.patch(row._id, {
+          updatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+        });
+      }
+    });
+
+    expect(
+      await t.query(internal.storage.orphanSweep.collectNonCardReferencedKeys)
+    ).not.toContain(claim.fileKey);
+  });
+
   test("deleting the link keeps the document it made", async () => {
     stubWorker();
     const { paper, save, rows, card, t, trashThenDelete } = await setup();
