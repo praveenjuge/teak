@@ -8,10 +8,20 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const realFolders = await import("../../../hooks/useFolders");
-mock.module("../../../hooks/useFolders", () => ({
-  ...realFolders,
-  useFolders: () => [],
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useConvex: () => ({}),
+  useMutation: () =>
+    Object.assign(async () => null, {
+      withOptimisticUpdate: () => async () => null,
+    }),
+  useQuery: () => undefined,
+}));
+const realCacheHooks = await import("convex-helpers/react/cache/hooks");
+mock.module("convex-helpers/react/cache/hooks", () => ({
+  ...realCacheHooks,
+  useQuery: () => undefined,
 }));
 
 const { act } = await import("react");

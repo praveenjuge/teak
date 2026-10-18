@@ -820,17 +820,21 @@ describe("publicApiHttp card endpoints", () => {
       })
       .mockRejectedValueOnce(new Error("timed out"));
     const warn = spyOn(console, "warn").mockImplementation(() => undefined);
-    const response = await runHandler(
-      cardByIdV1,
-      { runMutation: buildAuthorizedMutationMock(), runQuery },
-      new Request("https://example.com/v1/cards/card_1", {
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
-    );
-    warn.mockRestore();
+    let response: Response;
+    try {
+      response = await runHandler(
+        cardByIdV1,
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        new Request("https://example.com/v1/cards/card_1", {
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        })
+      );
+    } finally {
+      warn.mockRestore();
+    }
     expect(response.status).toBe(200);
     const card = await response.json();
     expect(card.id).toBe("card_1");

@@ -367,18 +367,19 @@ export function CardModal({
   // A pill or a Linked from row opens its card through goTo, like the
   // arrows, so unsaved edits save first.
   const linkHandlers = useStableHandlers({
-    openLinkedCard: (linkedCardId: string) => {
+    openBacklink: (linkedCardId: string) => {
       void goTo(() => onOpenCard?.(linkedCardId));
     },
+    openPill: (linkedCardId: string) => {
+      void goTo(() => cardLinks?.onOpenCard?.(linkedCardId));
+    },
   });
-  const openLinkedCard = onOpenCard ? linkHandlers.openLinkedCard : undefined;
+  const openLinkedCard = onOpenCard ? linkHandlers.openBacklink : undefined;
   const guardedCardLinks = useMemo(
     () =>
       cardLinks && {
         ...cardLinks,
-        onOpenCard: cardLinks.onOpenCard
-          ? linkHandlers.openLinkedCard
-          : undefined,
+        onOpenCard: cardLinks.onOpenCard ? linkHandlers.openPill : undefined,
       },
     [cardLinks, linkHandlers]
   );

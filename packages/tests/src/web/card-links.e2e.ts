@@ -75,5 +75,6 @@ test("[[ with no matching card: Enter types a new line and closes the list", asy
   await browser.keyboard.type("next line");
   await expect
     .poll(() => library.read(noteId))
-    .toMatch(/zzqx-nomatch\n\nnext line$/);
+    // The editor saves a typed `[[` escaped, as `\[\[`.
+    .toMatch(/ \\?\[\\?\[zzqx-nomatch\n\nnext line$/);
 });

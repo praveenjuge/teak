@@ -309,5 +309,6 @@ test("a card's links and backlinks are on the card, not on lists", async () => {
   const listed = await (await apiFetch("/v1/cards?limit=5", apiKey)).json();
   for (const item of listed.items) {
     expect(item).not.toHaveProperty("links");
+    expect(item).not.toHaveProperty("backlinks");
   }
 });

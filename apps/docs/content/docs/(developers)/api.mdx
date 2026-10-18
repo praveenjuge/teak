@@ -467,8 +467,8 @@ characters with no `|`, `]` or line break, and Teak always shows the linked
 card's current title. Tokens inside code aren't links, and links to cards that
 aren't yours are never followed. `content` returns tokens exactly as written.
 
-`GET /v1/cards/:cardId`, and the card returned by create, `PATCH`, favorite and
-done, include the card's links:
+`GET /v1/cards/:cardId`, and the card returned by create, `PATCH`, favorite,
+done and setting or resetting the thumbnail, include the card's links:
 
 ```json
 {
