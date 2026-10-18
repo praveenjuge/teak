@@ -25,6 +25,7 @@ export const buildR2ObjectKey = (args: {
   cardId?: string;
   role: string;
   fileName?: string;
+  objectId?: string;
 }) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
 
 export const queueObjectDeletion = async (ctx: MutationCtx, key?: string) => {

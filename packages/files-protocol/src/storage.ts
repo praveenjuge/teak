@@ -52,26 +52,33 @@ export const filesCardKeyPrefix = (envPrefix: string, userId: string): string =>
 
 const PENDING_CARD_SEGMENT = "pending";
 
-/** `<env prefix>users/<user hash>/cards/<card id | pending>/<role>/<uuid>[-<name>]` */
+/**
+ * `<env prefix>users/<user hash>/cards/<card id | pending>/<role>/<id>[-<name>]`,
+ * where `<id>` is `objectId` when given, otherwise a random UUID.
+ */
 export const buildCardObjectKey = ({
   envPrefix,
   userId,
   cardId,
   role,
   fileName,
+  objectId,
 }: {
   cardId?: string;
   envPrefix: string;
   fileName?: string;
+  /** A fixed id, so a retried write lands on the same key; random otherwise. */
+  objectId?: string;
   role: string;
   userId: string;
 }): string => {
   const safeName = fileName?.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
+  const id = objectId?.replace(/[^a-zA-Z0-9_-]+/g, "-") || crypto.randomUUID();
   return [
     filesCardKeyPrefix(envPrefix, userId),
     cardId ?? PENDING_CARD_SEGMENT,
     role,
-    `${crypto.randomUUID()}${safeName ? `-${safeName}` : ""}`,
+    `${id}${safeName ? `-${safeName}` : ""}`,
   ].join("/");
 };
 

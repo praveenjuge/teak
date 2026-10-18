@@ -14,6 +14,10 @@ import {
   ImportExportSection,
 } from "./ImportExportSection";
 import {
+  type InboundEmailPanelProps,
+  InboundEmailSection,
+} from "./InboundEmailDialog";
+import {
   type ConnectionIdentity,
   type ConnectionTarget,
   type DeviceSession,
@@ -38,6 +42,8 @@ interface SettingsContentProps {
   exportState?: ExportState | null;
   hasPremium?: boolean;
   importExportRequest?: ImportExportOpenRequest | null;
+  /** Save by email's state and switch; the row is left out without it. */
+  inboundEmail?: InboundEmailPanelProps;
   keys: ApiKeyListItem[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
@@ -75,6 +81,7 @@ export function SettingsContent({
   hasPremium,
   accountLoading,
   importExportRequest,
+  inboundEmail,
   keys,
   connectionIdentity,
   sessions,
@@ -150,6 +157,8 @@ export function SettingsContent({
           planRowContent
         )}
       </SettingRow>
+
+      {inboundEmail ? <InboundEmailSection {...inboundEmail} /> : null}
 
       <SecuritySection
         apiKeys={{

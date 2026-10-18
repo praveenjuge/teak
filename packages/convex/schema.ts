@@ -961,6 +961,52 @@ export default defineSchema({
       searchField: "text",
       filterFields: ["userId"],
     }),
+  // Save by email (inbound/): whether mail sent from an account's sign-in
+  // email to the shared save@ address becomes cards. Off until turned on.
+  inboundEmailSettings: defineTable({
+    userId: v.string(),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastReceivedAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"]),
+  // One per email delivered, so a redelivery never saves twice. Attachments
+  // are uploaded by the Email Worker and finalized one by one.
+  inboundEmailReceipts: defineTable({
+    userId: v.string(),
+    messageKey: v.string(),
+    outcome: v.union(
+      v.literal("saved"),
+      v.literal("dropped_limit"),
+      v.literal("dropped_rate"),
+      v.literal("empty")
+    ),
+    cardIds: v.array(v.id("cards")),
+    createdAt: v.number(),
+    pendingAttachments: v.optional(
+      v.array(
+        v.object({
+          index: v.number(),
+          fileKey: r2KeyValidator,
+          fileName: v.string(),
+          mimeType: v.string(),
+          size: v.number(),
+          state: v.union(
+            v.literal("unclaimed"),
+            v.literal("pending"),
+            v.literal("done"),
+            v.literal("dropped")
+          ),
+          claimToken: v.optional(v.string()),
+          claimedAt: v.optional(v.number()),
+          cardId: v.optional(v.id("cards")),
+        })
+      )
+    ),
+  })
+    .index("by_userId_and_messageKey", ["userId", "messageKey"])
+    .index("by_userId", ["userId"])
+    .index("by_createdAt", ["createdAt"]),
   linkedPdfs: defineTable({
     userId: v.string(),
     sourceCardId: v.id("cards"),

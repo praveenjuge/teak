@@ -25,6 +25,10 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "40 * * * *",
     handler: "cleanupSemanticSearchCache",
   },
+  "cleanup-inbound-email-receipts": {
+    cron: "20 3 * * *",
+    handler: "cleanupInboundEmailReceipts",
+  },
   "admin-daily-snapshot": {
     cron: "45 0 * * *",
     handler: "adminDailySnapshot",

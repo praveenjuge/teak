@@ -2,6 +2,7 @@ import { EDGE_IDENTITY_PATH, WORKFLOW_RPC_PATH } from "@teak/files-protocol";
 import { httpRouter } from "convex/server";
 import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
+import { registerInboundRoutes } from "./inbound/http";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import { exportsV1 } from "./publicApiExports";
@@ -55,6 +56,7 @@ http.route({
 });
 
 registerWorkosRoutes(http);
+registerInboundRoutes(http);
 
 polar.registerRoutes(http, { events: polarWebhookEvents });
 

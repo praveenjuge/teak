@@ -2,6 +2,7 @@ export type EnvTarget =
   | "web"
   | "convex"
   | "files-worker"
+  | "email-worker"
   | "extension"
   | "cli"
   | "raycast"

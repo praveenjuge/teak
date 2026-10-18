@@ -26,6 +26,10 @@ apps/files-worker/.dev.vars
 apps/files-worker/.wrangler/
 apps/files-worker/development/.dev.vars
 apps/files-worker/development/.wrangler/
+apps/email-worker/.dev.vars
+apps/email-worker/.wrangler/
+apps/email-worker/development/.dev.vars
+apps/email-worker/development/.wrangler/
 
 .vercel
 

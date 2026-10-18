@@ -18,6 +18,7 @@ import {
 import { AUDIO_WAVEFORM } from "./card/onboarding/processed";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
+import { planEmailCards } from "./inbound/emailContent";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
@@ -545,6 +546,8 @@ export const FOLDER_SCENARIOS = [
   "rich-sites",
   "video-captions",
   "podcast-transcripts",
+  "email-in",
+  "email-attachments",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1751,6 +1754,140 @@ const videoCaptionsPack = (): FolderScenarioPack => {
   };
 };
 
+/** A card as Save by email makes it, from the email the planner reads. */
+const emailCard = (
+  scenario: FolderScenario,
+  index: number,
+  email: { html?: string; text?: string; title: string }
+): FolderScenarioCard => {
+  const plan = planEmailCards({
+    html: email.html ?? null,
+    subject: email.title,
+    text: email.text ?? null,
+  });
+  const base = folderScenarioCard(scenario, index, "", [], {
+    metadata: { source: "email" },
+  });
+  const tags = [...(base.tags ?? []), "email"];
+  if (plan.kind === "link") {
+    return {
+      ...base,
+      content: plan.url,
+      tags,
+      type: "link",
+      url: plan.url,
+      ...(plan.notes ? { notes: plan.notes } : {}),
+    };
+  }
+  return {
+    ...base,
+    content: plan.kind === "text" ? plan.markdown : email.title,
+    tags,
+    type: "text",
+  };
+};
+
+const NEWSLETTER_HTML = `<html><head><style>p{color:#333}</style></head><body>
+<div style="display:none">Preview text nobody should see</div>
+<h1>The Weekly Leaf</h1>
+<p>This week: why <b>maple leaves</b> turn red, and a field guide to the forest floor.</p>
+${Array.from({ length: 40 }, (_, i) => `<img src="https://track.example.com/open/${i}.gif" width="1" height="1">`).join("")}
+<p><a href="https://example.us1.list-manage.com/track/click?u=abc&url=https%3A%2F%2Fexample.com%2Fmaples%3Futm_source%3Dnewsletter">Read: Why maples blush</a></p>
+<p><a href="https://www.google.com/url?q=https://example.org/forest-floor&sa=D">A field guide to the forest floor</a></p>
+<p><a href="https://nam12.safelinks.protection.outlook.com/?url=https%3A%2F%2Fexample.net%2Fmoss&data=x">Moss, up close</a></p>
+<ul><li>Leaf of the week: ginkgo</li><li>Reader photo: a frosted oak</li></ul>
+</body></html>`;
+
+const emailInPack = (): FolderScenarioPack => {
+  const scenario = "email-in" as const;
+  let index = 1;
+  const forwardChain = Array.from(
+    { length: 5 },
+    (_, level) =>
+      `---------- Forwarded message ---------\nFrom: Friend ${level} <friend${level}@example.com>\nDate: Mon, 13 Oct 2026 at 09:0${level}\nSubject: Fwd: Hike on Saturday\nTo: <someone@example.com>\n`
+  ).join("\n");
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Email in pack", []),
+      emailCard(scenario, index++, {
+        html: NEWSLETTER_HTML,
+        title: "Fwd: The Weekly Leaf — issue 12",
+      }),
+      emailCard(scenario, index++, {
+        title: "Fwd: worth a read",
+        text: "Worth a read: https://example.com/essays/slow-reading?utm_source=mail&utm_medium=email",
+      }),
+      emailCard(scenario, index++, {
+        title: "Re: Fwd: Call the plumber about the kitchen sink",
+      }),
+      emailCard(scenario, index++, {
+        title: "Fwd: Fwd: Fwd: Fwd: Fwd: Hike on Saturday",
+        text: `${forwardChain}\nMeet at the trailhead at 8. Bring water and a jacket; it gets cold at the top.`,
+      }),
+      emailCard(scenario, index++, {
+        title: "مرحبا بالعالم",
+        text: "ملاحظة قصيرة عن الاجتماع القادم.",
+      }),
+      emailCard(scenario, index++, {
+        title: "転送: 会議のメモ",
+        text: "来週の会議の議題:\n1. 予算\n2. 日程",
+      }),
+      emailCard(scenario, index++, {
+        title: "🎉 Party plans",
+        text: "Cake at 7, games at 8. Two links: https://example.com/cake and https://example.com/games",
+      }),
+    ],
+  };
+};
+
+const emailAttachmentsPack = (): FolderScenarioPack => {
+  const scenario = "email-attachments" as const;
+  const file = (
+    index: number,
+    fileName: string,
+    mimeType: string,
+    fileSize: number
+  ): FolderScenarioCard => ({
+    ...folderScenarioCard(scenario, index, "", [], {
+      metadata: { source: "email" },
+    }),
+    content: "",
+    fileMetadata: { fileName, fileSize, mimeType },
+    metadataTitle: fileName,
+    tags: [`scenario-${scenario}`, "email"],
+    type: "document",
+  });
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Email attachments pack", []),
+      emailCard(scenario, index++, {
+        title: "Trip photos and the itinerary",
+        text: "Here you go — the itinerary and the receipts are attached.",
+      }),
+      file(index++, "Itinerary.pdf", "application/pdf", 240_000),
+      file(index++, "Receipt.pdf", "application/pdf", 88_000),
+      file(index++, "Scan.pdf", "application/pdf", 1_200_000),
+      file(index++, "Scan.pdf", "application/pdf", 1_300_000),
+      file(index++, "請求書.pdf", "application/pdf", 64_000),
+      file(
+        index++,
+        "Notes from the workshop.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        32_000
+      ),
+      file(
+        index++,
+        "A 24 MB annual report.pdf",
+        "application/pdf",
+        24 * 1024 * 1024
+      ),
+    ],
+  };
+};
+
 const podcastTranscriptsPack = (): FolderScenarioPack => {
   const scenario = "podcast-transcripts" as const;
   const show = { siteName: "Example Podcast" };
@@ -2791,6 +2928,16 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "Podcast episode links with transcripts as Whisper gives them (og:audio, Apple Podcasts, an RSS-only show, a Japanese episode, one in Trash), and episodes that get none (Spotify, a 2 GB file). Search `#scenario-podcast-transcripts` or a spoken phrase such as `hermit crab`.",
     folders: podcastTranscriptsPack,
   },
+  "email-in": {
+    description:
+      "Cards as Save by email makes them, all tagged email: a newsletter with 40 tracking pixels and four kinds of redirect, a link with a sentence (a link card with a note), a subject with no body, a five-level forward chain, RTL, CJK and emoji subjects, and two links (a note). Also turns Save by email on. Search `#scenario-email-in` or `#email`.",
+    folders: emailInPack,
+  },
+  "email-attachments": {
+    description:
+      "An email's body note and its attachments as their own document cards, tagged email: PDFs, two with the same name, a CJK name, a Word file and a 24 MB report. Search `#scenario-email-attachments`.",
+    folders: emailAttachmentsPack,
+  },
   "done-states-images": {
     description:
       "1,000 image cards and no links, so `is:todo` lists nothing. Seed it on an account without links. 200 per page.",
@@ -2801,6 +2948,30 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "400 cards, 300 without a Shuffle key as before its backfill; Shuffle must still show each card once. 200 per page.",
     cards: shufflePartialScenarioPage,
   },
+};
+
+/** Save by email on, as if an email arrived an hour ago. */
+const turnOnSaveByEmail = async (ctx: MutationCtx, userId: string) => {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("inboundEmailSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  if (existing) {
+    await ctx.db.patch("inboundEmailSettings", existing._id, {
+      enabled: true,
+      lastReceivedAt: now - 3_600_000,
+      updatedAt: now,
+    });
+    return;
+  }
+  await ctx.db.insert("inboundEmailSettings", {
+    createdAt: now,
+    enabled: true,
+    lastReceivedAt: now - 3_600_000,
+    updatedAt: now,
+    userId,
+  });
 };
 
 const unknownScenarioMessage = () =>
@@ -2840,6 +3011,9 @@ export const seedScenario = internalMutation({
       throw new Error("No Teak owner is linked to that WorkOS user.");
     }
     if ("folders" in pack) {
+      if (scenario === "email-in") {
+        await turnOnSaveByEmail(ctx, owner.teakUserId);
+      }
       return await seedFolderScenario(ctx, owner.teakUserId, pack.folders());
     }
     if ("fillTo" in pack) {

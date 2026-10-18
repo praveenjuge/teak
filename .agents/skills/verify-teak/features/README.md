@@ -38,6 +38,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Settings](./settings.md) covers the Settings page, theme, devices and API keys in the Security dialog.
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
 - [Link transcripts and video facts](./link-transcripts.md) covers Vimeo captions and podcast episode transcripts found by a spoken phrase, and YouTube's Channel, Length and Uploaded facts.
+- [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.
 
 ## Not mapped yet
 
