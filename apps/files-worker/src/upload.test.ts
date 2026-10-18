@@ -499,12 +499,15 @@ describe("additive files ops", () => {
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
     let capturedImageUrl: unknown;
-    const capturedTemplateKwargs: unknown[] = [];
+    const capturedSampling: unknown[] = [];
     const aiEnv = withObjectGates({
       AI: {
         run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
-          capturedTemplateKwargs.push(args.chat_template_kwargs);
+          capturedSampling.push({
+            chat_template_kwargs: args.chat_template_kwargs,
+            frequency_penalty: args.frequency_penalty,
+          });
           const messages = args.messages as Array<{
             content?: Array<{ image_url?: unknown; type?: string }>;
           }>;
@@ -566,11 +569,13 @@ describe("additive files ops", () => {
     expect(result.summary).toBe("A red square.");
     expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
-    // Thinking shares the output cap and left dense images with no answer.
-    expect(capturedTemplateKwargs).toEqual([
-      { enable_thinking: false },
-      { enable_thinking: false },
-    ]);
+    // Thinking shares the output cap and left dense images with no answer;
+    // without the penalty some images repeat a line until the cap.
+    const sampling = {
+      chat_template_kwargs: { enable_thinking: false },
+      frequency_penalty: 0.3,
+    };
+    expect(capturedSampling).toEqual([sampling, sampling]);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",
     });
@@ -650,6 +655,8 @@ describe("additive files ops", () => {
             : "";
           calls.push({ prompt, system: String(system?.content) });
           expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
+          // Text-only reads copy dense pages, where words really repeat.
+          expect(args.frequency_penalty).toBeUndefined();
           const content =
             calls.length === 1
               ? `{"text":"${"Slide ".repeat(900)}`

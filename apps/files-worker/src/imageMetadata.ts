@@ -189,6 +189,11 @@ export const loadImageForAi = async (
 };
 
 interface VisionJsonRequest<T> {
+  /**
+   * Set for the metadata call only, whose answers were measured with it.
+   * Text-only reads of dense documents leave it off.
+   */
+  frequencyPenalty?: number;
   functionId: string;
   imageDataUrl: string;
   /** Undefined when the answer doesn't have the expected shape. */
@@ -246,6 +251,9 @@ const runVisionJson = async <T>(
               // max_tokens: on dense images it spent the whole cap and
               // answered with empty or cut-off content.
               chat_template_kwargs: { enable_thinking: false },
+              ...(request.frequencyPenalty === undefined
+                ? {}
+                : { frequency_penalty: request.frequencyPenalty }),
             },
             aiRunOptions(env)
           )
@@ -307,6 +315,10 @@ export const generateImageMetadataForOp = async (
       : "Analyze this image, generate tags and summary, and read its text:"
   );
   const { validationAttempt, value } = await runVisionJson(env, {
+    // Some images send it repeating one line of `text` until the cap cuts
+    // the JSON off. A light penalty stops that and still keeps text that
+    // really repeats; 0.6 started dropping it.
+    frequencyPenalty: 0.3,
     functionId: "teak.ai.metadata.image",
     imageDataUrl,
     parse: parseImageMetadata,
