@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { TITLE_LOOKUP_LIMIT } from "./card/cardLinks";
 import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
 import {
   type CardFieldEdit,
@@ -276,6 +277,35 @@ describe("link targets", () => {
         await stranger.query(api.cards.getCardLinkTargets, { cardIds: [mine] })
       ).map((target: { missing: boolean }) => target.missing)
     ).toEqual([true]);
+  });
+});
+
+describe("live titles inside titles", () => {
+  test("one query reads at most 100 linked cards; past that, links keep their saved titles", async () => {
+    const { owner, t } = await setup();
+    const targets = await t.run(async (ctx) => {
+      const ids: Id<"cards">[] = [];
+      for (let index = 0; index <= TITLE_LOOKUP_LIMIT; index++) {
+        const card = (content: string) =>
+          ctx.db.insert("cards", {
+            content,
+            createdAt: index,
+            shuffleKey: 0.5,
+            type: "text",
+            updatedAt: index,
+            userId: "owner",
+          });
+        ids.push(await card(link("Saved", await card("Current"))));
+      }
+      return ids;
+    });
+    const titles: (string | null)[] = (
+      await owner.query(api.cards.getCardLinkTargets, { cardIds: targets })
+    ).map((target: { title: string | null }) => target.title);
+    expect(titles.filter((title) => title === "Current")).toHaveLength(
+      TITLE_LOOKUP_LIMIT
+    );
+    expect(titles.filter((title) => title === "Saved")).toHaveLength(1);
   });
 });
 
