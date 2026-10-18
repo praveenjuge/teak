@@ -28,8 +28,6 @@ goal, decisions and verification. Delete a plan in the PR that finishes it;
 git history keeps it. Before starting one, check its "facts" against the code,
 since they were true when it was written.
 
-- `2026-10-14-roadmap-v2-00-roadmap.md`: the current roadmap (31 phases), with
-  one file per phase.
 - `2026-10-10-native-apple-app.md`: the native Apple app; removing
   `apps/mobile` is what remains.
 - `2026-10-16-workos-lean.md`: trimming the WorkOS integration to what WorkOS
