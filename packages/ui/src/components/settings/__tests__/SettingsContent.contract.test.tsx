@@ -44,6 +44,7 @@ const baseProps = {
       enabled: false,
       lastReceivedAt: null,
       sender: "hello@example.com",
+      senderVerified: true,
     },
   },
   keys: [],

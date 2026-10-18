@@ -43,10 +43,10 @@ Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
    For each part Convex accepted, it returns a signed Files Worker upload
    URL. The Worker PUTs the bytes (two at a time, three tries each), then
    POSTs `/inbound/email/attachments` so Convex turns it into a card. A part
-   the Files Worker refuses (a 4xx) is skipped and its pending object swept
-   later. If a part still fails for a passing reason (a 5xx or the network)
-   after the others are done, the Worker throws, so the sender retries the
-   whole email; Convex's receipt then re-signs only the attachments not yet
+   the Files Worker refuses (a 4xx other than 408 or 429) is skipped and its
+   pending object swept later. If a PUT or finalize still fails for a
+   transient reason (a 5xx, a 408 or 429, or the network) after the others
+   are done, the Worker throws, so the sender retries the whole email; Convex's receipt then re-signs only the attachments not yet
    saved. A finalize that finds another one holding the attachment gets a
    follow-up in Convex after the two-minute claim expires.
 

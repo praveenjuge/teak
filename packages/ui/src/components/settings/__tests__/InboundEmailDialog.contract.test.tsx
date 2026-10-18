@@ -25,6 +25,7 @@ const on = {
   enabled: true,
   lastReceivedAt: null,
   sender: "ada@example.com",
+  senderVerified: true,
 };
 
 let root: Root | undefined;
@@ -110,6 +111,20 @@ describe("InboundEmailPanel", () => {
       await Promise.resolve();
     });
     expect(button(container, "Turn on").disabled).toBe(false);
+  });
+
+  test("off with an unverified sign-in email: says to verify it, and Turn on is disabled", async () => {
+    const onEnable = mock(() => Promise.resolve());
+    const { container } = await render({
+      onEnable,
+      state: { ...on, enabled: false, senderVerified: false },
+    });
+    expect(container.textContent).toContain(
+      "Verify your sign-in email, ada@example.com, to turn this on."
+    );
+    expect(button(container, "Turn on").disabled).toBe(true);
+    await click(button(container, "Turn on"));
+    expect(onEnable).not.toHaveBeenCalled();
   });
 
   test("on: shows the address and the sender, and copies the full address", async () => {

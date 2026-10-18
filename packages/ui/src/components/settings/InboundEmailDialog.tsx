@@ -15,6 +15,8 @@ export interface InboundEmailState {
   enabled: boolean;
   lastReceivedAt: number | null;
   sender: string;
+  /** Mail is saved only from a verified sign-in email. */
+  senderVerified: boolean;
 }
 
 export interface InboundEmailPanelProps {
@@ -112,15 +114,23 @@ export function InboundEmailPanel({
   ) : null;
 
   if (!state?.enabled) {
+    const unverified = state ? !state.senderVerified : false;
     return (
       <div className="space-y-4">
         <p className="text-muted-foreground text-sm leading-5">
           Send or forward email to Teak, and it's saved as cards.
         </p>
+        {unverified ? (
+          <p className="text-sm leading-5">
+            Verify your sign-in email,{" "}
+            <span className="font-medium">{state?.sender}</span>, to turn this
+            on.
+          </p>
+        ) : null}
         {errorLine}
         <Button
           className="w-full"
-          disabled={state === null || busy !== null}
+          disabled={state === null || unverified || busy !== null}
           onClick={() => void run("enable", onEnable)}
         >
           {busy === "enable" ? <Spinner /> : null}Turn on

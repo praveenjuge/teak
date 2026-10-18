@@ -30,14 +30,17 @@ export const readInboundSettings = (
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
 
-/** The sign-in email mail is accepted from: verified, as `findSender` needs. */
+/**
+ * The account's sign-in email, and whether it's verified: mail is accepted
+ * only from a verified one, as `findSender` needs.
+ */
 const signInEmail = async (ctx: QueryCtx | MutationCtx, userId: string) => {
   const user = await ctx.db
     .query("users")
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
     .unique();
-  return user && user.deletedAt === undefined && user.emailVerified
-    ? user.email
+  return user && user.deletedAt === undefined
+    ? { email: user.email, verified: user.emailVerified === true }
     : null;
 };
 
@@ -50,6 +53,7 @@ export const getMine = query({
       enabled: v.boolean(),
       lastReceivedAt: v.union(v.number(), v.null()),
       sender: v.string(),
+      senderVerified: v.boolean(),
     })
   ),
   handler: async (ctx) => {
@@ -61,9 +65,11 @@ export const getMine = query({
     const settings = await readInboundSettings(ctx, session.teakUserId);
     return {
       address: inboundEmailAddress(),
-      enabled: settings?.enabled === true,
+      // Mail from an unverified email is refused, so it can't be on.
+      enabled: sender.verified && settings?.enabled === true,
       lastReceivedAt: settings?.lastReceivedAt ?? null,
-      sender,
+      sender: sender.email,
+      senderVerified: sender.verified,
     };
   },
 });
@@ -77,7 +83,7 @@ const setEnabled = async (ctx: MutationCtx, enabled: boolean) => {
     });
   }
   const userId = session.teakUserId;
-  if (enabled && !(await signInEmail(ctx, userId))) {
+  if (enabled && !(await signInEmail(ctx, userId))?.verified) {
     throw new ConvexError({
       code: "EMAIL_UNVERIFIED",
       message: "Verify your sign-in email to turn on Save by email.",

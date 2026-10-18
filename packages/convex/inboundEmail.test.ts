@@ -192,6 +192,7 @@ describe("Settings", () => {
       enabled: false,
       lastReceivedAt: null,
       sender: OWNER_EMAIL,
+      senderVerified: true,
     });
     await owner.mutation(api.inbound.settings.enable, {});
     expect((await owner.query(api.inbound.settings.getMine, {}))?.enabled).toBe(
@@ -211,8 +212,9 @@ describe("Settings", () => {
     );
   });
 
-  test("an unverified sign-in email can't turn it on", async () => {
+  test("an unverified sign-in email can't turn it on, and a stored on reads off", async () => {
     const { owner, t } = await setup();
+    await owner.mutation(api.inbound.settings.enable, {});
     await t.run(async (ctx) => {
       const user = await ctx.db
         .query("users")
@@ -223,7 +225,11 @@ describe("Settings", () => {
       }
       await ctx.db.patch(user._id, { emailVerified: false });
     });
-    expect(await owner.query(api.inbound.settings.getMine, {})).toBeNull();
+    expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
+      enabled: false,
+      sender: OWNER_EMAIL,
+      senderVerified: false,
+    });
     await expect(
       owner.mutation(api.inbound.settings.enable, {})
     ).rejects.toThrow(/Verify your sign-in email/);
@@ -692,6 +698,25 @@ describe("attachments", () => {
     const stored = receipt?.pendingAttachments?.[0]?.fileName ?? "";
     expect(stored.endsWith(".tokens.json")).toBe(true);
     expect(stored.length).toBeLessThanOrEqual(240);
+  });
+
+  test("an error that isn't about the file fails the email, so the sender retries", async () => {
+    stubWorker();
+    const ctx = await setup();
+    await ctx.owner.mutation(api.inbound.settings.enable, {});
+    // The account is being deleted: no upload is minted and nothing is kept.
+    await ctx.t.run((db) =>
+      db.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: accountDeletionStage("accountData"),
+        startedAt: Date.now(),
+        userId: "owner",
+        workosUserId: ctx.ownerWorkosId,
+      })
+    );
+    const sent = await ctx.send(email({ attachments: [pdf(0)] }));
+    expect(sent.status).toBe(500);
+    expect(await ctx.receipts()).toEqual([]);
   });
 
   test("files Teak doesn't take get no upload", async () => {
