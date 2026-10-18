@@ -50,7 +50,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       .poll(
         async () => {
           const card = await api.cards.get(created.cardId);
-          return card?.type;
+          return card.type;
         },
         { timeout: 45_000, interval: 1000 }
       )
