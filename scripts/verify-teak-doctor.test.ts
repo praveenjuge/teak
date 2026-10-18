@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
   backendVerdict,
   latestPushFailed,
+  newestEdit,
 } from "../.agents/skills/verify-teak/scripts/doctor.ts";
 
 const READY = "✔ 12:00:01 Convex functions ready! (2.1s)";
@@ -80,5 +90,39 @@ describe("verify-teak doctor: backend verdict", () => {
         pushing: true,
       })
     ).toBe("differs");
+  });
+});
+
+describe("verify-teak doctor: newest uncommitted edit", () => {
+  const withTree = (run: (root: string) => void) => {
+    const root = mkdtempSync(join(tmpdir(), "verify-teak-doctor-"));
+    try {
+      run(root);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+  const at = (seconds: number) => new Date(seconds * 1000);
+
+  test("a file listed inside a new directory counts by its own time", () => {
+    withTree((root) => {
+      mkdirSync(join(root, "newdir"));
+      writeFileSync(join(root, "newdir/foo.ts"), "x");
+      utimesSync(join(root, "newdir"), at(1000), at(1000));
+      utimesSync(join(root, "newdir/foo.ts"), at(2000), at(2000));
+      expect(newestEdit("?? newdir/foo.ts\n", root)).toBe(2_000_000);
+    });
+  });
+
+  test("a deleted file counts by its parent directory's time", () => {
+    withTree((root) => {
+      mkdirSync(join(root, "dir"));
+      utimesSync(join(root, "dir"), at(3000), at(3000));
+      expect(newestEdit(" D dir/gone.ts\n", root)).toBe(3_000_000);
+    });
+  });
+
+  test("no uncommitted paths means no edit", () => {
+    expect(newestEdit("")).toBe(0);
   });
 });

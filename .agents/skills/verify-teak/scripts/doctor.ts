@@ -11,7 +11,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   headCommit,
   leaseHolder,
@@ -63,20 +63,26 @@ const checkWeb = async (appOrigin: string) => {
   }
 };
 
-// The newest modification time (ms) among uncommitted packages/convex paths in
-// `git status --porcelain` output, or 0 when there are none. Deleted paths
-// have no file to stat and count as no newer edit.
-const newestEdit = (porcelain: string): number =>
+/**
+ * The newest modification time (ms) among the uncommitted paths in
+ * `git status --porcelain --untracked-files=all` output, or 0 when there are
+ * none. A deleted path has no file to stat, so it counts by its parent
+ * directory, whose time changes when a file in it is removed.
+ */
+export const newestEdit = (porcelain: string, root = ROOT): number =>
   porcelain
     .split("\n")
     .map((line) => line.slice(3).split(" -> ").pop()?.trim() ?? "")
     .filter(Boolean)
     .reduce((newest, path) => {
-      try {
-        return Math.max(newest, statSync(join(ROOT, path)).mtimeMs);
-      } catch {
-        return newest;
+      for (const candidate of [path, dirname(path)]) {
+        try {
+          return Math.max(newest, statSync(join(root, candidate)).mtimeMs);
+        } catch {
+          // Gone: try its parent directory next.
+        }
       }
+      return newest;
     }, 0);
 
 const git = (args: string[]) =>
@@ -86,7 +92,13 @@ const checkBackend = async (pushing: boolean) => {
   const [lease, head, dirty] = await Promise.all([
     leaseStatus(ROOT),
     headCommit(ROOT),
-    git(["status", "--porcelain", "--", "packages/convex"]),
+    git([
+      "status",
+      "--porcelain",
+      "--untracked-files=all",
+      "--",
+      "packages/convex",
+    ]),
   ]);
   if (dirty.stdout.trim() && !pushing) {
     report(
