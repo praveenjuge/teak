@@ -212,8 +212,8 @@ describe("Settings", () => {
     );
   });
 
-  test("an unverified sign-in email can't turn it on, but can turn it off and stays off once verified", async () => {
-    const { owner, t } = await setup();
+  test("an unverified sign-in email can't save or turn it on, but can turn it off and stays off once verified", async () => {
+    const { cards, owner, send, t } = await setup();
     const setVerified = (emailVerified: boolean) =>
       t.run(async (ctx) => {
         const user = await ctx.db
@@ -232,6 +232,8 @@ describe("Settings", () => {
       sender: OWNER_EMAIL,
       senderVerified: false,
     });
+    expect((await send(email())).status).toBe(404);
+    expect(await cards()).toEqual([]);
 
     await owner.mutation(api.inbound.settings.disable, {});
     await expect(
