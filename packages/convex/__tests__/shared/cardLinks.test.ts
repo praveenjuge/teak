@@ -35,6 +35,31 @@ describe("parseCardLinkIds", () => {
       [],
     ],
     ["an indented block", `Intro\n\n    [[Plan|teak:${ID_A}]]`, []],
+    [
+      "a list item's indented paragraph",
+      `- Item\n\n    [[Plan|teak:${ID_A}]]`,
+      [ID_A],
+    ],
+    [
+      "an ordered item's indented continuation",
+      `1. Item\n    [[Plan|teak:${ID_A}]]`,
+      [ID_A],
+    ],
+    [
+      "a nested item's indented paragraph",
+      `- Outer\n    - Inner\n\n      [[Plan|teak:${ID_A}]]`,
+      [ID_A],
+    ],
+    [
+      "an indented block inside a list item",
+      `- Item\n\n      [[Plan|teak:${ID_A}]]`,
+      [],
+    ],
+    [
+      "an indented block after a list ends",
+      `- Item\n\nParagraph\n\n    [[Plan|teak:${ID_A}]]`,
+      [],
+    ],
     ["an unclosed backtick", `\`oops [[Plan|teak:${ID_A}]]`, [ID_A]],
     ["no id", "[[x|teak:]]", []],
     ["no prefix", "[[x]]", []],
@@ -83,6 +108,32 @@ describe("formatCardLinkToken", () => {
     expect(parseCardLinkIds(`x ${token} y`)).toEqual([ID_A]);
     // Never cuts a grapheme: the family emoji is kept whole or dropped whole.
     expect(match?.[1]).not.toMatch(/‍…$/u);
+  });
+
+  test.each([
+    // 185 + the 11-unit family + "ddd" + "…" is exactly 200: the emoji fits.
+    [
+      "kept whole",
+      `${"c".repeat(185)}👩‍👩‍👧‍👦${"d".repeat(30)}`,
+      `${"c".repeat(185)}👩‍👩‍👧‍👦ddd…`,
+    ],
+    // 190 + 11 + "…" would be 202: the whole family is dropped.
+    [
+      "dropped whole",
+      `${"c".repeat(190)}👩‍👩‍👧‍👦${"d".repeat(30)}`,
+      `${"c".repeat(190)}…`,
+    ],
+    [
+      "not split at a surrogate",
+      `${"c".repeat(198)}😀😀`,
+      `${"c".repeat(198)}…`,
+    ],
+  ])("an emoji at the cut is %s", (_, title, expected) => {
+    const stored = CARD_LINK_PATTERN.exec(
+      formatCardLinkToken(title, ID_A)
+    )?.[1];
+    expect(stored).toBe(expected);
+    expect(stored?.isWellFormed()).toBe(true);
   });
 
   test("a short title is kept", () => {

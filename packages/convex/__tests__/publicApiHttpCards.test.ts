@@ -766,6 +766,47 @@ describe("publicApiHttp card endpoints", () => {
     );
   });
 
+  test("cardByIdV1 PATCH returns the edited card with its links", async () => {
+    const links = {
+      backlinks: [],
+      backlinksTruncated: false,
+      links: [{ id: "card_2", missing: false, title: "B", type: "text" }],
+      linksTruncated: false,
+    };
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      _id: "card_1",
+      aiTags: [],
+      content: "See [[B|teak:card_2]]",
+      createdAt: 1,
+      isFavorited: false,
+      tags: [],
+      type: "text",
+      updatedAt: 2,
+    });
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" })
+      .mockResolvedValueOnce(links);
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "See [[B|teak:card_2]]" }),
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "card_1", ...links });
+    expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
+      "card/cardLinks:getCardLinksForUser"
+    );
+  });
+
   test("cardByIdV1 GET still returns the card when its links can't load", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce("card_1")

@@ -15,6 +15,9 @@ const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;
 /** A closing fence has nothing after it: "```js" inside a block is code. */
 const CLOSING_FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const BACKTICK_RUN_REGEX = /`+/g;
+const LEADING_SPACE_REGEX = /^[ \t]+/;
+const LIST_ITEM_REGEX = /^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)/;
+const CODE_INDENT = 4;
 const ELLIPSIS = "…";
 const FALLBACK_TITLE = "Card";
 
@@ -102,6 +105,9 @@ const maskCode = (markdown: string): string => {
   let fence: string | null = null;
   let previousBlank = true;
   let inIndented = false;
+  // Where the open list item's text starts; its lines indented less than
+  // four more than that are the item's paragraphs, not code.
+  let listContent = 0;
   return lines
     .map((line) => {
       if (fence) {
@@ -121,8 +127,22 @@ const maskCode = (markdown: string): string => {
         return blank(line);
       }
       const isBlank = line.trim() === "";
-      const indented = /^( {4}|\t)/.test(line);
-      inIndented = indented && !isBlank && (inIndented || previousBlank);
+      const expanded = line.replace(LEADING_SPACE_REGEX, (space) =>
+        space.replaceAll("\t", "    ")
+      );
+      const columns = expanded.length - expanded.trimStart().length;
+      inIndented =
+        !isBlank &&
+        columns >= listContent + CODE_INDENT &&
+        (inIndented || previousBlank);
+      if (!(isBlank || inIndented)) {
+        const item = LIST_ITEM_REGEX.exec(expanded);
+        if (item && item[1].length < listContent + CODE_INDENT) {
+          listContent = item[0].length + (item[3] ? 0 : 1);
+        } else if (previousBlank && columns < listContent) {
+          listContent = 0;
+        }
+      }
       previousBlank = isBlank;
       return inIndented ? blank(line) : maskCodeSpans(line);
     })

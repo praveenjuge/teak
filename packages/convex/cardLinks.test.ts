@@ -295,6 +295,24 @@ describe("suggestions", () => {
     ]);
   });
 
+  test("an archived card is offered when its text matches, but not as a recent card", async () => {
+    const { insert, owner } = await setup();
+    const archived = await insert({
+      content: "Garden archive",
+      isArchived: true,
+    });
+    expect(
+      (
+        await owner.query(api.cards.searchCardLinkSuggestions, {
+          query: "garden",
+        })
+      ).map((result: { id: string }) => result.id)
+    ).toEqual([archived]);
+    expect(
+      await owner.query(api.cards.searchCardLinkSuggestions, { query: "" })
+    ).toEqual([]);
+  });
+
   test("an empty query offers recent cards", async () => {
     const { insert, owner } = await setup();
     const older = await insert({ content: "Older" });
@@ -419,6 +437,50 @@ describe("backlinks", () => {
     });
     expect(result.backlinks).toHaveLength(50);
     expect(result.hasMore).toBe(true);
+  });
+
+  test("the API returns 100 links and 100 backlinks and says when there are more", async () => {
+    const { insert, runScheduled, setContent, t } = await setup();
+    const hub = await insert({ content: "Hub" });
+    const targets = await t.run(async (ctx) => {
+      const ids: Id<"cards">[] = [];
+      for (let index = 0; index < 101; index++) {
+        ids.push(
+          await ctx.db.insert("cards", {
+            content: `T${index}`,
+            createdAt: index,
+            shuffleKey: 0.5,
+            type: "text",
+            updatedAt: index,
+            userId: "owner",
+          })
+        );
+        const source = await ctx.db.insert("cards", {
+          content: link("Hub", hub),
+          createdAt: index,
+          shuffleKey: 0.5,
+          type: "text",
+          updatedAt: index,
+          userId: "owner",
+        });
+        await syncCardSearchDocumentHandler(ctx, source);
+      }
+      return ids;
+    });
+    await runScheduled();
+    await setContent(hub, targets.map((id) => link("T", id)).join(" "));
+
+    const result = await t.query(
+      internal["card/cardLinks"].getCardLinksForUser,
+      { cardId: hub, userId: "owner" }
+    );
+    expect(result.links).toHaveLength(100);
+    expect(result.links.map((target: { id: string }) => target.id)).toEqual(
+      targets.slice(0, 100)
+    );
+    expect(result.linksTruncated).toBe(true);
+    expect(result.backlinks).toHaveLength(100);
+    expect(result.backlinksTruncated).toBe(true);
   });
 
   test("another user's card shows nothing", async () => {

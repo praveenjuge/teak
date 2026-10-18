@@ -1,7 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CardLinkMenu } from "../CardLinkMenu";
+import { CardLinkMenu, type CardLinkMenuState } from "../CardLinkMenu";
 import { cardLinkPillState, MISSING_CARD_LABEL } from "../CardLinkPill";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "http://localhost:3000" });
+}
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const noop = () => undefined;
 
@@ -66,6 +74,84 @@ describe("CardLinkMenu", () => {
         />
       )
     ).toContain("Couldn&#x27;t search cards");
+  });
+});
+
+describe("CardLinkMenu in the editor", () => {
+  const ready: CardLinkMenuState = {
+    items: [
+      { id: "a", title: "Garden plan", type: "text" },
+      { id: "b", title: "Garage sale", type: "link" },
+    ],
+    status: "ready",
+  };
+  let root: Root | undefined;
+  let editor: HTMLElement;
+
+  afterEach(async () => {
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+  });
+
+  async function render(
+    selected: number,
+    onChoose: (item: { id: string }) => void = noop
+  ) {
+    if (!root) {
+      editor = document.createElement("div");
+      const container = document.createElement("div");
+      document.body.append(editor, container);
+      root = createRoot(container);
+    }
+    await act(() =>
+      root?.render(
+        <CardLinkMenu
+          anchor={{ dom: editor }}
+          onChoose={onChoose}
+          query="gar"
+          selected={selected}
+          state={ready}
+        />
+      )
+    );
+  }
+
+  const optionId = (name: string) =>
+    [...document.querySelectorAll("[role=option]")].find((option) =>
+      option.textContent?.includes(name)
+    )?.id;
+
+  test("clicking an option chooses that card", async () => {
+    const onChoose = mock();
+    await render(0, onChoose);
+    await act(() => {
+      document
+        .querySelector<HTMLElement>(`[id="${optionId("Garage sale")}"]`)
+        ?.click();
+    });
+    expect(onChoose).toHaveBeenCalledTimes(1);
+    expect(onChoose.mock.calls[0]?.[0]).toMatchObject({ id: "b" });
+  });
+
+  test("the editor points at the selected option, and stops when the menu closes", async () => {
+    await render(0);
+    expect(editor.getAttribute("aria-activedescendant")).toBe(
+      optionId("Garden plan")
+    );
+    expect(editor.getAttribute("aria-controls")).toBe(
+      document.querySelector("[role=listbox]")?.id
+    );
+
+    await render(1);
+    expect(editor.getAttribute("aria-activedescendant")).toBe(
+      optionId("Garage sale")
+    );
+
+    await act(() => root?.unmount());
+    root = undefined;
+    expect(editor.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(editor.hasAttribute("aria-controls")).toBe(false);
   });
 });
 

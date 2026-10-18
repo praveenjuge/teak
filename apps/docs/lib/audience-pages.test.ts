@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
   AUDIENCE_PAGE_LIST,
@@ -12,6 +12,35 @@ import {
 import { DEMO_COLUMNS } from "./home-demo-cards";
 
 const pagesDir = path.join(import.meta.dir, "..", "pages");
+const docsDir = path.join(import.meta.dir, "..", "content", "docs");
+
+/** Docs pages by URL path; `(group)` folders don't appear in URLs. */
+const docsFiles = new Map(
+  readdirSync(docsDir, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".mdx"))
+    .map((file) => [
+      `/docs/${file
+        .replace(/\.mdx$/, "")
+        .split(path.sep)
+        .filter((part) => !part.startsWith("("))
+        .join("/")}`,
+      path.join(docsDir, file),
+    ])
+);
+
+/** Heading anchors as the docs site writes them, for plain-word headings. */
+const headingAnchors = (file: string) =>
+  readFileSync(file, "utf8")
+    .split("\n")
+    .filter((line) => /^#{1,6} /.test(line))
+    .map((line) =>
+      line
+        .replace(/^#+ /, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s-]/gu, "")
+        .replace(/\s/g, "-")
+    );
 const demoCardIds = new Set(DEMO_COLUMNS.flat().map((card) => card.id));
 
 // Products these pages must never name: no comparisons, only Teak's own words.
@@ -75,6 +104,12 @@ describe("audience pages", () => {
     expect(existsSync(path.join(pagesDir, `${slug}.astro`))).toBe(true);
   });
 
+  test.each(pageCases)("%s's page file renders its own copy", (slug) => {
+    const source = readFileSync(path.join(pagesDir, `${slug}.astro`), "utf8");
+    const key = /^[a-z]+$/.test(slug) ? `.${slug}` : `["${slug}"]`;
+    expect(source).toContain(`page={AUDIENCE_PAGES${key}}`);
+  });
+
   test("the page for saving without filing lives at /save-without-filing", () => {
     expect(AUDIENCE_SLUGS).toContain("save-without-filing");
     expect(AUDIENCE_PAGES["save-without-filing"].h1).toBe(
@@ -125,9 +160,17 @@ describe("audience pages", () => {
     }
   );
 
-  test.each(pageCases)("%s links its guide inside the docs", (_, page) => {
-    expect(page.guide.href).toStartWith("/docs/");
-  });
+  test.each(pageCases)(
+    "%s links a docs page and heading that exist",
+    (_, page) => {
+      const [pathname, anchor] = page.guide.href.split("#");
+      const file = docsFiles.get(pathname);
+      expect(file).toBeDefined();
+      if (file && anchor) {
+        expect(headingAnchors(file)).toContain(anchor);
+      }
+    }
+  );
 });
 
 describe("inline code in page copy", () => {

@@ -600,7 +600,9 @@ const toolConfigs: Record<string, ToolRun> = {
     }),
     summary: (payload, input) => {
       const backlinks = count(payload, "backlinks");
-      return `Card ${input.cardId} links to ${countLabel(count(payload, "links"), "card")}; ${countLabel(backlinks, "card")} ${backlinks === 1 ? "links" : "link"} to it`;
+      const more = (truncated: unknown) =>
+        truncated === true ? " (truncated)" : "";
+      return `Card ${input.cardId} links to ${countLabel(count(payload, "links"), "card")}${more(payload.linksTruncated)}; ${countLabel(backlinks, "card")}${more(payload.backlinksTruncated)} ${backlinks === 1 ? "links" : "link"} to it`;
     },
   }),
   teak_v1_get_card_content: defineTool({

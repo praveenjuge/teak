@@ -680,7 +680,7 @@ describe("Convex MCP endpoint", () => {
       executor
     );
     expect(result.content[0]).toMatchObject({
-      text: "Card card_1 links to 0 cards; 1 card links to it",
+      text: "Card card_1 links to 0 cards (truncated); 1 card (truncated) links to it",
     });
     expect(result.structuredContent).toMatchObject({
       backlinksTruncated: true,

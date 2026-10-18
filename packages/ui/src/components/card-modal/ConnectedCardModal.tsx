@@ -89,9 +89,10 @@ export function ConnectedCardModal({
     onOpenCard,
     value: card?.type === "text" ? (getCurrentValue("content") ?? "") : "",
   });
+  // Only a server-confirmed card: an optimistic one has no real id yet.
   const backlinks = useQuery(
     api.cards.getCardBacklinks,
-    canHydrateCard && card?._id ? { cardId: card._id } : "skip"
+    canHydrateCard && hydratedCard?._id ? { cardId: hydratedCard._id } : "skip"
   );
 
   const linkThumbnail = useLinkThumbnail(card?._id);
