@@ -371,6 +371,32 @@ describe("backlinks", () => {
     });
   });
 
+  test("a note tagged secret or hidden never shows as a backlink", async () => {
+    const { insert, owner, setContent, t } = await setup();
+    const hub = await insert({ content: "Hub" });
+    const visible = await insert();
+    const diary = await insert({ isHidden: true, tags: ["secret"] });
+    await setContent(visible, `Plan ${link("Hub", hub)}`);
+    await setContent(diary, `Diary ${link("Hub", hub)}`);
+
+    expect(
+      await owner.query(api.cards.getCardBacklinks, { cardId: hub })
+    ).toEqual({
+      backlinks: [{ id: visible, title: "Plan Hub", type: "text" }],
+      hasMore: false,
+    });
+    const fromApi = await t.query(
+      internal["card/cardLinks"].getCardLinksForUser,
+      {
+        cardId: hub,
+        userId: "owner",
+      }
+    );
+    expect(fromApi.backlinks.map((card: { id: string }) => card.id)).toEqual([
+      visible,
+    ]);
+  });
+
   test("shows 50 and says when there are more", async () => {
     const { insert, owner, runScheduled, t } = await setup();
     const hub = await insert({ content: "Hub" });

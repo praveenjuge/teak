@@ -268,7 +268,7 @@ const cardProperties = {
   },
   backlinks: {
     description:
-      "Your cards that link to this card, most recently updated first, at most 100; cards in Trash are left out. Only on single-card responses.",
+      "Your cards that link to this card, most recently updated first, at most 100; cards in Trash and hidden cards are left out. Only on single-card responses.",
     items: { $ref: "#/components/schemas/CardLinkRef" },
     type: "array",
   },

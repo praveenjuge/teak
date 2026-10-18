@@ -488,7 +488,8 @@ done, include the card's links:
 `links` lists the cards this card links to, in the order they appear in
 `content`; a link to a card in Trash, a deleted card or another account's card
 is `missing`, with a null `title` and `type`. `backlinks` lists your cards that
-link to this one, most recently updated first, leaving out cards in Trash. Each
+link to this one, most recently updated first, leaving out cards in Trash and
+hidden cards. Each
 holds at most 100 entries, and `linksTruncated` or `backlinksTruncated` is
 `true` when there are more. Lists, search and the changes feed leave all four
 fields out; read a card by its id when you need them.

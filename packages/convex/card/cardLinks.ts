@@ -319,7 +319,7 @@ export interface CardLinks {
 
 /**
  * Cards linking to `cardId`, most recently updated first, from the owner's
- * cards that aren't in Trash. One more than `limit` tells the caller there
+ * cards that aren't in Trash or hidden. One more than `limit` tells the caller there
  * are more.
  */
 const loadBacklinks = async (
@@ -341,7 +341,10 @@ const loadBacklinks = async (
   const visible = sources
     .filter(
       (card): card is Doc<"cards"> =>
-        card !== null && card.userId === userId && !card.isDeleted
+        card !== null &&
+        card.userId === userId &&
+        !card.isDeleted &&
+        !isCardHidden(card)
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return {
