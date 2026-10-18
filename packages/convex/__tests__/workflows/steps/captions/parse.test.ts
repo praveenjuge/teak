@@ -38,6 +38,12 @@ describe("parseWebVtt", () => {
     expect(parseWebVtt(file)).toEqual(["Hello & welcome.", "Today: leaves <3"]);
   });
 
+  test("tags nested to rebuild a tag leave no tag behind", () => {
+    const [cue] = parseWebVtt(vtt("<scr<b>ipt>Nested</b> <<i>c>tags</c>"));
+    expect(cue).not.toContain("<");
+    expect(cue).toContain("Nested");
+  });
+
   test("refuses a body that isn't WebVTT", () => {
     expect(() => parseWebVtt("<html>Sorry</html>")).toThrow("not_webvtt");
   });

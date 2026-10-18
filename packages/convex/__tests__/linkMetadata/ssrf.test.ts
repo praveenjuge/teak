@@ -256,6 +256,20 @@ describe("safeFetch", () => {
     expect(await response.text()).toBe("ok");
   });
 
+  test("a caller's hop limit replaces the 30 second one, body included", async () => {
+    const signals: AbortSignal[] = [];
+    const pinned = (_url: string, _addresses: string[], init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      return Promise.resolve(new Response("ok"));
+    };
+
+    await safeFetch("https://8.8.8.8/a", resolveUnused, {}, pinned, 0, 20);
+    await safeFetch("https://8.8.8.8/b", resolveUnused, {}, pinned, 0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, false]);
+  });
+
   test("reports the URL of the hop that answered after redirects", async () => {
     globalThis.fetch = ((input: RequestInfo | URL) =>
       Promise.resolve(

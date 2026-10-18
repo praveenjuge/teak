@@ -4,7 +4,7 @@ import { FILES_TRANSCRIPT_MAX_BYTES } from "@teak/files-protocol";
 // dropped, the repeats of rolling auto-captions collapsed, and the whole
 // cut at the transcript cap on a word boundary.
 
-const TIMING_REGEX = /-->/;
+const TIMING_ARROW = "-->";
 const TAG_REGEX = /<[^>]*>/g;
 const WHITESPACE_REGEX = /\s+/g;
 const ENTITIES: Record<string, string> = {
@@ -19,10 +19,19 @@ const ENTITIES: Record<string, string> = {
 };
 const ENTITY_REGEX = /&(?:amp|gt|lrm|lt|nbsp|quot|rlm|#39);/g;
 
+/** Removes tags until none are left, so a nested one can't reassemble. */
+const stripTags = (text: string): string => {
+  let previous: string;
+  let current = text;
+  do {
+    previous = current;
+    current = current.replace(TAG_REGEX, "");
+  } while (current !== previous);
+  return current;
+};
+
 const cueText = (lines: string[]): string =>
-  lines
-    .join(" ")
-    .replace(TAG_REGEX, "")
+  stripTags(lines.join(" "))
     .replace(ENTITY_REGEX, (entity) => ENTITIES[entity] ?? entity)
     .replace(WHITESPACE_REGEX, " ")
     .trim();
@@ -38,7 +47,7 @@ export const parseWebVtt = (vtt: string): string[] => {
   // blocks have no timing line.
   for (const block of body.split(/\r?\n\s*\r?\n/)) {
     const lines = block.split(/\r?\n/);
-    const timing = lines.findIndex((line) => TIMING_REGEX.test(line));
+    const timing = lines.findIndex((line) => line.includes(TIMING_ARROW));
     if (timing === -1) {
       continue;
     }

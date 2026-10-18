@@ -50,17 +50,21 @@ export const downloadEpisodeToR2 = async (
   deps: EpisodeDownloadDeps,
   maxBytes = FILES_UPLOAD_MAX_BYTES
 ): Promise<EpisodeDownload> => {
+  const timeoutMs = deps.timeoutMs ?? DOWNLOAD_TIMEOUT_MS;
   let response: Response;
   try {
+    // The hop limit runs while the body streams, so it is the whole
+    // download's limit rather than safeFetch's 30 seconds.
     ({ response } = await safeFetch(
       url,
       deps.resolveDns,
       {
         headers: { accept: "audio/*, video/mp4", "user-agent": USER_AGENT },
-        signal: AbortSignal.timeout(deps.timeoutMs ?? DOWNLOAD_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       },
       deps.pinnedFetch,
-      EPISODE_MAX_REDIRECTS
+      EPISODE_MAX_REDIRECTS,
+      timeoutMs
     ));
   } catch {
     return { reason: "blocked", stored: false };

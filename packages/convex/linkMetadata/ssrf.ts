@@ -357,7 +357,12 @@ export const safeFetch = async (
    * Hops to follow; every one is checked. Podcast audio passes more, for the
    * tracking redirects hosts put in front of an episode.
    */
-  maxRedirects = MAX_REDIRECTS
+  maxRedirects = MAX_REDIRECTS,
+  /**
+   * Each hop's time limit. It also bounds reading the body, so podcast audio
+   * passes its whole download's limit.
+   */
+  hopTimeoutMs = SAFE_FETCH_TIMEOUT_MS
 ): Promise<{ finalUrl: string; response: Response }> => {
   const request: PinnedFetch =
     pinnedFetch ?? ((url, _addresses, requestInit) => fetch(url, requestInit));
@@ -365,7 +370,7 @@ export const safeFetch = async (
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const { addresses, url } = await resolveSafeUrl(currentUrl, resolveDns);
-    const timeoutSignal = AbortSignal.timeout(SAFE_FETCH_TIMEOUT_MS);
+    const timeoutSignal = AbortSignal.timeout(hopTimeoutMs);
     const signal = init.signal
       ? AbortSignal.any([init.signal, timeoutSignal])
       : timeoutSignal;
