@@ -55,3 +55,25 @@ test("[[ links a card: the pill follows a rename, opens the card, shows Missing 
     screen.getByRole("dialog").getByText("Missing card")
   ).toBeVisible();
 });
+
+test("[[ with no matching card: Enter types a new line and closes the list", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const noteId = await library.create(generateTestContent("No match note"));
+  const note = await library.open(noteId);
+  await getBlockEditor(note);
+  await goToEnd(browser, DIALOG_EDITOR);
+  await browser.keyboard.type(" [[zzqx-nomatch");
+  const menu = screen.getByRole("listbox", "Link a card");
+  await expect(screen.getByText("No matching cards")).toBeVisible({
+    timeout: 15_000,
+  });
+  await browser.keyboard.press("Enter");
+  await expect(menu).toBeHidden();
+  await browser.keyboard.type("next line");
+  await expect
+    .poll(() => library.read(noteId))
+    .toMatch(/zzqx-nomatch\n\nnext line$/);
+});
