@@ -658,6 +658,24 @@ describe("enrichLinkCategory", () => {
     }
   );
 
+  test.each([
+    [2019, "2019"],
+    [1_700_000_000_000, undefined],
+  ])("a numeric datePublished of %p shows as %p", async (published, shown) => {
+    const result = await enrichLinkCategory(
+      linkCard({ url: "https://site.example/book" }),
+      { category: "book", confidence: 0.9 },
+      {
+        structuredData: {
+          entities: [
+            { "@type": "Book", name: "Lamps", datePublished: published },
+          ],
+        },
+      }
+    );
+    expect(factValue(result, "Published")).toBe(shown);
+  });
+
   test("covers full GitHub enrichment", async () => {
     const card = linkCard({
       url: "https://github.com/a/b",

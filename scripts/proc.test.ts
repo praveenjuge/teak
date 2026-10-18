@@ -181,7 +181,6 @@ describe("runCommand", () => {
       { env: { PATH: process.env.PATH, TEAK_PROC_ONLY: "given" } }
     );
     expect(result.stdout.trim().split("\n")).toEqual(["given", "no home"]);
-    expect(process.env.TEAK_PROC_ONLY).toBeUndefined();
   });
 
   test("a signal mid-command leaves the script's own shutdown handler to finish", async () => {

@@ -200,10 +200,15 @@ const ratingCount = (entity: JsonLdEntity): string | undefined =>
       prop(entity.aggregateRating, "reviewCount")
   );
 
-const jsonLdDate = (value: unknown): string | undefined =>
-  typeof value === "string" || typeof value === "number"
-    ? formatDate(value)
-    : undefined;
+const isYear = (value: number) =>
+  Number.isInteger(value) && value >= 1000 && value <= 9999;
+
+const jsonLdDate = (value: unknown): string | undefined => {
+  if (typeof value === "number") {
+    return isYear(value) ? String(value) : undefined;
+  }
+  return typeof value === "string" ? formatDate(value) : undefined;
+};
 
 const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
   hostname === domain || hostname.endsWith(`.${domain}`);

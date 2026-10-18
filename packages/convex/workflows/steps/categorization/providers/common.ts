@@ -103,15 +103,12 @@ export const formatRating = (value?: string): string | undefined => {
 
 const ISO_DAY_REGEX = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
 
-export const formatDate = (
-  value: string | number | undefined
-): string | undefined => {
+export const formatDate = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
-  const source = typeof value === "string" ? value.trim() : value;
-  const isoDay =
-    typeof source === "string" ? ISO_DAY_REGEX.exec(source)?.[1] : undefined;
+  const source = value.trim();
+  const isoDay = ISO_DAY_REGEX.exec(source)?.[1];
   const date = new Date(isoDay ?? source);
   if (Number.isNaN(date.getTime())) {
     return undefined;
