@@ -50,24 +50,26 @@ const AUDIO_MIME_TYPES = new Map([
   ["wav", "audio/wav"],
 ]);
 
-/** `value` as an absolute http(s) URL (relative to `base`), or undefined. */
+const parseUrl = (value: string, base?: string): URL | null => {
+  try {
+    return new URL(value, base);
+  } catch {
+    return null;
+  }
+};
+
 const httpUrl = (value: unknown, base?: string): string | undefined => {
   if (typeof value !== "string" || !value.trim()) {
     return;
   }
-  try {
-    const url = new URL(value.trim(), base);
-    return url.protocol === "https:" || url.protocol === "http:"
-      ? url.href
-      : undefined;
-  } catch {}
+  const url = parseUrl(value.trim(), base);
+  return url && (url.protocol === "https:" || url.protocol === "http:")
+    ? url.href
+    : undefined;
 };
 
-const hostOf = (url: string): string | undefined => {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {}
-};
+const hostOf = (url: string): string | undefined =>
+  parseUrl(url)?.hostname.toLowerCase();
 
 /** The page's own audio: `og:audio:secure_url`, then `og:audio`. */
 export const findPageAudio = (rawMap: RawSelectorMap): Enclosure | null => {
@@ -209,11 +211,12 @@ const comparableUrl = (url: string | undefined): string | undefined => {
   if (!url) {
     return;
   }
-  try {
-    const parsed = new URL(url.trim());
-    const path = parsed.pathname.replace(/\/+$/, "");
-    return `${parsed.hostname.toLowerCase()}${path}${parsed.search}`;
-  } catch {}
+  const parsed = parseUrl(url.trim());
+  if (!parsed) {
+    return;
+  }
+  const path = parsed.pathname.replace(/\/+$/, "");
+  return `${parsed.hostname.toLowerCase()}${path}${parsed.search}`;
 };
 
 const comparableTitle = (title: string | undefined) =>

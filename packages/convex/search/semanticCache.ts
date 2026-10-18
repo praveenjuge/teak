@@ -10,17 +10,8 @@ import {
 import { SEMANTIC_TOP_K } from "../shared/search/semantic";
 import { sha256Hex } from "../storage/r2Keys";
 
-/**
- * A search's meaning matches, kept briefly so every page, re-render and
- * surface of one search reads the same ranking and the vector service is
- * asked once. Search queries only read it; actions fill it.
- */
-
-/** How long one search's meaning matches are reused. */
 export const SEMANTIC_CACHE_TTL_MS = 10 * 60 * 1000;
-/** How long a `like:` card without a vector yet is remembered as pending. */
 export const SEMANTIC_PENDING_TTL_MS = 15 * 1000;
-/** Expired rows one cleanup run removes before it schedules the next. */
 const CLEANUP_BATCH = 500;
 
 export const semanticRankingValidator = v.array(
@@ -37,11 +28,6 @@ export interface SemanticEntry {
   status: "ok" | "pending";
 }
 
-/**
- * The cache key for a search's embedded text: its hash with the embedding
- * version, so the table never holds what someone searched for and a new
- * model never reuses an old ranking.
- */
 export const semanticSearchKey = (text: string): Promise<string> =>
   sha256Hex(`${CARD_EMBEDDING_VERSION}\n${text}`);
 
@@ -53,12 +39,6 @@ const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
     )
     .first();
 
-/**
- * The cached entry for a search (by its `SemanticRequest.cacheText`), or
- * null. Queries read an entry until the cleanup removes it, so a page of
- * results never changes when the clock passes `expiresAt`; actions refresh
- * an expired entry.
- */
 export const readSemanticEntry = async (
   ctx: QueryCtx,
   userId: string,
@@ -74,7 +54,6 @@ export const readSemanticEntry = async (
     : null;
 };
 
-/** The cached ranking for a search, or null (none, or still pending). */
 export const readSemanticRanking = async (
   ctx: QueryCtx,
   userId: string,
@@ -99,9 +78,7 @@ export const storeRanking = internalMutation({
   args: {
     userId: v.string(),
     key: v.string(),
-    /** Vectorize's matches; ids that are not this user's cards are dropped. */
     matches: v.array(v.object({ id: v.string(), score: v.number() })),
-    /** A `like:` card with no vector yet: remembered briefly, no ranking. */
     pending: v.optional(v.boolean()),
   },
   returns: semanticRankingValidator,
@@ -133,7 +110,6 @@ export const storeRanking = internalMutation({
   },
 });
 
-/** Cron: removes expired entries, a batch at a time. */
 export const cleanupExpired = internalMutation({
   args: {},
   returns: v.number(),

@@ -1,33 +1,20 @@
-export type ErrorCode =
-  | "bad_request"
-  | "too_large"
-  | "unsupported"
-  | "timeout"
-  | "busy"
-  | "internal"
-  | "not_found";
-
-const STATUS: Record<ErrorCode, number> = {
-  bad_request: 400,
-  not_found: 404,
-  too_large: 413,
-  unsupported: 415,
-  timeout: 422,
-  internal: 500,
-  busy: 503,
-};
+import {
+  RENDERER_ERROR_STATUS,
+  RENDERER_MAX_INPUT_BYTES,
+  type RendererErrorCode,
+} from "./protocol";
 
 const MAX_MESSAGE_CHARS = 500;
 const FILE_PATH = /(?:file:)?\/[^\s:]+/g;
 
 export class JobError extends Error {
-  readonly code: ErrorCode;
+  readonly code: RendererErrorCode;
   readonly status: number;
 
-  constructor(code: ErrorCode, message: string) {
+  constructor(code: RendererErrorCode, message: string) {
     super(message.trim().slice(0, MAX_MESSAGE_CHARS) || code);
     this.code = code;
-    this.status = STATUS[code];
+    this.status = RENDERER_ERROR_STATUS[code];
   }
 }
 
@@ -38,7 +25,10 @@ export const unsupported = (message: string) =>
 export const timedOut = () =>
   new JobError("timeout", "The job ran past its time limit");
 export const tooLarge = () =>
-  new JobError("too_large", "The file is larger than 100 MiB");
+  new JobError(
+    "too_large",
+    `The file is larger than ${String(RENDERER_MAX_INPUT_BYTES / 1024 / 1024)} MiB`
+  );
 
 export function toolFailure(
   result: { timedOut: boolean; stderr: string },
@@ -48,8 +38,6 @@ export function toolFailure(
     return timedOut();
   }
   const lines = result.stderr.trim().split("\n");
-  // Tools name the spooled file by its full path; the caller only knows it
-  // as the input.
   const detail = lines.at(-1)?.replace(FILE_PATH, "input").trim();
   return unsupported(detail ? `${what}: ${detail}` : what);
 }

@@ -43,9 +43,6 @@ import {
 } from "./files";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
-// The AI summary, tags and transcript for one card. The card-processing
-// workflow and the AI backfill queue both run it.
-
 interface LinkPreviewFields {
   author?: string;
   description?: string;
@@ -55,12 +52,6 @@ interface LinkPreviewFields {
   title?: string;
 }
 
-/**
- * The preview's fields, then the site's own summary (a Wikipedia extract or
- * an arXiv abstract), then what the video says, each cut so the whole
- * prompt, with its instructions and the URL, fits the model's
- * {@link MAX_AI_METADATA_INPUT_CHARS} untruncated.
- */
 export const buildLinkContentParts = (
   card: {
     content?: string;
@@ -96,7 +87,6 @@ export const buildLinkContentParts = (
       contentParts.push(`URL: ${urlFallback}`);
     }
   }
-  // The prompt wraps the content in instructions and the URL.
   const promptOverhead = buildLinkMetadataPrompt(
     "",
     card.url || card.content
@@ -109,7 +99,6 @@ export const buildLinkContentParts = (
     if (!trimmed) {
       continue;
     }
-    // Each part is joined with a newline.
     const used = contentParts.reduce(
       (total, part) => total + part.length + 1,
       0
@@ -126,11 +115,6 @@ export const buildLinkContentParts = (
 const SUMMARY_LABEL = "Summary: ";
 const TRANSCRIPT_LABEL = "Transcript: ";
 
-/**
- * The extract or abstract categorization kept from the link's site, read
- * back from R2 when the details were archived there. Undefined when there
- * is none or it can't be read.
- */
 const linkSiteSummary = async (
   job: CardJob,
   loaded: LoadedCard
@@ -146,7 +130,7 @@ const linkSiteSummary = async (
       metadata: { linkCategory },
       userId: card.userId,
     });
-    const raw = hydrated.metadata?.linkCategory?.raw as
+    const raw = hydrated.metadata.linkCategory?.raw as
       | { remote?: { sourceUrl?: unknown; summary?: unknown } }
       | undefined;
     // Details a site gave for the link's earlier URL describe another page.
@@ -163,18 +147,12 @@ const linkSiteSummary = async (
   }
 };
 
-/** Facts about what the step stored, never the text itself. */
 export interface MetadataResult {
   aiTagsCount: number;
-  /** The type the metadata was generated for, once stored. */
   cardType?: string;
   confidence: number;
   hasSummary: boolean;
   hasTranscript: boolean;
-  /**
-   * `completed`: stored. `deferred`: left for the AI backfill. `skipped`:
-   * nothing to do (card missing, AI turned off for its owner).
-   */
   mode: "completed" | "deferred" | "skipped";
 }
 
@@ -187,33 +165,17 @@ const nothing = (mode: MetadataResult["mode"]): MetadataResult => ({
 });
 
 export interface MetadataOptions {
-  /**
-   * What Workers AI capacity errors do: `retry` rethrows them so the step
-   * (or queue message) retries with a delay; `defer` leaves the card for
-   * the backfill, as every other deferred error does.
-   */
   capacity: "defer" | "retry";
-  /**
-   * The step's last attempt: a scan whose pages can't be read now (a busy
-   * renderer) is described without them and left unread, instead of failing
-   * the card's metadata.
-   */
   lastAttempt?: boolean;
-  /** The stage was marked in progress; a deferral puts it back to pending. */
   restorePendingOnDefer: boolean;
 }
 
 interface Generated {
-  /** Text read from the image, video thumbnail or scan, when it has any. */
   aiOcrText?: string;
   aiSummary: string;
   aiTags: string[];
   aiTranscript?: string;
   confidence: number;
-  /**
-   * The card has been read for text (or has none): the image op answered,
-   * or a PDF's text layer was checked and a scan's pages read.
-   */
   ocrChecked?: boolean;
   visualStyles?: string[];
 }
@@ -287,11 +249,6 @@ const paletteText = (card: CardDoc): string => {
   return content;
 };
 
-/**
- * A scan's text, or `null` on the last attempt when its pages can't be read
- * now (a busy renderer). A busy Workers AI still throws, for the step's
- * capacity handling.
- */
 const readScan = async (
   job: CardJob,
   sourceKey: string,
@@ -433,9 +390,6 @@ const generateForType = async (
             await keepDocumentText(job, loaded, extracted);
           }
           if (format.kind === "pdf") {
-            // A scan's first pages are read for search, the summary and
-            // the tags. Every other PDF counts as checked too, so the
-            // backfill skips the ones with a text layer.
             const scanText = isScannedPdf(extracted)
               ? await readScan(job, card.fileKey, options)
               : "";
@@ -475,11 +429,6 @@ const generateForType = async (
   }
 };
 
-/**
- * Completes the stage with no tags or summary. Text read from the card, and
- * the mark that it was read, are kept: a scan the model can't describe is
- * still found by its words.
- */
 const completeWithoutAi = async (
   job: CardJob,
   read: Pick<Generated, "aiOcrText" | "ocrChecked"> = {}
@@ -498,11 +447,6 @@ const completeWithoutAi = async (
   return nothing("skipped");
 };
 
-/**
- * Leaves metadata incomplete for the bounded AI backfill to retry, with the
- * stage back to pending as the first run left it. Only a stage this run
- * still has in progress goes back: one that finished stays finished.
- */
 const deferToBackfill = async (
   job: CardJob,
   options: MetadataOptions
@@ -521,7 +465,6 @@ const deferToBackfill = async (
   return nothing("deferred");
 };
 
-/** Generates and stores a card's AI metadata. */
 export const generateCardMetadata = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,

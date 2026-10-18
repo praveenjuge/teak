@@ -32,9 +32,21 @@ describe("worktree-env", () => {
       convex: 4310,
       convexSite: 4311,
       emulator: 4320,
+      emulatorUpstream: 4321,
+      filesWorker: 4322,
+      filesWorkerInspector: 4323,
       siteUrl: "http://localhost:4300",
     });
-    expect(new Set(stackPorts(ports)).size).toBe(7);
+    expect(new Set(stackPorts(ports)).size).toBe(9);
+  });
+
+  test("a slot reserves the emulator upstream and the Files Worker ports", () => {
+    expect(stackPorts(slotPorts(3))).toEqual(
+      expect.arrayContaining([4321, 4322, 4323])
+    );
+    expect(stackPorts(mainWorktreePorts())).toEqual(
+      expect.arrayContaining([4101, 4102, 4103])
+    );
   });
 
   test("slots that reuse main or macOS AirPlay ports are never usable", () => {

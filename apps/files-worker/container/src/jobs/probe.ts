@@ -27,7 +27,6 @@ export interface FfprobeOutput {
 export interface ProbeResult {
   audio: { index: number } | null;
   facts: MediaFacts;
-  /** The first real video stream (cover art excluded). */
   video: { codedHeight: number; codedWidth: number; index: number } | null;
 }
 

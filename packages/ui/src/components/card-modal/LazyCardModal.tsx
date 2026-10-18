@@ -15,13 +15,6 @@ import {
   cardModalFrameClass,
 } from "./cardModalFrame";
 
-/**
- * `ConnectedCardModal`, loaded on demand. It mounts the first time a card
- * opens and stays mounted after, so later opens and closes behave as before.
- * Opened before its code arrives, it shows the same dialog frame at once and
- * fills in when the code lands. Text cards open in the rich editor, so the
- * editor loads with it: the dialog never shows the editor's plain stand-in.
- */
 export const LazyConnectedCardModal = onDemand(
   () =>
     Promise.all([
@@ -37,11 +30,6 @@ export const LazyConnectedCardModal = onDemand(
   )
 );
 
-/**
- * Starts loading the card dialog. The grid calls it once cards are on
- * screen and again when someone points at or presses a card, so a quick
- * click finds it ready.
- */
 export const preloadCardModal = LazyConnectedCardModal.preload;
 
 function CardModalLoading({

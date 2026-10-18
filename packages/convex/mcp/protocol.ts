@@ -1,9 +1,3 @@
-// The MCP protocol answers that need no Convex: the tool list, the
-// initialize result and the JSON-RPC envelopes. Pure (no Convex server or
-// zod imports), so the Files Worker answers `initialize`, `ping`,
-// `notifications/*` and `tools/list` at the edge with exactly what
-// mcp/httpServer.ts answers (apps/files-worker/src/mcpEdge.ts).
-
 import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
@@ -125,7 +119,6 @@ const cardFilterProperties = {
   },
 };
 
-// MCP tool annotations let clients decide when to ask before a call.
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -652,7 +645,6 @@ export const jsonRpcError = (
   error: { code, message },
 });
 
-/** The `initialize` result: the client's protocol version is echoed. */
 export const buildInitializeResult = (params: unknown) => ({
   protocolVersion:
     typeof (params as { protocolVersion?: unknown } | null)?.protocolVersion ===
@@ -663,16 +655,21 @@ export const buildInitializeResult = (params: unknown) => ({
   serverInfo: MCP_SERVER_INFO,
 });
 
+export type ProtocolAnswer =
+  | { kind: "reply"; reply: JsonObject }
+  | { kind: "noReply" }
+  | { kind: "needsConvex" };
+
+const NO_REPLY: ProtocolAnswer = { kind: "noReply" };
+const NEEDS_CONVEX: ProtocolAnswer = { kind: "needsConvex" };
+
 /**
- * Answers a JSON-RPC message that needs no Convex. `null` means no reply
- * (a notification); `undefined` means the message needs Convex (a tool call,
- * an unknown method or an invalid message).
+ * Answers a JSON-RPC message that needs no Convex. A notification gets no
+ * reply; a tool call, an unknown method or an invalid message needs Convex.
  */
-export const answerProtocolMessage = (
-  message: unknown
-): JsonObject | null | undefined => {
+export const answerProtocolMessage = (message: unknown): ProtocolAnswer => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return;
+    return NEEDS_CONVEX;
   }
   const rpc = message as {
     id?: null | number | string;
@@ -681,20 +678,25 @@ export const answerProtocolMessage = (
     params?: unknown;
   };
   if (rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") {
-    return;
+    return NEEDS_CONVEX;
   }
   if (rpc.method.startsWith("notifications/")) {
-    return null;
+    return NO_REPLY;
   }
   switch (rpc.method) {
     case "initialize":
-      return jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params));
-    // MCP's ping answers an empty result.
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params)),
+      };
     case "ping":
-      return jsonRpcResponse(rpc.id, {});
+      return { kind: "reply", reply: jsonRpcResponse(rpc.id, {}) };
     case "tools/list":
-      return jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS });
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS }),
+      };
     default:
-      return;
+      return NEEDS_CONVEX;
   }
 };

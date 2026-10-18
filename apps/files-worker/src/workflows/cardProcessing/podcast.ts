@@ -65,15 +65,15 @@ const pageData = async (job: CardJob, loaded: LoadedCard) => {
         : {}),
     },
     userId: card.userId,
-  }).catch(() => card);
+  }).catch(() => ({ ...card, metadata: card.metadata ?? {} }));
   const preview =
-    hydrated.metadata?.linkPreview?.status === "success"
+    hydrated.metadata.linkPreview?.status === "success"
       ? (hydrated.metadata.linkPreview as {
           raw?: Parameters<typeof buildRawSelectorMap>[0];
           title?: string;
         })
       : undefined;
-  const linkCategory = hydrated.metadata?.linkCategory as
+  const linkCategory = hydrated.metadata.linkCategory as
     | { raw?: { structured?: unknown }; sourceUrl?: string }
     | undefined;
   // JSON-LD stored for another URL describes another page.

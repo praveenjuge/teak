@@ -86,7 +86,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-4 p-2">
       <div className="w-full max-w-xl space-y-3">
-        {fileUrl && (
+        {fileUrl ? (
           <div className="flex h-16 items-center gap-3 rounded-full border bg-card py-2 pr-5 pl-2.5">
             <Button
               aria-label={isPlaying ? "Pause" : "Play"}
@@ -172,7 +172,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
               src={fileUrl}
             />
           </div>
-        )}
+        ) : null}
 
         {loadFailed ? (
           <p className="px-3 text-muted-foreground text-sm" role="status">
@@ -187,7 +187,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
         )}
       </div>
 
-      {card.aiTranscript && (
+      {card.aiTranscript ? (
         <div className="w-full max-w-xl rounded-xl border bg-background">
           <div className="flex w-full items-center gap-2 px-3 pt-3 text-left">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -200,7 +200,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

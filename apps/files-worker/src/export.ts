@@ -78,17 +78,26 @@ export const parseExportManifest = (raw: string): FilesExportManifest => {
   return manifest;
 };
 
+const getOrNull = async (
+  bucket: R2Bucket,
+  key: string
+): Promise<R2ObjectBody | null> => {
+  try {
+    return await bucket.get(key);
+  } catch {
+    return null;
+  }
+};
+
 const readWithRetry = async (
   bucket: R2Bucket,
   key: string
 ): Promise<R2ObjectBody | null> => {
   for (let attempt = 0; attempt < MISSING_FILE_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      const object = await bucket.get(key);
-      if (object) {
-        return object;
-      }
-    } catch {}
+    const object = await getOrNull(bucket, key);
+    if (object) {
+      return object;
+    }
   }
   return null;
 };
@@ -277,7 +286,6 @@ export const buildExportIntoBucket = async (
   if (fill > 0) {
     await flushPart(buffer.subarray(0, fill));
   } else if (uploadedParts.length === 0) {
-    // Degenerate empty archive: still emit a valid (tiny) final part.
     await flushPart(buffer.subarray(0, 0));
   }
 

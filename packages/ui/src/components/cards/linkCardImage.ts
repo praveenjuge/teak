@@ -6,9 +6,7 @@ interface ImageSize {
   width: number;
 }
 
-/** The image a link tile shows, with its stored size when one is known. */
 export interface LinkCardImage {
-  /** Missing for older or partial metadata; the tile then has a fixed height. */
   size?: ImageSize;
   src: string;
   storageKey?: string;
@@ -22,7 +20,6 @@ const sizeOf = (width: unknown, height: unknown): ImageSize | undefined =>
 const stringOrUndefined = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
-/** The link preview the server scraped, when the scrape succeeded. */
 export function successfulLinkPreview(
   card: Pick<CardWithUrls, "metadata">
 ): LinkPreviewMetadata | undefined {
@@ -31,13 +28,6 @@ export function successfulLinkPreview(
     : undefined;
 }
 
-/**
- * Which image a link card shows. An image someone chose comes first, then
- * attached media (an X post's image or video poster), then the page's own
- * preview image; the page screenshot stands in when there is none or it
- * failed to load (`useScreenshot`). An image whose size is known wins over
- * one whose size is not, which older and partial metadata can leave out.
- */
 export function resolveLinkCardImage(
   card: CardWithUrls,
   useScreenshot: boolean
@@ -111,10 +101,6 @@ export function resolveLinkCardImage(
   return useScreenshot ? screenshot : (primary ?? screenshot);
 }
 
-/**
- * A link card's image, switching to the page screenshot when the preferred
- * image fails to load, and hiding an image that has nothing to fall back to.
- */
 export function useLinkCardImage(card: CardWithUrls): {
   image: LinkCardImage | undefined;
   onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;

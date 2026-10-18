@@ -9,13 +9,11 @@ import { ConvexError } from "convex/values";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
-/** A tag in the tag list: its lowercase name and active card count. */
 export interface TagSummaryItem {
   count: number;
   name: string;
 }
 
-/** A library-wide tag change as the app reads it. */
 export interface TagOperationView {
   _id: string;
   changed: number;
@@ -29,10 +27,6 @@ export interface TagOperationView {
   updatedAt?: number;
 }
 
-/**
- * A running change that has made no progress for a while has stopped (a lost
- * batch); the app shows it as failed so it can be retried.
- */
 export const isTagOperationStalled = (
   operation: TagOperationView,
   now = Date.now()
@@ -41,13 +35,8 @@ export const isTagOperationStalled = (
   operation.updatedAt !== undefined &&
   now - operation.updatedAt > TAG_OPERATION_STALL_MS;
 
-/**
- * How long a finished change keeps adjusting the tag list while the
- * background tag counts catch up.
- */
 export const TAG_OPERATION_OVERLAY_MS = 2 * 60_000;
 
-/** The server's message for a failed tag call, or the fallback. */
 export const tagErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof ConvexError) {
     const message = (error.data as { message?: unknown } | undefined)?.message;
@@ -58,7 +47,6 @@ export const tagErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-/** The error code of a failed tag call, such as `TAG_EXISTS`. */
 export const tagErrorCode = (error: unknown): string | undefined => {
   if (error instanceof ConvexError) {
     const code = (error.data as { code?: unknown } | undefined)?.code;
@@ -70,11 +58,9 @@ export const tagErrorCode = (error: unknown): string | undefined => {
 const cardsLabel = (count: number) =>
   `${count.toLocaleString()} card${count === 1 ? "" : "s"}`;
 
-/** "120 of 300 cards", the progress a toast shows. */
 export const tagOperationProgressLabel = (operation: TagOperationView) =>
   `${Math.min(operation.changed, operation.total).toLocaleString()} of ${cardsLabel(operation.total)}`;
 
-/** The toast title for a tag change in each state. */
 export const tagOperationTitle = (operation: TagOperationView) => {
   const to = operation.to ?? "";
   const { from } = operation;
@@ -98,7 +84,6 @@ export const tagOperationTitle = (operation: TagOperationView) => {
   }[operation.kind];
 };
 
-/** The toast line under the title: progress, or how many cards changed. */
 export const tagOperationDescription = (operation: TagOperationView) => {
   if (operation.status === "completed") {
     return `${cardsLabel(operation.changed)} changed`;
@@ -109,13 +94,6 @@ export const tagOperationDescription = (operation: TagOperationView) => {
   return `${tagOperationProgressLabel(operation)} changed`;
 };
 
-/**
- * The tag list as it will look once a tag change lands: the background
- * counts take a few seconds to follow, so a running or just-finished change
- * is applied on top. Rename and merge move the count to the target (a card
- * with both is counted twice until the counts refresh); delete drops the tag.
- * A failed or stalled change shows the counts as they are.
- */
 export const applyTagOperationToSummary = (
   items: readonly TagSummaryItem[],
   operation: TagOperationView | null | undefined,
@@ -158,7 +136,6 @@ export const applyTagOperationToSummary = (
   );
 };
 
-/** Why a new tag name is refused before asking the server, or null. */
 export const explainTagNameInput = (name: string): string | null => {
   const trimmed = name.trim();
   if (!trimmed) {

@@ -12,9 +12,6 @@ import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { type Command, InvalidArgumentError } from "commander";
 
-// Argument parsers and the shared listing options. Command wiring lives in
-// index.ts.
-
 export const parseLimit = (value: string) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < 1) {

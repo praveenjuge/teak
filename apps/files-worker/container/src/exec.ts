@@ -41,10 +41,12 @@ export interface RunResult {
   timedOut: boolean;
 }
 
-function killGroup(pid: number): void {
+function killGroup(pid: number): boolean {
   try {
-    process.kill(-pid, "SIGKILL");
-  } catch {}
+    return process.kill(-pid, "SIGKILL");
+  } catch {
+    return false;
+  }
 }
 
 async function readBounded(

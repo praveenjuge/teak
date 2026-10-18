@@ -7,7 +7,6 @@ import type { CardWithUrls } from "./types";
 
 interface FileCardBodyProps {
   card: CardWithUrls;
-  /** Above-the-fold card: its media loads eagerly with high priority. */
   isPriority: boolean;
 }
 

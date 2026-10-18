@@ -1,10 +1,10 @@
 import {
   type FilesImageTextResult,
+  linkOcrSourceKeys,
   normalizeImageOcrText,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Doc } from "../_generated/dataModel";
 import {
   internalAction,
   internalMutation,
@@ -18,47 +18,16 @@ import {
   runOcrBackfillPage,
 } from "./ocrBackfill";
 
-/** Two image reads per card, this far apart: about 40 Gemma calls a minute. */
 const CARD_SPACING_MS = 3000;
 
-/**
- * The stored images whose text a link card is read for, as card processing
- * reads them (apps/files-worker/src/workflows/cardProcessing/linkText.ts):
- * its preview image (og:image), then its screenshot.
- */
-export const linkOcrSourceKeys = (card: Pick<Doc<"cards">, "metadata">) => {
-  const preview = card.metadata?.linkPreview;
-  if (preview?.status !== "success") {
-    return [];
-  }
-  return [preview.imageStorageKey, preview.screenshotStorageKey].filter(
-    (key): key is string => Boolean(key)
-  );
-};
-
-/**
- * Reads the text in the preview images and screenshots of links saved
- * before Teak read them, one card every 3 s. It writes only `aiOcrText`
- * and `ocrCheckedAt`, and skips cards in Trash and accounts being deleted
- * or with AI turned off; each card checks the AI gate again before its
- * calls. A card is done once `ocrCheckedAt` is set, so a stopped run picks
- * up where it left off.
- *
- * A dry run (the default) writes nothing and reports what a real run would
- * schedule. `userId` limits it to one account, as a canary; `once` runs one
- * batch.
- *
- *   npx convex run migration/backfillLinkOcr:backfillLinkOcr
- *   npx convex run migration/backfillLinkOcr:backfillLinkOcr '{"dryRun":false,"userId":"teak_…"}'
- *   npx convex run migration/backfillLinkOcr:backfillLinkOcr '{"dryRun":false}'
- */
 export const backfillLinkOcr = internalMutation({
   args: ocrBackfillArgs,
   returns: ocrBackfillReturns,
   handler: (ctx, args) =>
     runOcrBackfillPage(ctx, args, {
       cardAction: internal.migration.backfillLinkOcr.backfillLinkOcrCard,
-      hasSource: (card) => linkOcrSourceKeys(card).length > 0,
+      hasSource: (card) =>
+        linkOcrSourceKeys(card.metadata?.linkPreview).length > 0,
       isKind: (card) => card.type === "link",
       name: "backfillLinkOcr",
       nextPage: internal.migration.backfillLinkOcr.backfillLinkOcr,
@@ -85,17 +54,13 @@ export const getLinkOcrCandidate = internalQuery({
     ) {
       return null;
     }
-    const sourceKeys = linkOcrSourceKeys(card);
+    const sourceKeys = linkOcrSourceKeys(card.metadata?.linkPreview);
     return sourceKeys.length > 0
       ? { processingRev: card.processingRev, sourceKeys, userId: card.userId }
       : null;
   },
 });
 
-/**
- * Stores a link's image text unless card processing ran since it was read
- * (it reads the new images itself) or the card was read or trashed since.
- */
 export const storeLinkOcr = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -120,12 +85,6 @@ export const storeLinkOcr = internalMutation({
   },
 });
 
-/**
- * Reads one link's images with the `extract-image-text` op card processing
- * uses, and stores only their text. An image the op declines (gone, or a
- * format it can't decode) reads as none; any other failure, an older Worker
- * without the op included, is logged and leaves the card unread.
- */
 export const backfillLinkOcrCard = internalAction({
   args: { cardId: v.id("cards") },
   returns: v.union(
@@ -142,8 +101,6 @@ export const backfillLinkOcrCard = internalAction({
     if (!candidate) {
       return "skipped";
     }
-    // AI paused from the console, or turned off by the user: no model call,
-    // and the card stays unread for a later run.
     const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
       userId: candidate.userId,
     });

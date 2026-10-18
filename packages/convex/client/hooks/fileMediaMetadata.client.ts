@@ -58,10 +58,17 @@ const getVideoDimensions = (
   });
 };
 
+export interface AdditionalFileMetadata {
+  duration?: number;
+  height?: number;
+  recordingTimestamp?: number;
+  width?: number;
+}
+
 export const buildAdditionalFileMetadata = async (
   file: File,
-  metadata?: any
-): Promise<any | undefined> => {
+  metadata?: AdditionalFileMetadata
+): Promise<AdditionalFileMetadata | undefined> => {
   if (metadata?.width && metadata?.height) {
     return metadata;
   }

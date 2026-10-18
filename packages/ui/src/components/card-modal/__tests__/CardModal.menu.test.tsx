@@ -9,8 +9,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// The side panel reads tags and folders from Convex; the header menu is what
-// these tests cover.
 const realPanel = await import("../CardMetadataPanel");
 mock.module("../CardMetadataPanel", () => ({
   ...realPanel,
@@ -135,7 +133,6 @@ test("Replace image in the card menu opens the picker and replaces the image", a
     input?.dispatchEvent(new Event("change", { bubbles: true }));
   });
   expect(linkThumbnail.replace).toHaveBeenCalledWith(file, "pick");
-  // No image was chosen yet, so there is nothing to reset to.
   expect(menuItem("Reset to original image")).toBeUndefined();
 });
 

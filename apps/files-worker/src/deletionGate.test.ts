@@ -73,7 +73,7 @@ describe("exact object deletion fence", () => {
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: true });
   });
   test("an admitted physical write must settle before deletion is acknowledged", async () => {
-    let finish!: () => void;
+    let finish: (() => void) | undefined;
     const t = fixture(
       () =>
         new Promise((resolve) => {
@@ -81,7 +81,7 @@ describe("exact object deletion fence", () => {
         })
     );
     const write = t.request("put", "in flight");
-    while (!finish) {
+    while (finish === undefined) {
       await Promise.resolve();
     }
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
@@ -216,7 +216,7 @@ describe("exact object deletion fence", () => {
       return Promise.resolve({
         key: "users/exact/file",
         customMetadata: received.customMetadata,
-        writeHttpMetadata: () => {},
+        writeHttpMetadata: () => undefined,
       } as never);
     };
     const env = withObjectGates({ BUCKET: raw as unknown as R2Bucket });

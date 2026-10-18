@@ -5,6 +5,8 @@ import {
   safeFetch,
 } from "../../../../packages/convex/linkMetadata/ssrf";
 import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
+import { FILES_LINK_PAGE_MAX_URL_LENGTH } from "../../../../packages/files-protocol/src/linkPage";
+import { FILES_SCRAPE_LIMITS } from "../../../../packages/files-protocol/src/rendering";
 import type { FetchAssetDeps } from "./fetchAsset";
 import type {
   FetcherPageFailureReason,
@@ -12,15 +14,9 @@ import type {
   FetcherPageResponse,
 } from "./protocol";
 
-// The same as files-protocol's FILES_LINK_PAGE_* and FILES_SCRAPE_LIMITS,
-// which this image does not bundle.
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
-const MAX_URL_LENGTH = 4096;
-const MAX_SELECTORS = 128;
-const MAX_SELECTOR_CHARS = 512;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
-// A page that asks not to be stored, or only by the one browser that asked.
 const UNCACHEABLE = /(?:^|[\s,])(?:no-store|private)(?:$|[\s,=])/i;
 
 const USER_AGENT =
@@ -36,15 +32,15 @@ export const parseFetcherPageRequest = (
   if (
     typeof url !== "string" ||
     !url ||
-    url.length > MAX_URL_LENGTH ||
+    url.length > FILES_LINK_PAGE_MAX_URL_LENGTH ||
     !Array.isArray(selectors) ||
     selectors.length === 0 ||
-    selectors.length > MAX_SELECTORS ||
+    selectors.length > FILES_SCRAPE_LIMITS.selectors ||
     selectors.some(
       (selector) =>
         typeof selector !== "string" ||
         !selector ||
-        selector.length > MAX_SELECTOR_CHARS
+        selector.length > FILES_SCRAPE_LIMITS.selectorChars
     )
   ) {
     return null;
@@ -73,11 +69,6 @@ const decoderFor = (label: string | undefined): TextDecoder | null => {
   }
 };
 
-/**
- * Decode a page the way a browser picks its encoding: a byte order mark,
- * then the Content-Type charset, then a <meta> charset near the top, then
- * UTF-8.
- */
 export const decodeHtml = (
   bytes: Uint8Array,
   contentType: string | null

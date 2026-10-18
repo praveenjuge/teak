@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";

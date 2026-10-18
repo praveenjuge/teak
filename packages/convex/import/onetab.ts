@@ -5,8 +5,7 @@ const SOURCE = "OneTab";
 
 /**
  * OneTab's "Export URLs" text: one `URL | Title` line per tab, tab groups
- * separated by blank lines. Lines that aren't a link (no `://`) are skipped;
- * a link with an unsafe scheme fails on its own.
+ * separated by blank lines.
  */
 export function parseOneTabText(text: string): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];

@@ -18,13 +18,11 @@ import {
 import { isApplePlatform } from "../../lib/platform";
 
 interface KeyboardShortcutsDialogProps {
-  /** Called as the dialog closes; preventing it keeps focus where it is. */
   onCloseAutoFocus?: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
 
-/** Every keyboard shortcut, grouped, opened with `?`. */
 export function KeyboardShortcutsDialog({
   open,
   onCloseAutoFocus,
@@ -113,7 +111,6 @@ const KEY_NAMES: Record<string, string> = {
   "↩": "Return",
 };
 
-/** How a screen reader says the keys: "G then F", "J or K", "Alt plus T". */
 export function shortcutAccessibleLabel(row: ShortcutRow): string {
   const names = row.keys.map((key) => KEY_NAMES[key] ?? key);
   if (row.combo) {
@@ -122,7 +119,6 @@ export function shortcutAccessibleLabel(row: ShortcutRow): string {
   return names.join(row.sequence ? " then " : " or ");
 }
 
-/** A shortcut's keycaps, for a tooltip beside a label. */
 export function ShortcutHint({ row }: { row: ShortcutRow }) {
   return <ShortcutKeys row={row} />;
 }

@@ -10,10 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
-/**
- * An in-memory library. Pages are live: changing [summaries] or [cards] re-emits every open page,
- * like a Convex subscription. Set [failingIds] to make writes for those cards throw.
- */
 class FakeCardsRepository : CardsRepository {
     val summaries = MutableStateFlow<List<CardSummary>>(emptyList())
     val cards = MutableStateFlow<Map<String, Card>>(emptyMap())

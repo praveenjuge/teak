@@ -175,6 +175,14 @@ describe("runCommand", () => {
     }
   });
 
+  test("a child runs with the environment it is given, not this process's", async () => {
+    const result = await runCommand(
+      ["sh", "-c", 'echo "$TEAK_PROC_ONLY"; test -n "$HOME" || echo "no home"'],
+      { env: { PATH: process.env.PATH, TEAK_PROC_ONLY: "given" } }
+    );
+    expect(result.stdout.trim().split("\n")).toEqual(["given", "no home"]);
+  });
+
   test("a signal mid-command leaves the script's own shutdown handler to finish", async () => {
     const ended = await signalWhileRunning(`
 onExitSignal(async () => {

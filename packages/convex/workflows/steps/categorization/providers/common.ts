@@ -3,7 +3,6 @@ import type { LinkCategoryDetail, LinkPrice } from "@teak/convex/shared";
 export interface ProviderEnrichmentResult {
   facts?: LinkCategoryDetail[];
   imageUrl?: string;
-  /** A product's price, when the page states one. */
   price?: LinkPrice;
   raw?: Record<string, unknown>;
 }
@@ -108,19 +107,15 @@ export const formatDate = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
-  // An ISO date keeps the day it states ("2009-10-24T23:57:33-07:00" is Oct
-  // 24, not the UTC day), and a date-only value keeps its day wherever it
-  // runs.
-  const trimmed = value.trim();
-  const isoDay = ISO_DAY_REGEX.exec(trimmed)?.[1];
-  const date = new Date(isoDay ?? trimmed);
+  const source = value.trim();
+  const isoDay = ISO_DAY_REGEX.exec(source)?.[1];
+  const date = new Date(isoDay ?? source);
   if (Number.isNaN(date.getTime())) {
     return undefined;
   }
-  // The whole value must parse, and the stated day must exist (no Feb 30).
   if (
     isoDay &&
-    (Number.isNaN(new Date(trimmed).getTime()) ||
+    (Number.isNaN(new Date(source).getTime()) ||
       date.toISOString().slice(0, 10) !== isoDay)
   ) {
     return undefined;

@@ -12,9 +12,13 @@ public actor TeakSession {
         }
     }
 
+    public enum SignInOutcome: Equatable, Sendable {
+        case signedIn
+        case superseded
+    }
+
     public typealias Bootstrap = @Sendable (_ accessToken: String) async throws -> Void
 
-    /// Access tokens are refreshed when they expire within this margin.
     public static let refreshMargin: TimeInterval = 30
 
     private let endpoint: URL
@@ -45,8 +49,6 @@ public actor TeakSession {
         self.bootstrap = bootstrap
     }
 
-    // MARK: Observing
-
     /// The current state, then every change.
     public func states() -> AsyncStream<State> {
         let id = UUID()
@@ -75,8 +77,6 @@ public actor TeakSession {
     public var sessionId: String? { session?.sessionId }
     public var expiresAt: Date? { session?.expiresAt }
 
-    // MARK: Restoring
-
     /// Loads the stored session. Throws when the keychain can't be read (for
     /// example before the first unlock); the stored session is kept for a retry.
     @discardableResult
@@ -98,8 +98,6 @@ public actor TeakSession {
         return session?.user
     }
 
-    // MARK: Signing in
-
     public func beginSignIn() -> Int {
         signInAttempt += 1
         return signInAttempt
@@ -107,37 +105,32 @@ public actor TeakSession {
 
     /// Exchanges the redirect's code. The account is linked with `ensureUser`
     /// before anything is saved, so a failed bootstrap leaves the app signed out.
-    /// Returns false when a newer attempt or a sign-out superseded this one.
-    public func exchangeCode(_ code: String, request: AuthKitRequest, attempt: Int) async throws -> Bool {
+    public func exchangeCode(_ code: String, request: AuthKitRequest, attempt: Int) async throws -> SignInOutcome {
         guard !code.isEmpty, request.verifier.wholeMatch(of: /[A-Za-z0-9._~-]{43,128}/) != nil else {
             throw TeakError(message: "Invalid sign-in callback")
         }
         let epoch = lock.epoch()
-        guard attempt == signInAttempt else { return false }
+        guard attempt == signInAttempt else { return .superseded }
         let data = try await authenticate(clientId: request.clientId, [
             "grant_type": "authorization_code", "code": code, "code_verifier": request.verifier,
         ])
         let next = try SessionParser.parseResponse(data, clientId: request.clientId)
         guard next.expiresAt > now() else { throw TeakError(message: "Expired session token") }
-        guard attempt == signInAttempt else { return false }
+        guard attempt == signInAttempt else { return .superseded }
         try await bootstrap?(next.accessToken)
-        guard attempt == signInAttempt else { return false }
+        guard attempt == signInAttempt else { return .superseded }
 
         let record = try JSONEncoder().encode(next.record)
-        let saved = try await lock.withLock { [storage, lock] in
-            // A sign-out that started meanwhile wins.
-            guard lock.epoch() == epoch else { return false }
+        let saved = try await lock.saveUnlessSignedOut(since: epoch) { [storage, lock] in
             try storage.save(record)
-            // Supersedes refreshes of an older session in every process.
-            lock.advanceEpoch()
-            return true
+            lock.invalidatePendingSaves()
         }
-        guard saved, attempt == signInAttempt else { return false }
+        guard saved, attempt == signInAttempt else { return .superseded }
         generation += 1
         refresh = nil
         session = next
         publish(token: .some(next.accessToken))
-        return true
+        return .signedIn
     }
 
     #if DEBUG
@@ -150,8 +143,6 @@ public actor TeakSession {
         publish(token: .some(next.accessToken))
     }
     #endif
-
-    // MARK: Tokens
 
     private enum RefreshOutcome: Sendable {
         case current(WorkOSSession)
@@ -180,16 +171,11 @@ public actor TeakSession {
         let epoch = lock.epoch()
         let margin = Self.refreshMargin
         let outcome: RefreshOutcome = try await lock.withLock { [storage, lock, now] in
-            guard lock.epoch() == epoch else { return .superseded }
-            // Another process may have refreshed, or signed out, while this one waited.
-            guard let data = try storage.load(),
-                  let stored = try? JSONDecoder().decode(StoredSession.self, from: data),
-                  let latest = try? SessionParser.parse(stored, clientId: stored.clientId)
-            else { return .signedOut }
-            if latest.refreshToken != current.refreshToken,
-               latest.expiresAt.timeIntervalSince(now()) > margin {
-                return .current(latest)
-            }
+            guard lock.isCurrent(epoch) else { return .superseded }
+            guard let data = try storage.load(), let latest = Self.parseStored(data) else { return .signedOut }
+            let refreshedElsewhere = latest.refreshToken != current.refreshToken
+                && latest.expiresAt.timeIntervalSince(now()) > margin
+            if refreshedElsewhere { return .current(latest) }
             let response: Data
             do {
                 response = try await self.authenticate(clientId: latest.clientId, [
@@ -204,7 +190,7 @@ public actor TeakSession {
                 try? storage.clear()
                 return .signedOut
             }
-            guard lock.epoch() == epoch else { return .superseded }
+            guard lock.isCurrent(epoch) else { return .superseded }
             try storage.save(JSONEncoder().encode(next.record))
             return .current(next)
         }
@@ -224,10 +210,6 @@ public actor TeakSession {
         }
     }
 
-    // MARK: Signing out
-
-    /// Forgets the session on this device. Returns the real AuthKit session ID
-    /// for server revocation, which the caller does first.
     @discardableResult
     public func clear() async -> String? {
         generation += 1
@@ -236,23 +218,21 @@ public actor TeakSession {
         let sessionId = session?.sessionId
         session = nil
         publish(token: .some(nil))
-        // Stop in-flight refreshes in every process from saving, and sign out
-        // now rather than waiting for one to finish.
-        lock.advanceEpoch()
+        lock.invalidatePendingSaves()
         let epoch = lock.epoch()
         try? storage.clear()
-        // A refresh that passed its epoch check just before this may still be
-        // writing; delete again once it lets go of the lock. A newer sign-in
-        // changes the epoch, so this never removes it.
-        Task.detached { [storage, lock] in
-            try? await lock.withLock {
-                if lock.epoch() == epoch { try storage.clear() }
-            }
-        }
+        clearAgainAfterInFlightRefresh(epoch: epoch)
         return sessionId
     }
 
-    /// Drops the in-memory session when another process signed out.
+    private func clearAgainAfterInFlightRefresh(epoch: String) {
+        Task.detached { [storage, lock] in
+            try? await lock.withLock {
+                if lock.isCurrent(epoch) { try storage.clear() }
+            }
+        }
+    }
+
     public func reloadIfChanged() async {
         guard let data = try? storage.load() else {
             if session != nil {
@@ -262,16 +242,16 @@ public actor TeakSession {
             }
             return
         }
-        guard let stored = try? JSONDecoder().decode(StoredSession.self, from: data),
-              let latest = try? SessionParser.parse(stored, clientId: stored.clientId),
-              latest.refreshToken != session?.refreshToken
-        else { return }
+        guard let latest = Self.parseStored(data), latest.refreshToken != session?.refreshToken else { return }
         if session?.user.id != latest.user.id { generation += 1 }
         session = latest
         publish(token: .some(latest.accessToken))
     }
 
-    // MARK: WorkOS
+    private static func parseStored(_ data: Data) -> WorkOSSession? {
+        guard let stored = try? JSONDecoder().decode(StoredSession.self, from: data) else { return nil }
+        return try? SessionParser.parse(stored, clientId: stored.clientId)
+    }
 
     struct InvalidRefreshToken: Error {}
 

@@ -68,7 +68,7 @@ export function ExportPanel({
   onStartExport,
 }: ExportPanelProps) {
   const [isBusy, setIsBusy] = useState(false);
-  const busyRef = useRef(false);
+  const busyRef = useRef<boolean>(false);
   const [now, setNow] = useState(() => Date.now());
 
   const job = exportState?.job ?? null;

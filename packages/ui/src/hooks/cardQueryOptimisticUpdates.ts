@@ -13,7 +13,6 @@ export function cardMatchesSearchQuery(
   card: Doc<"cards">,
   args: SearchFilterArgs
 ): boolean {
-  // A smart folder is its search, as on the server; a manual one holds cards.
   const isSmartFolder = args.folderQuery !== undefined;
   if (
     args.folderId &&
@@ -58,11 +57,6 @@ export function updateCardInSearchQueries(
   return updatedCard;
 }
 
-/**
- * Applies `updater` to every loaded copy of the given cards, then drops
- * cards that no longer match each query (an archived card leaves the
- * library, a restored one leaves Trash).
- */
 export function updateCardsInSearchQueries(
   localStore: OptimisticLocalStore,
   cardIds: ReadonlySet<string>,

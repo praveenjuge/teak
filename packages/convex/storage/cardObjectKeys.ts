@@ -1,7 +1,3 @@
-/**
- * Every storage key a card owns: deleted with the card and counted as
- * referenced by the orphan sweep. Pure, so the Files Worker uses it too.
- */
 export const cardStorageObjectKeys = (card: {
   documentTextKey?: string;
   fileKey?: string;
@@ -39,7 +35,6 @@ export const cardStorageObjectKeys = (card: {
       item.posterStorageKey,
     ]),
     card.thumbnailOverride?.storageKey,
-    // Kept for the undo window; deleted with the card if it goes first.
     card.previousThumbnailOverride?.override?.storageKey,
   ].filter((key, index, keys): key is string =>
     Boolean(key && keys.indexOf(key) === index)

@@ -84,8 +84,6 @@ const poolSize = (
     : DEFAULT_POOL_SIZE;
 };
 
-// SVGs can have fractional dimensions (a 23 x 20.46 icon); keep them as is,
-// as Convex did when it read them itself.
 const positiveDimension = (value: string | null): number | undefined => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;

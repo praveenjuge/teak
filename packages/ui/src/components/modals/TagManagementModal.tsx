@@ -81,7 +81,7 @@ export function TagManagementModal({
             </div>
           </div>
 
-          {userTags && userTags.length > 0 && (
+          {userTags.length > 0 && (
             <div>
               <Label>Your Tags</Label>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export function TagManagementModal({
             </div>
           )}
 
-          {aiTags && aiTags.length > 0 && (
+          {aiTags.length > 0 && (
             <div>
               <Label>Tags by Teak</Label>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -138,12 +138,11 @@ export function TagManagementModal({
             </div>
           )}
 
-          {(!userTags || userTags.length === 0) &&
-            (!aiTags || aiTags.length === 0) && (
-              <div className="py-4 text-center text-muted-foreground">
-                <p>No tags yet. Add your first tag above!</p>
-              </div>
-            )}
+          {userTags.length === 0 && aiTags.length === 0 && (
+            <div className="py-4 text-center text-muted-foreground">
+              <p>No tags yet. Add your first tag above!</p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -46,7 +46,6 @@ export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
 const PRIMARY_VIEWS = ["all", "favorites"] as const;
 const SECONDARY_VIEWS = ["archive", "trash"] as const;
 
-/** The app's link (Next.js `Link` on the web), so routes stay client-side. */
 export type SidebarLinkComponent = ComponentType<{
   "aria-current"?: "page";
   "aria-label"?: string;
@@ -57,14 +56,12 @@ export type SidebarLinkComponent = ComponentType<{
 }>;
 
 export interface AppSidebarProps {
-  /** The open library view, or null outside the library (settings). */
   activeView: LibraryView | null;
   addActions?: ReactNode;
   foldersSlot?: ReactNode;
   isSettingsActive?: boolean;
   isTagsActive?: boolean;
   LinkComponent: SidebarLinkComponent;
-  /** Called before any sidebar link navigates (e.g. to remember scroll). */
   onNavigate?: () => void;
   settingsHref?: string;
   tagsHref?: string;
@@ -85,12 +82,6 @@ function ViewTooltip({ view }: { view: LibraryView }) {
   );
 }
 
-/**
- * The app's navigation: the logo with the New menu, one list of places
- * (Everything, Favorites, Tags, Archive, Trash, Settings), then folders.
- * Collapses to icons on desktop (peeking open on hover) and opens as a
- * drawer on phones.
- */
 export function AppSidebar({
   activeView,
   addActions,
@@ -103,7 +94,6 @@ export function AppSidebar({
   tagsHref = "/tags",
 }: AppSidebarProps) {
   const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
-  // The sidebar renders on the server too, which can't tell ⌘ from Ctrl.
   const apple = useIsApplePlatform();
 
   const handleNavigate = () => {

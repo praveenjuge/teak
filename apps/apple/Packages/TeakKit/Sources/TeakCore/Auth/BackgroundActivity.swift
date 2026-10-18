@@ -65,7 +65,6 @@ private final class ExpiringRun: @unchecked Sendable {
         }
     }
 
-    /// Ends the run, returning the phase it ended from.
     func end() -> Phase {
         mutex.withLock {
             defer { phase = .ended }

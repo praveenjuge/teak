@@ -123,7 +123,7 @@ test("a 401 after an issuer change reauthorizes with the newly discovered issuer
   authorizeMock
     .mockImplementationOnce(() => Promise.resolve("old-access"))
     .mockImplementationOnce(() => Promise.resolve("new-access"));
-  await searchCards({ limit: 1 }, "prompt");
+  await searchCards({ limit: 1 }, "interactive");
   expect(exchanges.map(({ url }) => url)).toEqual([
     "https://scholarly-hay-77.authkit.app/oauth2/token",
     "https://replacement-teak.authkit.app/oauth2/token",
@@ -150,7 +150,7 @@ test("no-view OAuth401 does not force extra discovery or browser sign-in", async
     return discovered(input, init);
   }) as typeof fetch;
   try {
-    await expect(searchCards({}, "stored")).rejects.toMatchObject({
+    await expect(searchCards({}, "silent")).rejects.toMatchObject({
       code: "INVALID_API_KEY",
     });
     expect(discoveryRounds).toBe(1);

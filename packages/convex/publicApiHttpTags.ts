@@ -1,7 +1,3 @@
-/**
- * Public API library-wide tag endpoints: POST /v1/tags/rename, /merge and
- * /delete start an operation (202); GET /v1/tags/operations/:id polls it.
- */
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { withAuthorizedUser } from "./publicApiHttpAuth";
@@ -17,7 +13,6 @@ import type { WorkosResource } from "./workosTokens";
 
 const OPERATION_PREFIX = "/v1/tags/operations/";
 
-/** Body fields each start route takes: the tag, then the new name. */
 const START_ROUTES: Record<
   string,
   { kind: TagOperationKind; fromField: string; toField?: string }
@@ -47,7 +42,6 @@ export const serializeTagOperation = (operation: TagOperationSummary) => ({
 
 type StartPayload = { from: string; to?: string } | { error: string };
 
-/** A start body: only the route's fields, each a valid tag name. */
 export const parseTagOperationPayload = (
   payload: unknown,
   route: { fromField: string; toField?: string }

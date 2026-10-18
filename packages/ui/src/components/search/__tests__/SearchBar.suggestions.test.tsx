@@ -32,15 +32,15 @@ function Harness({ initialChips = [] }: { initialChips?: string[] }) {
       onAddQualifier={(chip) => setQualifiers((prev) => [...prev, chip])}
       onClearAll={() => setQualifiers([])}
       onKeyDown={(event) => pageKeys.push(event.key)}
-      onRemoveFilter={() => {}}
-      onRemoveHexFilter={() => {}}
-      onRemoveHueFilter={() => {}}
-      onRemoveKeyword={() => {}}
+      onRemoveFilter={() => undefined}
+      onRemoveHexFilter={() => undefined}
+      onRemoveHueFilter={() => undefined}
+      onRemoveKeyword={() => undefined}
       onRemoveQualifier={(chip) =>
         setQualifiers((prev) => prev.filter((item) => item !== chip))
       }
-      onRemoveStyleFilter={() => {}}
-      onRemoveTimeFilter={() => {}}
+      onRemoveStyleFilter={() => undefined}
+      onRemoveTimeFilter={() => undefined}
       onSearchChange={setQuery}
       qualifierChips={qualifiers}
       searchQuery={query}

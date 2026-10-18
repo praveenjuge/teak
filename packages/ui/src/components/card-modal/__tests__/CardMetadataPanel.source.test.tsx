@@ -2,7 +2,6 @@ import { expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CardModalCard } from "../types";
 
-// The panel lists the user's folders from Convex; none are needed here.
 const realFolders = await import("../../../hooks/useFolders");
 mock.module("../../../hooks/useFolders", () => ({
   ...realFolders,
@@ -68,8 +67,6 @@ test("a card without a source, or with an unsafe one, has no From row", () => {
   );
 });
 
-// Which cards get Save PDF is up to ConnectedCardModal; the panel shows the
-// control it is given.
 test("a Save PDF control shows Save PDF, and Saving PDF… while it saves", () => {
   const paper = textCard({ type: "link", url: "https://arxiv.org/abs/1" });
   const idle = render(paper, { isSaving: false, save: () => undefined });

@@ -8,9 +8,6 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// AuthKit refreshes through a Server Action, whose fetch rejects with a
-// TypeError when the request never gets a response. When the server answers
-// but the refresh fails, AuthKit throws a plain Error.
 const offline = () => new TypeError("Failed to fetch");
 const refused = () => new Error("Failed to refresh access token");
 
@@ -44,7 +41,6 @@ test("retries as soon as the browser is back online", async () => {
 });
 
 test("keeps retrying when the browser never reports the connection dropping", async () => {
-  // A laptop waking up fails DNS lookups while navigator.onLine stays true.
   expect(await fetchSessionToken(failingOnce(offline))).toBe("fresh-token");
 });
 

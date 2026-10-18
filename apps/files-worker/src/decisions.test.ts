@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
   DECISION_THRESHOLDS,
+  DECISION_VERSIONS,
   MAX_DECISION_QUESTIONS,
 } from "@teak/files-protocol";
 import { runWithAiUsage } from "./aiUsage";
 import {
+  buildCardTypeRequest,
+  buildLinkCategoryRequest,
+  buildRelevanceRequest,
+  buildVisualStylesRequest,
   decideCardType,
   decideLinkCategory,
   decideVisualStylesForImage,
@@ -102,9 +107,8 @@ describe("link category", () => {
       linkParams
     );
     const criteria = (
-      firstArgs(calls).questions as Record<
-        string,
-        { criteria: Record<string, string> }
+      firstArgs(calls).questions as Partial<
+        Record<string, { criteria: Record<string, string> }>
       >
     ).category?.criteria;
     expect(Object.keys(criteria ?? {})[0]).toBe("other");
@@ -196,9 +200,8 @@ describe("card type", () => {
       rulesType: "text",
     });
     const criteria = (
-      firstArgs(calls).questions as Record<
-        string,
-        { criteria: Record<string, string> }
+      firstArgs(calls).questions as Partial<
+        Record<string, { criteria: Record<string, string> }>
       >
     ).type?.criteria;
     expect(Object.keys(criteria ?? {})).toEqual(["text", "quote", "palette"]);
@@ -403,6 +406,66 @@ test("each Clef call is charged to the card's owner in AI usage", async () => {
   ]);
   const [calls, errors, input, output, cost] = points[0]?.doubles ?? [];
   expect([calls, errors, input, output]).toEqual([1, 0, 120, 0]);
-  // 120 input tokens at Clef-flash's $0.038 per million; no output price.
   expect(cost).toBeCloseTo(0.000_004_56, 12);
 });
+
+const DECISION_FINGERPRINTS: Record<
+  keyof typeof DECISION_VERSIONS,
+  { sha256: string; version: number }
+> = {
+  cardType: {
+    sha256: "ca60f71aa7cdcb96cd7d7e5d820a5158a435e2fa2fd843dadcc0759cdfb5f5bc",
+    version: 2,
+  },
+  linkCategory: {
+    sha256: "a5988640bc5230b5f0f46cc3f4af302e2c25c22b37bd71d48068c1cbce9e7991",
+    version: 2,
+  },
+  relevance: {
+    sha256: "fb8322073212571ef37fdf412df6331770b79cecb1d2cf947524666c712bb26e",
+    version: 1,
+  },
+  visualStyles: {
+    sha256: "45d1b7575b8e8506853e0ac5bf8b8ac7b62c3a7a35602f237a97aa416fba9e75",
+    version: 1,
+  },
+};
+
+const decisionDefinitions = {
+  cardType: {
+    request: buildCardTypeRequest({ content: "Fixture", rulesType: "text" })
+      .request,
+    threshold: DECISION_THRESHOLDS.cardType,
+  },
+  linkCategory: {
+    request: buildLinkCategoryRequest({
+      rulesCategory: "other",
+      url: "https://example.com/fixture",
+    }).request,
+    threshold: DECISION_THRESHOLDS.linkCategory,
+  },
+  relevance: {
+    request: buildRelevanceRequest({
+      cards: [{ id: "card-1", text: "Fixture" }],
+      query: "fixture",
+    }).request,
+  },
+  visualStyles: {
+    request: buildVisualStylesRequest("data:image/png;base64,AA=="),
+    threshold: DECISION_THRESHOLDS.visualStyle,
+  },
+};
+
+test.each(
+  Object.keys(DECISION_FINGERPRINTS) as (keyof typeof DECISION_VERSIONS)[]
+)(
+  "a new %s prompt, criteria or threshold comes with a new decision version",
+  (name) => {
+    const sha256 = new Bun.CryptoHasher("sha256")
+      .update(JSON.stringify(decisionDefinitions[name]))
+      .digest("hex");
+    expect({ sha256, version: DECISION_VERSIONS[name] }).toEqual(
+      DECISION_FINGERPRINTS[name]
+    );
+  }
+);

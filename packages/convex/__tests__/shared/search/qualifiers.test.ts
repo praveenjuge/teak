@@ -7,6 +7,7 @@ import {
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
+  type PriceBound,
   parseSearchQuery,
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
@@ -145,8 +146,7 @@ describe("parseSearchQuery", () => {
     ).toBe('is:fav site:例え.jp tag:design "a b" notes');
   });
 
-  test.each([
-    // [input, prices, canonical]
+  test.each<[input: string, prices: PriceBound[], canonical: string]>([
     ["price:<100", [{ op: "<", amount: 100 }], "price:<100"],
     ["PRICE:>20", [{ op: ">", amount: 20 }], "price:>20"],
     ["price:<=9.99", [{ op: "<=", amount: 9.99 }], "price:<=9.99"],
@@ -162,16 +162,13 @@ describe("parseSearchQuery", () => {
       ],
       "price:>20 price:<100",
     ],
-  ])(
-    "reads %p as price bounds",
-    (input: string, prices: unknown, canonical: string) => {
-      const parsed = parseSearchQuery(input);
-      expect(parsed.prices).toEqual(prices as typeof parsed.prices);
-      expect(parsed.terms).toEqual([]);
-      expect(parsed.canonical).toBe(canonical);
-      expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
-    }
-  );
+  ])("reads %p as price bounds", (input, prices, canonical) => {
+    const parsed = parseSearchQuery(input);
+    expect(parsed.prices).toEqual(prices);
+    expect(parsed.terms).toEqual([]);
+    expect(parsed.canonical).toBe(canonical);
+    expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
+  });
 
   test.each([
     "price:abc",
@@ -257,14 +254,10 @@ describe("combineSearchQueries", () => {
     ["site:a.com site:b.com", "site:B.com", "site:b.com"],
     ["type:link", "site:a.com", "type:link site:a.com"],
     ["tag:x tag:x", "#X", "tag:x"],
-    // Price bounds add up, so a smart folder's bound and a typed one make
-    // a range.
     ["price:<100", "price:>20", "price:<100 price:>20"],
     ["price:<100", "price:<100 lamp", "price:<100 lamp"],
     ["type:link price:<100", "", "price:<100 type:link"],
-    // Image text values add up, like tags.
     ["text:invoice", "text:4411 acme", "text:invoice text:4411 acme"],
-    // `is:` values add up: a to-do smart folder searched for done links.
     [
       'is:todo folder:"Reading list"',
       "is:done",
@@ -375,7 +368,6 @@ describe("like: and mood:", () => {
     expect(parseSearchQuery(`like:${ID} mood:calm`).terms).toEqual([
       "mood:calm",
     ]);
-    // The same anchor twice is one anchor.
     expect(parseSearchQuery(`like:${ID} like:${ID}`).terms).toEqual([]);
   });
 
@@ -388,7 +380,6 @@ describe("like: and mood:", () => {
     expect(combineSearchQueries("type:link", `like:${ID}`)).toBe(
       `like:${ID} type:link`
     );
-    // The same mood in another case is the same anchor.
     expect(combineSearchQueries('mood:"Calm  Blue"', 'mood:"calm blue"')).toBe(
       'mood:"Calm Blue"'
     );

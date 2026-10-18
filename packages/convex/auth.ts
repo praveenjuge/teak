@@ -10,17 +10,8 @@ import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
 
-// The web auth boundary subscribes to this at the provider level. During
-// sign-out the browser still holds a briefly valid token, so the subscription
-// re-runs against a cleared session. Returning null instead of throwing keeps
-// that from crashing React; redirects stay with the boundary's auth state.
-export const getAuthUserHandler = async (ctx: QueryCtx) => {
-  try {
-    return (await getSessionProfile(ctx))?.user ?? null;
-  } catch {
-    return null;
-  }
-};
+export const getAuthUserHandler = async (ctx: QueryCtx) =>
+  (await getSessionProfile(ctx))?.user ?? null;
 
 export const getAuthUser = query({
   args: {},
@@ -64,7 +55,7 @@ export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   }
 };
 
-export const getCurrentUserHandler = async (ctx: any) => {
+export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;
@@ -89,7 +80,7 @@ export const getCurrentUser = query({
   handler: getCurrentUserHandler,
 });
 
-export const getCardCreationStatusHandler = async (ctx: any) => {
+export const getCardCreationStatusHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;

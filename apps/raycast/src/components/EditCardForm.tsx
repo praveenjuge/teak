@@ -72,7 +72,7 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
           removeAiTags: removeAiTags.length > 0 ? removeAiTags : undefined,
           tags: parseTags(values.tags) ?? [],
         },
-        "prompt",
+        "interactive",
       );
       onCardUpdated(updated);
       toast.style = Toast.Style.Success;

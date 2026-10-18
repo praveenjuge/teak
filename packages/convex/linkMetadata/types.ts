@@ -24,22 +24,19 @@ export interface ScrapeResponse {
   success: boolean;
 }
 
-/**
- * The stored source of every preview Teak scrapes itself, named after a
- * retired renderer. Clients and stored previews read it as Teak's own scraper.
- */
+// Stored on every scraped preview; named after a retired renderer, so
+// changing it needs a migration of stored previews.
 export const TEAK_SCRAPER_SOURCE = "kernel_playwright";
 
 export interface LinkPreviewMetadata {
   author?: string;
   canonicalUrl?: string;
-  /** What a site's own API confirmed the link to be; see socialPost.ts. */
   categoryHint?: LinkCategory;
   description?: string;
   error?: {
     type?: string;
     message?: string;
-    details?: any;
+    details?: unknown;
   };
   faviconUrl?: string;
   fetchedAt: number;

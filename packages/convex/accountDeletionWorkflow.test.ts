@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
 import workosTest from "@convex-dev/workos-authkit/test";
@@ -149,11 +148,9 @@ describe("durable deletion admission and tombstones", () => {
     expect(imports).toMatchObject({ done: true, workflowIds: [] });
     await checkpoint("importJobs", null, imports.cursor, imports.done);
     const first = await page("exportJobs", null);
-    // The Worker waits for these runs before it deletes anything.
     expect(first.workflowIds).toEqual(["export-running"]);
     expect(await cancelled()).toBe(20);
     await checkpoint("exportJobs", null, first.cursor, first.done);
-    // A checkpoint whose reply was lost is refused when replayed.
     await expect(
       checkpoint("exportJobs", null, first.cursor, first.done)
     ).rejects.toThrow("stale_deletion_writer_page");
@@ -829,7 +826,6 @@ describe("durable deletion admission and tombstones", () => {
         createdAt: 1,
         updatedAt: 1,
       });
-      // Save PDF registers its key before the download (ensureObjectOwnership).
       await ctx.db.insert("accountStorageObjects", {
         userId: "permanent-owner",
         key: "users/exact/linked.pdf",
@@ -931,8 +927,6 @@ describe("durable deletion admission and tombstones", () => {
       ctx.db.query("accountDeletionStates").unique()
     );
     const binding = { stateId: state!._id, generation: 1 };
-    // The Files Worker's workflow runs every stage against this database;
-    // its storage ops run in-process on the bucket above.
     await filesWorker.runAccountDeletion(
       {
         env,

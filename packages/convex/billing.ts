@@ -2,7 +2,13 @@ import { Polar, type WebhookEventHandlers } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
-import { type ActionCtx, action, env, query } from "./_generated/server";
+import {
+  type ActionCtx,
+  action,
+  env,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 import { readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
@@ -12,7 +18,7 @@ import {
   captureBackendException,
 } from "./telemetry/posthog";
 
-export const getUserInfoHandler = async (ctx: any) => {
+export const getUserInfoHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     throw new ConvexError("User not found");
@@ -26,7 +32,7 @@ export const getUserInfo = query({
 });
 
 export const polarUserInfoProvider = async (
-  ctx: any
+  ctx: Pick<ActionCtx, "runQuery">
 ): Promise<{ userId: string; email: string; name?: string }> => {
   const user = await ctx.runQuery(api.billing.getUserInfo);
   if (!user?.email) {
@@ -69,7 +75,10 @@ const polarCustomerIdentity = (
   };
 };
 
-export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
+export const createCheckoutLinkHandler = async (
+  ctx: ActionCtx,
+  args: { productId: string }
+) => {
   let userId: string | undefined;
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);
@@ -127,7 +136,7 @@ export const createCheckoutLink = action({
   handler: createCheckoutLinkHandler,
 });
 
-export const createCustomerPortalHandler = async (ctx: any) => {
+export const createCustomerPortalHandler = async (ctx: ActionCtx) => {
   let userId: string | undefined;
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);

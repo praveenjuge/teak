@@ -47,7 +47,6 @@ const pageWith = async (html: string): Promise<OpAnswer> => ({
 const jsonLd = (value: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 
-/** Categorizes a link card held by a fake deployment. */
 const categorize = (
   fields: Partial<FakeCard> | null,
   answers: Partial<Record<FilesOp, OpAnswer>> = {},
@@ -55,7 +54,6 @@ const categorize = (
   options: {
     aiGate?: string;
     arxivSlot?: { retryAfter: number } | null;
-    /** Answers the site lookups; anything unanswered is a 404. */
     network?: (url: string) => Response | undefined;
     refresh?: boolean;
   } = {}
@@ -465,7 +463,6 @@ describe("categorization", () => {
         }
       );
       await run();
-      // The same selectors as the preview: the op serves its cached page.
       expect(fakes.calls).toEqual([
         {
           op: "fetch-link-page",

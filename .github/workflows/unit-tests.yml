@@ -56,7 +56,6 @@ jobs:
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
         run: bun run build:firefox
-      # AMO runs the same linter on every upload; errors fail here first.
       - name: Lint the Firefox build (web-ext)
         run: npx -y web-ext@8 lint --source-dir apps/extension/.output/firefox-mv3
 

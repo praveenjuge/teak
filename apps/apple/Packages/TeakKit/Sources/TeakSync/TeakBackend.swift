@@ -3,6 +3,11 @@ import ConvexMobile
 import Foundation
 import TeakCore
 
+public enum ConvexAuthOutcome: Sendable {
+    case authenticated
+    case noSession
+}
+
 public final class TeakBackend: ConvexCaller, @unchecked Sendable {
     let client: ConvexClientWithAuth<String>
     let session: TeakSession
@@ -14,24 +19,20 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         client = ConvexClientWithAuth(deploymentUrl: convexURL.absoluteString, authProvider: provider)
     }
 
-    /// Hands the stored session to Convex. Throws on a transport failure so the
-    /// caller can retry; returns false when there is no session.
     @discardableResult
-    public func authenticate() async throws -> Bool {
+    public func authenticate() async throws -> ConvexAuthOutcome {
         switch await client.loginFromCache() {
-        case .success: return true
+        case .success: return .authenticated
         case let .failure(error):
-            if let error = error as? TeakError, error.code == TeakError.unauthenticatedCode { return false }
+            if let error = error as? TeakError, error.code == TeakError.unauthenticatedCode { return .noSession }
             throw error
         }
     }
 
-    /// Stops sending a token. Server revocation happens before this.
     public func logout() async {
         await client.logout()
     }
 
-    /// True once Convex has a token for this session.
     public func authStates() -> AsyncStream<Bool> {
         stream(client.authState.map { state in
             if case .authenticated = state { return true }
@@ -39,13 +40,10 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         }.removeDuplicates().eraseToAnyPublisher())
     }
 
-    /// True while the WebSocket is connected.
     public func connectionStates() -> AsyncStream<Bool> {
         stream(client.watchWebSocketState().map { $0 == .connected }.removeDuplicates().eraseToAnyPublisher())
     }
 
-    /// Keeps the access token fresh while signed in: refreshes shortly before it
-    /// expires and pushes the new one to Convex. Backs off while offline.
     public func keepTokenFresh() async {
         var backoff: Duration = .seconds(1)
         while !Task.isCancelled {
@@ -82,6 +80,10 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
         }
     }
 
+    public func subscribe<T: Decodable & Sendable>(_ function: ConvexFunction<T>, _ args: ConvexArgs = [:]) -> AsyncThrowingStream<T, any Error> {
+        subscribe(function.name, args, as: T.self)
+    }
+
     public func query<T: Decodable & Sendable>(_ name: String, _ args: ConvexArgs) async throws -> T {
         for try await value in subscribe(name, args, as: T.self) { return value }
         throw TeakError(message: TeakMessages.genericFailure)
@@ -113,7 +115,7 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
             }
             return TeakError(message: (object as? String) ?? TeakMessages.genericFailure)
         case let .ServerError(message):
-            return TeakError(message: ConvexHTTP.userMessage(message))
+            return TeakError.server(message: message)
         case .InternalError:
             return TeakError(message: TeakMessages.genericFailure)
         }

@@ -5,6 +5,7 @@ import {
   rateLimitedJsonRpcRemainder,
 } from "../mcp/httpServer";
 import {
+  answerProtocolMessage,
   buildInitializeResult,
   jsonRpcResponse,
   MCP_CORS_HEADERS,
@@ -381,14 +382,14 @@ describe("Convex MCP endpoint", () => {
     ["API key", `Bearer teakapi_secret_live_c1d2e3f4_${"b".repeat(64)}`],
   ] as const) {
     test(`immediately rejects a revoked ${kind} after initialize`, async () => {
-      let revoked = false;
+      const state: { revoked: boolean } = { revoked: false };
       const runMutation = mock(
         (_reference: unknown, args: { token?: string }) => {
           if (!args.token) {
             return Promise.resolve({ ok: true });
           }
           return Promise.resolve(
-            revoked
+            state.revoked
               ? null
               : {
                   keyId: "connection",
@@ -419,7 +420,7 @@ describe("Convex MCP endpoint", () => {
         )
       );
       expect(initialize.status).toBe(200);
-      revoked = true;
+      state.revoked = true;
       for (const method of ["tools/list", "ping", "tools/call"]) {
         const response = await handleMcpV1Request(
           ctx,
@@ -831,13 +832,13 @@ describe("Convex MCP endpoint", () => {
       method: "POST",
       path: "/v1/cards/card_1/save-pdf",
     });
-    expect(saved.content?.[0]?.text).toBe("Saved the PDF as card doc_1");
+    expect(saved.content[0]?.text).toBe("Saved the PDF as card doc_1");
     expect(saved.structuredContent).toEqual({
       cardId: "doc_1",
       created: true,
     });
     const again = await call("teak_v1_save_card_pdf", { cardId: "card_1" });
-    expect(again.content?.[0]?.text).toBe("The PDF is already card doc_1");
+    expect(again.content[0]?.text).toBe("The PDF is already card doc_1");
     expect(again.structuredContent).toEqual({
       cardId: "doc_1",
       created: false,
@@ -906,7 +907,7 @@ describe("Convex MCP endpoint", () => {
       method: "GET",
       path: "/v1/tags/operations/op%201",
     });
-    expect(polled.content?.[0]?.text).toBe(
+    expect(polled.content[0]?.text).toBe(
       "Tag rename completed: 1 card changed of 1"
     );
     expect(captured).toHaveLength(4);
@@ -948,14 +949,14 @@ describe("Convex MCP endpoint", () => {
 
     const listed = await call("teak_v1_list_folders", {});
     expect(captured[0]).toMatchObject({ method: "GET", path: "/v1/folders" });
-    expect(listed.content?.[0]?.text).toBe("Fetched 1 folder");
+    expect(listed.content[0]?.text).toBe("Fetched 1 folder");
 
     const got = await call("teak_v1_get_folder", { folderId: "folder_1" });
     expect(captured.pop()).toMatchObject({
       method: "GET",
       path: "/v1/folders/folder_1",
     });
-    expect(got.content?.[0]?.text).toBe("Fetched folder Reading");
+    expect(got.content[0]?.text).toBe("Fetched folder Reading");
 
     await call("teak_v1_create_folder", { name: "Reading", color: "blue" });
     expect(captured[1]).toMatchObject({
@@ -1013,7 +1014,7 @@ describe("Convex MCP endpoint", () => {
       path: "/v1/folders/folder_1/cards",
     });
     expect(removed.isError).toBe(true);
-    expect(removed.content?.[0]?.text).toBe("Removed 1 card; 1 failed");
+    expect(removed.content[0]?.text).toBe("Removed 1 card; 1 failed");
 
     await call("teak_v1_list_cards", { folder: "folder_1" });
     expect(captured[6]?.query).toMatchObject({ folder: "folder_1" });
@@ -1082,7 +1083,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
+    expect(result.content[0]?.text.toLowerCase()).toContain("confirm");
   });
 
   test("forwards raw Markdown through create and update tools", async () => {
@@ -1181,7 +1182,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text).toContain("mimeType");
+    expect(result.content[0]?.text).toContain("mimeType");
     expect(executor).not.toHaveBeenCalled();
   });
 
@@ -1196,7 +1197,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain("expected true");
+    expect(result.content[0]?.text.toLowerCase()).toContain("expected true");
   });
 
   test("maps v1 errors to MCP isError payloads", async () => {
@@ -1467,8 +1468,8 @@ describe("Convex MCP endpoint", () => {
     expect(result.structuredContent).toMatchObject({
       summary: { total: 2, succeeded: 1, failed: 1 },
     });
-    expect(result.content?.[0]?.text).toContain("1 of 2 items failed");
-    expect(result.content?.[0]?.text).toContain("INVALID_INPUT");
+    expect(result.content[0]?.text).toContain("1 of 2 items failed");
+    expect(result.content[0]?.text).toContain("INVALID_INPUT");
   });
 
   test("reports a fully successful bulk operation without an error", async () => {
@@ -1490,7 +1491,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBeUndefined();
-    expect(result.content?.[0]?.text).toBe(
+    expect(result.content[0]?.text).toBe(
       "Bulk favorite complete: 1 of 1 succeeded"
     );
   });
@@ -1562,4 +1563,30 @@ describe("link image tools", () => {
       expect(captured).toEqual([]);
     }
   );
+});
+
+describe("answerProtocolMessage", () => {
+  test("replies to a ping without Convex", () => {
+    expect(
+      answerProtocolMessage({ id: 7, jsonrpc: "2.0", method: "ping" })
+    ).toEqual({ kind: "reply", reply: jsonRpcResponse(7, {}) });
+  });
+
+  test("sends no reply to a notification", () => {
+    expect(
+      answerProtocolMessage({
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+      })
+    ).toEqual({ kind: "noReply" });
+  });
+
+  test.each([
+    ["a tool call", { id: 1, jsonrpc: "2.0", method: "tools/call" }],
+    ["an unknown method", { id: 1, jsonrpc: "2.0", method: "resources/list" }],
+    ["a message without jsonrpc 2.0", { id: 1, method: "ping" }],
+    ["a batch array", [{ id: 1, jsonrpc: "2.0", method: "ping" }]],
+  ])("leaves %s to Convex", (_label, message) => {
+    expect(answerProtocolMessage(message)).toEqual({ kind: "needsConvex" });
+  });
 });

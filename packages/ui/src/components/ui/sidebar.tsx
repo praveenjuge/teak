@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
 import { useIsMobile } from "../../hooks/useIsMobile";
+import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {
   clampSidebarWidth,
   SIDEBAR_COOKIE_NAME,
@@ -38,9 +39,7 @@ const SIDEBAR_PEEK_DELAY_MS = 250;
 
 interface SidebarContextProps {
   isMobile: boolean;
-  /** The collapsed rail is showing in full while the pointer is over it. */
   isPeeking: boolean;
-  /** The edge is being dragged, so width changes skip the animation. */
   isResizing: boolean;
   open: boolean;
   openMobile: boolean;
@@ -48,11 +47,9 @@ interface SidebarContextProps {
   setOpenMobile: (open: boolean) => void;
   setPeeking: (peeking: boolean) => void;
   setResizing: (resizing: boolean) => void;
-  /** Sets the desktop width; `persist` remembers it for the next visit. */
   setWidth: (width: number, options?: { persist?: boolean }) => void;
   state: "expanded" | "collapsed";
   toggleSidebar: () => void;
-  /** The desktop width in pixels. */
   width: number;
 }
 
@@ -82,7 +79,6 @@ function SidebarProvider({
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean;
-  /** The remembered desktop width in pixels. */
   defaultWidth?: number;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -106,8 +102,6 @@ function SidebarProvider({
     []
   );
 
-  // Toasts and the bulk-action bar sit beside the sidebar, outside this
-  // wrapper, so its width is also published on the root element.
   React.useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--teak-sidebar-width", `${width}px`);
@@ -128,8 +122,6 @@ function SidebarProvider({
         _setOpen(openState);
       }
 
-      // The cookie lets the server render the remembered state, so the page
-      // never flashes the other width on load.
       // biome-ignore lint/suspicious/noDocumentCookie: the Cookie Store API is missing in older Safari
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
@@ -144,7 +136,6 @@ function SidebarProvider({
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Cmd/Ctrl+B is Bold while typing; only toggle outside text fields.
       const target = event.target as HTMLElement | null;
       if (
         target?.isContentEditable ||
@@ -237,9 +228,7 @@ function Sidebar({
 }) {
   const { isMobile, isPeeking, setPeeking, state, openMobile, setOpenMobile } =
     useSidebar();
-  // The drawer opens from a plain button, not a Radix trigger, so focus is
-  // handed back to whatever opened it by hand.
-  const openerRef = React.useRef<HTMLElement | null>(null);
+  const returnFocus = useReturnFocus(isMobile && openMobile);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const isIconRail = state === "collapsed" && collapsible === "icon";
   const peekTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,14 +320,8 @@ function Sidebar({
           data-mobile="true"
           data-sidebar="sidebar"
           data-slot="sidebar"
-          onCloseAutoFocus={(event) => {
-            if (openerRef.current?.isConnected) {
-              event.preventDefault();
-              openerRef.current.focus();
-            }
-          }}
+          onCloseAutoFocus={(event) => returnFocus(event)}
           onOpenAutoFocus={(event) => {
-            openerRef.current = document.activeElement as HTMLElement | null;
             // Start on the current page's link (Radix skips links).
             const current = (
               event.currentTarget as HTMLElement | null
@@ -870,8 +853,6 @@ function SidebarMenuSkeleton({
   ...props
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean;
-  /** The text bar's width. Fixed rather than random, so the server and
-   * client render the same markup. */
   width?: string;
 }) {
   return (
@@ -884,12 +865,12 @@ function SidebarMenuSkeleton({
       data-slot="sidebar-menu-skeleton"
       {...props}
     >
-      {showIcon && (
+      {showIcon ? (
         <Skeleton
           className="size-3.5 rounded-md"
           data-sidebar="menu-skeleton-icon"
         />
-      )}
+      ) : null}
       <Skeleton
         className="h-3 max-w-(--skeleton-width) flex-1"
         data-sidebar="menu-skeleton-text"

@@ -27,6 +27,15 @@ const groupAlive = (pgid: number): boolean => {
   }
 };
 
+const signalQuietly = (send: () => unknown): boolean => {
+  try {
+    send();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const waitForGroupExit = async (pgid: number, ms: number): Promise<void> => {
   const deadline = Date.now() + ms;
   while (groupAlive(pgid) && Date.now() < deadline) {
@@ -101,16 +110,18 @@ const readStream = async (
 
 export const runCommand = async (
   command: string[],
-  opts?: { cwd?: string; stdin?: string; timeoutMs?: number }
+  opts?: {
+    cwd?: string;
+    env?: NodeJS.ProcessEnv;
+    stdin?: string;
+    timeoutMs?: number;
+  }
 ): Promise<RunCommandResult> => {
   const timeoutMs = opts?.timeoutMs ?? 180_000;
   const proc = Bun.spawn(command, {
     cwd: opts?.cwd,
     detached: true,
-    // Without `env`, Bun.spawn passes the environment this process started
-    // with, ignoring later changes such as the E2E suite dropping
-    // CONVEX_DEPLOY_KEY so the Convex CLI can't reach a cloud deployment.
-    env: process.env,
+    env: opts?.env ?? process.env,
     stderr: "pipe",
     // Secrets go through stdin so they never appear in the process list.
     stdin: opts?.stdin === undefined ? "ignore" : Buffer.from(opts.stdin),
@@ -119,12 +130,8 @@ export const runCommand = async (
   const stdoutReader = proc.stdout.getReader();
   const stderrReader = proc.stderr.getReader();
   const killTree = () => {
-    try {
-      process.kill(-proc.pid, 9);
-    } catch {}
-    try {
-      proc.kill(9);
-    } catch {}
+    signalQuietly(() => process.kill(-proc.pid, 9));
+    signalQuietly(() => proc.kill(9));
   };
   // A detached child leaves our process group, so terminal and CI signals
   // no longer reach it. Prepending runs this before an onExitSignal handler.
@@ -134,9 +141,7 @@ export const runCommand = async (
     if (exitSignalOwned) {
       return;
     }
-    try {
-      process.kill(process.pid, signal);
-    } catch {}
+    signalQuietly(() => process.kill(process.pid, signal));
   };
   const onSigint = () => forwardSignal("SIGINT", onSigint);
   const onSigterm = () => forwardSignal("SIGTERM", onSigterm);
@@ -146,8 +151,8 @@ export const runCommand = async (
   const timer = setTimeout(() => {
     timedOut = true;
     killTree();
-    stdoutReader.cancel().catch(() => {});
-    stderrReader.cancel().catch(() => {});
+    stdoutReader.cancel().catch(() => undefined);
+    stderrReader.cancel().catch(() => undefined);
   }, timeoutMs);
   // Settle the group as soon as the command exits, not after output EOF: a
   // leftover descendant holding an inherited pipe would otherwise keep the

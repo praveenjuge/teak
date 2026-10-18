@@ -1,5 +1,13 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  afterEach,
+  describe,
+  expect,
+  expectTypeOf,
+  mock,
+  test,
+} from "bun:test";
+import {
+  type ClientEventCatalog,
   captureEvent,
   configureAnalytics,
   resetAnalytics,
@@ -58,10 +66,11 @@ describe("product analytics catalog", () => {
 
     captureEvent("extension_omnibox_used", { result: "card" });
     captureEvent("extension_omnibox_used", { result: "search" });
-    // @ts-expect-error the query text is not part of the event
-    captureEvent("extension_omnibox_used", { query: "design" });
 
-    expect(capture.mock.calls.slice(0, 2)).toEqual([
+    expectTypeOf<
+      ClientEventCatalog["extension_omnibox_used"]
+    >().not.toHaveProperty("query");
+    expect(capture.mock.calls).toEqual([
       ["extension_omnibox_used", { result: "card" }],
       ["extension_omnibox_used", { result: "search" }],
     ]);

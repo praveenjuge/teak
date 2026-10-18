@@ -312,10 +312,6 @@ export const getJob = internalQuery({
   handler: (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
-/**
- * What the import workflow needs from its job, with the owner's storage
- * prefix for the objects it writes.
- */
 export const getWorkflowJob = internalQuery({
   args: { jobId: v.id("importJobs") },
   returns: v.union(
@@ -636,8 +632,6 @@ export const createPendingBatch = internalMutation({
             source: "import",
           }
         );
-        // Folders come after the card so a card refused at the card limit
-        // leaves no empty folders behind.
         if (item.folders?.length) {
           const folderIds = await getOrCreateImportFolderIds(
             ctx,

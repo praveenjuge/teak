@@ -39,14 +39,17 @@ const idleClass =
   const monthlyPrices = document.querySelectorAll<HTMLElement>("[data-price-monthly]");
   const yearlyPrices = document.querySelectorAll<HTMLElement>("[data-price-yearly]");
 
+  const restartAnimation = (el: HTMLElement, className: string) => {
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+  };
+
   const show = (elements: NodeListOf<HTMLElement>, visible: boolean) => {
     for (const el of elements) {
       el.classList.toggle("hidden", !visible);
       if (visible) {
-        // Restart the entrance animation on every switch.
-        el.classList.remove("price-enter");
-        void el.offsetWidth;
-        el.classList.add("price-enter");
+        restartAnimation(el, "price-enter");
       }
     }
   };

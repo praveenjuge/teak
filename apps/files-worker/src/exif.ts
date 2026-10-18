@@ -1,10 +1,3 @@
-/**
- * Camera facts from EXIF, read from a stored image's leading bytes: the JPEG
- * APP1 segment, or the `Exif` item of a HEIC/AVIF (ISO BMFF `meta` box).
- * Only the fields Teak stores are decoded; anything malformed is skipped.
- * GPS position is deliberately not read: card metadata is exposed through the
- * API, MCP and exports, and a photo library's coordinates are location history.
- */
 export interface ExifFacts {
   exposureTime?: number;
   fNumber?: number;
@@ -16,7 +9,6 @@ export interface ExifFacts {
   takenAt?: number;
 }
 
-/** Leading bytes that hold JPEG APP1 or a HEIC `meta` box in practice. */
 export const EXIF_SCAN_BYTES = 256 * 1024;
 const MAX_IFD_ENTRIES = 512;
 const MAX_TEXT = 128;
@@ -215,7 +207,6 @@ const isoChildren = (
   return boxes;
 };
 
-/** Byte range of the `Exif` item in a HEIC/AVIF, from `iinf` and `iloc`. */
 export const heifExifLocation = (
   bytes: Uint8Array
 ): { length: number; offset: number } | null => {

@@ -54,7 +54,7 @@ export const trackIdempotencyOutcome = internalMutation({
         [field]: existing[field] + 1,
       });
     } else {
-      const row = {
+      await ctx.db.insert("apiIdempotencyAnalytics", {
         date,
         endpoint: args.endpoint,
         shard,
@@ -66,10 +66,8 @@ export const trackIdempotencyOutcome = internalMutation({
         conflicts: 0,
         inProgress: 0,
         errors: 0,
-      };
-      const field = outcomeToField(args.outcome);
-      (row as any)[field] = 1;
-      await ctx.db.insert("apiIdempotencyAnalytics", row);
+        [outcomeToField(args.outcome)]: 1,
+      });
     }
 
     return null;

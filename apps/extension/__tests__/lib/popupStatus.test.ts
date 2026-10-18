@@ -130,14 +130,6 @@ describe("getPopupStatus", () => {
   });
 
   test.each([
-    { autoSave: { error: "CARD_LIMIT_REACHED: limit", state: "error" } },
-    {
-      contextMenu: {
-        error: "CARD_LIMIT_REACHED: limit",
-        status: "error",
-      },
-    },
-    // The REST API sends the code apart from its message.
     {
       autoSave: {
         code: "CARD_LIMIT_REACHED",

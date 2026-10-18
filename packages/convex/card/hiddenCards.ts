@@ -3,13 +3,6 @@ import type { DataModel, Doc } from "../_generated/dataModel";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 
 /**
- * Hidden cards: a card whose user tags hold a reserved tag (`secret`,
- * `hidden`) stores `isHidden: true` and is left out of every list
- * and search, unless the search names one of those tags. Get by id,
- * `/v1/cards/changes` and exports still return it.
- */
-
-/**
  * A card write with `isHidden` kept beside changed `tags`, so the flag lands
  * in the same write (the search sync repairs any write without it).
  */
@@ -27,7 +20,6 @@ export const withHiddenFlag = <T extends object>(value: T): T => {
   };
 };
 
-/** Whether a search for these tags shows hidden cards. */
 export const revealsHidden = (tags: readonly (string | undefined)[]) =>
   isHiddenTagList(tags.filter((tag): tag is string => Boolean(tag)));
 
@@ -45,7 +37,6 @@ export const excludeHiddenRows = <Q extends CardQuery>(
     ? query
     : (query.filter((q) => q.neq(q.field("isHidden"), true)) as Q);
 
-/** The loaded cards a read may return. */
 export const keepVisible = <T extends Pick<Doc<"cards">, "isHidden" | "tags">>(
   cards: T[],
   includeHidden?: boolean

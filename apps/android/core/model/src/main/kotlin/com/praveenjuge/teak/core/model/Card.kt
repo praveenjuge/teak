@@ -4,24 +4,24 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class CardType(val label: String, val plural: String) {
-    @SerialName("text") Text("Text", "Notes"),
-    @SerialName("link") Link("Link", "Links"),
-    @SerialName("image") Image("Image", "Images"),
-    @SerialName("video") Video("Video", "Videos"),
-    @SerialName("audio") Audio("Audio", "Audio"),
-    @SerialName("document") Document("Document", "Documents"),
-    @SerialName("palette") Palette("Palette", "Palettes"),
-    @SerialName("quote") Quote("Quote", "Quotes"),
+enum class CardType(val plural: String) {
+    @SerialName("text") Text("Notes"),
+    @SerialName("link") Link("Links"),
+    @SerialName("image") Image("Images"),
+    @SerialName("video") Video("Videos"),
+    @SerialName("audio") Audio("Audio"),
+    @SerialName("document") Document("Documents"),
+    @SerialName("palette") Palette("Palettes"),
+    @SerialName("quote") Quote("Quotes"),
     ;
 
     val wireName: String get() = name.lowercase()
 
-    /** Palettes already show their colors as the preview, so their summary leaves them out. */
+    val label: String get() = CARD_TYPE_LABELS.getValue(wireName)
+
     val showsSummaryColors: Boolean get() = this != Palette
 }
 
-/** One tile in the library grid (`cards:searchMobileCardSummariesPaginated`). */
 @Serializable
 data class CardSummary(
     @SerialName("_id") val id: String,
@@ -116,7 +116,6 @@ data class LinkPreviewMedia(
     val posterUrl: String? = null,
 )
 
-/** The full card for the detail and edit screens (`cards:getCard`). */
 @Serializable
 data class Card(
     @SerialName("_id") val id: String,
@@ -151,7 +150,6 @@ data class Card(
     val deleted: Boolean get() = isDeleted == true
 }
 
-/** `auth:getCurrentUser`. */
 @Serializable
 data class CurrentUser(
     @SerialName("_id") val id: String,
@@ -170,45 +168,35 @@ data class CurrentUser(
             val noun = if (count == 1) "Card" else "Cards"
             return if (hasPremium) "$count $noun" else "$count of $FREE_TIER_LIMIT Cards"
         }
-
-    companion object {
-        const val FREE_TIER_LIMIT = 200
-    }
 }
 
-/** `auth:getAuthMode`: whether sign-up is open and which WorkOS client signs in. */
 @Serializable
 data class AuthMode(
     val primary: String,
     val signupsDisabled: Boolean,
     val authKitClientId: String? = null,
 ) {
-    /** The client ID, if the deployment sent a well-formed one. */
     val validClientId: String?
         get() = authKitClientId?.takeIf { primary == "workos" && WORKOS_CLIENT_ID.matches(it) }
 }
 
 private val WORKOS_CLIENT_ID = Regex("^client_[A-Za-z0-9]{1,128}$")
 
-enum class ColorHue(val wireName: String, val label: String, val hex: Long) {
-    Red("red", "Red", 0xFFEF4444),
-    Orange("orange", "Orange", 0xFFF97316),
-    Yellow("yellow", "Yellow", 0xFFEAB308),
-    Green("green", "Green", 0xFF22C55E),
-    Teal("teal", "Teal", 0xFF14B8A6),
-    Cyan("cyan", "Cyan", 0xFF06B6D4),
-    Blue("blue", "Blue", 0xFF3B82F6),
-    Purple("purple", "Purple", 0xFFA855F7),
-    Pink("pink", "Pink", 0xFFEC4899),
-    Brown("brown", "Brown", 0xFF92400E),
-    Neutral("neutral", "Neutral", 0xFF737373),
+enum class ColorHue(val hex: Long) {
+    Red(0xFFEF4444),
+    Orange(0xFFF97316),
+    Yellow(0xFFEAB308),
+    Green(0xFF22C55E),
+    Teal(0xFF14B8A6),
+    Cyan(0xFF06B6D4),
+    Blue(0xFF3B82F6),
+    Purple(0xFFA855F7),
+    Pink(0xFFEC4899),
+    Brown(0xFF92400E),
+    Neutral(0xFF737373),
+    ;
+
+    val wireName: String get() = name.lowercase()
+
+    val label: String get() = COLOR_HUE_LABELS.getValue(wireName)
 }
-
-object TeakMessages {
-    const val SIGNUPS_PAUSED = "New sign-ups are paused right now. Please try again later."
-}
-
-/** 100 MB, the backend's upload limit. */
-const val MAX_FILE_SIZE: Long = 100L * 1024 * 1024
-
-const val MAX_FILES_PER_UPLOAD = 20

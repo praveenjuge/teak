@@ -66,7 +66,6 @@ const enqueue = async (
   });
 };
 
-/** Groups every capture inside `callback` into one request at its end. */
 export const withBackendTelemetryScope = async <T>(
   context: { cardId?: string; workflowId?: string },
   callback: () => Promise<T>
@@ -147,10 +146,6 @@ export interface BackendCaptureInput {
   workflowId?: string;
 }
 
-/**
- * Runs an action body, reports a non-retryable failure, and rethrows it.
- * Retryable failures stay quiet: workflow retries own them.
- */
 export const withBackendErrorCapture = <T>(
   input: BackendCaptureInput,
   callback: () => Promise<T>

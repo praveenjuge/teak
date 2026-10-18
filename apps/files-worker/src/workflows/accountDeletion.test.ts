@@ -14,10 +14,6 @@ interface StorageRow {
   keys: string[];
 }
 
-/**
- * Convex's deletion state and the batches its storage mutations capture,
- * in memory. Each kind holds source rows whose keys drain three at a time.
- */
 const deletionBackend = (
   options: {
     stage?: number;
@@ -107,7 +103,9 @@ const deletionBackend = (
           offset: 0,
         };
       }
-      const progress = (state.storageProgress as { offset: number }) ?? {
+      const progress = (state.storageProgress as
+        | { offset: number }
+        | undefined) ?? {
         offset: 0,
       };
       state.storageProgress = progress;
@@ -235,7 +233,6 @@ describe("runAccountDeletion", () => {
     expect(test.bucket.objects.size).toBe(0);
     expect(test.bucket.multipartUploads.size).toBe(0);
     expect(backend.checkpoints).toEqual([3, 3, 1, 1]);
-    // Every key is frozen against writers before its batch is deleted.
     const firstDelete = test.opCalls.findIndex(
       (call) => call.op === "delete-objects"
     );
@@ -353,6 +350,50 @@ describe("runAccountDeletion", () => {
       "writers exportJobs",
       "begin",
     ]);
+  });
+
+  test("retries the writers step when Workflows can't say whether an export is running", async () => {
+    const backend = deletionBackend({
+      stage: ACCOUNT_DATA,
+      workflowIds: ["export-job-1"],
+    });
+    let lookups = 0;
+    const exports = {
+      get: () => {
+        lookups += 1;
+        if (lookups < 3) {
+          return Promise.reject(new Error("internal error"));
+        }
+        return Promise.resolve({
+          status: () => Promise.resolve({ status: "complete" }),
+        });
+      },
+    };
+    const test = setup(backend, { env: { EXPORTS: exports } });
+
+    await runAccountDeletion(test.run, { convex: test.convex, ops: test.ops });
+
+    expect(
+      test.steps.records.find((record) => record.name === "prepare writers 2")
+    ).toMatchObject({ attempts: 3, outcome: "ok" });
+  });
+
+  test("treats an export with no Workflows instance as stopped", async () => {
+    const backend = deletionBackend({
+      stage: ACCOUNT_DATA,
+      workflowIds: ["export-job-1"],
+    });
+    const exports = {
+      get: () => Promise.reject(new Error("instance.not_found")),
+    };
+    const test = setup(backend, { env: { EXPORTS: exports } });
+
+    await runAccountDeletion(test.run, { convex: test.convex, ops: test.ops });
+
+    expect(
+      test.steps.records.find((record) => record.name === "prepare writers 2")
+    ).toMatchObject({ attempts: 1, outcome: "ok" });
+    expect(backend.state.writersPrepared).toBe(true);
   });
 
   test("a stale generation ends the run without retrying", async () => {

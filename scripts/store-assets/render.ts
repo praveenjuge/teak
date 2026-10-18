@@ -1,16 +1,3 @@
-/**
- * Renders the store images from the committed raw captures:
- *
- *   bun scripts/store-assets/render.ts            every store
- *   bun scripts/store-assets/render.ts apple-iphone apple-ipad   some stores
- *
- * Each image is the shared wallpaper, one short headline, and a real capture:
- * the Mac window as captured, iPhone and iPad captures framed in their device
- * by `asc screenshots frame` (Koubou), and Android captures in a drawn Pixel
- * frame. Pages render in Chromium through the repository's playwright-core,
- * then Apple sets are checked with `asc screenshots validate`.
- */
-
 import {
   existsSync,
   mkdirSync,
@@ -263,7 +250,6 @@ const wallpaper = dataURI(
   path.join(import.meta.dir, "wallpaper.jpg"),
   "image/jpeg"
 );
-// Load every capture before opening a browser or touching outputs.
 const framed = new Map<StoreId, Map<string, string>>();
 for (const id of stores) {
   if (STORES[id].frame) {

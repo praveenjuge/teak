@@ -3,7 +3,6 @@ import { createFakeQueue } from "../test/fakeQueue";
 import { planSendBatches, sendInBatches } from "./sendBatch";
 
 const deletion = (index: number) => ({
-  // A hundred keys of about 150 bytes: about 15 KB per message.
   keys: Array.from(
     { length: 100 },
     (_, key) =>

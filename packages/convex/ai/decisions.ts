@@ -9,13 +9,6 @@ import {
 } from "../storage/filesWorkerClient";
 import { aiUsageParams } from "./usage";
 
-/**
- * Clef decisions run in the Files Worker, which owns their prompts and
- * thresholds. This only sends the inputs and honours the AI gate. The Worker
- * records each model call in Analytics Engine, charged to the owner named in
- * `aiUsage`. Every failure is swallowed: a `null` result means keep the
- * rules' answer, so a decision can never fail a card or a search.
- */
 export const CARD_PROCESSING_DECISION_TIMEOUT_MS = 3000;
 
 type DecisionOp = Extract<
@@ -62,7 +55,7 @@ export const runDecision = async <T>(
       params: { ...params, ...aiUsageParams(userId) },
       timeoutMs,
     });
-    if (outcome.kind === "fallback") {
+    if (outcome.kind === "declined") {
       return null;
     }
     const result = read(outcome.data);

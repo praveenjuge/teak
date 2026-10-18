@@ -8,8 +8,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Convex is the boundary: the side panel's folder and tag reads stay
-// loading, and the header's done button is what these tests cover.
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,

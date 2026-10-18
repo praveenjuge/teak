@@ -32,7 +32,6 @@ const BOM = "﻿";
 
 const FORMULA_START = /^[=+\-@\t\r]/;
 
-/** The cell as written: formula-guarded, then quoted with `"` doubled. */
 export const csvCell = (value: string): string => {
   const guarded = FORMULA_START.test(value) ? `'${value}` : value;
   return `"${guarded.replace(/"/g, '""')}"`;
@@ -56,7 +55,6 @@ const row = (card: SerializedCard): string[] => [
   card.sourceTitle ?? "",
 ];
 
-/** Builds the CSV file: a header row, then one row per card in order. */
 export function buildCardsCsv(cards: readonly SerializedCard[]): string {
   const lines = [CSV_COLUMNS.map(csvCell).join(",")];
   for (const card of cards) {

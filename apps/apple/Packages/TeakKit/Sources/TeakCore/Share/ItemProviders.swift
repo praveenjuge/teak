@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 /// Files are copied into a private temporary folder, so they outlive the
 /// provider and upload straight from disk.
 public enum ItemProviders {
-    /// Loads up to `limit` items, preferring files, then images, then URLs, then text.
     @MainActor public static func load(_ providers: [NSItemProvider], limit: Int = TeakLimits.maxFilesPerUpload) async -> [SharedItem] {
         var items: [SharedItem] = []
         for provider in providers.prefix(limit * 2) {
@@ -82,7 +81,6 @@ public enum ItemProviders {
                           fileSize: size)
     }
 
-    /// Copies a file the person picked (security-scoped) into a private folder.
     public static func copyPicked(_ url: URL) throws -> UploadItem {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }

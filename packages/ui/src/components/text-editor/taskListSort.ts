@@ -19,26 +19,17 @@ import type { EditorView } from "@tiptap/pm/view";
 const TASK_ITEM = "taskItem";
 const TASK_LIST = "taskList";
 
-/** How long a moved item takes to slide into its new place. */
 export const TASK_SLIDE_MS = 220;
 
-/** What a move changed, for the slide: the list and the reordered run. */
 interface TaskMove {
   first: number;
   last: number;
-  /** The list's position in the document after the move. */
   listPos: number;
-  /** Each new index's old index. */
   order: number[];
 }
 
 const taskListSortKey = new PluginKey<TaskMove | null>("teakTaskListSort");
 
-/**
- * Where the task item that `tr` ticked or unticked now sits in `tr.doc`, or
- * null when `tr` toggled none, or more than one. Only a change to `checked`
- * alone counts: the checkbox's own `setNodeMarkup`, or `setNodeAttribute`.
- */
 function findToggledTaskItem(tr: Transaction): number | null {
   let found: number | null = null;
   for (let index = 0; index < tr.steps.length; index++) {
@@ -75,12 +66,6 @@ function findToggledTaskItem(tr: Transaction): number | null {
   return found;
 }
 
-/**
- * The order of a task list's items once the item at `index` has been ticked
- * or unticked: it goes right after the last open item other than itself, or
- * first when there is none. Done items keep their order among themselves, so
- * the one ticked last leads the done section.
- */
 export function sortedTaskOrder(
   checked: readonly boolean[],
   index: number
@@ -95,12 +80,6 @@ export function sortedTaskOrder(
   return [...others.slice(0, target), index, ...others.slice(target)];
 }
 
-/**
- * After a transaction that ticked or unticked one task item, a transaction
- * that moves the item (children included) among its siblings in one step, or
- * null when it already sits where it belongs. `state` is the state after
- * `tr`, and after `later`, the changes other plugins appended since, if any.
- */
 export function moveToggledTaskItem(
   state: EditorState,
   tr: Transaction,
@@ -138,7 +117,6 @@ export function moveToggledTaskItem(
   if (newIndex === index) {
     return null;
   }
-  // Replace only the run of items between the old and the new spot.
   const first = Math.min(index, newIndex);
   const last = Math.max(index, newIndex);
   const rangeOf = (start: number, end: number) =>
@@ -191,7 +169,6 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
-/** The list's item elements, in order, while the view shows `pos`'s list. */
 function itemElements(view: EditorView, pos: number): HTMLElement[] | null {
   const list = view.nodeDOM(pos);
   if (!(list instanceof HTMLElement)) {
@@ -202,10 +179,6 @@ function itemElements(view: EditorView, pos: number): HTMLElement[] | null {
   );
 }
 
-/**
- * Slides each item of the moved run from where it was drawn to its new place
- * (FLIP). The Web Animations API leaves the editor's DOM and styles alone.
- */
 function slide(elements: HTMLElement[], before: number[], move: TaskMove) {
   for (let at = move.first; at <= move.last; at++) {
     const element = elements[at];
@@ -231,20 +204,16 @@ function slide(elements: HTMLElement[], before: number[], move: TaskMove) {
   }
 }
 
-/** Moves a ticked item below the open ones in its list, and back on untick. */
 export function taskListSortPlugin(): Plugin {
   let editorView: EditorView | null = null;
-  // Where the run's items were drawn just before a move, until it renders.
   let pending: { move: TaskMove; before: number[] } | null = null;
   return new Plugin({
     key: taskListSortKey,
     state: {
       init: () => null,
-      // The last move applied, so the view only slides a move that landed.
       apply: (tr, last) => tr.getMeta(taskListSortKey) ?? last,
     },
     appendTransaction(transactions, _oldState, newState) {
-      // The user's change comes first; plugins may have appended others.
       const [toggle, ...rest] = transactions;
       const later = new Mapping();
       for (const appended of rest) {
@@ -252,8 +221,6 @@ export function taskListSortPlugin(): Plugin {
       }
       const move = moveToggledTaskItem(newState, toggle, later);
       const taskMove = move?.getMeta(taskListSortKey) as TaskMove | undefined;
-      // The view still shows the list before the move: measure it now. A
-      // tick only changes an attribute, so the list sits at the same place.
       if (taskMove && editorView && !prefersReducedMotion()) {
         const elements = itemElements(editorView, taskMove.listPos);
         if (elements?.length === taskMove.order.length) {

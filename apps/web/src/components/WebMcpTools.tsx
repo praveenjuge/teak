@@ -21,9 +21,9 @@ type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
 const createDevDebugHandle = () => {
   if (process.env.NODE_ENV === "production") {
     return {
-      clear: () => {},
-      markRegistered: () => {},
-      recordEvent: (_type: WebMcpToolEventType) => {},
+      clear: () => undefined,
+      markRegistered: () => undefined,
+      recordEvent: (_type: WebMcpToolEventType) => undefined,
     };
   }
   const handle: TeakWebmcpDebugHandle = { events: {}, tools: [] };

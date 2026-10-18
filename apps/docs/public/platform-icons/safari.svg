@@ -3,6 +3,7 @@
   xmlns="http://www.w3.org/2000/svg"
   xmlns:xlink="http://www.w3.org/1999/xlink"
 >
+  <title>Safari</title>
   <defs>
     <linearGradient id="b">
       <stop offset="0" stop-color="#06c2e7" />

@@ -71,14 +71,11 @@ export const reachTeak = <T>(request: Promise<T>) =>
 
 function fetchAuth(url: string, init: RequestInit) {
   return reachTeak(
-    // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
     // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
     fetch(validateOAuthUrl(url, LOCAL).href, {
       ...init,
       credentials: "omit",
       redirect: "error",
-      // A caller's own signal (address-bar search cancels stale requests)
-      // still applies beside the timeout.
       signal: init.signal
         ? AbortSignal.any([init.signal, AbortSignal.timeout(10_000)])
         : AbortSignal.timeout(10_000),
@@ -102,7 +99,8 @@ interface Credentials {
 }
 let ready: Promise<void> | undefined;
 let login: Promise<void> | undefined;
-let generation = 0;
+let signOutEpoch = 0;
+const signedOutSince = (epoch: number) => epoch !== signOutEpoch;
 
 export function initializeAuth() {
   ready ??= IS_FIREFOX
@@ -139,18 +137,59 @@ async function firefoxCredentials<T>(
   }
 }
 
-// A private session can't open IndexedDB; its session storage, which Firefox
-// never shows content scripts, holds the sign-in until Firefox closes.
-const credentialArea = () =>
-  isPrivateSession() ? chrome.storage.session : chrome.storage.local;
+interface CredentialStore {
+  clear: () => Promise<void>;
+  read: () => Promise<unknown>;
+  write: (
+    credentials: Credentials,
+    localFields: Record<string, unknown>
+  ) => Promise<void>;
+}
+
+const firefoxDatabaseCredentials: CredentialStore = {
+  read: () => firefoxCredentials("readonly", (store) => store.get(tokenKey())),
+  write: async (credentials, localFields) => {
+    await firefoxCredentials("readwrite", (store) =>
+      store.put(credentials, tokenKey())
+    );
+    await chrome.storage.local.set(localFields);
+  },
+  clear: async () => {
+    await firefoxCredentials("readwrite", (store) => store.delete(tokenKey()));
+  },
+};
+
+const storageAreaCredentials = (
+  area: chrome.storage.StorageArea
+): CredentialStore => ({
+  read: async () => (await area.get(tokenKey()))[tokenKey()],
+  write: async (credentials, localFields) => {
+    if (area === chrome.storage.local) {
+      await area.set({ ...localFields, [tokenKey()]: credentials });
+      return;
+    }
+    await area.set({ [tokenKey()]: credentials });
+    await chrome.storage.local.set(localFields);
+  },
+  clear: () => area.remove(tokenKey()),
+});
+
+const credentialStore = (): CredentialStore => {
+  if (!IS_FIREFOX) {
+    return storageAreaCredentials(chrome.storage.local);
+  }
+  // A private session can't open IndexedDB; its session storage, which Firefox
+  // never shows content scripts, holds the sign-in until Firefox closes.
+  return isPrivateSession()
+    ? storageAreaCredentials(chrome.storage.session)
+    : firefoxDatabaseCredentials;
+};
 
 async function readCredentials(): Promise<Credentials | null> {
   await initializeAuth();
-  const record = (
-    IS_FIREFOX && !isPrivateSession()
-      ? await firefoxCredentials("readonly", (store) => store.get(tokenKey()))
-      : (await credentialArea().get(tokenKey()))[tokenKey()]
-  ) as Partial<Credentials> | undefined;
+  const record = (await credentialStore().read()) as
+    | Partial<Credentials>
+    | undefined;
   return record &&
     typeof record.accessToken === "string" &&
     record.accessToken.length > 0 &&
@@ -162,25 +201,13 @@ async function readCredentials(): Promise<Credentials | null> {
 }
 
 async function writeCredentials(credentials: Credentials | null) {
-  const inDatabase = IS_FIREFOX && !isPrivateSession();
   if (credentials) {
-    if (inDatabase) {
-      await firefoxCredentials("readwrite", (store) =>
-        store.put(credentials, tokenKey())
-      );
-    } else if (isPrivateSession()) {
-      await chrome.storage.session.set({ [tokenKey()]: credentials });
-    }
-    await chrome.storage.local.set({
-      ...(IS_FIREFOX ? {} : { [tokenKey()]: credentials }),
-      ...(credentials.userId
-        ? { [captureOwnerKey()]: credentials.userId }
-        : {}),
-    });
-  } else if (inDatabase) {
-    await firefoxCredentials("readwrite", (store) => store.delete(tokenKey()));
+    await credentialStore().write(
+      credentials,
+      credentials.userId ? { [captureOwnerKey()]: credentials.userId } : {}
+    );
   } else {
-    await credentialArea().remove(tokenKey());
+    await credentialStore().clear();
   }
   await chrome.storage.local.set({
     [AUTH_STATE_KEY]: {
@@ -269,7 +296,7 @@ async function revokeCredentials(
 export function beginOAuthSignIn(): Promise<void> {
   login ??= (async () => {
     await initializeAuth();
-    const attempt = generation;
+    const startedAt = signOutEpoch;
     const auth = await discovery(true);
     const saved = await readCredentials();
     if (saved && matches(saved, auth) && !saved.userId) {
@@ -311,7 +338,7 @@ export function beginOAuthSignIn(): Promise<void> {
       if (
         current.issuer !== auth.issuer ||
         current.clients[SURFACE] !== auth.clients[SURFACE] ||
-        attempt !== generation
+        signedOutSince(startedAt)
       ) {
         throw new Error("Sign-in provider changed. Please try again.");
       }
@@ -334,9 +361,7 @@ export function beginOAuthSignIn(): Promise<void> {
       }
       credentials.userId = userId;
       await navigator.locks.request("teak-oauth-credentials", async () => {
-        // A sign-out during sign-in discards this grant without revoking the
-        // same app on other installations.
-        if (attempt === generation) {
+        if (!signedOutSince(startedAt)) {
           await writeCredentials(credentials);
         }
       });
@@ -358,7 +383,7 @@ export function beginOAuthSignIn(): Promise<void> {
 
 function credentialsForRequest() {
   return navigator.locks.request("teak-oauth-credentials", async () => {
-    const attempt = generation;
+    const readAt = signOutEpoch;
     const credentials = await readCredentials();
     if (!credentials) {
       return null;
@@ -369,15 +394,15 @@ function credentialsForRequest() {
       return null;
     }
     if (credentials.expiresAt > Date.now() + 30_000) {
-      return attempt === generation ? credentials : null;
+      return signedOutSince(readAt) ? null : credentials;
     }
     const renewed = await refreshCredentials(credentials, auth);
     if (renewed) {
       const current = await discovery();
-      if (attempt !== generation && matches(renewed, current)) {
+      if (signedOutSince(readAt) && matches(renewed, current)) {
         await revokeCredentials(renewed, current);
       }
-      if (!matches(renewed, current) || attempt !== generation) {
+      if (!matches(renewed, current) || signedOutSince(readAt)) {
         await writeCredentials(null);
         return null;
       }
@@ -468,7 +493,7 @@ export async function getOAuthState() {
 }
 
 export async function signOutOAuth() {
-  generation += 1;
+  signOutEpoch += 1;
   return await navigator.locks.request("teak-oauth-credentials", async () => {
     const credentials = await readCredentials();
     const notice = credentials

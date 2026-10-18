@@ -21,7 +21,6 @@ import { probeMedia } from "./probe";
 export const MAX_PIXELS = 40_000_000;
 export const MAX_SIDE = 8192;
 
-/** Where the thumbnail comes from: a little way in, past fade-ins. */
 export function frameTimeSeconds(durationSeconds: number | null): number {
   if (durationSeconds === null || durationSeconds < 2) {
     return 0;

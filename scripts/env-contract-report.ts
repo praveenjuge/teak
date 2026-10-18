@@ -1,16 +1,5 @@
 #!/usr/bin/env bun
 
-/**
- * Baseline metrics report for the environment contract.
- *
- * Records total entries, required values, secrets, implicit values, bindings,
- * generated aliases, classification counts, and per-target/profile
- * manual-supply counts from
- * ./env-contract.ts. Names and metadata only, never values.
- *
- * Usage: bun run scripts/env-contract-report.ts [--json] [--target <t>] [--profile <p>]
- */
-
 import { isFrameworkAlias } from "./env-aliases.ts";
 import { classify } from "./env-classify.ts";
 import { ENV_CONTRACT } from "./env-contract.ts";
@@ -160,7 +149,7 @@ export const buildMissingReport = (
   const names =
     present ??
     new Set([
-      ...loadTargetEnv(target, profile as "local").values.keys(),
+      ...loadTargetEnv(target).values.keys(),
       ...Object.keys(process.env),
     ]);
   return {

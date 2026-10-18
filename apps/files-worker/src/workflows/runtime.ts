@@ -6,16 +6,13 @@ import { type ConvexRpc, createConvexRpc } from "../convexRpc";
 import type { FilesOpsEnv } from "../ops";
 import type { TelemetryEnvVars } from "../telemetry";
 
-/** Everything a workflow, queue consumer or cron task may use. */
 export interface BackgroundEnv extends FilesOpsEnv, TelemetryEnvVars {
   AI_BACKFILL?: Queue<unknown>;
-  /** Workers Analytics Engine dataset for AI usage (`teak_ai_usage`). */
   AI_USAGE?: AnalyticsEngineDataset;
   R2_EVENTS?: Queue<unknown>;
   WORKOS_EVENTS?: Queue<unknown>;
 }
 
-/** The parts of Cloudflare's `WorkflowStep` the workflows use. */
 export interface StepContext {
   attempt: number;
 }
@@ -46,7 +43,6 @@ export const convexFor = (
   params: WorkflowOriginParams
 ): ConvexRpc => createConvexRpc(env, params.convexSiteUrl);
 
-/** Steps that only read or write Convex: transport failures retry. */
 export const CONVEX_STEP: StepConfig = {
   retries: { backoff: "exponential", delay: "5 seconds", limit: 8 },
   timeout: "2 minutes",
@@ -69,7 +65,6 @@ export const retryConfig = (
   timeout,
 });
 
-/** No retries: a failure ends the step at once. */
 export const NO_RETRY = (
   timeout: StepConfig["timeout"] = "10 minutes"
 ): StepConfig => ({ retries: { delay: 0, limit: 0 }, timeout });
@@ -77,11 +72,6 @@ export const NO_RETRY = (
 export const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/**
- * Runs a workflow body and tells Convex how it ended, so the job it owns
- * never stays "running". A report that cannot be delivered is left to the
- * hourly reconcile.
- */
 export const runReported = async <T>(
   run: WorkflowRun<unknown>,
   body: () => Promise<T>,
@@ -119,7 +109,6 @@ export const runReported = async <T>(
   return result;
 };
 
-/** Stops the run without retrying when the work no longer applies. */
 export const stopRun = (reason: string): never => {
   throw new NonRetryableError(reason);
 };

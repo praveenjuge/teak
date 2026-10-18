@@ -3,11 +3,6 @@ import { internalMutation } from "../_generated/server";
 import { enqueueObjectDeletion } from "../workflowDispatch";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
-/**
- * Queues objects for deletion from an action. Mutations call
- * `enqueueObjectDeletion` directly, in the transaction that drops the rows
- * that referenced the objects.
- */
 export const enqueue = internalMutation({
   args: { keys: v.array(v.string()) },
   returns: v.null(),

@@ -126,7 +126,6 @@ const features = [
     isolation: isolate;
   }
 
-  /* Screenshots peek in from the edge, like the app window in the store images. */
   .feature-visual > img {
     position: absolute;
     display: block;
@@ -158,14 +157,11 @@ const features = [
   .feature-portable > .feature-visual > img { width: 66%; }
   .feature-agents > .feature-visual > img { width: 78%; }
 
-  /* Two real capture surfaces: the iPhone share sheet and Mac Quick Capture. */
   .capture-scene {
     position: absolute;
     inset: 0;
   }
 
-  /* The phone sits on the right at the card's height, so its share sheet with
-     Teak stays in view; the Mac panel floats over the page above it. */
   .capture-phone {
     position: absolute;
     right: 9%;

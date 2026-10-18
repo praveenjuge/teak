@@ -38,19 +38,12 @@ import { createUploadQueue, type UploadQueueHandlers } from "./uploadQueue";
 import { useFileUpload } from "./useFileUpload";
 import { useNetworkStatus } from "./useNetworkStatus";
 
+export type PasteClaim = (event: ClipboardEvent) => boolean;
+
 interface GlobalFileDropContextValue {
-  /**
-   * Programmatically enqueue files (used by the AddCardForm picker so it
-   * shares queue/toast state with the global drag/drop).
-   */
+  claimPaste: (claim: PasteClaim) => () => void;
   enqueueFiles: (files: File[]) => void;
-  /**
-   * Whether the queue is actively draining.
-   */
   isUploading: boolean;
-  /**
-   * Number of files currently queued (including the one being uploaded).
-   */
   queueSize: number;
 }
 
@@ -64,21 +57,6 @@ interface GlobalFileDropProviderProps {
   upgradeUrl?: string;
 }
 
-/**
- * Single authenticated drag/drop + upload queue provider.
- *
- * Mount once per authenticated app surface. The provider:
- *
- *  - Listens for document-level drag/drop events so the whole app accepts
- *    file drops (cards, settings, etc) without per-page wiring.
- *  - Rejects folder drops, offline drops and non-file drops with a single
- *    critical toast each.
- *  - Queues dropped/picked files through the shared `useFileUpload` hook,
- *    enforcing the existing per-upload cap.
- *  - Emits one toast per queue: a non-closable loading toast while the queue
- *    drains, and a result toast on completion (success auto-dismiss, failure
- *    sticky).
- */
 export function GlobalFileDropProvider({
   children,
   onUpgrade,
@@ -90,6 +68,16 @@ export function GlobalFileDropProvider({
 
   // Track drag depth so nested elements don't make the overlay flicker.
   const dragDepthRef = useRef(0);
+  const pasteClaimsRef = useRef<PasteClaim[]>([]);
+  const claimPaste = useCallback((claim: PasteClaim) => {
+    pasteClaimsRef.current.push(claim);
+    return () => {
+      const index = pasteClaimsRef.current.lastIndexOf(claim);
+      if (index >= 0) {
+        pasteClaimsRef.current.splice(index, 1);
+      }
+    };
+  }, []);
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {
@@ -166,10 +154,7 @@ export function GlobalFileDropProvider({
 
       if (summary.successCount === 0) {
         const first = summary.firstFailure;
-        const reason =
-          first && !first.success
-            ? (first.error ?? "Upload failed")
-            : "Upload failed";
+        const reason = first && !first.success ? first.error : "Upload failed";
         toast.error(
           withSkippedNote(
             summary.total === 1
@@ -321,6 +306,10 @@ export function GlobalFileDropProvider({
     };
 
     const handlePaste = (event: ClipboardEvent) => {
+      const claims = pasteClaimsRef.current;
+      if (claims[claims.length - 1]?.(event)) {
+        return;
+      }
       if (!dataTransferHasFiles(event.clipboardData)) {
         return;
       }
@@ -368,11 +357,12 @@ export function GlobalFileDropProvider({
 
   const contextValue = useMemo<GlobalFileDropContextValue>(
     () => ({
+      claimPaste,
       queueSize,
       isUploading,
       enqueueFiles: enqueueValidatedFiles,
     }),
-    [enqueueValidatedFiles, isUploading, queueSize]
+    [claimPaste, enqueueValidatedFiles, isUploading, queueSize]
   );
 
   return (
@@ -383,11 +373,6 @@ export function GlobalFileDropProvider({
   );
 }
 
-/**
- * Read-only access to queue state. Returns `null` when called outside the
- * provider so callers (like `AddCardForm` which is shared with non-web
- * surfaces) can gracefully fall back to their own upload path.
- */
 export function useGlobalFileDrop(): GlobalFileDropContextValue | null {
   return use(GlobalFileDropContext);
 }

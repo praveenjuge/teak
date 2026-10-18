@@ -338,20 +338,23 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
   return value;
 };
 
-export const ignoreTelemetryError = (record: () => void): void => {
+/** Runs a telemetry call so its failure never reaches the caller. Returns whether it ran. */
+export const ignoreTelemetryError = (record: () => void): boolean => {
   try {
     record();
+    return true;
   } catch {
-    // Telemetry must never alter product behavior.
+    return false;
   }
 };
 
 export const ignoreTelemetryErrorAsync = async (
   record: () => Promise<unknown>
-): Promise<void> => {
+): Promise<boolean> => {
   try {
     await record();
+    return true;
   } catch {
-    // Telemetry must never alter product behavior.
+    return false;
   }
 };

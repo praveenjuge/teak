@@ -30,15 +30,9 @@ export interface SocialPostMedia {
   width?: number;
 }
 
-/**
- * A post as read from its site, shaped for `buildSuccessPreview`. The title is
- * the post text (at most 512 characters) and the media are direct image and
- * MP4 URLs still to be stored.
- */
 export interface SocialPostMetadata {
   author: string | undefined;
   canonicalUrl: string | undefined;
-  /** Saved on the preview; categorization prefers it to the URL rules. */
   categoryHint?: "social_post";
   description: string | undefined;
   faviconUrl: string | undefined;
@@ -53,7 +47,6 @@ export interface SocialPostMetadata {
   title: string | undefined;
 }
 
-/** The page fields the generic scrape parsed (`parseLinkPreview`). */
 export type ParsedLinkPreview = Partial<
   Pick<
     LinkPreviewMetadata,
@@ -71,12 +64,6 @@ export type ParsedLinkPreview = Partial<
   >
 >;
 
-/**
- * Bluesky, Mastodon, Reddit and TikTok posts read from their public APIs
- * (oEmbed for TikTok). Runs after the X branch and before the page scrape;
- * null (no match, private, deleted, rate-limited, timed out) means scrape the
- * page as usual. Never throws.
- */
 export const fetchSocialPostMetadata = async (
   url: string,
   deps: SocialFetchDeps
@@ -102,10 +89,6 @@ export const fetchSocialPostMetadata = async (
   return null;
 };
 
-/**
- * Threads, LinkedIn and Substack Notes posts from the Open Graph tags the
- * generic scrape already read; no request of its own.
- */
 export const mapOpenGraphSocialPost = (
   url: string,
   parsed: ParsedLinkPreview
@@ -114,7 +97,6 @@ export const mapOpenGraphSocialPost = (
   mapLinkedInOpenGraph(url, parsed) ??
   mapSubstackNoteOpenGraph(url, parsed);
 
-/** The post as preview fields: everything but the platform name. */
 export const toSocialPostPreviewFields = ({
   platform: _platform,
   media: _media,

@@ -8,9 +8,6 @@ import { parseLinkedPdfParams, storeLinkedPdf } from "./linkedPdf";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { FakeBucket } from "./test/testsupport";
 
-// Save PDF's download: arxiv.org only, a PDF only, up to 100 MiB, straight
-// into R2, and never twice for one key.
-
 const KEY = "users/u/cards/stored/file/abc-1706.03762.pdf";
 const PDF = "https://arxiv.org/pdf/1706.03762";
 const BYTES = new TextEncoder().encode("%PDF-1.7 tiny");

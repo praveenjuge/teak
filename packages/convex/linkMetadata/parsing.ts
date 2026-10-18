@@ -238,7 +238,7 @@ export const buildErrorPreview = (
   error: {
     type: string;
     message?: string;
-    details?: any;
+    details?: unknown;
   },
   extras?: Pick<
     LinkPreviewMetadata,

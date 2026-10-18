@@ -10,8 +10,6 @@ const LEGACY_USER_MODELS = [
   "twoFactor",
 ] as const;
 
-// A WorkOS-created owner's `teak_` key is no Better Auth document ID, and
-// looking one up would throw.
 export const findLegacyBetterAuthUser = async (
   ctx: Pick<QueryCtx, "runQuery">,
   owner: Pick<Doc<"users">, "identityOrigin" | "teakUserId">

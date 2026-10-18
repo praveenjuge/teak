@@ -7,7 +7,6 @@ import type {
 import { isPatchCardPayload } from "./cardPatch";
 import { oauthRequest } from "./oauthAuth";
 
-/** The most library tags the popup reads for suggestions. */
 const LIBRARY_TAG_LIMIT = 50;
 
 interface Dependencies {
@@ -38,16 +37,14 @@ const errorResult = async (response: Response): Promise<SaveErrorResponse> => {
   };
 };
 
-/**
- * Sends the popup's tags and note to the card. A request that never reached
- * Teak (a network error) is sent once more; PATCH replaces the same fields,
- * so a repeat is harmless.
- */
+const retryOnceOnNetworkError = <T>(send: () => Promise<T>): Promise<T> =>
+  send().catch(send);
+
 export async function patchCard(
   { cardId, notes, tags }: PatchCardPayload,
   { request = oauthRequest }: Dependencies = {}
 ): Promise<CardPatchResponse> {
-  const send = () =>
+  const sendIdempotentPatch = () =>
     request(`/v1/cards/${encodeURIComponent(cardId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -58,17 +55,13 @@ export async function patchCard(
     });
   let response: Response | null;
   try {
-    response = await send();
+    response = await retryOnceOnNetworkError(sendIdempotentPatch);
   } catch {
-    try {
-      response = await send();
-    } catch {
-      return {
-        status: "error",
-        code: "NETWORK",
-        message: "You're offline. Your changes weren't saved.",
-      };
-    }
+    return {
+      status: "error",
+      code: "NETWORK",
+      message: "You're offline. Your changes weren't saved.",
+    };
   }
   if (!response) {
     return { status: "unauthenticated" };
@@ -81,20 +74,16 @@ const readTags = (value: unknown): string[] =>
     ? value.filter((tag): tag is string => typeof tag === "string")
     : [];
 
-/**
- * What the popup needs beside a saved card: the library's most used tags,
- * and for a card that was already saved, its own tags and note.
- */
 export async function loadSaveDetails(
-  { cardId, existing }: { cardId: string; existing: boolean },
+  { alreadySaved, cardId }: { alreadySaved: boolean; cardId: string },
   { request = oauthRequest }: Dependencies = {}
 ): Promise<SaveDetailsResponse> {
   try {
     const [tagsResponse, cardResponse] = await Promise.all([
       request("/v1/tags"),
-      existing ? request(`/v1/cards/${encodeURIComponent(cardId)}`) : null,
+      alreadySaved ? request(`/v1/cards/${encodeURIComponent(cardId)}`) : null,
     ]);
-    if (!tagsResponse || (existing && !cardResponse)) {
+    if (!tagsResponse || (alreadySaved && !cardResponse)) {
       return { status: "unauthenticated" };
     }
     if (cardResponse && !cardResponse.ok) {
@@ -135,10 +124,6 @@ export async function loadSaveDetails(
   }
 }
 
-/**
- * Runs one card's patches one after another, in the order they arrived, so
- * an older change sent from a closing popup never lands after a newer one.
- */
 export function createPatchQueue(send: typeof patchCard = patchCard) {
   const tails = new Map<string, Promise<unknown>>();
   return (payload: PatchCardPayload): Promise<CardPatchResponse> => {
@@ -156,10 +141,6 @@ export function createPatchQueue(send: typeof patchCard = patchCard) {
   };
 }
 
-/**
- * Keeps the popup's latest unsaved change and sends it when the popup's port
- * disconnects (the popup closed). A draft that isn't a valid patch is dropped.
- */
 export function createDraftKeeper(
   send: (payload: PatchCardPayload) => Promise<CardPatchResponse>
 ) {

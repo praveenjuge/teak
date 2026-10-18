@@ -33,7 +33,9 @@ mock.module("sonner", () => ({
   toast: { error: mock(), loading: mock(() => "id"), success: mock() },
 }));
 
-const { ImportPanel, ImportProgressSummary } = await import("../ImportPanel");
+const { ImportPanel, ImportProgressSummary, importPanelState } = await import(
+  "../ImportPanel"
+);
 const { putParts } = await import("../importUpload");
 
 function renderImportPanel() {
@@ -376,5 +378,64 @@ describe("ImportPanel", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("importPanelState", () => {
+  const job = (status: string) =>
+    ({
+      createdCount: 0,
+      failedCount: 0,
+      id: "job",
+      mode: "pocket",
+      parsedCount: 0,
+      phase: status,
+      processedCount: 0,
+      reportAvailable: false,
+      skippedCount: 0,
+      status,
+      updatedAt: 0,
+    }) as Parameters<typeof importPanelState>[0];
+  const pending = {
+    file: new File(["x"], "export.csv"),
+    mode: "pocket" as const,
+  };
+
+  test("rests with no import and nothing chosen", () => {
+    expect(importPanelState(null, false, null).kind).toBe("idle");
+    expect(importPanelState(job("completed"), false, null).kind).toBe("idle");
+  });
+
+  test("an uploading job with no transfer running was interrupted", () => {
+    expect(importPanelState(job("uploading"), false, null)).toEqual({
+      job: job("uploading"),
+      kind: "interrupted",
+    });
+  });
+
+  test("a chosen file for an interrupted upload resumes it", () => {
+    expect(importPanelState(job("uploading"), false, pending)).toEqual({
+      kind: "confirming",
+      pending,
+      resume: true,
+    });
+    expect(importPanelState(job("failed"), false, pending)).toEqual({
+      kind: "confirming",
+      pending,
+      resume: false,
+    });
+  });
+
+  test("server phases run whether or not this client is uploading", () => {
+    expect(importPanelState(job("parsing"), false, null)).toEqual({
+      job: job("parsing"),
+      kind: "running",
+    });
+  });
+
+  test("a new upload shows Uploading, not the last import's failure", () => {
+    const state = importPanelState(job("failed"), true, null);
+    expect(state.kind).toBe("running");
+    expect(state.kind === "running" && state.job.phase).toBe("Uploading");
   });
 });

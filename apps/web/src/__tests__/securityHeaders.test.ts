@@ -169,8 +169,6 @@ describe("web security headers", () => {
   });
 
   test("upgrades insecure requests everywhere except development and test", () => {
-    // Development serves plain http://localhost; the upgrade directive makes
-    // browsers request chunks over https:// and fail with connection errors.
     expect(buildContentSecurityPolicy("production")).toContain(
       "upgrade-insecure-requests"
     );

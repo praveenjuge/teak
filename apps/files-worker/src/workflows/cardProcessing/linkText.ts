@@ -1,26 +1,16 @@
 import { internal } from "@teak/convex/_generated/api";
 import {
   type FilesImageTextResult,
+  linkOcrSourceKeys,
   normalizeImageOcrText,
 } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../aiUsage";
 import { type CardJob, guardOf, loadCard } from "./context";
 
-// The text in a link's images, for search only: its preview image
-// (og:image) and its screenshot. It runs after the screenshot stage and never
-// changes it.
-
 export type LinkTextOutcome =
   | { status: "read"; hasText: boolean }
   | { status: "skipped" };
 
-/**
- * Reads the link's preview image, then its screenshot, and stores their
- * text as `aiOcrText` with `ocrCheckedAt`. An image the op declines (gone,
- * or a format it can't decode) reads as none. A busy Workers AI throws, so
- * the step retries; the processing revision guards the write, so a newer
- * run's images are never given this run's text.
- */
 export const readLinkImageText = async (
   job: CardJob
 ): Promise<LinkTextOutcome> => {
@@ -29,10 +19,7 @@ export const readLinkImageText = async (
   if (card?.type !== "link" || card.isDeleted) {
     return { status: "skipped" };
   }
-  const preview = card.metadata?.linkPreview;
-  const keys = [preview?.imageStorageKey, preview?.screenshotStorageKey].filter(
-    (key): key is string => Boolean(key)
-  );
+  const keys = linkOcrSourceKeys(card.metadata?.linkPreview);
   if (keys.length === 0) {
     return { status: "skipped" };
   }

@@ -13,10 +13,12 @@ interface CardsScreenAdapterProps {
   addToFolderId?: string;
   cardIdFromUrl: string | null;
   contentContainerClassName?: string;
+  focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
   onAddCardsToFolder?: (folderId: string) => void;
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
+  onFocusComposerHandled?: () => void;
   onNavigateView?: (view: LibraryView) => void;
   onOpenFolder?: (folderId: string) => void;
   onSearchUrlStateChange?: (
@@ -36,9 +38,11 @@ interface CardsScreenAdapterProps {
 export function CardsScreenAdapter({
   addToFolderId,
   cardIdFromUrl,
+  focusComposer,
   folderId,
   onAddCardsToFolder,
   onAddToFolderDone,
+  onFocusComposerHandled,
   contentContainerClassName,
   onUpgrade,
   pushCardId,
@@ -74,12 +78,14 @@ export function CardsScreenAdapter({
         <CardsScreen
           addToFolderId={addToFolderId}
           contentContainerClassName={contentContainerClassName}
+          focusComposer={focusComposer}
           folderId={folderId}
           headerLeading={headerLeading}
           initialVisualFilters={retryKey ? visualFiltersRef.current : undefined}
           onAddCardsToFolder={onAddCardsToFolder}
           onAddToFolderDone={onAddToFolderDone}
           onCloseCard={closeCard}
+          onFocusComposerHandled={onFocusComposerHandled}
           onNavigateView={onNavigateView}
           onOpenCard={openCard}
           onOpenFolder={onOpenFolder}

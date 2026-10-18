@@ -149,5 +149,4 @@ class UploadWorker @AssistedInject constructor(
     }
 }
 
-/** How one upload ended. [Skipped] uploads never ran: one before them hit the card limit. */
-enum class UploadOutcome { Saved, Failed, LimitReached, Skipped }
+enum class UploadOutcome { Saved, Failed, LimitReached, NotRunAfterLimit }

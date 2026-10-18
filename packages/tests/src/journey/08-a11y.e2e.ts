@@ -37,8 +37,6 @@ const waitForReadySurface = async (
       () =>
         browser.evaluate(() =>
           document.getAnimations().every((animation) => {
-            // Infinite loops (loading pulses) are not load transitions; the
-            // skeleton wait above is what proves the content arrived.
             const timing = (
               animation.effect as KeyframeEffect | null
             )?.getTiming();

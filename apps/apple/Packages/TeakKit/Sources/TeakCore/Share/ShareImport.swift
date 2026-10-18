@@ -11,6 +11,13 @@ public struct ShareImportResult: Sendable, Equatable {
     public struct Failure: Sendable, Equatable {
         public let reason: Reason
         public let message: String
+
+        static let signInRequired = Failure(reason: .unauthenticated, message: "Sign in to save shared content.")
+
+        static func from(_ error: any Error, reason: Reason) -> Failure {
+            if (error as? TeakError)?.isSignedOut == true { return signInRequired }
+            return Failure(reason: reason, message: error.teakMessage)
+        }
     }
 
     public var totalItems = 0
@@ -30,7 +37,6 @@ public struct ShareImportResult: Sendable, Equatable {
     }
 }
 
-/// Saves shared items one at a time.
 public struct ShareImporter: Sendable {
     public typealias CreateText = @Sendable (String) async throws -> String
     public typealias Upload = @Sendable (UploadItem) async throws -> String
@@ -43,8 +49,7 @@ public struct ShareImporter: Sendable {
         self.upload = upload
     }
 
-    /// Drops empty text and repeats, such as a page's URL shared both as a link and as text.
-    public static func deduplicate(_ items: [SharedItem]) -> [SharedItem] {
+    public static func removingEmptyAndDuplicates(_ items: [SharedItem]) -> [SharedItem] {
         var seen = Set<String>()
         return items.compactMap { item in
             switch item {
@@ -61,14 +66,14 @@ public struct ShareImporter: Sendable {
 
     public func importItems(_ items: [SharedItem], isAuthenticated: Bool,
                             maxItems: Int = TeakLimits.maxFilesPerUpload) async -> ShareImportResult {
-        let items = Self.deduplicate(items)
+        let items = Self.removingEmptyAndDuplicates(items)
         let processable = items.prefix(maxItems)
         var result = ShareImportResult(totalItems: items.count, attemptedItems: processable.count)
         result.failures = items.dropFirst(maxItems).map { _ in
             .init(reason: .tooManyItems, message: "Only the first \(maxItems) shared items are saved.")
         }
         guard isAuthenticated else {
-            result.failures += processable.map { _ in .init(reason: .unauthenticated, message: "Sign in to save shared content.") }
+            result.failures += processable.map { _ in .signInRequired }
             return result
         }
         for item in processable {
@@ -77,7 +82,7 @@ public struct ShareImporter: Sendable {
                 do {
                     result.createdCardIds.append(try await createText(text))
                 } catch {
-                    result.failures.append(.init(reason: .createFailed, message: error.teakMessage))
+                    result.failures.append(.from(error, reason: .createFailed))
                 }
             case let .file(file):
                 if let size = file.fileSize, size > TeakLimits.maxFileSize {
@@ -88,7 +93,7 @@ public struct ShareImporter: Sendable {
                 do {
                     result.createdCardIds.append(try await upload(file))
                 } catch {
-                    result.failures.append(.init(reason: .uploadFailed, message: error.teakMessage))
+                    result.failures.append(.from(error, reason: .uploadFailed))
                 }
             }
         }

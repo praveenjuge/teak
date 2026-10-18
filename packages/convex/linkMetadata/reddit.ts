@@ -58,7 +58,6 @@ interface RedditOEmbed {
   title?: string;
 }
 
-/** The post's `/r/<sub>/comments/<id>` path, without the slug. */
 export const parseRedditPostPath = (url: string): string | null => {
   try {
     const parsed = new URL(url);
@@ -189,11 +188,6 @@ const fetchRedditOEmbed = async (
   });
 };
 
-/**
- * A Reddit post from its `.json` listing: title and text, author, subreddit,
- * date, and its gallery, image or video. When Reddit turns the request away
- * (403, 429) oEmbed gives the title and author; a removed post returns null.
- */
 export const fetchRedditPost = async (
   url: string,
   deps: SocialFetchDeps

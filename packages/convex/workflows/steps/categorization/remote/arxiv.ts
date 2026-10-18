@@ -10,9 +10,6 @@ import {
   summaryText,
 } from "./common";
 
-// An arXiv paper's authors, date, subject and DOI from the arXiv API, its
-// abstract for the AI summary, and its PDF for Save PDF.
-
 const ARXIV_HOSTS = new Set(["arxiv.org", "www.arxiv.org", "export.arxiv.org"]);
 // 2301.01234 (4 or 5 digits after the dot) and hep-th/9901001, either with
 // an optional version. Nothing else reaches the API's id_list.
@@ -24,7 +21,6 @@ const WITHDRAWN_REGEX = /\bwithdrawn\b/i;
 /** A paper with 3,000 authors is about 250 KB of Atom. */
 const ARXIV_MAX_BYTES = 1024 * 1024;
 
-/** The paper id an arXiv abstract or PDF URL names, or null. */
 export const parseArxivId = (url: string): string | null => {
   try {
     const parsed = new URL(url);
@@ -46,13 +42,11 @@ export const parseArxivId = (url: string): string | null => {
   }
 };
 
-/** The paper's PDF on arxiv.org, the only URL Save PDF downloads. */
 export const arxivPdfUrl = (id: string) => `https://arxiv.org/pdf/${id}`;
 
 export const arxivApiUrl = (id: string) =>
   `https://export.arxiv.org/api/query?id_list=${encodeURIComponent(id)}`;
 
-/** Whether `url` is exactly `https://arxiv.org/pdf/<id>` for a valid id. */
 export const isArxivPdfUrl = (url: string): boolean => {
   const id = parseArxivId(url);
   return id !== null && url === arxivPdfUrl(id);
@@ -69,7 +63,6 @@ export interface ArxivEntry {
   title?: string;
 }
 
-/** The first `<entry>` of an arXiv API Atom feed, or null without one. */
 export const parseArxivAtom = (xml: string): ArxivEntry | null => {
   let entry: ArxivEntry | null = null;
   let inEntry = false;

@@ -42,11 +42,7 @@ const isRetryableActionError = (error: unknown) =>
     `${(error as { code?: string }).code ?? ""} ${error.message}`
   );
 
-/**
- * Clicks a control once it is visible and enabled, retrying a click that
- * lands while React replaces the node.
- */
-export const clickVisibleControl = async (
+export const clickRetryingReplacedNode = async (
   locator: Locator,
   options: { timeout?: number } = {}
 ) => {
@@ -66,6 +62,9 @@ export const clickVisibleControl = async (
   }
 };
 
+export const onScreenText = (screen: Screen, text: string) =>
+  screen.getByText(text, { exact: false, visible: true });
+
 export const composerOf = (screen: Screen) =>
   screen.getByRole("textbox", "Markdown content", { visible: true });
 
@@ -83,7 +82,7 @@ export const fillAndSubmitTextCard = async (
     },
     { timeout: 30_000 }
   );
-  await clickVisibleControl(
+  await clickRetryingReplacedNode(
     browser
       .locator("form[data-card-creation-status]")
       .getByRole("button", "Save")
@@ -207,11 +206,11 @@ export const openSecurityDialog = async (
   await retry(
     async () => {
       if (!(await dialog.isVisible())) {
-        await clickVisibleControl(manageButton, { timeout: 2500 });
+        await clickRetryingReplacedNode(manageButton, { timeout: 2500 });
       }
       await expect(dialog).toBeVisible({ timeout: 2500 });
       if ((await tabTrigger.getAttribute("aria-selected")) !== "true") {
-        await clickVisibleControl(tabTrigger, { timeout: 2500 });
+        await clickRetryingReplacedNode(tabTrigger, { timeout: 2500 });
       }
       await expect(tabTrigger).toBeSelected({ timeout: 2500 });
       await expect(tabPanel).toBeVisible({ timeout: 2500 });
@@ -231,7 +230,7 @@ export const openSecurity = async (
 
 export const generateApiKey = async (surface: Surface) => {
   const dialog = await openSecurity(surface, "API keys");
-  await clickVisibleControl(dialog.getByRole("button", "Create key"));
+  await clickRetryingReplacedNode(dialog.getByRole("button", "Create key"));
   // React updates the input's live value property, not necessarily its HTML
   // value attribute, so do not use an attribute-prefix CSS selector here.
   const input = surface.browser
@@ -258,7 +257,6 @@ export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };
 
-/** A new WorkOS user signed in to its new vault; returns its email. */
 export const signUp = async (
   surface: Surface,
   label: string,
@@ -283,11 +281,6 @@ export const createAccount = async (
   return { email, apiKey: await generateApiKey(surface) };
 };
 
-/**
- * An account with an API key and no browser: for the API, CLI and MCP specs.
- * The key comes from the same mutation Settings calls, signed in with the
- * password grant the hosted page uses.
- */
 export const createApiAccount = async (
   label: string
 ): Promise<Required<Pick<AccountState, "apiKey" | "email">>> => {

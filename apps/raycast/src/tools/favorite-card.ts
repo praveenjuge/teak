@@ -1,5 +1,6 @@
 import type { Tool } from "@raycast/api";
 import { setCardFavorite } from "../lib/api";
+import { parseToolCardId } from "../lib/apiParsers";
 
 type Input = {
   /** The Teak card id to update. */
@@ -9,12 +10,9 @@ type Input = {
 };
 
 export default async function tool(input: Input) {
-  const cardId = input.cardId?.trim();
-  if (!cardId) {
-    throw new Error("cardId is required");
-  }
+  const cardId = parseToolCardId(input.cardId);
 
-  const updated = await setCardFavorite(cardId, input.isFavorited, "stored");
+  const updated = await setCardFavorite(cardId, input.isFavorited, "silent");
 
   return {
     appUrl: updated.appUrl,

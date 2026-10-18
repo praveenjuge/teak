@@ -38,7 +38,7 @@ class UploadOutcomeTest {
 
     @Test
     fun `a failed row with no output never ran`() {
-        assertEquals(UploadOutcome.Skipped, uploadOutcome(WorkInfo.State.FAILED, Data.EMPTY))
+        assertEquals(UploadOutcome.NotRunAfterLimit, uploadOutcome(WorkInfo.State.FAILED, Data.EMPTY))
     }
 
     @Test

@@ -118,7 +118,6 @@ test("a link is marked done and found with is:done; a note can't be", async () =
   const markedCard = await marked.json();
   openapi.validate("/v1/cards/{cardId}/done", "POST", 200, markedCard);
   expect(markedCard.completedAt).toEqual(expect.any(Number));
-  // Marking it again keeps the first date.
   const again = await (
     await apiFetch(donePath, apiKey, { method: "POST" })
   ).json();
@@ -172,7 +171,6 @@ test("Save PDF refuses a card that isn't an arXiv paper, and another account's c
   });
   expect(missing.status).toBe(404);
 
-  // Another account's card reads as missing, not as a card with no PDF.
   const other = await createApiAccount("service-api-other");
   const strangers = await apiFetch(
     `/v1/cards/${note.cardId}/save-pdf`,

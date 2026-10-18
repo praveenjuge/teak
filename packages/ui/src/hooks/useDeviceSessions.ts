@@ -5,7 +5,8 @@ import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeviceSession } from "../components/settings/SecuritySection";
 
-// Actions do not subscribe: keep pages local, discard stale responses on account changes.
+// Convex actions do not subscribe: pages stay local, and a response for a
+// previous account is discarded.
 export function useDeviceSessions(identityKey: string | undefined) {
   const list = useAction(api.securitySessions.listAuthkitSessions);
   const activeIdentity = useRef(identityKey);

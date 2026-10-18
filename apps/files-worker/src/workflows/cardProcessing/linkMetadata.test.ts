@@ -377,7 +377,6 @@ describe("link metadata", () => {
           type: "image",
         }),
       ]);
-      // The stored image stands in for og:image; it is not stored twice.
       expect(saved()?.linkPreview).not.toHaveProperty("imageStorageKey");
     });
   });
@@ -403,7 +402,6 @@ describe("link metadata", () => {
       expect(network.requests).toEqual([
         { addresses: [PUBLIC], url: MASTODON_API },
       ]);
-      // The status's own media is stored; its page is never fetched.
       expect(new Set(fakes.opsCalled())).toEqual(
         new Set(["store-remote-asset"])
       );
@@ -533,7 +531,6 @@ describe("link metadata", () => {
       expect(await fetch()).toEqual({ status: "success" });
       expect(fakes.calls).toEqual([]);
       expect(saved()?.linkPreview.title).toBe("just setting up my twttr");
-      // Only X's fixed public hosts, never the status page itself.
       expect(
         requested.every((host) =>
           ["publish.x.com", "cdn.syndication.twimg.com"].includes(host)

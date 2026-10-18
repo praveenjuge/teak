@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {
   ariaKeyShortcut,
   isFocusNoteKey,
@@ -29,9 +30,8 @@ import { MarkdownTextEditor } from "./MarkdownTextEditor";
 import { countWords, formatWordCount } from "./wordCount";
 
 /**
- * Whether Esc belongs to something open in the editor rather than to Focus:
- * the slash menu, or the formatting toolbar's link editor. Radix sees Esc
- * before them (it listens on the document), so Focus has to step aside.
+ * Radix sees Esc before the slash menu and the link editor (it listens
+ * on the document), so Focus steps aside while one of them is open.
  */
 export function editorPopupOwnsEscape(
   dialog: ParentNode,
@@ -44,32 +44,22 @@ export function editorPopupOwnsEscape(
   );
 }
 
-/** How long typing pauses before the word count shows. */
 export const WORD_COUNT_IDLE_MS = 1000;
 
 export interface FocusEditorProps {
   canSave: boolean;
   disabled?: boolean;
-  /** Takes focus on leaving when nothing had it on entering (⌘E on the page). */
   fallbackFocusRef?: RefObject<HTMLElement | null>;
   onChange: (value: string) => void;
-  /** Leaves Focus: Esc, Close, or ⌘E again. Edits are kept. */
   onRequestClose: () => void;
   onSave: () => void | Promise<void>;
   open: boolean;
   placeholder: string;
   saveLabel?: string;
-  /** For screen readers: what is being written. */
   title: string;
   value: string;
 }
 
-/**
- * Writing with nothing else on screen: one centered column, a Close and
- * Save bar that fades out while you type, and a word count once you pause.
- * New notes (the composer) and existing ones (the card dialog) share it,
- * and ⌘E (Ctrl+E) enters and leaves it.
- */
 export function FocusEditor({
   canSave,
   disabled,
@@ -84,28 +74,14 @@ export function FocusEditor({
   value,
 }: FocusEditorProps) {
   const [isTyping, setIsTyping] = useState(false);
-  // The last count stays as it fades out; a pause shows a fresh one.
   const [wordCount, setWordCount] = useState(0);
   const [isCountShown, setIsCountShown] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
-  // Radix gives focus back to a dialog's trigger, and Focus has none, so
-  // remember what had it as Focus opens and return there on leaving.
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const returnFocus = useReturnFocus(open);
   const contentRef = useRef<HTMLDivElement>(null);
-  const wasOpenRef = useRef(false);
-  if (open && !wasOpenRef.current && typeof document !== "undefined") {
-    const focused = document.activeElement;
-    returnFocusRef.current =
-      focused instanceof HTMLElement && focused !== document.body
-        ? focused
-        : null;
-  }
-  wasOpenRef.current = open;
 
-  // The count is worked out only once typing pauses, so a long note costs
-  // nothing per keystroke.
   const scheduleWordCount = useCallback(() => {
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
@@ -156,32 +132,21 @@ export function FocusEditor({
       <DialogContent
         className="fixed top-0 left-0 h-dvh w-dvw max-w-none translate-x-0! translate-y-0! transform-none overscroll-contain rounded-none! border-0 p-0 shadow-none sm:max-w-none"
         data-focus-editor=""
-        onCloseAutoFocus={(event) => {
-          const target = returnFocusRef.current?.isConnected
-            ? returnFocusRef.current
-            : fallbackFocusRef?.current;
-          if (target) {
-            event.preventDefault();
-            target.focus({ preventScroll: true });
-          }
-        }}
+        onCloseAutoFocus={(event) =>
+          returnFocus(event, fallbackFocusRef?.current)
+        }
         onEscapeKeyDown={(event) => {
-          // The slash menu and the link editor close themselves on Esc.
           const dialog = contentRef.current;
           if (dialog && editorPopupOwnsEscape(dialog, document.activeElement)) {
             event.preventDefault();
           }
         }}
         onKeyDown={(event) => {
-          // ⌘E leaves from anywhere in Focus, Close and Save included; the
-          // editor handles (and prevents) its own.
           if (!event.defaultPrevented && isFocusNoteKey(event.nativeEvent)) {
             event.preventDefault();
             onRequestClose();
             return;
           }
-          // A key outside the editor (Tab to the buttons, say) brings the
-          // bar back; typing in the editor keeps it hidden.
           const target = event.target as HTMLElement | null;
           if (!target?.closest("[contenteditable='true'], textarea")) {
             showChrome();
@@ -200,8 +165,6 @@ export function FocusEditor({
           <div
             className={cn(
               "absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-background/90 px-4 py-2 backdrop-blur transition-opacity duration-200 ease-out sm:px-6",
-              // Faded, the strip lets clicks through to the note, but its
-              // buttons still work for a click that comes without a hover.
               isTyping &&
                 "pointer-events-none opacity-0 [&_button]:pointer-events-auto"
             )}

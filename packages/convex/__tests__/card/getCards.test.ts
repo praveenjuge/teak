@@ -25,7 +25,6 @@ afterEach(() => {
   }
 });
 
-/** A hand-built index read that also takes the hidden-card filter. */
 const filterable = <Q extends object>(query: Q): Q =>
   Object.assign(query, { filter: () => query });
 
@@ -55,7 +54,6 @@ const buildSearchDb = (cards: any[], cardQuery = buildQuery(cards)) => ({
     if (table === "cardSearchDocuments") {
       return buildQuery(cards.map((card) => ({ cardId: card._id })));
     }
-    // No meaning matches cached: keyword search alone.
     return table === "semanticSearchResults" ? buildQuery([]) : cardQuery;
   }),
 });

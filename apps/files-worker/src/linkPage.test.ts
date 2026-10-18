@@ -296,7 +296,11 @@ describe("link page cache", () => {
   class MemoryKv {
     readonly values = new Map<string, string>();
     readonly puts: { key: string; options: unknown }[] = [];
-    failing = false;
+    failing: boolean;
+
+    constructor(failing = false) {
+      this.failing = failing;
+    }
 
     get(key: string, type?: "json") {
       if (this.failing) {

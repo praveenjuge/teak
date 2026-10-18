@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { UserIdentity } from "convex/server";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { readWorkosSessionIdentity } from "../securitySessions";
-import { verifyWorkosConnectToken } from "../workosTokens";
+import { verifyWorkosConnectTokenSignature } from "../workosTokens";
 import { asFetch } from "./helpers/convex.test-utils";
 
 const issuer = "https://workos-token-test.authkit.app";
@@ -65,32 +65,34 @@ describe("Connect credential validation", () => {
   test("accepts signed API and MCP tokens only at their own resource", async () => {
     const apiToken = await token();
     const mcpToken = await token({ aud: mcpAudience });
-    expect(await verifyWorkosConnectToken(apiToken, config)).toEqual({
+    expect(await verifyWorkosConnectTokenSignature(apiToken, config)).toEqual({
       workosUserId: userId,
       consentId,
       clientId,
       externalId: "legacy-owner",
     });
     expect(
-      await verifyWorkosConnectToken(mcpToken, {
+      await verifyWorkosConnectTokenSignature(mcpToken, {
         issuer,
         audience: mcpAudience,
       })
     ).not.toBeNull();
     expect(
-      await verifyWorkosConnectToken(apiToken, {
+      await verifyWorkosConnectTokenSignature(apiToken, {
         issuer,
         audience: mcpAudience,
       })
     ).toBeNull();
-    expect(await verifyWorkosConnectToken(mcpToken, config)).toBeNull();
+    expect(
+      await verifyWorkosConnectTokenSignature(mcpToken, config)
+    ).toBeNull();
     expect(requests).toContain(`${issuer}/oauth2/jwks`);
   });
 
   test("accepts CIMD client IDs and optional external IDs without fetching them", async () => {
     const cimd = "https://client.example.test/metadata.json";
     for (const external_id of [null, undefined]) {
-      const verified = await verifyWorkosConnectToken(
+      const verified = await verifyWorkosConnectTokenSignature(
         await token({ client_id: cimd, external_id }),
         config
       );
@@ -107,7 +109,7 @@ describe("Connect credential validation", () => {
     ]) {
       expect(
         (
-          await verifyWorkosConnectToken(
+          await verifyWorkosConnectTokenSignature(
             await token({ client_id: value }),
             config
           )
@@ -134,13 +136,13 @@ describe("Connect credential validation", () => {
     const hmac = await new SignJWT(claims)
       .setProtectedHeader({ alg: "HS256", kid: "test-key" })
       .sign(new Uint8Array(32));
-    expect(await verifyWorkosConnectToken(rsa, config)).toBeNull();
-    expect(await verifyWorkosConnectToken(hmac, config)).toBeNull();
+    expect(await verifyWorkosConnectTokenSignature(rsa, config)).toBeNull();
+    expect(await verifyWorkosConnectTokenSignature(hmac, config)).toBeNull();
   });
 
   test("does not require refresh permission for an access token", async () => {
     expect(
-      await verifyWorkosConnectToken(
+      await verifyWorkosConnectTokenSignature(
         await token({ scope: "openid profile email" }),
         config
       )
@@ -182,7 +184,7 @@ describe("Connect credential validation", () => {
     "rejects %s",
     async (_name: string, claims: JWTPayload) => {
       expect(
-        await verifyWorkosConnectToken(await token(claims), config)
+        await verifyWorkosConnectTokenSignature(await token(claims), config)
       ).toBeNull();
     }
   );
@@ -190,29 +192,38 @@ describe("Connect credential validation", () => {
   test("accepts a token issued slightly ahead of this deployment's clock", async () => {
     const issuedAt = Math.floor(Date.now() / 1000) + 30;
     expect(
-      await verifyWorkosConnectToken(await issuedFor(issuedAt, 300), config)
+      await verifyWorkosConnectTokenSignature(
+        await issuedFor(issuedAt, 300),
+        config
+      )
     ).not.toBeNull();
   });
 
   test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
     const lastSecond = Math.floor(Date.now() / 1000) - 1;
     expect(
-      await verifyWorkosConnectToken(await issuedFor(lastSecond, 300), config)
+      await verifyWorkosConnectTokenSignature(
+        await issuedFor(lastSecond, 300),
+        config
+      )
     ).not.toBeNull();
     expect(
-      await verifyWorkosConnectToken(await issuedFor(lastSecond, 301), config)
+      await verifyWorkosConnectTokenSignature(
+        await issuedFor(lastSecond, 301),
+        config
+      )
     ).toBeNull();
   });
 
   test("rejects forged and malformed tokens", async () => {
     expect(
-      await verifyWorkosConnectToken(
+      await verifyWorkosConnectTokenSignature(
         await token({}, wrongKeys.privateKey),
         config
       )
     ).toBeNull();
     for (const value of ["not-a-jwt", "", "a".repeat(16_385)]) {
-      expect(await verifyWorkosConnectToken(value, config)).toBeNull();
+      expect(await verifyWorkosConnectTokenSignature(value, config)).toBeNull();
     }
   });
 
@@ -232,7 +243,7 @@ describe("Connect credential validation", () => {
     async (value: string) => {
       const before = requests.length;
       expect(
-        await verifyWorkosConnectToken(await token(), {
+        await verifyWorkosConnectTokenSignature(await token(), {
           issuer: value,
           audience: apiAudience,
         })
@@ -252,11 +263,11 @@ describe("Connect credential validation", () => {
       wrongKeys.privateKey
     );
     expect(
-      await verifyWorkosConnectToken(forged, { ...config, onExpired })
+      await verifyWorkosConnectTokenSignature(forged, { ...config, onExpired })
     ).toBeNull();
     expect(expired).toBe(0);
     expect(
-      await verifyWorkosConnectToken(await issuedFor(past, 300), {
+      await verifyWorkosConnectTokenSignature(await issuedFor(past, 300), {
         ...config,
         onExpired,
       })
@@ -266,7 +277,7 @@ describe("Connect credential validation", () => {
 
   test("fails closed when provider keys cannot be loaded", async () => {
     expect(
-      await verifyWorkosConnectToken(await token(), {
+      await verifyWorkosConnectTokenSignature(await token(), {
         issuer: "https://unavailable.authkit.app",
         audience: apiAudience,
       })

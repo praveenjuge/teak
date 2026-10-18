@@ -42,7 +42,7 @@ import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
 import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
-import { deleteObject } from "./storage/r2";
+import { queueObjectDeletion } from "./storage/r2";
 import { queueCardProcessing } from "./workflowDispatch";
 
 interface StageSummary {
@@ -709,7 +709,7 @@ export const resetCardProcessingState = internalMutation({
     let clearedThumbnail = false;
     if (card.thumbnailKey) {
       try {
-        await deleteObject(ctx, card.thumbnailKey);
+        await queueObjectDeletion(ctx, card.thumbnailKey);
       } catch (error) {
         console.error("[admin] Failed to delete thumbnail during refresh", {
           cardId,
@@ -721,7 +721,7 @@ export const resetCardProcessingState = internalMutation({
     }
     if (card.scrubKey) {
       try {
-        await deleteObject(ctx, card.scrubKey);
+        await queueObjectDeletion(ctx, card.scrubKey);
       } catch (error) {
         console.error("[admin] Failed to delete scrub sprite during refresh", {
           cardId,
@@ -750,7 +750,6 @@ export const resetCardProcessingState = internalMutation({
       processingStatus: updatedProcessing,
       updatedAt: Date.now(),
     });
-    // An admin refresh reads link details again, like "Refresh details".
     await queueCardProcessing(ctx, cardId, { refresh: true, reset: true });
 
     return {
@@ -818,7 +817,7 @@ export const refreshCardProcessing = action({
       };
     }
 
-    await ctx.runMutation((internal as any).admin.resetCardProcessingState, {
+    await ctx.runMutation(internal.admin.resetCardProcessingState, {
       cardId,
     });
 

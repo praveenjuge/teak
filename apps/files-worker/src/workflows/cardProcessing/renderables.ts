@@ -22,10 +22,6 @@ import {
 } from "./context";
 import { buildFilePreviewFactsForKey, recordMediaFacts } from "./files";
 
-// Renderables: what a card shows besides its file. Image sizes, EXIF and
-// colors; video thumbnails and scrub sprites; PDF page thumbnails; archive
-// and token previews.
-
 interface ImageAnalysis {
   exif?: Record<string, number | string>;
   height: number;
@@ -37,11 +33,6 @@ type RenderingOutcome<T> =
   | { data: T; kind: "ok" }
   | { kind: "declined"; reason: string };
 
-/**
- * A rendering op. `declined` means the source cannot be rendered (missing,
- * too large, undecodable), so retrying will not help; a busy or missing
- * renderer throws, so the step retries.
- */
 const runRendering = async <T>(
   job: CardJob,
   op: Extract<
@@ -363,11 +354,6 @@ export interface RenderablesResult {
   thumbnailGenerated: boolean;
 }
 
-/**
- * Generates a card's renderables and records the stage. A busy or missing
- * renderer throws so the step retries; a source it cannot render fails the
- * stage without a retry.
- */
 export const generateRenderables = async (
   job: CardJob,
   cardType: string
@@ -460,7 +446,6 @@ export const generateRenderables = async (
   };
 };
 
-/** An image card's palette, when renderables left it without colors. */
 export const extractPaletteFromImage = async (job: CardJob): Promise<void> => {
   const loaded = await loadCard(job);
   const card = loaded?.card;

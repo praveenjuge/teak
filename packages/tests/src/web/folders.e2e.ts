@@ -1,5 +1,5 @@
 import { api } from "@teak/convex";
-import { expectVault, gotoApp } from "../helpers/app";
+import { expectVault, gotoApp, onScreenText } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
 const FIRST_CARD = "Good design is as little design as possible";
@@ -49,13 +49,8 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
     "page"
   );
   await expect(screen.getByText("2 cards")).toBeVisible();
-  // Home stays mounted but hidden behind the folder, with the same cards.
-  await expect(
-    screen.getByText(FIRST_CARD, { exact: false, visible: true })
-  ).toBeVisible();
-  await expect(
-    screen.getByText(SECOND_CARD, { exact: false, visible: true })
-  ).toBeVisible();
+  await expect(onScreenText(screen, FIRST_CARD)).toBeVisible();
+  await expect(onScreenText(screen, SECOND_CARD)).toBeVisible();
 
   await screen.getByRole("button", "More for Reading").click();
   await screen.getByRole("menuitem", "Rename…").click();
@@ -70,8 +65,6 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await expect(
     screen.getByText("Deleted “Reading list”", { exact: false })
   ).toBeVisible();
-  // The deleted folder's page stays mounted but hidden, so check the URL and
-  // the sidebar rather than the search placeholder both pages share.
   await expect(browser).toHaveURL(/\/$/);
   await expect(screen.getByRole("link", "Everything")).toHaveAttribute(
     "aria-current",
@@ -172,25 +165,17 @@ test("save a search as a smart folder; a card saved later shows up live", async 
   await screen.getByRole("link", "Smart picks").click();
   await expect(screen.getByPlaceholder("Search Smart picks")).toBeVisible();
   expect(await pathOf(browser.url())).toMatch(/^\/f\//);
-  // The search results stay mounted but hidden behind the folder, with the
-  // same cards, so each query is for the copy on screen.
+  await expect(onScreenText(screen, "Smart folder first match")).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(
-    screen.getByText("Smart folder first match", {
-      exact: false,
-      visible: true,
-    })
-  ).toBeVisible({ timeout: 30_000 });
-  await expect(
-    screen.getByText("Smart folder other card", { exact: false, visible: true })
+    onScreenText(screen, "Smart folder other card")
   ).not.toBeVisible();
 
   await create("Smart folder live match", ["smartfolder"]);
-  await expect(
-    screen.getByText("Smart folder live match", {
-      exact: false,
-      visible: true,
-    })
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(onScreenText(screen, "Smart folder live match")).toBeVisible({
+    timeout: 30_000,
+  });
 
   await screen
     .getByText("Smart folder live match", { exact: false, visible: true })

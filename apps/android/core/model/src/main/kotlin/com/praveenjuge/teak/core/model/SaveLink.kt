@@ -3,10 +3,6 @@ package com.praveenjuge.teak.core.model
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-/**
- * Reads the text from a `teak://save?text=…` link, straight from the raw URL, so a `#`, `&` or `%`
- * inside the text survives exactly as the automation app sent it.
- */
 object SaveLink {
     fun text(url: String?): String {
         if (url == null) return ""

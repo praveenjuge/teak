@@ -6,11 +6,6 @@ import { SidebarToggle } from "../components/sidebar/SidebarToggle";
 import { CardsGridSkeleton } from "../feedback/CardSkeleton";
 import { PageHeader, PageTitle } from "./PageHeader";
 
-/**
- * A library page while the app signs in: its header, with the search field
- * where it will be, over placeholder cards. Rendered on the server, so the
- * page has its shape from the first paint.
- */
 export function LibraryPageSkeleton({
   searchPlaceholder,
   title,
@@ -24,7 +19,7 @@ export function LibraryPageSkeleton({
         leading={<SidebarToggle className="-ml-2" />}
         title={<PageTitle>{title}</PageTitle>}
       >
-        {searchPlaceholder && (
+        {searchPlaceholder ? (
           <div
             aria-hidden="true"
             className="relative min-w-0 flex-1 max-sm:hidden sm:ml-auto sm:max-w-xl"
@@ -36,7 +31,7 @@ export function LibraryPageSkeleton({
               </span>
             </div>
           </div>
-        )}
+        ) : null}
       </PageHeader>
       <CardsGridSkeleton />
     </>

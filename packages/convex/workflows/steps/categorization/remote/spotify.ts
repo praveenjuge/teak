@@ -8,8 +8,7 @@ import {
   type RemoteFetchDeps,
 } from "./common";
 
-// A Spotify link's cover art and type from Spotify's oEmbed, and its artist
-// from the page's own tags (oEmbed has no artist field).
+// Spotify's oEmbed has no artist field.
 
 const SPOTIFY_PATH_REGEX =
   /^(?:\/intl-[a-z-]+)?\/(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]{10,40})\/?$/i;
@@ -120,7 +119,5 @@ export const fetchSpotifyDetails = async (
   if (imageUrl) {
     details.imageUrl = imageUrl;
   }
-  // Without an answer from Spotify, the type alone is kept only beside an
-  // artist the page named.
   return data || artist ? details : null;
 };

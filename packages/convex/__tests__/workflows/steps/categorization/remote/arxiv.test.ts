@@ -96,7 +96,6 @@ describe("fetchArxivDetails", () => {
       { label: "Subject", value: "hep-th" },
       { label: "DOI", value: "10.1143/PTP.101.1155" },
     ]);
-    // The latest version, not the one the link named.
     expect(details?.pdfUrl).toBe("https://arxiv.org/pdf/hep-th/9901001");
   });
 

@@ -24,7 +24,7 @@ const env = (): Env =>
 
 const signedUrl = async (
   path: string,
-  params: Record<string, string> = {},
+  params: { cd?: string; ct?: string } = {},
   expSecondsFromNow = 3600
 ): Promise<string> => {
   const url = new URL(`https://files.teakvault.com${path}`);

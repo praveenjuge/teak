@@ -12,8 +12,7 @@ const MAX_NOTES_LENGTH = 100_000;
 
 /**
  * mymind's CSV export: `id, type, title, url, content, note, tags, created`.
- * A card with a URL becomes a link card; one with only text becomes a note
- * card, its title as a heading. Tags are comma-separated.
+ * Tags are comma-separated.
  */
 export function parseMymindCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);

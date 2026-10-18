@@ -26,7 +26,6 @@ describe("semanticQueryText", () => {
 
   test("searches a color's neighbors by meaning without the color", () => {
     expect(text("red #ff0000 poster")).toBe("red poster");
-    // Words that happen to spell a hex color are still words.
     expect(text("bed cafe")).toBe("bed cafe");
   });
 

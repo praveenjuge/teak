@@ -16,7 +16,6 @@ object ShareIntents {
         Intent.ACTION_PROCESS_TEXT -> listOfNotNull(
             intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.textItem(),
         )
-        // Read the raw link: Uri.getQueryParameter turns a literal + into a space.
         Intent.ACTION_VIEW -> listOfNotNull(SaveLink.text(intent.dataString).textItem())
         else -> emptyList()
     }

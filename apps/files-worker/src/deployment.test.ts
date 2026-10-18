@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { unstable_readConfig } from "wrangler";
 import rootPackageJson from "../../../package.json";
 import packageJson from "../package.json";
+import { MAX_DELIVERIES } from "./queues/aiBackfill";
 
 const baseImages = async (dockerfile: string): Promise<string[]> =>
   Array.from(
@@ -32,7 +33,26 @@ test("only the production worker reports errors to PostHog", () => {
   expect(config.containers?.[0]?.max_instances).toBe(
     Number(config.vars.MEDIA_RENDERER_INSTANCES)
   );
+  expect(config.containers?.[1]?.max_instances).toBe(
+    Number(config.vars.LINK_FETCHER_INSTANCES)
+  );
 });
+
+test.each([
+  ["production", "../wrangler.jsonc", "teak-ai-backfill"],
+  ["development", "../development/wrangler.jsonc", "teak-dev-ai-backfill"],
+])(
+  "the %s AI backfill queue delivers a message MAX_DELIVERIES times",
+  (_name, path, queue) => {
+    const config = unstable_readConfig({
+      config: resolve(import.meta.dir, path),
+    });
+    const consumer = config.queues.consumers?.find(
+      (entry) => entry.queue === queue
+    );
+    expect((consumer?.max_retries ?? 0) + 1).toBe(MAX_DELIVERIES);
+  }
+);
 
 test("the development worker resolves to its own bucket, gates and telemetry", () => {
   const config = unstable_readConfig({

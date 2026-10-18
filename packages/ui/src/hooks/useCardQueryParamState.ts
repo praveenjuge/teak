@@ -10,7 +10,6 @@ export interface UseCardQueryParamStateResult {
   closeCard: () => void;
   openCard: (cardId: string) => void;
   selectedCardId: string | null;
-  /** Shows another card in the open dialog without adding history. */
   switchCard: (cardId: string) => void;
 }
 

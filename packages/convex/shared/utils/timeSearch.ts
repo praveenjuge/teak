@@ -88,9 +88,12 @@ const formatMonthLabel = (date: Date) =>
     year: "numeric",
   }).format(date);
 
-/** Bare four-digit numbers outside these years search as words. */
 const EARLIEST_SEARCH_YEAR = 1900;
 const LATEST_SEARCH_YEAR_AHEAD = 10;
+
+const isSearchYear = (year: number, now: Date): boolean =>
+  year >= EARLIEST_SEARCH_YEAR &&
+  year <= now.getFullYear() + LATEST_SEARCH_YEAR_AHEAD;
 
 const isValidDate = (year: number, monthIndex: number, day: number) => {
   const candidate = new Date(year, monthIndex, day);
@@ -295,13 +298,8 @@ const parseExplicitDate = (query: string, now: Date): DateRange | null => {
   }
 
   const yearMatch = normalized.match(/^(\d{4})$/);
-  // A number such as an invoice's 4411 is a word to search, not a year.
   const year = Number(yearMatch?.[1]);
-  if (
-    yearMatch &&
-    year >= EARLIEST_SEARCH_YEAR &&
-    year <= now.getFullYear() + LATEST_SEARCH_YEAR_AHEAD
-  ) {
+  if (yearMatch && isSearchYear(year, now)) {
     const start = new Date(year, 0, 1);
     return {
       start,

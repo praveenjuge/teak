@@ -37,7 +37,6 @@ interface SettingsContentProps {
   exportLoading?: boolean;
   exportState?: ExportState | null;
   hasPremium?: boolean;
-  /** Opens Import/Export on a tab, as `/settings?dialog=` asks. */
   importExportRequest?: ImportExportOpenRequest | null;
   keys: ApiKeyListItem[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;

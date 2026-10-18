@@ -1,10 +1,3 @@
-/**
- * Which stored image the AI reads for a card: its thumbnail, else the file
- * itself when it is big enough. Tiny images (icons, spacer pixels) are
- * skipped. The Files Worker's metadata step and Convex's visual styles
- * backfill both use it.
- */
-
 export const MIN_IMAGE_ANALYSIS_DIMENSION = 12;
 
 interface ImageDimensions {

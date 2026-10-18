@@ -2,6 +2,7 @@
 
 import { folderPath } from "@teak/ui/lib/folders";
 import {
+  FOCUS_COMPOSER_PARAM,
   LIBRARY_VIEW_PATHS,
   type LibraryView,
 } from "@teak/ui/lib/libraryViews";
@@ -37,6 +38,7 @@ export function HomePageClient({
   const seedParam = searchParams.get("seed");
   const typeParam = searchParams.get("type");
   const tagParam = searchParams.get("tag");
+  const focusComposer = searchParams.get(FOCUS_COMPOSER_PARAM) === "1";
   const searchUrlState = useMemo(() => {
     const params: Record<string, string | null> = {
       q: searchQueryParam,
@@ -126,6 +128,15 @@ export function HomePageClient({
     [router]
   );
 
+  const handleFocusComposerHandled = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete(FOCUS_COMPOSER_PARAM);
+    const query = params.toString();
+    router.replace(`${window.location.pathname}${query ? `?${query}` : ""}`, {
+      scroll: false,
+    });
+  }, [router]);
+
   const handleOpenFolder = useCallback(
     (targetFolderId: string) => {
       router.push(folderPath(targetFolderId));
@@ -142,10 +153,12 @@ export function HomePageClient({
     <CardsScreenAdapter
       addToFolderId={addToFolderId}
       cardIdFromUrl={cardIdFromUrl}
+      focusComposer={focusComposer}
       folderId={folderId}
       headerLeading={<SidebarToggle className="-ml-2" />}
       onAddCardsToFolder={handleAddCardsToFolder}
       onAddToFolderDone={handleAddToFolderDone}
+      onFocusComposerHandled={handleFocusComposerHandled}
       onNavigateView={handleNavigateView}
       onOpenFolder={handleOpenFolder}
       onSearchUrlStateChange={handleSearchUrlStateChange}

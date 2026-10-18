@@ -32,17 +32,32 @@ const ok = (id: string, detail: string): SetupCheck => ({
 
 export interface DevDeploymentSetup {
   checks: SetupCheck[];
+  /** The environment every Convex CLI call for the dev deployment runs with. */
+  env: NodeJS.ProcessEnv;
   ok: boolean;
   workos: Partial<Record<WorkosCredentialName, string>>;
 }
+
+/**
+ * A Convex login reaches every deployment the account can open, so its CLI
+ * calls name the dev deployment, even in --check before the selection is
+ * written. A deploy key selects the deployment by itself.
+ */
+export const devDeploymentCliEnv = (
+  access: ReturnType<typeof readConvexAccess>,
+  env: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv =>
+  access.kind === "login" ? { ...env, CONVEX_DEPLOYMENT: DEV_DEPLOYMENT } : env;
 
 export const setupDevDeployment = async (
   root: string,
   checkOnly: boolean
 ): Promise<DevDeploymentSetup> => {
   const checks: SetupCheck[] = [];
-  const done = (passed: boolean, workos = {}) => ({
+  let env = process.env;
+  const done = (passed: boolean, workos = {}): DevDeploymentSetup => ({
     checks,
+    env,
     ok: passed,
     workos,
   });
@@ -75,11 +90,7 @@ export const setupDevDeployment = async (
   if (plan.action === "select" && !checkOnly) {
     selectDevDeployment(dotenvPath);
   }
-  // Every Convex CLI call below targets the dev deployment, even in --check
-  // before the selection is written. A deploy key selects it by itself.
-  if (access.kind === "login") {
-    process.env.CONVEX_DEPLOYMENT = DEV_DEPLOYMENT;
-  }
+  env = devDeploymentCliEnv(access);
   const via =
     access.kind === "login" ? "your Convex login" : "CONVEX_DEPLOY_KEY";
   const leftover =
@@ -93,7 +104,7 @@ export const setupDevDeployment = async (
     )
   );
 
-  const listed = await listDeploymentVarNames(convexDir);
+  const listed = await listDeploymentVarNames(convexDir, env);
   if (listed.status === "unavailable") {
     const remediation =
       access.kind === "login"
@@ -158,7 +169,7 @@ export const setupDevDeployment = async (
     );
     return done(true);
   }
-  const credentials = await readWorkosCredentials(convexDir);
+  const credentials = await readWorkosCredentials(convexDir, env);
   checks.push(credentials.check);
   if (!credentials.check.ok) {
     return done(false);

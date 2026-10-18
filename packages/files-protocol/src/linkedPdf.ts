@@ -1,7 +1,3 @@
-/**
- * `store-linked-pdf`: an arXiv paper's PDF downloaded straight into R2 for
- * Save PDF. Only `https://arxiv.org/pdf/<id>` is fetched.
- */
 export interface FilesLinkedPdfParams {
   destinationKey: string;
   url: string;
@@ -17,7 +13,6 @@ export type FilesLinkedPdfSkipReason =
 export type FilesLinkedPdfResult =
   | {
       contentType: string;
-      /** The PDF was already stored by an earlier, interrupted try. */
       reused: boolean;
       size: number;
       stored: true;

@@ -50,10 +50,9 @@ public enum CardSheet {
         return trimmed.isEmpty || trimmed == "." || trimmed == ".." ? nil : trimmed
     }
 
-    /// A safe filename for a download: the saved name, else the URL's last segment, else a generated one.
-    public static func downloadFileName(url: String?, fallback: String? = nil, mimeType: String? = nil,
+    public static func downloadFileName(url: String?, savedName: String? = nil, mimeType: String? = nil,
                                         now: Date = Date()) -> String {
-        if let fallback, let safe = sanitizeFileName(fallback) { return safe }
+        if let savedName, let safe = sanitizeFileName(savedName) { return safe }
         if let url, let components = URLComponents(string: url), components.scheme != nil,
            let segment = components.percentEncodedPath.split(separator: "/").last {
             let decoded = String(segment).removingPercentEncoding ?? String(segment)
@@ -139,7 +138,7 @@ public enum CardSheet {
     public static func shareTarget(_ card: Card) -> ShareTarget {
         func file(_ raw: String?, name: String?, mime: String?) -> ShareTarget {
             guard let raw, let url = SafeURL.sanitize(raw) else { return .none }
-            return .file(url: url, fileName: downloadFileName(url: raw, fallback: name, mimeType: mime), mimeType: mime)
+            return .file(url: url, fileName: downloadFileName(url: raw, savedName: name, mimeType: mime), mimeType: mime)
         }
         switch card.type {
         case .link:
@@ -185,7 +184,6 @@ public enum CardSheet {
         return FileFormats.infer(fileName: name, mimeType: card.fileMetadata?.mimeType)?.id == "gif"
     }
 
-    /// A link's preview image: the post's first photo, a video still, the page image, then a screenshot.
     public static func linkImageURL(_ card: Card) -> URL? {
         let media = card.linkPreviewMedia ?? []
         let candidates = [media.first { $0.type == "image" }?.url, media.first { $0.type == "video" }?.posterUrl,

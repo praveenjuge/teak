@@ -6,12 +6,6 @@ export type PaginationStatus =
   | "LoadingMore"
   | "Exhausted";
 
-/**
- * Loads more of a paginated query whose pages can hold no match while more
- * remain (a filter applied after paging, such as colors in a folder):
- * whenever a requested page adds nothing, it asks for the next one, so the
- * list neither shows as empty nor stalls with matches further down.
- */
 export function useLoadUntilMatches({
   count,
   loadMore,
@@ -41,7 +35,6 @@ export function useLoadUntilMatches({
   }, [count, status, requestMore]);
 
   return {
-    /** Nothing matches yet, but later pages may. */
     isSeekingFirstMatch:
       count === 0 && (status === "CanLoadMore" || status === "LoadingMore"),
     requestMore,

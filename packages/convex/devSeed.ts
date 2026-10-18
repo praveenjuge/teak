@@ -10,7 +10,7 @@ import {
   initiateAccountDeletion,
 } from "./accountDeletion";
 import {
-  type DefaultCardDef,
+  type DevScenarioCardDef,
   insertCompletedCards,
   isOnboardingCard,
   ONBOARDING_CARDS,
@@ -42,8 +42,8 @@ import {
 
 const link = (
   url: string,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "link",
   content: url,
   url,
@@ -54,15 +54,15 @@ const link = (
 const palette = (
   content: string,
   hexes: string[],
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "palette",
   content,
   colors: hexes.map((hex) => ({ hex })),
   ...extra,
 });
 
-export const DEV_SEED_CARDS: DefaultCardDef[] = [
+export const DEV_SEED_CARDS: DevScenarioCardDef[] = [
   {
     type: "text",
     content:
@@ -231,8 +231,8 @@ const bylineLink = (
   slug: string,
   url: string,
   linkPreview: Record<string, unknown>,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => {
   const markedUrl = `${url}#${SCENARIO_MARKER}-card-details-${slug}`;
   return {
     type: "link",
@@ -255,7 +255,7 @@ const bylineLink = (
   };
 };
 
-export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
+export const CARD_DETAILS_SCENARIO_CARDS: DevScenarioCardDef[] = [
   bylineLink("full", "https://www.theverge.com/2024/3/5/teak-byline", {
     title: "A full byline whose publisher repeats the site",
     description: "Author, publisher and date; the publisher names the host.",
@@ -334,7 +334,7 @@ const orderingHex = (seed: number) =>
     .toString(16)
     .padStart(6, "0")}`;
 
-export const orderingScenarioCard = (position: number): DefaultCardDef => {
+export const orderingScenarioCard = (position: number): DevScenarioCardDef => {
   const index = orderingIndexAt(position);
   const createdAt =
     ORDERING_START +
@@ -373,7 +373,7 @@ export const orderingScenarioCard = (position: number): DefaultCardDef => {
   };
 };
 
-const orderingScenarioPage = (page: number): DefaultCardDef[] => {
+const orderingScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -388,7 +388,7 @@ export const ARCHIVE_MIX_SCENARIO_SIZE = 1000;
 export const ARCHIVE_MIX_SCENARIO_PAGE_SIZE = 200;
 const ARCHIVE_MIX_START = Date.UTC(2025, 0, 1);
 
-export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
+export const archiveMixScenarioCard = (index: number): DevScenarioCardDef => {
   const isArchived = index % 5 === 0;
   const isDeleted = index % 10 === 3 || index % 50 === 0;
   const isFavorited = index % 7 === 0;
@@ -426,7 +426,7 @@ export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
+const archiveMixScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ARCHIVE_MIX_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
@@ -441,7 +441,7 @@ export const TAGS_2000_SCENARIO_SIZE = 1000;
 export const TAGS_2000_SCENARIO_PAGE_SIZE = 200;
 const TAGS_2000_START = Date.UTC(2025, 6, 1);
 
-export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
+export const tags2000ScenarioCard = (index: number): DevScenarioCardDef => {
   const topic = (n: number) => `topic-${String(n).padStart(4, "0")}`;
   const tags = [topic(index * 2), topic(index * 2 + 1)];
   if (index % 2 === 0) {
@@ -462,7 +462,7 @@ export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
   return { ...base, type: "text", content: label };
 };
 
-const tags2000ScenarioPage = (page: number): DefaultCardDef[] => {
+const tags2000ScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * TAGS_2000_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + TAGS_2000_SCENARIO_PAGE_SIZE,
@@ -478,8 +478,8 @@ export const LONG_SCENARIO_TAG = `long-${"x".repeat(59)}`;
 const tagsCaseCard = (
   slug: string,
   label: string,
-  extra: Partial<DefaultCardDef>
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef>
+): DevScenarioCardDef => {
   const url = `https://example.com/tags-case/${slug}#${SCENARIO_MARKER}-tags-case`;
   return {
     type: "link",
@@ -490,7 +490,7 @@ const tagsCaseCard = (
   };
 };
 
-export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
+export const TAGS_CASE_SCENARIO_CARDS: DevScenarioCardDef[] = [
   tagsCaseCard("upper-first", "Design (user tag)", { tags: ["Design", "web"] }),
   tagsCaseCard("lower", "design (user tag)", { tags: ["design", "ui"] }),
   tagsCaseCard("caps", "DESIGN (user tag)", { tags: ["DESIGN"] }),
@@ -513,7 +513,8 @@ export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
   tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
 ];
 
-export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
+export interface FolderScenarioCard
+  extends Omit<DevScenarioCardDef, "folderIds"> {
   folders: number[];
 }
 
@@ -554,7 +555,7 @@ const folderScenarioCard = (
   index: number,
   label: string,
   folders: number[],
-  extra: Partial<DefaultCardDef> = {}
+  extra: Partial<DevScenarioCardDef> = {}
 ): FolderScenarioCard => {
   const base = {
     createdAt: FOLDER_SCENARIO_START + index * 3_600_000,
@@ -583,8 +584,8 @@ const FOLDER_COLOR_CYCLE: (FolderColor | undefined)[] = [
 ];
 
 const foldersOnePack = (): FolderScenarioPack => {
-  const states: [string, Partial<DefaultCardDef>][] = [
-    ...Array.from({ length: 8 }, (): [string, Partial<DefaultCardDef>] => [
+  const states: [string, Partial<DevScenarioCardDef>][] = [
+    ...Array.from({ length: 8 }, (): [string, Partial<DevScenarioCardDef>] => [
       "active",
       {},
     ]),
@@ -675,7 +676,7 @@ export const UGLY_FOLDER_NAMES = [
   "Zürich",
 ];
 
-const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
+const UGLY_CARD_STATES: Record<number, Partial<DevScenarioCardDef>> = {
   2: { isArchived: true },
   3: { isDeleted: true },
 };
@@ -750,7 +751,7 @@ const SEARCH_QUALIFIER_TEXTS = [
 
 const searchQualifiersPack = (): FolderScenarioPack => {
   const scenario = "search-qualifiers" as const;
-  const extraFor = (index: number): Partial<DefaultCardDef> => ({
+  const extraFor = (index: number): Partial<DevScenarioCardDef> => ({
     tags: [
       `scenario-${scenario}`,
       ...SEARCH_QUALIFIER_TAGS[index % SEARCH_QUALIFIER_TAGS.length],
@@ -843,7 +844,6 @@ const smartFoldersPack = (): FolderScenarioPack => {
         query: 'folder:"Reading list" is:fav',
       },
       { name: "Design links", color: "violet", query: "tag:design type:link" },
-      // An emoji tag, not an emoji word: full-text search skips emoji.
       { name: "🎨 Moodboard ✨", color: "orange", query: "#design tag:🎨" },
       { name: "مجلد ذكي للتصميم", color: "teal", query: '"تصميم"' },
       { name: "Five hundred characters", query: smartFolderLongQuery() },
@@ -917,7 +917,7 @@ const exportUglyPack = (): FolderScenarioPack => {
     index: number,
     title: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://example.com/export-ugly/${index}?a=1&b="2"`;
     return {
@@ -995,22 +995,14 @@ export const PALETTE_MIXED_SMART_FOLDERS = [
   { name: "Ordering links", query: "tag:scenario-ordering type:link" },
   { name: "רשימה חכמה", query: "note" },
   { name: "Palette sky", query: "sky" },
-  // Differs from "Smart IDEAS" only by case, so it is the same folder.
   { name: "smart ideas", query: "ideas" },
 ];
 
-/**
- * Folders for the command palette: awkward names (emoji, RTL, CJK, 300
- * characters, ones that differ only by case and so share a folder) and
- * smart folders. Seed `ordering` too for 1,000 cards that one query
- * ("saved") all match while another ("zzqx") matches none.
- */
 const paletteMixedPack = (): FolderScenarioPack => {
   const scenario = "palette-mixed" as const;
   const manual = [
     ...UGLY_FOLDER_NAMES,
     ...Array.from(
-      // Three of the awkward names differ only by case and share a folder.
       { length: 50 - (UGLY_FOLDER_NAMES.length - 2) },
       (_, index) => `Palette folder ${String(index + 1).padStart(2, "0")}`
     ),
@@ -1051,7 +1043,6 @@ const FOCUS_SENTENCES = [
   "She crossed out the second heading and wrote a simpler one underneath.",
 ];
 
-/** About 50,000 words (a little over 300 KB), under the 512 KiB note cap. */
 export const FOCUS_LONG_NOTE_WORDS = 50_000;
 const focusLongNote = (): string => {
   const paragraphs: string[] = ["# A very long draft"];
@@ -1085,11 +1076,6 @@ export const FOCUS_LITERAL_NOTE = [
   "```",
 ].join("\n");
 
-/**
- * Text notes for Focus mode: a 50,000-word draft, a note with tables and
- * code (it opens as literal Markdown), an empty note, CJK and RTL text, and
- * a 300-character first line.
- */
 const focusNotesPack = (): FolderScenarioPack => {
   const scenario = "focus-notes" as const;
   const note = (index: number, content: string) =>
@@ -1113,14 +1099,8 @@ const focusNotesPack = (): FolderScenarioPack => {
   };
 };
 
-/** The page the extension's duplicate check finds, with tags and a note. */
 export const SAVE_DETAILS_SAVED_URL = "https://example.com/already-saved";
 
-/**
- * Text saved from pages (Save Text), for the "From" row, the grid footer and
- * `site:`; a link with its own page beside a source; and a page already saved
- * with tags and a note, which the popup fills in.
- */
 const saveDetailsPack = (): FolderScenarioPack => {
   const scenario = "save-details" as const;
   const quote = (
@@ -1136,7 +1116,7 @@ const saveDetailsPack = (): FolderScenarioPack => {
   const link = (
     index: number,
     url: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => ({
     ...folderScenarioCard(scenario, index, "", [], extra),
     type: "link" as const,
@@ -1180,20 +1160,14 @@ const saveDetailsPack = (): FolderScenarioPack => {
   };
 };
 
-/** A card the address-bar search must never suggest. */
 export const OMNIBOX_HIDDEN_TITLE = "Omnibox hidden card";
 
-/**
- * Titles the address-bar suggestions must escape or cut: XML characters,
- * quotes, 300 characters, emoji, RTL, CJK and none at all (shown as the
- * host), plus a hidden card. `#scenario-omnibox-titles` finds them all.
- */
 const omniboxTitlesPack = (): FolderScenarioPack => {
   const scenario = "omnibox-titles" as const;
   const titled = (
     index: number,
     metadataTitle: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://omnibox-titles.example/${index}`;
     return {
@@ -1230,16 +1204,8 @@ const omniboxTitlesPack = (): FolderScenarioPack => {
   };
 };
 
-/** The number every receipt in `ocr-images` shows, and its twin note too. */
 export const OCR_SHARED_KEYWORD = "4411";
 
-/**
- * Images and video thumbnails with text already read (`aiOcrText`), for
- * `text:` and the "Text in image" block: code, memes, handwriting, receipts,
- * Arabic, Hebrew, Japanese and Hindi signs, a 4,000-character wall of text,
- * and photos with none. Each twin note shares a word with an image, so plain
- * search finds both and `text:` finds only the image.
- */
 const ocrImagesPack = (): FolderScenarioPack => {
   const scenario = "ocr-images" as const;
   const colors = ["#1f2937", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
@@ -1247,7 +1213,7 @@ const ocrImagesPack = (): FolderScenarioPack => {
     index: number,
     label: string,
     aiOcrText: string | undefined,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => ({
     ...folderScenarioCard(scenario, index, label, []),
     type: "image" as const,
@@ -1377,16 +1343,8 @@ const ocrImagesPack = (): FolderScenarioPack => {
   return { folders: [], cards };
 };
 
-/** The phrase on page 2 of the scanned lease in `ocr-documents`. */
 export const OCR_LEASE_PHRASE = "lease agreement";
 
-/**
- * Scanned PDFs with their first pages already read (`aiOcrText`), for plain
- * search and `text:`: a lease whose page 2 says "Lease agreement", a
- * 300-page scan read to page 3, a scan with only a "Scanned by" footer,
- * Arabic and Chinese scans, and controls that weren't read (a PDF with a
- * text layer, a password-protected PDF). A twin note mentions the lease.
- */
 const ocrDocumentsPack = (): FolderScenarioPack => {
   const scenario = "ocr-documents" as const;
   const pdf = (
@@ -1484,12 +1442,6 @@ const ocrDocumentsPack = (): FolderScenarioPack => {
   };
 };
 
-/**
- * Links whose preview image and screenshot were already read (`aiOcrText`):
- * a talk whose preview image shows its slide title, a docs page, a
- * code-heavy blog post, an RTL news site, and a single-page app whose
- * screenshot rendered blank. A twin note shares the talk's title.
- */
 const ocrLinksPack = (): FolderScenarioPack => {
   const scenario = "ocr-links" as const;
   const link = (
@@ -1563,22 +1515,15 @@ const ocrLinksPack = (): FolderScenarioPack => {
   };
 };
 
-/** When the done-states pack marks its done links done. */
 const DONE_STATES_DONE_AT = Date.UTC(2026, 9, 10);
 
-/**
- * Links for read, watched and bought states: one per link category, every
- * other one done; done links in Trash and in Archive; a link still waiting
- * for its category; done links with 300-character, RTL and CJK titles; and
- * a "Reading list" folder with a smart folder for what's left in it.
- */
 const doneStatesPack = (): FolderScenarioPack => {
   const scenario = "done-states" as const;
   const link = (
     index: number,
     title: string,
     category: LinkCategory | undefined,
-    extra: Partial<DefaultCardDef> = {},
+    extra: Partial<DevScenarioCardDef> = {},
     folders: number[] = []
   ) => {
     const url = `https://example.com/${scenario}/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
@@ -1638,20 +1583,6 @@ const doneStatesPack = (): FolderScenarioPack => {
     ],
   };
 };
-/**
- * Links whose site added details: Wikipedia articles (English, a
- * disambiguation page, Japanese, a missing page), arXiv papers (one with a
- * PDF to save, an old-style id, a withdrawn paper, 300 authors), Spotify
- * (track, album, playlist, a region-locked track), an Apple Music album, and
- * books with an ISBN-13, an ISBN-10, none, a bad check digit and one Open
- * Library doesn't know. Details go through the categorization merge as a
- * site's answer would, so the page's own facts still win.
- */
-/**
- * A link scenario card whose category details go through the real
- * categorization merge, from a preview (with scraped tags) and, optionally,
- * what the link's site said.
- */
 const enrichedLinkCard = (
   scenario: FolderScenario,
   index: number,
@@ -1662,8 +1593,7 @@ const enrichedLinkCard = (
     raw = [],
     remote,
   }: {
-    extra?: Partial<DefaultCardDef>;
-    /** Scraped values, as `content` unless `attribute` names another. */
+    extra?: Partial<DevScenarioCardDef>;
     raw?: { attribute?: string; selector: string; value: string }[];
     remote?: RemoteDetails;
   } = {}
@@ -1708,7 +1638,6 @@ const enrichedLinkCard = (
   };
 };
 
-/** A transcript long enough to stand for a 2-hour talk, with a marked line near its end. */
 const longTranscript = (marker: string) =>
   `${Array.from(
     { length: 1500 },
@@ -2138,11 +2067,7 @@ const richSitesPack = (): FolderScenarioPack => {
 export const DONE_STATES_IMAGES_SIZE = 1000;
 const DONE_STATES_IMAGES_PAGE_SIZE = 200;
 
-/**
- * 1,000 images, so `is:todo` has nothing to list. Each page starts with a
- * link that has no category (never to do), which marks the page as seeded.
- */
-const doneStatesImagesPage = (page: number): DefaultCardDef[] => {
+const doneStatesImagesPage = (page: number): DevScenarioCardDef[] => {
   const start = page * DONE_STATES_IMAGES_PAGE_SIZE;
   const end = Math.min(
     start + DONE_STATES_IMAGES_PAGE_SIZE,
@@ -2183,7 +2108,6 @@ const doneStatesImagesPage = (page: number): DefaultCardDef[] => {
 
 export const CHECKLIST_LONG_ITEMS = 200;
 
-/** Notes with task lists for checklist sorting. */
 const checklistsPack = (): FolderScenarioPack => {
   const scenario = "checklists" as const;
   const note = (index: number, content: string) =>
@@ -2233,11 +2157,6 @@ const checklistsPack = (): FolderScenarioPack => {
   };
 };
 
-/**
- * Hidden cards: reserved tags in odd case and spacing, a hidden card in every
- * library state, in a folder, matched by smart folders and on a `site:`
- * host, and a card whose only `hidden` is an AI tag (not hidden).
- */
 const hiddenMixPack = (): FolderScenarioPack => {
   const scenario = "hidden-mix" as const;
   const tagged = (...tags: string[]) => ({
@@ -2247,7 +2166,7 @@ const hiddenMixPack = (): FolderScenarioPack => {
     index: number,
     label: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => folderScenarioCard(scenario, index, label, folders, extra);
   const hostLink = (index: number, title: string, tags: string[]) => {
     const url = `https://hidden-mix.example/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
@@ -2305,7 +2224,6 @@ const hiddenMixPack = (): FolderScenarioPack => {
   };
 };
 
-/** Revisit's tag groups, by size: `#rv0` holds only a hidden card. */
 export const REVISIT_SIZE_GROUPS = [0, 1, 19, 20, 21] as const;
 
 const REVISIT_START = Date.UTC(2019, 2, 1);
@@ -2325,7 +2243,8 @@ const REVISIT_SHAPES = [
 const revisitCard = (
   shape: (typeof REVISIT_SHAPES)[number],
   label: string
-): Partial<DefaultCardDef> & Pick<DefaultCardDef, "content" | "type"> => {
+): Partial<DevScenarioCardDef> &
+  Pick<DevScenarioCardDef, "content" | "type"> => {
   const color = { hex: "#4d96ff" };
   const file = (
     fileName: string,
@@ -2400,12 +2319,6 @@ const revisitCard = (
   }
 };
 
-/**
- * Revisit's deck sizes: tag groups `#rv1`, `#rv19`, `#rv20` and `#rv21`
- * mixing every card type (a very tall image, video, audio, a 300-character
- * title), and one hidden card in each group, which a deck must never deal;
- * `#rv0` holds only a hidden card.
- */
 const revisitSizesPack = (): FolderScenarioPack => {
   const scenario = "revisit-sizes" as const;
   const cards: FolderScenarioCard[] = [
@@ -2439,8 +2352,7 @@ const revisitSizesPack = (): FolderScenarioPack => {
 
 export const HIDDEN_MIX_VOLUME_SIZE = ORDERING_SCENARIO_SIZE;
 
-/** The ordering pack's 1,000 cards with every fifth tagged `secret`. */
-export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
+export const hiddenMixVolumeCard = (position: number): DevScenarioCardDef => {
   const ordering = orderingScenarioCard(position);
   const index = orderingIndexAt(position);
   const hidden = index % 5 === 0;
@@ -2456,7 +2368,7 @@ export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
   };
 };
 
-const hiddenMixVolumePage = (page: number): DefaultCardDef[] => {
+const hiddenMixVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -2516,7 +2428,7 @@ const seedFolderScenario = async (
         )
         .first()
     : null;
-  const cards: DefaultCardDef[] = seeded
+  const cards: DevScenarioCardDef[] = seeded
     ? []
     : pack.cards.map(({ folders, ...card }) => ({
         ...card,
@@ -2551,7 +2463,9 @@ const VOLUME_RARE_HOSTS = [
   "blog.example.com",
 ] as const;
 
-export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
+export const searchQualifiersVolumeCard = (
+  index: number
+): DevScenarioCardDef => {
   const host =
     index % 10 === 0
       ? VOLUME_RARE_HOSTS[(index / 10) % VOLUME_RARE_HOSTS.length]
@@ -2572,7 +2486,7 @@ export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
   };
 };
 
-const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
+const searchQualifiersVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE;
   const end = Math.min(
     start + SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
@@ -2603,7 +2517,9 @@ const KEYBOARD_MIXED_COLORS = [
   "#0f766e",
 ];
 
-export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
+export const keyboardMixedScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const shape = KEYBOARD_MIXED_SHAPES[index % KEYBOARD_MIXED_SHAPES.length];
   const label = `Keyboard mix #${String(index).padStart(2, "0")} ${shape}`;
   const color =
@@ -2612,7 +2528,7 @@ export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
     createdAt: KEYBOARD_MIXED_START + index * 60_000,
     tags: ["scenario-keyboard-mixed"],
   };
-  const block = (width: number, height: number): DefaultCardDef => ({
+  const block = (width: number, height: number): DevScenarioCardDef => ({
     ...base,
     type: "image",
     content: label,
@@ -2652,7 +2568,9 @@ const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
 const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
 const SHUFFLE_PARTIAL_TYPES = ["text", "quote", "palette"] as const;
 
-export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
+export const shufflePartialScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const keyed = index % 4 === 0;
   const label = `Shuffle #${String(index).padStart(3, "0")} ${
     keyed ? "keyed" : "no key"
@@ -2677,7 +2595,7 @@ export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
+const shufflePartialScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * SHUFFLE_PARTIAL_PAGE_SIZE;
   const end = Math.min(
     start + SHUFFLE_PARTIAL_PAGE_SIZE,
@@ -2689,15 +2607,13 @@ const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
 };
 
 type ScenarioPack = { description: string } & (
-  | { cards: (page: number) => DefaultCardDef[] }
+  | { cards: (page: number) => DevScenarioCardDef[] }
   | { folders: () => FolderScenarioPack }
-  /** Tops the library up to this many active cards. */
   | { fillTo: number }
 );
 
 const FILL_START = Date.UTC(2025, 0, 1);
 
-/** Text cards that bring the library to `target` active cards, at most. */
 const fillScenarioCards = async (
   ctx: MutationCtx,
   userId: string,
@@ -2711,7 +2627,7 @@ const fillScenarioCards = async (
     .take(target);
   return Array.from(
     { length: Math.max(0, target - active.length) },
-    (_, index): DefaultCardDef => ({
+    (_, index): DevScenarioCardDef => ({
       type: "text",
       content: `Filler card ${index + 1}`,
       createdAt: FILL_START + index * 60_000,
@@ -2720,7 +2636,7 @@ const fillScenarioCards = async (
   );
 };
 
-const firstPageOnly = (cards: DefaultCardDef[]) => (page: number) =>
+const firstPageOnly = (cards: DevScenarioCardDef[]) => (page: number) =>
   page === 0 ? cards : [];
 
 const SCENARIOS: Record<string, ScenarioPack> = {

@@ -1,36 +1,33 @@
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { deleteObject } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/r2";
 
-/**
- * Removes the Save PDF rows a card hard-deleted for good took part in: as
- * the link (its PDF, if no document was made from it, goes too) or as the
- * document, so the link can be saved again.
- */
-export const deleteLinkedPdfRows = async (
+export const deleteLinkedPdfRowsAsLink = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">,
-  previousCard?: Pick<Doc<"cards">, "type">
+  cardId: Id<"cards">
 ): Promise<void> => {
-  if (!previousCard || previousCard.type === "link") {
-    const asSource = await ctx.db
-      .query("linkedPdfs")
-      .withIndex("by_sourceCardId", (q) => q.eq("sourceCardId", cardId))
-      .unique();
-    if (asSource) {
-      if (asSource.status !== "done") {
-        await deleteObject(ctx, asSource.fileKey);
-      }
-      await ctx.db.delete("linkedPdfs", asSource._id);
-    }
+  const row = await ctx.db
+    .query("linkedPdfs")
+    .withIndex("by_sourceCardId", (q) => q.eq("sourceCardId", cardId))
+    .unique();
+  if (!row) {
+    return;
   }
-  if (!previousCard || previousCard.type === "document") {
-    const asDocument = await ctx.db
-      .query("linkedPdfs")
-      .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
-      .unique();
-    if (asDocument) {
-      await ctx.db.delete("linkedPdfs", asDocument._id);
-    }
+  if (row.status !== "done") {
+    await queueObjectDeletion(ctx, row.fileKey);
+  }
+  await ctx.db.delete("linkedPdfs", row._id);
+};
+
+export const deleteLinkedPdfRowsAsDocument = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">
+): Promise<void> => {
+  const row = await ctx.db
+    .query("linkedPdfs")
+    .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
+    .unique();
+  if (row) {
+    await ctx.db.delete("linkedPdfs", row._id);
   }
 };

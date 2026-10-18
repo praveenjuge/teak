@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
@@ -8,9 +7,6 @@ import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
 import schema from "./schema";
-
-// The backfills that read the text in link images and scanned PDFs saved
-// before Teak read them (roadmap v2 phase 11).
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -27,7 +23,6 @@ type OpAnswer =
   | { error: string; status: number }
   | ((params: Record<string, any>) => { data: unknown });
 
-/** Stubs the Files Worker: each op answers from `answers`, others with `{}`. */
 const stubFilesWorker = (answers: Record<string, OpAnswer>) => {
   const calls: { op: string; params: Record<string, any> }[] = [];
   vi.stubEnv("FILES_BASE", "https://files.test");
@@ -284,7 +279,6 @@ describe("backfillPdfOcr", () => {
     ...fields,
   });
 
-  /** inspect answers: a scan, a scan with a footer, and a text PDF. */
   const inspectAnswer = (params: Record<string, any>) => {
     const key = String(params.sourceKey);
     if (key.endsWith("lease.pdf")) {
@@ -366,7 +360,6 @@ describe("backfillPdfOcr", () => {
       { cardId: lease, metadataOnly: true },
       { cardId: footer, metadataOnly: true },
     ]);
-    // The run marks a scan read once its pages are; a text PDF is done now.
     expect((await card(lease))?.ocrCheckedAt).toBeUndefined();
     expect((await card(invoice))?.ocrCheckedAt).toBeTypeOf("number");
     expect((await card(invoice))?.processingRev).toBeUndefined();

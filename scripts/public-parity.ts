@@ -1,9 +1,3 @@
-// Which public surface exposes each public API operation. The parity test
-// (public-parity.test.ts) checks this table against the OpenAPI document,
-// the MCP tools, the SDK client and the CLI command tree, and calls every
-// MCP tool and SDK method to prove it reaches the operation listed here.
-// Run this file to print the table: `bun scripts/public-parity.ts`.
-
 export interface IntentionalGap {
   none: string;
 }

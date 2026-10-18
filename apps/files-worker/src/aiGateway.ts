@@ -1,13 +1,7 @@
 /**
- * Text and image metadata calls go through AI Gateway when `AI_GATEWAY_ID`
- * names a gateway, so its analytics show requests, tokens, cost, latency and
- * errors per model. Prompts and replies hold private card content, so no
- * request is logged, and no reply is served from the gateway cache: refreshing
- * a card reruns the same prompt and must get a new answer.
- *
- * Whisper transcription calls Workers AI directly. It streams the audio body,
- * and AI Gateway rejects streams ("AI Gateway does not support ReadableStreams
- * yet"), so routing it through the gateway fails every transcript.
+ * AI Gateway rejects streamed bodies ("AI Gateway does not support
+ * ReadableStreams yet"), and Whisper streams the audio, so transcription
+ * calls Workers AI directly.
  */
 
 export interface WorkersAiRunOptions {

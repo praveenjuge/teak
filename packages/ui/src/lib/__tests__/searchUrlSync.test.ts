@@ -35,7 +35,6 @@ describe("createSearchUrlSync", () => {
       tagChanged: false,
       typesChanged: false,
     });
-    // Only the next change: the one after adds history again.
     expect(sync.searchSettled(search())?.sortChanged).toBe(true);
   });
 

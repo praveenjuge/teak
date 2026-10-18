@@ -13,7 +13,7 @@ import {
   type WorkflowDeps,
   withinBudget,
 } from "./deps";
-import { workflowBinding } from "./dispatch";
+import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
 import type { FilesOpOutcome } from "./filesOps";
 import {
   type BackgroundEnv,
@@ -23,7 +23,6 @@ import {
   type WorkflowRun,
 } from "./runtime";
 
-/** The periodic jobs the maintenance workflow runs, one per instance. */
 export const MAINTENANCE_TASKS = [
   "card-cleanup",
   "export-cleanup",
@@ -35,7 +34,6 @@ export interface MaintenanceParams {
   task: MaintenanceTask;
 }
 
-/** The Convex cron heartbeat each task reports under. */
 const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
   "card-cleanup": CRONS.cleanupOldDeletedCards.name,
   "export-cleanup": CRONS.cleanupExpiredExports.name,
@@ -45,7 +43,6 @@ const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
 const CARD_CLEANUP_BATCH = 10;
 const EXPORT_CLEANUP_BATCH = 25;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
-/** One run stops after this many pages; the next day's run goes on. */
 const MAX_PAGES = 1000;
 const ORPHAN_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_CARDS_PAGE_SIZE = 500;
@@ -54,14 +51,6 @@ const MAX_SWEEP_CARD_PAGES = 4000;
 const MAX_SWEEP_LIST_PAGES = 2000;
 const SWEEP_STEP = retryConfig(3, 60_000, "30 minutes");
 
-/** Instance IDs created twice report one of these; the first one runs. */
-const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
-
-/**
- * Starts one maintenance task for one deployment. The instance ID is
- * derived from the task, the UTC day and the deployment, so a repeated cron
- * firing is a no-op and deployments sharing this Worker never collide.
- */
 export const startMaintenanceTask = async (
   env: BackgroundEnv,
   convexSiteUrl: string,
@@ -91,7 +80,6 @@ interface TaskContext {
   run: WorkflowRun<MaintenanceParams>;
 }
 
-/** Hard-deletes cards in Trash past retention, then prunes old tombstones. */
 const cleanUpCards = async ({ convex, run }: TaskContext) => {
   const { step } = run;
   const cutoff = await step.do("cutoff", async () =>
@@ -119,7 +107,6 @@ const cleanUpCards = async ({ convex, run }: TaskContext) => {
             pageDeleted += outcome.deleted ? 1 : 0;
           }
           deleted += pageDeleted;
-          // A full page that deleted nothing would come back unchanged.
           if (candidates.length < CARD_CLEANUP_BATCH || pageDeleted === 0) {
             return { deleted, more: false };
           }
@@ -144,11 +131,6 @@ const cleanUpCards = async ({ convex, run }: TaskContext) => {
   return { cleaned };
 };
 
-/**
- * Expires ready exports past their download window. A job is expired only
- * once its archive and sidecars are deleted (or already gone), so a failed
- * delete leaves it for the next run.
- */
 const cleanUpExports = async ({ convex, ops, run }: TaskContext) => {
   const { step } = run;
   const nowMs = await step.do("now", async () => Promise.resolve(Date.now()));
@@ -160,7 +142,6 @@ const cleanUpExports = async ({ convex, ops, run }: TaskContext) => {
       `expire exports ${page}`,
       CONVEX_STEP,
       async () => {
-        // Jobs whose delete failed earlier in this run stay ready; skip them.
         const limit = EXPORT_CLEANUP_BATCH + skipped.size;
         const jobs: Array<{ _id: Id<"exportJobs">; artifactKey?: string }> =
           await convex.query(internal.dataExport.findExpiredReadyJobs, {
@@ -218,10 +199,6 @@ const cleanUpExports = async ({ convex, ops, run }: TaskContext) => {
   return { expired };
 };
 
-/**
- * Reports objects no card or job references and older than a week. Report
- * only: it never deletes.
- */
 const sweepOrphans = async ({ convex, ops }: TaskContext) => {
   const referenced = new Set<string>();
   let cursor: string | undefined;
@@ -290,10 +267,8 @@ const sweepOrphans = async ({ convex, ops }: TaskContext) => {
   return report;
 };
 
-/** The weekly reports: storage objects, and the vector ledger. */
 const sweepStorage = async (context: TaskContext) => {
   const { convex, run } = context;
-  // Independent reports: a failure in one still runs the other.
   const results = await Promise.allSettled([
     run.step.do("sweep orphaned objects", SWEEP_STEP, () =>
       sweepOrphans(context)
@@ -319,10 +294,6 @@ const TASKS: Record<
   "orphan-sweep": sweepStorage,
 };
 
-/**
- * Runs one task between its Convex cron heartbeats. Maintenance runs are not
- * in Convex's dispatch outbox, so they report nothing else.
- */
 export const runMaintenance = async (
   run: WorkflowRun<MaintenanceParams>,
   deps: WorkflowDeps = {}

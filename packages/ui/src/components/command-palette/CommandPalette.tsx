@@ -57,7 +57,6 @@ import {
 } from "../ui/command";
 import { Skeleton } from "../ui/skeleton";
 
-/** What choosing a row does; the app decides how. */
 export type CommandPaletteCommand =
   | { kind: "navigate"; href: string }
   | { kind: "card"; cardId: string }
@@ -81,12 +80,9 @@ const ACTION_ICONS: Record<CommandPaletteActionId, LucideIcon> = {
   "sign-out": LogOut,
 };
 
-// Cards come from the server search, so they always match; a perfect local
-// match (a folder's exact name) still comes before them.
 const CARD_SCORE = 0.5;
 const SEARCH_ALL_SCORE = 0.01;
 
-/** Matches local rows by their label and keywords, never by their id. */
 export function filterPaletteItem(
   value: string,
   search: string,
@@ -112,7 +108,6 @@ interface CommandPaletteResultsProps {
   query: string;
 }
 
-/** The palette's rows: Navigate, Cards and Actions. */
 export function CommandPaletteResults({
   cards,
   folders,
@@ -122,8 +117,7 @@ export function CommandPaletteResults({
   const trimmed = query.trim();
   return (
     <>
-      {/* cmdk doesn't count the server's card rows, so "No results" waits
-          until the cards are known to be none. */}
+      {/* cmdk doesn't count the server's card rows. */}
       {(cards.status === "idle" ||
         (cards.status === "ready" && cards.cards.length === 0)) && (
         <CommandEmpty className="py-4 text-center text-[13px] text-muted-foreground">
@@ -195,18 +189,17 @@ export function CommandPaletteResults({
             >
               <Icon />
               <span className="truncate">{action.label}</span>
-              {action.keys && (
+              {action.keys ? (
                 <span aria-hidden="true" className="ml-auto">
                   <ShortcutHint
                     row={{ keys: action.keys, label: action.label }}
                   />
                 </span>
-              )}
+              ) : null}
             </CommandItem>
           );
         })}
       </CommandGroup>
-      {/* Last, so up to 500 folders never push the actions out of reach. */}
       {folders && folders.length > 0 && (
         <CommandGroup heading="Folders">
           {folders.map((folder) => (
@@ -317,7 +310,6 @@ function PaletteCardRows({
   );
 }
 
-/** The card search behind the palette's Cards rows, debounced. */
 function usePaletteCards(query: string, pathname: string | null) {
   const { isOnline } = useNetworkStatus();
   const trimmed = query.trim();
@@ -354,7 +346,6 @@ function usePaletteCards(query: string, pathname: string | null) {
   if (!isOnline || result instanceof Error) {
     return { status: "error" } as const;
   }
-  // Until the typed query has been searched, older results would be stale.
   if (debounced !== trimmed || result === undefined) {
     return { status: "loading" } as const;
   }
@@ -365,7 +356,6 @@ function usePaletteCards(query: string, pathname: string | null) {
 }
 
 interface CommandPaletteProps {
-  /** Called as the palette closes; preventing it keeps focus where it is. */
   onCloseAutoFocus?: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
   onSelect: (command: CommandPaletteCommand) => void;
@@ -373,7 +363,6 @@ interface CommandPaletteProps {
   pathname: string | null;
 }
 
-/** ⌘K: jump to a view, folder or card, or run an action. */
 export function CommandPalette({
   onCloseAutoFocus,
   onOpenChange,
@@ -391,7 +380,6 @@ export function CommandPalette({
       ? cards.cards.map((card) => card._id).join(",")
       : cards.status;
 
-  // Each opening starts empty.
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -399,9 +387,8 @@ export function CommandPalette({
     }
   }, [open]);
 
-  // Card rows arrive after the typed search has moved the selection, and
-  // may sort above it: select the first row then, so the highlighted row is
-  // the top one and Enter picks what is shown first.
+  // cmdk keeps its selection when card rows arrive and may sort above it,
+  // so select the first row then.
   useEffect(() => {
     if (!cardsKey) {
       return;

@@ -1,12 +1,9 @@
 import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
-import { RENDERER_PROTOCOL } from "./mediaRenderer";
+import {
+  RENDERER_ERROR_STATUS,
+  RENDERER_PROTOCOL,
+} from "../container/src/protocol";
 import { OpFailure } from "./opFailure";
-
-/**
- * Calls the media renderer Container pool. The source is opened once per
- * attempt, because a busy instance answers before reading the body and the
- * next instance needs a fresh stream.
- */
 
 export interface RendererEnv {
   MEDIA_RENDERER?: DurableObjectNamespace;
@@ -57,7 +54,6 @@ export interface RendererResult {
 
 const DEFAULT_POOL_SIZE = 2;
 const MAX_POOL_SIZE = 16;
-// Covers a cold start and the health check before the job's own timeout.
 const STARTUP_ALLOWANCE_MS = 25_000;
 const MAX_MANIFEST_CHARS = 64 * 1024;
 
@@ -263,16 +259,16 @@ export const callRenderer = async (
     }
     const reason = await readErrorCode(response);
     switch (response.status) {
-      case 503:
+      case RENDERER_ERROR_STATUS.busy:
         lastReason = reason || "unavailable";
         continue;
-      case 413:
+      case RENDERER_ERROR_STATUS.too_large:
         throw new OpFailure("source_too_large");
-      case 415:
+      case RENDERER_ERROR_STATUS.unsupported:
         throw new RendererDeclined(reason || "unsupported");
-      case 422:
+      case RENDERER_ERROR_STATUS.timeout:
         throw new RendererDeclined(reason || "timeout");
-      case 400:
+      case RENDERER_ERROR_STATUS.bad_request:
         throw new Error(`renderer_bad_request:${reason}`);
       default:
         throw new RendererUnavailable(

@@ -43,8 +43,6 @@ describe("run", () => {
 
   test("kills the whole process group at the deadline", async () => {
     const started = Date.now();
-    // The background sleep holds stdout open: if only sh died, run would
-    // wait for it for 30 seconds.
     const result = await run(shell("sleep 30 & sleep 30"), {
       deadlineEpochMs: Date.now() + 300,
     });

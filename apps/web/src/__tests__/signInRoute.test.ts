@@ -111,8 +111,6 @@ describe("WorkOS Initiate login URI", () => {
       assertWorkosCallbackBinding(sealed.customState, "client_other")
     ).toThrow("Sign-in changed. Please start again.");
   });
-  // Next.js router fetches follow the proxy redirect to here, and connect-src
-  // blocks their next hop to AuthKit. They must get an empty answer instead.
   test.each([
     ["sign-in", () => signIn],
     ["sign-up", () => signUp],

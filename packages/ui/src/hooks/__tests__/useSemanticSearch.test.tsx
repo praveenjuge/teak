@@ -35,7 +35,6 @@ function Harness(props: Parameters<typeof useSemanticSearch>[0]) {
   return null;
 }
 
-// Settles a request and lets its `finally` run.
 const answer = (settle: () => void) =>
   act(async () => {
     settle();

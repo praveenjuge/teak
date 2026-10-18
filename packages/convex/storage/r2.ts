@@ -27,8 +27,7 @@ export const buildR2ObjectKey = (args: {
   fileName?: string;
 }) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
 
-/** Queues an object for deletion in the caller's transaction. */
-export const deleteObject = async (ctx: MutationCtx, key?: string) => {
+export const queueObjectDeletion = async (ctx: MutationCtx, key?: string) => {
   if (!key) {
     return;
   }

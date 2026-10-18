@@ -6,7 +6,6 @@ import {
   reportedStep,
 } from "./telemetry";
 
-// Workflow telemetry sends to PostHog with the global fetch; capture it.
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;

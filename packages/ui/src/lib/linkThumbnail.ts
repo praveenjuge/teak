@@ -5,15 +5,12 @@ import {
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
 
-/** The `accept` list for a link image file picker. */
 export const LINK_THUMBNAIL_ACCEPT = THUMBNAIL_MIME_TYPES.join(",");
 
-/** The first file of a drop or paste: one image replaces one image. */
 export const firstFile = (
   files: ArrayLike<File> | null | undefined
 ): File | undefined => (files && files.length > 0 ? files[0] : undefined);
 
-/** The first image a paste carries, if any. */
 export const imageFromClipboard = (
   data: Pick<DataTransfer, "files" | "items"> | null
 ): File | undefined => {
@@ -33,7 +30,6 @@ export const imageFromClipboard = (
   }
 };
 
-/** Why a file can't be a link's image, before it is uploaded, or null. */
 export const linkThumbnailFileProblem = (file: {
   size: number;
   type: string;
@@ -47,7 +43,6 @@ export const linkThumbnailFileProblem = (file: {
   return null;
 };
 
-/** The toast for a failed replace or reset; it names the problem, never the file. */
 export const linkThumbnailErrorMessage = (error: unknown): string => {
   const data =
     error && typeof error === "object" && "data" in error
@@ -69,10 +64,6 @@ export const linkThumbnailErrorMessage = (error: unknown): string => {
   }
 };
 
-/**
- * Whether a paste belongs to a field: text inputs, textareas and editable
- * regions such as the note editor keep their own paste.
- */
 export const isTextEntryTarget = (target: EventTarget | null): boolean => {
   if (!(target && typeof target === "object" && "tagName" in target)) {
     return false;

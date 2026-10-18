@@ -6,8 +6,12 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** A created-at range in epoch milliseconds: [start] inclusive, [end] exclusive. */
-data class CreatedAtRange(val start: Long, val end: Long)
+typealias EpochMillis = Long
+
+data class CreatedAtRange(
+    override val start: EpochMillis,
+    override val endExclusive: EpochMillis,
+) : OpenEndRange<EpochMillis>
 
 data class TimeFilter(val label: String, val range: CreatedAtRange)
 

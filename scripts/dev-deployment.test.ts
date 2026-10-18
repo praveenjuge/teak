@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   DEV_DEPLOYMENT,
+  isLocalSelection,
   planDevSelection,
   resolveConvexAccess,
   selectDevDeployment,
@@ -35,6 +36,15 @@ describe("resolveConvexAccess", () => {
     expect(access.kind).toBe("refused");
     expect(JSON.stringify(access)).toContain(reason);
     expect(JSON.stringify(access)).not.toContain("eyJ0b2tlbiI6MX0=");
+  });
+});
+
+describe("isLocalSelection", () => {
+  test("no deployment and local backends are local", () => {
+    expect(isLocalSelection(undefined)).toBe(true);
+    expect(isLocalSelection("anonymous:anonymous-agent")).toBe(true);
+    expect(isLocalSelection("local:teak")).toBe(true);
+    expect(isLocalSelection("dev:happy-otter-123")).toBe(false);
   });
 });
 

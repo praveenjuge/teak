@@ -59,7 +59,6 @@ describe("card query optimistic updates", () => {
     expect(
       cardMatchesSearchQuery(toRead, { ...smartFolder, searchQuery: "is:done" })
     ).toBe(false);
-    // A manual folder still holds only its own cards.
     expect(
       cardMatchesSearchQuery(toRead, { folderId: "folder-1" as Id<"folders"> })
     ).toBe(false);

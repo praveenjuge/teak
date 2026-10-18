@@ -9,10 +9,6 @@ import {
 import { createFakeStep } from "./fakeStep";
 import { FakeBucket } from "./testsupport";
 
-/**
- * A workflow run against a fake Convex deployment, a fake step and an
- * in-memory bucket. Pass `convex` as the run function's `deps.convex`.
- */
 export const createTestRun = <Params>(
   params: Params,
   options: {
@@ -20,7 +16,6 @@ export const createTestRun = <Params>(
     handlers?: Record<string, FakeHandler>;
     instanceId?: string;
     step?: ReturnType<typeof createFakeStep>;
-    /** Wraps the fake gateway, e.g. to lose a reply after a call ran. */
     wrapFetch?: (fetcher: typeof fetch) => typeof fetch;
   } = {}
 ) => {
@@ -56,7 +51,6 @@ export const createTestRun = <Params>(
   };
 };
 
-/** How the run told Convex it ended. */
 export const completionReports = (
   callsTo: ReturnType<typeof createTestRun>["callsTo"]
 ) =>

@@ -3,15 +3,12 @@ import { ImportLimitExceeded } from "./sourceItems";
 const MAX_CSV_ROWS = 10_000;
 
 export interface CsvLimits {
-  /** Data rows to read before refusing the file; 10,000 by default. */
   maxRows?: number;
 }
 
 /**
- * Minimal RFC-4180 CSV parser. Handles quoted fields, embedded commas and
- * newlines, `""` escaping, and CRLF/LF/CR line endings. Returns rows of raw
- * (untrimmed) cell strings. Dependency-free, matching the repo's hand-rolled
- * parsing style in `bookmarks.ts`. Shared by every CSV import source.
+ * RFC 4180: quoted fields, embedded commas and newlines, `""` escaping, and
+ * CRLF/LF/CR line endings.
  */
 export function parseCsvRows(
   input: string,
@@ -96,19 +93,11 @@ export function isEmptyRow(row: string[]): boolean {
 }
 
 export interface CsvTable {
-  /** The trimmed cell in `column` (matched case-insensitively), or "". */
   cell: (row: string[], column: string) => string;
-  /** Whether the header has `column` (case-insensitive). */
   has: (column: string) => boolean;
-  /** Data rows, header and blank rows left out. */
   rows: string[][];
 }
 
-/**
- * Reads a CSV with a header row: strips a UTF-8 byte order mark and matches
- * columns by header name, ignoring case, so extra or reordered columns are
- * fine. Throws when the file has no header row.
- */
 export function readCsvTable(input: string, limits?: CsvLimits): CsvTable {
   const text = input.charCodeAt(0) === 0xfe_ff ? input.slice(1) : input;
   const [header, ...rows] = parseCsvRows(text, limits);

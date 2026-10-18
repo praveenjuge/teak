@@ -41,12 +41,6 @@ import {
   type WorkflowRun,
 } from "./runtime";
 
-// Imports a source file the user uploaded: indexes it into importJobItems
-// page by page, extracts archive files, creates the cards in small batches
-// (sleeping through the card rate limit), then deletes the source and writes
-// a report of the items that failed. Every phase resumes from the job row and
-// its pending items, so a replayed or restarted run repeats nothing.
-
 export interface ImportParams {
   jobId: string;
 }
@@ -82,7 +76,6 @@ const IMPORT_STEP: StepConfig = {
 };
 const FINALIZE_STEP = retryConfig(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
-/** insertItems calls stay well under the RPC body limit. */
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
 const MARKDOWN_READS_AT_ONCE = 8;
 const REPORT_PAGE_SIZE = 200;
@@ -116,7 +109,6 @@ export const runImport = (
     }
   };
 
-  /** Pins the source version once, so every page reads the same file. */
   const bindSourceVersion = async (job: WorkflowJob): Promise<string> => {
     if (job.sourceEtag) {
       return job.sourceEtag;
@@ -190,7 +182,6 @@ export const runImport = (
     }
   };
 
-  /** One page of the source into job items. */
   const indexPage = async (
     cursor: number
   ): Promise<Outcome<{ nextCursor?: number }>> => {
@@ -239,7 +230,6 @@ export const runImport = (
         offset += MARKDOWN_READS_AT_ONCE
       ) {
         const batch = normalized.slice(offset, offset + MARKDOWN_READS_AT_ONCE);
-        // Markdown documents in a Teak archive become text cards.
         await Promise.all(
           batch.map(async (item) => {
             if (
@@ -296,7 +286,6 @@ export const runImport = (
     }
   };
 
-  /** Copies the batch's archive files out of the ZIP, one object each. */
   const extractFiles = async (
     job: WorkflowJob,
     items: PendingItem[]
@@ -356,7 +345,6 @@ export const runImport = (
     }
   };
 
-  /** Creates cards for pending items, a few at a time, until time runs out. */
   const importBatches = async (): Promise<BatchOutcome> => {
     const startedAt = Date.now();
     for (;;) {
@@ -411,7 +399,6 @@ export const runImport = (
     }
   };
 
-  /** Queues the source and unclaimed files for deletion; writes the report. */
   const finalizeObjects = async (): Promise<{ reportKey?: string }> => {
     const job = await loadJob();
     if (!job) {
@@ -521,8 +508,6 @@ export const runImport = (
       settled = true;
       return { status: job.status as ImportOutcome };
     }
-    // A job already importing finished indexing; a restarted run goes on
-    // from its pending items.
     if (job.status !== "importing") {
       if ((await setPhase("parsing", "Parsing import file")).canceled) {
         return finalize("canceled");
@@ -572,8 +557,6 @@ export const runImport = (
       try {
         return await body();
       } catch (error) {
-        // A job never stays active: finish it here, and the completion
-        // report finishes it again if this cannot.
         if (!settled) {
           await finalize("failed", "import_workflow_failed").catch(
             (finishError) => {

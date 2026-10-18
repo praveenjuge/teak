@@ -403,14 +403,9 @@ export const recordActiveCardCreated = async (
   throw new Error("Card usage shards must be initialized before card creation");
 };
 
-/**
- * Inserts a card and counts it toward the card limit. The usage shard slot is
- * keyed by the new card's id, so the count follows the insert; at the limit
- * the card is deleted again before the error propagates, because callers that
- * catch CARD_LIMIT_REACHED per item (bulk create, import) would otherwise
- * commit it uncounted (Convex has no savepoints). `isHidden` is derived from
- * the card's tags here, for every path that creates cards.
- */
+// At the limit the card is deleted again before the error propagates: callers
+// that catch CARD_LIMIT_REACHED per item (bulk create, import) would otherwise
+// commit it uncounted, and Convex has no savepoints.
 export const insertCountedCard = async (
   ctx: MutationCtx,
   card: WithoutSystemFields<Doc<"cards">>,
@@ -426,7 +421,6 @@ export const insertCountedCard = async (
   return cardId;
 };
 
-/** Restores a deleted card and counts it toward the card limit; at the limit nothing is written. */
 export const restoreCountedCard = async (
   ctx: MutationCtx,
   card: Doc<"cards">,

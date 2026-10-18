@@ -1,4 +1,3 @@
-/** Where a card sits on screen, as from `getBoundingClientRect()`. */
 export interface GridRect {
   bottom: number;
   left: number;
@@ -22,14 +21,6 @@ const centerY = (rect: GridRect) => (rect.top + rect.bottom) / 2;
 const overlap = (startA: number, endA: number, startB: number, endB: number) =>
   Math.min(endA, endB) - Math.max(startA, startB) > EPSILON;
 
-/**
- * The card to move to from `currentIndex`, or `currentIndex` when there is
- * none that way (an edge). `rects` are in reading order (the order the
- * cards are listed): `next` and `previous` step through it, while the
- * arrows pick the visually nearest card in that direction, preferring one
- * in line with the current card (the same column going up or down, the
- * same row going left or right) so moves in a masonry grid feel straight.
- */
 export function nextCardIndex(
   rects: readonly GridRect[],
   currentIndex: number,
@@ -91,7 +82,7 @@ const compareScores = (
   right: [number, number, number]
 ) => {
   for (let index = 0; index < left.length; index++) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    const difference = left[index] - right[index];
     if (Math.abs(difference) > EPSILON) {
       return difference;
     }

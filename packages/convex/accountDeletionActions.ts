@@ -175,8 +175,6 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
   },
   authorizedApps: async (_ctx, state) =>
     !(state.workosUserId && (await authorizedApps(state))),
-  // Storage draining runs in the Files Worker's account deletion workflow,
-  // which calls the accountDeletionData mutations itself.
   accountData: () => {
     throw new Error("deletion_stage_runs_in_files_worker");
   },

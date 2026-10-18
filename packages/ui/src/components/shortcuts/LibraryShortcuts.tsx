@@ -6,6 +6,7 @@ import {
   type KeyboardShortcut,
   useKeyboardShortcuts,
 } from "../../hooks/useKeyboardShortcuts";
+import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {
   isCommandPaletteKey,
   paletteCardHref,
@@ -19,9 +20,12 @@ import {
   focusNewNoteComposer,
   GO_TO_VIEW_KEYS,
   pressUploadFiles,
-  requestNewNoteComposerFocus,
 } from "../../lib/keyboardShortcuts";
-import { LIBRARY_VIEWS, type LibraryView } from "../../lib/libraryViews";
+import {
+  type GoToViewOptions,
+  LIBRARY_VIEWS,
+  type LibraryView,
+} from "../../lib/libraryViews";
 import {
   CommandPalette,
   type CommandPaletteCommand,
@@ -29,21 +33,12 @@ import {
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
 
 interface LibraryShortcutsProps {
-  /** Opens a library view (`g` then a letter, or `N` away from Everything). */
-  onGoToView: (view: LibraryView) => void;
-  /** Goes to an app URL, such as a folder or `/?card=…`. */
+  onGoToView: (view: LibraryView, options?: GoToViewOptions) => void;
   onNavigate: (href: string) => void;
   onSignOut: () => void;
-  /** The current page, so a chosen card opens over it when it can. */
   pathname: string | null;
 }
 
-/**
- * The app's keyboard shortcuts that work on every page: `/` search, `N` new
- * note, `U` upload, `g` then a letter to go to a view, `?` for the list of
- * shortcuts, and ⌘K (Ctrl+K) for the command palette. Card shortcuts belong
- * to the grid.
- */
 export function LibraryShortcuts({
   onGoToView,
   onNavigate,
@@ -51,7 +46,7 @@ export function LibraryShortcuts({
   pathname,
 }: LibraryShortcutsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const isDialogOpenRef = useRef(false);
+  const isDialogOpenRef = useRef<boolean>(false);
   const setDialogOpen = useCallback((open: boolean) => {
     isDialogOpenRef.current = open;
     setIsDialogOpen(open);
@@ -73,24 +68,18 @@ export function LibraryShortcuts({
   );
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const isPaletteOpenRef = useRef(false);
+  const isPaletteOpenRef = useRef<boolean>(false);
   const setPaletteOpen = useCallback((open: boolean) => {
     isPaletteOpenRef.current = open;
     setIsPaletteOpen(open);
   }, []);
-  // A chosen row runs once the palette has closed and released focus, so
-  // the composer, a card or the shortcuts list can take it.
   const afterPaletteCloseRef = useRef<(() => void) | null>(null);
-  // Radix gives focus back to a dialog's trigger, and the palette has none:
-  // remember what had focus so Esc returns there (the search box, a card).
-  const paletteReturnFocusRef = useRef<HTMLElement | null>(null);
+  const returnPaletteFocus = useReturnFocus(isPaletteOpen);
   const { resolvedTheme, setTheme } = useTheme();
 
   const newNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
-      // Only Everything has the composer: open it, then focus it.
-      requestNewNoteComposerFocus();
-      onGoToView("all");
+      onGoToView("all", { focusComposer: true });
     }
   }, [onGoToView]);
 
@@ -110,14 +99,7 @@ export function LibraryShortcuts({
         return;
       }
       event.preventDefault();
-      closeDialogThen(() => {
-        const focused = document.activeElement;
-        paletteReturnFocusRef.current =
-          focused instanceof HTMLElement && focused !== document.body
-            ? focused
-            : null;
-        setPaletteOpen(true);
-      })();
+      closeDialogThen(() => setPaletteOpen(true))();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -180,7 +162,6 @@ export function LibraryShortcuts({
 
   const handlePaletteSelect = useCallback(
     (command: CommandPaletteCommand) => {
-      // A second Enter while it closes runs nothing more.
       if (!isPaletteOpenRef.current) {
         return;
       }
@@ -224,19 +205,13 @@ export function LibraryShortcuts({
       <CommandPalette
         onCloseAutoFocus={(event) => {
           const action = afterPaletteCloseRef.current;
-          const returnFocus = paletteReturnFocusRef.current;
           afterPaletteCloseRef.current = null;
-          paletteReturnFocusRef.current = null;
           if (action) {
-            // The command decides where focus goes, not the palette.
             event.preventDefault();
             action();
             return;
           }
-          if (returnFocus?.isConnected) {
-            event.preventDefault();
-            returnFocus.focus({ preventScroll: true });
-          }
+          returnPaletteFocus(event);
         }}
         onOpenChange={setPaletteOpen}
         onSelect={handlePaletteSelect}
@@ -248,7 +223,6 @@ export function LibraryShortcuts({
           const action = afterCloseRef.current;
           if (action) {
             afterCloseRef.current = null;
-            // The shortcut decides where focus goes, not the dialog.
             event.preventDefault();
             action();
           }

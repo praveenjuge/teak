@@ -14,7 +14,6 @@ import { cardCountLabel } from "../../lib/bulkCardActions";
 
 const MAX_TAGS = 20;
 
-/** Splits typed text on commas into trimmed tags, dropping repeats (ignoring case). */
 export const parseTagInput = (value: string): string[] => {
   const seen = new Set<string>();
   const tags: string[] = [];
@@ -34,7 +33,6 @@ interface BulkTagsDialogProps {
   onSubmit: (tags: string[]) => void;
   open: boolean;
   selectedCount: number;
-  /** Tags on the selected cards, offered as one-click choices for removal. */
   suggestions?: string[];
 }
 
@@ -135,11 +133,11 @@ export function BulkTagsDialog({
               placeholder={isAdd ? "design, inspiration" : "Tag names"}
               value={input}
             />
-            {problem && (
+            {problem ? (
               <p className="text-destructive text-sm" role="alert">
                 {problem}
               </p>
-            )}
+            ) : null}
           </div>
           <DialogFooter>
             <Button

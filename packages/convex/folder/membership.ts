@@ -31,20 +31,12 @@ const requireOwnedCard = async (
   return card;
 };
 
-/**
- * Cards are never put in a smart folder: it shows whatever matches its
- * search. The public API answers this with 409.
- */
 export const smartFolderMembership = () =>
   new ConvexError({
     code: "SMART_FOLDER",
     message: FOLDER_ERROR_MESSAGES.SMART_FOLDER_MEMBERSHIP,
   });
 
-/**
- * No card is ever in a smart folder, so moving cards out of one (from its
- * view) only adds them to the target.
- */
 export const onlyAddsToTarget = (fromFolder: Doc<"folders"> | undefined) =>
   fromFolder?.kind === "smart";
 
@@ -84,10 +76,6 @@ const foldersBeingDeleted = async (
   return deleting;
 };
 
-/**
- * Replaces the card's folders with `folderIds` (the order given, duplicates
- * dropped). Every folder must be the user's.
- */
 export const setCardFoldersForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -119,13 +107,6 @@ export const setCardFoldersForUser = async (
 
 export type FolderMembershipAction = "add" | "remove" | "move";
 
-/**
- * Adds one card to the folder, removes it, or moves it there. Move takes the
- * card out of `fromFolderId` when given (the folder being viewed), otherwise
- * out of every folder, and puts it in the target. Repeating an action is a
- * no-op. Throws NOT_FOUND for a card that is missing or another user's, and
- * FOLDER_LIMIT when the card is already in MAX_FOLDERS_PER_CARD folders.
- */
 export const applyFolderMembership = async (
   ctx: MutationCtx,
   args: {
@@ -163,11 +144,6 @@ export const applyFolderMembership = async (
   await writeCardFolders(ctx, card, next);
 };
 
-/**
- * Applies a folder action to up to MAX_FOLDER_CARD_IDS cards. The folder
- * must be the user's (and the source folder, for a move); each card then
- * succeeds or fails on its own, and failed cards are left unchanged.
- */
 export const applyFolderMembershipToCards = async (
   ctx: MutationCtx,
   args: {
@@ -225,7 +201,7 @@ export const applyFolderMembershipToCards = async (
       failedIds.push(cardId);
       if (
         error instanceof ConvexError &&
-        (error.data as { code?: unknown })?.code === "FOLDER_LIMIT"
+        (error.data as { code?: unknown } | undefined)?.code === "FOLDER_LIMIT"
       ) {
         folderLimitIds.push(cardId);
       }
@@ -288,7 +264,6 @@ export const moveCardsToFolder = mutation({
     }),
 });
 
-/** Sets one card's folders, as the card modal's Folders checklist does. */
 export const setCardFolders = mutation({
   args: { cardId: v.id("cards"), folderIds: v.array(v.id("folders")) },
   returns: v.array(v.id("folders")),

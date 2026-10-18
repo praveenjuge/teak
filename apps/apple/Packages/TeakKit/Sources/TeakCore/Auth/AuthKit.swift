@@ -64,7 +64,6 @@ public struct AuthKitRequest: Sendable {
         url = components.url!
     }
 
-    /// 43 URL-safe characters from 32 random bytes.
     public static func randomToken() -> String {
         var generator = SystemRandomNumberGenerator()
         let bytes = (0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) }

@@ -1,5 +1,3 @@
-// Credential rules shared by the CLI and the browser extension. Not part of
-// the published SDK (`./sdk.ts` does not export it).
 import type { ConnectTokenResult } from "./workosConnect";
 
 export interface CredentialBinding {
@@ -8,9 +6,6 @@ export interface CredentialBinding {
   origin: string;
 }
 
-// Credentials saved before Teak moved to WorkOS are unbound or bound to a
-// non-WorkOS client. No Teak service accepts them, so sign-out clears them
-// locally without contacting a server.
 export const isWorkosCredential = (
   saved: Partial<CredentialBinding> | undefined
 ): saved is CredentialBinding =>
@@ -26,9 +21,6 @@ export const matchesBinding = (
   saved.issuer === current.issuer &&
   saved.clientId === current.clientId;
 
-// Only a refresh token the server proved dead lets sign-out forget the
-// credentials without confirming remote revocation. Any other failure keeps
-// them so the user can retry.
 export const isRefreshTokenDead = (result: ConnectTokenResult): boolean =>
   !result.ok && result.reason === "refresh_token_rejected";
 

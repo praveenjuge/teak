@@ -37,7 +37,6 @@ internal fun textPreviewKind(card: Card): TextPreviewKind? {
     }
 }
 
-/** The URL when it's an absolute http or https link, the only kind the app opens. */
 internal fun safeExternalUrl(value: String?): String? {
     val trimmed = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     val uri = runCatching { URI(trimmed) }.getOrNull() ?: return null
@@ -49,7 +48,6 @@ class CardFiles @Inject constructor(
     @ApplicationContext private val context: Context,
     private val client: OkHttpClient,
 ) {
-    /** The file's text, or null when it can't be fetched or is over [TEXT_PREVIEW_LIMIT]. */
     suspend fun fetchText(url: String): String? = withContext(Dispatchers.IO) {
         runCatching {
             open(url).use { response ->

@@ -36,7 +36,6 @@ export function RichMarkdownEditor({
   onEditorReady,
   ...props
 }: MarkdownTextEditorProps & {
-  /** Called once Tiptap has made the editor (and with each new one). */
   onEditorReady?: (editor: Editor) => void;
 }) {
   const callbacks = useRef(props);
@@ -59,7 +58,6 @@ export function RichMarkdownEditor({
   menuRef.current = menu;
   const [extensions] = useState(() => [
     ...documentExtensions(),
-    // Editor only: markdownManager parses and serializes without it.
     TaskListSort,
     Markdown,
     Placeholder.configure({
@@ -243,7 +241,6 @@ export function RichMarkdownEditor({
             content: [{ type: "text", text }],
           });
         } else if (editor?.isActive("literalMarkdown") || prepared.literal) {
-          // A text node keeps HTML/images inert and preserves the pasted text.
           editor?.commands.insertContent({ type: "text", text });
         } else {
           editor?.commands.insertContent(prepared.document.content ?? []);
@@ -335,7 +332,9 @@ export function RichMarkdownEditor({
     <BlockEditor editor={editor}>
       {!props.disabled && <EditorFormatting editor={editor} />}
       <EditorContent className="block-editor-content" editor={editor} />
-      {menu && <SlashMenu menu={menu} selected={selectedCommand.current} />}
+      {menu ? (
+        <SlashMenu menu={menu} selected={selectedCommand.current} />
+      ) : null}
     </BlockEditor>
   );
 }

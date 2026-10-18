@@ -22,10 +22,9 @@
  */
 
 import { cloudflareClient } from "./cloudflare-waf";
+import { CLOUDFLARE_ACCOUNT_ID } from "./files-worker-dev-boundary";
 
 export const R2_RULE_PREFIX = "teak-";
-/** The account in both Wrangler configs. */
-const DEFAULT_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 const DAY_SECONDS = 24 * 60 * 60;
 
 interface AgeCondition {
@@ -42,6 +41,10 @@ export interface LifecycleRule {
   storageClassTransitions?: unknown[];
 }
 
+export type LiveLifecycleRule = Omit<LifecycleRule, "conditions"> & {
+  conditions?: { prefix?: string };
+};
+
 export interface NotificationRule {
   actions: string[];
   description: string;
@@ -55,7 +58,6 @@ export interface LiveNotificationRule extends Partial<NotificationRule> {
 
 export interface BucketConfig {
   lifecycle: LifecycleRule[];
-  /** Notification rules by the queue they send to. */
   notifications: Record<string, NotificationRule[]>;
 }
 
@@ -86,7 +88,7 @@ const userWrites = (description: string, prefix: string): NotificationRule => ({
   suffix: "",
 });
 
-export const R2_BUCKETS: Record<string, BucketConfig> = {
+export const R2_BUCKETS = {
   // Production; development shares it under `dev/` until the storage switch.
   "teak-files-prod": {
     lifecycle: [
@@ -101,7 +103,6 @@ export const R2_BUCKETS: Record<string, BucketConfig> = {
       ],
     },
   },
-  // The isolated development Worker's bucket (keys keep the `dev/` prefix).
   "teak-files-development-20261006": {
     lifecycle: [
       expire(`${R2_RULE_PREFIX}expire-dev-exports`, "dev/exports/", 8),
@@ -111,7 +112,7 @@ export const R2_BUCKETS: Record<string, BucketConfig> = {
       "teak-dev-r2-events": [userWrites("dev-user-writes", "dev/users/")],
     },
   },
-};
+} satisfies Record<string, BucketConfig>;
 
 export interface ChangePlan<Desired, Live> {
   create: Desired[];
@@ -133,7 +134,7 @@ export const hasChanges = (plan: ChangePlan<unknown, unknown>): boolean =>
 const ageOf = (transition?: { condition?: Partial<AgeCondition> }) =>
   transition?.condition?.type === "Age" ? transition.condition.maxAge : null;
 
-const sameLifecycleRule = (live: LifecycleRule, rule: LifecycleRule) =>
+const sameLifecycleRule = (live: LiveLifecycleRule, rule: LifecycleRule) =>
   live.enabled === rule.enabled &&
   (live.conditions?.prefix ?? "") === rule.conditions.prefix &&
   ageOf(live.deleteObjectsTransition) === ageOf(rule.deleteObjectsTransition) &&
@@ -142,11 +143,11 @@ const sameLifecycleRule = (live: LifecycleRule, rule: LifecycleRule) =>
   (live.storageClassTransitions?.length ?? 0) === 0;
 
 export const planLifecycle = (
-  live: readonly LifecycleRule[],
+  live: readonly LiveLifecycleRule[],
   desired: readonly LifecycleRule[]
-): ChangePlan<LifecycleRule, LifecycleRule> => {
+): ChangePlan<LifecycleRule, LiveLifecycleRule> => {
   const owned = live.filter((rule) => rule.id.startsWith(R2_RULE_PREFIX));
-  const plan = emptyPlan<LifecycleRule, LifecycleRule>();
+  const plan = emptyPlan<LifecycleRule, LiveLifecycleRule>();
   for (const rule of desired) {
     const current = owned.find((candidate) => candidate.id === rule.id);
     if (!current) {
@@ -168,9 +169,9 @@ export const planLifecycle = (
  * then the desired ones. The lifecycle API replaces every rule at once.
  */
 export const lifecycleRulesToPut = (
-  live: readonly LifecycleRule[],
+  live: readonly LiveLifecycleRule[],
   desired: readonly LifecycleRule[]
-): LifecycleRule[] => [
+): LiveLifecycleRule[] => [
   ...live.filter((rule) => !rule.id.startsWith(R2_RULE_PREFIX)),
   ...desired,
 ];
@@ -220,7 +221,7 @@ interface NotificationConfig {
 
 export interface BucketPlan {
   bucket: string;
-  lifecycle: ChangePlan<LifecycleRule, LifecycleRule>;
+  lifecycle: ChangePlan<LifecycleRule, LiveLifecycleRule>;
   notifications: Record<
     string,
     ChangePlan<NotificationRule, LiveNotificationRule>
@@ -239,7 +240,7 @@ export const syncR2Buckets = async (options: {
   log?: (line: string) => void;
   token: string;
 }): Promise<BucketPlan[]> => {
-  const accountId = options.accountId ?? DEFAULT_ACCOUNT_ID;
+  const accountId = options.accountId ?? CLOUDFLARE_ACCOUNT_ID;
   const log = options.log ?? console.log;
   const { call } = cloudflareClient(options.token, options.fetcher ?? fetch);
   const plans: BucketPlan[] = [];
@@ -249,7 +250,7 @@ export const syncR2Buckets = async (options: {
   )) {
     const lifecyclePath = `/accounts/${accountId}/r2/buckets/${bucket}/lifecycle`;
     const live =
-      (await call<{ rules?: LifecycleRule[] }>("GET", lifecyclePath)).result
+      (await call<{ rules?: LiveLifecycleRule[] }>("GET", lifecyclePath)).result
         ?.rules ?? [];
     const lifecycle = planLifecycle(live, config.lifecycle);
 

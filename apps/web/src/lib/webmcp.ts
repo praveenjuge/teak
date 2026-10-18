@@ -62,7 +62,7 @@ export const subscribeWebMcpToolEvents = (
   const addListener = modelContext.addEventListener?.bind(modelContext);
   const removeListener = modelContext.removeEventListener?.bind(modelContext);
   if (!(addListener && removeListener)) {
-    return () => {};
+    return () => undefined;
   }
   const entries = WEBMCP_TOOL_EVENT_TYPES.map((type) => {
     const listener = (): void => onEvent(type);

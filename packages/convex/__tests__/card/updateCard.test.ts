@@ -157,7 +157,6 @@ describe("card/updateCard.ts", () => {
       "c1",
       expect.objectContaining({ content: "New" })
     );
-    // The run is queued now, to be sent (and reset the card) in 45 s.
     const [, row] = ctx.db.insert.mock.calls.find(
       ([table]: [string]) => table === "workflowDispatches"
     );

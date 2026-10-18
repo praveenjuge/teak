@@ -1,7 +1,9 @@
 package com.praveenjuge.teak.core.data.repository
 
 import com.praveenjuge.teak.core.data.convex.ConvexApi
-import com.praveenjuge.teak.core.data.convex.teakJson
+import com.praveenjuge.teak.core.data.convex.ConvexFunctions
+import com.praveenjuge.teak.core.data.convex.mutation
+import com.praveenjuge.teak.core.data.convex.subscribe
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardSummaryPage
@@ -10,9 +12,6 @@ import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.LinkDetection
 import com.praveenjuge.teak.core.model.CardType
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.serialization.builtins.nullable
-import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +24,6 @@ data class CardQuery(
 )
 
 interface CardsRepository {
-    /** One live page of the library. Pass `null` for the first page, then each page's continueCursor. */
     fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>>
 
     /** The full card, or null when it's gone or belongs to someone else. */
@@ -36,10 +34,8 @@ interface CardsRepository {
     suspend fun restore(id: String)
     suspend fun deleteForever(id: String)
 
-    /** Applies edits one at a time, in order, sending only the fields that changed. */
     suspend fun apply(id: String, changes: List<CardFieldChange>)
 
-    /** Saves a note or link from typed or shared text. Returns the new card's ID. */
     suspend fun createFromText(text: String): String
 }
 
@@ -53,20 +49,16 @@ class ConvexCardsRepository @Inject constructor(
             putAll(query.filters.toSearchArgs())
             val range = query.range
             if (range != null) {
-                put("createdAtRange", mapOf("start" to range.start, "end" to range.end))
+                put("createdAtRange", mapOf("start" to range.start, "end" to range.endExclusive))
             } else if (query.search.isNotBlank()) {
                 put("searchQuery", query.search.trim())
             }
         }
-        return convex.subscribe("cards:searchMobileCardSummariesPaginated", args).map { result ->
-            result.mapCatching { teakJson.decodeFromJsonElement(CardSummaryPage.serializer(), it) }
-        }
+        return convex.subscribe(ConvexFunctions.searchCardSummaries, args)
     }
 
     override fun card(id: String): Flow<Result<Card?>> =
-        convex.subscribe("cards:getCard", mapOf("id" to id)).map { result ->
-            result.mapCatching { teakJson.decodeFromJsonElement(Card.serializer().nullable, it) }
-        }
+        convex.subscribe(ConvexFunctions.getCard, mapOf("id" to id))
 
     override suspend fun setFavorite(id: String, favorite: Boolean) =
         update(id, "isFavorited", value = favorite)
@@ -76,7 +68,7 @@ class ConvexCardsRepository @Inject constructor(
     override suspend fun restore(id: String) = update(id, "restore")
 
     override suspend fun deleteForever(id: String) {
-        convex.mutation("cards:permanentDeleteCard", mapOf("id" to id))
+        convex.mutation(ConvexFunctions.permanentDeleteCard, mapOf("id" to id))
     }
 
     override suspend fun apply(id: String, changes: List<CardFieldChange>) {
@@ -86,7 +78,7 @@ class ConvexCardsRepository @Inject constructor(
                 is CardFieldChange.Notes -> update(id, "notes", value = change.value, sendNull = true)
                 is CardFieldChange.Tags -> update(id, "tags", value = change.value)
                 is CardFieldChange.RemoveAiTag -> convex.mutation(
-                    "cards:updateCardField",
+                    ConvexFunctions.updateCardField,
                     mapOf("cardId" to id, "field" to "removeAiTag", "tagToRemove" to change.tag),
                 )
             }
@@ -103,7 +95,7 @@ class ConvexCardsRepository @Inject constructor(
                 put("url", resolved.url)
             }
         }
-        return convex.mutation("cards:createCard", args).jsonPrimitive.content
+        return convex.mutation(ConvexFunctions.createCard, args)
     }
 
     private suspend fun update(id: String, field: String, value: Any? = null, sendNull: Boolean = false) {
@@ -112,6 +104,6 @@ class ConvexCardsRepository @Inject constructor(
             put("field", field)
             if (value != null || sendNull) put("value", value)
         }
-        convex.mutation("cards:updateCardField", args)
+        convex.mutation(ConvexFunctions.updateCardField, args)
     }
 }

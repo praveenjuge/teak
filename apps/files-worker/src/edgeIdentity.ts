@@ -1,6 +1,6 @@
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
-import { verifyWorkosConnectToken } from "@teak/convex/workosTokens";
+import { verifyWorkosConnectTokenSignature } from "@teak/convex/workosTokens";
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_MAX_TTL_SECONDS,
@@ -11,30 +11,20 @@ import type { ApiProxyEnv } from "./apiProxy";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 
 export interface EdgeIdentityEnv extends ApiProxyEnv {
-  /** WorkOS AuthKit issuer (HTTPS origin) of the access tokens Teak accepts. */
   API_WORKOS_ISSUER?: string;
   EDGE_IDENTITY?: KVNamespace;
   FILES_SIGNING_SECRET: string;
 }
 
-/**
- * The rate-limit bucket of a public API or MCP request. A user's limits follow
- * them across every API key and OAuth app. A verified WorkOS token Convex
- * cannot map is bucketed by its WorkOS user; anything unverified is bucketed by
- * address, so made-up credentials never choose their own bucket. Convex still
- * authenticates and authorizes every request itself.
- */
 export type EdgeIdentity =
   | { key: `user:${string}`; source: "api_key" | "oauth" }
   | { key: `workos:${string}`; source: "oauth" }
   | {
       key: `ip:${string}`;
-      /** Set when an API key lookup was charged to, or refused by, the unknown-credential limit. */
       lookup?: "charged" | "refused";
       source: "address";
     };
 
-/** How long a known owner is cached, so a revoked key soon stops counting against its owner. */
 export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 300;
 /** KV's minimum TTL, so a brand-new key is recognized within a minute. */
 export const EDGE_IDENTITY_UNKNOWN_TTL_SECONDS = 60;
@@ -42,14 +32,9 @@ const LOOKUP_TIMEOUT_MS = 2000;
 const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
-  /**
-   * Charges each API key lookup the cache cannot answer, so a caller can bound
-   * how often one client makes the edge ask Convex. "uncharged" means no limit
-   * applied. Verified WorkOS tokens are never charged.
-   */
   chargeLookup?: () => Promise<"charged" | "refused" | "uncharged">;
   fetcher?: typeof fetch;
-  verifyToken?: typeof verifyWorkosConnectToken;
+  verifyToken?: typeof verifyWorkosConnectTokenSignature;
 }
 
 export const addressKey = (request: Request): `ip:${string}` =>
@@ -170,7 +155,7 @@ export const resolveEdgeIdentity = async (
   deps: EdgeIdentityDeps = {}
 ): Promise<EdgeIdentity> => {
   const fetcher = deps.fetcher ?? fetch;
-  const verifyToken = deps.verifyToken ?? verifyWorkosConnectToken;
+  const verifyToken = deps.verifyToken ?? verifyWorkosConnectTokenSignature;
   const token = bearerToken(request);
   if (!(token && env.API_UPSTREAM_ORIGIN)) {
     return addressIdentity(request);

@@ -50,13 +50,8 @@ interface DueRow {
   userId: string;
 }
 
-/**
- * Embed the due cards among `cardIds`, with their owners' other due cards
- * (`claimDueEmbeddings`). Cards whose text needs a new vector are embedded
- * together, up to EMBED_UPSERT_MAX_ITEMS per `embed-upsert` and one call per
- * owner (a call writes one namespace): Vectorize answers many small writes
- * with 429s, so a burst of saves makes a few batched writes, not one each.
- */
+// Vectorize answers many small writes with 429s, so due cards are embedded
+// together, up to EMBED_UPSERT_MAX_ITEMS per `embed-upsert`.
 export const embedDue = internalAction({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
@@ -110,10 +105,7 @@ export const embedDue = internalAction({
   },
 });
 
-/**
- * One failed attempt for these cards; they are retried together. Vectorize
- * rate-limiting a write is expected under load, so it logs as a back-off.
- */
+// Vectorize rate-limiting a write is expected under load: log a back-off.
 const recordFailure = async (
   ctx: ActionCtx,
   rows: DueRow[],
@@ -136,10 +128,6 @@ const recordFailure = async (
   });
 };
 
-/**
- * Record a card that needs no new vector: its text is empty (its old vector
- * is deleted) or unchanged. Returns the text's hash when it does need one.
- */
 const settleWithoutEmbedding = async (
   ctx: ActionCtx,
   row: DueRow
@@ -159,7 +147,6 @@ const settleWithoutEmbedding = async (
     if (hash !== row.hash) {
       return hash;
     }
-    // The text the vector came from is unchanged: no Workers AI call.
     await ctx.runMutation(state().recordEmbedded, {
       cardId: row.cardId,
       expectedDueAt: row.dueAt,
@@ -173,7 +160,6 @@ const settleWithoutEmbedding = async (
   return null;
 };
 
-/** Embed one owner's cards in one call; a failure retries each card. */
 const embedBatch = async (
   ctx: ActionCtx,
   userId: string,
@@ -217,7 +203,6 @@ const embedBatch = async (
   }
 };
 
-/** Delete the vectors of tombstoned rows, then the rows. */
 export const deleteVectors = internalAction({
   args: { attempt: v.number(), cardIds: v.array(v.id("cards")) },
   returns: v.null(),
@@ -263,7 +248,6 @@ export const deleteVectors = internalAction({
   },
 });
 
-/** Delete vectors no row describes any more (a card deleted mid-embed). */
 export const deleteVectorIds = internalAction({
   args: { attempt: v.number(), ids: v.array(v.string()), shard: v.number() },
   returns: v.null(),

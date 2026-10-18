@@ -17,12 +17,8 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Owns the WorkOS session: sign-in, encrypted storage, and access tokens.
- *
- * Access tokens last five minutes. Refreshes run one at a time behind a mutex, and each new token
- * schedules the next refresh a minute before it expires, so Convex never sees an expired token.
- */
+enum class SignInOutcome { SignedIn, Cancelled }
+
 @Singleton
 class SessionManager @Inject constructor(
     private val store: SessionStore,
@@ -34,7 +30,6 @@ class SessionManager @Inject constructor(
     private val _state = MutableStateFlow<SessionState>(SessionState.Loading)
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
-    /** Every new access token, or null when the session ends. Convex listens to stay authenticated. */
     private val _tokens = MutableSharedFlow<String?>(extraBufferCapacity = 8)
     val tokens: SharedFlow<String?> = _tokens.asSharedFlow()
 
@@ -53,7 +48,6 @@ class SessionManager @Inject constructor(
         if (session != null) startRefreshLoop()
     }
 
-    /** Starts a sign-in: returns the AuthKit URL to open; the PKCE verifier is saved for the redirect. */
     suspend fun beginSignIn(clientId: String, method: SignInMethod): String {
         val (url, pending) = api.startSignIn(clientId, method)
         store.savePending(pending)
@@ -61,21 +55,20 @@ class SessionManager @Inject constructor(
     }
 
     /**
-     * Finishes a sign-in from the `teak://auth/callback` redirect. Returns false when the person
-     * cancelled. The account is linked with `ensureUser` before anything is saved, so a failed
-     * bootstrap leaves the app signed out.
+     * The account is linked with `ensureUser` before anything is saved, so a failed bootstrap
+     * leaves the app signed out.
      */
-    suspend fun completeSignIn(code: String?, state: String?, error: String?): Boolean {
+    suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome {
         val pending = store.loadPending()
         store.clearPending()
-        if (error == "access_denied") return false
+        if (error == "access_denied") return SignInOutcome.Cancelled
         if (error != null || pending == null || code.isNullOrEmpty() || state != pending.state) {
             throw SignInException(DefaultWorkOsAuthApi.UNABLE_TO_SIGN_IN)
         }
         val signedIn = api.exchangeCode(pending, code)
         bootstrap.ensureUser(signedIn.accessToken)
         commit(signedIn)
-        return true
+        return SignInOutcome.SignedIn
     }
 
     /**
@@ -104,7 +97,6 @@ class SessionManager @Inject constructor(
         refreshed.accessToken
     }
 
-    /** Forgets the session on this device. Returns the session it cleared, for server-side revoke. */
     suspend fun clear(): AuthSession? = mutex.withLock {
         val cleared = session
         endSessionLocked()

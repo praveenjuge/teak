@@ -92,7 +92,6 @@ describe("ensureRelevanceScores", () => {
     ]);
     expect(workerCalls[0]?.op).toBe("score-relevance");
     expect(workerCalls[0]?.params.query).toBe("soup");
-    // The Worker records the model call in Analytics Engine for this user.
     expect(workerCalls[0]?.params.aiUsage).toEqual({
       convexSiteUrl: "https://relevance-tests.convex.site",
       userId: "teak_user",

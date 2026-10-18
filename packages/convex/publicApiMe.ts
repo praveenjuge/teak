@@ -19,7 +19,6 @@ export const profileForOwner = internalQuery({
       email: v.string(),
       name: v.optional(v.string()),
       cardCount: v.optional(v.number()),
-      // Null on Pro, which has no card limit.
       cardLimit: v.optional(v.union(v.number(), v.null())),
       plan: v.optional(v.union(v.literal("free"), v.literal("pro"))),
     }),

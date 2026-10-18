@@ -11,9 +11,8 @@ import { isR2KeyInNamespace } from "../../storage/r2Keys";
 
 const USER_ID = "user_production_fixture";
 const JOB_ID = "jh7exportjob123";
-// sha256("user_production_fixture").slice(0, 16), pinned so production keys
-// cannot drift. Exports live under the top-level `exports/` prefix, where an
-// R2 lifecycle rule expires them.
+// An R2 lifecycle rule expires everything under the top-level `exports/`
+// prefix.
 const PRODUCTION_KEY =
   "exports/52bb9e6f42e17d00/jh7exportjob123-2026-10-07.zip";
 const sidecars = (key: string) => [

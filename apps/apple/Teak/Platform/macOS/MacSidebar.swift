@@ -5,7 +5,6 @@ import TeakCore
 enum SidebarItem: Hashable {
     case home, add, favorites, trash, type(CardType)
 
-    /// The library row for these filters, or nil when they match no single row.
     init?(_ filters: LibraryFilters) {
         guard filters.hue == nil else { return nil }
         switch (filters.favoritesOnly, filters.trashOnly, filters.types) {
@@ -17,7 +16,6 @@ enum SidebarItem: Hashable {
         }
     }
 
-    /// The filters a library row shows; nil for Add.
     var filters: LibraryFilters? {
         switch self {
         case .add: nil

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, query } from "../_generated/server";
+import { internalQuery, type QueryCtx, query } from "../_generated/server";
 import {
   getSessionUser,
   requireTeakUserId,
@@ -9,13 +9,13 @@ import { cardReturnValidator } from "./getCards";
 import { attachFileUrls } from "./queryUtils";
 
 export const findDuplicateCardForUserHandler = async (
-  ctx: any,
+  ctx: Pick<QueryCtx, "db">,
   userId: TeakUserId,
   url: string
 ) => {
   const duplicate = await ctx.db
     .query("cards")
-    .withIndex("by_user_url_deleted", (q: any) =>
+    .withIndex("by_user_url_deleted", (q) =>
       q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
     )
     .order("desc")

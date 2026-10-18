@@ -1,5 +1,3 @@
-// One signed-URL vector that Convex (Node HMAC) and the Files Worker (WebCrypto)
-// must both reproduce.
 export const FILE_SIGNING_TEST_VECTOR = {
   secret: "test-signing-secret",
   key: "users/abc/cards/file/x.png",

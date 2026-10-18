@@ -10,11 +10,6 @@ import {
 } from "@teak/files-protocol";
 import { isValidUploadKey } from "./upload";
 
-// Save PDF: an arXiv paper's PDF, downloaded straight into R2 for a new
-// document card. Only `https://arxiv.org/pdf/<id>` is fetched, and every
-// redirect must stay on arxiv.org over https, so no user-chosen host is ever
-// dialed and the SSRF policy the fetcher Container enforces isn't needed.
-
 const ARXIV_HOSTS = new Set(["arxiv.org", "export.arxiv.org"]);
 const MAX_REDIRECTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -38,7 +33,6 @@ export const parseLinkedPdfParams = (
 const isAllowedHop = (url: URL) =>
   url.protocol === "https:" && ARXIV_HOSTS.has(url.hostname.toLowerCase());
 
-/** GETs the PDF, following at most three redirects within arXiv. */
 const fetchPdf = async (
   url: string,
   fetcher: typeof fetch,
@@ -82,10 +76,6 @@ const withLength = (body: ReadableStream, length: number): ReadableStream => {
   return readable;
 };
 
-/**
- * Stores the paper's PDF at `destinationKey`. A PDF already there (a retry
- * after the card wasn't created) is reused rather than downloaded again.
- */
 export const storeLinkedPdf = async (
   env: { BUCKET: R2Bucket },
   params: FilesLinkedPdfParams,

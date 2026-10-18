@@ -3,7 +3,10 @@ package com.praveenjuge.teak.feature.capture.share
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
+import com.praveenjuge.teak.core.data.di.ApplicationScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +30,7 @@ sealed interface ShareUiState {
 @HiltViewModel
 class ShareViewModel @Inject constructor(
     private val importer: ShareImporter,
+    @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<ShareUiState>(ShareUiState.Resolving)
     val uiState: StateFlow<ShareUiState> = _uiState.asStateFlow()
@@ -55,9 +59,12 @@ class ShareViewModel @Inject constructor(
     }
 
     private fun import(items: List<ShareItem>) {
-        viewModelScope.launch {
-            val result = catchingFailures { importer.import(items) { _uiState.value = ShareUiState.Saving } }
+        val saving = appScope.async {
+            catchingFailures { importer.import(items) { _uiState.value = ShareUiState.Saving } }
                 .getOrElse { ShareResult.Failed(null) }
+        }
+        viewModelScope.launch {
+            val result = saving.await()
             _uiState.value = when (result) {
                 ShareResult.Empty -> ShareUiState.Empty
                 ShareResult.SignInRequired -> ShareUiState.SignInRequired

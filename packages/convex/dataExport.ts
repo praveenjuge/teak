@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
@@ -67,6 +67,31 @@ const startResultValidator = v.object({
   quotaResetMs: v.optional(v.number()),
   job: v.optional(exportSummaryValidator),
 });
+
+type ExportCardRow = Pick<
+  Doc<"cards">,
+  | "_id"
+  | "aiSummary"
+  | "aiTags"
+  | "colors"
+  | "completedAt"
+  | "content"
+  | "createdAt"
+  | "fileKey"
+  | "fileMetadata"
+  | "folderIds"
+  | "isArchived"
+  | "isFavorited"
+  | "isHidden"
+  | "metadataTitle"
+  | "notes"
+  | "sourceTitle"
+  | "sourceUrl"
+  | "tags"
+  | "type"
+  | "updatedAt"
+  | "url"
+>;
 
 interface ExportJobDoc {
   _id: Id<"exportJobs">;
@@ -309,7 +334,6 @@ export const getJob = internalQuery({
   handler: async (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
-/** Starts a job's run; the archive goes to `artifactKey`. */
 export const markRunning = internalMutation({
   args: { jobId: v.id("exportJobs"), workflowId: v.optional(v.string()) },
   returns: v.object({
@@ -436,7 +460,7 @@ export const getExportCardsPage = internalQuery({
       .withIndex("by_job", (q) => q.eq("jobId", jobId))
       .paginate({ cursor, numItems });
 
-    const cards: any[] = [];
+    const cards: ExportCardRow[] = [];
     for (const item of page.page) {
       const card = await ctx.db.get(item.cardId);
       if (!(card && isActiveCard(card))) {

@@ -29,7 +29,6 @@ class SignInController @Inject constructor(
     private var completing = false
     val progress: StateFlow<SignInProgress> = _progress.asStateFlow()
 
-    /** Returns the AuthKit URL to open, or null after showing an error. */
     suspend fun start(method: SignInMethod): String? {
         _progress.value = SignInProgress(pending = method)
         return try {

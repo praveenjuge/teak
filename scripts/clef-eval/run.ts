@@ -27,9 +27,11 @@ import {
 } from "../../apps/files-worker/src/decisions";
 import type { FilesOpsEnv } from "../../apps/files-worker/src/ops";
 import { textCardRulesType } from "../../packages/convex/card/classificationRules";
+import { resolveCreatedCardType } from "../../packages/convex/card/createCard";
 import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
 import { resolveLinkCategory } from "../../packages/convex/shared/utils/linkCategoryResolver";
+import { CLEF_REVIEWED_REASONS } from "../../packages/convex/workflows/steps/categorization/rules";
 import {
   CLEF_INPUT_USD_PER_MILLION,
   CLEF_MODEL_IDS,
@@ -86,11 +88,9 @@ const CLEF_RUN_URLS = new Map<string, string>(
   ])
 );
 
-/** A Workers AI binding over the REST API, as `runClef` expects. */
 const env = {
   AI: {
     run: async (model: string, body: Record<string, unknown>) => {
-      // Only the Clef models, on Cloudflare's API.
       const url = CLEF_RUN_URLS.get(model);
       if (!url) {
         throw new Error(`Not a Clef model: ${model}`);
@@ -180,8 +180,7 @@ const runLinkCategory = async () => {
       siteName: item.siteName,
       title: item.title || item.description,
     });
-    // Production asks Clef only below the domain and path rules.
-    if (rules.reason === "domain_rule" || rules.reason === "path_rule") {
+    if (!CLEF_REVIEWED_REASONS.has(rules.reason)) {
       skipped += 1;
       continue;
     }
@@ -213,13 +212,12 @@ const runCardType = async () => {
   const outcomes: ChoiceOutcome[] = [];
   let skipped = 0;
   for (const item of items) {
-    // Saved with no type, quoted text is a quote from creation and never
-    // reaches Clef (`resolveCreatedCardType`); `savedAs: "text"` is a note a
-    // client saved as text, which Clef does review.
-    if (
-      item.savedAs !== "text" &&
-      normalizeQuoteContent(item.content).removedQuotes
-    ) {
+    const createdType = resolveCreatedCardType({
+      providedType: item.savedAs,
+      hasUrl: false,
+      isQuoted: normalizeQuoteContent(item.content).removedQuotes,
+    });
+    if (createdType !== "text") {
       skipped += 1;
       continue;
     }

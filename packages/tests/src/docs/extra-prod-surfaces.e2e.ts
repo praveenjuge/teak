@@ -240,8 +240,6 @@ test("extra agent skills index matches what it serves and this checkout", async 
       `${skill.name} digest matches the served file`
     ).toBe(skill.digest);
   }
-  // A deploy that missed a SKILL.md change still agrees with itself, so
-  // compare the published digest with this checkout too.
   const teak = index.skills.find((skill) => skill.name === "teak");
   const local = readFileSync(
     new URL("../../../../.agents/skills/teak/SKILL.md", import.meta.url)

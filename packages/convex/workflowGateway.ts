@@ -26,12 +26,6 @@ import {
 import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 import { isWorkflowRpcFunction } from "./workflowRpcAllowlist";
 
-// The Files Worker's workflows and queues read and write Convex through this
-// one signed endpoint. Each request runs one allowlisted internal function.
-// Requests are signed with this deployment's own WORKFLOW_RPC_SECRET (derived
-// by the Worker from its root secret and this deployment's origin), never the
-// files signing secret that development shares with production.
-
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
     status,
@@ -92,10 +86,6 @@ export const hasValidWorkflowRpcSignature = async (
   );
 };
 
-/**
- * Runs a card-processing write only while the card is still on the
- * revision the run started for, in the same transaction as the write.
- */
 export const runGuarded = internalMutation({
   args: {
     args: v.any(),

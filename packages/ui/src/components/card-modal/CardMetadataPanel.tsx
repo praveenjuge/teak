@@ -38,7 +38,6 @@ export interface CardTagsControl {
   tagInput: string;
 }
 
-/** Save PDF on an arXiv link: the paper as its own document card. */
 export interface SavePdfControl {
   isSaving: boolean;
   save: () => void;
@@ -49,7 +48,6 @@ interface CardMetadataPanelProps {
   getCurrentValue: GetCurrentValue;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
   onCardTypeClick: () => void;
-  /** Saves edits now, as a field loses focus. */
   onCommit: () => void;
   onNotesChange: (notes: string) => void;
   onPermanentDelete: () => void;
@@ -120,7 +118,6 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
 
-/** The side of the card dialog: notes, summary, tags, folders and facts. */
 export function CardMetadataPanel({
   card,
   getCurrentValue,
@@ -180,7 +177,7 @@ export function CardMetadataPanel({
 
   return (
     <div className="space-y-6 px-5 py-5">
-      {card.isDeleted && (
+      {card.isDeleted ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] py-1.5 pr-1.5 pl-3">
           <p className="text-muted-foreground text-sm">In Trash</p>
           <div className="flex gap-1">
@@ -204,7 +201,7 @@ export function CardMetadataPanel({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <PanelSection title="Notes">
         <div className="relative">
@@ -409,7 +406,7 @@ export function CardMetadataPanel({
               {CARD_TYPE_LABELS[card.type as CardType] ?? "Card"}
             </button>
           </PropertyRow>
-          {safeSourceUrl && sourceHost && (
+          {safeSourceUrl && sourceHost ? (
             <PropertyRow label="From">
               <a
                 className="block truncate hover:underline hover:underline-offset-2"
@@ -426,7 +423,7 @@ export function CardMetadataPanel({
                 {hostForDisplay(sourceHost)}
               </a>
             </PropertyRow>
-          )}
+          ) : null}
           <DetailRows fields={sections.details} />
           <DetailRows fields={sections.source} />
           <DetailRows fields={sections.camera} />

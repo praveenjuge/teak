@@ -1,18 +1,3 @@
-/**
- * Replacing a link card's image with one the person chooses.
- *
- * The chosen image lives in `cards.thumbnailOverride`, outside
- * `metadata.linkPreview`, so Refresh details, screenshots and new link media
- * never touch it. Queries resolve `linkPreviewImageUrl` from it
- * (card/queryUtils.ts), so every client that shows that URL shows it.
- *
- * Flow: `createThumbnailUploadUrl` signs a PUT into the swept pending
- * namespace (no card quota: the card already exists), `setLinkThumbnail`
- * decode-verifies the bytes in the Files Worker and moves them under the card,
- * and `resetLinkThumbnail` goes back to the scraped image. A replace or reset
- * keeps the image it changed from for THUMBNAIL_UNDO_WINDOW_MS, so
- * `undoThumbnailChange` can put it back; then a guarded job deletes it.
- */
 import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -50,8 +35,8 @@ import {
 import {
   buildR2ObjectKey,
   buildR2UserPrefix,
-  deleteObject,
   PENDING_UPLOAD_CARD_ID,
+  queueObjectDeletion,
 } from "../storage/r2";
 import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 
@@ -67,11 +52,6 @@ const fail = (code: string, message: string, extra = {}): never => {
   throw new ConvexError({ code, message, ...extra });
 };
 
-/**
- * The pending key a thumbnail upload for this card is signed for. It sits in
- * the pending namespace the stale-upload sweep empties after 24 hours, so a
- * replacement abandoned after its upload is cleaned up.
- */
 export const buildPendingThumbnailKey = (userId: string, cardId: string) =>
   buildR2ObjectKey({
     userId,
@@ -80,11 +60,6 @@ export const buildPendingThumbnailKey = (userId: string, cardId: string) =>
     fileName: `card-${cardId}`,
   });
 
-/**
- * Whether `fileKey` is a pending thumbnail upload this user made for this
- * card: in their namespace, under the pending thumbnail role, and named for
- * the card, so another card's or another role's upload is refused.
- */
 export const isPendingThumbnailKeyFor = (
   userId: string,
   cardId: string,
@@ -102,11 +77,9 @@ export const isPendingThumbnailKeyFor = (
   );
 };
 
-/** Whether a key is one of this card's chosen images. */
 const isCardThumbnailKey = (cardId: string, key: string) =>
   key.includes(`/cards/${cardId}/${THUMBNAIL_ROLE}/`);
 
-/** Throws unless the user owns this card, a link that is not in Trash. */
 const assertReplaceable: (
   card: Doc<"cards"> | null,
   userId: string
@@ -144,7 +117,6 @@ const rateLimited = (retryAfter?: number): never =>
       typeof retryAfter === "number" ? Date.now() + retryAfter : undefined,
   });
 
-/** Spends one of the user's image changes for this minute. */
 const consumeThumbnailChange = async (ctx: MutationCtx, userId: string) => {
   const result = await rateLimiter.limit(ctx, "thumbnailReplace", {
     key: userId,
@@ -164,12 +136,22 @@ const uploadUrlResult = v.object({
 });
 
 const changeResult = v.object({
-  /** Pass to undoThumbnailChange; null when nothing changed. */
   changeId: v.union(v.string(), v.null()),
   undoUntil: v.union(v.number(), v.null()),
 });
 
 type ChangeResult = Infer<typeof changeResult>;
+
+const thumbnailChange = v.union(
+  v.object({
+    status: v.literal("written"),
+    changeId: v.string(),
+    undoUntil: v.number(),
+  }),
+  v.object({ status: v.literal("accountDeleting") })
+);
+
+type ThumbnailChange = Infer<typeof thumbnailChange>;
 
 export const createThumbnailUploadUrlHandler = async (
   ctx: MutationCtx,
@@ -178,7 +160,6 @@ export const createThumbnailUploadUrlHandler = async (
 ) => {
   assertReplaceable(await ctx.db.get("cards", args.cardId), userId);
   const contentType = checkUploadRequest(args.mimeType, args.fileSize);
-  // Checked, not spent: the token is spent when the image is applied.
   const allowed = await rateLimiter.check(ctx, "thumbnailReplace", {
     key: userId,
   });
@@ -233,7 +214,6 @@ export const createThumbnailUploadUrlForUser = internalMutation({
     ),
 });
 
-/** Before the worker runs: the card can take an image, and a token is spent. */
 export const reserveThumbnailChange = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: v.null(),
@@ -244,16 +224,11 @@ export const reserveThumbnailChange = internalMutation({
   },
 });
 
-/**
- * Makes `next` the card's image (or none) and keeps what it replaces for the
- * undo window, after which a guarded job deletes it. Returns null when the
- * patch stood down (account deletion), so the caller can clean up.
- */
 const changeThumbnail = async (
   ctx: MutationCtx,
   card: Doc<"cards">,
   next: ThumbnailOverride | undefined
-): Promise<ChangeResult | null> => {
+): Promise<ThumbnailChange> => {
   const now = Date.now();
   const changeId = crypto.randomUUID();
   const deleteAfter = now + THUMBNAIL_UNDO_WINDOW_MS;
@@ -265,7 +240,7 @@ const changeThumbnail = async (
     updatedAt: now,
   });
   if (!patched) {
-    return null;
+    return { status: "accountDeleting" };
   }
   if (previous) {
     const deletionJobId = await ctx.scheduler.runAfter(
@@ -282,7 +257,7 @@ const changeThumbnail = async (
       },
     });
   }
-  return { changeId, undoUntil: deleteAfter };
+  return { status: "written", changeId, undoUntil: deleteAfter };
 };
 
 export const applyThumbnailOverride = internalMutation({
@@ -294,7 +269,7 @@ export const applyThumbnailOverride = internalMutation({
     userId: v.string(),
     width: v.number(),
   },
-  returns: v.union(changeResult, v.null()),
+  returns: thumbnailChange,
   handler: async (ctx, args) => {
     const card = await ctx.db.get("cards", args.cardId);
     assertReplaceable(card, args.userId);
@@ -304,15 +279,13 @@ export const applyThumbnailOverride = internalMutation({
       height: args.height,
       updatedAt: Date.now(),
     });
-    if (result) {
-      // The verified copy now lives under the card; drop the pending upload.
-      await deleteObject(ctx, args.sourceKey);
+    if (result.status === "written") {
+      await queueObjectDeletion(ctx, args.sourceKey);
     }
     return result;
   },
 });
 
-/** Why a decoded image can't be a link's image, as [code, message], or null. */
 const refuseDecodedImage = (
   facts: FilesWorkerFinalizeImageResult
 ): readonly [string, string] | null => {
@@ -357,11 +330,10 @@ export const setThumbnailForUser = async (
     role: THUMBNAIL_ROLE,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  // Decode-verify the bytes so the card gets trusted format and dimensions.
   const outcome = await callFilesWorkerJson<FilesWorkerFinalizeImageResult>({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
-    fallbackCodes: ["CONFLICT"],
+    declineCodes: ["CONFLICT"],
   });
   if (outcome.kind !== "ok") {
     if (outcome.code === "NOT_FOUND") {
@@ -389,12 +361,11 @@ export const setThumbnailForUser = async (
         width: facts.width as number,
       }
     );
-    if (!result?.changeId) {
+    if (result.status !== "written") {
       throw new Error("thumbnail_override_not_applied");
     }
-    return { changeId: result.changeId, undoUntil: result.undoUntil ?? 0 };
+    return { changeId: result.changeId, undoUntil: result.undoUntil };
   } catch (error) {
-    // Outside the pending namespace, nothing else would ever remove it.
     await deleteFinalizedObject(destinationKey);
     throw error;
   }
@@ -430,16 +401,13 @@ export const resetThumbnailHandler = async (
   const card = await ctx.db.get("cards", cardId);
   assertReplaceable(card, userId);
   if (!card.thumbnailOverride) {
-    // Already the original image: nothing to change or undo.
     return { changeId: null, undoUntil: null };
   }
   await consumeThumbnailChange(ctx, userId);
-  return (
-    (await changeThumbnail(ctx, card, undefined)) ?? {
-      changeId: null,
-      undoUntil: null,
-    }
-  );
+  const result = await changeThumbnail(ctx, card, undefined);
+  return result.status === "written"
+    ? { changeId: result.changeId, undoUntil: result.undoUntil }
+    : { changeId: null, undoUntil: null };
 };
 
 export const resetLinkThumbnail = mutation({
@@ -466,11 +434,6 @@ const undoResult = v.union(
   v.object({ status: v.literal("expired"), code: v.literal("UNDO_EXPIRED") })
 );
 
-/**
- * Puts back the image the change `changeId` replaced. Only the card's latest
- * change can be undone, and only inside its window: an expired window or a
- * stale toast from an earlier change returns UNDO_EXPIRED and changes nothing.
- */
 export const undoThumbnailChangeHandler = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -501,11 +464,9 @@ export const undoThumbnailChangeHandler = async (
     return expired;
   }
   if (previous.deletionJobId) {
-    // The deletion job checks the card too; cancelling just saves the run.
     await ctx.scheduler.cancel(previous.deletionJobId).catch(() => undefined);
   }
   if (newer) {
-    // An undo can't be undone, so the image it replaced goes now.
     await ctx.scheduler.runAfter(
       0,
       internal.card.thumbnailOverride.deleteReplacedThumbnail,
@@ -527,12 +488,6 @@ export const undoThumbnailChange = mutation({
   },
 });
 
-/**
- * Deletes an image a change replaced once its undo window has passed. It
- * never deletes the card's current image, or one still kept for a later
- * change's undo, so a late undo or a quick second change can't remove an
- * image in use.
- */
 export const deleteReplacedThumbnail = internalMutation({
   args: { cardId: v.id("cards"), storageKey: v.string() },
   returns: v.null(),
@@ -549,9 +504,8 @@ export const deleteReplacedThumbnail = internalMutation({
     ) {
       return null;
     }
-    await deleteObject(ctx, storageKey);
+    await queueObjectDeletion(ctx, storageKey);
     if (card && kept?.override?.storageKey === storageKey) {
-      // Its window has closed: nothing is left to undo.
       await patchCardWithSearchSync(ctx, cardId, {
         previousThumbnailOverride: undefined,
       });

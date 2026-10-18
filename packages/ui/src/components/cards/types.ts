@@ -22,14 +22,12 @@ export interface LinkPreviewMedia {
   width?: number;
 }
 
-/** Horizontal JPEG sprite strip: `frames` frames of `frameWidth` x `frameHeight`. */
 export interface ScrubMetadata {
   frameHeight: number;
   frames: number;
   frameWidth: number;
 }
 
-/** Amplitude bars (integers 0-100): `grid` has 45 values, `detail` has 200. */
 export interface WaveformMetadata {
   detail: number[];
   grid: number[];
@@ -40,7 +38,6 @@ export interface CardWithUrls {
   aiSummary?: string;
   colors?: Array<{ hex: string }>;
   compactUrl?: string;
-  /** When a link was marked read, watched, bought or done. */
   completedAt?: number;
   content?: string;
   detailUrl?: string;
@@ -55,7 +52,6 @@ export interface CardWithUrls {
     waveform?: WaveformMetadata;
   };
   fileUrl?: string;
-  /** linkPreviewImageUrl is an image someone chose for the link. */
   hasThumbnailOverride?: true;
   isArchived?: boolean;
   isDeleted?: boolean;
@@ -83,7 +79,6 @@ export interface CardWithUrls {
   screenshotUrl?: string;
   scrubKey?: string;
   scrubUrl?: string;
-  /** The page a text card was saved from. */
   sourceUrl?: string;
   thumbnailKey?: string;
   thumbnailOverride?: { height: number; storageKey: string; width: number };
@@ -94,26 +89,19 @@ export interface CardWithUrls {
 
 export interface CardProps {
   card: CardWithUrls & Record<string, unknown>;
-  /** Above-the-fold card: its media loads eagerly with high priority. */
   isPriority?: boolean;
   isSelected?: boolean;
   isSelectionMode?: boolean;
-  /**
-   * Whether Tab stops on this card. The grid keeps one card a tab stop and
-   * moves between cards with the arrow keys; on its own a card always is.
-   */
   isTabStop?: boolean;
   isTrashMode?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
   onDelete?: (cardId: string) => void;
-  /** Opens the card's Folders checklist. */
   onEditFolders?: (cardId: string) => void;
   onEnterSelectionMode?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;
-  /** Archives the card, or returns an archived one to the library. */
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
   onToggleSelection?: () => void;

@@ -133,7 +133,7 @@ struct CardContextMenu: View {
     }
 
     private func loadCard() async throws -> Card? {
-        try await app.backend.query("cards:getCard", ["id": .string(card.id)])
+        try await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
     }
 }
 

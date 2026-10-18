@@ -6,26 +6,16 @@ import { createAccountDeletionGate } from "../accountDeletion";
 import { readUserFlags } from "../adminAccess";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 
-// Paging shared by the backfills that read text in link images and scanned
-// PDFs (roadmap v2 phase 11). Each schedules one action per card, spaced
-// out, and skips cards already read, in Trash, of accounts being deleted
-// and of accounts with AI turned off. Delete it with the last of them.
-
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BATCH_SIZE = 100;
 
 export const ocrBackfillTotalsValidator = v.object({
   examined: v.number(),
-  /** Cards of the kind this backfill reads that were already read. */
   alreadyRead: v.number(),
-  /** Cards of that kind with nothing stored to read yet. */
   noSource: v.number(),
-  /** Cards in Trash, left for Refresh details if they come back. */
   trashed: v.number(),
-  /** Cards scheduled (a dry run counts what it would schedule). */
   queued: v.number(),
   skippedDeletingAccounts: v.number(),
-  /** Cards of accounts with AI turned off, never sent to the model. */
   skippedAiDisabled: v.number(),
 });
 
@@ -35,7 +25,6 @@ export const ocrBackfillArgs = {
   cursor: v.optional(v.union(v.string(), v.null())),
   dryRun: v.optional(v.boolean()),
   batchSize: v.optional(v.number()),
-  /** Stop after this batch instead of scheduling the next. */
   once: v.optional(v.boolean()),
   userId: v.optional(v.string()),
   totals: v.optional(ocrBackfillTotalsValidator),
@@ -62,23 +51,18 @@ const emptyTotals = (): OcrBackfillTotals => ({
   skippedAiDisabled: 0,
 });
 
-/** One page of an OCR backfill; it schedules the next page itself. */
 export const runOcrBackfillPage = async (
   ctx: MutationCtx,
   args: OcrBackfillPageArgs,
   backfill: {
-    /** The per-card action, scheduled `spacingMs` apart. */
     cardAction: FunctionReference<
       "action",
       "internal",
       { cardId: Id<"cards"> }
     >;
-    /** Whether the card is of the kind this backfill reads. */
     isKind: (card: Doc<"cards">) => boolean;
-    /** Whether the card has something stored to read. */
     hasSource: (card: Doc<"cards">) => boolean;
     name: string;
-    /** This backfill's own mutation, for the next page. */
     nextPage: FunctionReference<"mutation", "internal", OcrBackfillPageArgs>;
     spacingMs: number;
   }
@@ -155,7 +139,6 @@ export const runOcrBackfillPage = async (
   const isDone = page.isDone;
   const continuationScheduled = !(isDone || args.once);
   if (continuationScheduled) {
-    // The next batch starts as this one's last card is due.
     await ctx.scheduler.runAfter(
       dryRun ? 0 : batch.queued * backfill.spacingMs,
       backfill.nextPage,

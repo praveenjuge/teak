@@ -4,6 +4,7 @@ import { toolFailure, unsupported } from "../errors";
 import { run } from "../exec";
 import type { JobResult } from "../manifest";
 import type { PdfPageParams, PdfTextParams } from "../params";
+import { MAX_UTF8_BYTES_PER_CHAR } from "../protocol";
 import { type JobContext, readOutput } from "./context";
 
 const PAGES_LINE = /^Pages:\s+(\d+)\s*$/m;
@@ -101,9 +102,7 @@ export async function pdfTextJob(
   params: PdfTextParams
 ): Promise<JobResult> {
   const pages = await pageCount(ctx);
-  // UTF-8 needs at most four bytes a character, so this always holds
-  // maxChars whole characters.
-  const maxBytes = params.maxChars * 4 + 4;
+  const maxBytes = (params.maxChars + 1) * MAX_UTF8_BYTES_PER_CHAR;
   const result = await run(
     pdfTextCommand(ctx.dir, ctx.input, params.maxPages),
     {

@@ -175,7 +175,6 @@ const lockHash = (root: string) =>
     .update(readFileSync(join(root, "bun.lock")))
     .digest("hex");
 
-/** Stale unless setup's last install was of exactly this bun.lock. */
 export const isInstallStale = (root: string): boolean => {
   const stamp = installStampPath(root);
   if (!(existsSync(stamp) && existsSync(join(root, "bun.lock")))) {
@@ -195,7 +194,6 @@ export interface ConvexSelection {
   source: ConvexSelectionSource;
 }
 
-/** Explicit Convex deployment selection: shell export, then CLI dotenv. */
 export const readConvexSelection = (
   env: NodeJS.ProcessEnv = process.env,
   dotenvPath: string = join(import.meta.dir, "..", "packages/convex/.env.local")
@@ -292,7 +290,7 @@ export const plannedWritesFor = (
   if (isInstallStale(root)) {
     writes.push("node_modules/ (bun ci)");
   }
-  const loaded = loadTargetEnv(target, "local", root);
+  const loaded = loadTargetEnv(target, root);
   for (const file of loaded.files) {
     if (!file.exists) {
       writes.push(`${file.path} (generate)`);
@@ -307,6 +305,7 @@ export const plannedWritesFor = (
 export const planCapabilities = async (options: {
   checkNetwork: boolean;
   convex: ConvexMode;
+  env?: NodeJS.ProcessEnv;
   root: string;
   target: SupportedTarget;
   worktree: WorktreePorts;
@@ -337,8 +336,9 @@ export const planCapabilities = async (options: {
     }
   }
 
+  const env = options.env ?? process.env;
   const selection = readConvexSelection(
-    process.env,
+    env,
     join(root, "packages/convex/.env.local")
   );
   const credentials: CredentialCapability[] = [];
@@ -347,9 +347,7 @@ export const planCapabilities = async (options: {
       name: "Convex CLI login, or CONVEX_DEPLOY_KEY (a dev key) in cloud sessions",
       required: true,
       present:
-        selection.deployment || process.env.CONVEX_DEPLOY_KEY?.trim()
-          ? true
-          : null,
+        selection.deployment || env.CONVEX_DEPLOY_KEY?.trim() ? true : null,
     });
   }
 

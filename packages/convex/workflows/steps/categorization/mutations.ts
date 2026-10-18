@@ -1,10 +1,3 @@
-/**
- * Categorization Mutations
- *
- * Database mutations for updating categorization results.
- * Separated from index.ts because mutations can't use "use node".
- */
-
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
@@ -21,10 +14,6 @@ export const updateCategorization = internalMutation({
   args: {
     cardId: v.id("cards"),
     metadata: v.any(),
-    /**
-     * A site's image (a Wikipedia lead image, an Open Library cover) the
-     * Worker stored for a link whose page had none. It never replaces one.
-     */
     previewImage: v.optional(
       v.object({
         imageHeight: v.number(),
@@ -75,12 +64,7 @@ export const updateCategorization = internalMutation({
   },
 });
 
-/**
- * One of arXiv's API slots for the Files Worker's categorization step: at
- * most one request every 3 seconds for the whole deployment. `retryAfter`
- * is how long to wait before the request (the slot is reserved); null means
- * the queue is full and the lookup is skipped.
- */
+// arXiv allows one API request every 3 seconds from the whole deployment.
 export const takeArxivSlot = internalMutation({
   args: {},
   returns: v.union(v.null(), v.object({ retryAfter: v.number() })),

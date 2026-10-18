@@ -16,7 +16,6 @@ export const updateCardProcessing = internalMutation({
       v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
     ),
     metadata: v.optional(v.any()),
-    /** Only write the stages that are still in progress. */
     onlyIfInProgress: v.optional(v.boolean()),
   },
   returns: v.boolean(),

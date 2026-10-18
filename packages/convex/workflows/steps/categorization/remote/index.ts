@@ -9,10 +9,8 @@ import { fetchWikipediaDetails } from "./wikipedia";
 
 export type { RemoteDetails, RemoteFetchDeps, RemoteSource } from "./common";
 
-/** A card shows at most this many facts; site facts only fill the room left. */
 export const MAX_LINK_FACTS = 8;
 
-// A site's label that means the same as one the page already gave.
 const FACT_LABEL_ALIASES: Record<string, string[]> = {
   Pages: ["Length"],
   Released: ["Release", "Published"],
@@ -20,14 +18,12 @@ const FACT_LABEL_ALIASES: Record<string, string[]> = {
 
 export interface RemoteLookupInput {
   category: LinkCategory;
-  /** The page's JSON-LD: read this run, or stored from an earlier one. */
   entities: unknown[];
   provider?: string;
   rawMap: RawSelectorMap;
   sourceUrl: string;
 }
 
-/** The site to ask about a link, or null for every other link. */
 export const remoteSourceFor = (
   input: RemoteLookupInput
 ): RemoteSource | null => {
@@ -52,10 +48,6 @@ export const remoteSourceFor = (
   return input.category === "book" && findIsbn(input) ? "open_library" : null;
 };
 
-/**
- * What the link's site says about it, or null: no site to ask, or the site
- * was down, slow, rate-limited or had nothing. Never throws.
- */
 export const fetchRemoteDetails = async (
   input: RemoteLookupInput,
   deps: RemoteFetchDeps
@@ -89,10 +81,6 @@ export const fetchRemoteDetails = async (
   }
 };
 
-/**
- * Adds a site's facts the page didn't state (by label, so the page's own
- * value always wins), until the card has {@link MAX_LINK_FACTS}.
- */
 export const fillFacts = (
   target: LinkCategoryDetail[],
   incoming: LinkCategoryDetail[] | undefined

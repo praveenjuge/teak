@@ -47,8 +47,7 @@ export const workosApiBase = () =>
 export const isWorkosProductionApi = (base: URL) =>
   base.origin === PRODUCTION_ORIGIN;
 
-// AuthKit tokens always name api.workos.com as their issuer. The emulator is
-// started with `--issuer https://api.workos.com` so this check never branches.
+// AuthKit tokens always name api.workos.com as their issuer.
 export const workosIssuer = (clientId: string) =>
   `${PRODUCTION_ORIGIN}/user_management/${clientId}`;
 

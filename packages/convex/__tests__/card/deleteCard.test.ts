@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import * as r2Storage from "../../storage/r2";
 import { withTestSession } from "../helpers/session.test-utils";
 
-const deleteObjectMock = spyOn(r2Storage, "deleteObject").mockResolvedValue(
-  undefined
-);
+const deleteObjectMock = spyOn(
+  r2Storage,
+  "queueObjectDeletion"
+).mockResolvedValue(undefined);
 
 describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;

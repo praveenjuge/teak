@@ -22,9 +22,8 @@ type ConsentAuthorization =
     }
   | { status: "denied"; reason: string };
 
-// Internal callers must first cryptographically verify the Connect token and its
-// resource audience. Mapping, verification, deletion and consent state are read
-// in this mutation's transaction; a refreshed token never clears revocation.
+// Mapping, verification, deletion and consent state are read in this
+// mutation's transaction; a refreshed token never clears revocation.
 export const authorizeConnectConsent = internalMutation({
   args: {
     workosUserId: v.string(),
@@ -134,7 +133,6 @@ const connectionNames: Record<string, string> = {
   firefox: "Firefox extension",
 };
 
-// Pagination preserves empty pages of revoked records; clients must honor isDone.
 export const listConnections = query({
   args: {
     paginationOpts: paginationOptsValidator,

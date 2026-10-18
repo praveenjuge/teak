@@ -580,7 +580,6 @@ describe("filterLocalCards price:", () => {
     priced("pricey", { amount: 1299, currency: "JPY" }, 4),
     priced("free", { amount: 0 }, 3),
     priced("unpriced", undefined, 2),
-    // Not a link: a stray price on another type never matches.
     priced("note", { amount: 5 }, 1, { type: "text" }),
   ];
   const ids = (searchTerms: string) =>
@@ -598,7 +597,6 @@ describe("filterLocalCards price:", () => {
     ["price:<100 price:>200", []],
     ["price:<1 lamp", ["free"]],
     ["price:<100 type:image", []],
-    // A malformed bound is a word: no card has it.
     ["price:abc", []],
   ])("%s", (searchTerms: string, expected: string[]) => {
     expect(ids(searchTerms)).toEqual(expected);
@@ -638,7 +636,6 @@ describe("filterLocalCards is:done and is:todo", () => {
     link("repo", "repo", 4),
     link("pending", undefined, 3),
     link("archived-done", "book", 2, { completedAt: 1, isArchived: true }),
-    // Not a link: a stray date on another type never counts.
     makeCard({
       _id: "note",
       content: "note link",
@@ -717,7 +714,6 @@ describe("filterLocalCards textMatchedByServer", () => {
         textMatchedByServer,
       }).map((card): string => card._id);
     expect(ids(true)).toEqual(["armchair"]);
-    // Stale results for earlier words are still narrowed to the new ones.
     expect(ids(false)).toEqual([]);
   });
 
@@ -741,7 +737,6 @@ describe("filterLocalCards hidden cards", () => {
       tags: ["Secret"],
       isHidden: true,
     }),
-    // Hidden in another tab: the cache has the tag before the flag.
     makeCard({ _id: "unflagged", content: "beach", tags: [" HIDDEN "] }),
     makeCard({ _id: "ai-only", content: "beach", aiTags: ["hidden"] }),
   ];

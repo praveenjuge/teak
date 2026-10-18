@@ -1,20 +1,9 @@
-import {
-  type FilesVectorQueryResult,
-  vectorNamespaceForUser,
-} from "@teak/files-protocol";
+import type { FilesVectorQueryResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction, internalQuery } from "../_generated/server";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
-import { getR2KeyPrefix } from "../storage/r2Keys";
-
-/**
- * Operator check of a user's meaning matches, with each card's title and
- * score. Internal, so only the Convex dashboard or CLI can run it:
- *
- *   npx convex run embedding/inspect:searchByMeaning \
- *     '{"userId":"teak_…","text":"furniture wood that survives rain"}'
- */
+import { readUserVectorShard, userVectorNamespace } from "./userVectors";
 
 const PREVIEW_CHARS = 80;
 
@@ -59,20 +48,16 @@ export const searchByMeaning = internalAction({
     })
   ),
   handler: async (ctx, { userId, text, topK }) => {
-    const shard: number | null = await ctx.runQuery(
-      internal.vectorShards.getUserShard,
-      { userId }
-    );
-    const namespace = vectorNamespaceForUser(`${getR2KeyPrefix()}${userId}`);
-    if (shard === null || !namespace) {
-      // No card of theirs was ever embedded.
+    const vectorShard = await readUserVectorShard(ctx, userId);
+    const namespace = userVectorNamespace(userId);
+    if (vectorShard.kind === "never_embedded" || !namespace) {
       return [];
     }
     const outcome = await callFilesWorkerJson<FilesVectorQueryResult>({
       op: "vector-query",
       params: {
         namespace,
-        shard,
+        shard: vectorShard.shard,
         text,
         topK: Math.min(Math.max(Math.trunc(topK ?? 10), 1), 100),
       },

@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 
-/** A recorded response from `workflows/steps/categorization/fixtures/rich-sites`. */
 export const richSiteFixture = (name: string): string =>
   readFileSync(
     new URL(

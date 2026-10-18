@@ -38,7 +38,7 @@ beforeEach(() => {
     value: {
       request: (_name: string, callback: () => Promise<unknown>) => {
         const next = tail.then(callback, callback);
-        tail = next.catch(() => {});
+        tail = next.catch(() => undefined);
         return next;
       },
     },
@@ -281,7 +281,7 @@ describe("Chrome OAuth background credentials", () => {
     });
     // An empty IndexedDB: Firefox keeps credentials there, and Bun has none.
     const emptyDatabase = {
-      close: () => {},
+      close: () => undefined,
       transaction: () => {
         const transaction: { oncomplete?: () => void; objectStore: unknown } = {
           objectStore: () => ({ get: () => ({ result: undefined }) }),
@@ -590,7 +590,6 @@ test("a network failure reads the same in every browser", async () => {
   ]) {
     const offline = (() =>
       Promise.reject(new TypeError(message))) as unknown as typeof fetch;
-    // The API alone, then discovery and the token endpoint as well.
     for (const transport of [withDiscovery(offline), offline]) {
       globalThis.fetch = transport;
       const auth = await load();

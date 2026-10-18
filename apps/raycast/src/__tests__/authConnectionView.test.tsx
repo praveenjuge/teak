@@ -43,7 +43,7 @@ mock.module("@raycast/api", () => ({
     },
   }),
   Action,
-  openExtensionPreferences: () => {},
+  openExtensionPreferences: () => undefined,
   showToast: () => Promise.resolve(),
   Toast: { Style: { Failure: "failure" } },
   ActionPanel: ({ children }: { children: ReactNode }) =>
@@ -110,7 +110,7 @@ function AuthView() {
 }
 
 test("real auth hook reports discovery failure and Retry recovers saved credentials", async () => {
-  let available = false;
+  let available = false as boolean;
   let discoveryRequests = 0;
   const issuer = "https://scholarly-hay-77.authkit.app";
   globalThis.fetch = ((input) => {
