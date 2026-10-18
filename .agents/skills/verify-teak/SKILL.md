@@ -75,7 +75,7 @@ Screenshots and video for a PR follow `.agents/pull-requests.md` ("Screenshots a
 
 ## Cleanup
 
-1. Permanently delete every card the run created: search for the run marker, move the cards to Trash, then "Delete Forever" ([card-actions](features/card-actions.md)), or `DELETE /v1/cards/<id>` then `?permanent=true` ([api-cli-mcp](features/api-cli-mcp.md)). Revoke every key the run made: `scripts/api-key.ts revoke`, and in Settings any key you created there.
+1. Permanently delete every card the run created: search for the run marker, move the cards to Trash, then "Delete Forever" ([card-actions](features/card-actions.md)), or `DELETE /v1/cards/<id>` then `?permanent=true` ([api-cli-mcp](features/api-cli-mcp.md)). Revoke every key the run made: `bun .agents/skills/verify-teak/scripts/api-key.ts revoke`, and in Settings any key you created there ([settings](features/settings.md)).
 2. Undo any seeded-card change a recipe made (a favorite toggled, a tag added).
 3. `close_session` every `e2e` session you opened.
 4. Stop the stack only if this run started it: `bun run dev --stop`. Never kill processes by name.

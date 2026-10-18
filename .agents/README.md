@@ -47,8 +47,9 @@ MCP, SDK and CLI. It is edited here, and the docs build publishes it.
 Verification (root `AGENTS.md`, "Verification"):
 
 - `verify-teak` is Teak's own skill for proving a change in the running app:
-  launch, doctor (`scripts/doctor.ts`), drive, evidence, cleanup, with a
-  feature map in `features/`. It is edited here; every user-facing change
+  launch, doctor (`.agents/skills/verify-teak/scripts/doctor.ts`, not the
+  root `scripts/doctor.ts`), drive, evidence, cleanup, with a feature map in
+  `features/`. It is edited here; every user-facing change
   updates its map.
 - `principle-prove-it-works`, `create-verification-skill` and
   `maintain-verification-skill` are vendored from pstack (`cursor/plugins`).

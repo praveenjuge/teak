@@ -58,6 +58,11 @@ describe("verify-teak feature map", () => {
     (file) => {
       const text = readFileSync(join(FEATURES, file), "utf-8");
       expect(text, `${file} must start with an H1`).toMatch(/^# \S/);
+      const intro = text.slice(text.indexOf("\n"), text.indexOf("\n## "));
+      expect(
+        intro.trim(),
+        `${file} needs a summary paragraph before its first section`
+      ).not.toBe("");
       const headings = [...text.matchAll(/^## (.+)$/gm)].map(
         (match) => match[1] ?? ""
       );

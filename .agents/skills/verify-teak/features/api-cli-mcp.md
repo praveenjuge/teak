@@ -27,7 +27,7 @@ Preconditions:
 bun .agents/skills/verify-teak/scripts/api-key.ts mint
 export TEAK_API_KEY="$(jq -r .key .agents/.state/verify/api-key.json)"
 export TEAK_API_URL=https://reminiscent-kangaroo-59.convex.site SITE=https://reminiscent-kangaroo-59.convex.site
-E=.agents/.state/verify/<run-id>
+E=.agents/.state/verify/<run-id> && mkdir -p "$E"
 ```
 
 Steps:
