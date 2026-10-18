@@ -599,6 +599,19 @@ describe("attachments", () => {
     ).toEqual([]);
   });
 
+  test("a long file name is cut on a whole character and keeps its extension", async () => {
+    stubWorker();
+    const ctx = await setup();
+    // The emoji's two UTF-16 units straddle the cut before ".pdf".
+    const fileName = `${"a".repeat(235)}😀${"b".repeat(20)}.pdf`;
+    const sent = await sendWithAttachments(ctx, [pdf(0, { fileName })]);
+    expect(sent.uploads).toHaveLength(1);
+    const [receipt] = await ctx.receipts();
+    expect(receipt?.pendingAttachments?.[0]?.fileName).toBe(
+      `${"a".repeat(235)}.pdf`
+    );
+  });
+
   test("files Teak doesn't take get no upload", async () => {
     stubWorker();
     const ctx = await setup();

@@ -22,7 +22,8 @@ Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
    forged `mx.cloudflare.net` pass further down is never read. Anything else
    is refused (`550 5.7.1 This address can't save to Teak`).
 5. **Convex.** The verified sender, subject, Message-ID, date, the text and
-   HTML bodies (each cut to `MAX_BODY_BYTES` on a UTF-8 boundary) and the
+   HTML bodies (each cut to `MAX_BODY_BYTES` as encoded in the JSON request,
+   never mid-character, so the request stays under Convex's 3 MiB) and the
    attachments' names, types and sizes are POSTed to
    `${CONVEX_SITE_URL}/inbound/email`, signed with
    `EMAIL_INBOUND_SIGNING_SECRET` (`src/payload.ts`: HMAC-SHA256 of

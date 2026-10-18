@@ -2,29 +2,53 @@ import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
 import {
   buildPayload,
-  cutUtf8,
+  cutJsonUtf8,
   SUBJECT_MAX_CHARS,
   signedHeaders,
   signingString,
 } from "./payload";
 
-describe("cutUtf8", () => {
+describe("cutJsonUtf8", () => {
   test("leaves text within the limit alone", () => {
-    expect(cutUtf8("hello", 5)).toBe("hello");
+    expect(cutJsonUtf8("hello", 5)).toBe("hello");
   });
 
   test("never splits a character", () => {
     // "é" is 2 bytes, "日" 3, "😀" 4.
-    expect(cutUtf8("aé", 2)).toBe("a");
-    expect(cutUtf8("日本", 5)).toBe("日");
-    expect(cutUtf8("😀😀", 7)).toBe("😀");
-    const cut = cutUtf8("x".repeat(10) + "日".repeat(1000), 1024);
+    expect(cutJsonUtf8("aé", 2)).toBe("a");
+    expect(cutJsonUtf8("日本", 5)).toBe("日");
+    expect(cutJsonUtf8("😀😀", 7)).toBe("😀");
+    const cut = cutJsonUtf8("x".repeat(10) + "日".repeat(1000), 1024);
     expect(new TextEncoder().encode(cut).byteLength).toBeLessThanOrEqual(1024);
     expect(cut.endsWith("日")).toBe(true);
+  });
+
+  test("sizes the text as JSON, so escaped characters count twice or more", () => {
+    // A quote encodes as 2 bytes, a control character as 6.
+    expect(cutJsonUtf8('a"b', 3)).toBe('a"');
+    expect(cutJsonUtf8("\u0001\u0001", 7)).toBe("\u0001");
+    const quotes = cutJsonUtf8('"'.repeat(1024 * 1024), 1024 * 1024);
+    expect(quotes.length).toBe(512 * 1024);
   });
 });
 
 describe("buildPayload", () => {
+  test("a body of escaped characters still fits the backend's 3 MiB request", () => {
+    const payload = buildPayload(
+      {
+        html: "\\".repeat(1024 * 1024),
+        subject: '"'.repeat(SUBJECT_MAX_CHARS),
+        text: '"'.repeat(1024 * 1024),
+      },
+      "ada.example@gmail.com",
+      [],
+      1024 * 1024
+    );
+    const body = new TextEncoder().encode(JSON.stringify(payload));
+    expect(body.byteLength).toBeLessThanOrEqual(3 * 1024 * 1024);
+    expect(payload.text?.length).toBe(512 * 1024);
+  });
+
   test("carries the verified sender, the bodies cut to the limit, and attachment facts", () => {
     const payload = buildPayload(
       {

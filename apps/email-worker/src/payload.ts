@@ -26,21 +26,38 @@ export interface InboundEmailPayload {
   v: 1;
 }
 
-const isContinuationByte = (byte: number): boolean =>
-  byte >= 0x80 && byte < 0xc0;
+const HIGH_SURROGATE_END_REGEX = /[\uD800-\uDBFF]$/u;
 
-/** At most `maxBytes` of UTF-8, never splitting a character. */
-export const cutUtf8 = (value: string, maxBytes: number): string => {
-  const bytes = new TextEncoder().encode(value);
-  if (bytes.byteLength <= maxBytes) {
+/** The first `length` UTF-16 units, never ending inside a surrogate pair. */
+const prefix = (value: string, length: number): string => {
+  const cut = value.slice(0, length);
+  return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
+};
+
+// Without the two quotes around it.
+const jsonBytes = (value: string): number =>
+  new TextEncoder().encode(JSON.stringify(value)).byteLength - 2;
+
+/**
+ * At most `maxBytes` once encoded as a JSON string, never splitting a
+ * character. Escaping can more than double a body (quotes, backslashes,
+ * control characters), so the request is sized by what is sent.
+ */
+export const cutJsonUtf8 = (value: string, maxBytes: number): string => {
+  if (jsonBytes(value) <= maxBytes) {
     return value;
   }
-  let end = Math.max(0, maxBytes);
-  // Step back over continuation bytes (0x80–0xBF) to a character's start.
-  while (end > 0 && isContinuationByte(bytes[end] ?? 0)) {
-    end--;
+  let low = 0;
+  let high = Math.min(value.length, maxBytes);
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (jsonBytes(prefix(value, mid)) <= maxBytes) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
   }
-  return new TextDecoder().decode(bytes.subarray(0, end));
+  return prefix(value, low);
 };
 
 const cutChars = (value: string, max: number): string => {
@@ -63,11 +80,15 @@ export const buildPayload = (
   date: email.date ?? null,
   from,
   html:
-    typeof email.html === "string" ? cutUtf8(email.html, maxBodyBytes) : null,
+    typeof email.html === "string"
+      ? cutJsonUtf8(email.html, maxBodyBytes)
+      : null,
   messageId: email.messageId ?? null,
   subject: cutChars(email.subject ?? "", SUBJECT_MAX_CHARS),
   text:
-    typeof email.text === "string" ? cutUtf8(email.text, maxBodyBytes) : null,
+    typeof email.text === "string"
+      ? cutJsonUtf8(email.text, maxBodyBytes)
+      : null,
   v: 1,
 });
 

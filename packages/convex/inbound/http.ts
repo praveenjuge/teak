@@ -12,7 +12,7 @@ import { finalizeForUser } from "../card/uploadCardAction";
 import { requireTeakUserId } from "../securitySessions";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 import { CARD_ERROR_CODES } from "../shared/constants";
-import { inferFileFormat } from "../shared/fileFormats";
+import { inferFileFormat, MAX_FILE_NAME_LENGTH } from "../shared/fileFormats";
 import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 import { planEmailCards } from "./emailContent";
 
@@ -107,8 +107,35 @@ const readSigned = async (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const HIGH_SURROGATE_END_REGEX = /[\uD800-\uDBFF]$/u;
+
+/** At most `max` UTF-16 units, never ending inside a surrogate pair. */
+const cutText = (value: string, max: number): string => {
+  if (value.length <= max) {
+    return value;
+  }
+  const cut = value.slice(0, max);
+  return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
+};
+
+const FILE_EXTENSION_REGEX = /\.[^.\s]{1,16}$/u;
+
+/**
+ * A long file name is cut to what uploads accept, before its extension,
+ * which says its format.
+ */
+const cutFileName = (fileName: string): string => {
+  const name = fileName.trim();
+  if (name.length <= MAX_FILE_NAME_LENGTH) {
+    return name;
+  }
+  const extension = FILE_EXTENSION_REGEX.exec(name)?.[0] ?? "";
+  const stem = name.slice(0, name.length - extension.length);
+  return cutText(stem, MAX_FILE_NAME_LENGTH - extension.length) + extension;
+};
+
 const optionalText = (value: unknown, max: number): string | null =>
-  typeof value === "string" && value.length > 0 ? value.slice(0, max) : null;
+  typeof value === "string" && value.length > 0 ? cutText(value, max) : null;
 
 interface InboundEmail {
   attachments: {
@@ -145,9 +172,9 @@ export const parseInboundEmail = (value: unknown): InboundEmail | null => {
         (item.size as number) >= 0
           ? [
               {
-                fileName: item.fileName.slice(0, 255),
+                fileName: cutFileName(item.fileName),
                 index: item.index as number,
-                mimeType: item.mimeType.slice(0, 255),
+                mimeType: cutText(item.mimeType, 255),
                 size: item.size as number,
               },
             ]
