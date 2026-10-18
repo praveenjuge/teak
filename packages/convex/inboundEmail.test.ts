@@ -29,8 +29,11 @@ interface WorkerCall {
   params: Record<string, unknown>;
 }
 
-/** The Files Worker: finalizes report the size they were sent; else ok. */
-const stubWorker = () => {
+/**
+ * The Files Worker: finalizes report the size they were sent; else ok. While
+ * `faults.finalizes` is above zero, a finalize answers 503 and counts it down.
+ */
+const stubWorker = (faults = { finalizes: 0 }) => {
   const calls: WorkerCall[] = [];
   vi.stubGlobal(
     "fetch",
@@ -41,6 +44,10 @@ const stubWorker = () => {
       }
       const body = JSON.parse(String(init?.body)) as WorkerCall;
       calls.push({ op: body.op, params: body.params });
+      if (body.op === "finalize-upload" && faults.finalizes > 0) {
+        faults.finalizes -= 1;
+        return Promise.resolve(new Response("unavailable", { status: 503 }));
+      }
       const data =
         body.op === "finalize-upload"
           ? {
@@ -309,6 +316,23 @@ describe("POST /inbound/email", () => {
         url: "https://example.com/article",
       }),
     ]);
+  });
+
+  test("mail from an account whose WorkOS identity was deleted is rejected", async () => {
+    const { cards, owner, send, t } = await setup();
+    await owner.mutation(api.inbound.settings.enable, {});
+    await t.run(async (ctx) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
+        .unique();
+      if (!user) {
+        throw new Error("expected the owner");
+      }
+      await ctx.db.patch(user._id, { workosDeletedAt: Date.now() });
+    });
+    expect((await send(email())).status).toBe(404);
+    expect(await cards()).toEqual([]);
   });
 
   test("mail from an account that hasn't turned it on, or no account, is rejected", async () => {
@@ -788,6 +812,37 @@ describe("attachments", () => {
     vi.advanceTimersByTime(60_000);
     await ctx.t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await ctx.cards()).map((card) => card.type)).toEqual(["document"]);
+  });
+
+  test("a scheduled finalize that hits a Files Worker fault is followed up", async () => {
+    vi.useFakeTimers();
+    const faults = { finalizes: 0 };
+    stubWorker(faults);
+    const ctx = await setup();
+    const sent = await sendWithAttachments(ctx, [pdf(0)], {
+      html: null,
+      subject: "",
+      text: null,
+    });
+    await drainCardBucket(ctx.t);
+    expect(
+      (
+        await ctx.finalize({
+          fileKey: sent.uploads[0].fileKey,
+          index: 0,
+          receiptKey: sent.receiptKey,
+        })
+      ).body
+    ).toEqual({ status: "scheduled" });
+
+    // The refilled bucket's finalize gets a 503; its follow-up saves it.
+    faults.finalizes = 1;
+    vi.advanceTimersByTime(60_000);
+    await ctx.t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await ctx.cards()).map((card) => card.type)).toEqual(["document"]);
+    expect(
+      (await ctx.receipts())[0]?.pendingAttachments?.map((item) => item.state)
+    ).toEqual(["done"]);
   });
 });
 

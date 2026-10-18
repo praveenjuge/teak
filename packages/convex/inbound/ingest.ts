@@ -34,7 +34,11 @@ export const findSender = internalQuery({
       )
       .take(2);
     const user = users.length === 1 ? users[0] : undefined;
-    if (!user?.emailVerified || user.deletedAt !== undefined) {
+    if (
+      !user?.emailVerified ||
+      user.deletedAt !== undefined ||
+      user.workosDeletedAt !== undefined
+    ) {
       return null;
     }
     const settings = await readInboundSettings(ctx, user.teakUserId);

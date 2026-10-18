@@ -47,8 +47,9 @@ Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
    pending object swept later. If a PUT or finalize still fails for a
    transient reason (a 5xx, a 408 or 429, or the network) after the others
    are done, the Worker throws, so the sender retries the whole email; Convex's receipt then re-signs only the attachments not yet
-   saved. A finalize that finds another one holding the attachment gets a
-   follow-up in Convex after the two-minute claim expires.
+   saved. A finalize that finds another one holding the attachment, or one
+   Convex scheduled that then fails, gets a follow-up in Convex after the
+   two-minute claim expires (three at most).
 
 Logs (`wrangler tail`) carry outcomes, reasons and counts only: never an
 address, a subject, a body or a file name.

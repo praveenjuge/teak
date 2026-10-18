@@ -304,8 +304,8 @@ type FinalizeOutcome =
   | { cardId: Id<"cards">; status: "saved" }
   | { status: "dropped" | "in_progress" | "scheduled" | "skipped" };
 
-// Follow-ups for a claim held by another finalize; past these, a redelivery
-// of the email takes it over.
+// Follow-ups for a claim held by another finalize, or for a scheduled finalize
+// that failed; past these, only a redelivery of the email takes it over.
 const MAX_FOLLOW_UPS = 3;
 
 interface FinalizeArgs {
@@ -432,7 +432,14 @@ export const retryEmailAttachment = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await finalizeAttachment(ctx, args);
+    try {
+      await finalizeAttachment(ctx, args);
+    } catch {
+      // A scheduled action is never retried, and no redelivery of the email
+      // follows the 202 that scheduled it, so a failure here (a Files Worker
+      // or network fault) gets the same bounded follow-ups.
+      await followUp(ctx, args);
+    }
     return null;
   },
 });

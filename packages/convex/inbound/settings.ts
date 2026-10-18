@@ -39,7 +39,9 @@ const signInEmail = async (ctx: QueryCtx | MutationCtx, userId: string) => {
     .query("users")
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
     .unique();
-  return user && user.deletedAt === undefined
+  return user &&
+    user.deletedAt === undefined &&
+    user.workosDeletedAt === undefined
     ? { email: user.email, verified: user.emailVerified === true }
     : null;
 };
