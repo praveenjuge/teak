@@ -38,8 +38,8 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Settings](./settings.md) covers the Settings page, theme, devices and API keys in the Security dialog.
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
 - [Link transcripts and video facts](./link-transcripts.md) covers Vimeo captions and podcast episode transcripts found by a spoken phrase, and YouTube's Channel, Length and Uploaded facts.
+- [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.
 
 ## Not mapped yet
 
 Add a file here when a change touches one of these: import and export (Settings), the browser extension (`.agents/cloud.md` has the load steps), Raycast, the docs site, the Apple and Android apps (no macOS or Android SDK in cloud sessions), and billing ("Upgrade to Pro" with Polar's sandbox).
-- [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.

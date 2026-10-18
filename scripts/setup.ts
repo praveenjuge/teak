@@ -95,7 +95,7 @@ export interface SetupReport {
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|files-worker] [--convex cloud|skip] [--check] [--json]";
+  "Usage: bun run setup [--target web|docs|cli|extension|files-worker|email-worker] [--convex cloud|skip] [--check] [--json]";
 
 const CONVEX_MODES: readonly string[] = ["cloud", "skip"];
 

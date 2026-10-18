@@ -43,7 +43,12 @@ Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
    For each part Convex accepted, it returns a signed Files Worker upload
    URL. The Worker PUTs the bytes (two at a time, three tries each), then
    POSTs `/inbound/email/attachments` so Convex turns it into a card. A part
-   that never uploads is skipped; the pending object is swept later.
+   the Files Worker refuses (a 4xx) is skipped and its pending object swept
+   later. If a part still fails for a passing reason (a 5xx or the network)
+   after the others are done, the Worker throws, so the sender retries the
+   whole email; Convex's receipt then re-signs only the attachments not yet
+   saved. A finalize that finds another one holding the attachment gets a
+   follow-up in Convex after the two-minute claim expires.
 
 Logs (`wrangler tail`) carry outcomes, reasons and counts only: never an
 address, a subject, a body or a file name.
@@ -81,11 +86,15 @@ Do these in order. Until step 4 no mail reaches the Worker.
 3. **Deploy Convex and web** (merge the PR). The Settings switch appears;
    without Email Routing nothing arrives yet.
 4. **Email Routing on the subdomain.** In the Cloudflare dashboard for
-   `teakvault.com`: Email → Email Routing → enable it for the subdomain
-   `in-dev.teakvault.com` first. Add the MX and TXT (SPF) records it lists
-   for the subdomain (they must not touch the root domain's mail). Under
-   Routing rules, set the **catch-all** action to **Send to a Worker** →
-   `teak-email-in-development`.
+   `teakvault.com`: Email Service → Email Routing → Settings → Subdomains,
+   add `in-dev.teakvault.com` first. Cloudflare adds the subdomain's MX and
+   TXT (SPF) records; they must not touch the root domain's mail. Catch-all
+   rules work only on the apex domain, so under Routing rules add a literal
+   rule for `save@in-dev.teakvault.com` with the action **Send to a
+   Worker** → `teak-email-in-development`. In Email Routing → Settings, turn
+   on **Subaddressing**, so `save+anything@` reaches the same rule. Any
+   other address on the subdomain matches no rule and is refused by
+   Cloudflare.
 5. **Spike on development (required before production).**
    - Turn on Save by email for a dev account in Settings.
    - Send from Gmail, iCloud and Outlook accounts to
@@ -104,11 +113,12 @@ Do these in order. Until step 4 no mail reaches the Worker.
      and the sender's provider should retry (delayed delivery), not bounce.
      Restore the secret.
    - Check the cards in the dev app.
-6. **Production.** Repeat step 4 for `in.teakvault.com` with
-   `teak-email-in`, then smoke-test with one email from a test account.
+6. **Production.** Repeat step 4 for `in.teakvault.com`, with the literal
+   rule for `save@in.teakvault.com` sending to `teak-email-in`, then
+   smoke-test with one email from a test account.
 
-**Rollback:** set the subdomain's catch-all rule to Drop (or disable Email
-Routing on it). The Worker and Convex can stay deployed.
+**Rollback:** disable the subdomain's `save@` rule (or Email Routing on the
+subdomain). The Worker and Convex can stay deployed.
 
 ## Development
 

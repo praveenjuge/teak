@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
+import { accountDeletionStage } from "./accountDeletionStages";
 import {
   INBOUND_ATTACHMENT_PATH,
   INBOUND_EMAIL_PATH,
@@ -170,7 +171,16 @@ const setup = async () => {
         updatedAt: Date.now(),
       })
     );
-  return { atCardLimit, cards, finalize, owner, receipts, send, t };
+  return {
+    atCardLimit,
+    cards,
+    finalize,
+    owner,
+    ownerWorkosId,
+    receipts,
+    send,
+    t,
+  };
 };
 
 describe("Settings", () => {
@@ -199,6 +209,24 @@ describe("Settings", () => {
     expect((await owner.query(api.inbound.settings.getMine, {}))?.address).toBe(
       "save@in-dev.teakvault.com"
     );
+  });
+
+  test("an unverified sign-in email can't turn it on", async () => {
+    const { owner, t } = await setup();
+    await t.run(async (ctx) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
+        .unique();
+      if (!user) {
+        throw new Error("expected the owner");
+      }
+      await ctx.db.patch(user._id, { emailVerified: false });
+    });
+    expect(await owner.query(api.inbound.settings.getMine, {})).toBeNull();
+    await expect(
+      owner.mutation(api.inbound.settings.enable, {})
+    ).rejects.toThrow(/Verify your sign-in email/);
   });
 
   test("signed out sees nothing and can't change it", async () => {
@@ -287,6 +315,18 @@ describe("POST /inbound/email", () => {
       200
     );
     expect(await cards()).toHaveLength(1);
+  });
+
+  test("a subject cut at its limit never ends inside a character", async () => {
+    const ctx = await setup();
+    await ctx.owner.mutation(api.inbound.settings.enable, {});
+    // The emoji's two UTF-16 units straddle the 998-unit cut.
+    const subject = `${"s".repeat(997)}😀 and more`;
+    const sent = await ctx.send(email({ subject }));
+    expect(sent.status).toBe(200);
+    const [card] = await ctx.cards();
+    expect(card?.content.startsWith(`# ${"s".repeat(997)}\n`)).toBe(true);
+    expect(card?.content).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/u);
   });
 
   test("a redelivered email is saved once", async () => {
@@ -550,6 +590,34 @@ describe("attachments", () => {
     expect((await ctx.finalize(request)).body.status).toBe("saved");
   });
 
+  test("a claim whose finalize died is finished by a follow-up, with no new request", async () => {
+    vi.useFakeTimers();
+    stubWorker();
+    const ctx = await setup();
+    const sent = await sendWithAttachments(ctx, [pdf(0)], {
+      html: null,
+      subject: "",
+      text: null,
+    });
+    await ctx.t.mutation(internal.inbound.ingest.claimEmailAttachment, {
+      fileKey: sent.uploads[0].fileKey,
+      index: 0,
+      receiptKey: sent.receiptKey,
+    });
+
+    const answer = await ctx.finalize({
+      fileKey: sent.uploads[0].fileKey,
+      index: 0,
+      receiptKey: sent.receiptKey,
+    });
+    expect(answer).toEqual({ body: { status: "in_progress" }, status: 202 });
+    expect(await ctx.cards()).toEqual([]);
+
+    vi.advanceTimersByTime(2 * 60 * 1000 + 1000);
+    await ctx.t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await ctx.cards()).map((card) => card.type)).toEqual(["document"]);
+  });
+
   test("a redelivered email re-signs only the attachments not yet saved", async () => {
     stubWorker();
     const ctx = await setup();
@@ -610,6 +678,20 @@ describe("attachments", () => {
     expect(receipt?.pendingAttachments?.[0]?.fileName).toBe(
       `${"a".repeat(235)}.pdf`
     );
+  });
+
+  test("a long design-tokens name keeps its compound extension", async () => {
+    stubWorker();
+    const ctx = await setup();
+    const fileName = `${"a".repeat(300)}.tokens.json`;
+    const sent = await sendWithAttachments(ctx, [
+      pdf(0, { fileName, mimeType: "application/json" }),
+    ]);
+    expect(sent.uploads).toHaveLength(1);
+    const [receipt] = await ctx.receipts();
+    const stored = receipt?.pendingAttachments?.[0]?.fileName ?? "";
+    expect(stored.endsWith(".tokens.json")).toBe(true);
+    expect(stored.length).toBeLessThanOrEqual(240);
   });
 
   test("files Teak doesn't take get no upload", async () => {
@@ -694,33 +776,45 @@ describe("account deletion and retention", () => {
   });
 
   test("the account's settings and receipts are deleted with it", async () => {
-    const { owner, send, t } = await setup();
+    const { owner, ownerWorkosId, send, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
     await send(email());
+    await send(email({ messageId: "<second@mail.example.org>" }));
     const userId = "owner";
-    await t.run(async (ctx) => {
-      const tables = ["inboundEmailSettings", "inboundEmailReceipts"] as const;
-      for (const table of tables) {
-        expect(
-          await ctx.db
-            .query(table)
-            .withIndex("by_userId", (q) => q.eq("userId", userId))
-            .collect()
-        ).not.toEqual([]);
+    const rows = () =>
+      t.run(async (ctx) => [
+        ...(await ctx.db
+          .query("inboundEmailSettings")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect()),
+        ...(await ctx.db
+          .query("inboundEmailReceipts")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect()),
+      ]);
+    expect(await rows()).toHaveLength(3);
+
+    const stateId = await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: accountDeletionStage("accountData"),
+        startedAt: Date.now(),
+        userId,
+        workosUserId: ownerWorkosId,
+      })
+    );
+    for (let page = 0; page < 10; page += 1) {
+      const more = await t.mutation(
+        internal.accountDeletionData.ancillaryPage,
+        {
+          generation: 1,
+          stateId,
+        }
+      );
+      if (!more) {
+        break;
       }
-    });
-    const covered = await t.run(async (ctx) => {
-      // The ancillary page's own queries, as account deletion runs them.
-      const settings = await ctx.db
-        .query("inboundEmailSettings")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .take(10);
-      const receipts = await ctx.db
-        .query("inboundEmailReceipts")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .take(100);
-      return settings.length + receipts.length;
-    });
-    expect(covered).toBe(2);
+    }
+    expect(await rows()).toEqual([]);
   });
 });

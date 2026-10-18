@@ -14,6 +14,7 @@ import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 import { CARD_ERROR_CODES } from "../shared/constants";
 import { inferFileFormat, MAX_FILE_NAME_LENGTH } from "../shared/fileFormats";
 import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
+import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { planEmailCards } from "./emailContent";
 
 // Save by email's routes for the Email Worker (apps/email-worker). Each POST
@@ -118,7 +119,8 @@ const cutText = (value: string, max: number): string => {
   return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
 };
 
-const FILE_EXTENSION_REGEX = /\.[^.\s]{1,16}$/u;
+// Up to two suffixes, so a compound format like `.tokens.json` survives.
+const FILE_EXTENSION_REGEX = /(?:\.[^.\s]{1,16}){1,2}$/u;
 
 /**
  * A long file name is cut to what uploads accept, before its extension,
@@ -302,15 +304,48 @@ type FinalizeOutcome =
   | { cardId: Id<"cards">; status: "saved" }
   | { status: "dropped" | "in_progress" | "scheduled" | "skipped" };
 
+// Follow-ups for a claim held by another finalize; past these, a redelivery
+// of the email takes it over.
+const MAX_FOLLOW_UPS = 3;
+
+interface FinalizeArgs {
+  attempt?: number;
+  claimToken?: string;
+  fileKey: string;
+  index: number;
+  receiptKey: string;
+  size?: number;
+}
+
+/**
+ * Another finalize holds this attachment. If it dies without finishing, its
+ * claim goes stale; a follow-up then takes it over, so the attachment and the
+ * object already stored for it aren't left behind.
+ */
+const followUp = async (
+  ctx: ActionCtx,
+  args: FinalizeArgs
+): Promise<FinalizeOutcome> => {
+  const attempt = (args.attempt ?? 0) + 1;
+  if (attempt <= MAX_FOLLOW_UPS) {
+    await ctx.scheduler.runAfter(
+      ATTACHMENT_CLAIM_TTL_MS + 1000,
+      internal.inbound.http.retryEmailAttachment,
+      {
+        attempt,
+        fileKey: args.fileKey,
+        index: args.index,
+        receiptKey: args.receiptKey,
+        ...(args.size === undefined ? {} : { size: args.size }),
+      }
+    );
+  }
+  return { status: "in_progress" };
+};
+
 const finalizeAttachment = async (
   ctx: ActionCtx,
-  args: {
-    claimToken?: string;
-    fileKey: string;
-    index: number;
-    receiptKey: string;
-    size?: number;
-  }
+  args: FinalizeArgs
 ): Promise<FinalizeOutcome> => {
   const claim = await ctx.runMutation(
     internal.inbound.ingest.claimEmailAttachment,
@@ -321,6 +356,9 @@ const finalizeAttachment = async (
       receiptKey: args.receiptKey,
     }
   );
+  if (claim.status === "in_progress") {
+    return await followUp(ctx, args);
+  }
   if (claim.status !== "claimed") {
     return claim;
   }
@@ -359,14 +397,14 @@ const finalizeAttachment = async (
   } catch (error) {
     const data = errorData(error);
     if (data?.code === "IN_PROGRESS") {
-      return { status: "in_progress" };
+      return await followUp(ctx, args);
     }
     if (data?.code === CARD_ERROR_CODES.RATE_LIMITED) {
       // The card bucket refills within a minute; the object stays pending.
       await ctx.scheduler.runAt(
         data.retryAt ?? Date.now() + 60_000,
         internal.inbound.http.retryEmailAttachment,
-        { ...args, claimToken: claim.claimToken }
+        { ...args, attempt: 0, claimToken: claim.claimToken }
       );
       return { status: "scheduled" };
     }
@@ -385,7 +423,8 @@ const finalizeAttachment = async (
 
 export const retryEmailAttachment = internalAction({
   args: {
-    claimToken: v.string(),
+    attempt: v.optional(v.number()),
+    claimToken: v.optional(v.string()),
     fileKey: v.string(),
     index: v.number(),
     receiptKey: v.string(),

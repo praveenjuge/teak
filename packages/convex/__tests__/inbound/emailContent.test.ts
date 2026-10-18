@@ -78,6 +78,16 @@ describe("cleanEmailLink", () => {
       "https://substack.com/redirect/2/eyJlIjoiaHR0cHM?j=x",
     ],
     [
+      "a share link keeps its own destination",
+      "https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fexample.com%2Fpost",
+      "https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fexample.com%2Fpost",
+    ],
+    [
+      "a page with a URL in its query keeps it",
+      "https://example.com/compare?url=https%3A%2F%2Fexample.org%2F",
+      "https://example.com/compare?url=https%3A%2F%2Fexample.org%2F",
+    ],
+    [
       "a search whose q is not a URL",
       "https://www.google.com/search?q=cats",
       "https://www.google.com/search?q=cats",
@@ -132,6 +142,18 @@ describe("planEmailCards: link or text", () => {
       kind: "link",
       notes: "Worth a read: this post",
       url: "https://example.com/post",
+    });
+  });
+
+  test("an HTML body with an escaped <url> gives the link without its brackets", () => {
+    expect(
+      plan({
+        html: "<p>Worth a read: &lt;https://example.com/a?b=1&gt;</p>",
+      })
+    ).toEqual({
+      kind: "link",
+      notes: "Worth a read:",
+      url: "https://example.com/a?b=1",
     });
   });
 

@@ -33,11 +33,12 @@ const errorMessage = (error: unknown) =>
     : GENERIC_ERROR;
 
 /**
- * The address with its middle cut on narrow screens: the first half gives way
- * to an ellipsis and the end, the domain, always shows.
+ * The address cut before its `@` on narrow screens: the name gives way to an
+ * ellipsis and the domain always shows.
  */
 function MiddleTruncatedAddress({ address }: { address: string }) {
-  const middle = Math.ceil(address.length / 2);
+  const at = address.lastIndexOf("@");
+  const middle = at > 0 ? at : Math.ceil(address.length / 2);
   return (
     <span
       className="flex h-9 min-w-0 flex-1 items-center rounded-md border bg-muted/40 px-3 font-mono text-sm"
@@ -146,9 +147,9 @@ export function InboundEmailPanel({
         other addresses isn't saved.
       </p>
       <p className="text-muted-foreground text-sm leading-5">
-        Forward or send anything. Links become link cards, everything else
-        becomes a note, and attachments become their own cards. All are tagged
-        email.
+        Forward or send anything. An email with a single link becomes a link
+        card, everything else becomes a note, and attachments become their own
+        cards. All are tagged email.
       </p>
       {state.lastReceivedAt === null ? null : (
         <p className="text-muted-foreground text-xs leading-5">

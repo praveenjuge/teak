@@ -32,11 +32,7 @@ export type EmailReceivedOutcome =
   | "empty"
   | "duplicate";
 
-export type EmailAttachmentSkipReason =
-  | "format"
-  | "size"
-  | "limit"
-  | "upload_failed";
+export type EmailAttachmentSkipReason = "format" | "size" | "limit";
 
 /** Where a link was marked done: its card dialog, or the public API. */
 export type CardDoneSource = "panel" | "api";

@@ -7,7 +7,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const toastSuccess = mock();
 const toastError = mock();
+const realSonner = await import("sonner");
 mock.module("sonner", () => ({
+  ...realSonner,
   toast: { error: toastError, success: toastSuccess },
 }));
 
@@ -117,6 +119,10 @@ describe("InboundEmailPanel", () => {
     const address = container.querySelector('[data-slot="inbound-address"]');
     expect(address?.getAttribute("title")).toBe(ADDRESS);
     expect(address?.textContent).toBe(ADDRESS);
+    // Only the name before the @ gives way on a narrow screen.
+    expect(address?.querySelector(".shrink-0")?.textContent).toBe(
+      "@in.teakvault.com"
+    );
     expect(container.textContent).toContain(
       "Send from ada@example.com. Mail from other addresses isn't saved."
     );

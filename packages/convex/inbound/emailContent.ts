@@ -29,8 +29,9 @@ const WHITESPACE_REGEX = /\s+/gu;
 const INVISIBLE_REGEX =
   /\u034f|[\u00ad\u200b-\u200d\u2060\ufeff\ue000\ue001]/gu;
 const BARE_URL_REGEX = /https?:\/\/[^\s<>"'`[\]{}|\\^]+/giu;
-// A link written `<https://…>`, as mail clients put one in plain text.
-const ANGLE_URL_REGEX = /<(https?:\/\/[^\s<>]+)>/giu;
+// A link written `<https://…>`, as mail clients put one in plain text; an
+// HTML body's `&lt;…&gt;` arrives with the brackets escaped.
+const ANGLE_URL_REGEX = /\\?<(https?:\/\/[^\s<>\\]+)\\?>/giu;
 const TRAILING_PUNCTUATION_REGEX = /[.,;:!?'"]+$/u;
 const MARKDOWN_LINK_REGEX = /\[((?:\\.|[^\]\\])*)\]\((https?:\/\/[^)\s]+)\)/gu;
 const MARKDOWN_SPECIAL_REGEX = /[\\`*_[\]<>#|~]/gu;
@@ -147,8 +148,23 @@ const toHttpUrl = (raw: string): URL | null => {
   }
 };
 
+// A redirector's own path ("/url", "/r", "/track/click") or a host that only
+// wraps links. A share link (`/sharer.php?u=`, `/intent/tweet?url=`) or any
+// other page with a URL in its query keeps its own destination.
+const REDIRECT_PATH_REGEX =
+  /^\/(?:url|r|redir|redirect|click|track|link|links|out|go|c|l|ls|t|e|wf|ss|trk)(?:\/|$)/iu;
+const REDIRECT_HOST_REGEX =
+  /(?:^|\.)(?:safelinks\.protection\.outlook\.com|urldefense\.com|urldefense\.proofpoint\.com)$/iu;
+
+const isRedirector = (url: URL): boolean =>
+  REDIRECT_PATH_REGEX.test(url.pathname) ||
+  REDIRECT_HOST_REGEX.test(url.hostname);
+
 /** The destination a redirect wrapper carries in a query parameter. */
 const redirectTarget = (url: URL): URL | null => {
+  if (!isRedirector(url)) {
+    return null;
+  }
   for (const name of REDIRECT_PARAMS) {
     const value = url.searchParams.get(name);
     const inner = value ? toHttpUrl(value) : null;

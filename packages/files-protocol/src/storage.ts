@@ -64,7 +64,10 @@ export const filesCardKeyPrefix = (envPrefix: string, userId: string): string =>
 
 const PENDING_CARD_SEGMENT = "pending";
 
-/** `<env prefix>users/<user hash>/cards/<card id | pending>/<role>/<uuid>[-<name>]` */
+/**
+ * `<env prefix>users/<user hash>/cards/<card id | pending>/<role>/<id>[-<name>]`,
+ * where `<id>` is `objectId` when given, otherwise a random UUID.
+ */
 export const buildCardObjectKey = ({
   envPrefix,
   userId,

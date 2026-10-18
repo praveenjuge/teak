@@ -4,6 +4,7 @@ import { type SelectedAttachment, selectAttachments } from "./attachments";
 import { verifySender } from "./auth";
 import {
   type ConvexTarget,
+  DeliveryError,
   finalizeAttachment,
   ingestEmail,
   type PlannedUpload,
@@ -58,11 +59,15 @@ const maxBodyBytes = (env: Env): number => {
     : DEFAULT_MAX_BODY_BYTES;
 };
 
+/** A status worth trying again: the server or the network, not the request. */
+const isTransientStatus = (status: number): boolean =>
+  status >= 500 || status === 408 || status === 429;
+
 const putWithRetries = async (
   deps: Deps,
   upload: PlannedUpload,
   attachment: SelectedAttachment
-): Promise<boolean> => {
+): Promise<"uploaded" | "upload_failed" | "upload_refused"> => {
   for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
     if (attempt > 0) {
       await deps.sleep(UPLOAD_RETRY_DELAYS_MS[attempt - 1] ?? 0);
@@ -75,19 +80,31 @@ const putWithRetries = async (
       });
       await response.body?.cancel().catch(() => undefined);
       if (response.ok) {
-        return true;
+        return "uploaded";
+      }
+      if (!isTransientStatus(response.status)) {
+        return "upload_refused";
       }
     } catch {
-      // Retried below; a part that never uploads is skipped.
+      // Retried below.
     }
   }
-  return false;
+  return "upload_failed";
 };
+
+/** Outcomes a later delivery of the same email could still turn into cards. */
+const INCOMPLETE_OUTCOME_REGEX =
+  /^(?:upload_failed|unreachable|status_5\d\d)$/u;
+
+export const isIncomplete = (counts: Record<string, number>): boolean =>
+  Object.keys(counts).some((outcome) => INCOMPLETE_OUTCOME_REGEX.test(outcome));
 
 /**
  * PUTs each attachment Convex asked for (two at a time), then asks Convex to
- * turn it into a card. A part that won't upload is skipped; its pending
- * object is swept later.
+ * turn it into a card. A part the Files Worker refuses is skipped and its
+ * pending object swept later; one that failed for a passing reason makes the
+ * delivery fail once the rest are done, so the sender retries and Convex
+ * re-signs only what isn't saved yet.
  */
 export const uploadAttachments = async (
   deps: Deps,
@@ -109,8 +126,9 @@ export const uploadAttachments = async (
         count("unknown_index");
         continue;
       }
-      if (!(await putWithRetries(deps, upload, attachment))) {
-        count("upload_failed");
+      const uploaded = await putWithRetries(deps, upload, attachment);
+      if (uploaded !== "uploaded") {
+        count(uploaded);
         continue;
       }
       count(
@@ -205,6 +223,9 @@ export const handleEmail = async (
     attachments
   );
   deps.log({ event: "inbound_email_attachments", ...counts });
+  if (isIncomplete(counts)) {
+    throw new DeliveryError("attachments_incomplete");
+  }
 };
 
 const defaultDeps: Deps = {

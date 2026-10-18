@@ -1050,6 +1050,10 @@ describe("devSeed folder packs", () => {
       notes: "Worth a read:",
       url: "https://example.com/essays/slow-reading",
     });
+    // As Save by email makes it: the page's own title comes from the scrape.
+    expect(
+      cards.find((card) => card.type === "link")?.metadataTitle
+    ).toBeUndefined();
     const settings = await t.run((ctx) =>
       ctx.db.query("inboundEmailSettings").collect()
     );
@@ -1075,7 +1079,18 @@ describe("devSeed folder packs", () => {
       cards
         .filter((card) => card.type === "document")
         .map((card) => card.fileMetadata?.fileName)
-    ).toEqual(expect.arrayContaining(["Scan.pdf", "Scan.pdf", "請求書.pdf"]));
+        .sort()
+    ).toEqual(
+      [
+        "A 24 MB annual report.pdf",
+        "Itinerary.pdf",
+        "Notes from the workshop.docx",
+        "Receipt.pdf",
+        "Scan.pdf",
+        "Scan.pdf",
+        "請求書.pdf",
+      ].sort()
+    );
   });
 
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {

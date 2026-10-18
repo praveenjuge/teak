@@ -65,7 +65,7 @@ Make Teak better at saving, finding and rediscovering things, as 31 separate pla
 | Transcripts | YouTube and Vimeo use their own caption tracks (never a video download). Podcasts are transcribed with Whisper up to the 100 MB audio cap. Uploaded videos are covered by v1 phase 13 |
 | Hidden cards | User tags `secret` and `hidden` hide a card from the grid, search, Shuffle and Revisit, folders, smart folders and the API, MCP and CLI. Searching that tag is the only way to show them. AI tags never hide anything |
 | Revisit | A fourth entry in the sort menu: 20 random cards from the current view, ← archives, → keeps |
-| Email-in | Cloudflare Email Routing to an Email Worker. Personal address `save+<token>@in.teakvault.com`. Smart split into cards, every card tagged `email`, emails over the free limit silently dropped |
+| Email-in | Cloudflare Email Routing to an Email Worker. One shared address, `save@in.teakvault.com`, keyed on the sender's verified sign-in email (see the phase 23 decisions). Smart split into cards, every card tagged `email`, emails over the free limit silently dropped |
 | Not doing | A reader mode (v1-14 was dropped too), library chat, X sync, PWA share target, pinned cards strip, rediscover email, privacy-promise pages, offline library, webhooks, achievements, labs page, reader themes, pinned sites, date-grouped list, highlights, new importers, sending page HTML from the extension, "gather dust", tidy-up, Notion sync, GitHub stars, comparison pages, MCP progressive reads, command palette recents |
 
 ## Rules every phase follows
@@ -196,7 +196,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 - **Vectorize consistency.** Vectorize is a second store. Card hard delete and account deletion must remove vectors, and a periodic orphan sweep should compare vector IDs against cards.
 - **Native category handling.** Phase 18 adds new link categories. Apple (`Card.swift`) and Android (`Card.kt`) already decode the category as a plain string, so no client update has to ship first. Phase 18 adds Swift and Kotlin tests to keep it that way.
 - **YouTube captions.** The timed-text endpoints are undocumented and can change, so the transcript step must fail soft.
-- **Email-in abuse.** A leaked address lets anyone fill a library. The token can be regenerated, rate limits are per address and per sender, and the free-plan cap still applies.
+- **Email-in abuse.** The address is shared and public, so it isn't the secret: mail saves only to the account whose verified sign-in email sent it, only when that account turned Save by email on, and only when the sender's domain passes DMARC at Cloudflare. Anything else is refused at delivery. Each account saves at most 60 emails an hour, the free-plan cap still applies, and turning it off in Settings stops it at once.
 - **Index rebuilds.** New `cards` and `cardSearchDocuments` indexes (phases 4 and 10) backfill on deploy. Phase 15 uses card-level filters and adds an index only if measurements require one. Deploy them in low-traffic windows and watch Convex database I/O (`.agents/convex-costs.md`).
 
 ## Open decisions for the owner

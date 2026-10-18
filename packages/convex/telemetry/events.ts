@@ -95,12 +95,7 @@ export const emitInboundEmail = internalAction({
       )
     ),
     reason: v.optional(
-      v.union(
-        v.literal("format"),
-        v.literal("size"),
-        v.literal("limit"),
-        v.literal("upload_failed")
-      )
+      v.union(v.literal("format"), v.literal("size"), v.literal("limit"))
     ),
     sizeBytes: v.optional(v.number()),
     userId: v.string(),

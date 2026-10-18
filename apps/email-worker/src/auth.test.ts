@@ -28,6 +28,25 @@ describe("verifySender", () => {
     expect(await verdictFor(name)).toEqual({ ok: false, reason });
   });
 
+  test.each<[string, string, SenderRejection]>([
+    ["no DMARC result at all", "", "dmarc_fail"],
+    [
+      "a DMARC pass that names no From domain",
+      "\r\n dmarc=pass policy.dmarc=none;",
+      "dmarc_domain_mismatch",
+    ],
+  ])("Cloudflare's header with %s is refused", async (_name, dmarc, reason) => {
+    const eml = fixture("plain.eml").replace(
+      "\r\n dmarc=pass header.from=gmail.com policy.dmarc=none;",
+      dmarc
+    );
+    expect(eml).not.toContain("header.from=gmail.com");
+    expect(verifySender(await PostalMime.parse(eml))).toEqual({
+      ok: false,
+      reason,
+    });
+  });
+
   test("a forged mx.cloudflare.net pass below Cloudflare's own fail still fails", async () => {
     expect(await verdictFor("forged-below.eml")).toEqual({
       ok: false,

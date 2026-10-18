@@ -38,7 +38,7 @@ Steps:
 
 - YouTube serves no captions to servers (they need a proof-of-origin token), so a YouTube link never gets a transcript; that's expected.
 - A podcast transcript arrives after the card looks finished: no spinner shows while the episode downloads and Whisper runs. Wait, then reload or search again.
-- A page under `/episodes/<slug>` is a podcast episode only when it carries its own audio (`og:audio`); without it, it's categorized as TV and not transcribed. Seeded episodes use `/podcast/` paths.
+- When no domain rule places it, a page under `/episodes/<slug>` is a podcast episode only when it carries its own audio (`og:audio`); without it, it falls back to TV and is not transcribed. A site with a domain rule (Apple Podcasts, say) keeps its category. Seeded episodes use `/podcast/` paths.
 - Keyword search splits text at spaces and punctuation, so a long run of CJK text without them is one long word that isn't matched; a short word such as "こんにちは" is. On dev, search by meaning can still find the card.
 - The dev deployment searches by meaning too, so a phrase can also list related seeded cards; judge by the expected card being present.
 - 20 episodes an hour per account are transcribed; past that a card gets no transcript until "Refresh details" later.

@@ -351,7 +351,7 @@ describe("handleEmail: attachments", () => {
     expect(most).toBe(2);
   });
 
-  test("a failing PUT is retried twice; one that never works is skipped", async () => {
+  test("a failing PUT is retried twice; one that never works fails the delivery after the rest", async () => {
     const { message } = messageOf(fixture("attachments.eml"));
     const tries = new Map<string, number>();
     const net = fakeDeps((request) => {
@@ -367,7 +367,9 @@ describe("handleEmail: attachments", () => {
       }
       return json(200, { status: "saved" });
     });
-    await handleEmail(message, TEST_ENV, net.deps);
+    await expect(handleEmail(message, TEST_ENV, net.deps)).rejects.toThrow(
+      "attachments_incomplete"
+    );
     expect(tries.get(uploadUrl(0))).toBe(3);
     expect(tries.get(uploadUrl(1))).toBe(3);
     expect(
@@ -379,6 +381,51 @@ describe("handleEmail: attachments", () => {
       event: "inbound_email_attachments",
       saved: 1,
       upload_failed: 1,
+    });
+  });
+
+  test("a PUT the Files Worker refuses is skipped and the delivery succeeds", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    let puts = 0;
+    const net = fakeDeps((request) => {
+      if (request.url === INGEST_URL) {
+        return planned([0]);
+      }
+      if (request.method === "PUT") {
+        puts++;
+        return new Response(null, { status: 403 });
+      }
+      return json(200, { status: "saved" });
+    });
+    await handleEmail(message, TEST_ENV, net.deps);
+    expect(puts).toBe(1);
+    expect(net.logs.at(-1)).toEqual({
+      event: "inbound_email_attachments",
+      upload_refused: 1,
+    });
+  });
+
+  test("a finalize that keeps failing on the server fails the delivery, so the sender retries", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    const net = fakeDeps((request) => {
+      if (request.url === INGEST_URL) {
+        return planned([0, 1]);
+      }
+      if (request.method === "PUT") {
+        return new Response(null, { status: 200 });
+      }
+      const { index } = request.body as { index: number };
+      return index === 0
+        ? json(200, { status: "saved" })
+        : json(503, { error: "failed" });
+    });
+    await expect(handleEmail(message, TEST_ENV, net.deps)).rejects.toThrow(
+      "attachments_incomplete"
+    );
+    expect(net.logs.at(-1)).toEqual({
+      event: "inbound_email_attachments",
+      saved: 1,
+      status_503: 1,
     });
   });
 

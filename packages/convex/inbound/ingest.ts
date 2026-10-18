@@ -101,11 +101,21 @@ const emit = (
       }
     | {
         event: "email_attachment_skipped";
-        reason: "format" | "size" | "limit" | "upload_failed";
+        reason: "format" | "size" | "limit";
         userId: string;
       }
 ) =>
   ctx.scheduler.runAfter(0, internal.telemetry.events.emitInboundEmail, args);
+
+// What upload validation says about a file Teak won't take. Any other error
+// (an account being deleted, say) fails the email, so the sender retries.
+const FILE_SKIP_REASONS: Record<string, "format" | "size"> = {
+  CONTENT_TOO_LARGE: "size",
+  FILE_TOO_LARGE: "size",
+  INVALID_INPUT: "format",
+  INVALID_UTF8: "format",
+  TYPE_MISMATCH: "format",
+};
 
 /** Fresh upload URLs for a redelivered email's attachments not yet saved. */
 const reissueUploads = async (pending: PendingAttachment[]) =>
@@ -288,10 +298,10 @@ export const ingestEmail = internalMutation({
             reason: "limit",
             userId,
           });
-        } else if (code) {
+        } else if (code && code in FILE_SKIP_REASONS) {
           await emit(ctx, {
             event: "email_attachment_skipped",
-            reason: code === "FILE_TOO_LARGE" ? "size" : "format",
+            reason: FILE_SKIP_REASONS[code] as "format" | "size",
             userId,
           });
         } else {

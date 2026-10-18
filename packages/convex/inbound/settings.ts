@@ -30,12 +30,15 @@ export const readInboundSettings = (
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
 
+/** The sign-in email mail is accepted from: verified, as `findSender` needs. */
 const signInEmail = async (ctx: QueryCtx | MutationCtx, userId: string) => {
   const user = await ctx.db
     .query("users")
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
     .unique();
-  return user && user.deletedAt === undefined ? user.email : null;
+  return user && user.deletedAt === undefined && user.emailVerified
+    ? user.email
+    : null;
 };
 
 export const getMine = query({
@@ -74,6 +77,12 @@ const setEnabled = async (ctx: MutationCtx, enabled: boolean) => {
     });
   }
   const userId = session.teakUserId;
+  if (enabled && !(await signInEmail(ctx, userId))) {
+    throw new ConvexError({
+      code: "EMAIL_UNVERIFIED",
+      message: "Verify your sign-in email to turn on Save by email.",
+    });
+  }
   const limit = await rateLimiter.limit(ctx, "inboundEmailSettings", {
     key: userId,
     throws: false,

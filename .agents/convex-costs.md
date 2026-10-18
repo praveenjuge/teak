@@ -78,12 +78,16 @@ limit (20 episodes an hour per account). Raw metadata archival calls only the
 configured signed Files Worker.
 
 Save by email (`apps/email-worker`, `packages/convex/inbound/`) costs one
-`findSender` query per delivered email, and one mutation only for an account
-that turned it on (at most 60 an hour each, `inboundEmailPerAccount`). Mail
-that fails DMARC or comes from an unknown address is refused in the Worker
-before Convex is called. Attachment bytes never pass through Convex: the
-Worker PUTs them to the Files Worker's signed upload URLs, and Convex only
-mints those and finalizes. Receipts are pruned after 30 days by the daily
+`findSender` query per delivered email that passes DMARC, and one
+`ingestEmail` mutation only for an account that turned it on. Only mail
+failing DMARC is refused in the Worker before Convex is called; mail from an
+unknown address reaches `findSender`, which answers 404. Neither call is rate
+limited: `inboundEmailPerAccount` (60 an hour) caps only what is saved, and
+past it `ingestEmail` records a dropped receipt. Each accepted attachment
+adds one finalize request (an HTTP action with its claim, card and done
+mutations). Attachment bytes never pass through Convex: the Worker PUTs them
+to the Files Worker's signed upload URLs, and Convex only mints those and
+finalizes. Receipts are pruned after 30 days by the daily
 `cleanup-inbound-email-receipts` cron.
 
 ## Scheduled and edge work on Cloudflare

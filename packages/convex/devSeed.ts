@@ -1844,7 +1844,6 @@ const emailCard = (
     return {
       ...base,
       content: plan.url,
-      metadataTitle: email.title,
       tags,
       type: "link",
       url: plan.url,
