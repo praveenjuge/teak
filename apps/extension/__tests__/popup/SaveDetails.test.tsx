@@ -54,7 +54,7 @@ async function render({
     }
   );
   const drafts: unknown[] = [];
-  const portDead = { current: false };
+  const portDead = { current: false as boolean };
   const dropPort: { current: () => void } = { current: () => undefined };
   const connect = mock(() => {
     const listeners: (() => void)[] = [];
