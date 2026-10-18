@@ -41,4 +41,12 @@ describe("buildEmbeddingText", () => {
   test("a card with no text yet has none", () => {
     expect(buildEmbeddingText({ aiOcrText: "   ", content: "" })).toBe("");
   });
+
+  test("a note's [[…]] links are embedded as their titles", () => {
+    expect(
+      buildEmbeddingText({
+        content: "See [[Garden plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      })
+    ).toBe("See Garden plan");
+  });
 });

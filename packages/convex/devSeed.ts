@@ -16,6 +16,11 @@ import {
   ONBOARDING_CARDS,
 } from "./card/defaultCards";
 import { AUDIO_WAVEFORM } from "./card/onboarding/processed";
+import {
+  CARD_LINK_SCENARIO_DESCRIPTIONS,
+  type CardLinkScenario,
+  seedCardLinkScenario,
+} from "./devSeedLinks";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
 import { planEmailCards } from "./inbound/emailContent";
@@ -2747,6 +2752,7 @@ type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DevScenarioCardDef[] }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number }
+  | { links: CardLinkScenario }
 );
 
 const FILL_START = Date.UTC(2025, 0, 1);
@@ -2928,6 +2934,14 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "Podcast episode links with transcripts as Whisper gives them (og:audio, Apple Podcasts, an RSS-only show, a Japanese episode, one in Trash), and episodes that get none (Spotify, a 2 GB file). Search `#scenario-podcast-transcripts` or a spoken phrase such as `hermit crab`.",
     folders: podcastTranscriptsPack,
   },
+  "card-links": {
+    description: CARD_LINK_SCENARIO_DESCRIPTIONS["card-links"],
+    links: "card-links",
+  },
+  backlinks: {
+    description: CARD_LINK_SCENARIO_DESCRIPTIONS.backlinks,
+    links: "backlinks",
+  },
   "email-in": {
     description:
       "Cards as Save by email makes them, all tagged email: a newsletter with 40 tracking pixels and four kinds of redirect, a link with a sentence (a link card with a note), a subject with no body, a five-level forward chain, RTL, CJK and emoji subjects, and two links (a note). Also turns Save by email on. Search `#scenario-email-in` or `#email`.",
@@ -3009,6 +3023,9 @@ export const seedScenario = internalMutation({
       .unique();
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
+    }
+    if ("links" in pack) {
+      return await seedCardLinkScenario(ctx, owner.teakUserId, pack.links);
     }
     if ("folders" in pack) {
       if (scenario === "email-in") {

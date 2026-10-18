@@ -109,9 +109,17 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   {
     operationId: "getCard",
     feature: "Get a card",
-    mcp: ["teak_v1_get_card", "fetch"],
-    sdk: ["cards.get"],
-    cli: ["cards get", "cards open", "cards download", "open", "download"],
+    mcp: ["teak_v1_get_card", "teak_v1_get_card_links", "fetch"],
+    sdk: ["cards.get", "cards.links"],
+    cli: [
+      "cards get",
+      "cards links",
+      "cards open",
+      "cards download",
+      "links",
+      "open",
+      "download",
+    ],
   },
   {
     operationId: "updateCard",

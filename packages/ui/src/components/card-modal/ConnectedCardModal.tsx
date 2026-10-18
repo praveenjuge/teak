@@ -3,6 +3,7 @@ import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
+import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
@@ -83,6 +84,16 @@ export function ConnectedCardModal({
     onCardUpdate,
   });
 
+  const cardLinks = useCardLinkEditor({
+    currentCardId: card?._id,
+    onOpenCard,
+    value: card?.type === "text" ? (getCurrentValue("content") ?? "") : "",
+  });
+  const backlinks = useQuery(
+    api.cards.getCardBacklinks,
+    canHydrateCard && card?._id ? { cardId: card._id } : "skip"
+  );
+
   const linkThumbnail = useLinkThumbnail(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
@@ -121,8 +132,10 @@ export function ConnectedCardModal({
 
   return (
     <CardModal
+      backlinks={backlinks}
       card={card}
       cardId={cardId}
+      cardLinks={card?.type === "text" ? cardLinks : undefined}
       downloadFile={downloadFile}
       getCurrentValue={getCurrentValue}
       handleDelete={handleDelete}
@@ -136,6 +149,7 @@ export function ConnectedCardModal({
       onCardTypeClick={onCardTypeClick}
       onMoreLikeThis={onMoreLikeThis}
       onNext={onNext}
+      onOpenCard={onOpenCard}
       onPrevious={onPrevious}
       onReprocess={
         cardId

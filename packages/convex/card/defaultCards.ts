@@ -395,7 +395,8 @@ export const insertCompletedCards = async (
   cards: readonly DevScenarioCardDef[],
   /** Dev scenario packs only: count the cards as on Pro, past the free cap. */
   options: { ignoreCardLimit?: boolean } = {}
-): Promise<void> => {
+): Promise<Id<"cards">[]> => {
+  const ids: Id<"cards">[] = [];
   await initializeCardUsageShards(
     ctx,
     await getOrInitializeCardUsage(ctx, userId)
@@ -485,7 +486,9 @@ export const insertCompletedCards = async (
     if (cardDef.runProcessing) {
       await queueCardProcessing(ctx, cardId);
     }
+    ids.push(cardId);
   }
+  return ids;
 };
 
 const ensureFolder = async (

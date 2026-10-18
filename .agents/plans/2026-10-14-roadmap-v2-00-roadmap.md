@@ -174,10 +174,10 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 22 | Podcast transcripts: built, plan deleted | Smarter cards | 21 |
 | 23 | Save by email: built, plan deleted | Capture | — |
 | 24 | Email attachments: built with phase 23, plan deleted | Capture | 23 |
-| 25 | [More kinds of feeds: YouTube channels, autodiscovery, OPML](2026-10-14-roadmap-v2-25-feed-extras.md) | Capture | v1-17 (dropped; see Risks) |
-| 26 | [`[[` links between cards](2026-10-14-roadmap-v2-26-card-links.md) | Writing | — |
-| 27 | [Backlinks panel and links API](2026-10-14-roadmap-v2-27-backlinks-api.md) | Writing | 26 |
-| 28 | [Pages for specific audiences](2026-10-14-roadmap-v2-28-audience-pages.md) | Docs site | 14 |
+| 25 | [More kinds of feeds: YouTube channels, autodiscovery, OPML](2026-10-14-roadmap-v2-25-feed-extras.md): blocked, skipped for now; feeds were never built (see Risks) | Capture | v1-17 (dropped; see Risks) |
+| 26 | `[[` links between cards: built, plan deleted | Writing | — |
+| 27 | Backlinks panel and links API: built with phase 26, plan deleted | Writing | 26 |
+| 28 | Pages for specific audiences: built with phases 26–27, plan deleted | Docs site | 14 |
 | 29 | [Apple follow-up](2026-10-14-roadmap-v2-29-apple.md) | Native | 4, 5, 6, 10, 14, 15, 26 |
 | 30 | [Raycast follow-up](2026-10-14-roadmap-v2-30-raycast.md) | Native | 14, 15 |
 | 31 | [Android follow-up](2026-10-14-roadmap-v2-31-android.md) | Native | 29 |
@@ -189,7 +189,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 
 ## Risks And Open Questions
 
-- **RSS feeds were dropped.** Phase 25 extends v1 phase 17's feeds, and phase 22 reuses its feed parser to find a podcast episode's audio. v1 phase 17 was never built, so phase 25 needs feeds built first (or a new scope), and phase 22 needs its own feed parsing.
+- **RSS feeds were dropped.** Phase 25 extends v1 phase 17's feeds, and phase 22 reuses its feed parser to find a podcast episode's audio. v1 phase 17 was never built, so phase 25 needs feeds built first (or a new scope), and phase 22 needs its own feed parsing. On 2026-10-18 the owner skipped phase 25 for now: it stays blocked until feeds are built or it gets a new scope.
 - **Native apps and blended search.** `searchMobileCardSummariesPaginated` is a reactive query and cannot call the worker. So the iPhone, iPad, Mac and Android apps get semantic results only once they call the new search action (phases 29 and 31). Raycast already searches through `GET /v1/cards`, so it gets blending from phase 13.
 - **Phase 9 has mostly shipped.** The docs site already serves `/.well-known/agent-skills/index.json` with its digest, and the API domain redirects to it. Phase 9 is now only checks and a build guard, and can be folded into another PR.
 - **Search speed and cost.** Blended search adds a Workers AI embedding call and a Vectorize query to every search. Phase 13 merged in #714 without a p95 latency measurement, so that measurement and the cost check are still a follow-up. Keyword results stay reactive, and the semantic results merge in as they arrive.
@@ -197,6 +197,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 - **Native category handling.** Phase 18 adds new link categories. Apple (`Card.swift`) and Android (`Card.kt`) already decode the category as a plain string, so no client update has to ship first. Phase 18 adds Swift and Kotlin tests to keep it that way.
 - **YouTube captions.** The timed-text endpoints are undocumented and can change, so the transcript step must fail soft.
 - **Email-in abuse.** The address is shared and public, so it isn't the secret: mail saves only to the account whose verified sign-in email sent it, only when that account turned Save by email on, and only when the sender's domain passes DMARC at Cloudflare. Anything else is refused at delivery. Each account saves at most 60 emails an hour, the free-plan cap still applies, and turning it off in Settings stops it at once.
+- **Card links on re-import.** A Teak export imported again gets new card IDs, so its `[[…]]` links show as missing cards. Rewriting the tokens during a Teak-to-Teak import is a follow-up to phase 26.
 - **Index rebuilds.** New `cards` and `cardSearchDocuments` indexes (phases 4 and 10) backfill on deploy. Phase 15 uses card-level filters and adds an index only if measurements require one. Deploy them in low-traffic windows and watch Convex database I/O (`.agents/convex-costs.md`).
 
 ## Open decisions for the owner
@@ -206,7 +207,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | Phase | Decision | Default in the plan |
 |---|---|---|
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC (shipped this way) |
-| 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
 
 ### Decided
 
@@ -240,3 +240,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 23 | A card's heading drops `Re:`, `Fwd:`, `Fw:` and their stacked and localized forms |
 | 23 | The privacy policy names email sent to Save by email as a data source, and Cloudflare as receiving it |
 | 24 | Attachment cards don't carry the email's subject |
+| 25 | Skipped for now and left blocked, because the RSS feeds it extends (v1 phase 17) were never built |
+| 27 | `links` and `backlinks` appear only on single-card responses (`GET` a card, and the card a create, update, done or favorite returns), not on lists or `/v1/cards/changes` |
+| 28 | The ADHD page lives at `/save-without-filing` |

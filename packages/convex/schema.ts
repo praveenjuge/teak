@@ -1007,6 +1007,17 @@ export default defineSchema({
     .index("by_userId_and_messageKey", ["userId", "messageKey"])
     .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"]),
+  // `[[Title|teak:<id>]]` links in each text card's content, rebuilt after
+  // every content save (card/cardLinks.ts).
+  cardLinks: defineTable({
+    userId: v.string(),
+    fromCardId: v.id("cards"),
+    toCardId: v.id("cards"),
+    createdAt: v.number(),
+  })
+    .index("by_fromCardId_and_toCardId", ["fromCardId", "toCardId"])
+    .index("by_toCardId", ["toCardId"])
+    .index("by_userId", ["userId"]),
   linkedPdfs: defineTable({
     userId: v.string(),
     sourceCardId: v.id("cards"),

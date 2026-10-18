@@ -17,6 +17,7 @@ import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
+import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import {
   ariaKeyShortcut,
   FOCUS_NOTE_KEYS,
@@ -106,6 +107,8 @@ export interface AddCardFormProps {
   canCreateCard?: boolean;
   draftContentRef?: React.MutableRefObject<string>;
   onFocus?: () => void;
+  /** Opens a card linked with `[[…]]` from the note being written. */
+  onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   UpgradeLinkComponent?: React.ComponentType<{
@@ -122,6 +125,7 @@ export function AddCardForm({
   canCreateCard: canCreateCardProp,
   draftContentRef,
   onFocus,
+  onOpenCard,
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
@@ -155,6 +159,7 @@ export function AddCardForm({
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
+  const cardLinks = useCardLinkEditor({ onOpenCard, value: content });
   const hasShownBlockedToastRef = useRef<boolean>(false);
 
   const handleUpgrade = useCallback(() => {
@@ -281,6 +286,7 @@ export function AddCardForm({
     <>
       <FocusEditor
         canSave={Boolean(content.trim() && canCreateCard)}
+        cardLinks={cardLinks}
         disabled={!canCreateCard}
         onChange={setContent}
         onRequestClose={closeFocus}
@@ -312,6 +318,7 @@ export function AddCardForm({
             <MarkdownTextEditor
               ariaLabel="Markdown content"
               autoFocus={autoFocus}
+              cardLinks={cardLinks}
               className={cn(
                 "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"

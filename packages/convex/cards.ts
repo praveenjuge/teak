@@ -1,4 +1,9 @@
 export * from "./card/bulkActions";
+export {
+  getCardBacklinks,
+  getCardLinkTargets,
+  searchCardLinkSuggestions,
+} from "./card/cardLinks";
 export * from "./card/createCard";
 export * from "./card/deleteCard";
 export * from "./card/findDuplicateCard";

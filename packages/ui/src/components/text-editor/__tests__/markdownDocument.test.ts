@@ -134,3 +134,45 @@ describe("Markdown compatibility", () => {
     });
   });
 });
+
+describe("[[…]] card links", () => {
+  const id = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b";
+
+  test.each([
+    ["inline", `See [[Garden plan|teak:${id}]] today`],
+    ["in a list", `- [[A|teak:${id}]]\n- two`],
+    ["in a heading, spacing kept", `# Head [[A  b|teak:${id}]]`],
+    ["several", `[[A|teak:${id}]] and [[B|teak:${id.replace("k1", "k2")}]]`],
+  ])(
+    "a note with a link %s stays rich and round-trips exactly",
+    (_, source) => {
+      const prepared = prepareMarkdownDocument(source);
+      expect(prepared.literal).toBe(false);
+      expect(markdownManager.serialize(prepared.document)).toBe(source);
+      expect(JSON.stringify(prepared.document)).toContain('"type":"cardLink"');
+    }
+  );
+
+  test("a token in code stays code, not a pill", () => {
+    const source = `\`[[A|teak:${id}]]\` code`;
+    const prepared = prepareMarkdownDocument(source);
+    expect(JSON.stringify(prepared.document)).not.toContain("cardLink");
+    expect(markdownManager.serialize(prepared.document)).toBe(source);
+  });
+
+  test("a pill serializes to a valid token whatever its title", () => {
+    expect(
+      markdownManager.serialize({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "cardLink", attrs: { cardId: id, title: "a | b ]]" } },
+            ],
+          },
+        ],
+      })
+    ).toBe(`[[a b|teak:${id}]]`);
+  });
+});

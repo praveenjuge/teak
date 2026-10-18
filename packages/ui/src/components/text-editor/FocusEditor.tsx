@@ -27,6 +27,7 @@ import {
   ShortcutKeys,
 } from "../shortcuts/ShortcutTooltip";
 import { MarkdownTextEditor } from "./MarkdownTextEditor";
+import type { CardLinkOptions } from "./types";
 import { countWords, formatWordCount } from "./wordCount";
 
 /**
@@ -39,7 +40,7 @@ export function editorPopupOwnsEscape(
 ): boolean {
   return (
     dialog.querySelector(
-      "[role='listbox'][aria-label='Formatting commands']"
+      "[role='listbox'][aria-label='Formatting commands'], [role='listbox'][aria-label='Link a card']"
     ) !== null || Boolean(active?.closest(".teak-editor-formatting"))
   );
 }
@@ -48,6 +49,7 @@ export const WORD_COUNT_IDLE_MS = 1000;
 
 export interface FocusEditorProps {
   canSave: boolean;
+  cardLinks?: CardLinkOptions;
   disabled?: boolean;
   fallbackFocusRef?: RefObject<HTMLElement | null>;
   onChange: (value: string) => void;
@@ -62,6 +64,7 @@ export interface FocusEditorProps {
 
 export function FocusEditor({
   canSave,
+  cardLinks,
   disabled,
   fallbackFocusRef,
   onChange,
@@ -198,6 +201,7 @@ export function FocusEditor({
           <MarkdownTextEditor
             ariaLabel="Markdown content"
             autoFocus
+            cardLinks={cardLinks}
             className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-4 pt-14 pb-16 sm:px-6"
             disabled={disabled}
             minHeight="60vh"

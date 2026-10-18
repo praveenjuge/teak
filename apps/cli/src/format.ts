@@ -1,4 +1,4 @@
-import type { Card } from "@teak/convex/sdk";
+import type { Card, CardLinkRef, CardLinks } from "@teak/convex/sdk";
 import { formatLinkPrice } from "@teak/convex/shared/price";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 
@@ -105,3 +105,34 @@ export const formatDetail = (card: Card) =>
   ]
     .filter((line) => line !== null)
     .join("\n");
+
+const linkLine = (link: CardLinkRef) =>
+  link.missing
+    ? `${link.id}  (missing)`
+    : `${link.id}  ${(link.type ?? "").padEnd(8)}  ${link.title ?? ""}`.trimEnd();
+
+/** `teak links`: "Links" then "Linked from", one card per line. */
+export const formatCardLinks = (links: CardLinks) => {
+  if (links.links.length === 0 && links.backlinks.length === 0) {
+    return "No links.";
+  }
+  const section = (title: string, items: CardLinkRef[], truncated: boolean) =>
+    items.length === 0
+      ? []
+      : [
+          title,
+          ...items.map(linkLine),
+          ...(truncated ? ["and more (first 100 shown)"] : []),
+        ];
+  const links_ = section("Links", links.links, links.linksTruncated);
+  const backlinks = section(
+    "Linked from",
+    links.backlinks,
+    links.backlinksTruncated
+  );
+  return [
+    ...links_,
+    ...(links_.length && backlinks.length ? [""] : []),
+    ...backlinks,
+  ].join("\n");
+};

@@ -138,7 +138,16 @@ const handleCreateCardRequest = async (
           userId: auth.validated.userId,
         });
     operationCommitted = true;
-    const responseBody = buildCreateCardResponse(result, request.url);
+    const responseBody = buildCreateCardResponse(
+      result,
+      request.url,
+      "card" in result && result.card
+        ? ((await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+            cardId: result.card._id,
+            userId: auth.validated.userId,
+          })) ?? undefined)
+        : undefined
+    );
     await completeIdempotencyResponse(ctx, {
       keyHash: idempotencyState.keyHash,
       requestHash: idempotencyState.requestHash,
@@ -525,6 +534,20 @@ const resolveCardId = (
     cardId,
   });
 
+/** A single card's response body, with its `[[…]]` links and backlinks. */
+const serializeCardWithLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  card: CardWithUrls,
+  requestUrl: string
+) => {
+  const links = await ctx.runQuery(
+    internal["card/cardLinks"].getCardLinksForUser,
+    { cardId: card._id, userId }
+  );
+  return serializeCard(card, requestUrl, links ?? undefined);
+};
+
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
@@ -753,7 +776,15 @@ const handleCardsByIdV1Request = async (
   }
 
   if (route.operation === "get") {
-    return json(200, serializeCard(currentCard, request.url));
+    return json(
+      200,
+      await serializeCardWithLinks(
+        ctx,
+        auth.validated.userId,
+        currentCard,
+        request.url
+      )
+    );
   }
 
   if (
@@ -828,7 +859,15 @@ const handleCardsByIdV1Request = async (
           source: "api",
         });
       }
-      return json(200, serializeCard(result.card, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          result.card,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update done state");
     }
@@ -909,7 +948,15 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update card");
     }
@@ -939,7 +986,15 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(
         error,

@@ -9,9 +9,14 @@ import TaskList from "@tiptap/extension-task-list";
 import { MarkdownManager } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { Marked, type Token, type Tokens, type TokensList } from "marked";
+import { CardLinkNode } from "./CardLinkNode";
 import { LiteralMarkdown } from "./LiteralMarkdown";
 
-export function documentExtensions() {
+export function documentExtensions({
+  cardLinkNode = CardLinkNode,
+}: {
+  cardLinkNode?: typeof CardLinkNode;
+} = {}) {
   return [
     StarterKit.configure({
       underline: false,
@@ -26,6 +31,7 @@ export function documentExtensions() {
     LiteralMarkdown,
     TaskList,
     TaskItem.configure({ nested: true }),
+    cardLinkNode,
   ];
 }
 

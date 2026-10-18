@@ -2,6 +2,7 @@
 import HomeAppDemo from "../components/HomeAppDemo.astro";
 import HomeFeatureShowcase from "../components/HomeFeatureShowcase.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { AUDIENCE_PAGE_LIST } from "../lib/audience-pages";
 import { buildPageSchemas } from "../lib/jsonld";
 import { testimonials } from "../lib/testimonials";
 
@@ -67,6 +68,34 @@ const jsonLd = buildPageSchemas({
   </section>
 
   <HomeFeatureShowcase />
+
+  <section aria-labelledby="audiences-title" class="border-t border-border px-6 pt-18 pb-20 max-md:px-5 max-md:pt-14 max-md:pb-16">
+    <div class="mx-auto max-w-[62rem]">
+      <div class="mb-10 text-center">
+        <p class="mb-3 text-[0.6875rem] leading-[1.4] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Teak for…</p>
+        <h2 class="mb-2.5 text-[1.375rem] leading-[1.2] font-bold tracking-[-0.025em] text-balance" id="audiences-title">
+          Made for the way you work
+        </h2>
+        <p class="mx-auto max-w-lg text-[0.9375rem] leading-[1.6] text-balance text-muted-foreground">
+          See how Teak fits your kind of work.
+        </p>
+      </div>
+
+      <ul class="grid list-none grid-cols-1 gap-4 p-0 min-[561px]:grid-cols-2 min-[1024px]:grid-cols-4">
+        {AUDIENCE_PAGE_LIST.map((page) => (
+          <li class="min-w-0">
+            <a class="group flex h-full flex-col gap-2 rounded-[0.875rem] border border-border bg-card p-5 text-card-foreground no-underline transition-colors hover:border-primary/40 hover:bg-accent/40" href={`/${page.slug}`}>
+              <h3 class="flex items-center justify-between gap-2 text-base leading-[1.3] font-semibold text-balance">
+                {page.navLabel}
+                <span aria-hidden="true" class="text-muted-foreground transition-transform group-hover:translate-x-0.5">→</span>
+              </h3>
+              <p class="text-[0.8125rem] leading-[1.6] text-pretty text-muted-foreground">{page.summary}</p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
 
   <section class="border-t border-border px-6 pt-18 pb-20 max-md:px-5 max-md:pt-14 max-md:pb-16">
     <div class="mx-auto max-w-[62rem]">

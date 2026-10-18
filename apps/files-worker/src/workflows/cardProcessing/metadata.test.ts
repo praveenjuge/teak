@@ -263,6 +263,16 @@ describe("generating metadata", () => {
     });
   });
 
+  test("a note's [[…]] links reach the model as their titles", async () => {
+    const { generate } = setup({
+      content:
+        "See [[Garden plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] first, and `[[Raw|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]`",
+    });
+    await generate("text");
+    expect(aiPrompts.at(-1)).toContain("See Garden plan first");
+    expect(aiPrompts.at(-1)).not.toContain("teak:k17");
+  });
+
   test("sends only its own stage, so a parallel renderables write survives", async () => {
     const { generate, saved } = setup({ content: "test" });
     await generate("text");

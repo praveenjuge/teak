@@ -282,3 +282,32 @@ export const DEMO_COLUMNS: DemoCard[][] = [
     },
   ],
 ];
+
+const DEMO_CARDS_BY_ID = new Map(
+  DEMO_COLUMNS.flat().map((card) => [card.id, card])
+);
+
+/**
+ * Picks demo cards by id for a smaller demo grid. Cards keep the order given,
+ * dealt left to right across the columns, so column lengths differ by at most
+ * one and the first row reads in the given order.
+ */
+export function pickDemoColumns(
+  ids: readonly string[],
+  columnCount = DEMO_COLUMNS.length
+): DemoCard[][] {
+  const columns: DemoCard[][] = Array.from(
+    { length: Math.min(columnCount, ids.length) },
+    () => []
+  );
+
+  ids.forEach((id, index) => {
+    const card = DEMO_CARDS_BY_ID.get(id);
+    if (!card) {
+      throw new Error(`Unknown demo card id: ${id}`);
+    }
+    columns[index % columns.length].push(card);
+  });
+
+  return columns;
+}

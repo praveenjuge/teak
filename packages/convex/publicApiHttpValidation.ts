@@ -1,4 +1,5 @@
 import { env } from "./_generated/server";
+import type { CardLinks } from "./card/cardLinks";
 import type { CardWithUrls } from "./card/queryUtils";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
@@ -110,7 +111,16 @@ const serializeDisplayMetadata = (card: CardWithUrls) => ({
       : null,
 });
 
-const serializeCard = (card: CardWithUrls, requestUrl: string) => ({
+/**
+ * A card as the public API returns it. `links` (its `[[…]]` links and the
+ * cards linking to it) is given only for single-card responses; lists and
+ * the changes feed leave both arrays out.
+ */
+const serializeCard = (
+  card: CardWithUrls,
+  requestUrl: string,
+  links?: CardLinks
+) => ({
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
@@ -151,6 +161,7 @@ const serializeCard = (card: CardWithUrls, requestUrl: string) => ({
   type: card.type,
   updatedAt: card.updatedAt,
   url: card.url ?? null,
+  ...(links ?? {}),
 });
 
 const serializeListCard = (
@@ -675,9 +686,12 @@ const parseCardsQueryOptions = (
 
 const buildCreateCardResponse = (
   result: { card?: CardWithUrls; cardId: string; status: "created" },
-  requestUrl: string
+  requestUrl: string,
+  links?: CardLinks
 ) => {
-  const card = result.card ? serializeCard(result.card, requestUrl) : undefined;
+  const card = result.card
+    ? serializeCard(result.card, requestUrl, links)
+    : undefined;
   return {
     appUrl: getCardAppUrl(requestUrl, result.cardId),
     card,

@@ -1,4 +1,11 @@
+import {
+  cardLinkTokensToText,
+  mayHaveCardLinks,
+} from "@teak/convex/shared/cardLinks";
+
 const MAX_PREVIEW_LENGTH = 500;
+/** Room for links' ids, which drop out when shown as titles. */
+const CARD_LINK_SLACK = 8192;
 
 interface StripRule {
   name: string;
@@ -77,7 +84,11 @@ export function markdownToPlainText(
   if (!input) {
     return "";
   }
-  return withEscapedPunctuation(input.slice(0, maxLength), (text) => {
+  // `[[Title|teak:<id>]]` card links read as their titles.
+  const source = mayHaveCardLinks(input)
+    ? cardLinkTokensToText(input.slice(0, maxLength + CARD_LINK_SLACK))
+    : input;
+  return withEscapedPunctuation(source.slice(0, maxLength), (text) => {
     const lines = applyRules(text, BLOCK_RULES)
       .split(/\r?\n/)
       .map((rawLine) => {

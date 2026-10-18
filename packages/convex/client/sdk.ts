@@ -85,6 +85,9 @@ export interface Card {
   archivedAt: number | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
   audioWaveform: { detail: number[]; grid: number[] } | null;
+  /** Your cards that link to this one, most recently updated first. */
+  backlinks?: CardLinkRef[];
+  backlinksTruncated?: boolean;
   colors: Array<{ hex: string; name?: string }>;
   compactUrl: string | null;
   /**
@@ -142,6 +145,12 @@ export interface Card {
   linkPublishedAt: string | null;
   linkPublisher: string | null;
   linkSiteName: string | null;
+  /**
+   * Cards this card links to with `[[Title|teak:<id>]]`, in order. Only on
+   * single-card responses (`cards.get`, update, favorite, done, create).
+   */
+  links?: CardLinkRef[];
+  linksTruncated?: boolean;
   metadataDescription: string | null;
   metadataStatus: string | null;
   metadataTitle: string | null;
@@ -174,6 +183,19 @@ export interface Card {
     frames: number;
     url: string;
   } | null;
+}
+/** A linked card; `missing` when it's in Trash, deleted or not yours. */
+export interface CardLinkRef {
+  id: string;
+  missing: boolean;
+  title: string | null;
+  type: CardType | string | null;
+}
+export interface CardLinks {
+  backlinks: CardLinkRef[];
+  backlinksTruncated: boolean;
+  links: CardLinkRef[];
+  linksTruncated: boolean;
 }
 export type CardListItem = Partial<Card> &
   Pick<
@@ -957,6 +979,17 @@ export const createTeakClient = (options: {
           asPage
         ),
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
+      /** Cards this card links to with `[[…]]`, and cards linking to it. */
+      links: (id: string) =>
+        request(cardPath(id), { method: "GET" }, (value): CardLinks => {
+          const card = asCard(value);
+          return {
+            backlinks: card.backlinks ?? [],
+            backlinksTruncated: card.backlinksTruncated === true,
+            links: card.links ?? [],
+            linksTruncated: card.linksTruncated === true,
+          };
+        }),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
       /**

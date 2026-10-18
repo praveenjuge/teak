@@ -69,8 +69,10 @@ import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import type { CardLinkOptions } from "../text-editor/types";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import {
+  type CardBacklinks,
   CardMetadataPanel,
   type CardTagsControl,
   type SavePdfControl,
@@ -89,12 +91,14 @@ export const AUTOSAVE_DELAY_MS = 800;
 
 function CardPreview({
   card,
+  cardLinks,
   getCurrentValue,
   saveChanges,
   thumbnail,
   updateContent,
 }: {
   card: CardModalCard;
+  cardLinks?: CardLinkOptions;
   getCurrentValue: GetCurrentValue;
   saveChanges: () => void;
   thumbnail?: LinkThumbnailControl;
@@ -105,6 +109,7 @@ function CardPreview({
       return (
         <TextPreview
           card={card}
+          cardLinks={cardLinks}
           getCurrentValue={getCurrentValue}
           onContentChange={updateContent}
           onSaveShortcut={saveChanges}
@@ -183,8 +188,11 @@ const SAVE_STATE_LABELS: Record<CardSaveState, string> = {
 };
 
 interface CardModalProps {
+  backlinks?: CardBacklinks;
   card?: CardModalCard | null;
   cardId?: string | null;
+  /** `[[` links in a note: card search, live titles and opening a card. */
+  cardLinks?: CardLinkOptions;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
   handleDelete: (onClose?: () => void) => Promise<void>;
@@ -198,6 +206,7 @@ interface CardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onMoreLikeThis?: (cardId: string) => void;
   onNext?: () => void;
+  onOpenCard?: (cardId: string) => void;
   onPrevious?: () => void;
   onReprocess?: () => void;
   onTagClick?: (tag: string) => void;
@@ -217,12 +226,15 @@ interface CardModalProps {
 }
 
 export function CardModal({
+  backlinks,
   card: cardProp,
   cardId,
+  cardLinks,
   open,
   onCancel,
   onCardTypeClick,
   onNext,
+  onOpenCard,
   onPrevious,
   onTagClick,
   onMoreLikeThis,
@@ -783,6 +795,7 @@ export function CardModal({
                   <div className={stageContentClass(card)}>
                     <CardPreview
                       card={card}
+                      cardLinks={cardLinks}
                       getCurrentValue={getCurrentValue}
                       key={card._id}
                       saveChanges={() => {
@@ -799,12 +812,14 @@ export function CardModal({
                   className="shrink-0 border-t bg-muted/25 md:w-80 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[21rem]"
                 >
                   <CardMetadataPanel
+                    backlinks={backlinks}
                     card={card}
                     getCurrentValue={getCurrentValue}
                     notesRef={notesRef}
                     onCardTypeClick={() => onCardTypeClick?.(card.type)}
                     onCommit={commit}
                     onNotesChange={editNotes}
+                    onOpenCard={onOpenCard}
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)
                     }

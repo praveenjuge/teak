@@ -31,6 +31,7 @@ import {
   setCardsArchived,
   setCardThumbnail,
   showCardContent,
+  showCardLinks,
   showFolder,
   startExport,
   startTagOperation,
@@ -441,6 +442,13 @@ cards
   .description("Print a card's text: its document's text or its transcript")
   .action(async (id) => showCardContent(id, program.opts()));
 cards
+  .command("links")
+  .argument("<id>")
+  .description(
+    "List the cards a card links to with [[…]], and the cards linking to it"
+  )
+  .action(async (id) => showCardLinks(id, program.opts()));
+cards
   .command("open")
   .argument("<id>")
   .description("Open a card in Teak on the web")
@@ -733,6 +741,13 @@ program
   .argument("<ids...>")
   .description("Restore cards from Trash")
   .action(async (ids) => restoreCards(ids, program.opts()));
+program
+  .command("links")
+  .argument("<id>")
+  .description(
+    "List the cards a card links to with [[…]], and the cards linking to it"
+  )
+  .action(async (id) => showCardLinks(id, program.opts()));
 program
   .command("content")
   .argument("<id>")

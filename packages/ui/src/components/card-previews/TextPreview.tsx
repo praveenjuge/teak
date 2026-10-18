@@ -11,6 +11,7 @@ import {
 import type { GetCurrentValue } from "../card-modal/types";
 import { FocusEditor } from "../lazyDialogs";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import type { CardLinkOptions } from "../text-editor/types";
 import { useFocusMode } from "../text-editor/useFocusMode";
 import { Button } from "../ui/button";
 
@@ -21,6 +22,7 @@ type CardWithUrls = Doc<"cards"> & {
 
 interface TextPreviewProps {
   card: CardWithUrls;
+  cardLinks?: CardLinkOptions;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
   onSaveShortcut?: () => void;
@@ -28,6 +30,7 @@ interface TextPreviewProps {
 
 export function TextPreview({
   card,
+  cardLinks,
   onContentChange,
   getCurrentValue,
   onSaveShortcut,
@@ -91,6 +94,7 @@ export function TextPreview({
       </ShortcutTooltip>
       <MarkdownTextEditor
         ariaLabel="Markdown content"
+        cardLinks={cardLinks}
         className="h-full"
         minHeight="55vh"
         onChange={onContentChange}
@@ -105,6 +109,7 @@ export function TextPreview({
       />
       <FocusEditor
         canSave
+        cardLinks={cardLinks}
         fallbackFocusRef={focusButtonRef}
         onChange={onContentChange}
         onRequestClose={closeFocus}

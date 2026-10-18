@@ -1,5 +1,6 @@
 import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
+import { cardLinkTokensToText } from "../shared/cardLinks";
 import { sha256Hex } from "../storage/r2Keys";
 
 const BODY_CHARS = 2000;
@@ -32,7 +33,10 @@ export const buildEmbeddingText = (
   const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])]
     .map((tag) => tag.trim())
     .filter(Boolean);
-  const content = clean(card.content);
+  // `[[Title|teak:<id>]]` links mean their titles, not their ids.
+  const content = clean(
+    card.content ? cardLinkTokensToText(card.content) : undefined
+  );
   const body =
     (content && content !== clean(card.url) ? content : undefined) ??
     clean(extractedText) ??

@@ -3,6 +3,7 @@ import {
   stageCompleted,
   stagePending,
 } from "@teak/convex/card/processingStatus";
+import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import {
   extractVisualStylesFromTags,
   isVisualStyleCardType,
@@ -283,7 +284,12 @@ const generateForType = async (
       if (cardType === "quote" && !card.content?.trim()) {
         return empty;
       }
-      const result = await generateTextMetadata(job, telemetry, card.content);
+      // `[[Title|teak:<id>]]` links reach the model as their titles.
+      const result = await generateTextMetadata(
+        job,
+        telemetry,
+        cardLinkTokensToText(card.content ?? "")
+      );
       return { ...result, confidence: 0.95 };
     }
     case "image": {

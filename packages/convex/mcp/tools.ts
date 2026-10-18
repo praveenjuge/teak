@@ -589,6 +589,20 @@ const toolConfigs: Record<string, ToolRun> = {
     operation: (input) => ({ method: "GET", path: cardPath(input.cardId) }),
     summary: (_payload, input) => `Fetched card ${input.cardId}`,
   }),
+  teak_v1_get_card_links: defineTool({
+    schema: cardIdInputSchema,
+    operation: (input) => ({ method: "GET", path: cardPath(input.cardId) }),
+    transform: (payload) => ({
+      backlinks: Array.isArray(payload.backlinks) ? payload.backlinks : [],
+      backlinksTruncated: payload.backlinksTruncated === true,
+      links: Array.isArray(payload.links) ? payload.links : [],
+      linksTruncated: payload.linksTruncated === true,
+    }),
+    summary: (payload, input) => {
+      const backlinks = count(payload, "backlinks");
+      return `Card ${input.cardId} links to ${countLabel(count(payload, "links"), "card")}; ${countLabel(backlinks, "card")} ${backlinks === 1 ? "links" : "link"} to it`;
+    },
+  }),
   teak_v1_get_card_content: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({

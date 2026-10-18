@@ -731,6 +731,72 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.code).toBe("NOT_FOUND");
   });
 
+  test("cardByIdV1 GET adds the card's links and backlinks", async () => {
+    const links = {
+      backlinks: [{ id: "card_3", missing: false, title: "C", type: "text" }],
+      backlinksTruncated: false,
+      links: [{ id: "card_2", missing: true, title: null, type: null }],
+      linksTruncated: true,
+    };
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        content: "See [[B|teak:card_2]]",
+        createdAt: 1,
+        type: "text",
+        updatedAt: 2,
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce(links);
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "card_1", ...links });
+    expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
+      "card/cardLinks:getCardLinksForUser"
+    );
+  });
+
+  test("changesCardsV1 leaves links and backlinks out of each item", async () => {
+    const runQuery = mock().mockResolvedValueOnce({
+      deletedIds: [],
+      items: [
+        {
+          _id: "card_1",
+          content: "See [[B|teak:card_2]]",
+          createdAt: 1,
+          type: "text",
+          updatedAt: 2,
+        },
+      ],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const response = await runHandler(
+      changesCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/changes?since=1&limit=10", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    const [item] = (await response.json()).items;
+    expect(item.id).toBe("card_1");
+    expect(item).not.toHaveProperty("links");
+    expect(item).not.toHaveProperty("backlinks");
+    expect(runQuery).toHaveBeenCalledTimes(1);
+  });
+
   test("cardByIdV1 returns native display fields without internal metadata", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce("card_1")
