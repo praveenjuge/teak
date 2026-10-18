@@ -16,7 +16,7 @@ This PR is public. Agents: read .agents/pull-requests.md before writing it.
 ## Proof
 
 <!--
-Screenshots, a walkthrough video, or captured API/CLI/MCP output from the dev stack with seeded data.
+Evidence from a verify-teak run (.agents/skills/verify-teak): screenshots, a walkthrough video, or captured API/CLI/MCP output from the dev stack with seeded data.
 Link a private artifact page from the session, or embed images already hosted on GitHub.
 Check every frame before linking it (.agents/pull-requests.md, "Screenshots and video").
 Delete this section for changes with nothing to show, such as docs or CI.
@@ -24,7 +24,7 @@ Delete this section for changes with nothing to show, such as docs or CI.
 
 ## Verification
 
-<!-- The commands you ran and their result, and what you checked in the real interface (themes, 390px and 1440px). Say what you could not check and why. -->
+<!-- The commands you ran and their result, the verify-teak features you drove and what you observed (themes, 390px and 1440px for UI), and the feature map files you added or updated. Say what you could not check and why. -->
 
 - [ ]
 
