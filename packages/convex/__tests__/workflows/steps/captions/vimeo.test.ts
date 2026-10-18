@@ -80,35 +80,38 @@ describe("chooseVimeoTrack", () => {
     ...fields,
   });
 
-  test("the uploader's default, then English, then the first", () => {
+  test("English, then the uploader's default, then the first", () => {
     expect(
       chooseVimeoTrack([
-        track({ lang: "de" }),
+        track({ default: true, lang: "de" }),
         track({ lang: "en" }),
+        track({ lang: "fr" }),
+      ])?.lang
+    ).toBe("en");
+    expect(
+      chooseVimeoTrack([
+        track({ lang: "ja" }),
         track({ default: true, lang: "fr" }),
       ])?.lang
     ).toBe("fr");
-    expect(
-      chooseVimeoTrack([track({ lang: "de" }), track({ lang: "en-US" })])?.lang
-    ).toBe("en-US");
     expect(
       chooseVimeoTrack([track({ lang: "de" }), track({ lang: "ja" })])?.lang
     ).toBe("de");
   });
 
-  test("a person's track before an automatic one, captions before subtitles", () => {
+  test("captions (the spoken language) before subtitles, a person before automatic", () => {
     expect(
       chooseVimeoTrack([
-        track({ lang: "en", provenance: "ai_generated" }),
+        track({ kind: "subtitles", lang: "en" }),
+        track({ kind: "captions", lang: "ja" }),
+      ])?.lang
+    ).toBe("ja");
+    expect(
+      chooseVimeoTrack([
+        track({ kind: "captions", lang: "en", provenance: "ai_generated" }),
         track({ kind: "subtitles", lang: "es" }),
       ])?.lang
     ).toBe("es");
-    expect(
-      chooseVimeoTrack([
-        track({ kind: "subtitles", label: "subs", lang: "en" }),
-        track({ kind: "captions", label: "cc", lang: "en" }),
-      ])?.label
-    ).toBe("cc");
   });
 
   test("a track without a file is skipped", () => {

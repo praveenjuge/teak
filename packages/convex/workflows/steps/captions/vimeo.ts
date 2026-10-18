@@ -84,9 +84,9 @@ const isEnglish = (track: VimeoTextTrack) =>
   (track.lang ?? "").toLowerCase().split("-")[0] === "en";
 
 /**
- * The track to read: one a person made before an automatic one; within
- * each, the uploader's default, then English, then the first; captions
- * before subtitles in the same language.
+ * The track to read: one a person made before an automatic one; captions
+ * (usually the spoken language) before subtitles (usually translations);
+ * then English, then the uploader's default, then the first.
  */
 export const chooseVimeoTrack = (
   tracks: VimeoTextTrack[]
@@ -95,8 +95,8 @@ export const chooseVimeoTrack = (
   const ranked = [...usable].sort((a, b) => {
     const score = (track: VimeoTextTrack) =>
       (isAuto(track) ? 100 : 0) +
-      languageRank(track) +
-      (track.kind === "captions" ? 0 : 1);
+      (track.kind === "captions" ? 0 : 10) +
+      languageRank(track);
     return score(a) - score(b);
   });
   return ranked[0];
@@ -129,10 +129,10 @@ const missReason = (status: number): CaptionMissReason => {
 };
 
 const languageRank = (track: VimeoTextTrack): number => {
-  if (track.default) {
+  if (isEnglish(track)) {
     return 0;
   }
-  return isEnglish(track) ? 10 : 20;
+  return track.default ? 1 : 2;
 };
 
 export const fetchVimeoCaptions = async (
