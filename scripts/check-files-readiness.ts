@@ -18,6 +18,8 @@ const required = [
   "freeze-object",
   "fetch-link-page",
   "store-remote-asset",
+  // Save PDF for arXiv links (roadmap v2 phase 20).
+  "store-linked-pdf",
   "embed-upsert",
   "vector-delete",
   "vector-get",

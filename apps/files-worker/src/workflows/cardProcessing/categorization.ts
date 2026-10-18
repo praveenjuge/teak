@@ -4,6 +4,11 @@ import {
   type LinkCategoryMetadata,
 } from "@teak/convex/shared";
 import {
+  fetchRemoteDetails,
+  type RemoteDetails,
+  remoteSourceFor,
+} from "@teak/convex/workflows/steps/categorization/remote/index";
+import {
   applyLinkCategoryDecision,
   type CategorizationContextCard,
   type CategoryClassificationResult,
@@ -14,11 +19,22 @@ import {
   parseStructuredData,
   projectCategorizationSnapshot,
   readLinkCategoryReply,
+  remoteLookupInput,
   type StructuredDataResult,
 } from "@teak/convex/workflows/steps/categorization/rules";
-import { type CardJob, guardOf, loadCard, markInProgress } from "./context";
+import {
+  type CardJob,
+  guardOf,
+  type LoadedCard,
+  loadCard,
+  markInProgress,
+} from "./context";
 import { runDecision } from "./decisions";
-import { fetchLinkPageForCard, gunzipBase64 } from "./linkMetadata";
+import {
+  fetchLinkPageForCard,
+  gunzipBase64,
+  storeLinkPreviewImage,
+} from "./linkMetadata";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
 // Categorization: what kind of thing a link is (a recipe, a repo, a
@@ -88,6 +104,79 @@ const reviewLinkCategoryWithClef = async (
   return applyLinkCategoryDecision(classification, result);
 };
 
+/** Longer than this for an arXiv slot and the lookup is skipped. */
+const MAX_ARXIV_WAIT_MS = 10_000;
+
+/**
+ * Waits for one of arXiv's API slots (one request every 3 seconds for the
+ * whole deployment); false when the queue is full.
+ */
+const takeArxivSlot = async (job: CardJob): Promise<boolean> => {
+  const slot = await job.deps.convex.mutation(
+    internal.workflows.steps.categorization.mutations.takeArxivSlot,
+    {}
+  );
+  if (!slot || slot.retryAfter > MAX_ARXIV_WAIT_MS) {
+    return false;
+  }
+  if (slot.retryAfter > 0) {
+    await new Promise((resolve) => setTimeout(resolve, slot.retryAfter));
+  }
+  return true;
+};
+
+/**
+ * What the link's own site says about it (Wikipedia, arXiv, Spotify, Apple
+ * Music, Open Library), or null for any other link and whenever the site
+ * can't answer.
+ */
+const lookUpSiteDetails = async (
+  job: CardJob,
+  card: CategorizationContextCard,
+  classification: CategoryClassificationResult,
+  structuredData: StructuredDataResult | null
+): Promise<RemoteDetails | null> => {
+  const input = remoteLookupInput(card, classification, structuredData);
+  if (!remoteSourceFor(input)) {
+    return null;
+  }
+  return await fetchRemoteDetails(input, {
+    pinnedFetch: job.deps.pinnedFetch,
+    resolveDns: job.deps.resolveDns,
+    takeArxivSlot: () => takeArxivSlot(job),
+  });
+};
+
+/**
+ * Stores the site's image as the link's preview image when the page had
+ * none of its own (a book cover from Open Library, say).
+ */
+const storeSiteImage = async (
+  job: CardJob,
+  loaded: LoadedCard,
+  metadata: LinkCategoryMetadata,
+  remote: RemoteDetails | null
+) => {
+  const preview = loaded.card.metadata?.linkPreview;
+  if (
+    !remote?.imageUrl ||
+    metadata.imageUrl !== remote.imageUrl ||
+    preview?.status !== "success" ||
+    preview.imageStorageKey ||
+    preview.imageUrl
+  ) {
+    return;
+  }
+  return (
+    (await storeLinkPreviewImage(
+      job,
+      loaded,
+      remote.imageUrl,
+      metadata.sourceUrl
+    )) ?? undefined
+  );
+};
+
 export interface CategorizationResult {
   category: string;
   confidence: number;
@@ -134,10 +223,17 @@ export const categorizeLink = async (
     normalizeUrlForComparison(existingMetadata?.sourceUrl) ||
     existingMetadata?.sourceUrl;
 
-  const save = async (metadata: LinkCategoryMetadata) => {
+  const save = async (
+    metadata: LinkCategoryMetadata,
+    previewImage?: Awaited<ReturnType<typeof storeSiteImage>>
+  ) => {
     await job.deps.convex.mutation(
       internal.workflows.steps.categorization.mutations.updateCategorization,
-      { cardId: job.cardId, metadata },
+      {
+        cardId: job.cardId,
+        metadata,
+        ...(previewImage ? { previewImage } : {}),
+      },
       guardOf(job)
     );
     return {
@@ -192,9 +288,18 @@ export const categorizeLink = async (
     sourceUrl,
     structuredData?.entities
   );
+  const remote = await lookUpSiteDetails(
+    job,
+    hydratedCard,
+    reviewedClassification,
+    structuredData
+  );
+  const metadata = enrichLinkCategory(hydratedCard, reviewedClassification, {
+    remote,
+    structuredData,
+  });
   return await save(
-    enrichLinkCategory(hydratedCard, reviewedClassification, {
-      structuredData,
-    })
+    metadata,
+    await storeSiteImage(job, loaded, metadata, remote)
   );
 };

@@ -813,6 +813,20 @@ const components = {
       required: ["isFavorited"],
       type: "object",
     },
+    SavedPdf: {
+      properties: {
+        cardId: {
+          description: "The document card holding the PDF",
+          type: "string",
+        },
+        created: {
+          description: "False when an earlier save already made the card",
+          type: "boolean",
+        },
+      },
+      required: ["cardId", "created"],
+      type: "object",
+    },
     TagSummary: {
       properties: {
         count: { type: "number" },
@@ -1599,6 +1613,63 @@ export const openApiSpec = {
         operationId: "unmarkCardDone",
         summary: "Unmark a link done",
         description: "Clears a link card's done state.",
+      },
+    },
+    "/v1/cards/{cardId}/save-pdf": {
+      post: {
+        parameters: [cardIdParameter],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SavedPdf" },
+              },
+            },
+            description:
+              "The document an earlier save made from this link, with `created: false`",
+          },
+          201: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SavedPdf" },
+              },
+            },
+            description: "A new document card holding the paper's PDF",
+          },
+          400: {
+            content: apiErrorContent,
+            description:
+              "INVALID_INPUT: the card is not an arXiv link with a PDF (a withdrawn paper has none). CARD_LIMIT_REACHED: the free plan's card limit",
+          },
+          404: { content: apiErrorContent, description: "Card not found" },
+          409: {
+            content: apiErrorContent,
+            description:
+              "CONFLICT: the card is in Trash. IN_PROGRESS: a save of this PDF is still running; try again in a moment",
+          },
+          413: {
+            content: apiErrorContent,
+            description: "FILE_TOO_LARGE: the PDF is over 100 MB",
+          },
+          415: {
+            content: apiErrorContent,
+            description: "UNSUPPORTED_TYPE: arXiv didn't answer with a PDF",
+          },
+          429: {
+            content: apiErrorContent,
+            description:
+              "RATE_LIMITED: 30 new cards a minute, as for creating cards",
+          },
+          503: {
+            content: apiErrorContent,
+            description: "SERVICE_UNAVAILABLE: arXiv couldn't be reached",
+          },
+        },
+        security: apiKeySecurity,
+        operationId: "saveCardPdf",
+        summary: "Save a paper's PDF",
+        description:
+          "Saves an arXiv link's paper as its own document card. Saving the same link again returns that card; a save still running answers 409 IN_PROGRESS. Counts as a new card toward the plan's limit.",
       },
     },
     "/v1/cards/{cardId}/favorite": {

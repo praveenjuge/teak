@@ -7,7 +7,15 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import { Button } from "@teak/ui/components/ui/button";
-import { Copy, EyeOff, RotateCcw, Sparkles, Trash, X } from "lucide-react";
+import {
+  Copy,
+  EyeOff,
+  FileDown,
+  RotateCcw,
+  Sparkles,
+  Trash,
+  X,
+} from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -30,6 +38,12 @@ export interface CardTagsControl {
   tagInput: string;
 }
 
+/** Save PDF on an arXiv link: the paper as its own document card. */
+export interface SavePdfControl {
+  isSaving: boolean;
+  save: () => void;
+}
+
 interface CardMetadataPanelProps {
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
@@ -41,6 +55,7 @@ interface CardMetadataPanelProps {
   onPermanentDelete: () => void;
   onRestore: () => void;
   onTagClick?: (tag: string) => void;
+  savePdf?: SavePdfControl;
   tags: CardTagsControl;
 }
 
@@ -116,6 +131,7 @@ export function CardMetadataPanel({
   onPermanentDelete,
   onRestore,
   onTagClick,
+  savePdf,
   tags,
 }: CardMetadataPanelProps) {
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
@@ -439,6 +455,19 @@ export function CardMetadataPanel({
             </div>
           )}
         </dl>
+        {savePdf && !card.isDeleted && (
+          <Button
+            aria-busy={savePdf.isSaving}
+            className="mt-2 w-full"
+            disabled={savePdf.isSaving}
+            onClick={savePdf.save}
+            size="sm"
+            variant="outline"
+          >
+            <FileDown />
+            {savePdf.isSaving ? "Saving PDF…" : "Save PDF"}
+          </Button>
+        )}
       </PanelSection>
 
       <CardFoldersDialog

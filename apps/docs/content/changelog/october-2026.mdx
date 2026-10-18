@@ -1,11 +1,19 @@
 ---
 title: "October 2026"
-description: Mark links as read, watched or bought, find screenshots and scanned PDFs by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Richer details for Wikipedia, arXiv, music and books, and Save PDF for papers, mark links as read, watched or bought, find screenshots and scanned PDFs by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-17"
+date: "2026-10-18"
 changelog:
   category: Product updates
 ---
+
+## Richer details for Wikipedia, arXiv, music and books
+
+- Wikipedia articles show their short description and when they were last edited, and a disambiguation page says so. arXiv papers show their authors, publish date, subject and DOI. Spotify and Apple Music links show the artist and whether it's a track, album or playlist. Book links that name an ISBN get their author, page count, publisher and publish date from Open Library, and a cover when the page has none. See [Card details](/docs/features#card-details).
+- Teak's summary of a Wikipedia article or an arXiv paper now reads its opening paragraph or abstract, not just the title.
+- **Save PDF** on an arXiv paper's card saves its PDF as its own document card, so its text is searchable in Teak. Saving it again opens the one you have.
+- **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/save-pdf`, `teak_v1_save_card_pdf`, `cards.savePdf`, and `teak cards save-pdf <card-id>`. See [Save a paper's PDF](/docs/api#save-a-papers-pdf).
+- Links you saved before get these details when you use **Refresh details**.
 
 ## Mark links as read, watched or bought
 

@@ -95,6 +95,11 @@ export const GOODREADS_SOURCES: SelectorSource[] = [
   { selector: "meta[property='books:isbn']", attribute: "content" },
 ];
 
+// Spotify's oEmbed has no artist; its pages name one in this tag.
+export const SPOTIFY_SOURCES: SelectorSource[] = [
+  { selector: "meta[name='music:musician_description']", attribute: "content" },
+];
+
 export const AMAZON_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:price:amount']", attribute: "content" },
   { selector: "meta[property='og:price:currency']", attribute: "content" },
@@ -163,6 +168,7 @@ export const SCRAPE_ELEMENTS = Array.from(
       ...FINAL_URL_SOURCES,
       ...GITHUB_SOURCES,
       ...GOODREADS_SOURCES,
+      ...SPOTIFY_SOURCES,
       ...AMAZON_SOURCES,
       ...IMDB_SOURCES,
       ...DRIBBBLE_SOURCES,

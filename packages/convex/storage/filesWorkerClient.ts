@@ -58,6 +58,8 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "vector-query": 30_000,
   "vector-similar": 30_000,
   "store-remote-asset": SAFE_FETCH_MAX_DURATION_MS + 60_000,
+  // A paper's PDF, up to 100 MiB, from arxiv.org into R2.
+  "store-linked-pdf": 150_000,
 };
 
 export const isFilesWorkerConfigured = (): boolean =>

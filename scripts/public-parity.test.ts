@@ -104,6 +104,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_restore_card: { cardId: "card_1" },
   teak_v1_search_cards: { q: "x" },
   teak_v1_set_card_archived: { cardId: "card_1", isArchived: true },
+  teak_v1_save_card_pdf: { cardId: "card_1" },
   teak_v1_set_card_done: { cardId: "card_1", done: true },
   teak_v1_set_card_favorite: { cardId: "card_1", isFavorited: true },
   teak_v1_set_card_thumbnail: { cardId: "card_1", fileKey: "key_1" },
@@ -152,6 +153,7 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.restore": (c) => c.cards.restore("card_1"),
     "cards.search": (c) => c.cards.search({ q: "x" }),
     "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
+    "cards.savePdf": (c) => c.cards.savePdf("card_1"),
     "cards.setDone": (c) => c.cards.setDone("card_1", true),
     "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
     // Bytes would upload first; a finished upload reaches only the PUT.

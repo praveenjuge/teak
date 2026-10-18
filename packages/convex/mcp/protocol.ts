@@ -491,6 +491,15 @@ export const TEAK_V1_TOOLS = [
     ),
   },
   {
+    name: "teak_v1_save_card_pdf",
+    description:
+      "Save an arXiv link card's paper as its own document card, so its text is searchable and the PDF is kept in Teak. Saving the same link again returns that document (created: false). Fails with INVALID_INPUT when the card has no PDF (not an arXiv link, or a withdrawn paper) and IN_PROGRESS while another save of it runs. Counts toward the card limit.",
+    annotations: { title: "Save PDF", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
+  },
+  {
     name: "teak_v1_list_folders",
     description:
       "List folders by name with their ids, kinds and card counts (null for smart folders, which have a `query`). List a folder's cards with teak_v1_list_cards and `folder`; a smart folder lists what its query matches.",

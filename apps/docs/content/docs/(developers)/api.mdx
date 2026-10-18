@@ -237,6 +237,7 @@ and replace your local copy.
 | `/v1/cards/:cardId/thumbnail` | Use an uploaded image as a link card's image with PUT, or reset it with DELETE |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 | `/v1/cards/:cardId/done` | Mark a link done with POST, or not done with DELETE |
+| `/v1/cards/:cardId/save-pdf` | Save an arXiv link's PDF as a document card with POST |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
 | `/v1/exports` | Start a ZIP export of your cards with POST |
 | `/v1/exports/latest` | Read the latest export and its download link |
@@ -488,6 +489,22 @@ You can refresh a card once a minute and up to six cards a minute. Past that, th
 | `400` | `TYPE_MISMATCH` | The card isn't a link |
 | `404` | `NOT_FOUND` | Another account's card |
 | `409` | `CONFLICT` | The card is in Trash |
+
+## Save a paper's PDF
+
+`POST /v1/cards/:cardId/save-pdf` saves an arXiv link's paper as its own document card and returns `201` with `{ "cardId": "...", "created": true }`. The document is processed like an uploaded PDF, so its text becomes searchable. Saving the same link again returns `200` with the same `cardId` and `created: false`, so it is safe to retry. If that document is deleted for good, the next save makes a new one. The new card counts toward the free plan's card limit and the limit of 30 new cards a minute.
+
+| Status | Code | When |
+| --- | --- | --- |
+| `400` | `INVALID_INPUT` | The card isn't an arXiv link with a PDF, such as a withdrawn paper |
+| `400` | `CARD_LIMIT_REACHED` | The free plan's 200 cards |
+| `404` | `NOT_FOUND` | Another account's card |
+| `409` | `CONFLICT` | The card is in Trash |
+| `409` | `IN_PROGRESS` | A save of this PDF is still running; try again in a moment |
+| `413` | `FILE_TOO_LARGE` | The PDF is over 100 MB |
+| `415` | `UNSUPPORTED_TYPE` | arXiv didn't answer with a PDF |
+| `429` | `RATE_LIMITED` | 10 PDF saves and 30 new cards a minute; `retryAt` and `Retry-After` say when to try again |
+| `503` | `SERVICE_UNAVAILABLE` | Teak couldn't get the PDF: arXiv or Teak's file service didn't answer. Try again later |
 
 ## Replace a link's image
 

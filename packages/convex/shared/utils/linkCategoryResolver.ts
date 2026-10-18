@@ -277,6 +277,13 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "youtube.com", category: "tv", provider: "youtube" },
   { domain: "youtu.be", category: "tv", provider: "youtube" },
   { domain: "vimeo.com", category: "tv" },
+  {
+    domain: "wikipedia.org",
+    category: "article",
+    provider: "wikipedia",
+    pathIncludes: [/^\/wiki\/./],
+    description: "wikipedia article",
+  },
   { domain: "medium.com", category: "article", provider: "medium" },
   { domain: "substack.com", category: "article", provider: "substack" },
   { domain: "dev.to", category: "article" },
@@ -296,7 +303,7 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "hulu.com", category: "tv" },
   { domain: "eventbrite.com", category: "event" },
   { domain: "lu.ma", category: "event" },
-  { domain: "arxiv.org", category: "research" },
+  { domain: "arxiv.org", category: "research", provider: "arxiv" },
   { domain: "doi.org", category: "research" },
 ];
 

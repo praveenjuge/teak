@@ -177,6 +177,14 @@ const markCardDone = async (
   write(options.json ? card : formatCardLine(card), options);
 };
 
+const savePdf = async (id: string, options: GlobalOptions) => {
+  const saved = await client(options).cards.savePdf(id);
+  const line = saved.created
+    ? `Saved the PDF as ${saved.cardId}`
+    : `Already saved as ${saved.cardId}`;
+  write(options.json ? saved : line, options);
+};
+
 const createCard = async (
   content: string | undefined,
   options: ClientOptions & {
@@ -472,6 +480,13 @@ cards
       ...program.opts(),
       ...options,
     });
+  });
+cards
+  .command("save-pdf")
+  .argument("<id>")
+  .description("Save an arXiv link's paper as a document card")
+  .action(async (id, options) => {
+    await savePdf(id, { ...program.opts(), ...options });
   });
 cards
   .command("bulk")

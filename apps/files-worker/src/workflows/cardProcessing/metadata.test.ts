@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
-import type { FilesOp } from "@teak/files-protocol";
+import {
+  buildLinkMetadataPrompt,
+  type FilesOp,
+  MAX_AI_METADATA_INPUT_CHARS,
+} from "@teak/files-protocol";
+import { sha256Hex } from "../../lib";
 import {
   CARD_ID,
   createCardConvex,
@@ -23,6 +28,7 @@ import {
   generateCardMetadata,
   type MetadataOptions,
 } from "./metadata";
+import { rawMetadataKey } from "./rawMetadata";
 
 // AI metadata, as card processing and the AI backfill run it. The text and
 // link ops run for real against a fake Workers AI binding; the other ops
@@ -159,6 +165,39 @@ describe("link content for the prompt", () => {
     ],
   ])("falls back to the URL with %s", (_name, card, expected) => {
     expect(buildLinkContentParts(card)).toEqual([expected]);
+  });
+
+  test("adds the site's summary after the preview", () => {
+    expect(
+      buildLinkContentParts(
+        { metadata: { linkPreview: { status: "success", title: "T" } } },
+        "  An abstract.  "
+      )
+    ).toEqual(["Title: T", "Summary: An abstract."]);
+  });
+
+  test("cuts the site's summary so the whole prompt fits the model", () => {
+    const url = `https://en.wikipedia.org/wiki/${"x".repeat(500)}`;
+    const parts = buildLinkContentParts(
+      {
+        metadata: {
+          linkPreview: {
+            description: "d".repeat(2000),
+            status: "success",
+            title: "T",
+          },
+        },
+        url,
+      },
+      "s".repeat(9000)
+    );
+    const prompt = buildLinkMetadataPrompt(parts.join("\n"), url);
+
+    expect(prompt).toHaveLength(MAX_AI_METADATA_INPUT_CHARS);
+    expect(prompt).not.toContain("[Content truncated");
+    expect(parts.at(-1)).toStartWith("Summary: sss");
+    expect(prompt).toContain(parts.at(-1) ?? "missing");
+    expect(prompt).toContain(`URL: ${url}`);
   });
 });
 
@@ -738,6 +777,99 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Title: Example Site");
       expect(aiPrompts[0]).toContain("URL: https://example.com");
       expect(saved()).toMatchObject({ aiTags: ["website"] });
+    });
+
+    test("reads the site's summary that categorization kept", async () => {
+      const { generate } = setup({
+        metadata: {
+          linkCategory: {
+            category: "research",
+            fetchedAt: 1,
+            raw: { remote: { source: "arxiv", summary: "We propose X." } },
+            sourceUrl: "https://arxiv.org/abs/1706.03762",
+          },
+          linkPreview: { status: "success", title: "A paper" },
+        },
+        url: "https://arxiv.org/abs/1706.03762",
+      });
+      await generate("link");
+      expect(aiPrompts[0]).toContain("Title: A paper");
+      expect(aiPrompts[0]).toContain("Summary: We propose X.");
+    });
+
+    test("reads an archived summary back from R2", async () => {
+      const { bucket } = createMemoryBucket();
+      const raw = JSON.stringify({
+        remote: { source: "wikipedia", summary: "Leaves make sugar." },
+      });
+      const digest = await sha256Hex(raw);
+      const card = makeCard({});
+      const key = rawMetadataKey(
+        "",
+        { _id: card._id, userId: card.userId },
+        "linkCategory",
+        digest
+      );
+      await bucket.put(key, raw);
+      const { generate } = setup(
+        {
+          metadata: {
+            linkCategory: {
+              category: "article",
+              fetchedAt: 1,
+              rawSha256: digest,
+              rawStorageKey: key,
+              sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+            },
+            linkPreview: { status: "success", title: "Leaf" },
+          },
+          url: "https://en.wikipedia.org/wiki/Leaf",
+        },
+        {},
+        { BUCKET: bucket }
+      );
+      await generate("link");
+      expect(aiPrompts[0]).toContain("Summary: Leaves make sugar.");
+    });
+
+    test.each([
+      ["is missing", false],
+      ["doesn't match its digest", true],
+    ])("an archived summary that %s is left out", async (_name, stored) => {
+      const { bucket } = createMemoryBucket();
+      const digest = await sha256Hex("the archived details");
+      const card = makeCard({});
+      const key = rawMetadataKey(
+        "",
+        { _id: card._id, userId: card.userId },
+        "linkCategory",
+        digest
+      );
+      if (stored) {
+        await bucket.put(
+          key,
+          JSON.stringify({ remote: { summary: "Tampered summary." } })
+        );
+      }
+      const { generate } = setup(
+        {
+          metadata: {
+            linkCategory: {
+              category: "article",
+              fetchedAt: 1,
+              rawSha256: digest,
+              rawStorageKey: key,
+              sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+            },
+            linkPreview: { status: "success", title: "Leaf" },
+          },
+          url: "https://en.wikipedia.org/wiki/Leaf",
+        },
+        {},
+        { BUCKET: bucket }
+      );
+      expect((await generate("link")).mode).toBe("completed");
+      expect(aiPrompts[0]).not.toContain("Summary:");
     });
 
     test("uses the URL while the preview is still pending", async () => {

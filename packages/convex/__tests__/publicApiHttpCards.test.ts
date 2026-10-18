@@ -1259,6 +1259,102 @@ describe("publicApiHttp card endpoints", () => {
     expect(await response.json()).toEqual({ code, error: message });
   });
 
+  const savePdfRequest = (method = "POST") =>
+    new Request("https://example.com/v1/cards/card_1/save-pdf", {
+      method,
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    });
+  const savePdf = (runAction: ReturnType<typeof mock>, card = linkCard) =>
+    runHandler(
+      cardByIdV1,
+      {
+        runAction,
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce(card),
+      },
+      savePdfRequest()
+    );
+
+  test.each([
+    [true, 201],
+    [false, 200],
+  ])("/save-pdf answers created: %p with %p", async (created, status) => {
+    const runAction = mock().mockResolvedValueOnce({
+      cardId: "doc_1",
+      created,
+    });
+    const response = await savePdf(runAction);
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ cardId: "doc_1", created });
+    expect(runAction.mock.calls[0]?.[1]).toEqual({
+      cardId: "card_1",
+      userId: "user_1",
+    });
+  });
+
+  test.each([
+    ["INVALID_INPUT", "This card has no PDF to save.", 400],
+    ["CARD_LIMIT_REACHED", "Card limit reached.", 400],
+    ["NOT_FOUND", "Card not found", 404],
+    ["CONFLICT", "Restore this card from Trash before saving its PDF.", 409],
+    ["IN_PROGRESS", "This PDF is already being saved.", 409],
+    ["FILE_TOO_LARGE", "This PDF is too large.", 413],
+    ["UNSUPPORTED_TYPE", "arXiv didn't send a PDF for this paper.", 415],
+    ["SERVICE_UNAVAILABLE", "Couldn't get the PDF from arXiv.", 503],
+  ])("/save-pdf maps %s to %p", async (code, message, status) => {
+    const response = await savePdf(
+      mock().mockRejectedValueOnce(new ConvexError({ code, message }))
+    );
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error: message });
+  });
+
+  test("/save-pdf answers a rate limit with 429 and Retry-After", async () => {
+    const response = await savePdf(
+      mock().mockRejectedValueOnce(
+        new ConvexError({
+          code: "RATE_LIMITED",
+          message: "Too many cards created.",
+          retryAt: Date.now() + 30_000,
+        })
+      )
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+  });
+
+  test("/save-pdf on a card in Trash still reaches the save, which refuses it", async () => {
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({ code: "CONFLICT", message: "In Trash" })
+    );
+    const response = await savePdf(runAction, {
+      ...linkCard,
+      isDeleted: true,
+    } as typeof linkCard);
+    expect(response.status).toBe(409);
+    expect(runAction).toHaveBeenCalledTimes(1);
+  });
+
+  test("GET /save-pdf is not a route", async () => {
+    const runAction = mock();
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runAction,
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock().mockResolvedValueOnce("card_1"),
+      },
+      savePdfRequest("GET")
+    );
+    expect(response.status).toBe(404);
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
   const refreshRequest = (cardId = "card_1") =>
     new Request(`https://example.com/v1/cards/${cardId}/refresh`, {
       method: "POST",

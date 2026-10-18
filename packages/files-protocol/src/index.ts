@@ -65,6 +65,9 @@ export const FILES_OPS = [
   // Downloads a remote preview asset through the fetcher Container straight
   // into R2; see ./remoteAsset.
   "store-remote-asset",
+  // Save PDF: an arXiv paper's PDF straight into R2, from arxiv.org only;
+  // see ./linkedPdf.
+  "store-linked-pdf",
   // Fetches and scrapes a link's page through the fetcher Container, with a
   // Browser Run fallback; see ./linkPage.
   "fetch-link-page",
@@ -343,6 +346,7 @@ export type FilesImportMarkdownResult =
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
+export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";
 export * from "./remoteAsset";

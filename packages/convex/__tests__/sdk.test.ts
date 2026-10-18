@@ -409,6 +409,44 @@ describe("@teak/convex/sdk", () => {
     ]);
   });
 
+  test("saves a paper's PDF with POST /save-pdf", async () => {
+    const sent: Array<{ method: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        sent.push({ method: String(init?.method), url: String(url) });
+        return Promise.resolve(
+          Response.json({ cardId: "doc1", created: true }, { status: 201 })
+        );
+      }) as typeof fetch,
+    });
+    expect(await client.cards.savePdf("c1")).toEqual({
+      cardId: "doc1",
+      created: true,
+    });
+    expect(sent).toEqual([
+      { method: "POST", url: "https://api.example/v1/cards/c1/save-pdf" },
+    ]);
+  });
+
+  test("a save already running is an IN_PROGRESS error", async () => {
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: (() =>
+        Promise.resolve(
+          Response.json(
+            { code: "IN_PROGRESS", error: "This PDF is already being saved." },
+            { status: 409 }
+          )
+        )) as unknown as typeof fetch,
+    });
+    await expect(client.cards.savePdf("c1")).rejects.toMatchObject({
+      code: "IN_PROGRESS",
+    });
+  });
+
   test("starts tag changes and polls their progress", async () => {
     const sent: Array<{ body: unknown; method: string; url: string }> = [];
     const operation: TagOperation = {

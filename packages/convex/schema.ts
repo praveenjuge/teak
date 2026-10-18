@@ -76,6 +76,8 @@ export const linkCategoryMetadataValidator = v.object({
   price: v.optional(
     v.object({ amount: v.number(), currency: v.optional(v.string()) })
   ),
+  // An arXiv paper's PDF (`https://arxiv.org/pdf/<id>`), for Save PDF.
+  pdfUrl: v.optional(v.string()),
   raw: v.optional(v.any()),
   rawStorageKey: v.optional(v.string()),
   rawSha256: v.optional(v.string()),
@@ -1003,6 +1005,29 @@ export default defineSchema({
       searchField: "text",
       filterFields: ["userId"],
     }),
+  // Save PDF provenance: the document card made from a link card's arXiv
+  // PDF (card/linkedPdfs.ts). A row is claimed `pending` while the PDF
+  // downloads, so concurrent saves make one document; it goes with either
+  // card, so a deleted document can be saved again.
+  linkedPdfs: defineTable({
+    userId: v.string(),
+    sourceCardId: v.id("cards"),
+    pdfUrl: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("done"),
+      v.literal("failed")
+    ),
+    /** Where the PDF is stored; kept across retries so one object is written. */
+    fileKey: r2KeyValidator,
+    claimToken: v.string(),
+    cardId: v.optional(v.id("cards")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sourceCardId", ["sourceCardId"])
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"]),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

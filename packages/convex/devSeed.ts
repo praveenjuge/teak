@@ -34,6 +34,11 @@ import {
 import { LINK_CATEGORIES, type LinkCategory } from "./shared/linkCategories";
 import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
+import type { RemoteDetails } from "./workflows/steps/categorization/remote/index";
+import {
+  classifyLinkCategory,
+  enrichLinkCategory,
+} from "./workflows/steps/categorization/rules";
 
 const link = (
   url: string,
@@ -536,6 +541,7 @@ export const FOLDER_SCENARIOS = [
   "ocr-documents",
   "ocr-links",
   "done-states",
+  "rich-sites",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1630,6 +1636,267 @@ const doneStatesPack = (): FolderScenarioPack => {
     ],
   };
 };
+/**
+ * Links whose site added details: Wikipedia articles (English, a
+ * disambiguation page, Japanese, a missing page), arXiv papers (one with a
+ * PDF to save, an old-style id, a withdrawn paper, 300 authors), Spotify
+ * (track, album, playlist, a region-locked track), an Apple Music album, and
+ * books with an ISBN-13, an ISBN-10, none, a bad check digit and one Open
+ * Library doesn't know. Details go through the categorization merge as a
+ * site's answer would, so the page's own facts still win.
+ */
+const richSitesPack = (): FolderScenarioPack => {
+  const scenario = "rich-sites" as const;
+  const updated = "Oct 15, 2026";
+  const link = (
+    index: number,
+    url: string,
+    preview: { description?: string; siteName: string; title: string },
+    remote?: RemoteDetails,
+    raw: { selector: string; value: string }[] = []
+  ) => {
+    const marked = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    const linkPreview = {
+      status: "success" as const,
+      url: marked,
+      ...preview,
+      ...(raw.length
+        ? {
+            raw: raw.map(({ selector, value }) => ({
+              selector,
+              results: [{ attributes: [{ name: "content", value }] }],
+            })),
+          }
+        : {}),
+    };
+    const card = {
+      _id: `${scenario}-${index}`,
+      type: "link",
+      url: marked,
+      metadata: { linkPreview },
+    };
+    const classification = classifyLinkCategory(card);
+    return {
+      ...folderScenarioCard(scenario, index, "", []),
+      type: "link" as const,
+      content: marked,
+      url: marked,
+      metadataTitle: preview.title,
+      metadata: {
+        linkPreview,
+        ...(classification
+          ? {
+              linkCategory: enrichLinkCategory(card, classification, {
+                remote,
+              }),
+            }
+          : {}),
+      },
+    };
+  };
+  const wikipedia = { siteName: "Wikipedia" };
+  const arxiv = { siteName: "arXiv.org" };
+  const isbnTag = (value: string) => [
+    { selector: "meta[property='books:isbn']", value },
+  ];
+  const openLibrary = (isbn: string, pages: string): RemoteDetails => ({
+    source: "open_library",
+    facts: [
+      { label: "Authors", value: "Example Author" },
+      { label: "Pages", value: pages },
+      { label: "Publisher", value: "Example Press" },
+      { label: "Published", value: "October 1, 1988" },
+      { label: "ISBN", value: isbn },
+    ],
+  });
+  const paper = (
+    authors: string,
+    published: string,
+    subject: string,
+    extra: Partial<RemoteDetails> = {}
+  ): RemoteDetails => ({
+    source: "arxiv",
+    facts: [
+      { label: "Authors", value: authors },
+      { label: "Published", value: published },
+      { label: "Subject", value: subject },
+      ...(extra.facts ?? []),
+    ],
+    summary: "An abstract the AI summary reads.",
+    ...(extra.pdfUrl ? { pdfUrl: extra.pdfUrl } : {}),
+  });
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Rich sites pack", []),
+      link(
+        index++,
+        "https://en.wikipedia.org/wiki/Photosynthesis",
+        { ...wikipedia, title: "Photosynthesis" },
+        {
+          source: "wikipedia",
+          facts: [
+            {
+              label: "About",
+              value: "Biological process to convert light into chemical energy",
+            },
+            { label: "Updated", value: updated },
+          ],
+          summary: "Photosynthesis turns light into chemical energy.",
+        }
+      ),
+      link(
+        index++,
+        "https://en.wikipedia.org/wiki/Mercury",
+        { ...wikipedia, title: "Mercury" },
+        {
+          source: "wikipedia",
+          facts: [
+            { label: "Page", value: "Disambiguation" },
+            { label: "Updated", value: "Oct 13, 2026" },
+          ],
+        }
+      ),
+      link(
+        index++,
+        "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1",
+        { ...wikipedia, title: "富士山" },
+        {
+          source: "wikipedia",
+          facts: [
+            {
+              label: "About",
+              value:
+                "静岡県と山梨県にまたがる活火山で、日本の最高峰。古くから信仰と芸術の対象として親しまれてきた山",
+            },
+            { label: "Updated", value: updated },
+          ],
+        }
+      ),
+      link(index++, "https://en.wikipedia.org/wiki/Zzzz_no_such_page", {
+        ...wikipedia,
+        title: "Wikipedia has no page with this name",
+      }),
+      link(
+        index++,
+        "https://arxiv.org/abs/1706.03762",
+        { ...arxiv, title: "A paper with a PDF to save" },
+        paper(
+          "Author One, Author Two, Author Three et al.",
+          "Jun 12, 2017",
+          "cs.CL",
+          {
+            pdfUrl: "https://arxiv.org/pdf/1706.03762",
+          }
+        )
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/hep-th/9901001",
+        { ...arxiv, title: "A paper with an old-style id" },
+        paper("Author One", "Jan 1, 1999", "hep-th", {
+          facts: [{ label: "DOI", value: "10.1143/PTP.101.1155" }],
+          pdfUrl: "https://arxiv.org/pdf/hep-th/9901001",
+        })
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/0910.4008",
+        { ...arxiv, title: "A withdrawn paper" },
+        paper("Author One", "Oct 21, 2009", "math.FA")
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/2101.00001",
+        { ...arxiv, title: "A paper with 300 authors" },
+        paper("Author 1, Author 2, Author 3 et al.", "Jan 1, 2021", "hep-ex", {
+          pdfUrl: "https://arxiv.org/pdf/2101.00001",
+        })
+      ),
+      ...(
+        [
+          [
+            "track/4uLU6hMCjMI75M1A2tKUQC",
+            "A track",
+            "Track",
+            "Example Artist",
+          ],
+          ["album/1DFixLWuPkv3KT3TnV35m3", "An album", "Album", "Example Band"],
+          ["playlist/37i9dQZF1DXcBWIGoYBM5M", "A playlist", "Playlist", ""],
+          [
+            "track/0000000000000000000000",
+            "A region-locked track",
+            "Track",
+            "Example Artist",
+          ],
+        ] as const
+      ).map(([path, title, type, artist]) =>
+        link(
+          index++,
+          `https://open.spotify.com/${path}`,
+          { siteName: "Spotify", title },
+          {
+            source: "spotify",
+            facts: [
+              ...(artist ? [{ label: "Artist", value: artist }] : []),
+              { label: "Type", value: type },
+            ],
+          }
+        )
+      ),
+      link(
+        index++,
+        "https://music.apple.com/us/album/example-album/1700000000",
+        { siteName: "Apple Music", title: "An album on Apple Music" },
+        {
+          source: "apple_music",
+          facts: [
+            { label: "Artist", value: "Example Artist" },
+            { label: "Type", value: "Album" },
+            { label: "Released", value: "Oct 27, 2023" },
+          ],
+        }
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6693",
+        { siteName: "Goodreads", title: "A book with an ISBN-13" },
+        openLibrary("9780140328721", "96"),
+        isbnTag("9780140328721")
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6694",
+        { siteName: "Goodreads", title: "A book with only an ISBN-10" },
+        openLibrary("9780140328721", "112"),
+        isbnTag("0140328726")
+      ),
+      link(index++, "https://www.goodreads.com/book/show/6695", {
+        siteName: "Goodreads",
+        title: "A book with no ISBN",
+      }),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6696",
+        {
+          siteName: "Goodreads",
+          title: "A book whose ISBN check digit is wrong",
+        },
+        undefined,
+        isbnTag("9780140328722")
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6697",
+        { siteName: "Goodreads", title: "A book Open Library doesn't know" },
+        undefined,
+        isbnTag("9781234567897")
+      ),
+    ],
+  };
+};
+
 export const DONE_STATES_IMAGES_SIZE = 1000;
 const DONE_STATES_IMAGES_PAGE_SIZE = 200;
 
@@ -2354,6 +2621,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       'One link per category, every other one marked done; done links in Trash and Archive; a link with no category yet; done links with 300-character, RTL and CJK titles; and a smart folder `is:todo folder:"Reading list"`.',
     folders: doneStatesPack,
+  },
+  "rich-sites": {
+    description:
+      "Links with details from their sites: Wikipedia (English, a disambiguation page, Japanese, a missing page), arXiv (a paper with a PDF to save, an old-style id, a withdrawn paper, 300 authors), Spotify (track, album, playlist, region-locked), Apple Music, and books with an ISBN-13, an ISBN-10, none, a bad check digit and one Open Library doesn't know. Search `#scenario-rich-sites`.",
+    folders: richSitesPack,
   },
   "done-states-images": {
     description:

@@ -69,7 +69,11 @@ import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
+import {
+  CardMetadataPanel,
+  type CardTagsControl,
+  type SavePdfControl,
+} from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -210,6 +214,8 @@ interface CardModalProps {
    */
   returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
+  /** Saves an arXiv link's PDF as a document card; arXiv links only. */
+  savePdf?: SavePdfControl;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
   /** Archives or unarchives the card; the dialog then closes. */
@@ -246,6 +252,7 @@ export function CardModal({
   openLink,
   downloadFile,
   saveChanges,
+  savePdf,
   saveState,
   tags,
   isDownloading,
@@ -844,6 +851,7 @@ export function CardModal({
                     }
                     onRestore={() => void handleRestore(closeAfterAction)}
                     onTagClick={onTagClick}
+                    savePdf={savePdf}
                     tags={{ ...tags, inputRef: tagInputRef }}
                   />
                 </aside>

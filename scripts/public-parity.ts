@@ -202,6 +202,13 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     cli: ["cards done", "done"],
   },
   {
+    operationId: "saveCardPdf",
+    feature: "Save a paper's PDF",
+    mcp: ["teak_v1_save_card_pdf"],
+    sdk: ["cards.savePdf"],
+    cli: ["cards save-pdf"],
+  },
+  {
     operationId: "setCardFavorite",
     feature: "Favorite a card",
     mcp: ["teak_v1_set_card_favorite"],

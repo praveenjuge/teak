@@ -45,6 +45,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_rename_tag",
       "teak_v1_reset_card_thumbnail",
       "teak_v1_restore_card",
+      "teak_v1_save_card_pdf",
       "teak_v1_search_cards",
       "teak_v1_set_card_archived",
       "teak_v1_set_card_done",
@@ -91,6 +92,12 @@ test("MCP lists and calls every public tool", async () => {
   expect(unmarked.isError).not.toBe(true);
   expect(unmarked.structuredContent.completedAt).toBeNull();
   expect(await doneIds()).not.toContain(linkId);
+  const noPdf: any = await client.callTool({
+    name: "teak_v1_save_card_pdf",
+    arguments: { cardId },
+  });
+  expect(noPdf.isError).toBe(true);
+  expect(JSON.stringify(noPdf.content)).toContain("INVALID_INPUT");
   // teak_v1_create_upload needs Files storage, which the local stack lacks.
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],

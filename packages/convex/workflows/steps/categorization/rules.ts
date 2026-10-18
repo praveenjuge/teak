@@ -21,6 +21,11 @@ import {
   pickFields,
 } from "./enrichment";
 import { enrichProvider, providerSupportsCategory } from "./providers/index";
+import {
+  fillFacts,
+  type RemoteDetails,
+  type RemoteLookupInput,
+} from "./remote/index";
 
 // What kind of thing a link is (a recipe, a repo, a product) and the facts
 // its page states, from the URL, the preview and the page's JSON-LD. Pure:
@@ -203,10 +208,68 @@ export const parseStructuredData = (html: string): StructuredDataResult => {
   return { entities };
 };
 
+const enrichmentSourceUrl = (card: CategorizationContextCard): string => {
+  const linkPreview =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+  return card.url || linkPreview?.finalUrl || linkPreview?.url || "";
+};
+
+/**
+ * What the remote layer needs to pick a site and ask it about the link: the
+ * page's scraped tags and its JSON-LD (read this run, else stored).
+ */
+export const remoteLookupInput = (
+  card: CategorizationContextCard,
+  classification: CategoryClassificationResult,
+  structuredData: StructuredDataResult | null
+): RemoteLookupInput => {
+  const sourceUrl = enrichmentSourceUrl(card);
+  const linkPreview =
+    card.metadata?.linkPreview?.status === "success"
+      ? card.metadata.linkPreview
+      : undefined;
+  // JSON-LD stored for another URL describes another page.
+  const linkCategory = card.metadata?.linkCategory;
+  const stored =
+    linkCategory?.sourceUrl === sourceUrl
+      ? linkCategory.raw?.structured
+      : undefined;
+  return {
+    category: classification.category,
+    entities: structuredData?.entities ?? (stored ? [stored] : []),
+    provider: detectProvider(sourceUrl, classification.providerHint),
+    rawMap: buildRawSelectorMap(linkPreview?.raw),
+    sourceUrl,
+  };
+};
+
+type StoredRemoteDetails = RemoteDetails & { sourceUrl: string };
+
+/** Site details an earlier pass stored for this same URL. */
+const storedRemoteDetails = (
+  raw: Record<string, unknown> | undefined,
+  sourceUrl: string
+): RemoteDetails | null => {
+  const stored = raw?.remote as StoredRemoteDetails | undefined;
+  if (!stored || typeof stored !== "object" || stored.sourceUrl !== sourceUrl) {
+    return null;
+  }
+  const { sourceUrl: _sourceUrl, ...details } = stored;
+  return details;
+};
+
 export const enrichLinkCategory = (
   card: CategorizationContextCard,
   classification: CategoryClassificationResult,
   options: {
+    /**
+     * What the link's site said this run (Wikipedia, arXiv, Spotify, Apple
+     * Music, Open Library). Null or absent keeps what an earlier pass
+     * stored, so a site that is down never takes facts away.
+     */
+    remote?: RemoteDetails | null;
     /** JSON-LD read from the page this run; null or absent when not read. */
     structuredData?: StructuredDataResult | null;
   } = {}
@@ -216,7 +279,7 @@ export const enrichLinkCategory = (
       ? card.metadata.linkPreview
       : undefined;
 
-  const sourceUrl = card.url || linkPreview?.finalUrl || linkPreview?.url || "";
+  const sourceUrl = enrichmentSourceUrl(card);
   let imageUrl = linkPreview?.imageUrl;
   const facts: LinkCategoryDetail[] = [];
 
@@ -300,6 +363,20 @@ export const enrichLinkCategory = (
         : undefined);
   }
 
+  // A site's own details fill what the page left out.
+  const remote = options.remote ?? storedRemoteDetails(raw, sourceUrl);
+  if (remote) {
+    fillFacts(facts, remote.facts);
+    if (remote.imageUrl && !imageUrl) {
+      imageUrl = remote.imageUrl;
+    }
+    raw = { ...(raw ?? {}), remote: { ...remote, sourceUrl } };
+  } else if (raw && "remote" in raw) {
+    // Stored for another URL: its summary mustn't feed this page's AI input.
+    const { remote: _stale, ...rest } = raw;
+    raw = rest;
+  }
+
   // The page's JSON-LD states the price more reliably than its selectors.
   const price = structuredPrice ?? providerEnrichment?.price;
 
@@ -320,6 +397,9 @@ export const enrichLinkCategory = (
   }
   if (price) {
     metadata.price = price;
+  }
+  if (remote?.pdfUrl) {
+    metadata.pdfUrl = remote.pdfUrl;
   }
 
   return metadata;

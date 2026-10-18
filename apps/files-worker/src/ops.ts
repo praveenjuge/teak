@@ -55,6 +55,7 @@ import {
   runInspect,
 } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { parseLinkedPdfParams, storeLinkedPdf } from "./linkedPdf";
 import { fetchLinkPage, parseLinkPageParams } from "./linkPage";
 import {
   extractAnimationPalette,
@@ -746,6 +747,11 @@ const dispatch = async (
       return success(
         requestId,
         await storeRemoteAsset(env, parseRemoteAssetParams(params))
+      );
+    case "store-linked-pdf":
+      return success(
+        requestId,
+        await storeLinkedPdf(env, parseLinkedPdfParams(params))
       );
     case "embed-upsert":
       return success(

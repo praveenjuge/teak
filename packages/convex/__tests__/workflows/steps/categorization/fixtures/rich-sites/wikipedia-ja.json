@@ -1,0 +1,49 @@
+{
+  "type": "standard",
+  "title": "富士山",
+  "displaytitle": "<span lang=\"ja\" dir=\"ltr\"><span class=\"mw-page-title-main\">富士山</span></span>",
+  "namespace": {
+    "id": 0,
+    "text": ""
+  },
+  "wikibase_item": "Q39231",
+  "titles": {
+    "canonical": "富士山",
+    "normalized": "富士山",
+    "display": "<span lang=\"ja\" dir=\"ltr\"><span class=\"mw-page-title-main\">富士山</span></span>"
+  },
+  "pageid": 5149,
+  "thumbnail": {
+    "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Mt.Fuji_from_Mierula.jpg/330px-Mt.Fuji_from_Mierula.jpg?utm_source=ja.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "width": 330,
+    "height": 247
+  },
+  "originalimage": {
+    "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Mt.Fuji_from_Mierula.jpg/3840px-Mt.Fuji_from_Mierula.jpg?utm_source=ja.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "width": 4610,
+    "height": 3457
+  },
+  "lang": "ja",
+  "dir": "ltr",
+  "revision": "111200261",
+  "tid": "7a7fa545-bb92-11f1-9a30-17d114c42639",
+  "timestamp": "2026-09-28T23:15:22Z",
+  "description": "静岡県・山梨県にある山",
+  "description_source": "central",
+  "content_urls": {
+    "desktop": {
+      "page": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1",
+      "revisions": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1?action=history",
+      "edit": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1?action=edit",
+      "talk": "https://ja.wikipedia.org/wiki/%E3%83%8E%E3%83%BC%E3%83%88:%E5%AF%8C%E5%A3%AB%E5%B1%B1"
+    },
+    "mobile": {
+      "page": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1",
+      "revisions": "https://ja.wikipedia.org/wiki/Special:History/%E5%AF%8C%E5%A3%AB%E5%B1%B1",
+      "edit": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1?action=edit",
+      "talk": "https://ja.wikipedia.org/wiki/%E3%83%8E%E3%83%BC%E3%83%88:%E5%AF%8C%E5%A3%AB%E5%B1%B1"
+    }
+  },
+  "extract": "富士山（ふじさん）は、日本の活火山である。標高は3775.56 m、山体の最高地点は3776.12 mで、日本最高峰（剣ヶ峰）の独立峰で、その優美な風貌は日本国外でも日本の象徴として広く知られている。山梨県（富士吉田市、南都留郡鳴沢村）と静岡県（富士宮市、富士市、裾野市、御殿場市、駿東郡小山町）に跨る。",
+  "extract_html": "<p><b>富士山</b>（ふじさん）は、日本の活火山である。標高は3775.56 m、山体の最高地点は3776.12 mで、日本最高峰（剣ヶ峰）の独立峰で、その優美な風貌は日本国外でも日本の象徴として広く知られている。山梨県（富士吉田市、南都留郡鳴沢村）と静岡県（富士宮市、富士市、裾野市、御殿場市、駿東郡小山町）に跨る。</p>"
+}

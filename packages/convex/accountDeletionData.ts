@@ -171,7 +171,15 @@ export const ancillaryPage = internalMutation({
     for (const row of relevanceResults) {
       await ctx.db.delete(row._id);
     }
+    const linkedPdfs = await ctx.db
+      .query("linkedPdfs")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of linkedPdfs) {
+      await ctx.db.delete(row._id);
+    }
     return (
+      linkedPdfs.length > 0 ||
       vaultSetups.length > 0 ||
       semanticResults.length > 0 ||
       relevanceResults.length > 0 ||

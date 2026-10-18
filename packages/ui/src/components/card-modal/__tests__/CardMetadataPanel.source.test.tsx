@@ -24,7 +24,10 @@ const textCard = (extra: Partial<CardModalCard> = {}) =>
     ...extra,
   }) as unknown as CardModalCard;
 
-const render = (card: CardModalCard) =>
+const render = (
+  card: CardModalCard,
+  savePdf?: { isSaving: boolean; save: () => void }
+) =>
   renderToStaticMarkup(
     <CardMetadataPanel
       card={card}
@@ -34,6 +37,7 @@ const render = (card: CardModalCard) =>
       onNotesChange={() => undefined}
       onPermanentDelete={() => undefined}
       onRestore={() => undefined}
+      savePdf={savePdf}
       tags={{
         addTag: () => undefined,
         removeAiTag: () => undefined,
@@ -62,4 +66,28 @@ test("a card without a source, or with an unsafe one, has no From row", () => {
   expect(render(textCard({ sourceUrl: "javascript:alert(1)" }))).not.toContain(
     ">From<"
   );
+});
+
+// Which cards get Save PDF is up to ConnectedCardModal; the panel shows the
+// control it is given.
+test("a Save PDF control shows Save PDF, and Saving PDF… while it saves", () => {
+  const paper = textCard({ type: "link", url: "https://arxiv.org/abs/1" });
+  const idle = render(paper, { isSaving: false, save: () => undefined });
+  expect(idle).toContain("Save PDF");
+  expect(idle).not.toContain('disabled=""');
+
+  const saving = render(paper, { isSaving: true, save: () => undefined });
+  expect(saving).toContain("Saving PDF…");
+  expect(saving).toContain('aria-busy="true"');
+  expect(saving).toContain('disabled=""');
+});
+
+test("without a Save PDF control, or in Trash, there is no Save PDF", () => {
+  expect(render(textCard({ type: "link" }))).not.toContain("Save PDF");
+  expect(
+    render(textCard({ type: "link", isDeleted: true }), {
+      isSaving: false,
+      save: () => undefined,
+    })
+  ).not.toContain("Save PDF");
 });

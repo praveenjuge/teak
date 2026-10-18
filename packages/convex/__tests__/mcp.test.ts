@@ -64,6 +64,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_rename_tag",
   "teak_v1_reset_card_thumbnail",
   "teak_v1_restore_card",
+  "teak_v1_save_card_pdf",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
   "teak_v1_set_card_done",
@@ -716,6 +717,19 @@ describe("Convex MCP endpoint", () => {
         ) {
           return Promise.resolve(new Response(null, { status: 204 }));
         }
+        if (operation.path.endsWith("/save-pdf")) {
+          const created = !captured
+            .slice(0, -1)
+            .some((earlier) => earlier.path.endsWith("/save-pdf"));
+          return Promise.resolve(
+            Response.json(
+              { cardId: "doc_1", created },
+              {
+                status: created ? 201 : 200,
+              }
+            )
+          );
+        }
         return Promise.resolve(
           Response.json({
             cardId: null,
@@ -811,6 +825,23 @@ describe("Convex MCP endpoint", () => {
       { method: "POST", path: "/v1/cards/card_1/done" },
       { method: "DELETE", path: "/v1/cards/card_1/done" },
     ]);
+
+    const saved = await call("teak_v1_save_card_pdf", { cardId: "card_1" });
+    expect(captured[10]).toMatchObject({
+      method: "POST",
+      path: "/v1/cards/card_1/save-pdf",
+    });
+    expect(saved.content?.[0]?.text).toBe("Saved the PDF as card doc_1");
+    expect(saved.structuredContent).toEqual({
+      cardId: "doc_1",
+      created: true,
+    });
+    const again = await call("teak_v1_save_card_pdf", { cardId: "card_1" });
+    expect(again.content?.[0]?.text).toBe("The PDF is already card doc_1");
+    expect(again.structuredContent).toEqual({
+      cardId: "doc_1",
+      created: false,
+    });
   });
 
   test("tag tools start tag changes and poll their progress", async () => {

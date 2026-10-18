@@ -35,6 +35,7 @@ export default defineConfig({
       "./importUploadDeletion.test.ts",
       "./mediaFacts.test.ts",
       "./documentText.test.ts",
+      "./linkedPdfs.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",

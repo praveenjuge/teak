@@ -169,7 +169,7 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 17 | Replace a link card's thumbnail: built, plan deleted | Smarter cards | — |
 | 18 | New link categories: built, plan deleted | Smarter cards | 15 |
 | 19 | Fetchers for social posts: built, plan deleted | Smarter cards | 18 |
-| 20 | [Richer details for more sites](2026-10-14-roadmap-v2-20-rich-sites.md) | Smarter cards | 18 |
+| 20 | Richer details for more sites: built, plan deleted | Smarter cards | 18 |
 | 21 | [YouTube and Vimeo transcripts](2026-10-14-roadmap-v2-21-video-captions.md) | Smarter cards | v1-13 |
 | 22 | [Podcast transcripts](2026-10-14-roadmap-v2-22-podcast-transcripts.md) | Smarter cards | 21 |
 | 23 | [Save by email](2026-10-14-roadmap-v2-23-email-in.md) | Capture | — |
@@ -224,4 +224,7 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 12 | The privacy policy wording for search by meaning is approved, and shipped with phase 12 |
 | 15 | Done states are for link cards only |
 | 15 | Marking done is `POST`/`DELETE /v1/cards/{cardId}/done`, not `PATCH` like favorite |
+| 20 | Site lookups run in the Files Worker's categorize step (card processing moved there after the plan was written), through the same SSRF-checked transport as social posts. The arXiv API throttle is a Convex rate limit the step asks for a slot from |
+| 20 | Save PDF downloads in the Files Worker (`store-linked-pdf`), from arxiv.org only, straight into R2; Convex has no pinned fetch. So phase 20 deploys the Files Worker before Convex |
+| 20 | A paper's PDF link is `linkCategory.pdfUrl`, beside the facts, because clients never receive `raw`. The site's own details are kept in `raw.remote` so a site that is down never takes facts away |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

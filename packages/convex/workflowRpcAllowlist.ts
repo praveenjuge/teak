@@ -15,6 +15,9 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "adminUsage:replaceDailyUsage",
   // WorkOS events the webhook queue gave up on (src/queues/workosEvents.ts).
   "workosWebhook:recordUndeliverableWebhook",
+  // The categorize step's arXiv API slot: a deployment-wide rate limit, not
+  // tied to a card (workflows/steps/categorization/mutations.ts).
+  "workflows/steps/categorization/mutations:takeArxivSlot",
   // Card processing (apps/files-worker/src/workflows/cardProcessing) and the
   // AI backfill queue. Every mutation runs guarded by the card's revision.
   "adminAccess:getAiGate",

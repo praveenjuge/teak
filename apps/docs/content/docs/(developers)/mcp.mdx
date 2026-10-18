@@ -201,6 +201,10 @@ type CardFilters = {
   - Input: `{ cardId: string, done: boolean }`
   - Marks a link card read, watched, listened, bought, cooked, played or done (the word follows its `linkCategory`), or not done; `completedAt` says when. Only link cards can be marked; repeating a call changes nothing.
   - Output: updated card object
+- `teak_v1_save_card_pdf`
+  - Input: `{ cardId: string }`
+  - Saves an arXiv link card's paper as its own document card. Saving the same link again returns that card with `created: false`. Fails with `INVALID_INPUT` when the card has no PDF and `IN_PROGRESS` while another save of it runs. Counts toward the card limit.
+  - Output: `{ cardId, created }`
 - `teak_v1_set_card_archived`
   - Input: `{ cardId: string, isArchived: boolean }`
   - Archives the card (hidden from listings and search, not deleted) or returns it to the library. List archived cards with `archived: "only"` in `CardFilters`.
