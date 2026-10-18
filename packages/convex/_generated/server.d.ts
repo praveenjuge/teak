@@ -31,8 +31,10 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
+  readonly EMAIL_INBOUND_SIGNING_SECRET: string | undefined;
   readonly FILES_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
+  readonly INBOUND_EMAIL_DOMAIN: string | undefined;
   readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
   readonly POLAR_SERVER: string | undefined;

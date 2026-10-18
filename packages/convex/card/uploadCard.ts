@@ -163,6 +163,8 @@ export const createUploadedCardForUser = async (
     fileType?: string;
     storedFileSize?: number;
     storedFileType?: string;
+    /** Where the file came from, kept as `metadata.source` (e.g. "email"). */
+    metadataSource?: string;
     notes?: string | null;
     source?: CardCreationSource;
     tags?: string[];
@@ -273,7 +275,9 @@ export const createUploadedCardForUser = async (
       metadataTitle: args.fileName,
       notes: args.notes ?? undefined,
       tags: args.tags,
-      metadata: undefined,
+      metadata: args.metadataSource
+        ? { source: args.metadataSource }
+        : undefined,
       processingStatus: buildInitialProcessingStatus({
         now,
         cardType,

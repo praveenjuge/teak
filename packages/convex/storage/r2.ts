@@ -25,6 +25,7 @@ export const buildR2ObjectKey = (args: {
   cardId?: string;
   role: string;
   fileName?: string;
+  objectId?: string;
 }) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
 
 /** Queues an object for deletion in the caller's transaction. */

@@ -5,6 +5,7 @@ const SKELETON_ROWS: [title: string, width: string][] = [
   ["Email", "w-44"],
   ["Usage", "w-16"],
   ["Plan", "w-28"],
+  ["Save by email", "w-10"],
   ["Security", "w-16"],
   ["Import/Export Data", "w-16"],
   ["Theme", "w-24"],

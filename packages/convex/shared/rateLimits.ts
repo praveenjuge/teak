@@ -76,6 +76,20 @@ export const RATE_LIMIT_CONFIG = {
     period: HOUR,
     capacity: 20,
   },
+  // Save by email: mail one account saves an hour (past it, mail is dropped
+  // silently), and how often its Settings switch can change.
+  inboundEmailPerAccount: {
+    kind: "token bucket",
+    rate: 60,
+    period: HOUR,
+    capacity: 60,
+  },
+  inboundEmailSettings: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 10,
+  },
   // arXiv's API asks for at most one request every 3 seconds per client;
   // the whole deployment shares it (workflows/steps/categorization).
   arxivApi: {

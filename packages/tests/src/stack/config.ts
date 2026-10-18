@@ -16,6 +16,9 @@ export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
 export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";
 export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
+/** Test-only; signs what the Email Worker posts to the local backend. */
+export const E2E_EMAIL_INBOUND_SIGNING_SECRET =
+  "teak-e2e-email-inbound-signing-secret-local-only-0001";
 export const EMULATOR_COOKIE_PASSWORD =
   "teak-e2e-emulator-cookie-password-0001";
 
@@ -39,6 +42,7 @@ export const emulatorDeploymentVars = (ports: StackPorts) => ({
   WORKOS_API_BASE_URL: stackUrls(ports).emulatorOrigin,
   WORKOS_ENVIRONMENT_ID: EMULATOR_ENVIRONMENT_ID,
   WORKOS_WEBHOOK_SECRET: EMULATOR_WEBHOOK_SECRET,
+  EMAIL_INBOUND_SIGNING_SECRET: E2E_EMAIL_INBOUND_SIGNING_SECRET,
 });
 
 // The E2E web app's settings. The stack passes them as process environment,

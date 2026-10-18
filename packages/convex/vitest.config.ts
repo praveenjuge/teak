@@ -38,6 +38,7 @@ export default defineConfig({
       "./linkedPdfs.test.ts",
       "./arxivSlots.test.ts",
       "./podcastTranscripts.test.ts",
+      "./inboundEmail.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",

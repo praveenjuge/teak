@@ -42,6 +42,13 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
+  // Save by email receipts past any sender's redelivery window.
+  cleanupInboundEmailReceipts: {
+    name: "cleanup-inbound-email-receipts",
+    schedule: "20 3 * * *",
+    everyMs: DAY_MS,
+    runsOn: "convex",
+  },
   // After the 00:15 AI usage rollup has written yesterday's final totals.
   adminDailySnapshot: {
     name: "admin-daily-snapshot",

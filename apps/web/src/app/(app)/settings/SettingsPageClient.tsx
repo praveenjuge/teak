@@ -6,6 +6,7 @@ import { captureClientException } from "@teak/convex/shared/client-telemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
+import { useQuery } from "@teak/ui/convex-query-hooks";
 import { useSettingsController } from "@teak/ui/hooks";
 import { parseSettingsDialogParam } from "@teak/ui/lib/commandPalette";
 import {
@@ -26,6 +27,9 @@ export function SettingsPageClient() {
   const checkoutOpenedRef = useRef(false);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
+  const inboundEmail = useQuery(api.inbound.settings.getMine, {});
+  const enableInboundEmail = useMutation(api.inbound.settings.enable);
+  const disableInboundEmail = useMutation(api.inbound.settings.disable);
   const router = useRouter();
   const dialogParam = useSearchParams().get("dialog");
   const [importExportRequest, setImportExportRequest] =
@@ -130,6 +134,11 @@ export function SettingsPageClient() {
       exportState={settings.exportState}
       hasPremium={settings.hasPremium}
       importExportRequest={importExportRequest}
+      inboundEmail={{
+        onDisable: () => disableInboundEmail({}),
+        onEnable: () => enableInboundEmail({}),
+        state: inboundEmail,
+      }}
       keys={settings.keys}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}

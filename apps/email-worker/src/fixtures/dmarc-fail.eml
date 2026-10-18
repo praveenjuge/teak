@@ -1,0 +1,17 @@
+ARC-Seal: i=1; a=rsa-sha256; s=2024; d=cloudflare-email.net; cv=none; b=Zm9v
+ARC-Message-Signature: i=1; a=rsa-sha256; s=2024; d=cloudflare-email.net; c=relaxed/relaxed; h=From:To:Subject; bh=YmFy; b=YmF6
+ARC-Authentication-Results: i=1; mx.cloudflare.net;
+ dkim=pass header.d=gmail.com header.s=20230601 header.b=AbC123;
+ dmarc=fail header.from=gmail.com policy.dmarc=none;
+ spf=pass (mx.cloudflare.net: domain of ada.example@gmail.com designates 209.85.128.41 as permitted sender) smtp.mailfrom=ada.example@gmail.com;
+ arc=none smtp.remote-ip=209.85.128.41
+Received: from mail-wm1.google.com (mail-wm1.google.com [209.85.128.41]) by mx.cloudflare.net
+From: Ada Example <ada.example@gmail.com>
+To: save@in.teakvault.com
+Subject: Spoof
+Date: Tue, 14 Oct 2026 09:30:00 +0000
+Message-ID: <msg-67668@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+https://example.com/articles/tide-pools

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
+import { resolveSizeBucket } from "../shared/analytics";
 import { captureBackendEvent } from "./posthog";
 
 export const emitCardOutcome = internalAction({
@@ -68,6 +69,62 @@ export const emitCardProcessingFailed = internalAction({
       error_class: args.errorClass,
       stage: args.stage,
     });
+    return null;
+  },
+});
+
+/** Save by email's server events (inbound/); never content or addresses. */
+export const emitInboundEmail = internalAction({
+  args: {
+    enabled: v.optional(v.boolean()),
+    event: v.union(
+      v.literal("email_received"),
+      v.literal("email_attachment_saved"),
+      v.literal("email_attachment_skipped"),
+      v.literal("email_save_toggled")
+    ),
+    kind: v.optional(v.string()),
+    outcome: v.optional(
+      v.union(
+        v.literal("saved"),
+        v.literal("dropped_limit"),
+        v.literal("dropped_rate"),
+        v.literal("deferred_rate"),
+        v.literal("empty"),
+        v.literal("duplicate")
+      )
+    ),
+    reason: v.optional(
+      v.union(
+        v.literal("format"),
+        v.literal("size"),
+        v.literal("limit"),
+        v.literal("upload_failed")
+      )
+    ),
+    sizeBytes: v.optional(v.number()),
+    userId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (_ctx, args) => {
+    if (args.event === "email_received" && args.outcome) {
+      await captureBackendEvent(args.event, args.userId, {
+        outcome: args.outcome,
+      });
+    } else if (args.event === "email_attachment_saved") {
+      await captureBackendEvent(args.event, args.userId, {
+        kind: args.kind ?? "other",
+        size_bucket: resolveSizeBucket(args.sizeBytes ?? 0),
+      });
+    } else if (args.event === "email_attachment_skipped" && args.reason) {
+      await captureBackendEvent(args.event, args.userId, {
+        reason: args.reason,
+      });
+    } else if (args.event === "email_save_toggled") {
+      await captureBackendEvent(args.event, args.userId, {
+        enabled: args.enabled === true,
+      });
+    }
     return null;
   },
 });

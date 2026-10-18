@@ -14,9 +14,29 @@ export type CardCreationSource =
   | "drag_drop"
   | "import"
   | "paste"
+  | "email"
   | "unknown";
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
+
+/**
+ * `dropped_limit` is the free card limit, `dropped_rate` the 60-an-hour
+ * inbound limit (both silent), `deferred_rate` the card creation bucket (the
+ * sender retries).
+ */
+export type EmailReceivedOutcome =
+  | "saved"
+  | "dropped_limit"
+  | "dropped_rate"
+  | "deferred_rate"
+  | "empty"
+  | "duplicate";
+
+export type EmailAttachmentSkipReason =
+  | "format"
+  | "size"
+  | "limit"
+  | "upload_failed";
 
 /** Where a link was marked done: its card dialog, or the public API. */
 export type CardDoneSource = "panel" | "api";
@@ -106,6 +126,14 @@ export interface ServerEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
+  /** Save by email: what happened to one email from an account's owner. */
+  email_received: { outcome: EmailReceivedOutcome };
+  /** A file attached to a saved email became its own card. */
+  email_attachment_saved: { kind: string; size_bucket: SizeBucket };
+  /** An attachment that wasn't saved, and why. */
+  email_attachment_skipped: { reason: EmailAttachmentSkipReason };
+  /** Save by email turned on or off in Settings. */
+  email_save_toggled: { enabled: boolean };
   link_pdf_saved: { source: LinkPdfSaveSource };
   mcp_tool_called: {
     duration_ms: number;

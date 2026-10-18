@@ -166,6 +166,7 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     },
   ],
   "files-worker": [],
+  "email-worker": [],
 };
 
 const reportWith = (
