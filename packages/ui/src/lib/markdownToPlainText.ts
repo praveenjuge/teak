@@ -60,20 +60,32 @@ const applyRules = (text: string, rules: readonly StripRule[]) =>
   );
 
 const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|<>])/g;
-/** Characters the strip rules read as Markdown, escaped in a link's title. */
+/** Characters the strip rules read as Markdown, hidden in a link's title. */
 const TITLE_PUNCTUATION = /[\\`*_{}[\]()#+\-.!~|<>]/g;
 const PLACEHOLDER_BASE = "".charCodeAt(0);
+/** Covers every ASCII character, so every `TITLE_PUNCTUATION` placeholder. */
 const PLACEHOLDER = /[-]/g;
 
+const toPlaceholder = (character: string) =>
+  String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0));
+
+/**
+ * The first `maxLength` characters, stripped, with escaped punctuation kept
+ * literal. Escapes become placeholders before the cut, so it can't split one.
+ * An escape is at most two characters, so `2 * maxLength + 1` of the source is
+ * enough, and a pair that first cut splits falls past `maxLength`.
+ */
 function withEscapedPunctuation(
   text: string,
+  maxLength: number,
   strip: (text: string) => string
 ): string {
-  const protectedText = text.replace(
-    ESCAPED_PUNCTUATION,
-    (_match, character: string) =>
-      String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0))
-  );
+  const protectedText = text
+    .slice(0, 2 * maxLength + 1)
+    .replace(ESCAPED_PUNCTUATION, (_match, character: string) =>
+      toPlaceholder(character)
+    )
+    .slice(0, maxLength);
   return strip(protectedText).replace(PLACEHOLDER, (placeholder) =>
     String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
   );
@@ -97,13 +109,14 @@ export function markdownToPlainText(
     return "";
   }
   // `[[Title|teak:<id>]]` card links read as their titles, kept literal.
+  // Placeholders keep a title's length, so the cut can't split an escape.
   const source = mayHaveCardLinks(input)
     ? replaceCardLinkTokens(
         withoutCutToken(input, maxLength + CARD_LINK_SLACK),
-        (title) => title.replace(TITLE_PUNCTUATION, "\\$&")
+        (title) => title.replace(TITLE_PUNCTUATION, toPlaceholder)
       )
     : input;
-  return withEscapedPunctuation(source.slice(0, maxLength), (text) => {
+  return withEscapedPunctuation(source, maxLength, (text) => {
     const lines = applyRules(text, BLOCK_RULES)
       .split(/\r?\n/)
       .map((rawLine) => {
