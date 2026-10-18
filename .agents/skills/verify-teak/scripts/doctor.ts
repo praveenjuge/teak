@@ -102,25 +102,46 @@ const checkBackend = async (pushing: boolean) => {
             "packages/convex",
           ])
         ).exitCode;
-  // The lease records a push's commit, not its working tree, so only a push
-  // from this checkout is known to carry exactly this checkout's code.
   const self = await leaseHolder(ROOT);
-  if (changed !== 0) {
+  const verdict = backendVerdict({
+    codeMatches: changed === 0,
+    pushedBySelf: last.label === self.label,
+    pushing,
+  });
+  const takeOver =
+    "take over with `bun run dev --stop && bun run dev --detach --push`";
+  if (verdict === "differs") {
     report(
       "warn",
-      `backend: live code is ${last.label} at ${last.commit}, and this checkout's packages/convex differs from it. Backend changes here are not live; take over with \`bun run dev --stop && bun run dev --detach --push\` before verifying them.`
+      `backend: live code is ${last.label} at ${last.commit}, and this checkout's packages/convex differs from it. Backend changes here are not live; ${takeOver} before verifying them.`
     );
-  } else if (last.label === self.label) {
+  } else if (verdict === "current") {
     report(
       "ok",
-      `backend: live code is this checkout's packages/convex (pushed at ${last.commit})`
+      `backend: this checkout is pushing its packages/convex (last push at ${last.commit})`
     );
   } else {
     report(
       "warn",
-      `backend: live code was pushed by ${last.label} at ${last.commit}. Its committed packages/convex matches this checkout's, but it may include that checkout's uncommitted changes. Fine for frontend work; for backend work take over with \`bun run dev --stop && bun run dev --detach --push\`.`
+      `backend: live code was pushed by ${last.label} at ${last.commit}, and nothing is syncing this checkout's tree now. Its committed packages/convex matches, but the push may have carried uncommitted changes. Fine for frontend work; for backend work ${takeOver}.`
     );
   }
+};
+
+/**
+ * How the live backend relates to this checkout. The lease records a push's
+ * commit, not its working tree, so the backend is known to be this tree only
+ * while this checkout's `convex dev` is pushing it.
+ */
+export const backendVerdict = (input: {
+  codeMatches: boolean;
+  pushedBySelf: boolean;
+  pushing: boolean;
+}): "current" | "differs" | "unverified" => {
+  if (!input.codeMatches) {
+    return "differs";
+  }
+  return input.pushedBySelf && input.pushing ? "current" : "unverified";
 };
 
 /**
