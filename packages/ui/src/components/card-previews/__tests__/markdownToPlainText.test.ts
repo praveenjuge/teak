@@ -104,6 +104,12 @@ describe("markdownToPlainText", () => {
     expect(preview).toBe("See my_");
   });
 
+  test("never ends a cut escape in a stray backslash", () => {
+    const preview = markdownToPlainText("see my\\_file", { maxLength: 7 });
+    expect(preview).not.toContain("\\");
+    expect(preview).toBe("see my_");
+  });
+
   test("never shows a link token the length cut splits", () => {
     const id = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b";
     const preview = markdownToPlainText(`[[a|teak:${id}]] `.repeat(300), {
