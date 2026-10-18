@@ -246,6 +246,10 @@ const runVisionJson = async <T>(
               // max_tokens: on dense images it spent the whole cap and
               // answered with empty or cut-off content.
               chat_template_kwargs: { enable_thinking: false },
+              // Some images send it repeating one line of `text` until the
+              // cap cuts the JSON off. A light penalty stops that and still
+              // keeps text that really repeats; 0.6 started dropping it.
+              frequency_penalty: 0.3,
             },
             aiRunOptions(env)
           )
