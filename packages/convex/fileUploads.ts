@@ -21,8 +21,8 @@ import {
 import { ensureObjectOwnership } from "./storage/ownership";
 import {
   buildR2ObjectKey,
-  deleteObject,
   PENDING_UPLOAD_CARD_ID,
+  queueObjectDeletion,
 } from "./storage/r2";
 
 export const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
@@ -400,7 +400,7 @@ export const consumeSessionBySourceKey = internalMutation({
     if (session) {
       await ctx.db.delete(session._id);
     }
-    await deleteObject(ctx, sourceKey);
+    await queueObjectDeletion(ctx, sourceKey);
     return null;
   },
 });

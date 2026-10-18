@@ -119,7 +119,6 @@ describe("MasonryGrid keyboard actions", () => {
     await press(cardElement("card_b"), "x");
     await press(cardElement("card_b"), "t");
     expect(onAddTags).not.toHaveBeenCalled();
-    // The dialog's portal mounts a few ticks after the key is handled.
     await waitFor(
       () => document.body.textContent?.includes("Add tags to 2 cards") ?? false
     );

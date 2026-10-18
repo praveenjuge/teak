@@ -86,7 +86,6 @@ describe("WorkOS webhook ingress", () => {
     ["a GET", { method: "GET" }, 405],
     ["no signature", { headers: { "workos-signature": "" } }, 401],
     [
-      // Convex's verifier would already refuse it as too old.
       "a signature older than three minutes",
       { headers: { "workos-signature": `t=${String(NOW - 181_000)}, v1=abc` } },
       401,
@@ -260,7 +259,6 @@ describe("WorkOS event delivery", () => {
 describe("WorkOS events dead letters", () => {
   test("hands each undeliverable webhook to its deployment to verify and record", async () => {
     const convex = createFakeConvex({
-      // The second one's signature doesn't verify.
       "workosWebhook:recordUndeliverableWebhook": (args) => ({
         recorded: args.body === BODY,
       }),

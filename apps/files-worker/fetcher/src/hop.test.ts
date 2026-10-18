@@ -13,7 +13,6 @@ const setup = (respond: (url: string) => Response) => {
   };
   const handle = createFetcherHandler({
     pinnedFetch,
-    // A hop never resolves names: the Worker sends the addresses.
     resolveDns: () => Promise.reject(new Error("unexpected lookup")),
   });
   const send = (path: string, body: Record<string, unknown>) =>

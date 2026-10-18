@@ -1,13 +1,7 @@
-/** Longest tag, in UTF-16 units after trimming, like card tag edits. */
 export const MAX_TAG_NAME_LENGTH = 64;
 
-/** Most cards counted for an operation's total when it starts. */
 export const TAG_OPERATION_COUNT_LIMIT = 10_000;
 
-/**
- * A running operation that hasn't made progress for this long has stopped
- * (a lost batch): the app offers Retry, and starting another replaces it.
- */
 export const TAG_OPERATION_STALL_MS = 2 * 60_000;
 
 export type TagOperationKind = "rename" | "merge" | "delete";
@@ -22,33 +16,22 @@ export const TAG_ERROR_MESSAGES = {
   OPERATION_NOT_FOUND: "Tag operation not found",
 } as const;
 
-/** The tag as matched everywhere: trimmed and lowercased. */
 export const tagKey = (tag: string): string => tag.trim().toLowerCase();
 
-/**
- * Reserved tag keys: a card with one of them as a user tag is hidden from
- * every list and search until a search names one of them (`#secret`).
- */
 export const HIDDEN_TAG_KEYS = ["secret", "hidden"] as const;
 
 const hiddenTagKeys: ReadonlySet<string> = new Set(HIDDEN_TAG_KEYS);
 
-/** Whether a tag list holds a reserved tag, in any case or spacing. */
 export const isHiddenTagList = (
   tags: readonly string[] | null | undefined
 ): boolean => (tags ?? []).some((tag) => hiddenTagKeys.has(tagKey(tag)));
 
-/**
- * Whether a loaded card is hidden. Only user tags count; AI tags never hide
- * a card. The tag check also covers a card the `isHidden` backfill hasn't
- * reached yet.
- */
+// The tag check covers cards the `isHidden` backfill hasn't reached.
 export const isCardHidden = (card: {
   isHidden?: true;
   tags?: readonly string[];
 }): boolean => card.isHidden === true || isHiddenTagList(card.tags);
 
-/** Why a tag name is refused, or null when it is fine. */
 export const explainInvalidTagName = (name: string): string | null => {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -60,13 +43,10 @@ export const explainInvalidTagName = (name: string): string | null => {
   return null;
 };
 
-/**
- * The longest tag being changed: a tag's lowercase key can be longer than
- * the name (64 of "İ" lowercase to 128 code units), and the app passes keys.
- */
+// Lowercasing can lengthen a tag (64 "İ" become 128 UTF-16 code units), and
+// the app passes lowercase keys.
 export const MAX_TAG_KEY_LENGTH = 256;
 
-/** Why the tag being changed is refused, or null when it is fine. */
 export const explainInvalidTagSource = (name: string): string | null => {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -80,21 +60,11 @@ export const explainInvalidTagSource = (name: string): string | null => {
 export const tagExistsMessage = (name: string): string =>
   `A tag named "${name.trim()}" already exists. Merge into it instead.`;
 
-export interface TagRewrite {
-  /** The tag being changed, matched ignoring case. */
-  from: string;
-  kind: TagOperationKind;
-  /** The new name (rename) or the tag merged into (merge). */
-  to?: string;
-}
+export type TagRewrite =
+  | { kind: "delete"; from: string }
+  | { kind: "rename"; from: string; to: string }
+  | { kind: "merge"; from: string; to: string };
 
-/**
- * A card's tag list after a library-wide change, or null when the change
- * leaves it as it is. Tags match ignoring case and the result has no two
- * tags that differ only by case. Rename writes the new name exactly as
- * given; merge keeps the casing a card already uses for the target. Every
- * other tag keeps its place and casing.
- */
 export const rewriteTagList = (
   tags: readonly string[] | undefined,
   rewrite: TagRewrite
@@ -107,7 +77,7 @@ export const rewriteTagList = (
     return null;
   }
   let result: string[];
-  if (rewrite.kind === "delete" || rewrite.to === undefined) {
+  if (rewrite.kind === "delete") {
     result = tags.filter((tag) => tagKey(tag) !== fromKey);
   } else {
     const to = rewrite.to.trim();

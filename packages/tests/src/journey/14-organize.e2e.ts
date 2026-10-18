@@ -1,4 +1,10 @@
-import { clientFor, createAccount, expectVault, gotoApp } from "../helpers/app";
+import {
+  clientFor,
+  createAccount,
+  expectVault,
+  gotoApp,
+  onScreenText,
+} from "../helpers/app";
 import { runCli } from "../helpers/cli";
 import { connectMcp } from "../helpers/mcp";
 import { expect, test } from "../helpers/test";
@@ -92,19 +98,11 @@ test("organize a library across the web, API, CLI and MCP", {
     await save.getByRole("button", "Save smart folder").click();
     await screen.getByRole("link", "Inspiration").click();
     await expect(screen.getByPlaceholder("Search Inspiration")).toBeVisible();
-    // The search results stay mounted but hidden behind the smart folder,
-    // with the same cards, so each query is for the copy on screen.
-    await expect(
-      screen.getByText(first, { exact: false, visible: true })
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(
-      screen.getByText(second, { exact: false, visible: true })
-    ).not.toBeVisible();
+    await expect(onScreenText(screen, first)).toBeVisible({ timeout: 30_000 });
+    await expect(onScreenText(screen, second)).not.toBeVisible();
     const later = `${marker} saved later`;
     await runCli(["add", later, "--tags", "inspiration"], apiKey);
-    await expect(
-      screen.getByText(later, { exact: false, visible: true })
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(onScreenText(screen, later)).toBeVisible({ timeout: 30_000 });
     const smart = (await api.folders.list()).items.find(
       (item) => item.name === "Inspiration"
     );
@@ -147,9 +145,7 @@ test("organize a library across the web, API, CLI and MCP", {
       )
     ).toEqual([first]);
     await screen.getByRole("link", "Archive").click();
-    await expect(
-      screen.getByText(first, { exact: false, visible: true })
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(onScreenText(screen, first)).toBeVisible({ timeout: 30_000 });
   } finally {
     await mcp.close();
   }

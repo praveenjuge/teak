@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { ConvexError } from "convex/values";

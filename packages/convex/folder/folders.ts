@@ -29,12 +29,7 @@ import {
   renameFolderInSearchQuery,
 } from "../shared/search/qualifiers";
 
-/** Cards one deletion batch detaches before it schedules the next. */
 export const FOLDER_DELETE_BATCH_SIZE = 50;
-/**
- * How long a deleted folder can be restored. Its cards are only detached
- * after this, so Undo brings the folder back exactly as it was.
- */
 export const FOLDER_DELETE_UNDO_MS = 10_000;
 
 export const folderReturnValidator = v.object({
@@ -42,7 +37,6 @@ export const folderReturnValidator = v.object({
   name: v.string(),
   color: v.optional(folderColorValidator),
   kind: v.union(v.literal("manual"), v.literal("smart")),
-  /** A smart folder's search, written the canonical way. */
   query: v.optional(v.string()),
   activeCardCount: v.number(),
   createdAt: v.number(),
@@ -71,7 +65,7 @@ export const toFolderSummary = (folder: Doc<"folders">): FolderSummary => ({
   updatedAt: folder.updatedAt,
 });
 
-const folderNotFound = () =>
+export const folderNotFound = () =>
   new ConvexError({
     code: "NOT_FOUND",
     message: FOLDER_ERROR_MESSAGES.NOT_FOUND,
@@ -88,10 +82,6 @@ const requireSignedIn = async (ctx: QueryCtx | MutationCtx) => {
   return user.teakUserId;
 };
 
-/**
- * The user's folder by id, or null when it is missing, another user's, or
- * being deleted. `id` may be any string: one that is not a folder id is null.
- */
 export const getFolderForUser = async (
   ctx: QueryCtx,
   userId: string,
@@ -108,7 +98,6 @@ export const getFolderForUser = async (
   return folder;
 };
 
-/** The user's folder, or a NOT_FOUND error. */
 export const requireFolderForUser = async (
   ctx: QueryCtx,
   userId: string,
@@ -121,7 +110,6 @@ export const requireFolderForUser = async (
   return folder;
 };
 
-/** Every folder the user has, sorted by name. */
 export const listFoldersForUser = async (
   ctx: QueryCtx,
   userId: string
@@ -172,10 +160,6 @@ const assertNameAvailable = async (
   }
 };
 
-/**
- * Inserts an empty folder, manual unless a smart folder's `query` is given;
- * callers check the name, the query and the cap.
- */
 export const insertFolder = (
   ctx: MutationCtx,
   userId: string,
@@ -197,11 +181,6 @@ export const insertFolder = (
     updatedAt: now,
   });
 
-/**
- * Folder lookups remembered across the cards of one import batch: name key
- * to folder id (null when the name can't be used), and the user's folder
- * count once read.
- */
 export interface ImportFolderCache {
   count?: number;
   ids: Map<string, Id<"folders"> | null>;
@@ -211,13 +190,6 @@ export const newImportFolderCache = (): ImportFolderCache => ({
   ids: new Map(),
 });
 
-/**
- * The user's manual folders with these names, creating the missing ones, for
- * cards made by an import. Names match ignoring case, so a later batch of the
- * same import (or a second import) reuses the folder. A name that is invalid,
- * belongs to a smart folder, or would pass the folder cap is skipped: the
- * card is still imported, just without that folder.
- */
 export const getOrCreateImportFolderIds = async (
   ctx: MutationCtx,
   userId: string,
@@ -268,12 +240,6 @@ export const getOrCreateImportFolderIds = async (
   return ids.slice(0, MAX_FOLDERS_PER_CARD);
 };
 
-/**
- * A smart folder's search as stored (canonical), or an INVALID_INPUT error:
- * empty, too long, or a `folder:` that is not one of the user's manual
- * folders. A smart folder's cards come from its search, so `folder:` naming
- * another smart folder would never match.
- */
 export const normalizeSmartFolderQuery = async (
   ctx: QueryCtx,
   userId: string,
@@ -339,7 +305,6 @@ export const createFolderForUser = async (
   userId: TeakUserId,
   args: {
     color?: FolderColor;
-    /** "smart" needs a `query`; manual folders take none. */
     kind?: FolderKind;
     name: string;
     query?: string;
@@ -388,11 +353,9 @@ export const updateFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
   args: {
-    /** A palette color, or null to clear it. Undefined leaves it as is. */
     color?: FolderColor | null;
     folderId: string;
     name?: string;
-    /** A smart folder's new search; manual folders refuse one. */
     query?: string;
   }
 ): Promise<FolderSummary> => {
@@ -458,12 +421,6 @@ export const updateFolderForUser = async (
   return toFolderSummary(updated);
 };
 
-/**
- * Hides the folder at once. After FOLDER_DELETE_UNDO_MS its cards are
- * detached in batches: each takes the folder off up to
- * FOLDER_DELETE_BATCH_SIZE cards (their folder rows follow through the card
- * sync), and the last one removes the folder.
- */
 export const deleteFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -472,9 +429,6 @@ export const deleteFolderForUser = async (
   const folder = await requireFolderForUser(ctx, userId, folderId);
   const deletingAt = Date.now();
   await ctx.db.patch("folders", folder._id, { deletingAt });
-  // The batch carries this delete's time, so a batch left over from an
-  // earlier delete that was undone stands down instead of cutting this
-  // delete's Undo window short.
   await ctx.scheduler.runAfter(
     FOLDER_DELETE_UNDO_MS,
     internal.folder.folders.deleteFolderBatch,
@@ -483,11 +437,6 @@ export const deleteFolderForUser = async (
   return folder._id;
 };
 
-/**
- * Brings back a folder deleted less than FOLDER_DELETE_UNDO_MS ago, before
- * any of its cards were detached. Fails if the window has passed or another
- * folder took its name meanwhile.
- */
 export const restoreFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -515,14 +464,10 @@ export const restoreFolderForUser = async (
 export const deleteFolderBatchHandler = async (
   ctx: MutationCtx,
   folderId: Id<"folders">,
-  deletingAt?: number
+  deletingAt: number
 ): Promise<{ done: boolean }> => {
   const folder = await ctx.db.get("folders", folderId);
-  if (
-    !folder ||
-    folder.deletingAt === undefined ||
-    (deletingAt !== undefined && folder.deletingAt !== deletingAt)
-  ) {
+  if (!folder || folder.deletingAt !== deletingAt) {
     return { done: true };
   }
   if (await accountDeletionOwnsRows(ctx, folder.userId)) {
@@ -551,7 +496,7 @@ export const deleteFolderBatchHandler = async (
   if (rows.length === FOLDER_DELETE_BATCH_SIZE) {
     await ctx.scheduler.runAfter(0, internal.folder.folders.deleteFolderBatch, {
       folderId,
-      deletingAt: folder.deletingAt,
+      deletingAt,
     });
     return { done: false };
   }
@@ -560,8 +505,7 @@ export const deleteFolderBatchHandler = async (
 };
 
 export const deleteFolderBatch = internalMutation({
-  // deletingAt is optional so batches scheduled before it existed still run.
-  args: { folderId: v.id("folders"), deletingAt: v.optional(v.number()) },
+  args: { folderId: v.id("folders"), deletingAt: v.number() },
   returns: v.object({ done: v.boolean() }),
   handler: (ctx, { folderId, deletingAt }) =>
     deleteFolderBatchHandler(ctx, folderId, deletingAt),

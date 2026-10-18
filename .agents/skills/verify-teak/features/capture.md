@@ -16,7 +16,7 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 ## How to get to it (user POV)
 
 - The composer, textbox "Markdown content", at the top of `/` (Everything only).
-- Press `N` anywhere to focus the composer, going to `/` first.
+- Press `N` anywhere to focus the composer. From another view it goes to `/?compose=1`; the library drops the `compose` param from the URL and focuses the composer.
 - The sidebar button "New" (the "+" next to the logo).
 - Press `U` to open the file picker.
 - Command palette (Ctrl+K): "New note", "Upload files".

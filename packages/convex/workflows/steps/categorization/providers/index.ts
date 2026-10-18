@@ -61,10 +61,6 @@ export const enrichProvider = (
   return handler.enrich(rawMap);
 };
 
-/**
- * Whether a category keeps a provider's facts: true for providers without a
- * handler, since there is nothing to lose.
- */
 export const providerSupportsCategory = (
   provider: string | undefined,
   category: LinkCategory

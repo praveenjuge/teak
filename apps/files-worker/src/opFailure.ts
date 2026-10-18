@@ -42,7 +42,6 @@ const OP_FAILURES = {
 
 export type OpFailureCode = keyof typeof OP_FAILURES;
 
-/** An operation failure with a known protocol answer; its message is the code. */
 export class OpFailure extends Error {
   readonly code: OpFailureCode;
 

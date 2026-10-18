@@ -22,7 +22,6 @@ const keyFor = (suffix: string) =>
 const KEY_A = keyFor("0001");
 const KEY_B = keyFor("0002");
 const STRANGER_KEY = keyFor("9999");
-/** KEY_A's owner, as the edge identity charged for the request. */
 const KNOWN_USER = { key: "user:teak-user-1", source: "api_key" };
 
 const streamedMcpPost = (body: ReadableStream<Uint8Array>): Request =>
@@ -75,8 +74,9 @@ const deps = async (): Promise<EdgeIdentityDeps> => {
 const env = (
   limits: { api?: RateLimiter; unknown?: RateLimiter } = {}
 ): EdgeRateLimitEnv & { api: FakeLimiter; unknown: FakeLimiter } => {
-  const api = (limits.api as FakeLimiter) ?? new FakeLimiter(2);
-  const unknown = (limits.unknown as FakeLimiter) ?? new FakeLimiter(3);
+  const api = (limits.api as FakeLimiter | undefined) ?? new FakeLimiter(2);
+  const unknown =
+    (limits.unknown as FakeLimiter | undefined) ?? new FakeLimiter(3);
   return {
     API_PUBLIC_HOST: "teakvault.com",
     API_REQUEST_LIMITER: api,

@@ -1,4 +1,3 @@
-/** Canonical text/link metadata policy shared by Convex and Files Worker. */
 export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
@@ -97,7 +96,6 @@ export const parseTextMetadata = (
   }
 };
 
-/** Only bounded numeric diagnostics may cross the private operation boundary. */
 export const readFilesAiGenerationFacts = (
   value: unknown
 ): FilesAiGenerationFacts | null => {
@@ -144,28 +142,21 @@ export const readFilesAiGenerationFacts = (
   return result;
 };
 
-/** Most characters of text read from an image that are kept. */
 export const MAX_IMAGE_OCR_CHARS = 4000;
-/** The image op's answer, shared by Files Worker and Convex. */
 export interface FilesImageMetadataResult extends FilesTextMetadataResult {
-  /** Legible text in the image, in reading order; absent when there is none. */
   text?: string;
 }
 
-/** `extract-image-text`: the image's legible text, `""` when none. */
 export interface FilesImageTextResult {
   text: string;
 }
 
-/** Pages of a scanned PDF `ocr-pdf-pages` reads at most. */
 export const FILES_PDF_OCR_MAX_PAGES = 3;
 
-/** `ocr-pdf-pages`: always this shape, even when nothing was read. */
 export interface FilesPdfOcrResult {
   /** `null` when the renderer couldn't open the PDF. */
   pageCount: number | null;
   pagesRead: number;
-  /** The pages' text, tidied like an image's; `""` when none is legible. */
   text: string;
 }
 
@@ -177,12 +168,6 @@ const TRAILING_SPACE = /[^\S\n]+$/gmu;
 const SPACE_RUNS = /(\S)[^\S\n]{2,}/gu;
 const BLANK_LINE_RUNS = /\n{3,}/gu;
 
-/**
- * Text read from an image, tidied: line breaks kept (a code screenshot stays
- * readable), runs of spaces inside a line and blank-line runs collapsed, cut
- * at `MAX_IMAGE_OCR_CHARS`. `undefined` when fewer than 3 letters or digits
- * remain, which is noise rather than text.
- */
 export const normalizeImageOcrText = (value: string): string | undefined => {
   const tidy = value
     .replace(LINE_BREAKS, "\n")

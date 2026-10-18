@@ -59,29 +59,16 @@ const TYPE_ICONS: Record<CardType, LucideIcon> = {
 };
 
 interface ViewMenuProps {
-  /** Card types narrowing the results, shown checked. */
   activeTypes: readonly CardType[];
-  /** Offers Best match, which needs words to match: a search's default. */
   canSortByRelevance?: boolean;
   onClearTypes?: () => void;
-  /** Offers "Save as smart folder…" while there is a search to keep. */
   onSaveSearch?: () => void;
-  /** Shows the Sort section when set. */
   onSortChange?: (sort: LibrarySort) => void;
-  /** Shows the card type section when set. */
   onToggleType?: (type: CardType) => void;
-  /**
-   * Offers Revisit in the Sort section; `"empty"` shows it disabled, as
-   * there are no cards to deal.
-   */
   revisit?: "empty" | "ready";
   sort?: LibrarySort;
 }
 
-/**
- * What the View button reads as: "View: Link, Image, oldest first" (or
- * "shuffled", or "revisiting").
- */
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
   sort: LibrarySort = "newest"
@@ -97,12 +84,6 @@ export const viewMenuLabel = (
   return parts.length > 0 ? `View: ${parts.join(", ")}` : "View";
 };
 
-/**
- * One quiet button for how the library is shown: which card types (pick
- * several; the menu stays open while you pick), the order, and saving the
- * search as a smart folder. A count (or a dot, for a changed order) shows
- * when the view differs from the default.
- */
 export function ViewMenu({
   activeTypes,
   canSortByRelevance = false,
@@ -114,7 +95,6 @@ export function ViewMenu({
   sort = "newest",
 }: ViewMenuProps) {
   const count = activeTypes.length;
-  // Best match is how a search starts, so it is not a changed order.
   const changedOrder = sort !== "newest" && sort !== "relevance";
   const changed = count > 0 || changedOrder;
   return (
@@ -147,7 +127,7 @@ export function ViewMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        {onToggleType && (
+        {onToggleType ? (
           <>
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
               Show
@@ -180,10 +160,10 @@ export function ViewMenu({
               </DropdownMenuItem>
             )}
           </>
-        )}
-        {onSortChange && (
+        ) : null}
+        {onSortChange ? (
           <>
-            {onToggleType && <DropdownMenuSeparator />}
+            {onToggleType ? <DropdownMenuSeparator /> : null}
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
               Sort
             </DropdownMenuLabel>
@@ -191,11 +171,11 @@ export function ViewMenu({
               onValueChange={(value) => onSortChange(value as LibrarySort)}
               value={sort}
             >
-              {canSortByRelevance && (
+              {canSortByRelevance ? (
                 <DropdownMenuRadioItem value="relevance">
                   {SORT_LABELS.relevance}
                 </DropdownMenuRadioItem>
-              )}
+              ) : null}
               <DropdownMenuRadioItem value="newest">
                 {SORT_LABELS.newest}
               </DropdownMenuRadioItem>
@@ -205,7 +185,7 @@ export function ViewMenu({
               <DropdownMenuRadioItem value="shuffle">
                 {SORT_LABELS.shuffle}
               </DropdownMenuRadioItem>
-              {revisit && (
+              {revisit ? (
                 <DropdownMenuRadioItem
                   className="flex-wrap"
                   disabled={revisit === "empty"}
@@ -219,11 +199,11 @@ export function ViewMenu({
                     </span>
                   )}
                 </DropdownMenuRadioItem>
-              )}
+              ) : null}
             </DropdownMenuRadioGroup>
           </>
-        )}
-        {onSaveSearch && (
+        ) : null}
+        {onSaveSearch ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onSaveSearch}>
@@ -231,16 +211,12 @@ export function ViewMenu({
               Save as smart folder…
             </DropdownMenuItem>
           </>
-        )}
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-/**
- * Shown beside the View menu while shuffling: a new seed, a new order. The
- * old order stays one Back away.
- */
 export function ReshuffleButton({ onReshuffle }: { onReshuffle: () => void }) {
   return (
     <TooltipProvider delayDuration={300}>

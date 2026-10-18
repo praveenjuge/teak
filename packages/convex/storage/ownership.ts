@@ -11,7 +11,17 @@ import { accountDeletionOwnsRows } from "../accountDeletion";
 import { isFilesWorkerConfigured } from "./filesWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
-// Exact keys, never inferred from the 32-bit legacy owner prefix.
+const accountClosedOrClosing = async (ctx: MutationCtx, userId: string) => {
+  const owner = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
+    .unique();
+  return (
+    owner?.deletedAt !== undefined ||
+    (await accountDeletionOwnsRows(ctx, userId))
+  );
+};
+
 export const registerOwnedObject = async (
   ctx: MutationCtx,
   userId: string,
@@ -19,17 +29,7 @@ export const registerOwnedObject = async (
   exportJobId?: Id<"exportJobs">
 ) => {
   assertR2KeyInNamespace(key);
-  const owner = await ctx.db
-    .query("users")
-    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
-    .unique();
-  // This internal inventory never authorizes an owner. Callers carry owner IDs
-  // already bound to their card/job/session; missing mirrors may still have
-  // legacy diagnostic jobs. Terminal deletion remains an unconditional fence.
-  if (
-    owner?.deletedAt !== undefined ||
-    (await accountDeletionOwnsRows(ctx, userId))
-  ) {
+  if (await accountClosedOrClosing(ctx, userId)) {
     return false;
   }
   const matches = await ctx.db
@@ -73,9 +73,6 @@ export const ensureObjectOwnership = async (
   key: string,
   exportJobId?: Id<"exportJobs">
 ) => {
-  // Every store goes through the Files Worker, so without one no write can
-  // succeed: fail before registering a phantom ownership row that account
-  // deletion would later try to freeze and delete through the absent worker.
   if (!isFilesWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }

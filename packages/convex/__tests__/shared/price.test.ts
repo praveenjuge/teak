@@ -9,8 +9,9 @@ import {
 } from "../../shared/price";
 
 describe("parsePrice", () => {
-  test.each([
-    // [text, currency hint, expected]
+  test.each<
+    [text: string, currencyHint: string | undefined, expected: LinkPrice]
+  >([
     ["$1,299.00", undefined, { amount: 1299, currency: "USD" }],
     ["1.299,00 €", undefined, { amount: 1299, currency: "EUR" }],
     ["1 299,00 zł", undefined, { amount: 1299, currency: "PLN" }],
@@ -32,9 +33,7 @@ describe("parsePrice", () => {
     ["$.99", undefined, { amount: 0.99, currency: "USD" }],
     ["24.99", undefined, { amount: 24.99 }],
     ["24.99", "eur", { amount: 24.99, currency: "EUR" }],
-    // The hint wins over a bare `$`, which may be CAD or AUD.
     ["$24.99", "AUD", { amount: 24.99, currency: "AUD" }],
-    // A hint that is not a code is ignored.
     ["$24.99", "dollars", { amount: 24.99, currency: "USD" }],
     ["Free", undefined, { amount: 0 }],
     ["FREE", "USD", { amount: 0, currency: "USD" }],
@@ -46,12 +45,9 @@ describe("parsePrice", () => {
     ["1,000,000", undefined, { amount: 1_000_000 }],
     ["10000000", undefined, { amount: MAX_PRICE_AMOUNT }],
     ["  $24.99  $24.99 ", undefined, { amount: 24.99, currency: "USD" }],
-  ])(
-    "reads %p (hint %p)",
-    (text: string, hint: string | undefined, expected: LinkPrice) => {
-      expect(parsePrice(text, hint)).toEqual(expected);
-    }
-  );
+  ])("reads %p (hint %p)", (text, currencyHint, expected) => {
+    expect(parsePrice(text, currencyHint)).toEqual(expected);
+  });
 
   test.each([
     ["Contact us"],

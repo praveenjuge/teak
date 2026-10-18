@@ -2,22 +2,16 @@ import { FILES_IMPORT_MODES, type FilesImportMode } from "@teak/files-protocol";
 
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
-/** Files read whole into memory (everything but a ZIP) stop here. */
 const TEXT_MAX_BYTES = 20 * MIB;
 
 export { FILES_IMPORT_MODES as IMPORT_MODES } from "@teak/files-protocol";
 export type ImportMode = FilesImportMode;
 
 export interface ImportSource {
-  /** File extensions the picker accepts, lowercase with the dot. */
   extensions: readonly string[];
-  /** Which file to upload, in one line. */
   hint: string;
-  /** Largest upload, in bytes; see importMaxBytes for a given file. */
   maxBytes: number;
-  /** The source's name, as in "This doesn't look like a {name} export". */
   name: string;
-  /** The picker's label for the source. */
   title: string;
 }
 
@@ -133,10 +127,6 @@ export const importFileMatches = (mode: ImportMode, fileName: string) => {
   );
 };
 
-/**
- * The largest upload for this file: the source's limit for a ZIP, and at
- * most 20 MiB for anything else, which is read whole (an Omnivore .json).
- */
 export const importMaxBytes = (mode: ImportMode, fileName: string): number => {
   const { maxBytes } = IMPORT_SOURCES[mode];
   return fileName.trim().toLowerCase().endsWith(".zip")

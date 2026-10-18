@@ -12,14 +12,10 @@ import {
 import { getAccountDeletionState } from "../accountDeletion";
 import { getSessionUser, requireTeakUserId } from "../securitySessions";
 
-/** How long after a tag change the snapshot is recomputed. */
 export const TAG_SUMMARY_DEBOUNCE_MS = 15_000;
 const TAG_SUMMARY_STALE_MS = 5 * 60_000;
-/** Tag index rows one snapshot page reads, in one paginated query. */
 export const TAG_SUMMARY_PAGE_ROWS = 4000;
-/** Pages one recompute reads before it stops and marks itself incomplete. */
 export const TAG_SUMMARY_MAX_PAGES = 60;
-/** Most tags a snapshot keeps, most-used first. */
 export const MAX_TAG_SUMMARY_ITEMS = 3000;
 
 export const tagSummaryItemValidator = v.object({
@@ -44,11 +40,6 @@ const pendingRefresh = (ctx: QueryCtx, userId: string) =>
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .first();
 
-/**
- * Schedules a snapshot recompute unless one is already pending, so a burst
- * of tag changes (an import, a library-wide rename) recomputes once. An
- * account being deleted gets none, so no marker outlives the sweep.
- */
 export const markTagSummaryDirty = async (
   ctx: MutationCtx,
   userId: string,
@@ -90,16 +81,6 @@ const sortTagCounts = (items: TagCount[]): TagCount[] =>
       : right.count - left.count
   );
 
-/**
- * Counts active (not in Trash, not archived) cards per tag over one page of
- * the user's tag rows, read as a single stream in tag order. A tag can span
- * two pages; the recompute adds its counts up.
- *
- * Counting tag by tag (a seek and a range query each) made a page of 500
- * small tags about a thousand index queries and four to five seconds, which
- * timed out under load on large vaults. Trash and archived rows are read
- * and skipped here instead; they are a small share of a vault's rows.
- */
 export const countTagSummaryPage = internalQuery({
   args: { userId: v.string(), cursor: v.union(v.string(), v.null()) },
   returns: v.object({
@@ -126,12 +107,6 @@ export const countTagSummaryPage = internalQuery({
   },
 });
 
-/**
- * Starts a recompute: clears the pending marker so tag changes from here on
- * schedule another, and returns when it was claimed. Null when there is
- * nothing to do (the marker is gone, for example swept by account deletion)
- * or the account is being deleted.
- */
 export const claimTagSummaryRefresh = internalMutation({
   args: { userId: v.string() },
   returns: v.union(v.number(), v.null()),
@@ -153,7 +128,6 @@ export const writeTagSummary = internalMutation({
     userId: v.string(),
     items: v.array(tagSummaryItemValidator),
     isComplete: v.boolean(),
-    /** When the recompute claimed its marker: what the counts are as of. */
     claimedAt: v.number(),
   },
   returns: v.null(),
@@ -166,8 +140,6 @@ export const writeTagSummary = internalMutation({
       .query("userTagSummaries")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
-    // Recomputes can overlap; one that started earlier never replaces the
-    // counts of one that started later.
     if (existing && existing.computedAt > claimedAt) {
       return null;
     }
@@ -180,11 +152,6 @@ export const writeTagSummary = internalMutation({
   },
 });
 
-/**
- * Recomputes the user's tag snapshot from the tag index. Reads run as
- * queries, so the recompute never conflicts with card writes landing
- * meanwhile; a change during the recompute schedules another one.
- */
 export const recomputeTagSummary = internalAction({
   args: { userId: v.string() },
   returns: v.null(),
@@ -228,7 +195,6 @@ export const recomputeTagSummary = internalAction({
   },
 });
 
-/** A user's tag snapshot, for GET /v1/tags when the live listing stops short. */
 export const getTagSummaryForUser = internalQuery({
   args: { userId: v.string() },
   returns: v.union(tagSummaryValidator, v.null()),
@@ -248,7 +214,6 @@ export const getTagSummaryForUser = internalQuery({
   },
 });
 
-/** Builds a user's first snapshot (GET /v1/tags on a large library). */
 export const requestTagSummaryForUser = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
@@ -265,10 +230,6 @@ export const requestTagSummaryForUser = internalMutation({
   },
 });
 
-/**
- * The signed-in user's tag snapshot, or null before the first one is built
- * (the app then calls requestTagSummary).
- */
 export const listTagSummary = query({
   args: {},
   returns: v.union(tagSummaryValidator, v.null()),
@@ -291,7 +252,6 @@ export const listTagSummary = query({
   },
 });
 
-/** Builds the first snapshot right away; later ones follow tag changes. */
 export const requestTagSummary = mutation({
   args: {},
   returns: v.null(),

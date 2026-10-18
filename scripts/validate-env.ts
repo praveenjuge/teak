@@ -1,12 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Fail-fast validation for local web env.
- *
- * Pure validators are exported for unit tests and reuse by doctor/dev.
- * CLI mode checks apps/web/.env.local and exits non-zero with fix hints.
- * Usage: bun run scripts/validate-env.ts [--check]
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readWorkosWebConfig } from "../apps/web/src/lib/workos-config";

@@ -14,11 +14,6 @@ export type WorkosCredentialPlan =
 const present = (value: string | undefined): string | undefined =>
   value?.trim() || undefined;
 
-/**
- * The deployment's value, checked. A production API key is refused, and a
- * shell export that disagrees with the deployment is a mistake to fix rather
- * than a value to use: a split client breaks sign-in.
- */
 export const planWorkosCredential = (
   name: WorkosCredentialName,
   sources: { deployment?: string; explicit?: string }
@@ -73,14 +68,14 @@ const failure = (detail: string, remediation: string[]) => ({
 
 export const readWorkosCredentials = async (
   convexDir: string,
-  explicit: Partial<Record<string, string>> = process.env
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<{
   check: WorkosSetupCheck;
   values: Partial<Record<WorkosCredentialName, string>>;
 }> => {
   const values: Partial<Record<WorkosCredentialName, string>> = {};
   for (const name of WORKOS_CREDENTIAL_NAMES) {
-    const deployment = await readDeploymentVar(name, convexDir);
+    const deployment = await readDeploymentVar(name, convexDir, env);
     if (deployment.status === "unavailable") {
       return failure(
         `could not read ${name} from the dev deployment: ${deployment.detail}`,
@@ -89,7 +84,7 @@ export const readWorkosCredentials = async (
     }
     const plan = planWorkosCredential(name, {
       deployment: deployment.status === "found" ? deployment.value : undefined,
-      explicit: explicit[name],
+      explicit: env[name],
     });
     if (plan.status === "invalid") {
       return failure(

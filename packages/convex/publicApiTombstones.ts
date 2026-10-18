@@ -1,8 +1,3 @@
-/**
- * Tombstones for hard-deleted cards. A permanent delete removes the card row,
- * so `/v1/cards/changes` reads these rows to report the deletion to sync
- * clients. Rows expire after CARD_TOMBSTONE_RETENTION_MS.
- */
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -13,7 +8,6 @@ import {
 } from "./_generated/server";
 import { TRASH_RETENTION_MS } from "./shared/constants";
 
-// A client that syncs at least once per Trash purge never misses a deletion.
 export const CARD_TOMBSTONE_RETENTION_MS = 3 * TRASH_RETENTION_MS;
 const PRUNE_ON_WRITE_LIMIT = 5;
 const PRUNE_BATCH_SIZE = 200;
@@ -116,7 +110,7 @@ export const pruneExpiredCardTombstones = internalMutation({
     if (hasMore) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any).publicApiTombstones.pruneExpiredCardTombstones,
+        internal.publicApiTombstones.pruneExpiredCardTombstones,
         {}
       );
     }

@@ -15,8 +15,6 @@ final class LibraryFlowTests: XCTestCase {
         app.searchFields.firstMatch.waitToAppear(30)
     }
 
-    // MARK: Helpers
-
     @MainActor private func marker(_ label: String) -> String {
         "\(label)-\(UUID().uuidString.prefix(6).lowercased())"
     }
@@ -120,8 +118,6 @@ final class LibraryFlowTests: XCTestCase {
         app.buttons[name].firstMatch
         #endif
     }
-
-    // MARK: Flows
 
     @MainActor
     func testNotesLinksSearchAndTokens() async throws {

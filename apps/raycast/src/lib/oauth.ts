@@ -18,7 +18,7 @@ export class TeakDiscoveryError extends Error {
 
 class TeakSessionExpiredError extends Error {}
 class TeakRefreshRevokedError extends TeakSessionExpiredError {}
-class TeakLocalSignOutError extends Error {}
+class TeakRefreshUnavailableError extends Error {}
 class TeakRefreshClientRejectedError extends Error {}
 const reconnectAfterSignOut =
   "Sign Out before reconnecting, then wait five minutes for disconnect to finish.";
@@ -35,8 +35,6 @@ interface Provider {
 const providers = new Map<string, Provider>();
 const discovery = (forceRefresh = false) =>
   discoverAuthServer(getApiBaseUrl(), { forceRefresh });
-const providerKey = (auth: AuthDiscovery) =>
-  `${getApiBaseUrl()}|${auth.issuer}|${auth.clients.raycast}`;
 
 interface SavedProvider {
   apiBaseUrl: string;
@@ -44,6 +42,17 @@ interface SavedProvider {
   issuer: string;
   providerId: string;
 }
+const connectionNamespace = ({
+  apiBaseUrl,
+  clientId,
+  issuer,
+}: Omit<SavedProvider, "providerId">) => `${apiBaseUrl}|${issuer}|${clientId}`;
+const providerKey = (auth: AuthDiscovery) =>
+  connectionNamespace({
+    apiBaseUrl: getApiBaseUrl(),
+    clientId: auth.clients.raycast,
+    issuer: auth.issuer,
+  });
 const registryPrefix = () =>
   `teak.oauth.provider:${encodeURIComponent(getApiBaseUrl())}:`;
 const nativeClient = (providerId: string) =>
@@ -86,7 +95,7 @@ function validateSavedProvider(raw: unknown): SavedProvider {
   };
   const issuer = new URL(raw.issuer);
   if (
-    raw.providerId !== `teak:${raw.apiBaseUrl}|${raw.issuer}|${raw.clientId}` ||
+    raw.providerId !== `teak:${connectionNamespace(record)}` ||
     issuer.protocol !== "https:" ||
     issuer.username ||
     issuer.password ||
@@ -95,15 +104,10 @@ function validateSavedProvider(raw: unknown): SavedProvider {
   ) {
     throw new Error("Invalid saved Teak connection");
   }
-  // The Keychain namespace is derived from the saved issuer and client, so
-  // tampering with either cannot reach another connection's tokens. A
-  // connection from a replaced client registration stays clearable here;
-  // refresh only ever uses the currently discovered issuer and client.
   return record;
 }
 async function rememberProvider(auth: AuthDiscovery) {
   const record = savedProvider(auth);
-  // AuthKit Connect disconnects through Teak, never an inferred provider URL.
   await LocalStorage.setItem(
     `${registryPrefix()}${record.providerId}`,
     JSON.stringify(record),
@@ -133,11 +137,7 @@ async function getProvider(forceRefresh = false): Promise<Provider> {
 }
 
 async function refetchAfterFailure() {
-  try {
-    await discovery(true);
-  } catch {
-    // Keep the original failure; failed discovery never selects a fallback.
-  }
+  await discovery(true).catch(() => undefined);
 }
 
 async function sendGrant(
@@ -270,17 +270,9 @@ export function reauthorizeTeak(): Promise<string> {
       const provider = await getProvider(true);
       const tokens = await provider.client.getTokens();
       if (tokens?.refreshToken) {
-        const renewed = refresh(provider, tokens.refreshToken);
-        // Background readers join this rotation instead of replaying the old
-        // refresh token while reauthorization is in flight.
-        inFlightStoredToken = renewed;
-        try {
-          return await renewed;
-        } finally {
-          if (inFlightStoredToken === renewed) {
-            inFlightStoredToken = null;
-          }
-        }
+        return shareWithStoredTokenReaders(
+          refresh(provider, tokens.refreshToken),
+        );
       }
       if (tokens) {
         throw new TeakSignOutRequiredError();
@@ -293,6 +285,17 @@ export function reauthorizeTeak(): Promise<string> {
   return inFlightReauthorize;
 }
 
+function shareWithStoredTokenReaders(
+  rotation: Promise<string>,
+): Promise<string> {
+  inFlightStoredToken = rotation;
+  return rotation.finally(() => {
+    if (inFlightStoredToken === rotation) {
+      inFlightStoredToken = null;
+    }
+  });
+}
+
 export function signOutTeak(): Promise<SignOutResult> {
   if (!inFlightSignOut) {
     inFlightSignOut = revokeStoredSession().finally(() => {
@@ -302,25 +305,14 @@ export function signOutTeak(): Promise<SignOutResult> {
   return inFlightSignOut;
 }
 
-async function revokeStoredSession(): Promise<SignOutResult> {
-  await Promise.allSettled([
-    inFlightAuthorize,
-    inFlightStoredToken,
-    inFlightReauthorize,
-  ]);
-  await getProvider();
-  const saved = await LocalStorage.allItems();
+const grantIsUnrecoverable = (error: unknown) =>
+  error instanceof TeakRefreshRevokedError ||
+  error instanceof TeakRefreshUnavailableError ||
+  error instanceof TeakRefreshClientRejectedError;
+
+function readSavedConnections(entries: [string, unknown][]) {
   const records = new Map<string, SavedProvider>();
-  const entries = Object.entries(saved).filter(([key]) =>
-    key.startsWith(registryPrefix()),
-  );
-  if (entries.length > 64) {
-    throw new Error(
-      "Too many saved Teak connections; Sign Out could not finish.",
-    );
-  }
-  let invalidMetadata = false;
-  let localOnly = false;
+  const corruptKeys: string[] = [];
   for (const [key, value] of entries) {
     try {
       if (typeof value !== "string" || value.length > 8192) {
@@ -332,75 +324,92 @@ async function revokeStoredSession(): Promise<SignOutResult> {
       }
       records.set(record.providerId, record);
     } catch {
-      // Only discard the corrupt metadata. Never trust its namespace enough
-      // to read/delete Keychain credentials or contact a remote server.
-      await LocalStorage.removeItem(key);
-      invalidMetadata = true;
+      corruptKeys.push(key);
     }
   }
-  for (const record of records.values()) {
+  return { corruptKeys, records: [...records.values()] };
+}
+
+async function refreshForSignOut(
+  record: SavedProvider,
+  refreshToken: string | undefined,
+): Promise<string> {
+  const provider = await getProvider(true);
+  if (providerKey(provider.auth) !== connectionNamespace(record)) {
+    throw new TeakRefreshUnavailableError();
+  }
+  if (!refreshToken) {
+    throw new TeakRefreshUnavailableError();
+  }
+  return refresh(provider, refreshToken);
+}
+
+async function disconnectPreferringStoredAccessToken(
+  record: SavedProvider,
+  tokens: OAuth.TokenSet,
+): Promise<SignOutResult> {
+  const local = environment.isDevelopment;
+  const refreshAccessToken = () =>
+    refreshForSignOut(record, tokens.refreshToken);
+  try {
+    const result = tokens.accessToken
+      ? await disconnectConnectGrant(getApiBaseUrl(), tokens.accessToken, {
+          local,
+          refreshAccessToken,
+        })
+      : await disconnectConnectGrant(
+          getApiBaseUrl(),
+          await refreshAccessToken(),
+          { local },
+        );
+    if (result !== "disconnected") {
+      throw new Error("Disconnect failed");
+    }
+    return "disconnected";
+  } catch (error) {
+    if (!grantIsUnrecoverable(error)) {
+      throw new Error(
+        "Your credentials are still saved. Check your connection and try Sign Out again.",
+      );
+    }
+    return "local-only";
+  }
+}
+
+async function revokeStoredSession(): Promise<SignOutResult> {
+  await Promise.allSettled([
+    inFlightAuthorize,
+    inFlightStoredToken,
+    inFlightReauthorize,
+  ]);
+  await getProvider();
+  const entries = Object.entries(await LocalStorage.allItems()).filter(
+    ([key]) => key.startsWith(registryPrefix()),
+  );
+  if (entries.length > 64) {
+    throw new Error(
+      "Too many saved Teak connections; Sign Out could not finish.",
+    );
+  }
+  const { corruptKeys, records } = readSavedConnections(entries);
+  for (const key of corruptKeys) {
+    await LocalStorage.removeItem(key);
+  }
+  let localOnly = false;
+  for (const record of records) {
     const client = nativeClient(record.providerId);
     const tokens = await client.getTokens();
-    if (tokens) {
-      try {
-        const refreshAccessToken = async () => {
-          const provider = await getProvider(true);
-          if (
-            providerKey(provider.auth) !==
-            `${record.apiBaseUrl}|${record.issuer}|${record.clientId}`
-          ) {
-            // This exact historical namespace is trusted, but refreshing it via
-            // the new provider would disclose credentials. Explicit Sign Out
-            // may clear it locally without claiming provider revocation.
-            throw new TeakLocalSignOutError();
-          }
-          if (!tokens.refreshToken) {
-            // No refresh credential can recover this rejected or absent access
-            // token. Explicit Sign Out may forget this Mac, not the remote grant.
-            throw new TeakLocalSignOutError();
-          }
-          // refresh stores rotated tokens before the retry. Sign-out blocks
-          // new readers and has drained all in-flight refreshes.
-          return refresh(provider, tokens.refreshToken);
-        };
-        const local = environment.isDevelopment;
-        // Try an old token first so a completed disconnect can recover without
-        // refreshing a grant the provider has already revoked.
-        const result = tokens.accessToken
-          ? await disconnectConnectGrant(getApiBaseUrl(), tokens.accessToken, {
-              local,
-              refreshAccessToken,
-            })
-          : await disconnectConnectGrant(
-              getApiBaseUrl(),
-              await refreshAccessToken(),
-              { local },
-            );
-        if (result !== "disconnected") {
-          throw new Error("Disconnect failed");
-        }
-      } catch (error) {
-        // A dead grant, rejected client or unusable local connection permits
-        // explicit local clearing without claiming remote revocation;
-        // uncertain failures retain their credentials.
-        if (
-          !(
-            error instanceof TeakRefreshRevokedError ||
-            error instanceof TeakLocalSignOutError ||
-            error instanceof TeakRefreshClientRejectedError
-          )
-        ) {
-          throw new Error(
-            "Your credentials are still saved. Check your connection and try Sign Out again.",
-          );
-        }
-        localOnly = true;
-      }
+    if (
+      tokens &&
+      (await disconnectPreferringStoredAccessToken(record, tokens)) ===
+        "local-only"
+    ) {
+      localOnly = true;
     }
     await client.removeTokens();
     await LocalStorage.removeItem(`${registryPrefix()}${record.providerId}`);
   }
-  if (invalidMetadata) {
+  if (corruptKeys.length > 0) {
     throw new Error(
       "Invalid connection metadata was removed. Known local credentials were cleared; unknown credentials were kept.",
     );

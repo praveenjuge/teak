@@ -1,4 +1,3 @@
-/** The library's routed views, each its own page in the sidebar. */
 export type LibraryView = "all" | "favorites" | "archive" | "trash";
 
 export const LIBRARY_VIEWS: readonly LibraryView[] = [
@@ -15,6 +14,20 @@ export const LIBRARY_VIEW_PATHS: Record<LibraryView, string> = {
   trash: "/trash",
 };
 
+export const FOCUS_COMPOSER_PARAM = "compose";
+
+export interface GoToViewOptions {
+  focusComposer?: boolean;
+}
+
+export const libraryViewHref = (
+  view: LibraryView,
+  { focusComposer = false }: GoToViewOptions = {}
+): string =>
+  focusComposer
+    ? `${LIBRARY_VIEW_PATHS[view]}?${FOCUS_COMPOSER_PARAM}=1`
+    : LIBRARY_VIEW_PATHS[view];
+
 export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
   all: "Everything",
   favorites: "Favorites",
@@ -22,7 +35,6 @@ export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
   trash: "Trash",
 };
 
-/** Each view's search field placeholder. */
 export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
   all: "Search everything",
   favorites: "Search favorites",
@@ -30,7 +42,6 @@ export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
   trash: "Search Trash",
 };
 
-/** `path` without trailing slashes, keeping a lone root `/`, in one pass. */
 function trimTrailingSlashes(path: string): string {
   let end = path.length;
   while (end > 1 && path[end - 1] === "/") {
@@ -39,7 +50,6 @@ function trimTrailingSlashes(path: string): string {
   return path.slice(0, end);
 }
 
-/** The view a pathname shows, or null outside the library (settings). */
 export function libraryViewForPath(
   pathname: string | null | undefined
 ): LibraryView | null {
@@ -55,17 +65,12 @@ export function libraryViewForPath(
   return null;
 }
 
-/** The search flags a view stands for. */
 export const libraryViewFlags = (view: LibraryView) => ({
   showArchivedOnly: view === "archive",
   showFavoritesOnly: view === "favorites",
   showTrashOnly: view === "trash",
 });
 
-/**
- * Where a quick command typed in search (`fav`, `trash`, `archive`) goes:
- * that view, or back to Everything when it is already open.
- */
 export const quickCommandTarget = (
   command: Exclude<LibraryView, "all">,
   current: LibraryView

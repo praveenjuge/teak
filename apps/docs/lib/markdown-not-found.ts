@@ -37,7 +37,6 @@ export async function resolveMarkdownRequest(
   request: Request,
   probe: Probe
 ): Promise<MarkdownResolution> {
-  // Only safe methods are probed or rewritten: a POST must reach its handler.
   const safeMethod = request.method === "GET" || request.method === "HEAD";
 
   if (!(safeMethod && prefersMarkdown(request.headers.get("accept")))) {

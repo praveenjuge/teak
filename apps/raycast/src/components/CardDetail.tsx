@@ -146,7 +146,7 @@ export function CardDetail({
           const updated = await setCardFavorite(
             current.id,
             desiredValue,
-            "prompt",
+            "interactive",
           );
           mutationState.lastServer = updated.isFavorited;
           emitCardUpdate(updated);

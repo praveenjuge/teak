@@ -139,6 +139,13 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
         #expect(result.createdCardIds.isEmpty)
     }
 
+    @Test func asksToSignInWhenTheSessionEndsMidImport() async {
+        let importer = ShareImporter(createText: { _ in throw TeakError.signedOut }, upload: { _ in "card" })
+        let result = await importer.importItems([.text("a")], isAuthenticated: true)
+        #expect(result.needsSignIn)
+        #expect(result.failures == [.init(reason: .unauthenticated, message: "Sign in to save shared content.")])
+    }
+
     @Test func refusesFilesOverTheLimit() async {
         let big = UploadItem(fileURL: a, fileSize: TeakLimits.maxFileSize + 1)
         let result = await importer().importItems([.file(big)], isAuthenticated: true)

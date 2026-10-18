@@ -17,10 +17,7 @@ export const CLEF_MODEL_IDS: Record<ClefModel, string> = {
   "clef-flash": CLEF_FLASH_MODEL_ID,
 };
 
-/**
- * Input price per million tokens; Clef bills no output. Clef-flash dropped
- * from $0.09 on 2026-10-09.
- */
+/** Clef bills no output tokens. */
 export const CLEF_INPUT_USD_PER_MILLION: Record<string, number> = {
   [CLEF_MODEL_ID]: 0.24,
   [CLEF_FLASH_MODEL_ID]: 0.038,
@@ -29,10 +26,6 @@ export const CLEF_INPUT_USD_PER_MILLION: Record<string, number> = {
 /** Clef accepts 1 to 64 questions per request. */
 export const MAX_DECISION_QUESTIONS = 64;
 
-/**
- * Bump a version whenever its prompt, criteria or threshold changes; the
- * relevance cache key includes its version, and telemetry records all four.
- */
 export const DECISION_VERSIONS = {
   cardType: 2,
   linkCategory: 2,
@@ -40,12 +33,6 @@ export const DECISION_VERSIONS = {
   visualStyles: 1,
 } as const;
 
-/**
- * Tuned with `scripts/clef-eval` (October 2026): for link category and card
- * type, the most coverage with precision at 95% or more (the highest of tied
- * thresholds); for styles, the best F1 with precision at 85% and recall at
- * 50% or more.
- */
 export const DECISION_THRESHOLDS = {
   cardType: 0.75,
   linkCategory: 0.95,
@@ -64,7 +51,6 @@ export const DECISION_TEXT_LIMITS = {
   relevanceQuery: 500,
 } as const;
 
-/** The Best match rubric, lowest first. */
 export const RELEVANCE_LEVELS = [
   "Not related",
   "Loosely related",
@@ -82,7 +68,6 @@ export interface FilesDecisionUsage {
   outputTokens: number;
 }
 
-/** What every decision op returns besides its decision. */
 export interface FilesDecisionFacts {
   model: string;
   usage?: FilesDecisionUsage;
@@ -92,7 +77,6 @@ export interface FilesDecisionFacts {
 export interface FilesLinkCategoryDecisionParams {
   description?: string;
   jsonLdTypes?: string[];
-  /** The resolver's answer, so the worker only reports a change. */
   rulesCategory: string;
   siteName?: string;
   title?: string;
@@ -188,10 +172,6 @@ const readFacts = (value: unknown): FilesDecisionFacts | null => {
   };
 };
 
-/**
- * Validates a decision op's reply on the Convex side. A reply that fails is
- * treated as no decision, so the rules' answer stands.
- */
 export const readLinkCategoryDecision = (
   value: unknown,
   isCategory: (category: string) => boolean

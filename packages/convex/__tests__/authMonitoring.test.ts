@@ -63,7 +63,7 @@ describe("resolver denial log", () => {
           verification: { kind: "connect" },
           workosUserId: "user_1",
         })
-      ).resolves.toBeUndefined();
+      ).resolves.toBe(false);
     } finally {
       warn.restore();
     }

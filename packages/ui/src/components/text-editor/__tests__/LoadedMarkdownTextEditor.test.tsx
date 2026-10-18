@@ -72,10 +72,9 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
 });
 
-/** Renders a checklist in the rich editor; returns a way to tick an item. */
 async function renderChecklist(
   value: string,
-  onChange = (_next: string) => {}
+  onChange = (_next: string) => undefined
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -119,8 +118,6 @@ test("a tick reports the reordered list, not the list before the move", async ()
 });
 
 describe("the move slides", () => {
-  // No layout here: each list item reports a top of 20px per place in its
-  // list, so a move shows as a change in that number.
   const rowTop = (element: Element) =>
     element.tagName === "LI" && element.parentElement
       ? Array.prototype.indexOf.call(element.parentElement.children, element) *
@@ -164,7 +161,6 @@ describe("the move slides", () => {
   test("each item in the moved run from its old place to its new one", async () => {
     const list = await renderChecklist("- [ ] A\n- [ ] B\n- [ ] C");
     await list.tick("A");
-    // A goes from the top to the bottom; B and C each move up one place.
     expect(slides()).toEqual([
       { text: expect.stringContaining("B"), from: "translateY(20px)" },
       { text: expect.stringContaining("C"), from: "translateY(20px)" },

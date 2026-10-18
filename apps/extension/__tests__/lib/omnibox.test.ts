@@ -18,7 +18,6 @@ import {
 
 const APP = "https://app.teakvault.com";
 
-/** A clock whose timers run only when the test moves time forward. */
 const fakeClock = () => {
   let now = 0;
   let nextId = 0;
@@ -341,7 +340,7 @@ describe("input throttle", () => {
     throttle.input("design");
     clock.advance(2000);
     expect(send).toHaveBeenCalledTimes(1);
-    throttle.forget("design");
+    throttle.allowResend("design");
     throttle.input("design");
     clock.advance(2000);
     expect(send).toHaveBeenCalledTimes(2);

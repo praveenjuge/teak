@@ -1,8 +1,6 @@
-// Loads the Files Worker into a convex-test suite, so a test can drive its
-// real ops and workflows against the test database. Paths are resolved at
-// runtime to keep Cloudflare's global types out of backend typechecking.
-// A suite that uses it mocks `@resvg/resvg-wasm/index_bg.wasm` (vi.mock is
-// hoisted per test file), which Node cannot load.
+// Paths are resolved at runtime to keep Cloudflare's global types out of
+// backend typechecking. Node cannot load `@resvg/resvg-wasm/index_bg.wasm`,
+// so a suite that uses this mocks it (vi.mock is hoisted per test file).
 
 import type { convexTest } from "convex-test";
 
@@ -52,7 +50,6 @@ export const loadFilesWorker = async () => {
 
 type Call = (ref: unknown, args: unknown) => Promise<unknown>;
 
-/** The test deployment as the Worker's Convex client: calls run in-process. */
 export const convexForWorker = (t: TestConvex) => ({
   action: t.action as Call,
   mutation: t.mutation as Call,

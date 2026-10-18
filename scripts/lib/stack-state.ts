@@ -9,8 +9,14 @@
  */
 
 import { type ChildProcess, execFileSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
 import type { WorktreePorts } from "../worktree-env.ts";
 
 export interface StackUrls {
@@ -36,6 +42,22 @@ export interface StackState {
   startedAt: string;
   urls: StackUrls;
 }
+
+export const recordStartingStack = (
+  root: string,
+  fields: Omit<StackState, "ready" | "startedAt">
+): { save: () => void; state: StackState } => {
+  const path = stackStatePath(root);
+  const state: StackState = {
+    ...fields,
+    ready: false,
+    startedAt: new Date().toISOString(),
+  };
+  const save = () => writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+  mkdirSync(dirname(path), { recursive: true });
+  save();
+  return { save, state };
+};
 
 export const readStackState = (root: string): StackState | null => {
   const path = stackStatePath(root);
@@ -109,7 +131,11 @@ const commands = ():
   }
 };
 
-const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
+const STACK_OWNERS = [
+  "scripts/dev-main.ts",
+  "scripts/dev.ts",
+  "run-local-suite.ts",
+];
 const STACK_MEMBERS = ["convex", "next"];
 
 /**
@@ -149,19 +175,16 @@ const groupAlive = (group: number): boolean => {
   );
 };
 
-const signalGroup = (group: number, signal: NodeJS.Signals) => {
+const signalGroup = (group: number, signal: NodeJS.Signals): boolean => {
   try {
-    process.kill(-group, signal);
-  } catch {}
+    return process.kill(-group, signal);
+  } catch {
+    return false;
+  }
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Stop a stack whose owner died without cleaning up (killed with SIGKILL, or
- * a crash), so its backend and web server don't hold the ports forever.
- * Returns true when it stopped one.
- */
 export const stopOrphanedStack = async (root: string): Promise<boolean> => {
   const state = readStackState(root);
   if (!state || isStackRunning(state)) {
@@ -224,11 +247,8 @@ export const waitFor = async (
   throw new Error(`${url} did not come up within ${timeoutMs / 1000}s`);
 };
 
-const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
-  try {
-    process.kill(-(child.pid ?? 0), signal);
-  } catch {}
-};
+const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) =>
+  child.pid !== undefined && signalGroup(child.pid, signal);
 
 // `convex dev` runs the web server in its own process group and stops it
 // only on SIGINT, so interrupt first and force-stop whatever remains.

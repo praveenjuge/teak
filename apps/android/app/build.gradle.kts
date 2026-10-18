@@ -12,7 +12,6 @@ plugins {
 
 val teakVersion: String = (JsonSlurper().parse(rootDir.resolve("../../package.json")) as Map<*, *>)["version"] as String
 
-/** 1.0.85 -> 1000085. A Play-assigned build number can override it with -Pteak.versionCode=N. */
 fun versionCodeFor(version: String): Int {
     val (major, minor, patch) = version.split('.').map { it.toInt() }
     return major * 1_000_000 + minor * 1_000 + patch

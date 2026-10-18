@@ -9,9 +9,6 @@ import {
   type RemoteFetchDeps,
 } from "./common";
 
-// A book's author, pages, publisher, date and ISBN from Open Library, for a
-// book link whose page names an ISBN, plus its cover when the page has none.
-
 const ISBN_SEPARATORS_REGEX = /[\s-]/g;
 const ISBN_10_REGEX = /^\d{9}[\dX]$/;
 const ISBN_13_REGEX = /^97[89]\d{10}$/;
@@ -53,7 +50,6 @@ const isValidIsbn13 = (isbn: string): boolean => {
   return sum % 10 === 0;
 };
 
-/** An ISBN-10 or ISBN-13 without separators, if its check digit is right. */
 export const normalizeIsbn = (value: unknown): string | undefined => {
   if (typeof value !== "string" && typeof value !== "number") {
     return;
@@ -73,6 +69,14 @@ const bookIsbns = (entities: unknown[]): unknown[] =>
  * The first valid ISBN on the page: its `books:isbn` tag, JSON-LD
  * `Book.isbn`, or an Amazon `/dp/<ISBN-10>` path.
  */
+const amazonPathIsbn = (sourceUrl: string): string | undefined => {
+  try {
+    return new URL(sourceUrl).pathname.match(AMAZON_ISBN_PATH_REGEX)?.[1];
+  } catch {
+    return undefined;
+  }
+};
+
 export const findIsbn = ({
   entities,
   provider,
@@ -89,13 +93,7 @@ export const findIsbn = ({
     ...bookIsbns(entities),
   ];
   if (provider === "amazon") {
-    try {
-      candidates.push(
-        new URL(sourceUrl).pathname.match(AMAZON_ISBN_PATH_REGEX)?.[1]
-      );
-    } catch {
-      // Not a URL; nothing to read from it.
-    }
+    candidates.push(amazonPathIsbn(sourceUrl));
   }
   for (const candidate of candidates) {
     const isbn = normalizeIsbn(candidate);
@@ -105,7 +103,6 @@ export const findIsbn = ({
   }
 };
 
-/** The first authors' names, with "et al." when the edition lists more. */
 const authorNames = async (
   edition: OpenLibraryEdition,
   deps: RemoteFetchDeps

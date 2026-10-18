@@ -8,15 +8,6 @@ import {
 } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 
-// Reads and writes the Files Worker's card-processing workflow makes over
-// the workflow RPC gateway (workflowGateway.ts), beside the stage mutations
-// it shares with the rest of the backend.
-
-/**
- * A card for one processing step, with the deployment's R2 key prefix so the
- * Worker, which serves several deployments, builds keys in the right
- * namespace.
- */
 export const getCardForProcessing = internalQuery({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
@@ -33,7 +24,6 @@ const stageKeyValidator = v.union(
   v.literal("screenshot")
 );
 
-/** Marks the stages a step is about to run as in progress. */
 export const markStagesInProgress = internalMutation({
   args: { cardId: v.id("cards"), stages: v.array(stageKeyValidator) },
   returns: v.boolean(),

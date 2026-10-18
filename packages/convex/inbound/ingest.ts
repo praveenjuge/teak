@@ -11,7 +11,7 @@ import { mintPendingUpload, signPendingUpload } from "../publicApiUploads";
 import { CARD_ERROR_CODES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { normalizeIdentityEmail } from "../shared/workosIds";
-import { deleteObject } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/r2";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";
 
@@ -470,7 +470,7 @@ export const dropEmailAttachment = internalMutation({
       claimedAt: undefined,
       state: "dropped",
     });
-    await deleteObject(ctx, attachment.fileKey);
+    await queueObjectDeletion(ctx, attachment.fileKey);
     await emit(ctx, {
       event: "email_attachment_skipped",
       reason,

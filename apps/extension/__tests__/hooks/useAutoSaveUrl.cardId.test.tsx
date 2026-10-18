@@ -13,7 +13,9 @@ afterAll(() => GlobalRegistrator.unregister());
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { useAutoSaveUrl } = await import("../../hooks/useAutoSaveUrl");
+const { TAB_READ_DELAY_MS, useAutoSaveUrl } = await import(
+  "../../hooks/useAutoSaveUrl"
+);
 
 const originalChrome = globalThis.chrome;
 let root: Root | undefined;
@@ -41,8 +43,9 @@ const autoSave = async (response: TeakSaveResponse) => {
   }
   root = createRoot(document.createElement("div"));
   await act(() => root?.render(<Probe />));
-  // The hook waits 300ms before reading the tab.
-  await act(() => new Promise((resolve) => setTimeout(resolve, 350)));
+  await act(
+    () => new Promise((resolve) => setTimeout(resolve, TAB_READ_DELAY_MS + 50))
+  );
   return seen.at(-1);
 };
 

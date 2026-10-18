@@ -1,20 +1,11 @@
 import { DECISION_TEXT_LIMITS, DECISION_VERSIONS } from "@teak/files-protocol";
 
-/**
- * Best match: Clef scores how well each of a search's top results matches
- * its words, 0 to 3. Scores are per card and per search text, because Clef
- * judges each card on its own; filters only change which cards get scored.
- */
-
-/** How many of a search's top results get a score. */
 export const RELEVANCE_CANDIDATE_LIMIT = 64;
 
-/** How long the grid waits for scores before it shows the unscored order. */
 export const RELEVANCE_HOLD_MS = 400;
 
 export interface RelevanceScore {
   cardId: string;
-  /** The card's `updatedAt` when scored; an edited card is scored again. */
   cardUpdatedAt: number;
   score: number;
 }
@@ -35,10 +26,6 @@ interface RelevanceCard {
   urlHost?: string;
 }
 
-/**
- * The short description of a card Clef judges: its type, title, site,
- * summary, tags and the start of its text.
- */
 export const buildRelevanceCardText = (card: RelevanceCard): string => {
   const preview =
     card.metadata?.linkPreview?.status === "success"
@@ -62,7 +49,6 @@ export const buildRelevanceCardText = (card: RelevanceCard): string => {
     .slice(0, DECISION_TEXT_LIMITS.relevanceCardText);
 };
 
-/** Scores that still describe the cards as they are now. */
 export const currentRelevanceScores = (
   scores: readonly RelevanceScore[] | null | undefined,
   cards: readonly { _id: string; updatedAt: number }[]
@@ -77,10 +63,6 @@ export const currentRelevanceScores = (
   return current;
 };
 
-/**
- * Best match order: scored cards first, highest score first; ties and
- * unscored cards keep the order they came in (the fused search order).
- */
 export const orderByRelevance = <Card extends { _id: string }>(
   cards: readonly Card[],
   scores: ReadonlyMap<string, number>
@@ -101,11 +83,6 @@ export const orderByRelevance = <Card extends { _id: string }>(
     })
     .map(({ card }) => card);
 
-/**
- * The cache key for a search's text: its hash with the prompt version, so
- * the table never holds what someone searched for and a new prompt never
- * reuses old scores.
- */
 export const relevanceSearchKey = async (text: string): Promise<string> => {
   const digest = await crypto.subtle.digest(
     "SHA-256",

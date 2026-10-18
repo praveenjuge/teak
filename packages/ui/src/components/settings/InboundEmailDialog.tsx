@@ -60,7 +60,7 @@ export function InboundEmailPanel({
 }: InboundEmailPanelProps) {
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const inFlight = useRef(false);
+  const inFlight = useRef<boolean>(false);
 
   const run = async (
     action: "enable" | "disable",

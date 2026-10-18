@@ -23,14 +23,7 @@ export type EmbeddableCard = Pick<
 
 const clean = (value: string | undefined) => value?.trim() || undefined;
 
-/**
- * The text a card is embedded from, most telling first, since the model
- * reads only its first ~500 tokens: title, summary, tags, notes, visual
- * styles, the text read from its image, screenshot or scan, then the start
- * of the card's body (its content, else the text extracted from its file,
- * else its transcript). Empty when the card has no text yet, as an image
- * still waiting for AI.
- */
+// Most telling text first: the model reads only its first ~500 tokens.
 export const buildEmbeddingText = (
   card: EmbeddableCard,
   extractedText?: string
@@ -61,9 +54,5 @@ export const buildEmbeddingText = (
     .slice(0, MAX_TEXT_CHARS);
 };
 
-/**
- * Identifies what a vector was made from, including the embedding version,
- * and the card type it carries as metadata.
- */
 export const embeddingHash = (text: string, type: string): Promise<string> =>
   sha256Hex(`${CARD_EMBEDDING_VERSION}\n${type}\n${text}`);

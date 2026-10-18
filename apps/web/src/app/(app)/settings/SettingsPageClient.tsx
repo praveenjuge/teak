@@ -21,6 +21,23 @@ import { toast } from "sonner";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { signOut } from "@/lib/sign-out-client";
 
+function useConsumeDialogParam() {
+  const router = useRouter();
+  const dialogParam = useSearchParams().get("dialog");
+  const [request, setRequest] = useState<ImportExportOpenRequest | null>(null);
+  useEffect(() => {
+    if (dialogParam === null) {
+      return;
+    }
+    const tab = parseSettingsDialogParam(dialogParam);
+    if (tab) {
+      setRequest({ id: Date.now(), tab });
+    }
+    router.replace("/settings", { scroll: false });
+  }, [dialogParam, router]);
+  return request;
+}
+
 export function SettingsPageClient() {
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
@@ -30,23 +47,7 @@ export function SettingsPageClient() {
   const inboundEmail = useQuery(api.inbound.settings.getMine, {});
   const enableInboundEmail = useMutation(api.inbound.settings.enable);
   const disableInboundEmail = useMutation(api.inbound.settings.disable);
-  const router = useRouter();
-  const dialogParam = useSearchParams().get("dialog");
-  const [importExportRequest, setImportExportRequest] =
-    useState<ImportExportOpenRequest | null>(null);
-
-  // `?dialog=import|export` (from the command palette) opens that tab once,
-  // then leaves the URL so closing the dialog or Back doesn't reopen it.
-  useEffect(() => {
-    if (dialogParam === null) {
-      return;
-    }
-    const tab = parseSettingsDialogParam(dialogParam);
-    if (tab) {
-      setImportExportRequest({ id: Date.now(), tab });
-    }
-    router.replace("/settings", { scroll: false });
-  }, [dialogParam, router]);
+  const importExportRequest = useConsumeDialogParam();
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {

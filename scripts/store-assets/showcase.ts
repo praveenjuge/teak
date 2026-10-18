@@ -1,10 +1,3 @@
-/**
- * The designer library the store screenshots show. `seed.ts` adds these cards
- * to the signed-in Teak account in reverse order, so the first entry ends up
- * newest and leads every library view. Files live in `seed/`; each one lists
- * where it came from and its license.
- */
-
 export type ShowcaseCard =
   | {
       kind: "file";

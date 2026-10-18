@@ -1,4 +1,8 @@
-import { FILES_UPLOAD_MAX_BYTES, isScannedPdf } from "@teak/files-protocol";
+import {
+  FILES_UPLOAD_MAX_BYTES,
+  type FilesInspectResult,
+  isScannedPdf,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -10,10 +14,7 @@ import {
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { inferFileFormat } from "../shared/fileFormats";
-import {
-  callFilesWorkerJson,
-  type FilesWorkerInspectResult,
-} from "../storage/filesWorkerClient";
+import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
   ocrBackfillArgs,
@@ -21,10 +22,6 @@ import {
   runOcrBackfillPage,
 } from "./ocrBackfill";
 
-/**
- * One PDF this far apart. A scan then reads up to 3 pages, each a renderer
- * job and a Gemma call, and renderer slots are shared with thumbnails.
- */
 const CARD_SPACING_MS = 3000;
 
 const isPdfCard = (
@@ -41,25 +38,6 @@ const isPdfCard = (
   );
 };
 
-/**
- * Reads the first pages of scanned PDFs saved before Teak read them. Each
- * PDF's text layer is checked with the same `inspect` op card processing
- * uses; a PDF with a text layer is marked checked, and a scan gets a
- * metadata-only processing run, which reads its pages and writes its
- * summary and tags again from them (they were written from its file name).
- * One PDF every 3 s; cards in Trash and accounts being deleted or with AI
- * turned off are skipped, and each card checks the AI gate again. A card is
- * done once `ocrCheckedAt` is set, so a stopped run picks up where it left
- * off.
- *
- * A dry run (the default) writes nothing and counts the PDFs a real run
- * would check. `userId` limits it to one account, as a canary; `once` runs
- * one batch.
- *
- *   npx convex run migration/backfillPdfOcr:backfillPdfOcr
- *   npx convex run migration/backfillPdfOcr:backfillPdfOcr '{"dryRun":false,"userId":"teak_…"}'
- *   npx convex run migration/backfillPdfOcr:backfillPdfOcr '{"dryRun":false}'
- */
 export const backfillPdfOcr = internalMutation({
   args: ocrBackfillArgs,
   returns: ocrBackfillReturns,
@@ -101,11 +79,6 @@ export const getPdfOcrCandidate = internalQuery({
   },
 });
 
-/**
- * Marks a PDF with a text layer checked, or starts a metadata-only run for
- * a scan, unless card processing ran since it was checked (that run reads
- * the scan itself) or the card was read or trashed since.
- */
 export const finishPdfOcrCheck = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -124,8 +97,6 @@ export const finishPdfOcrCheck = internalMutation({
       return false;
     }
     if (scanned) {
-      // An account whose deletion started since the page was scheduled
-      // gets no new run.
       if (await accountDeletionOwnsRows(ctx, card.userId)) {
         return false;
       }
@@ -139,12 +110,6 @@ export const finishPdfOcrCheck = internalMutation({
   },
 });
 
-/**
- * Checks one PDF's text layer and finishes it as a scan or not. A PDF the
- * Worker declines (gone, too large, password protected) has no page count,
- * so it isn't a scan. Any other failure, a busy renderer included, is
- * logged and leaves the card unread for a rerun.
- */
 export const backfillPdfOcrCard = internalAction({
   args: { cardId: v.id("cards") },
   returns: v.union(
@@ -161,8 +126,6 @@ export const backfillPdfOcrCard = internalAction({
     if (!candidate) {
       return "skipped";
     }
-    // AI paused from the console, or turned off by the user: no model call,
-    // and the card stays unread for a later run.
     const aiGate = await ctx.runQuery(internal.adminAccess.getAiGate, {
       userId: candidate.userId,
     });
@@ -171,7 +134,7 @@ export const backfillPdfOcrCard = internalAction({
     }
     let scanned: boolean;
     try {
-      const outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
+      const outcome = await callFilesWorkerJson<FilesInspectResult>({
         op: "inspect",
         params: {
           formatId: "pdf",

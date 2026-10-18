@@ -149,7 +149,7 @@ private fun EditForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        val content = draft.content
+        val content = draft.editableContent
         if (content != null) {
             val isQuote = type == CardType.Quote
             OutlinedTextField(

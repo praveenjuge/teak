@@ -31,10 +31,6 @@ interface SessionStore {
     suspend fun clearPending()
 }
 
-/**
- * Stores sessions encrypted with an AES-GCM key that never leaves Android Keystore. Files live in
- * no-backup storage, so tokens are never copied to cloud backups or a new phone.
- */
 @Singleton
 class KeystoreSessionStore @Inject constructor(
     @ApplicationContext context: Context,

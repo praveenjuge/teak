@@ -15,7 +15,6 @@ const vector = (seed: number) =>
 interface Ranked {
   id: string;
   score: number;
-  /** The `type` metadata the vector was written with, if any. */
   type?: string;
 }
 
@@ -31,11 +30,8 @@ const fakes = ({
 }: {
   aiError?: unknown;
   dimensions?: number;
-  /** Rejects upserts and deletes, as Vectorize does under load. */
   writeError?: unknown;
-  /** What every query finds, closest first, before its filter and topK. */
   ranked?: Ranked[];
-  /** Rejects filtered queries, as an index without the metadata index may. */
   filterError?: unknown;
 } = {}) => {
   const aiCalls: { args: { text: string[] }; model: string }[] = [];
@@ -179,7 +175,6 @@ describe("embed-upsert", () => {
           namespace: NAMESPACE,
           values: vector(0),
         },
-        // From a caller that predates types: no metadata.
         { id: "card_2", namespace: NAMESPACE, values: vector(1) },
       ],
     ]);
@@ -360,7 +355,6 @@ describe("vector-delete, vector-get and vector-query", () => {
   });
 
   describe("with a type", () => {
-    // A library mostly of notes: the closest matches are all notes.
     const library: Ranked[] = [
       { id: "note_1", score: 0.62, type: "text" },
       { id: "note_2", score: 0.6, type: "text" },

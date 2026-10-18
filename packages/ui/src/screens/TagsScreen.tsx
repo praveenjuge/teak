@@ -43,7 +43,6 @@ import {
 } from "../lib/tags";
 import { PageHeader, PageTitle } from "./PageHeader";
 
-/** How the list is ordered: most-used first, or by name. */
 export type TagSort = "count" | "name";
 
 const TAG_PAGE_SIZE = 150;
@@ -59,9 +58,7 @@ const libraryTagHref = (name: string) =>
 
 export interface TagsScreenProps {
   headerLeading?: ReactNode;
-  /** The app's link (Next.js `Link` on the web). */
   LinkComponent: SidebarLinkComponent;
-  /** Where a tag opens; defaults to the library narrowed to it. */
   tagHref?: (name: string) => string;
 }
 
@@ -202,11 +199,6 @@ function TagSortMenu({
   );
 }
 
-/**
- * Every tag in the library with how many cards outside Archive and Trash
- * carry it. A tag opens its cards; its menu renames, merges or deletes it on
- * every card.
- */
 export function TagsScreen({
   headerLeading,
   LinkComponent,
@@ -221,7 +213,6 @@ export function TagsScreen({
   const [menuTag, setMenuTag] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{
     mode: TagManagerMode;
-    open: boolean;
     tag: TagSummaryItem;
     target?: string;
   } | null>(null);
@@ -268,7 +259,7 @@ export function TagsScreen({
 
   const openAction = (mode: TagManagerMode, tag: TagSummaryItem) => {
     setMenuTag(null);
-    setDialog({ mode, open: true, tag });
+    setDialog({ mode, tag });
   };
 
   let count: ReactNode;
@@ -412,13 +403,11 @@ export function TagsScreen({
         }
         onOpenChange={(open) => {
           if (!open) {
-            setDialog((current) =>
-              current ? { ...current, open: false } : current
-            );
+            setDialog(null);
           }
         }}
         onStart={start}
-        open={dialog?.open ?? false}
+        open={dialog !== null}
         tag={dialog?.tag ?? null}
         tags={items ?? []}
       />

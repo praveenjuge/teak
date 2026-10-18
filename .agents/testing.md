@@ -33,6 +33,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `apps/extension` | `__tests__/**` |
 | `apps/docs` | `lib/**` |
 | `apps/apple` | `tests/*.test.ts` (run by the root `bun run test`) and Swift Testing in `Packages/TeakKit/Tests` |
+| `apps/android` | `tests/*.test.ts` (run by the root `bun run test`) and JUnit in each module's `src/test` |
 | repo scripts | `scripts/**/*.test.ts`, run by the root `bun run test` |
 
 `bun run test` at the root runs all of it, and the `Unit Tests` workflow runs it on every pull request.

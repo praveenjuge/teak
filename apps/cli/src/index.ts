@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   type BulkCardsOperation,
+  type CardsPage,
   parseTags,
   TeakApiError,
 } from "@teak/convex/sdk";
@@ -72,16 +73,19 @@ export {
 
 type ListMode = "list" | "search" | "favorites" | "similar";
 
-/**
- * A listing as JSON. A shuffled one carries its seed: a later
- * `--seed` with `--cursor` continues it, and a cursor only works with the
- * seed that issued it.
- */
 export const listingJson = <T extends object>(
   page: T,
   seed: number | undefined
 ): T | (T & { seed: number }) =>
   seed === undefined ? page : { ...page, seed };
+
+const meaningSearchSkipped = (
+  page: CardsPage,
+  options: Record<string, unknown>
+) => page.searchMode === "keyword" && options.mode !== "keyword";
+
+const relevanceUnscored = (page: CardsPage, options: Record<string, unknown>) =>
+  options.sort === "relevance" && page.relevanceRanked === false;
 
 const writeCards = async (
   options: ClientOptions & Record<string, unknown>,
@@ -136,20 +140,10 @@ const writeCards = async (
         : "That card is in Trash or was not found.\n"
     );
   }
-  // Meaning search was asked for but did not run.
-  if (
-    !options.json &&
-    page.searchMode === "keyword" &&
-    options.mode !== "keyword"
-  ) {
+  if (!options.json && meaningSearchSkipped(page, options)) {
     process.stderr.write("mode: keyword\n");
   }
-  // Best match was asked for but could not score the results.
-  if (
-    !options.json &&
-    options.sort === "relevance" &&
-    page.relevanceRanked === false
-  ) {
+  if (!options.json && relevanceUnscored(page, options)) {
     process.stderr.write("relevance: unranked\n");
   }
 };
@@ -272,8 +266,7 @@ program
   .command("logout")
   .description("Sign out and disconnect the CLI")
   .action(async () => {
-    const notice = await logout(program.opts());
-    write(notice ?? "Logged out of Teak.", program.opts());
+    write(await logout(program.opts()), program.opts());
   });
 
 program

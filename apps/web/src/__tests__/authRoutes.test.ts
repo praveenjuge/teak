@@ -158,8 +158,6 @@ describe("web sign-in routing", () => {
     const response = await callback("https://evil.example/callback?code=old");
     expect(response.status).toBe(400);
   });
-  // Production 2026-10-07: a password reset email returned `code` without
-  // `state`, and the SDK's cache headers threw on an immutable redirect (500).
   // Node follows the Fetch spec (`Response.redirect` headers are immutable);
   // Bun does not, so the spec guard is restored for this boundary only.
   class ImmutableHeaders extends Headers {

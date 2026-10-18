@@ -181,7 +181,6 @@ const runHogQl = async (apiKey: string, hogql: string) => {
         query: {
           kind: "HogQLQuery",
           query: hogql,
-          // The "Internal / Test users" filters set on the project.
           filters: { filterTestAccounts: true },
         },
       }),

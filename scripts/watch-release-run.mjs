@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-// Observing a dispatched run never redispatches or restarts its workflow.
 export async function watchReleaseRun(
   repository,
   runId,

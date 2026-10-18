@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import {
   type AiUsageRollupEnv,
-  DAILY_USAGE_BATCH,
   dailyUsageSql,
   rollUpAiUsage,
 } from "./aiUsageRollup";
@@ -149,10 +149,13 @@ describe("AI usage rollup", () => {
   });
 
   test("sends a busy day in bounded batches", async () => {
-    const rows = Array.from({ length: DAILY_USAGE_BATCH + 1 }, (_, index) => ({
-      calls: 1,
-      userId: `teak_${String(index)}`,
-    }));
+    const rows = Array.from(
+      { length: MAX_DAILY_USAGE_ROWS + 1 },
+      (_, index) => ({
+        calls: 1,
+        userId: `teak_${String(index)}`,
+      })
+    );
     const api = sqlApi({ "2026-10-16": rows });
     const convex = fakeConvex();
     await rollUpAiUsage(env(), TEST_CONVEX_SITE_URL, {
@@ -168,7 +171,7 @@ describe("AI usage rollup", () => {
       convex
         .callsTo("adminUsage:replaceDailyUsage")
         .map((call) => (call.args.rows as unknown[]).length)
-    ).toEqual([DAILY_USAGE_BATCH, 1]);
+    ).toEqual([MAX_DAILY_USAGE_ROWS, 1]);
   });
 
   test("is skipped without the SQL API token", async () => {

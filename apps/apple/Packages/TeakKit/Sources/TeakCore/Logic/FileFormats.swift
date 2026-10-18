@@ -29,7 +29,6 @@ public enum FileFormats {
         SharedConstants.shared.genericMimeTypes.contains(normalizeMimeType(value))
     }
 
-    /// The trimmed name, or nil when it is empty, too long, a path or has control characters.
     public static func validFileName(_ name: String) -> String? {
         let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty, normalized.count <= SharedConstants.shared.limits.maxFileNameLength,
@@ -48,7 +47,6 @@ public enum FileFormats {
         let lower = name.lowercased()
         let candidates = formats.filter { matches($0, lower) }
         guard let primary = candidates.first else { return nil }
-        // `.webm` and `.mp4` exist as audio and video; prefer the one that accepts the MIME type.
         if mimeType.isEmpty || isGenericMimeType(mimeType) || primary.mimeTypes.contains(mimeType) { return primary }
         return candidates.first { $0.mimeTypes.contains(mimeType) } ?? primary
     }
@@ -73,7 +71,6 @@ public enum FileFormats {
         infer(fileName: name)?.mimeType ?? "application/octet-stream"
     }
 
-    /// The MIME type to upload with: the given one unless it says nothing, then the format's.
     public static func uploadMimeType(fileName: String, mimeType: String?) -> String? {
         guard let format = infer(fileName: fileName, mimeType: mimeType) else { return nil }
         return isGenericMimeType(mimeType) ? format.mimeType : normalizeMimeType(mimeType)

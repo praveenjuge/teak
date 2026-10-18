@@ -17,7 +17,6 @@ export type CardModalCard = Doc<"cards"> & {
     width?: number;
   }>;
   linkPreviewImageUrl?: string;
-  /** linkPreviewImageUrl is an image someone chose for the link. */
   hasThumbnailOverride?: true;
 };
 

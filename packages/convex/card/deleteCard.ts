@@ -11,7 +11,7 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
+import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
@@ -73,7 +73,7 @@ const permanentDeleteCardForUserHandler = async (
   }
   await syncCardSearch(ctx, cardId, card.userId, card);
   for (const key of cardStorageObjectKeys(card)) {
-    await deleteObject(ctx, key);
+    await queueObjectDeletion(ctx, key);
   }
 };
 

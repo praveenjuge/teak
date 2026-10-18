@@ -383,7 +383,6 @@ const getIconMarkup = (state: ButtonState): string => {
   return ICONS[state];
 };
 
-/** The icon's fixed markup, parsed in an inert document instead of assigned as HTML. */
 const iconNodes = (markup: string): Node[] => [
   ...new DOMParser().parseFromString(markup, "text/html").body.childNodes,
 ];

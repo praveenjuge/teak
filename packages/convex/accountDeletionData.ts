@@ -300,7 +300,6 @@ export const checkpointStorageBatch = internalMutation({
       throw new Error("deletion_storage_source_changed");
     }
     const next = offset + count;
-    // Each checkpoint is progress, so a long drain never reads as stalled.
     const nextAttemptAt = Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS;
     if (next < batch.keys.length) {
       await ctx.db.patch(state._id, {

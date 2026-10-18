@@ -1,6 +1,5 @@
 import { Node } from "@tiptap/core";
 
-/** Unsupported Markdown remains ordinary editable text, never parsed HTML. */
 export const LiteralMarkdown = Node.create({
   name: "literalMarkdown",
   group: "block",

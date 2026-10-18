@@ -1,10 +1,13 @@
 package com.praveenjuge.teak.feature.capture.share
 
+import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeUploadRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -18,12 +21,12 @@ class ShareViewModelTest {
 
     private val cards = FakeCardsRepository()
 
-    private fun viewModel(signedIn: Boolean = true) =
-        ShareViewModel(ShareImporter(cards, FakeUploadRepository(), FakeAccountRepository(signedIn)))
+    private fun viewModel(appScope: CoroutineScope, signedIn: Boolean = true) =
+        ShareViewModel(ShareImporter(cards, FakeUploadRepository(), FakeAccountRepository(signedIn)), appScope)
 
     @Test
     fun `a saved share closes the sheet after a moment`() = runTest(mainDispatcher.dispatcher) {
-        val viewModel = viewModel()
+        val viewModel = viewModel(backgroundScope)
         viewModel.close.test {
             viewModel.start(listOf(ShareItem.Text("hello")))
             runCurrent()
@@ -38,7 +41,7 @@ class ShareViewModelTest {
 
     @Test
     fun `a signed out share stays open to offer sign in`() = runTest(mainDispatcher.dispatcher) {
-        val viewModel = viewModel(signedIn = false)
+        val viewModel = viewModel(backgroundScope, signedIn = false)
         viewModel.close.test {
             viewModel.start(listOf(ShareItem.Text("hello")))
             advanceTimeBy(10_000)
@@ -49,7 +52,7 @@ class ShareViewModelTest {
 
     @Test
     fun `a share that arrives while the sheet is open is saved too`() = runTest(mainDispatcher.dispatcher) {
-        val viewModel = viewModel()
+        val viewModel = viewModel(backgroundScope)
         viewModel.start(emptyList())
         runCurrent()
         assertEquals(ShareUiState.Empty, viewModel.uiState.value)
@@ -58,5 +61,14 @@ class ShareViewModelTest {
         runCurrent()
         assertEquals(ShareUiState.Saved, viewModel.uiState.value)
         assertEquals(listOf("second share"), cards.created)
+    }
+
+    @Test
+    fun `closing the sheet mid-save still saves the share`() = runTest(mainDispatcher.dispatcher) {
+        val viewModel = viewModel(backgroundScope)
+        viewModel.start(listOf(ShareItem.Text("hello")))
+        viewModel.viewModelScope.cancel()
+        runCurrent()
+        assertEquals(listOf("hello"), cards.created)
     }
 }

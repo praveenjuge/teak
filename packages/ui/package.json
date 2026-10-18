@@ -12,6 +12,7 @@
     "./lib/libraryViews": "./src/lib/libraryViews.ts",
     "./lib/sidebarState": "./src/lib/sidebarState.ts",
     "./lib/folders": "./src/lib/folders.ts",
+    "./lib/audioWave": "./src/lib/audioWave.ts",
     "./lib/keyboardShortcuts": "./src/lib/keyboardShortcuts.ts",
     "./lib/commandPalette": "./src/lib/commandPalette.ts",
     "./lib/firstLoadQueries": "./src/lib/firstLoadQueries.ts",

@@ -99,17 +99,14 @@ const mastodonMedia = (
         posterHeight: attachment.meta?.small?.height,
       };
     }
-    // A stream we can't store as a file keeps its preview image.
     return posterUrl ? { type: "image", url: posterUrl } : null;
   }
   return null;
 };
 
 /**
- * A public Mastodon status from its instance's `/api/v1/statuses/:id`. The
- * host is whatever the card links to, so the request goes through the SSRF
- * guard like any page fetch, and the answer only counts when it names this
- * very URL as the status's own.
+ * Any host can answer `/api/v1/statuses/:id`: the answer only counts when it
+ * names this very URL as the status's own.
  */
 export const fetchMastodonStatus = async (
   url: string,

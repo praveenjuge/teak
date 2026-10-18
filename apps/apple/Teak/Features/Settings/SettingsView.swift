@@ -53,7 +53,7 @@ final class AccountModel {
     func watch(_ backend: TeakBackend) async {
         while !Task.isCancelled {
             do {
-                for try await value in backend.subscribe("auth:getCurrentUser", [:], as: CurrentUser?.self) {
+                for try await value in backend.subscribe(ConvexFunctions.getCurrentUser) {
                     user = value
                     isLoading = false
                 }

@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EnvProfile } from "./env-contract-types.ts";
 import {
   CONVEX_DOTENV_FILE,
   getTargetSpec,
@@ -49,7 +48,6 @@ export const readDotenvFile = (path: string): ParsedDotenv | null => {
 
 export interface LoadedEnvFile {
   exists: boolean;
-  /** Names only; values are never exposed for diagnostics. */
   names: string[];
   path: string;
 }
@@ -60,13 +58,8 @@ export interface TargetEnv {
   values: Map<string, string>;
 }
 
-/**
- * Load the declared dotenv files for a (target, profile) pair. Later files
- * override earlier ones; the caller decides how shell values interact.
- */
 export const loadTargetEnv = (
   target: SupportedTarget,
-  _profile: EnvProfile,
   root: string = join(import.meta.dir, "..")
 ): TargetEnv => {
   const spec = getTargetSpec(target);

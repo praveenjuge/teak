@@ -21,10 +21,6 @@ export function rememberCardOpenOrigin(
   };
 }
 
-/**
- * The card's centre as a CSS `transform-origin` for a dialog that fills most
- * of the viewport, or undefined when this card has no recent origin.
- */
 export function readCardOpenOrigin(
   cardId: string,
   viewport: { height: number; width: number }

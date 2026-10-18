@@ -1,0 +1,11 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+or {
+  `internal.workosIdentity.resolveWorkosOwner` as $match,
+  `internal.workosUsers.linkWorkosUser` as $match,
+  `internal.workosConsents.authorizeConnectConsent` as $match,
+  `internal.workosLifecycle.applyWorkosEvent` as $match
+} where {
+  register_diagnostic(span=$match, message="Call WorkOS identity boundaries only from the adapters that verify their caller: securitySessions.ts, workosBootstrap.ts, workosLifecycle.ts, publicApiHttpAuth.ts and workosWebhook.ts.", severity="error")
+}

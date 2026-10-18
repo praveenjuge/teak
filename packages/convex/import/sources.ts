@@ -9,14 +9,8 @@ import { parsePocketExport } from "./pocket";
 import { parseRaindropCsv } from "./raindrop";
 import { parseReadwiseCsv } from "./readwise";
 
-/** Sources read from one text file (not a Teak archive or Omnivore ZIP). */
 export type TextImportMode = Exclude<ImportMode, "archive">;
 
-/**
- * Parses a text export from `mode`'s source. Throws when the file isn't one
- * (the Files Worker reports that as an invalid source); items that can't be
- * imported come back with an `error` instead.
- */
 export function parseImportSource(
   mode: TextImportMode,
   text: string

@@ -1,5 +1,3 @@
-/** The HTTP contract between the Files Worker and its link fetcher Container. */
-
 import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/src/remoteAsset";
 
 export const FETCHER_PORT = 8080;
@@ -83,7 +81,6 @@ export const FETCHER_STREAM_MAX_BYTES = 100 * 1024 * 1024;
 export const FETCHER_STREAM_MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface FetcherHopRequest {
-  /** The addresses the host resolved to; each is checked again. */
   addresses: string[];
   headers: Partial<
     Record<(typeof FETCHER_HOP_REQUEST_HEADERS)[number], string>

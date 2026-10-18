@@ -51,7 +51,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.designsystem.R as DesignR
-import com.praveenjuge.teak.core.model.TeakMessages
+import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
 
 @Composable
 fun WelcomeRoute(viewModel: WelcomeViewModel = hiltViewModel()) {
@@ -145,7 +145,7 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
         }
         if (state.signupsDisabled) {
             Text(
-                TeakMessages.SIGNUPS_PAUSED,
+                SIGNUPS_PAUSED_MESSAGE,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

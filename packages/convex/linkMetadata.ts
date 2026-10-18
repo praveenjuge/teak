@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
-import { deleteObject } from "./storage/r2";
+import { queueObjectDeletion } from "./storage/r2";
 import { serializeArchivableRaw } from "./storage/rawMetadata";
 
 export * from "./linkMetadata/instagram";
@@ -36,19 +36,18 @@ export const getFullCardForMetadata = internalQuery({
   handler: getFullCardForMetadataHandler,
 });
 
-// Account deletion fences the patch and leaves the card unchanged; then the
-// objects this write introduced are the orphans, not the ones it replaced.
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   patch: Parameters<typeof patchCardWithSearchSync>[2],
   storage: { introduced: string[]; replaced: string[] }
 ): Promise<boolean> => {
-  const patched = await patchCardWithSearchSync(ctx, cardId, patch);
+  const committed = await patchCardWithSearchSync(ctx, cardId, patch);
+  const orphans = committed ? storage.replaced : storage.introduced;
   await Promise.all(
-    (patched ? storage.replaced : storage.introduced).map(async (key) => {
+    orphans.map(async (key) => {
       try {
-        await deleteObject(ctx, key);
+        await queueObjectDeletion(ctx, key);
       } catch (error) {
         console.error(
           `[linkMetadata] Failed to delete storage ${key} for card ${cardId}:`,
@@ -57,7 +56,7 @@ const commitCardStorageSwap = async (
       }
     })
   );
-  return patched;
+  return committed;
 };
 
 export const getCardForLinkFetchHandler = async (
@@ -112,9 +111,38 @@ export const getCardForScreenshot = internalQuery({
   handler: getCardForScreenshotHandler,
 });
 
+type CardMetadata = NonNullable<Doc<"cards">["metadata"]>;
+type StoredLinkPreview = NonNullable<CardMetadata["linkPreview"]>;
+type CardPatch = Parameters<typeof patchCardWithSearchSync>[2];
+
+const collectMediaStorageRefs = (
+  mediaItems: StoredLinkPreview["media"] | undefined
+) => {
+  const storageKeys = new Set<string>();
+  for (const item of mediaItems ?? []) {
+    if (item.storageKey) {
+      storageKeys.add(item.storageKey);
+    }
+    if (item.posterStorageKey) {
+      storageKeys.add(item.posterStorageKey);
+    }
+  }
+  return storageKeys;
+};
+
 export const updateCardMetadataHandler = async (
-  ctx: any,
-  { cardId, linkPreview, status, refresh }: any
+  ctx: MutationCtx,
+  {
+    cardId,
+    linkPreview,
+    status,
+    refresh,
+  }: {
+    cardId: Id<"cards">;
+    linkPreview?: StoredLinkPreview;
+    refresh?: boolean;
+    status: "completed" | "failed";
+  }
 ) => {
   const existingCard = await ctx.db.get("cards", cardId);
   if (!existingCard) {
@@ -123,7 +151,6 @@ export const updateCardMetadataHandler = async (
   }
 
   const previousLinkPreview = existingCard.metadata?.linkPreview;
-  // A refresh that can't read the page keeps the preview it already has.
   if (
     refresh &&
     status === "failed" &&
@@ -142,21 +169,6 @@ export const updateCardMetadataHandler = async (
     });
   }
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
-  const collectMediaStorageRefs = (mediaItems: any[] | undefined) => {
-    const storageKeys = new Set<string>();
-
-    for (const item of mediaItems ?? []) {
-      if (item?.storageKey) {
-        storageKeys.add(item.storageKey);
-      }
-      if (item?.posterStorageKey) {
-        storageKeys.add(item.posterStorageKey);
-      }
-    }
-
-    return storageKeys;
-  };
-
   const previousImageRef = previousLinkPreview?.imageStorageKey;
   const nextImageRef = nextLinkPreview?.imageStorageKey;
   const replacedRefs: string[] = [];
@@ -220,7 +232,7 @@ export const updateCardMetadataHandler = async (
     }
   }
 
-  let updatedMetadata: Record<string, any> = {};
+  let updatedMetadata: CardMetadata = {};
 
   const existingCategory = existingCard.metadata?.linkCategory;
 
@@ -239,7 +251,7 @@ export const updateCardMetadataHandler = async (
     };
   }
 
-  const updateFields: any = {
+  const updateFields: CardPatch = {
     metadata: updatedMetadata,
     metadataStatus: status,
     updatedAt: Date.now(),
@@ -266,7 +278,10 @@ export const updateCardMetadataHandler = async (
     nextLinkPreview?.imageStorageKey,
     nextLinkPreview?.screenshotStorageKey,
     ...collectMediaStorageRefs(nextLinkPreview?.media),
-  ].filter((ref): ref is string => Boolean(ref) && !previousRefs.has(ref));
+  ].filter(
+    (ref): ref is string =>
+      ref !== undefined && ref !== "" && !previousRefs.has(ref)
+  );
   const result = await commitCardStorageSwap(ctx, cardId, updateFields, {
     introduced: introducedRefs,
     replaced: replacedRefs,
@@ -292,14 +307,20 @@ export const updateCardMetadata = internalMutation({
 });
 
 export const updateCardScreenshotHandler = async (
-  ctx: any,
+  ctx: MutationCtx,
   {
     cardId,
     screenshotStorageKey,
     screenshotUpdatedAt,
     screenshotWidth,
     screenshotHeight,
-  }: any
+  }: {
+    cardId: Id<"cards">;
+    screenshotHeight?: number;
+    screenshotStorageKey: string;
+    screenshotUpdatedAt: number;
+    screenshotWidth?: number;
+  }
 ) => {
   const card = await ctx.db.get("cards", cardId);
   if (card?.type !== "link") {

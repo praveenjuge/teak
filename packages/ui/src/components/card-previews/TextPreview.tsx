@@ -1,7 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { MarkdownTextEditor } from "@teak/ui/text-editor";
 import { Maximize2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   ariaKeyShortcut,
@@ -11,6 +11,7 @@ import {
 import type { GetCurrentValue } from "../card-modal/types";
 import { FocusEditor } from "../lazyDialogs";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import { useFocusMode } from "../text-editor/useFocusMode";
 import { Button } from "../ui/button";
 
 type CardWithUrls = Doc<"cards"> & {
@@ -34,27 +35,17 @@ export function TextPreview({
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
-  const [isFocusOpen, setIsFocusOpen] = useState(false);
-  // While Focus is open the editor underneath keeps the text it had: it is
-  // hidden, and re-reading a long note on every key would slow typing in
-  // Focus. It catches up once Focus closes.
-  const [heldContent, setHeldContent] = useState<string | null>(null);
-  const openFocus = () => {
-    setHeldContent(currentContent || "");
-    setIsFocusOpen(true);
-  };
-  const closeFocus = () => {
-    setIsFocusOpen(false);
-    setHeldContent(null);
-  };
+  const {
+    close: closeFocus,
+    inlineEditorValue,
+    isFocusOpen,
+    open: openFocus,
+  } = useFocusMode(currentContent || "");
   const isFocusOpenRef = useRef(false);
   isFocusOpenRef.current = isFocusOpen;
   const focusButtonRef = useRef<HTMLButtonElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // ⌘E anywhere in the open card, not only in its editor (the editor's own
-  // ⌘E opens Focus too, and prevents this one). An open menu keeps its keys,
-  // and so does a dialog opened over the card, such as Folders.
   const openFocusRef = useRef(openFocus);
   openFocusRef.current = openFocus;
   useEffect(() => {
@@ -109,7 +100,7 @@ export function TextPreview({
         onOpenFullScreen={openFocus}
         onSaveShortcut={onSaveShortcut}
         placeholder="Write a note..."
-        value={heldContent ?? currentContent ?? ""}
+        value={inlineEditorValue}
         variant="modal"
       />
       <FocusEditor

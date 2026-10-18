@@ -85,14 +85,21 @@ describe("auth profile", () => {
       expect(result).toBeNull();
     });
 
-    it("returns null instead of throwing when the lookup errors, so sign-out does not crash the page", async () => {
-      mockSafeGetAuthUser.mockRejectedValue(
-        new ConvexError("Profile lookup failed")
-      );
+    it("returns null for a session cleared during sign-out", async () => {
+      mockSafeGetAuthUser.mockRejectedValue(new Error("Unauthenticated"));
       const result = await getAuthUserHandler(
         withProfileSession({}, mockSafeGetAuthUser)
       );
       expect(result).toBeNull();
+    });
+
+    it("surfaces a failed identity lookup instead of reporting no user", async () => {
+      mockSafeGetAuthUser.mockRejectedValue(
+        new ConvexError("Profile lookup failed")
+      );
+      await expect(
+        getAuthUserHandler(withProfileSession({}, mockSafeGetAuthUser))
+      ).rejects.toThrow("Profile lookup failed");
     });
   });
 

@@ -54,7 +54,7 @@ const signIn = async () => {
       "only the dev stack's seeded account is supported; on the E2E stack, create keys in Settings"
     );
   }
-  const env = loadTargetEnv("web", "local").values;
+  const env = loadTargetEnv("web").values;
   const apiKey = env.get("WORKOS_API_KEY") ?? "";
   const clientId = env.get("WORKOS_CLIENT_ID") ?? "";
   let accessToken: string;

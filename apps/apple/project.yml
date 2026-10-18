@@ -1,5 +1,3 @@
-# Source of truth for Teak.xcodeproj. After editing, run `scripts/generate-project.sh`
-# and commit both; CI fails if they differ.
 name: Teak
 options:
   bundleIdPrefix: com.praveenjuge
@@ -40,8 +38,6 @@ settings:
     "ARCHS[sdk=iphonesimulator*]": arm64
     ENABLE_HARDENED_RUNTIME: YES
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-    # Empty outside Release, so Debug builds send nothing. The release workflow
-    # passes the production project token from the POSTHOG_PROJECT_TOKEN secret.
     TEAK_POSTHOG_TOKEN: ""
     TEAK_WORKOS_URL: https://api.workos.com
   configs:

@@ -27,7 +27,6 @@ const MAX_REQUEST_BYTES = 16 * 1024;
 const json = (status: number, body: unknown): Response =>
   Response.json(body, { status });
 
-/** A hop's upstream status and headers, under the names the Worker reads. */
 const hopHeaders = (
   facts: {
     contentLength: string | null;
@@ -54,10 +53,6 @@ const hopHeaders = (
   return headers;
 };
 
-/**
- * One Container serves a few downloads and page fetches at once. Only the Files Worker reaches
- * it, through its Durable Object; nothing else can connect to the port.
- */
 export const createFetcherHandler = (deps: FetchAssetDeps) => {
   let inFlight = 0;
   let streams = 0;

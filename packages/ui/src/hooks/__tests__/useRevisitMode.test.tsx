@@ -82,7 +82,6 @@ describe("useRevisitMode", () => {
     const { props, render } = await mountMode({ librarySort: "oldest" });
     await act(() => mode.onSortChange("revisit"));
     await render({ librarySort: "revisit" });
-    // Space opens the details (a pushed ?card= entry); closing replaces it.
     await render({ cardOpen: true, librarySort: "revisit" });
     await render({ cardOpen: false, librarySort: "revisit" });
 

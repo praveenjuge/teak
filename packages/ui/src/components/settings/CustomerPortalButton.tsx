@@ -21,11 +21,12 @@ export function CustomerPortalButton({
     setIsLoading(true);
     try {
       await triggerCustomerPortal(onCreatePortal);
-    } catch {
     } finally {
       setIsLoading(false);
     }
   };
+
+  const label = isLoading ? <Spinner /> : children;
 
   return (
     <button
@@ -40,7 +41,7 @@ export function CustomerPortalButton({
       onClick={handlePortal}
       type="button"
     >
-      {isLoading ? <Spinner /> : children}
+      {label}
     </button>
   );
 }

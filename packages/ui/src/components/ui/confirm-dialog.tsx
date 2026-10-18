@@ -21,10 +21,6 @@ interface ConfirmDialogProps {
   title: string;
 }
 
-/**
- * Asks before a destructive action. Focus starts on Cancel, so pressing
- * Enter right away never confirms by accident.
- */
 export function ConfirmDialog({
   open,
   onOpenChange,

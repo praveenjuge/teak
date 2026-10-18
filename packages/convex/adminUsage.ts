@@ -1,17 +1,10 @@
+import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { DAY_MS, utcDay } from "./adminStats";
 
-/** The Files Worker sends at most this many users per call. */
-export const MAX_DAILY_USAGE_ROWS = 200;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
-/**
- * Sets each listed user's AI usage for one UTC day to the totals the Files
- * Worker read from Workers Analytics Engine. The hourly rollup sends a day's
- * absolute totals every time, so a repeated or overlapping run never counts
- * a call twice.
- */
 export const replaceDailyUsage = internalMutation({
   args: {
     date: v.string(),

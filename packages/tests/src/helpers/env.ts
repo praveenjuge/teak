@@ -5,6 +5,7 @@ import {
   type StackState,
   type StackUrls,
 } from "../../../../scripts/lib/stack-state.ts";
+import { MAIN_SITE_URL } from "../../../../scripts/worktree-env.ts";
 
 type E2eUrls = Required<StackUrls>;
 
@@ -44,13 +45,8 @@ export const resolveStackUrls = (
 // e2e loads this file under Node, so the root comes from import.meta.url.
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
-/**
- * The web app's origin for the configs' targets. The config loads before any
- * test, so a stack that isn't running yet falls back to the main checkout's
- * port; the tests' own URLs fail with the remedy (see resolveStackUrls).
- */
 export const stackAppUrl = (): string =>
-  readStackState(ROOT)?.urls.appOrigin ?? "http://localhost:3000";
+  readStackState(ROOT)?.urls.appOrigin ?? MAIN_SITE_URL;
 
 export const stackMode = () => readStackState(ROOT)?.mode;
 

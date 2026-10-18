@@ -7,6 +7,7 @@ import {
   type Surface,
   test,
 } from "../helpers/test";
+import { LOCAL_STACK } from "../stack/config";
 import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
 const enterSearch = async (screen: Screen, query: string) => {
@@ -190,12 +191,7 @@ https://example.com/editor
       source: "e2e",
       url: "https://example.com",
     });
-    // Without a fetched title the card keeps its address as the title.
     await searchForVisibleCard(surface, marker, /^example\.com$/);
-    // The local E2E stack runs the Files Worker without its fetcher
-    // Containers, so link fetching fails the way it does when those services
-    // are down: the card keeps its address title and the metadata stage
-    // settles as failed instead of the fetched page title landing.
     await expect
       .poll(
         async () => {
@@ -207,7 +203,7 @@ https://example.com/editor
         },
         { timeout: 180_000 }
       )
-      .toBe("failed");
+      .toBe(LOCAL_STACK.fetchesLinks ? "completed" : "failed");
   });
 
   test("web bulk actions, restore, and empty states stay coherent", async ({

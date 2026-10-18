@@ -1,6 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 
-/** The actions the bulk bar runs, matching `api.cards.bulkUpdateCards`. */
 export type BulkCardAction =
   | "favorite"
   | "unfavorite"
@@ -14,22 +13,18 @@ export type BulkCardAction =
   | "removeFromFolder"
   | "moveToFolder";
 
-/** The folder a folder action targets, and for a move the one it leaves. */
 export interface BulkFolderTarget {
   folderId: string;
-  /** Shown in the toasts: "Added 3 cards to Reading". */
   folderName: string;
   fromFolderId?: string;
   fromFolderName?: string;
 }
 
-/** Cards per server call; larger selections run in sequential chunks. */
 export const BULK_CHUNK_SIZE = 100;
 
 export const cardCountLabel = (count: number) =>
   `${count} card${count === 1 ? "" : "s"}`;
 
-/** The action that puts cards back, for the actions whose toast offers Undo. */
 export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
   {
     archive: "unarchive",
@@ -37,21 +32,12 @@ export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
     delete: "restore",
   };
 
-/** One step of an Undo: an action on some of the cards. */
 export interface BulkUndoStep {
   action: BulkCardAction;
   cardIds: string[];
   folder?: BulkFolderTarget;
 }
 
-/**
- * The steps that put each card's folders back the way they were, from the
- * folders each card was in before the action (`before`, by card ID). Cards
- * the action left as they were need nothing: adding a card already in the
- * folder must not take it out on Undo, and moving a card that was already in
- * the destination only puts back the folder it left. A move out of every
- * folder has no way back, so it offers no Undo (undefined).
- */
 export const folderUndoSteps = (
   action: BulkCardAction,
   target: BulkFolderTarget,
@@ -169,7 +155,6 @@ const COPY: Record<
   },
 };
 
-/** What the toasts say: "Archiving 120 of 300…", "Archived 300 cards". */
 export const bulkActionCopy = {
   progress: (action: BulkCardAction, done: number, total: number) =>
     `${COPY[action].running} ${done} of ${total}…`,
@@ -188,11 +173,6 @@ export const bulkActionCopy = {
 const hasTag = (list: readonly string[], tag: string) =>
   list.some((item) => item.toLowerCase() === tag.toLowerCase());
 
-/**
- * The card as the action leaves it, for the optimistic update while the
- * server call runs. Mirrors the server: tags match ignoring case, and Remove
- * tags also clears tags Teak added.
- */
 export const applyBulkActionToCard = (
   card: Doc<"cards">,
   action: BulkCardAction,
@@ -294,11 +274,6 @@ export interface BulkRunResult {
   updatedIds: string[];
 }
 
-/**
- * Sends the cards in chunks of BULK_CHUNK_SIZE, one after another, and
- * collects which ones changed. A chunk whose call fails outright counts all
- * its cards as failed; the run carries on with the next chunk.
- */
 export const runBulkInChunks = async (
   cardIds: readonly string[],
   send: (chunk: string[]) => Promise<BulkRunResult>,
@@ -311,8 +286,6 @@ export const runBulkInChunks = async (
   for (let start = 0; start < ids.length; start += chunkSize) {
     const chunk = ids.slice(start, start + chunkSize);
     try {
-      // Sequential on purpose: one call at a time keeps the server's write
-      // load flat and the progress count honest.
       // react-doctor-disable-next-line react-doctor/async-await-in-loop
       const result = await send(chunk);
       updatedIds.push(...result.updatedIds);
@@ -325,7 +298,6 @@ export const runBulkInChunks = async (
   return { updatedIds, failedIds };
 };
 
-/** The links in a selection, one per line, for Copy links. */
 export const collectCardLinks = (cards: readonly Doc<"cards">[]): string[] =>
   Array.from(
     new Set(

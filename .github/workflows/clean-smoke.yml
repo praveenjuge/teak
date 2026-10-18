@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  # The e2e GitHub reporter posts the smoke's results on the pull request.
   pull-requests: write
 
 jobs:
@@ -20,10 +19,6 @@ jobs:
     timeout-minutes: 30
     env:
       TURBO_UI: "false"
-    # `bun run dev` needs the shared cloud dev deployment, which forks and
-    # this runner can't reach, so setup is only checked here. The signed-in
-    # smoke runs on the E2E suite's own stack: a local backend and the WorkOS
-    # emulator with test-only values, so it needs no secrets.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

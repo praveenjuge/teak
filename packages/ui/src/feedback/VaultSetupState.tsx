@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { LogoMark } from "../logo";
 
-/** What the setup is doing, cycled under the title. */
 export const VAULT_SETUP_STEPS = [
   "Adding a few starter cards",
   "Pulling colors from a photo",
@@ -14,10 +13,6 @@ export const VAULT_SETUP_STEPS = [
 
 const STEP_MS = 1600;
 
-/**
- * Shown to a brand-new account while its getting-started cards are on their
- * way, in place of the empty library, so the first thing it sees fills in.
- */
 export function VaultSetupState() {
   const [step, setStep] = useState(0);
   useEffect(() => {

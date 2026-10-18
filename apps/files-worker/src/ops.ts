@@ -123,7 +123,6 @@ export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
-  /** This Worker's public origin, for ops run in-process by workflows. */
   FILES_PUBLIC_ORIGIN?: string;
   FILES_SIGNING_SECRET: string;
   IMAGES?: ImagesBinding;
@@ -317,11 +316,13 @@ const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
   };
 };
 
+export const DELETE_OBJECTS_MAX_KEYS = 100;
+
 const validKeyList = (value: unknown): string[] => {
   if (
     !Array.isArray(value) ||
     value.length === 0 ||
-    value.length > 100 ||
+    value.length > DELETE_OBJECTS_MAX_KEYS ||
     value.some((key) => typeof key !== "string" || !isValidUploadKey(key))
   ) {
     throw new Error("invalid_keys");
@@ -353,9 +354,7 @@ const dispatch = async (
         renderer: Boolean(env.MEDIA_RENDERER),
         fetcher: Boolean(env.LINK_FETCHER),
         vectors: Boolean(env.CARD_VECTORS_0),
-        // Background work: the workflows exist and the Worker can sign RPCs.
         workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
-        // `embed-upsert` stores card types and `vector-query` filters by one.
         vectorTypes: true,
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
@@ -495,8 +494,6 @@ const dispatch = async (
           requiredString(params, "uploadId")
         ).abort();
       } catch (error) {
-        // R2 NoSuchUpload means this idempotent cleanup has already completed.
-        // All other errors must propagate to durable workflow/cron retries.
         if (!isMissingMultipartUpload(error)) {
           throw error;
         }
@@ -637,9 +634,6 @@ const dispatch = async (
         throw new Error("invalid_title");
       }
       const sourceKey = requiredString(params, "sourceKey");
-      // Clef styles run beside the tags call when asked, on the same loaded
-      // image. A Clef failure leaves `visualStyles` out, so callers fall back
-      // to the tag aliases.
       const image =
         params.visualStyles === true
           ? await loadImageForAi(env, origin, sourceKey)
@@ -899,14 +893,6 @@ export const handleInternalOp = async (
   );
 };
 
-/**
- * Runs one op whose caller is already trusted: a verified signed request,
- * or a workflow step in this Worker. Errors become the same envelopes.
- */
-/**
- * The user an op's Workers AI calls are charged to, when Convex named one
- * (`aiUsage` in the params) for a deployment this Worker serves.
- */
 const aiUsageParam = (
   env: FilesOpsEnv,
   value: unknown

@@ -3,28 +3,19 @@ import { capBatchForQueue } from "./globalFileDropHelpers";
 
 export interface UploadQueueSnapshot {
   isUploading: boolean;
-  /** Files queued, including the batch being uploaded. */
   queueSize: number;
 }
 
 export interface UploadQueueHandlers {
-  /** Called once for every file uploaded since the queue started draining. */
   onFinish: (
     results: UploadMultipleFilesResultItem[],
     skippedCount: number
   ) => void;
-  /** Files over the cap were dropped while nothing was uploading. */
   onSkipped: (skippedCount: number) => void;
   onStart: () => void;
   upload: (files: File[]) => Promise<UploadMultipleFilesResultItem[]>;
 }
 
-/**
- * Uploads files in arrival order, one batch at a time, holding at most
- * `maxFiles`. Files added while a batch uploads go in the next batch, and
- * the whole run ends with one `onFinish`. Files over the cap are counted and
- * reported with the run's result.
- */
 export function createUploadQueue(
   maxFiles: number,
   handlers: () => UploadQueueHandlers

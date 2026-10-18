@@ -12,22 +12,9 @@ export interface FirstLoadQuery {
 }
 
 export interface FirstLoadContext {
-  /**
-   * The folders already loaded (the sidebar's list). A folder page's cards
-   * wait on the folder's kind, so they are warmed only for a manual folder
-   * found here.
-   */
   folders?: readonly Pick<FolderSummary, "_id" | "kind">[];
 }
 
-/**
- * The queries a signed-in page at `url` asks for as it first renders: the
- * owner's profile, the sidebar's folders and New menu, and on a page of
- * cards, whether the vault is still being set up (cards wait on it) and a
- * library view's or manual folder's first page. Subscribing to them as the
- * client starts, or as a link to the page is about to be clicked, sends them
- * together instead of each waiting for the component before it.
- */
 export function firstLoadQueries(
   url: Pick<URL, "pathname" | "searchParams">,
   { folders }: FirstLoadContext = {}

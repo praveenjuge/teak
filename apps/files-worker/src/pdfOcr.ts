@@ -20,7 +20,6 @@ const NOTHING_READ: FilesPdfOcrResult = {
   text: "",
 };
 
-/** A page the model never answered validly for reads as no text. */
 const readPage = async (env: Env, png: Uint8Array): Promise<string> => {
   try {
     return await readImageText(
@@ -40,12 +39,6 @@ const readPage = async (env: Env, png: Uint8Array): Promise<string> => {
   }
 };
 
-/**
- * `ocr-pdf-pages`: the text on a scanned PDF's first pages, read one page
- * at a time (one renderer slot per call), held in memory and never stored.
- * A PDF the renderer declines (a password, no pages, over the size cap)
- * reads as nothing, with the full result shape.
- */
 export const ocrPdfPages = async (
   env: Env,
   sourceKey: string,

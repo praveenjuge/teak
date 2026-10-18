@@ -15,13 +15,10 @@ import type { Env } from "./index";
 import { OpFailure } from "./opFailure";
 
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
-// Room for most images' text beside the tags and summary. Dense text can
-// still run past it; validationRetryPrompt then asks for less.
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 2048;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
 const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
 const MAX_PROMPT_CHARS = 6000;
-/** A vision answer that never parsed, after its validation retries. */
 export const INVALID_IMAGE_OUTPUT = "invalid_image_metadata_output";
 const CAPACITY_RETRY_BASE_DELAY_MS = 250;
 const WORKERS_AI_CAPACITY_ERROR =
@@ -49,14 +46,8 @@ const boundPrompt = (content: string): string => {
   return `${content.slice(0, MAX_PROMPT_CHARS)}\n\n[Content truncated]`;
 };
 
-/** Text a retry asks for, so an answer cut off at the token cap fits. */
 const RETRY_IMAGE_OCR_CHARS = 1000;
 
-/**
- * The prompt for a validation attempt. Dense text (CJK, code) can run past
- * the output cap and cut the JSON off, so a retry asks for less text, and
- * the last one for none: the tags and summary still save.
- */
 export const validationRetryPrompt = (
   prompt: string,
   attempt: number
@@ -146,12 +137,6 @@ const waitForCapacityRetry = (attempt: number): Promise<void> =>
     setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
   });
 
-/**
- * The `detail` rendition as one broadly supported raster frame, for models
- * that read images. Animated originals and formats Workers AI cannot decode
- * come back as a single JPEG frame. Unlike the display rendition, the height
- * keeps the same bound as the width, so a tall image stays a small input.
- */
 export const loadImageForAi = async (
   env: Env,
   origin: string,
@@ -189,26 +174,14 @@ export const loadImageForAi = async (
 };
 
 interface VisionJsonRequest<T> {
-  /**
-   * Set for the metadata call only, whose answers were measured with it.
-   * Text-only reads of dense documents leave it off.
-   */
   frequencyPenalty?: number;
   functionId: string;
   imageDataUrl: string;
-  /** Undefined when the answer doesn't have the expected shape. */
   parse: (raw: string) => T | null;
-  /** The user prompt for a validation attempt (0 is the first try). */
   prompt: (validationAttempt: number) => string;
   system: string;
 }
 
-/**
- * One vision call that answers JSON, with the capacity and validation
- * retries every image op shares. Returns the parsed answer and the
- * validation attempt that produced it. Throws `invalid_image_output` once
- * no attempt parses.
- */
 const runVisionJson = async <T>(
   env: Env,
   request: VisionJsonRequest<T>
@@ -219,7 +192,7 @@ const runVisionJson = async <T>(
   }
   let capacityAttempt = 0;
   let validationAttempt = 0;
-  while (true) {
+  for (;;) {
     try {
       const response = await meteredAiRun(
         env,
@@ -298,7 +271,6 @@ export const generateImageMetadataForOp = async (
     sourceKey,
     title,
   }: {
-    /** Already loaded with `loadImageForAi`, so it isn't transformed twice. */
     image?: { dataUrl: string };
     origin: string;
     sourceKey: string;
@@ -345,13 +317,11 @@ Respond with a single JSON object using exactly this shape and no other keys:
 
 const IMAGE_TEXT_PROMPT = "Read the text in this image:";
 
-/** A text-only retry asks for less, since a long answer may have been cut. */
 const imageTextRetryPrompt = (attempt: number): string =>
   attempt === 0
     ? IMAGE_TEXT_PROMPT
     : `JSON validation retry ${attempt}: your last answer was not valid JSON, possibly cut off. Return only the JSON object with text cut to at most ${RETRY_IMAGE_OCR_CHARS} characters. Do not include markdown, commentary, or any other keys.\n\n${IMAGE_TEXT_PROMPT}`;
 
-/** `{ text }` from the text-only prompt, tidied; `""` when none is legible. */
 export const parseImageText = (raw: string): { text: string } | null => {
   const value = parseJson(stripJsonFences(raw));
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -363,7 +333,6 @@ export const parseImageText = (raw: string): { text: string } | null => {
     : null;
 };
 
-/** The legible text in an image, already loaded as a data URL. */
 export const readImageText = async (
   env: Env,
   imageDataUrl: string,
@@ -379,7 +348,6 @@ export const readImageText = async (
   return value.text;
 };
 
-/** `extract-image-text`: the text in a stored image, nothing else. */
 export const extractImageTextForOp = async (
   env: Env,
   { origin, sourceKey }: { origin: string; sourceKey: string },

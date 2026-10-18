@@ -11,7 +11,6 @@ export interface SubstackNoteRef {
   handle: string | undefined;
 }
 
-/** `substack.com/@<user>/note/<id>` (or `/note/<id>`). */
 export const parseSubstackNoteUrl = (url: string): SubstackNoteRef | null => {
   try {
     const parsed = new URL(url);
@@ -28,10 +27,7 @@ export const parseSubstackNoteUrl = (url: string): SubstackNoteRef | null => {
 export const isSubstackNoteUrl = (url: string): boolean =>
   parseSubstackNoteUrl(url) !== null;
 
-/**
- * A Substack note from its Open Graph tags. Substack has no documented
- * unauthenticated JSON for notes, so the page scrape is the source.
- */
+// Substack has no documented unauthenticated JSON for notes.
 export const mapSubstackNoteOpenGraph = (
   url: string,
   parsed: ParsedLinkPreview

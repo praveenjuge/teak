@@ -9,7 +9,7 @@ export default function SearchCardsCommand() {
       emptyIcon={Icon.MagnifyingGlass}
       emptyTitle="No cards found"
       latestSectionTitle="Latest Teak Cards"
-      loadCards={(input) => searchCards({ ...input, limit: 50 }, "prompt")}
+      loadCards={(input) => searchCards({ ...input, limit: 50 }, "interactive")}
       navigationTitle="Search Teak Cards"
       searchBarPlaceholder="Search, or filter with type:, tag:, fav, trash, hue:, #hex, after:"
     />

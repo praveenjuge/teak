@@ -145,7 +145,7 @@ describe("worker import source", () => {
       expect(page.total).toBe(1);
       expect(page.items[0]?.card).toBeDefined();
     }
-    const { bucket, params } = upload("raindrop", files.raindrop ?? "");
+    const { bucket, params } = upload("raindrop", files.raindrop);
     const page = await indexImportSource(bucket, params);
     expect(page.items[0]?.card).toMatchObject({ folders: ["Inbox / Later"] });
   });

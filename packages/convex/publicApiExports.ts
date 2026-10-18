@@ -1,8 +1,3 @@
-/**
- * Public API exports: start a full-account ZIP export and read the latest
- * export, with a short-lived download URL once it is ready. Same jobs, quota
- * (one export per 7 days) and artifact as the web Export panel.
- */
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { type ActionCtx, httpAction } from "./_generated/server";

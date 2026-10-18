@@ -43,7 +43,7 @@ describe("env-loader", () => {
       "NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
     );
     writeFileSync(join(root, ".env.local"), "POISON=should-not-load\n");
-    const loaded = loadTargetEnv("web", "local", root);
+    const loaded = loadTargetEnv("web", root);
     expect(loaded.values.get("NEXT_PUBLIC_CONVEX_URL")).toBe(
       "http://127.0.0.1:3210"
     );
@@ -55,7 +55,7 @@ describe("env-loader", () => {
 
   test("loadTargetEnv reports missing files without values", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-loader-"));
-    const loaded = loadTargetEnv("extension", "local", root);
+    const loaded = loadTargetEnv("extension", root);
     expect(loaded.files).toEqual([
       { path: "apps/extension/.env.local", exists: false, names: [] },
     ]);

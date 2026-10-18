@@ -24,7 +24,6 @@ test("a link is marked done from its card, Undo clears it, and is:done finds it"
   await expect(screen.getByText("Marked as done")).toBeVisible();
   await expect(dialog.getByRole("button", "Done")).toBeVisible();
 
-  // The open dialog keeps the page behind it inert; Undo waits there.
   await browser.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await screen.getByRole("button", "Undo").click();
@@ -68,29 +67,7 @@ test("Undo on the toast works while the card is still open", async ({
   await dialog.getByRole("button", "Mark as done").click();
   await expect.poll(completedAt).toEqual(expect.any(Number));
 
-  // The open dialog hides the page from the accessibility tree, so press
-  // Undo where it is drawn, with the mouse, as a person would: once the
-  // toast has settled and a press there lands on the button.
-  const undoCenter = () =>
-    browser.evaluate(() => {
-      const undo = [
-        ...document.querySelectorAll("[data-sonner-toast] button"),
-      ].find((button) => button.textContent === "Undo");
-      const box = undo?.getBoundingClientRect();
-      if (!(undo && box)) {
-        return null;
-      }
-      const x = box.x + box.width / 2;
-      const y = box.y + box.height / 2;
-      return document.elementFromPoint(x, y)?.closest("button") === undo
-        ? { x, y }
-        : null;
-    });
-  await expect.poll(undoCenter).not.toBeNull();
-  const point = await undoCenter();
-  await browser.mouse.move(point?.x ?? 0, point?.y ?? 0);
-  await browser.mouse.down();
-  await browser.mouse.up();
+  await screen.getByRole("button", "Undo").click();
 
   await expect.poll(completedAt).toBeUndefined();
   await expect(dialog.getByRole("button", "Mark as done")).toBeVisible();

@@ -7,6 +7,7 @@ import {
   isProcessAlive,
   isStackRunning,
   readStackState,
+  recordStartingStack,
   type StackState,
 } from "./stack-state.ts";
 
@@ -36,6 +37,20 @@ describe("stack liveness", () => {
   test("a live process that isn't a stack owner is not a running stack", () => {
     expect(isStackRunning(state(process.pid))).toBe(false);
   });
+
+  test("bun run dev's stack runs as scripts/dev-main.ts", () => {
+    const owner = Bun.spawn([
+      "sh",
+      "-c",
+      "sleep 30; :",
+      "/repo/scripts/dev-main.ts",
+    ]);
+    try {
+      expect(isStackRunning(state(owner.pid))).toBe(true);
+    } finally {
+      owner.kill("SIGKILL");
+    }
+  });
 });
 
 describe("readStackState", () => {
@@ -55,5 +70,26 @@ describe("readStackState", () => {
   test("reads a recorded stack", () => {
     const root = rootWith(JSON.stringify(state(4242)));
     expect(readStackState(root)?.urls.appOrigin).toBe("http://localhost:3000");
+  });
+});
+
+describe("recordStartingStack", () => {
+  const { ready: _ready, startedAt: _startedAt, ...fields } = state(4242);
+
+  test("records a stack that is still starting, so it can be found and stopped", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-stack-state-"));
+    recordStartingStack(root, fields);
+    expect(readStackState(root)).toMatchObject({
+      groups: [4242],
+      ready: false,
+    });
+  });
+
+  test("saves later changes to the same record", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-stack-state-"));
+    const { save, state: recorded } = recordStartingStack(root, fields);
+    recorded.ready = true;
+    save();
+    expect(readStackState(root)?.ready).toBe(true);
   });
 });

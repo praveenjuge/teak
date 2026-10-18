@@ -251,12 +251,7 @@ const isHidden = (node: DomNode): boolean => {
   }
   const width = Number(attribs.width);
   const height = Number(attribs.height);
-  return (
-    attribs.width !== undefined &&
-    attribs.height !== undefined &&
-    width <= 1 &&
-    height <= 1
-  );
+  return "width" in attribs && "height" in attribs && width <= 1 && height <= 1;
 };
 
 /** Every text node under `node`, iteratively (no recursion limit). */

@@ -65,7 +65,7 @@ class CardEditViewModel @AssistedInject constructor(
         }
     }
 
-    fun updateContent(value: String) = updateDraft { it.copy(content = value) }
+    fun updateContent(value: String) = updateDraft { it.copy(editableContent = value) }
 
     fun updateNotes(value: String) = updateDraft { it.copy(notes = value) }
 
@@ -91,7 +91,7 @@ class CardEditViewModel @AssistedInject constructor(
         val state = _uiState.value
         val card = state.card ?: return
         if (!state.canSave) return
-        if (card.type == CardType.Quote && state.draft?.content.isNullOrBlank()) {
+        if (card.type == CardType.Quote && state.draft?.editableContent.isNullOrBlank()) {
             _uiState.update { it.copy(alert = EditAlert("Quote is empty", "Write the quote before saving.")) }
             return
         }

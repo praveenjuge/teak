@@ -67,10 +67,6 @@ const readSaved = (path: string): DevAccount | null => {
   }
 };
 
-/**
- * Find or create the account and make sure its saved password signs in.
- * WorkOS sends the backend's user.created webhook, which links the account.
- */
 export const ensureDevAccount = async (options: {
   apiKey: string;
   clientId: string;
@@ -80,15 +76,20 @@ export const ensureDevAccount = async (options: {
   const workos = new WorkOS(options.apiKey, { clientId: options.clientId });
   const email = devAccountEmail(options.namespace);
   const saved = readSaved(options.statePath);
-  if (saved?.email === email) {
-    try {
-      await workos.userManagement.authenticateWithPassword({
+  if (
+    saved?.email === email &&
+    (await workos.userManagement
+      .authenticateWithPassword({
         clientId: options.clientId,
         email,
         password: saved.password,
-      });
-      return saved;
-    } catch {}
+      })
+      .then(
+        () => true,
+        () => false
+      ))
+  ) {
+    return saved;
   }
   const password = `${randomBytes(24).toString("base64url")}aA1!`;
   const existing = (await workos.userManagement.listUsers({ email })).data[0];
@@ -122,12 +123,6 @@ export interface CloudAccountActivity {
   workosUserId: string;
 }
 
-/**
- * The cloud session accounts to prune: last signed in to (or, never signed
- * in, created) more than `maxAgeMs` ago. The current session's account and
- * every address that isn't a cloud session account are always kept, and so is
- * an account whose dates don't parse.
- */
 export const selectStaleCloudAccounts = (
   accounts: CloudAccountActivity[],
   options: {
@@ -150,10 +145,6 @@ export const selectStaleCloudAccounts = (
   });
 };
 
-/**
- * WorkOS sign-in dates for the given accounts. An account WorkOS no longer has
- * is left out, so it is never pruned from here.
- */
 export const readCloudAccountActivity = async (
   options: { apiKey: string; clientId: string },
   accounts: { email: string; workosUserId: string }[]

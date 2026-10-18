@@ -11,22 +11,10 @@ import { addressKey } from "../edgeIdentity";
 import type { RateLimiter } from "../edgeRateLimit";
 import { sha256Hex } from "../lib";
 
-/**
- * WorkOS webhooks arrive here first. WorkOS posts to
- * `/__webhooks/workos/<convex-site-host>`; the Worker checks the request
- * cheaply, queues it on `WORKOS_EVENTS` and answers 200 at once, so a slow
- * or briefly unavailable Convex never makes WorkOS back off. The consumer
- * then posts the exact body and signature to that deployment's own
- * `/workos/webhook` route, which verifies the signature and dedupes events
- * as it always has. The signature is not checked here: the Worker does not
- * hold the webhook secret.
- */
-
 export const WORKOS_WEBHOOK_PATH_PREFIX = "/__webhooks/workos/";
 /** Queue messages are limited to 128 KB; this leaves room for the rest. */
 export const WORKOS_WEBHOOK_MAX_BODY_BYTES = 120 * 1024;
 export const WORKOS_SIGNATURE_MAX_LENGTH = 1024;
-/** Signed timestamps further ahead of now than this are refused at the edge. */
 export const WORKOS_SIGNATURE_WINDOW_MS = 5 * 60 * 1000;
 /**
  * The WorkOS SDK's default tolerance, which Convex's route applies: a
@@ -52,13 +40,39 @@ const text = (status: number, body: string): Response =>
     status,
   });
 
-/** The `t=` timestamp (ms) of a `workos-signature` header. */
 export const signedAt = (signature: string): number | null => {
   const match = /(?:^|,)\s*t=(\d{1,16})\s*(?:,|$)/u.exec(signature);
   return match ? Number(match[1]) : null;
 };
 
-/** The deployment a webhook path names, when this Worker serves it. */
+const withinUnknownCredentialLimit = async (
+  request: Request,
+  env: WorkosIngressEnv
+): Promise<boolean> => {
+  if (!env.UNKNOWN_CREDENTIAL_LIMITER) {
+    return true;
+  }
+  try {
+    const { success } = await env.UNKNOWN_CREDENTIAL_LIMITER.limit({
+      key: addressKey(request),
+    });
+    return success;
+  } catch {
+    return true;
+  }
+};
+
+const parseEventFields = (
+  body: string
+): { event?: unknown; id?: unknown } | null => {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const deploymentFor = (
   env: WorkosIngressEnv,
   pathname: string
@@ -84,27 +98,16 @@ export const handleWorkosWebhookIngress = async (
   if (!convexSiteUrl) {
     return text(404, "Not found");
   }
-  // Every webhook is charged to its address, like an unknown credential.
-  if (env.UNKNOWN_CREDENTIAL_LIMITER) {
-    try {
-      const { success } = await env.UNKNOWN_CREDENTIAL_LIMITER.limit({
-        key: addressKey(request),
-      });
-      if (!success) {
-        const response = text(429, "Too many requests");
-        response.headers.set("Retry-After", "60");
-        return response;
-      }
-    } catch {
-      // An unavailable limiter never blocks WorkOS.
-    }
+  if (!(await withinUnknownCredentialLimit(request, env))) {
+    const response = text(429, "Too many requests");
+    response.headers.set("Retry-After", "60");
+    return response;
   }
   const signature = request.headers.get("workos-signature");
   const timestamp = signature ? signedAt(signature) : null;
   if (
     !(signature && timestamp !== null) ||
     signature.length > WORKOS_SIGNATURE_MAX_LENGTH ||
-    // Convex would refuse it already; only a fresh one can age in the queue.
     now - timestamp > WORKOS_SDK_TOLERANCE_MS ||
     timestamp - now > WORKOS_SIGNATURE_WINDOW_MS
   ) {
@@ -167,7 +170,6 @@ const parseMessage = (
     : null;
 };
 
-/** Convex refused the request for good: a forged or malformed webhook. */
 const REFUSED = new Set([400, 401, 403, 413, 415]);
 const DELIVERY_TIMEOUT_MS = 30_000;
 const MAX_RETRY_DELAY_SECONDS = 15 * 60;
@@ -175,16 +177,10 @@ const MAX_RETRY_DELAY_SECONDS = 15 * 60;
 export const retryDelaySeconds = (attempts: number): number =>
   Math.min(MAX_RETRY_DELAY_SECONDS, 30 * 2 ** Math.max(0, attempts - 1));
 
-/** The event's ID and type, for the dead letter; Convex dedupes on the ID. */
 export const describeEvent = async (
   body: string
 ): Promise<{ event: string; eventId: string }> => {
-  let parsed: { event?: unknown; id?: unknown } | null = null;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    // Unreadable: identified by its digest instead.
-  }
+  const parsed = parseEventFields(body);
   const id = parsed?.id;
   const event = parsed?.event;
   return {
@@ -202,10 +198,6 @@ export interface WorkosEventsDeps {
   now?: number;
 }
 
-/**
- * Asks the deployment to record the webhook as a dead letter. It verifies
- * the signature (all but its age) first, so a forged one is never recorded.
- */
 const recordUndeliverable = async (
   env: ConvexRpcEnv,
   message: WorkosEventMessage,
@@ -225,13 +217,6 @@ const recordUndeliverable = async (
   }
 };
 
-/**
- * Delivers each queued webhook to its deployment. Convex's answer decides:
- * 2xx is done; a refusal is a forged or malformed webhook and is dropped,
- * unless the signature only aged out while the message waited in the queue,
- * which is recorded as undeliverable; anything else is retried with backoff
- * and ends in the dead-letter queue.
- */
 export const handleWorkosEventsBatch = async (
   batch: MessageBatch<unknown>,
   env: ConvexRpcEnv,
@@ -273,7 +258,6 @@ export const handleWorkosEventsBatch = async (
     if (REFUSED.has(status)) {
       const signed = signedAt(message.signature) ?? 0;
       if (status === 401 && now - signed > WORKOS_SDK_TOLERANCE_MS) {
-        // Expired while queued; the hourly WorkOS catch-up replays it.
         try {
           await recordUndeliverable(env, message, deps);
         } catch (error) {
@@ -293,11 +277,6 @@ export const handleWorkosEventsBatch = async (
   }
 };
 
-/**
- * Webhooks that exhausted their retries: recorded as dead letters in their
- * deployment, so the admin health view shows them. The hourly WorkOS
- * event catch-up applies them from the Events API.
- */
 export const handleWorkosEventsDeadLetters = async (
   batch: MessageBatch<unknown>,
   env: ConvexRpcEnv,

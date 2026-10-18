@@ -16,10 +16,6 @@ export const cardListSortValidator = v.union(
   v.literal("oldest")
 );
 
-/**
- * The grid's sorts: by date, Shuffle with a seed (card/shuffle.ts), or Best
- * match for a search (shared/search/relevance.ts).
- */
 export const cardListSortWithShuffleValidator = v.union(
   v.literal("newest"),
   v.literal("oldest"),
@@ -27,11 +23,7 @@ export const cardListSortWithShuffleValidator = v.union(
   v.literal("shuffle")
 );
 
-/**
- * Which archived cards a library read returns: none (the default), only
- * archived ones (the Archive view), or both. Trash ignores it and lists every
- * trashed card, archived or not.
- */
+/** The public `archived` filter: none (the default), only archived, or both. */
 export type ArchivedFilter = "exclude" | "only" | "include";
 
 export const archivedFilterValidator = v.union(
@@ -41,20 +33,43 @@ export const archivedFilterValidator = v.union(
 );
 
 /**
- * The `isArchived` value an index or search filter should match, or `"any"`
- * when the read must not constrain it (Trash, or archived and not).
+ * Which cards a read returns: the library (unarchived, the default), the
+ * Archive view, both, or Trash (every trashed card, archived or not).
  */
-export const archivedFilterMatch = (
+export type CardListScope =
+  | "library"
+  | "archive"
+  | "libraryAndArchive"
+  | "trash";
+
+export const cardListScope = (
   archived: ArchivedFilter | undefined,
   trash?: boolean
-): true | undefined | "any" => {
-  if (trash || archived === "include") {
-    return "any";
+): CardListScope => {
+  if (trash) {
+    return "trash";
   }
-  return archived === "only" ? true : undefined;
+  if (archived === "only") {
+    return "archive";
+  }
+  return archived === "include" ? "libraryAndArchive" : "library";
 };
 
-/** Bounds on `createdAt`. A missing bound leaves that side open. */
+/** The `isArchived` index value a scope reads; `"any"` reads every value. */
+export const scopeArchivedMatch = (
+  scope: CardListScope = "library"
+): true | undefined | "any" => {
+  if (scope === "trash" || scope === "libraryAndArchive") {
+    return "any";
+  }
+  return scope === "archive" ? true : undefined;
+};
+
+/** The `isDeleted` index value a scope reads. */
+export const scopeDeletedMatch = (
+  scope: CardListScope = "library"
+): true | undefined => (scope === "trash" ? true : undefined);
+
 export interface CreatedAtBounds {
   gte?: number;
   lt?: number;
@@ -62,20 +77,17 @@ export interface CreatedAtBounds {
 }
 
 export interface CardListQueryOptions {
-  /** Archived cards to return outside Trash; defaults to `"exclude"`. */
-  archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
-  /** Only favorites. `false` means "no favorite filter", like `undefined`. */
   favoritesOnly?: boolean;
-  /**
-   * Hidden cards too (card/hiddenCards.ts). Without it, flagged cards are
-   * filtered out of the read; callers still drop loaded cards with
-   * `keepVisible` for the ones the backfill hasn't reached.
-   */
+  // Callers still drop loaded cards with `keepVisible` for the ones the
+  // `isHidden` backfill hasn't reached.
   includeHidden?: boolean;
-  /** List Trash instead of the library. */
-  trash?: boolean;
-  /** One type uses its own index; several are filtered while reading. */
+  /**
+   * Reads hidden rows too, so a caller's row budget counts every row read;
+   * the caller drops hidden cards itself.
+   */
+  scanHiddenRows?: boolean;
+  scope?: CardListScope;
   types?: readonly CardType[];
   userId: string;
 }
@@ -89,7 +101,6 @@ interface DateBoundRange<Field extends string> extends UpperBoundRange<Field> {
   gte: (field: Field, value: number) => UpperBoundRange<Field>;
 }
 
-/** Bounds an index range on its date field, the field after its equalities. */
 const withDateBounds = <Field extends string>(
   range: DateBoundRange<Field>,
   field: Field,
@@ -111,32 +122,28 @@ const withCreatedAt = (
   bounds?: CreatedAtBounds
 ) => withDateBounds(range, "createdAt", bounds);
 
-/**
- * The one query behind every library listing (web grid, mobile summaries,
- * public API, Raycast): the most selective index for the filters, ordered by
- * `createdAt`. Archived cards are left out unless `archived` asks for them;
- * Trash includes them. Callers choose the direction with `.order()`:
- * `"desc"` for newest, `"asc"` for oldest. Hidden cards are left out unless
- * `includeHidden` asks for them.
- */
 export const buildCardListQuery = (
   ctx: QueryCtx,
   options: CardListQueryOptions
-) => excludeHiddenRows(cardListIndexQuery(ctx, options), options.includeHidden);
+) =>
+  excludeHiddenRows(
+    cardListIndexQuery(ctx, options),
+    options.includeHidden || options.scanHiddenRows
+  );
 
 const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
   const { userId, createdAt } = options;
   const types = options.types?.length ? options.types : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const cards = ctx.db.query("cards");
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
 
   if (archived === "any") {
     const query = cards.withIndex("by_user_deleted_created", (q) =>
       withCreatedAt(
         q
           .eq("userId", userId)
-          .eq("isDeleted", options.trash ? true : undefined),
+          .eq("isDeleted", scopeDeletedMatch(options.scope)),
         createdAt
       )
     );
@@ -205,20 +212,13 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
     : query;
 };
 
-/**
- * Cards on one site (`site:`), newest or oldest first: active cards, or
- * archived ones with `archived: "only"`. `host` is a normalized host
- * (shared/utils/urlHost.ts). Trash and "archived and not" read the plain
- * list instead, since this index needs one archive state. Hidden cards are
- * left out unless `includeHidden` asks for them.
- */
 export const buildHostCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: "exclude" | "only";
     createdAt?: CreatedAtBounds;
     host: string;
     includeHidden?: boolean;
+    scope?: "library" | "archive";
     userId: string;
   }
 ) =>
@@ -230,7 +230,7 @@ export const buildHostCardListQuery = (
           q
             .eq("userId", options.userId)
             .eq("isDeleted", undefined)
-            .eq("isArchived", options.archived === "only" ? true : undefined)
+            .eq("isArchived", options.scope === "archive" ? true : undefined)
             .eq("urlHost", options.host),
           options.createdAt
         )
@@ -238,28 +238,21 @@ export const buildHostCardListQuery = (
     options.includeHidden
   );
 
-/**
- * A folder's rows (`folderCards`) in `createdAt` order, honoring Trash and
- * Archive like the library: active cards by default, archived ones with
- * `archived: "only"`, trashed ones with `trash`. Callers load each row's card,
- * and drop hidden ones with `keepVisible` (the rows don't carry the flag).
- */
 export const buildFolderCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: ArchivedFilter;
     createdAt?: CreatedAtBounds;
     folderId: Id<"folders">;
-    trash?: boolean;
+    scope?: CardListScope;
     types?: readonly CardType[];
   }
 ) => {
   const types = options.types?.length ? options.types : undefined;
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
   const bounds = options.createdAt;
   const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
     withDateBounds(range, "cardCreatedAt", bounds);
-  const isDeleted = options.trash ? (true as const) : undefined;
+  const isDeleted = scopeDeletedMatch(options.scope);
   const dated =
     archived === "any"
       ? ctx.db
@@ -290,30 +283,24 @@ export const buildFolderCardListQuery = (
     : dated;
 };
 
-/**
- * Cards with one tag, from the tag index in date order: Trash, Archive or
- * the library. `tag` is the lowercase name the index stores. Types and
- * favorites narrow the index range; other filters apply to the cards,
- * hidden ones included: callers drop them with `keepVisible`.
- */
+// Hidden cards are included: callers drop them with `keepVisible`.
 export const buildTagCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: ArchivedFilter;
     createdAt?: CreatedAtBounds;
     favoritesOnly?: boolean;
+    scope?: CardListScope;
     tag: string;
-    trash?: boolean;
     types?: readonly CardType[];
     userId: string;
   }
 ) => {
   const types = options.types?.length ? options.types : undefined;
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
   const bounds = options.createdAt;
   const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
     withDateBounds(range, "cardCreatedAt", bounds);
-  const isDeleted = options.trash ? (true as const) : undefined;
+  const isDeleted = scopeDeletedMatch(options.scope);
   const singleType = types?.length === 1 ? types[0] : undefined;
   const favorited = options.favoritesOnly === true;
   const anyArchived = archived === "any";

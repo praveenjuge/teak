@@ -241,7 +241,6 @@ jobs:
             exit 1
           fi
 
-      # No PostHog token: the Firefox build sends no telemetry (lib/env.ts).
       - name: Build extension (Firefox, production)
         if: steps.check.outputs.should_run == 'true'
         working-directory: apps/extension

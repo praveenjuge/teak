@@ -17,9 +17,6 @@ import {
 import { ensureObjectOwnership } from "../storage/ownership";
 import type { LinkedPdfClaim } from "./linkedPdfs";
 
-// Save PDF: claims the save, has the Files Worker download the paper from
-// arxiv.org into R2, then creates the document card (card/linkedPdfs.ts).
-
 const savedPdfValidator = v.object({
   cardId: v.id("cards"),
   created: v.boolean(),
@@ -27,7 +24,6 @@ const savedPdfValidator = v.object({
 
 export interface SavedLinkedPdf {
   cardId: Id<"cards">;
-  /** False when an earlier save already made the document. */
   created: boolean;
 }
 
@@ -91,9 +87,6 @@ export const saveLinkedPdfFor = async (
       userId,
     });
   } catch (error) {
-    // Free the claim so an immediate retry starts over instead of waiting
-    // for it to expire. A PDF already stored stays for that retry, unless
-    // the link was deleted for good meanwhile.
     await ctx
       .runMutation(internal.card.linkedPdfs.failLinkedPdf, {
         claimToken: claim.claimToken,
@@ -105,7 +98,6 @@ export const saveLinkedPdfFor = async (
   }
 };
 
-/** Save PDF for the public API (and so MCP, the SDK and the CLI). */
 export const saveLinkedPdfForUser = internalAction({
   args: { cardId: v.string(), userId: v.string() },
   returns: savedPdfValidator,
@@ -118,7 +110,6 @@ export const saveLinkedPdfForUser = internalAction({
     ),
 });
 
-/** Save PDF from a card's dialog. Errors are ConvexErrors with a `code`. */
 export const saveLinkedPdf = action({
   args: { cardId: v.id("cards") },
   returns: savedPdfValidator,

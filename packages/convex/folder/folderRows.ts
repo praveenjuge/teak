@@ -20,13 +20,6 @@ const isActiveRow = (row: Pick<FolderCardFields, "isArchived" | "isDeleted">) =>
 const hasFolders = (card: Pick<Doc<"cards">, "folderIds">) =>
   (card.folderIds?.length ?? 0) > 0;
 
-/**
- * Whether a card change can move its folderCards rows: membership, Trash,
- * Archive, type or saved date. A card in no folder, before or after, has no
- * rows, and text-only edits leave them alone, so neither reads folder rows.
- * Without a pre-change card (a new card, or a direct repair) only a card
- * with folders is synced.
- */
 export const cardFolderRowsMayChange = (
   previous: Doc<"cards"> | undefined,
   card: Doc<"cards">
@@ -47,20 +40,10 @@ export const cardFolderRowsMayChange = (
   );
 };
 
-/**
- * Whether a hard-deleted card can have left folder rows: always, unless the
- * caller passed the deleted card and it was in no folder.
- */
 export const deletedCardMayHaveFolderRows = (
   previous: Doc<"cards"> | undefined
 ) => !previous || hasFolders(previous);
 
-/**
- * Brings the card's folderCards rows in line with `card.folderIds` and its
- * Trash, Archive, type and date, and keeps each folder's activeCardCount in
- * step. A missing card (hard delete) removes every row. Rows are only written
- * where they differ, and a folder that no longer exists gets no row.
- */
 export const syncCardFolderRows = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,

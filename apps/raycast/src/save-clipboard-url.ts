@@ -20,7 +20,7 @@ export default async function SaveClipboardCommand() {
     return;
   }
 
-  const clipboardText = clipboard.text?.trim() ?? "";
+  const clipboardText = clipboard.text.trim();
 
   if (!clipboardText) {
     await showToast({

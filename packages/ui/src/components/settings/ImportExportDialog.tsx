@@ -13,7 +13,6 @@ import {
 } from "./SettingsDialog";
 
 interface ImportExportDialogProps {
-  /** The tab it opens on. */
   defaultTab?: "import" | "export";
   exportLoading: boolean;
   exportState: ExportState | null | undefined;

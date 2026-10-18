@@ -159,11 +159,13 @@ export async function indexOmnivoreZip(
     if (!entry || entry.uncompressedSize > HIGHLIGHTS_LIMIT) {
       return;
     }
-    try {
-      return decode(
-        await readZipEntry(bucket, key, directory, entry, HIGHLIGHTS_LIMIT)
-      );
-    } catch {}
+    return await readZipEntry(
+      bucket,
+      key,
+      directory,
+      entry,
+      HIGHLIGHTS_LIMIT
+    ).then(decode, () => undefined);
   });
 
   const items: FilesImportIndexResult["items"] = [];

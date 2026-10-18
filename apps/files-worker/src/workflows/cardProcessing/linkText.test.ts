@@ -13,9 +13,6 @@ import {
 } from "../../test/cardProcessingKit";
 import { readLinkImageText } from "./linkText";
 
-// The text in a link's preview image and screenshot, read after the
-// screenshot stage for search only.
-
 const OG_IMAGE = "users/user_1/cards/c/link-image/og.jpg";
 const SCREENSHOT = "users/user_1/cards/c/screenshot/page.jpg";
 

@@ -1,36 +1,35 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { CARD_EMBEDDING_DIMENSIONS } from "@teak/files-protocol";
 
-/**
- * Stands in for the Workers AI binding in the local E2E stack, which has no
- * Cloudflare account. The Files Worker's `AI` binding is a service binding to
- * this Worker there, and `env.AI.run(model, inputs)` reaches `run` over RPC.
- * Answers are deterministic, shaped like the real models' replies: chat
- * models return `{ choices, usage }` with the JSON object the prompts ask
- * for, Whisper returns `{ text }`, embedding models return `{ data }`.
- */
-
 const STOP_WORDS = new Set(
   "about after again also analyze and are because been being content could does each from generate have into just like more most other over page some summary tags than that their them then there these they this those through title very what when where which while will with would your".split(
     " "
   )
 );
 
+interface Fields {
+  [key: string]: unknown;
+}
+
+const asFields = (value: unknown): Fields =>
+  typeof value === "object" && value !== null ? (value as Fields) : {};
+
+const messagesOf = (inputs: Record<string, unknown>): Fields[] =>
+  Array.isArray(inputs.messages) ? inputs.messages.map(asFields) : [];
+
 const userText = (inputs: Record<string, unknown>): string => {
-  const messages = Array.isArray(inputs.messages) ? inputs.messages : [];
-  const user = [...messages]
+  const content = messagesOf(inputs)
     .reverse()
-    .find((message: { role?: string }) => message?.role === "user") as
-    | { content?: unknown }
-    | undefined;
-  if (typeof user?.content === "string") {
-    return user.content;
+    .find((message) => message.role === "user")?.content;
+  if (typeof content === "string") {
+    return content;
   }
-  if (Array.isArray(user?.content)) {
-    return user.content
-      .map((part: { text?: unknown }) =>
-        typeof part?.text === "string" ? part.text : ""
-      )
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        const { text } = asFields(part);
+        return typeof text === "string" ? text : "";
+      })
       .join(" ");
   }
   return "";
@@ -39,13 +38,11 @@ const userText = (inputs: Record<string, unknown>): string => {
 const hasImage = (inputs: Record<string, unknown>): boolean =>
   JSON.stringify(inputs.messages ?? "").includes('"image_url"');
 
-/** The text-only image prompt asks for `{"text": …}` and no tags. */
 const readsTextOnly = (inputs: Record<string, unknown>): boolean => {
-  const messages = Array.isArray(inputs.messages) ? inputs.messages : [];
-  const system = messages.find(
-    (message: { role?: string }) => message?.role === "system"
-  ) as { content?: unknown } | undefined;
-  const prompt = typeof system?.content === "string" ? system.content : "";
+  const content = messagesOf(inputs).find(
+    (message) => message.role === "system"
+  )?.content;
+  const prompt = typeof content === "string" ? content : "";
   return prompt.includes('{"text": "..."}') && !prompt.includes('"tags"');
 };
 
@@ -73,10 +70,6 @@ const summaryFor = (text: string): string => {
     : "A saved note.";
 };
 
-/**
- * A deterministic vector from the text's words, so texts that share words
- * score closer than texts that don't.
- */
 const embeddingFor = (text: string): number[] => {
   const vector = new Array<number>(CARD_EMBEDDING_DIMENSIONS).fill(0);
   for (const word of text.toLowerCase().match(/[a-z0-9]+/gu) ?? []) {
@@ -138,7 +131,6 @@ interface StoredVector {
   values: number[];
 }
 
-/** Every vector the fake index holds, for as long as the local stack runs. */
 const vectors = new Map<string, StoredVector>();
 
 const cosine = (left: number[], right: number[]): number => {

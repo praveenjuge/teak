@@ -14,26 +14,28 @@ import { env, httpAction, internalQuery } from "./_generated/server";
 import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 
 export const lookup = internalQuery({
-  // Exactly one of the two; parseEdgeIdentityLookup guarantees it.
   args: {
-    tokenHash: v.optional(v.string()),
-    workosUserId: v.optional(v.string()),
+    credential: v.union(
+      v.object({ tokenHash: v.string() }),
+      v.object({ workosUserId: v.string() })
+    ),
   },
   returns: v.union(v.string(), v.null()),
-  handler: async (ctx, { tokenHash, workosUserId }) => {
-    if (tokenHash) {
+  handler: async (ctx, { credential }) => {
+    if ("tokenHash" in credential) {
       const cached = await ctx.db
         .query("apiKeyAuthCache")
-        .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+        .withIndex("by_tokenHash", (q) =>
+          q.eq("tokenHash", credential.tokenHash)
+        )
         .first();
       return cached?.userId ?? null;
     }
-    if (!workosUserId) {
-      return null;
-    }
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+      .withIndex("by_workosUserId", (q) =>
+        q.eq("workosUserId", credential.workosUserId)
+      )
       .first();
     return user?.teakUserId ?? null;
   },
@@ -141,12 +143,12 @@ export const edgeIdentityV1 = httpAction(async (ctx, request) => {
   } catch {
     parsed = null;
   }
-  const lookupArgs = parseEdgeIdentityLookup(parsed);
-  if (!lookupArgs) {
+  const credential = parseEdgeIdentityLookup(parsed);
+  if (!credential) {
     return json(400, { error: "invalid_lookup" });
   }
   const result: EdgeIdentityResult = {
-    userId: await ctx.runQuery(internal.edgeIdentity.lookup, lookupArgs),
+    userId: await ctx.runQuery(internal.edgeIdentity.lookup, { credential }),
   };
   return json(200, result);
 });

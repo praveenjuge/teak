@@ -6,8 +6,8 @@ function runCardQueryAction(options: {
   candidateId?: string;
   currentCardId: string | null;
 }) {
-  const pushCardId = mock((_cardId: string) => {});
-  const replaceCardId = mock((_cardId: string | null) => {});
+  const pushCardId = mock((_cardId: string) => undefined);
+  const replaceCardId = mock((_cardId: string | null) => undefined);
   let selectedCardId = normalizeCardQueryId(options.currentCardId);
 
   const openCard = (cardId: string) => {

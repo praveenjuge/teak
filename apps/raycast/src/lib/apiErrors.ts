@@ -1,5 +1,3 @@
-import { buildCardsSearchParams as buildSdkCardsSearchParams } from "teak-sdk";
-
 const KNOWN_ERROR_CODES = [
   "BAD_REQUEST",
   "CONFIG_ERROR",
@@ -51,29 +49,6 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
     default:
       return "Request failed. Please try again.";
   }
-};
-
-// teak-sdk 1.0.81 builds every listing parameter except the Trash and color
-// filters, which arrived in a later SDK. Raycast adds those two itself until
-// it moves to a release that has them.
-export const buildCardsSearchParams = (
-  input: Parameters<typeof buildSdkCardsSearchParams>[0] & {
-    hex?: string[];
-    hue?: string[];
-    style?: string[];
-    trashed?: boolean;
-  },
-): string => {
-  const search = new URLSearchParams(buildSdkCardsSearchParams(input));
-  if (input.trashed) {
-    search.set("trashed", "true");
-  }
-  for (const name of ["style", "hue", "hex"] as const) {
-    for (const value of input[name] ?? []) {
-      search.append(name, value);
-    }
-  }
-  return search.toString();
 };
 
 export const toErrorCode = (

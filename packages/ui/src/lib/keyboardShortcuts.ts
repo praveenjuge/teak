@@ -2,12 +2,9 @@ import type { LibraryView } from "./libraryViews";
 import { isApplePlatform } from "./platform";
 
 export interface ShortcutRow {
-  /** Keys pressed together (Alt+T) rather than alternatives. */
   combo?: boolean;
-  /** Keycaps as shown, such as `["G", "F"]`. */
   keys: string[];
   label: string;
-  /** `then` for a sequence (G then F); otherwise the keys are alternatives. */
   sequence?: boolean;
 }
 
@@ -16,7 +13,6 @@ export interface ShortcutGroup {
   title: string;
 }
 
-/** `g` sequences that open a library view. */
 export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
   all: "e",
   favorites: "f",
@@ -24,7 +20,6 @@ export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
   trash: "t",
 };
 
-/** Every shortcut, as the shortcuts dialog and the docs list them. */
 export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: "Cards",
@@ -75,10 +70,6 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
 ];
 
-/**
- * A key as this platform's keyboard labels it: `Mod` is ⌘ on Apple platforms
- * and Ctrl elsewhere; Alt, Shift and Enter are ⌥, ⇧ and ↩ on a Mac.
- */
 export function platformKey(key: string, apple = isApplePlatform()): string {
   if (key === "Mod") {
     return apple ? "⌘" : "Ctrl";
@@ -101,10 +92,6 @@ const ARIA_KEY_NAMES: Record<string, string> = {
   Esc: "Escape",
 };
 
-/**
- * Keys pressed together as `aria-keyshortcuts` names them, such as
- * `Meta+Shift+S` for Mod Shift S on a Mac.
- */
 export function ariaKeyShortcut(
   keys: readonly string[],
   apple = isApplePlatform()
@@ -119,12 +106,9 @@ export function ariaKeyShortcut(
     .join("+");
 }
 
-/** Cmd+Enter (Ctrl+Enter) saves the note being written. */
 export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
-/** Cmd+E (Ctrl+E) enters and leaves Focus for the note being written. */
 export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
 
-/** Cmd+E on Apple platforms, Ctrl+E elsewhere, nothing else held. */
 export function isFocusNoteKey(
   event: Pick<
     KeyboardEvent,
@@ -140,19 +124,12 @@ export function isFocusNoteKey(
     : event.ctrlKey && !event.metaKey;
 }
 
-/** A key shown beside a menu item whose action the key also does. */
 export interface MenuShortcut {
-  /** For `aria-keyshortcuts`, such as `Meta+C`. */
   keys: string;
-  /** As the menu shows it, such as `⌘C`. */
   label: string;
 }
 
-/**
- * The keys menus show for card actions, as the grid and the open card
- * take them: Cmd on Apple platforms and Ctrl elsewhere, and the Mac's
- * Delete key (⌫, which the browser calls Backspace) on a Mac.
- */
+/** The browser calls the Mac's Delete key (⌫) Backspace. */
 export function cardMenuShortcuts(apple = isApplePlatform()) {
   const letter = (key: string): MenuShortcut => ({ keys: key, label: key });
   return {
@@ -169,14 +146,11 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
   } satisfies Record<string, MenuShortcut>;
 }
 
-/** Marks the library's search box, which `/` focuses. */
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
-/** Marks the new-note composer, which `N` focuses. */
 export const NEW_NOTE_COMPOSER_ATTRIBUTE = "data-new-note-composer";
 
 const visible = (element: HTMLElement) => element.getClientRects().length > 0;
 
-/** Focuses the search box on the page; false when there is none. */
 export function focusLibrarySearch(): boolean {
   const input = Array.from(
     document.querySelectorAll<HTMLInputElement>(`[${LIBRARY_SEARCH_ATTRIBUTE}]`)
@@ -189,7 +163,6 @@ export function focusLibrarySearch(): boolean {
   return true;
 }
 
-/** Focuses the new-note composer on the page; false when there is none. */
 export function focusNewNoteComposer(): boolean {
   const editor = Array.from(
     document.querySelectorAll<HTMLElement>(
@@ -206,10 +179,6 @@ export function focusNewNoteComposer(): boolean {
 
 const uploadFilesHandlers: Array<() => boolean> = [];
 
-/**
- * Makes `U` run `handler`, the latest one registered while several are.
- * The handler returns false when it can't upload now.
- */
 export function registerUploadFiles(handler: () => boolean): () => void {
   uploadFilesHandlers.push(handler);
   return () => {
@@ -220,27 +189,6 @@ export function registerUploadFiles(handler: () => boolean): () => void {
   };
 }
 
-/** Starts an upload as Upload files does; false when none can start. */
 export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
-}
-
-// `N` away from the composer opens Everything first; the composer then
-// takes focus when it mounts, if that is soon enough to be this request.
-const COMPOSER_FOCUS_REQUEST_MS = 10_000;
-let composerFocusRequestedAt: number | null = null;
-
-export function requestNewNoteComposerFocus(now = Date.now()) {
-  composerFocusRequestedAt = now;
-}
-
-export function isNewNoteComposerFocusRequested(now = Date.now()): boolean {
-  return (
-    composerFocusRequestedAt !== null &&
-    now - composerFocusRequestedAt <= COMPOSER_FOCUS_REQUEST_MS
-  );
-}
-
-export function clearNewNoteComposerFocusRequest() {
-  composerFocusRequestedAt = null;
 }

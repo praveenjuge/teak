@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
+import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import { Button } from "@teak/ui/components/ui/button";
 import { Check, X } from "lucide-react";
 import {
@@ -14,29 +14,18 @@ import {
   type CardPatchResponse,
   MESSAGE_TYPES,
   type PatchCardPayload,
-  SAVE_DETAILS_PORT,
-  type SaveDetailsDraftMessage,
   type SaveDetailsResponse,
 } from "../../types/messages";
+import { useDraftSync } from "./useDraftSync";
 
 interface SaveDetailsProps {
+  alreadySaved: boolean;
   cardId: string;
-  /** The page was already saved: its tags and note load first. */
-  existing: boolean;
-  /** A field took focus; the popup stays open from now on. */
-  onTouched: () => void;
+  onKeepOpen: () => void;
   userId: string;
 }
 
-interface Saved {
-  notes: string;
-  tags: string[];
-}
-
 const NOTE_SAVED_MS = 1000;
-
-const sameTags = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((tag, index) => tag === b[index]);
 
 const sendPatch = async (
   payload: PatchCardPayload
@@ -65,20 +54,14 @@ const failureMessage = (result: CardPatchResponse, tags: boolean) => {
   return tags ? "Couldn't save tags." : "Couldn't save the note.";
 };
 
-/**
- * Tags and a note for the card the popup just saved (or found already
- * saved). Changes go to the card when a field loses focus, on Enter in the
- * tag input, and when the popup closes; the background sends them, so they
- * land even after the popup is gone.
- */
 export function SaveDetails({
+  alreadySaved,
   cardId,
-  existing,
-  onTouched,
+  onKeepOpen,
   userId,
 }: SaveDetailsProps) {
   const [loadState, setLoadState] = useState<"error" | "loading" | "ready">(
-    existing ? "loading" : "ready"
+    alreadySaved ? "loading" : "ready"
   );
   const [libraryTags, setLibraryTags] = useState<string[]>([]);
   const [recentTags, setRecentTags] = useState<string[]>([]);
@@ -90,42 +73,37 @@ export function SaveDetails({
   const [tagError, setTagError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [noteSaved, setNoteSaved] = useState(false);
-  // What was last sent (so a blur and Enter don't send it twice), and what
-  // Teak confirmed. The background's draft is measured from the confirmed
-  // copy: a save sent as the popup closes can be lost on the way.
-  const saved = useRef<Saved>({ notes: "", tags: [] });
-  const confirmed = useRef<Saved>({ notes: "", tags: [] });
-  const current = useRef<Saved>({ notes: "", tags: [] });
   const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const draft = useDraftSync({
+    cardId,
+    ready: loadState === "ready",
+    sendPatch,
+  });
+  const loadDraft = draft.load;
 
   const load = useCallback(async () => {
-    setLoadState(existing ? "loading" : "ready");
+    setLoadState(alreadySaved ? "loading" : "ready");
     void readRecentTags(userId)
       .then(setRecentTags)
       .catch(() => undefined);
-    let result: SaveDetailsResponse | undefined;
-    try {
-      result = await chrome.runtime.sendMessage({
+    const result: SaveDetailsResponse | undefined = await chrome.runtime
+      .sendMessage({
         type: MESSAGE_TYPES.LOAD_SAVE_DETAILS,
-        payload: { cardId, existing },
-      });
-    } catch {}
+        payload: { alreadySaved, cardId },
+      })
+      .catch(() => undefined);
     if (result?.status !== "ok") {
-      // A new card's fields work without suggestions; an existing card's
-      // tags must load first, or saving would replace them.
-      setLoadState(existing ? "error" : "ready");
+      setLoadState(alreadySaved ? "error" : "ready");
       return;
     }
     setLibraryTags(result.libraryTags);
     if (result.card) {
-      saved.current = { ...result.card };
-      confirmed.current = { ...result.card };
-      current.current = { ...result.card };
+      loadDraft(result.card);
       setTags(result.card.tags);
       setNotes(result.card.notes);
     }
     setLoadState("ready");
-  }, [cardId, existing, userId]);
+  }, [alreadySaved, cardId, loadDraft, userId]);
 
   useEffect(() => {
     void load();
@@ -133,73 +111,14 @@ export function SaveDetails({
 
   useEffect(() => () => clearTimeout(noteTimer.current), []);
 
-  /** What changed since `base`, or null when nothing did. */
-  const changeSince = useCallback(
-    (base: Saved): PatchCardPayload | null => {
-      if (loadState !== "ready") {
-        return null;
-      }
-      const next = current.current;
-      const change: PatchCardPayload = { cardId };
-      if (!sameTags(next.tags, base.tags)) {
-        change.tags = next.tags;
-        const before = new Set(base.tags.map(tagKey));
-        const added = next.tags.filter((tag) => !before.has(tagKey(tag)));
-        if (added.length > 0) {
-          change.added = added;
-        }
-      }
-      if (next.notes !== base.notes) {
-        change.notes = next.notes;
-      }
-      return change.tags === undefined && change.notes === undefined
-        ? null
-        : change;
-    },
-    [cardId, loadState]
-  );
-
-  // The background keeps the latest unsaved change and sends it when the
-  // popup closes, since a message sent while it closes can be lost.
-  const port = useRef<chrome.runtime.Port>(undefined);
-  useEffect(() => {
-    const connection = chrome.runtime.connect({ name: SAVE_DETAILS_PORT });
-    port.current = connection;
-    return () => {
-      port.current = undefined;
-      connection.disconnect();
-    };
-  }, []);
-
-  /** Tells the background what would be lost if the popup closed now. */
-  const postDraft = useCallback(() => {
-    const message: SaveDetailsDraftMessage = {
-      draft: changeSince(confirmed.current),
-    };
-    try {
-      port.current?.postMessage(message);
-    } catch {}
-  }, [changeSince]);
-
-  /** Sends what changed since the last save; nothing when nothing did. */
-  const save = useCallback(() => {
-    const change = changeSince(saved.current);
-    if (!change) {
+  const save = () => {
+    const sending = draft.send();
+    if (!sending) {
       return;
     }
-    const next = current.current;
-    const before = saved.current;
-    // Counted as saved at once, so a blur and the popup closing don't send
-    // the same change twice; a failure marks it unsaved again.
-    saved.current = { ...next };
-    postDraft();
-    void sendPatch(change).then((result) => {
-      if (result.status === "updated") {
-        confirmed.current = {
-          notes: change.notes ?? confirmed.current.notes,
-          tags: change.tags ?? confirmed.current.tags,
-        };
-        postDraft();
+    const { change, result } = sending;
+    void result.then((response) => {
+      if (response.status === "updated") {
         setSaveError(null);
         if (change.notes !== undefined) {
           setNoteSaved(true);
@@ -211,24 +130,15 @@ export function SaveDetails({
         }
         return;
       }
-      if (change.tags !== undefined && saved.current.tags === change.tags) {
-        saved.current = { ...saved.current, tags: before.tags };
-      }
-      if (change.notes !== undefined && saved.current.notes === change.notes) {
-        saved.current = { ...saved.current, notes: before.notes };
-      }
-      postDraft();
-      setSaveError(failureMessage(result, change.tags !== undefined));
+      setSaveError(failureMessage(response, change.tags !== undefined));
     });
-  }, [changeSince, postDraft]);
-
-  const updateTags = (next: string[]) => {
-    current.current = { ...current.current, tags: next };
-    setTags(next);
-    postDraft();
   };
 
-  /** Adds the typed tag; false when it can't be added. */
+  const updateTags = (next: string[]) => {
+    draft.edit({ tags: next });
+    setTags(next);
+  };
+
   const addTag = (raw: string) => {
     const name = raw.trim();
     if (!name) {
@@ -379,7 +289,7 @@ export function SaveDetails({
             }}
             onFocus={() => {
               setTagFocused(true);
-              onTouched();
+              onKeepOpen();
             }}
             onKeyDown={handleTagKeyDown}
             placeholder={tags.length ? "" : "Add tags"}
@@ -388,10 +298,6 @@ export function SaveDetails({
           />
         </div>
       </div>
-      {/*
-       * In the flow, not over the note: a click on the note field always
-       * reaches it, and the chips fold away once the tag input loses focus.
-       */}
       {suggestions.length > 0 ? (
         <div
           aria-label="Suggested tags"
@@ -434,11 +340,10 @@ export function SaveDetails({
           dir="auto"
           onBlur={save}
           onChange={(event) => {
-            current.current = { ...current.current, notes: event.target.value };
-            postDraft();
+            draft.edit({ notes: event.target.value });
             setNotes(event.target.value);
           }}
-          onFocus={onTouched}
+          onFocus={onKeepOpen}
           placeholder="Add a note"
           value={notes}
         />

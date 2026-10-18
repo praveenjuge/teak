@@ -1,9 +1,8 @@
-export const RENDERER_PORT = 8080;
-export const RENDERER_PROTOCOL = 1;
+import { RENDERER_PORT, RENDERER_PROTOCOL } from "../container/src/protocol";
+
 const READY_TIMEOUT_MS = 20_000;
 const HEALTH_POLL_MS = 250;
 const HEALTH_REQUEST_TIMEOUT_MS = 1000;
-// Long enough to reuse a warm instance across a card's video or audio steps.
 export const RENDERER_INACTIVITY_TIMEOUT_MS = 90_000;
 
 export interface RendererContainer {
@@ -98,21 +97,29 @@ export class MediaRenderer {
     const port = container.getTcpPort(this.port);
     const deadline = Date.now() + READY_TIMEOUT_MS;
     while (Date.now() < deadline) {
-      try {
-        const response = await port.fetch(
-          new Request("http://container/health", {
-            signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS),
-          })
-        );
-        const health = (await response.json().catch(() => null)) as {
-          protocol?: unknown;
-        } | null;
-        if (response.ok && health?.protocol === this.protocol) {
-          return;
-        }
-      } catch {}
+      if (await this.reportsProtocol(port)) {
+        return;
+      }
       await sleep(HEALTH_POLL_MS);
     }
     throw new Error("container_not_ready");
+  }
+
+  private async reportsProtocol(
+    port: ReturnType<RendererContainer["getTcpPort"]>
+  ): Promise<boolean> {
+    try {
+      const response = await port.fetch(
+        new Request("http://container/health", {
+          signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS),
+        })
+      );
+      const health = (await response.json().catch(() => null)) as {
+        protocol?: unknown;
+      } | null;
+      return response.ok && health?.protocol === this.protocol;
+    } catch {
+      return false;
+    }
   }
 }

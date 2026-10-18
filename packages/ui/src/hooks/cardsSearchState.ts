@@ -23,39 +23,21 @@ import {
 } from "../lib/searchUrlState";
 import { semanticSearchText } from "./useSemanticSearch";
 
-/*
- * The library search's state and the pure steps that change it: what Enter
- * and Backspace do to the typed text and chips, the query each state asks
- * for, and the order a view starts in. `useCardsSearchController` holds the
- * state and wires these to the search bar.
- */
-
 export interface CardsSearchState {
   filterTags: CardType[];
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
   keywordTags: string[];
-  /**
-   * Accepted qualifiers (`tag:design`, `site:github.com`), each written the
-   * one way the parser writes it. They search as part of the text; the
-   * server reads them again.
-   */
   qualifierChips: string[];
   searchQuery: string;
-  /** The Archive view; never on together with Trash. */
   showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
   styleFilters: VisualStyle[];
-  /** A tag picked in the sidebar, lowercased; empty for none. */
   tagFilter: string;
   timeFilter: TimeFilter | null;
 }
 
-/**
- * The filters a library keeps only in memory (the URL holds the search,
- * types, tag and sort), so a remounted screen can start from them again.
- */
 export type CardsVisualFilters = Pick<
   CardsSearchState,
   "hexFilters" | "hueFilters" | "styleFilters" | "timeFilter"
@@ -65,16 +47,13 @@ export interface CardsSearchQueryArgs {
   createdAtRange?: TimeFilter["range"];
   favoritesOnly?: boolean;
   folderId?: Id<"folders">;
-  /** A smart folder's search, as this view read it. */
   folderQuery?: string;
   hexFilters?: string[];
   hueFilters?: ColorHueBucket[];
   searchQuery?: string;
   showArchivedOnly?: boolean;
   showTrashOnly?: boolean;
-  /** Shuffle's seed; set with `sort: "shuffle"` only. */
   shuffleSeed?: number;
-  /** Only set off the default, so the default query keeps its key. */
   sort?: "oldest" | "relevance" | "shuffle";
   styleFilters?: VisualStyle[];
   tag?: string;
@@ -167,7 +146,6 @@ const phraseChips = (phrases: readonly string[]) =>
     new Set(phrases.map((phrase) => quoteSearchValue(phrase.toLowerCase())))
   );
 
-/** Each qualifier in `text` as a chip, written the canonical way. */
 export function qualifierChipsFromText(text: string): string[] {
   return parseSearchQuery(text).qualifiers.map(formatSearchQualifier);
 }
@@ -182,10 +160,6 @@ export const addChips = (current: string[], additions: string[]) => {
   return next.length === current.length ? current : next;
 };
 
-/**
- * A search from the URL: its qualifiers and quoted phrases become chips and
- * the plain words stay typed text, so a reload shows the chips it left with.
- */
 export function cardsSearchStateFromQuery(
   query: string
 ): Pick<CardsSearchState, "keywordTags" | "qualifierChips" | "searchQuery"> {
@@ -197,7 +171,6 @@ export function cardsSearchStateFromQuery(
   };
 }
 
-/** Whether two searches mean the same thing, however they are written. */
 export function isSameSearch(left: string, right: string): boolean {
   return (
     parseSearchQuery(left).canonical.toLowerCase() ===
@@ -465,11 +438,6 @@ export const orderQueryArgs = (
   return {};
 };
 
-/**
- * Best match is a search's default: a search with words to match starts
- * there unless the person picked another order during it, and Best match
- * without words orders like newest.
- */
 export const effectiveCardsOrder = (
   order: CardsOrder,
   canSortByRelevance: boolean,
@@ -493,11 +461,6 @@ export const initialCardsSearchState = (
   tagFilter: urlState?.tag ?? "",
 });
 
-/**
- * The cards query a library view asks for on its first render, before
- * anyone types: the same arguments `useCardsSearchController` starts with.
- * Null for Shuffle (or Revisit) without a seed, which picks its seed at random.
- */
 export function initialCardsSearchQueryArgs(
   view: LibraryView,
   urlState?: SearchUrlState

@@ -40,27 +40,15 @@ import {
 import { cn } from "../../lib/utils";
 
 interface FolderNameDialogProps {
-  /** Put the cursor in the search field (editing a smart folder's search). */
   focusQuery?: boolean;
-  /** The folder to rename; omit to create one. */
   folder?: FolderSummary | null;
   onOpenChange: (open: boolean) => void;
-  /** Called with the folder once it is saved. */
   onSaved?: (folder: FolderSummary) => void;
   open: boolean;
-  /**
-   * Creating a smart folder: the search to save, which the dialog shows
-   * for editing and names the folder after.
-   */
   query?: string;
-  /** A note under the search, such as filters a smart folder can't keep. */
   queryNote?: string;
 }
 
-/**
- * Names a new folder, or renames and recolors an existing one. A smart
- * folder (one being saved from a search, or edited) also has its search.
- */
 export function FolderNameDialog({
   folder,
   focusQuery = false,
@@ -198,7 +186,7 @@ export function FolderNameDialog({
               placeholder="Reading list"
               value={name}
             />
-            {error && (
+            {error ? (
               <p
                 className="text-destructive text-sm"
                 id={`${inputId}-error`}
@@ -206,9 +194,9 @@ export function FolderNameDialog({
               >
                 {error}
               </p>
-            )}
+            ) : null}
           </div>
-          {isSmart && (
+          {isSmart ? (
             <div className="space-y-2">
               <Label htmlFor={queryId}>Search</Label>
               <Textarea
@@ -238,7 +226,7 @@ export function FolderNameDialog({
                 spellCheck={false}
                 value={query}
               />
-              {(queryError || queryNote) && (
+              {queryError || queryNote ? (
                 <p
                   className={cn(
                     "text-sm",
@@ -249,9 +237,9 @@ export function FolderNameDialog({
                 >
                   {queryError ?? queryNote}
                 </p>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
           <fieldset className="space-y-2">
             <legend className="mb-2 font-medium text-sm">Color</legend>
             <div className="flex flex-wrap gap-1.5">
@@ -336,12 +324,12 @@ function ColorSwatch({
       title={label}
       type="button"
     >
-      {checked && (
+      {checked ? (
         <Check
           aria-hidden="true"
           className={cn("size-3", color ? "text-white" : "text-foreground")}
         />
-      )}
+      ) : null}
     </button>
   );
 }

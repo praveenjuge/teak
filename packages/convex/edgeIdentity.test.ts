@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_PATH,

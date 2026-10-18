@@ -1,9 +1,3 @@
-/**
- * Encoding and decoding of the public API's opaque pagination cursors: card
- * listings and searches, shuffle walks and the changes feed. This module
- * registers no Convex functions.
- */
-
 import { ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { ShuffleWalkPosition } from "./card/shuffle";
@@ -24,11 +18,6 @@ export type ApiCursor =
   | { mode: "start" }
   | { mode: "list"; anchor?: ListAnchor; page?: string }
   | { mode: "match"; anchor: MatchAnchor }
-  // Cursors issued before keyset paging. Still accepted so a client that is
-  // mid-pagination during a deploy can finish.
-  | { mode: "index"; cursor: string | null; pageOffset: number }
-  // Best match pages: an offset into the search's order, and whether that
-  // order was scored, fixed by the first page for the whole pagination.
   | { mode: "relevance"; offset: number; ranked: boolean };
 
 export const invalidCursorError = () =>
@@ -104,18 +93,6 @@ export const decodeCursor = (cursor?: string): ApiCursor => {
         };
       }
       break;
-    case "index":
-      if (
-        (parsed.cursor === null || typeof parsed.cursor === "string") &&
-        isFiniteNumber(parsed.pageOffset)
-      ) {
-        return {
-          mode: "index",
-          cursor: parsed.cursor,
-          pageOffset: Math.max(0, parsed.pageOffset),
-        };
-      }
-      break;
     default:
       break;
   }
@@ -132,10 +109,6 @@ export const listAnchorOf = (card: Doc<"cards">): ListAnchor => ({
   creationTime: card._creationTime,
 });
 
-/**
- * Whether a Best match cursor's pagination is scored; undefined for the
- * first page and for any other cursor.
- */
 export const relevanceCursorRanked = (
   cursor: string | undefined
 ): boolean | undefined => {
@@ -145,7 +118,9 @@ export const relevanceCursorRanked = (
   try {
     const decoded = decodeCursor(cursor);
     return decoded.mode === "relevance" ? decoded.ranked : undefined;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 export type ShuffleApiCursor =
@@ -225,8 +200,7 @@ export const decodeChangesCursor = (cursor?: string): ChangesCursor => {
   try {
     parsed = JSON.parse(atob(cursor));
   } catch {
-    // Cursors issued before tombstones were raw card-page cursors.
-    return { phase: "cards", cursor };
+    throw invalidCursorError();
   }
   const value = parsed as Record<string, unknown> | null;
   if (value?.v !== 2) {

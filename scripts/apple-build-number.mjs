@@ -4,17 +4,18 @@ import { fileURLToPath } from "node:url";
 
 const positiveIntegerPattern = /^[1-9]\d*$/;
 
-// Accepts one builds response per platform so iOS and macOS share one counter.
-export function nextAppleBuildNumber(...responses) {
+export function nextAppleBuildNumber(...buildsPerPlatform) {
   if (
-    responses.length === 0 ||
-    !responses.every((response) => response && Array.isArray(response.data))
+    buildsPerPlatform.length === 0 ||
+    !buildsPerPlatform.every(
+      (response) => response && Array.isArray(response.data)
+    )
   ) {
     throw new Error("Expected an App Store Connect builds response.");
   }
 
   let maximum = 0n;
-  for (const build of responses.flatMap((response) => response.data)) {
+  for (const build of buildsPerPlatform.flatMap((response) => response.data)) {
     const value = String(build?.attributes?.version ?? "");
     if (!positiveIntegerPattern.test(value)) {
       throw new Error(`Unsafe App Store build number: ${value || "missing"}.`);

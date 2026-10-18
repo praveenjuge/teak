@@ -1,10 +1,3 @@
-/**
- * The site a link belongs to, as `site:` matches it: the URL's host,
- * lowercased, without a leading `www.`, a port or a trailing dot.
- * International hosts are kept in their ASCII (punycode) form, so a host
- * typed in Unicode and the same host in punycode match. Returns null when
- * the value has no usable host.
- */
 export const normalizeUrlHost = (
   value: string | null | undefined
 ): string | null => {
@@ -123,16 +116,11 @@ const decodePunycodeLabel = (input: string): string | null => {
   return String.fromCodePoint(...output);
 };
 
-/**
- * The site a card is on: its link's host, or for a card saved from a page
- * (a text card with `sourceUrl`), that page's host.
- */
 export const cardSiteHost = (card: {
   sourceUrl?: string | null;
   url?: string | null;
 }): string | null => normalizeUrlHost(card.url ?? card.sourceUrl);
 
-/** A normalized host as people read it: punycode labels in Unicode. */
 export const hostForDisplay = (host: string): string =>
   host
     .split(".")

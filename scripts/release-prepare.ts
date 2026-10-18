@@ -1,15 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Perform the shared release preparation from .agents/releases.md.
- *
- * Updates every tracked package manifest plus the Safari extension manifest
- * and the Apple app's marketing version, synchronizes bun.lock (and
- * apps/raycast/package-lock.json when present), then verifies with a frozen
- * install and the lockstep validator.
- * Review the diff and commit it as one scoped version change afterwards.
- * Usage: bun run release:prepare <version> [--resume]
- */
-
 import {
   existsSync,
   readFileSync,

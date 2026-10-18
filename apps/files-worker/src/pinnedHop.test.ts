@@ -10,7 +10,6 @@ import { createContainerNetwork } from "./test/cardProcessingKit";
 const PUBLIC = "93.184.216.34";
 const PUBLIC_V6 = "2606:2800:220:1:248:1893:25c8:1946";
 
-/** A DNS-over-HTTPS server answering from `records` (name → A/AAAA lists). */
 const dohServer = (
   records: Record<string, { A?: string[]; AAAA?: string[]; cname?: string }>
 ) => {

@@ -221,7 +221,7 @@ export function CardsListCommand({
 
       try {
         handleCardUpdated(
-          await setCardFavorite(card.id, !previousState, "prompt"),
+          await setCardFavorite(card.id, !previousState, "interactive"),
         );
       } catch {
         handleCardUpdated(card);

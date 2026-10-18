@@ -5,6 +5,7 @@ import { Spinner } from "@teak/ui/components/ui/spinner";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
 import {
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -57,10 +58,6 @@ const DEFAULT_BATCH_SIZE = 24;
 const MIN_COLUMN_WIDTH = 200;
 const MAX_COLUMNS = 5;
 
-/**
- * How many columns fit the grid's own width, so the sidebar (open, collapsed
- * or hidden) never squeezes cards below a readable width.
- */
 export const columnsForWidth = (width: number, gutter: number): number =>
   Math.min(
     MAX_COLUMNS,
@@ -78,25 +75,15 @@ const PRIORITY_CARD_COUNT = 10;
 const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
 
 export interface MasonryGridHandle {
-  /**
-   * Focuses the card a dialog opened from the grid showed last, as the
-   * dialog closes. False when the dialog was not opened from the grid or the
-   * card is gone, so the dialog returns focus as it would anyway.
-   */
   returnFocusTo: (cardId: string) => boolean;
 }
 
 export interface MasonryGridProps {
   addCardForm?: ReactNode;
-  /**
-   * Choosing cards for this folder: the grid opens in selection mode and
-   * the bar's one action adds the selection to it.
-   */
   addToFolder?: BulkBarFolder;
   batchSize?: number;
   columns?: MasonryColumns;
   filteredCards: Doc<"cards">[];
-  /** The folder being viewed, offered as Remove from folder. */
   folder?: BulkBarFolder;
   gutter?: number;
   hasMore?: boolean;
@@ -104,12 +91,7 @@ export interface MasonryGridProps {
   isLoadingMore?: boolean;
   loadMoreRootMargin?: string;
   onAddTags?: (cardId: string) => void;
-  /** Leaves "choose cards for a folder", after adding or on Cancel. */
   onAddToFolderDone?: (added: boolean) => void;
-  /**
-   * Runs a bulk bar action on the selected cards and resolves with the ones
-   * that failed; those stay selected so the user can try again.
-   */
   onBulkAction?: (
     action: BulkCardAction,
     cardIds: string[],
@@ -130,14 +112,13 @@ export interface MasonryGridProps {
   ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
-  /** The Archive view: the bulk bar offers Unarchive instead of Archive. */
   showArchivedOnly?: boolean;
   showBulkActions?: boolean;
   showTrashOnly?: boolean;
   toastIdPrefix?: string;
 }
 
-export function MasonryGrid({
+export const MasonryGrid = memo(function MasonryGrid({
   addToFolder,
   folder,
   onAddToFolderDone,
@@ -203,7 +184,7 @@ export function MasonryGrid({
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const gridFocusedRef = useRef(false);
   const lastActiveIndexRef = useRef(0);
-  const openedFromGridRef = useRef(false);
+  const openedFromGridRef = useRef<boolean>(false);
   const [measuredColumns, setMeasuredColumns] = useState<number | null>(null);
   useEffect(() => {
     const grid = gridRef.current;
@@ -280,9 +261,8 @@ export function MasonryGrid({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        // One callback can carry several reports, oldest first: the first
-        // check (sentinel below the fold) and then a scroll that brought it
-        // into view. Only the newest says where the sentinel is now.
+        // IntersectionObserver can batch several reports into one callback, oldest
+        // first; only the newest says where the sentinel is now.
         const entry = entries[entries.length - 1];
         if (!entry?.isIntersecting) {
           return;
@@ -412,7 +392,7 @@ export function MasonryGrid({
         Math.min(lastActiveIndexRef.current, navigableIds.length - 1)
       ];
     setActiveCardId(fallbackId ?? null);
-    // The masonry removes the card's element after this render, so focus
+    // antd's masonry removes the card's element after this render, so focus
     // may still be on it here, or already back on the page.
     const focused = document.activeElement;
     const focusLeft =
@@ -888,11 +868,11 @@ export function MasonryGrid({
           (onLoadMore && hasMore !== false)) && (
           <div aria-hidden="true" className="h-10 w-full" ref={loadMoreRef} />
         )}
-      {isLoadingMore && (
+      {isLoadingMore ? (
         <div className="flex justify-center py-6">
           <Spinner className="size-5 text-muted-foreground" />
         </div>
-      )}
+      ) : null}
       {bulkActionBar}
       <BulkTagsDialog
         mode={tagsDialogMode ?? "add"}
@@ -945,4 +925,4 @@ export function MasonryGrid({
       />
     </>
   );
-}
+});

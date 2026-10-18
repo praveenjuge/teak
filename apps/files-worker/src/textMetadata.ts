@@ -62,7 +62,6 @@ export const isCapacityError = (error: unknown): boolean => {
     if (status === 429 || code === 3040 || code === 3036) {
       return true;
     }
-    // Provider codes are authoritative; generic 5xx wrappers are not.
     if (code !== undefined) {
       return false;
     }

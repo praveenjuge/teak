@@ -41,7 +41,6 @@ interface SettingsContentProps {
   exportLoading?: boolean;
   exportState?: ExportState | null;
   hasPremium?: boolean;
-  /** Opens Import/Export on a tab, as `/settings?dialog=` asks. */
   importExportRequest?: ImportExportOpenRequest | null;
   /** Save by email's state and switch; the row is left out without it. */
   inboundEmail?: InboundEmailPanelProps;

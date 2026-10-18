@@ -67,9 +67,9 @@ struct SafariRequests {
         do {
             guard try await session.restore() != nil else { return ["status": "unauthenticated"] }
             let convex = TeakServices.http(session: session)
-            let duplicate: Card? = try await convex.query("cards:findDuplicateCard", ["url": .string(url)])
+            let duplicate = try await convex.query(ConvexFunctions.findDuplicateCard, ["url": .string(url)])
             if let duplicate { return ["status": "duplicate", "cardId": duplicate.id] }
-            let id: String = try await convex.mutation("cards:createCard",
+            let id = try await convex.mutation(ConvexFunctions.createCard,
                                                        ["content": .string(url), "type": "link", "url": .string(url),
                                                         "source": CardSource.apple])
             return ["status": "saved", "cardId": id]
@@ -89,7 +89,7 @@ struct SafariRequests {
                 return ["status": "signed-out"]
             }
             let _: ConvexVoid = try await TeakServices.http(session: session)
-                .action("securitySessions:revokeAuthkitSession", ["sessionId": .string(sessionId)])
+                .action(ConvexFunctions.revokeAuthkitSession, ["sessionId": .string(sessionId)])
             await session.clear()
             return ["status": "signed-out"]
         } catch {

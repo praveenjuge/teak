@@ -1,9 +1,5 @@
 /**
- * The backend constants the Apple app needs, as JSON. TeakCore reads the
- * committed file at runtime, so limits, messages, colors, styles and file
- * formats have one source: `packages/convex/shared`.
- *
- * Regenerate after changing those constants:
+ * Regenerate after changing these constants in packages/convex/shared:
  *   bun --no-env-file run apps/apple/scripts/shared-constants.ts --write
  */
 import { resolve } from "node:path";

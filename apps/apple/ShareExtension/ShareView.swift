@@ -26,15 +26,9 @@ final class ShareModel {
         let convex = TeakServices.http(session: session)
         let pipeline = UploadPipeline(convex: convex)
         let importer = ShareImporter(
-            createText: { text in try await convex.mutation("cards:createCard", LinkDetection.resolve(text).createArgs) },
+            createText: { text in try await convex.mutation(ConvexFunctions.createCard, LinkDetection.resolve(text).createArgs) },
             upload: { item in try await pipeline.upload(item) })
-        let result = await importer.importItems(items, isAuthenticated: user != nil)
-        // A refresh can find the session revoked; that also needs a sign-in.
-        if result.successfulItems == 0, await session.user == nil, user != nil {
-            phase = .done(await importer.importItems(items, isAuthenticated: false))
-        } else {
-            phase = .done(result)
-        }
+        phase = .done(await importer.importItems(items, isAuthenticated: user != nil))
     }
 }
 

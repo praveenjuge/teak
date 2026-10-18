@@ -1,25 +1,16 @@
 import { Marked, type Token, type Tokens } from "marked";
 
-// The rich editor keeps HTML typed into a note as text: `<b>` saves as
-// `&lt;b&gt;`. Its stand-in edits Markdown directly, so it escapes typed tags
-// the same way before they reach the note. Code keeps its text as typed:
-// Markdown shows an entity in code literally.
-
 const lexer = new Marked({ gfm: true });
 const BACKTICKS = /`+/g;
-// What Markdown could read as raw HTML (a tag, comment or declaration) or
-// as an autolink: `<` and a letter, `/`, `!` or `?`, up to the next `>`.
-const TAG = /<([A-Za-z/!?][^<>\n]*)(>?)/g;
+const RAW_HTML_OR_AUTOLINK_START = /<([A-Za-z/!?][^<>\n]*)(>?)/g;
 
 const escapeTags = (text: string) =>
   text.replace(
-    TAG,
+    RAW_HTML_OR_AUTOLINK_START,
     (_match, inner: string, close: string) =>
       `&lt;${inner}${close ? "&gt;" : ""}`
   );
 
-/** Escapes the tags outside code spans (a run of backticks up to the next
- * run of the same length). */
 function escapeOutsideCodeSpans(text: string): string {
   const runs = [...text.matchAll(BACKTICKS)];
   let result = "";
@@ -63,7 +54,6 @@ function escapeBlock(block: Token): string {
   return block.raw;
 }
 
-/** Markdown with its HTML tags escaped, outside code. */
 export function escapeTypedHtml(source: string): string {
   if (!source.includes("<")) {
     return source;

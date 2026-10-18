@@ -38,7 +38,6 @@ export const assignVectorShard = internalMutation({
   handler: (ctx, { userId }) => getOrAssignVectorShard(ctx, userId),
 });
 
-/** The user's shard, without placing a user who has none yet. */
 export const getUserShard = internalQuery({
   args: { userId: v.string() },
   returns: v.union(v.number(), v.null()),

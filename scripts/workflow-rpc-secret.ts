@@ -1,15 +1,5 @@
 #!/usr/bin/env bun
 
-// Prints the WORKFLOW_RPC_SECRET a Convex deployment needs, derived from the
-// Files Worker's WORKFLOW_RPC_ROOT_SECRET and the deployment's HTTP actions
-// origin. Read the root secret from the environment so it never lands in
-// shell history:
-//
-//   WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site
-//
-// then set the output with `bunx convex env set WORKFLOW_RPC_SECRET` on that
-// deployment.
-
 import { createHmac } from "node:crypto";
 import {
   buildWorkflowRpcSecretPayload,

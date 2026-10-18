@@ -141,7 +141,6 @@ export const ensureWebEnv = (
     workos: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
   }
 ): "created" | "exists" | "repaired" => {
-  // Tighten existing permissions before a repair can append secrets.
   if (existsSync(path)) {
     chmodSync(path, 0o600);
   }

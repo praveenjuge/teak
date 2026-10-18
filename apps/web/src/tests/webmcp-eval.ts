@@ -156,7 +156,7 @@ const registerAll = async (deps: WebMcpQueryDeps) => {
   };
   const controller = new AbortController();
   const names = await registerTeakWebMcpTools(modelContext, deps, {
-    logger: () => {},
+    logger: () => undefined,
     signal: controller.signal,
   });
   const byName = new Map(registered.map((tool) => [tool.name, tool]));

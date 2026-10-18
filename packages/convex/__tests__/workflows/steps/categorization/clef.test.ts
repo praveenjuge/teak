@@ -9,7 +9,6 @@ let workerAnswer: () => Promise<unknown>;
 let aiGate = "allowed";
 let reviewLinkCategoryWithClef: any;
 let jsonLdTypesFrom: any;
-// The owner the Worker charges the model call to.
 let aiUsageFor: (userId: string) => Record<string, unknown>;
 
 beforeAll(async () => {

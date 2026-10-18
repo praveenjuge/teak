@@ -7,21 +7,18 @@ import { scrubTelemetryValue } from "@teak/convex/shared/telemetry";
 import type { CaptureResult, PostHogConfig } from "posthog-js";
 
 export const POSTHOG_PROXY_PATH = "/ingest";
+const POSTHOG_ASSET_PATH_PREFIXES = ["/static/", "/array/"];
 
-/**
- * Where a `/ingest/...` request goes: SDK scripts and remote config come from
- * the assets host, everything else from the ingestion host. Null for any
- * other path.
- */
 export const resolveAnalyticsProxyTarget = (url: URL): URL | null => {
   if (!url.pathname.startsWith(`${POSTHOG_PROXY_PATH}/`)) {
     return null;
   }
   const path = url.pathname.slice(POSTHOG_PROXY_PATH.length);
-  const host =
-    path.startsWith("/static/") || path.startsWith("/array/")
-      ? POSTHOG_ASSETS_HOST
-      : POSTHOG_INGEST_HOST;
+  const host = POSTHOG_ASSET_PATH_PREFIXES.some((prefix) =>
+    path.startsWith(prefix)
+  )
+    ? POSTHOG_ASSETS_HOST
+    : POSTHOG_INGEST_HOST;
   return new URL(`${path}${url.search}`, host);
 };
 
@@ -205,7 +202,6 @@ export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
   mask_personal_data_properties: true,
   person_profiles: "identified_only",
   persistence: "localStorage+cookie",
-  // Sampling (10% plus sessions with an exception) lives in project settings.
   session_recording: {
     blockSelector: "img, picture, video, audio, canvas, iframe",
     captureJsonLd: false,

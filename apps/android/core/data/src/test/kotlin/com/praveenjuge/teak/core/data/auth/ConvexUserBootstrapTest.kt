@@ -1,7 +1,7 @@
 package com.praveenjuge.teak.core.data.auth
 
 import com.praveenjuge.teak.core.data.TeakConfig
-import com.praveenjuge.teak.core.model.TeakMessages
+import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -40,7 +40,7 @@ class ConvexUserBootstrapTest {
             assertFailsWith<SignInException> { bootstrap.ensureUser("t") }.message,
         )
         respond("""{"status":"frozen"}""")
-        assertEquals(TeakMessages.SIGNUPS_PAUSED, assertFailsWith<SignInException> { bootstrap.ensureUser("t") }.message)
+        assertEquals(SIGNUPS_PAUSED_MESSAGE, assertFailsWith<SignInException> { bootstrap.ensureUser("t") }.message)
     }
 
     @Test

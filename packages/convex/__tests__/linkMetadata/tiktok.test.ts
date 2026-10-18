@@ -65,7 +65,6 @@ describe("fetchTikTokVideo", () => {
       platform: "tiktok",
       categoryHint: "social_post",
     });
-    // The cover only: the video itself is not downloaded.
     expect(post?.media).toEqual([
       {
         type: "image",

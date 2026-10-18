@@ -20,16 +20,11 @@ const PROVIDER_CAPACITY_ERROR =
 const RASTER_THUMBNAIL_PENDING_ERROR = /waiting for a raster thumbnail/iu;
 export const METADATA_UNAVAILABLE = "files_worker_metadata_unavailable";
 
-/** Workers AI is out of capacity (`files_worker_ai: rate limit reached 429`). */
 export const isAiProviderCapacityError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return PROVIDER_CAPACITY_ERROR.test(message);
 };
 
-/**
- * Failures the AI backfill retries later instead of the step: capacity,
- * output that never validated, a source the Worker cannot read yet.
- */
 export const isAiMetadataDeferredError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -40,12 +35,6 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
   );
 };
 
-/**
- * Normalize AI-generated tags the same way tag search does (trim and
- * lowercase), drop empty entries and the reserved tags that hide a card
- * (`secret`, `hidden`), and de-duplicate while keeping the model's
- * order. Duplicate tags otherwise reach the UI as duplicate React keys.
- */
 export const normalizeAiTags = (tags: readonly string[]): string[] =>
   Array.from(
     new Set(
@@ -128,16 +117,10 @@ export const generateLinkMetadata = (
     buildLinkMetadataPrompt(content, url)
   );
 
-/**
- * AI metadata for a stored image from the `generate-image-metadata` op,
- * which reads the image's `detail` rendition. A source the op declines
- * (missing, too large, unsupported) defers like a thumbnail still pending.
- */
 export const generateImageMetadataForStoredKey = async (
   job: CardJob,
   sourceKey: string,
   title?: string,
-  /** With telemetry, the op also asks Clef for the image's visual styles. */
   options: { telemetry?: WorkflowTelemetry } = {}
 ): Promise<
   GeneratedMetadata & {
@@ -186,11 +169,6 @@ export const generateImageMetadataForStoredKey = async (
   };
 };
 
-/**
- * Clef's styles from the image op, when it ran and replied validly; else
- * `undefined`, so the caller falls back to the tag aliases. The op made the
- * Clef call, so its `$ai_generation` is recorded here.
- */
 const readClefVisualStyles = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,
@@ -243,11 +221,6 @@ const normalizeTranscriptPhrase = (value: string) =>
     .replace(WHITESPACE_RUN, " ")
     .trim();
 
-/**
- * Returns the transcript to store, or null when the audio has no speech: an
- * empty or punctuation-only result, or (for short or unknown-length audio)
- * nothing but known Whisper hallucination phrases.
- */
 export const sanitizeTranscript = (
   text: string | null | undefined,
   options: { durationSeconds?: number } = {}

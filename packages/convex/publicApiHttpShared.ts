@@ -25,11 +25,6 @@ const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
 const MAX_TAG_LENGTH = 64;
 const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
 
-/**
- * Every `code` an error response can carry, including the ones the card
- * mutations raise and the API passes through (the SDK must know each one:
- * scripts/public-parity.test.ts checks).
- */
 export const PUBLIC_API_ERROR_CODES = [
   "BAD_REQUEST",
   "CARD_LIMIT_REACHED",
@@ -71,45 +66,33 @@ interface AuthorizedUser {
 
 type AuthResult = { validated: AuthorizedUser } | { error: Response };
 interface CardsQueryOptions {
-  /** Archived cards outside Trash; omitted means `"exclude"`. */
   archived?: "exclude" | "only" | "include";
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favoritesOnly: boolean;
-  /** A folder id from `?folder=`; the handler checks it is the user's. */
   folder?: string;
-  /** Whether the request searched (`q` or `similarTo`). */
   hasQuery: boolean;
   hexFilters?: string[];
   hueFilters?: string[];
   limit: number;
-  /** Qualifiers in `q` that contradict the other parameters. */
   matchesNothing?: boolean;
-  /** How `q` finds cards; `hybrid` unless the request says otherwise. */
   mode: import("./shared/search/semantic").SearchMode;
-  /** Qualifiers from `q` beyond what the plain parameters carry. */
   qualifiers?: {
     archivedInTrash?: boolean;
-    /** `is:done`: cards marked done. */
     done?: boolean;
     folderNames?: string[];
-    /** `text:` values, each matched in a card's image text. */
     ocrTexts?: string[];
     phrases?: string[];
     prices?: import("./shared/search/qualifiers").PriceBound[];
     sites?: string[];
     tags?: string[];
-    /** `is:todo`: actionable links that aren't done. */
     todo?: boolean;
   };
   searchQuery?: string;
-  /** What `q` asks the vector service for; null when nothing. */
   semantic: import("./shared/search/semantic").SemanticRequest | null;
   showTrashOnly?: boolean;
-  /** Shuffle's seed; required with `sort=shuffle`. */
   shuffleSeed?: number;
-  /** `like:` (or `similarTo`) or `mood:`: the search lists meaning matches only. */
   similarity: import("./shared/search/qualifiers").SearchSimilarity | null;
   sort?: "newest" | "oldest" | "relevance" | "shuffle";
   styleFilters?: string[];
@@ -194,8 +177,6 @@ const parseBearerToken = (request: Request): string | null => {
   return token.trim();
 };
 
-// The whole value must be numeric: "10junk" is rejected, never truncated to
-// 10 the way parseInt would.
 const parseStrictNumber = (raw: string): number | undefined => {
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -245,7 +226,6 @@ const errorMessageOf = (error: unknown): string | undefined => {
 const OCC_FAILURE_TEXT =
   "changed while this mutation was being run and on every subsequent retry";
 
-/** A mutation that kept losing optimistic-concurrency races on any table. */
 const isOptimisticConcurrencyError = (error: unknown): boolean =>
   errorMessageOf(error)?.includes(OCC_FAILURE_TEXT) ?? false;
 
@@ -356,10 +336,6 @@ const mapConvexErrorToResponse = (
   return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);
 };
 
-/**
- * Trims a title and cuts it to the maximum title length instead of rejecting
- * it. Non-string values pass through for the caller's own validation.
- */
 const truncateCardTitle = (value: unknown): unknown => {
   if (typeof value !== "string") {
     return value;
@@ -375,7 +351,6 @@ const truncateCardTitle = (value: unknown): unknown => {
   return title;
 };
 
-/** Returns why a tag list is invalid, or null when every tag fits. */
 const explainInvalidTags = (tags: readonly string[] | undefined) => {
   const tooLong = tags?.find((tag) => tag.trim().length > MAX_TAG_LENGTH);
   return tooLong === undefined
@@ -383,11 +358,6 @@ const explainInvalidTags = (tags: readonly string[] | undefined) => {
     : `Each tag must be at most ${MAX_TAG_LENGTH} characters`;
 };
 
-/**
- * Returns why an explicit card type cannot describe a card created without an
- * uploaded file, or null when it can. File types need an upload, and a
- * palette needs at least one color Teak can read.
- */
 const explainCardTypeMismatch = (args: {
   cardType?: string;
   content?: string;

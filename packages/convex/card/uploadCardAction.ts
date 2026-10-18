@@ -102,6 +102,15 @@ const normalizeMimeType = (value?: string): string | undefined => {
   return normalized || undefined;
 };
 
+const dropClientImageDimensions = (
+  metadata: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(metadata).filter(
+      ([key]) => key !== "height" && key !== "width"
+    )
+  );
+
 export const validateFinalizeUpload = (
   userId: TeakUserId,
   args: FinalizeArgs
@@ -244,19 +253,13 @@ export const finalizeForUser = async (
     !Array.isArray(args.additionalMetadata)
       ? { ...(args.additionalMetadata as Record<string, unknown>) }
       : {};
-  // Dimensions are security- and layout-relevant image facts. Never carry
-  // client claims through when the worker is the source of truth.
   const trustedAdditionalMetadata = isImageUpload
-    ? Object.fromEntries(
-        Object.entries(additionalMetadata).filter(
-          ([key]) => key !== "height" && key !== "width"
-        )
-      )
+    ? dropClientImageDimensions(additionalMetadata)
     : additionalMetadata;
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).publicApiUploads.finalizeUploadedCardForUser,
+      internal.publicApiUploads.finalizeUploadedCardForUser,
       {
         additionalMetadata: {
           ...trustedAdditionalMetadata,
@@ -295,7 +298,7 @@ export const finalizeForUser = async (
     // the same fixed key; the object is theirs.
     const claimLost =
       error instanceof ConvexError &&
-      (error.data as { code?: string })?.code === "IN_PROGRESS";
+      (error.data as { code?: string }).code === "IN_PROGRESS";
     if (!claimLost) {
       await callFilesWorkerJson({
         op: "delete-object",

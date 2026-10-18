@@ -96,8 +96,6 @@ export const fetchRemoteAsset = async (
   { pinnedFetch, resolveDns }: FetchAssetDeps
 ): Promise<FetchAssetOutcome> => {
   const maxBytes = FILES_REMOTE_ASSET_MAX_BYTES[request.kind];
-  // safeFetch checks each redirect hop before calling this, so the Referer,
-  // set per hop, never changes which hosts it allows.
   const fetchHop: PinnedFetch = (url, addresses, init) => {
     const referer = refererFor(request.pageUrl, url);
     const headers = new Headers(init.headers);

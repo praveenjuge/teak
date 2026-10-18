@@ -80,15 +80,14 @@ internal fun tileTitle(card: CardSummary): String = when (card.type) {
     CardType.Text -> firstText(card.previewText, card.title, fallback = "Note")
 }
 
-/**
- * One card in the grid. [selected] is null when not selecting. [highlighted] marks the card open
- * beside the grid on wide windows.
- */
+enum class TileSelection { NotSelecting, Unselected, Selected }
+
+/** [highlighted] marks the card open beside the grid on wide windows. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun CardTile(
     card: CardSummary,
-    selected: Boolean?,
+    selection: TileSelection,
     highlighted: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -101,20 +100,22 @@ internal fun CardTile(
         append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(spokenTitle)
         if (favorite) append(", Favorite")
     }
-    val outlined = highlighted || selected == true
+    val selecting = selection != TileSelection.NotSelecting
+    val selected = selection == TileSelection.Selected
+    val outlined = highlighted || selected
     Box(
         modifier
             .clip(TileShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .combinedClickable(
-                onClickLabel = if (selected == null) "Open" else null,
-                onLongClickLabel = if (selected == null) "Select" else null,
+                onClickLabel = if (selecting) null else "Open",
+                onLongClickLabel = if (selecting) null else "Select",
                 onLongClick = onLongClick,
                 onClick = onClick,
             )
             .semantics {
                 contentDescription = description
-                if (selected != null) this.selected = selected
+                if (selecting) this.selected = selected
             }
             .then(if (outlined) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, TileShape) else Modifier),
     ) {
@@ -122,7 +123,7 @@ internal fun CardTile(
             TileContent(card, title)
         }
         when {
-            selected != null -> SelectionMark(selected, Modifier.align(Alignment.BottomEnd).padding(8.dp))
+            selecting -> SelectionMark(selected, Modifier.align(Alignment.BottomEnd).padding(8.dp))
             favorite -> Icon(
                 Icons.Filled.Favorite,
                 contentDescription = null,

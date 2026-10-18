@@ -168,8 +168,7 @@ const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
 // The key component writes a usage counter on every validation, and that
 // shared counter conflicts when one key sends many requests at once. For this
 // long after a key validates, requests with the same token skip that write and
-// only re-check, read-only, that the key is still active. Revoking through
-// this module also deletes the key's cache rows.
+// only re-check, read-only, that the key is still active.
 const API_KEY_AUTH_CACHE_TTL_MS = 60_000;
 
 const forgetApiKeyAuth = async (

@@ -27,13 +27,13 @@ async function render(showBulkBar: boolean) {
     root?.render(
       <>
         <Toaster position="bottom-center" />
-        {showBulkBar && (
+        {showBulkBar ? (
           <BulkActionBar
             onAction={() => undefined}
             onCancel={() => undefined}
             selectedCount={2}
           />
-        )}
+        ) : null}
       </>
     )
   );

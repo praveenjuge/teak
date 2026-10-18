@@ -29,7 +29,7 @@ describe("hydrateArchivedMetadata", () => {
       },
     };
     const hydrated = await hydrateArchivedMetadata(env, "", card);
-    expect(hydrated.metadata?.linkPreview).toMatchObject({
+    expect(hydrated.metadata.linkPreview).toMatchObject({
       raw,
       status: "success",
     });
@@ -79,6 +79,6 @@ describe("hydrateArchivedMetadata", () => {
       ...CARD,
       metadata: { linkPreview: { rawSha256: digest, rawStorageKey: key } },
     });
-    expect(hydrated.metadata?.linkPreview?.raw).toEqual({ title: "dev" });
+    expect(hydrated.metadata.linkPreview.raw).toEqual({ title: "dev" });
   });
 });

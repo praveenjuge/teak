@@ -19,7 +19,6 @@ export const updateCardAI = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, args) => {
     const { cardId, processingStatus, aiOcrText, ...rest } = args;
-    // Text that came back empty is stored as none.
     const updates = {
       ...rest,
       ...(aiOcrText === undefined ? {} : { aiOcrText: aiOcrText || undefined }),

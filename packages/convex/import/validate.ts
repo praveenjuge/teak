@@ -1,3 +1,4 @@
+import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
 import {
   explainInvalidFolderName,
   MAX_FOLDERS_PER_CARD,
@@ -37,17 +38,13 @@ export interface ImportFileInput {
 
 export interface ImportCardInput {
   colors?: Array<{ hex: string; name?: string }>;
-  /** Archive schema v2: when a link was marked done. */
   completedAt?: number;
   content: string;
   createdAt?: number;
   file?: ImportFileInput;
-  /** Folder names (archive schema v2), trimmed and deduped by name. */
   folders?: string[];
-  /** Archive schema v2: the card was archived when exported. */
   isArchived?: boolean;
   isFavorited?: boolean;
-  /** Archive schema v2: the card's title. */
   metadataTitle?: string;
   notes?: string;
   tags?: string[];
@@ -121,9 +118,6 @@ function validNumber(value: unknown): number | undefined {
     : undefined;
 }
 
-/** Longest imported title kept; longer ones are cut, as card creation does. */
-export const MAX_IMPORT_TITLE_LENGTH = 512;
-
 function importFolderNames(raw: unknown): string[] | undefined {
   if (raw === undefined || raw === null) {
     return;
@@ -155,7 +149,7 @@ function importTitle(raw: unknown): string | undefined {
   if (typeof raw !== "string") {
     return;
   }
-  let title = raw.trim().slice(0, MAX_IMPORT_TITLE_LENGTH);
+  let title = raw.trim().slice(0, MAX_CARD_TITLE_LENGTH);
   if (/[\uD800-\uDBFF]$/.test(title)) {
     title = title.slice(0, -1);
   }

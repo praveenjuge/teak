@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { internalQuery, query } from "../_generated/server";
+import { internalQuery, type QueryCtx, query } from "../_generated/server";
 import {
   getSessionUser,
   requireTeakUserId,
@@ -16,7 +16,7 @@ import {
 } from "./quoteFormatting";
 
 export const getCardForUserHandler = async (
-  ctx: any,
+  ctx: Pick<QueryCtx, "db">,
   userId: TeakUserId,
   cardId: Id<"cards">
 ) => {

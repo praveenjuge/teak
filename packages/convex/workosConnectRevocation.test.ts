@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
@@ -9,7 +8,7 @@ import {
 } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import { verifyWorkosConnectToken } from "./workosTokens";
+import { verifyWorkosConnectTokenSignature } from "./workosTokens";
 
 const modules = import.meta.glob("./**/*.ts");
 const issuer = "https://logout-tests.authkit.app";
@@ -231,7 +230,7 @@ test("expired signed access token replays only a completed receipt", async () =>
     iat: Math.floor(Date.now() / 1000) - 300,
   });
   expect(
-    await verifyWorkosConnectToken(expired, {
+    await verifyWorkosConnectTokenSignature(expired, {
       issuer,
       audience: "https://teakvault.com/api",
     })

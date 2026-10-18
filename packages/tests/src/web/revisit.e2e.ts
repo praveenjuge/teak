@@ -1,9 +1,11 @@
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
 const TAG = "revisit-pass";
 const VISIBLE = 22;
+const PAGE_WITHOUT_CARD_QUERIES = "/settings";
 
 const paramOf = async (url: Promise<string>, name: string) =>
   new URL(await url).searchParams.get(name);
@@ -13,10 +15,8 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   screen,
   library,
 }) => {
-  // Settings subscribes to no card lists, so 23 saves don't each re-run
-  // the library's queries on the local backend.
-  await gotoApp(browser, "/settings");
-  const idsByText = new Map<string, string>();
+  await gotoApp(browser, PAGE_WITHOUT_CARD_QUERIES);
+  const idsByText = new Map<string, Id<"cards">>();
   for (let index = 0; index < VISIBLE; index++) {
     const content = `Revisit card ${String(index).padStart(2, "0")}`;
     const id = await library.client.mutation(api.cards.createCard, {
@@ -34,28 +34,7 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
       tags: [TAG, "secret"],
     })
   );
-  // Let card processing finish first: on a slow local backend, its writes
-  // re-run the tag view's query until it times out.
-  const stillProcessing = async () => {
-    let busy = 0;
-    for (const id of idsByText.values()) {
-      // react-doctor-disable-next-line react-doctor/async-await-in-loop
-      const saved = await library.client.query(api.cards.getCard, { id });
-      const stages: ({ status?: string } | undefined)[] = Object.values(
-        saved?.processingStatus ?? {}
-      );
-      if (
-        stages.some(
-          (stage) =>
-            stage?.status === "pending" || stage?.status === "in_progress"
-        )
-      ) {
-        busy += 1;
-      }
-    }
-    return busy;
-  };
-  await expect.poll(stillProcessing, { timeout: 120_000 }).toBe(0);
+  await library.waitForProcessing(idsByText.values());
   const isArchived = async (text: string) => {
     const id = idsByText.get(text);
     return id
@@ -65,7 +44,6 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   };
   const deck = screen.getByRole("dialog", "Revisit");
   const progress = (text: string) => deck.getByText(text, { exact: true });
-  // The card on top: its own text, read from the deck.
   const current = () =>
     browser.evaluate(
       () =>
@@ -91,12 +69,10 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   const first = await current();
   expect(first).toMatch(/^Revisit card \d\d$/);
 
-  // A reload deals the same deck from the seed.
   await browser.reload();
   await expect(progress("1 of 20")).toBeVisible({ timeout: 30_000 });
   expect(await current()).toBe(first);
 
-  // ← archives with Undo; Z takes it back and returns to the card.
   await press("ArrowLeft");
   await expect(screen.getByText("Archived 1 card")).toBeVisible();
   await expect(progress("2 of 20")).toBeVisible();
@@ -106,7 +82,6 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   expect(await current()).toBe(first);
   await expect.poll(() => isArchived(first)).toBe(false);
 
-  // Archived for good: a reload starts on the old second card.
   await press("ArrowLeft");
   await expect(progress("2 of 20")).toBeVisible();
   const second = await current();
@@ -115,7 +90,6 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   await expect(progress("1 of 20")).toBeVisible({ timeout: 30_000 });
   expect(await current()).toBe(second);
 
-  // → keeps every card; 21 remain, so 20, then 1 more, none twice.
   const seen: string[] = [];
   for (let position = 1; position <= 20; position++) {
     await expect(progress(`${position} of 20`)).toBeVisible();
@@ -132,7 +106,6 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
   expect(seen).not.toContain(first);
   expect(seen.some((text) => text.includes("hidden"))).toBe(false);
 
-  // Esc leaves the deck for the library's usual order.
   await press("Escape");
   await expect(deck).toBeHidden();
   await expect.poll(() => paramOf(browser.url(), "sort")).toBeNull();
@@ -196,7 +169,6 @@ test("Esc after a card's details still returns to the order Revisit was picked f
     timeout: 30_000,
   });
 
-  // Space opens the details (their own history entry); Esc closes them.
   await browser.keyboard.press(" ");
   await expect.poll(() => paramOf(browser.url(), "card")).not.toBeNull();
   await browser.keyboard.press("Escape");

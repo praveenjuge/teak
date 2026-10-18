@@ -219,13 +219,11 @@ test("Revisit queries a Shuffle of its seed and keeps revisit in the URL", async
   });
   expect(controller.urlState).toMatchObject({ seed: 42, sort: "revisit" });
 
-  // Start over: a new seed, still revisiting.
   await act(() => controller.reshuffle());
   expect(controller.librarySort).toBe("revisit");
   expect(controller.queryArgs.shuffleSeed).not.toBe(42);
   expect(controller.urlState.seed).toBe(controller.queryArgs.shuffleSeed);
 
-  // Picking Revisit from Shuffle deals from a new seed.
   await act(() => controller.setSort("shuffle"));
   const shuffleSeed = controller.queryArgs.shuffleSeed;
   await act(() => controller.setSort("revisit"));
@@ -271,7 +269,6 @@ test("back and forward apply at once, without the typing pause", async () => {
     controller.applyUrlState({ q: "colors", sort: "newest", types: [] })
   );
   expect(controller.queryArgs.searchQuery).toBe("colors");
-  // A search with words starts in Best match.
   expect(controller.urlState).toEqual({
     q: "colors",
     sort: "relevance",

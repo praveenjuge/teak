@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
@@ -17,7 +16,6 @@ const modules = import.meta.glob("./**/*.ts");
 const STRONG = 0.45;
 const WEAK = 0.2;
 
-/** The Files Worker's `vector-query`, answering `matches` or failing. */
 const stubVectorQuery = (
   answer: { matches: { id: string; score: number }[] } | "fail"
 ) => {
@@ -101,7 +99,6 @@ const setup = async () => {
       return id;
     });
   };
-  /** Caches meaning matches for `text`, as the action would. */
   const cache = async (
     text: string,
     matches: { id: Id<"cards"> | string; score: number }[],
@@ -112,7 +109,6 @@ const setup = async () => {
       key: await semanticSearchKey(text),
       matches,
     });
-  // Every page of the grid's query, `numItems` at a time.
   const grid = async (args: Record<string, unknown>, numItems = 2) => {
     const ids: string[] = [];
     let cursor: string | null = null;
@@ -149,11 +145,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/**
- * A library where "reading nook" matches one card by its words and several
- * by meaning: the armchair photo belongs in results, the rest each break a
- * rule (too weak, another user's, in Trash, archived, an image).
- */
 const seedLibrary = async (env: Awaited<ReturnType<typeof setup>>) => {
   const keyword = await env.insert({ content: "Reading nook ideas" });
   const armchair = await env.insert({
@@ -232,7 +223,6 @@ describe("hybrid search in the grid", () => {
     expect([...shuffled].sort()).toEqual(
       [cards.image, cards.armchair, cards.keyword].sort()
     );
-    // The same seed gives the same order.
     expect(
       await env.grid({
         searchQuery: "reading nook",
@@ -321,8 +311,6 @@ describe("hybrid search in the grid", () => {
 });
 
 describe("hybrid search with price:", () => {
-  // Meaning matches for "desk lamp": a cheap and a pricey lamp, a lamp with
-  // no price and a priced note; only the cheap lamp is under 100.
   const seedLamps = async (env: Awaited<ReturnType<typeof setup>>) => {
     const product = (content: string, price?: number) =>
       env.t.run(async (ctx) => {
@@ -363,8 +351,6 @@ describe("hybrid search with price:", () => {
   test("embeds only the words, and drops meaning matches outside the bound", async () => {
     const env = await setup();
     const lamps = await seedLamps(env);
-    // The cached ranking is keyed by the words alone, so the bound neither
-    // changes what is embedded nor hides the meaning matches.
     expect(await env.grid({ searchQuery: "desk lamp price:<100" })).toEqual([
       lamps.cheap,
       lamps.keyword,
@@ -495,7 +481,6 @@ describe("requestSemanticResults", () => {
       ctx.db.query("semanticSearchResults").collect()
     );
     expect(rows).toHaveLength(1);
-    // Ids that are not cards are dropped; the search text is not stored.
     expect(rows[0]?.ranking).toEqual([{ cardId: armchair, score: STRONG }]);
     expect(JSON.stringify(rows)).not.toContain("reading");
 

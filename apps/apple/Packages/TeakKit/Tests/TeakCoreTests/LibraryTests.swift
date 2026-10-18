@@ -36,8 +36,8 @@ private func day(_ milliseconds: Double) -> String {
     func parsesDatePhrases(query: String, label: String, start: String, end: String) throws {
         let result = try #require(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork))
         #expect(result.label == label)
-        #expect(day(result.range.start) == start)
-        #expect(day(result.range.end) == end)
+        #expect(day(result.range.lowerBound) == start)
+        #expect(day(result.range.upperBound) == end)
     }
 
     @Test(arguments: ["design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", ""])
@@ -156,9 +156,9 @@ private func day(_ milliseconds: Double) -> String {
 
     @Test func placesEachTileInTheShortestColumn() {
         #expect(CardGrid.distribute([300.0, 100, 100, 100], columns: 2, gap: 0) { $0 } == [[300], [100, 100, 100]])
-        #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reserved: [150]) { $0 } == [[], [100, 100]],
+        #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reservedTopHeights: [150]) { $0 } == [[], [100, 100]],
                 "a composer at the top of the first column pushes the first card right")
-        #expect(CardGrid.distribute([100.0, 100, 100], columns: 2, gap: 0, reserved: [150]) { $0 }.map(\.count) == [1, 2])
+        #expect(CardGrid.distribute([100.0, 100, 100], columns: 2, gap: 0, reservedTopHeights: [150]) { $0 }.map(\.count) == [1, 2])
     }
 
     @Test func prefersTheLinkPreviewImageThenTheScreenshot() {

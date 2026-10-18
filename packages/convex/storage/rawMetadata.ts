@@ -7,11 +7,11 @@ import { buildR2UserPrefix } from "./r2";
 import { sha256Hex } from "./r2Keys";
 
 export const RAW_METADATA_MAX_BYTES = 512 * 1024;
-export type RawMetadataKind = "linkPreview" | "linkCategory";
+export const RAW_METADATA_KINDS = ["linkPreview", "linkCategory"] as const;
+export type RawMetadataKind = (typeof RAW_METADATA_KINDS)[number];
+const MIN_ARCHIVED_RAW_BYTES = 1024;
 
-// JSON is lossless only for this subset of Convex values. Leave unsupported
-// values inline rather than silently converting bytes, bigint, or non-finite numbers.
-const isJsonValue = (value: unknown): boolean => {
+const survivesJsonRoundTrip = (value: unknown): boolean => {
   if (
     value === null ||
     typeof value === "string" ||
@@ -23,18 +23,18 @@ const isJsonValue = (value: unknown): boolean => {
     return Number.isFinite(value) && !Object.is(value, -0);
   }
   if (Array.isArray(value)) {
-    return value.every(isJsonValue);
+    return value.every(survivesJsonRoundTrip);
   }
   return Boolean(
     value &&
       typeof value === "object" &&
       Object.getPrototypeOf(value) === Object.prototype &&
-      Object.values(value).every(isJsonValue)
+      Object.values(value).every(survivesJsonRoundTrip)
   );
 };
 
 export const serializeRawMetadata = (raw: unknown): string | null => {
-  if (!isJsonValue(raw)) {
+  if (!survivesJsonRoundTrip(raw)) {
     return null;
   }
   const json = JSON.stringify(raw);
@@ -43,10 +43,10 @@ export const serializeRawMetadata = (raw: unknown): string | null => {
     : null;
 };
 
-// Avoid trading small database reads for thousands of R2 PUT/GET operations.
 export const serializeArchivableRaw = (raw: unknown): string | null => {
   const json = serializeRawMetadata(raw);
-  return json !== null && new TextEncoder().encode(json).byteLength >= 1024
+  return json !== null &&
+    new TextEncoder().encode(json).byteLength >= MIN_ARCHIVED_RAW_BYTES
     ? json
     : null;
 };
@@ -63,7 +63,7 @@ export const rawMetadataKey = (
     !(
       /^[a-f0-9]{64}$/.test(digest) &&
       /^[a-z0-9]+$/i.test(card._id) &&
-      ["linkPreview", "linkCategory"].includes(kind)
+      RAW_METADATA_KINDS.includes(kind)
     )
   ) {
     throw new Error("raw_metadata_invalid_key");
@@ -125,7 +125,6 @@ export const copyAndVerifyRaw = async (
     key,
     signal: AbortSignal.timeout(30_000),
   });
-  // Verify through the independent signed read endpoint before changing the DB.
   const restored = await readArchivedRaw(card, kind, digest);
   if (JSON.stringify(restored) !== json) {
     throw new Error("raw_metadata_roundtrip_mismatch");
@@ -141,7 +140,7 @@ export const hydrateArchivedMetadata = async <
     return card;
   }
   const metadata = { ...card.metadata };
-  for (const kind of ["linkPreview", "linkCategory"] as const) {
+  for (const kind of RAW_METADATA_KINDS) {
     const part = metadata[kind];
     if (part && part.raw === undefined && part.rawStorageKey) {
       if (!(part.rawSha256 && /^[a-f0-9]{64}$/.test(part.rawSha256))) {

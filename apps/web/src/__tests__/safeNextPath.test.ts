@@ -25,8 +25,6 @@ describe("getSafeNextPath", () => {
   });
 
   test("rejects backslash-normalized host escapes", () => {
-    // Browsers/URL parsing can normalize backslashes into forward slashes,
-    // turning these into a different host after login.
     expect(getSafeNextPath("/\\evil.com")).toBeNull();
     expect(getSafeNextPath("/\\/evil.com")).toBeNull();
     expect(getSafeNextPath("\\\\evil.com")).toBeNull();

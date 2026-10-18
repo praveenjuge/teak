@@ -3,7 +3,7 @@ import Observation
 import TeakCore
 import TeakSync
 
-/// Infinite scroll over `searchMobileCardSummariesPaginated`, like Convex's
+/// Infinite scroll over `ConvexFunctions.searchCardSummaries`, like Convex's
 /// `usePaginatedQuery`: each page is its own live subscription keyed by its
 /// cursors. Convex pins a page's end across updates, so new cards grow a page
 /// instead of shifting the next one; a page that grows too big is split.
@@ -77,8 +77,7 @@ final class CardPager {
         let generation = generation
         slot.task = Task { [weak self, backend] in
             do {
-                for try await page in backend.subscribe("cards:searchMobileCardSummariesPaginated", query,
-                                                        as: PageResult.self) {
+                for try await page in backend.subscribe(ConvexFunctions.searchCardSummaries, query) {
                     guard let self, generation == self.generation else { return }
                     slot.page = page.page
                     slot.error = nil
@@ -88,8 +87,7 @@ final class CardPager {
             } catch is CancellationError {
             } catch {
                 guard let self, generation == self.generation else { return }
-                if "\(error)".contains("InvalidCursor") {
-                    // The paginated query changed underneath us: start over.
+                if (error as? TeakError)?.isInvalidCursor == true {
                     self.restart()
                     return
                 }
@@ -123,20 +121,5 @@ final class CardPager {
         isLoadingMore = slots.count > 1 && slots.last?.page == nil && slots.last?.error == nil
         isDone = slots.last?.page?.isDone == true
         error = slots.lazy.compactMap(\.error).first
-    }
-}
-
-struct PageResult: Decodable, Sendable {
-    let page: CardSummaryPage
-    let splitCursor: String?
-    let pageStatus: String?
-
-    enum CodingKeys: String, CodingKey { case splitCursor, pageStatus }
-
-    init(from decoder: any Decoder) throws {
-        page = try CardSummaryPage(from: decoder)
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        splitCursor = try container.decodeIfPresent(String.self, forKey: .splitCursor)
-        pageStatus = try container.decodeIfPresent(String.self, forKey: .pageStatus)
     }
 }

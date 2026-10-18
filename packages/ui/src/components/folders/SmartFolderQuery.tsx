@@ -7,12 +7,7 @@ import { describeQualifierChip } from "../search/searchSuggestions";
 
 interface SmartFolderQueryProps {
   className?: string;
-  /**
-   * The user's manual folder names, lowercased, once loaded: a `folder:`
-   * naming none of them reads "No folder named …".
-   */
   folderNames?: ReadonlySet<string>;
-  /** One line of quieter chips, for the start of the search field. */
   inline?: boolean;
   query: string;
 }
@@ -39,11 +34,6 @@ function QueryChip({
   );
 }
 
-/**
- * A smart folder's search as read-only chips: qualifiers with their
- * labels, quoted phrases and words. Wraps to two lines (or, inline, stays
- * on one), then clips; the whole search is in the tooltip.
- */
 export function SmartFolderQuery({
   className,
   folderNames,

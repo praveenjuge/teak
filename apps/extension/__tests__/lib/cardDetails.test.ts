@@ -92,7 +92,7 @@ describe("isPatchCardPayload", () => {
     ["a cleared note", { cardId: "abc123", notes: null }],
     [
       "tags with the ones added",
-      { added: ["Lamps"], cardId: "abc123", tags: ["design", "lamps"] },
+      { addedTags: ["Lamps"], cardId: "abc123", tags: ["design", "lamps"] },
     ],
   ])("accepts %s", (_label, payload) => {
     expect(isPatchCardPayload(payload)).toBe(true);
@@ -108,11 +108,11 @@ describe("isPatchCardPayload", () => {
     ["tags that aren't strings", { cardId: "abc", tags: [1] }],
     [
       "an added tag the change doesn't set",
-      { added: ["other"], cardId: "abc", tags: ["design"] },
+      { addedTags: ["other"], cardId: "abc", tags: ["design"] },
     ],
     [
       "added tags without tags",
-      { added: ["design"], cardId: "abc", notes: "x" },
+      { addedTags: ["design"], cardId: "abc", notes: "x" },
     ],
   ])("refuses %s", (_label, payload) => {
     expect(isPatchCardPayload(payload)).toBe(false);
@@ -131,7 +131,10 @@ describe("loadSaveDetails", () => {
   test("offers the library's most used tags first", async () => {
     const request = mock(async () => tags.clone());
     expect(
-      await loadSaveDetails({ cardId: "card_1", existing: false }, { request })
+      await loadSaveDetails(
+        { cardId: "card_1", alreadySaved: false },
+        { request }
+      )
     ).toEqual({ status: "ok", libraryTags: ["art", "design", "rare"] });
     expect(request).toHaveBeenCalledTimes(1);
   });
@@ -143,7 +146,10 @@ describe("loadSaveDetails", () => {
         : Response.json({ notes: null, tags: ["design"] })
     );
     expect(
-      await loadSaveDetails({ cardId: "card_1", existing: true }, { request })
+      await loadSaveDetails(
+        { cardId: "card_1", alreadySaved: true },
+        { request }
+      )
     ).toEqual({
       status: "ok",
       libraryTags: ["art", "design", "rare"],
@@ -158,7 +164,10 @@ describe("loadSaveDetails", () => {
         : Response.json({ code: "NOT_FOUND", error: "Gone" }, { status: 404 })
     );
     expect(
-      await loadSaveDetails({ cardId: "card_1", existing: true }, { request })
+      await loadSaveDetails(
+        { cardId: "card_1", alreadySaved: true },
+        { request }
+      )
     ).toMatchObject({ status: "error", code: "NOT_FOUND" });
   });
 });

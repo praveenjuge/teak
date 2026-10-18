@@ -1,8 +1,3 @@
-/**
- * A consumer batch whose messages record how they were settled, and a
- * producer that records what was sent, for queue consumer tests.
- */
-
 export interface SettledMessage {
   body: unknown;
   outcome: "ack" | "pending" | "retry";
@@ -50,7 +45,6 @@ export const createFakeBatch = (
   } as unknown as MessageBatch<unknown>;
   return {
     batch,
-    /** How each message ended, in order. */
     outcomes: () => settled.map((message) => message.outcome),
     settled,
   };

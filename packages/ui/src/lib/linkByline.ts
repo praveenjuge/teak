@@ -7,7 +7,6 @@ export interface LinkBylineSource {
 
 const MAX_NAME_LENGTH = 80;
 const EARLIEST_PUBLISHED_YEAR = 1990;
-// Pages sometimes carry tomorrow's date in another time zone.
 const FUTURE_TOLERANCE_MS = 36 * 60 * 60 * 1000;
 
 const looksLikeUrl = (value: string) =>
@@ -41,11 +40,7 @@ const namesHost = (key: string, hostname?: string | null) =>
     .split(".")
     .some((label) => label !== "www" && comparable(label) === key);
 
-/**
- * A page's publish date as "Mar 5, 2024", or null when the page's value is
- * missing, unparseable, implausibly old or in the future. Date-only values
- * are calendar dates, so they're formatted in UTC to avoid shifting a day.
- */
+/** Date-only values parse as UTC midnight, so they're formatted in UTC. */
 export function formatPublishedDate(
   publishedAt?: string,
   now = Date.now()
@@ -72,11 +67,6 @@ export function formatPublishedDate(
   });
 }
 
-/**
- * "By Jane Doe · The Paper · Mar 5, 2024" for a link card, skipping a
- * publisher that only repeats the author or the site's own hostname. Returns
- * null when the page named nothing worth showing.
- */
 export function formatLinkByline(
   source: LinkBylineSource,
   now = Date.now()

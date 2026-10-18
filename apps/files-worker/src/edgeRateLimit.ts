@@ -1,28 +1,3 @@
-/**
- * Edge rate limits for the public API and MCP server.
- *
- * Each proxied request is charged to its edge identity (`edgeIdentity.ts`):
- *
- * - `API_REQUEST_LIMITER` (120 a minute) for a known user, and for a request
- *   with no credential at all, keyed by address;
- * - `UNKNOWN_CREDENTIAL_LIMITER` (60 a minute) for a request whose credential
- *   the edge cannot tie to a user, keyed by address.
- *
- * A request within its user's limit is forwarded with an attestation
- * (`@teak/files-protocol` EDGE_RATE_LIMIT_HEADER), signed over its own
- * `Authorization` value, and Convex then skips its own per-request charge.
- * Requests without a known user, and JSON-RPC batches, which Convex charges
- * per call, get no attestation and are charged by Convex as before. When the
- * limiters or signing are unavailable the request goes through unattested,
- * so Convex's own limit still applies.
- *
- * Over a limit, `/api` answers the public API's 429 and `/mcp` an HTTP 429
- * with a JSON-RPC error body: the MCP specification (2026-07-28) defines no
- * rate-limit error and expects an intermediary to answer with an HTTP status.
- * Both carry `Retry-After`. The Workers limiter counts in fixed windows per
- * Cloudflare location, so these limits are approximate.
- */
-
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import {
   buildEdgeRateLimitSigningPayload,
@@ -48,7 +23,6 @@ export interface EdgeRateLimitEnv extends EdgeIdentityEnv {
 
 export const EDGE_API_REQUEST_LIMIT = 120;
 export const EDGE_UNKNOWN_CREDENTIAL_LIMIT = 60;
-/** Window length in seconds; the Workers limiter counts in fixed windows. */
 export const EDGE_RATE_LIMIT_PERIOD_SECONDS = 60;
 
 /**
@@ -65,7 +39,6 @@ export type EdgeRateLimitOutcome =
   | { response: Response }
   | {
       attestation: string | null;
-      /** Set when a known user's request was charged to their edge limit. */
       identity?: Extract<EdgeIdentity, { key: `user:${string}` }>;
     };
 
@@ -159,7 +132,6 @@ const mayBeJsonArrayBody = (request: Request): Promise<boolean> => {
   });
 };
 
-/** A JSON-RPC notification: a method call without an id, owed no reply. */
 const isNotification = (body: unknown): boolean =>
   Boolean(body) &&
   typeof body === "object" &&

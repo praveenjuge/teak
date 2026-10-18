@@ -10,10 +10,6 @@ import { runImport } from "./import";
 import { runMaintenance } from "./maintenance";
 import type { BackgroundEnv, Steps, WorkflowRun } from "./runtime";
 
-// Cloudflare runs each workflow through one of these classes (wrangler.jsonc
-// `workflows`). The logic lives in plain functions so tests drive it with a
-// fake step.
-
 const toRun = <Params>(
   env: BackgroundEnv,
   event: Readonly<WorkflowEvent<Params>>,

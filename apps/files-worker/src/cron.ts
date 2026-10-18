@@ -11,16 +11,6 @@ import {
   startMaintenanceTask,
 } from "./workflows/maintenance";
 
-/**
- * Runs the background task each Cron Trigger (wrangler.jsonc
- * `triggers.crons`, matched to `CRONS` in packages/convex/cronSchedules.ts)
- * stands for. This Worker serves several Convex deployments, so each task
- * runs once per deployment and one deployment's failure never stops
- * another's. Tasks this handler runs itself record the deployment's cron
- * heartbeat, so the admin health view lists them like Convex's own crons;
- * the maintenance workflow records its own.
- */
-
 export type CronEnv = AiUsageRollupEnv;
 
 export interface CronDeps {
@@ -57,7 +47,6 @@ const recordHeartbeat = async (
   }
 };
 
-/** Runs one task for one deployment between its heartbeats. */
 const monitored = async (
   convex: ConvexRpc,
   name: CronName,
@@ -103,7 +92,6 @@ export const handleScheduled = async (
       return monitored(convex, name, () => task(url, convex));
     };
 
-  /** Runs a task for every deployment, reporting each failure. */
   const forEachDeployment = async (
     task: string,
     run: (url: string) => Promise<unknown>
@@ -147,8 +135,6 @@ export const handleScheduled = async (
       );
       return;
     case SCHEDULE.aiUsage:
-      // Unconfigured (development, tests): no heartbeat, so the admin view
-      // shows it never ran rather than succeeding at nothing.
       if (!(env.ANALYTICS_ACCOUNT_ID && env.ANALYTICS_API_TOKEN)) {
         console.log("[cron] AI usage rollup skipped: SQL API not configured");
         return;
@@ -177,11 +163,6 @@ export const handleScheduled = async (
   }
 };
 
-/**
- * The weekly pending-upload backstop works on the bucket, which every
- * deployment this Worker serves shares, so it runs once and records its
- * outcome in each deployment's heartbeat.
- */
 const sweepPendingUploads = async (
   env: CronEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,

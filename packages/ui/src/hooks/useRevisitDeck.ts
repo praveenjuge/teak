@@ -7,23 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardWithUrls } from "../components/cards/types";
 import type { CardsSearchQueryArgs } from "./cardsSearchState";
 
-/** A card as the deck holds it: the grid's card, with its saved date. */
 export type RevisitCard = CardWithUrls & Pick<Doc<"cards">, "createdAt">;
 
-/** Cards in one deck. */
 export const REVISIT_DECK_SIZE = 20;
 
-/**
- * How far into a view's Shuffle a deck reaches: the cards query pages no
- * further than this offset, so past it "Start over" takes a new seed.
- */
 export const REVISIT_WALK_LIMIT = SEARCH_MAX_OFFSET;
 
-/**
- * Most page reads in one deal. A Shuffle page can come back empty with a
- * cursor to follow (its segment held no matching card), so the walk counts
- * requests as well as cards.
- */
 export const REVISIT_MAX_REQUESTS = 60;
 
 export interface RevisitPage {
@@ -36,17 +25,9 @@ export type LoadRevisitPage = (cursor: string | null) => Promise<RevisitPage>;
 
 export interface RevisitDeal {
   cards: RevisitCard[];
-  /** No unseen card is left in the view (within the walk limit). */
   exhausted: boolean;
 }
 
-/**
- * The next deck: the first `REVISIT_DECK_SIZE` cards of the view's Shuffle
- * that aren't in `seen`, read from the first page on. A Shuffle keeps the
- * order of the cards that stay, so after archiving some, these are exactly
- * the next unseen cards; paging on from an offset would skip some, as the
- * view's offsets shift when cards leave it.
- */
 export async function dealRevisitCards(
   loadPage: LoadRevisitPage,
   seen: ReadonlySet<string>
@@ -60,7 +41,6 @@ export async function dealRevisitCards(
     scanned < REVISIT_WALK_LIMIT && requests < REVISIT_MAX_REQUESTS;
     requests += 1
   ) {
-    // Pages follow each other: each needs the cursor before it.
     // react-doctor-disable-next-line react-doctor/async-await-in-loop
     const { continueCursor, isDone, page } = await loadPage(cursor);
     for (const [index, card] of page.entries()) {
@@ -87,13 +67,11 @@ export type RevisitDecision = "archived" | "kept";
 export type RevisitMove = "archive" | "back" | "keep";
 
 interface DeckState {
-  /** Archived cards, last on top, for Undo. */
   archivedStack: string[];
   cards: RevisitCard[];
   decisions: Readonly<Record<string, RevisitDecision>>;
   exhausted: boolean;
   index: number;
-  /** The last step, for the deck's slide. */
   move: RevisitMove | null;
   status: "error" | "loading" | "ready";
 }
@@ -115,35 +93,24 @@ const countOf = (
   Object.values(decisions).filter((value) => value === decision).length;
 
 export interface UseRevisitDeckOptions {
-  /** Archives a card; resolves false when the archive failed. */
   onArchive: (cardId: string) => Promise<boolean>;
-  /** Puts an archived card back; resolves false when that failed. */
   onUnarchive: (cardId: string) => Promise<boolean>;
-  /** The view's cards query as a Shuffle of the deck's seed; null waits. */
   queryArgs: CardsSearchQueryArgs | null;
 }
 
 export interface RevisitDeck {
   archive: () => Promise<void>;
   archived: number;
-  /** Whether Undo (Z) has an archive to take back. */
   canUndo: boolean;
-  /** The card on top, from the snapshot; null at the end. */
   current: RevisitCard | null;
-  /** True once every card of the deck has been decided. */
   done: boolean;
-  /** No unseen card is left: the end screen offers "Start over". */
   exhausted: boolean;
-  /** Ends the deck early, reporting how far it got. */
   finish: () => void;
   keep: () => void;
   kept: number;
-  /** Deals the next unseen cards of the same seed. */
   more: () => void;
   move: RevisitMove | null;
-  /** An archive or undo is on its way; the deck waits for it. */
   pending: boolean;
-  /** 1-based place of the current card. */
   position: number;
   retry: () => void;
   status: DeckState["status"];
@@ -151,12 +118,6 @@ export interface RevisitDeck {
   undo: () => Promise<void>;
 }
 
-/**
- * A Revisit deck over a view: a fixed snapshot of up to 20 cards from its
- * Shuffle, stepped through with Archive and Keep. Cards that leave the view
- * meanwhile stay in the deck; every card shown is remembered, so "20 more"
- * never repeats one. A new seed (or a changed view) starts afresh.
- */
 export function useRevisitDeck({
   onArchive,
   onUnarchive,
@@ -165,23 +126,16 @@ export function useRevisitDeck({
   const convex = useConvex();
   const key = queryArgs ? JSON.stringify(queryArgs) : null;
   const [state, setState] = useState<DeckState>(LOADING);
-  // Bumped by "20 more" and Retry; a new key deals on its own.
   const [dealCount, setDealCount] = useState(0);
   const [pending, setPending] = useState(false);
-  // Every card dealt for this view and seed.
   const seen = useRef<{ ids: Set<string>; key: string | null }>({
     ids: new Set(),
     key: null,
   });
-  const busy = useRef(false);
-  // The archive on its way, so a quick Z can wait for it.
+  const busy = useRef<boolean>(false);
   const inFlight = useRef<Promise<boolean> | null>(null);
-  // Archived cards, last on top: kept here too, so Z right after an archive
-  // sees it before the next render.
   const archivedStack = useRef<string[]>([]);
-  // Bumped by every new deal, so an archive from an older one is ignored.
   const dealGeneration = useRef(0);
-  // Whether this deal's analytics session was reported.
   const session = useRef<{ finished: boolean } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -200,17 +154,21 @@ export function useRevisitDeck({
     });
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dealCount asks for another deal of the same view.
+  const deal = useMemo(
+    () => (key === null ? null : { key, round: dealCount }),
+    [dealCount, key]
+  );
+
   useEffect(() => {
-    if (key === null) {
+    if (deal === null) {
       return;
     }
     dealGeneration.current += 1;
-    if (seen.current.key !== key) {
-      seen.current = { ids: new Set(), key };
+    if (seen.current.key !== deal.key) {
+      seen.current = { ids: new Set(), key: deal.key };
     }
     const seenIds = seen.current.ids;
-    const args = JSON.parse(key) as CardsSearchQueryArgs;
+    const args = JSON.parse(deal.key) as CardsSearchQueryArgs;
     let cancelled = false;
     setState(LOADING);
     const loadPage: LoadRevisitPage = (cursor) =>
@@ -242,9 +200,8 @@ export function useRevisitDeck({
     return () => {
       cancelled = true;
     };
-  }, [convex, dealCount, key]);
+  }, [convex, deal]);
 
-  // Leaving the deck before its end still reports it.
   useEffect(() => () => report(false), [report]);
 
   const done = state.status === "ready" && state.index >= state.cards.length;
@@ -283,8 +240,6 @@ export function useRevisitDeck({
     inFlight.current = null;
     busy.current = false;
     setPending(false);
-    // A failed archive leaves the card on top; one from an older deal (the
-    // view changed meanwhile) has nothing left to move.
     if (!archivedOk || generation !== dealGeneration.current) {
       return;
     }
@@ -304,7 +259,6 @@ export function useRevisitDeck({
   }, [onArchive]);
 
   const undo = useCallback(async () => {
-    // Z pressed while an archive is on its way takes back that archive.
     if (inFlight.current) {
       await inFlight.current;
     }

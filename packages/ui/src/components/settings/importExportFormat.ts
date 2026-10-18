@@ -8,7 +8,6 @@ const relativeDateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
 });
 
-/** Human "N minutes/hours/days ago" for recent timestamps, date otherwise. */
 export function formatRelativeTime(
   timestamp: number,
   now = Date.now()
@@ -32,10 +31,6 @@ export function formatRelativeTime(
   return relativeDateFormatter.format(new Date(timestamp));
 }
 
-/**
- * Coarse "Xd Yh" / "Yh Zm" countdown for a remaining duration. Days + hours
- * when more than a day out, hours + minutes when under a day.
- */
 export function formatCountdown(remainingMs: number): string {
   if (remainingMs <= 0) {
     return "now";

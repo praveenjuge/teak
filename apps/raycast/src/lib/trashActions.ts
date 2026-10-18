@@ -32,7 +32,7 @@ export const moveCardToTrash = async (
     title: "Moving to Trash…",
   });
   try {
-    await softDeleteCard(card.id, "prompt");
+    await softDeleteCard(card.id, "interactive");
   } catch (error) {
     if (isGone(error)) {
       toast.style = Toast.Style.Success;
@@ -53,7 +53,7 @@ export const moveCardToTrash = async (
     onAction: async (current) => {
       current.hide();
       try {
-        await restoreCard(card.id, "prompt");
+        await restoreCard(card.id, "interactive");
         handlers.onRestored(card);
         await showToast({ style: Toast.Style.Success, title: "Restored" });
       } catch (error) {
@@ -77,7 +77,7 @@ export const restoreFromTrash = async (
     title: "Restoring…",
   });
   try {
-    await restoreCard(card.id, "prompt");
+    await restoreCard(card.id, "interactive");
     onRestored(card.id);
     toast.style = Toast.Style.Success;
     toast.title = "Restored";
@@ -108,7 +108,7 @@ export const deleteCardForever = async (
     title: "Deleting…",
   });
   try {
-    await permanentlyDeleteCard(card.id, "prompt");
+    await permanentlyDeleteCard(card.id, "interactive");
   } catch (error) {
     if (!isGone(error)) {
       toast.style = Toast.Style.Failure;

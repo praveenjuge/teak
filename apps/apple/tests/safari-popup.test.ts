@@ -34,7 +34,7 @@ async function popup(
         if (id === "message") {
           return message;
         }
-        return { addEventListener() {} };
+        return { addEventListener: () => undefined };
       },
     },
     browser: {

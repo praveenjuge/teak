@@ -33,8 +33,8 @@ const waitForImperativeTools = (browser: Browser) =>
               (window.__webmcpRegistered ?? []).some(
                 (entry) =>
                   entry.name === name &&
-                  typeof (entry.tool as { execute?: unknown })?.execute ===
-                    "function"
+                  typeof (entry.tool as { execute?: unknown } | undefined)
+                    ?.execute === "function"
               )
             ),
           [...IMPERATIVE_TOOL_NAMES]

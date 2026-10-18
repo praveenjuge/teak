@@ -6,27 +6,29 @@ import { createPostHogBatch } from "@teak/convex/shared/posthog";
 import { getCaptureOwner } from "./captureOwner";
 import { getPostHogProjectToken } from "./env";
 
-const send = async (
-  record: (
-    batch: ReturnType<typeof createPostHogBatch>,
-    distinctId: string | undefined
-  ) => void
-): Promise<void> => {
+type RecordEvents = (
+  batch: ReturnType<typeof createPostHogBatch>,
+  distinctId: string | undefined
+) => void;
+
+const flush = async (token: string, record: RecordEvents): Promise<void> => {
+  const batch = createPostHogBatch({
+    lib: "teak-extension",
+    libVersion: chrome.runtime.getManifest().version,
+    platform: "web:javascript",
+    token,
+  });
+  const owner = await getCaptureOwner().catch(() => undefined);
+  record(batch, owner);
+  await batch.flush();
+};
+
+const send = async (record: RecordEvents): Promise<void> => {
   const token = getPostHogProjectToken();
   if (!token) {
     return;
   }
-  try {
-    const batch = createPostHogBatch({
-      lib: "teak-extension",
-      libVersion: chrome.runtime.getManifest().version,
-      platform: "web:javascript",
-      token,
-    });
-    const owner = await getCaptureOwner().catch(() => undefined);
-    record(batch, owner);
-    await batch.flush();
-  } catch {}
+  await flush(token, record).catch(() => undefined);
 };
 
 export const captureExtensionEvent = <Name extends ClientEventName>(

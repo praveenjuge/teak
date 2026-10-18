@@ -147,7 +147,7 @@ struct LibraryView: View {
     }
 
     private func layout(_ cards: [CardSummary]) -> [[CardSummary]] {
-        CardGrid.distribute(cards, columns: columns, reserved: showsComposer ? [120] : []) {
+        CardGrid.distribute(cards, columns: columns, reservedTopHeights: showsComposer ? [120] : []) {
             CardGrid.estimatedHeight($0, columnWidth: columnWidth)
         }
     }
@@ -211,7 +211,7 @@ struct LibraryView: View {
             edit: { editing = CardRoute(id: $0.id, summary: $0) },
             export: { card in
                 exporting = CardFile(fileName: card.fileName ?? card.title) {
-                    let full: Card? = try await app.backend.query("cards:getCard", ["id": .string(card.id)])
+                    let full = try await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
                     guard let full, case let .file(url, _, _) = CardSheet.shareTarget(full) else {
                         throw TeakError(message: "Unable to download this file.")
                     }
@@ -227,8 +227,6 @@ struct LibraryView: View {
             },
             confirmDeleteForever: { confirmingDeleteForever = $0 })
     }
-
-    // MARK: Empty states
 
     @ViewBuilder private var emptyState: some View {
         let query = library.query
@@ -248,8 +246,6 @@ struct LibraryView: View {
             }
         }
     }
-
-    // MARK: Toolbar
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if library.isSelecting {

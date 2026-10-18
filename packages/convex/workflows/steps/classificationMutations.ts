@@ -1,5 +1,3 @@
-// Separate from classification.ts because mutations can't use "use node".
-
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import {
@@ -11,12 +9,6 @@ import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import type { CardType } from "../../schema";
 
-/**
- * Every classify exit records here, because steps gated on
- * processingStatus.classify (link metadata) retry until they fail while it
- * stays pending. With a `type` the card takes it and its later stages are
- * reset; without one only a classify stage not yet completed is marked.
- */
 export const recordClassification = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -58,8 +50,6 @@ export const recordClassification = internalMutation({
       ...(type === "link" ? { metadataStatus: "pending" } : {}),
     };
 
-    // Swatches on a palette came from its text. A card corrected to another
-    // type would keep showing them, so clear them with the type change.
     if (card.type === "palette" && type !== "palette") {
       patchData.colors = undefined;
       patchData.colorHexes = undefined;

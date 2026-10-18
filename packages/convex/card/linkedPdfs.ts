@@ -3,7 +3,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { requireTeakUserId } from "../securitySessions";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { buildR2ObjectKey, deleteObject } from "../storage/r2";
+import { STORE_LINKED_PDF_TIMEOUT_MS } from "../storage/filesWorkerClient";
+import { buildR2ObjectKey, queueObjectDeletion } from "../storage/r2";
 import {
   isArxivPdfUrl,
   parseArxivId,
@@ -12,16 +13,9 @@ import { clientCardSourceValidator } from "./createCard";
 import { ensureCardQuotaAvailable } from "./quota";
 import { createUploadedCardForUser } from "./uploadCard";
 
-// Save PDF: an arXiv link card's paper as its own document card. The
-// `linkedPdfs` row records which document came from which link, so saving
-// twice returns the same document, two saves at once make one, and a
-// document deleted for good can be saved again.
-
-/**
- * A claim younger than this is a save still running. Longer than the
- * download's 150 s limit, so a slow save isn't claimed twice.
- */
-export const LINKED_PDF_CLAIM_TTL_MS = 3 * 60 * 1000;
+const LINKED_PDF_CLAIM_MARGIN_MS = 30_000;
+export const LINKED_PDF_CLAIM_TTL_MS =
+  STORE_LINKED_PDF_TIMEOUT_MS + LINKED_PDF_CLAIM_MARGIN_MS;
 
 export const SAVE_PDF_ERROR_MESSAGES = {
   IN_PROGRESS: "This PDF is already being saved. Try again in a moment.",
@@ -31,7 +25,6 @@ export const SAVE_PDF_ERROR_MESSAGES = {
   TRASHED: "Restore this card from Trash before saving its PDF.",
 } as const;
 
-/** `2401.12345.pdf`, or `hep-th-9901001.pdf` for an old-style id. */
 const linkedPdfFileName = (pdfUrl: string) =>
   `${(parseArxivId(pdfUrl) ?? "paper").replace(/\//g, "-")}.pdf`;
 
@@ -66,16 +59,10 @@ const existingDocument = async (
   if (row.status !== "done" || !row.cardId) {
     return null;
   }
-  // A document in Trash counts as gone, so the paper can be saved again.
   const card = await ctx.db.get("cards", row.cardId);
   return card && !card.isDeleted ? card._id : null;
 };
 
-/**
- * Claims the save for one link card, or returns the document an earlier
- * save made. Refuses another user's card, a card in Trash, a card with no
- * arXiv PDF, a save already running, and an account at its card limit.
- */
 export const claimLinkedPdf = internalMutation({
   args: { cardId: v.string(), userId: v.string() },
   returns: v.any(),
@@ -112,10 +99,7 @@ export const claimLinkedPdf = internalMutation({
         return fail("IN_PROGRESS", SAVE_PDF_ERROR_MESSAGES.IN_PROGRESS);
       }
     }
-    // Refused here rather than after the download; the document's own
-    // creation checks again.
     await ensureCardQuotaAvailable(ctx, userId);
-    // Each claim downloads a PDF of up to 100 MB.
     const allowed = await rateLimiter.limit(ctx, "savePdf", {
       key: userId,
       throws: false,
@@ -129,9 +113,6 @@ export const claimLinkedPdf = internalMutation({
 
     const claimToken = crypto.randomUUID();
     const fileName = linkedPdfFileName(pdfUrl);
-    // A retry for the same paper keeps the key, so a PDF stored before an
-    // interruption is reused rather than downloaded again. A finished row's
-    // key belongs to its document, so saving again gets a new one.
     const fileKey =
       row && row.pdfUrl === pdfUrl && row.status !== "done"
         ? row.fileKey
@@ -143,8 +124,7 @@ export const claimLinkedPdf = internalMutation({
           });
     let linkedPdfId: Id<"linkedPdfs">;
     if (row && row.status !== "done" && row.fileKey !== fileKey) {
-      // A PDF stored for the link's earlier paper is no one's now.
-      await deleteObject(ctx, row.fileKey);
+      await queueObjectDeletion(ctx, row.fileKey);
     }
     if (row) {
       await ctx.db.patch("linkedPdfs", row._id, {
@@ -179,10 +159,6 @@ export const claimLinkedPdf = internalMutation({
   },
 });
 
-/**
- * Creates the document card for a stored PDF and marks the claim done, in
- * one transaction. A claim another save finished returns its document.
- */
 export const completeLinkedPdf = internalMutation({
   args: {
     claimToken: v.string(),
@@ -226,12 +202,6 @@ export const completeLinkedPdf = internalMutation({
   },
 });
 
-/**
- * Releases a claim that couldn't make its document, so the next try claims
- * it again at once instead of waiting out the claim. A claim whose row is
- * gone (the link was deleted for good mid-save) or now holds another key
- * (another paper's save took over) drops the PDF it stored.
- */
 export const failLinkedPdf = internalMutation({
   args: {
     claimToken: v.string(),
@@ -242,7 +212,7 @@ export const failLinkedPdf = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get("linkedPdfs", args.linkedPdfId);
     if (!row || row.fileKey !== args.fileKey) {
-      await deleteObject(ctx, args.fileKey);
+      await queueObjectDeletion(ctx, args.fileKey);
       return null;
     }
     if (row.status === "pending" && row.claimToken === args.claimToken) {

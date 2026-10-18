@@ -1,19 +1,10 @@
-/**
- * R2 object keys, signed file URLs and export manifests: minted by Convex,
- * validated and served by the Files Worker.
- */
-
-/** Largest object an upload may store; the media renderer reads any of them. */
 export const FILES_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
 
-/** Shortest remaining validity of a signed file URL when Convex mints it. */
 export const FILES_SIGNED_URL_MIN_VALIDITY_SECONDS = 7 * 24 * 60 * 60;
 
-/** A day short of the signed-URL validity, so browsers never replay an expired signature. */
 const FILE_CACHE_MAX_AGE_SECONDS =
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS - 24 * 60 * 60;
 
-/** Cache-Control of a signed file response sent to the browser. */
 export const FILES_PRIVATE_CACHE_CONTROL = `private, max-age=${FILE_CACHE_MAX_AGE_SECONDS}, immutable`;
 
 /**
@@ -41,15 +32,12 @@ export const buildFileSigningPayload = ({
 /** Key prefix of the development deployment, which shares the production bucket. */
 export const FILES_DEV_KEY_PREFIX = "dev/";
 
-/** Root of every card object key under an environment prefix. */
 export const filesUserKeyRoot = (envPrefix: string): string =>
   `${envPrefix}users/`;
 
-/** Root of export archives, which an R2 lifecycle rule expires. */
 export const filesExportKeyRoot = (envPrefix: string): string =>
   `${envPrefix}exports/`;
 
-/** Every root the Worker accepts an object key under. */
 export const FILES_OBJECT_KEY_ROOTS = ["", FILES_DEV_KEY_PREFIX].flatMap(
   (envPrefix) => [filesUserKeyRoot(envPrefix), filesExportKeyRoot(envPrefix)]
 );
@@ -94,7 +82,6 @@ export const buildCardObjectKey = ({
   ].join("/");
 };
 
-/** The card and role a card object key names; empty for any other key. */
 export const parseCardObjectKey = (
   key: string
 ): { cardId?: string; role?: string } => {
@@ -119,17 +106,12 @@ export const parseCardObjectKey = (
 
 export const FILES_EXPORT_MANIFEST_VERSION = 1 as const;
 
-/**
- * An archive entry: inline content, or an object the Worker streams in. An
- * object that cannot be read after one retry is left out and reported by path.
- */
 export interface FilesExportManifestEntry {
   contentBase64?: string;
   path: string;
   storageKey?: string;
 }
 
-/** The build-export op's manifest, which Convex stores in R2 beside the archive. */
 export interface FilesExportManifest {
   entries: FilesExportManifestEntry[];
   maxBytes: number;

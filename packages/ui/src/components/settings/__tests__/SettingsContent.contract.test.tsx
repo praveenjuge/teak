@@ -129,7 +129,6 @@ describe("SettingsContent", () => {
 
     expect(rowTitles(loaded).length).toBeGreaterThan(0);
     expect(rowTitles(skeleton)).toEqual(rowTitles(loaded));
-    // The real page's heading is what signals that settings finished loading.
     expect(skeleton).not.toContain("<h1");
     expect(skeleton).toContain("Loading settings");
   });

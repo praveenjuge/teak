@@ -84,7 +84,7 @@ struct WelcomeView: View {
         Task {
             defer { pending = nil }
             do {
-                _ = try await app.signIn(method, using: webAuthentication)
+                try await app.signIn(method, using: webAuthentication)
             } catch {
                 let message = (error as? TeakError)?.message
                 failure = ("\(method.label) Sign In Failed",

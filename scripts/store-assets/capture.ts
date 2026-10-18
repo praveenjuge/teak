@@ -1,19 +1,3 @@
-/**
- * Captures one raw screenshot from a running app into its store's source
- * folder. Put the app on the right screen first, then run:
- *
- *   bun scripts/store-assets/capture.ts prepare apple-iphone|apple-ipad|android
- *   bun scripts/store-assets/capture.ts apple-ipad 01-library [--as-is]
- *   bun scripts/store-assets/capture.ts android 01-library
- *   bun scripts/store-assets/capture.ts apple-mac 01-library [--app Safari --window "<title>"]
- *
- * `prepare` sets a clean status bar (9:41, full signal and battery, no
- * notifications). iPhone and iPad captures use `asc screenshots capture`; Mac
- * captures a window by ID in the background; Android uses adb. Each store
- * names its simulator or window in shots.ts; TEAK_STORE_SIMULATOR (name or
- * UDID) overrides the simulator. ANDROID_HOME locates adb.
- */
-
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { STORES, type StoreId } from "./shots.ts";
@@ -161,7 +145,6 @@ const macWindow = async (store: StoreId): Promise<number> => {
   const window = STORES[store].window ?? { app: "Teak", title: "Home" };
   const owner = flag("--app", window.app);
   const title = flag("--window", window.title);
-  // A fixed script; the owner and title arrive as arguments, never as code.
   const script = `function run([owner, title]) { ObjC.import("CoreGraphics"); return JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0))).filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowName === title).map((w) => w.kCGWindowNumber)); }`;
   const ids = JSON.parse(
     (

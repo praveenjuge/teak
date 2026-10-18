@@ -12,8 +12,6 @@ const OTHER_CARD = "k57c8p0w2y3d4e5f6g7h8j9k0m1n2p3r";
 describe("pending link image keys", () => {
   test("land in the pending namespace the 24-hour sweep empties", () => {
     const key = buildPendingThumbnailKey("teak_owner", CARD);
-    // The sweep (apps/files-worker/src/ops.ts) deletes stale objects under
-    // this segment only.
     expect(key).toContain("/cards/upload-pending-v2/");
     expect(key).toMatch(
       new RegExp(`/thumbnail-override-pending/[0-9a-f-]{36}-card-${CARD}$`)

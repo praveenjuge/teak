@@ -16,20 +16,13 @@ import {
   type WorkflowDeps,
   withinBudget,
 } from "./deps";
-import { workflowBinding } from "./dispatch";
+import { isMissingInstance, workflowBinding } from "./dispatch";
 import {
   CONVEX_STEP,
   runReported,
   type StepConfig,
   type WorkflowRun,
 } from "./runtime";
-
-// Deletes an account, one stage at a time, resuming from the stage its state
-// row records. Stages that need WorkOS, Polar or PostHog credentials run as
-// the Convex `runStage` action; the account's storage drains here, through
-// this Worker's ops, under the same fencing the Convex mutations enforce.
-// Deletion must finish: steps retry for about half an hour, then the run
-// records the failure and fails, and Convex starts the next attempt.
 
 export interface AccountDeletionParams {
   generation: number;
@@ -38,7 +31,6 @@ export interface AccountDeletionParams {
 
 const RETRY_CAP_MS = 5 * 60 * 1000;
 
-/** Every stage step: 10 retries, doubling from 10 s up to 5 min. */
 const STAGE_STEP: StepConfig = {
   retries: {
     delay: ({ ctx }) => Math.min(RETRY_CAP_MS, 10_000 * 2 ** (ctx.attempt - 1)),
@@ -48,7 +40,6 @@ const STAGE_STEP: StepConfig = {
 };
 
 const ACCOUNT_DATA = accountDeletionStage("accountData");
-/** Import and export runs that may still write for the account. */
 const ACTIVE_RUN_STATUSES = new Set([
   "paused",
   "queued",
@@ -62,11 +53,6 @@ interface DeletionBinding {
   stateId: Id<"accountDeletionStates">;
 }
 
-/**
- * One fenced storage batch: at most three keys, frozen against writers,
- * deleted, then checkpointed. Convex refuses the checkpoint if the source
- * rows changed meanwhile. True once the kind has nothing left.
- */
 export const drainStorageBatch = async (
   { convex, ops }: { convex: ConvexRpc; ops: FilesOpCaller },
   binding: DeletionBinding,
@@ -122,7 +108,6 @@ export const runAccountDeletion = (
     stateId: run.params.stateId as Id<"accountDeletionStates">,
   };
 
-  /** Repeats a step until it reports it is done. */
   const untilDone = async (name: string, page: () => Promise<boolean>) => {
     for (let index = 1; ; index += 1) {
       if (await step.do(`${name} ${index}`, STAGE_STEP, page)) {
@@ -145,13 +130,14 @@ export const runAccountDeletion = (
     try {
       const { status } = await (await workflows.get(instanceId)).status();
       return ACTIVE_RUN_STATUSES.has(status);
-    } catch {
-      // No such instance, as for jobs that ran before Cloudflare Workflows.
-      return false;
+    } catch (error) {
+      if (isMissingInstance(error)) {
+        return false;
+      }
+      throw error;
     }
   };
 
-  /** Asks the account's import and export runs to stop, then waits for them. */
   const prepareWritersPage = async (): Promise<boolean> => {
     const state = await convex.query(
       internal.accountDeletionJobs.getState,
@@ -196,7 +182,6 @@ export const runAccountDeletion = (
     return true;
   };
 
-  /** The account's vectors, by shard, then their rows. */
   const purgeVectors = (userId: string) => async () => {
     const startedAt = Date.now();
     for (;;) {
@@ -294,7 +279,6 @@ export const runAccountDeletion = (
     run,
     async () => {
       for (let stage = 0; stage < ACCOUNT_DELETION_STAGES.length; stage += 1) {
-        // A stale generation or a rebound owner ends this run for good.
         const state = await step.do(`load state ${stage}`, CONVEX_STEP, () =>
           settleConvexErrors(async () => {
             const current = await convex.query(

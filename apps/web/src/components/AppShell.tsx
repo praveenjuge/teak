@@ -3,14 +3,12 @@
 import { SidebarInset, SidebarProvider } from "@teak/ui/components/ui/sidebar";
 import { AddCardActions } from "@teak/ui/forms";
 import { folderIdForPath } from "@teak/ui/lib/folders";
+import { focusNewNoteComposer } from "@teak/ui/lib/keyboardShortcuts";
 import {
-  focusNewNoteComposer,
-  requestNewNoteComposerFocus,
-} from "@teak/ui/lib/keyboardShortcuts";
-import type { LibraryView } from "@teak/ui/lib/libraryViews";
-import {
-  LIBRARY_VIEW_PATHS,
+  type GoToViewOptions,
+  type LibraryView,
   libraryViewForPath,
+  libraryViewHref,
 } from "@teak/ui/lib/libraryViews";
 import { LibraryShortcuts } from "@teak/ui/shortcuts";
 import { AppSidebar, SidebarFolders } from "@teak/ui/sidebar";
@@ -36,19 +34,18 @@ export function AppShell({
   const isCardsPage = view !== null || folderId !== null;
 
   const handleGoToView = useCallback(
-    (target: LibraryView) => {
+    (target: LibraryView, options?: GoToViewOptions) => {
       if (isCardsPage) {
         rememberHomeScroll();
       }
-      router.push(LIBRARY_VIEW_PATHS[target]);
+      router.push(libraryViewHref(target, options));
     },
     [isCardsPage, router]
   );
 
   const handleNewNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
-      requestNewNoteComposerFocus();
-      handleGoToView("all");
+      handleGoToView("all", { focusComposer: true });
     }
   }, [handleGoToView]);
 
@@ -57,14 +54,13 @@ export function AppShell({
       if (isCardsPage) {
         rememberHomeScroll();
       }
-      // Opening a card over this page keeps its scroll.
-      const samePage = pathname !== null && href.startsWith(`${pathname}?`);
+      const samePage = href.startsWith(`${pathname}?`);
       router.push(href, samePage ? { scroll: false } : undefined);
     },
     [isCardsPage, pathname, router]
   );
 
-  const signingOutRef = useRef(false);
+  const signingOutRef = useRef<boolean>(false);
   const handleSignOut = useCallback(() => {
     if (signingOutRef.current) {
       return;
@@ -106,7 +102,7 @@ export function AppShell({
             onNavigate={isCardsPage ? rememberHomeScroll : undefined}
           />
         }
-        isSettingsActive={pathname?.startsWith("/settings") ?? false}
+        isSettingsActive={pathname.startsWith("/settings")}
         isTagsActive={pathname === "/tags"}
         LinkComponent={IntentLink}
         onNavigate={isCardsPage ? rememberHomeScroll : undefined}

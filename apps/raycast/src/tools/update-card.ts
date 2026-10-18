@@ -1,6 +1,7 @@
 import type { Tool } from "@raycast/api";
 import { parseTags } from "teak-sdk";
 import { getCardById, updateCard } from "../lib/api";
+import { parseToolCardId } from "../lib/apiParsers";
 
 type Input = {
   /** The Teak card id to update. */
@@ -16,10 +17,7 @@ type Input = {
 const clean = (tags: string | undefined) => parseTags(tags) ?? [];
 
 export default async function tool(input: Input) {
-  const cardId = input.cardId?.trim();
-  if (!cardId) {
-    throw new Error("cardId is required");
-  }
+  const cardId = parseToolCardId(input.cardId);
   const addTags = clean(input.addTags).map((tag) => tag.toLowerCase());
   const removeTags = clean(input.removeTags).map((tag) => tag.toLowerCase());
   const isRemoved = (tag: string) => removeTags.includes(tag.toLowerCase());
@@ -27,7 +25,7 @@ export default async function tool(input: Input) {
     throw new Error("Provide tags to add or remove, or new notes");
   }
 
-  const card = await getCardById(cardId, "stored");
+  const card = await getCardById(cardId, "silent");
   const tags = Array.from(new Set([...card.tags, ...addTags])).filter(
     (tag) => !isRemoved(tag),
   );
@@ -41,7 +39,7 @@ export default async function tool(input: Input) {
         ? {}
         : { notes: input.notes.trim() ? input.notes.trim() : null }),
     },
-    "stored",
+    "silent",
   );
 
   return {

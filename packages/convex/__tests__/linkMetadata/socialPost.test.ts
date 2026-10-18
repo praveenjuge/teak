@@ -135,4 +135,11 @@ describe("social post text", () => {
       )
     ).toBe("Fish & chips 🐟 <3");
   });
+
+  test("leaves no tag behind when a script hides inside another tag", () => {
+    const text = htmlToText(
+      "<p>hi<scr<script>x</script>ipt>alert(1)</script></p>"
+    );
+    expect(text).not.toMatch(/<\/?[a-z]/i);
+  });
 });

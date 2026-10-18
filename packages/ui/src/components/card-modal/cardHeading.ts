@@ -10,11 +10,6 @@ interface HeadingSource {
   url?: string;
 }
 
-/**
- * The name the card dialog shows at the top: a link's title (which people
- * can rename), a file's name, or the card's type for notes, quotes and
- * palettes, whose content is the card itself.
- */
 export function getCardHeading(card: HeadingSource): {
   editable: boolean;
   title: string;
@@ -51,7 +46,6 @@ export function getCardHeading(card: HeadingSource): {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** When a card was added, as a person would say it: today, Mar 4, … */
 export function formatAddedDate(timestamp: number, now = Date.now()): string {
   const saved = new Date(timestamp);
   const today = new Date(now);

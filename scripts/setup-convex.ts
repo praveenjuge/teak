@@ -26,10 +26,10 @@ export const readConvexDotenvUrls = (
   };
 };
 
-/** Reads one deployment variable. The value is returned, never logged. */
 export const readDeploymentVar = async (
   name: string,
-  cwd: string = convexProjectDir()
+  cwd: string = convexProjectDir(),
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<
   | { status: "found"; value: string }
   | { status: "missing" }
@@ -38,6 +38,7 @@ export const readDeploymentVar = async (
   try {
     const result = await runCommand(["bunx", "convex", "env", "get", name], {
       cwd,
+      env,
       timeoutMs: 60_000,
     });
     const parsed = parseConvexEnvOutput(
@@ -61,9 +62,9 @@ export const readDeploymentVar = async (
   }
 };
 
-/** Every deployment variable, read with one CLI call. Values are never logged. */
 export const listDeploymentVars = async (
-  cwd: string = convexProjectDir()
+  cwd: string = convexProjectDir(),
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<
   | { status: "found"; values: Map<string, string> }
   | { status: "unavailable"; detail: string }
@@ -71,6 +72,7 @@ export const listDeploymentVars = async (
   try {
     const result = await runCommand(["bunx", "convex", "env", "list"], {
       cwd,
+      env,
       timeoutMs: 60_000,
     });
     if (result.exitCode !== 0) {
@@ -96,7 +98,8 @@ export const listDeploymentVars = async (
 };
 
 export const listDeploymentVarNames = async (
-  cwd: string = convexProjectDir()
+  cwd: string = convexProjectDir(),
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<
   | { status: "found"; names: Set<string> }
   | { status: "unavailable"; detail: string }
@@ -104,7 +107,7 @@ export const listDeploymentVarNames = async (
   try {
     const result = await runCommand(
       ["bunx", "convex", "env", "list", "--names-only"],
-      { cwd, timeoutMs: 60_000 }
+      { cwd, env, timeoutMs: 60_000 }
     );
     if (result.exitCode !== 0) {
       return {

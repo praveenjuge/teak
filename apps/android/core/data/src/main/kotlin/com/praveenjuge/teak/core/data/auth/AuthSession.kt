@@ -8,7 +8,6 @@ data class SessionUser(
     val email: String,
     val emailVerified: Boolean,
     val name: String,
-    /** The Teak account this WorkOS user is linked to, once `ensureUser` has linked it. */
     val teakUserId: String? = null,
 )
 
@@ -18,13 +17,11 @@ data class AuthSession(
     val accessToken: String,
     val refreshToken: String,
     val expiresAtMillis: Long,
-    /** The AuthKit `sid` claim, used to revoke this device's session on sign-out. */
     val sessionId: String,
     val user: SessionUser,
 ) {
     override fun toString(): String = "AuthSession(user=${user.id}, sessionId=$sessionId)"
 
-    /** False when [other] belongs to a different WorkOS user, session, or linked Teak account. */
     fun isSameAccount(other: AuthSession): Boolean =
         other.user.id == user.id && other.sessionId == sessionId &&
             (user.teakUserId == null || other.user.teakUserId == user.teakUserId)
@@ -52,5 +49,4 @@ sealed interface SessionState {
 
 class SignInException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-/** WorkOS rejected the refresh token: the session is over and must be cleared. */
 class InvalidRefreshTokenException : Exception("Your session ended. Please sign in again.")

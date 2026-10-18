@@ -18,17 +18,11 @@ sealed interface ShareResult {
     data class Failed(val detail: String?) : ShareResult
 }
 
-/**
- * Saves shared items: text becomes a note or link card right away, files are copied into the upload
- * queue and keep uploading after the share sheet closes. Like iOS, only the first
- * [MAX_FILES_PER_UPLOAD] items are saved.
- */
 class ShareImporter @Inject constructor(
     private val cards: CardsRepository,
     private val uploads: UploadRepository,
     private val account: AccountRepository,
 ) {
-    /** Calls [onSaving] once Teak knows the person is signed in and starts saving. */
     suspend fun import(items: List<ShareItem>, onSaving: () -> Unit = {}): ShareResult {
         if (items.isEmpty()) return ShareResult.Empty
         val session = account.session.first { it != SessionState.Loading }

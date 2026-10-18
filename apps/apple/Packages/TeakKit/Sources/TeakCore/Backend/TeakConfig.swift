@@ -66,7 +66,6 @@ public struct TeakConfig: Sendable {
         return nil
     }
 
-    /// Hosted deployments over HTTPS, or a local backend in development builds.
     static func trustedConvexOrigin(_ value: String) -> URL? {
         guard let components = URLComponents(string: value), let host = components.host?.lowercased(),
               let scheme = components.scheme?.lowercased(),

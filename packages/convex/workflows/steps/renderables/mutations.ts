@@ -38,11 +38,6 @@ export const markCardRenderablesFailed = internalMutation({
   },
 });
 
-/**
- * Update only the fileMetadata dimensions (width/height) for a card.
- * Used when thumbnail generation is skipped but we still want to store dimensions.
- * Merges with existing fileMetadata instead of replacing it.
- */
 export const updateCardFileMetadata = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -81,11 +76,6 @@ const isWaveformBars = (values: number[], count: number) =>
     (value) => Number.isInteger(value) && value >= 0 && value <= 100
   );
 
-/**
- * Store container facts (duration, display size) and the audio waveform for
- * audio and video cards. Only fills fields the card does not already have, so
- * upload-time or thumbnail-derived values win.
- */
 export const updateCardMediaFacts = internalMutation({
   args: {
     cardId: v.id("cards"),

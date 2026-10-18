@@ -2,11 +2,6 @@ import { apiFetch } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
 import { expect, retry, test } from "../helpers/test";
 
-// Background work on the Files Worker: card processing runs as a Cloudflare
-// Workflow (local Workers AI is a deterministic fake that tags a note with
-// its first meaningful words), exports build their archive in a Workflow, and
-// deleted files go through the object-deletion Queue.
-
 interface ApiCard {
   aiSummary: string | null;
   aiTags: string[];

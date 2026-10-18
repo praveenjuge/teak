@@ -8,6 +8,8 @@ export interface CardActionsConfig {
   onRestoreSuccess?: (message?: string) => void;
 }
 
+export type CardFieldValue = string | string[] | boolean | null;
+
 export interface UpdateCardFieldArgs {
   cardId: Id<"cards">;
   field:
@@ -21,7 +23,7 @@ export interface UpdateCardFieldArgs {
     | "delete"
     | "restore";
   tagToRemove?: string;
-  value?: any;
+  value?: CardFieldValue;
 }
 
 export interface PermanentDeleteCardArgs {
@@ -136,7 +138,7 @@ export function createCardActions(
       | "removeAiTag"
       | "delete"
       | "restore",
-    value?: any,
+    value?: CardFieldValue,
     tagToRemove?: string
   ) => {
     try {

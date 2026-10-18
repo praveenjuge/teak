@@ -46,9 +46,8 @@ object CardSheet {
         return trimmed.takeUnless { it.isEmpty() || it == "." || it == ".." }
     }
 
-    /** A safe filename for a download: the saved name, else the URL's last segment, else a generated one. */
-    fun downloadFileName(url: String?, fallback: String?, extension: String? = null, now: Long = System.currentTimeMillis()): String {
-        fallback?.let(::sanitizeFileName)?.let { return it }
+    fun downloadFileName(url: String?, savedName: String?, extension: String? = null, now: Long = System.currentTimeMillis()): String {
+        savedName?.let(::sanitizeFileName)?.let { return it }
         if (url != null) {
             val segment = runCatching { URI(url).rawPath }.getOrNull()
                 ?.split('/')?.lastOrNull { it.isNotEmpty() }

@@ -25,10 +25,6 @@ const BROWSER_SAFE_TRANSCODE_TYPES = new Set([
 const imageEdgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
-// Each rendition bounds the width at `edge`. Grid columns and the detail view
-// fit images to their width, so a tall screenshot bounded on its long side
-// would come back too narrow and blur when it is scaled up. Height gets room
-// for very tall images, up to this many times the width.
 const MAX_RENDITION_ASPECT = 8;
 
 export const IMAGE_RENDITIONS = {
@@ -161,6 +157,9 @@ const bindingOutputFormat = (
   return format === "webp" ? "image/webp" : null;
 };
 
+const BINDING_TRANSFORM = { fit: "scale-down", sharpen: 1 } as const;
+const BINDING_OUTPUT = { anim: true } as const;
+
 export const transformViaBinding = (
   env: Env,
   key: string,
@@ -182,12 +181,11 @@ export const transformViaBinding = (
       const result = await images
         .input(object.body)
         .transform({
-          fit: "scale-down",
-          sharpen: 1,
+          ...BINDING_TRANSFORM,
           ...renditionBounds(rendition),
         })
         .output({
-          anim: true,
+          ...BINDING_OUTPUT,
           format: outputFormat,
           quality: preset.quality,
         });
@@ -204,15 +202,21 @@ export const transformViaBinding = (
   );
 };
 
-// Bump `binding` whenever rendition sizes change, so the edge cache stops
-// serving renditions made with the old bounds.
+const BINDING_CACHE_VERSION = [
+  ...Object.values(IMAGE_RENDITIONS).map(
+    ({ edge, quality }) => `${String(edge)}q${String(quality)}`
+  ),
+  `a${String(MAX_RENDITION_ASPECT)}`,
+  `${BINDING_TRANSFORM.fit}s${String(BINDING_TRANSFORM.sharpen)}anim${String(BINDING_OUTPUT.anim)}`,
+].join("-");
+
 export const buildBindingCacheKey = (
   url: URL,
   sourceEtag: string,
   format: "avif" | "webp"
 ): Request =>
   new Request(
-    `${url.origin}${url.pathname}?binding=2&etag=${encodeURIComponent(sourceEtag)}&fmt=${format}`,
+    `${url.origin}${url.pathname}?binding=${BINDING_CACHE_VERSION}&etag=${encodeURIComponent(sourceEtag)}&fmt=${format}`,
     { method: "GET" }
   );
 

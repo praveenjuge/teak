@@ -152,7 +152,6 @@ const convexEnvPresence = async (name: string): Promise<EnvPresence> => {
     result.stderr,
     result.exitCode
   );
-  // Presence only: values are dropped immediately and never reported.
   if (parsed.status === "found") {
     return "found";
   }

@@ -33,53 +33,6 @@ export const getState = internalQuery({
     return state;
   },
 });
-// Protected E2E callers validate canonical authority before this durable lookup.
-// Provider absence cannot mark unfinished local cleanup complete.
-export const getDeletionStatus = internalQuery({
-  args: { userId: v.string(), email: v.string(), workosUserId: v.string() },
-  handler: async (ctx, { userId, email, workosUserId }) => {
-    const owners = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
-      .take(2);
-    if (owners.length === 0) {
-      return { status: "missing" as const };
-    }
-    if (
-      owners.length !== 1 ||
-      owners[0].workosUserId !== workosUserId ||
-      owners[0].email.trim().toLowerCase() !== email.trim().toLowerCase()
-    ) {
-      return { status: "conflict" as const };
-    }
-    const states = await ctx.db
-      .query("accountDeletionStates")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(2);
-    if (
-      states.length > 1 ||
-      (states[0] && states[0].workosUserId !== workosUserId)
-    ) {
-      return { status: "conflict" as const };
-    }
-    if (states[0]) {
-      return {
-        status: "pending" as const,
-        userId,
-        stage: states[0].stage,
-        failureCode: states[0].failureCode,
-      };
-    }
-    return {
-      status:
-        owners[0].deletedAt === undefined
-          ? ("missing" as const)
-          : ("completed" as const),
-      userId,
-    };
-  },
-});
-
 export const advance = internalMutation({
   args: { ...bindingArgs, stage: v.number() },
   returns: v.null(),
@@ -119,11 +72,6 @@ export const saveSessionCursor = internalMutation({
     return null;
   },
 });
-/**
- * Completes a deletion whose stages all finished: commits the owner's
- * tombstone and settles expected WorkOS deletion receipts one page per call.
- * Returns true once the state is gone; the workflow calls it until then.
- */
 export const finalize = internalMutation({
   args: bindingArgs,
   returns: v.boolean(),
@@ -184,11 +132,6 @@ export const finalize = internalMutation({
       ) {
         throw new Error("deletion_completion_conflict");
       }
-      // Every stage finished under the state's pinned target, so credential
-      // rotation cannot undo completion; current target pins are checked
-      // separately before settling any receipt.
-      // Commit the retained proof with the owner tombstone, before bounded
-      // receipt settlement; retries cannot mint a different completion.
       const completedAt = previous?.completedAt ?? Date.now();
       await ctx.db.patch("users", owner._id, {
         ...redaction,

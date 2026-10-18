@@ -1,4 +1,4 @@
-export const PROTOCOL = 1;
+import { RENDERER_PROTOCOL } from "./protocol";
 
 export interface MediaFacts {
   audioCodec: string | null;
@@ -25,10 +25,9 @@ export interface JobResult {
 
 const NON_ASCII = /[^ -~]/g;
 
-/** Compact JSON that is always a valid HTTP header value. */
 export function encodeManifest(result: JobResult): string {
   const manifest = {
-    protocol: PROTOCOL,
+    protocol: RENDERER_PROTOCOL,
     facts: result.facts,
     parts: result.parts.map((part) => ({
       name: part.name,

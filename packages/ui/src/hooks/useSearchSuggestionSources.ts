@@ -4,11 +4,6 @@ import { useMemo } from "react";
 import type { SearchSuggestionSources } from "../components/search/searchSuggestions";
 import { type FolderSummary, manualFolders } from "../lib/folders";
 
-/**
- * Tags, folders and the most saved sites for the search box's suggestions,
- * from the cached lists the sidebar already reads. Nothing is read until
- * `enabled`, which the screen turns on when the search box is first used.
- */
 export function useSearchSuggestionSources(
   enabled: boolean
 ): SearchSuggestionSources {

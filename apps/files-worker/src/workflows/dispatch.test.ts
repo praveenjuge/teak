@@ -7,7 +7,6 @@ import { type ObjectDeletionMessage, runDispatch } from "./dispatch";
 
 const fileKey = "users/u1/cards/c1/file/a.png";
 
-/** Dispatch params with the proof the deployment signs, as Convex sends them. */
 const signed = async (
   items: unknown[],
   options: { convexSiteUrl?: string; secretFor?: string } = {}
@@ -166,7 +165,6 @@ describe("runDispatch", () => {
       { ...fakeConvexEnv, OBJECT_DELETIONS: queue.queue },
       await signed([
         { keys: [fileKey], type: "delete-objects" },
-        // The development deployment's keys share this Worker.
         { keys: [`dev/${fileKey}`], type: "delete-objects" },
       ])
     );
@@ -220,8 +218,6 @@ describe("runDispatch", () => {
       CONVEX_SITE_URLS: `${TEST_CONVEX_SITE_URL},https://dev.convex.site`,
       OBJECT_DELETIONS: queue.queue,
     };
-    // Development shares the files signing secret with production, but its
-    // own RPC secret can't vouch for production's origin.
     await expect(
       runDispatch(
         env,

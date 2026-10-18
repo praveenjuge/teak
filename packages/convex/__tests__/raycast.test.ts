@@ -129,7 +129,6 @@ describe("raycast", () => {
       url: "https://new.example.com",
     });
 
-    // One edit, then one processing run: its revision bump and its row.
     expect(patchCalls).toEqual([
       expect.objectContaining({
         content: "new content",

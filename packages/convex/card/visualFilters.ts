@@ -19,7 +19,7 @@ import {
 } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
-import { type ArchivedFilter, buildCardListQuery } from "./listQuery";
+import { buildCardListQuery, type CardListScope } from "./listQuery";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -141,17 +141,10 @@ export const applyCardLevelFilters = (
     return doesCardMatchVisualFilters(card, options.visualFilters);
   });
 
-/**
- * The card types that can match the visual filters, within the requested
- * types: undefined when any type can, an empty list when none can.
- */
-export const visualFilterTypes = (
+const visualTypesWithin = (
   types: readonly CardType[] | undefined,
   visualFilters: VisualFilterState
-): readonly CardType[] | undefined => {
-  if (!visualFilters.hasVisualFilters) {
-    return types;
-  }
+): readonly CardType[] => {
   const visualTypes = visualFilters.styleFilters?.length
     ? VISUAL_STYLE_CARD_TYPES
     : COLOR_CARD_TYPES;
@@ -160,29 +153,32 @@ export const visualFilterTypes = (
     : visualTypes;
 };
 
-/** How many cards of each type one color or style search reads at most. */
+export const visualFilterTypes = (
+  types: readonly CardType[] | undefined,
+  visualFilters: VisualFilterState
+): readonly CardType[] | "any" | "none" => {
+  if (!visualFilters.hasVisualFilters) {
+    return types?.length ? types : "any";
+  }
+  const within = visualTypesWithin(types, visualFilters);
+  return within.length > 0 ? within : "none";
+};
+
 export const VISUAL_SCAN_LIMIT = 1000;
 
-/**
- * The newest (or oldest) cards matching color or style filters. Colors and
- * styles are stored as arrays, which Convex search indexes don't cover, so
- * this reads each type that can match (images, palettes, videos) in date order and
- * keeps the matches: up to `limit` of them, within VISUAL_SCAN_LIMIT cards
- * of each type.
- */
+// Convex search indexes don't cover array fields such as colors and styles,
+// so this scans each type that can match in date order.
 export const findVisualMatches = async (
   ctx: QueryCtx,
   options: {
     userId: string;
-    showTrashOnly?: boolean;
-    archived?: ArchivedFilter;
+    scope?: CardListScope;
     types?: CardType[];
     favoritesOnly?: boolean;
     createdAtRange?: CreatedAtRange;
     visualFilters: VisualFilterState;
     limit: number;
     sort?: CardListSort;
-    /** Hidden cards too: the search names a reserved tag. */
     includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
@@ -190,16 +186,14 @@ export const findVisualMatches = async (
     return [];
   }
   const sort = options.sort ?? "newest";
-  const types = visualFilterTypes(options.types, options.visualFilters) ?? [];
+  const types = visualTypesWithin(options.types, options.visualFilters);
   const perType = await Promise.all(
     types.map(async (type) => {
       const cards = buildCardListQuery(ctx, {
         userId: options.userId,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: options.scope,
         favoritesOnly: options.favoritesOnly,
-        // Hidden cards count toward the scan limit, so the loop skips them.
-        includeHidden: true,
+        scanHiddenRows: true,
         types: [type],
         createdAt: options.createdAtRange
           ? {

@@ -103,8 +103,6 @@ describe("central directory parsing primitives", () => {
       "dir/",
       "c.xml",
     ]);
-    // Directory entries may legitimately sit at offset 0; real file entries
-    // must point at a local header past the fixed header size.
     const textEntry = entries.find((entry) => entry.name === "c.xml");
     expect(textEntry?.localHeaderOffset ?? 0).toBeGreaterThan(0);
   });

@@ -5,7 +5,6 @@
 const MAX_MESSAGES_PER_SEND = 100;
 const MAX_BYTES_PER_SEND = 200 * 1024;
 
-/** Groups `bodies` (by index) into sends inside the Queues limits. */
 export const planSendBatches = (bodies: readonly unknown[]): number[][] => {
   const batches: number[][] = [];
   let current: number[] = [];
@@ -30,10 +29,6 @@ export const planSendBatches = (bodies: readonly unknown[]): number[][] => {
   return batches;
 };
 
-/**
- * Sends every body, batch by batch. Returns the indexes of the bodies whose
- * batch failed, with the error, so callers can fail only those.
- */
 export const sendInBatches = async <Body>(
   queue: Queue<Body>,
   bodies: readonly Body[]

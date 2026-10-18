@@ -19,9 +19,7 @@ import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import {
   ariaKeyShortcut,
-  clearNewNoteComposerFocusRequest,
   FOCUS_NOTE_KEYS,
-  isNewNoteComposerFocusRequested,
   SAVE_NOTE_KEYS,
 } from "../../lib/keyboardShortcuts";
 import { FocusEditor } from "../lazyDialogs";
@@ -31,6 +29,7 @@ import {
   ShortcutTooltip,
 } from "../shortcuts/ShortcutTooltip";
 import { prepareNoteCapture } from "../text-editor/noteCapture";
+import { useFocusMode } from "../text-editor/useFocusMode";
 
 function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
@@ -50,8 +49,6 @@ function addCardToSearchQueries(
       const matchesType =
         !args.types ||
         args.types.length === 0 ||
-        // The searched array (`args.types`) differs on every iteration and the
-        // lookup key is constant, so a precomputed Set offers no benefit here.
         // react-doctor-disable-next-line react-doctor/js-set-map-lookups
         args.types.includes(newCard.type);
       const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
@@ -108,6 +105,7 @@ export interface AddCardFormProps {
   autoFocus?: boolean;
   canCreateCard?: boolean;
   draftContentRef?: React.MutableRefObject<string>;
+  onFocus?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   UpgradeLinkComponent?: React.ComponentType<{
@@ -123,18 +121,10 @@ export function AddCardForm({
   autoFocus,
   canCreateCard: canCreateCardProp,
   draftContentRef,
+  onFocus,
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
-  const [isFocusOpen, setIsFocusOpen] = useState(false);
-  // The hidden composer keeps the text it had while Focus is open (see
-  // TextPreview), and catches up when Focus closes.
-  const [heldContent, setHeldContent] = useState<string | null>(null);
-  // `N` pressed away from Everything opens it and asks for the composer;
-  // the request stands until the composer has focus (it can mount more
-  // than once while the page loads).
-  const [focusRequested] = useState(isNewNoteComposerFocusRequested);
-
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
   );
@@ -149,6 +139,12 @@ export function AddCardForm({
     },
     [draftContentRef]
   );
+  const {
+    close: closeFocus,
+    inlineEditorValue,
+    isFocusOpen,
+    open: openFocus,
+  } = useFocusMode(content);
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard =
@@ -159,7 +155,7 @@ export function AddCardForm({
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
-  const hasShownBlockedToastRef = useRef(false);
+  const hasShownBlockedToastRef = useRef<boolean>(false);
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {
@@ -222,8 +218,6 @@ export function AddCardForm({
   };
 
   const submitTextCard = async (): Promise<boolean> => {
-    // Read the ref, not render state: it clears synchronously, so a repeated
-    // shortcut or click can never submit the same note twice.
     const submittedContent = latestContentRef.current;
     if (!(submittedContent.trim() && canCreateCard)) {
       return false;
@@ -278,20 +272,9 @@ export function AddCardForm({
     await submitTextCard();
   };
 
-  const openFocus = () => {
-    setHeldContent(content);
-    setIsFocusOpen(true);
-  };
-
   const handleFocusSave = async () => {
-    setIsFocusOpen(false);
-    setHeldContent(null);
+    closeFocus();
     await submitTextCard();
-  };
-
-  const requestFocusClose = () => {
-    setIsFocusOpen(false);
-    setHeldContent(null);
   };
 
   return (
@@ -300,7 +283,7 @@ export function AddCardForm({
         canSave={Boolean(content.trim() && canCreateCard)}
         disabled={!canCreateCard}
         onChange={setContent}
-        onRequestClose={requestFocusClose}
+        onRequestClose={closeFocus}
         onSave={handleFocusSave}
         open={isFocusOpen}
         placeholder={focusPlaceholderText}
@@ -310,7 +293,7 @@ export function AddCardForm({
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
         data-new-note-composer=""
-        onFocus={clearNewNoteComposerFocusRequest}
+        onFocus={onFocus}
       >
         {!hasContent && (
           <ShortcutKeys
@@ -328,7 +311,7 @@ export function AddCardForm({
           >
             <MarkdownTextEditor
               ariaLabel="Markdown content"
-              autoFocus={autoFocus || focusRequested}
+              autoFocus={autoFocus}
               className={cn(
                 "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"
@@ -350,7 +333,7 @@ export function AddCardForm({
                 }
               }}
               placeholder={inlinePlaceholderText}
-              value={heldContent ?? content}
+              value={inlineEditorValue}
               variant="compact"
             />
 

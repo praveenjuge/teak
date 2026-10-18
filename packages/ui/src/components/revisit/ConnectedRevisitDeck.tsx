@@ -9,14 +9,9 @@ export interface ConnectedRevisitDeckProps {
   onOpenCard: (cardId: string) => void;
   onStartOver: () => void;
   onUnarchive: (cardId: string) => Promise<boolean>;
-  /**
-   * The view's cards query, as a Shuffle of the deck's seed; null while the
-   * view (a folder) is still loading.
-   */
   queryArgs: CardsSearchQueryArgs | null;
 }
 
-/** The Revisit deck over a library view, dealt from its Shuffle. */
 export function ConnectedRevisitDeck({
   onArchive,
   onExit,

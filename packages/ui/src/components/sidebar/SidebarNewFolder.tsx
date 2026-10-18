@@ -20,15 +20,9 @@ import { FolderDot } from "../folders/FolderDot";
 
 interface SidebarNewFolderProps {
   folders: readonly FolderSummary[] | undefined;
-  /** Called once the row is done: the folder was created or the user left. */
   onDone: () => void;
 }
 
-/**
- * A new folder named in place, as a row in the Folders list. Enter creates
- * it, Escape (or leaving it empty) cancels; a problem with the name shows
- * under the row and keeps it open.
- */
 export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   const errorId = useId();
   const createFolder = useMutation(api.folders.createFolder);
@@ -110,7 +104,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
           value={name}
         />
       </form>
-      {error && (
+      {error ? (
         <p
           className="px-[9px] pt-1 pb-0.5 text-[11px] text-destructive leading-snug"
           id={errorId}
@@ -118,7 +112,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
         >
           {error}
         </p>
-      )}
+      ) : null}
     </SidebarMenuItem>
   );
 }
