@@ -20,6 +20,7 @@ import {
   isStackRunning,
   readStackState,
 } from "../../../../scripts/lib/stack-state.ts";
+import { runCommand } from "../../../../scripts/proc.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
 
@@ -55,11 +56,21 @@ const checkWeb = async (appOrigin: string) => {
   }
 };
 
-const checkBackend = async () => {
-  const [lease, head] = await Promise.all([
+const git = (args: string[]) =>
+  runCommand(["git", ...args], { cwd: ROOT, timeoutMs: 10_000 });
+
+const checkBackend = async (pushing: boolean) => {
+  const [lease, head, dirty] = await Promise.all([
     leaseStatus(ROOT),
     headCommit(ROOT),
+    git(["status", "--porcelain", "--", "packages/convex"]),
   ]);
+  if (dirty.stdout.trim() && !pushing) {
+    report(
+      "warn",
+      "backend: packages/convex has uncommitted changes and this checkout doesn't push them; relaunch with `bun run dev --stop && bun run dev --detach --push` before verifying them."
+    );
+  }
   if (lease.status !== "ok") {
     report("warn", `backend: push lease unavailable (${lease.detail})`);
     return;
@@ -67,15 +78,32 @@ const checkBackend = async () => {
   const last = lease.state.lastPush;
   if (!last) {
     report("warn", "backend: no push recorded on the dev deployment");
-  } else if (last.commit === head) {
+    return;
+  }
+  // A commit that changed nothing under packages/convex leaves the live
+  // backend current, so compare the backend code, not the commit.
+  const changed =
+    last.commit === head
+      ? 0
+      : (
+          await git([
+            "diff",
+            "--quiet",
+            last.commit,
+            "HEAD",
+            "--",
+            "packages/convex",
+          ])
+        ).exitCode;
+  if (changed === 0) {
     report(
       "ok",
-      `backend: live code is this commit (${last.label} at ${last.commit})`
+      `backend: live code matches this checkout's packages/convex (pushed by ${last.label} at ${last.commit})`
     );
   } else {
     report(
       "warn",
-      `backend: live code is ${last.label} at ${last.commit}, not this checkout's ${head}. Backend changes on this branch are not live; take over with \`bun run dev --stop && bun run dev --detach --push\` before verifying them.`
+      `backend: live code is ${last.label} at ${last.commit}, and this checkout's packages/convex differs from it. Backend changes here are not live; take over with \`bun run dev --stop && bun run dev --detach --push\` before verifying them.`
     );
   }
 };
@@ -125,7 +153,7 @@ const main = async () => {
   }
   await checkWeb(state.urls.appOrigin);
   if (state.mode === "dev") {
-    await checkBackend();
+    await checkBackend(state.pushing ?? false);
   }
   checkLog(state.logPath);
 };

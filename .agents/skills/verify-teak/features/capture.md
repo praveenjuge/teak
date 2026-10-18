@@ -1,0 +1,52 @@
+# Capture
+
+A user saves anything into Teak from the composer at the top of Everything: a note, a link, a quote or a hex color. Teak picks the card type, and background processing fills in link titles, palettes, tags and summaries. The sidebar "New" menu also uploads files and records audio.
+
+## Sub-features
+
+- `capture-text` saves a note as a text card.
+- `capture-link` turns a bare URL into a link card, whose title fills in after processing.
+- `capture-quote` turns quoted text into a quote card, with the quotes stripped.
+- `capture-palette` turns a hex color into a palette card after processing.
+- `capture-focus` saves from the full-screen Focus editor.
+- `capture-new-menu` opens the sidebar "New" menu: "Note or link", "Upload files", "Record audio".
+- `capture-upload` uploads files as image, video, audio or document cards.
+- `capture-audio` records audio into an audio card.
+
+## How to get to it (user POV)
+
+- The composer, textbox "Markdown content", at the top of `/` (Everything only).
+- Press `N` anywhere to focus the composer, going to `/` first.
+- The sidebar button "New" (the "+" next to the logo).
+- Press `U` to open the file picker.
+- Command palette (Ctrl+K): "New note", "Upload files".
+
+## Driving it with e2e MCP
+
+Preconditions:
+
+- Signed in on `/` ([sign-in](./sign-in.md)), and the grid has loaded (card buttons such as "Text: …" are listed, not the status "Loading cards").
+- No card contains this run's marker.
+
+Steps:
+
+- **Text.** `tap` textbox "Markdown content", `type` "verify-<run-id> text note", then `tap` button "Save" (or `press` "Control+Enter"). The composer clears, the toast "Note saved" appears, and a button "Text: verify-<run-id> text note" appears in the grid.
+- **Persistence.** `navigate` to `/` (a reload), then search for the marker ([find](./find.md)). The same "Text: …" button is listed. `tap` it: a dialog named "Note" opens and the URL gains `?card=<id>`.
+- **Link.** Save "https://example.com/?verify-<run-id>". A button starting "Link:" appears, named by the URL at first and by the page title once metadata arrives (often within a minute on the dev deployment).
+- **Quote.** Save `"verify-<run-id> quote"`, with the quotes. A button "Quote: verify-<run-id> quote" appears without quotes, and its dialog is named "Quote".
+- **Palette.** Save `#2050D0 verify-<run-id>`. The card first appears as "Text: …" and becomes "Palette: …" once processing reclassifies it (allow 30 s, and observe again).
+- **Focus editor.** `type` into the composer, then `tap` button "Focus" (or `press` "Control+e"). A full-screen editor with its own textbox "Markdown content" opens. `press` "Control+Enter" to save; the card appears in the grid.
+- **New menu.** `tap` button "New". The menu has items "Note or link", "Upload files" and "Record audio" (each name also contains its shortcut letter, so match with `exact: false`). "Note or link" focuses the composer.
+- **Upload.** The picker's file input is created on demand, so the `e2e` `upload` tool finds no input. Drive the chooser over CDP instead (`.agents/cloud.md`, "File uploads from the e2e MCP server"). The toasts go "Uploading <name>..." then "<name> uploaded", and a button "Image: <name>" (or "Video:", "Audio:", "Document:") appears.
+- **Record audio.** Needs Chromium launched with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. "Record audio" opens dialog "Recording audio". `tap` "Stop and Save"; the toast "Audio recording saved" appears and an "Audio:" card follows.
+
+## Gotchas
+
+- "Save" and "Focus" appear only once the composer has content. Other "Save" buttons may exist on the page, so scope to the composer.
+- Typing before the composer is ready can be lost. If a typed value doesn't show in `observe`, wait and type again.
+- Markdown formatting (a leading `# `, `- `, `> `, or `/` opening the "Formatting commands" menu) saves the note as text, never a link, quote or palette.
+- Text containing a URL, like "see https://x.com", becomes a link card that keeps its text.
+- Processing shows only an aria-hidden progress bar, so there's no accessible "processing" text. Observe the card's name until it changes. The AI summary appears in the card dialog's "Summary" section.
+- The free plan stops at 200 cards ("Free card limit reached"). Delete what each run creates so the shared account never fills up.
+- Use a WebM (VP9) file to check video playback: Playwright's Chromium can't decode MP4.
+- Drag-and-drop onto the composer is rejected with the toast "Paste text or Markdown into this note." That is intended.

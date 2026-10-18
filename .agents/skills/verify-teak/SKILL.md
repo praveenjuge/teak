@@ -30,7 +30,7 @@ Run this before the first drive, after anything surprising, and after any failed
 bun .agents/skills/verify-teak/scripts/doctor.ts
 ```
 
-It is read-only. It checks that the recorded stack is alive and ready, that the web app answers (anonymous `/` redirects to sign-in), which branch and commit the dev deployment's backend is running, and that the last push didn't fail schema validation. Exit 1 means don't drive. A `!` line about the backend means another branch's code is live: fine for a frontend-only change, not for a backend one (relaunch with `--push`). When the doctor passes but the UI is stuck (a spinner, "We couldn't check your session"), reload or sign in again rather than driving on.
+It is read-only. It checks that the recorded stack is alive and ready, that the web app answers (anonymous `/` redirects to sign-in), whether the dev deployment's live backend matches this checkout's `packages/convex`, and that the last push didn't fail schema validation. Exit 1 means don't drive. A `!` line about the backend means the live backend isn't this checkout's: fine for a frontend-only change, not for a backend one (relaunch with `--push`). When the doctor passes but the UI is stuck (a spinner, "We couldn't check your session"), reload or sign in again rather than driving on.
 
 ## Drive
 
@@ -42,7 +42,15 @@ It is read-only. It checks that the recorded stack is alive and ready, that the 
 - Node ids are valid only for the newest observation. Observe again after navigation.
 - Sign in through the hosted WorkOS page ([sign-in](features/sign-in.md)). Each `open_session` starts signed out.
 
-**API, CLI and MCP:** use an API key made in Settings ([api-cli-mcp](features/api-cli-mcp.md)). The dev deployment serves the API at `https://reminiscent-kangaroo-59.convex.site`. Run the CLI from this checkout so you test this branch's code.
+**API, CLI and MCP:** mint a key for the seeded account with the helper, which keeps it in the ignored `.agents/.state/verify/api-key.json` and prints only its masked prefix:
+
+```bash
+bun .agents/skills/verify-teak/scripts/api-key.ts mint     # then: export TEAK_API_KEY="$(jq -r .key .agents/.state/verify/api-key.json)"
+bun .agents/skills/verify-teak/scripts/api-key.ts check    # 200 while the key works, 401 once revoked
+bun .agents/skills/verify-teak/scripts/api-key.ts revoke   # in cleanup
+```
+
+The dev deployment serves the API and MCP at `https://reminiscent-kangaroo-59.convex.site` (`/v1/...`, `/mcp`). Run the CLI from this checkout so you test this branch's code ([api-cli-mcp](features/api-cli-mcp.md)). Never copy a key off the screen: prove keys with the helper.
 
 **Data:** mark everything a run creates with a unique marker, `verify-<run-id>` (for example `verify-20261018-0427`), so concurrent runs on the shared account never collide and cleanup finds exactly what this run made. Never edit or delete seeded cards except through a recipe that restores them.
 
@@ -67,7 +75,7 @@ Screenshots and video for a PR follow `.agents/pull-requests.md` ("Screenshots a
 
 ## Cleanup
 
-1. Delete every card the run created (search for the run marker; [card-actions](features/card-actions.md) has delete and empty-trash recipes) and revoke any API key it made ([api-cli-mcp](features/api-cli-mcp.md)).
+1. Permanently delete every card the run created: search for the run marker, move the cards to Trash, then "Delete Forever" ([card-actions](features/card-actions.md)), or `DELETE /v1/cards/<id>` then `?permanent=true` ([api-cli-mcp](features/api-cli-mcp.md)). Revoke every key the run made: `scripts/api-key.ts revoke`, and in Settings any key you created there.
 2. Undo any seeded-card change a recipe made (a favorite toggled, a tag added).
 3. `close_session` every `e2e` session you opened.
 4. Stop the stack only if this run started it: `bun run dev --stop`. Never kill processes by name.
