@@ -509,6 +509,22 @@ describe("Save PDF", () => {
 
     expect(next.fileKey).not.toBe(old.fileKey);
     expect(await queuedObjectDeletions(t)).toEqual([old.fileKey]);
+
+    // The old save's PDF lands after that delete ran, then the save fails.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("workflowDispatches").collect()) {
+        await ctx.db.delete("workflowDispatches", row._id);
+      }
+    });
+    await t.mutation(internal.card.linkedPdfs.failLinkedPdf, {
+      claimToken: old.claimToken,
+      fileKey: old.fileKey,
+      linkedPdfId: old.linkedPdfId,
+    });
+    expect(await queuedObjectDeletions(t)).toEqual([old.fileKey]);
+    expect(
+      (await t.run((ctx) => ctx.db.get("linkedPdfs", next.linkedPdfId)))?.status
+    ).toBe("pending");
   });
 
   test("the eleventh download in a minute is rate limited", async () => {

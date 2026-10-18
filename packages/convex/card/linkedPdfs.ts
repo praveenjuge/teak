@@ -229,7 +229,8 @@ export const completeLinkedPdf = internalMutation({
 /**
  * Releases a claim that couldn't make its document, so the next try claims
  * it again at once instead of waiting out the claim. A claim whose row is
- * gone (the link was deleted for good mid-save) drops the PDF it stored.
+ * gone (the link was deleted for good mid-save) or now holds another key
+ * (another paper's save took over) drops the PDF it stored.
  */
 export const failLinkedPdf = internalMutation({
   args: {
@@ -240,7 +241,7 @@ export const failLinkedPdf = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ctx.db.get("linkedPdfs", args.linkedPdfId);
-    if (!row) {
+    if (!row || row.fileKey !== args.fileKey) {
       await deleteObject(ctx, args.fileKey);
       return null;
     }
