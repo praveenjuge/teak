@@ -60,10 +60,14 @@ const applyRules = (text: string, rules: readonly StripRule[]) =>
   );
 
 const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|<>])/g;
-/** Characters the strip rules read as Markdown, escaped in a link's title. */
+/** Characters the strip rules read as Markdown, hidden in a link's title. */
 const TITLE_PUNCTUATION = /[\\`*_{}[\]()#+\-.!~|<>]/g;
 const PLACEHOLDER_BASE = "".charCodeAt(0);
+/** Covers every ASCII character, so every `TITLE_PUNCTUATION` placeholder. */
 const PLACEHOLDER = /[-]/g;
+
+const toPlaceholder = (character: string) =>
+  String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0));
 
 function withEscapedPunctuation(
   text: string,
@@ -71,8 +75,7 @@ function withEscapedPunctuation(
 ): string {
   const protectedText = text.replace(
     ESCAPED_PUNCTUATION,
-    (_match, character: string) =>
-      String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0))
+    (_match, character: string) => toPlaceholder(character)
   );
   return strip(protectedText).replace(PLACEHOLDER, (placeholder) =>
     String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
@@ -97,10 +100,11 @@ export function markdownToPlainText(
     return "";
   }
   // `[[Title|teak:<id>]]` card links read as their titles, kept literal.
+  // Placeholders keep the title's length, so the cut can't split an escape.
   const source = mayHaveCardLinks(input)
     ? replaceCardLinkTokens(
         withoutCutToken(input, maxLength + CARD_LINK_SLACK),
-        (title) => title.replace(TITLE_PUNCTUATION, "\\$&")
+        (title) => title.replace(TITLE_PUNCTUATION, toPlaceholder)
       )
     : input;
   return withEscapedPunctuation(source.slice(0, maxLength), (text) => {
