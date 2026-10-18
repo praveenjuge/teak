@@ -42,3 +42,8 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Exceptions: 19 `VECTOR_UPSERT_ERROR 40041` from one burst at 07:57 UTC on 10-16, before the batching/retry fix merged at 09:31 UTC (`fix(convex): batch card embeds`, `vectors.ts` retry); none since. Check as measured: fix held. One transient Durable Object "Connection closed" in the files worker; watch for repeats.
 - Tip: `last` is a reserved word in HogQL; alias it `lastseen`. The GitHub `actions_list` output is huge; read the saved file with python.
 - Nothing fixed, nothing merged. Check tomorrow: zero 40041 after 10-16 09:31 UTC; DO "Connection closed" recurrence.
+
+### 2026-10-18
+- Inbox empty. Backend Deploy green on main (latest run 39058206602). Product health (24h): 10 `card_created`, 131 `card_processing_completed`, zero failure events.
+- Exceptions: 6 `malformed_workers_ai_response` from the files worker, 16:37–16:57 UTC on 10-17, before #747 (Gemma thinking off for image metadata, deployed 17:20 UTC); none since, so the fix held. No 40041 or DO "Connection closed" repeats. Both earlier watch items cleared.
+- Nothing fixed. Check tomorrow: zero `malformed_workers_ai_response` after 10-17 17:20 UTC; first non-zero failure events.
