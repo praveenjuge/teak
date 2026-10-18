@@ -29,25 +29,56 @@ describe("verify-teak doctor: latest push outcome", () => {
 describe("verify-teak doctor: backend verdict", () => {
   test("this checkout's live push of matching code is current", () => {
     expect(
-      backendVerdict({ codeMatches: true, pushedBySelf: true, pushing: true })
+      backendVerdict({
+        codeMatches: true,
+        editedSincePush: false,
+        pushedBySelf: true,
+        pushing: true,
+      })
     ).toBe("current");
   });
 
   test("an earlier push from this checkout that isn't syncing now is unverified", () => {
     expect(
-      backendVerdict({ codeMatches: true, pushedBySelf: true, pushing: false })
+      backendVerdict({
+        codeMatches: true,
+        editedSincePush: false,
+        pushedBySelf: true,
+        pushing: false,
+      })
     ).toBe("unverified");
   });
 
   test("another checkout's push at matching code is unverified", () => {
     expect(
-      backendVerdict({ codeMatches: true, pushedBySelf: false, pushing: false })
+      backendVerdict({
+        codeMatches: true,
+        editedSincePush: false,
+        pushedBySelf: false,
+        pushing: false,
+      })
+    ).toBe("unverified");
+  });
+
+  test("an uncommitted edit newer than the last push is unverified while pushing", () => {
+    expect(
+      backendVerdict({
+        codeMatches: true,
+        editedSincePush: true,
+        pushedBySelf: true,
+        pushing: true,
+      })
     ).toBe("unverified");
   });
 
   test("different backend code differs, whoever pushed it", () => {
     expect(
-      backendVerdict({ codeMatches: false, pushedBySelf: true, pushing: true })
+      backendVerdict({
+        codeMatches: false,
+        editedSincePush: false,
+        pushedBySelf: true,
+        pushing: true,
+      })
     ).toBe("differs");
   });
 });

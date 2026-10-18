@@ -10,7 +10,7 @@
  * Exits 1 when the stack must not be driven.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   headCommit,
@@ -63,6 +63,22 @@ const checkWeb = async (appOrigin: string) => {
   }
 };
 
+// The newest modification time (ms) among uncommitted packages/convex paths in
+// `git status --porcelain` output, or 0 when there are none. Deleted paths
+// have no file to stat and count as no newer edit.
+const newestEdit = (porcelain: string): number =>
+  porcelain
+    .split("\n")
+    .map((line) => line.slice(3).split(" -> ").pop()?.trim() ?? "")
+    .filter(Boolean)
+    .reduce((newest, path) => {
+      try {
+        return Math.max(newest, statSync(join(ROOT, path)).mtimeMs);
+      } catch {
+        return newest;
+      }
+    }, 0);
+
 const git = (args: string[]) =>
   runCommand(["git", ...args], { cwd: ROOT, timeoutMs: 10_000 });
 
@@ -105,6 +121,7 @@ const checkBackend = async (pushing: boolean) => {
   const self = await leaseHolder(ROOT);
   const verdict = backendVerdict({
     codeMatches: changed === 0,
+    editedSincePush: newestEdit(dirty.stdout) > last.at,
     pushedBySelf: last.label === self.label,
     pushing,
   });
@@ -123,7 +140,7 @@ const checkBackend = async (pushing: boolean) => {
   } else {
     report(
       "warn",
-      `backend: live code was pushed by ${last.label} at ${last.commit}, and nothing is syncing this checkout's tree now. Its committed packages/convex matches, but the push may have carried uncommitted changes. Fine for frontend work; for backend work ${takeOver}.`
+      `backend: live code was pushed by ${last.label} at ${last.commit}, but it isn't known to be this checkout's tree: another checkout pushed it, this checkout isn't pushing now, or an uncommitted edit here is newer than the last successful push (still deploying, or its push failed; read .agents/.state/stack.log). Fine for frontend work; for backend work wait for "Convex functions ready!" in the log or ${takeOver}.`
     );
   }
 };
@@ -131,17 +148,22 @@ const checkBackend = async (pushing: boolean) => {
 /**
  * How the live backend relates to this checkout. The lease records a push's
  * commit, not its working tree, so the backend is known to be this tree only
- * while this checkout's `convex dev` is pushing it.
+ * while this checkout's `convex dev` is pushing it and no uncommitted edit is
+ * newer than the last successful push (an edit still deploying, or one whose
+ * push failed, leaves the old code live).
  */
 export const backendVerdict = (input: {
   codeMatches: boolean;
+  editedSincePush: boolean;
   pushedBySelf: boolean;
   pushing: boolean;
 }): "current" | "differs" | "unverified" => {
   if (!input.codeMatches) {
     return "differs";
   }
-  return input.pushedBySelf && input.pushing ? "current" : "unverified";
+  return input.pushedBySelf && input.pushing && !input.editedSincePush
+    ? "current"
+    : "unverified";
 };
 
 /**
