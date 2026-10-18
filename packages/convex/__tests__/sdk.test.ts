@@ -43,6 +43,42 @@ describe("@teak/convex/sdk", () => {
     );
   });
 
+  test("reads a card's links and backlinks, defaulting to none", async () => {
+    const bodies = [
+      {
+        backlinks: [{ id: "card_3", missing: false, title: "C", type: "text" }],
+        backlinksTruncated: true,
+        content: "",
+        id: "card_1",
+        links: [{ id: "card_2", missing: true, title: null, type: null }],
+        linksTruncated: false,
+      },
+      { content: "", id: "card_1" },
+    ];
+    const urls: string[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      fetch: ((input: unknown) => {
+        urls.push(String(input));
+        return Promise.resolve(Response.json(bodies.shift()));
+      }) as typeof fetch,
+      tokenProvider: { getAccessToken: () => "token" },
+    });
+    expect(await client.cards.links("card_1")).toEqual({
+      backlinks: [{ id: "card_3", missing: false, title: "C", type: "text" }],
+      backlinksTruncated: true,
+      links: [{ id: "card_2", missing: true, title: null, type: null }],
+      linksTruncated: false,
+    });
+    expect(urls[0]).toBe("https://api.example/v1/cards/card_1");
+    expect(await client.cards.links("card_1")).toEqual({
+      backlinks: [],
+      backlinksTruncated: false,
+      links: [],
+      linksTruncated: false,
+    });
+  });
+
   test("sends a search mode other than the API's hybrid default", () => {
     expect(buildCardsSearchParams({ query: "nook", mode: "semantic" })).toBe(
       "q=nook&mode=semantic&limit=50"

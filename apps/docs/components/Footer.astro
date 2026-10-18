@@ -1,4 +1,5 @@
 ---
+import { AUDIENCE_PAGE_LIST } from "../lib/audience-pages";
 import Logo from "./Logo.astro";
 ---
 
@@ -34,7 +35,24 @@ import Logo from "./Logo.astro";
       </a>
     </div>
 
-    <div class="mt-16 flex flex-row items-center justify-between gap-4">
+    <nav
+      aria-label="Teak for"
+      class="mt-16 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground text-sm"
+    >
+      {AUDIENCE_PAGE_LIST.map((page, index) => (
+        <>
+          {index > 0 && <span aria-hidden="true">·</span>}
+          <a
+            class="underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            href={`/${page.slug}`}
+          >
+            {page.navLabel}
+          </a>
+        </>
+      ))}
+    </nav>
+
+    <div class="mt-8 flex flex-row items-center justify-between gap-4">
       <Logo />
       <div class="flex gap-6 text-muted-foreground">
         <a

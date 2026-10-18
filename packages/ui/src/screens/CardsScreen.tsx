@@ -615,6 +615,7 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
+  const composerHandlers = useStableHandlers({ onOpenCard });
   const gridHandlers = useStableHandlers({
     onAddTags: handleAddTags,
     onAddToFolderDone: (added: boolean) => {
@@ -644,6 +645,7 @@ export function CardsScreen({
         autoFocus={composerFocus.pending}
         draftContentRef={draftContentRef}
         onFocus={handleComposerFocus}
+        onOpenCard={composerHandlers.onOpenCard}
         onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
@@ -652,6 +654,7 @@ export function CardsScreen({
     [
       UpgradeLinkComponent,
       composerFocus.pending,
+      composerHandlers,
       handleComposerFocus,
       onUpgrade,
       upgradeUrl,

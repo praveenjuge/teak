@@ -1,6 +1,6 @@
 import { createApiAccount } from "../helpers/app";
 import { runCli } from "../helpers/cli";
-import { expect, test } from "../helpers/test";
+import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
 test.beforeAll(async () => {
@@ -109,4 +109,36 @@ test("CLI save-pdf refuses a note", async () => {
     (error: Error) => error.message
   );
   expect(refused).toContain("This card has no PDF to save.");
+});
+
+test("teak links lists a card's links and the notes that link to it", async () => {
+  const stamp = Date.now();
+  const target = JSON.parse(
+    await runCli(
+      ["--json", "cards", "create", `cli-link-target-${stamp}`],
+      apiKey
+    )
+  );
+  const note = JSON.parse(
+    await runCli(
+      [
+        "--json",
+        "cards",
+        "create",
+        `See [[Target|teak:${target.cardId}]] ${stamp}`,
+      ],
+      apiKey
+    )
+  );
+  await retry(
+    async () => {
+      expect(await runCli(["links", note.cardId], apiKey)).toContain(
+        `${target.cardId}  text      cli-link-target-${stamp}`
+      );
+      expect(await runCli(["links", target.cardId], apiKey)).toContain(
+        `Linked from\n${note.cardId}  text`
+      );
+    },
+    { timeout: 30_000 }
+  );
 });

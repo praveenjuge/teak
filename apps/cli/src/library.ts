@@ -20,6 +20,7 @@ import {
 import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { InvalidArgumentError } from "commander";
 import { mimeFor } from "./files";
+import { formatCardLinks } from "./format";
 import {
   type ClientOptions,
   client,
@@ -291,6 +292,11 @@ export const showCardContent = async (id: string, options: GlobalOptions) => {
       ? "Only the start of this document's text could be read; try again later for all of it.\n"
       : "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n"
   );
+};
+
+export const showCardLinks = async (id: string, options: GlobalOptions) => {
+  const links = await client(options).cards.links(id);
+  write(options.json ? links : formatCardLinks(links), options);
 };
 
 export const openCard = async (id: string, options: GlobalOptions) => {

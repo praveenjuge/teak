@@ -125,4 +125,19 @@ describe("a link with a chosen image", () => {
     expect(summary.aspectRatio).toBeCloseTo(600 / 900);
     expect(summary.hasThumbnailOverride).toBe(true);
   });
+
+  test("shows [[…]] links as their titles, never the raw token", () => {
+    const summary = toMobileCardSummary({
+      _creationTime: 1,
+      _id: testId("cards", "card-links"),
+      createdAt: 1,
+      processingStatus: {},
+      updatedAt: 1,
+      userId: "user-1",
+      content: "See [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] today",
+      type: "text",
+    });
+    expect(summary.previewText).toBe("See Plan today");
+    expect(summary.title).toBe("See Plan today");
+  });
 });

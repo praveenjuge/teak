@@ -341,6 +341,49 @@ describe("devSeed.seedScenario", () => {
   });
 });
 
+describe("devSeed card link packs", () => {
+  const seedPack = async (scenario: "card-links" | "backlinks") => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const args = { workosUserId: WORKOS_USER_ID, scenario };
+    const first = await t.mutation(internal.devSeed.seedScenario, args);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const again = await t.mutation(internal.devSeed.seedScenario, args);
+    const rows = await t.run((ctx) => ctx.db.query("cardLinks").take(2000));
+    return { again, first, rows, t };
+  };
+
+  test("card-links links real cards, caps a note at 500, and runs once", async () => {
+    const { again, first, rows } = await seedPack("card-links");
+    expect(first).toMatchObject({ status: "seeded" });
+    expect(again).toEqual({ status: "already_seeded", cards: 0 });
+    // Each of the 500- and 501-link notes indexes the 120 real targets;
+    // the broken-links note keeps its 6 real targets (in Trash, renamed,
+    // 300-character, RTL, CJK, emoji), not the deleted or unknown ids;
+    // the cycle has 3 rows and the code note 1.
+    const byNote = new Map<string, number>();
+    for (const row of rows) {
+      byNote.set(row.fromCardId, (byNote.get(row.fromCardId) ?? 0) + 1);
+    }
+    expect([...byNote.values()].sort((a, b) => a - b)).toEqual([
+      1, 1, 1, 1, 6, 120, 120,
+    ]);
+    expect(rows.every((row) => row.fromCardId !== row.toCardId)).toBe(true);
+  });
+
+  test("backlinks gives the hub 60 and the crowded card 120", async () => {
+    const { again, rows } = await seedPack("backlinks");
+    expect(again).toEqual({ status: "already_seeded", cards: 0 });
+    const byTarget = new Map<string, number>();
+    for (const row of rows) {
+      byTarget.set(row.toCardId, (byTarget.get(row.toCardId) ?? 0) + 1);
+    }
+    expect([...byTarget.values()].sort((a, b) => a - b)).toEqual([
+      1, 1, 60, 120,
+    ]);
+  });
+});
+
 describe("devSeed ordering pack", () => {
   test("covers every saved date once, inserted out of date order", () => {
     const cards = Array.from({ length: ORDERING_SCENARIO_SIZE }, (_, index) =>

@@ -972,6 +972,92 @@ describe("teak batch and fallback behavior", () => {
     expect(partial.stderr).toContain("try again later");
   });
 
+  test("links lists links then backlinks, says when there are none, and --json the lists", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", {
+          backlinks: [
+            {
+              id: "card_c",
+              missing: false,
+              title: "Weekly review",
+              type: "text",
+            },
+          ],
+          backlinksTruncated: false,
+          links: [
+            {
+              id: "card_b",
+              missing: false,
+              title: "Garden plan",
+              type: "text",
+            },
+            { id: "gone", missing: true, title: null, type: null },
+          ],
+          linksTruncated: false,
+        })
+      )
+    );
+    routes.set("GET /v1/cards/card_d", () => json(card("card_d")));
+    routes.set("GET /v1/cards/card_x", () =>
+      json({ code: "NOT_FOUND", error: "Card not found" }, 404)
+    );
+
+    const text = await teak("links", "card_a");
+    expect(text.code).toBe(0);
+    expect(text.stdout).toBe(
+      [
+        "Links",
+        "card_b  text      Garden plan",
+        "gone  (missing)",
+        "",
+        "Linked from",
+        "card_c  text      Weekly review",
+        "",
+      ].join("\n")
+    );
+
+    const asJson = await teak("--json", "cards", "links", "card_a");
+    expect(JSON.parse(asJson.stdout)).toMatchObject({
+      backlinksTruncated: false,
+      links: [{ id: "card_b" }, { id: "gone", missing: true }],
+      linksTruncated: false,
+    });
+
+    expect((await teak("links", "card_d")).stdout).toBe("No links.\n");
+
+    routes.set("GET /v1/cards/card_e", () =>
+      json(
+        card("card_e", {
+          backlinks: [
+            { id: "card_c", missing: false, title: "Review", type: "text" },
+          ],
+          backlinksTruncated: true,
+          links: [
+            { id: "card_b", missing: false, title: "Plan", type: "text" },
+          ],
+          linksTruncated: true,
+        })
+      )
+    );
+    expect((await teak("links", "card_e")).stdout).toBe(
+      [
+        "Links",
+        "card_b  text      Plan",
+        "and more (first 100 shown)",
+        "",
+        "Linked from",
+        "card_c  text      Review",
+        "and more (first 100 shown)",
+        "",
+      ].join("\n")
+    );
+
+    const missing = await teak("links", "card_x");
+    expect(missing.code).toBe(EXIT.notFound);
+    expect(missing.stderr).toContain("Card not found");
+  });
+
   test("archive and unarchive change each card, and ls --archived lists them", async () => {
     routes.set("PATCH /v1/cards/card_a", () =>
       json(card("card_a", { isArchived: true }))

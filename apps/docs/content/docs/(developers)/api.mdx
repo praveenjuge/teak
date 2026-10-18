@@ -458,6 +458,42 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
 
+## Links between cards
+
+A text card's `content` can link other cards with `[[Title|teak:<cardId>]]`,
+for example `See [[Garden plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]`. Write
+the token yourself to link cards: the title is only a fallback, at most 200
+characters with no `|`, `]` or line break, and Teak always shows the linked
+card's current title. Tokens inside code aren't links, and links to cards that
+aren't yours are never followed. `content` returns tokens exactly as written.
+
+`GET /v1/cards/:cardId`, and the card returned by create, `PATCH`, favorite,
+done and setting or resetting the thumbnail, include the card's links:
+
+```json
+{
+  "id": "...",
+  "links": [
+    { "id": "k17a…", "title": "Garden plan", "type": "text", "missing": false },
+    { "id": "j57u…", "title": null, "type": null, "missing": true }
+  ],
+  "linksTruncated": false,
+  "backlinks": [
+    { "id": "k27a…", "title": "Weekly review", "type": "text", "missing": false }
+  ],
+  "backlinksTruncated": false
+}
+```
+
+`links` lists the cards this card links to, in the order they appear in
+`content`; a link to a card in Trash, a deleted card or another account's card
+is `missing`, with a null `title` and `type`. `backlinks` lists your cards that
+link to this one, most recently updated first, leaving out cards in Trash and
+hidden cards. Each
+holds at most 100 entries, and `linksTruncated` or `backlinksTruncated` is
+`true` when there are more. Lists, search and the changes feed leave all four
+fields out; read a card by its id when you need them.
+
 ## Read a card's text
 
 `GET /v1/cards/:cardId/content` returns the full text Teak keeps for a card:

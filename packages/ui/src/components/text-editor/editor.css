@@ -173,3 +173,10 @@
     transition: none;
   }
 }
+
+/* A `[[…]]` card link is a pill, not a text link. */
+.block-editor-content .ProseMirror [data-card-link-pill] a,
+.block-editor-content .ProseMirror [data-card-link-pill] a:hover {
+  color: var(--secondary-foreground);
+  text-decoration: none;
+}

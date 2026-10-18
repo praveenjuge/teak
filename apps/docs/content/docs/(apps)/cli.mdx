@@ -104,6 +104,7 @@ teak refresh <card-id>
 teak cards thumbnail <card-id> ./cover.png
 teak cards thumbnail <card-id> --reset
 teak content <card-id>
+teak links <card-id>
 teak tags
 teak tags rename Design design-systems --wait
 ```
@@ -128,6 +129,8 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 `teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID; for a paper you already saved it prints that card's ID. `--json` prints `{ cardId, created }`.
 
 `teak content` prints a card's full text: the text Teak extracted from its document (PDF, Word, PowerPoint, text or code), its transcript, or a text card's content, so you can pipe it to other tools. When a document is longer than Teak keeps (the first 500 pages and 524,288 characters), or only its start could be read just now, a note goes to standard error. `--json` prints `{ cardId, kind, text, charCount, truncated }`. A card without text exits with the not-found code.
+
+`teak links` (also `teak cards links`) lists the cards a card links to with `[[Title|teak:<card-id>]]` under **Links**, then your cards that link to it under **Linked from** (leaving out cards in Trash and hidden cards), one per line as `<id>  <type>  <title>`. A link to a card in Trash, a deleted card or another account's card shows `(missing)`. It prints `No links.` when there are none, and shows at most 100 of each. `--json` prints `{ links, backlinks, linksTruncated, backlinksTruncated }`. An unknown card exits with the not-found code. To link cards, write that token in a note's content, for example with `teak cards update <card-id> --content -`.
 
 `teak refresh` refreshes one or more cards: it clears their summaries, tags Teak added, and transcripts and processes them again, including link previews. It returns right away; check the result later with `teak cards get`. You can refresh a card once a minute, and up to six cards a minute.
 

@@ -52,6 +52,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_card_content",
+  "teak_v1_get_card_links",
   "teak_v1_get_folder",
   "teak_v1_get_me",
   "teak_v1_get_tag_operation",
@@ -619,6 +620,71 @@ describe("Convex MCP endpoint", () => {
     expect(result.structuredContent).toMatchObject({
       total: 1,
       similarity: "ok",
+    });
+  });
+
+  test("get_card_links reads the card and returns only its links and backlinks", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const links = [{ id: "card_2", missing: false, title: "B", type: "text" }];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          backlinks: [],
+          backlinksTruncated: false,
+          content: "See [[B|teak:card_2]]",
+          id: "card_1",
+          links,
+          linksTruncated: false,
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card_links",
+      { cardId: "card_1" },
+      mcpRequest({ jsonrpc: "2.0", id: 60, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards/card_1",
+    });
+    expect(result.structuredContent).toEqual({
+      backlinks: [],
+      backlinksTruncated: false,
+      links,
+      linksTruncated: false,
+    });
+    expect(result.content[0]).toMatchObject({
+      text: "Card card_1 links to 1 card; 0 cards link to it",
+    });
+  });
+
+  test("get_card_links says one card links to it and keeps the truncation flags", async () => {
+    const executor = mock(() =>
+      Promise.resolve(
+        Response.json({
+          backlinks: [
+            { id: "card_2", missing: false, title: "B", type: "text" },
+          ],
+          backlinksTruncated: true,
+          links: [],
+          linksTruncated: true,
+        })
+      )
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card_links",
+      { cardId: "card_1" },
+      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
+      executor
+    );
+    expect(result.content[0]).toMatchObject({
+      text: "Card card_1 links to 0 cards (truncated); 1 card (truncated) links to it",
+    });
+    expect(result.structuredContent).toMatchObject({
+      backlinksTruncated: true,
+      linksTruncated: true,
     });
   });
 

@@ -49,6 +49,7 @@ export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 type NoProperties = Record<string, never>;
 
 export interface ClientEventCatalog {
+  card_backlink_opened: NoProperties;
   card_create_submitted: {
     card_type: string;
     source: CardCreationSource;

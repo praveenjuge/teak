@@ -1,4 +1,11 @@
+import {
+  mayHaveCardLinks,
+  replaceCardLinkTokens,
+} from "@teak/convex/shared/cardLinks";
+
 const MAX_PREVIEW_LENGTH = 500;
+/** Room for links' ids, which drop out when shown as titles. */
+const CARD_LINK_SLACK = 8192;
 
 interface StripRule {
   name: string;
@@ -52,7 +59,9 @@ const applyRules = (text: string, rules: readonly StripRule[]) =>
     text
   );
 
-const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|>])/g;
+const ESCAPED_PUNCTUATION = /\\([\\`*_{}[\]()#+\-.!~|<>])/g;
+/** Characters the strip rules read as Markdown, escaped in a link's title. */
+const TITLE_PUNCTUATION = /[\\`*_{}[\]()#+\-.!~|<>]/g;
 const PLACEHOLDER_BASE = "".charCodeAt(0);
 const PLACEHOLDER = /[-]/g;
 
@@ -70,6 +79,16 @@ function withEscapedPunctuation(
   );
 }
 
+/** The first `limit` characters, less a link token the cut splits. */
+const withoutCutToken = (input: string, limit: number): string => {
+  if (input.length <= limit) {
+    return input;
+  }
+  const head = input.slice(0, limit);
+  const open = head.lastIndexOf("[[");
+  return open !== -1 && !head.includes("]]", open) ? head.slice(0, open) : head;
+};
+
 export function markdownToPlainText(
   input?: string | null,
   { maxLength = MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
@@ -77,7 +96,14 @@ export function markdownToPlainText(
   if (!input) {
     return "";
   }
-  return withEscapedPunctuation(input.slice(0, maxLength), (text) => {
+  // `[[Title|teak:<id>]]` card links read as their titles, kept literal.
+  const source = mayHaveCardLinks(input)
+    ? replaceCardLinkTokens(
+        withoutCutToken(input, maxLength + CARD_LINK_SLACK),
+        (title) => title.replace(TITLE_PUNCTUATION, "\\$&")
+      )
+    : input;
+  return withEscapedPunctuation(source.slice(0, maxLength), (text) => {
     const lines = applyRules(text, BLOCK_RULES)
       .split(/\r?\n/)
       .map((rawLine) => {

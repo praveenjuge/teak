@@ -138,7 +138,13 @@ const handleCreateCardRequest = async (
           userId: auth.validated.userId,
         });
     operationCommitted = true;
-    const responseBody = buildCreateCardResponse(result, request.url);
+    const responseBody = buildCreateCardResponse(
+      result,
+      request.url,
+      "card" in result && result.card
+        ? await loadCardLinks(ctx, auth.validated.userId, result.card._id)
+        : undefined
+    );
     await completeIdempotencyResponse(ctx, {
       keyHash: idempotencyState.keyHash,
       requestHash: idempotencyState.requestHash,
@@ -525,6 +531,38 @@ const resolveCardId = (
     cardId,
   });
 
+/** A single card's response body, with its `[[…]]` links and backlinks. */
+/**
+ * A card's links and backlinks for a response. A failed lookup leaves them
+ * out rather than failing a write that already happened.
+ */
+const loadCardLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+) => {
+  try {
+    return (
+      (await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+        cardId,
+        userId,
+      })) ?? undefined
+    );
+  } catch (error) {
+    console.warn("[publicApi] card links unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const serializeCardWithLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  card: CardWithUrls,
+  requestUrl: string
+) =>
+  serializeCard(card, requestUrl, await loadCardLinks(ctx, userId, card._id));
+
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
@@ -632,7 +670,7 @@ const handleThumbnailRequest = async (
   const respondWithCard = async () => {
     const card = await ensureCardExistsForUser(ctx, userId, cardId, true);
     return card
-      ? json(200, serializeCard(card, request.url))
+      ? json(200, await serializeCardWithLinks(ctx, userId, card, request.url))
       : errorResponse(404, "NOT_FOUND", "Card not found");
   };
 
@@ -753,7 +791,15 @@ const handleCardsByIdV1Request = async (
   }
 
   if (route.operation === "get") {
-    return json(200, serializeCard(currentCard, request.url));
+    return json(
+      200,
+      await serializeCardWithLinks(
+        ctx,
+        auth.validated.userId,
+        currentCard,
+        request.url
+      )
+    );
   }
 
   if (
@@ -828,7 +874,15 @@ const handleCardsByIdV1Request = async (
           source: "api",
         });
       }
-      return json(200, serializeCard(result.card, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          result.card,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update done state");
     }
@@ -909,7 +963,15 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update card");
     }
@@ -939,7 +1001,15 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(
         error,

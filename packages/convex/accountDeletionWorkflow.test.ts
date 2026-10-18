@@ -830,6 +830,12 @@ describe("durable deletion admission and tombstones", () => {
         userId: "permanent-owner",
         key: "users/exact/linked.pdf",
       });
+      await ctx.db.insert("cardLinks", {
+        userId: "permanent-owner",
+        fromCardId: card,
+        toCardId: card,
+        createdAt: 1,
+      });
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",
         items: [{ name: "private", count: 1 }],
@@ -970,6 +976,7 @@ describe("durable deletion admission and tombstones", () => {
       "cardSearchTags",
       "cardTextContents",
       "linkedPdfs",
+      "cardLinks",
       "userTagSummaries",
       "tagSummaryRefreshes",
       "tagOperations",

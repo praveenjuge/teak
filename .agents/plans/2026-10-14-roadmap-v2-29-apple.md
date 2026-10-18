@@ -15,7 +15,7 @@ Phase 29 of the [roadmap v2](2026-10-14-roadmap-v2-00-roadmap.md).
 
 ## Depends on
 
-- Phase 4 (hidden tags), phase 5 (Revisit), phase 6 (source for Save Text), phase 10 (OCR), phase 14 (`like:`), phase 15 (done states) and [phase 26](2026-10-14-roadmap-v2-26-card-links.md) (`cards:getCardLinkTargets`).
+- Phase 4 (hidden tags), phase 5 (Revisit), phase 6 (source for Save Text), phase 10 (OCR), phase 14 (`like:`), phase 15 (done states) and phase 26 (`cards:getCardLinkTargets`, which takes `{ cardIds }` and returns `{ id, missing, title, type }` per id).
 
 ## Success Criteria
 

@@ -13,9 +13,15 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { cardLinkTokensToText } from "../shared/cardLinks";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { markTagSummaryDirty } from "../tag/tagSummary";
+import {
+  cardLinksMayChange,
+  scheduleCardLinkSync,
+  scheduleDeletedCardLinkCleanup,
+} from "./cardLinks";
 import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 import { withHiddenFlag } from "./hiddenCards";
 import {
@@ -46,7 +52,12 @@ export const buildCardSearchText = (
   extractedText?: string
 ): string =>
   [
-    ...SEARCH_FIELDS.map((field) => card[field]),
+    // A `[[Title|teak:<id>]]` link is searchable by its title, not its id.
+    ...SEARCH_FIELDS.map((field) =>
+      field === "content" && card.content
+        ? cardLinkTokensToText(card.content)
+        : card[field]
+    ),
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
     extractedText,
@@ -282,6 +293,7 @@ export const syncCardSearchDocumentHandler = async (
     if (deletedCardMayHaveFolderRows(previousCard)) {
       await syncCardFolderRows(ctx, cardId, null);
     }
+    await scheduleDeletedCardLinkCleanup(ctx, cardId);
     await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, {
       kind: "clear",
     });
@@ -291,6 +303,9 @@ export const syncCardSearchDocumentHandler = async (
 
   if (cardFolderRowsMayChange(previousCard, card)) {
     await syncCardFolderRows(ctx, cardId, card);
+  }
+  if (cardLinksMayChange(previousCard, card)) {
+    await scheduleCardLinkSync(ctx, cardId);
   }
 
   const urlHost = cardSiteHost(card) ?? undefined;

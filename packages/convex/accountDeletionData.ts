@@ -192,7 +192,15 @@ export const ancillaryPage = internalMutation({
     for (const row of inboundReceipts) {
       await ctx.db.delete(row._id);
     }
+    const cardLinks = await ctx.db
+      .query("cardLinks")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of cardLinks) {
+      await ctx.db.delete(row._id);
+    }
     return (
+      cardLinks.length > 0 ||
       inboundSettings.length > 0 ||
       inboundReceipts.length > 0 ||
       linkedPdfs.length > 0 ||

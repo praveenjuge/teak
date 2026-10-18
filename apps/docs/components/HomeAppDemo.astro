@@ -8,6 +8,13 @@ import {
   type DemoCard,
 } from "../lib/home-demo-cards";
 
+interface Props {
+  /** Cards to show, one array per column. Defaults to the homepage set. */
+  columns?: DemoCard[][];
+}
+
+const { columns = DEMO_COLUMNS } = Astro.props;
+
 const searchText = (card: DemoCard) =>
   [
     card.title,
@@ -32,7 +39,7 @@ const typeEntries = Object.entries(DEMO_CARD_TYPES) as [
 ][];
 
 const cardsById = Object.fromEntries(
-  DEMO_COLUMNS.flat().map((card) => [card.id, card])
+  columns.flat().map((card) => [card.id, card])
 );
 
 const chipClass =
@@ -100,7 +107,7 @@ const iconButtonClass =
         </div>
 
         <div class="demo-grid" data-demo-grid>
-          {DEMO_COLUMNS.map((column, columnIndex) => (
+          {columns.map((column, columnIndex) => (
             <div class="demo-col">
               {columnIndex === 0 && (
                 <div class="demo-item" data-demo-note-item>
@@ -151,7 +158,7 @@ const iconButtonClass =
                     {card.type === "link" && card.image && (
                       <span class="block divide-y overflow-hidden rounded-2xl border bg-card">
                         <span class="block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
-                          <img alt={card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                          <img alt="" class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                         </span>
                         <span class="block px-4 py-3">
                           <span class="block max-w-full truncate font-medium">{card.title}</span>
@@ -237,7 +244,7 @@ const iconButtonClass =
                 <Icon name="heart" size={14} />
                 <span>Favorite</span>
               </button>
-              <a class={`${chipClass} no-underline`} data-demo-modal-link rel="noopener noreferrer" target="_blank">
+              <a class={`${chipClass} no-underline`} data-demo-modal-link href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
                 <Icon name="external-link" size={14} />
                 <span>Open Link</span>
               </a>
@@ -309,7 +316,7 @@ const iconButtonClass =
     margin-inline: auto;
     border-radius: 0.5rem;
     background: var(--muted);
-    color: var(--muted-foreground);
+    color: color-mix(in oklch, var(--muted-foreground) 80%, var(--foreground));
     font-size: 0.75rem;
   }
 

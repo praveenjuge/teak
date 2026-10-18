@@ -256,6 +256,26 @@ const cardProperties = {
   type: { type: "string" },
   updatedAt: { type: "number" },
   url: { type: ["string", "null"] },
+  links: {
+    description:
+      "Cards this card links to with `[[Title|teak:<id>]]`, in the order they appear in `content`, at most 100. A link to a card in Trash, a deleted card or another account's card is `missing`, with a null `title` and `type`. Only on single-card responses: lists and the changes feed leave it out.",
+    items: { $ref: "#/components/schemas/CardLinkRef" },
+    type: "array",
+  },
+  linksTruncated: {
+    description: "True when the card has more than 100 links.",
+    type: "boolean",
+  },
+  backlinks: {
+    description:
+      "Your cards that link to this card, most recently updated first, at most 100; cards in Trash and hidden cards are left out. Only on single-card responses.",
+    items: { $ref: "#/components/schemas/CardLinkRef" },
+    type: "array",
+  },
+  backlinksTruncated: {
+    description: "True when more than 100 cards link to this card.",
+    type: "boolean",
+  },
 } as const;
 
 const components = {
@@ -267,6 +287,20 @@ const components = {
         retryAt: { type: ["number", "null"] },
       },
       required: ["code", "error"],
+      type: "object",
+    },
+    CardLinkRef: {
+      properties: {
+        id: { type: "string" },
+        missing: {
+          description:
+            "True when the linked card is in Trash, deleted or not yours.",
+          type: "boolean",
+        },
+        title: { type: ["string", "null"] },
+        type: { type: ["string", "null"] },
+      },
+      required: ["id", "missing", "title", "type"],
       type: "object",
     },
     Card: {
