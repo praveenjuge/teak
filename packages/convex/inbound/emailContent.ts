@@ -29,6 +29,8 @@ const WHITESPACE_REGEX = /\s+/gu;
 const INVISIBLE_REGEX =
   /\u034f|[\u00ad\u200b-\u200d\u2060\ufeff\ue000\ue001]/gu;
 const BARE_URL_REGEX = /https?:\/\/[^\s<>"'`[\]{}|\\^]+/giu;
+// A link written `<https://…>`, as mail clients put one in plain text.
+const ANGLE_URL_REGEX = /<(https?:\/\/[^\s<>]+)>/giu;
 const TRAILING_PUNCTUATION_REGEX = /[.,;:!?'"]+$/u;
 const MARKDOWN_LINK_REGEX = /\[((?:\\.|[^\]\\])*)\]\((https?:\/\/[^)\s]+)\)/gu;
 const MARKDOWN_SPECIAL_REGEX = /[\\`*_[\]<>#|~]/gu;
@@ -588,11 +590,17 @@ const linkPlan = (body: string): EmailCardPlan | null => {
       return text;
     }
   );
-  // The punctuation that ended the link's sentence goes with it.
-  const rest = withoutLinks.replace(BARE_URL_REGEX, (match) => {
-    urls.add(splitTrailing(match).url);
-    return "";
-  });
+  // An angle-bracketed link goes with its brackets, and the punctuation
+  // that ended a bare link's sentence goes with it.
+  const rest = withoutLinks
+    .replace(ANGLE_URL_REGEX, (_match, url: string) => {
+      urls.add(url);
+      return "";
+    })
+    .replace(BARE_URL_REGEX, (match) => {
+      urls.add(splitTrailing(match).url);
+      return "";
+    });
   if (urls.size !== 1) {
     return null;
   }

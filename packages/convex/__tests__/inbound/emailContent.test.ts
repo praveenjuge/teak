@@ -122,6 +122,19 @@ describe("planEmailCards: link or text", () => {
     });
   });
 
+  test("a plain-text link written as <url> leaves no brackets in the notes", () => {
+    expect(
+      plan({
+        html: '<p>Worth a read: <a href="https://example.com/post">this post</a></p>',
+        text: "Worth a read: this post <https://example.com/post?utm_medium=email>\n",
+      })
+    ).toEqual({
+      kind: "link",
+      notes: "Worth a read: this post",
+      url: "https://example.com/post",
+    });
+  });
+
   test("an HTML body that is one linked phrase is a link card", () => {
     expect(
       plan({
