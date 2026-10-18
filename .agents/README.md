@@ -42,6 +42,22 @@ since they were true when it was written.
 (`scripts/skills-drift.test.ts` checks them); update those with `npx skills`,
 not by hand. `teak` is Teak's own skill for using the product through its API,
 MCP, SDK and CLI. It is edited here, and the docs build publishes it.
+`.claude/skills` links here, so Claude Code loads the same skills.
+
+Verification (root `AGENTS.md`, "Verification"):
+
+- `verify-teak` is Teak's own skill for proving a change in the running app:
+  launch, doctor (`.agents/skills/verify-teak/scripts/doctor.ts`, not the
+  root `scripts/doctor.ts`), drive, evidence, cleanup, with a feature map in
+  `features/`. It is edited here; every user-facing change
+  updates its map.
+- `principle-prove-it-works`, `create-verification-skill` and
+  `maintain-verification-skill` are vendored from pstack (`cursor/plugins`).
+  They are written for Cursor. Their first line points at a Claude Code
+  adapter this repo doesn't vendor; read the
+  [adapter](https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md)
+  instead. In Teak, a generated verification skill lives in `.agents/skills/`,
+  not `.cursor/skills/`.
 
 ## Other files
 

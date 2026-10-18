@@ -32,11 +32,17 @@ Read `.agents/feature-conventions.md` before adding a field, table, index, publi
 ## Verification
 
 - Read `.agents/testing.md` before adding, changing, or deleting tests. It covers where tests go, which layer to use, and what makes a test worth keeping.
+Every change ends with proof, every time. These rules are not optional and not "when practical":
+
+- **Prove it works.** Before you call any task done, follow `.agents/skills/principle-prove-it-works/SKILL.md`: check the real artifact (run the feature, read the stored value, inspect the diff), not a proxy. A passing build, typecheck or test run alone is not proof.
+- **Verify in the running app.** For any change a user can observe (web, API, CLI, MCP, or backend behavior behind them), follow `.agents/skills/verify-teak/SKILL.md`: launch, run its doctor, drive every feature the change touches through the recipes in its `features/`, keep the evidence, clean up. A bug fix reproduces the bug first. Put the evidence in the PR's Proof section, and say in Verification which features you drove and anything you could not reach.
+- **Map what you build.** A change that adds or changes a user-facing feature adds or updates its file in `.agents/skills/verify-teak/features/` in the same PR, and drives the new recipe once. `scripts/verify-feature-map.test.ts` checks the map's shape.
+- `create-verification-skill` and `maintain-verification-skill` in `.agents/skills` (vendored from pstack) built that map and audit it; run the second when recipes drift from the app. They are written for Cursor: in Teak a generated or maintained verification skill lives in `.agents/skills/verify-<app>/`, never `.cursor/skills/`.
+
 - Add or update deterministic tests for changed behavior. Run the narrowest relevant checks first, then the repository checks warranted by the change.
 - Test user-observable behavior rather than implementation details.
 - End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator; read `packages/tests/README.md` before changing or running them.
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
-- Verify user-facing work in the real interface when practical. A passing build alone is not proof of the experience.
 - The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `.agents/testing.md`).
 
 ## Pull requests
