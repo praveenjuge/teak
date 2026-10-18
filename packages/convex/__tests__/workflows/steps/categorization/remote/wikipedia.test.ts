@@ -165,10 +165,7 @@ describe("fetchWikipediaDetails", () => {
     const { deps, requests } = socialFetch(
       (url) =>
         url === SUMMARY
-          ? new Response(null, {
-              status: 302,
-              headers: { location: "https://internal.example/" },
-            })
+          ? Response.redirect("https://internal.example/", 302)
           : jsonResponse({ description: "secret" }),
       { addresses: ["93.184.216.34"] }
     );

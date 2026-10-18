@@ -97,10 +97,7 @@ const categorize = (
   return { card, convex, fakes, run, saved, siteRequests };
 };
 
-const json = (body: unknown) =>
-  new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json" },
-  });
+const json = (body: unknown) => Response.json(body);
 
 const WIKIPEDIA_ARTICLE = "https://en.wikipedia.org/wiki/Photosynthesis";
 const WIKIPEDIA_SUMMARY =

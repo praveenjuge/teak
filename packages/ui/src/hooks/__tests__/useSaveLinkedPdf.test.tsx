@@ -97,7 +97,7 @@ test("a second click while saving makes one request", async () => {
   await render();
 
   let first: Promise<void> | undefined;
-  await act(async () => {
+  await act(() => {
     first = hook.save("card_a");
   });
   expect(hook.savingCardId).toBe("card_a");
@@ -117,9 +117,9 @@ test.each([
   ["IN_PROGRESS", "This PDF is already being saved. Try again in a moment."],
   ["SERVICE_UNAVAILABLE", "Couldn't save the PDF. Try again."],
 ])("%s says %p", async (code, message) => {
-  save = mock(async () => {
-    throw new ConvexError({ code, message: "server words" });
-  });
+  save = mock(() =>
+    Promise.reject(new ConvexError({ code, message: "server words" }))
+  );
   await render();
 
   await act(() => hook.save("card_a"));
@@ -129,9 +129,7 @@ test.each([
 });
 
 test("a dropped connection says try again", async () => {
-  save = mock(async () => {
-    throw new Error("Connection lost");
-  });
+  save = mock(() => Promise.reject(new Error("Connection lost")));
   await render();
 
   await act(() => hook.save("card_a"));

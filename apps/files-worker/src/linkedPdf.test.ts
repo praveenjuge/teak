@@ -93,10 +93,7 @@ describe("storeLinkedPdf", () => {
     const bucket = new FakeBucket();
     const { fetcher, requests } = network((url) =>
       url === PDF
-        ? new Response(null, {
-            status: 301,
-            headers: { location: "https://export.arxiv.org/pdf/1706.03762v7" },
-          })
+        ? Response.redirect("https://export.arxiv.org/pdf/1706.03762v7", 301)
         : pdf()
     );
 
@@ -127,12 +124,8 @@ describe("storeLinkedPdf", () => {
   });
 
   test("stops after three redirects", async () => {
-    const { fetcher, requests } = network(
-      () =>
-        new Response(null, {
-          status: 302,
-          headers: { location: "https://arxiv.org/pdf/1706.03762" },
-        })
+    const { fetcher, requests } = network(() =>
+      Response.redirect("https://arxiv.org/pdf/1706.03762", 302)
     );
 
     expect((await store(new FakeBucket(), fetcher)).stored).toBe(false);
