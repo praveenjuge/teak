@@ -101,17 +101,28 @@ export const formatRating = (value?: string): string | undefined => {
   return numeric.toFixed(2);
 };
 
+const ISO_DAY_REGEX = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
+
 export const formatDate = (
   value: string | number | undefined
 ): string | undefined => {
   if (!value) {
     return undefined;
   }
-  const date = new Date(value);
+  const source = typeof value === "string" ? value.trim() : value;
+  const isoDay =
+    typeof source === "string" ? ISO_DAY_REGEX.exec(source)?.[1] : undefined;
+  const date = new Date(isoDay ?? source);
   if (Number.isNaN(date.getTime())) {
     return undefined;
   }
-  // UTC, so a date-only value ("2023-10-27") keeps its day wherever it runs.
+  if (
+    isoDay &&
+    (Number.isNaN(new Date(source).getTime()) ||
+      date.toISOString().slice(0, 10) !== isoDay)
+  ) {
+    return undefined;
+  }
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",

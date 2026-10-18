@@ -258,6 +258,10 @@ import type * as workflowDispatch from "../workflowDispatch.js";
 import type * as workflowGateway from "../workflowGateway.js";
 import type * as workflowRpcAllowlist from "../workflowRpcAllowlist.js";
 import type * as workflows_aiMetadata_mutations from "../workflows/aiMetadata/mutations.js";
+import type * as workflows_steps_captions_index from "../workflows/steps/captions/index.js";
+import type * as workflows_steps_captions_parse from "../workflows/steps/captions/parse.js";
+import type * as workflows_steps_captions_types from "../workflows/steps/captions/types.js";
+import type * as workflows_steps_captions_vimeo from "../workflows/steps/captions/vimeo.js";
 import type * as workflows_steps_categorization_clef from "../workflows/steps/categorization/clef.js";
 import type * as workflows_steps_categorization_enrichment from "../workflows/steps/categorization/enrichment.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
@@ -268,6 +272,7 @@ import type * as workflows_steps_categorization_providers_github from "../workfl
 import type * as workflows_steps_categorization_providers_goodreads from "../workflows/steps/categorization/providers/goodreads.js";
 import type * as workflows_steps_categorization_providers_imdb from "../workflows/steps/categorization/providers/imdb.js";
 import type * as workflows_steps_categorization_providers_index from "../workflows/steps/categorization/providers/index.js";
+import type * as workflows_steps_categorization_providers_youtube from "../workflows/steps/categorization/providers/youtube.js";
 import type * as workflows_steps_categorization_remote_appleMusic from "../workflows/steps/categorization/remote/appleMusic.js";
 import type * as workflows_steps_categorization_remote_arxiv from "../workflows/steps/categorization/remote/arxiv.js";
 import type * as workflows_steps_categorization_remote_common from "../workflows/steps/categorization/remote/common.js";
@@ -277,6 +282,9 @@ import type * as workflows_steps_categorization_remote_spotify from "../workflow
 import type * as workflows_steps_categorization_remote_wikipedia from "../workflows/steps/categorization/remote/wikipedia.js";
 import type * as workflows_steps_categorization_rules from "../workflows/steps/categorization/rules.js";
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
+import type * as workflows_steps_podcast_feed from "../workflows/steps/podcast/feed.js";
+import type * as workflows_steps_podcast_mutations from "../workflows/steps/podcast/mutations.js";
+import type * as workflows_steps_podcast_resolveEnclosure from "../workflows/steps/podcast/resolveEnclosure.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
 import type * as workosAuthKit from "../workosAuthKit.js";
@@ -550,6 +558,10 @@ declare const fullApi: ApiFromModules<{
   workflowGateway: typeof workflowGateway;
   workflowRpcAllowlist: typeof workflowRpcAllowlist;
   "workflows/aiMetadata/mutations": typeof workflows_aiMetadata_mutations;
+  "workflows/steps/captions/index": typeof workflows_steps_captions_index;
+  "workflows/steps/captions/parse": typeof workflows_steps_captions_parse;
+  "workflows/steps/captions/types": typeof workflows_steps_captions_types;
+  "workflows/steps/captions/vimeo": typeof workflows_steps_captions_vimeo;
   "workflows/steps/categorization/clef": typeof workflows_steps_categorization_clef;
   "workflows/steps/categorization/enrichment": typeof workflows_steps_categorization_enrichment;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
@@ -560,6 +572,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/providers/goodreads": typeof workflows_steps_categorization_providers_goodreads;
   "workflows/steps/categorization/providers/imdb": typeof workflows_steps_categorization_providers_imdb;
   "workflows/steps/categorization/providers/index": typeof workflows_steps_categorization_providers_index;
+  "workflows/steps/categorization/providers/youtube": typeof workflows_steps_categorization_providers_youtube;
   "workflows/steps/categorization/remote/appleMusic": typeof workflows_steps_categorization_remote_appleMusic;
   "workflows/steps/categorization/remote/arxiv": typeof workflows_steps_categorization_remote_arxiv;
   "workflows/steps/categorization/remote/common": typeof workflows_steps_categorization_remote_common;
@@ -569,6 +582,9 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/remote/wikipedia": typeof workflows_steps_categorization_remote_wikipedia;
   "workflows/steps/categorization/rules": typeof workflows_steps_categorization_rules;
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
+  "workflows/steps/podcast/feed": typeof workflows_steps_podcast_feed;
+  "workflows/steps/podcast/mutations": typeof workflows_steps_podcast_mutations;
+  "workflows/steps/podcast/resolveEnclosure": typeof workflows_steps_podcast_resolveEnclosure;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   workosApplicationDisconnect: typeof workosApplicationDisconnect;
   workosAuthKit: typeof workosAuthKit;

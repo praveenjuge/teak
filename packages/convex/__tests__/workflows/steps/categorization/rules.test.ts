@@ -96,6 +96,50 @@ describe("classifyLinkCategory", () => {
     expect(failed?.category).toBe("place");
   });
 
+  const withAudio = (url: string) =>
+    linkCard({
+      url,
+      metadata: {
+        linkPreview: {
+          status: "success",
+          raw: [
+            {
+              selector: "meta[property='og:audio']",
+              results: [
+                {
+                  attributes: [
+                    { name: "content", value: "https://cdn.example/ep.mp3" },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+  test("an /episodes/ page with its own audio is a podcast, not TV", async () => {
+    const url = "https://show.example.com/episodes/the-long-walk";
+    expect((await classifyLinkCategory(linkCard({ url })))?.category).toBe(
+      "tv"
+    );
+    expect(await classifyLinkCategory(withAudio(url))).toMatchObject({
+      category: "podcast",
+      reason: "page_audio",
+    });
+  });
+
+  test("page audio never moves a site known by domain, or a song", async () => {
+    expect(
+      (await classifyLinkCategory(withAudio("https://vimeo.com/76979871")))
+        ?.category
+    ).toBe("tv");
+    expect(
+      (await classifyLinkCategory(withAudio("https://band.example/track/song")))
+        ?.category
+    ).toBe("music");
+  });
+
   test("returns null for missing targetUrl", async () => {
     expect(await classifyLinkCategory(linkCard({}))).toBeNull();
   });

@@ -69,8 +69,13 @@ page itself only as a gzipped copy for the Instagram media parser. Never fetch
 a user-supplied URL anywhere without that policy and pinning. Save PDF's
 `store-linked-pdf` is the one exception: it fetches only
 `https://arxiv.org/pdf/<id>` (redirects must stay on arxiv.org or
-export.arxiv.org, over https) from the Worker itself, straight into R2. Raw
-metadata archival calls only the configured signed Files Worker.
+export.arxiv.org, over https) from the Worker itself, straight into R2.
+Vimeo captions and podcast episode audio are fetched by card processing in the
+Worker through the same SSRF-checked, pinned transport; episode audio streams
+into a temporary R2 object (at most 100 MB, audio or MP4 only) that is deleted
+after Whisper. Whisper runs are bounded by the `podcastTranscription` rate
+limit (20 episodes an hour per account). Raw metadata archival calls only the
+configured signed Files Worker.
 
 ## Scheduled and edge work on Cloudflare
 

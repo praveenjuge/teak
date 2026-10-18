@@ -32,3 +32,60 @@ describe("buildSelectorResultsFromHtml entity decoding", () => {
     ).toBe("A &amp; B");
   });
 });
+
+describe("buildSelectorResultsFromHtml meta and link selectors", () => {
+  const valuesOf = (html: string, selector: string, attribute: string) =>
+    buildSelectorResultsFromHtml(html, [{ selector }])[0].results.map(
+      (item) => item.attributes?.find((attr) => attr.name === attribute)?.value
+    );
+
+  test("matches YouTube's microdata by itemprop", () => {
+    const html = `<meta itemprop="duration" content="PT1H2M3S">
+      <span itemprop="author"><link itemprop="name" content="A Channel"></span>
+      <meta itemprop="uploadDate" content="2024-05-01T07:00:00-07:00">`;
+    expect(valuesOf(html, "meta[itemprop='duration']", "content")).toEqual([
+      "PT1H2M3S",
+    ]);
+    expect(valuesOf(html, "link[itemprop='name']", "content")).toEqual([
+      "A Channel",
+    ]);
+    expect(valuesOf(html, "meta[itemprop='uploadDate']", "content")).toEqual([
+      "2024-05-01T07:00:00-07:00",
+    ]);
+  });
+
+  test("a compound link selector needs every attribute to match", () => {
+    const html = `<link rel="alternate" type="application/rss+xml" href="https://feeds.example/rss">
+      <link rel="alternate" type="application/atom+xml" href="https://feeds.example/atom">
+      <link rel="alternate" hreflang="fr" href="https://example.fr/">`;
+    expect(
+      valuesOf(
+        html,
+        "link[rel='alternate'][type='application/rss+xml']",
+        "href"
+      )
+    ).toEqual(["https://feeds.example/rss"]);
+    expect(
+      valuesOf(
+        html,
+        "link[rel='alternate'][type='application/atom+xml']",
+        "href"
+      )
+    ).toEqual(["https://feeds.example/atom"]);
+  });
+
+  test("keeps matching name, property and rel selectors", () => {
+    const html = `<meta name="twitter:creator" content="@a">
+      <meta property="og:audio" content="https://cdn.example/a.mp3">
+      <link rel="canonical" href="https://example.com/a">`;
+    expect(valuesOf(html, "meta[name='twitter:creator']", "content")).toEqual([
+      "@a",
+    ]);
+    expect(valuesOf(html, "meta[property='og:audio']", "content")).toEqual([
+      "https://cdn.example/a.mp3",
+    ]);
+    expect(valuesOf(html, "link[rel='canonical']", "href")).toEqual([
+      "https://example.com/a",
+    ]);
+  });
+});

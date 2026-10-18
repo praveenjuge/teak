@@ -40,6 +40,8 @@ import {
 } from "./shared/folders";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "./shared/markdown";
+import { buildRawSelectorMap } from "./workflows/steps/categorization/enrichment";
+import { findFeedUrl } from "./workflows/steps/podcast/resolveEnclosure";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -939,6 +941,83 @@ describe("devSeed folder packs", () => {
         (card) => (card.metadata?.linkCategory?.facts?.length ?? 0) <= 8
       )
     ).toBe(true);
+  });
+
+  test("video-captions seeds YouTube facts and Vimeo transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "seeded",
+      cards: 10,
+    });
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-video-captions")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.metadata
+        ?.linkCategory?.facts
+    ).toEqual([
+      { label: "Channel", value: "Example Channel" },
+      { label: "Length", value: "1h 2m 3s" },
+      { label: "Uploaded", value: "Sep 14, 2026" },
+    ]);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.aiTranscript
+    ).toBeUndefined();
+    expect(byTitle("A two-hour Vimeo lecture")?.aiTranscript).toContain(
+      "velvet harbor theorem"
+    );
+    expect(
+      byTitle("A private Vimeo video with no captions")?.aiTranscript
+    ).toBeUndefined();
+  });
+
+  test("podcast-transcripts seeds episodes with and without transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+    });
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-podcast-transcripts")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(byTitle("Episode 42: Tide pools")).toMatchObject({
+      aiTranscript: expect.stringContaining("hermit crab"),
+      metadata: { linkCategory: { category: "podcast" } },
+    });
+    expect(
+      byTitle("A Spotify episode (no public audio)")?.aiTranscript
+    ).toBeUndefined();
+    // Every episode is a podcast link, so processing would try it.
+    expect(
+      cards
+        .filter(
+          (card) =>
+            card.type === "link" &&
+            card.metadataTitle !== "Podcast transcripts pack"
+        )
+        .map((card) => card.metadata?.linkCategory?.category)
+    ).toEqual(new Array(7).fill("podcast"));
+    expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
+    // The RSS-only episode's feed is where processing would look for it.
+    const rssOnly = byTitle("An episode found through its show's RSS feed");
+    expect(
+      findFeedUrl(
+        buildRawSelectorMap(rssOnly?.metadata?.linkPreview?.raw),
+        rssOnly?.url ?? ""
+      )
+    ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
 
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {

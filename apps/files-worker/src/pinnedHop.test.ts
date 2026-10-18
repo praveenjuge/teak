@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { SsrfError, safeFetch } from "@teak/convex/linkMetadata/ssrf";
-import { createContainerPinnedFetch, createDohResolver } from "./pinnedHop";
+import {
+  createContainerPinnedFetch,
+  createContainerStreamingFetch,
+  createDohResolver,
+} from "./pinnedHop";
 import { createContainerNetwork } from "./test/cardProcessingKit";
 
 const PUBLIC = "93.184.216.34";
@@ -145,5 +149,38 @@ describe("safeFetch through the link fetcher", () => {
         { signal: controller.signal }
       )
     ).rejects.toThrow("caller timeout");
+  });
+
+  test("a streaming fetch brings back a body past a buffered hop's cap", async () => {
+    const audio = new Uint8Array(6 * 1024 * 1024).fill(7);
+    const network = createContainerNetwork(
+      () => new Response(audio, { headers: { "content-type": "audio/mpeg" } })
+    );
+    const options = { maxBytes: 100 * 1024 * 1024, timeoutMs: 60_000 };
+    const response = await createContainerStreamingFetch(network.env, options)(
+      "https://cdn.example/episode.mp3",
+      [PUBLIC],
+      {}
+    );
+    expect(response.headers.get("content-type")).toBe("audio/mpeg");
+    expect((await response.arrayBuffer()).byteLength).toBe(audio.byteLength);
+
+    const buffered = await createContainerPinnedFetch(network.env)(
+      "https://cdn.example/episode.mp3",
+      [PUBLIC],
+      {}
+    );
+    expect((await buffered.arrayBuffer()).byteLength).toBe(1024 * 1024 + 1);
+  });
+
+  test("a streaming fetch is refused a private address too", async () => {
+    const network = createContainerNetwork(() => new Response("secret"));
+    await expect(
+      createContainerStreamingFetch(network.env, {
+        maxBytes: 1024,
+        timeoutMs: 60_000,
+      })("https://looks-fine.example/", ["10.0.0.7"], {})
+    ).rejects.toBeInstanceOf(SsrfError);
+    expect(network.requests).toEqual([]);
   });
 });

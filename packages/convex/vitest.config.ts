@@ -34,6 +34,8 @@ export default defineConfig({
       "./mediaFacts.test.ts",
       "./documentText.test.ts",
       "./linkedPdfs.test.ts",
+      "./arxivSlots.test.ts",
+      "./podcastTranscripts.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",

@@ -389,6 +389,12 @@ connects only to them, and returns a redirect unfollowed, so the Worker checks
 its target before the next hop. A hop carries only `accept` and `user-agent`
 and brings back at most its byte cap plus one.
 
+Podcast episode audio (`podcastAudio.ts`) is larger than a hop holds, so it
+goes to `POST /hop-stream` (`createContainerStreamingFetch`): the same checks,
+with the body streamed back as it arrives, up to 100 MB and five minutes.
+Each instance runs one streamed hop at a time, and its slot is held until the
+body ends or the Worker hangs up, so page fetches keep the other three.
+
 Limits come from `@teak/files-protocol` (`FILES_REMOTE_ASSET_MAX_BYTES`: 20 MiB
 images, 50 MiB videos). Each instance runs four downloads at once and answers
 503 `busy` beyond that; the Worker tries the next instance. A skipped asset

@@ -1,4 +1,4 @@
-import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
+import { HOUR, MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
 export const RATE_LIMIT_CONFIG = {
@@ -63,6 +63,12 @@ export const RATE_LIMIT_CONFIG = {
     rate: 10,
     period: MINUTE,
     capacity: 10,
+  },
+  podcastTranscription: {
+    kind: "token bucket",
+    rate: 20,
+    period: HOUR,
+    capacity: 20,
   },
   // arXiv's API terms ask for at most one request every 3 seconds:
   // https://info.arxiv.org/help/api/tou.html

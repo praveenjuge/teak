@@ -543,6 +543,8 @@ export const FOLDER_SCENARIOS = [
   "ocr-links",
   "done-states",
   "rich-sites",
+  "video-captions",
+  "podcast-transcripts",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -1581,6 +1583,274 @@ const doneStatesPack = (): FolderScenarioPack => {
     ],
   };
 };
+const enrichedLinkCard = (
+  scenario: FolderScenario,
+  index: number,
+  url: string,
+  preview: { description?: string; siteName: string; title: string },
+  {
+    extra = {},
+    raw = [],
+    remote,
+  }: {
+    extra?: Partial<DevScenarioCardDef>;
+    raw?: { attribute?: string; selector: string; value: string }[];
+    remote?: RemoteDetails;
+  } = {}
+): FolderScenarioCard => {
+  const marked = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+  const linkPreview = {
+    status: "success" as const,
+    url: marked,
+    ...preview,
+    ...(raw.length
+      ? {
+          raw: raw.map(({ attribute = "content", selector, value }) => ({
+            selector,
+            results: [{ attributes: [{ name: attribute, value }] }],
+          })),
+        }
+      : {}),
+  };
+  const card = {
+    _id: `${scenario}-${index}`,
+    type: "link",
+    url: marked,
+    metadata: { linkPreview },
+  };
+  const classification = classifyLinkCategory(card);
+  return {
+    ...folderScenarioCard(scenario, index, "", [], extra),
+    type: "link" as const,
+    content: marked,
+    url: marked,
+    metadataTitle: preview.title,
+    metadata: {
+      linkPreview,
+      ...(classification
+        ? {
+            linkCategory: enrichLinkCategory(card, classification, {
+              remote,
+            }),
+          }
+        : {}),
+    },
+  };
+};
+
+const longTranscript = (marker: string) =>
+  `${Array.from(
+    { length: 1500 },
+    (_, i) =>
+      `At minute ${Math.floor(i / 12)} the speaker goes over point ${i}.`
+  ).join(" ")} ${marker}`;
+
+const youtubeWatchTags = (channel: string, duration?: string) => [
+  { selector: "link[itemprop='name']", value: channel },
+  ...(duration
+    ? [{ selector: "meta[itemprop='duration']", value: duration }]
+    : []),
+  {
+    selector: "meta[itemprop='uploadDate']",
+    value: "2026-09-14T08:00:00-07:00",
+  },
+];
+
+const videoCaptionsPack = (): FolderScenarioPack => {
+  const scenario = "video-captions" as const;
+  const youtube = { siteName: "YouTube" };
+  const vimeo = { siteName: "Vimeo" };
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Video captions pack", []),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+        { ...youtube, title: "A YouTube talk with channel, length and date" },
+        { raw: youtubeWatchTags("Example Channel", "PT1H2M3S") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/shorts/1a2b3c4d5e6",
+        { ...youtube, title: "A YouTube Short" },
+        { raw: youtubeWatchTags("Example Shorts", "PT45S") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/live/7f8e9d0c1b2",
+        { ...youtube, title: "A YouTube live stream with no length" },
+        { raw: youtubeWatchTags("Example Live") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979871",
+        { ...vimeo, title: "A Vimeo talk with English captions" },
+        {
+          extra: {
+            aiSummary: "A talk about how leaves turn light into sugar.",
+            aiTranscript:
+              "Hello and welcome. Today we talk about how chlorophyll catches the morning light and how leaves turn it into sugar.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979872/1a2b3c4d5e",
+        { ...vimeo, title: "An unlisted Vimeo video" },
+        {
+          extra: {
+            aiTranscript:
+              "This unlisted walkthrough shows the lighthouse keeper winding the clockwork lamp.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979873",
+        { ...vimeo, title: "A Vimeo video with Japanese captions" },
+        {
+          extra: {
+            aiTranscript: "こんにちは。今日は富士山の朝焼けについて話します。",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979874",
+        { ...vimeo, title: "A two-hour Vimeo lecture" },
+        {
+          extra: {
+            aiTranscript: longTranscript(
+              "At minute 90 the speaker names the velvet harbor theorem."
+            ),
+          },
+        }
+      ),
+      enrichedLinkCard(scenario, index++, "https://vimeo.com/76979875", {
+        ...vimeo,
+        title: "A private Vimeo video with no captions",
+      }),
+      {
+        ...folderScenarioCard(
+          scenario,
+          index++,
+          "A Vimeo link saved as a note: https://vimeo.com/76979871",
+          []
+        ),
+      },
+    ],
+  };
+};
+
+const podcastTranscriptsPack = (): FolderScenarioPack => {
+  const scenario = "podcast-transcripts" as const;
+  const show = { siteName: "Example Podcast" };
+  const audio = (url: string) => [
+    { selector: "meta[property='og:audio']", value: url },
+    { selector: "meta[property='og:audio:type']", value: "audio/mpeg" },
+  ];
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Podcast transcripts pack", []),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/42-tide-pools",
+        { ...show, title: "Episode 42: Tide pools" },
+        {
+          extra: {
+            aiSummary: "An episode about the creatures living in tide pools.",
+            aiTranscript:
+              "Welcome back to the show. This week we wade into tide pools where the hermit crab trades shells at low tide.",
+          },
+          raw: audio("https://audio.example.com/episodes/42.mp3"),
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcasts.apple.com/us/podcast/example-show/id1200000000?i=1000700000001",
+        { siteName: "Apple Podcasts", title: "An Apple Podcasts episode" },
+        {
+          extra: {
+            aiTranscript:
+              "On today's episode the baker explains why sourdough starter needs a warm kitchen.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://shows.example.com/field-notes/episode/7",
+        { ...show, title: "An episode found through its show's RSS feed" },
+        {
+          extra: {
+            aiTranscript:
+              "Field notes episode seven: the night the owls returned to the old barn.",
+          },
+          raw: [
+            {
+              attribute: "href",
+              selector: "link[rel='alternate'][type='application/rss+xml']",
+              value: "https://shows.example.com/field-notes/feed.xml",
+            },
+          ],
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://open.spotify.com/episode/512ojhOuo1ktJprKbVcKyQ",
+        { siteName: "Spotify", title: "A Spotify episode (no public audio)" }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/43-marathon",
+        { ...show, title: "A 2 GB episode (too large to transcribe)" },
+        { raw: audio("https://audio.example.com/episodes/43-2gb.mp3") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/44-japanese",
+        { ...show, title: "A Japanese episode" },
+        {
+          extra: {
+            aiTranscript: "今週は京都の古い茶室と抹茶の作法について話します。",
+          },
+          raw: audio("https://audio.example.com/episodes/44.mp3"),
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/45-in-trash",
+        { ...show, title: "A transcribed episode in Trash" },
+        {
+          extra: {
+            aiTranscript:
+              "This deleted episode talks about the copper kettle festival.",
+            isDeleted: true,
+          },
+          raw: audio("https://audio.example.com/episodes/45.mp3"),
+        }
+      ),
+    ],
+  };
+};
+
 const richSitesPack = (): FolderScenarioPack => {
   const scenario = "rich-sites" as const;
   const updated = "Oct 15, 2026";
@@ -1590,46 +1860,7 @@ const richSitesPack = (): FolderScenarioPack => {
     preview: { description?: string; siteName: string; title: string },
     remote?: RemoteDetails,
     raw: { selector: string; value: string }[] = []
-  ) => {
-    const marked = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
-    const linkPreview = {
-      status: "success" as const,
-      url: marked,
-      ...preview,
-      ...(raw.length
-        ? {
-            raw: raw.map(({ selector, value }) => ({
-              selector,
-              results: [{ attributes: [{ name: "content", value }] }],
-            })),
-          }
-        : {}),
-    };
-    const card = {
-      _id: `${scenario}-${index}`,
-      type: "link",
-      url: marked,
-      metadata: { linkPreview },
-    };
-    const classification = classifyLinkCategory(card);
-    return {
-      ...folderScenarioCard(scenario, index, "", []),
-      type: "link" as const,
-      content: marked,
-      url: marked,
-      metadataTitle: preview.title,
-      metadata: {
-        linkPreview,
-        ...(classification
-          ? {
-              linkCategory: enrichLinkCategory(card, classification, {
-                remote,
-              }),
-            }
-          : {}),
-      },
-    };
-  };
+  ) => enrichedLinkCard(scenario, index, url, preview, { raw, remote });
   const wikipedia = { siteName: "Wikipedia" };
   const arxiv = { siteName: "arXiv.org" };
   const isbnTag = (value: string) => [
@@ -2549,6 +2780,16 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Links with details from their sites: Wikipedia (English, a disambiguation page, Japanese, a missing page), arXiv (a paper with a PDF to save, an old-style id, a withdrawn paper, 300 authors), Spotify (track, album, playlist, region-locked), Apple Music, and books with an ISBN-13, an ISBN-10, none, a bad check digit and one Open Library doesn't know. Search `#scenario-rich-sites`.",
     folders: richSitesPack,
+  },
+  "video-captions": {
+    description:
+      "YouTube links with Channel, Length and Uploaded facts (a talk, a Short, a live stream with no length), and Vimeo links with transcripts as captions give them (English, unlisted, Japanese, a two-hour lecture whose line at minute 90 is searchable), a private Vimeo video with none, and a Vimeo link saved as a note. YouTube captions aren't read. Search `#scenario-video-captions`.",
+    folders: videoCaptionsPack,
+  },
+  "podcast-transcripts": {
+    description:
+      "Podcast episode links with transcripts as Whisper gives them (og:audio, Apple Podcasts, an RSS-only show, a Japanese episode, one in Trash), and episodes that get none (Spotify, a 2 GB file). Search `#scenario-podcast-transcripts` or a spoken phrase such as `hermit crab`.",
+    folders: podcastTranscriptsPack,
   },
   "done-states-images": {
     description:

@@ -250,6 +250,20 @@ export const createCardConvex = (
         return null;
       }
     ),
+    "workflows/steps/podcast/mutations:takePodcastTranscriptSlot": () => true,
+    "workflows/steps/podcast/mutations:trackPodcastAudio": write(
+      "trackPodcastAudio",
+      (args) => {
+        const keys = (
+          ((card as FakeCard).workflowArtifactKeys as string[] | undefined) ??
+          []
+        ).filter((key) => key !== args.key);
+        (card as FakeCard).workflowArtifactKeys = args.stored
+          ? [...keys, args.key as string]
+          : keys;
+        return true;
+      }
+    ),
     "workflows/steps/renderables/mutations:markCardRenderablesFailed": write(
       "markCardRenderablesFailed",
       (args) => {
@@ -363,10 +377,17 @@ export const testEnv = (fields: Partial<BackgroundEnv> = {}): BackgroundEnv =>
     ...fields,
   }) as BackgroundEnv;
 
+const unexpectedRequest = () =>
+  Promise.reject(new Error("unexpected network request"));
+
 export const noNetwork = {
-  pinnedFetch: () => Promise.reject(new Error("unexpected network request")),
+  pinnedFetch: unexpectedRequest,
+  podcastFetch: { episode: unexpectedRequest, feed: unexpectedRequest },
   resolveDns: () => Promise.resolve(["93.184.216.34"]),
-} satisfies Pick<CardProcessingDeps, "pinnedFetch" | "resolveDns">;
+} satisfies Pick<
+  CardProcessingDeps,
+  "pinnedFetch" | "podcastFetch" | "resolveDns"
+>;
 
 export const testDeps = (
   env: BackgroundEnv,

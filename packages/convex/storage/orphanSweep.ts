@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { buildR2ListPrefix } from "./r2Keys";
 
+const LINKED_PDF_CLAIM_LIVE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export const listPrefix = internalQuery({
   args: {},
   returns: v.string(),
@@ -92,8 +94,15 @@ export const collectNonCardReferencedKeys = internalQuery({
         keys.push(job.reportKey);
       }
     }
-    for await (const row of ctx.db.query("linkedPdfs")) {
-      keys.push(row.fileKey);
+    const liveSince = Date.now() - LINKED_PDF_CLAIM_LIVE_MS;
+    for (const status of ["pending", "failed"] as const) {
+      for await (const row of ctx.db
+        .query("linkedPdfs")
+        .withIndex("by_status", (q) => q.eq("status", status))) {
+        if (row.updatedAt >= liveSince) {
+          keys.push(row.fileKey);
+        }
+      }
     }
     for await (const job of ctx.db.query("exportJobs")) {
       if (!job.artifactKey) {

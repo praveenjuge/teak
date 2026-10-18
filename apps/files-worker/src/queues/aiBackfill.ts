@@ -10,6 +10,7 @@ import {
 } from "../workflows/cardProcessing/context";
 import { readLinkImageText } from "../workflows/cardProcessing/linkText";
 import { generateCardMetadata } from "../workflows/cardProcessing/metadata";
+import { transcribePodcastEpisode } from "../workflows/cardProcessing/podcast";
 import { isSuperseded } from "../workflows/cardProcessing/run";
 import { captureScreenshotStep } from "../workflows/cardProcessing/screenshot";
 import type { BackgroundEnv } from "../workflows/runtime";
@@ -133,6 +134,26 @@ const runMessage = async (
         error: error instanceof Error ? error.message : String(error),
       });
     });
+    // A podcast episode, which card processing left untranscribed while its
+    // AI metadata waited; one attempt, never failing the message.
+    await withWorkflowTelemetry(env, (telemetry) =>
+      transcribePodcastEpisode(job, telemetry, { keepTranscript: true })
+    ).then(
+      (outcome) =>
+        console.log("[aiBackfill] podcast transcript", {
+          cardId: job.cardId,
+          ...outcome,
+        }),
+      (error: unknown) => {
+        if (isSuperseded(error)) {
+          return;
+        }
+        console.warn("[aiBackfill] podcast transcript failed", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    );
   }
 };
 

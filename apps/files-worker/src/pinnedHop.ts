@@ -8,9 +8,14 @@ import {
   FETCHER_HOP_PATH,
   FETCHER_HOP_REQUEST_HEADERS,
   FETCHER_HOP_RESPONSE_HEADERS,
+  FETCHER_STREAM_PATH,
   type FetcherHopRequest,
 } from "../fetcher/src/protocol";
-import { postToFetcher, type RemoteAssetEnv } from "./remoteAsset";
+import {
+  FETCHER_START_ALLOWANCE_MS,
+  postToFetcher,
+  type RemoteAssetEnv,
+} from "./remoteAsset";
 
 // A Worker's own `fetch` cannot pin a connection to an address.
 
@@ -111,21 +116,37 @@ const abortable = <T>(
   });
 };
 
-export const createContainerPinnedFetch =
+type FetcherEnv = Pick<
+  RemoteAssetEnv,
+  "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
+>;
+
+const containerHop =
   (
-    env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
-    options: { maxBytes?: number } = {}
+    env: FetcherEnv,
+    mode:
+      | { maxBytes: number; stream: false }
+      | { maxBytes: number; stream: true; timeoutMs: number }
   ): PinnedFetch =>
   async (url, addresses, init) => {
+    const timeoutMs = mode.stream ? mode.timeoutMs : SAFE_FETCH_TIMEOUT_MS;
     const request: FetcherHopRequest = {
       addresses,
       headers: hopHeaders(init),
-      maxBytes: options.maxBytes ?? DEFAULT_HOP_MAX_BYTES,
-      timeoutMs: SAFE_FETCH_TIMEOUT_MS,
+      maxBytes: mode.maxBytes,
+      timeoutMs,
       url,
     };
     const response = await abortable(
-      postToFetcher(env, FETCHER_HOP_PATH, request),
+      mode.stream
+        ? postToFetcher(
+            env,
+            FETCHER_STREAM_PATH,
+            request,
+            Math.random,
+            timeoutMs + FETCHER_START_ALLOWANCE_MS
+          )
+        : postToFetcher(env, FETCHER_HOP_PATH, request),
       init.signal
     );
     if (response.status === 422) {
@@ -160,9 +181,36 @@ export const createContainerPinnedFetch =
         headers.set(name, value);
       }
     }
-    const body = await abortable(response.arrayBuffer(), init.signal);
-    return new Response(NULL_BODY_STATUSES.has(status) ? null : body, {
-      headers,
-      status,
-    });
+    if (NULL_BODY_STATUSES.has(status)) {
+      await response.body?.cancel().catch(() => undefined);
+      return new Response(null, { headers, status });
+    }
+    const body = mode.stream
+      ? response.body
+      : await abortable(response.arrayBuffer(), init.signal);
+    return new Response(body, { headers, status });
   };
+
+/**
+ * A `PinnedFetch` that makes each hop from the link fetcher Container. Only
+ * `accept` and `user-agent` travel with the request, and at most `maxBytes`
+ * (plus one, so `readBodyWithLimit` sees an overflow) come back.
+ */
+export const createContainerPinnedFetch = (
+  env: FetcherEnv,
+  options: { maxBytes?: number } = {}
+): PinnedFetch =>
+  containerHop(env, {
+    maxBytes: options.maxBytes ?? DEFAULT_HOP_MAX_BYTES,
+    stream: false,
+  });
+
+/**
+ * The same hops, with each body streamed back as it arrives rather than
+ * held: for a download larger than a hop may carry, like podcast audio.
+ * `timeoutMs` bounds the whole hop, body included.
+ */
+export const createContainerStreamingFetch = (
+  env: FetcherEnv,
+  options: { maxBytes: number; timeoutMs: number }
+): PinnedFetch => containerHop(env, { ...options, stream: true });

@@ -170,8 +170,8 @@ Each phase is its own plan and its own PR. "v1-N" means phase N of the v1 roadma
 | 18 | New link categories: built, plan deleted | Smarter cards | 15 |
 | 19 | Fetchers for social posts: built, plan deleted | Smarter cards | 18 |
 | 20 | Richer details for more sites: built, plan deleted | Smarter cards | 18 |
-| 21 | [YouTube and Vimeo transcripts](2026-10-14-roadmap-v2-21-video-captions.md) | Smarter cards | v1-13 |
-| 22 | [Podcast transcripts](2026-10-14-roadmap-v2-22-podcast-transcripts.md) | Smarter cards | 21 |
+| 21 | YouTube and Vimeo transcripts: built (Vimeo captions and YouTube facts), plan deleted | Smarter cards | v1-13 |
+| 22 | Podcast transcripts: built, plan deleted | Smarter cards | 21 |
 | 23 | [Save by email](2026-10-14-roadmap-v2-23-email-in.md) | Capture | — |
 | 24 | [Email attachments](2026-10-14-roadmap-v2-24-email-attachments.md) | Capture | 23 |
 | 25 | [More kinds of feeds: YouTube channels, autodiscovery, OPML](2026-10-14-roadmap-v2-25-feed-extras.md) | Capture | v1-17 (dropped; see Risks) |
@@ -206,7 +206,6 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | Phase | Decision | Default in the plan |
 |---|---|---|
 | 17 | HEIC replacement thumbnails, if `finalize-image-upload` can't decode them | Refuse HEIC (shipped this way) |
-| 22 | Should a podcast transcript also regenerate the summary? | Yes, as for YouTube |
 | 27 | `links`/`backlinks` only on single-card responses, not on `/v1/cards/changes` | Single-card only |
 
 ### Decided
@@ -227,4 +226,10 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 20 | Site lookups run in the Files Worker's categorize step (card processing moved there after the plan was written), through the same SSRF-checked transport as social posts. The arXiv API throttle is a Convex rate limit the step asks for a slot from |
 | 20 | Save PDF downloads in the Files Worker (`store-linked-pdf`), from arxiv.org only, straight into R2; Convex has no pinned fetch. So phase 20 deploys the Files Worker before Convex |
 | 20 | A paper's PDF link is `linkCategory.pdfUrl`, beside the facts, because clients never receive `raw`. The site's own details are kept in `raw.remote` so a site that is down never takes facts away |
+| 21 | YouTube captions are not read: every caption file needs a proof-of-origin token servers don't have (the watch page lists tracks, timedtext answers an empty 200, the player API refuses). YouTube links get Channel, Length and Uploaded facts; Vimeo captions are read |
+| 21 | Captions are read in the Files Worker's AI metadata step (card processing moved there), through the lookups' SSRF-checked transport; the transcript feeds the summary within 6,000 characters. Every write is guarded by the run's processing revision, which replaced the plan's run id |
+| 22 | A podcast transcript also regenerates the summary and tags, as for audio cards |
+| 22 | The episode's audio downloads in the Files Worker (Convex has no pinned fetch), through the same SSRF-checked transport, streamed in 8 MiB parts into a temporary R2 object (role `podcast-audio`) that is registered to the owner, kept on the card's `workflowArtifactKeys` while it exists, and deleted after Whisper. Enclosures may follow 8 redirects (tracking chains run to 6); every hop is checked |
+| 22 | The transcript is a step appended after the card's processing completes (no stage waits on it), not a separate workflow; a miss or an error never fails the card. `podcastTranscription` allows 20 episodes an hour per account |
+| 22 | Episode pages under `/episodes/<slug>` are categorized TV by a final path rule, so they get no transcript; a follow-up should let page audio or `PodcastEpisode` JSON-LD win |
 | 23 | Add `INBOUND_ADDRESS_SECRET` and derive each address token from it, so Settings can show the address again while only its hash is stored. Mail arrives through Cloudflare Email Routing |

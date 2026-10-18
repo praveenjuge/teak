@@ -224,7 +224,13 @@ export const categorizeLink = async (
     return await save(existingMetadata);
   }
 
-  const classification = classifyLinkCategory(contextCard, sourceUrl);
+  // Read back first: the page's own audio, in its archived scrape, counts.
+  const hydratedCard = await hydrateArchivedMetadata(
+    job.env,
+    loaded.keyPrefix,
+    contextCard
+  );
+  const classification = classifyLinkCategory(hydratedCard, sourceUrl);
   if (!classification) {
     throw new Error(`Failed to classify link category for card ${job.cardId}`);
   }
@@ -251,11 +257,6 @@ export const categorizeLink = async (
     ? await fetchStructuredData(job, sourceUrl)
     : null;
 
-  const hydratedCard = await hydrateArchivedMetadata(
-    job.env,
-    loaded.keyPrefix,
-    contextCard
-  );
   const reviewedClassification = await reviewLinkCategoryWithClef(
     job,
     hydratedCard,

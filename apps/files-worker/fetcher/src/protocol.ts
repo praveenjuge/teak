@@ -1,7 +1,7 @@
 import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/src/remoteAsset";
 
 export const FETCHER_PORT = 8080;
-export const FETCHER_PROTOCOL = 2;
+export const FETCHER_PROTOCOL = 3;
 export const FETCHER_PATH = "/fetch";
 /** Fetch a link's page and match scrape selectors against its static HTML. */
 export const FETCHER_PAGE_PATH = "/fetch-page";
@@ -10,9 +10,19 @@ export const FETCHER_PAGE_PATH = "/fetch-page";
  * running in the Worker: redirects come back unfollowed.
  */
 export const FETCHER_HOP_PATH = "/hop";
+/**
+ * A hop like FETCHER_HOP_PATH whose body streams back as it arrives instead
+ * of being held, for podcast episode audio.
+ */
+export const FETCHER_STREAM_PATH = "/hop-stream";
 
 /** At most this many downloads at once; the next gets 503 `busy`. */
 export const FETCHER_MAX_IN_FLIGHT = 4;
+/**
+ * Of those, at most this many streamed hops, which hold their slot until the
+ * body ends, so page fetches always keep the rest.
+ */
+export const FETCHER_MAX_STREAMS = 1;
 
 export interface FetcherRequest {
   fallbackContentType?: string;
@@ -66,6 +76,9 @@ export const FETCHER_HOP_REQUEST_HEADERS = ["accept", "user-agent"] as const;
 /** The most bytes a hop returns, plus one so the caller can tell it was cut. */
 export const FETCHER_HOP_MAX_BYTES = 4 * 1024 * 1024;
 export const FETCHER_HOP_MAX_TIMEOUT_MS = 30_000;
+/** A streamed hop's limits: the upload cap, and the time for all of it. */
+export const FETCHER_STREAM_MAX_BYTES = 100 * 1024 * 1024;
+export const FETCHER_STREAM_MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface FetcherHopRequest {
   addresses: string[];
@@ -78,8 +91,8 @@ export interface FetcherHopRequest {
 }
 
 /**
- * A 200 from FETCHER_HOP_PATH carries the upstream body (at most
- * `maxBytes + 1` bytes) with the upstream status and headers in these. A hop
+ * A 200 from FETCHER_HOP_PATH or FETCHER_STREAM_PATH carries the upstream
+ * body (at most `maxBytes + 1` bytes) with the upstream status and headers in these. A hop
  * the policy refuses, or that fails, is 422 `{error, reason}`.
  */
 export const FETCHER_HOP_RESPONSE_HEADERS = {

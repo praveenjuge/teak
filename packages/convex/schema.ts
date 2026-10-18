@@ -978,7 +978,8 @@ export default defineSchema({
   })
     .index("by_sourceCardId", ["sourceCardId"])
     .index("by_cardId", ["cardId"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"]),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

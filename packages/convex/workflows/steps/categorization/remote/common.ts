@@ -36,14 +36,18 @@ export interface RemoteResponse {
 export const fetchRemoteText = async (
   url: string,
   deps: RemoteFetchDeps,
-  { accept, maxBytes = REMOTE_MAX_BYTES }: { accept: string; maxBytes?: number }
+  {
+    accept,
+    headers,
+    maxBytes = REMOTE_MAX_BYTES,
+  }: { accept: string; headers?: Record<string, string>; maxBytes?: number }
 ): Promise<RemoteResponse> => {
   try {
     const { response } = await safeFetch(
       url,
       deps.resolveDns,
       {
-        headers: { accept, "user-agent": USER_AGENT },
+        headers: { ...headers, accept, "user-agent": USER_AGENT },
         signal: AbortSignal.timeout(deps.timeoutMs ?? REMOTE_FETCH_TIMEOUT_MS),
       },
       deps.pinnedFetch
@@ -130,3 +134,16 @@ export const buildFacts = (
   );
   return facts.length > 0 ? facts : undefined;
 };
+
+/**
+ * JSON-LD nodes, with the ones a page nests under `@graph` brought up: a list
+ * of nodes, or a single node object.
+ */
+export const jsonLdNodes = (entities: unknown[]): unknown[] =>
+  entities.flatMap((entity) => {
+    const graph = (entity as Record<string, unknown> | null)?.["@graph"];
+    if (Array.isArray(graph)) {
+      return [entity, ...graph];
+    }
+    return graph && typeof graph === "object" ? [entity, graph] : [entity];
+  });

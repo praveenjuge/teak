@@ -4,6 +4,7 @@ import {
   factValue,
   fetchRemoteJson,
   formatAuthors,
+  jsonLdNodes,
   type RemoteDetails,
   type RemoteFetchDeps,
 } from "./common";
@@ -58,7 +59,7 @@ export const normalizeIsbn = (value: unknown): string | undefined => {
 };
 
 const bookIsbns = (entities: unknown[]): unknown[] =>
-  entities.flatMap((entity) => {
+  jsonLdNodes(entities).flatMap((entity) => {
     const record = entity as Record<string, unknown> | null;
     const types = [record?.["@type"]].flat();
     return types.includes("Book") ? [record?.isbn].flat() : [];

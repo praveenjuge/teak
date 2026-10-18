@@ -46,6 +46,9 @@ const STRUCTURED_DATA_FIELDS = [
   "applicationCategory",
   "gamePlatform",
   "isbn",
+  // A podcast episode's audio file, for its transcript.
+  "associatedMedia",
+  "audio",
 ];
 
 const PLACE_TYPES = [
