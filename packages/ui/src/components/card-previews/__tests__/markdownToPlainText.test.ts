@@ -85,4 +85,13 @@ describe("markdownToPlainText", () => {
       )
     ).toBe("Long title here ".repeat(4).slice(0, 60).trim());
   });
+
+  test("never shows a link token the length cut splits", () => {
+    const id = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b";
+    const preview = markdownToPlainText(`[[a|teak:${id}]] `.repeat(300), {
+      maxLength: 1000,
+    });
+    expect(preview).not.toContain("teak:");
+    expect(preview).toMatch(/^a( a)+$/);
+  });
 });

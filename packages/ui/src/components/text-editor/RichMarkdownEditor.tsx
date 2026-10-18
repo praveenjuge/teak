@@ -214,7 +214,13 @@ export function RichMarkdownEditor({
                 const state = linkStateRef.current;
                 const items = state.status === "ready" ? state.items : [];
                 if (!(current && items.length)) {
-                  return event.key === "Enter" && Boolean(current);
+                  // Enter waits for a search in flight; with no match or an
+                  // error it types a new line as usual.
+                  return (
+                    event.key === "Enter" &&
+                    Boolean(current) &&
+                    state.status === "loading"
+                  );
                 }
                 if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                   setSelectedLink(

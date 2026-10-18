@@ -12,6 +12,8 @@ const TOKEN_REGEX = new RegExp(TOKEN_SOURCE, "g");
 const TITLE_UNSAFE_REGEX = /[|\]\r\n]+/g;
 const SPACES_REGEX = /\s+/g;
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;
+/** A closing fence has nothing after it: "```js" inside a block is code. */
+const CLOSING_FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const BACKTICK_RUN_REGEX = /`+/g;
 const ELLIPSIS = "…";
 const FALLBACK_TITLE = "Card";
@@ -102,17 +104,18 @@ const maskCode = (markdown: string): string => {
   let inIndented = false;
   return lines
     .map((line) => {
-      const fenceMatch = FENCE_REGEX.exec(line);
       if (fence) {
+        const closing = CLOSING_FENCE_REGEX.exec(line);
         if (
-          fenceMatch &&
-          fenceMatch[1][0] === fence[0] &&
-          fenceMatch[1].length >= fence.length
+          closing &&
+          closing[1][0] === fence[0] &&
+          closing[1].length >= fence.length
         ) {
           fence = null;
         }
         return blank(line);
       }
+      const fenceMatch = FENCE_REGEX.exec(line);
       if (fenceMatch) {
         fence = fenceMatch[1];
         return blank(line);
@@ -138,12 +141,17 @@ const findCardLinks = (markdown: string): CardLinkMatch[] => {
     return [];
   }
   const masked = maskCode(markdown);
-  return Array.from(masked.matchAll(TOKEN_REGEX), (match) => ({
-    end: (match.index ?? 0) + match[0].length,
-    id: match[2],
-    start: match.index ?? 0,
-    title: match[1],
-  }));
+  return Array.from(masked.matchAll(TOKEN_REGEX), (match) => {
+    const start = match.index;
+    // The title comes from the original: masking blanks backticks in it.
+    const titleStart = start + "[[".length;
+    return {
+      end: start + match[0].length,
+      id: match[2],
+      start,
+      title: markdown.slice(titleStart, titleStart + match[1].length),
+    };
+  });
 };
 
 /** Linked card ids in order, unique, at most `MAX_CARD_LINKS`; code excluded. */

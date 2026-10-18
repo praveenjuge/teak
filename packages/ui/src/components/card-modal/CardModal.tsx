@@ -40,12 +40,13 @@ import {
   X,
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useGlobalFileDrop } from "../../hooks/GlobalFileDropProvider";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
+import { useStableHandlers } from "../../hooks/useStableHandlers";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
@@ -362,6 +363,25 @@ export function CardModal({
       show();
     }
   };
+
+  // A pill or a Linked from row opens its card through goTo, like the
+  // arrows, so unsaved edits save first.
+  const linkHandlers = useStableHandlers({
+    openLinkedCard: (linkedCardId: string) => {
+      void goTo(() => onOpenCard?.(linkedCardId));
+    },
+  });
+  const openLinkedCard = onOpenCard ? linkHandlers.openLinkedCard : undefined;
+  const guardedCardLinks = useMemo(
+    () =>
+      cardLinks && {
+        ...cardLinks,
+        onOpenCard: cardLinks.onOpenCard
+          ? linkHandlers.openLinkedCard
+          : undefined,
+      },
+    [cardLinks, linkHandlers]
+  );
 
   const isDeleted = Boolean(card?.isDeleted);
   const canDownload = Boolean(
@@ -795,7 +815,7 @@ export function CardModal({
                   <div className={stageContentClass(card)}>
                     <CardPreview
                       card={card}
-                      cardLinks={cardLinks}
+                      cardLinks={guardedCardLinks}
                       getCurrentValue={getCurrentValue}
                       key={card._id}
                       saveChanges={() => {
@@ -819,7 +839,7 @@ export function CardModal({
                     onCardTypeClick={() => onCardTypeClick?.(card.type)}
                     onCommit={commit}
                     onNotesChange={editNotes}
-                    onOpenCard={onOpenCard}
+                    onOpenCard={openLinkedCard}
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)
                     }

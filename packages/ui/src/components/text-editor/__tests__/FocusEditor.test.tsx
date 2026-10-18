@@ -176,6 +176,11 @@ test.each([
     true,
   ],
   [
+    "the card link menu is open",
+    "<div role='listbox' aria-label='Link a card'></div><p data-active></p>",
+    true,
+  ],
+  [
     "the link editor has focus",
     "<div class='teak-editor-formatting'><input data-active /></div>",
     true,

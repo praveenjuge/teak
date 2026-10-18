@@ -149,13 +149,16 @@ describe("[[…]] card links", () => {
       const prepared = prepareMarkdownDocument(source);
       expect(prepared.literal).toBe(false);
       expect(markdownManager.serialize(prepared.document)).toBe(source);
-      expect(JSON.stringify(prepared.document)).toContain('"type":"cardLink"');
+      expect(
+        JSON.stringify(prepared.document).match(/"type":"cardLink"/g)
+      ).toHaveLength(source.split("[[").length - 1);
     }
   );
 
   test("a token in code stays code, not a pill", () => {
     const source = `\`[[A|teak:${id}]]\` code`;
     const prepared = prepareMarkdownDocument(source);
+    expect(prepared.literal).toBe(false);
     expect(JSON.stringify(prepared.document)).not.toContain("cardLink");
     expect(markdownManager.serialize(prepared.document)).toBe(source);
   });

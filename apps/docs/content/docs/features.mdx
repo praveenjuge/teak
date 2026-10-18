@@ -167,9 +167,9 @@ Link one card from another inside a note. Type `[[` in a note on the web, in the
 
 The link shows as a pill with the card's type and its current title, so renaming the card updates every pill that links to it. Click a pill, or select it and press Enter, to open that card. A link to a card in Trash, a deleted card, or a card that isn't yours shows as **Missing card** and does nothing; restoring the card from Trash brings its link back. Links inside code stay plain text.
 
-When you open a card that other notes link to, its details show **Linked from**, with up to 50 of those notes, most recently updated first, and **and more** when there are others. Click one to open it. Notes in Trash, and notes tagged `secret` or `hidden`, aren't listed.
+When you open a card that other notes link to, its details show **Linked from**, with up to 50 of those notes, most recently updated first, and **and more** when there are others. Click one to open it, after any edits to the open card save. Notes in Trash, and notes tagged `secret` or `hidden`, aren't listed. For a card more than 500 notes link to, the list draws on the 500 links made most recently.
 
-On card tiles in your library, on the web and on Mac, iPhone and iPad, a link reads as its title, and search finds a note by a linked card's title. Opening the note on Mac, iPhone or iPad shows the link as written: `[[Title|teak:<card-id>]]`, the same form exports, the API, MCP and the CLI use. **Linked from** counts up to 500 linked cards per note.
+On card tiles in your library, on the web and on Mac, iPhone and iPad, a link reads as its title, and search finds a note by a linked card's title. Tiles and search use the title the card had when you linked it; pills always show the current one. Opening the note on Mac, iPhone or iPad shows the link as written: `[[Title|teak:<card-id>]]`, the same form exports, the API, MCP and the CLI use. A note can link to any number of cards, but only its first 500 linked cards list it under **Linked from**.
 
 ### Grid
 

@@ -241,5 +241,5 @@ The phase plans flagged these choices. Each one is written up in its phase file,
 | 23 | The privacy policy names email sent to Save by email as a data source, and Cloudflare as receiving it |
 | 24 | Attachment cards don't carry the email's subject |
 | 25 | Skipped for now and left blocked, because the RSS feeds it extends (v1 phase 17) were never built |
-| 27 | `links` and `backlinks` appear only on single-card responses (`GET` a card, and the card a create, update, done or favorite returns), not on lists or `/v1/cards/changes` |
+| 27 | `links` and `backlinks` appear only on single-card responses (`GET` a card, and the card a create, update, done, favorite or thumbnail change returns), not on lists or `/v1/cards/changes` |
 | 28 | The ADHD page lives at `/save-without-filing` |

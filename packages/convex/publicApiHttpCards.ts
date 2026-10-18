@@ -142,10 +142,7 @@ const handleCreateCardRequest = async (
       result,
       request.url,
       "card" in result && result.card
-        ? ((await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
-            cardId: result.card._id,
-            userId: auth.validated.userId,
-          })) ?? undefined)
+        ? await loadCardLinks(ctx, auth.validated.userId, result.card._id)
         : undefined
     );
     await completeIdempotencyResponse(ctx, {
@@ -535,18 +532,36 @@ const resolveCardId = (
   });
 
 /** A single card's response body, with its `[[…]]` links and backlinks. */
+/**
+ * A card's links and backlinks for a response. A failed lookup leaves them
+ * out rather than failing a write that already happened.
+ */
+const loadCardLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+) => {
+  try {
+    return (
+      (await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+        cardId,
+        userId,
+      })) ?? undefined
+    );
+  } catch (error) {
+    console.warn("[publicApi] card links unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 const serializeCardWithLinks = async (
   ctx: ActionCtx,
   userId: string,
   card: CardWithUrls,
   requestUrl: string
-) => {
-  const links = await ctx.runQuery(
-    internal["card/cardLinks"].getCardLinksForUser,
-    { cardId: card._id, userId }
-  );
-  return serializeCard(card, requestUrl, links ?? undefined);
-};
+) =>
+  serializeCard(card, requestUrl, await loadCardLinks(ctx, userId, card._id));
 
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
@@ -655,7 +670,7 @@ const handleThumbnailRequest = async (
   const respondWithCard = async () => {
     const card = await ensureCardExistsForUser(ctx, userId, cardId, true);
     return card
-      ? json(200, serializeCard(card, request.url))
+      ? json(200, await serializeCardWithLinks(ctx, userId, card, request.url))
       : errorResponse(404, "NOT_FOUND", "Card not found");
   };
 

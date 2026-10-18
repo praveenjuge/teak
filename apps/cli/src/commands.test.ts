@@ -1026,6 +1026,33 @@ describe("teak batch and fallback behavior", () => {
 
     expect((await teak("links", "card_d")).stdout).toBe("No links.\n");
 
+    routes.set("GET /v1/cards/card_e", () =>
+      json(
+        card("card_e", {
+          backlinks: [
+            { id: "card_c", missing: false, title: "Review", type: "text" },
+          ],
+          backlinksTruncated: true,
+          links: [
+            { id: "card_b", missing: false, title: "Plan", type: "text" },
+          ],
+          linksTruncated: true,
+        })
+      )
+    );
+    expect((await teak("links", "card_e")).stdout).toBe(
+      [
+        "Links",
+        "card_b  text      Plan",
+        "and more (first 100 shown)",
+        "",
+        "Linked from",
+        "card_c  text      Review",
+        "and more (first 100 shown)",
+        "",
+      ].join("\n")
+    );
+
     const missing = await teak("links", "card_x");
     expect(missing.code).toBe(EXIT.notFound);
     expect(missing.stderr).toContain("Card not found");

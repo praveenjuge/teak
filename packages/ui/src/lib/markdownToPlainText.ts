@@ -77,6 +77,16 @@ function withEscapedPunctuation(
   );
 }
 
+/** The first `limit` characters, less a link token the cut splits. */
+const withoutCutToken = (input: string, limit: number): string => {
+  if (input.length <= limit) {
+    return input;
+  }
+  const head = input.slice(0, limit);
+  const open = head.lastIndexOf("[[");
+  return open !== -1 && !head.includes("]]", open) ? head.slice(0, open) : head;
+};
+
 export function markdownToPlainText(
   input?: string | null,
   { maxLength = MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
@@ -86,7 +96,7 @@ export function markdownToPlainText(
   }
   // `[[Title|teak:<id>]]` card links read as their titles.
   const source = mayHaveCardLinks(input)
-    ? cardLinkTokensToText(input.slice(0, maxLength + CARD_LINK_SLACK))
+    ? cardLinkTokensToText(withoutCutToken(input, maxLength + CARD_LINK_SLACK))
     : input;
   return withEscapedPunctuation(source.slice(0, maxLength), (text) => {
     const lines = applyRules(text, BLOCK_RULES)

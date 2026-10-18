@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import {
@@ -764,6 +764,37 @@ describe("publicApiHttp card endpoints", () => {
     expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
       "card/cardLinks:getCardLinksForUser"
     );
+  });
+
+  test("cardByIdV1 GET still returns the card when its links can't load", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        content: "See [[B|teak:card_2]]",
+        createdAt: 1,
+        type: "text",
+        updatedAt: 2,
+        userId: "user_1",
+      })
+      .mockRejectedValueOnce(new Error("timed out"));
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    warn.mockRestore();
+    expect(response.status).toBe(200);
+    const card = await response.json();
+    expect(card.id).toBe("card_1");
+    expect(card).not.toHaveProperty("links");
+    expect(card).not.toHaveProperty("backlinks");
   });
 
   test("changesCardsV1 leaves links and backlinks out of each item", async () => {

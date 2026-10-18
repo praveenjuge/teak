@@ -29,6 +29,11 @@ describe("parseCardLinkIds", () => {
       [ID_B],
     ],
     ["a tilde fence", `~~~md\n[[Plan|teak:${ID_A}]]\n~~~`, []],
+    [
+      "a fence line with an info string inside a block",
+      `\`\`\`\n\`\`\`js\n[[Plan|teak:${ID_A}]]\n\`\`\``,
+      [],
+    ],
     ["an indented block", `Intro\n\n    [[Plan|teak:${ID_A}]]`, []],
     ["an unclosed backtick", `\`oops [[Plan|teak:${ID_A}]]`, [ID_A]],
     ["no id", "[[x|teak:]]", []],
@@ -106,6 +111,12 @@ describe("replacing tokens", () => {
     );
     expect(result).toBe("a-b");
     expect(seen).toEqual([`A:${ID_A}`, `B:${ID_B}`]);
+  });
+
+  test("keeps backticks in a title", () => {
+    expect(cardLinkTokensToText(`See [[Use \`foo\`|teak:${ID_A}]].`)).toBe(
+      "See Use `foo`."
+    );
   });
 
   test("text with no links is returned as is", () => {

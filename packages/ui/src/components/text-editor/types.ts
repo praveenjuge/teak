@@ -1,7 +1,9 @@
+import type { CardType } from "@teak/convex/shared/constants";
+
 export interface CardLinkSuggestion {
   id: string;
   title: string;
-  type: string;
+  type: CardType;
 }
 
 /** A linked card as the pill shows it; `missing` when trashed or not yours. */
@@ -9,7 +11,7 @@ export interface CardLinkTarget {
   id: string;
   missing: boolean;
   title: string | null;
-  type: string | null;
+  type: CardType | null;
 }
 
 /** Turns on `[[` card links in the editor. */

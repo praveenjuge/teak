@@ -1,4 +1,3 @@
-import type { CardType } from "@teak/convex/shared/constants";
 import type { NodeViewProps } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { Unlink } from "lucide-react";
@@ -37,7 +36,7 @@ export function cardLinkPillState(
   return {
     missing: false,
     title: target?.title || storedTitle || "Card",
-    type: (target?.type ?? undefined) as CardType | undefined,
+    type: target?.type ?? undefined,
   };
 }
 

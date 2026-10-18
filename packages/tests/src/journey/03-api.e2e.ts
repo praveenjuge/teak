@@ -1,6 +1,6 @@
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
-import { expect, test } from "../helpers/test";
+import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
 test.beforeAll(async () => {
@@ -267,4 +267,47 @@ test("saving a color as content creates a palette card, not a text card", async 
       { timeout: 30_000, interval: 2000 }
     )
     .toBe("palette");
+});
+
+test("a card's links and backlinks are on the card, not on lists", async () => {
+  const openapi = await loadOpenApi();
+  const create = async (content: string) =>
+    (
+      await (
+        await apiFetch("/v1/cards", apiKey, {
+          method: "POST",
+          body: JSON.stringify({ content }),
+        })
+      ).json()
+    ).cardId as string;
+  const stamp = Date.now();
+  const targetId = await create(`api-link-target-${stamp}`);
+  const noteId = await create(`See [[Target|teak:${targetId}]] ${stamp}`);
+
+  await retry(
+    async () => {
+      const note = await apiFetch(`/v1/cards/${noteId}`, apiKey);
+      const body = await note.json();
+      openapi.validate("/v1/cards/{cardId}", "GET", note.status, body);
+      expect(body.links).toEqual([
+        {
+          id: targetId,
+          missing: false,
+          title: `api-link-target-${stamp}`,
+          type: "text",
+        },
+      ]);
+      const target = await (
+        await apiFetch(`/v1/cards/${targetId}`, apiKey)
+      ).json();
+      expect(target.backlinks.map((card: { id: string }) => card.id)).toEqual([
+        noteId,
+      ]);
+    },
+    { timeout: 30_000 }
+  );
+  const listed = await (await apiFetch("/v1/cards?limit=5", apiKey)).json();
+  for (const item of listed.items) {
+    expect(item).not.toHaveProperty("links");
+  }
 });

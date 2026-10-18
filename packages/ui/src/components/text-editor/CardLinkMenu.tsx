@@ -5,7 +5,6 @@ import {
   offset,
   shift,
 } from "@floating-ui/dom";
-import type { CardType } from "@teak/convex/shared/constants";
 import { useEffect, useId, useRef } from "react";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { Button } from "../ui/button";
@@ -36,6 +35,7 @@ export function CardLinkMenu({
   state,
 }: CardLinkMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const items = state.status === "ready" ? state.items : [];
 
@@ -74,12 +74,14 @@ export function CardLinkMenu({
   }, [anchor]);
 
   useEffect(() => {
-    ref.current?.children.item(selected)?.scrollIntoView({ block: "nearest" });
+    listRef.current?.children
+      .item(selected)
+      ?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
-  let body: React.ReactNode;
+  let message: React.ReactNode = null;
   if (state.status === "loading") {
-    body = (
+    message = (
       <div aria-busy="true" className="flex items-center gap-2 px-2 py-2">
         <span className="size-4 animate-pulse rounded bg-muted" />
         <span className="h-3 w-40 animate-pulse rounded-full bg-muted" />
@@ -87,52 +89,56 @@ export function CardLinkMenu({
       </div>
     );
   } else if (state.status === "error") {
-    body = (
+    message = (
       <p className={MESSAGE_CLASS} role="alert">
         Couldn't search cards
       </p>
     );
   } else if (items.length === 0) {
-    body = (
-      <p className={MESSAGE_CLASS}>
+    message = (
+      <p className={MESSAGE_CLASS} role="status">
         {query.trim() ? "No matching cards" : "No cards yet"}
       </p>
     );
-  } else {
-    body = items.map((item, index) => {
-      const Icon = getCardTypeIconComponent(item.type as CardType);
-      return (
-        <Button
-          aria-selected={selected === index}
-          className="w-full justify-start"
-          id={`${id}-${index}`}
-          key={item.id}
-          onClick={() => onChoose(item)}
-          onMouseDown={(event) => event.preventDefault()}
-          role="option"
-          title={item.title}
-          type="button"
-          variant={selected === index ? "secondary" : "ghost"}
-        >
-          <Icon aria-hidden className="text-muted-foreground" />
-          <span className="min-w-0 truncate" dir="auto">
-            {item.title}
-          </span>
-        </Button>
-      );
-    });
   }
 
+  // The listbox holds only options; loading, empty and error messages sit
+  // beside it.
   return (
     <div
-      aria-label="Link a card"
       className="fixed z-50 max-h-64 w-72 max-w-[calc(100vw-2rem)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
       data-slot="card-link-menu"
-      id={id}
       ref={ref}
-      role="listbox"
     >
-      {body}
+      <div aria-label="Link a card" id={id} ref={listRef} role="listbox">
+        {items.map((item, index) => {
+          const Icon = getCardTypeIconComponent(item.type);
+          return (
+            <Button
+              aria-selected={selected === index}
+              className="w-full justify-start"
+              id={`${id}-${index}`}
+              key={item.id}
+              onClick={() => {
+                onChoose(item);
+              }}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              role="option"
+              title={item.title}
+              type="button"
+              variant={selected === index ? "secondary" : "ghost"}
+            >
+              <Icon aria-hidden className="text-muted-foreground" />
+              <span className="min-w-0 truncate" dir="auto">
+                {item.title}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+      {message}
     </div>
   );
 }

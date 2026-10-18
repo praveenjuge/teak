@@ -28,17 +28,18 @@ Preconditions:
 Steps:
 
 - **Insert.** Mark the run: in the composer, `type` "verify-<run-id> see " then `type` "[[garden". The listbox "Link a card" shows "Garden plan". `press` "ArrowDown"/"ArrowUp" to move, `press` "Enter" to insert: a pill "Garden plan" replaces `[[garden`. `press` "Meta+Enter" to save. `type` "[[" then `press` "Escape": the list closes and `[[` stays as text. Inside a code block, `[[` opens no list.
-- **Live title.** Open the seeded "Garden plan" note, change its first line to "Garden plan 2026", close it. Open the note you made: the pill reads "Garden plan 2026".
+- **Live title.** Open the seeded "Garden plan" note, change its first line to "Garden plan 2026", close it. Open the note you made: the pill reads "Garden plan 2026". After **Open** below, change "Garden plan 2026" back to "Garden plan" so the next run finds the seeded title.
 - **Open.** `click` the pill (role link, name = the title): the dialog switches to "Garden plan 2026".
-- **Missing.** `press` "/", `type` "#scenario-card-links", open "Broken links": the pill for the card in Trash reads "Missing card", and so do "Gone" and "Someone else's". Restore "Trashed target" from Trash: its pill shows "Trashed target" again.
+- **Missing.** `press` "/", `type` "#scenario-card-links", open "Broken links": the pill for the card in Trash reads "Missing card", and so do "Gone" and "Someone else's". Restore "Trashed target" from Trash: its pill shows "Trashed target" again. Move it back to Trash so the next run starts from the seeded state.
 - **Linked from.** `type` "#scenario-backlinks" with `replace: true`, open "Hub with 60 backlinks": the region "Linked from" lists 50 notes and "and more"; the archived source is listed, the one in Trash isn't. `click` a row: that note opens.
 - **Tiles.** In `#scenario-card-links`, the "Links to itself" tile reads "Links to itself: Me", with no `teak:` text. Search `garden plan`: the note linking to it is found by the title.
-- **API, CLI, MCP.** With a minted key (`scripts/api-key.ts mint`): `curl -H "Authorization: Bearer $TEAK_API_KEY" "$BASE/v1/cards/<hub-id>"` has `backlinks` (100) and `backlinksTruncated: false` for the 60-link hub, `true` for the 120-link card; `GET /v1/cards/changes?since=0` items have no `links` key. `bun run --cwd apps/cli start links <hub-id>` prints "Linked from" lines; `--json` prints the four fields. The MCP `teak_v1_get_card_links` returns the same.
+- **API, CLI, MCP.** With a minted key (`scripts/api-key.ts mint`): `curl -H "Authorization: Bearer $TEAK_API_KEY" "$BASE/v1/cards/<hub-id>"` has 59 `backlinks` and `backlinksTruncated: false` for the 60-link hub (one source is in Trash), and 100 with `backlinksTruncated: true` for the 120-link card; `GET /v1/cards/changes?since=0` items have no `links` key. `TEAK_API_URL=$BASE TEAK_API_KEY=$TEAK_API_KEY bun apps/cli/src/index.ts links <hub-id>` prints "Linked from" lines; `--json` prints the four fields. The MCP `teak_v1_get_card_links` returns the same.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/web/card-links.e2e.ts`.
 
 ## Gotchas
 
 - Links are only to your own cards; a token naming another account's card never makes a backlink and shows "Missing card".
+- A note tagged `secret` or `hidden` never shows under "Linked from" or in `backlinks`.
 - A note indexes at most 500 linked cards for "Linked from"; later pills still render.
 - Native apps (Mac, iPhone, iPad) show the link as its title on tiles but the raw token inside the note.
 - Bold or italic around a link keeps the note as literal Markdown, as with other syntax the editor can't round-trip.

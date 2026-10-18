@@ -32,6 +32,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_get_card",
       "teak_v1_get_card_changes",
       "teak_v1_get_card_content",
+      "teak_v1_get_card_links",
       "teak_v1_get_folder",
       "teak_v1_get_me",
       "teak_v1_get_tag_operation",
@@ -102,6 +103,7 @@ test("MCP lists and calls every public tool", async () => {
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],
     ["teak_v1_get_card_content", { cardId }],
+    ["teak_v1_get_card_links", { cardId }],
     ["teak_v1_search_cards", { q: "mcp" }],
     ["teak_v1_list_favorite_cards", {}],
     ["teak_v1_update_card", { cardId, notes: "updated" }],
@@ -189,6 +191,35 @@ test("MCP lists and calls every public tool", async () => {
       name: "teak_v1_delete_tag",
       arguments: { tag: `${tag}-renamed`, confirm: true },
     })
+  );
+  await client.close();
+});
+
+test("MCP returns a card's links and the cards that link to it", async () => {
+  const client = await connectMcp(apiKey);
+  const stamp = Date.now();
+  const create = async (content: string) =>
+    (
+      (await client.callTool({
+        name: "teak_v1_create_card",
+        arguments: { content },
+      })) as any
+    ).structuredContent.cardId as string;
+  const targetId = await create(`mcp-link-target-${stamp}`);
+  const noteId = await create(`See [[Target|teak:${targetId}]] ${stamp}`);
+  await retry(
+    async () => {
+      const result: any = await client.callTool({
+        name: "teak_v1_get_card_links",
+        arguments: { cardId: targetId },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        backlinks: [{ id: noteId, missing: false }],
+        links: [],
+      });
+    },
+    { timeout: 30_000 }
   );
   await client.close();
 });

@@ -660,14 +660,16 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
-  test("get_card_links says one card links to it", async () => {
+  test("get_card_links says one card links to it and keeps the truncation flags", async () => {
     const executor = mock(() =>
       Promise.resolve(
         Response.json({
           backlinks: [
             { id: "card_2", missing: false, title: "B", type: "text" },
           ],
+          backlinksTruncated: true,
           links: [],
+          linksTruncated: true,
         })
       )
     ) as PublicApiToolExecutor;
@@ -679,6 +681,10 @@ describe("Convex MCP endpoint", () => {
     );
     expect(result.content[0]).toMatchObject({
       text: "Card card_1 links to 0 cards; 1 card links to it",
+    });
+    expect(result.structuredContent).toMatchObject({
+      backlinksTruncated: true,
+      linksTruncated: true,
     });
   });
 
