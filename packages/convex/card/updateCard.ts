@@ -46,7 +46,9 @@ const updateCardFieldValidator = v.union(
   v.literal("delete"),
   v.literal("restore"),
   v.literal("archive"),
-  v.literal("unarchive")
+  v.literal("unarchive"),
+  v.literal("done"),
+  v.literal("undone")
 );
 
 interface UpdateCardFieldForUserArgs {
@@ -63,7 +65,9 @@ interface UpdateCardFieldForUserArgs {
     | "delete"
     | "restore"
     | "archive"
-    | "unarchive";
+    | "unarchive"
+    | "done"
+    | "undone";
   tagToRemove?: string;
   userId: TeakUserId;
   value?: unknown;
@@ -414,6 +418,22 @@ const applyCardFieldEdit = (
   }
 };
 
+/** Only link cards outside Trash can be marked read, watched or done. */
+const assertCanMarkDone = (card: Doc<"cards">) => {
+  if (card.isDeleted) {
+    throw new ConvexError({
+      code: "CONFLICT",
+      message: "Restore this card from Trash before marking it done",
+    });
+  }
+  if (card.type !== "link") {
+    throw new ConvexError({
+      code: "TYPE_MISMATCH",
+      message: "Only link cards can be marked done",
+    });
+  }
+};
+
 const loadOwnedCard = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -562,6 +582,17 @@ export const updateCardFieldForUserHandler = async (
       }
       updateData.isArchived = undefined;
       updateData.archivedAt = undefined;
+      break;
+
+    // A retried "done" keeps the first date; neither touches a card already
+    // in the state asked for.
+    case "done":
+    case "undone":
+      assertCanMarkDone(card);
+      if ((field === "done") === (card.completedAt !== undefined)) {
+        return { pipelineDelayMs: null };
+      }
+      updateData.completedAt = field === "done" ? now : undefined;
       break;
 
     default:

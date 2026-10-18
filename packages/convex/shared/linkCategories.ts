@@ -77,6 +77,64 @@ export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
   other: "Link",
 };
 
+export type LinkDoneVerb =
+  | "read"
+  | "watched"
+  | "listened"
+  | "bought"
+  | "cooked"
+  | "played"
+  | "done";
+
+/** What finishing a link of each category is called: "Mark as read". */
+export const LINK_CATEGORY_DONE_VERB: Record<LinkCategory, LinkDoneVerb> = {
+  book: "read",
+  movie: "watched",
+  tv: "watched",
+  article: "read",
+  news: "read",
+  podcast: "listened",
+  music: "listened",
+  product: "bought",
+  recipe: "cooked",
+  course: "done",
+  research: "read",
+  event: "done",
+  software: "done",
+  design_portfolio: "done",
+  place: "done",
+  typeface: "done",
+  social_post: "done",
+  app: "done",
+  game: "played",
+  repo: "done",
+  other: "done",
+};
+
+/** Link categories `is:todo` lists: things saved to read, watch or buy. */
+export const ACTIONABLE_LINK_CATEGORIES: ReadonlySet<string> =
+  new Set<LinkCategory>([
+    "book",
+    "movie",
+    "tv",
+    "article",
+    "news",
+    "podcast",
+    "music",
+    "product",
+    "recipe",
+    "course",
+    "event",
+    "app",
+    "game",
+  ]);
+
+/** The done verb for a link's category; "done" when it has none or isn't known. */
+export const doneActionLabel = (category?: string | null): LinkDoneVerb =>
+  category && isLinkCategory(category)
+    ? LINK_CATEGORY_DONE_VERB[category]
+    : "done";
+
 /**
  * Mastodon instances whose `/@user/<id>` paths the URL rules trust as posts.
  * The path alone is not enough (any blog can use it); other instances are

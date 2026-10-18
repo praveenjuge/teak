@@ -223,7 +223,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(34);
+    expect(operationIds).toHaveLength(36);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

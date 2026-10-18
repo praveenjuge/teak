@@ -329,6 +329,43 @@ describe("teak parity commands", () => {
     expect(JSON.parse(result.stdout).items).toHaveLength(2);
   });
 
+  test("done marks a link done, --undo clears it, and a note is refused", async () => {
+    const link = card("card_a", { type: "link", url: "https://example.com" });
+    routes.set("POST /v1/cards/card_a/done", () =>
+      json({ ...link, completedAt: Date.UTC(2026, 9, 17) })
+    );
+    routes.set("DELETE /v1/cards/card_a/done", () => json(link));
+    routes.set("POST /v1/cards/note/done", () =>
+      json(
+        { code: "TYPE_MISMATCH", error: "Only link cards can be marked done" },
+        400
+      )
+    );
+    routes.set("GET /v1/cards/card_a", () =>
+      json({ ...link, completedAt: Date.UTC(2026, 9, 17) })
+    );
+
+    const done = await teak("done", "card_a");
+    const undone = await teak("cards", "done", "card_a", "--undo");
+    const refused = await teak("done", "note");
+    const detail = await teak("cards", "get", "card_a");
+
+    expect(
+      requests.map((request) => `${request.method} ${request.path}`)
+    ).toEqual([
+      "POST /v1/cards/card_a/done",
+      "DELETE /v1/cards/card_a/done",
+      "POST /v1/cards/note/done",
+      "GET /v1/cards/card_a",
+    ]);
+    expect(done.code).toBe(0);
+    expect(done.stdout).toContain("card_a");
+    expect(undone.code).toBe(0);
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("Only link cards can be marked done");
+    expect(detail.stdout).toContain("done: 2026-10-17T00:00:00.000Z");
+  });
+
   test("trash lists Trash and restore brings cards back", async () => {
     routes.set("GET /v1/cards", emptyPage);
     routes.set("POST /v1/cards/card_a/restore", noContent);

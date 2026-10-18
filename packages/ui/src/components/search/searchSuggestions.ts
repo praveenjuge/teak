@@ -62,7 +62,7 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "type", hint: "Links, images, notes…" },
   { key: "site", hint: "Links from a website" },
   { key: "folder", hint: "Cards in a folder" },
-  { key: "is", hint: "Favorites or archived" },
+  { key: "is", hint: "Favorites, archived, done or to do" },
   { key: "mood", hint: "Images by mood" },
   { key: "price", hint: "Price under or over" },
   { key: "text", hint: "Words in images and scans" },
@@ -71,6 +71,12 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
 const IS_OPTIONS = [
   { value: "fav", label: "Favorites", words: ["fav", "favorites", "starred"] },
   { value: "archived", label: "Archived", words: ["archived", "archive"] },
+  {
+    value: "done",
+    label: "Done",
+    words: ["done", "completed", "finished"],
+  },
+  { value: "todo", label: "To do", words: ["todo", "to-do"] },
 ] as const;
 
 const QUOTES = new Set(['"', "“", "”"]);
@@ -327,7 +333,9 @@ export function describeQualifierChip(
       return {
         qualifier,
         title: "Show",
-        label: qualifier.value === "fav" ? "Favorites" : "Archived",
+        label:
+          IS_OPTIONS.find((option) => option.value === qualifier.value)
+            ?.label ?? qualifier.value,
       };
     case "site":
       return {

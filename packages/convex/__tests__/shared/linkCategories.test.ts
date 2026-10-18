@@ -1,10 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import {
+  ACTIONABLE_LINK_CATEGORIES,
+  doneActionLabel,
   isLinkCategory,
   LINK_CATEGORIES,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
+  LINK_CATEGORY_DONE_VERB,
   LINK_CATEGORY_ICONS,
   LINK_CATEGORY_LABELS,
+  type LinkDoneVerb,
   MASTODON_HOSTS,
   normalizeLinkCategory,
 } from "../../shared/linkCategories";
@@ -220,5 +224,76 @@ describe("LINK_CATEGORY_DEFAULT_CONFIDENCE", () => {
 
   it("should be a reasonable default confidence", () => {
     expect(LINK_CATEGORY_DEFAULT_CONFIDENCE).toBe(0.6);
+  });
+});
+
+describe("done states", () => {
+  it("gives every category its done verb", () => {
+    expect(Object.keys(LINK_CATEGORY_DONE_VERB).sort()).toEqual(
+      [...LINK_CATEGORIES].sort()
+    );
+    expect(LINK_CATEGORY_DONE_VERB).toEqual({
+      book: "read",
+      movie: "watched",
+      tv: "watched",
+      article: "read",
+      news: "read",
+      podcast: "listened",
+      music: "listened",
+      product: "bought",
+      recipe: "cooked",
+      course: "done",
+      research: "read",
+      event: "done",
+      software: "done",
+      design_portfolio: "done",
+      place: "done",
+      typeface: "done",
+      social_post: "done",
+      app: "done",
+      game: "played",
+      repo: "done",
+      other: "done",
+    });
+  });
+
+  it("lists what is worth finishing, apps and games included", () => {
+    expect([...ACTIONABLE_LINK_CATEGORIES].sort()).toEqual(
+      [
+        "app",
+        "article",
+        "book",
+        "course",
+        "event",
+        "game",
+        "movie",
+        "music",
+        "news",
+        "podcast",
+        "product",
+        "recipe",
+        "tv",
+      ].sort()
+    );
+    expect(ACTIONABLE_LINK_CATEGORIES.has("repo")).toBe(false);
+  });
+
+  it.each<[string | null | undefined, LinkDoneVerb]>([
+    ["movie", "watched"],
+    ["game", "played"],
+    ["a-category-from-the-future", "done"],
+    [undefined, "done"],
+    [null, "done"],
+    ["", "done"],
+  ])("doneActionLabel(%p) is %p", (category, verb) => {
+    expect(doneActionLabel(category)).toBe(verb);
+  });
+
+  it("keeps every done label within 16 characters", () => {
+    for (const category of LINK_CATEGORIES) {
+      expect(`Mark as ${doneActionLabel(category)}`.length).toBeLessThanOrEqual(
+        16
+      );
+    }
   });
 });

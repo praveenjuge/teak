@@ -300,6 +300,13 @@ export function CardsScreen({
   );
   const anchorCardId =
     similarity?.kind === "like" ? similarity.cardId : undefined;
+  // `is:todo` typed or in the smart folder: an empty grid means all done.
+  const listsTodo = useMemo(
+    () =>
+      parseSearchQuery(queryArgs.searchQuery ?? "").todo ||
+      (isSmartFolder && parseSearchQuery(folder?.query ?? "").todo),
+    [queryArgs.searchQuery, isSmartFolder, folder?.query]
+  );
   const similarAnchor = useQuery(
     api.cards.similarAnchorSummary,
     anchorCardId ? { cardId: anchorCardId } : "skip"
@@ -652,7 +659,11 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <FolderSearch aria-hidden="true" className="size-4" />
           </span>
-          <p>No cards match this smart folder.</p>
+          <p>
+            {listsTodo
+              ? "Nothing left to do."
+              : "No cards match this smart folder."}
+          </p>
           <Button onClick={editSmartFolder} variant="outline">
             <Pencil />
             Edit search
@@ -754,7 +765,9 @@ export function CardsScreen({
       return (
         <div className="space-y-4 py-12 text-center">
           <p className="text-muted-foreground">
-            Nothing found matching your filters
+            {listsTodo
+              ? "Nothing left to do."
+              : "Nothing found matching your filters"}
           </p>
           <Button onClick={clearAllFilters} variant="outline">
             Clear filters

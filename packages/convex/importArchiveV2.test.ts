@@ -21,6 +21,7 @@ afterEach(() => {
 interface ItemSeed {
   content: string;
   folders?: string[];
+  importedCompletedAt?: number;
   isArchived?: boolean;
   metadataTitle?: string;
   type?: "text" | "link";
@@ -135,6 +136,31 @@ describe("schema v2 archive import", () => {
     expect(
       refreshed.find((folder) => folder.name === "Reading")?.activeCardCount
     ).toBe(1);
+  });
+
+  test("restores when a link was marked done, and only on a link", async () => {
+    const { run, cardByContent } = await setup();
+    await run([
+      {
+        type: "link",
+        content: "https://example.com/book",
+        url: "https://example.com/book",
+        importedCompletedAt: 1_780_000_000_000,
+      },
+      { content: "A note", importedCompletedAt: 1_780_000_000_000 },
+      {
+        type: "link",
+        content: "https://example.com/film",
+        url: "https://example.com/film",
+      },
+    ]);
+    expect((await cardByContent("https://example.com/book"))?.completedAt).toBe(
+      1_780_000_000_000
+    );
+    expect((await cardByContent("A note"))?.completedAt).toBeUndefined();
+    expect(
+      (await cardByContent("https://example.com/film"))?.completedAt
+    ).toBeUndefined();
   });
 
   test("reuses the user's folders and skips smart ones", async () => {

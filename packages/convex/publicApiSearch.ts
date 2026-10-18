@@ -49,6 +49,7 @@ import {
 } from "./search/semanticCache";
 import type { TeakUserId } from "./securitySessions";
 import {
+  matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
@@ -82,6 +83,8 @@ export interface SearchOptions {
   archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
+  /** `is:done`: only cards marked done. */
+  done?: boolean;
   favorited?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
@@ -108,6 +111,8 @@ export interface SearchOptions {
   styleFilters?: string[];
   tag?: string;
   tags?: string[];
+  /** `is:todo`: only actionable links that aren't done. */
+  todo?: boolean;
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }
@@ -252,6 +257,18 @@ export const matchesStructuredFilters = (
   if (
     options.ocrTexts?.length &&
     !matchesImageText(card.aiOcrText, options.ocrTexts)
+  ) {
+    return false;
+  }
+
+  // Only links can be done, whatever types the caller asked for.
+  if (
+    (options.done || options.todo) &&
+    (card.type !== "link" ||
+      !matchesDoneState(card, {
+        done: options.done === true,
+        todo: options.todo === true,
+      }))
   ) {
     return false;
   }
@@ -488,8 +505,10 @@ export const normalizeCardsQueryOptions = (args: {
   archivedInTrash?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
+  done?: boolean;
   ocrTexts?: string[];
   phrases?: string[];
+  todo?: boolean;
   prices?: PriceBound[];
   sites?: string[];
   tags?: string[];
@@ -515,6 +534,8 @@ export const normalizeCardsQueryOptions = (args: {
     archivedInTrash: args.archivedInTrash === true && args.showTrashOnly,
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
+    done: args.done === true || undefined,
+    todo: args.todo === true || undefined,
     ocrTexts: args.ocrTexts?.length ? args.ocrTexts : undefined,
     phrases: args.phrases?.length ? args.phrases : undefined,
     prices: args.prices?.length ? args.prices : undefined,

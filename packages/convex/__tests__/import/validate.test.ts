@@ -96,6 +96,33 @@ describe("Teak archive card validation", () => {
     expect(card).not.toHaveProperty("aiSummary");
   });
 
+  test("keeps an exported link's done date, and no other card's", () => {
+    const done = {
+      epochMs: 1_780_000_000_000,
+      iso: "2026-05-28T20:26:40.000Z",
+    };
+    expect(
+      validateImportCard({
+        type: "link",
+        content: "x",
+        url: "https://example.com",
+        completedAt: done,
+      }).completedAt
+    ).toBe(1_780_000_000_000);
+    expect(
+      validateImportCard({ type: "text", content: "x", completedAt: done })
+        .completedAt
+    ).toBeUndefined();
+    expect(
+      validateImportCard({
+        type: "link",
+        content: "x",
+        url: "https://example.com",
+        completedAt: "soon",
+      }).completedAt
+    ).toBeUndefined();
+  });
+
   test("never cuts a title inside an emoji", () => {
     const card = validateImportCard({
       type: "text",

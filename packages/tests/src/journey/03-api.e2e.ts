@@ -103,6 +103,54 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   expect(fetchedPayload.url).toBe(bookUrl);
 });
 
+test("a link is marked done and found with is:done; a note can't be", async () => {
+  const openapi = await loadOpenApi();
+  const url = `https://example.com/done-${Date.now()}`;
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ content: url, source: "e2e" }),
+  });
+  const { cardId } = await created.json();
+  const donePath = `/v1/cards/${cardId}/done`;
+
+  const marked = await apiFetch(donePath, apiKey, { method: "POST" });
+  expect(marked.status).toBe(200);
+  const markedCard = await marked.json();
+  openapi.validate("/v1/cards/{cardId}/done", "POST", 200, markedCard);
+  expect(markedCard.completedAt).toEqual(expect.any(Number));
+  // Marking it again keeps the first date.
+  const again = await (
+    await apiFetch(donePath, apiKey, { method: "POST" })
+  ).json();
+  expect(again.completedAt).toBe(markedCard.completedAt);
+
+  const done = await (
+    await apiFetch(`/v1/cards?q=${encodeURIComponent("is:done")}`, apiKey)
+  ).json();
+  expect(done.items.map((item: { id: string }) => item.id)).toContain(cardId);
+
+  const cleared = await apiFetch(donePath, apiKey, { method: "DELETE" });
+  expect(cleared.status).toBe(200);
+  const clearedCard = await cleared.json();
+  openapi.validate("/v1/cards/{cardId}/done", "DELETE", 200, clearedCard);
+  expect(clearedCard.completedAt).toBeNull();
+  expect((await apiFetch(donePath, apiKey, { method: "DELETE" })).status).toBe(
+    200
+  );
+
+  const note = await (
+    await apiFetch("/v1/cards", apiKey, {
+      method: "POST",
+      body: JSON.stringify({ content: `done note ${Date.now()}` }),
+    })
+  ).json();
+  const refused = await apiFetch(`/v1/cards/${note.cardId}/done`, apiKey, {
+    method: "POST",
+  });
+  expect(refused.status).toBe(400);
+  expect(await refused.json()).toMatchObject({ code: "TYPE_MISMATCH" });
+});
+
 test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {
   const marker = `api-markdown-${Date.now()}`;
   const original = `\uFEFF  # ${marker}\r\n\r\n- [ ] task  \r\nhttps://example.com  `;

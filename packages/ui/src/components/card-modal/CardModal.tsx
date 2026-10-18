@@ -1,5 +1,6 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,8 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  Circle,
+  CircleCheck,
   Copy,
   Download,
   Heart,
@@ -211,6 +214,8 @@ interface CardModalProps {
   tags: Omit<CardTagsControl, "inputRef">;
   /** Archives or unarchives the card; the dialog then closes. */
   toggleArchive?: () => void;
+  /** Marks a link read, watched, bought or done, or not; links only. */
+  toggleDone?: () => void;
   toggleFavorite: () => void;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
@@ -233,6 +238,7 @@ export function CardModal({
   updateNotes,
   updateTitle,
   toggleArchive,
+  toggleDone,
   toggleFavorite,
   handleDelete,
   handleRestore,
@@ -610,6 +616,14 @@ export function CardModal({
                     </HeaderIconButton>
                   )}
 
+                  {toggleDone && card.type === "link" && !isDeleted && (
+                    <DoneButton
+                      category={card.metadata?.linkCategory?.category}
+                      done={card.completedAt !== undefined}
+                      onClick={toggleDone}
+                    />
+                  )}
+
                   {card.url && !isDeleted && (
                     <Button
                       className="mx-1 h-8 rounded-full px-3 max-sm:w-8 max-sm:px-0"
@@ -874,6 +888,31 @@ async function copyToClipboard(text: string, message: string) {
   } catch {
     toast.error("Failed to copy");
   }
+}
+
+/**
+ * "Mark as read" until the link is done, then "Read", pressed. The word
+ * follows the link's category ("watched" for a film, "bought" for a
+ * product) and is "done" without one.
+ */
+export function DoneButton({
+  category,
+  done,
+  onClick,
+}: {
+  category?: string;
+  done: boolean;
+  onClick: () => void;
+}) {
+  const verb = doneActionLabel(category);
+  const label = done
+    ? `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`
+    : `Mark as ${verb}`;
+  return (
+    <HeaderIconButton label={label} onClick={onClick} pressed={done}>
+      {done ? <CircleCheck className="text-primary" /> : <Circle />}
+    </HeaderIconButton>
+  );
 }
 
 function HeaderIconButton({

@@ -212,6 +212,10 @@ const archivedInputSchema = z.object({
   cardId: nonEmptyString,
   isArchived: z.boolean(),
 });
+const doneInputSchema = z.object({
+  cardId: nonEmptyString,
+  done: z.boolean(),
+});
 const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
 const folderColorSchema = z.enum(FOLDER_COLORS);
 const smartFolderQuerySchema = nonEmptyString.max(
@@ -684,6 +688,15 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isArchived ? "archived" : "returned to the library"}`,
+  },
+  teak_v1_set_card_done: {
+    schema: doneInputSchema,
+    operation: (input) => ({
+      method: input.done ? "POST" : "DELETE",
+      path: `${cardPath(input.cardId)}/done`,
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.cardId} marked ${input.done ? "done" : "not done"}`,
   },
   teak_v1_delete_card: {
     schema: deleteCardInputSchema,
