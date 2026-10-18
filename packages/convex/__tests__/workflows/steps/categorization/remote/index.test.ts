@@ -135,6 +135,9 @@ describe("remoteSourceFor", () => {
     ).toBe("open_library");
     expect(sourceFor("https://www.amazon.com/dp/0140328727")).toBeNull();
     expect(sourceFor("https://www.amazon.com/dp/B08N5WRWNW")).toBeNull();
+    expect(sourceFor("https://www.amazon.com/gp/product/0140328726")).toBe(
+      "open_library"
+    );
   });
 });
 

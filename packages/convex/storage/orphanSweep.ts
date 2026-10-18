@@ -98,9 +98,14 @@ export const collectNonCardReferencedKeys = internalQuery({
         keys.push(job.reportKey);
       }
     }
-    // A Save PDF claim's object, kept for a retry before any card has it.
-    for await (const row of ctx.db.query("linkedPdfs")) {
-      keys.push(row.fileKey);
+    // A Save PDF claim's object, kept for a retry before any card has it. A
+    // finished claim's object is its document's, which the card pass counts.
+    for (const status of ["pending", "failed"] as const) {
+      for await (const row of ctx.db
+        .query("linkedPdfs")
+        .withIndex("by_status", (q) => q.eq("status", status))) {
+        keys.push(row.fileKey);
+      }
     }
     for await (const job of ctx.db.query("exportJobs")) {
       if (!job.artifactKey) {

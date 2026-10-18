@@ -785,7 +785,13 @@ describe("generating metadata", () => {
           linkCategory: {
             category: "research",
             fetchedAt: 1,
-            raw: { remote: { source: "arxiv", summary: "We propose X." } },
+            raw: {
+              remote: {
+                source: "arxiv",
+                sourceUrl: "https://arxiv.org/abs/1706.03762",
+                summary: "We propose X.",
+              },
+            },
             sourceUrl: "https://arxiv.org/abs/1706.03762",
           },
           linkPreview: { status: "success", title: "A paper" },
@@ -797,10 +803,38 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Summary: We propose X.");
     });
 
+    test("ignores a summary kept for the link's earlier URL", async () => {
+      const { generate } = setup({
+        metadata: {
+          linkCategory: {
+            category: "research",
+            fetchedAt: 1,
+            raw: {
+              remote: {
+                source: "arxiv",
+                sourceUrl: "https://arxiv.org/abs/1706.03762",
+                summary: "We propose X.",
+              },
+            },
+            sourceUrl: "https://arxiv.org/abs/1706.03762",
+          },
+          linkPreview: { status: "success", title: "Another page" },
+        },
+        url: "https://example.com/another-page",
+      });
+      await generate("link");
+      expect(aiPrompts[0]).toContain("Title: Another page");
+      expect(aiPrompts[0]).not.toContain("Summary:");
+    });
+
     test("reads an archived summary back from R2", async () => {
       const { bucket } = createMemoryBucket();
       const raw = JSON.stringify({
-        remote: { source: "wikipedia", summary: "Leaves make sugar." },
+        remote: {
+          source: "wikipedia",
+          sourceUrl: "https://en.wikipedia.org/wiki/Leaf",
+          summary: "Leaves make sugar.",
+        },
       });
       const digest = await sha256Hex(raw);
       const card = makeCard({});

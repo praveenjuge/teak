@@ -354,6 +354,47 @@ describe("Save PDF", () => {
     }
   );
 
+  test.each([
+    ["answers 500", () => new Response("boom", { status: 500 })],
+    [
+      "can't be reached",
+      () => {
+        throw new TypeError("fetch failed");
+      },
+    ],
+  ])(
+    "a Files Worker that %s is unavailable, and a retry tries again",
+    async (_name, respond) => {
+      let downloads = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: unknown, init?: RequestInit) => {
+          const body = JSON.parse(String(init?.body)) as WorkerCall;
+          if (body.op !== "store-linked-pdf") {
+            return Response.json({
+              ok: true,
+              version: 1,
+              requestId: "r",
+              data: { mutationId: "m" },
+            });
+          }
+          downloads++;
+          return await Promise.resolve().then(respond);
+        })
+      );
+      const { paper, save } = await setup();
+      const link = await paper();
+
+      await expect(save(link)).rejects.toMatchObject(
+        refusal("SERVICE_UNAVAILABLE")
+      );
+      await expect(save(link)).rejects.toMatchObject(
+        refusal("SERVICE_UNAVAILABLE")
+      );
+      expect(downloads).toBeGreaterThanOrEqual(2);
+    }
+  );
+
   test("over the card limit, and again right away, is the limit", async () => {
     const calls = stubWorker();
     const { paper, save, fillToLimit, rows } = await setup();

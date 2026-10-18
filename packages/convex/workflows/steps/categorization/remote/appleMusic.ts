@@ -8,6 +8,7 @@ import {
   factValue,
   formatAuthors,
   httpsUrlOn,
+  jsonLdNodes,
   type RemoteDetails,
 } from "./common";
 
@@ -56,7 +57,7 @@ export const readAppleMusicDetails = (
   rawMap: RawSelectorMap,
   entities: unknown[]
 ): RemoteDetails | null => {
-  const music = entities.find((entity) =>
+  const music = jsonLdNodes(entities).find((entity) =>
     typesOf(entity).some((type) => MUSIC_TYPES.includes(type))
   ) as Record<string, unknown> | undefined;
   const schemaType = music

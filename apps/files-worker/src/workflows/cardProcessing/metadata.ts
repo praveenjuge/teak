@@ -136,8 +136,12 @@ const linkSiteSummary = async (
       userId: card.userId,
     });
     const raw = hydrated.metadata?.linkCategory?.raw as
-      | { remote?: { summary?: unknown } }
+      | { remote?: { sourceUrl?: unknown; summary?: unknown } }
       | undefined;
+    // Details a site gave for the link's earlier URL describe another page.
+    if (raw?.remote?.sourceUrl !== (card.url || linkCategory.sourceUrl)) {
+      return;
+    }
     const summary = raw?.remote?.summary;
     return typeof summary === "string" ? summary : undefined;
   } catch (error) {
