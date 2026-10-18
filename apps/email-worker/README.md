@@ -67,7 +67,7 @@ dashboard of the deployment, and on the Worker that posts to it.
 
 ## Deploy runbook
 
-Do these in order. Until step 4 no mail reaches the Worker.
+Do these in order. Until step 4 no mail reaches the Worker, and nothing is public until step 6.
 
 1. **Secrets.** Generate a value per environment
    (`openssl rand -hex 32`). Set it in Convex (Settings → Environment
@@ -83,8 +83,9 @@ Do these in order. Until step 4 no mail reaches the Worker.
    (production uses the default, `in.teakvault.com`).
 2. **Deploy the Workers.** `bun run deploy` (production, `teak-email-in`)
    and `bun run deploy:development` (`teak-email-in-development`).
-3. **Deploy Convex and web** (merge the PR). The Settings switch appears;
-   without Email Routing nothing arrives yet.
+3. **This code on the dev deployment.** Push the branch's Convex functions
+   to the shared dev deployment (`bun run dev`; see `.agents/development.md`
+   for the push lease). Production stays as it is until step 6.
 4. **Email Routing on the subdomain.** In the Cloudflare dashboard for
    `teakvault.com`: Email Service → Email Routing → Settings → Subdomains,
    add `in-dev.teakvault.com` first. Cloudflare adds the subdomain's MX and
@@ -113,9 +114,12 @@ Do these in order. Until step 4 no mail reaches the Worker.
      and the sender's provider should retry (delayed delivery), not bounce.
      Restore the secret.
    - Check the cards in the dev app.
-6. **Production.** Repeat step 4 for `in.teakvault.com`, with the literal
-   rule for `save@in.teakvault.com` sending to `teak-email-in`, then
-   smoke-test with one email from a test account.
+6. **Merge.** Convex, web and the docs deploy: the Settings switch, the
+   docs section and the changelog entry go live together.
+7. **Production routing, straight after.** Repeat step 4 for
+   `in.teakvault.com`, with the literal rule for `save@in.teakvault.com`
+   sending to `teak-email-in`, then smoke-test with one email from a test
+   account.
 
 **Rollback:** disable the subdomain's `save@` rule (or Email Routing on the
 subdomain). The Worker and Convex can stay deployed.
