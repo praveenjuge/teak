@@ -44,7 +44,7 @@ Search titles, descriptions, tags, transcripts, the text inside your files, and 
 
 Search finds cards by meaning, not just exact words. `cozy reading nook` also finds a photo of an armchair by a window with books, a misspelled `typograhpy` still finds your type notes, and a search in another language finds cards saved in English. Cards that match your words always appear; cards related by meaning join them a moment later. Tokens and filters below apply to both, and the order you pick in **View** decides how they are sorted.
 
-Teak reads the text of PDFs, Word and PowerPoint files, and text and code files when you save them, and transcribes the speech in audio and video. Search then finds a card by a sentence in a PDF or a line someone said in a video. For a long document, search covers its first 32 KB of text (roughly 5,000 words); Teak keeps the text of the first 500 pages, and the API, MCP and CLI return all of it. When the words appear in the text of very many of your documents, search shows the 128 closest matches among them. A scanned PDF without a text layer is read instead: Teak reads the words on its first 3 pages, for search, its summary and its tags.
+Teak reads the text of PDFs, Word and PowerPoint files, and text and code files when you save them, and transcribes the speech in audio and video. Search then finds a card by a sentence in a PDF or a line someone said in a video. Links count too: a Vimeo video's captions, and what's said in a podcast episode whose page links to its audio (up to 100 MB of audio), become the card's transcript, so search finds the episode by a phrase in it, and its summary and tags describe what's said. For a long document, search covers its first 32 KB of text (roughly 5,000 words); Teak keeps the text of the first 500 pages, and the API, MCP and CLI return all of it. When the words appear in the text of very many of your documents, search shows the 128 closest matches among them. A scanned PDF without a text layer is read instead: Teak reads the words on its first 3 pages, for search, its summary and its tags.
 
 Teak also reads the words in images and in a video's thumbnail when you save them: a receipt, a screenshot of code, a sign, a slide. Search then finds the receipt by its invoice number. Teak uses these words only to find your cards; it doesn't show them.
 
@@ -257,13 +257,13 @@ Each card is processed automatically:
 | **Summaries** | Short descriptions for scanning |
 | **Categorization** | Link type (article, news, book, movie, TV, podcast, music, product, recipe, course, research, event, software, design, place, typeface, social post, app, game, or code repository), read from the page when no site rule fits |
 | **Color extraction** | Dominant colors in images |
-| **Transcription** | Audio → searchable text |
+| **Transcription** | Audio, video, Vimeo captions and podcast episodes → searchable text |
 | **Text in images** | Words in images, video thumbnails, link previews and screenshots, and the first 3 pages of scanned PDFs, for search |
 | **Thumbnails** | Previews for video and documents |
 
 ### Refresh details
 
-If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
+If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview, and a Vimeo video's captions or a podcast episode's audio again for its transcript. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
 
 ### Replace a link's image
 
@@ -281,6 +281,7 @@ Some sites tell Teak more about a link than the page does:
 
 - **Wikipedia:** the article's short description and when it was last edited, and its lead image when the page has none. A disambiguation page says so. The article's opening paragraph also shapes Teak's summary.
 - **arXiv:** the paper's authors (the first three, then "et al."), publish date, subject and DOI. The abstract shapes the summary.
+- **YouTube:** the channel, the video's length and when it was uploaded.
 - **Spotify and Apple Music:** the artist and whether it's a track, album, playlist or episode, with the cover art.
 - **Books:** a book page that states its ISBN in its page data (as Goodreads does), or an Amazon link with the ISBN in its address, gets its author, page count, publisher, publish date and ISBN from Open Library, and its cover when the page has none. What the page says itself always wins.
 

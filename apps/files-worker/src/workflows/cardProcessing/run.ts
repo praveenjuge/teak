@@ -33,6 +33,7 @@ import {
 } from "./linkMetadata";
 import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
+import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
 import {
   extractPaletteFromImage,
   generateRenderables,
@@ -61,6 +62,11 @@ const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);
 const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
+/**
+ * Download, Whisper and a summary: a busy renderer or Workers AI gets one
+ * more try a minute later.
+ */
+const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
 /** Two Gemma calls; a busy Workers AI waits 30 s, then 60 s. */
 const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
 
@@ -410,6 +416,33 @@ const processCard = async (
       return null;
     })
     .catch(() => null);
+
+  // A podcast episode's transcript comes after the card is complete: no
+  // stage waits on it, and a miss or an error never fails the card.
+  if (
+    isPodcastLink(cardType, categorization?.category) &&
+    metadata?.mode === "completed"
+  ) {
+    await step
+      .do("transcribe podcast", PODCAST_STEP, () =>
+        withWorkflowTelemetry(job.env, async (telemetry) => {
+          const outcome = await transcribePodcastEpisode(job, telemetry);
+          console.log("[cardProcessing] podcast transcript", {
+            cardId: job.cardId,
+            ...outcome,
+          });
+          return outcome;
+        })
+      )
+      .catch((error: unknown) => {
+        rethrowSuperseded(error);
+        console.warn("[cardProcessing] Podcast transcript failed", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
+  }
 
   return {
     ...completedResult(classified, cardType, metadata, renderables),

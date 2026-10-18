@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Example Show</title>
+    <link>https://podcast.example.com/</link>
+    <atom:link href="https://podcast.example.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title><![CDATA[Episode 2: Tides & Moons]]></title>
+      <link>https://podcast.example.com/episodes/2</link>
+      <guid isPermaLink="false">example-show-2</guid>
+      <itunes:title>Tides and Moons</itunes:title>
+      <enclosure url="https://cdn.example.com/audio/episode-2.mp3" type="audio/mpeg" length="20971520"/>
+    </item>
+    <item>
+      <title>Episode 1: Rivers</title>
+      <guid isPermaLink="true">https://podcast.example.com/e/1</guid>
+      <enclosure url="https://cdn.example.com/audio/episode-1.m4a" type="audio/x-m4a" length="1048576"/>
+    </item>
+    <item>
+      <title>Bonus: Trailer</title>
+      <link>https://podcast.example.com/episodes/trailer</link>
+    </item>
+  </channel>
+</rss>

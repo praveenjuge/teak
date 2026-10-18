@@ -943,6 +943,75 @@ describe("devSeed folder packs", () => {
     ).toBe(true);
   });
 
+  test("video-captions seeds YouTube facts and Vimeo transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "seeded",
+      cards: 10,
+    });
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-video-captions")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.metadata
+        ?.linkCategory?.facts
+    ).toEqual([
+      { label: "Channel", value: "Example Channel" },
+      { label: "Length", value: "1h 2m" },
+      { label: "Uploaded", value: "Sep 14, 2026" },
+    ]);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.aiTranscript
+    ).toBeUndefined();
+    expect(byTitle("A two-hour Vimeo lecture")?.aiTranscript).toContain(
+      "velvet harbor theorem"
+    );
+    expect(
+      byTitle("A private Vimeo video with no captions")?.aiTranscript
+    ).toBeUndefined();
+  });
+
+  test("podcast-transcripts seeds episodes with and without transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+    });
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-podcast-transcripts")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(byTitle("Episode 42: Tide pools")).toMatchObject({
+      aiTranscript: expect.stringContaining("hermit crab"),
+      metadata: { linkCategory: { category: "podcast" } },
+    });
+    expect(
+      byTitle("A Spotify episode (no public audio)")?.aiTranscript
+    ).toBeUndefined();
+    // Every episode is a podcast link, so processing would try it.
+    expect(
+      cards
+        .filter(
+          (card) =>
+            card.type === "link" &&
+            card.metadataTitle !== "Podcast transcripts pack"
+        )
+        .map((card) => card.metadata?.linkCategory?.category)
+    ).toEqual(new Array(7).fill("podcast"));
+    expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
+  });
+
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();

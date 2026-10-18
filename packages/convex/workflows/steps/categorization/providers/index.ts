@@ -5,6 +5,7 @@ import { enrichDribbble } from "./dribbble";
 import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
+import { enrichYoutube } from "./youtube";
 
 interface ProviderHandler {
   categories: LinkCategory[];
@@ -31,6 +32,10 @@ const handlers: Record<string, ProviderHandler> = {
   dribbble: {
     categories: ["design_portfolio"],
     enrich: enrichDribbble,
+  },
+  youtube: {
+    categories: ["tv", "movie", "course"],
+    enrich: enrichYoutube,
   },
 };
 

@@ -259,6 +259,20 @@ export const createCardConvex = (
         return null;
       }
     ),
+    "workflows/steps/podcast/mutations:takePodcastTranscriptSlot": () => true,
+    "workflows/steps/podcast/mutations:trackPodcastAudio": write(
+      "trackPodcastAudio",
+      (args) => {
+        const keys = (
+          ((card as FakeCard).workflowArtifactKeys as string[] | undefined) ??
+          []
+        ).filter((key) => key !== args.key);
+        (card as FakeCard).workflowArtifactKeys = args.stored
+          ? [...keys, args.key as string]
+          : keys;
+        return true;
+      }
+    ),
     "workflows/steps/renderables/mutations:markCardRenderablesFailed": write(
       "markCardRenderablesFailed",
       (args) => {

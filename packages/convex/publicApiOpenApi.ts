@@ -87,7 +87,11 @@ const tagListSchema = {
 const cardProperties = {
   aiSummary: { type: ["string", "null"] },
   aiTags: { items: { type: "string" }, type: "array" },
-  aiTranscript: { type: ["string", "null"] },
+  aiTranscript: {
+    description:
+      "What is said in the card: an audio or video file's transcript, a Vimeo video's captions, or a podcast episode's transcript.",
+    type: ["string", "null"],
+  },
   appUrl: { format: "uri", type: "string" },
   compactUrl: {
     description:

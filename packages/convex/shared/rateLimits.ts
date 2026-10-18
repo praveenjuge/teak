@@ -1,4 +1,4 @@
-import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
+import { HOUR, MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
 export const RATE_LIMIT_CONFIG = {
@@ -67,6 +67,14 @@ export const RATE_LIMIT_CONFIG = {
     rate: 10,
     period: MINUTE,
     capacity: 10,
+  },
+  // Podcast episodes transcribed with Whisper (the Files Worker's podcast
+  // step), per account: bounds what a link card can cost in transcription.
+  podcastTranscription: {
+    kind: "token bucket",
+    rate: 20,
+    period: HOUR,
+    capacity: 20,
   },
   // arXiv's API asks for at most one request every 3 seconds per client;
   // the whole deployment shares it (workflows/steps/categorization).

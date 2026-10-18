@@ -1,0 +1,31 @@
+{
+  "resultCount": 3,
+  "results": [
+    {
+      "wrapperType": "track",
+      "kind": "podcast",
+      "collectionId": 1500000000,
+      "trackId": 1500000000,
+      "trackName": "Example Show"
+    },
+    {
+      "wrapperType": "podcastEpisode",
+      "kind": "podcast-episode",
+      "trackId": 1000700000001,
+      "trackName": "Episode 2: Tides & Moons",
+      "episodeUrl": "https://cdn.example.com/audio/episode-2.mp3",
+      "episodeContentType": "audio",
+      "episodeFileExtension": "mp3",
+      "trackTimeMillis": 1662000
+    },
+    {
+      "wrapperType": "podcastEpisode",
+      "kind": "podcast-episode",
+      "trackId": 1000700000002,
+      "trackName": "Episode 3: Video",
+      "episodeUrl": "https://cdn.example.com/video/episode-3.mp4",
+      "episodeContentType": "video",
+      "episodeFileExtension": "mp4"
+    }
+  ]
+}

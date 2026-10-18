@@ -18,6 +18,8 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   // The categorize step's arXiv API slot: a deployment-wide rate limit, not
   // tied to a card (workflows/steps/categorization/mutations.ts).
   "workflows/steps/categorization/mutations:takeArxivSlot",
+  // A podcast transcription slot for the card's owner (20 an hour).
+  "workflows/steps/podcast/mutations:takePodcastTranscriptSlot",
   // Card processing (apps/files-worker/src/workflows/cardProcessing) and the
   // AI backfill queue. Every mutation runs guarded by the card's revision.
   "adminAccess:getAiGate",
@@ -36,6 +38,7 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "workflows/aiMetadata/mutations:updateCardAI",
   "workflows/aiMetadata/mutations:updateCardColors",
   "workflows/steps/categorization/mutations:updateCategorization",
+  "workflows/steps/podcast/mutations:trackPodcastAudio",
   "workflows/steps/classificationMutations:recordClassification",
   "workflows/steps/renderables/mutations:markCardRenderablesFailed",
   "workflows/steps/renderables/mutations:updateCardFileMetadata",

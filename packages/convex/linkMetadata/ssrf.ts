@@ -352,13 +352,18 @@ export const safeFetch = async (
   rawUrl: string,
   resolveDns: DnsResolver,
   init: RequestInit = {},
-  pinnedFetch?: PinnedFetch
+  pinnedFetch?: PinnedFetch,
+  /**
+   * Hops to follow; every one is checked. Podcast audio passes more, for the
+   * tracking redirects hosts put in front of an episode.
+   */
+  maxRedirects = MAX_REDIRECTS
 ): Promise<{ finalUrl: string; response: Response }> => {
   const request: PinnedFetch =
     pinnedFetch ?? ((url, _addresses, requestInit) => fetch(url, requestInit));
   let currentUrl = rawUrl;
 
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+  for (let hop = 0; hop <= maxRedirects; hop++) {
     const { addresses, url } = await resolveSafeUrl(currentUrl, resolveDns);
     const timeoutSignal = AbortSignal.timeout(SAFE_FETCH_TIMEOUT_MS);
     const signal = init.signal
@@ -380,10 +385,10 @@ export const safeFetch = async (
       return { finalUrl: url.href, response };
     }
 
-    if (hop === MAX_REDIRECTS) {
+    if (hop === maxRedirects) {
       throw new RedirectError(
         "too_many_redirects",
-        `Exceeded ${MAX_REDIRECTS} redirects starting from ${rawUrl}`
+        `Exceeded ${maxRedirects} redirects starting from ${rawUrl}`
       );
     }
 

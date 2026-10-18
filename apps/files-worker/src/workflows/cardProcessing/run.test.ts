@@ -228,6 +228,99 @@ describe("card processing", () => {
       url: "https://example.com/article",
     });
 
+  const EPISODE_HTML = `<html><head>
+  <title>Episode 42</title>
+  <meta property="og:title" content="Episode 42: Leaves">
+  <meta property="og:audio" content="https://audio.example.com/42.mp3">
+</head><body></body></html>`;
+
+  const podcastRun = async (step?: Parameters<typeof createFakeStep>[0]) => {
+    const card = makeCard({
+      content: "https://example.com/podcast/episode-42",
+      processingStatus: {
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/podcast/episode-42",
+    });
+    const ctx = setup(
+      card,
+      {
+        "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "extract-image-text": { data: { text: "" } },
+        "fetch-link-page": {
+          data: {
+            charset: "utf-8",
+            fetched: true,
+            htmlGzipBase64: await gzipBase64(EPISODE_HTML),
+            pageUrl: "https://example.com/podcast/episode-42",
+            selectors: buildSelectorResultsFromHtml(
+              EPISODE_HTML,
+              SCRAPE_ELEMENTS
+            ),
+            source: "static",
+          },
+        },
+        "generate-link-metadata": textMetadataAnswer(["podcast"]),
+      },
+      { step }
+    );
+    return { card, ...ctx };
+  };
+
+  test("a podcast link's transcript comes after the run has completed", async () => {
+    const { card, convex, fakeStep, run } = await podcastRun();
+
+    const result = await run();
+
+    expect(
+      (card.metadata as { linkCategory: { category: string } }).linkCategory
+        .category
+    ).toBe("podcast");
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "classify",
+      "fetch link metadata",
+      "categorize",
+      "generate metadata",
+      "capture screenshot",
+      "read link image text",
+      "emit completion",
+      "transcribe podcast",
+      "report complete",
+    ]);
+    // No stage waits on it: the card was complete before it started.
+    expect(
+      Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
+    ).not.toContain("in_progress");
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a podcast transcript that fails for good leaves the run completed", async () => {
+    const { convex, fakeStep, run } = await podcastRun({
+      failures: {
+        "transcribe podcast": {
+          error: new Error("renderer unavailable"),
+          times: 5,
+        },
+      },
+    });
+
+    const result = await run();
+
+    expect(fakeStep.records.at(-2)).toMatchObject({
+      name: "transcribe podcast",
+      outcome: "error",
+    });
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
   const finalError = (message: string) =>
     Object.assign(new Error(message), { name: "NonRetryableError" });
 

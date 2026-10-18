@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Example Atom Show</title>
+  <link href="https://atom.example.com/"/>
+  <entry>
+    <title>Mountains</title>
+    <id>tag:atom.example.com,2026:mountains</id>
+    <link rel="alternate" href="https://atom.example.com/mountains/"/>
+    <link rel="enclosure" type="audio/mpeg" length="5242880" href="https://cdn.example.com/atom/mountains.mp3"/>
+  </entry>
+  <entry>
+    <title>Valleys</title>
+    <id>tag:atom.example.com,2026:valleys</id>
+    <link href="https://atom.example.com/valleys"/>
+    <link rel="enclosure" type="audio/mpeg" href="https://cdn.example.com/atom/valleys.mp3"/>
+  </entry>
+</feed>

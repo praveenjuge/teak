@@ -102,15 +102,20 @@ export const formatRating = (value?: string): string | undefined => {
   return numeric.toFixed(2);
 };
 
+const ISO_DAY_REGEX = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
+
 export const formatDate = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
-  const date = new Date(value);
+  // An ISO date keeps the day it states ("2009-10-24T23:57:33-07:00" is Oct
+  // 24, not the UTC day), and a date-only value keeps its day wherever it
+  // runs.
+  const isoDay = ISO_DAY_REGEX.exec(value.trim())?.[1];
+  const date = new Date(isoDay ?? value);
   if (Number.isNaN(date.getTime())) {
     return undefined;
   }
-  // UTC, so a date-only value ("2023-10-27") keeps its day wherever it runs.
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",

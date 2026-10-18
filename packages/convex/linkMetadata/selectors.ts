@@ -100,6 +100,21 @@ export const SPOTIFY_SOURCES: SelectorSource[] = [
   { selector: "meta[name='music:musician_description']", attribute: "content" },
 ];
 
+// Where a podcast episode's audio is: its own audio tag, or the show's feed.
+export const PODCAST_SOURCES: SelectorSource[] = [
+  { selector: "meta[property='og:audio']", attribute: "content" },
+  { selector: "meta[property='og:audio:secure_url']", attribute: "content" },
+  { selector: "meta[property='og:audio:type']", attribute: "content" },
+  {
+    selector: "link[rel='alternate'][type='application/rss+xml']",
+    attribute: "href",
+  },
+  {
+    selector: "link[rel='alternate'][type='application/atom+xml']",
+    attribute: "href",
+  },
+];
+
 export const AMAZON_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:price:amount']", attribute: "content" },
   { selector: "meta[property='og:price:currency']", attribute: "content" },
@@ -107,6 +122,14 @@ export const AMAZON_SOURCES: SelectorSource[] = [
   { selector: "#priceblock_ourprice", attribute: "text" },
   { selector: "#priceblock_dealprice", attribute: "text" },
   { selector: ".a-price .a-offscreen", attribute: "text" },
+];
+
+// YouTube's watch page states the channel, length and upload date in
+// schema.org microdata.
+export const YOUTUBE_SOURCES: SelectorSource[] = [
+  { selector: "meta[itemprop='duration']", attribute: "content" },
+  { selector: "link[itemprop='name']", attribute: "content" },
+  { selector: "meta[itemprop='uploadDate']", attribute: "content" },
 ];
 
 export const IMDB_SOURCES: SelectorSource[] = [
@@ -169,8 +192,10 @@ export const SCRAPE_ELEMENTS = Array.from(
       ...GITHUB_SOURCES,
       ...GOODREADS_SOURCES,
       ...SPOTIFY_SOURCES,
+      ...PODCAST_SOURCES,
       ...AMAZON_SOURCES,
       ...IMDB_SOURCES,
+      ...YOUTUBE_SOURCES,
       ...DRIBBBLE_SOURCES,
     ].map((source) => [source.selector, { selector: source.selector }])
   ).values()

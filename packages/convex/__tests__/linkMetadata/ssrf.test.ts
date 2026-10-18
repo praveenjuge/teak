@@ -284,6 +284,45 @@ describe("safeFetch", () => {
     expect((error as RedirectError).reason).toBe("too_many_redirects");
   });
 
+  test("a caller can allow a longer redirect chain, every hop still checked", async () => {
+    // Six tracking hops, as podcast hosts stack in front of an episode.
+    const chain = (requests: string[]) =>
+      ((input: RequestInfo | URL) => {
+        const url = new URL(String(input));
+        requests.push(url.pathname);
+        const hop = Number(url.pathname.slice("/hop".length) || 0);
+        return Promise.resolve(
+          hop < 6
+            ? new Response(null, {
+                headers: { location: `/hop${hop + 1}` },
+                status: 302,
+              })
+            : new Response("audio")
+        );
+      }) as typeof fetch;
+
+    const refused: string[] = [];
+    globalThis.fetch = chain(refused);
+    const error = await safeFetch("https://8.8.8.8/hop0", resolveUnused).catch(
+      (caught: unknown) => caught
+    );
+    expect((error as RedirectError).reason).toBe("too_many_redirects");
+    expect(refused).toHaveLength(6);
+
+    const followed: string[] = [];
+    globalThis.fetch = chain(followed);
+    const { finalUrl, response } = await safeFetch(
+      "https://8.8.8.8/hop0",
+      resolveUnused,
+      {},
+      undefined,
+      8
+    );
+    expect(finalUrl).toBe("https://8.8.8.8/hop6");
+    expect(await response.text()).toBe("audio");
+    expect(followed).toHaveLength(7);
+  });
+
   test("passes only validated DNS addresses to the connection", async () => {
     const pinned = (url: string, addresses: string[], init: RequestInit) => {
       expect(url).toBe("https://example.com/");

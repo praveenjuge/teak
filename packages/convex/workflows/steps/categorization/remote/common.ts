@@ -57,14 +57,18 @@ export interface RemoteResponse {
 export const fetchRemoteText = async (
   url: string,
   deps: RemoteFetchDeps,
-  { accept, maxBytes = REMOTE_MAX_BYTES }: { accept: string; maxBytes?: number }
+  {
+    accept,
+    headers,
+    maxBytes = REMOTE_MAX_BYTES,
+  }: { accept: string; headers?: Record<string, string>; maxBytes?: number }
 ): Promise<RemoteResponse> => {
   try {
     const { response } = await safeFetch(
       url,
       deps.resolveDns,
       {
-        headers: { accept, "user-agent": USER_AGENT },
+        headers: { ...headers, accept, "user-agent": USER_AGENT },
         signal: AbortSignal.timeout(deps.timeoutMs ?? REMOTE_FETCH_TIMEOUT_MS),
       },
       deps.pinnedFetch
