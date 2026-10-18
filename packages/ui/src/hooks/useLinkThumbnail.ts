@@ -39,7 +39,7 @@ export function useLinkThumbnail(
     cardId: string;
     previewUrl?: string;
   } | null>(null);
-  const busy = useRef(false);
+  const busy = useRef<boolean>(false);
   const activePreviewUrl = active?.previewUrl;
 
   useEffect(() => {

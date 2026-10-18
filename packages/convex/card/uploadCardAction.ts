@@ -253,7 +253,7 @@ const finalizeForUser = async (
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).publicApiUploads.finalizeUploadedCardForUser,
+      internal.publicApiUploads.finalizeUploadedCardForUser,
       {
         additionalMetadata: {
           ...trustedAdditionalMetadata,

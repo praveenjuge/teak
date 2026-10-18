@@ -10,10 +10,17 @@ import {
   type StackState,
   stopOrphanedStack,
 } from "./lib/stack-state.ts";
-import type { SetupReport } from "./setup.ts";
+import { resolveSetupConvex, runSetup, type SetupReport } from "./setup.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
+/**
+ * `bun run dev` starts here. This module imports no installed packages, so it
+ * can install them and set up the checkout before it replaces itself with
+ * scripts/dev-main.ts, which imports the packages that run the app.
+ */
+
 const ROOT = join(import.meta.dir, "..");
+const DEV_MAIN = join(ROOT, "scripts/dev-main.ts");
 
 export const DEV_TARGETS: Record<string, string[]> = {
   web: ["@teak/web", "@teak/convex"],
@@ -133,17 +140,6 @@ export const needsWebEnv = (target: string, all = false): boolean => {
   return (DEV_TARGETS[target] ?? []).includes("@teak/web");
 };
 
-// Loaded on demand: the validator reads the web app's config, which needs
-// installed packages, and the web stack runs setup before anything else.
-const webEnvValid = async (): Promise<boolean> => {
-  const path = join(ROOT, "apps/web/.env.local");
-  if (!existsSync(path)) {
-    return false;
-  }
-  const { validateWebEnvContent } = await import("./validate-env.ts");
-  return validateWebEnvContent(readFileSync(path, "utf-8")).length === 0;
-};
-
 export const buildDevCommand = (
   target: string,
   opts?: { all?: boolean; headless?: boolean }
@@ -233,72 +229,65 @@ export const describeStatus = (
     "  A running stack records its URLs and sign-in in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
   ].join("\n");
 
-const surfaceEnv = async (): Promise<Record<string, string>> => {
-  const ports = await resolveWorktree(ROOT);
-  return {
-    PORT: String(ports.web),
-    DOCS_PORT: String(ports.docs),
-    EXTENSION_PORT: String(ports.extension),
-    TEAK_DEV_API_URL:
-      process.env.TEAK_DEV_API_URL ?? DEV_DEPLOYMENT_URLS.convexSiteUrl,
-  };
+export type DevLaunch =
+  | { kind: "check" | "help" | "status" | "stop" }
+  | { install: boolean; kind: "detach" }
+  | { install: boolean; kind: "main"; setup: boolean };
+
+/**
+ * What `bun run dev` does before scripts/dev-main.ts takes over: a run
+ * installs packages on a fresh checkout, and the web stack runs setup first.
+ * A detached web stack starts another `bun run dev` that does its own setup.
+ */
+export const planDevLaunch = (
+  args: DevArgs,
+  hasNodeModules: boolean
+): DevLaunch => {
+  if (args.action !== "run") {
+    return { kind: args.action };
+  }
+  const install = !hasNodeModules;
+  if (usesWebStack(args) && args.detach) {
+    return { install, kind: "detach" };
+  }
+  return { install, kind: "main", setup: usesWebStack(args) };
 };
 
-// A fresh checkout has no packages yet, and Bun remembers a missing
-// node_modules for the rest of the process, so install and run again.
-const installThenRestart = (): number => {
+export const devMainCommand = (argv: string[]): string[] => [
+  process.execPath,
+  "--no-env-file",
+  DEV_MAIN,
+  ...argv,
+];
+
+const installPackages = (): number => {
   console.log("Installing packages…");
   const install = Bun.spawnSync(["bun", "ci"], {
     cwd: ROOT,
     stdout: "inherit",
     stderr: "inherit",
   });
-  if (install.exitCode !== 0) {
-    return install.exitCode ?? 1;
-  }
-  const again = Bun.spawnSync(
-    [
-      process.execPath,
-      "--no-env-file",
-      join(ROOT, "scripts/dev.ts"),
-      ...process.argv.slice(2),
-    ],
-    { cwd: ROOT, stdin: "inherit", stdout: "inherit", stderr: "inherit" }
-  );
-  return again.exitCode ?? 1;
+  return install.exitCode ?? 1;
 };
 
-const runWebStack = async (push: boolean): Promise<number> => {
+const setUpWebStack = async (): Promise<boolean> => {
   await stopOrphans();
   const running = runningStack();
   if (running) {
     console.error(
       `This checkout's stack is already ${running.ready ? "running" : "starting"} at ${running.urls.appOrigin} (pid ${running.pid}). Stop it with \`bun run dev --stop\`.`
     );
-    return 1;
+    return false;
   }
   console.log("Setting up this checkout…");
-  // Setup runs in its own process: when it installs packages, a process that
-  // already looked for them keeps failing to import them.
-  const setup = Bun.spawn(
-    [
-      "bun",
-      "--no-env-file",
-      join(ROOT, "scripts/setup.ts"),
-      "--target",
-      "web",
-      "--json",
-    ],
-    { cwd: ROOT, stdout: "pipe", stderr: "inherit" }
-  );
-  const output = await new Response(setup.stdout).text();
-  await setup.exited;
   let report: SetupReport;
   try {
-    report = JSON.parse(output) as SetupReport;
-  } catch {
-    console.error(`Setup failed:\n${output}`);
-    return 1;
+    report = await runSetup("web", resolveSetupConvex("web", null), false);
+  } catch (error) {
+    console.error(
+      `✗ setup failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
   }
   for (const check of report.checks.filter(
     (entry) => !entry.ok || entry.severity === "warn"
@@ -308,41 +297,7 @@ const runWebStack = async (push: boolean): Promise<number> => {
       console.error(`    → ${line}`);
     }
   }
-  if (!report.ok) {
-    return 1;
-  }
-  const ports = report.worktree;
-  if (!ports) {
-    return 1;
-  }
-  console.log("Starting the web app…");
-  // Loaded after setup, which installs the packages the stack imports.
-  const { DEV_LOG_PATH, startDevStack } = await import("./dev-stack.ts");
-  let stack: Awaited<ReturnType<typeof startDevStack>>;
-  try {
-    stack = await startDevStack({ echo: true, ports, push });
-  } catch (error) {
-    console.error(
-      `✗ ${error instanceof Error ? error.message : String(error)}`
-    );
-    return 1;
-  }
-  console.log(
-    [
-      "",
-      `Teak is running (${ports.namespace})`,
-      `  Web       ${stack.state.urls.appOrigin}`,
-      `  Convex    ${stack.state.urls.convexUrl} (shared dev deployment)`,
-      ...stack.notes.map((note) => `  ${note}`),
-      `  Logs      ${DEV_LOG_PATH.replace(`${ROOT}/`, "")}`,
-      "Stop with Ctrl-C or `bun run dev --stop`.",
-      "",
-    ].join("\n")
-  );
-  await stack.exited;
-  await stack.stop();
-  console.error(`The stack exited. See ${DEV_LOG_PATH}.`);
-  return 1;
+  return report.ok;
 };
 
 const DETACHED_LOG = join(ROOT, ".agents/.state/dev-detached.log");
@@ -411,84 +366,63 @@ const runDetached = async (push: boolean): Promise<number> => {
   return 1;
 };
 
-const main = async (): Promise<void> => {
-  let parsed: DevArgs;
+const describeCheck = (args: DevArgs): string => {
+  if (usesWebStack(args)) {
+    return `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${args.push ? ", taking over pushing the backend" : ""}${args.detach ? ", in the background" : ""}`;
+  }
+  const command = buildDevCommand(args.target, {
+    all: args.all,
+    headless: args.headless,
+  });
+  return `Would run${args.headless ? " (headless, TURBO_UI=false)" : ""}: ${command.join(" ")}`;
+};
+
+const main = async (argv: string[]): Promise<number> => {
+  let args: DevArgs;
   try {
-    parsed = parseDevArgs(process.argv.slice(2));
+    args = parseDevArgs(argv);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-    return;
+    return 1;
   }
-  if (parsed.action === "help") {
-    console.log(DEV_USAGE);
-    console.log("");
-    console.log(describeTargets());
-    return;
+  const launch = planDevLaunch(args, existsSync(join(ROOT, "node_modules")));
+  switch (launch.kind) {
+    case "help":
+      console.log(`${DEV_USAGE}\n\n${describeTargets()}`);
+      return 0;
+    case "stop":
+      return await stopStack();
+    case "status":
+      await stopOrphans();
+      console.log(describeStatus(await resolveWorktree(ROOT), runningStack()));
+      return 0;
+    case "check":
+      console.log(describeCheck(args));
+      return 0;
+    default:
+      break;
   }
-  if (parsed.action === "stop") {
-    process.exitCode = await stopStack();
-    return;
-  }
-  if (parsed.action === "status") {
-    await stopOrphans();
-    console.log(describeStatus(await resolveWorktree(ROOT), runningStack()));
-    return;
-  }
-  if (usesWebStack(parsed)) {
-    if (parsed.action === "run" && !existsSync(join(ROOT, "node_modules"))) {
-      process.exitCode = installThenRestart();
-      return;
+  if (launch.install) {
+    const installed = installPackages();
+    if (installed !== 0) {
+      return installed;
     }
-    if (parsed.action === "check") {
-      console.log(
-        `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${parsed.push ? ", taking over pushing the backend" : ""}${parsed.detach ? ", in the background" : ""}`
-      );
-      return;
-    }
-    process.exitCode = parsed.detach
-      ? await runDetached(parsed.push)
-      : await runWebStack(parsed.push);
-    return;
   }
-  if (
-    parsed.action === "run" &&
-    needsWebEnv(parsed.target, parsed.all) &&
-    !(await webEnvValid())
-  ) {
+  if (launch.kind === "detach") {
+    return await runDetached(args.push);
+  }
+  if (launch.setup && !(await setUpWebStack())) {
+    return 1;
+  }
+  if (!process.execve) {
     console.error(
-      "✗ apps/web/.env.local missing or invalid — run: bun run setup && bun run doctor."
+      "bun run dev needs process.execve, which this platform lacks."
     );
-    process.exitCode = 1;
-    return;
+    return 1;
   }
-  const command = buildDevCommand(parsed.target, {
-    all: parsed.all,
-    headless: parsed.headless,
-  });
-  if (parsed.action === "check") {
-    console.log(
-      `Would run${parsed.headless ? " (headless, TURBO_UI=false)" : ""}: ${command.join(" ")}`
-    );
-    return;
-  }
-  if (parsed.headless) {
-    console.log("dev --headless: streaming output, no interactive input.");
-  }
-  const result = Bun.spawnSync(command, {
-    cwd: ROOT,
-    stdout: "inherit",
-    stderr: "inherit",
-    stdin: parsed.headless ? "ignore" : "inherit",
-    env: {
-      ...process.env,
-      ...(await surfaceEnv()),
-      ...(parsed.headless ? { TURBO_UI: "false" } : {}),
-    },
-  });
-  process.exitCode = result.exitCode ?? 1;
+  return process.execve(process.execPath, devMainCommand(argv));
 };
 
 if (import.meta.main) {
-  await main();
+  process.exitCode = await main(process.argv.slice(2));
 }

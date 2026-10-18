@@ -110,7 +110,7 @@ export const pruneExpiredCardTombstones = internalMutation({
     if (hasMore) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any).publicApiTombstones.pruneExpiredCardTombstones,
+        internal.publicApiTombstones.pruneExpiredCardTombstones,
         {}
       );
     }

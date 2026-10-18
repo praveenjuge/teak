@@ -21,16 +21,29 @@ interface Forwarded {
   status: number;
 }
 
-const refreshTokenOf = (body: string, contentType: string | undefined) => {
+const formFields = (
+  body: string,
+  contentType: string | undefined
+): Record<string, unknown> => {
+  if (!contentType?.includes("json")) {
+    return Object.fromEntries(new URLSearchParams(body));
+  }
   try {
-    const fields = contentType?.includes("json")
-      ? (JSON.parse(body) as Record<string, unknown>)
-      : Object.fromEntries(new URLSearchParams(body));
-    return fields.grant_type === "refresh_token" &&
-      typeof fields.refresh_token === "string"
-      ? fields.refresh_token
-      : undefined;
-  } catch {}
+    const parsed: unknown = JSON.parse(body);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const refreshTokenOf = (body: string, contentType: string | undefined) => {
+  const fields = formFields(body, contentType);
+  return fields.grant_type === "refresh_token" &&
+    typeof fields.refresh_token === "string"
+    ? fields.refresh_token
+    : undefined;
 };
 
 const forward = async (

@@ -23,11 +23,7 @@ export const cardListSortWithShuffleValidator = v.union(
   v.literal("shuffle")
 );
 
-/**
- * Which archived cards a library read returns: none (the default), only
- * archived ones (the Archive view), or both. Trash ignores it and lists every
- * trashed card, archived or not.
- */
+/** The public `archived` filter: none (the default), only archived, or both. */
 export type ArchivedFilter = "exclude" | "only" | "include";
 
 export const archivedFilterValidator = v.union(
@@ -36,15 +32,43 @@ export const archivedFilterValidator = v.union(
   v.literal("include")
 );
 
-export const archivedFilterMatch = (
+/**
+ * Which cards a read returns: the library (unarchived, the default), the
+ * Archive view, both, or Trash (every trashed card, archived or not).
+ */
+export type CardListScope =
+  | "library"
+  | "archive"
+  | "libraryAndArchive"
+  | "trash";
+
+export const cardListScope = (
   archived: ArchivedFilter | undefined,
   trash?: boolean
+): CardListScope => {
+  if (trash) {
+    return "trash";
+  }
+  if (archived === "only") {
+    return "archive";
+  }
+  return archived === "include" ? "libraryAndArchive" : "library";
+};
+
+/** The `isArchived` index value a scope reads; `"any"` reads every value. */
+export const scopeArchivedMatch = (
+  scope: CardListScope = "library"
 ): true | undefined | "any" => {
-  if (trash || archived === "include") {
+  if (scope === "trash" || scope === "libraryAndArchive") {
     return "any";
   }
-  return archived === "only" ? true : undefined;
+  return scope === "archive" ? true : undefined;
 };
+
+/** The `isDeleted` index value a scope reads. */
+export const scopeDeletedMatch = (
+  scope: CardListScope = "library"
+): true | undefined => (scope === "trash" ? true : undefined);
 
 export interface CreatedAtBounds {
   gte?: number;
@@ -53,13 +77,17 @@ export interface CreatedAtBounds {
 }
 
 export interface CardListQueryOptions {
-  archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
   // Callers still drop loaded cards with `keepVisible` for the ones the
   // `isHidden` backfill hasn't reached.
   includeHidden?: boolean;
-  trash?: boolean;
+  /**
+   * Reads hidden rows too, so a caller's row budget counts every row read;
+   * the caller drops hidden cards itself.
+   */
+  scanHiddenRows?: boolean;
+  scope?: CardListScope;
   types?: readonly CardType[];
   userId: string;
 }
@@ -97,21 +125,25 @@ const withCreatedAt = (
 export const buildCardListQuery = (
   ctx: QueryCtx,
   options: CardListQueryOptions
-) => excludeHiddenRows(cardListIndexQuery(ctx, options), options.includeHidden);
+) =>
+  excludeHiddenRows(
+    cardListIndexQuery(ctx, options),
+    options.includeHidden || options.scanHiddenRows
+  );
 
 const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
   const { userId, createdAt } = options;
   const types = options.types?.length ? options.types : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const cards = ctx.db.query("cards");
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
 
   if (archived === "any") {
     const query = cards.withIndex("by_user_deleted_created", (q) =>
       withCreatedAt(
         q
           .eq("userId", userId)
-          .eq("isDeleted", options.trash ? true : undefined),
+          .eq("isDeleted", scopeDeletedMatch(options.scope)),
         createdAt
       )
     );
@@ -183,10 +215,10 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
 export const buildHostCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: "exclude" | "only";
     createdAt?: CreatedAtBounds;
     host: string;
     includeHidden?: boolean;
+    scope?: "library" | "archive";
     userId: string;
   }
 ) =>
@@ -198,7 +230,7 @@ export const buildHostCardListQuery = (
           q
             .eq("userId", options.userId)
             .eq("isDeleted", undefined)
-            .eq("isArchived", options.archived === "only" ? true : undefined)
+            .eq("isArchived", options.scope === "archive" ? true : undefined)
             .eq("urlHost", options.host),
           options.createdAt
         )
@@ -209,19 +241,18 @@ export const buildHostCardListQuery = (
 export const buildFolderCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: ArchivedFilter;
     createdAt?: CreatedAtBounds;
     folderId: Id<"folders">;
-    trash?: boolean;
+    scope?: CardListScope;
     types?: readonly CardType[];
   }
 ) => {
   const types = options.types?.length ? options.types : undefined;
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
   const bounds = options.createdAt;
   const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
     withDateBounds(range, "cardCreatedAt", bounds);
-  const isDeleted = options.trash ? (true as const) : undefined;
+  const isDeleted = scopeDeletedMatch(options.scope);
   const dated =
     archived === "any"
       ? ctx.db
@@ -256,21 +287,20 @@ export const buildFolderCardListQuery = (
 export const buildTagCardListQuery = (
   ctx: QueryCtx,
   options: {
-    archived?: ArchivedFilter;
     createdAt?: CreatedAtBounds;
     favoritesOnly?: boolean;
+    scope?: CardListScope;
     tag: string;
-    trash?: boolean;
     types?: readonly CardType[];
     userId: string;
   }
 ) => {
   const types = options.types?.length ? options.types : undefined;
-  const archived = archivedFilterMatch(options.archived, options.trash);
+  const archived = scopeArchivedMatch(options.scope);
   const bounds = options.createdAt;
   const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
     withDateBounds(range, "cardCreatedAt", bounds);
-  const isDeleted = options.trash ? (true as const) : undefined;
+  const isDeleted = scopeDeletedMatch(options.scope);
   const singleType = types?.length === 1 ? types[0] : undefined;
   const favorited = options.favoritesOnly === true;
   const anyArchived = archived === "any";

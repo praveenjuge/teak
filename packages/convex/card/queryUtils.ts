@@ -65,7 +65,7 @@ const resolveImageRenditions = async (
 };
 
 export const attachFileUrls = async (
-  _ctx: any,
+  _ctx: unknown,
   cards: Doc<"cards">[],
   options: { gridOnly?: boolean } = {}
 ): Promise<CardWithUrls[]> => {

@@ -63,12 +63,10 @@ export default function QuickSaveCommand() {
     let isMounted = true;
 
     const loadClipboardText = async () => {
-      try {
-        const clipboardText = await Clipboard.readText();
-        if (isMounted && clipboardText?.trim()) {
-          setContent((current) => (current.trim() ? current : clipboardText));
-        }
-      } catch {}
+      const clipboardText = await Clipboard.readText().catch(() => undefined);
+      if (isMounted && clipboardText?.trim()) {
+        setContent((current) => (current.trim() ? current : clipboardText));
+      }
     };
 
     void loadClipboardText();

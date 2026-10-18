@@ -39,11 +39,13 @@ export const extractDocumentText = internalAction({
     }
     try {
       const extracted = await extractDocumentFileText(
-        (params) =>
-          callFilesWorkerJson<FilesInspectResult>({
+        async (params) => {
+          const outcome = await callFilesWorkerJson<FilesInspectResult>({
             op: "inspect",
             params: { ...params },
-          }),
+          });
+          return outcome.kind === "ok" ? outcome : { kind: "fallback" };
+        },
         card.fileKey,
         format,
         card

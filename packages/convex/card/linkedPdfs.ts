@@ -4,7 +4,7 @@ import { internalMutation, type MutationCtx } from "../_generated/server";
 import { requireTeakUserId } from "../securitySessions";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
 import { STORE_LINKED_PDF_TIMEOUT_MS } from "../storage/filesWorkerClient";
-import { buildR2ObjectKey, deleteObject } from "../storage/r2";
+import { buildR2ObjectKey, queueObjectDeletion } from "../storage/r2";
 import {
   isArxivPdfUrl,
   parseArxivId,
@@ -124,7 +124,7 @@ export const claimLinkedPdf = internalMutation({
           });
     let linkedPdfId: Id<"linkedPdfs">;
     if (row && row.status !== "done" && row.fileKey !== fileKey) {
-      await deleteObject(ctx, row.fileKey);
+      await queueObjectDeletion(ctx, row.fileKey);
     }
     if (row) {
       await ctx.db.patch("linkedPdfs", row._id, {
@@ -212,7 +212,7 @@ export const failLinkedPdf = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get("linkedPdfs", args.linkedPdfId);
     if (!row || row.fileKey !== args.fileKey) {
-      await deleteObject(ctx, args.fileKey);
+      await queueObjectDeletion(ctx, args.fileKey);
       return null;
     }
     if (row.status === "pending" && row.claimToken === args.claimToken) {

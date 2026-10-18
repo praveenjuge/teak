@@ -99,7 +99,7 @@ export const backfillUrlHost = internalMutation({
     if (continuationScheduled) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any)["migration/backfillUrlHost"].backfillUrlHost,
+        internal["migration/backfillUrlHost"].backfillUrlHost,
         {
           cursor: page.continueCursor,
           dryRun,

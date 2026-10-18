@@ -93,8 +93,8 @@ export const formatDetail = (card: Card) =>
     fileLine(card),
     card.notes ? `notes: ${card.notes}` : null,
     card.tags.length ? `tags: ${card.tags.join(", ")}` : null,
-    card.aiTags?.length ? `ai tags: ${card.aiTags.join(", ")}` : null,
-    card.colors?.length
+    card.aiTags.length ? `ai tags: ${card.aiTags.join(", ")}` : null,
+    card.colors.length
       ? `colors: ${card.colors.map((color) => color.hex).join(" ")}`
       : null,
     card.aiSummary ? `summary: ${card.aiSummary}` : null,

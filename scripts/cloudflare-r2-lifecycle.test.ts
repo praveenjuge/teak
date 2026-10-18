@@ -140,7 +140,7 @@ describe("desired configuration", () => {
       ).toBe(true);
     }
     expect(
-      R2_BUCKETS["teak-files-prod"]?.lifecycle.map(
+      R2_BUCKETS["teak-files-prod"].lifecycle.map(
         (rule) => rule.conditions.prefix
       )
     ).toContain("exports/");

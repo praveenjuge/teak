@@ -19,6 +19,7 @@ interface Snapshots {
 }
 
 const EMPTY: CardFields = { notes: "", tags: [] };
+const MAX_PORT_RECONNECTS = 3;
 
 const sameTags = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((tag, index) => tag === b[index]);
@@ -56,15 +57,15 @@ export const confirmChange = (
 export const unsendFailedChange = (
   sent: CardFields,
   change: PatchCardPayload,
-  before: CardFields
+  confirmed: CardFields
 ): CardFields => ({
   notes:
     change.notes !== undefined && sent.notes === change.notes
-      ? before.notes
+      ? confirmed.notes
       : sent.notes,
   tags:
     change.tags !== undefined && sent.tags === change.tags
-      ? before.tags
+      ? confirmed.tags
       : sent.tags,
 });
 
@@ -83,13 +84,28 @@ export function useDraftSync({
     sent: EMPTY,
   });
   const port = useRef<chrome.runtime.Port>(undefined);
+  const repostDraft = useRef<() => void>(() => undefined);
 
   useEffect(() => {
-    const connection = chrome.runtime.connect({ name: SAVE_DETAILS_PORT });
-    port.current = connection;
+    let mounted = true;
+    let reconnectsLeft = MAX_PORT_RECONNECTS;
+    const connect = () => {
+      const connection = chrome.runtime.connect({ name: SAVE_DETAILS_PORT });
+      connection.onDisconnect.addListener(() => {
+        if (mounted && port.current === connection && reconnectsLeft > 0) {
+          reconnectsLeft -= 1;
+          connect();
+          repostDraft.current();
+        }
+      });
+      port.current = connection;
+    };
+    connect();
     return () => {
+      mounted = false;
+      const connection = port.current;
       port.current = undefined;
-      connection.disconnect();
+      connection?.disconnect();
     };
   }, []);
 
@@ -103,10 +119,9 @@ export function useDraftSync({
     const message: SaveDetailsDraftMessage = {
       draft: changeSince(snapshots.current.confirmed),
     };
-    try {
-      port.current?.postMessage(message);
-    } catch {}
+    port.current?.postMessage(message);
   }, [changeSince]);
+  repostDraft.current = postDraft;
 
   const load = useCallback((card: CardFields) => {
     snapshots.current = { confirmed: card, current: card, sent: card };
@@ -131,7 +146,6 @@ export function useDraftSync({
     if (!change) {
       return null;
     }
-    const before = snapshots.current.sent;
     snapshots.current = {
       ...snapshots.current,
       sent: { ...snapshots.current.current },
@@ -146,7 +160,11 @@ export function useDraftSync({
             }
           : {
               ...snapshots.current,
-              sent: unsendFailedChange(snapshots.current.sent, change, before),
+              sent: unsendFailedChange(
+                snapshots.current.sent,
+                change,
+                snapshots.current.confirmed
+              ),
             };
       postDraft();
       return response;

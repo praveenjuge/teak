@@ -9,7 +9,9 @@ import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
+import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
 import { normalizeErrorClass } from "../shared/telemetry";
+import type { FileMetadata } from "../shared/types";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
@@ -48,6 +50,46 @@ const createCardArgs = {
 } as const;
 
 const PIPELINE_OWNED_METADATA_FIELDS = ["linkCategory", "linkPreview"] as const;
+
+const CLIENT_FILE_METADATA_FIELDS = {
+  fileName: "string",
+  fileSize: "number",
+  mimeType: "string",
+  duration: "number",
+  width: "number",
+  height: "number",
+  recordingTimestamp: "number",
+} as const satisfies Partial<
+  Record<keyof NonNullable<FileMetadata>, "string" | "number">
+>;
+
+type ClientFileMetadata = Pick<
+  NonNullable<FileMetadata>,
+  keyof typeof CLIENT_FILE_METADATA_FIELDS
+>;
+
+// Moves the file facts a client sent inside `metadata` into `fileMetadata`.
+// A value of the wrong type is refused, as the schema would refuse it on insert.
+const takeClientFileMetadata = (
+  metadata: Record<string, unknown>
+): ClientFileMetadata | undefined => {
+  const taken: Record<string, string | number> = {};
+  for (const [field, expected] of Object.entries(CLIENT_FILE_METADATA_FIELDS)) {
+    const value = metadata[field];
+    if (value === undefined) {
+      continue;
+    }
+    if (typeof value !== expected) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `metadata.${field} must be a ${expected}`,
+      });
+    }
+    taken[field] = value as string | number;
+    delete metadata[field];
+  }
+  return Object.keys(taken).length > 0 ? taken : undefined;
+};
 
 const sessionCreateCardArgs = {
   ...createCardArgs,
@@ -88,8 +130,6 @@ interface ImportedVisibleFields {
   isFavorited?: boolean;
   metadataTitle?: string;
 }
-
-const MAX_IMPORTED_TITLE_LENGTH = 512;
 
 export const resolveCreatedCardType = ({
   providedType,
@@ -147,7 +187,6 @@ export const createCardForUserHandler = async (
   let finalContent = args.content;
   let finalUrl = assertSafeExternalUrl(args.url);
   const originalMetadata = args.metadata || {};
-  let fileMetadata: any;
   const classificationRequired = !providedType;
   const classificationStatus = classificationRequired
     ? stagePending()
@@ -155,38 +194,13 @@ export const createCardForUserHandler = async (
 
   const processedMetadata = { ...originalMetadata } as Record<string, unknown>;
 
-  const fileRelatedFields = [
-    "fileName",
-    "fileSize",
-    "mimeType",
-    "duration",
-    "width",
-    "height",
-    "recordingTimestamp",
-  ] as const;
-  const extractedFileMetadata: any = {};
-
-  for (const field of fileRelatedFields) {
-    if (processedMetadata[field] !== undefined) {
-      extractedFileMetadata[field] = processedMetadata[field];
-      delete processedMetadata[field];
-    }
-  }
+  const fileMetadata = takeClientFileMetadata(processedMetadata);
 
   for (const field of PIPELINE_OWNED_METADATA_FIELDS) {
     delete processedMetadata[field];
   }
 
-  if (args.fileKey) {
-    fileMetadata =
-      Object.keys(extractedFileMetadata).length > 0
-        ? extractedFileMetadata
-        : undefined;
-  } else if (Object.keys(extractedFileMetadata).length > 0) {
-    fileMetadata = extractedFileMetadata;
-  }
-
-  if (!(explicitText || finalUrl) && args.content?.trim()) {
+  if (!(explicitText || finalUrl) && args.content.trim()) {
     const urlExtraction = extractUrlFromContent(args.content);
     if (urlExtraction.url) {
       finalUrl = urlExtraction.url;
@@ -212,7 +226,7 @@ export const createCardForUserHandler = async (
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
     const paletteText = [
-      finalContent ?? "",
+      finalContent,
       args.notes ?? "",
       Array.isArray(args.tags) ? args.tags.join(" ") : "",
     ]
@@ -231,7 +245,7 @@ export const createCardForUserHandler = async (
 
   const importedTitle = options.importedVisibleFields?.metadataTitle
     ?.trim()
-    .slice(0, MAX_IMPORTED_TITLE_LENGTH);
+    .slice(0, MAX_CARD_TITLE_LENGTH);
 
   const cardData = {
     userId,

@@ -704,8 +704,8 @@ test("background reads join WorkOS reauthorization rotation", async () => {
     refreshToken: "prior-refresh",
     isExpired: () => false,
   });
-  let notify = () => {};
-  let release = () => {};
+  let notify = () => undefined;
+  let release = () => undefined;
   const started = new Promise<void>((resolve) => {
     notify = resolve;
   });

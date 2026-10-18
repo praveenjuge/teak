@@ -505,13 +505,15 @@ export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const requireWebUrl = (url: string): URL => {
-  let parsed: URL | null = null;
+  let parsed: URL;
   try {
     parsed = new URL(url);
-  } catch {}
+  } catch {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
   if (
-    parsed?.protocol === "https:" ||
-    (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
+    parsed.protocol === "https:" ||
+    (parsed.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
   ) {
     return parsed;
   }

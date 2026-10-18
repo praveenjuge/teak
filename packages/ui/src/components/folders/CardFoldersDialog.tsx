@@ -222,7 +222,7 @@ function CardFoldersChecklist({
             </li>
           );
         })}
-        {canCreate && (
+        {canCreate ? (
           <li>
             <button
               className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
@@ -238,13 +238,13 @@ function CardFoldersChecklist({
               </span>
             </button>
           </li>
-        )}
+        ) : null}
       </ul>
-      {error && (
+      {error ? (
         <p className="border-t px-5 py-3 text-destructive text-sm" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
     </>
   );
 }

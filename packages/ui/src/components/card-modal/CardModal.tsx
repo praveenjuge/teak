@@ -83,7 +83,6 @@ import {
 import { cardModalKeyAction } from "./cardModalKeys";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
-import { useCloseAfterPaint } from "./useCloseAfterPaint";
 import { useLeaveGuard } from "./useLeaveGuard";
 
 export const AUTOSAVE_DELAY_MS = 800;
@@ -330,11 +329,9 @@ export function CardModal({
     updateTitle(value);
   };
 
-  const { closeAfterPaint, hidden } = useCloseAfterPaint(open, onCancel);
-
   const handleClose = async () => {
     if (await readyToLeave()) {
-      closeAfterPaint();
+      onCancel?.();
     }
   };
 
@@ -342,7 +339,7 @@ export function CardModal({
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
     }
-    closeAfterPaint();
+    onCancel?.();
   };
 
   const goTo = async (show?: () => void) => {
@@ -445,7 +442,7 @@ export function CardModal({
             void handleClose();
           }
         }}
-        open={open && !hidden}
+        open={open}
       >
         <DialogContent
           className={cn(
@@ -520,14 +517,14 @@ export function CardModal({
                     </DialogTitle>
                   )}
                   <DialogDescription className="flex min-w-0 items-center gap-1.5 truncate text-muted-foreground text-xs">
-                    {hostname && (
+                    {hostname ? (
                       <span className="truncate max-sm:hidden">{hostname}</span>
-                    )}
-                    {hostname && (
+                    ) : null}
+                    {hostname ? (
                       <span aria-hidden="true" className="max-sm:hidden">
                         ·
                       </span>
-                    )}
+                    ) : null}
                     <span className="shrink-0">
                       {formatAddedDate(card.createdAt)}
                     </span>
@@ -549,7 +546,7 @@ export function CardModal({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-0.5">
-                  {(onPrevious || onNext) && (
+                  {onPrevious || onNext ? (
                     <div className="mr-1 flex items-center gap-0.5 md:mr-2">
                       <HeaderIconButton
                         disabled={!onPrevious}
@@ -568,7 +565,7 @@ export function CardModal({
                         <ChevronRight />
                       </HeaderIconButton>
                     </div>
-                  )}
+                  ) : null}
 
                   {!isDeleted && (
                     <HeaderIconButton
@@ -620,7 +617,7 @@ export function CardModal({
                     </Button>
                   )}
 
-                  {imageControl && (
+                  {imageControl ? (
                     <input
                       accept={LINK_THUMBNAIL_ACCEPT}
                       aria-hidden="true"
@@ -637,7 +634,7 @@ export function CardModal({
                       tabIndex={-1}
                       type="file"
                     />
-                  )}
+                  ) : null}
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <HeaderIconButton label="More actions">
@@ -645,7 +642,7 @@ export function CardModal({
                       </HeaderIconButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
-                      {card.url && (
+                      {card.url ? (
                         <DropdownMenuItem
                           onClick={() =>
                             void copyToClipboard(
@@ -657,8 +654,8 @@ export function CardModal({
                           <Copy />
                           Copy Link
                         </DropdownMenuItem>
-                      )}
-                      {copyableText && (
+                      ) : null}
+                      {copyableText ? (
                         <DropdownMenuItem
                           onClick={() =>
                             void copyToClipboard(copyableText, "Copied text")
@@ -667,8 +664,8 @@ export function CardModal({
                           <Copy />
                           Copy Text
                         </DropdownMenuItem>
-                      )}
-                      {canDownload && card.url && (
+                      ) : null}
+                      {canDownload && card.url ? (
                         <DropdownMenuItem
                           disabled={isDownloading}
                           onClick={downloadFile}
@@ -676,7 +673,7 @@ export function CardModal({
                           <Download />
                           Download
                         </DropdownMenuItem>
-                      )}
+                      ) : null}
                       {isDeleted ? (
                         <>
                           <DropdownMenuItem
@@ -698,15 +695,15 @@ export function CardModal({
                         </>
                       ) : (
                         <>
-                          {onMoreLikeThis && (
+                          {onMoreLikeThis ? (
                             <DropdownMenuItem
                               onClick={() => onMoreLikeThis(card._id)}
                             >
                               <Sparkles />
                               More like this
                             </DropdownMenuItem>
-                          )}
-                          {imageControl && (
+                          ) : null}
+                          {imageControl ? (
                             <DropdownMenuItem
                               disabled={imageControl.isBusy}
                               onClick={() => imageInputRef.current?.click()}
@@ -714,8 +711,8 @@ export function CardModal({
                               {imageControl.isBusy ? <Spinner /> : <ImageUp />}
                               Replace image
                             </DropdownMenuItem>
-                          )}
-                          {imageControl && card.thumbnailOverride && (
+                          ) : null}
+                          {imageControl && card.thumbnailOverride ? (
                             <DropdownMenuItem
                               disabled={imageControl.isBusy}
                               onClick={imageControl.reset}
@@ -723,8 +720,8 @@ export function CardModal({
                               <Undo2 />
                               Reset to original image
                             </DropdownMenuItem>
-                          )}
-                          {onReprocess && (
+                          ) : null}
+                          {onReprocess ? (
                             <DropdownMenuItem
                               disabled={isReprocessing}
                               onClick={onReprocess}
@@ -732,8 +729,8 @@ export function CardModal({
                               {isReprocessing ? <Spinner /> : <RefreshCw />}
                               Refresh details
                             </DropdownMenuItem>
-                          )}
-                          {toggleArchive && (
+                          ) : null}
+                          {toggleArchive ? (
                             <DropdownMenuItem
                               aria-keyshortcuts={menuShortcuts.archive.keys}
                               onClick={archive}
@@ -748,7 +745,7 @@ export function CardModal({
                                 {menuShortcuts.archive.label}
                               </DropdownMenuShortcut>
                             </DropdownMenuItem>
-                          )}
+                          ) : null}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             aria-keyshortcuts={menuShortcuts.delete.keys}

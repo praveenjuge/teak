@@ -655,16 +655,21 @@ export const buildInitializeResult = (params: unknown) => ({
   serverInfo: MCP_SERVER_INFO,
 });
 
+export type ProtocolAnswer =
+  | { kind: "reply"; reply: JsonObject }
+  | { kind: "noReply" }
+  | { kind: "needsConvex" };
+
+const NO_REPLY: ProtocolAnswer = { kind: "noReply" };
+const NEEDS_CONVEX: ProtocolAnswer = { kind: "needsConvex" };
+
 /**
- * Answers a JSON-RPC message that needs no Convex. `null` means no reply
- * (a notification); `undefined` means the message needs Convex (a tool call,
- * an unknown method or an invalid message).
+ * Answers a JSON-RPC message that needs no Convex. A notification gets no
+ * reply; a tool call, an unknown method or an invalid message needs Convex.
  */
-export const answerProtocolMessage = (
-  message: unknown
-): JsonObject | null | undefined => {
+export const answerProtocolMessage = (message: unknown): ProtocolAnswer => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return;
+    return NEEDS_CONVEX;
   }
   const rpc = message as {
     id?: null | number | string;
@@ -673,19 +678,25 @@ export const answerProtocolMessage = (
     params?: unknown;
   };
   if (rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") {
-    return;
+    return NEEDS_CONVEX;
   }
   if (rpc.method.startsWith("notifications/")) {
-    return null;
+    return NO_REPLY;
   }
   switch (rpc.method) {
     case "initialize":
-      return jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params));
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params)),
+      };
     case "ping":
-      return jsonRpcResponse(rpc.id, {});
+      return { kind: "reply", reply: jsonRpcResponse(rpc.id, {}) };
     case "tools/list":
-      return jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS });
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS }),
+      };
     default:
-      return;
+      return NEEDS_CONVEX;
   }
 };

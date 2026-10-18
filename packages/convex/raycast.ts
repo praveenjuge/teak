@@ -191,7 +191,7 @@ const sortAndLimitCards = (
 };
 
 const collectFromBaseQuery = async (
-  baseQuery: any,
+  baseQuery: ReturnType<typeof buildCardListQuery>,
   options: SearchOptions
 ): Promise<Doc<"cards">[]> => {
   const sort = normalizeSort(options.sort);
@@ -202,16 +202,14 @@ const collectFromBaseQuery = async (
   let scanned = 0;
 
   while (matches.length < limit && scanned < MAX_QUERY_SCAN) {
-    const page: {
-      continueCursor: string | null;
-      isDone: boolean;
-      page: Doc<"cards">[];
-    } = await baseQuery.order(sort === "oldest" ? "asc" : "desc").paginate({
-      cursor,
-      numItems: pageSize,
-    });
+    const page = await baseQuery
+      .order(sort === "oldest" ? "asc" : "desc")
+      .paginate({
+        cursor,
+        numItems: pageSize,
+      });
 
-    for (const card of page.page as Doc<"cards">[]) {
+    for (const card of page.page) {
       scanned += 1;
       if (matchesStructuredFilters(card, options)) {
         matches.push(card);
@@ -331,8 +329,7 @@ const getCardsForUser = async (
   } else {
     const baseQuery = buildCardListQuery(ctx, {
       userId,
-      // Hidden rows count toward the scan limit; the loop's filter skips them.
-      includeHidden: true,
+      scanHiddenRows: true,
       favoritesOnly: normalizedOptions.favoritesOnly,
       types: normalizedOptions.type ? [normalizedOptions.type] : undefined,
       createdAt: {

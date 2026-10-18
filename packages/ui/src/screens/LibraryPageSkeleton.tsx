@@ -19,7 +19,7 @@ export function LibraryPageSkeleton({
         leading={<SidebarToggle className="-ml-2" />}
         title={<PageTitle>{title}</PageTitle>}
       >
-        {searchPlaceholder && (
+        {searchPlaceholder ? (
           <div
             aria-hidden="true"
             className="relative min-w-0 flex-1 max-sm:hidden sm:ml-auto sm:max-w-xl"
@@ -31,7 +31,7 @@ export function LibraryPageSkeleton({
               </span>
             </div>
           </div>
-        )}
+        ) : null}
       </PageHeader>
       <CardsGridSkeleton />
     </>

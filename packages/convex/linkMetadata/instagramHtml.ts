@@ -180,13 +180,18 @@ const isAllowedMediaUrl = (value: string | undefined): value is string => {
   }
 };
 
-const resolveUrl = (pageUrl: string, value: string | undefined) => {
+const resolveUrl = (
+  pageUrl: string,
+  value: string | undefined
+): string | undefined => {
   if (!value?.trim()) {
     return;
   }
   try {
     return new URL(value.trim(), pageUrl).toString();
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 const pickFromSrcset = (
@@ -234,7 +239,7 @@ const belowMinSize = (width: number, height: number) =>
 
 const imageCandidate = (
   pageUrl: string,
-  attributes: Record<string, string>
+  attributes: Record<string, string | undefined>
 ): DomCandidate | undefined => {
   const fromSrcset = pickFromSrcset(attributes.srcset);
   const url = resolveUrl(pageUrl, fromSrcset?.url ?? attributes.src);

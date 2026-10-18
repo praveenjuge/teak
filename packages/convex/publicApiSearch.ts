@@ -5,10 +5,11 @@ import type { QueryCtx } from "./_generated/server";
 import { revealsHidden } from "./card/hiddenCards";
 import {
   type ArchivedFilter,
-  archivedFilterMatch,
   buildCardListQuery,
   buildFolderCardListQuery,
   buildHostCardListQuery,
+  cardListScope,
+  scopeArchivedMatch,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -272,7 +273,9 @@ export const matchesStructuredFilters = (
     return false;
   }
 
-  const archived = archivedFilterMatch(options.archived, options.showTrashOnly);
+  const archived = scopeArchivedMatch(
+    cardListScope(options.archived, options.showTrashOnly)
+  );
   if (
     archived !== "any" &&
     (card.isArchived === true) !== (archived === true)
@@ -603,11 +606,12 @@ const createBaseQuery = (
     lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
   }
   const host = options.sites?.length === 1 ? options.sites[0] : undefined;
-  if (host && !options.showTrashOnly && options.archived !== "include") {
+  const scope = cardListScope(options.archived, options.showTrashOnly);
+  if (host && (scope === "library" || scope === "archive")) {
     return buildHostCardListQuery(ctx, {
       userId,
       host,
-      archived: options.archived === "only" ? "only" : "exclude",
+      scope,
       createdAt: { gte: lower, lte: upper },
       includeHidden: options.includeHidden,
     });
@@ -615,8 +619,7 @@ const createBaseQuery = (
   return buildCardListQuery(ctx, {
     userId,
     includeHidden: options.includeHidden,
-    trash: options.showTrashOnly,
-    archived: options.archived,
+    scope,
     favoritesOnly: options.favorited === true,
     types: options.type ? [options.type] : options.types,
     createdAt: { gte: lower, lte: upper },
@@ -658,8 +661,7 @@ const scanFolderCards = async (
   try {
     page = await buildFolderCardListQuery(ctx, {
       folderId: options.folderId,
-      trash: options.showTrashOnly,
-      archived: options.archived,
+      scope: cardListScope(options.archived, options.showTrashOnly),
       types: options.type ? [options.type] : options.types,
       createdAt: { gte: lower, lte: upper },
     })

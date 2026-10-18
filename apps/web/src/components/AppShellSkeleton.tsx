@@ -23,7 +23,7 @@ export function AppShellSkeleton({
 }) {
   const pathname = usePathname();
   const view = libraryViewForPath(pathname);
-  const isSettings = pathname?.startsWith("/settings") ?? false;
+  const isSettings = pathname.startsWith("/settings");
   const isTags = pathname === "/tags";
   let title = "";
   if (view) {

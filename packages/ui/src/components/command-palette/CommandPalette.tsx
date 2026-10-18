@@ -189,13 +189,13 @@ export function CommandPaletteResults({
             >
               <Icon />
               <span className="truncate">{action.label}</span>
-              {action.keys && (
+              {action.keys ? (
                 <span aria-hidden="true" className="ml-auto">
                   <ShortcutHint
                     row={{ keys: action.keys, label: action.label }}
                   />
                 </span>
-              )}
+              ) : null}
             </CommandItem>
           );
         })}

@@ -65,13 +65,15 @@ const mediaAspectRatio = (card: CardWithUrls) => {
   return ratio(card.fileMetadata?.width, card.fileMetadata?.height);
 };
 
-const linkHostname = (url?: string) => {
+const linkHostname = (url?: string): string | undefined => {
   if (!url) {
     return;
   }
   try {
     return new URL(url).hostname.replace(WWW_PREFIX, "") || undefined;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 export const toMobileCardSummary = (card: CardWithUrls) => {

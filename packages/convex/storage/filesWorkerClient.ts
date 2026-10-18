@@ -253,18 +253,17 @@ export const buildSignedWorkerOpRequest = async (
 };
 
 /**
- * `fallback`: the worker declined the op (missing source, too large, or
- * unsupported). Network, 5xx and RENDERER_UNAVAILABLE responses throw so
- * workflow retries apply.
+ * Network, 5xx and RENDERER_UNAVAILABLE responses throw so workflow retries
+ * apply.
  */
 export type FilesWorkerOutcome<T> =
   | { kind: "ok"; data: T }
-  | { kind: "fallback"; code: FilesErrorCode; message: string };
+  | { kind: "declined"; code: FilesErrorCode; message: string };
 
 export const callFilesWorkerJson = async <T>(spec: {
   op: FilesOp;
   params: Record<string, unknown>;
-  fallbackCodes?: readonly FilesErrorCode[];
+  declineCodes?: readonly FilesErrorCode[];
   timeoutMs?: number;
 }): Promise<FilesWorkerOutcome<T>> => {
   const signed = await buildSignedWorkerOpRequest(spec);
@@ -296,10 +295,10 @@ export const callFilesWorkerJson = async <T>(spec: {
       code === "NOT_FOUND" ||
       code === "PAYLOAD_TOO_LARGE" ||
       code === "UNSUPPORTED" ||
-      spec.fallbackCodes?.includes(code)
+      spec.declineCodes?.includes(code)
     ) {
       return {
-        kind: "fallback",
+        kind: "declined",
         code,
         message:
           envelope && !envelope.ok

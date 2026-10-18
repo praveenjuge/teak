@@ -1,3 +1,4 @@
+import { isJsonLdEntity } from "../enrichment";
 import {
   formatDate,
   getRawAttribute,
@@ -27,15 +28,20 @@ const SCHEMA_TYPE_LABELS: Record<string, string> = {
   MusicRecording: "Song",
 };
 
-const typesOf = (entity: any): string[] =>
-  [entity?.["@type"]].flat().filter((type) => typeof type === "string");
+const typesOf = (entity: unknown): string[] =>
+  [isJsonLdEntity(entity) ? entity["@type"] : undefined]
+    .flat()
+    .filter((type): type is string => typeof type === "string");
 
 const names = (value: unknown): string[] =>
   [value]
     .flat()
-    .map((item) =>
-      typeof item === "string" ? item : (item as { name?: unknown })?.name
-    )
+    .map((item) => {
+      if (typeof item === "string") {
+        return item;
+      }
+      return isJsonLdEntity(item) ? item.name : undefined;
+    })
     .filter((name): name is string => typeof name === "string");
 
 /** What the URL is: an album URL with `?i=` opens one of its songs. */
@@ -46,7 +52,9 @@ const typeFromUrl = (sourceUrl: string): string | undefined => {
       return "Song";
     }
     return PATH_TYPES.find(([regex]) => regex.test(url.pathname))?.[1];
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 export const readAppleMusicDetails = (

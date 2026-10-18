@@ -13,16 +13,12 @@ pattern svg_selector_with_see_through_color() {
   r"(?s).*svg[^\s]*\]:(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*"
 }
 
-pattern icon_name() {
-  r"[A-Z].*"
-}
+pattern icon_name() { r"[A-Z].*" }
 
 pattern see_through_icon_class() {
-  and {
-    see_through_color(),
-    not r"(?s).*placeholder:text-.*",
-    not solid_svg_text_override()
-  }
+  and { see_through_color(),
+  not r"(?s).*placeholder:text-.*",
+  not solid_svg_text_override() }
 }
 
 pattern class_string_with_see_through_svgs() {

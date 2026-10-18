@@ -97,21 +97,29 @@ export class MediaRenderer {
     const port = container.getTcpPort(this.port);
     const deadline = Date.now() + READY_TIMEOUT_MS;
     while (Date.now() < deadline) {
-      try {
-        const response = await port.fetch(
-          new Request("http://container/health", {
-            signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS),
-          })
-        );
-        const health = (await response.json().catch(() => null)) as {
-          protocol?: unknown;
-        } | null;
-        if (response.ok && health?.protocol === this.protocol) {
-          return;
-        }
-      } catch {}
+      if (await this.reportsProtocol(port)) {
+        return;
+      }
       await sleep(HEALTH_POLL_MS);
     }
     throw new Error("container_not_ready");
+  }
+
+  private async reportsProtocol(
+    port: ReturnType<RendererContainer["getTcpPort"]>
+  ): Promise<boolean> {
+    try {
+      const response = await port.fetch(
+        new Request("http://container/health", {
+          signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS),
+        })
+      );
+      const health = (await response.json().catch(() => null)) as {
+        protocol?: unknown;
+      } | null;
+      return response.ok && health?.protocol === this.protocol;
+    } catch {
+      return false;
+    }
   }
 }

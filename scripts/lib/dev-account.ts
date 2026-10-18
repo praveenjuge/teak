@@ -76,15 +76,20 @@ export const ensureDevAccount = async (options: {
   const workos = new WorkOS(options.apiKey, { clientId: options.clientId });
   const email = devAccountEmail(options.namespace);
   const saved = readSaved(options.statePath);
-  if (saved?.email === email) {
-    try {
-      await workos.userManagement.authenticateWithPassword({
+  if (
+    saved?.email === email &&
+    (await workos.userManagement
+      .authenticateWithPassword({
         clientId: options.clientId,
         email,
         password: saved.password,
-      });
-      return saved;
-    } catch {}
+      })
+      .then(
+        () => true,
+        () => false
+      ))
+  ) {
+    return saved;
   }
   const password = `${randomBytes(24).toString("base64url")}aA1!`;
   const existing = (await workos.userManagement.listUsers({ email })).data[0];

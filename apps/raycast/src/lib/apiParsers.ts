@@ -213,3 +213,11 @@ export const parseQuickSaveResponse = (payload: unknown): QuickSaveResponse => {
     status: resolvedStatus,
   };
 };
+
+export const parseToolCardId = (value: unknown): string => {
+  const cardId = typeof value === "string" ? value.trim() : "";
+  if (!cardId) {
+    throw new Error("cardId is required");
+  }
+  return cardId;
+};

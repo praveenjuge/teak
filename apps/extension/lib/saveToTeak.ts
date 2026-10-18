@@ -1,6 +1,6 @@
+import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
-import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import { oauthRequest } from "./oauthAuth";
 
 export type SaveSource =

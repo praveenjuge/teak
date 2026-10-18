@@ -293,7 +293,7 @@ function TagManagerForm({
           </>
         )}
 
-        {errorText && (
+        {errorText ? (
           <div
             className={cn(
               "space-y-1.5 text-sm",
@@ -314,7 +314,7 @@ function TagManagerForm({
               </Button>
             )}
           </div>
-        )}
+        ) : null}
 
         <DialogFooter className={cn(mode === "merge" && "border-t p-4")}>
           <Button

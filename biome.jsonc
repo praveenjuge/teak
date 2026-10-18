@@ -17,6 +17,21 @@
       ]
     },
     {
+      "path": "./scripts/lint/identity-boundary-callers.grit",
+      "includes": [
+        "**/packages/convex/**/*.ts",
+        "**/apps/**/*.ts",
+        "!**/packages/convex/_generated/**",
+        "!**/packages/convex/__tests__/**",
+        "!**/*.test.ts",
+        "!**/packages/convex/securitySessions.ts",
+        "!**/packages/convex/workosBootstrap.ts",
+        "!**/packages/convex/workosLifecycle.ts",
+        "!**/packages/convex/publicApiHttpAuth.ts",
+        "!**/packages/convex/workosWebhook.ts"
+      ]
+    },
+    {
       "path": "./scripts/lint/no-remove-child.grit",
       "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
     },
@@ -38,6 +53,23 @@
     ]
   },
   "overrides": [
+    {
+      "includes": [
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.test-utils.*",
+        "**/test/**",
+        "**/tests/**",
+        "**/*.e2e.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
     {
       // Generated or vendored files that must stay byte-for-byte as their
       // writers leave them:
@@ -337,9 +369,6 @@
   "linter": {
     "rules": {
       "a11y": {
-        // Static brand SVG assets (logos, badges, icons) are referenced via
-        // `<img>`/links where the accessible name comes from `alt`.
-        "noSvgWithoutTitle": "off",
         // Safari's `-apple-system-body` font shorthand is the sanctioned
         // dynamic-type value for Apple-only stylesheets.
         "useGenericFontNames": "off"
@@ -375,24 +404,12 @@
         "useImportExtensions": "off"
       },
       "suspicious": {
-        // Widespread in tests and Convex glue; burn down gradually before
-        // enabling.
-        "noExplicitAny": "off",
-        // Standard `{condition && <jsx/>}` render pattern; the falsy-leak
-        // concern is handled by our shared UI primitives.
-        "noLeakedRender": "off",
-        // Optional chaining and redundant-condition checks are defensive
-        // against future shape changes, especially in tests.
-        "noUnnecessaryConditions": "off",
         // Shadowed loop/parameter names; renaming risks churn across many
         // files for a readability-only win.
         "noShadow": "off",
         // Biome flags any Astro file without script-y frontmatter (and
         // comment-only generated bundles) as an empty source.
-        "noEmptySource": "off",
-        // Intentional error-swallowing `catch` blocks: comment-only bodies are
-        // still flagged, and a trailing `return;` trips noUselessReturn.
-        "noEmptyBlockStatements": "off"
+        "noEmptySource": "off"
       }
     }
   },

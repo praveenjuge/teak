@@ -9,11 +9,11 @@ const ONE_MILLION = 1_000_000;
 export const WORKERS_AI_PRICING_USD_PER_MILLION = {
   // Clef decision models bill input tokens only (images count as input).
   [CLEF_MODEL_ID]: {
-    input: CLEF_INPUT_USD_PER_MILLION[CLEF_MODEL_ID] ?? 0,
+    input: CLEF_INPUT_USD_PER_MILLION[CLEF_MODEL_ID],
     output: 0,
   },
   [CLEF_FLASH_MODEL_ID]: {
-    input: CLEF_INPUT_USD_PER_MILLION[CLEF_FLASH_MODEL_ID] ?? 0,
+    input: CLEF_INPUT_USD_PER_MILLION[CLEF_FLASH_MODEL_ID],
     output: 0,
   },
   "@cf/google/gemma-4-26b-a4b-it": { input: 0.1, output: 0.3 },

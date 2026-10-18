@@ -38,7 +38,9 @@ import {
   buildFolderCardListQuery,
   buildHostCardListQuery,
   buildTagCardListQuery,
+  type CardListScope,
   type CardListSort,
+  cardListScope,
   cardListSortValidator,
   cardListSortWithShuffleValidator,
   compareCardsByCreatedAt,
@@ -205,6 +207,7 @@ export const searchCards = query({
       createdAtRange,
     } = args;
     const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
+    const scope = cardListScope(archived, showTrashOnly);
     const limit = clampSearchLimit(args.limit);
     const sort = normalizeCardListSort(args.sort);
     const order = sort === "oldest" ? "asc" : "desc";
@@ -243,7 +246,7 @@ export const searchCards = query({
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
         const trashed = await buildCardListQuery(ctx, {
           userId: user.teakUserId,
-          trash: true,
+          scope: "trash",
         })
           .order(order)
           .take(limit);
@@ -292,8 +295,7 @@ export const searchCards = query({
     if (visualFilters.hasVisualFilters) {
       const visualResults = await findVisualMatches(ctx, {
         userId: user.teakUserId,
-        showTrashOnly,
-        archived,
+        scope,
         types,
         favoritesOnly,
         createdAtRange,
@@ -312,8 +314,7 @@ export const searchCards = query({
     const cards = keepVisible(
       await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        trash: showTrashOnly,
-        archived,
+        scope,
         favoritesOnly,
         types,
         createdAt: createdAtRange
@@ -405,6 +406,7 @@ export const searchCardsPaginatedHandler = async (
     return emptyPage;
   }
   const { archived, types, sites, includeHidden } = resolved;
+  const scope = cardListScope(archived, showTrashOnly);
   // Every page passes through here, so a hidden card the backfill hasn't
   // flagged yet never reaches the client, whichever read found it.
   const attachListUrls = (listCtx: QueryCtx, cards: Doc<"cards">[]) =>
@@ -589,7 +591,7 @@ export const searchCardsPaginatedHandler = async (
       ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
     ) {
       if (shuffle) {
-        return shuffleWalkPage({ trash: true }, (cards) =>
+        return shuffleWalkPage({ scope: "trash" }, (cards) =>
           applyCardLevelFilters(cards, {
             types,
             favoritesOnly,
@@ -600,7 +602,7 @@ export const searchCardsPaginatedHandler = async (
       }
       const trashed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        trash: true,
+        scope: "trash",
       })
         .order(order)
         .paginate(paginationOpts);
@@ -773,8 +775,7 @@ export const searchCardsPaginatedHandler = async (
       const rows = await buildTagCardListQuery(ctx, {
         userId: user.teakUserId,
         tag,
-        trash: showTrashOnly,
-        archived,
+        scope,
         types,
         favoritesOnly,
         createdAt: createdAtBounds,
@@ -794,8 +795,7 @@ export const searchCardsPaginatedHandler = async (
     const rows = await buildTagCardListQuery(ctx, {
       userId: user.teakUserId,
       tag,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       favoritesOnly,
       createdAt: createdAtBounds,
@@ -823,8 +823,7 @@ export const searchCardsPaginatedHandler = async (
   if (folderId && shuffle) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -850,8 +849,7 @@ export const searchCardsPaginatedHandler = async (
   ) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -900,8 +898,7 @@ export const searchCardsPaginatedHandler = async (
     if (shuffle) {
       return shuffleWalkPage(
         {
-          trash: showTrashOnly,
-          archived,
+          scope,
           favoritesOnly,
           types: scanTypes,
           createdAt: createdAtBounds,
@@ -913,13 +910,12 @@ export const searchCardsPaginatedHandler = async (
       ? buildHostCardListQuery(ctx, {
           userId: user.teakUserId,
           host,
-          archived: archived === "only" ? "only" : "exclude",
+          scope: archived === "only" ? "archive" : "library",
           createdAt: createdAtBounds,
         })
       : buildCardListQuery(ctx, {
           userId: user.teakUserId,
-          trash: showTrashOnly,
-          archived,
+          scope,
           favoritesOnly,
           types: scanTypes,
           createdAt: createdAtBounds,
@@ -952,8 +948,7 @@ export const searchCardsPaginatedHandler = async (
   if (folderId) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -975,8 +970,7 @@ export const searchCardsPaginatedHandler = async (
 
   if (shuffle) {
     return shuffleWalkPage({
-      trash: showTrashOnly,
-      archived,
+      scope,
       favoritesOnly,
       types,
       createdAt: createdAtBounds,
@@ -985,8 +979,7 @@ export const searchCardsPaginatedHandler = async (
 
   const cards = await buildCardListQuery(ctx, {
     userId: user.teakUserId,
-    trash: showTrashOnly,
-    archived,
+    scope,
     favoritesOnly,
     types,
     createdAt: createdAtBounds,
@@ -998,6 +991,15 @@ export const searchCardsPaginatedHandler = async (
     ...cards,
     page: applyQuoteFormattingToList(cardsWithUrls),
   };
+};
+
+const viewScope = (
+  view: "all" | "favorites" | "archive" | "trash" | undefined
+): CardListScope => {
+  if (view === "trash") {
+    return "trash";
+  }
+  return view === "archive" ? "archive" : "library";
 };
 
 /**
@@ -1041,8 +1043,7 @@ export const viewHasHiddenCards = query({
       userId: user.teakUserId,
       includeHidden: true,
       favoritesOnly: args.view === "favorites",
-      archived: args.view === "archive" ? "only" : "exclude",
-      trash: args.view === "trash",
+      scope: viewScope(args.view),
     })
       .order("desc")
       .first();

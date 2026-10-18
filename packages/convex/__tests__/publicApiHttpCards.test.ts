@@ -1749,7 +1749,9 @@ describe("listCardsV1 search modes", () => {
       let name = "";
       try {
         name = getFunctionName(ref);
-      } catch {}
+      } catch {
+        name = "";
+      }
       return Promise.resolve(
         name.endsWith("storeRanking")
           ? ranking

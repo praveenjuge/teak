@@ -118,7 +118,9 @@ export const relevanceCursorRanked = (
   try {
     const decoded = decodeCursor(cursor);
     return decoded.mode === "relevance" ? decoded.ranked : undefined;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 export type ShuffleApiCursor =

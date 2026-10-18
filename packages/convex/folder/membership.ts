@@ -201,7 +201,7 @@ export const applyFolderMembershipToCards = async (
       failedIds.push(cardId);
       if (
         error instanceof ConvexError &&
-        (error.data as { code?: unknown })?.code === "FOLDER_LIMIT"
+        (error.data as { code?: unknown } | undefined)?.code === "FOLDER_LIMIT"
       ) {
         folderLimitIds.push(cardId);
       }

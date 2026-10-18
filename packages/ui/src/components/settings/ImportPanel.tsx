@@ -438,7 +438,12 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const lastLoading = latest === undefined;
-  const lastText = latest ? describeImport(latest) : "No imports yet.";
+  let lastText = "No imports yet.";
+  if (lastLoading) {
+    lastText = "Loading last import details…";
+  } else if (latest) {
+    lastText = describeImport(latest);
+  }
 
   return (
     <div className="min-w-0 space-y-4 text-sm">
@@ -552,9 +557,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       {state.kind === "idle" ? (
         <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
           {lastLoading ? <Spinner className="size-4" /> : null}
-          <span className="min-w-0 break-words">
-            {lastLoading ? "Loading last import details…" : lastText}
-          </span>
+          <span className="min-w-0 break-words">{lastText}</span>
         </div>
       ) : null}
 

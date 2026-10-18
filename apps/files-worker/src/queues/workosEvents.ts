@@ -45,6 +45,34 @@ export const signedAt = (signature: string): number | null => {
   return match ? Number(match[1]) : null;
 };
 
+const withinUnknownCredentialLimit = async (
+  request: Request,
+  env: WorkosIngressEnv
+): Promise<boolean> => {
+  if (!env.UNKNOWN_CREDENTIAL_LIMITER) {
+    return true;
+  }
+  try {
+    const { success } = await env.UNKNOWN_CREDENTIAL_LIMITER.limit({
+      key: addressKey(request),
+    });
+    return success;
+  } catch {
+    return true;
+  }
+};
+
+const parseEventFields = (
+  body: string
+): { event?: unknown; id?: unknown } | null => {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const deploymentFor = (
   env: WorkosIngressEnv,
   pathname: string
@@ -70,17 +98,10 @@ export const handleWorkosWebhookIngress = async (
   if (!convexSiteUrl) {
     return text(404, "Not found");
   }
-  if (env.UNKNOWN_CREDENTIAL_LIMITER) {
-    try {
-      const { success } = await env.UNKNOWN_CREDENTIAL_LIMITER.limit({
-        key: addressKey(request),
-      });
-      if (!success) {
-        const response = text(429, "Too many requests");
-        response.headers.set("Retry-After", "60");
-        return response;
-      }
-    } catch {}
+  if (!(await withinUnknownCredentialLimit(request, env))) {
+    const response = text(429, "Too many requests");
+    response.headers.set("Retry-After", "60");
+    return response;
   }
   const signature = request.headers.get("workos-signature");
   const timestamp = signature ? signedAt(signature) : null;
@@ -159,10 +180,7 @@ export const retryDelaySeconds = (attempts: number): number =>
 export const describeEvent = async (
   body: string
 ): Promise<{ event: string; eventId: string }> => {
-  let parsed: { event?: unknown; id?: unknown } | null = null;
-  try {
-    parsed = JSON.parse(body);
-  } catch {}
+  const parsed = parseEventFields(body);
   const id = parsed?.id;
   const event = parsed?.event;
   return {

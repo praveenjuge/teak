@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { readDocumentText } from "./card/documentText";
+import type { CardWithUrls } from "./card/queryUtils";
 import { relevanceCursorRanked } from "./publicApiCursors";
 import {
   completeIdempotencyResponse,
@@ -98,8 +99,7 @@ const handleCreateCardRequest = async (
     const result = createPayload.fileKey
       ? await ctx
           .runAction(
-            (internal as any)["card/uploadCardAction"]
-              .finalizeUploadedCardForUser,
+            internal["card/uploadCardAction"].finalizeUploadedCardForUser,
             {
               cardType: createPayload.cardType,
               content: createPayload.content,
@@ -126,7 +126,7 @@ const handleCreateCardRequest = async (
               status: "created" as const,
             };
           })
-      : await ctx.runMutation((internal as any).raycast.quickSaveForUser, {
+      : await ctx.runMutation(internal.raycast.quickSaveForUser, {
           cardType: createPayload.cardType,
           content: createPayload.content,
           notes: createPayload.notes === null ? undefined : createPayload.notes,
@@ -188,7 +188,7 @@ const handleCreateUploadRequest = async (
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).publicApiUploads.generateUploadUrlForUser,
+      internal.publicApiUploads.generateUploadUrlForUser,
       {
         ...uploadPayload,
         userId: auth.validated.userId,
@@ -317,7 +317,7 @@ const handleCardsListRequest = async (
       ...(similarity ? { similarity } : {}),
     };
     let cardsPage: {
-      items: any[];
+      items: CardWithUrls[];
       pageInfo: { hasMore: boolean; nextCursor: string | null };
     };
     const bestMatchText =
@@ -328,7 +328,7 @@ const handleCardsListRequest = async (
     let relevanceRanked: boolean | undefined;
 
     if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
-      const items: any[] = [];
+      const items: CardWithUrls[] = [];
       let cursor = options.cursor;
       let hasMore = true;
       for (
@@ -337,7 +337,7 @@ const handleCardsListRequest = async (
         read++
       ) {
         const page = await ctx.runQuery(
-          (internal as any).publicApi.shuffleCardsPageForUser,
+          internal.publicApi.shuffleCardsPageForUser,
           {
             ...queryArgs,
             sort: undefined,
@@ -380,7 +380,7 @@ const handleCardsListRequest = async (
         : undefined;
       relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
       cardsPage = await ctx.runQuery(
-        (internal as any).publicApi.searchCardsPageForUser,
+        internal.publicApi.searchCardsPageForUser,
         {
           ...queryArgs,
           limit: options.limit,
@@ -390,7 +390,7 @@ const handleCardsListRequest = async (
         }
       );
     } else {
-      const items: any[] = [];
+      const items: CardWithUrls[] = [];
       let cursor = options.cursor;
       let nextCursor: string | null = null;
       let scannedRows = 0;
@@ -399,7 +399,7 @@ const handleCardsListRequest = async (
       while (scannedRows < MAX_QUERY_SCAN) {
         const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
         const scanPage = await ctx.runQuery(
-          (internal as any).publicApi.scanCardsPageForUser,
+          internal.publicApi.scanCardsPageForUser,
           {
             ...queryArgs,
             cursor,
@@ -458,7 +458,7 @@ const handleCardsListRequest = async (
     }
 
     return json(200, {
-      items: cardsPage.items.map((card: any) =>
+      items: cardsPage.items.map((card) =>
         serializeListCard(card, request.url, include)
       ),
       pageInfo: cardsPage.pageInfo,
@@ -494,7 +494,7 @@ export const relevanceForPage = async (
     return {};
   }
   const candidates = await ctx.runQuery(
-    (internal as any).publicApi.searchCardsPageForUser,
+    internal.publicApi.searchCardsPageForUser,
     candidateArgs
   );
   const { outcome, scores } = await ensureRelevanceScores(ctx, {
@@ -521,7 +521,7 @@ const resolveCardId = (
   ctx: ActionCtx,
   cardId: string
 ): Promise<string | null> =>
-  ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
+  ctx.runQuery(internal.raycast.resolveCardIdForUserRequest, {
     cardId,
   });
 
@@ -530,15 +530,13 @@ const ensureCardExistsForUser = (
   userId: string,
   cardId: string,
   includeDeleted = false
-): Promise<any | null> =>
+): Promise<CardWithUrls | null> =>
   ctx
-    .runQuery((internal as any).raycast.getCardForUser, {
+    .runQuery(internal.raycast.getCardForUser, {
       cardId,
       userId,
     })
-    .then((card: any | null) =>
-      card?.isDeleted && !includeDeleted ? null : card
-    );
+    .then((card) => (card?.isDeleted && !includeDeleted ? null : card));
 
 const SAVE_PDF_ERROR_STATUS: Partial<Record<string, number>> = {
   FILE_TOO_LARGE: 413,
@@ -580,7 +578,7 @@ const cardContentResponse = async (
   cardId: Id<"cards">
 ): Promise<Response> => {
   const source = await ctx.runQuery(
-    (internal as any)["card/documentText"].getCardTextSource,
+    internal["card/documentText"].getCardTextSource,
     { cardId, userId }
   );
   if (!source) {
@@ -901,14 +899,11 @@ const handleCardsByIdV1Request = async (
     }
 
     try {
-      const updated = await ctx.runMutation(
-        (internal as any).raycast.patchCardForUser,
-        {
-          ...patchPayload,
-          cardId: normalizedCardId,
-          userId: auth.validated.userId,
-        }
-      );
+      const updated = await ctx.runMutation(internal.raycast.patchCardForUser, {
+        ...patchPayload,
+        cardId: normalizedCardId,
+        userId: auth.validated.userId,
+      });
 
       if (!updated) {
         return errorResponse(404, "NOT_FOUND", "Card not found");
@@ -932,7 +927,7 @@ const handleCardsByIdV1Request = async (
 
     try {
       const updated = await ctx.runMutation(
-        (internal as any).raycast.setCardFavoriteForUser,
+        internal.raycast.setCardFavoriteForUser,
         {
           cardId: normalizedCardId,
           isFavorited: favoritePayload.isFavorited,
@@ -968,10 +963,9 @@ const handleTagsRequest = async (
 
   try {
     const userId = auth.validated.userId;
-    const tags = await ctx.runQuery(
-      (internal as any).publicApi.listTagsForUser,
-      { userId }
-    );
+    const tags = await ctx.runQuery(internal.publicApi.listTagsForUser, {
+      userId,
+    });
     if (tags.isComplete) {
       return json(200, { items: tags.items, isComplete: true });
     }
@@ -1016,7 +1010,7 @@ const handleCardChangesRequest = async (
 
   try {
     const changes = await ctx.runQuery(
-      (internal as any).publicApi.listCardChangesForUser,
+      internal.publicApi.listCardChangesForUser,
       {
         cursor: parseOptionalString(searchParams.get("cursor")),
         limit: parseLimit(searchParams.get("limit")),
@@ -1027,7 +1021,9 @@ const handleCardChangesRequest = async (
 
     return json(200, {
       deletedIds: changes.deletedIds,
-      items: changes.items.map((card: any) => serializeCard(card, request.url)),
+      items: changes.items.map((card: CardWithUrls) =>
+        serializeCard(card, request.url)
+      ),
       pageInfo: changes.pageInfo,
     });
   } catch (error) {
@@ -1135,7 +1131,7 @@ const handleBulkCardsRequest = async (
     idempotencyState = idempotency;
 
     const result = await ctx.runMutation(
-      (internal as any).publicApi.executeBulkCardsForUser,
+      internal.publicApi.executeBulkCardsForUser,
       {
         items,
         operation,

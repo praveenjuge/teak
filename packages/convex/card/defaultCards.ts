@@ -49,20 +49,14 @@ const createColor = (
 });
 
 export interface DefaultCardDef {
-  /** Text read from the image; dev scenario packs fill it in directly. */
-  aiOcrText?: string;
   aiSummary?: string;
   aiTags?: string[];
   aiTranscript?: string;
   colors?: ReturnType<typeof createColor>[];
-  /** Dev scenario packs only: when the link was marked done. */
-  completedAt?: number;
   content: string;
   createdAt?: number;
   fileKey?: string;
   fileMetadata?: Doc<"cards">["fileMetadata"];
-  /** Dev scenario packs only: the folders the card starts in. */
-  folderIds?: Id<"folders">[];
   isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -73,17 +67,23 @@ export interface DefaultCardDef {
   onboarding?: string;
   runProcessing?: boolean;
   scrubKey?: string;
-  /**
-   * Dev scenario packs only: the Shuffle key, or `null` for none (a card
-   * saved before Shuffle). Normally a fresh random key.
-   */
-  shuffleKey?: number | null;
   sourceTitle?: string;
   sourceUrl?: string;
   tags?: string[];
   thumbnailKey?: string;
   type: CardType;
   url?: string;
+}
+
+/** A card a dev scenario pack seeds, in the state the scenario starts in. */
+export interface DevScenarioCardDef extends DefaultCardDef {
+  /** Text read from the image, filled in directly. */
+  aiOcrText?: string;
+  /** When the link was marked done. */
+  completedAt?: number;
+  folderIds?: Id<"folders">[];
+  /** The Shuffle key, or `null` for none (a card saved before Shuffle). */
+  shuffleKey?: number | null;
 }
 
 /**
@@ -392,7 +392,7 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
 export const insertCompletedCards = async (
   ctx: MutationCtx,
   userId: string,
-  cards: DefaultCardDef[],
+  cards: readonly DevScenarioCardDef[],
   /** Dev scenario packs only: count the cards as on Pro, past the free cap. */
   options: { ignoreCardLimit?: boolean } = {}
 ): Promise<void> => {
@@ -404,7 +404,7 @@ export const insertCompletedCards = async (
   const processingStatus = buildCompletedProcessingStatus(now);
   for (const [i, cardDef] of cards.entries()) {
     const timestamp = cardDef.createdAt ?? now + i * 1000;
-    const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
+    const { colorHexes, colorHues } = buildColorFacets(cardDef.colors);
     const cardId = await ctx.db.insert("cards", {
       userId,
       type: cardDef.type,
@@ -419,7 +419,7 @@ export const insertCompletedCards = async (
         : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
       tags: cardDef.tags,
       notes: cardDef.notes,
-      colors: cardDef.colors as any,
+      colors: cardDef.colors,
       colorHexes,
       colorHues,
       aiTags: cardDef.aiTags,
@@ -478,7 +478,7 @@ export const insertCompletedCards = async (
     ) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any)["migration/extractDocumentText"].extractDocumentText,
+        internal["migration/extractDocumentText"].extractDocumentText,
         { cardId }
       );
     }

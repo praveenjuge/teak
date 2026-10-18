@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { FILES_OP_PATH } from "@teak/files-protocol";

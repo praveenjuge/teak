@@ -133,11 +133,11 @@ export function BulkTagsDialog({
               placeholder={isAdd ? "design, inspiration" : "Tag names"}
               value={input}
             />
-            {problem && (
+            {problem ? (
               <p className="text-destructive text-sm" role="alert">
                 {problem}
               </p>
-            )}
+            ) : null}
           </div>
           <DialogFooter>
             <Button

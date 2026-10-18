@@ -68,6 +68,14 @@ const bookIsbns = (entities: unknown[]): unknown[] =>
  * The first valid ISBN on the page: its `books:isbn` tag, JSON-LD
  * `Book.isbn`, or an Amazon `/dp/<ISBN-10>` path.
  */
+const amazonPathIsbn = (sourceUrl: string): string | undefined => {
+  try {
+    return new URL(sourceUrl).pathname.match(AMAZON_ISBN_PATH_REGEX)?.[1];
+  } catch {
+    return undefined;
+  }
+};
+
 export const findIsbn = ({
   entities,
   provider,
@@ -84,11 +92,7 @@ export const findIsbn = ({
     ...bookIsbns(entities),
   ];
   if (provider === "amazon") {
-    try {
-      candidates.push(
-        new URL(sourceUrl).pathname.match(AMAZON_ISBN_PATH_REGEX)?.[1]
-      );
-    } catch {}
+    candidates.push(amazonPathIsbn(sourceUrl));
   }
   for (const candidate of candidates) {
     const isbn = normalizeIsbn(candidate);

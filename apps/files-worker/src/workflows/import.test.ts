@@ -251,7 +251,7 @@ describe("runImport", () => {
     const insert = backend.handlers["dataImport:insertItems"];
     backend.handlers["dataImport:insertItems"] = (args, request) => {
       backend.state.cancelRequested = true;
-      return insert?.(args, request);
+      return insert(args, request);
     };
     const test = setup(backend, archive(cards));
 

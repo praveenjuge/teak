@@ -94,7 +94,7 @@ async function spool(request: Request, path: string): Promise<void> {
     const deadline = Date.now() + SPOOL_TIMEOUT_MS;
     let total = 0;
     try {
-      while (true) {
+      for (;;) {
         const { done, value } = await readWithin(reader.read(), deadline);
         if (done) {
           return;

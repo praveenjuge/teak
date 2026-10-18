@@ -33,7 +33,7 @@ class AppErrorScreen extends Component<
   { children: ReactNode },
   { failed: boolean }
 > {
-  state = { failed: false };
+  state: { failed: boolean } = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }

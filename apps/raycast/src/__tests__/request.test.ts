@@ -604,7 +604,7 @@ describe("Raycast sign out", () => {
   });
 
   test("waits for a running authorization and blocks refresh while signing out", async () => {
-    let finishAuthorization: (token: string) => void = () => {};
+    let finishAuthorization: (token: string) => void = () => undefined;
     authorizeMock.mockImplementationOnce(
       () =>
         new Promise<string>((resolve) => {

@@ -192,7 +192,7 @@ const runVisionJson = async <T>(
   }
   let capacityAttempt = 0;
   let validationAttempt = 0;
-  while (true) {
+  for (;;) {
     try {
       const response = await meteredAiRun(
         env,

@@ -418,7 +418,7 @@ export const flush = internalAction({
           },
           timeoutMs: 60_000,
         });
-        if (outcome.kind === "fallback") {
+        if (outcome.kind === "declined") {
           failedIds = claimed.map(({ id }) => id);
           error = outcome.code;
         } else {

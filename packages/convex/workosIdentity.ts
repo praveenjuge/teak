@@ -33,8 +33,6 @@ export async function resolveOwner(
   return result;
 }
 
-// Only callers that have verified the token's issuer, signature, audience,
-// user subject and session/consent may use this read-only ownership boundary.
 // The provider deletion ledger is authoritative for every mapped row.
 export const resolveWorkosOwner = internalQuery({
   args: {

@@ -216,6 +216,14 @@ const readLeases = (path: string): Record<string, number> => {
   }
 };
 
+const lockAgeMs = (lock: string): number => {
+  try {
+    return Date.now() - statSync(lock).mtimeMs;
+  } catch {
+    return 0;
+  }
+};
+
 const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
   const lock = join(dir, "teak-worktree-slots.lock");
   const deadline = Date.now() + 10_000;
@@ -227,12 +235,10 @@ const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         throw error;
       }
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > 30_000) {
-          rmSync(lock, { recursive: true, force: true });
-          continue;
-        }
-      } catch {}
+      if (lockAgeMs(lock) > 30_000) {
+        rmSync(lock, { recursive: true, force: true });
+        continue;
+      }
       if (Date.now() > deadline) {
         throw new Error(`Timed out waiting for ${lock}`);
       }

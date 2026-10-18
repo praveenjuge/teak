@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  type ActionCtx,
   env,
   internalMutation,
   internalQuery,
@@ -13,7 +14,7 @@ import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
-import { buildR2UserPrefix, deleteObject } from "../storage/r2";
+import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
 import { sha256Hex } from "../storage/r2Keys";
 import {
   documentTextObjectKey,
@@ -42,9 +43,7 @@ const digestOfKey = (key: string): string | null =>
   /\/document-text\/([a-f0-9]{64})\.txt$/.exec(key)?.[1] ?? null;
 
 export const storeDocumentText = async (
-  ctx: {
-    runMutation: (reference: any, args: any) => Promise<unknown>;
-  },
+  ctx: Pick<ActionCtx, "runMutation">,
   card: Pick<Doc<"cards">, "_id" | "documentTextKey" | "userId">,
   extracted: { pageCount?: number; text: string }
 ): Promise<{ charCount: number; stored: boolean }> => {
@@ -62,16 +61,13 @@ export const storeDocumentText = async (
       signal: AbortSignal.timeout(30_000),
     });
   }
-  await ctx.runMutation(
-    (internal as any)["card/documentText"].saveDocumentText,
-    {
-      cardId: card._id,
-      key,
-      text: searchPrefix(text),
-      charCount,
-      truncated: isExtractedTextTruncated(text, extracted.pageCount),
-    }
-  );
+  await ctx.runMutation(internal["card/documentText"].saveDocumentText, {
+    cardId: card._id,
+    key,
+    text: searchPrefix(text),
+    charCount,
+    truncated: isExtractedTextTruncated(text, extracted.pageCount),
+  });
   return { charCount, stored: true };
 };
 
@@ -87,7 +83,7 @@ export const saveDocumentTextHandler = async (
 ): Promise<boolean> => {
   const card = await ctx.db.get("cards", args.cardId);
   if (!card || (await getAccountDeletionState(ctx, card.userId))) {
-    await deleteObject(ctx, args.key);
+    await queueObjectDeletion(ctx, args.key);
     return false;
   }
   if (args.key !== documentTextKey(card, digestOfKey(args.key) ?? "")) {
@@ -126,7 +122,7 @@ export const saveDocumentTextHandler = async (
     return true;
   }
   if (card.documentTextKey && card.documentTextKey !== args.key) {
-    await deleteObject(ctx, card.documentTextKey);
+    await queueObjectDeletion(ctx, card.documentTextKey);
   }
   return await patchCardWithSearchSync(ctx, card._id, {
     documentTextKey: args.key,

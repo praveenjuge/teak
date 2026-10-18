@@ -19,7 +19,7 @@ import {
 } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
-import { type ArchivedFilter, buildCardListQuery } from "./listQuery";
+import { buildCardListQuery, type CardListScope } from "./listQuery";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -172,8 +172,7 @@ export const findVisualMatches = async (
   ctx: QueryCtx,
   options: {
     userId: string;
-    showTrashOnly?: boolean;
-    archived?: ArchivedFilter;
+    scope?: CardListScope;
     types?: CardType[];
     favoritesOnly?: boolean;
     createdAtRange?: CreatedAtRange;
@@ -192,11 +191,9 @@ export const findVisualMatches = async (
     types.map(async (type) => {
       const cards = buildCardListQuery(ctx, {
         userId: options.userId,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: options.scope,
         favoritesOnly: options.favoritesOnly,
-        // Hidden cards count toward the scan limit, so the loop skips them.
-        includeHidden: true,
+        scanHiddenRows: true,
         types: [type],
         createdAt: options.createdAtRange
           ? {

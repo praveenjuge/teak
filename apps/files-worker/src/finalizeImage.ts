@@ -251,9 +251,7 @@ export const finalizeImageUpload = async (
     throw new OpFailure("source_not_found");
   }
   if (source.httpEtag !== metadata.httpEtag || source.size !== metadata.size) {
-    try {
-      await source.body.cancel();
-    } catch {}
+    await source.body.cancel().catch(() => undefined);
     throw new OpFailure("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {

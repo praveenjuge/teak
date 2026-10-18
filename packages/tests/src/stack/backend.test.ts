@@ -6,8 +6,39 @@ import type { RunCommandResult } from "../../../../scripts/proc.ts";
 import {
   convexDevOnce,
   isTransientPushFailure,
+  localBackendEnv,
+  selectedAnonymousInstance,
   summarizePushFailure,
 } from "./backend";
+
+describe("localBackendEnv", () => {
+  test("drops a cloud deploy key and picks the anonymous local backend, leaving the given env alone", () => {
+    const env = {
+      CONVEX_AGENT_MODE: "interactive",
+      CONVEX_DEPLOY_KEY: "dev:teak|secret",
+      PATH: "/bin",
+    };
+    expect(localBackendEnv(env)).toEqual({
+      CONVEX_AGENT_MODE: "anonymous",
+      PATH: "/bin",
+    });
+    expect(env.CONVEX_DEPLOY_KEY).toBe("dev:teak|secret");
+    expect(env.CONVEX_AGENT_MODE).toBe("interactive");
+  });
+
+  test("the local backend env selects this checkout's anonymous instance, a deploy key does not", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "teak-local-env-"));
+    writeFileSync(
+      join(cwd, ".env.local"),
+      "CONVEX_DEPLOYMENT=anonymous:anonymous-agent\n"
+    );
+    const cloud = { CONVEX_DEPLOY_KEY: "dev:teak|secret", PATH: "/bin" };
+    expect(selectedAnonymousInstance(cwd, cloud)).toBeUndefined();
+    expect(selectedAnonymousInstance(cwd, localBackendEnv(cloud))).toBe(
+      "anonymous-agent"
+    );
+  });
+});
 
 describe("summarizePushFailure", () => {
   test("keeps the signal line even when it precedes the tail", () => {

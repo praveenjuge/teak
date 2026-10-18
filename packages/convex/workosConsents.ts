@@ -22,9 +22,8 @@ type ConsentAuthorization =
     }
   | { status: "denied"; reason: string };
 
-// Internal callers must first cryptographically verify the Connect token and its
-// resource audience. Mapping, verification, deletion and consent state are read
-// in this mutation's transaction; a refreshed token never clears revocation.
+// Mapping, verification, deletion and consent state are read in this
+// mutation's transaction; a refreshed token never clears revocation.
 export const authorizeConnectConsent = internalMutation({
   args: {
     workosUserId: v.string(),

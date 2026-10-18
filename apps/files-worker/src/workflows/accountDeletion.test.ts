@@ -103,7 +103,9 @@ const deletionBackend = (
           offset: 0,
         };
       }
-      const progress = (state.storageProgress as { offset: number }) ?? {
+      const progress = (state.storageProgress as
+        | { offset: number }
+        | undefined) ?? {
         offset: 0,
       };
       state.storageProgress = progress;

@@ -333,7 +333,7 @@ describe("webmcp tool registration", () => {
           return Promise.resolve([cardFixture()]);
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = await registered[0].execute(
@@ -370,7 +370,7 @@ describe("webmcp tool registration", () => {
           );
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const found = await registered[1].execute(
@@ -412,7 +412,7 @@ describe("webmcp tool registration", () => {
           );
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = await registered[2].execute(
@@ -455,7 +455,7 @@ describe("webmcp tool registration", () => {
         createCard: () => Promise.resolve(cardId("new-id")),
         getCard: () => Promise.resolve(null),
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     await expect(
@@ -473,10 +473,10 @@ describe("webmcp tool registration", () => {
         ...unusedDeps,
         searchCards: () => {
           calls += 1;
-          return new Promise(() => {});
+          return new Promise(() => undefined);
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const controller = new AbortController();
@@ -507,7 +507,7 @@ describe("webmcp tool registration", () => {
           return Promise.resolve([]);
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const controller = new AbortController();
@@ -550,7 +550,7 @@ describe("webmcp tool registration", () => {
     await registerTeakWebMcpTools(
       modelContext,
       { ...unusedDeps, ...deps },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = await registered[3].execute(
@@ -570,7 +570,7 @@ describe("webmcp tool registration", () => {
     await registerTeakWebMcpTools(
       modelContext,
       { ...unusedDeps, ...deps },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = await registered[3].execute(
@@ -589,7 +589,7 @@ describe("webmcp tool registration", () => {
     await registerTeakWebMcpTools(
       modelContext,
       { ...unusedDeps, ...deps },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
     const signal = new AbortController().signal;
 
@@ -620,7 +620,7 @@ describe("webmcp tool registration", () => {
           return Promise.resolve(null);
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = await registered[4].execute(
@@ -654,7 +654,7 @@ describe("webmcp tool registration", () => {
           ]);
         },
       },
-      { logger: () => {} }
+      { logger: () => undefined }
     );
 
     const result = (await registered[5].execute(

@@ -104,7 +104,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
           value={name}
         />
       </form>
-      {error && (
+      {error ? (
         <p
           className="px-[9px] pt-1 pb-0.5 text-[11px] text-destructive leading-snug"
           id={errorId}
@@ -112,7 +112,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
         >
           {error}
         </p>
-      )}
+      ) : null}
     </SidebarMenuItem>
   );
 }

@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";

@@ -68,7 +68,9 @@ export function prewarmRouteQueries(href: string) {
 function loadedFolders() {
   try {
     return convex.watchQuery(api.folders.listFolders, {}).localQueryResult();
-  } catch {}
+  } catch {
+    return [];
+  }
 }
 
 export default function ConvexClientProvider({

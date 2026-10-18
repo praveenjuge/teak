@@ -45,9 +45,9 @@ export default function LoadedMarkdownTextEditor({
 
   return (
     <EditorFieldset {...props}>
-      {showStandIn && standInFocus && (
+      {showStandIn && standInFocus ? (
         <MarkdownStandIn {...props} focus={standInFocus} ref={standIn} />
-      )}
+      ) : null}
       <div className={showStandIn ? "hidden" : "contents"}>
         <RichMarkdownEditor
           {...props}

@@ -36,7 +36,7 @@ export interface LinkPreviewMetadata {
   error?: {
     type?: string;
     message?: string;
-    details?: any;
+    details?: unknown;
   };
   faviconUrl?: string;
   fetchedAt: number;

@@ -115,8 +115,7 @@ public final class TeakBackend: ConvexCaller, @unchecked Sendable {
             }
             return TeakError(message: (object as? String) ?? TeakMessages.genericFailure)
         case let .ServerError(message):
-            let code = message.contains("InvalidCursor") ? TeakError.invalidCursorCode : nil
-            return TeakError(code: code, message: ConvexHTTP.userMessage(message))
+            return TeakError.server(message: message)
         case .InternalError:
             return TeakError(message: TeakMessages.genericFailure)
         }

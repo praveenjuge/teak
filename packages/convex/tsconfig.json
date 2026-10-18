@@ -15,5 +15,5 @@
     "noEmit": true
   },
   "include": ["./**/*", "./shared"],
-  "exclude": ["./_generated", "./client", "./__tests__"]
+  "exclude": ["./_generated", "./client", "./__tests__", "./*.test.ts"]
 }

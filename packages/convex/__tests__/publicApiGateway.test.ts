@@ -1,7 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { CardWithUrls } from "../card/queryUtils";
 import { serializeListCard } from "../publicApiHttpValidation";
+import { testId } from "./helpers/convex.test-utils";
+
+const listCard = (
+  fields: Pick<CardWithUrls, "_id" | "type"> & Partial<CardWithUrls>
+): CardWithUrls => ({
+  _creationTime: 1,
+  content: "",
+  createdAt: 1,
+  updatedAt: 1,
+  userId: "user_1",
+  ...fields,
+});
+
 import { discoveryV1, healthzV1, v1CorsPreflight } from "../publicApiMeta";
 import { openApiSpec, openApiV1 } from "../publicApiOpenApi";
 
@@ -99,14 +113,14 @@ describe("Convex public API metadata", () => {
 
   test("documents metadata and processing fields emitted in list responses", () => {
     const card = serializeListCard(
-      {
-        _id: "card_1",
+      listCard({
+        _id: testId("cards", "card_1"),
         type: "link",
         createdAt: 1,
         updatedAt: 1,
         tags: [],
         aiTags: [],
-      },
+      }),
       "https://api.teakvault.com",
       new Set(["metadata", "processing"])
     );
@@ -119,8 +133,8 @@ describe("Convex public API metadata", () => {
   test("serializes a video's scrub strip and an audio waveform", () => {
     const waveform = { detail: [1, 2], grid: [3] };
     const video = serializeListCard(
-      {
-        _id: "card_video",
+      listCard({
+        _id: testId("cards", "card_video"),
         type: "video",
         createdAt: 1,
         updatedAt: 1,
@@ -128,18 +142,18 @@ describe("Convex public API metadata", () => {
         fileMetadata: {
           scrub: { frameHeight: 180, frameWidth: 320, frames: 10 },
         },
-      },
+      }),
       "https://api.teakvault.com",
       new Set(["metadata"])
     );
     const audio = serializeListCard(
-      {
-        _id: "card_audio",
+      listCard({
+        _id: testId("cards", "card_audio"),
         type: "audio",
         createdAt: 1,
         updatedAt: 1,
         fileMetadata: { waveform },
-      },
+      }),
       "https://api.teakvault.com",
       new Set(["metadata"])
     );

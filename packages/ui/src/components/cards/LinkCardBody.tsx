@@ -70,11 +70,11 @@ export function LinkCardBody({
             src={image.src}
             storageKey={image.storageKey}
           />
-          {priceLabel && (
+          {priceLabel ? (
             <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
               {priceLabel}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -90,6 +90,7 @@ export function LinkCardBody({
   }
 
   const titleIsUrl = title === card.url;
+  const displayTitle = titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title;
   const description =
     successfulLinkPreview(card)?.description ||
     card.metadataDescription ||
@@ -99,14 +100,14 @@ export function LinkCardBody({
       <div className="flex min-w-0 items-center gap-2">
         {favicon}
         <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
-          {titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title}
+          {displayTitle}
         </p>
         {doneMark}
-        {priceLabel && (
+        {priceLabel ? (
           <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
             {priceLabel}
           </span>
-        )}
+        ) : null}
       </div>
       {description && !titleIsUrl && (
         <p

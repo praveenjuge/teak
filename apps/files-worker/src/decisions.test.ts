@@ -107,9 +107,8 @@ describe("link category", () => {
       linkParams
     );
     const criteria = (
-      firstArgs(calls).questions as Record<
-        string,
-        { criteria: Record<string, string> }
+      firstArgs(calls).questions as Partial<
+        Record<string, { criteria: Record<string, string> }>
       >
     ).category?.criteria;
     expect(Object.keys(criteria ?? {})[0]).toBe("other");
@@ -201,9 +200,8 @@ describe("card type", () => {
       rulesType: "text",
     });
     const criteria = (
-      firstArgs(calls).questions as Record<
-        string,
-        { criteria: Record<string, string> }
+      firstArgs(calls).questions as Partial<
+        Record<string, { criteria: Record<string, string> }>
       >
     ).type?.criteria;
     expect(Object.keys(criteria ?? {})).toEqual(["text", "quote", "palette"]);

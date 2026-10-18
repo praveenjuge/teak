@@ -68,14 +68,14 @@ const failure = (detail: string, remediation: string[]) => ({
 
 export const readWorkosCredentials = async (
   convexDir: string,
-  explicit: Partial<Record<string, string>> = process.env
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<{
   check: WorkosSetupCheck;
   values: Partial<Record<WorkosCredentialName, string>>;
 }> => {
   const values: Partial<Record<WorkosCredentialName, string>> = {};
   for (const name of WORKOS_CREDENTIAL_NAMES) {
-    const deployment = await readDeploymentVar(name, convexDir);
+    const deployment = await readDeploymentVar(name, convexDir, env);
     if (deployment.status === "unavailable") {
       return failure(
         `could not read ${name} from the dev deployment: ${deployment.detail}`,
@@ -84,7 +84,7 @@ export const readWorkosCredentials = async (
     }
     const plan = planWorkosCredential(name, {
       deployment: deployment.status === "found" ? deployment.value : undefined,
-      explicit: explicit[name],
+      explicit: env[name],
     });
     if (plan.status === "invalid") {
       return failure(

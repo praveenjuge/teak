@@ -284,21 +284,20 @@ async function extractContextMenuContent(
         return info.selectionText;
       }
 
-      try {
-        const results = await chrome.scripting.executeScript({
+      const results = await chrome.scripting
+        .executeScript({
           target: { tabId: tab.id },
           func: () => {
             const selection = window.getSelection();
             const selectedText = selection?.toString() ?? "";
             return selectedText.trim() ? selectedText : document.title || "";
           },
-        });
-
-        const content = results[0]?.result;
-        if (typeof content === "string" && content.trim()) {
-          return content;
-        }
-      } catch {}
+        })
+        .catch(() => []);
+      const content = results[0]?.result;
+      if (typeof content === "string" && content.trim()) {
+        return content;
+      }
 
       if (tab.title?.trim()) {
         return tab.title.trim();
@@ -372,7 +371,7 @@ export default defineBackground(() => {
   reportUncaughtErrors(self, "background");
   void initializeAuth()
     .then(resumePendingSaves)
-    .catch(() => {});
+    .catch(() => undefined);
   chrome.runtime.onStartup.addListener(createContextMenus);
   chrome.runtime.onInstalled.addListener(createContextMenus);
 

@@ -5,7 +5,6 @@ import {
 } from "@teak/files-protocol";
 import {
   isLinkCategory,
-  LINK_CATEGORY_DEFAULT_CONFIDENCE,
   type LinkCategory,
   type LinkCategoryDetail,
   type LinkCategoryMetadata,
@@ -17,6 +16,8 @@ import {
   buildRawSelectorMap,
   detectProvider,
   enrichWithStructuredData,
+  isJsonLdEntity,
+  type JsonLdEntity,
   mergeFacts,
   pickFields,
 } from "./enrichment";
@@ -33,13 +34,33 @@ const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 const TRAILING_SLASH_REGEX = /\/+$/;
 
+/** The stored link preview fields categorization reads. */
+export interface CategorizationLinkPreview {
+  /** Checked with `isLinkCategory` before use. */
+  categoryHint?: unknown;
+  description?: string;
+  finalUrl?: string;
+  imageUrl?: string;
+  /** The stored scrape; read through `buildRawSelectorMap`. */
+  raw?: unknown;
+  rawSha256?: string;
+  rawStorageKey?: string;
+  siteName?: string;
+  status?: string;
+  title?: string;
+  url?: string;
+}
+
 export interface CategorizationContextCard {
   _id: string;
   content?: string;
-  metadata?: any;
+  metadata?: {
+    linkCategory?: LinkCategoryMetadata;
+    linkPreview?: CategorizationLinkPreview;
+  };
   metadataStatus?: string;
   notes?: string;
-  processingStatus?: any;
+  processingStatus?: unknown;
   tags?: string[];
   type: string;
   url?: string;
@@ -150,14 +171,14 @@ export const classifyLinkCategory = (
 
   return {
     category: resolution.category,
-    confidence: resolution.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+    confidence: resolution.confidence,
     providerHint: resolution.provider,
     reason: resolution.reason,
   };
 };
 
 export interface StructuredDataResult {
-  entities: any[];
+  entities: JsonLdEntity[];
   meta?: {
     etag?: string | null;
     lastModified?: string | null;
@@ -165,8 +186,17 @@ export interface StructuredDataResult {
   };
 }
 
+const parseJsonLdBlock = (jsonText: string): unknown[] => {
+  try {
+    const parsed: unknown = JSON.parse(jsonText);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [];
+  }
+};
+
 export const parseStructuredData = (html: string): StructuredDataResult => {
-  const entities: any[] = [];
+  const entities: JsonLdEntity[] = [];
   const scriptRegex =
     /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   const seen = new Set<string>();
@@ -180,24 +210,20 @@ export const parseStructuredData = (html: string): StructuredDataResult => {
     if (!jsonText) {
       continue;
     }
-    try {
-      const parsed = JSON.parse(jsonText);
-      const values = Array.isArray(parsed) ? parsed : [parsed];
-      for (const item of values) {
-        if (item && typeof item === "object") {
-          const fingerprint = JSON.stringify(
-            pickFields(item, ["@type", "name", "url"])
-          );
-          if (!seen.has(fingerprint)) {
-            seen.add(fingerprint);
-            entities.push(item);
-            if (entities.length >= STRUCTURED_DATA_MAX_ITEMS) {
-              return { entities };
-            }
+    for (const item of parseJsonLdBlock(jsonText)) {
+      if (isJsonLdEntity(item)) {
+        const fingerprint = JSON.stringify(
+          pickFields(item, ["@type", "name", "url"])
+        );
+        if (!seen.has(fingerprint)) {
+          seen.add(fingerprint);
+          entities.push(item);
+          if (entities.length >= STRUCTURED_DATA_MAX_ITEMS) {
+            return { entities };
           }
         }
       }
-    } catch {}
+    }
   }
 
   return { entities };
@@ -248,7 +274,7 @@ type StructuredSource =
       meta: StructuredDataResult["meta"];
     }
   | { kind: "reread_without_self"; meta: StructuredDataResult["meta"] }
-  | { kind: "stored_from_earlier_pass"; structured: unknown }
+  | { kind: "stored_from_earlier_pass"; structured: JsonLdEntity }
   | { kind: "none" };
 
 const structuredSourceFor = (
@@ -265,7 +291,7 @@ const structuredSourceFor = (
   if (structured) {
     return { kind: "reread_without_self", meta: structured.meta };
   }
-  if (raw?.structured) {
+  if (isJsonLdEntity(raw?.structured)) {
     return { kind: "stored_from_earlier_pass", structured: raw.structured };
   }
   return { kind: "none" };
@@ -312,7 +338,7 @@ export const enrichLinkCategory = (
     provider,
     classification.category,
     rawMap,
-    (classification.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE) < 0.6
+    classification.confidence < 0.6
   );
 
   if (providerEnrichment) {

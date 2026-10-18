@@ -72,15 +72,13 @@ function validClientId(value: unknown): value is string {
 const CLOCK_TOLERANCE_SECONDS = 60;
 
 // Configuration must come from the server, never from request/token claims.
-// This verifies credentials only: callers must also check consent revocation,
-// canonical owner mapping, verified email, deletion state and authorization.
-export const verifyWorkosConnectToken = (
+export const verifyWorkosConnectTokenSignature = (
   token: string,
   config: ConnectTokenConfig
 ): Promise<WorkosConnectPrincipal | null> =>
   verifyConnectToken(token, config, false);
 
-export const verifyWorkosConnectTokenForRevocation = (
+export const verifyWorkosConnectTokenSignatureForRevocation = (
   token: string,
   config: ConnectTokenConfig
 ): Promise<WorkosRevocationPrincipal | null> =>

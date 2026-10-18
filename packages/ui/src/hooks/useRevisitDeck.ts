@@ -132,7 +132,7 @@ export function useRevisitDeck({
     ids: new Set(),
     key: null,
   });
-  const busy = useRef(false);
+  const busy = useRef<boolean>(false);
   const inFlight = useRef<Promise<boolean> | null>(null);
   const archivedStack = useRef<string[]>([]);
   const dealGeneration = useRef(0);

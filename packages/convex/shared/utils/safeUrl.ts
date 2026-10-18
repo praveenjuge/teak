@@ -32,7 +32,9 @@ export function getSafeUrlHostname(value: unknown): string | undefined {
   }
   try {
     return new URL(safe).hostname;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 }
 
 export class UnsafeUrlError extends Error {

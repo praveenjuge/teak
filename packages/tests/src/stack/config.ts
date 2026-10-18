@@ -12,7 +12,9 @@ export type StackPorts = Pick<
   | "web"
 >;
 
-export const LOCAL_STACK = { fetchesLinks: false } as const;
+export const LOCAL_STACK: { readonly fetchesLinks: boolean } = {
+  fetchesLinks: false,
+};
 
 export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";

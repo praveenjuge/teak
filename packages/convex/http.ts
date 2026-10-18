@@ -56,7 +56,7 @@ http.route({
 
 registerWorkosRoutes(http);
 
-polar.registerRoutes(http as any, { events: polarWebhookEvents });
+polar.registerRoutes(http, { events: polarWebhookEvents });
 
 http.route({ path: "/v1/me", method: "GET", handler: meV1 });
 http.route({

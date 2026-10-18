@@ -5,6 +5,7 @@ import { Spinner } from "@teak/ui/components/ui/spinner";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
 import {
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -117,7 +118,7 @@ export interface MasonryGridProps {
   toastIdPrefix?: string;
 }
 
-export function MasonryGrid({
+export const MasonryGrid = memo(function MasonryGrid({
   addToFolder,
   folder,
   onAddToFolderDone,
@@ -183,7 +184,7 @@ export function MasonryGrid({
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const gridFocusedRef = useRef(false);
   const lastActiveIndexRef = useRef(0);
-  const openedFromGridRef = useRef(false);
+  const openedFromGridRef = useRef<boolean>(false);
   const [measuredColumns, setMeasuredColumns] = useState<number | null>(null);
   useEffect(() => {
     const grid = gridRef.current;
@@ -867,11 +868,11 @@ export function MasonryGrid({
           (onLoadMore && hasMore !== false)) && (
           <div aria-hidden="true" className="h-10 w-full" ref={loadMoreRef} />
         )}
-      {isLoadingMore && (
+      {isLoadingMore ? (
         <div className="flex justify-center py-6">
           <Spinner className="size-5 text-muted-foreground" />
         </div>
-      )}
+      ) : null}
       {bulkActionBar}
       <BulkTagsDialog
         mode={tagsDialogMode ?? "add"}
@@ -924,4 +925,4 @@ export function MasonryGrid({
       />
     </>
   );
-}
+});

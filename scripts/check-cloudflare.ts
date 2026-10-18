@@ -253,7 +253,11 @@ const checkDevVars = () => {
           "R2_BUCKET/R2_KEY_PREFIX/FILES_BASE belong in Convex env, not .dev.vars"
         );
       }
-    } catch {}
+    } catch (error) {
+      log(".dev.vars", "warn", `unreadable: ${String(error)}`, {
+        blocking: false,
+      });
+    }
   } else {
     log(".dev.vars", "missing", "run bun run sync:cloudflare-dev", {
       blocking: false,

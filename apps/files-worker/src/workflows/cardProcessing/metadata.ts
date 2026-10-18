@@ -120,7 +120,7 @@ const linkSiteSummary = async (
       metadata: { linkCategory },
       userId: card.userId,
     });
-    const raw = hydrated.metadata?.linkCategory?.raw as
+    const raw = hydrated.metadata.linkCategory?.raw as
       | { remote?: { summary?: unknown } }
       | undefined;
     const summary = raw?.remote?.summary;

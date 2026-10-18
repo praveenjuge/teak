@@ -37,6 +37,20 @@ describe("stack liveness", () => {
   test("a live process that isn't a stack owner is not a running stack", () => {
     expect(isStackRunning(state(process.pid))).toBe(false);
   });
+
+  test("bun run dev's stack runs as scripts/dev-main.ts", () => {
+    const owner = Bun.spawn([
+      "sh",
+      "-c",
+      "sleep 30; :",
+      "/repo/scripts/dev-main.ts",
+    ]);
+    try {
+      expect(isStackRunning(state(owner.pid))).toBe(true);
+    } finally {
+      owner.kill("SIGKILL");
+    }
+  });
 });
 
 describe("readStackState", () => {

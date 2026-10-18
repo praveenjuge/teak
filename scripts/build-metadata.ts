@@ -48,11 +48,12 @@ export const resolveCommitSha = async (
       timeoutMs: 10_000,
     });
     const sha = result.stdout.trim();
-    if (result.exitCode === 0 && /^[0-9a-f]{40}$/.test(sha)) {
-      return { sha, source: "git" };
-    }
-  } catch {}
-  return null;
+    return result.exitCode === 0 && /^[0-9a-f]{40}$/.test(sha)
+      ? { sha, source: "git" }
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 export const readAppVersion = (root: string = ROOT): string =>

@@ -1,8 +1,8 @@
+import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import {
   cardSiteHost,
   hostForDisplay,
 } from "@teak/convex/shared/utils/urlHost";
-import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 
 export const OMNIBOX_KEYWORD = "teak";
 export const OMNIBOX_MIN_CHARS = 2;

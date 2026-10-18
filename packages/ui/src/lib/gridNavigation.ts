@@ -82,7 +82,7 @@ const compareScores = (
   right: [number, number, number]
 ) => {
   for (let index = 0; index < left.length; index++) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    const difference = left[index] - right[index];
     if (Math.abs(difference) > EPSILON) {
       return difference;
     }

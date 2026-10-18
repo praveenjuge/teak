@@ -322,7 +322,7 @@ describe("admin.ts", () => {
     });
 
     test("clears thumbnail and resets processing status", async () => {
-      r2Mocks.deleteObject.mockClear();
+      r2Mocks.queueObjectDeletion.mockClear();
       const card = {
         _id: "c1",
         thumbnailKey: "t1",
@@ -338,7 +338,7 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "t1");
       expect(ctx.db.insert).toHaveBeenCalledWith(
         "workflowDispatches",
         expect.objectContaining({
@@ -361,7 +361,7 @@ describe("admin.ts", () => {
     });
 
     test("deletes the scrub sprite and forgets its size", async () => {
-      r2Mocks.deleteObject.mockClear();
+      r2Mocks.queueObjectDeletion.mockClear();
       const card = {
         _id: "c1",
         thumbnailKey: "t1",
@@ -382,7 +382,7 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "s1");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "s1");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -394,7 +394,7 @@ describe("admin.ts", () => {
     });
 
     test("handles missing thumbnail", async () => {
-      r2Mocks.deleteObject.mockClear();
+      r2Mocks.queueObjectDeletion.mockClear();
       const card = {
         _id: "c1",
         processingStatus: { classify: { status: "completed" } },
@@ -409,13 +409,15 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
       expect(result.clearedThumbnail).toBe(false);
     });
 
     test("handles storage delete error gracefully", async () => {
-      r2Mocks.deleteObject.mockReset();
-      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockReset();
+      r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
+        new Error("Storage error")
+      );
       const card = {
         _id: "c1",
         thumbnailKey: "t1",
@@ -432,7 +434,7 @@ describe("admin.ts", () => {
       const result = await handler(ctx, { cardId: "c1" });
 
       expect(result.clearedThumbnail).toBe(true);
-      r2Mocks.deleteObject.mockResolvedValue(null);
+      r2Mocks.queueObjectDeletion.mockResolvedValue(null);
     });
   });
 

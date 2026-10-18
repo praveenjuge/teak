@@ -10,11 +10,18 @@ let client: PostHog | undefined;
 let enabled = false;
 const pending: PendingCall[] = [];
 
+const callSafely = (posthog: PostHog, call: PendingCall): boolean => {
+  try {
+    call(posthog);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const withPostHog = (call: PendingCall): void => {
   if (client) {
-    try {
-      call(client);
-    } catch {}
+    callSafely(client, call);
     return;
   }
   if (enabled && pending.length < MAX_PENDING) {
@@ -90,15 +97,11 @@ export const identifyPostHogUser = (
     if (!sameUser) {
       posthog.capture("signed_in");
     }
-    try {
-      localStorage.setItem(IDENTITY_KEY, identity);
-    } catch {}
+    localStorage.setItem(IDENTITY_KEY, identity);
   });
 
 export const resetPostHogUser = (): void =>
   withPostHog((posthog) => {
     posthog.reset();
-    try {
-      localStorage.removeItem(IDENTITY_KEY);
-    } catch {}
+    localStorage.removeItem(IDENTITY_KEY);
   });

@@ -59,6 +59,7 @@ import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
 import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
+import { useStableHandlers } from "../hooks/useStableHandlers";
 import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
@@ -109,12 +110,14 @@ export type { SearchUrlChange } from "../lib/searchUrlSync";
 interface CardsScreenProps {
   addToFolderId?: string;
   contentContainerClassName?: string;
+  focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
   initialVisualFilters?: CardsVisualFilters;
   onAddCardsToFolder?: (folderId: string) => void;
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onCloseCard: () => void;
+  onFocusComposerHandled?: () => void;
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
   onOpenFolder?: (folderId: string) => void;
@@ -136,6 +139,7 @@ interface CardsScreenProps {
 
 export function CardsScreen({
   addToFolderId,
+  focusComposer = false,
   folderId,
   initialVisualFilters,
   onAddCardsToFolder,
@@ -143,6 +147,7 @@ export function CardsScreen({
   selectedCardId,
   onOpenCard,
   onCloseCard,
+  onFocusComposerHandled,
   onOpenFolder,
   onUpgrade,
   queryRetryKey,
@@ -163,7 +168,27 @@ export function CardsScreen({
   );
   const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef("");
-  const gridRef = useRef<MasonryGridHandle>(null);
+  const [composerFocus, setComposerFocus] = useState(() => ({
+    pending: focusComposer,
+    requested: focusComposer,
+  }));
+  if (focusComposer !== composerFocus.requested) {
+    setComposerFocus({
+      pending: focusComposer || composerFocus.pending,
+      requested: focusComposer,
+    });
+  }
+  useEffect(() => {
+    if (focusComposer) {
+      onFocusComposerHandled?.();
+    }
+  }, [focusComposer, onFocusComposerHandled]);
+  const handleComposerFocus = useCallback(() => {
+    setComposerFocus((current) =>
+      current.pending ? { ...current, pending: false } : current
+    );
+  }, []);
+  const gridRef = useRef<MasonryGridHandle | null>(null);
   const returnFocusToGrid = useCallback(
     (cardId: string) => gridRef.current?.returnFocusTo(cardId) ?? false,
     []
@@ -590,16 +615,47 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
+  const gridHandlers = useStableHandlers({
+    onAddTags: handleAddTags,
+    onAddToFolderDone: (added: boolean) => {
+      if (addToFolder) {
+        onAddToFolderDone?.(addToFolder._id, added);
+      }
+    },
+    onBulkAction: runBulkAction,
+    onCardClick: handleCardClick,
+    onCopyImage: handleCopyImage,
+    onDeleteCard: async (cardId: string) => {
+      const { failedIds } = await runBulkAction("delete", [cardId]);
+      return failedIds.length === 0;
+    },
+    onLoadMore: requestMoreCards,
+    onPermanentDeleteCard: (cardId: string) =>
+      cardActions.handlePermanentDeleteCard(cardId as Id<"cards">),
+    onRestoreCard: (cardId: string) =>
+      cardActions.handleRestoreCard(cardId as Id<"cards">),
+    onToggleArchive: handleToggleArchive,
+    onToggleFavorite: handleToggleFavorite,
+  });
+
   const addCardForm = useMemo(
     () => (
       <AddCardForm
+        autoFocus={composerFocus.pending}
         draftContentRef={draftContentRef}
+        onFocus={handleComposerFocus}
         onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
     ),
-    [UpgradeLinkComponent, onUpgrade, upgradeUrl]
+    [
+      UpgradeLinkComponent,
+      composerFocus.pending,
+      handleComposerFocus,
+      onUpgrade,
+      upgradeUrl,
+    ]
   );
 
   const renderEmptyState = () => {
@@ -615,11 +671,11 @@ export function CardsScreen({
               It may have been deleted.
             </p>
           </div>
-          {onNavigateView && (
+          {onNavigateView ? (
             <Button onClick={() => onNavigateView("all")} variant="outline">
               Go to Everything
             </Button>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -661,7 +717,7 @@ export function CardsScreen({
           </span>
           <p>No cards in this folder yet.</p>
           {hiddenCardsHint}
-          {onAddCardsToFolder && (
+          {onAddCardsToFolder ? (
             <Button
               onClick={() => onAddCardsToFolder(folder._id)}
               variant="outline"
@@ -669,7 +725,7 @@ export function CardsScreen({
               <Plus />
               Add cards
             </Button>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -700,12 +756,13 @@ export function CardsScreen({
       return (
         <>
           <AddCardEmptyState
+            onFocus={handleComposerFocus}
             UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}
           />
-          {hiddenCardsHint && (
+          {hiddenCardsHint ? (
             <div className="mt-4 text-center">{hiddenCardsHint}</div>
-          )}
+          ) : null}
         </>
       );
     }
@@ -842,7 +899,7 @@ export function CardsScreen({
         title={title}
       />
 
-      {showVaultSetup && <VaultSetupState />}
+      {showVaultSetup ? <VaultSetupState /> : null}
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
@@ -856,28 +913,7 @@ export function CardsScreen({
           }
           initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
-          onAddTags={handleAddTags}
-          onAddToFolderDone={(added) => {
-            if (addToFolder) {
-              onAddToFolderDone?.(addToFolder._id, added);
-            }
-          }}
-          onBulkAction={runBulkAction}
-          onCardClick={handleCardClick}
-          onCopyImage={handleCopyImage}
-          onDeleteCard={async (cardId) => {
-            const { failedIds } = await runBulkAction("delete", [cardId]);
-            return failedIds.length === 0;
-          }}
-          onLoadMore={requestMoreCards}
-          onPermanentDeleteCard={(cardId) =>
-            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
-          }
-          onRestoreCard={(cardId) =>
-            cardActions.handleRestoreCard(cardId as Id<"cards">)
-          }
-          onToggleArchive={handleToggleArchive}
-          onToggleFavorite={handleToggleFavorite}
+          {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}
           showAddForm={
@@ -904,7 +940,7 @@ export function CardsScreen({
         </>
       )}
 
-      {revisit.revisiting && (
+      {revisit.revisiting ? (
         <ConnectedRevisitDeck
           onArchive={revisit.onArchive}
           onExit={revisit.exit}
@@ -913,7 +949,7 @@ export function CardsScreen({
           onUnarchive={revisit.onUnarchive}
           queryArgs={isFolderView && !folder ? null : queryArgs}
         />
-      )}
+      ) : null}
 
       <ConnectedCardModal
         card={selectedCard}

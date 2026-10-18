@@ -266,8 +266,7 @@ program
   .command("logout")
   .description("Sign out and disconnect the CLI")
   .action(async () => {
-    const notice = await logout(program.opts());
-    write(notice ?? "Logged out of Teak.", program.opts());
+    write(await logout(program.opts()), program.opts());
   });
 
 program

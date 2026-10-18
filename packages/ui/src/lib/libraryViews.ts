@@ -14,6 +14,20 @@ export const LIBRARY_VIEW_PATHS: Record<LibraryView, string> = {
   trash: "/trash",
 };
 
+export const FOCUS_COMPOSER_PARAM = "compose";
+
+export interface GoToViewOptions {
+  focusComposer?: boolean;
+}
+
+export const libraryViewHref = (
+  view: LibraryView,
+  { focusComposer = false }: GoToViewOptions = {}
+): string =>
+  focusComposer
+    ? `${LIBRARY_VIEW_PATHS[view]}?${FOCUS_COMPOSER_PARAM}=1`
+    : LIBRARY_VIEW_PATHS[view];
+
 export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
   all: "Everything",
   favorites: "Favorites",

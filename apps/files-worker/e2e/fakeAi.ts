@@ -7,21 +7,29 @@ const STOP_WORDS = new Set(
   )
 );
 
+interface Fields {
+  [key: string]: unknown;
+}
+
+const asFields = (value: unknown): Fields =>
+  typeof value === "object" && value !== null ? (value as Fields) : {};
+
+const messagesOf = (inputs: Record<string, unknown>): Fields[] =>
+  Array.isArray(inputs.messages) ? inputs.messages.map(asFields) : [];
+
 const userText = (inputs: Record<string, unknown>): string => {
-  const messages = Array.isArray(inputs.messages) ? inputs.messages : [];
-  const user = [...messages]
+  const content = messagesOf(inputs)
     .reverse()
-    .find((message: { role?: string }) => message?.role === "user") as
-    | { content?: unknown }
-    | undefined;
-  if (typeof user?.content === "string") {
-    return user.content;
+    .find((message) => message.role === "user")?.content;
+  if (typeof content === "string") {
+    return content;
   }
-  if (Array.isArray(user?.content)) {
-    return user.content
-      .map((part: { text?: unknown }) =>
-        typeof part?.text === "string" ? part.text : ""
-      )
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        const { text } = asFields(part);
+        return typeof text === "string" ? text : "";
+      })
       .join(" ");
   }
   return "";
@@ -31,11 +39,10 @@ const hasImage = (inputs: Record<string, unknown>): boolean =>
   JSON.stringify(inputs.messages ?? "").includes('"image_url"');
 
 const readsTextOnly = (inputs: Record<string, unknown>): boolean => {
-  const messages = Array.isArray(inputs.messages) ? inputs.messages : [];
-  const system = messages.find(
-    (message: { role?: string }) => message?.role === "system"
-  ) as { content?: unknown } | undefined;
-  const prompt = typeof system?.content === "string" ? system.content : "";
+  const content = messagesOf(inputs).find(
+    (message) => message.role === "system"
+  )?.content;
+  const prompt = typeof content === "string" ? content : "";
   return prompt.includes('{"text": "..."}') && !prompt.includes('"tags"');
 };
 

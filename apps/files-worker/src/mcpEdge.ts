@@ -77,12 +77,12 @@ export const answerMcpAtEdge = async (
   const messages = Array.isArray(body) ? body : [body];
   const replies: JsonObject[] = [];
   for (const message of messages) {
-    const reply = answerProtocolMessage(message);
-    if (reply === undefined) {
+    const answer = answerProtocolMessage(message);
+    if (answer.kind === "needsConvex") {
       return null;
     }
-    if (reply) {
-      replies.push(reply);
+    if (answer.kind === "reply") {
+      replies.push(answer.reply);
     }
   }
   if (Array.isArray(body)) {

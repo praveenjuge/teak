@@ -304,3 +304,24 @@ final class Counter: @unchecked Sendable {
     private var value = 0
     func next() -> Int { lock.withLock { defer { value += 1 }; return value } }
 }
+
+@Suite struct ServicesTests {
+    @Test func aSignedOutSessionFailsBeforeAnyRequest() async throws {
+        let transport = ScriptedTransport { _, _ in
+            Issue.record("a signed-out session made a request")
+            return (500, [String: Any]())
+        }
+        let session = makeSession(MemoryStorage(), transport)
+        let config = TeakConfig(convexURL: URL(string: "https://convex.invalid")!, webURL: URL(string: "https://web.invalid")!,
+                                appGroup: "group.test", keychainAccessGroup: nil, posthogToken: nil, environment: "test")
+        let http = TeakServices.http(config: config, session: session)
+        await #expect(throws: TeakError.signedOut) {
+            let _: ConvexVoid = try await http.query("cards:get")
+        }
+    }
+
+    @Test func aServerCursorErrorIsTypedSoPagingCanRestart() {
+        #expect(TeakError.server(message: "Uncaught Error: InvalidCursor: stale cursor").isInvalidCursor)
+        #expect(!TeakError.server(message: "Uncaught Error: Something else").isInvalidCursor)
+    }
+}

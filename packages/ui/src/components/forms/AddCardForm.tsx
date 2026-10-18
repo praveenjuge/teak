@@ -19,9 +19,7 @@ import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import {
   ariaKeyShortcut,
-  clearNewNoteComposerFocusRequest,
   FOCUS_NOTE_KEYS,
-  isNewNoteComposerFocusRequested,
   SAVE_NOTE_KEYS,
 } from "../../lib/keyboardShortcuts";
 import { FocusEditor } from "../lazyDialogs";
@@ -107,6 +105,7 @@ export interface AddCardFormProps {
   autoFocus?: boolean;
   canCreateCard?: boolean;
   draftContentRef?: React.MutableRefObject<string>;
+  onFocus?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   UpgradeLinkComponent?: React.ComponentType<{
@@ -122,11 +121,10 @@ export function AddCardForm({
   autoFocus,
   canCreateCard: canCreateCardProp,
   draftContentRef,
+  onFocus,
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
-  const [focusRequested] = useState(isNewNoteComposerFocusRequested);
-
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
   );
@@ -157,7 +155,7 @@ export function AddCardForm({
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
-  const hasShownBlockedToastRef = useRef(false);
+  const hasShownBlockedToastRef = useRef<boolean>(false);
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {
@@ -295,7 +293,7 @@ export function AddCardForm({
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
         data-new-note-composer=""
-        onFocus={clearNewNoteComposerFocusRequest}
+        onFocus={onFocus}
       >
         {!hasContent && (
           <ShortcutKeys
@@ -313,7 +311,7 @@ export function AddCardForm({
           >
             <MarkdownTextEditor
               ariaLabel="Markdown content"
-              autoFocus={autoFocus || focusRequested}
+              autoFocus={autoFocus}
               className={cn(
                 "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"

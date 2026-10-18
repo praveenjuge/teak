@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";

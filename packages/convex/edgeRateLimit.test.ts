@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";

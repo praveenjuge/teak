@@ -35,8 +35,8 @@ import {
 import {
   buildR2ObjectKey,
   buildR2UserPrefix,
-  deleteObject,
   PENDING_UPLOAD_CARD_ID,
+  queueObjectDeletion,
 } from "../storage/r2";
 import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 
@@ -280,7 +280,7 @@ export const applyThumbnailOverride = internalMutation({
       updatedAt: Date.now(),
     });
     if (result.status === "written") {
-      await deleteObject(ctx, args.sourceKey);
+      await queueObjectDeletion(ctx, args.sourceKey);
     }
     return result;
   },
@@ -333,7 +333,7 @@ export const setThumbnailForUser = async (
   const outcome = await callFilesWorkerJson<FilesWorkerFinalizeImageResult>({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
-    fallbackCodes: ["CONFLICT"],
+    declineCodes: ["CONFLICT"],
   });
   if (outcome.kind !== "ok") {
     if (outcome.code === "NOT_FOUND") {
@@ -504,7 +504,7 @@ export const deleteReplacedThumbnail = internalMutation({
     ) {
       return null;
     }
-    await deleteObject(ctx, storageKey);
+    await queueObjectDeletion(ctx, storageKey);
     if (card && kept?.override?.storageKey === storageKey) {
       await patchCardWithSearchSync(ctx, cardId, {
         previousThumbnailOverride: undefined,

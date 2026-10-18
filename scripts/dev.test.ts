@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   buildDevCommand,
   DEV_TARGETS,
   describeStatus,
+  devMainCommand,
   needsWebEnv,
   parseDevArgs,
+  planDevLaunch,
   usesWebStack,
 } from "./dev.ts";
 import { mainWorktreePorts, slotPorts } from "./worktree-env.ts";
@@ -232,5 +234,112 @@ describe("describeStatus", () => {
     expect(text).toContain("bun run dev --stop");
     expect(text).toContain("dev+mac-main@example.org");
     expect(text).toContain("bun run dev --push");
+  });
+});
+
+describe("planDevLaunch", () => {
+  test.each([
+    { argv: ["--help"], hasNodeModules: false, launch: { kind: "help" } },
+    { argv: ["--status"], hasNodeModules: false, launch: { kind: "status" } },
+    { argv: ["--stop"], hasNodeModules: false, launch: { kind: "stop" } },
+    { argv: ["--check"], hasNodeModules: false, launch: { kind: "check" } },
+    {
+      argv: [],
+      hasNodeModules: true,
+      launch: { install: false, kind: "main", setup: true },
+    },
+    {
+      argv: ["--push"],
+      hasNodeModules: false,
+      launch: { install: true, kind: "main", setup: true },
+    },
+    {
+      argv: ["--detach"],
+      hasNodeModules: false,
+      launch: { install: true, kind: "detach" },
+    },
+    {
+      argv: ["extension"],
+      hasNodeModules: false,
+      launch: { install: true, kind: "main", setup: false },
+    },
+    {
+      argv: ["--all", "--headless"],
+      hasNodeModules: true,
+      launch: { install: false, kind: "main", setup: false },
+    },
+  ])(
+    "$argv with node_modules=$hasNodeModules",
+    ({ argv, hasNodeModules, launch }) => {
+      expect(planDevLaunch(parseDevArgs([...argv]), hasNodeModules)).toEqual(
+        launch as ReturnType<typeof planDevLaunch>
+      );
+    }
+  );
+
+  test("hands the same arguments to dev-main without loading .env files", () => {
+    const command = devMainCommand(["extension", "--headless"]);
+    expect(command[0]).toBe(process.execPath);
+    expect(command.slice(1)).toEqual([
+      "--no-env-file",
+      join(ROOT, "scripts/dev-main.ts"),
+      "extension",
+      "--headless",
+    ]);
+  });
+});
+
+describe("dev.ts before install", () => {
+  const packageImports = (entry: string): string[] => {
+    const transpiler = new Bun.Transpiler({ loader: "ts" });
+    const seen = new Set<string>();
+    const found = new Set<string>();
+    const visit = (file: string) => {
+      if (seen.has(file)) {
+        return;
+      }
+      seen.add(file);
+      const source = readFileSync(file, "utf-8").replace(/^#!.*\n/, "");
+      for (const { path } of transpiler.scanImports(source)) {
+        if (path.startsWith(".")) {
+          const base = join(dirname(file), path);
+          const resolved = [base, `${base}.ts`, `${base}.tsx`].find(
+            (candidate) => existsSync(candidate) && candidate.includes(".ts")
+          );
+          visit(resolved ?? base);
+        } else if (!/^(node|bun):|^bun$/.test(path)) {
+          found.add(`${path} (from ${file.replace(`${ROOT}/`, "")})`);
+        }
+      }
+    };
+    visit(entry);
+    return [...found];
+  };
+
+  test("imports no installed package, so it can install them first", () => {
+    expect(packageImports(join(ROOT, "scripts/dev.ts"))).toEqual([]);
+  });
+
+  test("dev-main loads the installed packages that run the app", () => {
+    expect(
+      packageImports(join(ROOT, "scripts/dev-main.ts")).some((entry) =>
+        entry.startsWith("@workos-inc/node ")
+      )
+    ).toBe(true);
+  });
+
+  test("--help works on its own", () => {
+    const result = Bun.spawnSync(
+      [
+        process.execPath,
+        "--no-env-file",
+        join(ROOT, "scripts/dev.ts"),
+        "--help",
+      ],
+      { cwd: ROOT }
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain("Usage: bun run dev");
+    expect(result.stdout.toString()).toContain("files:local");
   });
 });

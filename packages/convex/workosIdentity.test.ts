@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";

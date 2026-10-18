@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import type { DispatchItem } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";

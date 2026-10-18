@@ -1,6 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { deleteObject } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/r2";
 
 export const deleteLinkedPdfRowsAsLink = async (
   ctx: MutationCtx,
@@ -14,7 +14,7 @@ export const deleteLinkedPdfRowsAsLink = async (
     return;
   }
   if (row.status !== "done") {
-    await deleteObject(ctx, row.fileKey);
+    await queueObjectDeletion(ctx, row.fileKey);
   }
   await ctx.db.delete("linkedPdfs", row._id);
 };

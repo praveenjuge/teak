@@ -86,13 +86,12 @@ export function SaveDetails({
     void readRecentTags(userId)
       .then(setRecentTags)
       .catch(() => undefined);
-    let result: SaveDetailsResponse | undefined;
-    try {
-      result = await chrome.runtime.sendMessage({
+    const result: SaveDetailsResponse | undefined = await chrome.runtime
+      .sendMessage({
         type: MESSAGE_TYPES.LOAD_SAVE_DETAILS,
         payload: { alreadySaved, cardId },
-      });
-    } catch {}
+      })
+      .catch(() => undefined);
     if (result?.status !== "ok") {
       setLoadState(alreadySaved ? "error" : "ready");
       return;

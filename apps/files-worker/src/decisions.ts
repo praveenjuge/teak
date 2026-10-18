@@ -130,7 +130,7 @@ export type ClefAnswer =
     };
 
 export interface ClefReply {
-  answers: Record<string, ClefAnswer>;
+  answers: Partial<Record<string, ClefAnswer>>;
   usage?: FilesDecisionUsage;
 }
 

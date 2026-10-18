@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { recordCardTombstone } from "../publicApiTombstones";
-import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
+import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
 import { syncCardSearch } from "./searchDocumentHelpers";
 
 const LOG_PREFIX = "[card/trashCleanup]";
@@ -55,7 +55,7 @@ export const cleanupDeletedCard = internalMutation({
 
     for (const key of cardStorageObjectKeys(card)) {
       try {
-        await deleteObject(ctx, key);
+        await queueObjectDeletion(ctx, key);
       } catch (error) {
         console.error(`${LOG_PREFIX} Failed to delete object`, {
           cardId,

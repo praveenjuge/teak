@@ -55,7 +55,7 @@ export const runDecision = async <T>(
       params: { ...params, ...aiUsageParams(userId) },
       timeoutMs,
     });
-    if (outcome.kind === "fallback") {
+    if (outcome.kind === "declined") {
       return null;
     }
     const result = read(outcome.data);

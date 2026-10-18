@@ -210,7 +210,7 @@ export function FolderPickerDialog({
               </span>
             </button>
           ))}
-          {canCreate && (
+          {canCreate ? (
             <button
               aria-selected={activeIndex === matches.length}
               className={cn(
@@ -234,16 +234,16 @@ export function FolderPickerDialog({
                 Create folder “{trimmed}”
               </span>
             </button>
-          )}
+          ) : null}
         </div>
-        {(error || (isNewName && atCap)) && (
+        {error || (isNewName && atCap) ? (
           <p
             className="border-t px-5 py-3 text-destructive text-sm"
             role="alert"
           >
             {error ?? FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS}
           </p>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );

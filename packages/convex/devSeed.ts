@@ -10,7 +10,7 @@ import {
   initiateAccountDeletion,
 } from "./accountDeletion";
 import {
-  type DefaultCardDef,
+  type DevScenarioCardDef,
   insertCompletedCards,
   isOnboardingCard,
   ONBOARDING_CARDS,
@@ -42,8 +42,8 @@ import {
 
 const link = (
   url: string,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "link",
   content: url,
   url,
@@ -54,15 +54,15 @@ const link = (
 const palette = (
   content: string,
   hexes: string[],
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "palette",
   content,
   colors: hexes.map((hex) => ({ hex })),
   ...extra,
 });
 
-export const DEV_SEED_CARDS: DefaultCardDef[] = [
+export const DEV_SEED_CARDS: DevScenarioCardDef[] = [
   {
     type: "text",
     content:
@@ -231,8 +231,8 @@ const bylineLink = (
   slug: string,
   url: string,
   linkPreview: Record<string, unknown>,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => {
   const markedUrl = `${url}#${SCENARIO_MARKER}-card-details-${slug}`;
   return {
     type: "link",
@@ -255,7 +255,7 @@ const bylineLink = (
   };
 };
 
-export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
+export const CARD_DETAILS_SCENARIO_CARDS: DevScenarioCardDef[] = [
   bylineLink("full", "https://www.theverge.com/2024/3/5/teak-byline", {
     title: "A full byline whose publisher repeats the site",
     description: "Author, publisher and date; the publisher names the host.",
@@ -334,7 +334,7 @@ const orderingHex = (seed: number) =>
     .toString(16)
     .padStart(6, "0")}`;
 
-export const orderingScenarioCard = (position: number): DefaultCardDef => {
+export const orderingScenarioCard = (position: number): DevScenarioCardDef => {
   const index = orderingIndexAt(position);
   const createdAt =
     ORDERING_START +
@@ -373,7 +373,7 @@ export const orderingScenarioCard = (position: number): DefaultCardDef => {
   };
 };
 
-const orderingScenarioPage = (page: number): DefaultCardDef[] => {
+const orderingScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -388,7 +388,7 @@ export const ARCHIVE_MIX_SCENARIO_SIZE = 1000;
 export const ARCHIVE_MIX_SCENARIO_PAGE_SIZE = 200;
 const ARCHIVE_MIX_START = Date.UTC(2025, 0, 1);
 
-export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
+export const archiveMixScenarioCard = (index: number): DevScenarioCardDef => {
   const isArchived = index % 5 === 0;
   const isDeleted = index % 10 === 3 || index % 50 === 0;
   const isFavorited = index % 7 === 0;
@@ -426,7 +426,7 @@ export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
+const archiveMixScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ARCHIVE_MIX_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
@@ -441,7 +441,7 @@ export const TAGS_2000_SCENARIO_SIZE = 1000;
 export const TAGS_2000_SCENARIO_PAGE_SIZE = 200;
 const TAGS_2000_START = Date.UTC(2025, 6, 1);
 
-export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
+export const tags2000ScenarioCard = (index: number): DevScenarioCardDef => {
   const topic = (n: number) => `topic-${String(n).padStart(4, "0")}`;
   const tags = [topic(index * 2), topic(index * 2 + 1)];
   if (index % 2 === 0) {
@@ -462,7 +462,7 @@ export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
   return { ...base, type: "text", content: label };
 };
 
-const tags2000ScenarioPage = (page: number): DefaultCardDef[] => {
+const tags2000ScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * TAGS_2000_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + TAGS_2000_SCENARIO_PAGE_SIZE,
@@ -478,8 +478,8 @@ export const LONG_SCENARIO_TAG = `long-${"x".repeat(59)}`;
 const tagsCaseCard = (
   slug: string,
   label: string,
-  extra: Partial<DefaultCardDef>
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef>
+): DevScenarioCardDef => {
   const url = `https://example.com/tags-case/${slug}#${SCENARIO_MARKER}-tags-case`;
   return {
     type: "link",
@@ -490,7 +490,7 @@ const tagsCaseCard = (
   };
 };
 
-export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
+export const TAGS_CASE_SCENARIO_CARDS: DevScenarioCardDef[] = [
   tagsCaseCard("upper-first", "Design (user tag)", { tags: ["Design", "web"] }),
   tagsCaseCard("lower", "design (user tag)", { tags: ["design", "ui"] }),
   tagsCaseCard("caps", "DESIGN (user tag)", { tags: ["DESIGN"] }),
@@ -513,7 +513,8 @@ export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
   tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
 ];
 
-export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
+export interface FolderScenarioCard
+  extends Omit<DevScenarioCardDef, "folderIds"> {
   folders: number[];
 }
 
@@ -552,7 +553,7 @@ const folderScenarioCard = (
   index: number,
   label: string,
   folders: number[],
-  extra: Partial<DefaultCardDef> = {}
+  extra: Partial<DevScenarioCardDef> = {}
 ): FolderScenarioCard => {
   const base = {
     createdAt: FOLDER_SCENARIO_START + index * 3_600_000,
@@ -581,8 +582,8 @@ const FOLDER_COLOR_CYCLE: (FolderColor | undefined)[] = [
 ];
 
 const foldersOnePack = (): FolderScenarioPack => {
-  const states: [string, Partial<DefaultCardDef>][] = [
-    ...Array.from({ length: 8 }, (): [string, Partial<DefaultCardDef>] => [
+  const states: [string, Partial<DevScenarioCardDef>][] = [
+    ...Array.from({ length: 8 }, (): [string, Partial<DevScenarioCardDef>] => [
       "active",
       {},
     ]),
@@ -673,7 +674,7 @@ export const UGLY_FOLDER_NAMES = [
   "Zürich",
 ];
 
-const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
+const UGLY_CARD_STATES: Record<number, Partial<DevScenarioCardDef>> = {
   2: { isArchived: true },
   3: { isDeleted: true },
 };
@@ -748,7 +749,7 @@ const SEARCH_QUALIFIER_TEXTS = [
 
 const searchQualifiersPack = (): FolderScenarioPack => {
   const scenario = "search-qualifiers" as const;
-  const extraFor = (index: number): Partial<DefaultCardDef> => ({
+  const extraFor = (index: number): Partial<DevScenarioCardDef> => ({
     tags: [
       `scenario-${scenario}`,
       ...SEARCH_QUALIFIER_TAGS[index % SEARCH_QUALIFIER_TAGS.length],
@@ -914,7 +915,7 @@ const exportUglyPack = (): FolderScenarioPack => {
     index: number,
     title: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://example.com/export-ugly/${index}?a=1&b="2"`;
     return {
@@ -1113,7 +1114,7 @@ const saveDetailsPack = (): FolderScenarioPack => {
   const link = (
     index: number,
     url: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => ({
     ...folderScenarioCard(scenario, index, "", [], extra),
     type: "link" as const,
@@ -1164,7 +1165,7 @@ const omniboxTitlesPack = (): FolderScenarioPack => {
   const titled = (
     index: number,
     metadataTitle: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://omnibox-titles.example/${index}`;
     return {
@@ -1210,7 +1211,7 @@ const ocrImagesPack = (): FolderScenarioPack => {
     index: number,
     label: string,
     aiOcrText: string | undefined,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => ({
     ...folderScenarioCard(scenario, index, label, []),
     type: "image" as const,
@@ -1520,7 +1521,7 @@ const doneStatesPack = (): FolderScenarioPack => {
     index: number,
     title: string,
     category: LinkCategory | undefined,
-    extra: Partial<DefaultCardDef> = {},
+    extra: Partial<DevScenarioCardDef> = {},
     folders: number[] = []
   ) => {
     const url = `https://example.com/${scenario}/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
@@ -1835,7 +1836,7 @@ const richSitesPack = (): FolderScenarioPack => {
 export const DONE_STATES_IMAGES_SIZE = 1000;
 const DONE_STATES_IMAGES_PAGE_SIZE = 200;
 
-const doneStatesImagesPage = (page: number): DefaultCardDef[] => {
+const doneStatesImagesPage = (page: number): DevScenarioCardDef[] => {
   const start = page * DONE_STATES_IMAGES_PAGE_SIZE;
   const end = Math.min(
     start + DONE_STATES_IMAGES_PAGE_SIZE,
@@ -1934,7 +1935,7 @@ const hiddenMixPack = (): FolderScenarioPack => {
     index: number,
     label: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => folderScenarioCard(scenario, index, label, folders, extra);
   const hostLink = (index: number, title: string, tags: string[]) => {
     const url = `https://hidden-mix.example/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
@@ -2011,7 +2012,8 @@ const REVISIT_SHAPES = [
 const revisitCard = (
   shape: (typeof REVISIT_SHAPES)[number],
   label: string
-): Partial<DefaultCardDef> & Pick<DefaultCardDef, "content" | "type"> => {
+): Partial<DevScenarioCardDef> &
+  Pick<DevScenarioCardDef, "content" | "type"> => {
   const color = { hex: "#4d96ff" };
   const file = (
     fileName: string,
@@ -2119,7 +2121,7 @@ const revisitSizesPack = (): FolderScenarioPack => {
 
 export const HIDDEN_MIX_VOLUME_SIZE = ORDERING_SCENARIO_SIZE;
 
-export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
+export const hiddenMixVolumeCard = (position: number): DevScenarioCardDef => {
   const ordering = orderingScenarioCard(position);
   const index = orderingIndexAt(position);
   const hidden = index % 5 === 0;
@@ -2135,7 +2137,7 @@ export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
   };
 };
 
-const hiddenMixVolumePage = (page: number): DefaultCardDef[] => {
+const hiddenMixVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -2195,7 +2197,7 @@ const seedFolderScenario = async (
         )
         .first()
     : null;
-  const cards: DefaultCardDef[] = seeded
+  const cards: DevScenarioCardDef[] = seeded
     ? []
     : pack.cards.map(({ folders, ...card }) => ({
         ...card,
@@ -2230,7 +2232,9 @@ const VOLUME_RARE_HOSTS = [
   "blog.example.com",
 ] as const;
 
-export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
+export const searchQualifiersVolumeCard = (
+  index: number
+): DevScenarioCardDef => {
   const host =
     index % 10 === 0
       ? VOLUME_RARE_HOSTS[(index / 10) % VOLUME_RARE_HOSTS.length]
@@ -2251,7 +2255,7 @@ export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
   };
 };
 
-const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
+const searchQualifiersVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE;
   const end = Math.min(
     start + SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
@@ -2282,7 +2286,9 @@ const KEYBOARD_MIXED_COLORS = [
   "#0f766e",
 ];
 
-export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
+export const keyboardMixedScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const shape = KEYBOARD_MIXED_SHAPES[index % KEYBOARD_MIXED_SHAPES.length];
   const label = `Keyboard mix #${String(index).padStart(2, "0")} ${shape}`;
   const color =
@@ -2291,7 +2297,7 @@ export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
     createdAt: KEYBOARD_MIXED_START + index * 60_000,
     tags: ["scenario-keyboard-mixed"],
   };
-  const block = (width: number, height: number): DefaultCardDef => ({
+  const block = (width: number, height: number): DevScenarioCardDef => ({
     ...base,
     type: "image",
     content: label,
@@ -2331,7 +2337,9 @@ const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
 const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
 const SHUFFLE_PARTIAL_TYPES = ["text", "quote", "palette"] as const;
 
-export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
+export const shufflePartialScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const keyed = index % 4 === 0;
   const label = `Shuffle #${String(index).padStart(3, "0")} ${
     keyed ? "keyed" : "no key"
@@ -2356,7 +2364,7 @@ export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
+const shufflePartialScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * SHUFFLE_PARTIAL_PAGE_SIZE;
   const end = Math.min(
     start + SHUFFLE_PARTIAL_PAGE_SIZE,
@@ -2368,7 +2376,7 @@ const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
 };
 
 type ScenarioPack = { description: string } & (
-  | { cards: (page: number) => DefaultCardDef[] }
+  | { cards: (page: number) => DevScenarioCardDef[] }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number }
 );
@@ -2388,7 +2396,7 @@ const fillScenarioCards = async (
     .take(target);
   return Array.from(
     { length: Math.max(0, target - active.length) },
-    (_, index): DefaultCardDef => ({
+    (_, index): DevScenarioCardDef => ({
       type: "text",
       content: `Filler card ${index + 1}`,
       createdAt: FILL_START + index * 60_000,
@@ -2397,7 +2405,7 @@ const fillScenarioCards = async (
   );
 };
 
-const firstPageOnly = (cards: DefaultCardDef[]) => (page: number) =>
+const firstPageOnly = (cards: DevScenarioCardDef[]) => (page: number) =>
   page === 0 ? cards : [];
 
 const SCENARIOS: Record<string, ScenarioPack> = {

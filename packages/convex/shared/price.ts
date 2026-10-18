@@ -293,6 +293,9 @@ export const isLinkPrice = (value: unknown): value is LinkPrice => {
   );
 };
 
+const formatPlainAmount = (amount: number, locale?: string): string =>
+  new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(amount);
+
 export const formatLinkPrice = (price: LinkPrice, locale?: string): string => {
   if (price.amount === 0) {
     return "Free";
@@ -303,9 +306,9 @@ export const formatLinkPrice = (price: LinkPrice, locale?: string): string => {
         style: "currency",
         currency: price.currency,
       }).format(price.amount);
-    } catch {}
+    } catch {
+      return formatPlainAmount(price.amount, locale);
+    }
   }
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(
-    price.amount
-  );
+  return formatPlainAmount(price.amount, locale);
 };

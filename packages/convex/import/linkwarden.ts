@@ -86,12 +86,14 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
       continue;
     }
     const folder = pathOf(collection);
-    for (const link of collection.links as LinkwardenLink[]) {
+    for (const link of collection.links as Array<LinkwardenLink | null>) {
       if (output.length >= 10_000) {
         throw new ImportLimitExceeded("Linkwarden backup exceeds 10,000 links");
       }
       const tags = Array.isArray(link?.tags)
-        ? (link.tags as Array<{ name?: unknown }>).map((tag) => text(tag?.name))
+        ? (link.tags as Array<{ name?: unknown } | null>).map((tag) =>
+            text(tag?.name)
+          )
         : [];
       output.push(
         linkItem(SOURCE, {

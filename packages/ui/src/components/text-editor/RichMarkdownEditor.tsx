@@ -332,7 +332,9 @@ export function RichMarkdownEditor({
     <BlockEditor editor={editor}>
       {!props.disabled && <EditorFormatting editor={editor} />}
       <EditorContent className="block-editor-content" editor={editor} />
-      {menu && <SlashMenu menu={menu} selected={selectedCommand.current} />}
+      {menu ? (
+        <SlashMenu menu={menu} selected={selectedCommand.current} />
+      ) : null}
     </BlockEditor>
   );
 }

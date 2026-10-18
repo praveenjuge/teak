@@ -42,7 +42,7 @@ export const logResolverDenial = async (input: {
   reason: ResolverDenialReason;
   verification: ResolverVerification;
   workosUserId: string;
-}): Promise<void> =>
+}): Promise<boolean> =>
   ignoreTelemetryErrorAsync(async () => {
     console.warn("identity_resolver_denial", {
       provider: "workos",
@@ -88,7 +88,9 @@ export interface PublicApiAuthOutcome {
   surface: "rest" | "mcp";
 }
 
-export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
+export const logPublicApiAuthOutcome = (
+  outcome: PublicApiAuthOutcome
+): boolean =>
   ignoreTelemetryError(() => {
     console.log("public_api_auth_outcome", {
       surface: outcome.surface,

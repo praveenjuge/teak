@@ -375,14 +375,15 @@ const applyCardFieldEdit = (
     }
 
     case "metadataTitle": {
-      const title = parseCardTitle(truncateCardTitle(value));
-      if (title === undefined) {
+      const parsed = parseCardTitle(truncateCardTitle(value));
+      if (parsed.kind === "invalid") {
         throw new ConvexError({
           code: "INVALID_INPUT",
           message: "Title must be a string or null",
         });
       }
-      state.updateData.metadataTitle = title ?? undefined;
+      state.updateData.metadataTitle =
+        parsed.kind === "title" ? parsed.title : undefined;
       state.updateData.metadataTitleEdited = true;
       return true;
     }

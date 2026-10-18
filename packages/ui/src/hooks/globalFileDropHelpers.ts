@@ -179,9 +179,7 @@ export function formatPartialFailureMessage(summary: BatchSummary): string {
     return base;
   }
 
-  const reason = firstFailure.success
-    ? undefined
-    : (firstFailure.error ?? "Upload failed");
+  const reason = firstFailure.success ? undefined : firstFailure.error;
   if (!reason) {
     return base;
   }

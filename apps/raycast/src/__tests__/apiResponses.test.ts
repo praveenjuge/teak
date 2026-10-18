@@ -3,6 +3,7 @@ import { RaycastApiError } from "../lib/apiErrors";
 import {
   parseCardsPageResponse,
   parseQuickSaveResponse,
+  parseToolCardId,
 } from "../lib/apiParsers";
 
 const sampleCard = {
@@ -65,5 +66,17 @@ describe("raycast api response parsing", () => {
         cardId: "card_123",
       });
     }).toThrow(RaycastApiError);
+  });
+});
+
+describe("AI tool card ids", () => {
+  test("trims the id the model sent", () => {
+    expect(parseToolCardId("  card_123 ")).toBe("card_123");
+  });
+
+  test("rejects a missing, blank or non-text id", () => {
+    for (const value of [undefined, "", "   ", 42]) {
+      expect(() => parseToolCardId(value)).toThrow("cardId is required");
+    }
   });
 });

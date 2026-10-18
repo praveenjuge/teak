@@ -131,7 +131,11 @@ const commands = ():
   }
 };
 
-const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
+const STACK_OWNERS = [
+  "scripts/dev-main.ts",
+  "scripts/dev.ts",
+  "run-local-suite.ts",
+];
 const STACK_MEMBERS = ["convex", "next"];
 
 /**
@@ -171,10 +175,12 @@ const groupAlive = (group: number): boolean => {
   );
 };
 
-const signalGroup = (group: number, signal: NodeJS.Signals) => {
+const signalGroup = (group: number, signal: NodeJS.Signals): boolean => {
   try {
-    process.kill(-group, signal);
-  } catch {}
+    return process.kill(-group, signal);
+  } catch {
+    return false;
+  }
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -241,11 +247,8 @@ export const waitFor = async (
   throw new Error(`${url} did not come up within ${timeoutMs / 1000}s`);
 };
 
-const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
-  try {
-    process.kill(-(child.pid ?? 0), signal);
-  } catch {}
-};
+const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) =>
+  child.pid !== undefined && signalGroup(child.pid, signal);
 
 // `convex dev` runs the web server in its own process group and stops it
 // only on SIGINT, so interrupt first and force-stop whatever remains.

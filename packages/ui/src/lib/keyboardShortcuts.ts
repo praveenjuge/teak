@@ -192,21 +192,3 @@ export function registerUploadFiles(handler: () => boolean): () => void {
 export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
 }
-
-const COMPOSER_FOCUS_REQUEST_MS = 10_000;
-let composerFocusRequestedAt: number | null = null;
-
-export function requestNewNoteComposerFocus(now = Date.now()) {
-  composerFocusRequestedAt = now;
-}
-
-export function isNewNoteComposerFocusRequested(now = Date.now()): boolean {
-  return (
-    composerFocusRequestedAt !== null &&
-    now - composerFocusRequestedAt <= COMPOSER_FOCUS_REQUEST_MS
-  );
-}
-
-export function clearNewNoteComposerFocusRequest() {
-  composerFocusRequestedAt = null;
-}

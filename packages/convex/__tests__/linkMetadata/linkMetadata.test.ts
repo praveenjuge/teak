@@ -17,8 +17,8 @@ describe("linkMetadata.ts", () => {
   };
 
   beforeEach(async () => {
-    r2Mocks.deleteObject.mockReset();
-    r2Mocks.deleteObject.mockResolvedValue(null);
+    r2Mocks.queueObjectDeletion.mockReset();
+    r2Mocks.queueObjectDeletion.mockResolvedValue(null);
     const module = await import("../../linkMetadata");
     getFullCardForMetadata = module.getFullCardForMetadata;
     _updateCardMetadata = module.updateCardMetadata;
@@ -86,7 +86,10 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_image");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_image"
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -133,8 +136,8 @@ describe("linkMetadata.ts", () => {
 
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      expect(r2Mocks.deleteObject).toHaveBeenCalledTimes(1);
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "new_shot");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledTimes(1);
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "new_shot");
     });
 
     test("fenced patch deletes new image and media objects but keeps carried-over references", async () => {
@@ -183,7 +186,7 @@ describe("linkMetadata.ts", () => {
 
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      const deleted = r2Mocks.deleteObject.mock.calls
+      const deleted = r2Mocks.queueObjectDeletion.mock.calls
         .map((call: any[]) => call[1])
         .sort();
       expect(deleted).toEqual(["new_image", "new_media", "new_poster"]);
@@ -216,7 +219,7 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -297,7 +300,10 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_screenshot");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_screenshot"
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -338,7 +344,7 @@ describe("linkMetadata.ts", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -500,7 +506,9 @@ describe("linkMetadata.ts", () => {
         },
       };
       const newLinkPreview = { imageStorageKey: "new_image" };
-      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
+        new Error("Storage error")
+      );
       const ctx = {
         db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
@@ -526,7 +534,9 @@ describe("linkMetadata.ts", () => {
         },
       };
       const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
-      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
+        new Error("Storage error")
+      );
       const ctx = {
         db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),
@@ -654,7 +664,10 @@ describe("linkMetadata.ts", () => {
         screenshotUpdatedAt: 1000,
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_screenshot");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_screenshot"
+      );
     });
 
     test("handles screenshot delete error gracefully", async () => {
@@ -663,7 +676,9 @@ describe("linkMetadata.ts", () => {
         type: "link",
         metadata: { linkPreview: { screenshotStorageKey: "old_screenshot" } },
       };
-      r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
+        new Error("Storage error")
+      );
       const ctx = {
         db: withSearchSyncDb({
           get: mock().mockResolvedValue(existingCard),

@@ -85,7 +85,9 @@ const deadLetterKey = async (id: unknown) => {
   if (typeof id === "string" && id.length > 0 && id.length <= 256) {
     return id;
   }
-  return `sha256:${await sha256Hex(JSON.stringify(id) ?? String(id))}`;
+  // JSON.stringify returns undefined for undefined, functions and symbols.
+  const json: string | undefined = JSON.stringify(id);
+  return `sha256:${await sha256Hex(json ?? String(id))}`;
 };
 
 export const ingestWorkosEvent = async (
@@ -121,7 +123,8 @@ export const ingestWorkosEvent = async (
   } catch (error) {
     if (
       error instanceof ConvexError &&
-      (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
+      (error.data as { code?: unknown } | undefined)?.code ===
+        INVALID_WORKOS_EVENT
     ) {
       await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
         eventId: await deadLetterKey(event.id),

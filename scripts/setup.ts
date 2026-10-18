@@ -295,6 +295,7 @@ export const runSetup = async (
     target === "web" ? join(root, "apps/web/.env.local") : undefined;
 
   let workosValues: Partial<Record<WorkosCredentialName, string>> = {};
+  let convexEnv = process.env;
   const prepared = await prepareCheckout(root, checkOnly);
   const checks = prepared.checks;
   if (!prepared.ok) {
@@ -316,6 +317,7 @@ export const runSetup = async (
       return fail(checks);
     }
     workosValues = cloud.workos;
+    convexEnv = cloud.env;
   }
 
   const plans = DERIVED_FILE_PLANS[target];
@@ -373,6 +375,7 @@ export const runSetup = async (
     report.capabilities = await planCapabilities({
       checkNetwork: true,
       convex,
+      env: convexEnv,
       root,
       target,
       worktree,

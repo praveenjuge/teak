@@ -5,20 +5,20 @@ import type { CardType } from "../schema";
 import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import {
-  type ArchivedFilter,
-  archivedFilterMatch,
+  type CardListScope,
   type CreatedAtBounds,
+  scopeArchivedMatch,
+  scopeDeletedMatch,
 } from "./listQuery";
 
 export const newShuffleKey = (): number => Math.random();
 
 export interface ShuffleWalkOptions {
-  archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
   includeHidden?: boolean;
+  scope?: CardListScope;
   seed: number;
-  trash?: boolean;
   types?: readonly CardType[];
   userId: string;
 }
@@ -29,7 +29,7 @@ export interface ShuffleWalkPosition {
 }
 
 const archiveStates = (options: ShuffleWalkOptions): (true | undefined)[] => {
-  const match = archivedFilterMatch(options.archived, options.trash);
+  const match = scopeArchivedMatch(options.scope);
   return match === "any" ? [undefined, true] : [match];
 };
 
@@ -52,7 +52,7 @@ export const buildShuffleSegmentQuery = (
     ctx.db.query("cards").withIndex("by_user_deleted_archived_shuffle", (q) => {
       const base = q
         .eq("userId", options.userId)
-        .eq("isDeleted", options.trash ? true : undefined)
+        .eq("isDeleted", scopeDeletedMatch(options.scope))
         .eq("isArchived", state);
       return upperRange
         ? base.gte("shuffleKey", start)

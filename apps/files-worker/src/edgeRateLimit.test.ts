@@ -74,8 +74,9 @@ const deps = async (): Promise<EdgeIdentityDeps> => {
 const env = (
   limits: { api?: RateLimiter; unknown?: RateLimiter } = {}
 ): EdgeRateLimitEnv & { api: FakeLimiter; unknown: FakeLimiter } => {
-  const api = (limits.api as FakeLimiter) ?? new FakeLimiter(2);
-  const unknown = (limits.unknown as FakeLimiter) ?? new FakeLimiter(3);
+  const api = (limits.api as FakeLimiter | undefined) ?? new FakeLimiter(2);
+  const unknown =
+    (limits.unknown as FakeLimiter | undefined) ?? new FakeLimiter(3);
   return {
     API_PUBLIC_HOST: "teakvault.com",
     API_REQUEST_LIMITER: api,

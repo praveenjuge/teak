@@ -186,7 +186,7 @@ export function FolderNameDialog({
               placeholder="Reading list"
               value={name}
             />
-            {error && (
+            {error ? (
               <p
                 className="text-destructive text-sm"
                 id={`${inputId}-error`}
@@ -194,9 +194,9 @@ export function FolderNameDialog({
               >
                 {error}
               </p>
-            )}
+            ) : null}
           </div>
-          {isSmart && (
+          {isSmart ? (
             <div className="space-y-2">
               <Label htmlFor={queryId}>Search</Label>
               <Textarea
@@ -226,7 +226,7 @@ export function FolderNameDialog({
                 spellCheck={false}
                 value={query}
               />
-              {(queryError || queryNote) && (
+              {queryError || queryNote ? (
                 <p
                   className={cn(
                     "text-sm",
@@ -237,9 +237,9 @@ export function FolderNameDialog({
                 >
                   {queryError ?? queryNote}
                 </p>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
           <fieldset className="space-y-2">
             <legend className="mb-2 font-medium text-sm">Color</legend>
             <div className="flex flex-wrap gap-1.5">
@@ -324,12 +324,12 @@ function ColorSwatch({
       title={label}
       type="button"
     >
-      {checked && (
+      {checked ? (
         <Check
           aria-hidden="true"
           className={cn("size-3", color ? "text-white" : "text-foreground")}
         />
-      )}
+      ) : null}
     </button>
   );
 }

@@ -54,7 +54,7 @@ export function ShortcutTooltip({
           side={side}
         >
           {label}
-          {keys && <ShortcutKeys keys={keys} />}
+          {keys ? <ShortcutKeys keys={keys} /> : null}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

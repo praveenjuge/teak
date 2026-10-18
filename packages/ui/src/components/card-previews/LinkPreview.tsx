@@ -245,17 +245,19 @@ export function LinkPreview({
       </ThumbnailDropZone>
     ) : null;
 
+  const imageSlot =
+    image && thumbnail ? (
+      <ThumbnailDropZone className="self-start" onFile={thumbnail.onFile}>
+        {image}
+      </ThumbnailDropZone>
+    ) : (
+      image
+    );
+
   const linkContent = (
     <>
       <div className="flex flex-col gap-4">
-        {image &&
-          (thumbnail ? (
-            <ThumbnailDropZone className="self-start" onFile={thumbnail.onFile}>
-              {image}
-            </ThumbnailDropZone>
-          ) : (
-            image
-          ))}
+        {imageSlot}
 
         <div className="space-y-1.5 px-1">
           <div className="flex items-start gap-2">
@@ -265,7 +267,7 @@ export function LinkPreview({
             <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground" />
           </div>
 
-          {(hostname || byline) && (
+          {hostname || byline ? (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
               {hostname && (
                 <SiteFavicon className="size-4" hostname={hostname} />
@@ -275,24 +277,24 @@ export function LinkPreview({
                   {hostname}
                 </span>
               )}
-              {hostname && byline && (
+              {hostname && byline ? (
                 <span aria-hidden="true" className="shrink-0">
                   ·
                 </span>
-              )}
+              ) : null}
               {byline && (
                 <span className="min-w-0 truncate" title={byline}>
                   {byline}
                 </span>
               )}
             </div>
-          )}
+          ) : null}
 
-          {linkDescription && (
+          {linkDescription ? (
             <p className="line-clamp-3 pt-1 text-muted-foreground text-sm leading-relaxed">
               {linkDescription}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 

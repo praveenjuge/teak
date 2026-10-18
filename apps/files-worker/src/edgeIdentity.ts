@@ -1,6 +1,6 @@
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
-import { verifyWorkosConnectToken } from "@teak/convex/workosTokens";
+import { verifyWorkosConnectTokenSignature } from "@teak/convex/workosTokens";
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_MAX_TTL_SECONDS,
@@ -34,7 +34,7 @@ const MAX_JWT_LENGTH = 16_384;
 export interface EdgeIdentityDeps {
   chargeLookup?: () => Promise<"charged" | "refused" | "uncharged">;
   fetcher?: typeof fetch;
-  verifyToken?: typeof verifyWorkosConnectToken;
+  verifyToken?: typeof verifyWorkosConnectTokenSignature;
 }
 
 export const addressKey = (request: Request): `ip:${string}` =>
@@ -155,7 +155,7 @@ export const resolveEdgeIdentity = async (
   deps: EdgeIdentityDeps = {}
 ): Promise<EdgeIdentity> => {
   const fetcher = deps.fetcher ?? fetch;
-  const verifyToken = deps.verifyToken ?? verifyWorkosConnectToken;
+  const verifyToken = deps.verifyToken ?? verifyWorkosConnectTokenSignature;
   const token = bearerToken(request);
   if (!(token && env.API_UPSTREAM_ORIGIN)) {
     return addressIdentity(request);

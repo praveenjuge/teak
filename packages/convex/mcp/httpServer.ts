@@ -116,8 +116,11 @@ const handleJsonRpcMessage = async (
   }
 
   const answered = answerProtocolMessage(rpc);
-  if (answered !== undefined) {
-    return answered;
+  if (answered.kind === "reply") {
+    return answered.reply;
+  }
+  if (answered.kind === "noReply") {
+    return null;
   }
 
   if (rpc.method === "tools/call") {

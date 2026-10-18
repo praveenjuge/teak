@@ -48,7 +48,9 @@ const convex = (
 ) => {
   const calls: LookupCall[] = [];
   const fetcher = (async (url: string, init: RequestInit = {}) => {
-    const body = JSON.parse(String(init.body)) as Record<string, string>;
+    const body = JSON.parse(String(init.body)) as Partial<
+      Record<string, string>
+    >;
     calls.push({ body, headers: new Headers(init.headers), url: String(url) });
     if (respond) {
       return await respond();

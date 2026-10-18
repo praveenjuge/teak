@@ -17,6 +17,7 @@ import {
   archivedFilterValidator,
   buildFolderCardListQuery,
   buildTagCardListQuery,
+  cardListScope,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -388,8 +389,7 @@ export const shuffleCardsPageForUser = internalQuery({
       const rows = await buildTagCardListQuery(ctx, {
         userId,
         tag,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: cardListScope(options.archived, options.showTrashOnly),
         types,
         favoritesOnly: options.favorited === true,
         createdAt,
@@ -401,8 +401,7 @@ export const shuffleCardsPageForUser = internalQuery({
     if (options.folderId) {
       const rows = await buildFolderCardListQuery(ctx, {
         folderId: options.folderId,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: cardListScope(options.archived, options.showTrashOnly),
         types,
         createdAt,
       })
@@ -418,8 +417,7 @@ export const shuffleCardsPageForUser = internalQuery({
       userId,
       seed,
       includeHidden: options.includeHidden,
-      trash: options.showTrashOnly,
-      archived: options.archived,
+      scope: cardListScope(options.archived, options.showTrashOnly),
       favoritesOnly: options.favorited === true,
       types: options.type ? [options.type] : options.types,
       createdAt: {

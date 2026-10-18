@@ -181,7 +181,7 @@ test("runs ensureUser again from Try again after it fails", async () => {
     return Promise.resolve({ status: "ok", teakUserId: profile._id });
   });
   await mount();
-  await act(async () => {});
+  await act(async () => undefined);
   expect(text()).toContain("We couldn't check your session.");
 
   await act(async () => button("Try again").click());

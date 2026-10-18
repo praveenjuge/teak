@@ -1,4 +1,5 @@
 import { env } from "./_generated/server";
+import type { CardWithUrls } from "./card/queryUtils";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { readIsDevDeployment } from "./env";
@@ -71,7 +72,7 @@ const serializeLinkPrice = (price: unknown) =>
     ? { amount: price.amount, currency: price.currency ?? null }
     : null;
 
-const serializeDisplayMetadata = (card: any) => ({
+const serializeDisplayMetadata = (card: CardWithUrls) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
   linkPreviewDescription: card.metadata?.linkPreview?.description ?? null,
@@ -109,7 +110,7 @@ const serializeDisplayMetadata = (card: any) => ({
       : null,
 });
 
-const serializeCard = (card: any, requestUrl: string) => ({
+const serializeCard = (card: CardWithUrls, requestUrl: string) => ({
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
@@ -153,7 +154,7 @@ const serializeCard = (card: any, requestUrl: string) => ({
 });
 
 const serializeListCard = (
-  card: any,
+  card: CardWithUrls,
   requestUrl: string,
   include: Set<CardListInclude>
 ) => {
@@ -673,7 +674,7 @@ const parseCardsQueryOptions = (
 };
 
 const buildCreateCardResponse = (
-  result: { card?: any; cardId: string; status: "created" },
+  result: { card?: CardWithUrls; cardId: string; status: "created" },
   requestUrl: string
 ) => {
   const card = result.card ? serializeCard(result.card, requestUrl) : undefined;
@@ -855,11 +856,11 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   if ("metadataTitle" in source) {
-    const title = parseCardTitle(truncateCardTitle(source.metadataTitle));
-    if (title === undefined) {
+    const parsed = parseCardTitle(truncateCardTitle(source.metadataTitle));
+    if (parsed.kind === "invalid") {
       return null;
     }
-    next.metadataTitle = title;
+    next.metadataTitle = parsed.kind === "title" ? parsed.title : null;
   }
 
   if ("notes" in source) {

@@ -60,18 +60,24 @@ export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
   return false;
 };
 
+const isHttpUrl = (value: string): boolean => {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 export const extractFirstHttpUrl = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
   }
 
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return trimmed;
-    }
-  } catch {}
+  if (isHttpUrl(trimmed)) {
+    return trimmed;
+  }
 
   const match = trimmed.match(URL_INLINE_PATTERN);
   if (!match?.[1]) {

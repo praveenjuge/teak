@@ -78,17 +78,26 @@ export const parseExportManifest = (raw: string): FilesExportManifest => {
   return manifest;
 };
 
+const getOrNull = async (
+  bucket: R2Bucket,
+  key: string
+): Promise<R2ObjectBody | null> => {
+  try {
+    return await bucket.get(key);
+  } catch {
+    return null;
+  }
+};
+
 const readWithRetry = async (
   bucket: R2Bucket,
   key: string
 ): Promise<R2ObjectBody | null> => {
   for (let attempt = 0; attempt < MISSING_FILE_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      const object = await bucket.get(key);
-      if (object) {
-        return object;
-      }
-    } catch {}
+    const object = await getOrNull(bucket, key);
+    if (object) {
+      return object;
+    }
   }
   return null;
 };

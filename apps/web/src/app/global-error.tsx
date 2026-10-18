@@ -7,11 +7,16 @@ import { StatusScreen } from "@/components/StatusScreen";
 
 // global-error replaces the root layout, so next-themes isn't running. Apply
 // the theme it saved ("light", "dark" or "system"), or the system one.
-const applySavedTheme = () => {
-  let saved: string | null = null;
+const readSavedTheme = (): string | null => {
   try {
-    saved = localStorage.getItem("theme");
-  } catch {}
+    return localStorage.getItem("theme");
+  } catch {
+    return null;
+  }
+};
+
+const applySavedTheme = () => {
+  const saved = readSavedTheme();
   const dark =
     saved === "dark" ||
     (saved !== "light" &&

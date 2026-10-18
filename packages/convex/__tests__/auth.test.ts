@@ -98,6 +98,7 @@ describe("auth", () => {
                 });
               }
               return {
+                unique: async () => null,
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
               };
@@ -131,6 +132,7 @@ describe("auth", () => {
                 });
               }
               return {
+                unique: async () => null,
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
               };
@@ -170,6 +172,7 @@ describe("auth", () => {
                 });
               }
               return {
+                unique: async () => null,
                 take: async (limit: number) =>
                   Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
               };
@@ -242,6 +245,7 @@ describe("auth", () => {
               return {
                 collect: async () => [],
                 take: async () => [],
+                unique: async () => null,
               };
             },
           }),
@@ -284,7 +288,13 @@ describe("auth", () => {
       polar.getCurrentSubscription = mockGetSub;
 
       try {
-        const ctx = { db: { query: () => null } } as any;
+        const ctx = {
+          db: {
+            query: () => ({
+              withIndex: () => ({ unique: async () => null }),
+            }),
+          },
+        } as any;
         addUsageRecord(ctx, 0);
         await ensureCardCreationAllowed(ctx, "u1");
 

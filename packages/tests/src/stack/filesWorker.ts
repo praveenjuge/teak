@@ -174,7 +174,8 @@ export interface RunningFilesWorker {
 
 export const startFilesWorker = (
   ports: StackPorts,
-  log: NodeJS.WritableStream
+  log: NodeJS.WritableStream,
+  env: NodeJS.ProcessEnv = process.env
 ): RunningFilesWorker => {
   rmSync(STATE_DIR, { force: true, recursive: true });
   mkdirSync(STATE_DIR, { recursive: true });
@@ -208,7 +209,7 @@ export const startFilesWorker = (
       cwd: WORKER_DIR,
       detached: true,
       env: {
-        ...process.env,
+        ...env,
         // Local mode needs no account; never pick up a developer's login.
         CLOUDFLARE_API_TOKEN: "",
         WRANGLER_SEND_METRICS: "false",

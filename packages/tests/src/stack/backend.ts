@@ -80,6 +80,7 @@ export interface LocalBackendPorts {
 
 export interface ConvexDevOnceOptions extends BackendExitOptions {
   attempts?: number;
+  env?: NodeJS.ProcessEnv;
   ports?: LocalBackendPorts;
   run?: typeof runCommand;
 }
@@ -99,19 +100,33 @@ export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
       ]
     : [];
 
-export const selectedAnonymousInstance = (cwd: string): string | undefined => {
+/**
+ * The E2E stack never uses a cloud deployment: its Convex CLI calls run
+ * without a cloud session's deploy key and pick the local anonymous backend.
+ */
+export const localBackendEnv = (
+  env: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv => {
+  const { CONVEX_DEPLOY_KEY: _cloudKey, ...rest } = env;
+  return { ...rest, CONVEX_AGENT_MODE: "anonymous" };
+};
+
+export const selectedAnonymousInstance = (
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env
+): string | undefined => {
   const dotenvPath = join(cwd, ".env.local");
   const fileValues = readDotenvFile(dotenvPath)?.values;
   const mode =
-    process.env.CONVEX_AGENT_MODE?.trim() ||
+    env.CONVEX_AGENT_MODE?.trim() ||
     fileValues?.get("CONVEX_AGENT_MODE")?.trim();
   const deployKey =
-    process.env.CONVEX_DEPLOY_KEY?.trim() ||
+    env.CONVEX_DEPLOY_KEY?.trim() ||
     fileValues?.get("CONVEX_DEPLOY_KEY")?.trim();
   if (mode !== "anonymous" || deployKey) {
     return undefined;
   }
-  const selected = readConvexSelection(process.env, dotenvPath).deployment;
+  const selected = readConvexSelection(env, dotenvPath).deployment;
   return selected?.match(/^anonymous:(anonymous-[A-Za-z0-9_-]+)$/)?.[1];
 };
 
@@ -124,6 +139,28 @@ export interface BackendExitOptions {
   portInUse?: (port: number) => Promise<boolean>;
   sleepMs?: (ms: number) => Promise<void>;
 }
+
+const probeInstance = async (
+  fetchImpl: typeof fetch,
+  port: number,
+  instance: string,
+  timeoutMs: number
+): Promise<"other" | "unknown"> => {
+  try {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/instance_name`, {
+      redirect: "error",
+      credentials: "omit",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    // A backend mid-shutdown can answer with an error status; keep waiting.
+    return response.ok &&
+      (await readResponseTextWithinLimit(response, 128)) !== instance
+      ? "other"
+      : "unknown";
+  } catch {
+    return "unknown";
+  }
+};
 
 /**
  * Waits for this checkout's own local backend to release its port. Every
@@ -149,25 +186,15 @@ export const waitForBackendExit = async (
     if (!(await portInUse(port))) {
       return "stopped";
     }
-    try {
-      const response = await fetchImpl(
-        `http://127.0.0.1:${port}/instance_name`,
-        {
-          redirect: "error",
-          credentials: "omit",
-          signal: AbortSignal.timeout(
-            Math.max(1, Math.min(1000, deadline - now()))
-          ),
-        }
-      );
-      // A backend mid-shutdown can answer with an error status; keep waiting.
-      if (
-        response.ok &&
-        (await readResponseTextWithinLimit(response, 128)) !== instance
-      ) {
-        return "other";
-      }
-    } catch {}
+    const answer = await probeInstance(
+      fetchImpl,
+      port,
+      instance,
+      Math.max(1, Math.min(1000, deadline - now()))
+    );
+    if (answer === "other") {
+      return "other";
+    }
     await sleepMs(BACKEND_EXIT_POLL_MS);
   }
   return (await portInUse(port)) ? "timeout" : "stopped";
@@ -177,7 +204,7 @@ const collidedWithOwnBackend = async (
   output: string,
   cwd: string,
   port: number,
-  opts?: BackendExitOptions
+  opts?: BackendExitOptions & { env?: NodeJS.ProcessEnv }
 ): Promise<boolean> => {
   if (
     !output.includes(
@@ -186,7 +213,7 @@ const collidedWithOwnBackend = async (
   ) {
     return false;
   }
-  const instance = selectedAnonymousInstance(cwd);
+  const instance = selectedAnonymousInstance(cwd, opts?.env);
   return (
     instance !== undefined &&
     (await waitForBackendExit(instance, port, opts)) === "stopped"
@@ -207,7 +234,7 @@ export const convexDevOnce = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const result = await run(
       ["bunx", "convex", "dev", "--once", ...localBackendArgs(opts?.ports)],
-      { cwd, timeoutMs: 300_000 }
+      { cwd, env: opts?.env, timeoutMs: 300_000 }
     );
     if (result.exitCode === 0) {
       return { detail: "pushed", ok: true };
@@ -233,7 +260,8 @@ export const convexDevOnce = async (
 
 const setDeploymentVars = async (
   values: Record<string, string>,
-  cwd: string
+  cwd: string,
+  env: NodeJS.ProcessEnv
 ): Promise<void> => {
   const names = Object.keys(values);
   if (names.length === 0) {
@@ -249,7 +277,7 @@ const setDeploymentVars = async (
     );
     const result = await runCommand(
       ["bunx", "convex", "env", "set", "--force", "--from-file", file],
-      { cwd, timeoutMs: 60_000 }
+      { cwd, env, timeoutMs: 60_000 }
     );
     if (result.exitCode !== 0) {
       throw new Error(
@@ -268,9 +296,10 @@ export type DeploymentVarsResult =
 export const ensureDeploymentVars = async (
   convexDir: string,
   desired: Record<string, string>,
-  known?: Awaited<ReturnType<typeof listDeploymentVars>>
+  known?: Awaited<ReturnType<typeof listDeploymentVars>>,
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<DeploymentVarsResult> => {
-  const listed = known ?? (await listDeploymentVars(convexDir));
+  const listed = known ?? (await listDeploymentVars(convexDir, env));
   if (listed.status === "unavailable") {
     return {
       ok: false,
@@ -299,19 +328,20 @@ export const ensureDeploymentVars = async (
       detail: `the deployment already sets ${conflicts.join(", ")} to other values`,
     };
   }
-  await setDeploymentVars(Object.fromEntries(toSet), convexDir);
+  await setDeploymentVars(Object.fromEntries(toSet), convexDir, env);
   return { ok: true, configured: toSet.map(([name]) => name) };
 };
 
 export const setupBackend = async (
   root: string,
-  worktree: WorktreePorts
+  worktree: WorktreePorts,
+  env: NodeJS.ProcessEnv = localBackendEnv()
 ): Promise<string[]> => {
   const convexDir = join(root, "packages/convex");
   const dotenvPath = join(convexDir, ".env.local");
   const done: string[] = [];
 
-  let selection = readConvexSelection(process.env, dotenvPath);
+  let selection = readConvexSelection(env, dotenvPath);
   if (
     selection.deployment === DEV_DEPLOYMENT &&
     selection.source === "dotenv"
@@ -325,13 +355,9 @@ export const setupBackend = async (
       `CONVEX_DEPLOYMENT selects ${selection.deployment}; the E2E suite needs a local backend. Unset the CONVEX_DEPLOYMENT export or remove it from packages/convex/.env.local, then re-run.`
     );
   }
-  // The E2E stack never uses a cloud deployment: drop a cloud session's deploy
-  // key, and have every child Convex CLI pick the local anonymous backend.
-  delete process.env.CONVEX_DEPLOY_KEY;
-  process.env.CONVEX_AGENT_MODE = "anonymous";
   const ports = { convex: worktree.convex, convexSite: worktree.convexSite };
   const settle = async () => {
-    const instance = selectedAnonymousInstance(convexDir);
+    const instance = selectedAnonymousInstance(convexDir, env);
     const exit = instance
       ? await waitForBackendExit(instance, ports.convex)
       : "stopped";
@@ -343,7 +369,7 @@ export const setupBackend = async (
   };
 
   if (!selection.deployment) {
-    const provision = await convexDevOnce(convexDir, { ports });
+    const provision = await convexDevOnce(convexDir, { env, ports });
     await settle();
     done.push(
       provision.ok
@@ -352,7 +378,7 @@ export const setupBackend = async (
     );
   }
   ensureLocalStateMarker(convexDir);
-  const listed = await listDeploymentVars(convexDir);
+  const listed = await listDeploymentVars(convexDir, env);
   await settle();
   const vars = await ensureDeploymentVars(
     convexDir,
@@ -361,7 +387,8 @@ export const setupBackend = async (
       ...emulatorDeploymentVars(worktree),
       ...filesWorkerDeploymentVars(worktree),
     },
-    listed
+    listed,
+    env
   );
   if (!vars.ok) {
     throw new Error(

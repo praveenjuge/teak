@@ -163,14 +163,12 @@ function HoverVideoPreview({
     }
 
     if (isHovering) {
-      void video.play().catch(() => {});
+      void video.play().catch(() => undefined);
       return;
     }
 
     video.pause();
-    try {
-      video.currentTime = 0.1;
-    } catch {}
+    video.currentTime = 0.1;
   }, [isHovering, shouldLoadVideo]);
 
   return (

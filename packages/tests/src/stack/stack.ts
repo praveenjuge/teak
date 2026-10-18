@@ -14,6 +14,7 @@ import {
   isPortInUse,
   type WorktreePorts,
 } from "../../../../scripts/worktree-env.ts";
+import { localBackendEnv } from "./backend";
 import { emulatorWebEnv, stackUrls } from "./config";
 import { startEmulator } from "./emulator";
 import { startFilesWorker } from "./filesWorker";
@@ -25,6 +26,7 @@ export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
 
 export interface StackOptions {
   echo: boolean;
+  env?: NodeJS.ProcessEnv;
   ports: WorktreePorts;
 }
 
@@ -80,7 +82,7 @@ export const startStack = async (
 
   mkdirSync(dirname(STATE_PATH), { recursive: true });
   const emulator = await startEmulator(ports);
-  const { CONVEX_DEPLOY_KEY: _cloudKey, ...env } = process.env;
+  const env = options.env ?? localBackendEnv();
   const convex = spawn(
     "bunx",
     [
@@ -103,7 +105,6 @@ export const startStack = async (
       detached: true,
       env: {
         ...env,
-        CONVEX_AGENT_MODE: "anonymous",
         PORT: String(ports.web),
         ...emulatorWebEnv(ports),
       },
@@ -111,7 +112,7 @@ export const startStack = async (
     }
   );
   const log = createWriteStream(STACK_LOG_PATH);
-  const filesWorker = startFilesWorker(ports, log);
+  const filesWorker = startFilesWorker(ports, log, env);
   for (const stream of [convex.stdout, convex.stderr]) {
     stream?.pipe(log);
     if (options.echo) {

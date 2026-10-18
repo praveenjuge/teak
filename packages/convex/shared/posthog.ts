@@ -146,7 +146,9 @@ const describeError = (
     return { type: "Error", value: error };
   }
   try {
-    return { type: "Error", value: JSON.stringify(error) ?? String(error) };
+    // JSON.stringify returns undefined for undefined, functions and symbols.
+    const json: string | undefined = JSON.stringify(error);
+    return { type: "Error", value: json ?? String(error) };
   } catch {
     return { type: "Error", value: String(error) };
   }

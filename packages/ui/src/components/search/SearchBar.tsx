@@ -184,9 +184,9 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
       type="button"
     >
       {chip.icon}
-      {chip.prefix && (
+      {chip.prefix ? (
         <span className="shrink-0 text-muted-foreground">{chip.prefix}</span>
-      )}
+      ) : null}
       <span className="truncate" dir="auto">
         {chip.label}
       </span>
@@ -488,7 +488,7 @@ export function SearchBar({
           >
             <Search className="size-4" />
           </Button>
-          {mobileOpen && (
+          {mobileOpen ? (
             <Button
               className="h-9 shrink-0 px-2 text-muted-foreground sm:hidden"
               onClick={() => {
@@ -501,13 +501,13 @@ export function SearchBar({
             >
               Cancel
             </Button>
-          )}
+          ) : null}
           {onSortChange && onReshuffle && sort === "shuffle" && (
             <div className={cn(mobileOpen && "max-sm:hidden")}>
               <ReshuffleButton onReshuffle={onReshuffle} />
             </div>
           )}
-          {(onToggleFilter || onSortChange) && (
+          {onToggleFilter || onSortChange ? (
             <div className={cn(mobileOpen && "max-sm:hidden")}>
               <ViewMenu
                 activeTypes={filterTags}
@@ -524,7 +524,7 @@ export function SearchBar({
                 sort={sort}
               />
             </div>
-          )}
+          ) : null}
           {HeaderActions}
         </>
       }
@@ -590,11 +590,11 @@ export function SearchBar({
                   >
                     {chip.icon}
                     <span className="min-w-0 flex-1 truncate" dir="auto">
-                      {chip.prefix && (
+                      {chip.prefix ? (
                         <span className="text-muted-foreground">
                           {chip.prefix}{" "}
                         </span>
-                      )}
+                      ) : null}
                       {chip.label}
                     </span>
                     <X className="opacity-50" />
@@ -653,7 +653,7 @@ export function SearchBar({
           )}
         </label>
 
-        {open && (
+        {open ? (
           <div
             aria-label="Search suggestions"
             className="fade-in-0 zoom-in-95 absolute inset-x-0 top-full z-50 mt-1.5 max-h-80 animate-in overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-md duration-100"
@@ -699,18 +699,18 @@ export function SearchBar({
                       >
                         {suggestion.label}
                       </span>
-                      {suggestion.detail && (
+                      {suggestion.detail ? (
                         <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
                           {suggestion.detail}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </form>
     </PageHeader>
   );

@@ -137,9 +137,7 @@ async function getProvider(forceRefresh = false): Promise<Provider> {
 }
 
 async function refetchAfterFailure() {
-  try {
-    await discovery(true);
-  } catch {}
+  await discovery(true).catch(() => undefined);
 }
 
 async function sendGrant(

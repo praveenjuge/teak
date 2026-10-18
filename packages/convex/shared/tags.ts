@@ -60,12 +60,10 @@ export const explainInvalidTagSource = (name: string): string | null => {
 export const tagExistsMessage = (name: string): string =>
   `A tag named "${name.trim()}" already exists. Merge into it instead.`;
 
-export interface TagRewrite {
-  from: string;
-  kind: TagOperationKind;
-  /** The new name (rename) or the tag merged into (merge). */
-  to?: string;
-}
+export type TagRewrite =
+  | { kind: "delete"; from: string }
+  | { kind: "rename"; from: string; to: string }
+  | { kind: "merge"; from: string; to: string };
 
 export const rewriteTagList = (
   tags: readonly string[] | undefined,
@@ -79,7 +77,7 @@ export const rewriteTagList = (
     return null;
   }
   let result: string[];
-  if (rewrite.kind === "delete" || rewrite.to === undefined) {
+  if (rewrite.kind === "delete") {
     result = tags.filter((tag) => tagKey(tag) !== fromKey);
   } else {
     const to = rewrite.to.trim();

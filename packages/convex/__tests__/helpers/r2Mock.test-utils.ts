@@ -16,7 +16,7 @@ const buildR2ObjectKey = (args: {
 }) => buildCardObjectKey({ envPrefix: "", ...args });
 
 export const r2Mocks = {
-  deleteObject: mock().mockResolvedValue(null),
+  queueObjectDeletion: mock().mockResolvedValue(null),
   resolveImageUrl: mock((key: string) => r2Mocks.resolveObjectUrl(key)),
   resolveObjectUrl: mock().mockResolvedValue(null),
   storeObject: mock().mockResolvedValue("stub-key"),
@@ -27,7 +27,7 @@ export const r2Mocks = {
   buildR2ObjectKey,
   r2: {
     generateUploadUrl: mock(),
-    deleteObject: mock().mockResolvedValue(null),
+    queueObjectDeletion: mock().mockResolvedValue(null),
     store: mock().mockResolvedValue("stub-key"),
     getUrl: mock().mockResolvedValue(null),
   },
@@ -36,7 +36,7 @@ export const r2Mocks = {
 export const r2MockModuleFactory = () => ({
   PENDING_UPLOAD_CARD_ID,
   cardStorageObjectKeys,
-  deleteObject: r2Mocks.deleteObject,
+  queueObjectDeletion: r2Mocks.queueObjectDeletion,
   storeObject: r2Mocks.storeObject,
   generateUploadUrl: r2Mocks.generateUploadUrl,
   getFileUrl: r2Mocks.getFileUrl,

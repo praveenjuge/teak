@@ -15,7 +15,10 @@ import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "../../shared/types";
-import { buildAdditionalFileMetadata } from "./fileMediaMetadata.client";
+import {
+  type AdditionalFileMetadata,
+  buildAdditionalFileMetadata,
+} from "./fileMediaMetadata.client";
 import {
   type CodedUploadError,
   getUploadEtag,
@@ -47,7 +50,7 @@ export interface FileUploadError {
 }
 
 export interface UploadAndCreateCardArgs {
-  additionalMetadata?: any;
+  additionalMetadata?: AdditionalFileMetadata;
   cardType: CardType;
   content?: string;
   fileName: string;
@@ -64,7 +67,7 @@ export interface UploadAndCreateCardResult {
 }
 
 export interface FinalizeUploadedCardArgs {
-  additionalMetadata?: any;
+  additionalMetadata?: AdditionalFileMetadata;
   cardType: CardType;
   content?: string;
   fileEtag?: string;
@@ -102,7 +105,7 @@ export interface FileUploadDependencies
 }
 
 export interface UploadFileFromUriArgs {
-  additionalMetadata?: any;
+  additionalMetadata?: AdditionalFileMetadata;
   content?: string;
   name: string;
   size: number;
@@ -185,7 +188,7 @@ export function useFileUploadCore(
       file: File,
       options: {
         content?: string;
-        additionalMetadata?: any;
+        additionalMetadata?: AdditionalFileMetadata;
       } = {}
     ): Promise<UploadFileResult> => {
       const abortController = beginUpload();
@@ -583,7 +586,7 @@ export function useFileUploadCore(
       files: File[],
       options: {
         content?: string;
-        additionalMetadata?: any;
+        additionalMetadata?: AdditionalFileMetadata;
       } = {}
     ): Promise<UploadMultipleFilesResultItem[]> => {
       if (files.length > MAX_FILES_PER_UPLOAD) {

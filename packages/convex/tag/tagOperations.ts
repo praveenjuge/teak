@@ -22,6 +22,7 @@ import {
   TAG_OPERATION_COUNT_LIMIT,
   TAG_OPERATION_STALL_MS,
   type TagOperationKind,
+  type TagRewrite,
   tagExistsMessage,
   tagKey,
 } from "../shared/tags";
@@ -262,23 +263,22 @@ export const runTagOperationBatchHandler = async (
       cursor: operation.cursor ?? null,
     });
 
-  const rewrite = {
-    kind: operation.kind,
-    from: operation.from,
-    to: operation.to,
-  };
+  const rewrite: TagRewrite =
+    operation.kind === "delete" || operation.to === undefined
+      ? { kind: "delete", from: operation.from }
+      : { kind: operation.kind, from: operation.from, to: operation.to };
   const toKey = operation.to === undefined ? undefined : tagKey(operation.to);
   const hasTag = (list: readonly string[] | undefined, key: string) =>
     list?.some((tag) => tagKey(tag) === key) ?? false;
   const rewriteFor = (
     own: readonly string[] | undefined,
     other: readonly string[] | undefined
-  ) =>
+  ): TagRewrite =>
     toKey !== undefined &&
     toKey !== operation.from &&
     !hasTag(own, toKey) &&
     hasTag(other, toKey)
-      ? { kind: "delete" as const, from: operation.from }
+      ? { kind: "delete", from: operation.from }
       : rewrite;
   const now = Date.now();
   let changed = 0;

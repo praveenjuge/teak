@@ -32,7 +32,7 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
   let archived = false;
   let sawSection = false;
   let anchor:
-    | { attributes: Record<string, string>; text: string[] }
+    | { attributes: Record<string, string | undefined>; text: string[] }
     | undefined;
   const parser = new Parser(
     {

@@ -279,11 +279,13 @@ const startFetcher = async (): Promise<ChildProcess> => {
     stdio: "inherit",
   });
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      if ((await fetch(`http://127.0.0.1:${PORT}/health`)).ok) {
-        return server;
-      }
-    } catch {}
+    const healthy = await fetch(`http://127.0.0.1:${PORT}/health`).then(
+      (response) => response.ok,
+      () => false
+    );
+    if (healthy) {
+      return server;
+    }
     await Bun.sleep(200);
   }
   server.kill();

@@ -63,7 +63,7 @@ export function AudioWavePreview({
           />
         ))}
       </div>
-      {(title || durationLabel) && (
+      {title || durationLabel ? (
         <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
             <Play
@@ -74,11 +74,11 @@ export function AudioWavePreview({
           <span className="min-w-0 flex-1 truncate" dir="auto">
             {title}
           </span>
-          {durationLabel && (
+          {durationLabel ? (
             <span className="shrink-0 tabular-nums">{durationLabel}</span>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

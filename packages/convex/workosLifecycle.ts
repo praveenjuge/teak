@@ -176,7 +176,6 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
   }
 };
 
-// Only the verified webhook and the Events API catch-up supply provider events.
 export const applyWorkosEvent = internalMutation({
   args: {
     id: v.string(),

@@ -375,12 +375,12 @@ export function SidebarFolders({
             </SidebarMenuItem>
           );
         })}
-        {isCreating && (
+        {isCreating ? (
           <SidebarNewFolder
             folders={folders}
             onDone={() => setIsCreating(false)}
           />
-        )}
+        ) : null}
       </SidebarMenu>
       <FolderNameDialog
         focusQuery={dialog?.focusQuery}

@@ -173,12 +173,12 @@ export function BulkActionBar({
                 <FolderInput />
                 Move to folder…
               </DropdownMenuItem>
-              {folder && (
+              {folder ? (
                 <DropdownMenuItem onSelect={() => onAction("removeFromFolder")}>
                   <FolderMinus />
                   <span className="truncate">Remove from {folder.name}</span>
                 </DropdownMenuItem>
-              )}
+              ) : null}
               <DropdownMenuSeparator />
               <BarMenuItem
                 action="delete"
@@ -229,11 +229,11 @@ function BarMenuItem({
       variant={variant}
     >
       {children}
-      {shortcut && (
+      {shortcut ? (
         <DropdownMenuShortcut aria-hidden>
           {shortcut.label}
         </DropdownMenuShortcut>
-      )}
+      ) : null}
     </DropdownMenuItem>
   );
 }

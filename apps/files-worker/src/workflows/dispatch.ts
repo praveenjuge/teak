@@ -157,19 +157,17 @@ const hasValidDispatchProof = async (
 };
 
 const terminateInstances = async (binding: Workflow, ids: string[]) => {
-  await Promise.all(
+  await Promise.allSettled(
     ids.map(async (id) => {
-      try {
-        const instance = await binding.get(id);
-        const { status } = await instance.status();
-        if (
-          status !== "complete" &&
-          status !== "errored" &&
-          status !== "terminated"
-        ) {
-          await instance.terminate();
-        }
-      } catch {}
+      const instance = await binding.get(id);
+      const { status } = await instance.status();
+      if (
+        status !== "complete" &&
+        status !== "errored" &&
+        status !== "terminated"
+      ) {
+        await instance.terminate();
+      }
     })
   );
 };

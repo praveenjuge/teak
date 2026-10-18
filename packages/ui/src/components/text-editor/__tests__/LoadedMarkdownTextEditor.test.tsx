@@ -74,7 +74,7 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
 
 async function renderChecklist(
   value: string,
-  onChange = (_next: string) => {}
+  onChange = (_next: string) => undefined
 ) {
   const container = document.createElement("div");
   document.body.append(container);

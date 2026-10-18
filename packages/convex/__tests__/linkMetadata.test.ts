@@ -14,8 +14,8 @@ const {
 } = await import("../linkMetadata");
 
 const createMockCtx = () => {
-  r2Mocks.deleteObject.mockReset();
-  r2Mocks.deleteObject.mockResolvedValue(null);
+  r2Mocks.queueObjectDeletion.mockReset();
+  r2Mocks.queueObjectDeletion.mockResolvedValue(null);
   return {
     db: withSearchSyncDb({ get: mock(), patch: mock() }),
     scheduler: { runAfter: mock().mockResolvedValue(null) },
@@ -42,7 +42,7 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(null);
 
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview: {},
         status: "completed",
       });
@@ -57,7 +57,7 @@ describe("linkMetadata", () => {
 
       const linkPreview = { title: "New Title", url: "https://example.com" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
@@ -89,15 +89,18 @@ describe("linkMetadata", () => {
       });
 
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview: { imageStorageKey: "new_og", title: "Refreshed" },
         status: "completed",
       });
 
       const [, , patch] = ctx.db.patch.mock.calls[0];
       expect(patch).not.toHaveProperty("thumbnailOverride");
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_og");
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(ctx, "chosen_id");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old_og");
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalledWith(
+        ctx,
+        "chosen_id"
+      );
     });
 
     test("deletes previous screenshot if replaced", async () => {
@@ -119,12 +122,12 @@ describe("linkMetadata", () => {
         screenshotUpdatedAt: 200,
       };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_id");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old_id");
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -144,12 +147,12 @@ describe("linkMetadata", () => {
 
       const linkPreview = { title: "Title" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -174,16 +177,16 @@ describe("linkMetadata", () => {
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      r2Mocks.deleteObject.mockRejectedValue(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockRejectedValue(new Error("Storage error"));
 
       const linkPreview = { screenshotStorageKey: "new_id" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -198,7 +201,7 @@ describe("linkMetadata", () => {
 
       const linkPreview = { title: "New Title" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
@@ -226,7 +229,7 @@ describe("linkMetadata", () => {
 
       const linkPreview = { title: "New Title" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
@@ -248,7 +251,7 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(card);
 
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview: undefined,
         status: "failed",
       });
@@ -268,7 +271,7 @@ describe("linkMetadata", () => {
 
       const linkPreview = { description: "New Desc" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
@@ -307,7 +310,7 @@ describe("linkMetadata", () => {
       });
 
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview: {
           media: [
             {
@@ -320,9 +323,18 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_image");
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_video");
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old_poster");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_image"
+      );
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_video"
+      );
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_poster"
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -361,12 +373,12 @@ describe("linkMetadata", () => {
       });
 
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview: { title: "Updated title" },
         status: "completed",
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalledWith(
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalledWith(
         ctx,
         "existing_image"
       );
@@ -401,7 +413,7 @@ describe("linkMetadata", () => {
 
       const linkPreview = { title: "New Title" };
       await updateCardMetadataHandler(ctx, {
-        cardId: "card_123",
+        cardId: testId("cards", "card_123"),
         linkPreview,
         status: "completed",
       });
@@ -424,7 +436,7 @@ describe("linkMetadata", () => {
       const ctx = createMockCtx();
       ctx.db.get.mockResolvedValue(null);
       await updateCardScreenshotHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
         screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1,
       });
@@ -435,7 +447,7 @@ describe("linkMetadata", () => {
       const ctx = createMockCtx();
       ctx.db.get.mockResolvedValue({ type: "note" });
       await updateCardScreenshotHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
         screenshotStorageKey: "s1",
         screenshotUpdatedAt: 1,
       });
@@ -454,12 +466,12 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(card);
 
       await updateCardScreenshotHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
         screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "old");
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -484,15 +496,15 @@ describe("linkMetadata", () => {
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      r2Mocks.deleteObject.mockRejectedValue(new Error("fail"));
+      r2Mocks.queueObjectDeletion.mockRejectedValue(new Error("fail"));
 
       await updateCardScreenshotHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
         screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(r2Mocks.deleteObject).toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalled();
     });
 
@@ -505,12 +517,12 @@ describe("linkMetadata", () => {
       ctx.db.get.mockResolvedValue(card);
 
       await updateCardScreenshotHandler(ctx, {
-        cardId: "c1",
+        cardId: testId("cards", "c1"),
         screenshotStorageKey: "new",
         screenshotUpdatedAt: 2,
       });
 
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",

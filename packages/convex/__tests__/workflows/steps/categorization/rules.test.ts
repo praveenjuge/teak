@@ -3,6 +3,7 @@ import type {
   LinkCategory,
   LinkCategoryMetadata,
 } from "../../../../shared/linkCategories";
+import type { JsonLdEntity } from "../../../../workflows/steps/categorization/enrichment";
 import {
   type CategorizationContextCard,
   classifyLinkCategory,
@@ -13,6 +14,16 @@ import {
 const linkCard = (
   fields: Partial<CategorizationContextCard>
 ): CategorizationContextCard => ({ _id: "card_1", type: "link", ...fields });
+
+// A category stored by an earlier pass, for an unrelated source URL.
+const storedCategory = (
+  raw: LinkCategoryMetadata["raw"]
+): LinkCategoryMetadata => ({
+  category: "other",
+  fetchedAt: 0,
+  raw,
+  sourceUrl: "https://earlier.example/",
+});
 
 const factValue = (result: LinkCategoryMetadata, label: string) =>
   result.facts?.find((fact) => fact.label === label)?.value;
@@ -394,7 +405,7 @@ describe("enrichLinkCategory", () => {
     });
     const enrich = (
       card: CategorizationContextCard,
-      entities: unknown[] | null
+      entities: JsonLdEntity[] | null
     ) =>
       enrichLinkCategory(
         card,
@@ -466,15 +477,13 @@ describe("enrichLinkCategory", () => {
       const card = linkCard({
         url: "https://shop.example/lamp",
         metadata: {
-          linkCategory: {
-            raw: {
-              structured: product({
-                "@type": "Offer",
-                price: "12.00",
-                priceCurrency: "EUR",
-              }),
-            },
-          },
+          linkCategory: storedCategory({
+            structured: product({
+              "@type": "Offer",
+              price: "12.00",
+              priceCurrency: "EUR",
+            }),
+          }),
         },
       });
       const result = await enrichLinkCategory(
@@ -489,15 +498,13 @@ describe("enrichLinkCategory", () => {
       const card = linkCard({
         url: "https://shop.example/lamp",
         metadata: {
-          linkCategory: {
-            raw: {
-              structured: product({
-                "@type": "Offer",
-                price: "12.00",
-                priceCurrency: "EUR",
-              }),
-            },
-          },
+          linkCategory: storedCategory({
+            structured: product({
+              "@type": "Offer",
+              price: "12.00",
+              priceCurrency: "EUR",
+            }),
+          }),
         },
       });
       const result = await enrich(card, []);
@@ -597,7 +604,7 @@ describe("enrichLinkCategory", () => {
       const result = await enrichLinkCategory(
         linkCard({
           url: "https://site.example/lamp",
-          metadata: { linkCategory: { raw: fresh.raw } },
+          metadata: { linkCategory: storedCategory(fresh.raw) },
         }),
         { category, confidence: 0.9 },
         { structuredData: null }
@@ -1065,7 +1072,10 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
     aiTranscript: "transcript",
     content: "private ".repeat(10_000),
     metadata: {
-      linkCategory: { category: "article", raw: { provider: "facts" } },
+      linkCategory: {
+        ...storedCategory({ provider: "facts" }),
+        category: "article" as const,
+      },
       linkPreview: {
         imageUrl: "https://example.com/image.png",
         media: [{ caption: "unneeded" }],
@@ -1084,8 +1094,8 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
   };
   const before = structuredClone(card);
   const snapshot = projectCategorizationSnapshot(card);
-  expect(snapshot.metadata.linkCategory).toEqual(card.metadata.linkCategory);
-  expect(snapshot.metadata.linkPreview).toMatchObject({
+  expect(snapshot.metadata?.linkCategory).toEqual(card.metadata.linkCategory);
+  expect(snapshot.metadata?.linkPreview).toMatchObject({
     raw: card.metadata.linkPreview.raw,
     rawSha256: "digest",
     rawStorageKey: "key",
@@ -1095,7 +1105,7 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
   for (const field of ["content", "notes", "tags", "aiTranscript"]) {
     expect(snapshot).not.toHaveProperty(field);
   }
-  expect(snapshot.metadata.linkPreview).not.toHaveProperty("media");
+  expect(snapshot.metadata?.linkPreview).not.toHaveProperty("media");
   expect(JSON.stringify(snapshot).length).toBeLessThan(1024);
   expect(card).toEqual(before);
 });

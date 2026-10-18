@@ -27,6 +27,11 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
         return TeakError(code: code, message: message?.nonEmpty ?? known ?? fallback)
     }
 
+    public static func server(message: String) -> TeakError {
+        TeakError(code: message.contains("InvalidCursor") ? invalidCursorCode : nil,
+                  message: ConvexHTTP.userMessage(message))
+    }
+
     public var isCardLimit: Bool { code == Self.cardLimitReached }
     public var isOffline: Bool { code == Self.offlineCode }
     public var isInvalidCursor: Bool { code == Self.invalidCursorCode }

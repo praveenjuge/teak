@@ -326,6 +326,8 @@ export async function freezeObject(
   return ((await response.json()) as { frozen: boolean }).frozen === true;
 }
 
+// Rollout must provision OBJECT_GATES and drain unfenced historical writers
+// before account deletion is enabled; code cannot check the drain.
 export function gatedBucket(env: DeletionGateEnv): R2Bucket {
   if (!env.OBJECT_GATES) {
     throw new Error("object_gate_not_configured");

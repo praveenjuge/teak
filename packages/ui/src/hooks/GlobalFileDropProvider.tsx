@@ -154,10 +154,7 @@ export function GlobalFileDropProvider({
 
       if (summary.successCount === 0) {
         const first = summary.firstFailure;
-        const reason =
-          first && !first.success
-            ? (first.error ?? "Upload failed")
-            : "Upload failed";
+        const reason = first && !first.success ? first.error : "Upload failed";
         toast.error(
           withSkippedNote(
             summary.total === 1

@@ -71,7 +71,20 @@ const ADDRESS_PARTS = [
   "addressCountry",
 ];
 
-const toArray = <T>(value: T | T[] | undefined): T[] => {
+/** A JSON-LD node read from a page; every field is untrusted. */
+export type JsonLdEntity = Record<string, unknown>;
+
+export const isJsonLdEntity = (value: unknown): value is JsonLdEntity =>
+  typeof value === "object" && value !== null;
+
+const prop = (value: unknown, key: string): unknown =>
+  isJsonLdEntity(value) ? value[key] : undefined;
+
+/** `String(value)`, or undefined for a missing value, as `?.toString()` did. */
+const stringified = (value: unknown): string | undefined =>
+  value === undefined || value === null ? undefined : String(value);
+
+const toArray = (value: unknown): unknown[] => {
   if (!value) {
     return [];
   }
@@ -79,10 +92,10 @@ const toArray = <T>(value: T | T[] | undefined): T[] => {
 };
 
 export const pickFields = (
-  value: Record<string, any>,
+  value: JsonLdEntity,
   fields: string[]
-): Record<string, any> => {
-  const result: Record<string, any> = {};
+): JsonLdEntity => {
+  const result: JsonLdEntity = {};
   for (const field of fields) {
     if (value[field] !== undefined) {
       result[field] = value[field];
@@ -91,38 +104,36 @@ export const pickFields = (
   return result;
 };
 
-const matchesType = (candidate: any, types: string[]): boolean => {
-  const candidateTypes = toArray(candidate?.["@type"]).map((entry) =>
+const matchesType = (candidate: JsonLdEntity, types: string[]): boolean => {
+  const candidateTypes = toArray(candidate["@type"]).map((entry) =>
     typeof entry === "string" ? entry.toLowerCase() : ""
   );
   return types.some((type) => candidateTypes.includes(type.toLowerCase()));
 };
 
 const findByType = (
-  entities: any[],
+  entities: readonly JsonLdEntity[],
   typeCandidates: string[]
-): any | undefined =>
+): JsonLdEntity | undefined =>
   entities.find((entity) => matchesType(entity, typeCandidates));
 
-const stringArray = (value: any): string[] => {
+const stringArray = (value: unknown): string[] => {
   if (!value) {
     return [];
   }
   if (Array.isArray(value)) {
     return value
-      .map((entry) => (typeof entry === "string" ? entry : entry?.name))
+      .map((entry) => (typeof entry === "string" ? entry : prop(entry, "name")))
       .filter((entry): entry is string => typeof entry === "string");
   }
   if (typeof value === "string") {
     return [value];
   }
-  if (typeof value === "object" && value.name) {
-    return [value.name];
-  }
-  return [];
+  const name = prop(value, "name");
+  return typeof name === "string" && name ? [name] : [];
 };
 
-const valueToText = (value: any): string | undefined => {
+const valueToText = (value: unknown): string | undefined => {
   if (typeof value === "string") {
     return value;
   }
@@ -132,12 +143,16 @@ const valueToText = (value: any): string | undefined => {
   if (typeof value === "number") {
     return value.toString();
   }
-  if (typeof value === "object" && value.name) {
-    return value.name;
-  }
+  const name = prop(value, "name");
+  return typeof name === "string" && name ? name : undefined;
 };
 
-const normalizeImage = (value: any): string | undefined => {
+const urlOf = (value: unknown): string | undefined => {
+  const url = prop(value, "url");
+  return typeof url === "string" && url ? url : undefined;
+};
+
+const normalizeImage = (value: unknown): string | undefined => {
   if (!value) {
     return;
   }
@@ -145,27 +160,26 @@ const normalizeImage = (value: any): string | undefined => {
     return value;
   }
   if (Array.isArray(value) && value.length > 0) {
-    const first = value[0];
+    const first: unknown = value[0];
     if (typeof first === "string") {
       return first;
     }
-    if (first?.url) {
-      return first.url;
+    const firstUrl = urlOf(first);
+    if (firstUrl) {
+      return firstUrl;
     }
   }
-  if (value?.url) {
-    return value.url;
-  }
+  return urlOf(value);
 };
 
-const formatAddress = (value: any): string | undefined => {
+const formatAddress = (value: unknown): string | undefined => {
   if (typeof value === "string") {
     return value.trim() || undefined;
   }
   if (Array.isArray(value)) {
     return formatAddress(value[0]);
   }
-  if (!value || typeof value !== "object") {
+  if (!isJsonLdEntity(value)) {
     return;
   }
   const parts = ADDRESS_PARTS.map((part) => valueToText(value[part])?.trim())
@@ -174,8 +188,19 @@ const formatAddress = (value: any): string | undefined => {
   return parts || undefined;
 };
 
-const formatRating = (entity: any): string | undefined =>
-  entity.aggregateRating?.ratingValue?.toString();
+const formatRating = (entity: JsonLdEntity): string | undefined =>
+  stringified(prop(entity.aggregateRating, "ratingValue"));
+
+const ratingCount = (entity: JsonLdEntity): string | undefined =>
+  stringified(
+    prop(entity.aggregateRating, "ratingCount") ||
+      prop(entity.aggregateRating, "reviewCount")
+  );
+
+const jsonLdDate = (value: unknown): string | undefined =>
+  typeof value === "string" || typeof value === "number"
+    ? formatDate(value)
+    : undefined;
 
 const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
   hostname === domain || hostname.endsWith(`.${domain}`);
@@ -243,23 +268,49 @@ export const detectProvider = (
       return "substack";
     }
     return hostname;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
-export const buildRawSelectorMap = (
-  raw?: Array<{ selector: string; results?: RawSelectorEntry[] }>
-): RawSelectorMap => {
+const optionalString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const readRawSelectorEntry = (value: unknown): RawSelectorEntry | undefined => {
+  if (!isJsonLdEntity(value)) {
+    return;
+  }
+  const { attributes, text } = value;
+  return {
+    ...(Array.isArray(attributes)
+      ? {
+          attributes: attributes.filter(isJsonLdEntity).map((attribute) => ({
+            name: optionalString(attribute.name),
+            value: optionalString(attribute.value),
+          })),
+        }
+      : {}),
+    ...(typeof text === "string" ? { text } : {}),
+  };
+};
+
+/** Indexes a stored scrape (`linkPreview.raw`) by selector, first result each. */
+export const buildRawSelectorMap = (raw: unknown): RawSelectorMap => {
   const map = new Map<string, RawSelectorEntry>();
-  if (!raw) {
+  if (!Array.isArray(raw)) {
     return map;
   }
   for (const entry of raw) {
-    if (!entry?.selector) {
+    const selector = prop(entry, "selector");
+    if (typeof selector !== "string" || !selector) {
       continue;
     }
-    const first = entry.results?.[0];
+    const results = prop(entry, "results");
+    const first = readRawSelectorEntry(
+      Array.isArray(results) ? results[0] : undefined
+    );
     if (first) {
-      map.set(entry.selector, first);
+      map.set(selector, first);
     }
   }
   return map;
@@ -282,8 +333,8 @@ export const mergeFacts = (
   }
 };
 
-function formatDuration(value: string | undefined): string | undefined {
-  if (!value) {
+function formatDuration(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value) {
     return;
   }
   const match = ISO_DURATION_REGEX.exec(value);
@@ -306,14 +357,14 @@ function formatDuration(value: string | undefined): string | undefined {
 
 export const enrichWithStructuredData = (
   category: LinkCategory,
-  entities: any[]
+  entities: readonly JsonLdEntity[]
 ): ProviderEnrichmentResult | null => {
   let imageUrl: string | undefined;
   const facts: LinkCategoryDetail[] = [];
   let raw: Record<string, unknown> | undefined;
   let price: LinkPrice | undefined;
 
-  const applyImage = (entity: any) => {
+  const applyImage = (entity: JsonLdEntity) => {
     if (!imageUrl) {
       const candidate = normalizeImage(entity.image);
       if (candidate) {
@@ -336,15 +387,10 @@ export const enrichWithStructuredData = (
       }
       applyImage(book);
       addFact("Authors", stringArray(book.author).join(", "));
-      addFact("Rating", book.aggregateRating?.ratingValue?.toString());
-      addFact(
-        "Reviews",
-        (
-          book.aggregateRating?.ratingCount || book.aggregateRating?.reviewCount
-        )?.toString()
-      );
-      addFact("Length", (book.numberOfPages || book.bookFormat)?.toString());
-      addFact("Published", formatDate(book.datePublished));
+      addFact("Rating", formatRating(book));
+      addFact("Reviews", ratingCount(book));
+      addFact("Length", stringified(book.numberOfPages || book.bookFormat));
+      addFact("Published", jsonLdDate(book.datePublished));
       raw = pickFields(book, STRUCTURED_DATA_FIELDS);
       break;
     }
@@ -358,15 +404,9 @@ export const enrichWithStructuredData = (
         break;
       }
       applyImage(movie);
-      addFact("Rating", movie.aggregateRating?.ratingValue?.toString());
-      addFact(
-        "Votes",
-        (
-          movie.aggregateRating?.ratingCount ||
-          movie.aggregateRating?.reviewCount
-        )?.toString()
-      );
-      addFact("Release", formatDate(movie.datePublished || movie.dateCreated));
+      addFact("Rating", formatRating(movie));
+      addFact("Votes", ratingCount(movie));
+      addFact("Release", jsonLdDate(movie.datePublished || movie.dateCreated));
       raw = pickFields(movie, STRUCTURED_DATA_FIELDS);
       break;
     }
@@ -382,12 +422,12 @@ export const enrichWithStructuredData = (
       applyImage(show);
       addFact(
         "Seasons",
-        (show.numberOfSeasons || show.seasonNumber)?.toString()
+        stringified(show.numberOfSeasons || show.seasonNumber)
       );
-      addFact("Episodes", show.numberOfEpisodes?.toString());
+      addFact("Episodes", stringified(show.numberOfEpisodes));
       addFact(
         "First aired",
-        formatDate(show.datePublished || show.dateCreated)
+        jsonLdDate(show.datePublished || show.dateCreated)
       );
       raw = pickFields(show, STRUCTURED_DATA_FIELDS);
       break;
@@ -403,9 +443,9 @@ export const enrichWithStructuredData = (
         break;
       }
       applyImage(article);
-      addFact("Published", formatDate(article.datePublished));
-      const updated = formatDate(article.dateModified);
-      if (updated && updated !== formatDate(article.datePublished)) {
+      addFact("Published", jsonLdDate(article.datePublished));
+      const updated = jsonLdDate(article.dateModified);
+      if (updated && updated !== jsonLdDate(article.datePublished)) {
         addFact("Updated", updated);
       }
       raw = pickFields(article, STRUCTURED_DATA_FIELDS);
@@ -460,9 +500,10 @@ export const enrichWithStructuredData = (
       }
       applyImage(product);
       price = parseStructuredPrice(product) ?? undefined;
-      if (product.offers?.price) {
-        const currency = product.offers.priceCurrency || "";
-        addFact("Price", `${product.offers.price} ${currency}`.trim());
+      const offerPrice = prop(product.offers, "price");
+      if (offerPrice) {
+        const currency = prop(product.offers, "priceCurrency") || "";
+        addFact("Price", `${offerPrice} ${currency}`.trim());
       } else if (price) {
         addFact("Price", formatLinkPrice(price));
       }
@@ -471,7 +512,7 @@ export const enrichWithStructuredData = (
       if (raw && Array.isArray(product.hasVariant)) {
         raw.hasVariant = product.hasVariant
           .slice(0, MAX_STORED_VARIANTS)
-          .map((variant: any) => ({ offers: variant?.offers }));
+          .map((variant: unknown) => ({ offers: prop(variant, "offers") }));
       }
       break;
     }
@@ -527,7 +568,7 @@ export const enrichWithStructuredData = (
       }
       applyImage(paper);
       addFact("Authors", stringArray(paper.author).join(", "));
-      addFact("Published", formatDate(paper.datePublished));
+      addFact("Published", jsonLdDate(paper.datePublished));
       raw = pickFields(paper, STRUCTURED_DATA_FIELDS);
       break;
     }
@@ -541,14 +582,14 @@ export const enrichWithStructuredData = (
         break;
       }
       applyImage(event);
-      const start = formatDate(event.startDate);
-      const end = formatDate(event.endDate);
+      const start = jsonLdDate(event.startDate);
+      const end = jsonLdDate(event.endDate);
       const dates =
         end && start && start !== end ? `${start} → ${end}` : start || end;
       addFact("Dates", dates);
       addFact(
         "Location",
-        valueToText(event.location?.name) || valueToText(event.location)
+        valueToText(prop(event.location, "name")) || valueToText(event.location)
       );
       raw = pickFields(event, STRUCTURED_DATA_FIELDS);
       break;
@@ -592,7 +633,7 @@ export const enrichWithStructuredData = (
       applyImage(place);
       // A listing usually describes the home it offers rather than itself.
       const subject = [place, place.about, place.mainEntity, place.itemOffered]
-        .filter(Boolean)
+        .filter(isJsonLdEntity)
         .find((candidate) => candidate.address);
       addFact("Address", formatAddress(subject?.address));
       addFact("Cuisine", stringArray(place.servesCuisine).join(", "));
@@ -625,7 +666,7 @@ export const enrichWithStructuredData = (
       );
       addFact("Genre", stringArray(game.genre).join(", "));
       addFact("Rating", formatRating(game));
-      addFact("Released", formatDate(game.datePublished));
+      addFact("Released", jsonLdDate(game.datePublished));
       raw = pickFields(game, STRUCTURED_DATA_FIELDS);
       break;
     }

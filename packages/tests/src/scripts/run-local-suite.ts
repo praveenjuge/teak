@@ -7,7 +7,7 @@ import {
 } from "../../../../scripts/lib/stack-state.ts";
 import { prepareCheckout } from "../../../../scripts/setup.ts";
 import { resolveWorktree } from "../../../../scripts/worktree-env.ts";
-import { setupBackend } from "../stack/backend";
+import { localBackendEnv, setupBackend } from "../stack/backend";
 import { STACK_LOG_PATH, startStack } from "../stack/stack";
 
 const ROOT = join(import.meta.dir, "../../../..");
@@ -17,6 +17,8 @@ const stackOnly = process.argv[2] === "stack";
 const e2eArgs = stackOnly
   ? []
   : process.argv.slice(2).filter((arg, index) => index > 0 || arg !== "--");
+
+const env = localBackendEnv();
 
 const runs: string[][] =
   e2eArgs.length > 0
@@ -30,7 +32,7 @@ const e2e = (args: string[]) =>
   new Promise<number>((resolve) => {
     const child = spawn("bunx", ["e2e", "run", ...args], {
       cwd: TESTS,
-      env: { ...process.env, E2E_TELEMETRY_DISABLED: "1" },
+      env: { ...env, E2E_TELEMETRY_DISABLED: "1" },
       stdio: "inherit",
     });
     child.once("exit", (code) => resolve(code ?? 1));
@@ -51,11 +53,11 @@ if (!prepared.ok) {
   throw new Error("The pinned runtimes or packages aren't ready; see above");
 }
 const ports = await resolveWorktree(ROOT);
-for (const line of await setupBackend(ROOT, ports)) {
+for (const line of await setupBackend(ROOT, ports, env)) {
   console.log(`✓ e2e-backend: ${line}`);
 }
 
-const stack = await startStack({ echo: false, ports });
+const stack = await startStack({ echo: false, env, ports });
 
 let exitCode = 1;
 

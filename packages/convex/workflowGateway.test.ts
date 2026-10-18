@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import {
   buildWorkflowRpcSigningPayload,
   WORKFLOW_RPC_HEADERS,

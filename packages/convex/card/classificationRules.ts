@@ -259,7 +259,9 @@ const fileNameFromUrl = (url?: string): string | undefined => {
   try {
     const pathname = new URL(url).pathname;
     return pathname.split("/").filter(Boolean).pop();
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 const classifyFile = (

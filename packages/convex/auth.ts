@@ -55,7 +55,7 @@ export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   }
 };
 
-export const getCurrentUserHandler = async (ctx: any) => {
+export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;
@@ -80,7 +80,7 @@ export const getCurrentUser = query({
   handler: getCurrentUserHandler,
 });
 
-export const getCardCreationStatusHandler = async (ctx: any) => {
+export const getCardCreationStatusHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
     return null;

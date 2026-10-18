@@ -51,9 +51,9 @@ export function CardMenuEntries({
       >
         <Icon className={entry.iconClassName} />
         {entry.label}
-        {entry.shortcut && (
+        {entry.shortcut ? (
           <Shortcut aria-hidden>{entry.shortcut.label}</Shortcut>
-        )}
+        ) : null}
       </Item>
     );
   });

@@ -107,7 +107,9 @@ export const httpsUrlOn = (
       (hostname === host || hostname.endsWith(`.${host}`))
       ? url.toString()
       : undefined;
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 export const formatAuthors = (names: string[]): string | undefined => {

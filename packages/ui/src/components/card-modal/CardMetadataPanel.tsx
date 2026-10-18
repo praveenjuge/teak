@@ -177,7 +177,7 @@ export function CardMetadataPanel({
 
   return (
     <div className="space-y-6 px-5 py-5">
-      {card.isDeleted && (
+      {card.isDeleted ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] py-1.5 pr-1.5 pl-3">
           <p className="text-muted-foreground text-sm">In Trash</p>
           <div className="flex gap-1">
@@ -201,7 +201,7 @@ export function CardMetadataPanel({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <PanelSection title="Notes">
         <div className="relative">
@@ -406,7 +406,7 @@ export function CardMetadataPanel({
               {CARD_TYPE_LABELS[card.type as CardType] ?? "Card"}
             </button>
           </PropertyRow>
-          {safeSourceUrl && sourceHost && (
+          {safeSourceUrl && sourceHost ? (
             <PropertyRow label="From">
               <a
                 className="block truncate hover:underline hover:underline-offset-2"
@@ -423,7 +423,7 @@ export function CardMetadataPanel({
                 {hostForDisplay(sourceHost)}
               </a>
             </PropertyRow>
-          )}
+          ) : null}
           <DetailRows fields={sections.details} />
           <DetailRows fields={sections.source} />
           <DetailRows fields={sections.camera} />

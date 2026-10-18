@@ -314,7 +314,9 @@ describe("publicApi", () => {
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
-              async *[Symbol.asyncIterator]() {},
+              async *[Symbol.asyncIterator]() {
+                yield* [];
+              },
               paginate: mock().mockResolvedValue({
                 continueCursor: "",
                 isDone: true,

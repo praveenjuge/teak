@@ -130,11 +130,11 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
       >
         {markdownToPlainText(card.content)}
       </blockquote>
-      {card.sourceUrl && (
+      {card.sourceUrl ? (
         <figcaption>
           <SourceFooter sourceUrl={card.sourceUrl} />
         </figcaption>
-      )}
+      ) : null}
     </figure>
   );
 }

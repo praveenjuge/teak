@@ -179,7 +179,7 @@ export function RevisitDeck({
   }, [card, deck.move]);
 
   const [drag, setDrag] = useState<{ dx: number; startX: number } | null>(null);
-  const dragged = useRef(false);
+  const dragged = useRef<boolean>(false);
 
   const act = (action: RevisitKeyAction) => {
     if (action === "archive") {
@@ -306,11 +306,11 @@ export function RevisitDeck({
               Done
             </Button>
           </div>
-          {deck.canUndo && (
+          {deck.canUndo ? (
             <p className="text-muted-foreground text-xs">
               <Kbd>Z</Kbd> undoes the last archive
             </p>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -320,7 +320,7 @@ export function RevisitDeck({
     const typeLabel = CARD_TYPE_LABELS[card.type as CardType] ?? "Card";
     return (
       <div className="relative flex w-full max-w-md flex-col items-center">
-        {leaving && (
+        {leaving ? (
           <div
             aria-hidden="true"
             className={cn(
@@ -334,7 +334,7 @@ export function RevisitDeck({
           >
             <DeckCard card={leaving.card} />
           </div>
-        )}
+        ) : null}
         <div
           className={cn(
             "fade-in-0 flex w-full animate-in touch-pan-y select-none justify-center duration-180",
@@ -374,23 +374,23 @@ export function RevisitDeck({
           <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
           <span>Saved {savedDate.format(card.createdAt)}</span>
-          {live?.isDeleted && (
+          {live?.isDeleted ? (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
               In Trash
             </span>
-          )}
+          ) : null}
           {!live?.isDeleted && live?.isArchived && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
               Archived
             </span>
           )}
-          {swipeHint && (
+          {swipeHint ? (
             <span className="font-medium text-foreground">
               {swipeHint === "archive"
                 ? "Release to archive"
                 : "Release to keep"}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -446,7 +446,7 @@ export function RevisitDeck({
             className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden px-4"
           >
             {renderBody()}
-            {showActions && (
+            {showActions ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="flex gap-3">
                   <Button
@@ -484,7 +484,7 @@ export function RevisitDeck({
                   Swipe left to archive, right to keep
                 </p>
               </div>
-            )}
+            ) : null}
           </main>
           <div aria-hidden="true" className="h-20 shrink-0" />
         </div>

@@ -12,7 +12,7 @@ import {
   accountDeletionStage,
 } from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
-import { deleteCardTextContents } from "./card/textContents";
+import { deleteCardTextRow } from "./card/textContents";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
@@ -23,23 +23,14 @@ const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
 type DatabaseReaderCtx = Pick<MutationCtx | QueryCtx, "db">;
 
-export const getAccountDeletionState = async (
+export const getAccountDeletionState = (
   ctx: DatabaseReaderCtx,
   userId: string
-) => {
-  const tableQuery = (ctx.db as any)?.query?.("accountDeletionStates");
-  if (typeof tableQuery?.withIndex !== "function") {
-    return null;
-  }
-  const indexedQuery = tableQuery.withIndex("by_userId", (query: any) =>
-    query.eq("userId", userId)
-  );
-  if (typeof indexedQuery?.unique !== "function") {
-    return null;
-  }
-  const state = await indexedQuery.unique();
-  return state && typeof state.startedAt === "number" ? state : null;
-};
+) =>
+  ctx.db
+    .query("accountDeletionStates")
+    .withIndex("by_userId", (query) => query.eq("userId", userId))
+    .unique();
 
 /**
  * While an account deletion runs, its batches own every row the user has.
@@ -141,7 +132,7 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    await deleteCardTextContents(ctx, cardId);
+    await deleteCardTextRow(ctx, cardId);
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_cardId_and_folderId", (query) =>

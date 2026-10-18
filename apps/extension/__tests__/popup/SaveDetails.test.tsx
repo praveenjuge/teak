@@ -54,10 +54,22 @@ async function render({
     }
   );
   const drafts: unknown[] = [];
-  const connect = mock(() => ({
-    disconnect: mock(),
-    postMessage: (message: { draft: unknown }) => drafts.push(message.draft),
-  }));
+  const dropPort: { current: () => void } = { current: () => undefined };
+  const connect = mock(() => {
+    const listeners: (() => void)[] = [];
+    dropPort.current = () => {
+      for (const listener of listeners) {
+        listener();
+      }
+    };
+    return {
+      disconnect: mock(),
+      onDisconnect: {
+        addListener: (listener: () => void) => listeners.push(listener),
+      },
+      postMessage: (message: { draft: unknown }) => drafts.push(message.draft),
+    };
+  });
   Object.assign(globalThis.chrome, { runtime: { connect, sendMessage } });
   const onKeepOpen = mock();
   const container = document.createElement("div");
@@ -74,7 +86,7 @@ async function render({
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  return { container, drafts, onKeepOpen, patches };
+  return { connect, container, drafts, dropPort, onKeepOpen, patches };
 }
 
 const settle = () =>
@@ -202,7 +214,7 @@ test("a tag over 64 characters is refused before any request", async () => {
 });
 
 test("a failed save keeps what was typed and offers Retry", async () => {
-  let fail = true;
+  let fail = true as boolean;
   const { container, patches } = await render({
     patch: () =>
       fail ? { status: "error", message: "boom" } : { status: "updated" },
@@ -280,4 +292,19 @@ test("suggestions show once the tag input has focus", async () => {
     (option) => option.textContent
   );
   expect(options).toEqual(["design", "reading"]);
+});
+
+test("a dropped background port reconnects and hands over the unsaved draft", async () => {
+  const { connect, container, drafts, dropPort } = await render();
+  const note = noteField(container) as HTMLTextAreaElement;
+  await act(() => note.focus());
+  await type(note, "kept across a restart");
+  const before = drafts.length;
+  await act(() => dropPort.current());
+  expect(connect).toHaveBeenCalledTimes(2);
+  expect(drafts.length).toBe(before + 1);
+  expect(drafts.at(-1)).toEqual({
+    cardId: "card_1",
+    notes: "kept across a restart",
+  });
 });

@@ -61,10 +61,15 @@ const errorStatus = (
     ? UPGRADE_STATUS
     : { autoClose: false, detail: message, title, tone: "error" };
 
-const hostOf = (url?: string) => {
+const hostOf = (url?: string): string | undefined => {
+  if (!url) {
+    return undefined;
+  }
   try {
-    return url ? new URL(url).hostname.replace(/^www\./, "") : undefined;
-  } catch {}
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
 };
 
 const ALREADY_SAVED_TITLE = "Already in your Teak";

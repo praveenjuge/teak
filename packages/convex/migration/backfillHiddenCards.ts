@@ -144,7 +144,7 @@ export const backfillHiddenCards = internalMutation({
     if (continuationScheduled) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any)["migration/backfillHiddenCards"].backfillHiddenCards,
+        internal["migration/backfillHiddenCards"].backfillHiddenCards,
         {
           cursor: page.continueCursor,
           dryRun,

@@ -20,9 +20,12 @@ import {
   focusNewNoteComposer,
   GO_TO_VIEW_KEYS,
   pressUploadFiles,
-  requestNewNoteComposerFocus,
 } from "../../lib/keyboardShortcuts";
-import { LIBRARY_VIEWS, type LibraryView } from "../../lib/libraryViews";
+import {
+  type GoToViewOptions,
+  LIBRARY_VIEWS,
+  type LibraryView,
+} from "../../lib/libraryViews";
 import {
   CommandPalette,
   type CommandPaletteCommand,
@@ -30,7 +33,7 @@ import {
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
 
 interface LibraryShortcutsProps {
-  onGoToView: (view: LibraryView) => void;
+  onGoToView: (view: LibraryView, options?: GoToViewOptions) => void;
   onNavigate: (href: string) => void;
   onSignOut: () => void;
   pathname: string | null;
@@ -43,7 +46,7 @@ export function LibraryShortcuts({
   pathname,
 }: LibraryShortcutsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const isDialogOpenRef = useRef(false);
+  const isDialogOpenRef = useRef<boolean>(false);
   const setDialogOpen = useCallback((open: boolean) => {
     isDialogOpenRef.current = open;
     setIsDialogOpen(open);
@@ -65,7 +68,7 @@ export function LibraryShortcuts({
   );
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const isPaletteOpenRef = useRef(false);
+  const isPaletteOpenRef = useRef<boolean>(false);
   const setPaletteOpen = useCallback((open: boolean) => {
     isPaletteOpenRef.current = open;
     setIsPaletteOpen(open);
@@ -76,8 +79,7 @@ export function LibraryShortcuts({
 
   const newNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
-      requestNewNoteComposerFocus();
-      onGoToView("all");
+      onGoToView("all", { focusComposer: true });
     }
   }, [onGoToView]);
 

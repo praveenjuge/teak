@@ -149,14 +149,12 @@ export function AddCardActions({
   );
   const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
   const prepareMultipartUpload = useAction(
-    (api as any).fileUploads.prepareMultipartUpload
+    api.fileUploads.prepareMultipartUpload
   );
   const completeMultipartUpload = useAction(
-    (api as any).fileUploads.completeMultipartUpload
+    api.fileUploads.completeMultipartUpload
   );
-  const recordMultipartPart = useMutation(
-    (api as any).fileUploads.recordMultipartPart
-  );
+  const recordMultipartPart = useMutation(api.fileUploads.recordMultipartPart);
 
   const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
     uploadAndCreateCardMutation(args);
@@ -424,9 +422,13 @@ export function AddCardActions({
     input.click();
   };
 
-  const recordingStatusDescription = isRecording
-    ? "Speak naturally. Teak will save this as an audio card."
-    : "Starting microphone...";
+  let recordingStatusDescription = "Starting microphone...";
+  if (isSubmitting) {
+    recordingStatusDescription = "Saving recording...";
+  } else if (isRecording) {
+    recordingStatusDescription =
+      "Speak naturally. Teak will save this as an audio card.";
+  }
 
   const uploadRef = useRef(handleFileUpload);
   uploadRef.current = handleFileUpload;
@@ -442,7 +444,7 @@ export function AddCardActions({
       }),
     [isUploading]
   );
-  const keepFocusRef = useRef(false);
+  const keepFocusRef = useRef<boolean>(false);
 
   const triggers =
     variant === "header" ? (
@@ -459,7 +461,7 @@ export function AddCardActions({
           }}
           side="bottom"
         >
-          {onNewNote && (
+          {onNewNote ? (
             <DropdownMenuItem
               onSelect={() => {
                 keepFocusRef.current = true;
@@ -470,7 +472,7 @@ export function AddCardActions({
               Note or link
               <DropdownMenuShortcut>N</DropdownMenuShortcut>
             </DropdownMenuItem>
-          )}
+          ) : null}
           <DropdownMenuItem
             disabled={isUploading}
             onSelect={() => {
@@ -532,9 +534,7 @@ export function AddCardActions({
       >
         <DialogContent className="max-w-sm text-center" showCloseButton={false}>
           <DialogTitle>Recording audio</DialogTitle>
-          <DialogDescription>
-            {isSubmitting ? "Saving recording..." : recordingStatusDescription}
-          </DialogDescription>
+          <DialogDescription>{recordingStatusDescription}</DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
               {formatTime(recordingTime)}

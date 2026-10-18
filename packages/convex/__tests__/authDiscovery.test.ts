@@ -201,9 +201,9 @@ describe("OAuth discovery", () => {
     "does not cache %s responses",
     async (failure: string) => {
       const f = fixture();
-      let broken = true;
+      const state: { broken: boolean } = { broken: true };
       const transport = asFetch(async (url, init) =>
-        broken
+        state.broken
           ? new Response(failure === "oversized" ? "x".repeat(65_537) : "{", {
               status: failure === "http failure" ? 503 : 200,
             })
@@ -212,7 +212,7 @@ describe("OAuth discovery", () => {
       await expect(
         discoverAuthServer("https://teak.example", { fetch: transport })
       ).rejects.toThrow();
-      broken = false;
+      state.broken = false;
       expect(
         await discoverAuthServer("https://teak.example", { fetch: transport })
       ).toMatchObject({ primary: "workos" });
@@ -264,10 +264,10 @@ describe("OAuth discovery", () => {
 
   test("failed discovery aborts its stalled sibling and permits retry", async () => {
     const f = fixture();
-    let broken = true;
+    const state: { broken: boolean } = { broken: true };
     let aborted = false;
     const transport = asFetch((url, init) => {
-      if (!broken) {
+      if (!state.broken) {
         return f.transport(url, init);
       }
       if (String(url).includes("oauth-protected-resource")) {
@@ -288,7 +288,7 @@ describe("OAuth discovery", () => {
       discoverAuthServer("https://teak.example", { fetch: transport })
     ).rejects.toThrow("request failed");
     expect(aborted).toBe(true);
-    broken = false;
+    state.broken = false;
     expect(
       await discoverAuthServer("https://teak.example", { fetch: transport })
     ).toMatchObject({ primary: "workos" });
@@ -296,9 +296,9 @@ describe("OAuth discovery", () => {
 
   test("times out discovery and allows another attempt", async () => {
     const f = fixture();
-    let stalled = true;
+    const state: { stalled: boolean } = { stalled: true };
     const transport = asFetch((url, init) =>
-      stalled
+      state.stalled
         ? new Promise((_resolve, reject) => {
             init?.signal?.addEventListener(
               "abort",
@@ -314,7 +314,7 @@ describe("OAuth discovery", () => {
         timeoutMs: 1,
       })
     ).rejects.toThrow("Aborted");
-    stalled = false;
+    state.stalled = false;
     expect(
       await discoverAuthServer("https://teak.example", { fetch: transport })
     ).toMatchObject({ primary: "workos" });

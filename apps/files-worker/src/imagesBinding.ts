@@ -19,9 +19,7 @@ export const throughImagesBinding = async <T>(
   try {
     return await use(images, object);
   } catch {
-    try {
-      await object.body.cancel();
-    } catch {}
+    await object.body.cancel().catch(() => undefined);
     return null;
   }
 };

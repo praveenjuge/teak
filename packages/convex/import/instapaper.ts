@@ -9,17 +9,22 @@ import {
 
 const SOURCE = "Instapaper";
 
+const parseJsonOrUndefined = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+};
+
 function parseTags(raw: string): string[] {
   if (!raw) {
     return [];
   }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.map((tag) => String(tag));
-    }
-  } catch {}
-  return raw.split(",");
+  const parsed = parseJsonOrUndefined(raw);
+  return Array.isArray(parsed)
+    ? parsed.map((tag) => String(tag))
+    : raw.split(",");
 }
 
 /**

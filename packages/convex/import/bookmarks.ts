@@ -24,7 +24,7 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
   // everything; they're the top level, not folders of the user's.
   let builtInHeading = false;
   let anchor:
-    | { attributes: Record<string, string>; text: string[] }
+    | { attributes: Record<string, string | undefined>; text: string[] }
     | undefined;
   const parser = new Parser(
     {

@@ -161,7 +161,7 @@ function installSocketRouting(
         }
         event.stopImmediatePropagation();
         const next = fromServer(JSON.parse(String(event.data)), context);
-        if (next) {
+        if (next !== null) {
           context.toClient(next);
         }
       });
@@ -174,7 +174,7 @@ function installSocketRouting(
         return;
       }
       const next = fromClient(JSON.parse(data), context);
-      if (next) {
+      if (next !== null) {
         super.send(JSON.stringify(next));
       }
     }

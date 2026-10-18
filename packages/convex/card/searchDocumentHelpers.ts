@@ -1,3 +1,4 @@
+import type { IndexRange, SearchFilterFinalizer } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -21,8 +22,12 @@ import {
   deleteLinkedPdfRowsAsDocument,
   deleteLinkedPdfRowsAsLink,
 } from "./linkedPdfRows";
-import { type ArchivedFilter, archivedFilterMatch } from "./listQuery";
-import { deleteCardTextContents } from "./textContents";
+import {
+  type ArchivedFilter,
+  cardListScope,
+  scopeArchivedMatch,
+} from "./listQuery";
+import { deleteCardTextRow } from "./textContents";
 
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
 
@@ -266,7 +271,7 @@ export const syncCardSearchDocumentHandler = async (
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
     if (!previousCard || previousCard.hasExtractedText) {
-      await deleteCardTextContents(ctx, cardId);
+      await deleteCardTextRow(ctx, cardId);
     }
     if (!previousCard || previousCard.type === "link") {
       await deleteLinkedPdfRowsAsLink(ctx, cardId);
@@ -607,6 +612,13 @@ export const syncCardSearchTagsBatchHandler = async (
   return { complete: false, processed: sourceSlice.length, writes };
 };
 
+interface CreatedAtRange {
+  gte: (
+    field: "cardCreatedAt",
+    value: number
+  ) => { lte: (field: "cardCreatedAt", value: number) => IndexRange };
+}
+
 export const searchCardsByExactTag = async (
   ctx: QueryCtx,
   args: {
@@ -632,10 +644,12 @@ export const searchCardsByExactTag = async (
   const includeHidden = args.includeHidden || isHiddenTagList([tag]);
   const { isFavorited, type } = args;
   const favorited = isFavorited === true ? true : undefined;
-  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const archived = scopeArchivedMatch(
+    cardListScope(args.archived, args.isDeleted === true)
+  );
   const matchLimit = Math.min(4096, Math.max(1, args.limit));
   const order = args.sort === "oldest" ? "asc" : "desc";
-  const createdBetween = (range: any) =>
+  const createdBetween = (range: CreatedAtRange) =>
     range
       .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
       .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER);
@@ -652,40 +666,58 @@ export const searchCardsByExactTag = async (
         )
       )
       .order(order);
+  } else if (type !== undefined && isFavorited !== undefined) {
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_archived_type_favorited_v2", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
+            .eq("isArchived", archived)
+            .eq("type", type)
+            .eq("isFavorited", favorited)
+        )
+      )
+      .order(order);
+  } else if (type !== undefined) {
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_archived_type_v2", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
+            .eq("isArchived", archived)
+            .eq("type", type)
+        )
+      )
+      .order(order);
+  } else if (isFavorited === undefined) {
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_archived_created_v2", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
+            .eq("isArchived", archived)
+        )
+      )
+      .order(order);
   } else {
-    const base = (range: any) =>
-      range
-        .eq("userId", args.userId)
-        .eq("tag", tag)
-        .eq("isDeleted", args.isDeleted)
-        .eq("isArchived", archived);
-    if (type !== undefined && isFavorited !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_archived_type_favorited_v2", (range) =>
-          createdBetween(
-            base(range).eq("type", type).eq("isFavorited", favorited)
-          )
+    tagQuery = tags
+      .withIndex("by_user_tag_deleted_archived_favorited_v2", (range) =>
+        createdBetween(
+          range
+            .eq("userId", args.userId)
+            .eq("tag", tag)
+            .eq("isDeleted", args.isDeleted)
+            .eq("isArchived", archived)
+            .eq("isFavorited", favorited)
         )
-        .order(order);
-    } else if (type !== undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_archived_type_v2", (range) =>
-          createdBetween(base(range).eq("type", type))
-        )
-        .order(order);
-    } else if (isFavorited === undefined) {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_archived_created_v2", (range) =>
-          createdBetween(base(range))
-        )
-        .order(order);
-    } else {
-      tagQuery = tags
-        .withIndex("by_user_tag_deleted_archived_favorited_v2", (range) =>
-          createdBetween(base(range).eq("isFavorited", favorited))
-        )
-        .order(order);
-    }
+      )
+      .order(order);
   }
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
@@ -745,8 +777,23 @@ const searchTooBroad = () =>
     message: "Search is too broad. Add a type or date filter.",
   });
 
+type SearchDocumentFilter = SearchFilterFinalizer<
+  Doc<"cardSearchDocuments">,
+  {
+    searchField: string;
+    filterFields:
+      | "isArchived"
+      | "isDeleted"
+      | "isFavorited"
+      | "isHidden"
+      | "type"
+      | "urlHost"
+      | "userId";
+  }
+>;
+
 const filterSearchIndex = (
-  query: any,
+  query: SearchDocumentFilter,
   args: DocumentSearchArgs,
   archived: true | undefined | "any"
 ) => {
@@ -814,7 +861,9 @@ export const searchCardsByDocument = async (
   ctx: QueryCtx,
   args: DocumentSearchArgs
 ): Promise<Doc<"cards">[]> => {
-  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const archived = scopeArchivedMatch(
+    cardListScope(args.archived, args.isDeleted === true)
+  );
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
   const found = await keepSearchDocuments(ctx, args, scanBudget, (limit) =>
     ctx.db
@@ -840,7 +889,9 @@ export const searchCardsByOcrText = async (
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
   }
 ): Promise<Doc<"cards">[]> => {
-  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const archived = scopeArchivedMatch(
+    cardListScope(args.archived, args.isDeleted === true)
+  );
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
   const found = await keepSearchDocuments(ctx, args, scanBudget, (limit) =>
     ctx.db
@@ -873,7 +924,9 @@ export const loadSemanticMatches = async (
   cardsById: Map<Id<"cards">, Doc<"cards">>,
   options: { minScore: number; keep: (card: Doc<"cards">) => boolean }
 ): Promise<{ cardId: Id<"cards">; score: number }[]> => {
-  const archived = archivedFilterMatch(args.archived, args.isDeleted === true);
+  const archived = scopeArchivedMatch(
+    cardListScope(args.archived, args.isDeleted === true)
+  );
   const kept: { cardId: Id<"cards">; score: number }[] = [];
   for (const match of ranking) {
     if (cardsById.has(match.cardId)) {

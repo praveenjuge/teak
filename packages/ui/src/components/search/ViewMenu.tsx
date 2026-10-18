@@ -127,7 +127,7 @@ export function ViewMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        {onToggleType && (
+        {onToggleType ? (
           <>
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
               Show
@@ -160,10 +160,10 @@ export function ViewMenu({
               </DropdownMenuItem>
             )}
           </>
-        )}
-        {onSortChange && (
+        ) : null}
+        {onSortChange ? (
           <>
-            {onToggleType && <DropdownMenuSeparator />}
+            {onToggleType ? <DropdownMenuSeparator /> : null}
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
               Sort
             </DropdownMenuLabel>
@@ -171,11 +171,11 @@ export function ViewMenu({
               onValueChange={(value) => onSortChange(value as LibrarySort)}
               value={sort}
             >
-              {canSortByRelevance && (
+              {canSortByRelevance ? (
                 <DropdownMenuRadioItem value="relevance">
                   {SORT_LABELS.relevance}
                 </DropdownMenuRadioItem>
-              )}
+              ) : null}
               <DropdownMenuRadioItem value="newest">
                 {SORT_LABELS.newest}
               </DropdownMenuRadioItem>
@@ -185,7 +185,7 @@ export function ViewMenu({
               <DropdownMenuRadioItem value="shuffle">
                 {SORT_LABELS.shuffle}
               </DropdownMenuRadioItem>
-              {revisit && (
+              {revisit ? (
                 <DropdownMenuRadioItem
                   className="flex-wrap"
                   disabled={revisit === "empty"}
@@ -199,11 +199,11 @@ export function ViewMenu({
                     </span>
                   )}
                 </DropdownMenuRadioItem>
-              )}
+              ) : null}
             </DropdownMenuRadioGroup>
           </>
-        )}
-        {onSaveSearch && (
+        ) : null}
+        {onSaveSearch ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onSaveSearch}>
@@ -211,7 +211,7 @@ export function ViewMenu({
               Save as smart folder…
             </DropdownMenuItem>
           </>
-        )}
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

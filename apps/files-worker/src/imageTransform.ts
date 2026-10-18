@@ -157,6 +157,9 @@ const bindingOutputFormat = (
   return format === "webp" ? "image/webp" : null;
 };
 
+const BINDING_TRANSFORM = { fit: "scale-down", sharpen: 1 } as const;
+const BINDING_OUTPUT = { anim: true } as const;
+
 export const transformViaBinding = (
   env: Env,
   key: string,
@@ -178,12 +181,11 @@ export const transformViaBinding = (
       const result = await images
         .input(object.body)
         .transform({
-          fit: "scale-down",
-          sharpen: 1,
+          ...BINDING_TRANSFORM,
           ...renditionBounds(rendition),
         })
         .output({
-          anim: true,
+          ...BINDING_OUTPUT,
           format: outputFormat,
           quality: preset.quality,
         });
@@ -205,6 +207,7 @@ const BINDING_CACHE_VERSION = [
     ({ edge, quality }) => `${String(edge)}q${String(quality)}`
   ),
   `a${String(MAX_RENDITION_ASPECT)}`,
+  `${BINDING_TRANSFORM.fit}s${String(BINDING_TRANSFORM.sharpen)}anim${String(BINDING_OUTPUT.anim)}`,
 ].join("-");
 
 export const buildBindingCacheKey = (

@@ -142,7 +142,7 @@ export const refreshCardMediaUrl = action({
   returns: v.object({ url: v.string() }),
   handler: async (ctx, args): Promise<{ url: string }> => {
     const media: { fileName: string | null } | null = await ctx.runQuery(
-      (internal as any).card.getFileUrl.getAuthorizedMedia,
+      internal.card.getFileUrl.getAuthorizedMedia,
       { cardId: args.cardId, key: args.key }
     );
     if (!media) {

@@ -46,6 +46,16 @@ export const leaseHolder = async (root: string): Promise<LeaseHolder> => {
 export const headCommit = (root: string): Promise<string> =>
   git(root, ["rev-parse", "--short", "HEAD"]);
 
+const NOT_JSON = Symbol("not JSON");
+
+const parseJsonOr = (text: string, fallback: unknown): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return fallback;
+  }
+};
+
 /** `convex run` prints the return value as JSON after any log lines. */
 export const parseRunOutput = (stdout: string): unknown => {
   const lines = stdout.trim().split("\n");
@@ -53,9 +63,10 @@ export const parseRunOutput = (stdout: string): unknown => {
     if (!/^\s*([{["\d-]|true|false|null)/.test(lines[i] ?? "")) {
       continue;
     }
-    try {
-      return JSON.parse(lines.slice(i).join("\n"));
-    } catch {}
+    const parsed = parseJsonOr(lines.slice(i).join("\n"), NOT_JSON);
+    if (parsed !== NOT_JSON) {
+      return parsed;
+    }
   }
   throw new Error("no JSON result");
 };

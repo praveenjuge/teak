@@ -229,9 +229,14 @@ export const categorizeLink = async (
     throw new Error(`Failed to classify link category for card ${job.cardId}`);
   }
 
+  const structuredMeta = existingMetadata?.raw?.structuredMeta;
   const structuredFetchedAt =
-    existingMetadata?.raw?.structuredMeta?.fetchedAt ??
-    existingMetadata?.rawStructuredFetchedAt;
+    (typeof structuredMeta === "object" &&
+    structuredMeta !== null &&
+    "fetchedAt" in structuredMeta &&
+    typeof structuredMeta.fetchedAt === "number"
+      ? structuredMeta.fetchedAt
+      : undefined) ?? existingMetadata?.rawStructuredFetchedAt;
   const structuredFresh =
     structuredFetchedAt && Date.now() - structuredFetchedAt < METADATA_TTL_MS;
   const shouldFetchStructured =

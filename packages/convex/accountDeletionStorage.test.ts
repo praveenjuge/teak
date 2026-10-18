@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { mockActionCtx } from "./__tests__/helpers/convex.test-utils";

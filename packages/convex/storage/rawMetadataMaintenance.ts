@@ -10,7 +10,7 @@ import {
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { ensureObjectOwnership } from "./ownership";
-import { cardStorageObjectKeys, deleteObject } from "./r2";
+import { cardStorageObjectKeys, queueObjectDeletion } from "./r2";
 import {
   copyAndVerifyRaw,
   hashRawMetadata,
@@ -73,12 +73,12 @@ const commitArchiveOutcome = async (
 ): Promise<CommitOutcome> => {
   const card = await ctx.db.get("cards", cardId);
   if (!card) {
-    await deleteObject(ctx, key);
+    await queueObjectDeletion(ctx, key);
     return "card_gone";
   }
   if (await accountDeletionOwnsRows(ctx, card.userId)) {
     if (card.metadata?.[kind]?.rawStorageKey !== key) {
-      await deleteObject(ctx, key);
+      await queueObjectDeletion(ctx, key);
     }
     return "account_deleting";
   }
@@ -113,8 +113,8 @@ const commitArchiveOutcome = async (
   if (kind === "linkCategory") {
     const raw = part.raw as {
       structured?: unknown;
-      structuredMeta?: { fetchedAt?: unknown };
-    };
+      structuredMeta?: { fetchedAt?: unknown } | null;
+    } | null;
     Object.assign(archived, {
       rawHasStructured: Boolean(raw?.structured),
       rawStructuredFetchedAt:

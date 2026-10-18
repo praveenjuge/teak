@@ -57,6 +57,17 @@ const throwRetryable = (info: LinkMetadataRetryableError): never => {
   throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
+const errorFields = (error: unknown): { message?: string; name?: string } => {
+  if (typeof error !== "object" || error === null) {
+    return {};
+  }
+  const { message, name } = error as { message?: unknown; name?: unknown };
+  return {
+    ...(typeof message === "string" ? { message } : {}),
+    ...(typeof name === "string" ? { name } : {}),
+  };
+};
+
 export const parseLinkMetadataRetryableError = (
   error: unknown
 ): LinkMetadataRetryableError | null => {
@@ -557,27 +568,19 @@ export const fetchLinkMetadata = async (
     );
     return { status: "success" };
   } catch (error) {
-    const err = error as Error | undefined;
+    const { message, name } = errorFields(error);
     if (
-      err?.message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX) ||
-      err?.name === "NonRetryableError"
+      message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX) ||
+      name === "NonRetryableError"
     ) {
       throw error;
     }
-    if (err?.name === "AbortError") {
-      throwRetryable({
-        message: err.message,
-        normalizedUrl,
-        type: "timeout",
-      });
+    if (name === "AbortError") {
+      throwRetryable({ message, normalizedUrl, type: "timeout" });
     }
-    if (err?.name === "TypeError" && err.message?.includes("fetch")) {
-      throwRetryable({
-        message: err.message,
-        normalizedUrl,
-        type: "network_error",
-      });
+    if (name === "TypeError" && message?.includes("fetch")) {
+      throwRetryable({ message, normalizedUrl, type: "network_error" });
     }
-    return await fail(normalizedUrl, "error", err?.message ?? "error");
+    return await fail(normalizedUrl, "error", message ?? "error");
   }
 };

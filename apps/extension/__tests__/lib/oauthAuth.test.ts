@@ -38,7 +38,7 @@ beforeEach(() => {
     value: {
       request: (_name: string, callback: () => Promise<unknown>) => {
         const next = tail.then(callback, callback);
-        tail = next.catch(() => {});
+        tail = next.catch(() => undefined);
         return next;
       },
     },
@@ -281,7 +281,7 @@ describe("Chrome OAuth background credentials", () => {
     });
     // An empty IndexedDB: Firefox keeps credentials there, and Bun has none.
     const emptyDatabase = {
-      close: () => {},
+      close: () => undefined,
       transaction: () => {
         const transaction: { oncomplete?: () => void; objectStore: unknown } = {
           objectStore: () => ({ get: () => ({ result: undefined }) }),

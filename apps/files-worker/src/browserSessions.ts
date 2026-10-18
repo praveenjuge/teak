@@ -34,6 +34,13 @@ export const createBrowserAcquirer =
     binding: Binding
   ): AcquireBrowser =>
   async () => {
+    const connectOrNull = async (sessionId: string) => {
+      try {
+        return await client.connect(binding, sessionId);
+      } catch {
+        return null;
+      }
+    };
     const running = await client.sessions(binding).catch(() => []);
     const candidates = [...running]
       .sort(
@@ -42,10 +49,10 @@ export const createBrowserAcquirer =
       )
       .slice(0, MAX_CONNECT_ATTEMPTS);
     for (const session of candidates) {
-      try {
-        const browser = await client.connect(binding, session.sessionId);
+      const browser = await connectOrNull(session.sessionId);
+      if (browser) {
         return { browser, release: () => browser.disconnect() };
-      } catch {}
+      }
     }
     try {
       const browser = await client.launch(binding, {

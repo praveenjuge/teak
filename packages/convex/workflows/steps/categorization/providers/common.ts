@@ -101,7 +101,9 @@ export const formatRating = (value?: string): string | undefined => {
   return numeric.toFixed(2);
 };
 
-export const formatDate = (value: string | undefined): string | undefined => {
+export const formatDate = (
+  value: string | number | undefined
+): string | undefined => {
   if (!value) {
     return undefined;
   }

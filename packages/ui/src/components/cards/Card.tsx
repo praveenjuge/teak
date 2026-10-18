@@ -168,14 +168,14 @@ export const Card = memo(function Card({
     void prefetchFileTextPreview({
       cacheKey: card.fileKey,
       fileUrl: card.fileUrl,
-    }).catch(() => {});
+    }).catch(() => undefined);
   };
 
   const handlePrefetch = () => {
     if (isOptimistic) {
       return;
     }
-    preloadCardModal().catch(() => {});
+    preloadCardModal().catch(() => undefined);
     prefetchDocumentPreview();
     prefetchCardModalMedia(card);
   };
@@ -487,14 +487,14 @@ export const Card = memo(function Card({
                 textInsets={textInsets}
               />
             </CardContent>
-            {isProcessing && (
+            {isProcessing ? (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-x-4 bottom-0 h-0.5 overflow-hidden rounded-full"
               >
                 <div className="h-full w-1/3 animate-progress-slide rounded-full bg-foreground/30 motion-reduce:animate-none" />
               </div>
-            )}
+            ) : null}
           </UICard>
 
           {isSelectionMode && !isOptimistic && (
@@ -508,7 +508,7 @@ export const Card = memo(function Card({
             </div>
           )}
 
-          {showHoverSelect && (
+          {showHoverSelect ? (
             <ShortcutTooltip keys={["X"]} label="Select" side="top">
               <button
                 aria-keyshortcuts="X"
@@ -521,7 +521,7 @@ export const Card = memo(function Card({
                 <Check className="size-3.5" strokeWidth={2.5} />
               </button>
             </ShortcutTooltip>
-          )}
+          ) : null}
 
           {showFavoriteMark && (
             <div
