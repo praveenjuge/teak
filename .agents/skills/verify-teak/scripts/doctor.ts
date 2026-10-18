@@ -66,8 +66,10 @@ const checkWeb = async (appOrigin: string) => {
 /**
  * The newest modification time (ms) among the uncommitted paths in
  * `git status --porcelain -z --untracked-files=all` output, or 0 when there
- * are none. NUL-separated records keep paths with spaces or " -> " whole; a
- * rename or copy record is followed by its old path, which is skipped. A deleted path has no file to stat, so it counts by its nearest
+ * are none. NUL-separated records keep paths with spaces or " -> " whole. A
+ * rename or copy (in either status column) is followed by its old path, which
+ * counts too: a moved file keeps its old time, but the directory it left
+ * doesn't. A deleted path has no file to stat, so it counts by its nearest
  * existing parent directory, whose time changes when something in it is
  * removed (a whole deleted directory counts by the directory above it).
  */
@@ -78,8 +80,9 @@ export const changedPaths = (porcelainZ: string): string[] => {
     const record = records[i] ?? "";
     if (record.length > 3) {
       paths.push(record.slice(3));
-      if (record[0] === "R" || record[0] === "C") {
+      if (/[RC]/.test(record.slice(0, 2)) && records[i + 1]) {
         i += 1;
+        paths.push(records[i] ?? "");
       }
     }
   }

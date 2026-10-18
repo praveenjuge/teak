@@ -131,17 +131,35 @@ describe("verify-teak doctor: newest uncommitted edit", () => {
     });
   });
 
+  test("a renamed file counts by the newer directory it moved out of", () => {
+    withTree((root) => {
+      mkdirSync(join(root, "from"));
+      writeFileSync(join(root, "moved.ts"), "x");
+      utimesSync(join(root, "moved.ts"), at(1000), at(1000));
+      utimesSync(join(root, "from"), at(5000), at(5000));
+      expect(newestEdit("R  moved.ts\0from/moved.ts\0", root)).toBe(5_000_000);
+    });
+  });
+
   test("no uncommitted paths means no edit", () => {
     expect(newestEdit("")).toBe(0);
   });
 });
 
 describe("verify-teak doctor: git status -z records", () => {
-  test("keeps paths with spaces and arrows whole, and skips a rename's old path", () => {
+  test("keeps paths with spaces and arrows whole, and keeps both sides of a rename", () => {
     expect(
       changedPaths(
-        " M my file.ts\0?? a -> b.ts\0R  new.ts\0old.ts\0 D gone.ts\0"
+        " M my file.ts\0?? a -> b.ts\0R  new.ts\0old.ts\0 R wt.ts\0was.ts\0 D gone.ts\0"
       )
-    ).toEqual(["my file.ts", "a -> b.ts", "new.ts", "gone.ts"]);
+    ).toEqual([
+      "my file.ts",
+      "a -> b.ts",
+      "new.ts",
+      "old.ts",
+      "wt.ts",
+      "was.ts",
+      "gone.ts",
+    ]);
   });
 });
