@@ -1,5 +1,5 @@
 import {
-  clickRetryingReplacedNode,
+  clickVisibleControl,
   clientFor,
   createAccount,
   gotoApp,
@@ -28,7 +28,7 @@ const clearFilters = async (screen: Screen) => {
   const clear = screen.getByRole("button", /Clear (All|filters)/i, {
     visible: true,
   });
-  await clickRetryingReplacedNode(clear);
+  await clickVisibleControl(clear);
 };
 
 describe("quote, favorites, and type filters", { serial: true }, () => {
@@ -50,7 +50,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
       .poll(
         async () => {
           const card = await api.cards.get(created.cardId);
-          return card.type;
+          return card?.type;
         },
         { timeout: 45_000, interval: 1000 }
       )
@@ -97,13 +97,13 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible({
       timeout: 30_000,
     });
-    await clickRetryingReplacedNode(screen.getByRole("link", "Favorites"));
+    await clickVisibleControl(screen.getByRole("link", "Favorites"));
     await expect(screen.getByPlaceholder("Search favorites")).toBeVisible();
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
     await expect(cardText(screen, `${marker} hide-me`)).not.toBeVisible();
 
     await cardText(screen, `${marker} keep-me`).click();
-    await clickRetryingReplacedNode(
+    await clickVisibleControl(
       screen
         .getByRole("dialog")
         .getByRole("button", "Unfavorite", { exact: false })
@@ -112,7 +112,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     await expect(cardText(screen, `${marker} keep-me`)).not.toBeVisible({
       timeout: 15_000,
     });
-    await clickRetryingReplacedNode(screen.getByRole("link", "Everything"));
+    await clickVisibleControl(screen.getByRole("link", "Everything"));
     await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
   });
 
@@ -157,7 +157,7 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
     });
 
     const pickType = async (name: string) => {
-      await clickRetryingReplacedNode(screen.getByRole("button", /^View/));
+      await clickVisibleControl(screen.getByRole("button", /^View/));
       await screen.getByRole("menuitemcheckbox", name).click();
       await browser.keyboard.press("Escape");
     };
@@ -168,7 +168,10 @@ describe("quote, favorites, and type filters", { serial: true }, () => {
 
     await pickType("Palette");
     await expect(
-      browser.locator('[role="main"] [aria-label*="#DDEEFF"]').first()
+      screen
+        .getByRole("main")
+        .locator(`[data-card-id="${palette.cardId}"]`)
+        .first()
     ).toBeVisible();
     await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
     await expect(screen.getByRole("main")).not.toContainText(
