@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.testing
 
+import com.praveenjuge.teak.core.data.auth.DefaultWorkOsAuthApi
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.auth.SignInException
@@ -43,7 +44,7 @@ class FakeAccountRepository(
     override suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome {
         signInError?.let { throw it }
         if (error == "access_denied") return SignInOutcome.Cancelled
-        if (error != null) throw SignInException("Unable to sign in")
+        if (error != null) throw SignInException(DefaultWorkOsAuthApi.UNABLE_TO_SIGN_IN)
         session.value = SessionState.SignedIn(user)
         return SignInOutcome.SignedIn
     }
