@@ -57,6 +57,16 @@ describe("parseFeed", () => {
     ]);
   });
 
+  test("an Atom XHTML title keeps the text of its markup", () => {
+    const [entry] = parseFeed(`<feed xmlns="http://www.w3.org/2005/Atom">
+      <entry>
+        <title type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml">Episode <b>7</b>: owls</div></title>
+        <id>urn:episode:7</id>
+      </entry>
+    </feed>`);
+    expect(entry).toEqual({ guid: "urn:episode:7", title: "Episode 7: owls" });
+  });
+
   test("the channel's own title and link aren't an item's", () => {
     const items = parseFeed(
       "<rss><channel><title>Show</title><link>https://x.example.com/</link></channel></rss>"

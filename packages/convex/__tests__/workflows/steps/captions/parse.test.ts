@@ -69,6 +69,19 @@ describe("collapseRollingCaptions", () => {
       ["first line", "second line"],
       ["first line", "second line"],
     ],
+    // A cue that only shares part of a word with the last one is new text.
+    [
+      ["the category", "gory details"],
+      ["the category", "gory details"],
+    ],
+    [
+      ["it was a category", "gory"],
+      ["it was a category", "gory"],
+    ],
+    [
+      ["car", "carpet sale"],
+      ["car", "carpet sale"],
+    ],
   ])("%p becomes %p", (cues, expected) => {
     expect(collapseRollingCaptions(cues)).toEqual(expected);
   });

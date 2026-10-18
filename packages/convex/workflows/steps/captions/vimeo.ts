@@ -23,9 +23,18 @@ export interface VimeoVideoRef {
 const isVimeoHost = (hostname: string, host: string) =>
   hostname === host || hostname === `www.${host}`;
 
+// The vimeo.com paths in front of `<id>[/<hash>]`; `*` is any one segment.
+const VIDEO_PATH_PREFIXES = [
+  [],
+  ["channels", "*"],
+  ["groups", "*", "videos"],
+  ["showcase", "*", "video"],
+  ["album", "*", "video"],
+];
+
 /**
  * The video in `vimeo.com/<id>[/<hash>]` (also under `/channels/…`,
- * `/groups/…/videos/` or `/showcase/…/video/`) or
+ * `/groups/…/videos/`, `/showcase/…/video/` or `/album/…/video/`) or
  * `player.vimeo.com/video/<id>`, with the unlisted hash from the path or an
  * `h=` parameter. Null for any other link.
  */
@@ -47,14 +56,18 @@ export const parseVimeoUrl = (rawUrl: string): VimeoVideoRef | null => {
       id = segments[1];
     }
   } else if (isVimeoHost(url.hostname, "vimeo.com")) {
-    // The video id is the last all-digit segment; an unlisted hash follows.
-    let index = segments.length - 1;
-    while (index >= 0 && !VIDEO_ID_REGEX.test(segments[index] ?? "")) {
-      index--;
-    }
-    if (index !== -1) {
-      id = segments[index];
-      pathHash = segments[index + 1];
+    // Only the paths that name one video; a showcase, album or channel page
+    // also ends in digits.
+    for (const prefix of VIDEO_PATH_PREFIXES) {
+      const rest = segments.slice(prefix.length);
+      if (
+        prefix.every((part, i) => part === "*" || part === segments[i]) &&
+        (rest.length === 1 || rest.length === 2)
+      ) {
+        id = rest[0];
+        pathHash = rest[1];
+        break;
+      }
     }
   }
   if (!(id && VIDEO_ID_REGEX.test(id))) {

@@ -26,6 +26,7 @@ import { hydrateArchivedMetadata } from "./rawMetadata";
 
 export type PodcastMissReason =
   | "ai_off"
+  | "already_transcribed"
   | "blocked"
   | "no_enclosure"
   | "no_speech"
@@ -90,11 +91,13 @@ const pageData = async (job: CardJob, loaded: LoadedCard) => {
 /**
  * Transcribes the episode and stores the transcript, summary and tags. A
  * busy renderer throws so the step retries; everything else is a logged
- * miss.
+ * miss. The AI backfills pass `keepTranscript`, so an episode transcribed
+ * before isn't downloaded and transcribed again.
  */
 export const transcribePodcastEpisode = async (
   job: CardJob,
-  telemetry: WorkflowTelemetry
+  telemetry: WorkflowTelemetry,
+  options: { keepTranscript?: boolean } = {}
 ): Promise<PodcastOutcome> => {
   const loaded = await loadCard(job);
   const card = loaded?.card;
@@ -107,6 +110,9 @@ export const transcribePodcastEpisode = async (
     )
   ) {
     return miss("not_podcast");
+  }
+  if (options.keepTranscript && card.aiTranscript) {
+    return miss("already_transcribed");
   }
   const aiGate = await job.deps.convex.query(internal.adminAccess.getAiGate, {
     userId: card.userId,
@@ -207,8 +213,11 @@ export const transcribePodcastEpisode = async (
     );
   } finally {
     // The audio is never kept: deleted first, then forgotten on the card.
+    // One that couldn't be deleted stays listed, for card deletion.
+    let deleted = false;
     try {
       await job.env.BUCKET.delete(key);
+      deleted = true;
     } catch (error) {
       console.warn("[cardProcessing/podcast] episode audio not deleted", {
         cardId: job.cardId,
@@ -217,12 +226,13 @@ export const transcribePodcastEpisode = async (
     }
     // Not guarded: forgetting a deleted object is right whichever run owns
     // the card now, and an edit mid-transcription must not leave it listed.
-    await job.deps.convex
-      .mutation(internal.workflows.steps.podcast.mutations.trackPodcastAudio, {
-        cardId: job.cardId,
-        key,
-        stored: false,
-      })
-      .catch(() => undefined);
+    if (deleted) {
+      await job.deps.convex
+        .mutation(
+          internal.workflows.steps.podcast.mutations.trackPodcastAudio,
+          { cardId: job.cardId, key, stored: false }
+        )
+        .catch(() => undefined);
+    }
   }
 };

@@ -111,9 +111,18 @@ export const formatDate = (value: string | undefined): string | undefined => {
   // An ISO date keeps the day it states ("2009-10-24T23:57:33-07:00" is Oct
   // 24, not the UTC day), and a date-only value keeps its day wherever it
   // runs.
-  const isoDay = ISO_DAY_REGEX.exec(value.trim())?.[1];
-  const date = new Date(isoDay ?? value);
+  const trimmed = value.trim();
+  const isoDay = ISO_DAY_REGEX.exec(trimmed)?.[1];
+  const date = new Date(isoDay ?? trimmed);
   if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  // The whole value must parse, and the stated day must exist (no Feb 30).
+  if (
+    isoDay &&
+    (Number.isNaN(new Date(trimmed).getTime()) ||
+      date.toISOString().slice(0, 10) !== isoDay)
+  ) {
     return undefined;
   }
   return date.toLocaleDateString("en-US", {

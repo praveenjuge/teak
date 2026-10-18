@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import { cardStorageObjectKeys } from "./storage/cardObjectKeys";
@@ -13,6 +13,10 @@ import { buildR2UserPrefix } from "./storage/r2";
 
 const modules = import.meta.glob("./**/*.ts");
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 const setup = () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
@@ -20,6 +24,7 @@ const setup = () => {
 };
 
 test("an owner gets 20 transcriptions an hour; another owner is unaffected", async () => {
+  vi.useFakeTimers();
   const t = setup();
   const take = (userId: string) =>
     t.mutation(
@@ -35,6 +40,17 @@ test("an owner gets 20 transcriptions an hour; another owner is unaffected", asy
   expect(granted.slice(0, 20).every(Boolean)).toBe(true);
   expect(granted[20]).toBe(false);
   expect(await take("someone-else")).toBe(true);
+
+  // The 20 come back over the hour: one every 3 minutes, not sooner.
+  vi.advanceTimersByTime(2 * 60_000);
+  expect(await take("owner")).toBe(false);
+  vi.advanceTimersByTime(60 * 60_000);
+  const refilled: boolean[] = [];
+  for (let i = 0; i < 21; i++) {
+    refilled.push(await take("owner"));
+  }
+  expect(refilled.filter(Boolean)).toHaveLength(20);
+  expect(refilled[20]).toBe(false);
 });
 
 test("the episode audio is the card's while stored, and forgotten after", async () => {

@@ -119,6 +119,19 @@ describe("finding audio on the page", () => {
     ).toEqual({ source: "json_ld", url: "https://cdn.example.com/b.mp3" });
   });
 
+  test.each<[string | string[]]>([
+    ["schema:PodcastEpisode"],
+    ["https://schema.org/PodcastEpisode"],
+    ["http://schema.org/PodcastEpisode"],
+    [["Thing", "https://schema.org/PodcastEpisode"]],
+  ])("reads an episode typed %p", (type) => {
+    expect(
+      findJsonLdAudio([
+        { "@type": type, audio: "https://cdn.example.com/a.mp3" },
+      ])
+    ).toEqual({ source: "json_ld", url: "https://cdn.example.com/a.mp3" });
+  });
+
   test("a series or an episode without a usable file gives nothing", () => {
     expect(
       findJsonLdAudio([

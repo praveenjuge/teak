@@ -42,6 +42,11 @@ describe("parseVimeoUrl", () => {
     ],
     ["https://vimeo.com/channels/staffpicks/76979871", { id: "76979871" }],
     ["https://vimeo.com/groups/shortfilms/videos/76979871", { id: "76979871" }],
+    ["https://vimeo.com/showcase/11223344/video/76979871", { id: "76979871" }],
+    [
+      "https://vimeo.com/album/11223344/video/76979871/1a2b3c4d5e",
+      { hash: "1a2b3c4d5e", id: "76979871" },
+    ],
   ])("reads %s", (url, ref) => {
     expect(parseVimeoUrl(url)).toEqual(ref);
   });
@@ -49,6 +54,11 @@ describe("parseVimeoUrl", () => {
   test.each([
     "https://vimeo.com/",
     "https://vimeo.com/about",
+    "https://vimeo.com/showcase/11223344",
+    "https://vimeo.com/album/11223344",
+    "https://vimeo.com/channels/staffpicks",
+    "https://vimeo.com/groups/shortfilms/videos",
+    "https://vimeo.com/user12345/videos/76979871",
     "https://vimeo.com/../76979871x",
     "https://vimeo.com/%2E%2E%2F76979871",
     `https://vimeo.com/${"1".repeat(200)}`,

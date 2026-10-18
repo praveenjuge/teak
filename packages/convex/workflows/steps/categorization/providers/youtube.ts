@@ -37,7 +37,7 @@ export const formatVideoLength = (
   if (m) {
     parts.push(`${m}m`);
   }
-  if (s && !h) {
+  if (s) {
     parts.push(`${s}s`);
   }
   return parts.join(" ");

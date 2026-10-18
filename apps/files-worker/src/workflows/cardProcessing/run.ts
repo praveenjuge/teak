@@ -109,6 +109,8 @@ const rethrowSuperseded = (error: unknown): void => {
 interface InitialFacts {
   classification: CompletedClassification | null;
   creationTime: number;
+  /** The link's stored category, for a metadata-only run's podcast check. */
+  linkCategory?: string;
   rev: number;
 }
 
@@ -215,6 +217,9 @@ const processCard = async (
               }
             : null,
         creationTime: card._creationTime,
+        ...(card.metadata?.linkCategory?.category
+          ? { linkCategory: card.metadata.linkCategory.category }
+          : {}),
         rev: card.processingRev ?? 0,
       };
     }
@@ -245,6 +250,13 @@ const processCard = async (
     const metadata = classified.shouldGenerateMetadata
       ? await runMetadataStep(job, step, reported, cardType)
       : null;
+    // An episode whose first run had no AI metadata wasn't transcribed.
+    if (
+      isPodcastLink(cardType, initial.linkCategory) &&
+      metadata?.mode === "completed"
+    ) {
+      await transcribePodcastStep(job, step, { keepTranscript: true });
+    }
     return completedResult(classified, cardType, metadata, null);
   }
 
@@ -423,25 +435,7 @@ const processCard = async (
     isPodcastLink(cardType, categorization?.category) &&
     metadata?.mode === "completed"
   ) {
-    await step
-      .do("transcribe podcast", PODCAST_STEP, () =>
-        withWorkflowTelemetry(job.env, async (telemetry) => {
-          const outcome = await transcribePodcastEpisode(job, telemetry);
-          console.log("[cardProcessing] podcast transcript", {
-            cardId: job.cardId,
-            ...outcome,
-          });
-          return outcome;
-        })
-      )
-      .catch((error: unknown) => {
-        rethrowSuperseded(error);
-        console.warn("[cardProcessing] Podcast transcript failed", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      });
+    await transcribePodcastStep(job, step);
   }
 
   return {
@@ -471,6 +465,32 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
+
+/** The podcast transcript, logged; only a superseded run's error escapes. */
+const transcribePodcastStep = (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"],
+  options: { keepTranscript?: boolean } = {}
+) =>
+  step
+    .do("transcribe podcast", PODCAST_STEP, () =>
+      withWorkflowTelemetry(job.env, async (telemetry) => {
+        const outcome = await transcribePodcastEpisode(job, telemetry, options);
+        console.log("[cardProcessing] podcast transcript", {
+          cardId: job.cardId,
+          ...outcome,
+        });
+        return outcome;
+      })
+    )
+    .catch((error: unknown) => {
+      rethrowSuperseded(error);
+      console.warn("[cardProcessing] Podcast transcript failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
 
 const runMetadataStep = (
   job: CardJob,

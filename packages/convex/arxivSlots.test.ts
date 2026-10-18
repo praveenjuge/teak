@@ -26,10 +26,8 @@ test("hands out a slot now, then waits in turn, then refuses past the queue", as
   const refused = await take();
 
   expect(first).toEqual({ retryAfter: 0 });
-  for (const slot of queued) {
-    expect(slot?.retryAfter).toBeGreaterThan(0);
-  }
-  expect(queued[2]?.retryAfter).toBeGreaterThan(queued[0]?.retryAfter ?? 0);
+  // One request every 3 seconds: each waiting slot is 3 seconds after the last.
+  expect(queued.map((slot) => slot?.retryAfter)).toEqual([3000, 6000, 9000]);
   expect(refused).toBeNull();
 
   // Once the waits pass, a slot is free again.

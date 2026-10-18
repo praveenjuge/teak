@@ -839,7 +839,8 @@ describe("enrichYoutube", () => {
   });
 
   it.each([
-    ["PT63M3S", "1h 3m"],
+    ["PT63M3S", "1h 3m 3s"],
+    ["PT1H0M5S", "1h 5s"],
     ["PT10H0M0S", "10h"],
     ["PT45S", "45s"],
     ["P1DT2H", "26h"],
@@ -856,6 +857,7 @@ describe("enrichYoutube", () => {
   it("applies to videos, films and courses, not to articles", () => {
     const page = watchPage({ "link[itemprop='name']": "Example Channel" });
     expect(enrichProvider("youtube", "tv", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "movie", page)?.facts).toHaveLength(1);
     expect(enrichProvider("youtube", "course", page)?.facts).toHaveLength(1);
     expect(enrichProvider("youtube", "article", page)).toBeNull();
   });

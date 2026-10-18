@@ -26,8 +26,11 @@ const positiveInteger = (value: string | undefined): number | undefined => {
 export const parseFeed = (xml: string): FeedItem[] => {
   const items: FeedItem[] = [];
   const stack: string[] = [];
+  // Each open element's text, nested markup's included (an Atom title can
+  // be XHTML), kept only inside an item.
+  const texts: string[] = [];
+  let itemDepth = -1;
   let item: FeedItem | null = null;
-  let text = "";
 
   const parser = new Parser(
     {
@@ -35,9 +38,10 @@ export const parseFeed = (xml: string): FeedItem[] => {
         const name = rawName.toLowerCase();
         const parent = stack[stack.length - 1];
         stack.push(name);
-        text = "";
+        texts.push("");
         if (ITEM_TAGS.has(name)) {
           item = items.length < MAX_FEED_ITEMS ? {} : null;
+          itemDepth = stack.length - 1;
           return;
         }
         if (!(item && parent && ITEM_TAGS.has(parent))) {
@@ -61,12 +65,15 @@ export const parseFeed = (xml: string): FeedItem[] => {
       },
       ontext(chunk) {
         if (item) {
-          text += chunk;
+          for (let i = itemDepth + 1; i < texts.length; i++) {
+            texts[i] += chunk;
+          }
         }
       },
       onclosetag(rawName) {
         const name = rawName.toLowerCase();
         stack.pop();
+        const text = texts.pop() ?? "";
         const parent = stack[stack.length - 1];
         const current: FeedItem | null = item;
         if (ITEM_TAGS.has(name)) {
@@ -74,6 +81,7 @@ export const parseFeed = (xml: string): FeedItem[] => {
             items.push(current);
           }
           item = null;
+          itemDepth = -1;
         } else if (current && parent && ITEM_TAGS.has(parent)) {
           const value = text.trim();
           if (value) {
@@ -86,7 +94,6 @@ export const parseFeed = (xml: string): FeedItem[] => {
             }
           }
         }
-        text = "";
       },
     },
     { decodeEntities: true, xmlMode: true }

@@ -87,10 +87,14 @@ export const findPageAudio = (rawMap: RawSelectorMap): Enclosure | null => {
   return { source: "og_audio", url, ...(mimeType ? { mimeType } : {}) };
 };
 
+const SCHEMA_PREFIX_REGEX = /^(?:schema:|https?:\/\/schema\.org\/)/i;
+
+/** A node's types, with `schema:` and schema.org IRI prefixes dropped. */
 const typesOf = (node: unknown): string[] =>
   [(node as Record<string, unknown> | null)?.["@type"]]
     .flat()
-    .filter((type): type is string => typeof type === "string");
+    .filter((type): type is string => typeof type === "string")
+    .map((type) => type.replace(SCHEMA_PREFIX_REGEX, ""));
 
 /** A `PodcastEpisode`'s `associatedMedia` or `audio` file, in or under `@graph`. */
 export const findJsonLdAudio = (entities: unknown[]): Enclosure | null => {

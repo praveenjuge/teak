@@ -101,6 +101,21 @@ describe("findIsbn", () => {
     ).toBe("0140328726");
   });
 
+  test("reads a Book that is a page's single @graph node", () => {
+    expect(
+      findIsbn({
+        entities: [
+          {
+            "@context": "https://schema.org",
+            "@graph": { "@type": "Book", isbn: "0140328726" },
+          },
+        ],
+        rawMap: buildRawSelectorMap([]),
+        sourceUrl,
+      })
+    ).toBe("0140328726");
+  });
+
   test("reads an Amazon /dp/ ISBN-10 on Amazon only", () => {
     const rawMap = buildRawSelectorMap([]);
     expect(

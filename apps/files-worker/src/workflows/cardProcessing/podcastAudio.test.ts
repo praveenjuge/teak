@@ -277,6 +277,29 @@ describe("downloadEpisodeToR2", () => {
     expect(requests).toEqual([]);
   });
 
+  test("a redirect to a name that resolves privately is refused before it is requested", async () => {
+    const bucket = new FakeBucket();
+    const { deps, requests } = network((url) =>
+      url === EPISODE
+        ? Response.redirect("https://cdn.internal.example/episode.mp3", 302)
+        : audio(new Uint8Array([1]))
+    );
+
+    expect(
+      await downloadEpisodeToR2(bucket as never, KEY, EPISODE, {
+        ...deps,
+        resolveDns: (hostname) =>
+          Promise.resolve(
+            hostname === "cdn.internal.example"
+              ? ["10.0.0.5"]
+              : ["93.184.216.34"]
+          ),
+      })
+    ).toEqual({ reason: "blocked", stored: false });
+    expect(requests).toEqual([EPISODE]);
+    expect(bucket.objects.size).toBe(0);
+  });
+
   test("a stream that breaks midway aborts the upload", async () => {
     const bucket = new FakeBucket();
     let sent = 0;

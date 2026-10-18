@@ -20,7 +20,9 @@ A user finds a Vimeo video or a podcast episode by something said in it: Teak ke
 
 Preconditions:
 
-- Seed both packs on the signed-in account: `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"video-captions"}'`, then `"scenario":"podcast-transcripts"` (local stack), or the same `devSeed:seedScenario` call on the dev deployment.
+- Seed both packs on the signed-in account (local stack shown; on the dev deployment, run the same two `devSeed:seedScenario` calls without the `env` prefix):
+  - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"video-captions"}'`
+  - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"podcast-transcripts"}'`
 - A real save needs a Files Worker with this feature and its link-fetch and media Containers: the dev deployment once the Worker is deployed. The local E2E stack has no Containers (no Docker), so live links fail there by design; its Whisper is a fake.
 
 Steps:
@@ -28,7 +30,7 @@ Steps:
 - **Spoken phrase.** `press` "/" and `type` "hermit crab". The card "Episode 42: Tide pools" is listed. Then `type` "velvet harbor theorem" with `replace: true`: "A two-hour Vimeo lecture" is listed (the phrase is at its end).
 - **CJK.** `type` "こんにちは" with `replace: true`: "A Vimeo video with Japanese captions" is listed (see Gotchas for longer CJK phrases).
 - **No transcript.** `type` "#scenario-podcast-transcripts". Open "A Spotify episode (no public audio)": its dialog has no transcript-based summary, and searching a phrase from another episode doesn't list it.
-- **YouTube facts.** Open "A YouTube talk with channel, length and date": under its title, tiles read "Channel Example Channel", "Length 1h 2m" and "Uploaded Sep 14, 2026".
+- **YouTube facts.** Open "A YouTube talk with channel, length and date": under its title, tiles read "Channel Example Channel", "Length 1h 2m 3s" and "Uploaded Sep 14, 2026".
 - **Live save (Vimeo).** Save `https://vimeo.com/76979871` with the composer and wait for the card to finish. Search a line from its captions ("how to make your videos"): the card is listed. Proof through the API: `GET /v1/cards/<id>` has `aiTranscript`, and `bun apps/cli/src/index.ts content <id>` prints it with `kind: "transcript"`.
 - **Live save (podcast).** Save an Apple Podcasts episode URL (`…/id<show>?i=<episode>`). The card completes at once; within a few minutes `aiTranscript` appears and the summary changes. Worker logs show `podcast transcript` with `transcribed: true`, or a reason (`no_enclosure`, `too_large`, `rate_limited`, `no_speech`, …).
 

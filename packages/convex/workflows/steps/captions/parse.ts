@@ -73,10 +73,11 @@ export const collapseRollingCaptions = (cues: string[]): string[] => {
       kept.push(cue);
       continue;
     }
-    if (last.endsWith(cue) || last === cue) {
+    // Whole words only: "category" doesn't hold the cue "gory".
+    if (last === cue || last.endsWith(` ${cue}`)) {
       continue;
     }
-    if (cue.startsWith(last)) {
+    if (cue.startsWith(`${last} `)) {
       kept[kept.length - 1] = cue;
       continue;
     }

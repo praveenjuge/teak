@@ -40,6 +40,8 @@ import {
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "./shared/markdown";
+import { buildRawSelectorMap } from "./workflows/steps/categorization/enrichment";
+import { findFeedUrl } from "./workflows/steps/podcast/resolveEnclosure";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -963,7 +965,7 @@ describe("devSeed folder packs", () => {
         ?.linkCategory?.facts
     ).toEqual([
       { label: "Channel", value: "Example Channel" },
-      { label: "Length", value: "1h 2m" },
+      { label: "Length", value: "1h 2m 3s" },
       { label: "Uploaded", value: "Sep 14, 2026" },
     ]);
     expect(
@@ -1010,6 +1012,14 @@ describe("devSeed folder packs", () => {
         .map((card) => card.metadata?.linkCategory?.category)
     ).toEqual(new Array(7).fill("podcast"));
     expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
+    // The RSS-only episode's feed is where processing would look for it.
+    const rssOnly = byTitle("An episode found through its show's RSS feed");
+    expect(
+      findFeedUrl(
+        buildRawSelectorMap(rssOnly?.metadata?.linkPreview?.raw),
+        rssOnly?.url ?? ""
+      )
+    ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
 
   test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {

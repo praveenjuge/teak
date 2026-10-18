@@ -159,9 +159,15 @@ export const buildFacts = (
   return facts.length > 0 ? facts : undefined;
 };
 
-/** JSON-LD nodes, with the ones a page nests under `@graph` brought up. */
+/**
+ * JSON-LD nodes, with the ones a page nests under `@graph` brought up: a list
+ * of nodes, or a single node object.
+ */
 export const jsonLdNodes = (entities: unknown[]): unknown[] =>
   entities.flatMap((entity) => {
     const graph = (entity as Record<string, unknown> | null)?.["@graph"];
-    return Array.isArray(graph) ? [entity, ...graph] : [entity];
+    if (Array.isArray(graph)) {
+      return [entity, ...graph];
+    }
+    return graph && typeof graph === "object" ? [entity, graph] : [entity];
   });

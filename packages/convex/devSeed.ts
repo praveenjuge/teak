@@ -1663,7 +1663,8 @@ const enrichedLinkCard = (
     remote,
   }: {
     extra?: Partial<DefaultCardDef>;
-    raw?: { selector: string; value: string }[];
+    /** Scraped values, as `content` unless `attribute` names another. */
+    raw?: { attribute?: string; selector: string; value: string }[];
     remote?: RemoteDetails;
   } = {}
 ): FolderScenarioCard => {
@@ -1674,9 +1675,9 @@ const enrichedLinkCard = (
     ...preview,
     ...(raw.length
       ? {
-          raw: raw.map(({ selector, value }) => ({
+          raw: raw.map(({ attribute = "content", selector, value }) => ({
             selector,
-            results: [{ attributes: [{ name: "content", value }] }],
+            results: [{ attributes: [{ name: attribute, value }] }],
           })),
         }
       : {}),
@@ -1871,6 +1872,7 @@ const podcastTranscriptsPack = (): FolderScenarioPack => {
           },
           raw: [
             {
+              attribute: "href",
               selector: "link[rel='alternate'][type='application/rss+xml']",
               value: "https://shows.example.com/field-notes/feed.xml",
             },

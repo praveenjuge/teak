@@ -131,7 +131,17 @@ const setup = (
       key: String(call.args.key),
       stored: call.args.stored,
     }));
-  return { bucket, card, convex, fakes, run, siteRequests, tracked };
+  return {
+    bucket,
+    card,
+    convex,
+    env,
+    fakes,
+    job,
+    run,
+    siteRequests,
+    tracked,
+  };
 };
 
 /** The temporary object was stored, then deleted and forgotten. */
@@ -259,14 +269,49 @@ describe("transcribePodcastEpisode", () => {
 
   test("a summary that fails keeps the transcript and the page's summary", async () => {
     aiFails = true;
-    const ctx = setup(podcastCard());
+    const ctx = setup(
+      podcastCard({ aiSummary: "From the page", aiTags: ["page"] })
+    );
 
     expect(await ctx.run()).toEqual({ transcribed: true });
     const saved = ctx.convex.callsTo(UPDATE_AI).at(-1)?.args;
     expect(saved?.aiTranscript).toBe("Today we talk about leaves.");
     expect(saved?.aiSummary).toBeUndefined();
     expect(saved?.aiTags).toBeUndefined();
+    expect(ctx.card).toMatchObject({
+      aiSummary: "From the page",
+      aiTags: ["page"],
+      aiTranscript: "Today we talk about leaves.",
+    });
     expectCleanedUp(ctx);
+  });
+
+  test("audio that can't be deleted stays listed on the card", async () => {
+    const ctx = setup(podcastCard());
+    ctx.bucket.delete = () => {
+      throw new Error("r2 unavailable");
+    };
+
+    expect(await ctx.run()).toEqual({ transcribed: true });
+    const calls = ctx.tracked();
+    expect(calls.map((call) => call.stored)).toEqual([true]);
+    expect(ctx.card.workflowArtifactKeys).toEqual([calls[0]?.key]);
+  });
+
+  test("a backfill leaves an episode already transcribed alone", async () => {
+    const ctx = setup(podcastCard({ aiTranscript: "Said before." }));
+
+    expect(
+      await transcribePodcastEpisode(
+        ctx.job,
+        createWorkflowTelemetry(ctx.env),
+        {
+          keepTranscript: true,
+        }
+      )
+    ).toEqual({ reason: "already_transcribed", transcribed: false });
+    expect(ctx.siteRequests).toEqual([]);
+    expect(ctx.tracked()).toEqual([]);
   });
 
   test("a busy renderer throws for the step's retry, after deleting the audio", async () => {
