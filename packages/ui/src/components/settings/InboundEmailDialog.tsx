@@ -152,10 +152,17 @@ export function InboundEmailPanel({
           Copy
         </Button>
       </div>
-      <p className="text-sm leading-5">
-        Send from <span className="font-medium">{state.sender}</span>. Mail from
-        other addresses isn't saved.
-      </p>
+      {state.senderVerified ? (
+        <p className="text-sm leading-5">
+          Send from <span className="font-medium">{state.sender}</span>. Mail
+          from other addresses isn't saved.
+        </p>
+      ) : (
+        <p className="text-sm leading-5">
+          Mail isn't saved until you verify your sign-in email,{" "}
+          <span className="font-medium">{state.sender}</span>.
+        </p>
+      )}
       <p className="text-muted-foreground text-sm leading-5">
         Forward or send anything. An email with a single link becomes a link
         card, everything else becomes a note, and attachments become their own

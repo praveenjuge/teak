@@ -65,8 +65,9 @@ export const getMine = query({
     const settings = await readInboundSettings(ctx, session.teakUserId);
     return {
       address: inboundEmailAddress(),
-      // Mail from an unverified email is refused, so it can't be on.
-      enabled: sender.verified && settings?.enabled === true,
+      // The stored switch, so it can always be turned off. Mail from an
+      // unverified email is refused even while it's on.
+      enabled: settings?.enabled === true,
       lastReceivedAt: settings?.lastReceivedAt ?? null,
       sender: sender.email,
       senderVerified: sender.verified,

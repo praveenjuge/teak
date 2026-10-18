@@ -151,6 +151,18 @@ describe("InboundEmailPanel", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Address copied");
   });
 
+  test("on with an unverified sign-in email: says mail isn't saved, and Turn off still works", async () => {
+    const { container, onDisable } = await render({
+      state: { ...on, senderVerified: false },
+    });
+    expect(container.textContent).toContain(
+      "Mail isn't saved until you verify your sign-in email, ada@example.com."
+    );
+    expect(container.textContent).not.toContain("Send from");
+    await click(button(container, "Turn off"));
+    expect(onDisable).toHaveBeenCalledTimes(1);
+  });
+
   test("on: Turn off calls disable", async () => {
     const { container, onDisable } = await render({});
     expect(container.textContent).not.toContain("Last email received");

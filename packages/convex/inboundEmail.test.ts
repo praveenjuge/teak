@@ -212,27 +212,36 @@ describe("Settings", () => {
     );
   });
 
-  test("an unverified sign-in email can't turn it on, and a stored on reads off", async () => {
+  test("an unverified sign-in email can't turn it on, but can turn it off and stays off once verified", async () => {
     const { owner, t } = await setup();
+    const setVerified = (emailVerified: boolean) =>
+      t.run(async (ctx) => {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
+          .unique();
+        if (!user) {
+          throw new Error("expected the owner");
+        }
+        await ctx.db.patch(user._id, { emailVerified });
+      });
     await owner.mutation(api.inbound.settings.enable, {});
-    await t.run(async (ctx) => {
-      const user = await ctx.db
-        .query("users")
-        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
-        .unique();
-      if (!user) {
-        throw new Error("expected the owner");
-      }
-      await ctx.db.patch(user._id, { emailVerified: false });
-    });
+    await setVerified(false);
     expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
-      enabled: false,
+      enabled: true,
       sender: OWNER_EMAIL,
       senderVerified: false,
     });
+
+    await owner.mutation(api.inbound.settings.disable, {});
     await expect(
       owner.mutation(api.inbound.settings.enable, {})
     ).rejects.toThrow(/Verify your sign-in email/);
+    await setVerified(true);
+    expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
+      enabled: false,
+      senderVerified: true,
+    });
   });
 
   test("signed out sees nothing and can't change it", async () => {
