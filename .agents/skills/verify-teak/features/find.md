@@ -30,7 +30,7 @@ Preconditions:
 
 Steps:
 
-- **Search.** `press` "/" (focus outside a field). The combobox is focused. `type` the marker. The URL gains `?q=`, and the marked card's button stays listed while unrelated seeded cards disappear.
+- **Search.** `press` "/" (focus outside a field). The combobox is focused. `type` the marker. The URL gains `?q=` and the marked cards are listed. On the dev deployment related seeded cards can also appear by meaning; judge the step by the marked cards, not by an empty remainder.
 - **No match.** `type` "tag:zzzz-no-match-<run-id>" with `replace: true`. The text "Nothing found matching your filters" and a button "Clear filters" appear. Use a `tag:` qualifier: a plain nonsense word still matches cards by meaning on the dev deployment (see Gotchas).
 - **Clear.** `tap` button "Clear all" (the X in the field). The query empties and the full grid returns.
 - **Keyword chip.** `type` the marker and `press` "Enter". The input empties and a chip button "Remove <marker>" appears (lowercased). Proof that it persists: `navigate` to the current URL; the chip is still there.
@@ -39,7 +39,8 @@ Steps:
 - **View menu.** `tap` the button whose name starts "View". The menu has checkboxes "Text" … "Quote", "Show all types", radios "Newest first", "Oldest first", "Shuffle", "Revisit", and "Save as smart folder…". `tap` "Image": the URL gains `?type=image`, the chip "Remove type Image" appears and the button becomes "View: Image". `press` "Escape", then remove the chip.
 - **Views.** `tap` link "Favorites". Heading "Favorites", combobox "Search favorites", and the seeded favorites (including the "Welcome to Teak…" card) are listed. Do the same for "Archive" (empty state "Nothing archived. Archive a card to keep it out of your library.") and "Trash", which the seeded vault starts with one card in: "Text: Old draft I meant to throw away."
 - **Tags.** `tap` link "Tags". Searchbox "Find a tag" and links named "<tag>, N cards" are listed. `tap` one: the URL becomes `/?tag=<tag>` with the chip "Remove tag filter <tag>".
-- **Folder.** `tap` link "Start here". The URL becomes `/f/<id>` and the combobox reads "Search Start here". The smart folder "Moodboard" shows its saved query as locked chips and only image and palette cards.
+- **Folder.** `tap` link "Start here". The URL becomes `/f/<id>` and the combobox reads "Search Start here".
+- **Smart folder.** `tap` link "Moodboard", a sibling of "Start here" in the sidebar. The URL becomes `/f/<id>`, its saved query (`type:image type:palette`) shows as locked chips with an "Edit search" button, and only image and palette cards are listed.
 - **Palette.** `press` "Control+k". Dialog "Command palette" with combobox "Search commands, folders and cards". `type` the marker: a "Cards" group lists the card. `press` "Enter": the card's dialog opens and the URL gains `?card=<id>`.
 
 ## Gotchas

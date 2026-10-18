@@ -107,24 +107,42 @@ const readSaved = (): SavedKey => {
   return JSON.parse(readFileSync(KEY_PATH, "utf-8")) as SavedKey;
 };
 
-// The status GET /v1/me answers with the saved key: 200 while it works, 401
-// once it is revoked. The key never leaves this process.
-const meStatus = async (saved: SavedKey): Promise<number> =>
-  (
-    await fetch(`${saved.apiUrl}/v1/me`, {
-      headers: { Authorization: `Bearer ${saved.key}` },
-      signal: AbortSignal.timeout(30_000),
-    })
-  ).status;
+/**
+ * Whether a GET /v1/me answer means the key itself is revoked. Only the
+ * API's INVALID_API_KEY code says so; any other 401 leaves the key live.
+ */
+export const isRevokedKeyAnswer = (status: number, body: unknown): boolean =>
+  status === 401 &&
+  typeof body === "object" &&
+  body !== null &&
+  (body as { code?: unknown }).code === "INVALID_API_KEY";
+
+// GET /v1/me with the saved key: 200 while it works, 401 INVALID_API_KEY once
+// it is revoked. The key never leaves this process.
+const askMe = async (
+  saved: SavedKey
+): Promise<{ revoked: boolean; status: number }> => {
+  const response = await fetch(`${saved.apiUrl}/v1/me`, {
+    headers: { Authorization: `Bearer ${saved.key}` },
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  return {
+    revoked: isRevokedKeyAnswer(response.status, body),
+    status: response.status,
+  };
+};
 
 const check = async () => {
-  const status = await meStatus(readSaved());
-  console.log(`api-key: GET /v1/me answered ${status}`);
+  const { revoked, status } = await askMe(readSaved());
+  console.log(
+    `api-key: GET /v1/me answered ${status}${revoked ? " (key revoked)" : ""}`
+  );
 };
 
 const revoke = async () => {
   const saved = readSaved();
-  if ((await meStatus(saved)) === 401) {
+  if ((await askMe(saved)).revoked) {
     rmSync(KEY_PATH);
     console.log("api-key: already revoked; removed the saved key");
     return;
@@ -135,13 +153,15 @@ const revoke = async () => {
   console.log("api-key: revoked and removed the saved key");
 };
 
-const command = process.argv[2];
-if (command === "mint") {
-  await mint();
-} else if (command === "check") {
-  await check();
-} else if (command === "revoke") {
-  await revoke();
-} else {
-  fail("usage: api-key.ts mint | check | revoke");
+if (import.meta.main) {
+  const command = process.argv[2];
+  if (command === "mint") {
+    await mint();
+  } else if (command === "check") {
+    await check();
+  } else if (command === "revoke") {
+    await revoke();
+  } else {
+    fail("usage: api-key.ts mint | check | revoke");
+  }
 }

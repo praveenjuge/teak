@@ -38,7 +38,7 @@ Steps:
 - **Favorite.** In the dialog, `tap` "Favorite". It becomes "Unfavorite" (pressed). Close with "Close" or Escape. Proof: link "Favorites" lists the card. Tap "Unfavorite" to undo.
 - **Archive.** Open the card's "More actions" (in the dialog, or by right-clicking the card) and choose "Archive". The toast "Archived 1 card" offers "Undo", and the card leaves Everything. Proof: `/archive` lists it. There, choose "Unarchive"; the toast "Returned 1 card to the library" appears.
 - **Trash.** From the grid's menu, choose "Delete". The toast "Moved 1 card to Trash" offers "Undo". From the dialog's menu, the toast is "Card deleted". Proof: `/trash` lists the card.
-- **Restore.** In `/trash`, right-click the card and choose "Restore" (the menu has only "Restore" and "Delete Forever"). The card leaves Trash with no toast. Proof: searching the marker in Everything finds it again.
+- **Restore.** In `/trash`, right-click the card and choose "Restore" (the menu has only "Restore" and "Delete Forever"). The card leaves Trash and the toast "Card restored" appears (it can land a moment after the card leaves, so observe again). Proof: searching the marker in Everything finds it again.
 - **Delete forever.** The card must be in Trash: after Restore, move it back with "Delete" from its menu in Everything. Then in `/trash`, right-click the card and choose "Delete Forever". Alert dialog "Delete this card forever?" opens. `tap` its "Delete Forever". The toast "Card permanently deleted" appears and the card leaves Trash. Proof: Trash and a marker search both show nothing.
 - **Bulk.** Make two marked cards. Right-click one and choose "Select", then `tap` the other (it becomes pressed). The bar reads "2 cards selected" with buttons "Archive", "More actions" and "Cancel selection". "More actions" opens menu "More actions" with "Add to favorites", "Remove from favorites", "Add tags…", "Remove tags…", "Copy links", "Add to folder…", "Move to folder…" and "Move to Trash". "Move to Trash" gives the toast "Moved 2 cards to Trash", and the marker search shows "Nothing found matching your filters".
 
@@ -49,7 +49,7 @@ Steps:
 - The dialog focuses itself, so single letters act at once: `f` favorites, `e` archives, Delete deletes. Click into a field before typing.
 - Toasts are brief. Check the state (views, search, reload) rather than relying on the toast alone.
 - "Delete" moves to Trash, and only "Delete Forever" from Trash is permanent. There's no "Empty Trash" button.
-- Restore from the Trash grid shows no toast; Delete Forever shows "Card permanently deleted". From the dialog, Restore toasts "Card restored".
+- Restore toasts "Card restored" and Delete Forever toasts "Card permanently deleted", from the Trash grid and the dialog alike. Both can arrive just after the card leaves the grid.
 - Trash starts with one seeded card, "Old draft I meant to throw away." Leave it there.
 - Adding the tag "secret" or "hidden" hides the card ("Hidden. Search #secret to see it.", with "Undo").
 - On the dev deployment, real AI adds its own "Remove Teak tag …" chips. Don't confuse them with yours.
