@@ -42,6 +42,10 @@ export const FILES_OPS = [
   "finalize-image-upload",
   "finalize-upload",
   "generate-image-metadata",
+  // The text in a stored image, nothing else; see ./metadata.
+  "extract-image-text",
+  // The text on a scanned PDF's first pages, read in memory.
+  "ocr-pdf-pages",
   "generate-text-metadata",
   "generate-link-metadata",
   "head-object",
@@ -263,6 +267,30 @@ export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
  */
 export const FILES_EXTRACTED_TEXT_MAX_CHARACTERS = 512 * 1024;
 export const FILES_PDF_TEXT_MAX_PAGES = 500;
+
+/** Letters or digits a page of text averages below which a PDF is a scan. */
+export const FILES_SCANNED_PDF_MIN_CHARS_PER_PAGE = 20;
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/gu;
+
+/**
+ * A PDF is scanned when its page count is known and its text layer
+ * averages under 20 letters or digits a page across the pages read, so a
+ * "Scanned by …" footer alone still counts as a scan.
+ */
+export const isScannedPdf = ({
+  pageCount,
+  text,
+}: {
+  pageCount?: number | null;
+  text: string;
+}): boolean => {
+  if (!(typeof pageCount === "number" && pageCount > 0)) {
+    return false;
+  }
+  const pages = Math.min(pageCount, FILES_PDF_TEXT_MAX_PAGES);
+  const chars = text.match(LETTER_OR_DIGIT)?.length ?? 0;
+  return chars / pages < FILES_SCANNED_PDF_MIN_CHARS_PER_PAGE;
+};
 
 export const FILES_IMPORT_PAGE_BYTES = 4 * 1024 * 1024;
 export const FILES_IMPORT_PAGE_ITEMS = 100;

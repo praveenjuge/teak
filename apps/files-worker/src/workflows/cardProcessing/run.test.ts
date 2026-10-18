@@ -162,6 +162,7 @@ describe("card processing", () => {
     const page = await linkPage();
     const { convex, fakeStep, ops, run } = setup(card, {
       "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "A good article\nRead more" } },
       "fetch-link-page": page,
       "generate-link-metadata": textMetadataAnswer(["article"]),
     });
@@ -175,9 +176,21 @@ describe("card processing", () => {
       "categorize",
       "generate metadata",
       "capture screenshot",
+      "read link image text",
       "emit completion",
       "report complete",
     ]);
+    // The screenshot's text, for search.
+    const screenshotKey = (
+      card.metadata as { linkPreview: { screenshotStorageKey: string } }
+    ).linkPreview.screenshotStorageKey;
+    expect(
+      ops.calls
+        .filter((call) => call.op === "extract-image-text")
+        .map((call) => call.params.sourceKey)
+    ).toEqual([screenshotKey]);
+    expect(card.aiOcrText).toBe("A good article\nRead more");
+    expect(card.ocrCheckedAt).toEqual(expect.any(Number));
     expect(
       (card.metadata as { linkPreview: { title: string } }).linkPreview.title
     ).toBe("A good article");
@@ -234,6 +247,24 @@ describe("card processing", () => {
       status: "failed",
     });
     expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("link image text that fails leaves the screenshot completed and the card unread", async () => {
+    const card = linkCard();
+    const { run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": {
+        throws: new Error("files_worker_ai: rate limit reached 429"),
+      },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    const result = await run();
+
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(card.processingStatus?.screenshot?.status).toBe("completed");
+    expect(card.ocrCheckedAt).toBeUndefined();
   });
 
   test("an edit while the screenshot fails still ends the run as replaced", async () => {
@@ -520,7 +551,12 @@ describe("card processing", () => {
     // other, they would never finish.
     const answers = createFakeOps({
       "generate-text-metadata": textMetadataAnswer(["report"]),
-      inspect: { data: { facts: { pageCount: 1 }, text: "Quarterly report" } },
+      inspect: {
+        data: {
+          facts: { pageCount: 1 },
+          text: "Quarterly report for the freight team",
+        },
+      },
       "render-pdf-thumbnail": { data: { height: 1100, width: 850 } },
     });
     const gatedOps: typeof answers.ops = async (spec) => {

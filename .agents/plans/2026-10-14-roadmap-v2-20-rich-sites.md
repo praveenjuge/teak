@@ -4,7 +4,7 @@ Add richer details for Wikipedia articles, arXiv papers, Spotify and Apple Music
 
 ## Depends on
 
-- [Phase 18](2026-10-14-roadmap-v2-18-new-categories.md): the category set is settled, so the new provider rules do not move again.
+- Phase 18 (new link categories, shipped): the category set is settled, so the new provider rules do not move again.
 
 ## Success Criteria
 

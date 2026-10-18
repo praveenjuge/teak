@@ -776,7 +776,7 @@ describe("generating metadata", () => {
         {
           inspect: {
             data: {
-              facts: { characterCount: 40, pageCount: 3 },
+              facts: { characterCount: 40, pageCount: 1 },
               text: "Kestrel Freight agreed to net 30 days.",
             },
           },
@@ -809,6 +809,7 @@ describe("generating metadata", () => {
     test("a PDF longer than the pages read is marked truncated", async () => {
       const { convex, generate } = setup(pdfCard, {
         inspect: { data: { facts: { pageCount: 900 }, text: "First pages" } },
+        "ocr-pdf-pages": { data: { pageCount: 900, pagesRead: 3, text: "" } },
       });
       await generate("document");
       expect(
@@ -816,16 +817,150 @@ describe("generating metadata", () => {
       ).toMatchObject({ truncated: true });
     });
 
-    test("a scan without a text layer stores nothing", async () => {
+    test("a scan's first pages are read for search, the summary and tags, and never stored as its text", async () => {
       const memory = createMemoryBucket();
-      const { convex, generate } = setup(
+      const { convex, fakes, generate, saved } = setup(
         pdfCard,
-        { inspect: { data: { facts: { pageCount: 2 }, text: "" } } },
+        {
+          inspect: { data: { facts: { pageCount: 12 }, text: "" } },
+          "ocr-pdf-pages": {
+            data: {
+              pageCount: 12,
+              pagesRead: 3,
+              text: "LEASE AGREEMENT\n\nTenant: Dana Reyes",
+            },
+          },
+        },
         { BUCKET: memory.bucket }
       );
       expect((await generate("document")).mode).toBe("completed");
+      expect(fakes.calls.find((call) => call.op === "ocr-pdf-pages")).toEqual({
+        op: "ocr-pdf-pages",
+        params: { sourceKey: pdfCard.fileKey },
+      });
+      expect(saved()).toMatchObject({
+        aiOcrText: "LEASE AGREEMENT\n\nTenant: Dana Reyes",
+        ocrCheckedAt: expect.any(Number),
+      });
+      expect(aiPrompts[0]).toContain("Tenant: Dana Reyes");
       expect(memory.objects.size).toBe(0);
       expect(convex.callsTo("card/documentText:saveDocumentText")).toEqual([]);
+    });
+
+    test("a scan the model can't describe still keeps the text read from it", async () => {
+      aiResult = { summary: "", tags: [] };
+      const { generate, saved } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": {
+          data: { pageCount: 2, pagesRead: 2, text: "Form 7 · Box 3" },
+        },
+      });
+      await generate("document");
+      expect(saved()).toMatchObject({
+        aiOcrText: "Form 7 · Box 3",
+        aiTags: [],
+        ocrCheckedAt: expect.any(Number),
+      });
+    });
+
+    test("a scan with only a short footer is still read", async () => {
+      const { fakes, generate } = setup(pdfCard, {
+        inspect: {
+          data: { facts: { pageCount: 2 }, text: "Scanned by Copier 2" },
+        },
+        "ocr-pdf-pages": { data: { pageCount: 2, pagesRead: 2, text: "" } },
+      });
+      await generate("document");
+      expect(fakes.opsCalled()).toContain("ocr-pdf-pages");
+    });
+
+    test("a PDF with a text layer is checked without being read", async () => {
+      const { fakes, generate, saved } = setup(pdfCard, {
+        inspect: {
+          data: {
+            facts: { pageCount: 1 },
+            text: "Kestrel Freight agreed to net 30 days.",
+          },
+        },
+      });
+      await generate("document");
+      expect(fakes.opsCalled()).not.toContain("ocr-pdf-pages");
+      expect(saved()?.aiOcrText).toBeUndefined();
+      expect(saved()?.ocrCheckedAt).toEqual(expect.any(Number));
+    });
+
+    test.each([
+      ["no legible text", { data: { pageCount: 2, pagesRead: 2, text: "" } }],
+      [
+        "a declined render",
+        { data: { pageCount: null, pagesRead: 0, text: "" } },
+      ],
+      ["a missing file", { fallback: "NOT_FOUND" as const }],
+    ])("a scan with %s is checked, with no text", async (_name, answer) => {
+      const { generate, saved } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": answer,
+      });
+      expect((await generate("document")).mode).toBe("completed");
+      expect(saved()?.aiOcrText).toBeUndefined();
+      expect(saved()?.ocrCheckedAt).toEqual(expect.any(Number));
+    });
+
+    test("a busy renderer fails the step and saves nothing", async () => {
+      const { generate, saved } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": {
+          throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:r1"),
+        },
+      });
+      await expect(generate("document")).rejects.toThrow(
+        "RENDERER_UNAVAILABLE"
+      );
+      expect(saved()).toBeUndefined();
+    });
+
+    test("on the step's last attempt, a scan that can't be read now is described without it and left unread", async () => {
+      aiResult = { summary: "A lease", tags: ["lease"] };
+      const { generate, saved } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": {
+          throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:r1"),
+        },
+      });
+      expect(
+        (await generate("document", { ...DEFER, lastAttempt: true })).mode
+      ).toBe("completed");
+      expect(saved()).toMatchObject({ aiTags: ["lease"] });
+      expect(saved()?.ocrCheckedAt).toBeUndefined();
+      expect(saved()?.aiOcrText).toBeUndefined();
+    });
+
+    test("a busy Workers AI still throws on the last attempt", async () => {
+      const { generate } = setup(pdfCard, {
+        inspect: { data: { facts: { pageCount: 2 }, text: "" } },
+        "ocr-pdf-pages": {
+          throws: new Error("files_worker_ai: rate limit reached 429"),
+        },
+      });
+      await expect(
+        generate("document", {
+          capacity: "retry",
+          lastAttempt: true,
+          restorePendingOnDefer: false,
+        })
+      ).rejects.toThrow("rate limit");
+    });
+
+    test("a document that isn't a PDF isn't marked checked", async () => {
+      const { generate, saved } = setup(
+        {
+          fileKey: "users/x/cards/c/file/notes.txt",
+          fileMetadata: { fileName: "notes.txt", mimeType: "text/plain" },
+        },
+        { inspect: { data: { text: "Plain notes" } } }
+      );
+      await generate("document");
+      expect(saved()?.ocrCheckedAt).toBeUndefined();
     });
 
     test("an R2 failure keeps the step's tags and summary", async () => {

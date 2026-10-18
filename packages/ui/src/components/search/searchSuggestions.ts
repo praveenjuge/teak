@@ -65,7 +65,7 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "is", hint: "Favorites or archived" },
   { key: "mood", hint: "Images by mood" },
   { key: "price", hint: "Price under or over" },
-  { key: "text", hint: "Words in an image" },
+  { key: "text", hint: "Words in images and scans" },
 ];
 
 const IS_OPTIONS = [

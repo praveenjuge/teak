@@ -5,7 +5,7 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
 ## Depends on
 
 - Nothing in v2. v1 phase 19 (Hardening) has shipped.
-- [Phase 18](2026-10-14-roadmap-v2-18-new-categories.md) adds `app` and `game` to the actionable set and "played" wording later. This phase ships without them.
+- Phase 18 (new link categories) has shipped: `place`, `typeface`, `social_post`, `app`, `game` and `repo` already exist. Its last items belong to this phase: `app` and `game` are actionable, so `is:todo` includes them, and a game card's toggle reads "Mark as played" (an app card's reads "Mark as done").
 
 ## Success Criteria
 
@@ -18,7 +18,7 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
 ## Context And Current Facts
 
 - `cards` has no done field (`cardValidator`, `schema.ts:448`). `completedAt` exists today only inside processing stage statuses (`schema.ts:50`) and job tables, never on a card.
-- Categories live in `packages/convex/shared/linkCategories.ts`: 15 values in `LINK_CATEGORIES`, with `LINK_CATEGORY_LABELS` and `LINK_CATEGORY_ICONS` as exhaustive `Record<LinkCategory, …>` maps. Only tests read the labels and icons; the web never shows a category name.
+- Categories live in `packages/convex/shared/linkCategories.ts`: 21 values in `LINK_CATEGORIES`, with `LINK_CATEGORY_LABELS` and `LINK_CATEGORY_ICONS` as exhaustive `Record<LinkCategory, …>` maps. Only tests read the labels and icons; the web never shows a category name.
 - A card's category is `metadata.linkCategory.category`, validated by `linkCategoryValidator`. That validator is built from `LINK_CATEGORIES` in `schema.ts:25-31`.
 - `shared/search/qualifiers.ts`:
   - `SEARCH_QUALIFIER_KEYS` is `tag, type, is, site, folder`.
@@ -57,7 +57,8 @@ Let people mark a link card as read, watched, listened, bought, cooked, played o
     - bought: product
     - cooked: recipe
     - done: everything else
-  - `ACTIONABLE_LINK_CATEGORIES`: book, movie, tv, article, news, podcast, music, product, recipe, course and event.
+    - played: game
+  - `ACTIONABLE_LINK_CATEGORIES`: book, movie, tv, article, news, podcast, music, product, recipe, course, event, app and game.
   - `doneActionLabel(category?: string)`, which also gives "done" for an unknown string or a missing category.
 - `card/updateCard.ts`: add `"done"` and `"undone"` literals to `updateCardFieldValidator`. `done` keeps an existing `completedAt` and sets it to now only when it is absent, so a retry never moves the date. `undone` clears it. Both are idempotent.
 - `raycast.ts` (next to `setCardFavoriteForUser`): `setCardDoneForUser({ userId, cardId, done })` for the API and MCP.

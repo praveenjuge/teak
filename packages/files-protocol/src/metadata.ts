@@ -152,6 +152,23 @@ export interface FilesImageMetadataResult extends FilesTextMetadataResult {
   text?: string;
 }
 
+/** `extract-image-text`: the image's legible text, `""` when none. */
+export interface FilesImageTextResult {
+  text: string;
+}
+
+/** Pages of a scanned PDF `ocr-pdf-pages` reads at most. */
+export const FILES_PDF_OCR_MAX_PAGES = 3;
+
+/** `ocr-pdf-pages`: always this shape, even when nothing was read. */
+export interface FilesPdfOcrResult {
+  /** `null` when the renderer couldn't open the PDF. */
+  pageCount: number | null;
+  pagesRead: number;
+  /** The pages' text, tidied like an image's; `""` when none is legible. */
+  text: string;
+}
+
 const MIN_OCR_LETTERS_OR_DIGITS = 3;
 const LETTER_OR_DIGIT = /[\p{L}\p{N}]/gu;
 const CONTROL_CHARACTERS = /\p{Cc}/gu;

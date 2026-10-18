@@ -34,6 +34,8 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "capture-screenshot": 90_000,
   "delete-objects": 90_000,
   "extract-video-frame": 90_000,
+  // Gemma reads one image's text.
+  "extract-image-text": 120_000,
   // The fetcher's redirect hops and cold start (as store-remote-asset), then
   // possibly a Browser Run render.
   "fetch-link-page": 300_000,
@@ -42,6 +44,8 @@ const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
   "generate-image-metadata": 120_000,
   "generate-link-metadata": 90_000,
   "generate-text-metadata": 90_000,
+  // Up to 3 pages, each a renderer job (with a cold start) and a Gemma call.
+  "ocr-pdf-pages": 240_000,
   "probe-media": 90_000,
   // One decode, an optional conversion retry, and Whisper on up to 100 MiB.
   "process-audio": 300_000,

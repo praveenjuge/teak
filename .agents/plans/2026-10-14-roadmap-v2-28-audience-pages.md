@@ -4,7 +4,7 @@ Add four marketing pages to the docs site, each showing one kind of person how T
 
 ## Depends on
 
-- [Phase 14](2026-10-14-roadmap-v2-14-similar-and-mood.md) (More like this, `like:` and `mood:`), so the pages can show the search features that have shipped. Blended search (phase 13), OCR (phases 10 and 11), done states (phase 15) and card links (phases 26 and 27) are shown only if they have shipped by then.
+- Phase 14 (More like this, `like:` and `mood:`, shipped), so the pages can show the search features that have shipped. Blended search (phase 13), OCR (phases 10 and 11), done states (phase 15) and card links (phases 26 and 27) are shown only if they have shipped by then.
 
 ## Success Criteria
 

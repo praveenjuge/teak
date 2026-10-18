@@ -4,6 +4,9 @@ import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWork
 
 const required = [
   "extract-animation-palette",
+  // Text in link images and scanned PDFs (roadmap v2 phase 11).
+  "extract-image-text",
+  "ocr-pdf-pages",
   "process-audio",
   "generate-text-metadata",
   "generate-link-metadata",

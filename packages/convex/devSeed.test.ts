@@ -14,6 +14,7 @@ import {
   type FolderScenario,
   HIDDEN_MIX_VOLUME_SIZE,
   hiddenMixVolumeCard,
+  OCR_LEASE_PHRASE,
   OCR_SHARED_KEYWORD,
   OMNIBOX_HIDDEN_TITLE,
   ORDERING_SCENARIO_PAGE_SIZE,
@@ -825,6 +826,53 @@ describe("devSeed folder packs", () => {
       "text",
       "video",
     ]);
+  });
+
+  test("ocr-documents seeds scanned PDFs read for text:, controls and a twin note", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-documents")).toMatchObject({
+      status: "seeded",
+      cards: 10,
+    });
+    const cards = await cardsOf(t);
+    const pdfs = cards.filter((card) => card.type === "document");
+    expect(pdfs).toHaveLength(8);
+    expect(pdfs.filter((card) => card.aiOcrText)).toHaveLength(5);
+    const shared = cards.filter((card) =>
+      [card.aiOcrText, card.content].some((text) =>
+        text?.toLowerCase().includes(OCR_LEASE_PHRASE)
+      )
+    );
+    expect(shared.map((card) => card.type).sort()).toEqual([
+      "document",
+      "text",
+    ]);
+  });
+
+  test("ocr-links seeds links read for text:, a blank render and a twin note", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-links")).toMatchObject({
+      status: "seeded",
+      cards: 7,
+    });
+    const cards = await cardsOf(t);
+    const links = cards.filter(
+      (card) =>
+        card.type === "link" &&
+        card.metadata?.linkPreview?.status === "success" &&
+        card.metadataTitle !== "OCR links pack"
+    );
+    expect(links).toHaveLength(5);
+    expect(links.filter((card) => card.aiOcrText)).toHaveLength(4);
+    expect(
+      cards.filter((card) =>
+        [card.aiOcrText, card.content].some((text) =>
+          text?.toLowerCase().includes("scaling postgres")
+        )
+      )
+    ).toHaveLength(2);
   });
 
   test("save-details seeds text from pages and a page already saved", async () => {

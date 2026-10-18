@@ -39,6 +39,16 @@ const userText = (inputs: Record<string, unknown>): string => {
 const hasImage = (inputs: Record<string, unknown>): boolean =>
   JSON.stringify(inputs.messages ?? "").includes('"image_url"');
 
+/** The text-only image prompt asks for `{"text": …}` and no tags. */
+const readsTextOnly = (inputs: Record<string, unknown>): boolean => {
+  const messages = Array.isArray(inputs.messages) ? inputs.messages : [];
+  const system = messages.find(
+    (message: { role?: string }) => message?.role === "system"
+  ) as { content?: unknown } | undefined;
+  const prompt = typeof system?.content === "string" ? system.content : "";
+  return prompt.includes('{"text": "..."}') && !prompt.includes('"tags"');
+};
+
 const tagsFor = (text: string): string[] => {
   const words = text.toLowerCase().match(/[a-z][a-z0-9-]{3,}/gu) ?? [];
   const tags: string[] = [];
@@ -101,6 +111,9 @@ export default class FakeWorkersAi extends WorkerEntrypoint {
       };
     }
     const text = userText(inputs);
+    if (hasImage(inputs) && readsTextOnly(inputs)) {
+      return chatReply({ text: "" }, text);
+    }
     if (hasImage(inputs)) {
       return chatReply(
         {

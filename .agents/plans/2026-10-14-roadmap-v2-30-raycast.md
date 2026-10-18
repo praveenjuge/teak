@@ -4,7 +4,7 @@ Bring similar-card search and done states to the Raycast extension. That means a
 
 ## Depends on
 
-- [Phase 14](2026-10-14-roadmap-v2-14-similar-and-mood.md) (`like:`, `mood:`, and `similarTo` in the API) and phase 15 (done states, `is:done` / `is:todo`, and the done field in the API).
+- Phase 14 (`like:`, `mood:`, and `similarTo` in the API, shipped) and phase 15 (done states, `is:done` / `is:todo`, and the done field in the API).
 
 ## Success Criteria
 

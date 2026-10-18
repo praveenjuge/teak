@@ -8,6 +8,7 @@ import {
   test,
 } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { listCardsV1 } from "../publicApiHttp";
 import {
   validatePublicApiBearer,
@@ -211,10 +212,10 @@ describe("public API auth outcomes", () => {
       "jwks_unavailable",
     ],
     [
-      "an expired token",
+      "an unsigned expired token",
       () => Promise.resolve(Response.json({ keys: [] })),
       Date.now() / 1000 - 60,
-      "expired_token",
+      "invalid_token",
     ],
     [
       "an unverifiable token",
@@ -247,6 +248,46 @@ describe("public API auth outcomes", () => {
       }
     }
   );
+
+  test("a correctly signed expired Connect token is logged as expired", async () => {
+    const issuer = "https://expired-token.auth.example.com";
+    process.env.WORKOS_AUTHKIT_DOMAIN = issuer;
+    const keys = await generateKeyPair("RS256", { extractable: true });
+    const jwk = await exportJWK(keys.publicKey);
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+      asFetch(() =>
+        Promise.resolve(
+          Response.json({ keys: [{ ...jwk, kid: "k1", alg: "RS256" }] })
+        )
+      )
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({
+      iss: issuer,
+      aud: "https://teakvault.com/api",
+      sub: "user_x",
+      sid: "app_consent_x",
+      client_id: "client_x",
+      scope: "openid profile email offline_access",
+      iat: now - 600,
+      exp: now - 300,
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "k1" })
+      .sign(keys.privateKey);
+    try {
+      const auth = await withAuthorizedUser(
+        backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
+        request(token)
+      );
+      expect(rejection(auth).status).toBe(401);
+      expect(outcomes()[0]).toMatchObject({
+        credential: "workos_connect",
+        reason: "expired_token",
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 
   test.each([
     [

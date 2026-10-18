@@ -9,6 +9,7 @@ import {
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
+import { isScannedPdf } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
@@ -28,6 +29,7 @@ import {
 import {
   extractFileTextForKey,
   processAudioCard,
+  readScannedPdfText,
   storeDocumentText,
 } from "./files";
 
@@ -107,18 +109,27 @@ export interface MetadataOptions {
    * the backfill, as every other deferred error does.
    */
   capacity: "defer" | "retry";
+  /**
+   * The step's last attempt: a scan whose pages can't be read now (a busy
+   * renderer) is described without them and left unread, instead of failing
+   * the card's metadata.
+   */
+  lastAttempt?: boolean;
   /** The stage was marked in progress; a deferral puts it back to pending. */
   restorePendingOnDefer: boolean;
 }
 
 interface Generated {
-  /** Text read from the image or video thumbnail, when it has any. */
+  /** Text read from the image, video thumbnail or scan, when it has any. */
   aiOcrText?: string;
   aiSummary: string;
   aiTags: string[];
   aiTranscript?: string;
   confidence: number;
-  /** The image op ran, so the card has been read for text (or has none). */
+  /**
+   * The card has been read for text (or has none): the image op answered,
+   * or a PDF's text layer was checked and a scan's pages read.
+   */
   ocrChecked?: boolean;
   visualStyles?: string[];
 }
@@ -173,11 +184,36 @@ const paletteText = (card: CardDoc): string => {
   return content;
 };
 
+/**
+ * A scan's text, or `null` on the last attempt when its pages can't be read
+ * now (a busy renderer). A busy Workers AI still throws, for the step's
+ * capacity handling.
+ */
+const readScan = async (
+  job: CardJob,
+  sourceKey: string,
+  options: MetadataOptions
+): Promise<string | null> => {
+  try {
+    return await readScannedPdfText(job, sourceKey);
+  } catch (error) {
+    if (!options.lastAttempt || isAiProviderCapacityError(error)) {
+      throw error;
+    }
+    console.warn("[cardProcessing/metadata] scan not read", {
+      cardId: job.cardId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
 const generateForType = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,
   loaded: LoadedCard,
-  cardType: string
+  cardType: string,
+  options: MetadataOptions
 ): Promise<Generated> => {
   const { card } = loaded;
   const empty: Generated = { aiSummary: "", aiTags: [], confidence: 0.9 };
@@ -262,6 +298,8 @@ const generateForType = async (
     }
     case "document": {
       const contentParts: string[] = [];
+      let aiOcrText = "";
+      let ocrChecked = false;
       const fileName = card.fileMetadata?.fileName;
       if (fileName) {
         contentParts.push(fileName);
@@ -282,6 +320,19 @@ const generateForType = async (
             contentParts.push(extracted.text);
             await keepDocumentText(job, loaded, extracted);
           }
+          if (format.kind === "pdf") {
+            // A scan's first pages are read for search, the summary and
+            // the tags. Every other PDF counts as checked too, so the
+            // backfill skips the ones with a text layer.
+            const scanText = isScannedPdf(extracted)
+              ? await readScan(job, card.fileKey, options)
+              : "";
+            aiOcrText = scanText ?? "";
+            if (aiOcrText) {
+              contentParts.push(aiOcrText);
+            }
+            ocrChecked = scanText !== null;
+          }
         }
       }
       if (card.content?.trim()) {
@@ -292,7 +343,12 @@ const generateForType = async (
         return empty;
       }
       const result = await generateTextMetadata(job, telemetry, content);
-      return { ...result, confidence: 0.85 };
+      return {
+        ...result,
+        confidence: 0.85,
+        ocrChecked,
+        ...(aiOcrText ? { aiOcrText } : {}),
+      };
     }
     case "palette": {
       const content = paletteText(card);
@@ -307,13 +363,23 @@ const generateForType = async (
   }
 };
 
-const completeWithoutAi = async (job: CardJob): Promise<MetadataResult> => {
+/**
+ * Completes the stage with no tags or summary. Text read from the card, and
+ * the mark that it was read, are kept: a scan the model can't describe is
+ * still found by its words.
+ */
+const completeWithoutAi = async (
+  job: CardJob,
+  read: Pick<Generated, "aiOcrText" | "ocrChecked"> = {}
+): Promise<MetadataResult> => {
   await job.deps.convex.mutation(
     internal.workflows.aiMetadata.mutations.updateCardAI,
     {
       aiTags: [],
       cardId: job.cardId,
       processingStatus: { metadata: stageCompleted(Date.now(), 0) },
+      ...(read.aiOcrText ? { aiOcrText: read.aiOcrText } : {}),
+      ...(read.ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
     },
     guardOf(job)
   );
@@ -379,7 +445,13 @@ export const generateCardMetadata = async (
       const type = cardType ?? card.type ?? "text";
       let generated: Generated;
       try {
-        generated = await generateForType(job, telemetry, loaded, type);
+        generated = await generateForType(
+          job,
+          telemetry,
+          loaded,
+          type,
+          options
+        );
       } catch (error) {
         if (
           !isAiMetadataDeferredError(error) ||
@@ -408,7 +480,7 @@ export const generateCardMetadata = async (
         !aiTranscript &&
         !visualStyles?.length
       ) {
-        return await completeWithoutAi(job);
+        return await completeWithoutAi(job, { aiOcrText, ocrChecked });
       }
       const saved = await job.deps.convex.mutation(
         internal.workflows.aiMetadata.mutations.updateCardAI,
