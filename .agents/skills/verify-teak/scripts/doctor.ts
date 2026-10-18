@@ -108,15 +108,23 @@ const checkBackend = async (pushing: boolean) => {
   }
 };
 
+/**
+ * Whether the newest push outcome in a stack log is a schema failure. The
+ * log lasts as long as the stack and `convex dev` keeps pushing on every
+ * save, so a failure that a later push fixed must not count.
+ */
+export const latestPushFailed = (log: string): boolean =>
+  log.lastIndexOf("Schema validation failed") >
+  log.lastIndexOf("Convex functions ready!");
+
 const checkLog = (logPath: string) => {
   if (!existsSync(logPath)) {
     return;
   }
-  const log = readFileSync(logPath, "utf-8");
-  if (log.includes("Schema validation failed")) {
+  if (latestPushFailed(readFileSync(logPath, "utf-8"))) {
     report(
       "fail",
-      `backend: ${logPath} reports "Schema validation failed", so this branch's backend never pushed (.agents/cloud.md, "The backend you test against")`
+      `backend: the latest push in ${logPath} failed schema validation, so this branch's backend isn't live (.agents/cloud.md, "The backend you test against")`
     );
   }
 };
@@ -158,7 +166,9 @@ const main = async () => {
   checkLog(state.logPath);
 };
 
-await main();
-const failed = results.some((result) => result.level === "fail");
-console.log(failed ? "doctor: do not drive this stack" : "doctor: ok");
-process.exit(failed ? 1 : 0);
+if (import.meta.main) {
+  await main();
+  const failed = results.some((result) => result.level === "fail");
+  console.log(failed ? "doctor: do not drive this stack" : "doctor: ok");
+  process.exit(failed ? 1 : 0);
+}

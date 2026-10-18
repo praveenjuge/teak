@@ -1,0 +1,24 @@
+import { describe, expect, test } from "bun:test";
+import { latestPushFailed } from "../.agents/skills/verify-teak/scripts/doctor.ts";
+
+const READY = "✔ 12:00:01 Convex functions ready! (2.1s)";
+const FAILED = "✖ Schema validation failed.\nDocument with ID … in table cards";
+
+describe("verify-teak doctor: latest push outcome", () => {
+  test("a schema failure after the last successful push fails", () => {
+    expect(latestPushFailed(`${READY}\n${FAILED}\n`)).toBe(true);
+  });
+
+  test("a schema failure fixed by a later push doesn't fail", () => {
+    expect(latestPushFailed(`${READY}\n${FAILED}\n${READY}\n`)).toBe(false);
+  });
+
+  test("a log with only successful pushes, or none yet, doesn't fail", () => {
+    expect(latestPushFailed(`${READY}\n`)).toBe(false);
+    expect(latestPushFailed("starting convex dev\n")).toBe(false);
+  });
+
+  test("a failure before any successful push fails", () => {
+    expect(latestPushFailed(`${FAILED}\n`)).toBe(true);
+  });
+});
