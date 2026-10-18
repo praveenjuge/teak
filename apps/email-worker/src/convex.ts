@@ -39,6 +39,10 @@ export interface ConvexTarget {
 
 export class DeliveryError extends Error {}
 
+/** A status worth trying again: the server or the network, not the request. */
+export const isTransientStatus = (status: number): boolean =>
+  status >= 500 || status === 408 || status === 429;
+
 const post = async (
   deps: Deps,
   target: ConvexTarget,
@@ -165,7 +169,7 @@ export const finalizeAttachment = async (
     }
     await response.body?.cancel().catch(() => undefined);
     outcome = `status_${response.status}`;
-    if (response.status < 500) {
+    if (!isTransientStatus(response.status)) {
       return outcome;
     }
   }

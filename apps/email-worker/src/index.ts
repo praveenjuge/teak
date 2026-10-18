@@ -7,6 +7,7 @@ import {
   DeliveryError,
   finalizeAttachment,
   ingestEmail,
+  isTransientStatus,
   type PlannedUpload,
 } from "./convex";
 import { buildPayload, DEFAULT_MAX_BODY_BYTES } from "./payload";
@@ -59,10 +60,6 @@ const maxBodyBytes = (env: Env): number => {
     : DEFAULT_MAX_BODY_BYTES;
 };
 
-/** A status worth trying again: the server or the network, not the request. */
-const isTransientStatus = (status: number): boolean =>
-  status >= 500 || status === 408 || status === 429;
-
 const putWithRetries = async (
   deps: Deps,
   upload: PlannedUpload,
@@ -94,7 +91,7 @@ const putWithRetries = async (
 
 /** Outcomes a later delivery of the same email could still turn into cards. */
 const INCOMPLETE_OUTCOME_REGEX =
-  /^(?:upload_failed|unreachable|status_5\d\d)$/u;
+  /^(?:upload_failed|unreachable|status_(?:5\d\d|408|429))$/u;
 
 export const isIncomplete = (counts: Record<string, number>): boolean =>
   Object.keys(counts).some((outcome) => INCOMPLETE_OUTCOME_REGEX.test(outcome));

@@ -405,6 +405,30 @@ describe("handleEmail: attachments", () => {
     });
   });
 
+  test("a finalize that keeps being throttled (429) is retried, then fails the delivery", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    let finalizes = 0;
+    const net = fakeDeps((request) => {
+      if (request.url === INGEST_URL) {
+        return planned([0]);
+      }
+      if (request.method === "PUT") {
+        return new Response(null, { status: 200 });
+      }
+      finalizes++;
+      return json(429, { error: "slow_down" });
+    });
+    await expect(handleEmail(message, TEST_ENV, net.deps)).rejects.toThrow(
+      "attachments_incomplete"
+    );
+    // Tried twice (one retry), as for a 5xx.
+    expect(finalizes).toBe(2);
+    expect(net.logs.at(-1)).toEqual({
+      event: "inbound_email_attachments",
+      status_429: 1,
+    });
+  });
+
   test("a finalize that keeps failing on the server fails the delivery, so the sender retries", async () => {
     const { message } = messageOf(fixture("attachments.eml"));
     const net = fakeDeps((request) => {
