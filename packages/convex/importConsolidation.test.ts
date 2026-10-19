@@ -1,10 +1,17 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
+import workosTest from "@convex-dev/workos-authkit/test";
+import { getFunctionName } from "convex/server";
 import { convexTest } from "convex-test";
+import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   convexForWorker,
   loadFilesWorker,
 } from "./__tests__/helpers/filesWorker.test-utils";
-import { internal } from "./_generated/api";
+import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { insertCompletedCards } from "./card/defaultCards";
 import schema from "./schema";
 import { buildR2UserPrefix } from "./storage/r2";
 
@@ -346,5 +353,306 @@ describe("import orchestration through the worker", () => {
       "skipped",
     ]);
     expect(items[2]).toMatchObject({ failureCode: "SOURCE_DUPLICATE" });
+  });
+});
+
+// One archive with every outcome an item can have: created (text, link,
+// file, Markdown), skipped within a page, across pages and against an
+// existing card, and failed as invalid or as unreadable Markdown. The
+// padded fillers (an ignored field just under the 1 MiB string limit) push
+// the last three items onto a second 4 MiB source page.
+const stagingArchive = () =>
+  zipSync(
+    {
+      "manifest.json": strToU8(
+        JSON.stringify({
+          version: 1,
+          cards: [
+            { content: "A note", type: "text", tags: ["kept"] },
+            { content: "Example", type: "link", url: "https://example.com/a" },
+            { content: "Again", type: "link", url: "https://example.com/a" },
+            { content: "Broken", type: "not-a-type" },
+            {
+              content: "",
+              type: "document",
+              file: {
+                fileName: "paper.pdf",
+                mimeType: "application/pdf",
+                path: "files/paper.pdf",
+              },
+            },
+            {
+              content: "",
+              type: "document",
+              file: {
+                fileName: "notes.md",
+                mimeType: "text/markdown",
+                path: "files/notes.md",
+              },
+            },
+            {
+              content: "",
+              type: "document",
+              file: {
+                fileName: "garbled.md",
+                mimeType: "text/markdown",
+                path: "files/garbled.md",
+              },
+            },
+            { content: "Known", type: "link", url: "https://exists.example/" },
+            ...Array.from({ length: 5 }, (_, index) => ({
+              content: `Filler ${index}`,
+              type: "text",
+              folders: ["Imported"],
+              padding: "x".repeat(900_000),
+            })),
+            { content: "Late", type: "link", url: "https://example.com/a" },
+            { content: "Last", type: "text" },
+          ],
+        })
+      ),
+      "files/paper.pdf": strToU8("%PDF-1.4 fake"),
+      "files/notes.md": strToU8("# Notes"),
+      "files/garbled.md": new Uint8Array([0xff, 0xfe, 0xfd]),
+    },
+    { level: 0 }
+  );
+
+describe("imports staged in R2", () => {
+  const stagingSetup = () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false");
+    const t = convexTest(schema, modules);
+    rateLimiterTest.register(t, "rateLimiterV2");
+    workosTest.register(t);
+    const bucket = new filesWorker.FakeBucket();
+    const deleted: string[] = [];
+    const env = filesWorker.withObjectGates({
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: "test-secret",
+      OBJECT_DELETIONS: {
+        sendBatch: (messages: Array<{ body: { keys: string[] } }>) => {
+          deleted.push(...messages.flatMap((message) => message.body.keys));
+          return Promise.resolve();
+        },
+      },
+    });
+    const archive = stagingArchive();
+    const startJob = async (userId: string, staged: boolean) => {
+      const workosUserId = await seedWorkosOwner(t, userId);
+      await t.run((ctx) =>
+        insertCompletedCards(ctx, userId, [
+          { type: "link", content: "Existing", url: "https://exists.example/" },
+        ])
+      );
+      const source = `${buildR2UserPrefix(userId)}/upload-pending-v2/import-source/source.zip`;
+      await bucket.put(source, archive);
+      const jobId = await t.mutation(internal.dataImport.reserveJob, {
+        userId,
+        mode: "archive",
+        fileName: "teak-export.zip",
+        fileSize: archive.length,
+        fileLastModified: 0,
+        sourceKey: source,
+        uploadExpiresAt: Date.now() + 60_000,
+      });
+      await t.run((ctx) =>
+        ctx.db.patch(jobId, {
+          status: "queued",
+          uploadId: undefined,
+          ...(staged
+            ? {
+                stagedItems: {
+                  pages: 0,
+                  parts: 0,
+                  cursor: 0,
+                  part: 1,
+                  offset: 0,
+                },
+              }
+            : {}),
+        })
+      );
+      return {
+        jobId,
+        signed: t.withIdentity({
+          issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+          subject: workosUserId,
+          sid: `session_${Buffer.from(userId).toString("hex")}`,
+          email_verified: true,
+          external_id: userId,
+        }),
+      };
+    };
+    const runJob = (jobId: string, convex = convexForWorker(t)) =>
+      filesWorker.runImport(
+        {
+          env,
+          instanceId: `import-${jobId}`,
+          params: { jobId, convexSiteUrl: "https://session-tests.convex.site" },
+          step: filesWorker.createFakeStep().step,
+        },
+        { convex, ops: (spec: unknown) => filesWorker.callFilesOp(env, spec) }
+      );
+    // What the person sees of a finished import.
+    const outcome = async (
+      userId: string,
+      jobId: Id<"importJobs">,
+      signed: ReturnType<typeof t.withIdentity>
+    ) => {
+      const job = await t.run((ctx) => ctx.db.get(jobId));
+      const cards = await t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
+          .collect()
+      );
+      return {
+        latest: await signed.query(api.dataImport.getLatestImport, {}),
+        samples: await signed.query(api.dataImport.getImportFailureSamples, {
+          jobId,
+        }),
+        report: new TextDecoder().decode(
+          bucket.storedBytes(job?.reportKey as string) as Uint8Array
+        ),
+        cards: cards
+          .map((card) => ({
+            content: card.content,
+            type: card.type,
+            url: card.url,
+            tags: card.tags,
+            folders: card.folderIds?.length ?? 0,
+            file: card.fileKey
+              ? new TextDecoder().decode(
+                  bucket.storedBytes(card.fileKey) as Uint8Array
+                )
+              : undefined,
+          }))
+          .sort((a, b) =>
+            `${a.content}${a.url}`.localeCompare(`${b.content}${b.url}`)
+          ),
+      };
+    };
+    return { t, bucket, deleted, startJob, runJob, outcome };
+  };
+
+  const comparable = (seen: {
+    latest: Record<string, unknown> | null;
+    samples: unknown;
+    report: string;
+    cards: unknown;
+  }) => {
+    const { id, createdAt, updatedAt, completedAt, ...latest } =
+      seen.latest ?? {};
+    return { ...seen, latest };
+  };
+
+  test.each([{ lostAnswers: false }, { lostAnswers: true }])(
+    "an import staged in R2 ends exactly like one staged in rows (lost Convex answers: $lostAnswers)",
+    async ({ lostAnswers }) => {
+      const { t, bucket, deleted, startJob, runJob, outcome } = stagingSetup();
+      const rows = await startJob("rows-owner", false);
+      const staged = await startJob("staged-owner", true);
+
+      await runJob(rows.jobId);
+      const lost = new Set<string>();
+      const base = convexForWorker(t);
+      // Each staging mutation's first answer is lost after it committed.
+      await runJob(
+        staged.jobId,
+        lostAnswers
+          ? {
+              ...base,
+              mutation: async (ref, args) => {
+                const result = await base.mutation(ref, args);
+                const name = getFunctionName(ref as never);
+                if (name.startsWith("import/staging:") && !lost.has(name)) {
+                  lost.add(name);
+                  throw new Error(`convex_rpc_unavailable:${name}:503`);
+                }
+                return result;
+              },
+            }
+          : base
+      );
+
+      const expected = await outcome("rows-owner", rows.jobId, rows.signed);
+      expect(expected.latest).toMatchObject({
+        status: "completed",
+        parsedCount: 15,
+        processedCount: 15,
+        createdCount: 10,
+        skippedCount: 3,
+        failedCount: 2,
+        reportAvailable: true,
+      });
+      expect(expected.samples).toMatchObject([
+        { sourceIndex: 3, item: "Broken" },
+        { sourceIndex: 6, item: "garbled.md" },
+      ]);
+      const seen = await outcome("staged-owner", staged.jobId, staged.signed);
+      expect(comparable(seen)).toEqual(comparable(expected));
+      if (lostAnswers) {
+        expect([...lost].sort()).toEqual([
+          "import/staging:createBatch",
+          "import/staging:recordFailures",
+          "import/staging:recordPage",
+        ]);
+      }
+
+      const stagedJob = await t.run((ctx) =>
+        ctx.db.get("importJobs", staged.jobId)
+      );
+      expect(stagedJob?.stagedItems).toMatchObject({
+        pages: 2,
+        parts: 2,
+        cursor: null,
+      });
+      const partKeys = [1, 2].map(
+        (part) =>
+          `${buildR2UserPrefix("staged-owner")}/imports/${staged.jobId}/staged/${part}.json`
+      );
+      for (const key of partKeys) {
+        expect(bucket.storedBytes(key)).not.toBeNull();
+        expect(deleted).toContain(key);
+      }
+      // Convex keeps only the failed items of the staged import.
+      const itemStatuses = async (jobId: Id<"importJobs">) =>
+        (
+          await t.run((ctx) =>
+            ctx.db
+              .query("importJobItems")
+              .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
+              .collect()
+          )
+        ).map((item) => item.status);
+      expect(await itemStatuses(staged.jobId)).toEqual(["failed", "failed"]);
+      expect(await itemStatuses(rows.jobId)).toHaveLength(15);
+    },
+    240_000
+  );
+
+  test("cleaning up a finished staged import deletes its staged parts", async () => {
+    const { t, startJob } = stagingSetup();
+    const { jobId } = await startJob("cleanup-owner", true);
+    await t.run((ctx) =>
+      ctx.db.patch(jobId, {
+        status: "failed",
+        stagedItems: { pages: 2, parts: 2, cursor: null, part: 1, offset: 0 },
+      })
+    );
+
+    await t.action(internal["import/runImport"].cleanupImportJob, { jobId });
+
+    const prefix = buildR2UserPrefix("cleanup-owner");
+    const queued = (
+      await t.run((ctx) => ctx.db.query("workflowDispatches").collect())
+    ).flatMap((row) => row.keys ?? []);
+    expect(queued).toEqual(
+      expect.arrayContaining([
+        `${prefix}/imports/${jobId}/staged/1.json`,
+        `${prefix}/imports/${jobId}/staged/2.json`,
+      ])
+    );
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toBeNull();
   });
 });

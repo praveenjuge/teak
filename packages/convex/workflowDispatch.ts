@@ -5,6 +5,7 @@ import {
   type DispatchItem,
   type DispatchResult,
   exportInstanceId,
+  filesCardKeyPrefix,
   importInstanceId,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
@@ -31,11 +32,17 @@ import {
   EXPORT_FAILURE_CLASS,
 } from "./export/constants";
 import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
+import { importStagedPartKeys } from "./import/indexItems";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "./storage/filesWorkerClient";
-import { hmacSha256Hex, isR2KeyInNamespace, sha256Hex } from "./storage/r2Keys";
+import {
+  getR2KeyPrefix,
+  hmacSha256Hex,
+  isR2KeyInNamespace,
+  sha256Hex,
+} from "./storage/r2Keys";
 
 type DispatchKind = Doc<"workflowDispatches">["kind"];
 
@@ -515,6 +522,14 @@ const handleRunFailure = async (
             jobId,
             status: "failed",
           });
+          await enqueueObjectDeletion(
+            ctx,
+            importStagedPartKeys(
+              filesCardKeyPrefix(getR2KeyPrefix(), job.userId),
+              jobId,
+              job.stagedItems
+            )
+          );
         } catch (finishError) {
           console.error("workflow_dispatch.import_finish_failed", {
             error:

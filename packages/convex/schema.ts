@@ -372,6 +372,14 @@ export const exportJobItemValidator = v.object({
   createdAt: v.number(),
 });
 
+export const stagedItemsValidator = v.object({
+  pages: v.number(),
+  parts: v.number(),
+  cursor: v.union(v.number(), v.null()),
+  part: v.number(),
+  offset: v.number(),
+});
+
 export const importJobValidator = v.object({
   userId: v.string(),
   mode: importModeValidator,
@@ -402,8 +410,18 @@ export const importJobValidator = v.object({
   updatedAt: v.number(),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
+  /**
+   * Set when the job is queued: the import Workflow stages its items in R2
+   * (`importStagedPartKey`) instead of `importJobItems` rows. `pages` source
+   * pages and `parts` staged objects are recorded, and indexing resumes at
+   * `cursor` (null once the source is read). Cards are created from staged
+   * part `part`, item `offset`. Jobs without it use the rows.
+   */
+  stagedItems: v.optional(stagedItemsValidator),
 });
 
+// A job with `stagedItems` keeps only its failed items here, for the failure
+// samples and the report. Older jobs staged every item.
 export const importJobItemValidator = v.object({
   jobId: v.id("importJobs"),
   userId: v.string(),

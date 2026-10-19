@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { buildR2UserPrefix } from "./storage/r2";
 import {
   DISPATCH_RETENTION_MS,
   enqueueObjectDeletion,
@@ -223,6 +224,33 @@ describe("complete", () => {
     const job = await t.run((ctx) => ctx.db.get("importJobs", jobId));
     expect(job?.status).toBe("failed");
     expect(job?.failureClass).toBe("import_workflow_failed");
+  });
+
+  test("deletes the items an import staged in R2 when its run errors", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertImportJob(t, "importing");
+    await t.run((ctx) =>
+      ctx.db.patch("importJobs", jobId, {
+        stagedItems: { pages: 3, parts: 2, cursor: null, part: 1, offset: 4 },
+      })
+    );
+    await t.run((ctx) => queueImportWorkflow(ctx, jobId));
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: `import-${jobId}`,
+      status: "errored",
+    });
+    const prefix = buildR2UserPrefix("user-1");
+    expect(
+      (await rows(t)).filter((row) => row.kind === "deleteObjects")
+    ).toMatchObject([
+      {
+        keys: [
+          `${prefix}/imports/${jobId}/staged/1.json`,
+          `${prefix}/imports/${jobId}/staged/2.json`,
+        ],
+      },
+    ]);
   });
 
   test("starts the next account deletion attempt when a run errors", async () => {

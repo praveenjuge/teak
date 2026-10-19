@@ -5,8 +5,10 @@ import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { buildR2UserPrefix } from "../storage/r2";
 import { assertR2KeyInNamespace } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
+import { importStagedPartKeys } from "./indexItems";
 
 const observeImport =
   <TArgs, TResult>(
@@ -81,7 +83,15 @@ export const cleanupImportJob = internalAction({
         return null;
       }
       await abortImportUpload(job.sourceKey, job.uploadId);
-      await queueImportObjectDeletion(ctx, [job.sourceKey, job.reportKey]);
+      await queueImportObjectDeletion(ctx, [
+        job.sourceKey,
+        job.reportKey,
+        ...importStagedPartKeys(
+          buildR2UserPrefix(job.userId),
+          jobId,
+          job.stagedItems
+        ),
+      ]);
       await queueUnclaimedImportFiles(ctx, jobId);
       for (;;) {
         const result = await ctx.runMutation(

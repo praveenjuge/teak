@@ -326,13 +326,11 @@ stores every output.
 
 - `index-import-source` accepts archive/bookmarks/raindrop, expected source size,
   and an offset cursor. It returns at most 100 items and 4 MiB of item JSON;
-  continuation requests bind the original ETag. The import action binds
-  that ETag to the job before storing rows and uses it during extraction. Convex owns card
-  validation, deduplication across pages, cancellation, and database writes.
+  continuation requests bind the original ETag. The import Workflow binds
+  that ETag to the job before staging items and uses it during extraction.
 - `read-import-markdown` returns one UTF-8 Markdown entry (512 KiB maximum),
-  or a typed per-item decoding/size failure. Convex decides whether a legacy
-  document becomes a text card. Import writes are batched by both item count
-  and encoded size after Markdown expansion.
+  or a typed per-item decoding/size failure. The Workflow decides whether a
+  legacy document becomes a text card.
 - ZIP inspection, indexing, and `extract-import-files` share `src/zip.ts`.
   Ranged reads support classic ZIP and ZIP64 offsets within the existing 5 GiB
   archive/expanded-byte limits. Central directories are capped at 32 MiB and
@@ -352,10 +350,41 @@ stores every output.
   20 MiB and 10,000 bookmarks. HTML is parsed without building a DOM, with a
   nesting limit of 128; CSV is limited to 256 columns and assembles quoted
   fields in bounded chunks.
-- Convex generates bounded error-report excerpts and uploads them through the
-  existing signed PUT endpoint. Source/report cleanup is handed to the durable
-  object-deletion workflow before import rows are removed. Multipart abort is
-  idempotent only for R2 `NoSuchUpload` (10024); other errors propagate.
+- The Workflow writes the error report (bounded excerpts of the failed items)
+  under `<user>/imports/<job>/error-report.txt`. Source/report cleanup is
+  handed to the durable object-deletion queue before import rows are removed.
+  Multipart abort is idempotent only for R2 `NoSuchUpload` (10024); other
+  errors propagate.
+
+### Import staging
+
+The import Workflow (`src/workflows/import.ts`) keeps the items it reads in
+R2, not in Convex. Each source page is normalized and deduplicated in the
+Worker (a URL seen on an earlier page is skipped; earlier pages' URLs travel
+in the step results as short hashes), then its importable items are written
+as staged parts of about 8 MiB at `<user>/imports/<job>/staged/<n>.json`.
+Before writing them, `import/staging:recordPage` adds the page's counts and
+its number of parts to `importJobs.stagedItems`, so every cleanup knows the
+parts' keys, and `recordFailures` stores the page's failed items as
+`importJobItems` rows. Those rows are all Convex keeps: the failure samples
+and the report read them. A page whose answer was lost is read again and
+writes the same parts; its counts are not added twice.
+
+Cards are created five at a time from the job's position (`part`,
+`offset`) with `import/staging:createBatch`, which runs only while the job is
+still at the position the batch started from, so a retried batch creates
+nothing twice. Archive files are extracted to
+`<user>/import-<job>/item-<sourceIndex>/file/<name>` first; a file whose card
+is not created is queued for deletion in the same transaction. When the run
+finishes, fails or is canceled, it deletes the source, the staged parts and
+any file extracted for the batch it stopped at. If the run dies without
+finishing, the workflow outbox's failure handler deletes the parts; starting
+the next import (`cleanupImportJob`) and account deletion delete them too.
+
+A new run of a job that was indexing (`resume staged index`) rebuilds the
+earlier pages' URL hashes from the source and writes the last recorded page's
+parts again. Jobs queued before `stagedItems` existed still stage rows
+through the old functions until they finish (`.agents/sunset.md`).
 
 ### Remote preview assets: the link fetcher Container
 
@@ -470,8 +499,8 @@ bindings before Convex deploys. It waits at most ten minutes for Cloudflare Buil
 
 The first index step retains its original function reference and arguments.
 Old journal results have no continuation cursor and follow their existing step
-sequence. New imports checkpoint one page per action and deduplicate across
-pages using the job/URL index. Markdown reads run eight at a time. The optional `importJobs.sourceEtag` is bound atomically
+sequence. New imports checkpoint one page per step and deduplicate across
+pages in the Worker (see Import staging). Markdown reads run eight at a time. The optional `importJobs.sourceEtag` is bound atomically
 inside indexing/extraction, so existing journals can resume without a restart
 or backfill. A local backend plus real R2 run indexed 10,000 items (about
 55 MiB of JSON, including 256 Markdown files) across 100 pages in 391 seconds.
