@@ -163,6 +163,7 @@ import type * as migration_backfillHiddenCards from "../migration/backfillHidden
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
+import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_extractDocumentText from "../migration/extractDocumentText.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
@@ -471,6 +472,7 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
+  "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/extractDocumentText": typeof migration_extractDocumentText;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
