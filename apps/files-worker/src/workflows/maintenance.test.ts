@@ -551,4 +551,24 @@ describe("admin snapshot", () => {
     expect(stored(true)?.isApproximate).toBe(true);
     expect(stored(false)?.isApproximate).toBe(true);
   });
+
+  test("a user scan cut short marks the overview approximate too", async () => {
+    const { stored, test, written } = snapshotRun(
+      { date: utcDay(Date.now() - DAY_MS) },
+      {
+        "adminMetrics:usersPage": ({ cursor }) => ({
+          rows: [],
+          isDone: false,
+          continueCursor: `${String(cursor)}+`,
+        }),
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(400);
+    expect(written[0]?.isApproximate).toBe(true);
+    expect(stored(true)?.isApproximate).toBe(true);
+    expect(stored(false)?.isApproximate).toBe(true);
+  });
 });

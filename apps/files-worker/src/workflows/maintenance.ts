@@ -391,11 +391,11 @@ const countSnapshot = async (
     overviews: [
       {
         includeOnboarding: true,
-        overview: withOnboarding.finish(!cardsComplete),
+        overview: withOnboarding.finish(!(usersComplete && cardsComplete)),
       },
       {
         includeOnboarding: false,
-        overview: withoutOnboarding.finish(!cardsComplete),
+        overview: withoutOnboarding.finish(!(usersComplete && cardsComplete)),
       },
     ],
   };
