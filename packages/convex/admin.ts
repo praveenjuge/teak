@@ -22,55 +22,35 @@ import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
+  type AdminOverview,
+  createOverviewTally,
   DAY_MS,
+  type OverviewCardRow,
   startOfUtcDay,
   summarizeAccounts,
   summarizeDailyActivity,
   summarizeDeletionQueue,
   summarizeQuarantine,
   toActivityRow,
+  toOverviewCardRow,
 } from "./adminStats";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
-import type {
-  ProcessingStageKey,
-  ProcessingStatus,
-} from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
+import { adminOverviewFields } from "./schema";
 import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/r2";
 import { queueCardProcessing } from "./workflowDispatch";
 
-interface StageSummary {
-  failed: number;
-  inProgress: number;
-  pending: number;
-}
-
-interface MissingCardSummary {
-  cardId: Id<"cards">;
-  createdAt: number;
-  metadataStatus?: "pending" | "completed" | "failed";
-  processingStatus?: ProcessingStatus;
-  reasons: string[];
-  type: string;
-}
-
-const STAGE_KEYS: ProcessingStageKey[] = [
-  "classify",
-  "categorize",
-  "metadata",
-  "renderables",
-];
-
-const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
-const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_MISSING_CARDS = 50;
+// Before the Files Worker has stored an overview, `getOverview` counts at
+// most this many cards itself.
 const ADMIN_OVERVIEW_LIMIT = 10_000;
+const OVERVIEW_CARD_PAGE = 500;
+const OVERVIEW_PAGE_BYTES = 4 * 1024 * 1024;
 const ADMIN_LIST_LIMIT = 200;
 const MAX_ACTIVITY_DAYS = 90;
 const ACTIVATION_COHORT_LIMIT = 1000;
@@ -151,195 +131,95 @@ export const getAccess = query({
   handler: async (ctx) => ({ allowed: (await readAdminActor(ctx)) !== null }),
 });
 
+// The Files Worker counts the overview hourly (`admin-overview` maintenance
+// task) and stores it, so an open admin page no longer re-reads the cards on
+// every card write. Until the first count lands, the overview is counted
+// here from at most ADMIN_OVERVIEW_LIMIT cards.
 export const getOverview = query({
   args: {
     includeOnboarding: v.optional(v.boolean()),
   },
-  handler: async (ctx, { includeOnboarding }) => {
+  handler: async (ctx, { includeOnboarding }): Promise<AdminOverview> => {
     await ensureAdmin(ctx);
 
-    const now = Date.now();
-    const sevenDaysAgo = now - SEVEN_DAYS_IN_MS;
-    const thirtyDaysAgo = now - THIRTY_DAYS_IN_MS;
-
-    const typeCounts: Record<string, number> = {};
-    const metadataStatusCounts: Record<
-      "pending" | "completed" | "failed" | "unset",
-      number
-    > = {
-      pending: 0,
-      completed: 0,
-      failed: 0,
-      unset: 0,
-    };
-
-    const stageSummaries: Record<ProcessingStageKey, StageSummary> =
-      STAGE_KEYS.reduce(
-        (acc, key) => {
-          acc[key] = { pending: 0, inProgress: 0, failed: 0 };
-          return acc;
-        },
-        {} as Record<ProcessingStageKey, StageSummary>
-      );
-
-    let totalCards = 0;
-    let activeCards = 0;
-    let deletedCards = 0;
-    let createdLastSevenDays = 0;
-    let createdLastThirtyDays = 0;
-    let missingAiMetadata = 0;
-    let pendingEnrichment = 0;
-    let failedCards = 0;
-    const missingCards: MissingCardSummary[] = [];
-
-    const uniqueUsers = new Set<string>();
+    const stored = await ctx.db
+      .query("adminOverviews")
+      .withIndex("by_includeOnboarding", (q) =>
+        q.eq("includeOnboarding", includeOnboarding === true)
+      )
+      .unique();
+    if (stored) {
+      const {
+        _id,
+        _creationTime,
+        includeOnboarding: _included,
+        ...overview
+      } = stored;
+      return overview;
+    }
 
     const allCards = await ctx.db.query("cards").take(ADMIN_OVERVIEW_LIMIT);
     const internalIds = await readInternalUserIds(ctx);
-    const cards = allCards.filter(
-      (card) =>
-        !internalIds.has(card.userId) &&
-        (includeOnboarding || !isOnboardingCard(card))
-    );
-    const isLimitReached = allCards.length === ADMIN_OVERVIEW_LIMIT;
-
-    for (const card of cards) {
-      totalCards += 1;
-      const isDeleted = card.isDeleted === true;
-      if (isDeleted) {
-        deletedCards += 1;
-      } else {
-        activeCards += 1;
-      }
-
-      uniqueUsers.add(card.userId);
-
-      if (card.createdAt >= sevenDaysAgo && !isDeleted) {
-        createdLastSevenDays += 1;
-      }
-
-      if (card.createdAt >= thirtyDaysAgo && !isDeleted) {
-        createdLastThirtyDays += 1;
-      }
-
-      const typeKey = card.type ?? "unknown";
-      typeCounts[typeKey] = (typeCounts[typeKey] ?? 0) + 1;
-
-      if (!isDeleted) {
-        if (card.metadataStatus === "pending") {
-          metadataStatusCounts.pending += 1;
-        } else if (card.metadataStatus === "completed") {
-          metadataStatusCounts.completed += 1;
-        } else if (card.metadataStatus === "failed") {
-          metadataStatusCounts.failed += 1;
-        } else {
-          metadataStatusCounts.unset += 1;
-        }
-      }
-
-      const reasons: string[] = [];
-
-      const hasAiSummary = Boolean(card.aiSummary);
-      const hasAiTags = Boolean(card.aiTags && card.aiTags.length > 0);
-      const hasAiTranscript = Boolean(card.aiTranscript);
-      const hasAnyAiMetadata = hasAiSummary || hasAiTags || hasAiTranscript;
-
-      if (!hasAnyAiMetadata) {
-        if (!isDeleted) {
-          missingAiMetadata += 1;
-        }
-        reasons.push("AI metadata missing");
-      }
-
-      if (!hasAiSummary) {
-        reasons.push("AI summary missing");
-      }
-
-      if (!hasAiTags) {
-        reasons.push("AI tags missing");
-      }
-
-      if (card.type === "link" && card.metadataStatus === "pending") {
-        reasons.push("Link metadata still pending");
-      }
-
+    const tally = createOverviewTally(Date.now());
+    for (const card of allCards) {
+      const onboarding = isOnboardingCard(card);
       if (
-        !isDeleted &&
-        reasons.length > 0 &&
-        missingCards.length < MAX_MISSING_CARDS
+        !(internalIds.has(card.userId) || (onboarding && !includeOnboarding))
       ) {
-        missingCards.push({
-          cardId: card._id,
-          type: card.type,
-          createdAt: card.createdAt,
-          metadataStatus: card.metadataStatus,
-          processingStatus: card.processingStatus,
-          reasons,
-        });
-      }
-
-      const processing = card.processingStatus;
-      if (processing) {
-        let hasFailure = false;
-        for (const stageKey of STAGE_KEYS) {
-          const stageStatus = processing[stageKey];
-          if (!stageStatus) {
-            continue;
-          }
-
-          if (stageStatus.status === "failed") {
-            stageSummaries[stageKey].failed += 1;
-            hasFailure = true;
-          } else if (stageStatus.status === "pending") {
-            stageSummaries[stageKey].pending += 1;
-          } else if (stageStatus.status === "in_progress") {
-            stageSummaries[stageKey].inProgress += 1;
-          }
-        }
-
-        if (hasFailure && !isDeleted) {
-          failedCards += 1;
-        }
-
-        if (
-          !isDeleted &&
-          STAGE_KEYS.some((stageKey) => {
-            const stageStatus = processing[stageKey];
-            return (
-              stageStatus &&
-              (stageStatus.status === "pending" ||
-                stageStatus.status === "in_progress")
-            );
-          })
-        ) {
-          pendingEnrichment += 1;
-        }
+        tally.add(toOverviewCardRow(card, onboarding));
       }
     }
+    return tally.finish(allCards.length === ADMIN_OVERVIEW_LIMIT);
+  },
+});
 
+export const overviewCardsPage = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (
+    ctx,
+    { cursor }
+  ): Promise<{
+    continueCursor: string;
+    isDone: boolean;
+    rows: OverviewCardRow[];
+  }> => {
+    const result = await ctx.db.query("cards").paginate({
+      cursor,
+      numItems: OVERVIEW_CARD_PAGE,
+      maximumBytesRead: OVERVIEW_PAGE_BYTES,
+    });
     return {
-      generatedAt: now,
-      totals: {
-        totalCards,
-        activeCards,
-        deletedCards,
-        uniqueUsers: uniqueUsers.size,
-      },
-      growth: {
-        createdLastSevenDays,
-        createdLastThirtyDays,
-      },
-      cardsByType: typeCounts,
-      metadataStatus: metadataStatusCounts,
-      aiPipeline: {
-        missingAiMetadata,
-        pendingEnrichment,
-        failedCards,
-        stageSummaries,
-        missingCards,
-      },
-      isApproximate: isLimitReached,
+      rows: result.page.map((card) =>
+        toOverviewCardRow(card, isOnboardingCard(card))
+      ),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
     };
+  },
+});
+
+export const writeOverview = internalMutation({
+  args: {
+    includeOnboarding: v.boolean(),
+    overview: v.object(adminOverviewFields),
+  },
+  returns: v.null(),
+  handler: async (ctx, { includeOnboarding, overview }) => {
+    const existing = await ctx.db
+      .query("adminOverviews")
+      .withIndex("by_includeOnboarding", (q) =>
+        q.eq("includeOnboarding", includeOnboarding)
+      )
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("adminOverviews", { includeOnboarding, ...overview });
+    } else if (existing.generatedAt <= overview.generatedAt) {
+      await ctx.db.replace("adminOverviews", existing._id, {
+        includeOnboarding,
+        ...overview,
+      });
+    }
+    return null;
   },
 });
 

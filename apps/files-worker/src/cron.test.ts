@@ -94,8 +94,11 @@ const setup = (
 
 describe("Cron Triggers", () => {
   test.each([
-    ["0 2 * * *", ["card-cleanup"]],
-    ["0 3 * * *", ["export-cleanup", "receipt-cleanup"]],
+    [CRONS.cleanupOldDeletedCards.schedule, ["card-cleanup", "admin-snapshot"]],
+    [
+      CRONS.cleanupExpiredExports.schedule,
+      ["export-cleanup", "receipt-cleanup"],
+    ],
   ])(
     "%s starts %p in every deployment without its own heartbeat",
     async (cron, tasks) => {
@@ -113,6 +116,25 @@ describe("Cron Triggers", () => {
       expect([...heartbeats(PROD), ...heartbeats(DEV)]).toEqual([]);
     }
   );
+
+  test("the admin metrics tasks start on their own schedules", async () => {
+    const { calls, run } = setup();
+    await run(CRONS.adminDailySnapshot.schedule);
+    await run(CRONS.adminOverview.schedule);
+    expect(
+      calls
+        .filter((call) => call.startsWith("admin-"))
+        .map((call) => call.split(" ").slice(0, 2).join(" "))
+        .sort()
+    ).toEqual(
+      [
+        `admin-overview ${DEV}`,
+        `admin-overview ${PROD}`,
+        `admin-snapshot ${DEV}`,
+        `admin-snapshot ${PROD}`,
+      ].sort()
+    );
+  });
 
   test("the weekly cron sweeps orphans per deployment and pending uploads once", async () => {
     const { calls, heartbeats, run } = setup();
@@ -151,7 +173,9 @@ describe("Cron Triggers", () => {
     const { calls, convexCalls, heartbeats, run } = setup();
     await run("15 * * * *");
     await run("45 * * * *");
-    expect(calls.sort()).toEqual(
+    expect(
+      calls.filter((call) => !call.startsWith("admin-overview")).sort()
+    ).toEqual(
       [`rollup ${DEV}`, `rollup ${PROD}`, "reconcile", "reconcile"].sort()
     );
     const ran = [

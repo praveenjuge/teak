@@ -148,6 +148,29 @@ export const accountDeletionInstanceId = (
   attempt: number
 ) => `account-deletion-${stateId}-${generation}-${attempt}`;
 
+/** Tasks the maintenance workflow runs; `capabilities` lists them. */
+export const MAINTENANCE_TASKS = [
+  "card-cleanup",
+  "export-cleanup",
+  "orphan-sweep",
+  "receipt-cleanup",
+  "admin-snapshot",
+  "admin-overview",
+] as const;
+export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
+
+export interface MaintenanceParams {
+  /** The admin snapshot's UTC day (YYYY-MM-DD); yesterday when omitted. */
+  date?: string;
+  /** Started through Convex's outbox, so the run reports back to it. */
+  dispatched?: true;
+  task: MaintenanceTask;
+}
+
+/** An admin's snapshot request; every request is its own run. */
+export const adminSnapshotInstanceId = (date: string, requestedAt: number) =>
+  `admin-snapshot-${date}-manual-${requestedAt}`;
+
 export const MAX_DISPATCH_ITEMS = 100;
 export const MAX_DISPATCH_DELETE_KEYS = 100;
 

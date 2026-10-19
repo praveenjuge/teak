@@ -8,6 +8,7 @@ import {
   importInstanceId,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
+  type MaintenanceParams,
   normalizeConvexSiteUrl,
   type WorkflowName,
 } from "@teak/files-protocol";
@@ -179,6 +180,21 @@ export const queueImportWorkflow = async (
     key: `import:${jobId}`,
     kind: "import",
     params: { jobId },
+  });
+  return instanceId;
+};
+
+/** Starts a Files Worker maintenance task that reports back when it ends. */
+export const queueMaintenanceWorkflow = async (
+  ctx: MutationCtx,
+  instanceId: string,
+  params: Omit<MaintenanceParams, "dispatched">
+): Promise<string> => {
+  await insertDispatch(ctx, {
+    instanceId,
+    key: `maintenance:${params.task}`,
+    kind: "maintenance",
+    params: { ...params, dispatched: true },
   });
   return instanceId;
 };

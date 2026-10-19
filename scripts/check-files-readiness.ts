@@ -2,6 +2,7 @@
 import { CRONS, cronTasksOn } from "../packages/convex/cronSchedules";
 import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
+import { MAINTENANCE_TASKS } from "../packages/files-protocol/src/workflows";
 
 const required = [
   "extract-animation-palette",
@@ -82,6 +83,7 @@ for (;;) {
         images?: boolean;
         crons?: string[];
         importModes?: string[];
+        maintenanceTasks?: string[];
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -107,6 +109,9 @@ for (;;) {
       // Convex stops running a cron once the Worker's Cron Triggers run it.
       cronTasksOn("cloudflare").every((task) =>
         result.data?.crons?.includes(CRONS[task].name)
+      ) &&
+      MAINTENANCE_TASKS.every((task) =>
+        result.data?.maintenanceTasks?.includes(task)
       );
   } catch (error) {
     failedWith =

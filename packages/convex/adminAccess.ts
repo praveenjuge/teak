@@ -183,20 +183,6 @@ export const isLinkFetchPaused = internalQuery({
   handler: async (ctx) => (await readAdminSettings(ctx)).linkFetchPaused,
 });
 
-const RESERVED_EMAIL_DOMAIN =
-  /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost)$/;
-
-export const isAutoInternalAccount = (
-  user: Pick<Doc<"users">, "email" | "role">
-): boolean => {
-  if (user.role === "admin") {
-    return true;
-  }
-  const email = user.email.toLowerCase();
-  const domain = email.split("@").pop() ?? "";
-  return email.includes("e2e-") || RESERVED_EMAIL_DOMAIN.test(domain);
-};
-
 const INTERNAL_ACCOUNT_LIMIT = 2000;
 
 export const readInternalUserIds = async (ctx: DbCtx): Promise<Set<string>> => {

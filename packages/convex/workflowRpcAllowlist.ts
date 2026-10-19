@@ -84,6 +84,15 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "operationalRetention:startIdempotencyCleanup",
   "search/relevanceCache:cleanupExpired",
   "search/semanticCache:cleanupExpired",
+  "admin:overviewCardsPage",
+  "admin:writeOverview",
+  "adminAccess:flagAutoInternalAccounts",
+  "adminAccess:listInternalUserIds",
+  "adminMetrics:cardsPage",
+  "adminMetrics:readSnapshotBilling",
+  "adminMetrics:usersPage",
+  "adminMetrics:writeSnapshot",
+  "adminUsage:usageForDay",
 ]);
 
 export const isWorkflowRpcFunction = (name: string): boolean =>

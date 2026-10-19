@@ -103,14 +103,15 @@ finalizes. Receipts are pruned after 30 days by the Files Worker's daily
 
 ## Scheduled and edge work on Cloudflare
 
-The Files Worker's Cron Triggers run the daily card and export cleanups and
-email receipt pruning, the weekly orphan sweep, the 6-hourly AI backfill, the
-hourly AI usage rollup, the hourly workflow reconcile and the hourly cleanups
-of the search caches, abandoned import uploads, expired upload sessions and
-(once enabled) idempotency records (`apps/files-worker/src/cron.ts`). Convex
-keeps only the WorkOS event catch-up, which needs the WorkOS API key, and the
-admin snapshot in `crons.ts`. `cronSchedules.ts` lists both, so the admin
-health view still shows every task.
+The Files Worker's Cron Triggers run the daily card and export cleanups,
+email receipt pruning and admin snapshot, the weekly orphan sweep, the
+6-hourly AI backfill, the hourly AI usage rollup, the hourly workflow
+reconcile, the hourly admin overview, and the hourly cleanups of the search
+caches, abandoned import uploads, expired upload sessions and (once enabled)
+idempotency records (`apps/files-worker/src/cron.ts`). Convex keeps only the
+WorkOS event catch-up in `crons.ts`, which needs the WorkOS API key.
+`cronSchedules.ts` lists both, so the admin health view still shows every
+task.
 
 The moved cleanups no longer start a Node action every hour, and the two
 upload cleanups abort multipart uploads in the Worker instead of a Convex
@@ -142,6 +143,14 @@ seconds in the isolate and the Cache API (`apps/files-worker/src/aiGate.ts`),
 so a run reads it at most once and later runs for the same account within
 the minute usually not at all. An admin's AI pause takes up to a minute to
 reach running work.
+
+Admin metrics are counted in the Worker. The daily snapshot no longer holds
+every user and card in a Convex action, and `admin:getOverview` reads one
+stored row instead of re-reading up to 10,000 cards on every card write while
+an admin has it open. The page reads still bill Convex: the snapshot reads
+every card once a day, as before, and the overview now reads every card once
+an hour whether or not anyone is looking (up to 200,000 cards a scan), which
+costs more than the old query on a quiet day with a large library.
 
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,
