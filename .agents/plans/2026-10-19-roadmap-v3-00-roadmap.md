@@ -173,14 +173,43 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 
 ## Risks And Open Questions
 
-- **Archive cost.** Every link archived, plus a backfill, adds R2 storage and Browser Rendering time. Phase 9 measures the median and p95 archive size and the Browser Rendering minutes on dev before merging, and estimates the cost of the backfill for the owner before it runs.
+- **Archive cost.** Every link archived, plus a backfill, adds R2 storage and Files Worker time (the inliner never uses Browser Rendering). Phase 9 measures the median and p95 archive size and the worker CPU time on dev before merging, and estimates the cost of the backfill for the owner before it runs.
 - **Archive engine licence.** The common open-source page archivers are SingleFile and monolith. SingleFile is AGPL-3.0 and Teak is MIT. Phase 9 plans its own inliner on `HTMLRewriter`, and flags this for the owner.
 - **Saved badge rate limits.** Checking each tab costs one API request, against 120 per minute per user at both the API and the edge. Phase 1 caches results and debounces, and may add a batched, lighter endpoint.
 - **Privacy wording.** The badge sends visited URLs, and the extension sends page HTML. Both change what Teak collects. The privacy policy and the extension store listings change in phases 1 and 9.
 - **Article text and embeddings.** EmbeddingGemma reads 512 tokens, so long articles are embedded from their title, summary and opening. Phase 10 decides whether to add chunked vectors.
 - **Translations without native review.** AI translations are spot-checked only. Phase 17 keeps a glossary and a "report a translation" link.
 - **Content-language AI tags** may split tags across languages (`design` and `diseño`). Phase 18 keeps tag matching per language, and phase 14's cleanup can merge them.
+- **Phase 3 is the heaviest quick win.** A real `savedAt` sort key needs 13 new indexes on cards, folder rows and tag rows, so phase 3 ships as two PRs (fields, indexes and backfill, then readers and the rule). Its plan offers a cheaper alternative for the owner to weigh.
+- **Extension request budget.** Phase 1's badge checks and phase 13's popup polling for a folder suggestion both spend the same 120 requests a minute. Phase 13 reuses phase 1's cache and cap rather than adding its own.
+- **Highlights aren't searchable.** The owner chose to show highlights in the side panel only, so phase 12 keeps search out of scope.
 
 ## Open decisions for the owner
 
-Each phase file lists its own, with the default to use until the owner decides.
+Each phase file explains its own open decisions. Until the owner decides, the phase uses the default shown here.
+
+| Phase | Decision | Default |
+|---|---|---|
+| 1 | Badge text for a saved page | "✓" |
+| 1 | Safari | No shortcut or badge this phase (its extension has no `tabs` or `commands`) |
+| 2 | Which query parameters to strip | Only `utm_*`, `fbclid` and `gclid`. `#/` and `#!` fragments and query order are kept |
+| 3 | A real `savedAt` (13 indexes, 2 PRs) or the cheaper `firstSavedAt` swap | `savedAt`, as decided |
+| 3 | Tags and notes sent with a re-save | Dropped, as decided. Imports never bump |
+| 4 | Paste limits | 100 links, one paste job at a time |
+| 5 | Tables with column alignment | Kept as literal Markdown |
+| 6 | How words match | Substring, as today. Uppercase `OR` only. No struck-through pills |
+| 7 | CSV dialects | Comma-separated, with a header row required |
+| 8 | Folder export limits | 1,000 cards, 5 a day. No API (owner chose the folder menu only) |
+| 9 | Run a page's JavaScript on the server | No. Extension saves cover single-page apps |
+| 9 | Safari | Server-only archive |
+| 10 | Chunked embeddings for long articles | No: one vector from the title, summary and opening |
+| 10 | Default tab in the card modal | Read for articles, news and research; Preview otherwise |
+| 11 | Detect soft 404s | No |
+| 12 | Readwise highlights (its library CSV has none) | No change in v3 |
+| 12 | Overlapping highlights | Merged into one |
+| 13 | Clef model and threshold | `clef`, 0.8, at most 40 candidate folders, no backfill |
+| 14 | "Keep separate" choices | Remembered on the server. No undo for merges |
+| 15 | Daily background removal cap | 100 |
+| 16 | i18n library | next-intl for the web, use-intl for `packages/ui` and the extension |
+| 17 | Chinese and register | Simplified Chinese only, formal register |
+| 18 | Setting to keep AI tags in English | No. No backfill of existing cards |
