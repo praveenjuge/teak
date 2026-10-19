@@ -25,6 +25,19 @@ test("the container images build with the repo's pinned Bun and Node", async () 
   ]);
 });
 
+// The Worker was renamed from teak-files-proxy in place. Its container apps
+// keep their old names, and a deploy that asks for new ones fails.
+test("the production worker keeps its existing container apps", () => {
+  const config = unstable_readConfig({
+    config: resolve(import.meta.dir, "../wrangler.jsonc"),
+  });
+  expect(config.name).toBe("teak-files-prod");
+  expect(config.containers?.map((container) => container.name)).toEqual([
+    "teak-files-proxy-mediarenderer",
+    "teak-files-proxy-linkfetcher",
+  ]);
+});
+
 test("only the production worker reports errors to PostHog", () => {
   const config = unstable_readConfig({
     config: resolve(import.meta.dir, "../wrangler.jsonc"),

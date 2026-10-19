@@ -3,7 +3,7 @@
   // Save by email: Cloudflare Email Routing's catch-all rule for
   // in.teakvault.com sends every message here (README.md). It has no HTTP
   // routes; it only posts signed requests to Convex and Files Worker uploads.
-  "name": "teak-email-in",
+  "name": "teak-email-prod",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],

@@ -86,7 +86,7 @@ describe("assertDevelopmentWorkerConfig", () => {
   });
 
   test.each([
-    { name: "teak-files-proxy" },
+    { name: "teak-files-prod" },
     { account_id: "another-account" },
     { routes: [{ pattern: "files.teakvault.com", custom_domain: true }] },
     { r2_buckets: [{ binding: "BUCKET", bucket_name: "teak-files-prod" }] },
@@ -111,7 +111,7 @@ describe("assertDevelopmentWorkerConfig", () => {
           {
             name: "OBJECT_GATES",
             class_name: "ObjectDeletionGate",
-            script_name: "teak-files-proxy",
+            script_name: "teak-files-prod",
           },
           { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
         ],
@@ -129,7 +129,7 @@ describe("assertDevelopmentWorkerConfig", () => {
           {
             name: "MEDIA_RENDERER",
             class_name: "MediaRenderer",
-            script_name: "teak-files-proxy",
+            script_name: "teak-files-prod",
           },
         ],
       },
