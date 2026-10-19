@@ -156,11 +156,14 @@ describe("downloadEpisodeToR2", () => {
       contentType: "audio/mpeg",
       stored: true,
     });
-    const stored = bucket.storedBytes(KEY);
-    expect(stored?.byteLength).toBe(total);
-    // The bytes come back in order: the last read's fill value at the end.
-    expect(stored?.[0]).toBe(0);
-    expect(stored?.at(-1)).toBe(89);
+    // Every read's bytes come back whole and in order.
+    const expected = new Uint8Array(total);
+    let offset = 0;
+    sizes.forEach((size, i) => {
+      expected.fill(i, offset, offset + size);
+      offset += size;
+    });
+    expect(bucket.storedBytes(KEY)).toEqual(expected);
   });
 
   test("a declared length over the cap is refused before anything is read", async () => {
