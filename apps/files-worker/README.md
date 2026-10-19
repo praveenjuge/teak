@@ -698,7 +698,7 @@ bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check; builds t
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
 
 # Local development
-bun run dev              # development config, remote dev bucket/AI/Images, code local
+bun run dev              # wrangler dev --remote with the development config (runs on Cloudflare)
                          # (needs development/.dev.vars: bun run sync:cloudflare-dev --isolated)
 bun run dev:local        # wrangler dev (isolated Miniflare, low-fidelity Images)
 # Or from repo root:
@@ -720,9 +720,10 @@ set `"dev": { "enable_containers": false }` in your local copy of the config;
 media jobs then answer `RENDERER_UNAVAILABLE`.
 
 `deploy:development` is a plain `wrangler deploy --config
-development/wrangler.jsonc` with no Convex check. Workers Builds deploys only
-the production Worker, so run it by hand after changing Worker code the
-development Worker needs. The committed config can only bind the development
+development/wrangler.jsonc` with no Convex check. Workers Builds deploys
+both Workers from `main` (`teak-files-prod` with `wrangler.jsonc`,
+`teak-files-dev` with this config), so run it by hand only to bootstrap or to
+test a branch. The committed config can only bind the development
 bucket and vector index, its own Durable Object namespaces (deletion gates and
 the media renderer) and workers.dev, with no route (tests in `src/deployment.test.ts` and
 `scripts/files-worker-dev-boundary.test.ts` enforce that). It sets no secret.
@@ -813,9 +814,11 @@ its client copies together (a drift test checks them).
 - `bun run dev` at repo root starts the default stack (web + Convex) via
   Turborepo. `bun run dev --all` starts every surface (web, convex, raycast,
   docs, extension).
-- `bun run dev files` — local Worker code with the development config: the
-  remote development bucket, AI and Images. Nothing local runs against
-  production bindings.
+- `bun run dev files` — `wrangler dev --remote` with the development config:
+  your local code runs on Cloudflare against the development bucket, AI and
+  Images, never production's. Queue consumers don't run in remote mode, so
+  test queue-driven work (deletions, upload cleanup, AI backfill) on the
+  deployed `teak-files-dev`.
 - `bun run dev files:local` — isolated Miniflare storage with low-fidelity
   Images emulation; no remote credentials needed.
 - `bun run check:cloudflare` — read-only names/parity check without exposing
