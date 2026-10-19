@@ -34,6 +34,8 @@ jobs:
         run: bun run --cwd packages/convex lint
       - name: Audit env contract
         run: bun run audit:env
+      - name: Check generated Worker types
+        run: bun run --cwd apps/files-worker cf-typegen:check
       - name: Run unit tests
         run: bun run test
 

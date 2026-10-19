@@ -320,7 +320,10 @@ stores every output.
   runs `container/test` against it with generated fixtures
   (`container/test/fixtures/generate.sh`). Locally, run the server with Bun
   (`PORT=18080 WORK_DIR=$(mktemp -d) bun container/src/server.ts`, needs
-  ffmpeg and poppler) and set `RENDERER_URL=http://localhost:18080`.
+  ffmpeg and poppler) and set `RENDERER_URL=http://localhost:18080`. In a
+  Claude Code cloud session, build the image with
+  `scripts/cloud-docker-build.sh` and run the CI job's steps
+  (`.agents/cloud.md`, "Containers").
 
 ## Import and audio processing
 
@@ -537,6 +540,18 @@ production, can neither call production's gateway nor start work that
 reports to production. Workflows call back the deployment named in their
 params, which must be one of `CONVEX_SITE_URLS`.
 
+Most workflow tests run the step code on a fake step runner
+(`src/test/fakeStep.ts`). `src/workflows/cardProcessing/engine.test.ts` runs
+card processing on Cloudflare's real Workflows engine instead (Wrangler's
+`createTestHarness`, about three seconds, no account), against a local server
+standing in for the Convex endpoint: retries, a stale write ending the run as
+skipped, and every run reporting back. Add a case there when a change depends
+on what the engine does, such as retry configs or how a step's error reaches
+the workflow (a `NonRetryableError` arrives as a plain `Error` whose message
+starts with `NonRetryableError: `). On the local E2E stack, Cloudflare's Local
+Explorer shows each run's steps, logs and stored objects
+(`.agents/skills/verify-teak/features/card-processing.md`).
+
 ## Cron Triggers
 
 `src/cron.ts` runs the background tasks that used to be Convex crons. The
@@ -693,6 +708,7 @@ WASM modules are statically imported and arrive as build-time compiled
 bun install
 bun test            # unit + handler tests (fixtures in src/fixtures), plus container/src
 bun run cf-typegen  # refresh generated Worker bindings/runtime types
+bun run cf-typegen:check  # fail if worker-configuration.d.ts is stale (Unit Tests runs it)
 bun run typecheck   # tsc --noEmit for the Worker and the Container
 bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check; builds the
                     # renderer image, so it needs Docker (add
@@ -736,6 +752,12 @@ proves the key and every binding with a signed `capabilities` request, and
 `check:cloudflare` checks the key is distinct from production.
 
 ## Secrets and local vars
+
+Both Wrangler configs list `FILES_SIGNING_SECRET` and
+`WORKFLOW_RPC_ROOT_SECRET` under `secrets.required`: `wrangler deploy` (and
+Workers Builds) fails while either is missing on that Worker, `wrangler types`
+types them, and `wrangler dev` loads only those two from `.dev.vars` and warns
+when one is absent. `ANALYTICS_API_TOKEN` is optional and not listed.
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
