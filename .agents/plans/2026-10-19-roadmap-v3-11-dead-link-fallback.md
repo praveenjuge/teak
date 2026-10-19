@@ -54,15 +54,16 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
 
 ## Backend
 
-- `schema.ts`: a new table, `linkChecks: { cardId, userId, outcome: "alive" | "dead", httpStatus?, reason?, checkedAt }`, with indexes `by_cardId` (unique per card) and `by_userId` (for deletion).
+- `schema.ts`: a new table, `linkChecks: { cardId, userId, outcome?: "alive" | "dead", httpStatus?, reason?, checkedAt?, checkingUntil? }`. Only alive and dead are stored; an `unsure` result is returned to the caller and never persisted, so it is retried on the next open. `checkingUntil` is the in-flight claim below. Indexes: `by_cardId` (unique per card) and `by_userId` (for deletion).
 - `card/linkCheck.ts`:
   - **`checkCardLinkForOpen` action** `{ cardId }`:
-    1. Load the card as its owner. The card must be a link, not trashed, and have a `pageArchive`. Otherwise return `{ target: "original", url }`.
+    1. Load the card. If it is missing, not the caller's, or trashed, return `{ target: "unavailable" }`; the `/open` page shows its "This card isn't available" state. If it is the caller's link card with no `pageArchive`, return `{ target: "original", url }`.
     2. Read `linkChecks`. A fresh alive or dead result returns at once.
-    3. Spend the `linkChecks` rate limit (30 per minute per user). Over the limit, return `original`.
-    4. Call the Files Worker op `check-link { url }` with a 4 s signal.
-    5. Write the outcome. An alive outcome with the same status is not rewritten within 1 hour, to cut write churn.
-    6. Return `{ target: "original" | "archive", url, archiveUrl?, capturedAt?, sourceHost? }`.
+    3. Claim the check with a mutation that sets `checkingUntil = now + 5 s` only when no unexpired claim exists. A second open (a double click, two tabs) that finds a claim polls the row for up to 4 s and uses its result, or returns `original` if none arrives; it never spends a token or calls the worker.
+    4. Spend the `linkChecks` rate limit (30 per minute per user). Over the limit, release the claim and return `original`.
+    5. Call the Files Worker op `check-link { url }` with a 4 s signal.
+    6. Write an alive or dead outcome and clear the claim; for `unsure`, only clear the claim. An alive outcome with the same status is not rewritten within 1 hour, to cut write churn.
+    7. Return `{ target: "original" | "archive" | "unavailable", url?, archiveUrl?, capturedAt?, sourceHost? }`.
   - **`getLinkCheck` query** `{ cardId }` returns the latest dead outcome for the modal chip, or null.
 - **Deletion:**
   - card hard delete removes the `linkChecks` row (beside `deleteCardTextRow` in the `searchDocumentHelpers.ts:280-299` cleanup);
@@ -73,7 +74,7 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
 ## Files Worker
 
 - **The `check-link` op** (`FILES_OPS`, `ops.ts`, `apps/files-worker/src/linkCheck.ts`):
-  1. Resolve and pin the host through `pinnedHop`. No addresses means `{ outcome: "dead", reason: "dns" }`. An SSRF refusal means `unsure` with the reason `blocked`.
+  1. Resolve the host with its own DoH lookup rather than `createDohResolver`, because that resolver returns an empty list both for NXDOMAIN and for a SERVFAIL or a lookup where one of A/AAAA failed (`pinnedHop.ts:49-72`). The host is `dead` (reason `dns`) only when both the A and AAAA queries succeed and both answer NXDOMAIN (DoH `Status: 3`). Any resolver error, SERVFAIL, timeout, or an empty answer with `Status: 0` is `unsure`. Otherwise it pins the addresses for the request as `pinnedHop` does. An SSRF refusal means `unsure` with the reason `blocked`.
   2. Send a `HEAD` request through `/hop`, following up to 5 redirects, each one re-checked. Where `HEAD` gets 405 or 501, send a `GET` and cancel the body after the headers.
   3. The final status maps 404 and 410 to `dead` and every other status to `alive` or `unsure` (2xx to alive, the rest to unsure).
   4. The total timeout is 3.5 s, and a timeout is `unsure`.
