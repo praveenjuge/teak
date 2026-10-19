@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   accountDeletionInstanceId,
+  adminSnapshotInstanceId,
   buildWorkflowDispatchSigningPayload,
   buildWorkflowRpcSecretPayload,
   buildWorkflowRpcSigningPayload,
@@ -101,6 +102,7 @@ describe("instance IDs", () => {
       exportInstanceId(CARD_ID),
       importInstanceId(CARD_ID),
       accountDeletionInstanceId(CARD_ID, 3, 2),
+      adminSnapshotInstanceId("2026-10-18", 1_760_832_000_000),
     ]) {
       expect(isWorkflowInstanceId(id)).toBe(true);
     }

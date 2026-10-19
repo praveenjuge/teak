@@ -8,10 +8,14 @@ import {
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
+// No overview stored yet, so getOverview counts these cards itself.
 const overviewTables =
   (cards: any[], internalIds: string[] = []) =>
-  (table: string) =>
-    table === "adminUserFlags"
+  (table: string) => {
+    if (table === "adminOverviews") {
+      return { withIndex: () => ({ unique: mock().mockResolvedValue(null) }) };
+    }
+    return table === "adminUserFlags"
       ? {
           withIndex: () => ({
             take: mock().mockResolvedValue(
@@ -20,6 +24,7 @@ const overviewTables =
           }),
         }
       : { take: mock().mockResolvedValue(cards) };
+  };
 
 describe("admin.ts", () => {
   let getAccess: any;

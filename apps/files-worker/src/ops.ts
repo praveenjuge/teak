@@ -14,6 +14,7 @@ import {
   type FilesOpRequest,
   isFilesInspectMode,
   isFilesOp,
+  MAINTENANCE_TASKS,
   VECTOR_DELETE_MAX_IDS,
   VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
@@ -348,6 +349,7 @@ const dispatch = async (
       return success(requestId, {
         operations: FILES_OPS,
         importModes: IMPORT_MODES,
+        maintenanceTasks: MAINTENANCE_TASKS,
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),

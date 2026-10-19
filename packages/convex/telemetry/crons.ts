@@ -110,11 +110,13 @@ export const cleanupInboundEmailReceipts = internalAction({
     ),
 });
 
+// The Files Worker runs the snapshot now; this only catches a Convex cron
+// firing queued before that deploy (.agents/sunset.md).
 export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.adminDailySnapshot.name, () =>
-      ctx.runAction(internal.adminMetrics.captureDailySnapshot, {})
+      ctx.runMutation(internal.adminMetrics.queueSnapshot, {})
     ),
 });

@@ -93,9 +93,10 @@ finalizes. Receipts are pruned after 30 days by the daily
 ## Scheduled and edge work on Cloudflare
 
 The Files Worker's Cron Triggers run the daily card and export cleanups, the
-weekly orphan sweep, the 6-hourly AI backfill, the hourly AI usage rollup and
-the hourly workflow reconcile (`apps/files-worker/src/cron.ts`); Convex keeps
-only the small hourly crons in `crons.ts`. `cronSchedules.ts` lists both, so
+daily admin snapshot, the weekly orphan sweep, the 6-hourly AI backfill, the
+hourly AI usage rollup, the hourly admin overview and the hourly workflow
+reconcile (`apps/files-worker/src/cron.ts`); Convex keeps only the small
+hourly and daily crons in `crons.ts`. `cronSchedules.ts` lists both, so
 the admin health view still shows every task. The hourly pending-upload sweep
 is gone: R2 event notifications delete each abandoned pending upload after a
 day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
@@ -104,6 +105,14 @@ bucket. The `pendingUploadCleanupStates` table is unused and can be dropped.
 AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
+
+Admin metrics are counted in the Worker. The daily snapshot no longer holds
+every user and card in a Convex action, and `admin:getOverview` reads one
+stored row instead of re-reading up to 10,000 cards on every card write while
+an admin has it open. The page reads still bill Convex: the snapshot reads
+every card once a day, as before, and the overview now reads every card once
+an hour whether or not anyone is looking (up to 200,000 cards a scan), which
+costs more than the old query on a quiet day with a large library.
 
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,

@@ -1,15 +1,13 @@
 import { internal } from "@teak/convex/_generated/api";
 import { CRONS } from "@teak/convex/cronSchedules";
+import type { MaintenanceTask } from "@teak/files-protocol";
 import { type AiUsageRollupEnv, rollUpAiUsage } from "./aiUsageRollup";
 import { type ConvexRpc, convexSiteUrls, createConvexRpc } from "./convexRpc";
 import { enqueueAiBackfill } from "./queues/aiBackfill";
 import { sweepStalePendingUploads } from "./queues/r2Events";
 import { reportBackgroundError } from "./telemetry";
 import { reconcileWorkflows } from "./workflowReconcile";
-import {
-  type MaintenanceTask,
-  startMaintenanceTask,
-} from "./workflows/maintenance";
+import { startMaintenanceTask } from "./workflows/maintenance";
 
 export type CronEnv = AiUsageRollupEnv;
 
@@ -114,8 +112,12 @@ export const handleScheduled = async (
   };
 
   switch (controller.cron) {
+    // The admin snapshot shares this trigger (CRONS.adminDailySnapshot).
     case SCHEDULE.cardCleanup:
-      await forEachDeployment("card-cleanup", maintenance("card-cleanup"));
+      await Promise.all([
+        forEachDeployment("card-cleanup", maintenance("card-cleanup")),
+        forEachDeployment("admin-snapshot", maintenance("admin-snapshot")),
+      ]);
       return;
     case SCHEDULE.exportCleanup:
       await forEachDeployment("export-cleanup", maintenance("export-cleanup"));
@@ -146,17 +148,20 @@ export const handleScheduled = async (
         )
       );
       return;
+    // The admin overview shares this trigger (CRONS.adminOverview).
     case SCHEDULE.reconcile:
-      await forEachDeployment(
-        "reconcile-workflows",
-        monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
-          const summary = await (deps.reconcileWorkflows ?? reconcileWorkflows)(
-            env,
-            convex
-          );
-          console.log("[cron] workflows reconciled", summary);
-        })
-      );
+      await Promise.all([
+        forEachDeployment(
+          "reconcile-workflows",
+          monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
+            const summary = await (
+              deps.reconcileWorkflows ?? reconcileWorkflows
+            )(env, convex);
+            console.log("[cron] workflows reconciled", summary);
+          })
+        ),
+        forEachDeployment("admin-overview", maintenance("admin-overview")),
+      ]);
       return;
     default:
       console.error("[cron] no task", { cron: controller.cron });

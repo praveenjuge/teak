@@ -1,9 +1,20 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import {
+  autoInternalUserIds,
+  createOverviewTally,
+  createSnapshotTally,
+  type MetricsCardRow,
+  type MetricsUserRow,
+  type OverviewCardRow,
+  snapshotDay,
+  snapshotTakesBilling,
+} from "@teak/convex/adminStats";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";
 import { cardStorageObjectKeys } from "@teak/convex/storage/cardObjectKeys";
+import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import { sha256Hex } from "../lib";
 import { reportBackgroundError } from "../telemetry";
@@ -20,25 +31,20 @@ import {
   CONVEX_STEP,
   errorMessage,
   retryConfig,
+  runReported,
   type WorkflowRun,
 } from "./runtime";
-
-export const MAINTENANCE_TASKS = [
-  "card-cleanup",
-  "export-cleanup",
-  "orphan-sweep",
-] as const;
-export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
-
-export interface MaintenanceParams {
-  task: MaintenanceTask;
-}
 
 const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
   "card-cleanup": CRONS.cleanupOldDeletedCards.name,
   "export-cleanup": CRONS.cleanupExpiredExports.name,
   "orphan-sweep": CRONS.sweepOrphanedObjects.name,
+  "admin-snapshot": CRONS.adminDailySnapshot.name,
+  "admin-overview": CRONS.adminOverview.name,
 };
+
+/** Started every hour, so their instances are named by the hour. */
+const HOURLY_TASKS: ReadonlySet<MaintenanceTask> = new Set(["admin-overview"]);
 
 const CARD_CLEANUP_BATCH = 10;
 const EXPORT_CLEANUP_BATCH = 25;
@@ -50,6 +56,12 @@ const SWEEP_LIST_LIMIT = 1000;
 const MAX_SWEEP_CARD_PAGES = 4000;
 const MAX_SWEEP_LIST_PAGES = 2000;
 const SWEEP_STEP = retryConfig(3, 60_000, "30 minutes");
+// The admin metrics scans read at most 400 pages of 500 cards, as the Convex
+// action they replaced did; a longer scan marks its result approximate.
+const MAX_METRICS_PAGES = 400;
+const FLAG_BATCH = 200;
+const METRICS_STEP = retryConfig(3, 60_000, "30 minutes");
+const BILLING_STEP = retryConfig(3, 30_000, "5 minutes");
 
 export const startMaintenanceTask = async (
   env: BackgroundEnv,
@@ -62,7 +74,8 @@ export const startMaintenanceTask = async (
     throw new Error("workflow_missing:maintenance");
   }
   const deployment = (await sha256Hex(convexSiteUrl)).slice(0, 8);
-  const id = `${task}-${now.toISOString().slice(0, 10)}-${deployment}`;
+  const period = now.toISOString().slice(0, HOURLY_TASKS.has(task) ? 13 : 10);
+  const id = `${task}-${period}-${deployment}`;
   const { errors } = await workflows.createBatch({
     instances: [{ id, params: { convexSiteUrl, task } }],
   });
@@ -285,6 +298,146 @@ const sweepStorage = async (context: TaskContext) => {
   return null;
 };
 
+interface Page<T> {
+  continueCursor: string;
+  isDone: boolean;
+  rows: T[];
+}
+
+/** Visits up to MAX_METRICS_PAGES pages; true when it reached the end. */
+const visitPages = async <T>(
+  readPage: (cursor: string | null) => Promise<Page<T>>,
+  visit: (rows: T[]) => void
+): Promise<boolean> => {
+  let cursor: string | null = null;
+  for (let page = 0; page < MAX_METRICS_PAGES; page += 1) {
+    const result: Page<T> = await readPage(cursor);
+    visit(result.rows);
+    if (result.isDone) {
+      return true;
+    }
+    cursor = result.continueCursor;
+  }
+  return false;
+};
+
+const countSnapshot = async (
+  convex: ConvexRpc,
+  window: ReturnType<typeof snapshotDay>
+) => {
+  const users: MetricsUserRow[] = [];
+  const usersComplete = await visitPages<MetricsUserRow>(
+    (cursor) => convex.query(internal.adminMetrics.usersPage, { cursor }),
+    (rows) => users.push(...rows)
+  );
+  const autoInternal = autoInternalUserIds(users);
+  for (let i = 0; i < autoInternal.length; i += FLAG_BATCH) {
+    await convex.mutation(internal.adminAccess.flagAutoInternalAccounts, {
+      teakUserIds: autoInternal.slice(i, i + FLAG_BATCH),
+    });
+  }
+  const internalIds = new Set<string>(
+    await convex.query(internal.adminAccess.listInternalUserIds, {})
+  );
+  const tally = createSnapshotTally({ ...window, internalIds });
+  for (const user of users) {
+    tally.addUser(user);
+  }
+  const cardsComplete = await visitPages<MetricsCardRow>(
+    (cursor) => convex.query(internal.adminMetrics.cardsPage, { cursor }),
+    (rows) => {
+      for (const card of rows) {
+        tally.addCard(card);
+      }
+    }
+  );
+  for (const row of await convex.query(internal.adminUsage.usageForDay, {
+    date: window.day,
+  })) {
+    tally.addUsage(row);
+  }
+  return { counts: tally.counts(), isComplete: usersComplete && cardsComplete };
+};
+
+/** The day's `adminDailyMetrics` row; billing comes from Convex (Polar). */
+const captureSnapshot = async ({ convex, run }: TaskContext) => {
+  const { step } = run;
+  const now = await step.do("now", async () => Promise.resolve(Date.now()));
+  const window = snapshotDay(run.params.date, now);
+  const { counts, isComplete } = await step.do(
+    "count snapshot",
+    METRICS_STEP,
+    () => countSnapshot(convex, window)
+  );
+  const billing = snapshotTakesBilling(window.dayEnd, now)
+    ? await step.do("read billing", BILLING_STEP, () =>
+        convex.action(internal.adminMetrics.readSnapshotBilling, {})
+      )
+    : { billing: null, isComplete: true };
+  const isApproximate = !(isComplete && billing.isComplete);
+  await step.do("write snapshot", CONVEX_STEP, async () => {
+    await convex.mutation(internal.adminMetrics.writeSnapshot, {
+      snapshot: {
+        date: window.day,
+        capturedAt: now,
+        ...counts,
+        ...(billing.billing ? { billing: billing.billing } : {}),
+        isApproximate,
+      },
+    });
+    return null;
+  });
+  return { date: window.day, isApproximate };
+};
+
+const countOverviews = async (convex: ConvexRpc) => {
+  const now = Date.now();
+  const internalIds = new Set<string>(
+    await convex.query(internal.adminAccess.listInternalUserIds, {})
+  );
+  const withOnboarding = createOverviewTally(now);
+  const withoutOnboarding = createOverviewTally(now);
+  const isComplete = await visitPages<OverviewCardRow>(
+    (cursor) => convex.query(internal.admin.overviewCardsPage, { cursor }),
+    (rows) => {
+      for (const card of rows) {
+        if (internalIds.has(card.userId)) {
+          continue;
+        }
+        withOnboarding.add(card);
+        if (!card.onboarding) {
+          withoutOnboarding.add(card);
+        }
+      }
+    }
+  );
+  return [
+    { includeOnboarding: true, overview: withOnboarding.finish(!isComplete) },
+    {
+      includeOnboarding: false,
+      overview: withoutOnboarding.finish(!isComplete),
+    },
+  ];
+};
+
+/** What `admin:getOverview` returns, with and without onboarding cards. */
+const refreshOverview = async ({ convex, run }: TaskContext) => {
+  const overviews = await run.step.do("count overview", METRICS_STEP, () =>
+    countOverviews(convex)
+  );
+  await run.step.do("write overview", CONVEX_STEP, async () => {
+    for (const overview of overviews) {
+      await convex.mutation(internal.admin.writeOverview, overview);
+    }
+    return null;
+  });
+  const [all] = overviews;
+  return {
+    cards: all?.overview.totals.totalCards ?? 0,
+    isApproximate: all?.overview.isApproximate ?? false,
+  };
+};
+
 const TASKS: Record<
   MaintenanceTask,
   (context: TaskContext) => Promise<unknown>
@@ -292,6 +445,8 @@ const TASKS: Record<
   "card-cleanup": cleanUpCards,
   "export-cleanup": cleanUpExports,
   "orphan-sweep": sweepStorage,
+  "admin-snapshot": captureSnapshot,
+  "admin-overview": refreshOverview,
 };
 
 export const runMaintenance = async (
@@ -305,40 +460,48 @@ export const runMaintenance = async (
     throw new Error(`unknown_maintenance_task:${String(task)}`);
   }
   const name = HEARTBEAT_NAMES[task];
+  // A run Convex started on request is not the cron, so it leaves the cron's
+  // health alone and reports to its dispatch row instead.
+  const dispatched = run.params.dispatched === true;
   const heartbeat = (
     phase: "failed" | "started" | "succeeded",
     error?: string
   ) =>
-    run.step
-      .do(`heartbeat ${phase}`, CONVEX_STEP, async () => {
-        await convex.mutation(internal.adminHealth.recordCronRun, {
-          name,
-          phase,
-          ...(error ? { error: error.slice(0, 500) } : {}),
-        });
-        return null;
-      })
-      .catch((heartbeatError: unknown) => {
-        console.error("[workflows/maintenance] heartbeat not recorded", {
-          error: errorMessage(heartbeatError),
-          task,
-        });
-        return null;
-      });
+    dispatched
+      ? Promise.resolve(null)
+      : run.step
+          .do(`heartbeat ${phase}`, CONVEX_STEP, async () => {
+            await convex.mutation(internal.adminHealth.recordCronRun, {
+              name,
+              phase,
+              ...(error ? { error: error.slice(0, 500) } : {}),
+            });
+            return null;
+          })
+          .catch((heartbeatError: unknown) => {
+            console.error("[workflows/maintenance] heartbeat not recorded", {
+              error: errorMessage(heartbeatError),
+              task,
+            });
+            return null;
+          });
 
-  await heartbeat("started");
-  let result: unknown;
-  try {
-    result = await handler({ convex, ops, run });
-  } catch (error) {
-    await heartbeat("failed", errorMessage(error));
-    await reportBackgroundError(run.env, undefined, error, {
-      convexSiteUrl: run.params.convexSiteUrl,
-      task: `maintenance:${task}`,
-    });
-    throw error;
-  }
-  await heartbeat("succeeded");
-  console.log("[workflows/maintenance] done", { result, task });
-  return result;
+  const execute = async () => {
+    await heartbeat("started");
+    let result: unknown;
+    try {
+      result = await handler({ convex, ops, run });
+    } catch (error) {
+      await heartbeat("failed", errorMessage(error));
+      await reportBackgroundError(run.env, undefined, error, {
+        convexSiteUrl: run.params.convexSiteUrl,
+        task: `maintenance:${task}`,
+      });
+      throw error;
+    }
+    await heartbeat("succeeded");
+    console.log("[workflows/maintenance] done", { result, task });
+    return result;
+  };
+  return dispatched ? await runReported(run, execute, convex) : await execute();
 };

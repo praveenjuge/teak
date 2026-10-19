@@ -29,10 +29,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "20 3 * * *",
     handler: "cleanupInboundEmailReceipts",
   },
-  "admin-daily-snapshot": {
-    cron: "45 0 * * *",
-    handler: "adminDailySnapshot",
-  },
 };
 
 const WORKER_DIR = join(import.meta.dir, "../../../apps/files-worker");

@@ -1,5 +1,8 @@
-import type { Doc } from "./_generated/dataModel";
-import type { ProcessingStageKey } from "./card/processingStatus";
+import type { Doc, Id } from "./_generated/dataModel";
+import type {
+  ProcessingStageKey,
+  ProcessingStatus,
+} from "./card/processingStatus";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;
@@ -519,3 +522,430 @@ export function cronHealth(
   }
   return "ok";
 }
+
+const RESERVED_EMAIL_DOMAIN =
+  /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost)$/;
+
+export const isAutoInternalAccount = (
+  user: Pick<Doc<"users">, "email" | "role">
+): boolean => {
+  if (user.role === "admin") {
+    return true;
+  }
+  const email = user.email.toLowerCase();
+  const domain = email.split("@").pop() ?? "";
+  return email.includes("e2e-") || RESERVED_EMAIL_DOMAIN.test(domain);
+};
+
+/** A user as `adminMetrics:usersPage` returns it. */
+export interface MetricsUserRow {
+  createdAt: number;
+  deleted: boolean;
+  email: string;
+  isAdmin: boolean;
+  teakUserId: string;
+}
+
+/** A card as `adminMetrics:cardsPage` returns it. */
+export interface MetricsCardRow {
+  createdAt: number;
+  deleted: boolean;
+  fileSize: number;
+  userId: string;
+}
+
+export const autoInternalUserIds = (users: MetricsUserRow[]): string[] =>
+  users
+    .filter((user) =>
+      isAutoInternalAccount({
+        email: user.email,
+        role: user.isAdmin ? "admin" : undefined,
+      })
+    )
+    .map((user) => user.teakUserId);
+
+const SNAPSHOT_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TOP_STORAGE = 20;
+
+/** The UTC day a daily snapshot covers: `date`, or yesterday. */
+export const snapshotDay = (date: string | undefined, now: number) => {
+  const day = date ?? utcDay(now - DAY_MS);
+  if (!SNAPSHOT_DATE.test(day)) {
+    throw new Error("Snapshot date must be YYYY-MM-DD");
+  }
+  const dayStart = Date.parse(`${day}T00:00:00.000Z`);
+  if (Number.isNaN(dayStart) || dayStart > now) {
+    throw new Error("Snapshot date must not be in the future");
+  }
+  return { day, dayStart, dayEnd: dayStart + DAY_MS };
+};
+
+/** Polar only reports the present, so only yesterday or today gets billing. */
+export const snapshotTakesBilling = (dayEnd: number, now: number) =>
+  now - dayEnd < DAY_MS;
+
+export interface SnapshotCounts {
+  accounts: number;
+  activeSavers1d: number;
+  activeSavers7d: number;
+  activeSavers28d: number;
+  aiCalls: number;
+  aiCostUsd: number;
+  cardsSaved: number;
+  signups: number;
+  storageBytes: number;
+  storageBytesAdded: number;
+  topStorage: Array<{ bytes: number; teakUserId: string }>;
+  totalCards: number;
+}
+
+/**
+ * Counts one day's snapshot from users, cards and AI usage, leaving internal
+ * accounts out. Cards are counted as they arrive, so a scan never has to hold
+ * them all.
+ */
+export const createSnapshotTally = ({
+  dayEnd,
+  dayStart,
+  internalIds,
+}: {
+  dayEnd: number;
+  dayStart: number;
+  internalIds: ReadonlySet<string>;
+}) => {
+  let accounts = 0;
+  let signups = 0;
+  let totalCards = 0;
+  let cardsSaved = 0;
+  let storageBytes = 0;
+  let storageBytesAdded = 0;
+  let aiCostUsd = 0;
+  let aiCalls = 0;
+  const savers1d = new Set<string>();
+  const savers7d = new Set<string>();
+  const savers28d = new Set<string>();
+  const storageByUser = new Map<string, number>();
+  return {
+    addUser(user: MetricsUserRow) {
+      if (internalIds.has(user.teakUserId)) {
+        return;
+      }
+      if (!user.deleted && user.createdAt < dayEnd) {
+        accounts += 1;
+      }
+      if (user.createdAt >= dayStart && user.createdAt < dayEnd) {
+        signups += 1;
+      }
+    },
+    addCard(card: MetricsCardRow) {
+      if (internalIds.has(card.userId) || card.createdAt >= dayEnd) {
+        return;
+      }
+      if (!card.deleted) {
+        totalCards += 1;
+        storageBytes += card.fileSize;
+        if (card.fileSize > 0) {
+          storageByUser.set(
+            card.userId,
+            (storageByUser.get(card.userId) ?? 0) + card.fileSize
+          );
+        }
+      }
+      if (card.createdAt >= dayStart) {
+        cardsSaved += 1;
+        storageBytesAdded += card.fileSize;
+        savers1d.add(card.userId);
+      }
+      if (card.createdAt >= dayEnd - 7 * DAY_MS) {
+        savers7d.add(card.userId);
+      }
+      if (card.createdAt >= dayEnd - 28 * DAY_MS) {
+        savers28d.add(card.userId);
+      }
+    },
+    addUsage(row: { calls: number; costUsd: number; userId: string }) {
+      if (!internalIds.has(row.userId)) {
+        aiCostUsd += row.costUsd;
+        aiCalls += row.calls;
+      }
+    },
+    counts(): SnapshotCounts {
+      return {
+        accounts,
+        signups,
+        cardsSaved,
+        totalCards,
+        activeSavers1d: savers1d.size,
+        activeSavers7d: savers7d.size,
+        activeSavers28d: savers28d.size,
+        storageBytes,
+        storageBytesAdded,
+        aiCostUsd,
+        aiCalls,
+        topStorage: [...storageByUser.entries()]
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, TOP_STORAGE)
+          .map(([teakUserId, bytes]) => ({ teakUserId, bytes })),
+      };
+    },
+  };
+};
+
+export interface SnapshotBilling {
+  canceling: number;
+  currency: string;
+  mrr: number;
+  mrrAtRisk: number;
+  netMrr: number;
+  pastDue: number;
+  paying: number;
+  trialing: number;
+}
+
+/** The snapshot's billing line, in USD unless no subscription is in USD. */
+export const snapshotBilling = (
+  subscriptions: SubscriptionLike[]
+): SnapshotBilling => {
+  const summary = summarizeSubscriptions(subscriptions);
+  const currency =
+    "usd" in summary.revenue
+      ? "usd"
+      : (Object.keys(summary.revenue)[0] ?? "usd");
+  const revenue = summary.revenue[currency];
+  return {
+    currency,
+    mrr: revenue?.mrr ?? 0,
+    mrrAtRisk: revenue?.mrrAtRisk ?? 0,
+    netMrr: revenue?.netMrr ?? 0,
+    paying: summary.paying,
+    trialing: summary.trialing,
+    pastDue: summary.pastDue,
+    canceling: summary.canceling,
+  };
+};
+
+type MetadataStatus = "pending" | "completed" | "failed";
+type OverviewStage = "classify" | "categorize" | "metadata" | "renderables";
+
+/** The fields of a card the admin overview counts. */
+export interface OverviewCardRow {
+  cardId: Id<"cards">;
+  createdAt: number;
+  deleted: boolean;
+  hasAiSummary: boolean;
+  hasAiTags: boolean;
+  hasAiTranscript: boolean;
+  metadataStatus?: MetadataStatus;
+  onboarding: boolean;
+  processingStatus?: ProcessingStatus;
+  type: string;
+  userId: string;
+}
+
+export const toOverviewCardRow = (
+  card: Pick<
+    Doc<"cards">,
+    | "_id"
+    | "aiSummary"
+    | "aiTags"
+    | "aiTranscript"
+    | "createdAt"
+    | "isDeleted"
+    | "metadataStatus"
+    | "processingStatus"
+    | "type"
+    | "userId"
+  >,
+  onboarding: boolean
+): OverviewCardRow => ({
+  cardId: card._id,
+  userId: card.userId,
+  type: card.type ?? "unknown",
+  createdAt: card.createdAt,
+  deleted: card.isDeleted === true,
+  onboarding,
+  hasAiSummary: Boolean(card.aiSummary),
+  hasAiTags: Boolean(card.aiTags && card.aiTags.length > 0),
+  hasAiTranscript: Boolean(card.aiTranscript),
+  ...(card.metadataStatus ? { metadataStatus: card.metadataStatus } : {}),
+  ...(card.processingStatus ? { processingStatus: card.processingStatus } : {}),
+});
+
+export interface StageSummary {
+  failed: number;
+  inProgress: number;
+  pending: number;
+}
+
+export interface MissingCardSummary {
+  cardId: Id<"cards">;
+  createdAt: number;
+  metadataStatus?: MetadataStatus;
+  processingStatus?: ProcessingStatus;
+  reasons: string[];
+  type: string;
+}
+
+export interface AdminOverview {
+  aiPipeline: {
+    failedCards: number;
+    missingAiMetadata: number;
+    missingCards: MissingCardSummary[];
+    pendingEnrichment: number;
+    stageSummaries: Record<OverviewStage, StageSummary>;
+  };
+  cardsByType: Record<string, number>;
+  generatedAt: number;
+  growth: { createdLastSevenDays: number; createdLastThirtyDays: number };
+  isApproximate: boolean;
+  metadataStatus: Record<MetadataStatus | "unset", number>;
+  totals: {
+    activeCards: number;
+    deletedCards: number;
+    totalCards: number;
+    uniqueUsers: number;
+  };
+}
+
+const OVERVIEW_STAGES: OverviewStage[] = [
+  "classify",
+  "categorize",
+  "metadata",
+  "renderables",
+];
+const MAX_MISSING_CARDS = 50;
+
+/**
+ * Counts the admin overview one card at a time, so the Worker's scan and
+ * `admin:getOverview`'s fallback count the same way. Cards go in creation
+ * order; the first 50 with something missing are listed.
+ */
+export const createOverviewTally = (now: number) => {
+  const sevenDaysAgo = now - 7 * DAY_MS;
+  const thirtyDaysAgo = now - 30 * DAY_MS;
+  const cardsByType: Record<string, number> = {};
+  const metadataStatus: AdminOverview["metadataStatus"] = {
+    pending: 0,
+    completed: 0,
+    failed: 0,
+    unset: 0,
+  };
+  const stageSummaries = {} as Record<OverviewStage, StageSummary>;
+  for (const stage of OVERVIEW_STAGES) {
+    stageSummaries[stage] = { pending: 0, inProgress: 0, failed: 0 };
+  }
+  let totalCards = 0;
+  let activeCards = 0;
+  let deletedCards = 0;
+  let createdLastSevenDays = 0;
+  let createdLastThirtyDays = 0;
+  let missingAiMetadata = 0;
+  let pendingEnrichment = 0;
+  let failedCards = 0;
+  const missingCards: MissingCardSummary[] = [];
+  const uniqueUsers = new Set<string>();
+
+  const countStages = (card: OverviewCardRow) => {
+    const processing = card.processingStatus;
+    if (!processing) {
+      return;
+    }
+    let hasFailure = false;
+    let isRunning = false;
+    for (const stage of OVERVIEW_STAGES) {
+      const status = processing[stage]?.status;
+      if (status === "failed") {
+        stageSummaries[stage].failed += 1;
+        hasFailure = true;
+      } else if (status === "pending") {
+        stageSummaries[stage].pending += 1;
+        isRunning = true;
+      } else if (status === "in_progress") {
+        stageSummaries[stage].inProgress += 1;
+        isRunning = true;
+      }
+    }
+    if (hasFailure && !card.deleted) {
+      failedCards += 1;
+    }
+    if (isRunning && !card.deleted) {
+      pendingEnrichment += 1;
+    }
+  };
+
+  const add = (card: OverviewCardRow) => {
+    const isDeleted = card.deleted;
+    totalCards += 1;
+    if (isDeleted) {
+      deletedCards += 1;
+    } else {
+      activeCards += 1;
+      metadataStatus[card.metadataStatus ?? "unset"] += 1;
+      if (card.createdAt >= sevenDaysAgo) {
+        createdLastSevenDays += 1;
+      }
+      if (card.createdAt >= thirtyDaysAgo) {
+        createdLastThirtyDays += 1;
+      }
+    }
+    uniqueUsers.add(card.userId);
+    cardsByType[card.type] = (cardsByType[card.type] ?? 0) + 1;
+
+    const reasons: string[] = [];
+    if (!(card.hasAiSummary || card.hasAiTags || card.hasAiTranscript)) {
+      if (!isDeleted) {
+        missingAiMetadata += 1;
+      }
+      reasons.push("AI metadata missing");
+    }
+    if (!card.hasAiSummary) {
+      reasons.push("AI summary missing");
+    }
+    if (!card.hasAiTags) {
+      reasons.push("AI tags missing");
+    }
+    if (card.type === "link" && card.metadataStatus === "pending") {
+      reasons.push("Link metadata still pending");
+    }
+    if (
+      !isDeleted &&
+      reasons.length > 0 &&
+      missingCards.length < MAX_MISSING_CARDS
+    ) {
+      missingCards.push({
+        cardId: card.cardId,
+        type: card.type,
+        createdAt: card.createdAt,
+        ...(card.metadataStatus ? { metadataStatus: card.metadataStatus } : {}),
+        ...(card.processingStatus
+          ? { processingStatus: card.processingStatus }
+          : {}),
+        reasons,
+      });
+    }
+    countStages(card);
+  };
+
+  const finish = (isApproximate: boolean): AdminOverview => ({
+    generatedAt: now,
+    totals: {
+      totalCards,
+      activeCards,
+      deletedCards,
+      uniqueUsers: uniqueUsers.size,
+    },
+    growth: { createdLastSevenDays, createdLastThirtyDays },
+    cardsByType,
+    metadataStatus,
+    aiPipeline: {
+      missingAiMetadata,
+      pendingEnrichment,
+      failedCards,
+      stageSummaries,
+      missingCards,
+    },
+    isApproximate,
+  });
+
+  return { add, finish };
+};

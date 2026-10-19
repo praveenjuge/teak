@@ -42,11 +42,13 @@ export const CRONS = {
     everyMs: DAY_MS,
     runsOn: "convex",
   },
+  // After the AI usage rollup has finalized yesterday; shares card cleanup's
+  // Cron Trigger.
   adminDailySnapshot: {
     name: "admin-daily-snapshot",
-    schedule: "45 0 * * *",
+    schedule: "0 2 * * *",
     everyMs: DAY_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   cleanupOldDeletedCards: {
     name: "cleanup-old-deleted-cards",
@@ -86,6 +88,13 @@ export const CRONS = {
   },
   reconcileWorkflows: {
     name: "reconcile-workflows",
+    schedule: "45 * * * *",
+    everyMs: HOUR_MS,
+    runsOn: "cloudflare",
+  },
+  // Shares the reconcile's Cron Trigger.
+  adminOverview: {
+    name: "admin-overview",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
     runsOn: "cloudflare",

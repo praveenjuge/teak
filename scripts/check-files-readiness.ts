@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
+import { MAINTENANCE_TASKS } from "../packages/files-protocol/src/workflows";
 
 const required = [
   "extract-animation-palette",
@@ -80,6 +81,7 @@ for (;;) {
         fetcher?: boolean;
         images?: boolean;
         importModes?: string[];
+        maintenanceTasks?: string[];
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -101,7 +103,10 @@ for (;;) {
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
-      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
+      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode)) &&
+      MAINTENANCE_TASKS.every((task) =>
+        result.data?.maintenanceTasks?.includes(task)
+      );
   } catch (error) {
     failedWith =
       error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)

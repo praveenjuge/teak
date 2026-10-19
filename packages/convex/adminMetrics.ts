@@ -1,6 +1,6 @@
+import { adminSnapshotInstanceId } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
@@ -9,27 +9,29 @@ import {
   internalQuery,
   query,
 } from "./_generated/server";
-import {
-  ensureAdmin,
-  isAutoInternalAccount,
-  readAdminSettings,
-} from "./adminAccess";
+import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
 import { createPolarClient, readCustomerSubscriptions } from "./adminBilling";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
+  autoInternalUserIds,
   buildRetentionCohorts,
   type CohortMember,
   DAY_MS,
   type FunnelMember,
+  type MetricsCardRow,
+  type MetricsUserRow,
+  type SnapshotBilling,
+  snapshotBilling,
+  snapshotDay,
   startOfUtcDay,
   startOfUtcWeek,
   summarizeFunnel,
-  summarizeSubscriptions,
   utcDay,
 } from "./adminStats";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
+import { queueMaintenanceWorkflow } from "./workflowDispatch";
 
 const USER_PAGE = 1000;
 const CARD_PAGE = 500;
@@ -40,7 +42,6 @@ const COHORT_WEEKS = 12;
 const COHORT_LIMIT = 3000;
 const COHORT_BATCH = 20;
 const RECENT_SIGNUPS = 50;
-const TOP_STORAGE = 20;
 const SNAPSHOT_LIST_LIMIT = 400;
 
 interface Page<T> {
@@ -49,20 +50,8 @@ interface Page<T> {
   rows: T[];
 }
 
-interface UserRow {
-  createdAt: number;
-  deleted: boolean;
-  email: string;
-  isAdmin: boolean;
-  teakUserId: string;
-}
-
-interface CardRow {
-  createdAt: number;
-  deleted: boolean;
-  fileSize: number;
-  userId: string;
-}
+type UserRow = MetricsUserRow;
+type CardRow = MetricsCardRow;
 
 export const usersPage = internalQuery({
   args: {
@@ -145,14 +134,7 @@ const flagAutoInternal = async (
   ctx: Pick<ActionCtx, "runMutation">,
   users: UserRow[]
 ) => {
-  const ids = users
-    .filter((user) =>
-      isAutoInternalAccount({
-        email: user.email,
-        role: user.isAdmin ? "admin" : undefined,
-      })
-    )
-    .map((user) => user.teakUserId);
+  const ids = autoInternalUserIds(users);
   let flagged = 0;
   for (let i = 0; i < ids.length; i += FLAG_BATCH) {
     flagged += await ctx.runMutation(
@@ -181,139 +163,65 @@ const readInternalIds = async (
   return new Set(ids);
 };
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const billingValidator = v.object({
+  currency: v.string(),
+  mrr: v.number(),
+  mrrAtRisk: v.number(),
+  netMrr: v.number(),
+  paying: v.number(),
+  trialing: v.number(),
+  pastDue: v.number(),
+  canceling: v.number(),
+});
 
-// Billing is only recorded when the day is yesterday or today, since Polar
-// only reports the present.
-export const captureDailySnapshot = internalAction({
-  args: { date: v.optional(v.string()) },
-  handler: async (ctx, { date }): Promise<{ date: string }> => {
-    const now = Date.now();
-    const day = date ?? utcDay(now - DAY_MS);
-    if (!DATE_PATTERN.test(day)) {
-      throw new Error("Snapshot date must be YYYY-MM-DD");
-    }
-    const dayStart = Date.parse(`${day}T00:00:00.000Z`);
-    const dayEnd = dayStart + DAY_MS;
-    if (Number.isNaN(dayStart) || dayStart > now) {
-      throw new Error("Snapshot date must not be in the future");
-    }
-
-    const users = await readUsers(ctx);
-    await flagAutoInternal(ctx, users.rows);
-    const internalIds = await readInternalIds(ctx);
-    const customers = users.rows.filter(
-      (user) => !internalIds.has(user.teakUserId)
-    );
-    const accounts = customers.filter(
-      (user) => !user.deleted && user.createdAt < dayEnd
-    ).length;
-    const signups = customers.filter(
-      (user) => user.createdAt >= dayStart && user.createdAt < dayEnd
-    ).length;
-
-    const cards = await readCards(ctx);
-    let totalCards = 0;
-    let cardsSaved = 0;
-    let storageBytes = 0;
-    let storageBytesAdded = 0;
-    const savers1d = new Set<string>();
-    const savers7d = new Set<string>();
-    const savers28d = new Set<string>();
-    const storageByUser = new Map<string, number>();
-    for (const card of cards.rows) {
-      if (internalIds.has(card.userId) || card.createdAt >= dayEnd) {
-        continue;
-      }
-      if (!card.deleted) {
-        totalCards += 1;
-        storageBytes += card.fileSize;
-        if (card.fileSize > 0) {
-          storageByUser.set(
-            card.userId,
-            (storageByUser.get(card.userId) ?? 0) + card.fileSize
-          );
-        }
-      }
-      if (card.createdAt >= dayStart) {
-        cardsSaved += 1;
-        storageBytesAdded += card.fileSize;
-        savers1d.add(card.userId);
-      }
-      if (card.createdAt >= dayEnd - 7 * DAY_MS) {
-        savers7d.add(card.userId);
-      }
-      if (card.createdAt >= dayEnd - 28 * DAY_MS) {
-        savers28d.add(card.userId);
-      }
-    }
-    const topStorage = [...storageByUser.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, TOP_STORAGE)
-      .map(([teakUserId, bytes]) => ({ teakUserId, bytes }));
-
-    const usage: Array<{ userId: string; calls: number; costUsd: number }> =
-      await ctx.runQuery(internal.adminUsage.usageForDay, { date: day });
-    let aiCostUsd = 0;
-    let aiCalls = 0;
-    for (const row of usage) {
-      if (!internalIds.has(row.userId)) {
-        aiCostUsd += row.costUsd;
-        aiCalls += row.calls;
-      }
-    }
-
-    let billing: Doc<"adminDailyMetrics">["billing"];
-    let billingComplete = true;
+/**
+ * The daily snapshot's billing line. The Files Worker counts everything else
+ * (`admin-snapshot` maintenance task); Polar's token stays in Convex.
+ */
+export const readSnapshotBilling = internalAction({
+  args: {},
+  returns: v.object({
+    billing: v.union(billingValidator, v.null()),
+    isComplete: v.boolean(),
+  }),
+  handler: async (
+    ctx
+  ): Promise<{ billing: SnapshotBilling | null; isComplete: boolean }> => {
     const polar = createPolarClient();
-    if (polar && now - dayEnd < DAY_MS) {
-      const { subscriptions, isComplete } = await readCustomerSubscriptions(
-        ctx,
-        polar
-      );
-      billingComplete = isComplete;
-      const summary = summarizeSubscriptions(subscriptions);
-      const currency =
-        "usd" in summary.revenue
-          ? "usd"
-          : (Object.keys(summary.revenue)[0] ?? "usd");
-      const revenue = summary.revenue[currency];
-      billing = {
-        currency,
-        mrr: revenue?.mrr ?? 0,
-        mrrAtRisk: revenue?.mrrAtRisk ?? 0,
-        netMrr: revenue?.netMrr ?? 0,
-        paying: summary.paying,
-        trialing: summary.trialing,
-        pastDue: summary.pastDue,
-        canceling: summary.canceling,
-      };
+    if (!polar) {
+      return { billing: null, isComplete: true };
     }
+    const { subscriptions, isComplete } = await readCustomerSubscriptions(
+      ctx,
+      polar
+    );
+    return { billing: snapshotBilling(subscriptions), isComplete };
+  },
+});
 
-    await ctx.runMutation(internal.adminMetrics.writeSnapshot, {
-      snapshot: {
-        date: day,
-        capturedAt: now,
-        accounts,
-        signups,
-        cardsSaved,
-        totalCards,
-        activeSavers1d: savers1d.size,
-        activeSavers7d: savers7d.size,
-        activeSavers28d: savers28d.size,
-        storageBytes,
-        storageBytesAdded,
-        aiCostUsd,
-        aiCalls,
-        ...(billing ? { billing } : {}),
-        topStorage,
-        isApproximate: !(
-          users.isComplete &&
-          cards.isComplete &&
-          billingComplete
-        ),
-      },
+/**
+ * Starts the Files Worker's snapshot of `date` (yesterday by default). The
+ * row lands in `adminDailyMetrics` when that run finishes.
+ */
+export const queueSnapshot = internalMutation({
+  args: {
+    actor: v.optional(v.object({ teakUserId: v.string(), email: v.string() })),
+    date: v.optional(v.string()),
+  },
+  returns: v.object({ date: v.string() }),
+  handler: async (ctx, { actor, date }) => {
+    const now = Date.now();
+    const { day } = snapshotDay(date, now);
+    await queueMaintenanceWorkflow(ctx, adminSnapshotInstanceId(day, now), {
+      date: day,
+      task: "admin-snapshot",
     });
+    if (actor) {
+      await writeAudit(ctx, actor, {
+        action: "metrics.capture_snapshot",
+        details: { date: day },
+      });
+    }
     return { date: day };
   },
 });
@@ -332,18 +240,7 @@ const snapshotValidator = v.object({
   storageBytesAdded: v.number(),
   aiCostUsd: v.number(),
   aiCalls: v.number(),
-  billing: v.optional(
-    v.object({
-      currency: v.string(),
-      mrr: v.number(),
-      mrrAtRisk: v.number(),
-      netMrr: v.number(),
-      paying: v.number(),
-      trialing: v.number(),
-      pastDue: v.number(),
-      canceling: v.number(),
-    })
-  ),
+  billing: v.optional(billingValidator),
   topStorage: v.array(v.object({ teakUserId: v.string(), bytes: v.number() })),
   isApproximate: v.boolean(),
 });
@@ -370,20 +267,16 @@ export const writeSnapshot = internalMutation({
   },
 });
 
+// The snapshot is counted by the Files Worker, so it lands shortly after
+// this returns rather than before.
 export const captureSnapshot = action({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, { date }): Promise<{ date: string }> => {
     const actor = await ensureAdmin(ctx);
-    const result: { date: string } = await ctx.runAction(
-      internal.adminMetrics.captureDailySnapshot,
-      date === undefined ? {} : { date }
-    );
-    await ctx.runMutation(internal.adminAccess.recordAudit, {
+    return await ctx.runMutation(internal.adminMetrics.queueSnapshot, {
       actor,
-      action: "metrics.capture_snapshot",
-      details: { date: result.date },
+      ...(date === undefined ? {} : { date }),
     });
-    return result;
   },
 });
 
