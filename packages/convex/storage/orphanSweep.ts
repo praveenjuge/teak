@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { importStagedPartKeys } from "../import/indexItems";
+import { buildR2UserPrefix } from "./r2";
 import { buildR2ListPrefix } from "./r2Keys";
 
 const LINKED_PDF_CLAIM_LIVE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -93,6 +95,13 @@ export const collectNonCardReferencedKeys = internalQuery({
       if (job.reportKey) {
         keys.push(job.reportKey);
       }
+      keys.push(
+        ...importStagedPartKeys(
+          buildR2UserPrefix(job.userId),
+          job._id,
+          job.stagedItems
+        )
+      );
     }
     const liveSince = Date.now() - LINKED_PDF_CLAIM_LIVE_MS;
     for (const status of ["pending", "failed"] as const) {

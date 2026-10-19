@@ -10,6 +10,8 @@ import {
   type ImportIndexItem,
   importFileKey,
   importReportKey,
+  importStagedPartKey,
+  importStagedPartKeys,
   importStoredContentType,
   normalizeIndexItem,
 } from "@teak/convex/import/indexItems";
@@ -21,6 +23,7 @@ import type {
   FilesImportMarkdownResult,
 } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
+import { sha256Hex } from "../lib";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
 import {
@@ -50,6 +53,13 @@ export type ImportOutcome = "canceled" | "completed" | "failed";
 type WorkflowJob = NonNullable<
   FunctionReturnType<typeof internal.dataImport.getWorkflowJob>
 >;
+type StagedState = NonNullable<WorkflowJob["stagedItems"]>;
+
+/** An item read from the source that is waiting to become a card. */
+export type StagedItem = Omit<
+  Extract<ImportIndexItem, { status: "pending" }>,
+  "status"
+>;
 
 interface PendingItem {
   _id: Id<"importJobItems">;
@@ -57,6 +67,12 @@ interface PendingItem {
   fileName?: string;
   filePath?: string;
   mimeType?: string;
+}
+
+interface ExtractEntry {
+  contentType: string;
+  destinationKey: string;
+  path: string;
 }
 
 type Outcome<T = object> =
@@ -77,15 +93,57 @@ const IMPORT_STEP: StepConfig = {
 const FINALIZE_STEP = retryConfig(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
+/** Staged items are written to R2 in objects of about this size. */
+export const STAGED_PART_BYTES = 8 * 1024 * 1024;
 const MARKDOWN_READS_AT_ONCE = 8;
 const REPORT_PAGE_SIZE = 200;
 const UNCLAIMED_PAGE_SIZE = 200;
+const encoder = new TextEncoder();
 
 const reportLabel = (text: string) =>
   text.length > 1024 ? `${text.slice(0, 1024)}…` : text;
 
 const failureClassOf = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message.slice(0, 160) : fallback;
+
+const jsonBytes = (value: unknown) =>
+  encoder.encode(JSON.stringify(value)).byteLength;
+
+/** Splits items into runs of at most `maxBytes` of JSON (and `maxItems`). */
+const chunkByBytes = <T>(
+  items: T[],
+  maxBytes: number,
+  maxItems = Number.POSITIVE_INFINITY
+): T[][] => {
+  const chunks: T[][] = [];
+  let current: T[] = [];
+  let bytes = 0;
+  for (const item of items) {
+    const size = jsonBytes(item);
+    if (
+      current.length &&
+      (bytes + size > maxBytes || current.length >= maxItems)
+    ) {
+      chunks.push(current);
+      current = [];
+      bytes = 0;
+    }
+    current.push(item);
+    bytes += size;
+  }
+  if (current.length) {
+    chunks.push(current);
+  }
+  return chunks;
+};
+
+/** Cross-page duplicate URLs are tracked by a short hash, not the URL. */
+const urlKey = async (url: string) => (await sha256Hex(url)).slice(0, 32);
+
+const withoutStatus = <T extends { status: string }>({
+  status: _status,
+  ...rest
+}: T): Omit<T, "status"> => rest;
 
 export const runImport = (
   run: WorkflowRun<ImportParams>,
@@ -94,6 +152,7 @@ export const runImport = (
   const { convex, ops } = resolveDeps(run, deps);
   const { env, step } = run;
   const jobId = run.params.jobId as Id<"importJobs">;
+  const bucket = () => gatedEnv(env).BUCKET;
 
   const loadJob = () =>
     convex.query(internal.dataImport.getWorkflowJob, { jobId });
@@ -173,65 +232,56 @@ export const runImport = (
     return outcome.data;
   };
 
-  const storeItems = async (items: ImportIndexItem[]) => {
-    for (let index = 0; index < items.length; index += IMPORT_INDEX_BATCH) {
-      await convex.mutation(internal.dataImport.insertItems, {
-        items: items.slice(index, index + IMPORT_INDEX_BATCH),
-        jobId,
-      });
+  /**
+   * Reads one source page as import items. `seen` holds the URLs of the
+   * page's items that were importable before any Markdown was read: a later
+   * item with one of them is a duplicate.
+   */
+  const readPage = async (
+    job: WorkflowJob,
+    sourceEtag: string,
+    cursor: number,
+    { markdown = true } = {}
+  ) => {
+    const page = await readIndexPage(job, cursor, sourceEtag);
+    assertImportCardCount(page.total, job.mode as ImportMode);
+    if (page.sourceEtag !== sourceEtag) {
+      throw new Error("source_changed");
     }
-  };
-
-  const indexPage = async (
-    cursor: number
-  ): Promise<Outcome<{ nextCursor?: number }>> => {
-    const job = await loadJob();
-    if (!job) {
-      return { failureClass: "missing_job", ok: false };
+    if (page.nextCursor !== null && page.nextCursor <= cursor) {
+      throw new Error("invalid_import_cursor");
     }
-    try {
-      const sourceEtag = await bindSourceVersion(job);
-      const current = await loadJob();
-      if (!current || current.cancelRequested) {
-        return { ok: true };
+    const seen = new Set<string>();
+    const items: ImportIndexItem[] = page.items.map((raw) => {
+      if (raw.error) {
+        return {
+          content: (raw.label ?? `Item ${raw.sourceIndex + 1}`).slice(
+            0,
+            100_000
+          ),
+          failureCode:
+            job.mode === "archive" ? "INVALID_ITEM" : "INVALID_BOOKMARK",
+          failureReason: raw.error,
+          sourceIndex: raw.sourceIndex,
+          status: "failed" as const,
+          type: "text" as const,
+        };
       }
-      const page = await readIndexPage(job, cursor, sourceEtag);
-      assertImportCardCount(page.total, job.mode as ImportMode);
-      if (page.sourceEtag !== sourceEtag) {
-        throw new Error("source_changed");
+      const entries = new Map<string, { uncompressedSize: number }>();
+      if (raw.file) {
+        entries.set(raw.file.path, raw.file);
       }
-      const seen = new Set<string>();
-      const normalized: ImportIndexItem[] = page.items.map((raw) => {
-        if (raw.error) {
-          return {
-            content: (raw.label ?? `Item ${raw.sourceIndex + 1}`).slice(
-              0,
-              100_000
-            ),
-            failureCode:
-              job.mode === "archive" ? "INVALID_ITEM" : "INVALID_BOOKMARK",
-            failureReason: raw.error,
-            sourceIndex: raw.sourceIndex,
-            status: "failed" as const,
-            type: "text" as const,
-          };
-        }
-        const entries = new Map<string, { uncompressedSize: number }>();
-        if (raw.file) {
-          entries.set(raw.file.path, raw.file);
-        }
-        return normalizeIndexItem(raw.card, raw.sourceIndex, entries, seen);
-      });
-      const pending: ImportIndexItem[] = [];
-      let pendingBytes = 0;
-      for (
-        let offset = 0;
-        offset < normalized.length;
-        offset += MARKDOWN_READS_AT_ONCE
-      ) {
-        const batch = normalized.slice(offset, offset + MARKDOWN_READS_AT_ONCE);
-        await Promise.all(
-          batch.map(async (item) => {
+      return normalizeIndexItem(raw.card, raw.sourceIndex, entries, seen);
+    });
+    for (
+      let offset = 0;
+      markdown && offset < items.length;
+      offset += MARKDOWN_READS_AT_ONCE
+    ) {
+      await Promise.all(
+        items
+          .slice(offset, offset + MARKDOWN_READS_AT_ONCE)
+          .map(async (item) => {
             if (
               item.status === "pending" &&
               item.type === "document" &&
@@ -239,13 +289,9 @@ export const runImport = (
               item.fileName &&
               isMarkdownFileName(item.fileName)
             ) {
-              const markdown = await readMarkdown(
-                job,
-                sourceEtag,
-                item.filePath
-              );
-              Object.assign(item, markdown);
-              if ("type" in markdown && markdown.type === "text") {
+              const read = await readMarkdown(job, sourceEtag, item.filePath);
+              Object.assign(item, read);
+              if ("type" in read && read.type === "text") {
                 item.filePath = undefined;
                 item.fileName = undefined;
                 item.fileSize = undefined;
@@ -253,27 +299,17 @@ export const runImport = (
               }
             }
           })
-        );
-        for (const item of batch) {
-          const itemBytes = new TextEncoder().encode(
-            JSON.stringify(item)
-          ).byteLength;
-          if (pending.length && pendingBytes + itemBytes > INSERT_BATCH_BYTES) {
-            await storeItems(pending);
-            pending.length = 0;
-            pendingBytes = 0;
-          }
-          pending.push(item);
-          pendingBytes += itemBytes;
-        }
-      }
-      await storeItems(pending);
-      if (page.nextCursor !== null && page.nextCursor <= cursor) {
-        throw new Error("invalid_import_cursor");
-      }
-      return page.nextCursor === null
-        ? { ok: true }
-        : { nextCursor: page.nextCursor, ok: true };
+      );
+    }
+    return { items, nextCursor: page.nextCursor, seen };
+  };
+
+  /** Runs `read` for a page, turning a non-transient error into a failure. */
+  const indexing = async <T>(
+    read: () => Promise<Outcome<T>>
+  ): Promise<Outcome<T>> => {
+    try {
+      return await read();
     } catch (error) {
       if (isTransientError(error)) {
         throw error;
@@ -286,50 +322,203 @@ export const runImport = (
     }
   };
 
+  const storeItems = async (items: ImportIndexItem[]) => {
+    for (let index = 0; index < items.length; index += IMPORT_INDEX_BATCH) {
+      await convex.mutation(internal.dataImport.insertItems, {
+        items: items.slice(index, index + IMPORT_INDEX_BATCH),
+        jobId,
+      });
+    }
+  };
+
+  /** Legacy staging: a job queued before `stagedItems` stores rows. */
+  const indexPage = async (
+    cursor: number
+  ): Promise<Outcome<{ nextCursor?: number }>> => {
+    const job = await loadJob();
+    if (!job) {
+      return { failureClass: "missing_job", ok: false };
+    }
+    return await indexing<{ nextCursor?: number }>(async () => {
+      const sourceEtag = await bindSourceVersion(job);
+      const current = await loadJob();
+      if (!current || current.cancelRequested) {
+        return { ok: true };
+      }
+      const page = await readPage(job, sourceEtag, cursor);
+      for (const chunk of chunkByBytes(page.items, INSERT_BATCH_BYTES)) {
+        await storeItems(chunk);
+      }
+      return page.nextCursor === null
+        ? { ok: true }
+        : { nextCursor: page.nextCursor, ok: true };
+    });
+  };
+
+  /**
+   * Indexes source page `page` into staged R2 parts. Convex records the
+   * page's counts and its failed items, and the number of parts, before the
+   * parts are written; a retry after that writes the same parts again.
+   */
+  const indexStagedPage = async (
+    page: number,
+    cursor: number,
+    seenBefore: ReadonlySet<string>
+  ): Promise<Outcome<{ nextCursor?: number; urls: string[] }>> => {
+    const job = await loadJob();
+    if (!job?.stagedItems) {
+      return { failureClass: "missing_job", ok: false };
+    }
+    const staged = job.stagedItems;
+    let parts: StagedItem[][] = [];
+    let firstPart = 0;
+    const indexed = await indexing<{ nextCursor?: number; urls: string[] }>(
+      async () => {
+        const sourceEtag = await bindSourceVersion(job);
+        const current = await loadJob();
+        if (!current || current.cancelRequested) {
+          return { ok: true, urls: [] };
+        }
+        if (staged.pages !== page && staged.pages !== page - 1) {
+          throw new Error("staged_page_out_of_order");
+        }
+        const read = await readPage(job, sourceEtag, cursor);
+        const urls = await Promise.all([...read.seen].map(urlKey));
+        const pending: StagedItem[] = [];
+        const failed: ImportIndexItem[] = [];
+        let skipped = 0;
+        for (const item of read.items) {
+          if (
+            item.status === "pending" &&
+            item.url &&
+            seenBefore.has(await urlKey(item.url))
+          ) {
+            Object.assign(item, {
+              failureCode: "SOURCE_DUPLICATE",
+              failureReason: "Duplicate URL in import file",
+              status: "skipped",
+            });
+          }
+          if (item.status === "pending") {
+            pending.push(withoutStatus(item));
+          } else if (item.status === "failed") {
+            failed.push(item);
+          } else {
+            skipped += 1;
+          }
+        }
+        parts = chunkByBytes(pending, STAGED_PART_BYTES);
+        firstPart =
+          staged.pages === page
+            ? staged.parts - parts.length + 1
+            : staged.parts + 1;
+        for (const chunk of chunkByBytes(
+          failed,
+          INSERT_BATCH_BYTES,
+          IMPORT_INDEX_BATCH
+        )) {
+          await convex.mutation(internal.import.staging.recordFailures, {
+            items: chunk.map((item) => ({
+              ...withoutStatus(item),
+              failureCode: item.failureCode ?? "INVALID_ITEM",
+              failureReason: item.failureReason ?? "Import failed",
+            })),
+            jobId,
+          });
+        }
+        await convex.mutation(internal.import.staging.recordPage, {
+          cursor,
+          failed: failed.length,
+          jobId,
+          nextCursor: read.nextCursor,
+          page,
+          parsed: read.items.length,
+          parts: parts.length,
+          skipped,
+        });
+        return read.nextCursor === null
+          ? { ok: true, urls }
+          : { nextCursor: read.nextCursor, ok: true, urls };
+      }
+    );
+    // Outside `indexing`, so a failed write is retried rather than failing
+    // the import.
+    for (const [index, items] of (indexed.ok ? parts : []).entries()) {
+      await bucket().put(
+        importStagedPartKey(job.userKeyPrefix, jobId, firstPart + index),
+        JSON.stringify({ items }),
+        { httpMetadata: { contentType: "application/json" } }
+      );
+    }
+    return indexed;
+  };
+
+  /**
+   * A new run of a job that was indexing: rebuilds the URLs of the pages
+   * before the last recorded one, and finds where that page starts, so it
+   * can be staged again in case its parts were never written.
+   */
+  const resumeStagedIndex = (
+    pages: number
+  ): Promise<Outcome<{ cursor: number; urls: string[] }>> =>
+    indexing<{ cursor: number; urls: string[] }>(async () => {
+      const job = await loadJob();
+      if (!job) {
+        return { failureClass: "missing_job", ok: false };
+      }
+      const sourceEtag = await bindSourceVersion(job);
+      const urls: string[] = [];
+      let cursor = 0;
+      for (let page = 1; page < pages; page += 1) {
+        const read = await readPage(job, sourceEtag, cursor, {
+          markdown: false,
+        });
+        if (read.nextCursor === null) {
+          throw new Error("invalid_import_cursor");
+        }
+        urls.push(...(await Promise.all([...read.seen].map(urlKey))));
+        cursor = read.nextCursor;
+      }
+      return { cursor, ok: true, urls };
+    });
+
   const extractFiles = async (
     job: WorkflowJob,
-    items: PendingItem[]
+    entries: ExtractEntry[],
+    onExtracted: (entry: ExtractEntry) => Promise<void> = () =>
+      Promise.resolve()
   ): Promise<Outcome> => {
     if (job.mode !== "archive") {
       return { failureClass: "missing_archive", ok: false };
     }
     const needed = new Map(
-      items.map((item) => [item.filePath as string, item] as const)
+      entries.map((entry) => [entry.destinationKey, entry] as const)
     );
     try {
       const sourceEtag = await bindSourceVersion(job);
-      const entries = [...needed.values()].map((item) => ({
-        contentType: importStoredContentType(item),
-        destinationKey: importFileKey(
-          job.userKeyPrefix,
-          jobId,
-          item._id,
-          item.fileName ?? "file"
-        ),
-        path: item.filePath as string,
-      }));
-      for (const entry of entries) {
+      for (const entry of needed.values()) {
         await ensureOwned(job.userId, entry.destinationKey);
       }
       const outcome = await ops<
         Array<{ destinationKey: string; path: string }>
       >({
         op: "extract-import-files",
-        params: { archiveKey: job.sourceKey, entries, sourceEtag },
+        params: {
+          archiveKey: job.sourceKey,
+          entries: [...needed.values()],
+          sourceEtag,
+        },
       });
       if (outcome.kind !== "ok") {
         throw new Error("file_extract_rejected");
       }
       for (const extracted of outcome.data) {
-        const item = needed.get(extracted.path);
-        if (!item) {
+        const entry = needed.get(extracted.destinationKey);
+        if (!entry) {
           throw new Error("unexpected_extracted_file");
         }
-        await convex.mutation(internal.dataImport.setExtractedFile, {
-          itemId: item._id,
-          key: extracted.destinationKey,
-        });
-        needed.delete(extracted.path);
+        await onExtracted(entry);
+        needed.delete(extracted.destinationKey);
       }
       return needed.size
         ? { failureClass: "missing_file_entry", ok: false }
@@ -345,6 +534,30 @@ export const runImport = (
     }
   };
 
+  const batchOutcome = (result: {
+    failureClass?: string;
+    limitReached: boolean;
+    retryAt?: number;
+  }): BatchOutcome | null => {
+    if (result.failureClass) {
+      return { failureClass: result.failureClass, kind: "failed" };
+    }
+    if (result.limitReached) {
+      return {
+        failureClass: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
+        kind: "failed",
+      };
+    }
+    if (result.retryAt) {
+      return {
+        delayMs: Math.max(1000, result.retryAt - Date.now()),
+        kind: "sleep",
+      };
+    }
+    return null;
+  };
+
+  /** Legacy staging: a job queued before `stagedItems` reads its rows. */
   const importBatches = async (): Promise<BatchOutcome> => {
     const startedAt = Date.now();
     for (;;) {
@@ -362,28 +575,42 @@ export const runImport = (
       const fileItems = items.filter(
         (item) => item.filePath && !item.extractedFileKey
       );
+      const byKey = new Map(
+        fileItems.map((item) => [
+          importFileKey(
+            job.userKeyPrefix,
+            jobId,
+            item._id,
+            item.fileName ?? "file"
+          ),
+          item,
+        ])
+      );
       const extracted = fileItems.length
-        ? await extractFiles(job, fileItems)
+        ? await extractFiles(
+            job,
+            [...byKey].map(([destinationKey, item]) => ({
+              contentType: importStoredContentType(item),
+              destinationKey,
+              path: item.filePath as string,
+            })),
+            async ({ destinationKey }) => {
+              await convex.mutation(internal.dataImport.setExtractedFile, {
+                itemId: (byKey.get(destinationKey) as PendingItem)._id,
+                key: destinationKey,
+              });
+            }
+          )
         : ({ ok: true } as const);
       if (extracted.ok) {
-        const result = await convex.mutation(
-          internal.dataImport.createPendingBatch,
-          { itemIds: items.map((item) => item._id), jobId }
+        const ended = batchOutcome(
+          await convex.mutation(internal.dataImport.createPendingBatch, {
+            itemIds: items.map((item) => item._id),
+            jobId,
+          })
         );
-        if (result.failureClass) {
-          return { failureClass: result.failureClass, kind: "failed" };
-        }
-        if (result.limitReached) {
-          return {
-            failureClass: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
-            kind: "failed",
-          };
-        }
-        if (result.retryAt) {
-          return {
-            delayMs: Math.max(1000, result.retryAt - Date.now()),
-            kind: "sleep",
-          };
+        if (ended) {
+          return ended;
         }
       } else {
         await convex.mutation(internal.dataImport.failItems, {
@@ -399,22 +626,162 @@ export const runImport = (
     }
   };
 
+  const stagedFileKey = (job: WorkflowJob, item: StagedItem) =>
+    importFileKey(
+      job.userKeyPrefix,
+      jobId,
+      `item-${String(item.sourceIndex)}`,
+      item.fileName ?? "file"
+    );
+
+  /** Reads staged parts, keeping the last one read. */
+  const stagedPartReader = (job: WorkflowJob) => {
+    let cached: { items: StagedItem[]; part: number } | undefined;
+    return async (part: number): Promise<StagedItem[]> => {
+      if (cached?.part !== part) {
+        const object = await bucket().get(
+          importStagedPartKey(job.userKeyPrefix, jobId, part)
+        );
+        if (!object) {
+          throw new Error("staged_part_missing");
+        }
+        cached = {
+          items: ((await object.json()) as { items: StagedItem[] }).items,
+          part,
+        };
+      }
+      return cached.items;
+    };
+  };
+
+  /** The next items to create, from the job's position, within one part. */
+  const nextStagedBatch = async (
+    staged: StagedState,
+    readPart: (part: number) => Promise<StagedItem[]>
+  ) => {
+    for (
+      let { part, offset } = staged;
+      part <= staged.parts;
+      part += 1, offset = 0
+    ) {
+      const items = await readPart(part);
+      if (offset < items.length) {
+        return {
+          items: items.slice(offset, offset + IMPORT_CARD_BATCH),
+          offset,
+          part,
+        };
+      }
+    }
+    return null;
+  };
+
+  const importStagedBatches = async (): Promise<BatchOutcome> => {
+    const startedAt = Date.now();
+    let readPart: ((part: number) => Promise<StagedItem[]>) | undefined;
+    for (;;) {
+      const job = await loadJob();
+      if (!job?.stagedItems || job.cancelRequested) {
+        return { kind: "canceled" };
+      }
+      readPart ??= stagedPartReader(job);
+      const batch = await nextStagedBatch(job.stagedItems, readPart);
+      if (!batch) {
+        return { kind: "done" };
+      }
+      const fileItems = batch.items.filter((item) => item.filePath);
+      const extracted = fileItems.length
+        ? await extractFiles(
+            job,
+            fileItems.map((item) => ({
+              contentType: importStoredContentType(item),
+              destinationKey: stagedFileKey(job, item),
+              path: item.filePath as string,
+            }))
+          )
+        : ({ ok: true } as const);
+      const items = batch.items.map((item) => {
+        if (!item.filePath) {
+          return item;
+        }
+        const withFile = {
+          ...item,
+          extractedFileKey: stagedFileKey(job, item),
+        };
+        return extracted.ok
+          ? withFile
+          : {
+              ...withFile,
+              failureCode: "FILE_EXTRACT_FAILED",
+              failureReason: extracted.failureClass,
+            };
+      });
+      const ended = batchOutcome(
+        await convex.mutation(internal.import.staging.createBatch, {
+          from: {
+            offset: job.stagedItems.offset,
+            part: job.stagedItems.part,
+          },
+          items,
+          jobId,
+          offset: batch.offset,
+          part: batch.part,
+        })
+      );
+      if (ended) {
+        return ended;
+      }
+      if (!withinBudget(startedAt)) {
+        return { kind: "more" };
+      }
+    }
+  };
+
+  /** Files extracted for the batch at the job's position, never created. */
+  const unclaimedStagedFiles = async (job: WorkflowJob): Promise<string[]> => {
+    if (!job.stagedItems) {
+      return [];
+    }
+    try {
+      const batch = await nextStagedBatch(
+        job.stagedItems,
+        stagedPartReader(job)
+      );
+      return (batch?.items ?? []).flatMap((item) =>
+        item.filePath ? [stagedFileKey(job, item)] : []
+      );
+    } catch {
+      // A finalize retried after its parts were deleted.
+      return [];
+    }
+  };
+
   const finalizeObjects = async (): Promise<{ reportKey?: string }> => {
     const job = await loadJob();
     if (!job) {
       return {};
     }
     const keys = [job.sourceKey];
-    let cursor: string | null = null;
-    do {
-      const files: { continueCursor: string; isDone: boolean; keys: string[] } =
-        await convex.query(internal.dataImport.getUnclaimedFileKeysPage, {
+    if (job.stagedItems) {
+      keys.push(
+        ...(await unclaimedStagedFiles(job)),
+        ...importStagedPartKeys(job.userKeyPrefix, jobId, job.stagedItems)
+      );
+    } else {
+      let cursor: string | null = null;
+      do {
+        const files: {
+          continueCursor: string;
+          isDone: boolean;
+          keys: string[];
+        } = await convex.query(internal.dataImport.getUnclaimedFileKeysPage, {
           jobId,
           paginationOpts: { cursor, numItems: UNCLAIMED_PAGE_SIZE },
         });
-      keys.push(...files.keys);
-      cursor = files.isDone ? null : files.continueCursor;
-    } while (cursor);
+        keys.push(...files.keys);
+        cursor = files.isDone ? null : files.continueCursor;
+      } while (cursor);
+    }
     await queueObjectDeletions(env, keys, ops);
     if (job.failedCount === 0) {
       return {};
@@ -451,7 +818,7 @@ export const runImport = (
     } while (reportCursor);
     const reportKey = importReportKey(job.userKeyPrefix, jobId);
     await ensureOwned(job.userId, reportKey);
-    await gatedEnv(env).BUCKET.put(reportKey, lines.join("\n"), {
+    await bucket().put(reportKey, lines.join("\n"), {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
     });
     return { reportKey };
@@ -499,6 +866,63 @@ export const runImport = (
       )
     );
 
+  /** Indexes the source; returns the finished run when indexing failed. */
+  const indexSource = async (
+    staged: StagedState | undefined
+  ): Promise<{ status: ImportOutcome } | null> => {
+    if (!staged) {
+      let cursor = 0;
+      for (let page = 1; ; page += 1) {
+        const indexed = await step.do(`index page ${page}`, IMPORT_STEP, () =>
+          indexPage(cursor)
+        );
+        if (!indexed.ok) {
+          return finalize("failed", indexed.failureClass);
+        }
+        if (indexed.nextCursor === undefined) {
+          return null;
+        }
+        cursor = indexed.nextCursor;
+      }
+    }
+    let page = staged.pages;
+    let cursor = staged.cursor ?? 0;
+    const seen = new Set<string>();
+    if (page > 0) {
+      const resumed = await step.do("resume staged index", IMPORT_STEP, () =>
+        resumeStagedIndex(page)
+      );
+      if (!resumed.ok) {
+        return finalize("failed", resumed.failureClass);
+      }
+      for (const url of resumed.urls) {
+        seen.add(url);
+      }
+      cursor = resumed.cursor;
+      page -= 1;
+    }
+    for (;;) {
+      page += 1;
+      const pageNumber = page;
+      const pageCursor = cursor;
+      const indexed = await step.do(
+        `index page ${pageNumber}`,
+        IMPORT_STEP,
+        () => indexStagedPage(pageNumber, pageCursor, seen)
+      );
+      if (!indexed.ok) {
+        return finalize("failed", indexed.failureClass);
+      }
+      for (const url of indexed.urls) {
+        seen.add(url);
+      }
+      if (indexed.nextCursor === undefined) {
+        return null;
+      }
+      cursor = indexed.nextCursor;
+    }
+  };
+
   const body = async (): Promise<{ status: ImportOutcome }> => {
     const job = await step.do("load job", CONVEX_STEP, loadJob);
     if (!job) {
@@ -512,18 +936,9 @@ export const runImport = (
       if ((await setPhase("parsing", "Parsing import file")).canceled) {
         return finalize("canceled");
       }
-      let cursor = 0;
-      for (let page = 1; ; page += 1) {
-        const indexed = await step.do(`index page ${page}`, IMPORT_STEP, () =>
-          indexPage(cursor)
-        );
-        if (!indexed.ok) {
-          return finalize("failed", indexed.failureClass);
-        }
-        if (indexed.nextCursor === undefined) {
-          break;
-        }
-        cursor = indexed.nextCursor;
+      const failed = await indexSource(job.stagedItems);
+      if (failed) {
+        return failed;
       }
       if ((await setPhase("importing", "Importing cards")).canceled) {
         return finalize("canceled");
@@ -533,7 +948,7 @@ export const runImport = (
       const outcome = await step.do(
         `import cards ${round}`,
         IMPORT_STEP,
-        importBatches
+        job.stagedItems ? importStagedBatches : importBatches
       );
       switch (outcome.kind) {
         case "canceled":

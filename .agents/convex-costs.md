@@ -132,6 +132,19 @@ card ids in step state, so each exported card costs two document reads (one
 when it is snapshotted, one when the archive reads its contents), where the
 `exportJobItems` rows cost an insert, a delete and two more reads.
 
+Imports no longer stage every item in Convex. The Files Worker's import
+Workflow keeps the items it reads in R2 under the job's key namespace and
+creates cards from there; Convex keeps the `importJobs` row and one
+`importJobItems` row per failed item, which the failure samples and the
+report read. Per imported item that removes the row insert with its content
+(up to 100,000 characters, or a Markdown file of up to 512 KiB), its two
+index reads while staging, the pending-item read, the re-read and status
+patch when its card is made, the `setExtractedFile` mutation for an archive
+file, and the row delete at cleanup. Each source page of up to 100 items now
+costs one `recordPage` mutation (plus `recordFailures` when it has failed
+items), and card batches still cost one mutation per five items, now with
+the items in their arguments.
+
 AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.

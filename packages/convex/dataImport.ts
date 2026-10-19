@@ -5,27 +5,18 @@ import type { Doc } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
-  type MutationCtx,
   mutation,
   query,
 } from "./_generated/server";
 import { assertAccountNotDeleting } from "./accountDeletion";
-import { createCardForUserHandler } from "./card/createCard";
-import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
-import {
-  getOrCreateImportFolderIds,
-  newImportFolderCache,
-} from "./folder/folders";
+import { newImportFolderCache } from "./folder/folders";
 import {
   ACTIVE_IMPORT_STATUSES,
   IMPORT_FAILURE_SAMPLE_LIMIT,
   IMPORT_PART_BYTES,
 } from "./import/constants";
-import {
-  cardTypeValidator,
-  colorValidator,
-  importModeValidator,
-} from "./schema";
+import { createImportedCard, importItemFields } from "./import/items";
+import { importModeValidator, stagedItemsValidator } from "./schema";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { buildR2UserPrefix, queueObjectDeletion } from "./storage/r2";
 import { queueImportWorkflow } from "./workflowDispatch";
@@ -61,33 +52,12 @@ const summaryValidator = v.object({
 });
 
 const itemInputValidator = v.object({
-  sourceIndex: v.number(),
+  ...importItemFields,
   status: v.union(
     v.literal("pending"),
     v.literal("skipped"),
     v.literal("failed")
   ),
-  type: cardTypeValidator,
-  content: v.string(),
-  url: v.optional(v.string()),
-  tags: v.optional(v.array(v.string())),
-  notes: v.optional(v.string()),
-  isFavorited: v.optional(v.boolean()),
-  isArchived: v.optional(v.boolean()),
-  metadataTitle: v.optional(v.string()),
-  folders: v.optional(v.array(v.string())),
-  colors: v.optional(v.array(colorValidator)),
-  importedCreatedAt: v.optional(v.number()),
-  importedCompletedAt: v.optional(v.number()),
-  filePath: v.optional(v.string()),
-  fileName: v.optional(v.string()),
-  fileSize: v.optional(v.number()),
-  mimeType: v.optional(v.string()),
-  duration: v.optional(v.number()),
-  width: v.optional(v.number()),
-  height: v.optional(v.number()),
-  failureCode: v.optional(v.string()),
-  failureReason: v.optional(v.string()),
 });
 
 function summarize(job: Doc<"importJobs">) {
@@ -328,6 +298,7 @@ export const getWorkflowJob = internalQuery({
       skippedCount: v.number(),
       failedCount: v.number(),
       userKeyPrefix: v.string(),
+      stagedItems: v.optional(stagedItemsValidator),
     })
   ),
   handler: async (ctx, { jobId }) => {
@@ -347,6 +318,7 @@ export const getWorkflowJob = internalQuery({
       skippedCount: job.skippedCount,
       failedCount: job.failedCount,
       userKeyPrefix: buildR2UserPrefix(job.userId),
+      ...(job.stagedItems ? { stagedItems: job.stagedItems } : {}),
     };
   },
 });
@@ -379,6 +351,7 @@ export const markQueued = internalMutation({
       uploadId: undefined,
       uploadExpiresAt: undefined,
       uploadedParts: undefined,
+      stagedItems: { pages: 0, parts: 0, cursor: 0, part: 1, offset: 0 },
       workflowId: await queueImportWorkflow(ctx, jobId),
       updatedAt: Date.now(),
     });
@@ -412,6 +385,7 @@ export const setPhase = internalMutation({
   },
 });
 
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
 export const insertItems = internalMutation({
   args: { jobId: v.id("importJobs"), items: v.array(itemInputValidator) },
   returns: v.null(),
@@ -478,6 +452,7 @@ export const insertItems = internalMutation({
   },
 });
 
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
 export const getPendingItems = internalQuery({
   args: { jobId: v.id("importJobs"), limit: v.number() },
   returns: v.any(),
@@ -520,43 +495,9 @@ export const getUnclaimedFileKeysPage = internalQuery({
   },
 });
 
-function errorData(error: unknown) {
-  if (
-    error instanceof ConvexError &&
-    error.data &&
-    typeof error.data === "object"
-  ) {
-    return error.data as { code?: string; message?: string; retryAt?: number };
-  }
-  return { message: error instanceof Error ? error.message : "Import failed" };
-}
+export { importedBookmarkTitle } from "./import/items";
 
-export function importedBookmarkTitle(
-  mode: Doc<"importJobs">["mode"],
-  item: Pick<
-    Doc<"importJobItems">,
-    "content" | "metadataTitle" | "type" | "url"
-  >
-): string | undefined {
-  if (mode === "archive") {
-    return item.metadataTitle;
-  }
-  if (item.type !== "link" || !item.url) {
-    return;
-  }
-  const title = item.content.trim();
-  return title && title !== item.url ? title : undefined;
-}
-
-function existingUrl(ctx: MutationCtx, userId: string, url: string) {
-  return ctx.db
-    .query("cards")
-    .withIndex("by_user_url_deleted", (q) =>
-      q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
-    )
-    .first();
-}
-
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
 export const createPendingBatch = internalMutation({
   args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
   returns: v.object({
@@ -588,7 +529,14 @@ export const createPendingBatch = internalMutation({
       if (!item || item.jobId !== jobId || item.status !== "pending") {
         continue;
       }
-      if (item.url && (await existingUrl(ctx, job.userId, item.url))) {
+      const outcome = await createImportedCard(
+        ctx,
+        job,
+        userId,
+        item,
+        folderCache
+      );
+      if (outcome.kind === "duplicate") {
         await ctx.db.patch(itemId, {
           status: "skipped",
           failureCode: "DUPLICATE_URL",
@@ -598,90 +546,45 @@ export const createPendingBatch = internalMutation({
         skipped += 1;
         continue;
       }
-      try {
-        const cardId = await createCardForUserHandler(
-          ctx,
-          userId,
-          {
-            type: item.type,
-            content: item.content,
-            url: item.url,
-            tags: item.tags,
-            notes: item.notes,
-            colors: item.colors,
-            fileKey: item.extractedFileKey,
-            metadata: item.extractedFileKey
-              ? {
-                  fileName: item.fileName,
-                  fileSize: item.fileSize,
-                  mimeType: item.mimeType,
-                  duration: item.duration,
-                  width: item.width,
-                  height: item.height,
-                }
-              : undefined,
-          },
-          {
-            importedVisibleFields: {
-              createdAt: item.importedCreatedAt,
-              completedAt: item.importedCompletedAt,
-              isFavorited: item.isFavorited,
-              isArchived: item.isArchived === true,
-              metadataTitle: importedBookmarkTitle(job.mode, item),
-            },
-            source: "import",
-          }
-        );
-        if (item.folders?.length) {
-          const folderIds = await getOrCreateImportFolderIds(
-            ctx,
-            job.userId,
-            item.folders,
-            folderCache
-          );
-          if (folderIds.length) {
-            await patchCardWithSearchSync(ctx, cardId, { folderIds });
-          }
-        }
+      if (outcome.kind === "created") {
         await ctx.db.patch(itemId, {
           status: "created",
-          cardId,
+          cardId: outcome.cardId,
           updatedAt: Date.now(),
         });
         created += 1;
-      } catch (error) {
-        const data = errorData(error);
-        if (data.code === "RATE_LIMITED") {
-          await ctx.db.patch(jobId, {
-            processedCount: job.processedCount + created + skipped + failed,
-            createdCount: job.createdCount + created,
-            skippedCount: job.skippedCount + skipped,
-            failedCount: job.failedCount + failed,
-            phase: "Waiting for card rate limit",
-            updatedAt: Date.now(),
-          });
-          return {
-            retryAt: data.retryAt ?? Date.now() + 60_000,
-            limitReached: false,
-          };
-        }
-        await ctx.db.patch(itemId, {
-          status: "failed",
-          failureCode: data.code ?? "CREATE_FAILED",
-          failureReason: data.message ?? "Import failed",
+        continue;
+      }
+      if (outcome.code === "RATE_LIMITED") {
+        await ctx.db.patch(jobId, {
+          processedCount: job.processedCount + created + skipped + failed,
+          createdCount: job.createdCount + created,
+          skippedCount: job.skippedCount + skipped,
+          failedCount: job.failedCount + failed,
+          phase: "Waiting for card rate limit",
           updatedAt: Date.now(),
         });
-        failed += 1;
-        if (data.code === "CARD_LIMIT_REACHED") {
-          await ctx.db.patch(jobId, {
-            processedCount: job.processedCount + created + skipped + failed,
-            createdCount: job.createdCount + created,
-            skippedCount: job.skippedCount + skipped,
-            failedCount: job.failedCount + failed,
-            updatedAt: Date.now(),
-          });
-          return { limitReached: true };
-        }
+        return {
+          retryAt: outcome.retryAt ?? Date.now() + 60_000,
+          limitReached: false,
+        };
+      }
+      await ctx.db.patch(itemId, {
+        status: "failed",
+        failureCode: outcome.code ?? "CREATE_FAILED",
+        failureReason: outcome.message ?? "Import failed",
+        updatedAt: Date.now(),
+      });
+      failed += 1;
+      if (outcome.code === "CARD_LIMIT_REACHED") {
+        await ctx.db.patch(jobId, {
+          processedCount: job.processedCount + created + skipped + failed,
+          createdCount: job.createdCount + created,
+          skippedCount: job.skippedCount + skipped,
+          failedCount: job.failedCount + failed,
+          updatedAt: Date.now(),
+        });
+        return { limitReached: true };
       }
     }
     await ctx.db.patch(jobId, {
@@ -695,6 +598,7 @@ export const createPendingBatch = internalMutation({
   },
 });
 
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
 export const failItems = internalMutation({
   args: {
     jobId: v.id("importJobs"),
@@ -730,6 +634,7 @@ export const failItems = internalMutation({
   },
 });
 
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
 export const setExtractedFile = internalMutation({
   args: { itemId: v.id("importJobItems"), key: v.string() },
   returns: v.null(),
