@@ -98,16 +98,29 @@ past it `ingestEmail` records a dropped receipt. Each accepted attachment
 adds one finalize request (an HTTP action with its claim, card and done
 mutations). Attachment bytes never pass through Convex: the Worker PUTs them
 to the Files Worker's signed upload URLs, and Convex only mints those and
-finalizes. Receipts are pruned after 30 days by the daily
-`cleanup-inbound-email-receipts` cron.
+finalizes. Receipts are pruned after 30 days by the Files Worker's daily
+`cleanup-inbound-email-receipts` task.
 
 ## Scheduled and edge work on Cloudflare
 
-The Files Worker's Cron Triggers run the daily card and export cleanups, the
-weekly orphan sweep, the 6-hourly AI backfill, the hourly AI usage rollup and
-the hourly workflow reconcile (`apps/files-worker/src/cron.ts`); Convex keeps
-only the small hourly crons in `crons.ts`. `cronSchedules.ts` lists both, so
-the admin health view still shows every task. The hourly pending-upload sweep
+The Files Worker's Cron Triggers run the daily card and export cleanups and
+email receipt pruning, the weekly orphan sweep, the 6-hourly AI backfill, the
+hourly AI usage rollup, the hourly workflow reconcile and the hourly cleanups
+of the search caches, abandoned import uploads, expired upload sessions and
+(once enabled) idempotency records (`apps/files-worker/src/cron.ts`). Convex
+keeps only the WorkOS event catch-up, which needs the WorkOS API key, and the
+admin snapshot in `crons.ts`. `cronSchedules.ts` lists both, so the admin
+health view still shows every task.
+
+The moved cleanups no longer start a Node action every hour, and the two
+upload cleanups abort multipart uploads in the Worker instead of a Convex
+action calling the Worker's signed `abort-multipart` op. Convex still runs the
+table work: each page is one internal query or mutation called through the
+workflow RPC gateway, an HTTP action plus that function, where the old crons
+paid one call per page and continued themselves with the scheduler. A quiet
+hour costs about the same number of calls as before, without the action
+compute. Idempotency retention still continues itself in Convex once the
+Worker starts it, so its lease and bursts are unchanged. The hourly pending-upload sweep
 is gone: R2 event notifications delete each abandoned pending upload after a
 day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
 bucket. The `pendingUploadCleanupStates` table is unused; it stays in the

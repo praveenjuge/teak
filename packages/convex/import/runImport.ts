@@ -97,37 +97,3 @@ export const cleanupImportJob = internalAction({
     }
   ),
 });
-
-export const cleanupExpiredUploads = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: observeImport(
-    "import.cleanup_expired",
-    async (ctx, _args: Record<string, never>) => {
-      const jobs = await ctx.runQuery(internal.dataImport.findExpiredUploads, {
-        now: Date.now(),
-        limit: 50,
-      });
-      let failureCount = 0;
-      for (const job of jobs) {
-        try {
-          await abortImportUpload(job.sourceKey, job.uploadId);
-          await queueImportObjectDeletion(ctx, [job.sourceKey]);
-          await ctx.runMutation(internal.dataImport.finishJob, {
-            jobId: job._id,
-            status: "failed",
-            failureClass: "upload_expired",
-          });
-        } catch {
-          failureCount += 1;
-        }
-      }
-      if (failureCount) {
-        throw new Error(
-          `Import cleanup incomplete for ${failureCount} jobs; retry required`
-        );
-      }
-      return null;
-    }
-  ),
-});

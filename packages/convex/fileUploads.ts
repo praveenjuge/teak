@@ -4,13 +4,13 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
-  internalAction,
   internalMutation,
   internalQuery,
   mutation,
 } from "./_generated/server";
 import { ensureCardQuotaAvailable } from "./card/quota";
 import { validateDirectUploadRequest } from "./card/uploadCard";
+import { fileUploadSessionValidator } from "./schema";
 import { getSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {
@@ -380,13 +380,29 @@ export const completeMultipartUpload = action({
   },
 });
 
+/** The Files Worker's hourly cron aborts these uploads, then deletes them. */
 export const findExpiredSessions = internalQuery({
   args: { now: v.number(), limit: v.number() },
+  returns: v.array(
+    v.object({
+      _id: v.id("fileUploadSessions"),
+      sourceKey: v.string(),
+      status: fileUploadSessionValidator.fields.status,
+      uploadId: v.string(),
+    })
+  ),
   handler: async (ctx, { now, limit }) =>
-    await ctx.db
-      .query("fileUploadSessions")
-      .withIndex("by_expires_at", (query) => query.lt("expiresAt", now))
-      .take(Math.min(limit, 50)),
+    (
+      await ctx.db
+        .query("fileUploadSessions")
+        .withIndex("by_expires_at", (query) => query.lt("expiresAt", now))
+        .take(Math.min(limit, 50))
+    ).map(({ _id, sourceKey, status, uploadId }) => ({
+      _id,
+      sourceKey,
+      status,
+      uploadId,
+    })),
 });
 
 export const consumeSessionBySourceKey = internalMutation({
@@ -411,30 +427,5 @@ export const deleteSession = internalMutation({
   handler: async (ctx, { sessionId }) => {
     await ctx.db.delete(sessionId);
     return null;
-  },
-});
-
-export const cleanupExpiredMultipartUploads = internalAction({
-  args: {},
-  returns: v.object({ cleaned: v.number() }),
-  handler: async (ctx) => {
-    const sessions = await ctx.runQuery(
-      internal.fileUploads.findExpiredSessions,
-      { limit: 50, now: Date.now() }
-    );
-    let cleaned = 0;
-    for (const session of sessions) {
-      if (session.status === "uploading") {
-        await callFilesWorkerJson({
-          op: "abort-multipart",
-          params: { key: session.sourceKey, uploadId: session.uploadId },
-        }).catch(() => undefined);
-      }
-      await ctx.runMutation(internal.fileUploads.deleteSession, {
-        sessionId: session._id,
-      });
-      cleaned += 1;
-    }
-    return { cleaned };
   },
 });

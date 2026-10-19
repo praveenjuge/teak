@@ -195,6 +195,27 @@ describe("export cleanup", () => {
   });
 });
 
+describe("email receipt cleanup", () => {
+  test("prunes receipts page by page until none are left past retention", async () => {
+    const remaining = [200, 200, 37];
+    const test = setup("receipt-cleanup", {
+      "inbound/ingest:pruneReceipts": () => {
+        const deleted = remaining.shift() ?? 0;
+        return { deleted, hasMore: deleted === 200 };
+      },
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      pruned: 437,
+    });
+    expect(remaining).toEqual([]);
+    expect(heartbeats(test.calls)).toEqual([
+      "cleanup-inbound-email-receipts started",
+      "cleanup-inbound-email-receipts succeeded",
+    ]);
+  });
+});
+
 describe("orphan sweep", () => {
   test("reports week-old objects nothing references and sweeps the vector ledger", async () => {
     const old = Date.now() - 8 * DAY_MS;

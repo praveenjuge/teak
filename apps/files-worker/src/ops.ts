@@ -1,4 +1,5 @@
 import type { BrowserWorker } from "@cloudflare/puppeteer";
+import { CRONS, cronTasksOn } from "@teak/convex/cronSchedules";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
@@ -348,6 +349,7 @@ const dispatch = async (
       return success(requestId, {
         operations: FILES_OPS,
         importModes: IMPORT_MODES,
+        crons: cronTasksOn("cloudflare").map((task) => CRONS[task].name),
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),

@@ -27,7 +27,7 @@ import {
   importModeValidator,
 } from "./schema";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
-import { buildR2UserPrefix } from "./storage/r2";
+import { buildR2UserPrefix, queueObjectDeletion } from "./storage/r2";
 import { queueImportWorkflow } from "./workflowDispatch";
 
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
@@ -804,14 +804,52 @@ export const getFailureReportRows = internalQuery({
 
 export const findExpiredUploads = internalQuery({
   args: { now: v.number(), limit: v.number() },
-  returns: v.any(),
-  handler: (ctx, { now, limit }) =>
-    ctx.db
-      .query("importJobs")
-      .withIndex("by_status_upload_expires", (q) =>
-        q.eq("status", "uploading").lt("uploadExpiresAt", now)
-      )
-      .take(limit),
+  returns: v.array(
+    v.object({
+      _id: v.id("importJobs"),
+      sourceKey: v.string(),
+      uploadId: v.optional(v.string()),
+    })
+  ),
+  handler: async (ctx, { now, limit }) =>
+    (
+      await ctx.db
+        .query("importJobs")
+        .withIndex("by_status_upload_expires", (q) =>
+          q.eq("status", "uploading").lt("uploadExpiresAt", now)
+        )
+        .take(limit)
+    ).map(({ _id, sourceKey, uploadId }) => ({ _id, sourceKey, uploadId })),
+});
+
+/**
+ * Fails an import whose upload expired, once the Files Worker has aborted its
+ * multipart upload, and queues the source for deletion. A job that is no
+ * longer an expired upload is left alone, so a repeated run does nothing.
+ */
+export const expireAbandonedUpload = internalMutation({
+  args: { jobId: v.id("importJobs") },
+  returns: v.boolean(),
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    const expiresAt = job?.uploadExpiresAt;
+    if (job?.status !== "uploading" || !expiresAt || expiresAt >= Date.now()) {
+      return false;
+    }
+    await assertAccountNotDeleting(ctx, job.userId);
+    await queueObjectDeletion(ctx, job.sourceKey);
+    await ctx.db.patch(jobId, {
+      status: "failed",
+      phase: "Import failed",
+      failureClass: "upload_expired",
+      uploadId: undefined,
+      uploadExpiresAt: undefined,
+      uploadedParts: undefined,
+      completedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return true;
+  },
 });
 
 export const deleteItemsPage = internalMutation({

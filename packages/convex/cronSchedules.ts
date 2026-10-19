@@ -11,36 +11,38 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
+  // The Files Worker runs the hourly cleanups with the workflow reconcile.
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",
-    schedule: "10 * * * *",
+    schedule: "45 * * * *",
     everyMs: HOUR_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   cleanupAbandonedImportUploads: {
     name: "cleanup-abandoned-import-uploads",
-    schedule: "0 * * * *",
+    schedule: "45 * * * *",
     everyMs: HOUR_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   cleanupExpiredUploadSessions: {
     name: "cleanup-expired-upload-sessions",
-    schedule: "30 * * * *",
+    schedule: "45 * * * *",
     everyMs: HOUR_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   cleanupSemanticSearchCache: {
     name: "cleanup-semantic-search-cache",
-    schedule: "40 * * * *",
+    schedule: "45 * * * *",
     everyMs: HOUR_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
-  // Save by email receipts past any sender's redelivery window.
+  // Save by email receipts past any sender's redelivery window, pruned by the
+  // maintenance workflow with the export cleanup.
   cleanupInboundEmailReceipts: {
     name: "cleanup-inbound-email-receipts",
-    schedule: "20 3 * * *",
+    schedule: "0 3 * * *",
     everyMs: DAY_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   adminDailySnapshot: {
     name: "admin-daily-snapshot",

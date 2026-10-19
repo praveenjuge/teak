@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { CRONS, cronTasksOn } from "../packages/convex/cronSchedules";
 import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
 
@@ -79,6 +80,7 @@ for (;;) {
         browser?: boolean;
         fetcher?: boolean;
         images?: boolean;
+        crons?: string[];
         importModes?: string[];
         operations?: string[];
         renderer?: boolean;
@@ -101,7 +103,11 @@ for (;;) {
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
-      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
+      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode)) &&
+      // Convex stops running a cron once the Worker's Cron Triggers run it.
+      cronTasksOn("cloudflare").every((task) =>
+        result.data?.crons?.includes(CRONS[task].name)
+      );
   } catch (error) {
     failedWith =
       error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)
@@ -110,7 +116,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks and signing verified."
     );
     break;
   }
