@@ -18,6 +18,7 @@ const required = [
   "fetch-link-page",
   "store-remote-asset",
   "store-linked-pdf",
+  "store-onboarding-files",
   "embed-upsert",
   "vector-delete",
   "vector-get",
@@ -80,6 +81,7 @@ for (;;) {
         fetcher?: boolean;
         images?: boolean;
         importModes?: string[];
+        onboardingFiles?: boolean;
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -100,6 +102,7 @@ for (;;) {
       result.data.vectors === true &&
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
+      result.data.onboardingFiles === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch (error) {
@@ -110,7 +113,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, the getting-started files and signing verified."
     );
     break;
   }

@@ -1,13 +1,10 @@
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
 import { v } from "convex/values";
-import type { ActionCtx, MutationCtx } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
 import { ensureObjectOwnership } from "../storage/ownership";
-import {
-  buildSignedWorkerUploadUrl,
-  putObjectViaFilesWorker,
-} from "./filesWorkerClient";
+import { buildSignedWorkerUploadUrl } from "./filesWorkerClient";
 import { tryResolveObjectUrl } from "./fileUrls";
 
 export { cardStorageObjectKeys } from "./cardObjectKeys";
@@ -34,25 +31,6 @@ export const queueObjectDeletion = async (ctx: MutationCtx, key?: string) => {
   }
   assertR2KeyInNamespace(key);
   await enqueueObjectDeletion(ctx, [key]);
-};
-
-export const storeObject = async (
-  ctx: ActionCtx,
-  blob: Blob,
-  opts: {
-    key: string;
-    userId: string;
-    type?: string;
-  }
-) => {
-  await ensureObjectOwnership(ctx, opts.userId, opts.key);
-  assertR2KeyInNamespace(opts.key);
-  await putObjectViaFilesWorker({
-    body: blob,
-    contentType: opts.type ?? blob.type ?? "application/octet-stream",
-    key: opts.key,
-  });
-  return opts.key;
 };
 
 export const generateUploadUrl = mutation({

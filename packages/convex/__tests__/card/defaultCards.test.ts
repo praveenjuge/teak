@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { statSync } from "node:fs";
+import { join } from "node:path";
+import { isOnboardingSourceName } from "@teak/files-protocol";
 import {
   finishOnboardingCard,
   isOnboardingCard,
@@ -7,8 +10,12 @@ import {
   type OnboardingCardDef,
 } from "../../card/defaultCards";
 import { validateTextCardContent } from "../../card/markdown";
-import { ONBOARDING_FILES } from "../../card/onboarding/files";
 import { validateFileFormat } from "../../shared/fileFormats";
+
+const WORKER_ONBOARDING_ASSETS = join(
+  import.meta.dir,
+  "../../../../apps/files-worker/assets/onboarding"
+);
 
 describe("getting-started cards", () => {
   test("cover every card type once", () => {
@@ -34,10 +41,13 @@ describe("getting-started cards", () => {
       (card): [string, OnboardingCardDef] => [card.onboarding, card]
     )
   )(
-    "the %s card's files are embedded and its original fits its card type",
+    "the %s card's files ship with the Files Worker and its original fits its card type",
     (_: string, card: OnboardingCardDef) => {
       for (const upload of card.uploads ?? []) {
-        expect(ONBOARDING_FILES[upload.source]?.length).toBeGreaterThan(1000);
+        expect(isOnboardingSourceName(upload.source)).toBe(true);
+        expect(
+          statSync(join(WORKER_ONBOARDING_ASSETS, upload.source)).size
+        ).toBeGreaterThan(1000);
       }
       const original = card.uploads?.find((upload) => upload.slot === "file");
       if (original) {

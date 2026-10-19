@@ -66,6 +66,10 @@ import {
   renderPdfPage,
 } from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import {
+  parseStoreOnboardingFilesParams,
+  storeOnboardingFiles,
+} from "./onboardingFiles";
 import { OpFailure } from "./opFailure";
 import { ocrPdfPages } from "./pdfOcr";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
@@ -120,6 +124,7 @@ export const getFilesOpObjectKey = (params: unknown): string => {
 
 export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   AI?: WorkersAiBinding;
+  ASSETS?: Fetcher;
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
@@ -356,6 +361,7 @@ const dispatch = async (
         vectors: Boolean(env.CARD_VECTORS_0),
         workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
         vectorTypes: true,
+        onboardingFiles: Boolean(env.ASSETS),
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
@@ -746,6 +752,11 @@ const dispatch = async (
       return success(
         requestId,
         await storeLinkedPdf(env, parseLinkedPdfParams(params))
+      );
+    case "store-onboarding-files":
+      return success(
+        requestId,
+        await storeOnboardingFiles(env, parseStoreOnboardingFilesParams(params))
       );
     case "embed-upsert":
       return success(

@@ -217,6 +217,17 @@ Operation request bodies are limited to 1 MiB before signature verification.
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
   bytes never leave the worker (`src/imageMetadata.ts`).
+- `store-onboarding-files` copies a new account's getting-started files into
+  R2 at the keys Convex names (at most 32), with the content type Convex gives,
+  and answers each object's size (`src/onboardingFiles.ts`). The files ship
+  with the Worker as static assets (`assets/onboarding/`, the `ASSETS`
+  binding, read with `env.ASSETS.fetch`), so they never pass through Convex
+  and do not count toward the script size. A card's files land together or
+  not at all: when one is missing or fails, the others are deleted and the
+  card answers `stored: false`. `assets.run_worker_first` is `true`, so every
+  request still reaches the Worker and no asset has a public path.
+  `capabilities` reports `onboardingFiles` when the binding is there, and the
+  deploy readiness check requires it.
 
 ## Rendering and media
 
