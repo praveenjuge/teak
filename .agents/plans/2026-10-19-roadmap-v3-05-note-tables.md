@@ -12,7 +12,7 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 - **Keys:**
   - Tab moves to the next cell. Tab in the last cell adds a row.
   - Shift+Tab moves back.
-  - Enter inside a cell stays in the cell (a hard break) and never splits the table.
+  - Enter inside a cell moves to the same column in the next row (adding a row from the last one) and never splits the table. Cells are single-line, because a GFM table row can't hold a line break, and `<br>` would be HTML in a cell, which stays literal.
   - Backspace in an empty table with all cells empty removes it.
 - **Hover menu:** hovering or focusing a cell shows a small "⋯" control at the table's top-right with:
   - Add row above, Add row below;
@@ -22,7 +22,7 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 
   Nothing else: no merging, no alignment, no resizing (owner decision: minimal).
 - **Existing notes:** notes that already contain a GFM table (pasted, imported or typed) open as rich tables when they round-trip losslessly. Otherwise they stay literal Markdown, as today. Opening a note never rewrites its string.
-- **Tiles:** `cards/CardBody.tsx` shows table text as "Cell · Cell · Cell", one row per line, with no pipes or dashes.
+- **Tiles:** `cards/CardBody.tsx` shows table text as "Cell · Cell · Cell / Cell · Cell · Cell", rows separated by " / ", with no pipes or dashes.
 - **Elsewhere:** the native apps show the raw Markdown, unchanged. Export, the API and MCP return the Markdown string unchanged.
 
 ## Context And Current Facts
@@ -55,7 +55,7 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 
 - **`markdownDocument.ts`:**
   - Add the table extensions to `documentExtensions`.
-  - Add a `table` case to `markdownMeaning`: `["table", header cells' meaning, rows' cells' meaning]`. It rejects (throws) any non-empty `align` entry, so aligned tables stay literal.
+  - Add a `table` case to `markdownMeaning`: `["table", header cells' meaning, rows' cells' meaning]`. It rejects (throws) any non-empty `align` entry, so aligned tables stay literal. It also throws for a table nested inside a blockquote or list item (the walk passes a nesting depth down), so those stay literal too; the editor only supports top-level tables.
   - `hasSameMarkdownMeaning` then guards round-trips as it does for every other block.
 - **`RichMarkdownEditor.tsx`:**
   - Append a `Table` item to `commands`: title "Table", keywords `["grid", "columns", "rows"]`, `lucide-react` icon `Table`. It runs `insertTable({ rows: 3, cols: 3, withHeaderRow: true })`.
@@ -75,8 +75,8 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 - **`lib/markdownToPlainText.ts`:** a table rule, run before the line-marker rules:
   - drop the delimiter row;
   - strip leading and trailing pipes;
-  - join cells with " · ";
-  - one row per line.
+  - join cells with " · " and rows with " / ".
+  Rows can't go on separate lines: the pipeline collapses whitespace (`whitespaceRun`, `markdownToPlainText.ts:51`) and the tile clamps one paragraph (`CardBody.tsx:89`), so a separator is used instead.
 - **`text-editor/README.md`:** replace the "Table insertion and table controls are excluded" line with the new behaviour and its limits.
 
 ## Backend
@@ -140,7 +140,10 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
   - aligned, ragged and escaped-pipe tables stay literal;
   - `hasSameMarkdownMeaning` for tables.
 - `packages/ui/src/components/text-editor/__tests__/LoadedMarkdownTextEditor.test.tsx`: the slash menu lists Table; inserting one serializes a 3×3 GFM table.
-- `packages/ui/src/lib/__tests__/markdownToPlainText.test.ts`: the table rule, including a table followed by text.
+- `packages/ui/src/components/card-previews/__tests__/markdownToPlainText.test.ts` (the existing file): the table rule, including a table followed by text and the row separator.
+- `markdownDocument.test.ts` also covers a table inside a blockquote and inside a list item staying literal.
+- `LoadedMarkdownTextEditor.test.tsx` also covers: Enter in a cell moving down (and adding a row from the last one), Shift+Tab moving back, Backspace removing an empty table, each of the 7 menu actions, and the 20-column and 200-row caps.
+- Update `packages/tests/src/web/markdown-editor.e2e.ts:520` ("existing tables remain editable as literal Markdown without table controls"), which asserts no `table` role: it now uses an aligned table, which still stays literal, and a plain GFM table is covered by the new spec.
 - e2e: `packages/tests/src/web/note-tables.e2e.ts` (new). `/table`, type in cells, Tab adds a row, use the menu to add and delete a column, reload, and the content is still there.
 
 ## Proof before the PR
