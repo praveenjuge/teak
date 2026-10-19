@@ -4,9 +4,11 @@ import { createConvexRpc } from "./convexRpc";
 import { type CronDeps, type CronEnv, handleScheduled } from "./cron";
 import {
   createFakeConvex,
+  type FakeHandler,
   TEST_RPC_ROOT_SECRET,
   TEST_SIGNING_SECRET,
 } from "./test/fakeConvex";
+import { FakeBucket } from "./test/testsupport";
 
 const PROD = "https://prod-deployment.convex.site";
 const DEV = "https://dev-deployment.convex.site";
@@ -16,17 +18,31 @@ const env = (overrides: Partial<CronEnv> = {}) =>
   ({
     ANALYTICS_ACCOUNT_ID: "account",
     ANALYTICS_API_TOKEN: "token",
+    BUCKET: new FakeBucket() as unknown as R2Bucket,
     CONVEX_SITE_URLS: `${PROD},${DEV}`,
     FILES_SIGNING_SECRET: TEST_SIGNING_SECRET,
     WORKFLOW_RPC_ROOT_SECRET: TEST_RPC_ROOT_SECRET,
     ...overrides,
   }) as CronEnv;
 
-const setup = (deps: Partial<CronDeps> = {}) => {
+const nothingExpired = () => ({ deleted: 0, hasMore: false });
+
+const setup = (
+  deps: Partial<CronDeps> = {},
+  handlers: Record<string, FakeHandler> = {}
+) => {
   const fakes = new Map(
     [PROD, DEV].map((url) => [
       url,
-      createFakeConvex({ "adminHealth:recordCronRun": () => null }),
+      createFakeConvex({
+        "adminHealth:recordCronRun": () => null,
+        "dataImport:findExpiredUploads": () => [],
+        "fileUploads:findExpiredSessions": () => [],
+        "operationalRetention:startIdempotencyCleanup": () => null,
+        "search/relevanceCache:cleanupExpired": nothingExpired,
+        "search/semanticCache:cleanupExpired": nothingExpired,
+        ...handlers,
+      }),
     ])
   );
   const calls: string[] = [];
@@ -71,22 +87,26 @@ const setup = (deps: Partial<CronDeps> = {}) => {
     (fakes.get(url)?.callsTo("adminHealth:recordCronRun") ?? []).map(
       ({ args }) => `${String(args.name)} ${String(args.phase)}`
     );
-  return { calls, heartbeats, run };
+  const convexCalls = (url: string, name: string) =>
+    fakes.get(url)?.callsTo(name) ?? [];
+  return { calls, convexCalls, heartbeats, run };
 };
 
 describe("Cron Triggers", () => {
   test.each([
-    ["0 2 * * *", "card-cleanup"],
-    ["0 3 * * *", "export-cleanup"],
+    ["0 2 * * *", ["card-cleanup"]],
+    ["0 3 * * *", ["export-cleanup", "receipt-cleanup"]],
   ])(
-    "%s starts %s in every deployment without its own heartbeat",
-    async (cron, task) => {
+    "%s starts %p in every deployment without its own heartbeat",
+    async (cron, tasks) => {
       const { calls, heartbeats, run } = setup();
       await run(cron);
       expect(calls.sort()).toEqual(
-        [PROD, DEV]
-          .map(
-            (url) => `${task} ${url} ${new Date(SCHEDULED_AT).toISOString()}`
+        tasks
+          .flatMap((task) =>
+            [PROD, DEV].map(
+              (url) => `${task} ${url} ${new Date(SCHEDULED_AT).toISOString()}`
+            )
           )
           .sort()
       );
@@ -127,19 +147,53 @@ describe("Cron Triggers", () => {
     ]);
   });
 
-  test("the hourly crons roll up AI usage and reconcile workflows per deployment", async () => {
-    const { calls, heartbeats, run } = setup();
+  test("the hourly crons roll up AI usage, reconcile workflows and run every hourly cleanup per deployment", async () => {
+    const { calls, convexCalls, heartbeats, run } = setup();
     await run("15 * * * *");
     await run("45 * * * *");
     expect(calls.sort()).toEqual(
       [`rollup ${DEV}`, `rollup ${PROD}`, "reconcile", "reconcile"].sort()
     );
-    expect(heartbeats(PROD)).toEqual([
-      "ai-usage-rollup started",
-      "ai-usage-rollup succeeded",
-      "reconcile-workflows started",
-      "reconcile-workflows succeeded",
-    ]);
+    const ran = [
+      "ai-usage-rollup",
+      "reconcile-workflows",
+      CRONS.cleanupExpiredIdempotency.name,
+      CRONS.cleanupAbandonedImportUploads.name,
+      CRONS.cleanupExpiredUploadSessions.name,
+      CRONS.cleanupSemanticSearchCache.name,
+    ];
+    for (const url of [PROD, DEV]) {
+      expect(heartbeats(url).sort()).toEqual(
+        ran.flatMap((name) => [`${name} started`, `${name} succeeded`]).sort()
+      );
+      expect(
+        convexCalls(url, "operationalRetention:startIdempotencyCleanup")
+      ).toHaveLength(1);
+    }
+  });
+
+  test("a failed hourly cleanup is recorded without stopping the others", async () => {
+    const { heartbeats, run } = setup(
+      {},
+      {
+        "dataImport:findExpiredUploads": () => {
+          throw new Error("query failed");
+        },
+      }
+    );
+    await run("45 * * * *");
+    const outcomes = heartbeats(PROD).filter(
+      (heartbeat) => !heartbeat.endsWith("started")
+    );
+    expect(outcomes).toContain(
+      `${CRONS.cleanupAbandonedImportUploads.name} failed`
+    );
+    expect(outcomes).toContain(
+      `${CRONS.cleanupExpiredUploadSessions.name} succeeded`
+    );
+    expect(outcomes).toContain(
+      `${CRONS.cleanupSemanticSearchCache.name} succeeded`
+    );
   });
 
   test("the AI usage rollup records nothing where the SQL API is not configured", async () => {

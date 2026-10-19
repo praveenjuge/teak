@@ -116,6 +116,66 @@ test("renewing an expired request before cleanup preserves its reservation", asy
   ).toBe(4);
 });
 
+test("the hourly cron's cleanup does nothing until retention is enabled", async () => {
+  const t = convexTest(schema, modules);
+  await seedRequests(t);
+  for (const flag of ["", "false", "TRUE"]) {
+    vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", flag);
+    expect(
+      await t.mutation(
+        internal.operationalRetention.startIdempotencyCleanup,
+        {}
+      )
+    ).toBeNull();
+  }
+  expect(
+    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
+  ).toBe(4);
+
+  vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", "true");
+  expect(
+    await t.mutation(internal.operationalRetention.startIdempotencyCleanup, {})
+  ).toMatchObject({ deleted: 1, isDone: true, skipped: false });
+  expect(
+    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect()))
+      .map((row) => row.keyHash)
+      .sort()
+  ).toEqual(["boundary-completed", "expired-pending", "live-completed"]);
+});
+
+test("an hourly cron run during a scan joins it instead of starting another", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 101; i++) {
+      await ctx.db.insert("apiIdempotencyKeys", {
+        keyHash: `cron-overlap-${i}`,
+        userId: "customer",
+        method: "POST",
+        path: "/v1/cards",
+        requestHash: "body",
+        state: i < 100 ? "pending" : "completed",
+        responseStatus: 201,
+        responseBody: null,
+        expiresAt: now - 1000 + i,
+        createdAt: now - 2000,
+        updatedAt: now - 2000,
+      });
+    }
+  });
+  const first = await t.mutation(
+    internal.operationalRetention.startIdempotencyCleanup,
+    {}
+  );
+  expect(first).toMatchObject({ isDone: false, continuationScheduled: true });
+  expect(
+    await t.mutation(internal.operationalRetention.startIdempotencyCleanup, {})
+  ).toMatchObject({ skipped: true, examined: 0 });
+  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  expect(
+    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
+  ).toBe(100);
+});
+
 test("activation and cutoff guards reject unsafe cleanup", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);

@@ -591,7 +591,7 @@ test("cleanup removes only expired cache entries", async () => {
   await env.cache("new search", []);
   expect(
     await env.t.mutation(internal.search.semanticCache.cleanupExpired, {})
-  ).toBe(1);
+  ).toEqual({ deleted: 1, hasMore: false });
   const rows = await env.t.run((ctx) =>
     ctx.db.query("semanticSearchResults").collect()
   );

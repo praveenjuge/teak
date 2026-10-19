@@ -9,26 +9,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "15 * * * *",
     handler: "workosEventCatchUp",
   },
-  "cleanup-expired-idempotency": {
-    cron: "10 * * * *",
-    handler: "cleanupExpiredIdempotency",
-  },
-  "cleanup-abandoned-import-uploads": {
-    cron: "0 * * * *",
-    handler: "cleanupAbandonedImportUploads",
-  },
-  "cleanup-expired-upload-sessions": {
-    cron: "30 * * * *",
-    handler: "cleanupExpiredUploadSessions",
-  },
-  "cleanup-semantic-search-cache": {
-    cron: "40 * * * *",
-    handler: "cleanupSemanticSearchCache",
-  },
-  "cleanup-inbound-email-receipts": {
-    cron: "20 3 * * *",
-    handler: "cleanupInboundEmailReceipts",
-  },
   "admin-daily-snapshot": {
     cron: "45 0 * * *",
     handler: "adminDailySnapshot",

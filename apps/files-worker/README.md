@@ -539,7 +539,8 @@ params, which must be one of `CONVEX_SITE_URLS`.
 
 ## Cron Triggers
 
-`src/cron.ts` runs the background tasks that used to be Convex crons. The
+`src/cron.ts` runs the background tasks that used to be Convex crons; Convex
+keeps the table logic in internal functions the Worker calls. The
 schedules live in `packages/convex/cronSchedules.ts` (`runsOn: "cloudflare"`)
 and must equal `triggers.crons` in both Wrangler configs; a Convex test checks.
 This Worker serves every deployment in `CONVEX_SITE_URLS`, so each task runs
@@ -552,11 +553,38 @@ health view lists them beside Convex's own crons.
 | Cron (UTC) | Task |
 | --- | --- |
 | `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat |
-| `0 3 * * *` | Export cleanup (maintenance workflow) |
+| `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow |
 | `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
 | `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
 | `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
-| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) |
+| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) and the hourly cleanups below |
+
+The hourly cleanups (`src/hourlyCleanup.ts`) run side by side, each with its
+own heartbeat, and page Convex until it has nothing left:
+
+- `cleanup-semantic-search-cache` deletes expired rows from both search
+  caches, 500 a call (`search/semanticCache:cleanupExpired`,
+  `search/relevanceCache:cleanupExpired`).
+- `cleanup-abandoned-import-uploads` takes imports whose upload window passed
+  (`dataImport:findExpiredUploads`, 50 a page), aborts each multipart upload
+  in R2 in-process, then fails the job and queues its source for deletion
+  (`dataImport:expireAbandonedUpload`, which leaves a job that is no longer an
+  expired upload alone). A failed abort keeps the job for the next hour and
+  fails the run.
+- `cleanup-expired-upload-sessions` aborts the multipart upload of each
+  expired session still uploading (a failed abort is ignored) and deletes the
+  session (`fileUploads:findExpiredSessions`, `fileUploads:deleteSession`).
+- `cleanup-expired-idempotency` calls
+  `operationalRetention:startIdempotencyCleanup`, which does nothing unless
+  Convex's `OPERATIONAL_RETENTION_ENABLED` is `true`. Otherwise it starts the
+  retention scan, which keeps its lease and continues itself in bursts in
+  Convex (`.agents/convex-costs.md`).
+
+The `capabilities` op lists the names of the tasks this Worker runs (`crons`),
+and `scripts/check-files-readiness.ts` holds the Convex deploy until it
+includes every `runsOn: "cloudflare"` task, so no cleanup stops running in
+between. Every cleanup is safe to repeat, so a Convex cron and the Worker
+running the same task during a deploy do no harm.
 
 The reconcile (`src/workflowReconcile.ts`) asks Convex for runs that have not
 reported for longer than their kind allows (`workflowDispatch:listStale`) and
@@ -613,8 +641,8 @@ it is 24 hours old the consumer reads its head and deletes it if it is still
 there and was uploaded at least 24 hours ago, the same rule as the
 `cleanup-stale-pending-uploads` op. The weekly cron runs that op in-process for
 `users/` and `dev/users/` until it reaches the end or five minutes pass, as a
-backstop for events that never arrived. Convex's hourly sweep is gone; its
-cron (`cleanup-expired-upload-sessions`) now only expires upload sessions.
+backstop for events that never arrived. Convex's hourly sweep is gone; the
+hourly `cleanup-expired-upload-sessions` task only expires upload sessions.
 
 ## AI usage (Analytics Engine)
 

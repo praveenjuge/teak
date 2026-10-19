@@ -27,6 +27,7 @@ export const MAINTENANCE_TASKS = [
   "card-cleanup",
   "export-cleanup",
   "orphan-sweep",
+  "receipt-cleanup",
 ] as const;
 export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
 
@@ -38,6 +39,7 @@ const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
   "card-cleanup": CRONS.cleanupOldDeletedCards.name,
   "export-cleanup": CRONS.cleanupExpiredExports.name,
   "orphan-sweep": CRONS.sweepOrphanedObjects.name,
+  "receipt-cleanup": CRONS.cleanupInboundEmailReceipts.name,
 };
 
 const CARD_CLEANUP_BATCH = 10;
@@ -285,6 +287,22 @@ const sweepStorage = async (context: TaskContext) => {
   return null;
 };
 
+const pruneEmailReceipts = async ({ convex, run }: TaskContext) => {
+  let pruned = 0;
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const result = await run.step.do(
+      `prune email receipts ${page}`,
+      CONVEX_STEP,
+      () => convex.mutation(internal.inbound.ingest.pruneReceipts, {})
+    );
+    pruned += result.deleted;
+    if (!result.hasMore) {
+      break;
+    }
+  }
+  return { pruned };
+};
+
 const TASKS: Record<
   MaintenanceTask,
   (context: TaskContext) => Promise<unknown>
@@ -292,6 +310,7 @@ const TASKS: Record<
   "card-cleanup": cleanUpCards,
   "export-cleanup": cleanUpExports,
   "orphan-sweep": sweepStorage,
+  "receipt-cleanup": pruneEmailReceipts,
 };
 
 export const runMaintenance = async (

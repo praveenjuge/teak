@@ -2,6 +2,12 @@ import { internal } from "@teak/convex/_generated/api";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { type AiUsageRollupEnv, rollUpAiUsage } from "./aiUsageRollup";
 import { type ConvexRpc, convexSiteUrls, createConvexRpc } from "./convexRpc";
+import {
+  cleanUpSearchCaches,
+  expireImportUploads,
+  expireUploadSessions,
+  startIdempotencyCleanup,
+} from "./hourlyCleanup";
 import { enqueueAiBackfill } from "./queues/aiBackfill";
 import { sweepStalePendingUploads } from "./queues/r2Events";
 import { reportBackgroundError } from "./telemetry";
@@ -67,7 +73,7 @@ const SCHEDULE = {
   aiUsage: CRONS.aiUsageRollup.schedule,
   cardCleanup: CRONS.cleanupOldDeletedCards.schedule,
   exportCleanup: CRONS.cleanupExpiredExports.schedule,
-  reconcile: CRONS.reconcileWorkflows.schedule,
+  hourly: CRONS.reconcileWorkflows.schedule,
   weekly: CRONS.sweepOrphanedObjects.schedule,
 } as const;
 
@@ -118,7 +124,10 @@ export const handleScheduled = async (
       await forEachDeployment("card-cleanup", maintenance("card-cleanup"));
       return;
     case SCHEDULE.exportCleanup:
-      await forEachDeployment("export-cleanup", maintenance("export-cleanup"));
+      await Promise.all([
+        forEachDeployment("export-cleanup", maintenance("export-cleanup")),
+        forEachDeployment("receipt-cleanup", maintenance("receipt-cleanup")),
+      ]);
       return;
     case SCHEDULE.weekly:
       await Promise.all([
@@ -146,17 +155,58 @@ export const handleScheduled = async (
         )
       );
       return;
-    case SCHEDULE.reconcile:
-      await forEachDeployment(
-        "reconcile-workflows",
-        monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
-          const summary = await (deps.reconcileWorkflows ?? reconcileWorkflows)(
-            env,
-            convex
-          );
-          console.log("[cron] workflows reconciled", summary);
-        })
-      );
+    case SCHEDULE.hourly:
+      await Promise.all([
+        forEachDeployment(
+          "reconcile-workflows",
+          monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
+            const summary = await (
+              deps.reconcileWorkflows ?? reconcileWorkflows
+            )(env, convex);
+            console.log("[cron] workflows reconciled", summary);
+          })
+        ),
+        forEachDeployment(
+          "cleanup-expired-idempotency",
+          monitoredTask(
+            CRONS.cleanupExpiredIdempotency.name,
+            async (_url, convex) => {
+              const report = await startIdempotencyCleanup(convex);
+              console.log("[cron] idempotency cleanup", report ?? "disabled");
+            }
+          )
+        ),
+        forEachDeployment(
+          "cleanup-abandoned-import-uploads",
+          monitoredTask(
+            CRONS.cleanupAbandonedImportUploads.name,
+            async (_url, convex) => {
+              const expired = await expireImportUploads(env, convex);
+              console.log("[cron] import uploads expired", { expired });
+            }
+          )
+        ),
+        forEachDeployment(
+          "cleanup-expired-upload-sessions",
+          monitoredTask(
+            CRONS.cleanupExpiredUploadSessions.name,
+            async (_url, convex) => {
+              const cleaned = await expireUploadSessions(env, convex);
+              console.log("[cron] upload sessions expired", { cleaned });
+            }
+          )
+        ),
+        forEachDeployment(
+          "cleanup-semantic-search-cache",
+          monitoredTask(
+            CRONS.cleanupSemanticSearchCache.name,
+            async (_url, convex) => {
+              const deleted = await cleanUpSearchCaches(convex);
+              console.log("[cron] search caches cleaned", deleted);
+            }
+          )
+        ),
+      ]);
       return;
     default:
       console.error("[cron] no task", { cron: controller.cron });

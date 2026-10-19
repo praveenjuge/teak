@@ -862,7 +862,9 @@ describe("account deletion and retention", () => {
     });
     await send(email({ messageId: "<new@x>" }));
 
-    expect(await t.mutation(internal.inbound.ingest.pruneReceipts, {})).toBe(1);
+    expect(await t.mutation(internal.inbound.ingest.pruneReceipts, {})).toEqual(
+      { deleted: 1, hasMore: false }
+    );
     expect(await receipts()).toHaveLength(1);
   });
 

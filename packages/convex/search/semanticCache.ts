@@ -1,6 +1,5 @@
 import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -110,9 +109,10 @@ export const storeRanking = internalMutation({
   },
 });
 
+/** The Files Worker's hourly cron calls this until `hasMore` is false. */
 export const cleanupExpired = internalMutation({
   args: {},
-  returns: v.number(),
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx) => {
     const expired = await ctx.db
       .query("semanticSearchResults")
@@ -121,13 +121,9 @@ export const cleanupExpired = internalMutation({
     for (const entry of expired) {
       await ctx.db.delete("semanticSearchResults", entry._id);
     }
-    if (expired.length === CLEANUP_BATCH) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.search.semanticCache.cleanupExpired,
-        {}
-      );
-    }
-    return expired.length;
+    return {
+      deleted: expired.length,
+      hasMore: expired.length === CLEANUP_BATCH,
+    };
   },
 });

@@ -484,9 +484,10 @@ export const dropEmailAttachment = internalMutation({
 export const RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PRUNE_BATCH = 200;
 
+/** The Files Worker's daily maintenance calls this until `hasMore` is false. */
 export const pruneReceipts = internalMutation({
   args: {},
-  returns: v.number(),
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx) => {
     const expired = await ctx.db
       .query("inboundEmailReceipts")
@@ -497,13 +498,9 @@ export const pruneReceipts = internalMutation({
     for (const receipt of expired) {
       await ctx.db.delete("inboundEmailReceipts", receipt._id);
     }
-    if (expired.length === PRUNE_BATCH) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.inbound.ingest.pruneReceipts,
-        {}
-      );
-    }
-    return expired.length;
+    return {
+      deleted: expired.length,
+      hasMore: expired.length === PRUNE_BATCH,
+    };
   },
 });

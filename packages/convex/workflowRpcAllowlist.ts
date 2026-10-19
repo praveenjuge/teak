@@ -74,6 +74,14 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "storage/orphanSweep:listPrefix",
   "storage/orphanSweep:logOrphanReport",
   "storage/orphanSweep:pageSweepCards",
+  "dataImport:expireAbandonedUpload",
+  "dataImport:findExpiredUploads",
+  "fileUploads:deleteSession",
+  "fileUploads:findExpiredSessions",
+  "inbound/ingest:pruneReceipts",
+  "operationalRetention:startIdempotencyCleanup",
+  "search/relevanceCache:cleanupExpired",
+  "search/semanticCache:cleanupExpired",
 ]);
 
 export const isWorkflowRpcFunction = (name: string): boolean =>
