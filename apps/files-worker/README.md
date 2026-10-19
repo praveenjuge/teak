@@ -664,6 +664,16 @@ runs at 00:45 UTC, after the 00:15 rollup has finalized yesterday.
 
 ## Export archive lifecycle
 
+An export's snapshot is the ids of the cards it takes, kept in the export
+workflow's own `snapshot page N` step results (200 ids, about 7 KB, a page).
+`dataExport:getExportSnapshotPage` pages the owner's live cards newest first
+and writes nothing; the archive step then reads the cards' current contents
+100 at a time with `getExportCardsByIds`, leaving out any deleted since. So a
+card edited during an export is archived as edited, and Convex writes no row
+per card. A run that snapshotted on an older Worker, or that reaches a Convex
+deployment without the query (the Worker deploys first), uses
+`exportJobItems` rows instead and drains them when it ends.
+
 Export archives, their `.checkpoint.json` and `.result.json` sidecars and the
 transient `.manifest.json` live under the top-level `exports/<userHash>/`
 prefix (`dev/exports/` for development), not under `users/`. Convex still
