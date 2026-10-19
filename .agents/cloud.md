@@ -16,6 +16,11 @@ running the API, CLI, MCP and repository checks.
   `CONVEX_DEPLOYMENT` names the dev deployment. The SessionStart hook warns
   when any of them are set; until they're removed, prefix commands with
   `env -u NAME …`.
+- **Files Workers:** a session needs no Cloudflare token. Workers Builds
+  deploys both Files Workers from `main` (`teak-files-prod` and
+  `teak-files-dev`), and the dev deployment's Convex env already points at
+  `teak-files-dev`. `bun run dev files` also works with only the deploy key
+  (it reads the dev signing key from Convex), but its containers need Docker.
 - **Setup script:** `bash .agents/setup`, so the toolchain, packages and the
   E2E suite's Chromium land in the cached snapshot.
 - **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN

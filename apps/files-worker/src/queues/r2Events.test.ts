@@ -74,7 +74,7 @@ describe("pending upload events", () => {
       bytes: new Uint8Array([1]),
       uploadedAt: NOW + 20 * HOUR_MS,
     });
-    const { batch, outcomes } = createFakeBatch("teak-dev-r2-events", [
+    const { batch, outcomes } = createFakeBatch("teak-r2-events-dev", [
       { key: DEV_PENDING, kind: "pending-upload-check", uploadedAt: NOW },
     ]);
     await handleR2EventsBatch(batch, env, NOW + 25 * HOUR_MS);

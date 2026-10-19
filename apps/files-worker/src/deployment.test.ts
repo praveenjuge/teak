@@ -40,7 +40,7 @@ test("only the production worker reports errors to PostHog", () => {
 
 test.each([
   ["production", "../wrangler.jsonc", "teak-ai-backfill"],
-  ["development", "../development/wrangler.jsonc", "teak-dev-ai-backfill"],
+  ["development", "../development/wrangler.jsonc", "teak-ai-backfill-dev"],
 ])(
   "the %s AI backfill queue delivers a message MAX_DELIVERIES times",
   (_name, path, queue) => {
@@ -59,7 +59,7 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
     config: resolve(import.meta.dir, "../development/wrangler.jsonc"),
   });
   expect(config.main).toBe(resolve(import.meta.dir, "index.ts"));
-  expect(config.name).toBe("teak-files-development");
+  expect(config.name).toBe("teak-files-dev");
   expect(config.routes).toEqual([]);
   expect(config.r2_buckets).toEqual([
     {
@@ -100,17 +100,21 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.ratelimits ?? []).toEqual([]);
 });
 
-// wrangler dev reads the production vars, so local runs must blank the token.
-test.each(["dev", "dev:local"] as const)(
-  "%s sends nothing to PostHog",
-  (script) => {
-    const { values } = parseArgs({
-      args: packageJson.scripts[script].split(" ").slice(2),
-      options: {
-        remote: { type: "boolean" },
-        var: { type: "string", multiple: true },
-      },
-    });
-    expect(values.var).toContain("POSTHOG_PROJECT_TOKEN:");
-  }
-);
+// dev:local reads the production vars, so it must blank the token.
+test("dev:local sends nothing to PostHog", () => {
+  const { values } = parseArgs({
+    args: packageJson.scripts["dev:local"].split(" ").slice(2),
+    options: {
+      remote: { type: "boolean" },
+      var: { type: "string", multiple: true },
+    },
+  });
+  expect(values.var).toContain("POSTHOG_PROJECT_TOKEN:");
+});
+
+// Remote local development runs the development config, never production's.
+test("dev runs the development Worker config", () => {
+  expect(packageJson.scripts.dev).toBe(
+    "bun --no-env-file run ../../scripts/files-worker-dev.ts"
+  );
+});

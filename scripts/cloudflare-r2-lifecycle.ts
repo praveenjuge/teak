@@ -110,7 +110,7 @@ export const R2_BUCKETS = {
       ABORT_INCOMPLETE_UPLOADS,
     ],
     notifications: {
-      "teak-dev-r2-events": [userWrites("dev-user-writes", "dev/users/")],
+      "teak-r2-events-dev": [userWrites("dev-user-writes", "dev/users/")],
     },
   },
 } satisfies Record<string, BucketConfig>;

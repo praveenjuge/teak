@@ -6,7 +6,7 @@ import {
   parseConvexEnvOutput,
 } from "./check-cloudflare";
 
-export const DEVELOPMENT_FILES_WORKER = "teak-files-development";
+export const DEVELOPMENT_FILES_WORKER = "teak-files-dev";
 export const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 
 export interface DevelopmentFilesRouting {

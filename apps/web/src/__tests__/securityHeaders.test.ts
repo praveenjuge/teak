@@ -335,8 +335,7 @@ describe("configured local backend security policy", () => {
     expect(policy).not.toContain(url);
     expect(policy).not.toContain(`${new URL(url).origin} `);
   });
-  const devFilesOrigin =
-    "https://teak-files-development.praveenjuge.workers.dev";
+  const devFilesOrigin = "https://teak-files-dev.praveenjuge.workers.dev";
   const fileDirectives = ["img-src", "connect-src", "media-src", "frame-src"];
   const directive = (policy: string, name: string) =>
     policy

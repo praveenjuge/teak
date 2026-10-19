@@ -43,7 +43,7 @@ describe("object deletion consumer", () => {
 
   test("retries only the message whose delete failed", async () => {
     const { bucket, env } = setup();
-    const { batch, outcomes } = createFakeBatch("teak-dev-object-deletions", [
+    const { batch, outcomes } = createFakeBatch("teak-object-deletions-dev", [
       { keys: [key(0)] },
       { keys: [key(1)] },
     ]);

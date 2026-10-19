@@ -83,7 +83,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
    In Convex dev also set `INBOUND_EMAIL_DOMAIN=in-dev.teakvault.com`
    (production uses the default, `in.teakvault.com`).
 2. **Deploy the Workers.** `bun run deploy` (production, `teak-email-in`)
-   and `bun run deploy:development` (`teak-email-in-development`).
+   and `bun run deploy:development` (`teak-email-dev`).
 3. **This code on the dev deployment.** Push the branch's Convex functions
    to the shared dev deployment (`bun run dev`; see `.agents/development.md`
    for the push lease). Production stays as it is until step 6.
@@ -93,7 +93,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
    TXT (SPF) records; they must not touch the root domain's mail. Catch-all
    rules work only on the apex domain, so under Routing rules add a literal
    rule for `save@in-dev.teakvault.com` with the action **Send to a
-   Worker** → `teak-email-in-development`. In Email Routing → Settings, turn
+   Worker** → `teak-email-dev`. In Email Routing → Settings, turn
    on **Subaddressing**, so `save+anything@` reaches the same rule. Any
    other address on the subdomain matches no rule and is refused by
    Cloudflare.
@@ -101,7 +101,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
    - Turn on Save by email for a dev account in Settings.
    - Send from Gmail, iCloud and Outlook accounts to
      `save@in-dev.teakvault.com`, and once to `save+test@in-dev.teakvault.com`.
-   - In `bunx wrangler tail teak-email-in-development` confirm each logs
+   - In `bunx wrangler tail teak-email-dev` confirm each logs
      `outcome: "saved"`, not `outcome: "rejected", reason:
      "no_cloudflare_results"`. That proves Cloudflare adds its
      `ARC-Authentication-Results` (authserv-id `mx.cloudflare.net`) as the
