@@ -1,10 +1,10 @@
 ## Goal
 
-Close the most useful gaps between Teak and three comparable save-everything apps, as 18 separate plans. Each phase is one PR, deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
+Close the most useful gaps between Teak and three comparable save-everything apps, as 18 separate plans. Each phase is one PR (phase 3 is the one exception: its plan splits it into a schema-and-backfill PR and a behaviour PR, plus the usual later PR that drops replaced indexes), deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
 
 ## Success Criteria
 
-- Each phase merges as its own PR, and each PR has:
+- Each phase merges as its own PR (phase 3 as two, see its plan), and each PR has:
   - green CI;
   - a break-it pass over its seed packs;
   - a proof bundle (videos and screenshots) sent to the owner before the PR opens;
@@ -30,7 +30,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
     - Semantic results are blended in with reciprocal rank fusion (`shared/search/semantic.ts`).
     - The embedding model is EmbeddingGemma (768 dimensions, 512 input tokens), in sharded Vectorize indexes (`.agents/semantic-search.md`).
   - **Link processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
-    - It fetches the page HTML (cached 24 hours in KV), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
+    - It fetches the page HTML (kept up to 24 hours in the `LINK_PAGE_CACHE` KV namespace when the binding exists and the fetcher marks the page cacheable), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
     - The HTML and article text are never kept.
   - **Clef** (`@cf/cloudflare/clef`, `packages/files-protocol/src/decisions.ts`) is Workers AI's decision model. It returns a probability for every allowed answer to typed questions and already decides the card type, link category, visual styles and search relevance. `ai/decisions.ts` `runDecision` calls it from Convex.
   - **Folders:**
@@ -58,7 +58,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
 | Extension shortcut | Alt+Shift+S (⌥⇧S) saves the page silently. The icon flashes a check and the badge turns on. No popup |
 | Saved badge | Checks the URL with Teak when a tab is activated or loaded, with a short cache. Visited URLs go to Teak, so the privacy policy says so |
 | URL matching | One normalized URL key (scheme, `www`, trailing slash, fragment, `utm_*`/`fbclid`/`gclid`). The stored `url` stays as saved |
-| Re-saving | A new `savedAt` sort key: "Newest first" sorts by it, and `createdAt` stays the first-save date. Re-saving un-archives the card. It does not merge tags or notes, and does not restore from Trash (a trashed match is ignored). Applies to every surface through one server rule |
+| Re-saving | A new `savedAt` sort key: "Newest first" sorts by it, and `createdAt` stays the first-save date. Re-saving un-archives the card. It does not merge tags or notes, and does not restore from Trash (a trashed match is ignored). Applies to every interactive and API save through one server rule; imports are the exception and never bump (phase 3) |
 | Pasting links | Text where every non-empty line is a URL always becomes one link card per line. Up to 100 per paste, queued past the 30-per-minute rate limit, stopping at the free cap. Repeats use the re-save rule |
 | Tables | GFM tables: `/table` inserts a 3×3 table with a header row, Tab moves between cells, and a hover menu adds and removes rows and columns. Rendered in previews; tiles show plain text. Native apps show raw text for now |
 | Search operators | `-word`, `-"phrase"`, `-qualifier` (`-tag:`, `-#`, `-type:`, `-site:`, `-folder:`, `-is:`), uppercase `OR` and parentheses. Filters apply after semantic blending. Taught through search suggestions and the docs or `?` sheet |
