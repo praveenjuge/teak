@@ -17,7 +17,7 @@ Split any insight by `$lib`.
 | --- | --- | --- | --- |
 | Web app | `web` | Pageviews, web vitals, exceptions, client events, masked replay, feedback survey | `apps/web/src/lib/posthog-client.ts`, `posthog-config.ts` |
 | Web server | `teak-web-server` | Render, route and action errors | `apps/web/src/instrumentation.ts` |
-| Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures | `packages/convex/telemetry/posthog.ts` |
+| Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures. Events from mutations reach PostHog through the Files Worker | `packages/convex/telemetry/posthog.ts`, `telemetry/schedule.ts` |
 | Files worker | `teak-files-worker` | Op failures, uncaught errors, non-retryable background (workflow, queue) failures, and card processing's `$ai_generation` and `card_processing_completed` | `apps/files-worker/src/telemetry.ts`, `src/workflows/telemetry.ts` |
 | Browser extension | `teak-extension` | Errors, `extension_card_saved`, `extension_omnibox_used`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
 | Apple app | `posthog-ios` | Lifecycle events, identify, crashes (main app only; Share and Safari extensions send nothing) | `apps/apple/Teak/App/PostHogReporting.swift` |
@@ -68,7 +68,7 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 - posthog-js never joins the web app's initial bundle. `instrumentation-client.ts` loads it with a dynamic `import()` when the page is idle (`requestIdleCallback`, 3 s timeout). A small queue holds early calls and early `error`/`unhandledrejection` events.
 - The SDK, recorder and surveys load from the same-origin `/ingest` proxy (`next.config.ts` rewrites; `src/proxy.ts` lets `/ingest/` through without auth). CSP needs no third-party hosts.
 - No click autocapture, heatmaps, dead clicks, console logs or network capture. Teak uses no feature flags, but `/flags` still loads after init because the feedback survey's targeting depends on it.
-- Server-side capture (Convex, worker, extension, Next.js `onRequestError`) uses the dependency-free `createPostHogBatch` and sends one `/batch/` request per unit of work. Convex actions flush once at the end (`withBackendTelemetryScope`); mutations schedule exactly one `telemetry/events` action per outcome.
+- Server-side capture (Convex, worker, extension, Next.js `onRequestError`) uses the dependency-free `createPostHogBatch` and sends one `/batch/` request per unit of work. Convex actions flush once at the end (`withBackendTelemetryScope`). Mutations can't fetch, so they queue each event in the workflow dispatch outbox (`queueBackendEvent` in `packages/convex/telemetry/schedule.ts`) and the Files Worker sends a flush's events in one `/batch/` request, unchanged (`$lib: teak-backend`). Convex queues nothing without `POSTHOG_PROJECT_TOKEN`. Delivery is best effort: Convex drops the row when it hands it over.
 - Native SDKs flush in the background (`flushAt` 20, every 30 s) with screen views, replay and flag preloading off.
 
 ## Env vars

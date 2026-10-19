@@ -8,6 +8,8 @@ export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
 export const POSTHOG_PROJECT_ID = "660923";
+/** `$lib` of the Convex backend's events, including those the Files Worker sends for it. */
+export const BACKEND_POSTHOG_LIB = "teak-backend";
 
 const DEFAULT_TIMEOUT_MS = 2000;
 const MAX_FRAMES = 50;
@@ -23,6 +25,7 @@ export interface PostHogEvent {
   event: string;
   properties: PostHogProperties;
   timestamp: string;
+  uuid?: string;
 }
 
 export interface PostHogCaptureInput {
@@ -30,6 +33,10 @@ export interface PostHogCaptureInput {
   event: string;
   properties?: PostHogProperties;
   set?: PostHogProperties;
+  /** ISO time the event happened; defaults to now. */
+  timestamp?: string;
+  /** Lets PostHog drop a repeat of the same event. */
+  uuid?: string;
 }
 
 export interface PostHogExceptionInput {
@@ -236,7 +243,8 @@ export const createPostHogBatch = (
           ...(input.distinctId ? {} : { $process_person_profile: false }),
           ...(input.set ? { $set: input.set } : {}),
         },
-        timestamp: new Date().toISOString(),
+        timestamp: input.timestamp ?? new Date().toISOString(),
+        ...(input.uuid ? { uuid: input.uuid } : {}),
       });
     });
   };

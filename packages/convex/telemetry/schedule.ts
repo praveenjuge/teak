@@ -1,25 +1,45 @@
-import { internal } from "../_generated/api";
 import type { MutationCtx } from "../_generated/server";
+import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
+import type { PostHogProperties } from "../shared/posthog";
 import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
+import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
+import { queueAnalyticsEvent } from "../workflowDispatch";
+import { type InboundEmailEventArgs, recordInboundEmailEvent } from "./events";
+import { backendAppVersion, isBackendCaptureEnabled } from "./posthog";
 
-type ScheduledFunction = Parameters<MutationCtx["scheduler"]["runAfter"]>[1];
-
-const telemetryFunctions = (
-  internal as unknown as {
-    telemetry: {
-      events: {
-        emitCardOutcome: ScheduledFunction;
-        emitCardProcessingFailed: ScheduledFunction;
-        emitUserCreated: ScheduledFunction;
-      };
-    };
+/**
+ * Mutations cannot fetch, so they queue each event in the workflow dispatch
+ * outbox and the Files Worker sends a flush's events in one PostHog request.
+ * The event matches `captureBackendEvent`'s. Property names can't start with
+ * `$` (Convex reserves them).
+ */
+export const queueBackendEvent = async <Name extends ServerEventName>(
+  ctx: MutationCtx,
+  event: Name,
+  distinctId: string | undefined,
+  properties: ServerEventCatalog[Name],
+  options: { set?: PostHogProperties } = {}
+): Promise<void> => {
+  // A deployment without a Files Worker could never send the row.
+  if (!(isBackendCaptureEnabled() && isFilesWorkerConfigured())) {
+    return;
   }
-).telemetry.events;
+  const appVersion = backendAppVersion();
+  await ignoreTelemetryErrorAsync(() =>
+    queueAnalyticsEvent(ctx, {
+      ...(appVersion ? { appVersion } : {}),
+      ...(distinctId ? { distinctId } : {}),
+      event,
+      properties: { surface: "backend", ...properties },
+      ...(options.set ? { set: options.set } : {}),
+      timestamp: new Date().toISOString(),
+      uuid: crypto.randomUUID(),
+    })
+  );
+};
 
-// Mutations cannot fetch, so each outcome schedules one action that sends it.
-
-export const scheduleCardOutcome = async (
-  ctx: Pick<MutationCtx, "scheduler">,
+export const queueCardOutcome = async (
+  ctx: MutationCtx,
   args: {
     cardId?: string;
     cardType?: string;
@@ -27,25 +47,43 @@ export const scheduleCardOutcome = async (
     outcome: "success" | "failure";
     source?: string;
     userId?: string;
-    workflowId?: string;
   }
 ): Promise<void> => {
-  await ignoreTelemetryErrorAsync(() =>
-    ctx.scheduler.runAfter(0, telemetryFunctions.emitCardOutcome, args)
-  );
+  const properties = {
+    card_type: args.cardType ?? "unknown",
+    source: args.source ?? "unknown",
+  };
+  if (args.outcome === "success") {
+    await queueBackendEvent(ctx, "card_created", args.userId, properties);
+  } else {
+    await queueBackendEvent(ctx, "card_create_failed", args.userId, {
+      ...properties,
+      error_class: args.errorClass,
+    });
+  }
 };
 
-export const scheduleUserCreated = async (
-  ctx: Pick<MutationCtx, "scheduler">,
+export const queueUserCreated = async (
+  ctx: MutationCtx,
   args: { email?: string; source?: string; userId: string }
 ): Promise<void> => {
-  await ignoreTelemetryErrorAsync(() =>
-    ctx.scheduler.runAfter(0, telemetryFunctions.emitUserCreated, args)
+  await queueBackendEvent(
+    ctx,
+    "user_signed_up",
+    args.userId,
+    { source: args.source },
+    {
+      set: {
+        ...(args.email ? { email: args.email } : {}),
+        plan: "free",
+        signed_up_at: new Date().toISOString(),
+      },
+    }
   );
 };
 
-export const scheduleCardProcessingFailed = async (
-  ctx: Pick<MutationCtx, "scheduler">,
+export const queueCardProcessingFailed = async (
+  ctx: MutationCtx,
   args: {
     cardType?: string;
     errorClass: string;
@@ -53,7 +91,17 @@ export const scheduleCardProcessingFailed = async (
     userId?: string;
   }
 ): Promise<void> => {
-  await ignoreTelemetryErrorAsync(() =>
-    ctx.scheduler.runAfter(0, telemetryFunctions.emitCardProcessingFailed, args)
-  );
+  await queueBackendEvent(ctx, "card_processing_failed", args.userId, {
+    card_type: args.cardType,
+    error_class: args.errorClass,
+    stage: args.stage,
+  });
 };
+
+export const queueInboundEmailEvent = (
+  ctx: MutationCtx,
+  args: InboundEmailEventArgs
+): Promise<void> =>
+  recordInboundEmailEvent(args, (event, properties) =>
+    queueBackendEvent(ctx, event, args.userId, properties)
+  );

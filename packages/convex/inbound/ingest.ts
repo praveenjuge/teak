@@ -12,6 +12,7 @@ import { CARD_ERROR_CODES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { normalizeIdentityEmail } from "../shared/workosIds";
 import { queueObjectDeletion } from "../storage/r2";
+import { queueInboundEmailEvent } from "../telemetry/schedule";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";
 
@@ -108,8 +109,7 @@ const emit = (
         reason: "format" | "size" | "limit";
         userId: string;
       }
-) =>
-  ctx.scheduler.runAfter(0, internal.telemetry.events.emitInboundEmail, args);
+) => queueInboundEmailEvent(ctx, args);
 
 // What upload validation says about a file Teak won't take. Any other error
 // (an account being deleted, say) fails the email, so the sender retries.

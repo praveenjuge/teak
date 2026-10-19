@@ -468,8 +468,8 @@ The streaming binding contract is also documented in the
 
 Deploy the worker operations before their Convex callers. The backend deployment
 runs `bun run scripts/check-files-readiness.ts --prod --wait`: an authenticated,
-read-only capability probe must confirm the required operations and AI/Images
-bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
+read-only capability probe must confirm the required operations, dispatch item
+types and AI/Images bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
 
 The first index step retains its original function reference and arguments.
 Old journal results have no continuation cursor and follow their existing step
@@ -522,6 +522,19 @@ rows to the `dispatch` op, which creates the instances (an ID that already
 exists counts as started, so a resend is safe) and queues object deletions
 on `OBJECT_DELETIONS`. Rows the Worker refuses go back to pending with
 backoff; deletions it accepts are done at once.
+
+Backend analytics events from mutations (`card_created`, `user_signed_up`,
+`card_processing_failed`, Save by email's events) ride the same outbox as
+`analytics-event` items, so a mutation that already starts work adds no
+function call. Convex writes them only when it has `POSTHOG_PROJECT_TOKEN`,
+and deletes each row as it hands it over: events are best effort, never
+retried by Convex. The op answers them ok and, after the response
+(`waitUntil`), sends all of one dispatch's events in one PostHog `/batch/`
+request with this Worker's `POSTHOG_PROJECT_TOKEN`, exactly as Convex would
+(`$lib: teak-backend`, the deployment's `$app_version`, `$set`, the time of
+the change). A failed request is tried once more; each event carries a UUID,
+so PostHog keeps one copy. `capabilities` lists the item types the op takes in
+`dispatchItems`, and the backend readiness check requires `analytics-event`.
 
 Steps read and write Convex through one signed endpoint,
 `POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
@@ -858,8 +871,9 @@ when one is absent. `ANALYTICS_API_TOKEN` is optional and not listed.
   `bunx wrangler secret put ANALYTICS_API_TOKEN` (and
   `--config development/wrangler.jsonc` for the development Worker); unset
   skips the rollup.
-- `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports
-  (errors only, sent with a plain `fetch`). A plain var in the production
+- `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports,
+  card processing's events and the backend events Convex hands to `dispatch`
+  (sent with a plain `fetch`). A plain var in the production
   `wrangler.jsonc`; the development Worker has none, so it reports nothing.
 
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for

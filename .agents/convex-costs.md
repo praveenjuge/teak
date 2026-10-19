@@ -152,6 +152,13 @@ every card once a day, as before, and the overview now reads every card once
 an hour whether or not anyone is looking (up to 200,000 cards a scan), which
 costs more than the old query on a quiet day with a large library.
 
+Analytics events from mutations (`card_created`, `user_signed_up`,
+`card_processing_failed`, Save by email's) no longer schedule an action each.
+They are `workflowDispatches` rows that the next flush hands to the Files
+Worker, which sends them to PostHog. A card create already queues its
+processing, so its event adds one small insert and delete and no function
+call. Deployments without `POSTHOG_PROJECT_TOKEN` write no rows.
+
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,
 so only tool calls reach Convex's HTTP action. WorkOS webhooks are queued at

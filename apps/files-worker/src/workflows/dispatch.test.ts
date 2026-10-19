@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { buildWorkflowDispatchSigningPayload } from "@teak/files-protocol";
 import { workflowRpcSecret } from "../convexRpc";
 import { hmacSha256Hex, sha256Hex } from "../lib";
@@ -242,5 +242,132 @@ describe("runDispatch", () => {
       runDispatch(env, unsigned, Date.now() + 10 * 60 * 1000)
     ).rejects.toThrow("invalid_dispatch_proof");
     expect(queue.sent).toEqual([]);
+  });
+});
+
+describe("runDispatch analytics events", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const posthog = (statuses: number[] = []) => {
+    const requests: Array<{ body: unknown; url: string }> = [];
+    globalThis.fetch = ((url: string, init: RequestInit) => {
+      requests.push({ body: JSON.parse(String(init.body)), url });
+      return Promise.resolve(
+        new Response("{}", { status: statuses.shift() ?? 200 })
+      );
+    }) as unknown as typeof fetch;
+    return requests;
+  };
+
+  const signedUp = {
+    appVersion: "abc123def456",
+    distinctId: "teak_u1",
+    event: "user_signed_up",
+    properties: { source: "auth", surface: "backend" },
+    set: { email: "a@example.com", plan: "free" },
+    timestamp: "2026-10-19T10:00:00.000Z",
+    type: "analytics-event",
+    uuid: "0b0f6d2e-55d3-4c3f-9a51-3a0e4f2d8c11",
+  };
+  const anonymousFailure = {
+    event: "card_processing_failed",
+    properties: {
+      error_class: "timeout",
+      stage: "renderables",
+      surface: "backend",
+    },
+    timestamp: "2026-10-19T10:00:01.000Z",
+    type: "analytics-event",
+    uuid: "5c1e9a7b-1f1d-4a6e-8a3b-2f0f4b3f9e22",
+  };
+
+  test("sends a dispatch's events in one PostHog batch, as Convex would", async () => {
+    const requests = posthog();
+    const pending: Promise<unknown>[] = [];
+    const result = await runDispatch(
+      { ...fakeConvexEnv, POSTHOG_PROJECT_TOKEN: "phc_test" },
+      await signed([signedUp, anonymousFailure]),
+      Date.now(),
+      { waitUntil: (promise) => pending.push(promise) }
+    );
+    expect(result.results).toEqual([
+      { index: 0, ok: true },
+      { index: 1, ok: true },
+    ]);
+    await Promise.all(pending);
+    expect(requests).toEqual([
+      {
+        body: {
+          api_key: "phc_test",
+          batch: [
+            {
+              distinct_id: "teak_u1",
+              event: "user_signed_up",
+              properties: {
+                $app_version: "abc123def456",
+                $lib: "teak-backend",
+                $set: { email: "a@example.com", plan: "free" },
+                source: "auth",
+                surface: "backend",
+              },
+              timestamp: "2026-10-19T10:00:00.000Z",
+              uuid: "0b0f6d2e-55d3-4c3f-9a51-3a0e4f2d8c11",
+            },
+            {
+              distinct_id: "teak-anonymous",
+              event: "card_processing_failed",
+              properties: {
+                $lib: "teak-backend",
+                $process_person_profile: false,
+                error_class: "timeout",
+                stage: "renderables",
+                surface: "backend",
+              },
+              timestamp: "2026-10-19T10:00:01.000Z",
+              uuid: "5c1e9a7b-1f1d-4a6e-8a3b-2f0f4b3f9e22",
+            },
+          ],
+        },
+        url: "https://us.i.posthog.com/batch/",
+      },
+    ]);
+  });
+
+  test("tries a refused batch once more with the same event UUIDs", async () => {
+    const requests = posthog([503]);
+    await runDispatch(
+      { ...fakeConvexEnv, POSTHOG_PROJECT_TOKEN: "phc_test" },
+      await signed([signedUp])
+    );
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.body).toEqual(requests[0]?.body);
+  });
+
+  test("accepts events but sends nothing without a PostHog token", async () => {
+    const requests = posthog();
+    const result = await runDispatch(fakeConvexEnv, await signed([signedUp]));
+    expect(result.results).toEqual([{ index: 0, ok: true }]);
+    expect(requests).toEqual([]);
+  });
+
+  test("refuses malformed events and sends none of them", async () => {
+    const requests = posthog();
+    const result = await runDispatch(
+      { ...fakeConvexEnv, POSTHOG_PROJECT_TOKEN: "phc_test" },
+      await signed([
+        { ...signedUp, uuid: "not-a-uuid" },
+        { ...signedUp, event: "$exception" },
+        { ...signedUp, properties: ["source"] },
+        { ...signedUp, timestamp: "yesterday" },
+        { ...signedUp, distinctId: 42 },
+      ])
+    );
+    expect(result.results.map((entry) => entry.error)).toEqual(
+      Array.from({ length: 5 }, () => "invalid_item")
+    );
+    expect(requests).toEqual([]);
   });
 });

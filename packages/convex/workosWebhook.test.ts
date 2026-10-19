@@ -163,7 +163,7 @@ describe.each([
           },
         ]);
         expect(result.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
-        expect(result.scheduled).toHaveLength(2);
+        expect(result.scheduled).toHaveLength(1);
       } else {
         expect(result.users).toEqual([]);
         expect(result.scheduled).toEqual([]);

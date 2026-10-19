@@ -4,6 +4,7 @@ import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-respons
 import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
   buildFilesOpSigningPayload,
+  DISPATCH_ITEM_TYPES,
   FILES_OPS,
   FILES_PDF_OCR_MAX_PAGES,
   FILES_PROCESSOR_VERSION,
@@ -342,13 +343,15 @@ const dispatch = async (
   env: FilesOpsEnv,
   requestId: string,
   body: FilesOpRequest,
-  origin: string
+  origin: string,
+  ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<Response> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
     case "capabilities":
       return success(requestId, {
         operations: FILES_OPS,
+        dispatchItems: DISPATCH_ITEM_TYPES,
         importModes: IMPORT_MODES,
         crons: cronTasksOn("cloudflare").map((task) => CRONS[task].name),
         maintenanceTasks: MAINTENANCE_TASKS,
@@ -839,7 +842,10 @@ const dispatch = async (
       );
     }
     case "dispatch":
-      return success(requestId, await runDispatch(env, params));
+      return success(
+        requestId,
+        await runDispatch(env, params, Date.now(), ctx)
+      );
     default:
       throw new Error("invalid_operation");
   }
@@ -946,7 +952,7 @@ export const runFilesOp = async (
       env,
       (body.params as Record<string, unknown>).aiUsage
     );
-    const run = () => dispatch(env, requestId, body, origin);
+    const run = () => dispatch(env, requestId, body, origin, ctx);
     return await (usage ? runWithAiUsage(usage, run) : run());
   } catch (error) {
     if (error instanceof MetadataCapacityError) {

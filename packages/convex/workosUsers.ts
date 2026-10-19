@@ -10,7 +10,7 @@ import {
   normalizeIdentityEmail,
   WORKOS_USER_ID,
 } from "./shared/workosIds";
-import { scheduleUserCreated } from "./telemetry/schedule";
+import { queueUserCreated } from "./telemetry/schedule";
 
 const reasonValidator = v.union(
   v.literal("external_id_mismatch"),
@@ -243,7 +243,7 @@ export const linkWorkosUser = internalMutation({
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: teakUserId }
         );
-        await scheduleUserCreated(ctx, {
+        await queueUserCreated(ctx, {
           email,
           source: "auth",
           userId: teakUserId,

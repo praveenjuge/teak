@@ -531,6 +531,9 @@ describe("trusted new WorkOS owners", () => {
     expect(await jobs(t)).toEqual([]);
   });
   test("creates one opaque permanent owner and seeds only once across retries", async () => {
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-files-secret");
     const t = setup();
     await seedProvider(t);
     const result = await t.mutation(link, create);
@@ -557,11 +560,21 @@ describe("trusted new WorkOS owners", () => {
         name: "card/defaultCards:createDefaultCardsForUser",
         args: [{ userId: result.teakUserId }],
       },
+      { name: "workflowDispatch:flush", args: [{}] },
+    ]);
+    const signUpEvents = () =>
+      t.run(async (ctx) =>
+        (await ctx.db.query("workflowDispatches").take(10)).map(
+          (row) => row.params
+        )
+      );
+    const events = await signUpEvents();
+    expect(events).toMatchObject([
       {
-        name: "telemetry/events:emitUserCreated",
-        args: [
-          { email: create.email, userId: result.teakUserId, source: "auth" },
-        ],
+        distinctId: result.teakUserId,
+        event: "user_signed_up",
+        properties: { source: "auth" },
+        set: { email: create.email, plan: "free" },
       },
     ]);
     for (const source of ["ensureUser", "webhook"] as const) {
@@ -571,6 +584,7 @@ describe("trusted new WorkOS owners", () => {
       });
     }
     expect(await jobs(t)).toEqual(scheduled);
+    expect(await signUpEvents()).toEqual(events);
     expect((await snapshot(t)).users).toHaveLength(1);
   });
   test("freeze quarantines without creating and allows the same subject after unfreeze", async () => {
@@ -636,6 +650,6 @@ describe("trusted new WorkOS owners", () => {
       (owner) => owner.workosUserId === create.workosUserId
     );
     expect(created?.teakUserId).toBe(`teak_${created?._id}`);
-    expect(await jobs(t)).toHaveLength(2);
+    expect(await jobs(t)).toHaveLength(1);
   });
 });
