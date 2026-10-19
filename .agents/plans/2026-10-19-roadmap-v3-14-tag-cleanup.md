@@ -52,13 +52,16 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - **No one-click "merge all"** and no automatic merges. Each group is merged on its own.
 - **No undo for a merge.** Existing merges can't be undone either, since Teak doesn't record which card held which tag. The sheet says so beside the Merge button.
 - **One running operation per user.** This stays; the sheet disables the other Merge buttons while one runs.
-- **Candidate rules** (pure, in `shared/tagSimilarity.ts`). Each tag reduces to a fold key:
+- **Candidate rules** (pure, in `shared/tagSimilarity.ts`) apply only to tags written entirely in Latin script (letters matched by `\p{Script=Latin}`, plus digits and separators). Other tags (CJK, Cyrillic, Arabic and so on) never get a fold key or an edit-distance pair, so they only ever appear as exact case-insensitive matches, which `tagKey` already merges. Each Latin tag reduces to a fold key:
   - NFKD, then accents removed, then lowercased;
   - separators `-`, `_`, `.`, `/` and spaces removed;
   - simple English plurals removed: `ies` becomes `y`, then `es` after `s`/`x`/`ch`/`sh`, then a final `s` for stems of 4+ letters.
 - **"Sure" groups** share a fold key. Their reason comes from what differed: Plural, Spacing or Accents.
 - **"Unsure" pairs** are tags whose fold keys are within edit distance 1 (both 5–8 characters) or 2 (both 9+), and that don't share a fold key. Clef confirms them, and only pairs scoring at least 0.85 become "Spelling" or "Similar meaning" groups. At most 64 unsure pairs per computation, the most-used first.
-- **Groups** are merged with union-find and capped at 6 tags each.
+- **Groups:**
+  - Sure pairs (shared fold key) are grouped with union-find, since a shared key is transitive.
+  - An unsure pair confirmed by Clef stays a two-tag group of its own. It is never joined to other groups, so one Merge click never merges a tag that Clef didn't compare with the kept one.
+  - A sure group larger than 6 tags is split into consecutive groups of up to 6 in usage order, all sharing the same fold key, and each is reviewed separately; after one is merged, the rest re-form on the next computation.
 - **Cost bound:** at most 3,000 summary tags, sorted fold keys plus length buckets for edit distance, and at most one Clef request per computation.
 - **Caching:** results are cached per user and recomputed only when the summary's `computedAt` changes, so reopening the page is free.
 - **Analytics:** add `tag_cleanup_reviewed { groups }`, `tag_cleanup_merged { size, reason }` and `tag_cleanup_kept_separate { reason }` first.
@@ -76,11 +79,12 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
     - it reads the summary and dismissals through internal queries;
     - it runs `findTagGroups`, sends the unsure pairs to the Files Worker `decide-tag-pairs` through `ai/decisions.ts` `runDecision`;
     - it writes the cache through an internal mutation.
-    - Concurrent calls are de-duplicated by comparing `summaryComputedAt`.
-    - If the AI gate is denied, it keeps the sure groups only.
-  - `keepTagsSeparate` (mutation, `{ tags: string[] }`): inserts every pair in the group as a dismissal, up to 15 pairs.
+    - It first claims the computation with an internal mutation that sets `computingUntil = now + 2 min` on the cache row; a call that finds an unexpired claim for the same `summaryComputedAt` returns without calling Clef. The claim expires on its own if the action dies.
+    - If the AI gate is denied or the worker call fails, it stores the sure groups with `aiComplete: false`. A cache with `aiComplete: false` reads as `stale` once 24 hours have passed, so spelling and meaning groups come back after AI is available again.
+  - `keepTagsSeparate` (mutation, `{ tags: string[] }`): inserts every pair in the group as a dismissal, up to 15 pairs, and returns their ids.
+  - `undoKeepTagsSeparate` (mutation, `{ dismissalIds }`): deletes those dismissals, checking that each belongs to the caller. The toast's Undo calls it.
 - `tag/tagOperations.ts`: `startTagOperation` and `startTagOperationForUser` accept an optional `alsoFrom: v.array(v.string())` (at most 5) for `kind: "merge"`.
-  - The batch rewrite applies `rewriteTagList` for `from` and then each `alsoFrom` in turn, so one operation merges a whole group.
+  - The batch rewrite applies `rewriteTagList` for `from` and then each `alsoFrom` in turn. The existing loop only pages cards indexed under `from` (`by_user_tag_deleted_created`, `tagOperations.ts:258`), so the operation stores a `sourceIndex` cursor and, once the `from` pages are done, pages the cards tagged with each `alsoFrom` in turn. A card already rewritten no longer carries the source tag, so it isn't processed twice. The operation completes only after every source tag's pages are empty.
   - The operation row stores `alsoFrom` for display.
   - The count limit applies to all its source tags together.
 
@@ -88,7 +92,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 
 - `packages/files-protocol`: `FILES_OPS` gains `"decide-tag-pairs"`. Add `FilesTagPairsParams { pairs: Array<{ id, a, b }> }` (1–64 pairs, tags up to 64 characters), `FilesTagPairsResult` with `{ scores: Array<{ id, same: number }> }`, and `readTagPairsResult`. `DECISION_VERSIONS.tagPairs = 1`.
 - `apps/files-worker/src/decisions.ts`: `buildTagPairsRequest` builds one `noul` question per pair, on `clef-flash`.
-  - instructions: `For organizing saved items, do the tags "javascript" and "javscript" mean the same thing (a typo, spelling variant, plural or synonym)?`
+  - instructions, built per pair with that pair's own tags: `For organizing saved items, do the tags "${a}" and "${b}" mean the same thing (a typo, spelling variant, plural or synonym)?` (for example `"javascript"` and `"javscript"`). Each tag is JSON-escaped before it is inserted.
   - The state is empty. The reply maps to `same` probabilities.
 - Dispatch it in `ops.ts`. The Convex `runDecision` `DecisionOp` union gains it.
 
@@ -118,12 +122,12 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 
 ## API / MCP / SDK / CLI
 
-- `GET /v1/tags/duplicates` returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
+- `GET /v1/tags/duplicates` is a new route: add `"/v1/tags/duplicates"` to the GET paths in `http.ts` (beside `/v1/tags`, line 184) and a branch in `publicApiHttp.ts` (beside line 100). It returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
   - It never calls Clef: it serves the cache, or the sure groups computed on the fly when the cache is missing, so the API doesn't get slower.
-- `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`to` unchanged). An array is sent as `from[0]` plus `alsoFrom`.
+- `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApiHttpTags.ts:21`). An array is sent as `from[0]` plus `alsoFrom`.
 - Add to OpenAPI, and the row in `scripts/public-parity.ts`.
 - MCP: `teak_v1_find_duplicate_tags`, and `teak_v1_merge_tags` accepts an array `from`.
-- SDK: `tags.duplicates()`, and `tags.merge({ from: string | string[], to })`.
+- SDK: `tags.duplicates()`, and `tags.merge(from: string | string[], into: string)`, keeping today's positional signature (`client/sdk.ts:1163`) so existing callers still work.
 - CLI:
   - `teak tags duplicates` prints the groups as a table;
   - `teak tags merge <from...> --into <to>`.
