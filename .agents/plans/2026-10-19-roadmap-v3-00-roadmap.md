@@ -21,7 +21,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
 - Facts several phases rely on (each phase plan lists its own):
   - **Duplicate check:**
     - `card/findDuplicateCard.ts` matches the exact `cards.url` string on `by_user_url_deleted`.
-    - Only the extensions, Raycast and the CLI check for duplicates. `createCard`, `POST /v1/cards`, the bulk API, the web composer and the native share sheets always insert.
+    - The duplicate check is called by the Chrome and Firefox extension and Raycast (through `GET /v1/cards/duplicate`), the Safari extension (the Convex `findDuplicateCard` query), and explicitly through the public API, MCP `teak_v1_check_duplicate_url`, the SDK and `teak cards duplicate`. `createCard`, `POST /v1/cards`, the bulk API, the web composer and the native share sheets always insert.
     - Imports skip existing URLs (`DUPLICATE_URL`).
   - **Grid order:** "Newest first" sorts by `createdAt` (`shared/search/sort.ts`), which is set once and never bumped.
   - **Search:**

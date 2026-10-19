@@ -10,7 +10,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 
 - A new pure function, `urlKey(url)`, gives every saved link a stable key. `cards.urlKey` holds it, indexed by `by_user_urlkey_deleted` beside `by_user_url_deleted`.
 - These all match the existing card `https://www.example.com/post/`:
-  - `GET /v1/cards/duplicate?url=http://example.com/post#top`
+  - `GET /v1/cards/duplicate?url=http%3A%2F%2Fexample.com%2Fpost%23top` (the `#` is percent-encoded, or the client would drop it before sending)
   - the Convex `findDuplicateCard` query (Safari)
   - `teak cards duplicate`
   - MCP `teak_v1_check_duplicate_url`
@@ -57,9 +57,10 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
   - drop the fragment, except hash routes starting `#/` or `#!`, which are kept;
   - remove query parameters whose lowercased name is `fbclid`, `gclid` or starts with `utm_`;
   - keep every other parameter, in its original order;
-  - keep the path's case and percent-encoding as `URL` serializes them.
+  - keep the path's case and percent-encoding as `URL` serializes them;
+  - keep any userinfo (`user:pass@`) in the key. `assertSafeExternalUrl` accepts it today, so dropping it would make two different credentialed URLs collide.
 
-  It returns `host + path + (query ? "?" + query : "") + kept fragment`. Non-http(s) input returns `undefined`.
+  It returns `userinfo + host + path + (query ? "?" + query : "") + kept fragment`. Non-http(s) input returns `undefined`.
 - **Schema:** `cards.urlKey: v.optional(v.string())`. Only cards with a `url` get one.
 - **No behaviour change on save.** `createCard`, `POST /v1/cards`, bulk, web, share sheets and email-in still always insert. Phase 3 adds the re-save rule.
 - **No merging of existing duplicates.** Two existing cards with the same key both stay, and the duplicate check returns the newest.
@@ -69,21 +70,23 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 
 - **New `shared/utils/urlKey.ts`:** `urlKey(url: string): string | undefined`, pure. It is exported from `shared/index.ts` so the web and extension can use the same rule.
 - **`schema.ts`:** `urlKey` in `cardValidator`, plus `.index("by_user_urlkey_deleted", ["userId", "urlKey", "isDeleted"])` beside line 686.
-- **Setting the key on insert:** `card/createCard.ts` sets `urlKey: urlKey(finalUrl)` next to `urlHost`, in `createCardForUserHandler`. That covers the web, the API, Raycast, email-in and import.
+- **Setting the key on insert:** `card/createCard.ts` sets `urlKey: finalUrl ? urlKey(finalUrl) : undefined` next to `urlHost` (`finalUrl` is `string | undefined`), in `createCardForUserHandler`. That covers the web, the API, Raycast, email-in and import.
 - **Keeping it in sync:**
   - Extend `withUrlHost` in `searchDocumentHelpers.ts` to also set `urlKey` when `url` is in the patch. Rename it `withUrlFields` and update its two callers.
   - Have the search-sync repair (around line 314) also fix a stale `urlKey`.
 - **`card/findDuplicateCard.ts`:**
   1. Compute `key = urlKey(url)`.
   2. If there is a key, query `by_user_urlkey_deleted` (`eq urlKey`, `isDeleted` undefined), newest first.
-  3. If that misses, fall back to the exact `by_user_url_deleted` lookup. This keeps cards not yet backfilled findable.
-  4. Return the first live hit.
+  3. Also run the exact `by_user_url_deleted` lookup, which finds cards not yet backfilled.
+  4. Return the newer of the two live hits.
+
+  Until the backfill finishes, an unbackfilled card is found only by its exact URL, not by a variant. That is acceptable for this phase, because nothing new depends on variant matching yet. Phase 3 (re-save) and phase 7 (import) must not ship before the production backfill has finished.
 
   The fallback is listed in `.agents/sunset.md`, to be removed after the backfill has run in production.
 - **Imports:**
   - `dataImport.ts`: the existing-card check uses the same helper, so it gets the key and the fallback.
   - `importJobItems` gains `urlKey: v.optional(v.string())` and `.index("by_jobId_and_urlKey", ["jobId", "urlKey"])` beside `by_jobId_and_url`. The same-file check (lines 439–447 and `import/indexItems.ts`) uses the key when the item has one.
-  - Items written before the deploy have no key, and their job keeps the URL index (`.agents/sunset.md`).
+  - Items written before the deploy have no key. A keyed item also checks `by_jobId_and_url` for its exact URL, so a pre-deploy row in the same job still counts as a duplicate on retry or re-parse; this fallback stays until every pre-deploy job has expired (`.agents/sunset.md`).
 - **New `migration/backfillUrlKey.ts`,** copied from `backfillUrlHost.ts`:
   - pages `cards` with a `url` and sets `urlKey` where it's missing or stale;
   - skips accounts being deleted;
