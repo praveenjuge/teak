@@ -89,22 +89,13 @@ export const downloadEpisodeToR2 = async (
   });
   const parts: R2UploadedPart[] = [];
   const reader = response.body.getReader();
-  let pending: Uint8Array[] = [];
-  let pendingBytes = 0;
+  // R2 completes an upload only when every part but the last is one size,
+  // so reads of any length are cut into exact parts.
+  const part = new Uint8Array(PART_BYTES);
+  let fill = 0;
   let total = 0;
-  const flush = async () => {
-    if (pendingBytes === 0) {
-      return;
-    }
-    const part = new Uint8Array(pendingBytes);
-    let offset = 0;
-    for (const chunk of pending) {
-      part.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    pending = [];
-    pendingBytes = 0;
-    parts.push(await upload.uploadPart(parts.length + 1, part));
+  const flush = async (bytes: Uint8Array) => {
+    parts.push(await upload.uploadPart(parts.length + 1, bytes.slice()));
   };
   try {
     for (;;) {
@@ -118,19 +109,30 @@ export const downloadEpisodeToR2 = async (
         await upload.abort().catch(() => undefined);
         return { reason: "too_large", stored: false };
       }
-      pending.push(value);
-      pendingBytes += value.byteLength;
-      if (pendingBytes >= PART_BYTES) {
-        await flush();
+      let offset = 0;
+      while (offset < value.byteLength) {
+        const taken = Math.min(PART_BYTES - fill, value.byteLength - offset);
+        part.set(value.subarray(offset, offset + taken), fill);
+        fill += taken;
+        offset += taken;
+        if (fill === PART_BYTES) {
+          await flush(part);
+          fill = 0;
+        }
       }
     }
-    await flush();
+    if (fill > 0) {
+      await flush(part.subarray(0, fill));
+    }
     if (total === 0) {
       await upload.abort().catch(() => undefined);
       return { reason: "not_audio", stored: false };
     }
     await upload.complete(parts);
-  } catch {
+  } catch (error) {
+    console.warn("[podcastAudio] episode download or upload broke", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     await reader.cancel().catch(() => undefined);
     await upload.abort().catch(() => undefined);
     return { reason: "blocked", stored: false };
