@@ -131,7 +131,8 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 1. Run the narrowest tests, then the repo checks:
    - `bun run lint`
    - `bun run typecheck`
-   - `bun run --cwd packages/convex test:unit` and `test:edge`
+   - `bun run --cwd packages/convex test:unit`
+   - `bun run --cwd packages/convex test:edge`
    - `bun run --cwd packages/ui test`
    - `bun run --cwd apps/web test`
    - the phase's `packages/tests` e2e specs
