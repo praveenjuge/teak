@@ -131,10 +131,11 @@ export const getAccess = query({
   handler: async (ctx) => ({ allowed: (await readAdminActor(ctx)) !== null }),
 });
 
-// The Files Worker counts the overview hourly (`admin-overview` maintenance
-// task) and stores it, so an open admin page no longer re-reads the cards on
-// every card write. Until the first count lands, the overview is counted
-// here from at most ADMIN_OVERVIEW_LIMIT cards.
+// The Files Worker counts the overview once a day in the same card scan as
+// the daily snapshot (`admin-snapshot` maintenance task) and stores it, so
+// an open admin page no longer re-reads the cards on every card write. Until
+// the first count lands, the overview is counted here from at most
+// ADMIN_OVERVIEW_LIMIT cards.
 export const getOverview = query({
   args: {
     includeOnboarding: v.optional(v.boolean()),
@@ -173,6 +174,8 @@ export const getOverview = query({
   },
 });
 
+// The daily snapshot's one card scan: each row carries what both the overview
+// and the snapshot count.
 export const overviewCardsPage = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (

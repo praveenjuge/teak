@@ -208,7 +208,6 @@ export const handleScheduled = async (
             }
           )
         ),
-        forEachDeployment("admin-overview", maintenance("admin-overview")),
       ]);
       return;
     default:

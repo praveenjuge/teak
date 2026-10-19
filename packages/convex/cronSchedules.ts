@@ -94,13 +94,6 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "cloudflare",
   },
-  // Shares the reconcile's Cron Trigger.
-  adminOverview: {
-    name: "admin-overview",
-    schedule: "45 * * * *",
-    everyMs: HOUR_MS,
-    runsOn: "cloudflare",
-  },
 } as const satisfies Record<
   string,
   { everyMs: number; name: string; runsOn: CronRuntime; schedule: string }

@@ -639,12 +639,12 @@ health view lists them beside Convex's own crons.
 
 | Cron (UTC) | Task |
 | --- | --- |
-| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
+| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot and the admin overview (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
 | `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow |
 | `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
 | `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
 | `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
-| `45 * * * *` | Workflow reconcile (`reconcile-workflows`), the admin overview (`admin-overview`, maintenance workflow) and the hourly cleanups below |
+| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) and the hourly cleanups below |
 
 The hourly cleanups (`src/hourlyCleanup.ts`) run side by side, each with its
 own heartbeat, and page Convex until it has nothing left:
@@ -687,26 +687,29 @@ fails for another reason is tried again the next hour. It then prunes finished d
 ## Admin metrics
 
 The admin console's daily snapshot and overview are counted here, so Convex
-no longer pages every user and card in an action or a reactive query. Both are
-maintenance workflow tasks that read Convex over the workflow RPC gateway, at
-most 400 pages of 500 cards each; a longer scan is stored as approximate. The
-counting code is shared with Convex (`packages/convex/adminStats.ts`).
+no longer pages every user and card in an action or a reactive query. One
+maintenance workflow task, `admin-snapshot`, counts both from a single scan of
+every card over the workflow RPC gateway, at most 400 pages of 500 cards; a
+longer scan is stored as approximate. The counting code is shared with Convex
+(`packages/convex/adminStats.ts`).
 
-- `admin-snapshot` writes one UTC day's `adminDailyMetrics` row (yesterday
-  from the 02:00 cron). It pages `adminMetrics:usersPage`, flags internal
-  accounts (`adminAccess:flagAutoInternalAccounts`), pages
-  `adminMetrics:cardsPage`, reads the day's AI usage, and asks Convex for the
-  billing line (`adminMetrics:readSnapshotBilling`, which calls Polar; the
-  Worker holds no Polar token) when the day is yesterday or today. An admin's
-  "capture snapshot" (`adminMetrics:captureSnapshot`) queues the same task
-  through the outbox with the day as a param, so the row lands a little after
-  the action returns. That run reports to its dispatch row instead of the
-  cron's heartbeat.
-- `admin-overview` counts `admin:getOverview`'s result hourly, with and
-  without onboarding cards, from `admin:overviewCardsPage`, and stores both
-  in `adminOverviews` (`admin:writeOverview`). `getOverview` returns the stored
-  row, with `generatedAt` set to when it was counted; before the first count
-  it counts up to 10,000 cards itself, as it used to.
+- It pages `adminMetrics:usersPage`, flags internal accounts
+  (`adminAccess:flagAutoInternalAccounts`), then pages `admin:overviewCardsPage`
+  once. Each row carries what both counts need.
+- It stores `admin:getOverview`'s result with and without onboarding cards in
+  `adminOverviews` (`admin:writeOverview`). `getOverview` returns the stored
+  row, with `generatedAt` set to when it was counted, so the overview can be
+  up to a day old. Before the first count it counts up to 10,000 cards itself,
+  as it used to.
+- It writes one UTC day's `adminDailyMetrics` row (yesterday from the 02:00
+  cron), leaving onboarding cards out. It reads the day's AI usage and asks
+  Convex for the billing line (`adminMetrics:readSnapshotBilling`, which calls
+  Polar; the Worker holds no Polar token) when the day is yesterday or today.
+
+An admin's "capture snapshot" (`adminMetrics:captureSnapshot`) queues the same
+task through the outbox with the day as a param, so the row lands a little
+after the action returns. That run refreshes the overview too, and reports to
+its dispatch row instead of the cron's heartbeat.
 
 `capabilities` lists the tasks in `maintenanceTasks`, and Backend Deploy waits
 for all of them.

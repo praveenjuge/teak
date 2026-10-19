@@ -91,7 +91,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "admin:writeOverview",
   "adminAccess:flagAutoInternalAccounts",
   "adminAccess:listInternalUserIds",
-  "adminMetrics:cardsPage",
   "adminMetrics:readSnapshotBilling",
   "adminMetrics:usersPage",
   "adminMetrics:writeSnapshot",

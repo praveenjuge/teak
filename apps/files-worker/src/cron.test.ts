@@ -117,23 +117,17 @@ describe("Cron Triggers", () => {
     }
   );
 
-  test("the admin metrics tasks start on their own schedules", async () => {
+  test("the admin snapshot starts once a day on its own schedule", async () => {
     const { calls, run } = setup();
     await run(CRONS.adminDailySnapshot.schedule);
-    await run(CRONS.adminOverview.schedule);
+    await run("15 * * * *");
+    await run("45 * * * *");
     expect(
       calls
         .filter((call) => call.startsWith("admin-"))
         .map((call) => call.split(" ").slice(0, 2).join(" "))
         .sort()
-    ).toEqual(
-      [
-        `admin-overview ${DEV}`,
-        `admin-overview ${PROD}`,
-        `admin-snapshot ${DEV}`,
-        `admin-snapshot ${PROD}`,
-      ].sort()
-    );
+    ).toEqual([`admin-snapshot ${DEV}`, `admin-snapshot ${PROD}`].sort());
   });
 
   test("the weekly cron sweeps orphans per deployment and pending uploads once", async () => {
@@ -173,9 +167,7 @@ describe("Cron Triggers", () => {
     const { calls, convexCalls, heartbeats, run } = setup();
     await run("15 * * * *");
     await run("45 * * * *");
-    expect(
-      calls.filter((call) => !call.startsWith("admin-overview")).sort()
-    ).toEqual(
+    expect(calls.sort()).toEqual(
       [`rollup ${DEV}`, `rollup ${PROD}`, "reconcile", "reconcile"].sort()
     );
     const ran = [
