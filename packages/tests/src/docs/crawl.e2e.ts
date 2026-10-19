@@ -29,6 +29,9 @@ test("sitemap pages and internal links resolve", async () => {
     expect(parse(html).querySelector("title")?.text.trim(), url).toBeTruthy();
     for (const link of parse(html)
       .querySelectorAll("a[href^='/']")
+      // Cloudflare email obfuscation links resolve through client-side
+      // decoding, not a real page, and 404 on a plain fetch.
+      .filter((link) => !link.getAttribute("href")?.startsWith("/cdn-cgi/"))
       .slice(0, 20)) {
       expect(
         (await fetch(new URL(link.getAttribute("href")!, published.siteUrl)))
