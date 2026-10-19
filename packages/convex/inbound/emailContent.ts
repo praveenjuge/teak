@@ -25,9 +25,14 @@ const SUBJECT_PREFIX_REGEX =
   /^(?:re|fwd?|fw|wg|aw|tr|rv|sv|vs|doorst|転送|回复|答复|转发)\s*(?:\[\d+\])?\s*[:：]\s*/iu;
 const WHITESPACE_REGEX = /\s+/gu;
 // Soft hyphens, zero-width characters, the combining grapheme joiner
-// preheaders pad with, and the placeholders used while rendering.
+// preheaders pad with, the placeholders used while rendering, and the object
+// replacement character Apple Mail leaves where an attachment sits.
 const INVISIBLE_REGEX =
-  /\u034f|[\u00ad\u200b-\u200d\u2060\ufeff\ue000\ue001]/gu;
+  /\u034f|[\u00ad\u200b-\u200d\u2060\ufeff\ue000\ue001\ufffc]/gu;
+// Apple Mail's share layout (Share > Mail, or a message a script asks Mail to
+// write) quotes the whole body; the sender wrote no quote.
+const APPLE_SHARE_REGEX = /\bApple-Mail-URLShareWrapperClass\b/u;
+const SHARE_QUOTE_REGEX = /^> ?/gmu;
 const BARE_URL_REGEX = /https?:\/\/[^\s<>"'`[\]{}|\\^]+/giu;
 // A link written `<https://…>`, as mail clients put one in plain text; an
 // HTML body's `&lt;…&gt;` arrives with the brackets escaped.
@@ -580,13 +585,35 @@ const plainTextBody = (text: string): string => {
   return cleanBareUrls(body.replace(INVISIBLE_REGEX, ""));
 };
 
+/**
+ * Apple Mail's share quote, removed only when it covers every written line:
+ * a reply that quotes an earlier share keeps its quotes.
+ */
+const unquoteAppleShare = (body: string, html: string | null): string => {
+  if (!(html && APPLE_SHARE_REGEX.test(html))) {
+    return body;
+  }
+  const written = body.split("\n").filter((line) => line.trim());
+  return written.length > 0 && written.every((line) => line.startsWith(">"))
+    ? body.replace(SHARE_QUOTE_REGEX, "")
+    : body;
+};
+
 /** The body as cleaned Markdown: the text part when it says anything. */
 const emailBody = (text: string | null, html: string | null): string => {
-  if (text?.trim()) {
-    return removeForwardHeaders(plainTextBody(text));
+  const plain = text
+    ? plainTextBody(
+        unquoteAppleShare(
+          text.replace(LINE_ENDINGS_REGEX, "\n").replace(INVISIBLE_REGEX, ""),
+          html
+        )
+      )
+    : "";
+  if (plain.trim()) {
+    return removeForwardHeaders(plain);
   }
   if (html?.trim()) {
-    return removeForwardHeaders(htmlToMarkdown(html));
+    return removeForwardHeaders(unquoteAppleShare(htmlToMarkdown(html), html));
   }
   return "";
 };
